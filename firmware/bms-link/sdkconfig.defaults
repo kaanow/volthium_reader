@@ -1,0 +1,38 @@
+# sdkconfig defaults — committed so a fresh checkout builds with the
+# right options. Override with `idf.py menuconfig` if needed; the
+# CHANGES from these defaults end up in sdkconfig (uncommitted).
+
+# Target
+CONFIG_IDF_TARGET="esp32s3"
+
+# Flash + PSRAM — matches the BoM-specced ESP32-S3-WROOM-1-N16R8
+# (16 MB flash, 8 MB PSRAM)
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+
+# Bluetooth — NimBLE host, BLE central role
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=y
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=y
+CONFIG_BT_NIMBLE_ROLE_PERIPHERAL=n
+CONFIG_BT_NIMBLE_ROLE_BROADCASTER=n
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=2
+
+# FreeRTOS — keep the default 100 Hz tick; we don't need finer.
+CONFIG_FREERTOS_HZ=100
+
+# Light-sleep and power management — enable so power_task can put us
+# in light sleep between activity.
+CONFIG_PM_ENABLE=y
+CONFIG_PM_DFS_INIT_AUTO=y
+CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
+
+# Debug — console on UART0 (matches docs/firmware/architecture.md
+# debug header pinout)
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y

@@ -220,6 +220,42 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **22:42** — Loop wake. Pack SOC 94 % discharging at -4.7 A smoothed
+  (EMA has absorbed the ceiling-fan baseline). Tracking close to the
+  projection.
+  - Design item: **ESP-IDF skeleton for the battery-side firmware**
+    in `firmware/bms-link/`. Concrete pieces:
+    - top-level `CMakeLists.txt` finding the sibling
+      `firmware/common/volthium_lib/` component (single-source for
+      wire protocol + estimator across host C tests AND ESP-IDF
+      firmware)
+    - `sdkconfig.defaults` pre-configured for ESP32-S3-WROOM-1-N16R8
+      (16 MB flash, 8 MB octal PSRAM, BLE NimBLE central role with 2
+      connections, light-sleep enabled)
+    - `main/main.c` initializes NVS, sets up the estimator with
+      `use_hybrid=true` and `capacity_ah=215` (our empirical value),
+      creates 4 FreeRTOS tasks per `architecture.md` § "Battery-side
+      tasks", returns
+    - 4 task stubs (`ble_task`, `tx_task`, `power_task`,
+      `adc_task`), each with a header comment listing the
+      implementation TODO checklist + cross-references to the design
+      docs
+    - `ble_task` already posts synthetic samples every 30 s so the
+      rest of the pipeline (estimator + wire-frame encode) can be
+      exercised end-to-end on real hardware as soon as someone
+      flashes it. `tx_task` builds + logs the encoded frames (UART
+      DE pin handling pending).
+    - `firmware/common/volthium_lib/CMakeLists.txt` as an ESP-IDF
+      component manifest. Host-side `Makefile` still works
+      (re-ran: 39 unit + 4 cross-validation cases still passing).
+    - `firmware/bms-link/README.md` documents status, build flow,
+      and the rough order to fill in the stubs.
+  - **Result**: someone with ESP-IDF v5.x installed can now
+    `idf.py build` and get a runnable image that exercises the
+    shared library on real silicon, even before BLE/RS-485 plumbing
+    is wired up. Big de-risking step for the eventual firmware
+    push.
+
 - **22:09** — Loop wake. Projection sanity check: at 21:35 we predicted
   75 % SOC at sunrise from a -5.9 A baseline; pack now at SOC 95-96 %
   having dropped only ~1 % in 34 min (slightly worse than -5.9 A
