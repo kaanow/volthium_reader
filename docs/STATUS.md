@@ -220,6 +220,25 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **21:27** — Loop wake. Pack at SOC 97 % discharging at -3 to -7 A
+  baseline (no big events since the 20:22 lights demo). Five BLE
+  flaps now captured in the first ~5 h of logging — wrote up the
+  pattern in `docs/firmware/ble_flap_recovery.md`:
+  - All flaps were single-cycle (1 missed read, recovered on next).
+  - Recovery times 3–10 s.
+  - Both batteries flap roughly equally (3× A, 2× B).
+  - Rate ~ 1/hour at 10 s polling.
+  - Root cause likely advertise-vs-scan duty-cycle aliasing — no
+    intervention needed.
+  - Doc spells out firmware retry policy (backoff 500 ms → 30 s,
+    escalate to unreachable-flag after 5 consec / ≥60 s), display-
+    side responses by duration, and a future "flap burst" event
+    type for when the rate spikes (real signal of interference or
+    BMS degradation).
+  - Cross-linked from `docs/firmware/architecture.md`.
+  - Skipping wake-schedule this iteration — one already queued at
+    21:35 from the strategic-shift work.
+
 - **21:01** (user input) — **Strategic shift**: user wants to build
   toward a **generator-use recommender**. Provided cabin context:
   - Location: **Loon Lake, BC** (lat/lon to confirm; defaulting to
