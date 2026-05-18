@@ -106,6 +106,65 @@ So a quiet, normal overnight has a discharge curve of roughly **-5 to
 fridge runs. Anything substantially above that is non-routine usage
 (tools, appliances) and worth surfacing as a heavy-load event.
 
+### Afternoon over-performance vs horizontal irradiance (captured 2026-05-18)
+
+Watching today's live `Ah / kWh/m²` ratio across the day surfaced a
+real model-limitation finding worth recording here so future-me
+doesn't try to "fix" the SolarModel by chasing a single coefficient
+that can never fit.
+
+Observed live-ratio trend on this overcast day (98–100 % cloud):
+
+| Time  | live ratio | drift from 7.0 model |
+|-------|-----------:|---------------------:|
+| 11:39 |       7.14 |          +2 %        |
+| 12:02 |       7.00 |           0 %        |
+| 12:47 |       7.30 |          +4 %        |
+| 13:20 |       7.13 |          +2 %        |
+| 13:47 |       7.49 |          +7 %        |
+| 13:53 |       7.75 |         +11 %  amber |
+| 14:21 |       **8.73** |     **+25 %  red**   |
+
+The mid-morning ratio sits ≈ 7.0 (matches the SolarModel default
+extracted from yesterday's partial-day rollup). The afternoon ratio
+climbs steeply. Reasonable explanation:
+
+- Open-Meteo's `shortwave_radiation_wm2` is the regional **horizontal-
+  plane** irradiance — what a flat-on-the-ground pyranometer would
+  measure.
+- Our **west-facing roof** intercepts the late-afternoon direct beam
+  at a much more favorable angle of incidence than a horizontal plane
+  would. Each watt-hour of horizontal irradiance produces more Ah
+  through our panels than it would through a horizontal reference.
+- The geometric advantage compounds with the fact that during cloud,
+  diffuse sky radiation is more isotropic (less time-of-day-biased)
+  while the *direct* component still depends on sun angle.
+
+### Implication for `SolarModel`
+
+A single coefficient `Ah = c × kWh_horizontal_total_for_the_day` will
+systematically be too low: it averages the morning under-fit and the
+afternoon over-fit, but the relationship isn't really linear when you
+look intra-day. A daily-average constant ≈ 7.0 looks fine on a
+horizon-flat day total but doesn't predict the harvest curve shape.
+
+**For now we accept this limitation** — `SolarModel` is honest about
+its single-day-total assumption, and the dashboard's live-ratio chip
+will surface the divergence (today's late-afternoon chip went red).
+A future iteration could:
+
+1. Bin the (kWh/m², Ah) pairs by **hour-of-day** and fit per-hour
+   coefficients (24 numbers instead of 1).
+2. Multiply Open-Meteo's horizontal irradiance by a **tilt+azimuth
+   transfer function** before passing it to the SolarModel (PVLib
+   has this; we can avoid the dependency by precomputing the
+   function for our specific roof on a clear-sky reference day).
+3. Stay coarse — fit a separate "afternoon multiplier" for hours
+   past solar noon, the simplest possible patch.
+
+Until we have several days of data showing the pattern is stable
+across cloud/sky conditions, we hold at option (3) on the roadmap.
+
 ## Weather sensitivity (working model)
 
 We don't have a calibrated model yet, but the working hypothesis is:

@@ -143,6 +143,49 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **14:21** — Loop wake. **SOC sprint!** Pack **88/87 %** (+3 % per
+  battery in 28 min from 85/84), charging at +11.5 A sustained,
+  voltage 26.91 V. Today's harvest **31.8 Ah / 87 % of forecast** —
+  way ahead of pace. **Live ratio 8.73 — +24.7 % drift, RED zone.**
+  Drift trend over the day: 7.14 → 7.00 → 7.30 → 7.49 → 7.75 → **8.73**.
+  The afternoon segment alone produced ~23 Ah/(kWh/m²), wildly above
+  the daily-average 7.0.
+  - This isn't noise — it's a **real structural finding** about the
+    SolarModel. Open-Meteo's `shortwave_radiation_wm2` is the
+    *horizontal-plane* irradiance (what a flat pyranometer would
+    read). Our **west-facing roof** catches the afternoon direct
+    beam at a much more favorable angle of incidence. So each
+    watt-hour of horizontal irradiance produces more Ah through our
+    tilted/oriented array than it would through a horizontal
+    reference — and this geometric advantage grows as the sun moves
+    westward into our array's sweet spot.
+  - **A single linear coefficient is structurally biased** for a
+    tilted/oriented array. The morning under-fits and the afternoon
+    over-fits average out for a horizon-flat day total but don't
+    predict the harvest curve shape.
+  - Captured in two places this loop:
+    1. `docs/site/loon_lake.md` — new "Afternoon over-performance vs
+       horizontal irradiance" section with today's live-ratio table,
+       the geometric explanation, and three roadmap options (per-
+       hour fit / tilt-azimuth transfer function / simple "afternoon
+       multiplier").
+    2. `volthium/solar_model.py` — class docstring now explicitly
+       calls out the known limitation, points at the doc, and notes
+       that the dashboard's live-ratio chip going amber/red is the
+       intended way to surface intra-day divergence.
+  - **For now the system stays honest**: SolarModel is a daily-total
+    predictor, the calibration chip flips amber/red when reality
+    diverges, the calibration log captures coefficient changes. We
+    don't try to "fix" the coefficient by chasing afternoon highs —
+    that would over-predict on the next overcast day. Until we have
+    several days of data showing the afternoon-over-performance is
+    stable across cloud conditions, we hold at "document the
+    limitation, surface it visibly."
+  - Calibration log still single baseline entry; tonight at 21:00
+    will be the first real fit. Interested to see whether the day-
+    total ratio settles closer to the original 7.0 or shifts up,
+    given the afternoon over-performance.
+
 - **13:53** — Loop wake. **Climb accelerating** — pack SOC **85/84 %**
   (+1 % per battery in just 6 min), charging at **+12.2 A** sustained,
   voltage 26.94 V. Today's harvest **26.4 Ah / 72 % of forecast** at

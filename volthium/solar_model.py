@@ -46,6 +46,27 @@ class SolarModel:
 
     `n_observations` and `fit_residual_mad` tell callers how much to
     trust this instance (higher n + lower MAD → higher confidence).
+
+    Known limitation — non-horizontal arrays:
+        Open-Meteo's `shortwave_radiation_sum_today_wh_m2` is the
+        *horizontal-plane* daily irradiance integral. For a tilted /
+        oriented array (e.g. the cabin's west-facing roof) the
+        Ah-per-(horizontal-kWh/m²) relationship is NOT a single
+        constant intra-day: the morning ratio is lower than the
+        afternoon ratio because the array catches the afternoon sun
+        at a more favorable angle of incidence than a horizontal
+        reference would. The single coefficient ends up being the
+        day-total average, which fits a horizon-flat day-total fine
+        but misses intra-day shape.
+
+        2026-05-18 captured this clearly: live ratio walked
+        7.0 (morning) → 7.5 (early afternoon) → 8.7 (mid afternoon).
+        See `docs/site/loon_lake.md` § "Afternoon over-performance
+        vs horizontal irradiance" for the data + roadmap options.
+
+        For now the dashboard's model-vs-live calibration chip will
+        tip amber / red when intra-day divergence is wide, surfacing
+        the limitation visually.
     """
     coefficient_ah_per_kwh_m2: float
     n_observations: int = 0
@@ -55,7 +76,11 @@ class SolarModel:
     # ---------- prediction ----------
     def predict_ah(self, kwh_per_m2: float) -> float:
         """Return the expected Ah delivered to the pack for an entire
-        day of `kwh_per_m2` total ground-irradiance."""
+        day of `kwh_per_m2` total horizontal-plane ground-irradiance.
+
+        Caveat: this is a daily-total predictor. Intra-day shape on
+        non-horizontal arrays is NOT well captured — see class docstring.
+        """
         if kwh_per_m2 <= 0:
             return 0.0
         return kwh_per_m2 * self.coefficient_ah_per_kwh_m2
