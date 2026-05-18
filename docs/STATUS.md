@@ -143,6 +143,45 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **16:01** — Loop wake. **Pack hit absorption-CV regulation**: SOC
+  **93/93 %**, but state flipped to **IDLE** — charge current went
+  to **0.0 A**. Voltage relaxed 26.87 → 26.74 V. We never reached
+  the 95 % FULL banner under solar-only — capped at 93 % because
+  the Volthium BMS pulls charge current to zero before letting cell
+  voltages climb further. Battery temps: A=24 °C (warmed 1 °C),
+  B=23 °C. Harvest **43.1 Ah / 118 % of forecast** (44 Ah net delta
+  over the day). **Live ratio 9.92** — still creeping (+41.7 %); the
+  numerator keeps growing while the denominator only ticks slowly
+  with each 30-min weather sample.
+  - Design item: **`scripts/end_of_day_report.py` — daily Markdown
+    report generator.** Today is the first complete day of data;
+    capturing the narrative as a permanent artifact in
+    `data/reports/YYYY-MM-DD.md` means every clone of the repo
+    has the day-by-day history readable without re-running any
+    scripts. The report pulls from today_harvest.snapshot(), the
+    daily_summary row, and the calibration_log, and emits clean
+    Markdown:
+    - **Summary** lede: tone-aware sentence (strong / on-track /
+      soft / well-below) about how the day went vs forecast
+    - **Pack** section: SOC walk, charge/discharge totals,
+      generator activity, peaks, first-charging time
+    - **Solar harvest**: total Ah, % of forecast, live ratio
+    - **Weather**: day-total irradiance, cloud avg, temp range,
+      Open-Meteo forecast trajectory (drift + swing)
+    - **SolarModel state**: any calibration_log entries that
+      landed today, as a compact table
+    - **Cross-references** to the data files
+  - **Idempotent**: re-runs overwrite the file with the freshest
+    snapshot. Run early-day → "(partial day so far)". Run after
+    sunset → "**Complete day**".
+  - Today's first report already written to
+    `data/reports/2026-05-18.md`. Tonight after 21:00 a re-run will
+    capture the complete-day numbers including the first SolarModel
+    auto-fit.
+  - From now the loop iteration includes a call to this script —
+    every commit pushes the freshest day-report alongside the
+    data snapshot.
+
 - **15:37** — Loop wake. **PLATEAU confirmed.** Pack SOC **92/92 %**
   (full series-pack symmetry holds), charging at +6.1 A sustained
   (brief cloud break to 94 %, irradiance bumped 412 → 433 W/m²),
