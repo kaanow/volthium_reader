@@ -8,7 +8,7 @@
 CC      ?= cc
 CFLAGS  ?= -std=c11 -Wall -Wextra -Werror -O2
 
-TESTS = test_wire_protocol test_estimator
+TESTS = test_wire_protocol test_estimator test_cross_validation
 
 .PHONY: all test clean
 
@@ -19,6 +19,13 @@ test_wire_protocol: test_wire_protocol.c wire_protocol.c wire_protocol.h
 
 test_estimator: test_estimator.c estimator.c estimator.h
 	$(CC) $(CFLAGS) -o $@ test_estimator.c estimator.c -lm
+
+test_cross_validation: test_cross_validation.c wire_protocol.c wire_protocol.h test_vectors/expected.txt
+	$(CC) $(CFLAGS) -o $@ test_cross_validation.c wire_protocol.c
+
+# Regenerate Python-encoded vectors (run from repo root).
+test_vectors/expected.txt: ../../../scripts/gen_test_vectors.py ../../../volthium/wire_protocol.py
+	cd ../../.. && .venv/bin/python scripts/gen_test_vectors.py
 
 test: $(TESTS)
 	@for t in $(TESTS); do ./$$t || exit 1; done

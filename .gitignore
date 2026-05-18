@@ -17,4 +17,5 @@ hardware/kicad/projects/*/fp-info-cache
 # Compiled C tests
 firmware/common/volthium_lib/test_wire_protocol
 firmware/common/volthium_lib/test_estimator
+firmware/common/volthium_lib/test_cross_validation
 firmware/common/volthium_lib/*.o

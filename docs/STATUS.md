@@ -220,6 +220,32 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **20:55** — Loop wake. **Full fridge cycle captured** in the
+  event detector: "heavy load on -10.3A" at 20:22:22, "heavy load
+  off -9.3A" at 20:23:29 (~67 s = compressor run). Pack now in 1h+
+  of sustained discharge, SOC ticked 100 → 98 %. Discharge bucket
+  growing (n=18 light-discharge windows) but BMS rem_ah still flat
+  at this current — confirms 5+ min windows needed for that field
+  to tick.
+  - Design item: **Python ↔ C cross-validation test.**
+    `scripts/gen_test_vectors.py` builds 4 canonical Python-encoded
+    frames covering charging / discharging-with-negatives / full /
+    battery-A-offline-with-sentinels, dumps each to a 43-byte .bin
+    and a hex manifest in
+    `firmware/common/volthium_lib/test_vectors/`. New
+    `test_cross_validation.c` (1) decodes each Python frame in C and
+    asserts every one of the 21 body fields matches the expected
+    value, (2) re-encodes the same body in C and asserts the bytes
+    are BYTE-IDENTICAL to the Python reference. **All 4 cases pass
+    on both directions** — strongest possible proof the two
+    implementations agree. Wired into the Makefile so `make test`
+    runs all three test programs.
+  - **Cumulative C tests: 39 unit assertions + 4 cross-validation
+    cases (≈ 90 per-field assertions) all passing.** The wire
+    protocol is now provably stable across both impls. Firmware
+    writer can swap between Python tools and embedded C with
+    confidence.
+
 - **20:23** — Loop wake. Pack flipped to **discharging** at -3.5 A
   around 20:00 — overnight cabin loads have started kicking in. Also
   caught a **heavy-load event at 20:22:22 (-10.3 A)** via the event
