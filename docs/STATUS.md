@@ -220,6 +220,28 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **03:09** — Loop wake. Pack SOC 81-82 %, baseline -4.4 A. Fridge
+  cycle at 02:43:16 — 8th capture, 35 min after 02:08 (one-min
+  drift from the canonical 34-min interval; well within normal).
+  Advisor still ✓ no generator needed (projected low 77 %).
+  - Design item: **morning-watch advisory** added to the advisor.
+    Triggers when:
+      - currently within 60 min of sunrise
+      - AND projected low SOC < 50 %
+      - AND not already recommending a generator run
+    Surfaces as a softer "MORNING WATCH" panel on the dashboard
+    (amber, not red) with a reason line suggesting the user
+    consider running the generator soon if today's forecast is
+    weak. Above the hard 25 % comfort floor so the user has time
+    to react before things get critical.
+  - Plumbing: new `morning_watch` + `morning_watch_reason` fields on
+    `Recommendation`; CLI prints a `⚠ MORNING WATCH` line when
+    triggered; dashboard renders the amber panel with the reason.
+  - Currently False (sunrise 2 h away → outside the 60-min window).
+    Will activate ~04:10 if projected_low < 50 % then. At our
+    current trajectory it won't trigger — projected 77 % is well
+    above 50 %.
+
 - **02:36** — Loop wake. Pack SOC 82-83 %. Fridge cycle at ~02:07
   (only the "off" edge tripped the detector this time — cycle was
   shorter than the 15 s persistence window). 6th cycle on the

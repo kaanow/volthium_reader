@@ -509,22 +509,31 @@ async function tick() {
     const advEl = document.getElementById("advisor-panel");
     const rec = j.recommendation;
     if (rec) {
-        const cls = rec.run_generator
-            ? (rec.projected_low_soc != null && rec.projected_low_soc < 15 ? "critical" : "run")
-            : "good";
-        const headline = rec.run_generator
-            ? `RUN GENERATOR · ${rec.duration_h.toFixed(1)} h`
-            : "no generator needed";
+        let cls, headline;
+        if (rec.run_generator) {
+            cls = (rec.projected_low_soc != null && rec.projected_low_soc < 15) ? "critical" : "run";
+            headline = `RUN GENERATOR · ${rec.duration_h.toFixed(1)} h`;
+        } else if (rec.morning_watch) {
+            cls = "run";        // amber styling, same as run-recommended
+            headline = "MORNING WATCH";
+        } else {
+            cls = "good";
+            headline = "no generator needed";
+        }
         let whenLine = "";
         if (rec.run_generator && rec.when_iso) {
             const whenStr = rec.when_iso.slice(11, 16);
             whenLine = `<div class="meta">recommended start ~ ${whenStr}</div>`;
         }
+        const watchLine = (!rec.run_generator && rec.morning_watch && rec.morning_watch_reason)
+            ? `<div class="reason" style="margin-top:6px;color:var(--ylw)">${rec.morning_watch_reason}</div>`
+            : "";
         advEl.innerHTML = `
             <div class="advisor ${cls}">
               <div class="lbl">recommendation (confidence: ${rec.confidence})</div>
               <div class="verdict ${cls}">${headline}</div>
               <div class="reason">${rec.reason}</div>
+              ${watchLine}
               ${whenLine}
             </div>`;
     } else {

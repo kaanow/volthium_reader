@@ -62,6 +62,12 @@ class Recommendation:
     projected_tomorrow_evening_soc: float
     confidence: str
     inputs: dict
+    # Morning-watch advisory: True when we're approaching sunrise with
+    # less SOC margin than feels comfortable, but not bad enough to
+    # demand a generator run. UI should surface this as "consider
+    # running generator soon" without sounding an alarm.
+    morning_watch: bool = False
+    morning_watch_reason: Optional[str] = None
 
 
 def latest_csv_row(path: Path) -> Optional[dict]:
@@ -175,6 +181,25 @@ def main() -> int:
     )
     projected_low = min(projected_sunrise_soc, projected_tomorrow_evening_soc)
 
+    # === Morning watch ===
+    # If we're approaching sunrise (within 60 min) and projected_low is
+    # less comfortable than we'd like, surface a soft advisory even
+    # when not enough to trigger a hard "run generator" recommendation.
+    minutes_to_sunrise = (sunrise_dt - now).total_seconds() / 60.0
+    morning_watch = (
+        0.0 < minutes_to_sunrise <= 60.0
+        and projected_low < 50.0
+        and projected_low >= args.comfort_floor    # only soft warning above floor
+    )
+    morning_watch_reason = None
+    if morning_watch:
+        morning_watch_reason = (
+            f"Approaching sunrise with projected low SOC at {projected_low:.0f} %. "
+            f"Still above the {args.comfort_floor:.0f} % floor, but tighter than "
+            f"comfortable — consider running the generator soon if today's "
+            f"forecast doesn't promise a strong harvest."
+        )
+
     # === Decide ===
     if projected_low >= args.comfort_floor:
         rec = Recommendation(
@@ -199,6 +224,8 @@ def main() -> int:
                     _f(weather_now.get("shortwave_radiation_sum_today_wh_m2")) and
                     _f(weather_now.get("shortwave_radiation_sum_today_wh_m2")) / 1000.0,
             },
+            morning_watch=morning_watch,
+            morning_watch_reason=morning_watch_reason,
         )
     else:
         deficit_pct = args.comfort_floor - projected_low
@@ -229,6 +256,7 @@ def main() -> int:
                 "solar_ah_estimate": solar_ah,
                 "next_eve_ah": next_eve_ah,
             },
+            morning_watch=False,    # subsumed by the hard recommendation
         )
 
     if args.json:
@@ -240,9 +268,13 @@ def main() -> int:
     print(f"=== generator recommendation ({datetime.now():%Y-%m-%d %H:%M}) ===")
     if rec.run_generator:
         print(f"  ▶ RUN GENERATOR for {rec.duration_h:.1f} h starting ~ {rec.when_iso}")
+    elif rec.morning_watch:
+        print(f"  ⚠ MORNING WATCH — soft advisory")
     else:
         print(f"  ✓ no generator needed")
     print(f"\n  reason: {rec.reason}")
+    if rec.morning_watch_reason:
+        print(f"  morning watch: {rec.morning_watch_reason}")
     print(f"\n  inputs:")
     for k, v in rec.inputs.items():
         if v is None:
