@@ -220,6 +220,29 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **21:35** — Loop wake. Pack at SOC 96 % discharging at -5.9 A
+  smoothed. Both data streams (pack + weather) flowing. **First
+  forward projection wired into the dashboard**:
+  - New "PROJECTED SOC AT SUNRISE" panel on the left column,
+    visible when pack is discharging or idle, hidden when charging.
+  - Math: `projected = current_SOC + smoothed_I × hours_to_sunrise
+    / 215 Ah × 100` (215 Ah from `bms_calibration.md` peak
+    observation).
+  - Live numbers right now: SOC 96 % → projected **75 % at 05:10
+    tomorrow** (7h 33m away) at -5.9 A. Comfortable margin.
+  - Shows current cloud %, temperature, today's total irradiance
+    (kWh/m²) as context.
+  - Color-coded: yellow if projected < 25 %, red if < 10 %.
+  - Updated `Volthium Monitor.app` and `Launch …command` so they
+    also start the weather logger and pass `--weather-csv` to the
+    dashboard. Anyone running the .app from cold-start now gets the
+    full pack-plus-weather pipeline.
+  - This is the first concrete piece of the generator-advisor
+    architecture wired into the UI. Solar / discharge models still
+    needed for accuracy (days more data required); for now the
+    projection is naive-extrapolation at current rate, which is
+    fine for the overnight question we're answering tonight.
+
 - **21:27** — Loop wake. Pack at SOC 97 % discharging at -3 to -7 A
   baseline (no big events since the 20:22 lights demo). Five BLE
   flaps now captured in the first ~5 h of logging — wrote up the

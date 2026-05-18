@@ -27,9 +27,17 @@ if ! pgrep -f "scripts/log\.py.*${CSV}" > /dev/null; then
     started_logger=1
 fi
 
+if ! pgrep -f "scripts/weather\.py" > /dev/null; then
+    nohup .venv/bin/python scripts/weather.py --loop --interval 1800 \
+        --csv data/weather.csv \
+        > /dev/null 2>&1 &
+    disown
+fi
+
 if ! pgrep -f "scripts/dashboard\.py.*${PORT}" > /dev/null; then
     nohup .venv/bin/python scripts/dashboard.py \
-        --csv "$CSV" --port "$PORT" \
+        --csv "$CSV" --weather-csv data/weather.csv \
+        --port "$PORT" --host 0.0.0.0 \
         > /dev/null 2>&1 &
     disown
     started_dashboard=1
