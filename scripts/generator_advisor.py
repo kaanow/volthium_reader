@@ -42,21 +42,28 @@ from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import csv as _csv
 import discharge_model  # noqa: E402
+from volthium.solar_model import SolarModel  # noqa: E402
 
 
 # Empirical constants from `docs/hardware/bms_calibration.md` + observed runs.
 PACK_CAPACITY_AH_PER_BATTERY = 215.0
 GENERATOR_RATE_AH_PER_HOUR   = 55.0     # observed ~+55 A average → 55 Ah/h
-# Solar coefficient — first data point from scripts/daily_summary.py
-# (2026-05-17, partial day): 21.4 Ah delivered during ~5.6h of late-
-# afternoon observation on a day with 7.19 kWh/m² total irradiance.
-# Scaling to a full day's worth of harvest gives roughly 7 Ah per
-# (kWh/m² total daily irradiance). West-facing array biases late, so
-# a clear morning still produces less than a clear afternoon.
-# Will be re-fit by a real linear regression once we have ≥3 full-day
-# observations with both irradiance + actual solar Ah.
-SOLAR_AH_PER_KWH_PER_M2_PER_DAY = 7.0
+
+
+def load_solar_model() -> SolarModel:
+    """Try to fit the solar model from data/daily_summary.csv; fall
+    back to the default constant if there's not enough data yet."""
+    path = Path("data/daily_summary.csv")
+    if not path.exists():
+        return SolarModel.default()
+    try:
+        with path.open() as f:
+            rows = list(_csv.DictReader(f))
+    except Exception:
+        return SolarModel.default()
+    return SolarModel.fit_from_daily_summary(rows)
 
 
 @dataclass
@@ -106,21 +113,17 @@ def _f(v) -> Optional[float]:
         return None
 
 
-def project_solar_ah(weather_row: dict) -> float:
-    """STUB: rough Ah delivered to the pack tomorrow given today's
-    irradiance total. To be replaced by a fitted model once we have
-    days of (irradiance × actual Ah delivered) pairs.
-
-    Conservative: uses today's actual irradiance as a proxy for tomorrow,
-    multiplied by the STUB coefficient. Real model will use the
-    forecast and account for the west-facing array's afternoon-heavy
-    profile.
-    """
+def project_solar_ah(weather_row: dict, model: SolarModel) -> float:
+    """Predict Ah delivered to the pack tomorrow given today's
+    irradiance total + a SolarModel. Today's irradiance is used as a
+    proxy for tomorrow's — a real implementation would query the
+    forecast for *tomorrow* specifically. Open-Meteo can do this; the
+    weather logger just isn't recording forecast-day rows yet."""
     today_total = _f(weather_row.get("shortwave_radiation_sum_today_wh_m2"))
     if today_total is None:
         return 0.0
     kwh_per_m2 = today_total / 1000.0
-    return kwh_per_m2 * SOLAR_AH_PER_KWH_PER_M2_PER_DAY
+    return model.predict_ah(kwh_per_m2)
 
 
 def main() -> int:
@@ -172,7 +175,8 @@ def main() -> int:
     projected_sunrise_soc = start_soc - sunrise_pct_drop
 
     # === Solar harvest tomorrow ===
-    solar_ah = project_solar_ah(weather_now)
+    solar = load_solar_model()
+    solar_ah = project_solar_ah(weather_now, solar)
     solar_pct_gain = solar_ah / PACK_CAPACITY_AH_PER_BATTERY * 100.0
 
     # === Discharge sunrise → tomorrow evening (rough; same profile) ===
@@ -208,6 +212,12 @@ def main() -> int:
             f"forecast doesn't promise a strong harvest."
         )
 
+    # The solar model's confidence is the advisor's overall confidence
+    # ceiling. As days accumulate it shifts low → medium → high.
+    # discharge_model confidence isn't tracked yet; for now the advisor
+    # inherits the solar model's label.
+    overall_confidence = solar.confidence
+
     # === Decide ===
     if projected_low >= args.comfort_floor:
         rec = Recommendation(
@@ -222,7 +232,7 @@ def main() -> int:
             projected_low_soc=projected_low,
             projected_sunrise_soc=projected_sunrise_soc,
             projected_tomorrow_evening_soc=projected_tomorrow_evening_soc,
-            confidence="low",
+            confidence=overall_confidence,
             inputs={
                 "start_soc_pct": start_soc,
                 "overnight_ah": overnight_ah,
@@ -257,7 +267,7 @@ def main() -> int:
             projected_low_soc=projected_low,
             projected_sunrise_soc=projected_sunrise_soc,
             projected_tomorrow_evening_soc=projected_tomorrow_evening_soc,
-            confidence="low",
+            confidence=overall_confidence,
             inputs={
                 "start_soc_pct": start_soc,
                 "overnight_ah": overnight_ah,

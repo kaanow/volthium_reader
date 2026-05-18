@@ -220,6 +220,33 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **04:14** — Loop wake. Pack SOC 78-80 %. 10th fridge cycle at
+  03:53:07. **First inside the morning_watch window** (56 min to
+  sunrise) — morning_watch correctly stayed False because
+  projected_low 67 % is well above the 50 % threshold. The amber
+  panel won't fire tonight; the wiring is verified.
+  - Design item: **factored solar coefficient into
+    `volthium/solar_model.py`**. Class-based `SolarModel` with
+    `default()` (constant 7 Ah/(kWh/m²) — current anchor),
+    `fit_from_pairs(...)`, `fit_from_daily_summary(rows)`,
+    `predict_ah(kwh_per_m2)`, `confidence` (low/medium/high based
+    on n_observations).
+    - Fit uses median-of-ratios (robust to outliers like a single
+      misclassified-generator day) through the origin.
+    - Sanity-clamped to [2, 15] Ah/(kWh/m²) so a bad fit can't
+      blow up downstream predictions.
+    - **12 new tests** in `tests/test_solar_model.py`: prediction,
+      confidence tiers, fit through origin, outlier robustness,
+      clamping, partial-day exclusion, missing-field handling.
+  - `scripts/generator_advisor.py` now reads `data/daily_summary.csv`
+    on each run and uses `SolarModel.fit_from_daily_summary()` to
+    auto-fit. Falls back to the constant default until we have ≥ 1
+    usable full-day row (today's row is partial-day so it's
+    excluded — confidence stays "low"; this is correct).
+  - Total tests: **62 Python + 22 C wire-protocol + 17 C estimator
+    + 4 cross-validation = 105 unit-test points + 92 cross-
+    validation assertions** all passing via `make test`.
+
 - **03:42** — Loop wake. Pack SOC 79-81 %. 9th fridge cycle at
   03:18:14 (35 min after 02:43 — on cadence). Advisor verdict
   still ✓; morning_watch still False (sunrise still 1.5 h away).
