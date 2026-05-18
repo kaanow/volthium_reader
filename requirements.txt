@@ -1,3 +1,4 @@
 aiobmsble==0.22.0
 rich>=13.0
 qrcode>=7.4
+certifi>=2024.1.1

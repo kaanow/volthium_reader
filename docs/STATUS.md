@@ -220,6 +220,34 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **21:01** (user input) — **Strategic shift**: user wants to build
+  toward a **generator-use recommender**. Provided cabin context:
+  - Location: **Loon Lake, BC** (lat/lon to confirm; defaulting to
+    51.07 °N / 121.20 °W, the Clinton-area Loon Lake)
+  - Cabin on south side of lake
+  - Roof-mounted PV array, **mostly west-facing** — afternoon /
+    evening sun strong, morning sun limited
+  - Implication: daily harvest curve shifted late vs. typical
+    south-facing arrays. SOC low-point is late-morning, not dawn
+  - **Correction to earlier data**: the 20:22 "heavy load on
+    -10.3 A" event was the user turning on lights to demo the
+    monitor, NOT a fridge cycle. Real fridge cycles are still
+    pending capture.
+  - New design directions started this iteration:
+    - `docs/site/loon_lake.md` — site profile, panel orientation,
+      generator role, open questions (panel specs, exact coords)
+    - `scripts/weather.py` — Open-Meteo fetcher (no API key needed);
+      writes `data/weather.csv`. First fetch successful: 5.8 °C,
+      70 % cloud, sunset was 20:51 today, day total ~ 25.9 MJ/m²
+      ≈ 7.2 kWh/m². Added `certifi` to requirements (macOS
+      Python.org needed it for SSL).
+    - `docs/generator_advisor/README.md` — architecture sketch
+      for the recommendation system: ingest pack.csv + weather.csv
+      → fit solar model → fit discharge model → forward-simulate
+      → output `Recommendation{run_generator, when, duration_h, …}`.
+      Honest about confidence given how little data we have.
+  - **Cumulative C tests: 39 unit + 4 cross-validation cases.**
+
 - **20:55** — Loop wake. **Full fridge cycle captured** in the
   event detector: "heavy load on -10.3A" at 20:22:22, "heavy load
   off -9.3A" at 20:23:29 (~67 s = compressor run). Pack now in 1h+
