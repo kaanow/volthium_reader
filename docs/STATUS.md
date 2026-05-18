@@ -220,6 +220,23 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **08:29** — Loop wake. Pack SOC 71-72 %, baseline drifted from
+  -2.2 A → -1.0 A (solar gaining ground, slowly). Net still
+  discharging; lots of tiny idle/discharge alternations. Today's
+  cumulative 8.5 h covered shows SOC range 72-90 %. Still no
+  sustained charging; this morning is **definitively** in
+  "worst-case low-harvest" territory worth capturing.
+  - Design item: wrote **`docs/install/cabin_handoff.md`** — a
+    short, plain-English guide for the cabin user. Sections:
+    "what it is", "opening the dashboard", "what you're looking
+    at" (with an ASCII sketch of the headline), state-color
+    table, recommendation panel explainer, a troubleshooting
+    table, "what NOT to worry about" (BLE flaps, SOC rounding,
+    per-battery drift), and a "when NOT to trust it" honest note
+    about low-confidence projections. Targeted at the same
+    audience as the wall display would be: non-tech cabin users
+    who just need to know "is it OK / do I run the generator?".
+
 - **08:01** — Loop wake. Pack SOC 71-73 %, 3 h past sunrise.
   **Still no sustained charging.** Today's forecast updated
   downward to **4.86 kWh/m²** (was 5.34 yesterday — Open-Meteo
