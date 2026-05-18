@@ -27,11 +27,42 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from volthium.events import detect_events  # noqa: E402
 import discharge_model  # noqa: E402  — sibling script
+import generator_advisor  # noqa: E402  — sibling script
 
 # Cache the discharge profile fit for 60s.  The fit runs over the
 # entire pack.csv, which is fine for our scale (KBs of CSV per day)
 # but no need to redo it every 5s dashboard refresh.
 _discharge_cache = {"computed_at": 0.0, "profile": None}
+
+
+_advisor_cache = {"computed_at": 0.0, "rec": None}
+
+
+def get_recommendation():
+    """Run scripts/generator_advisor's logic against current data.
+    Cached 60s. Returns a dict (asdict of Recommendation) or None
+    on any error / missing data."""
+    import subprocess
+    now = time.monotonic()
+    if (now - _advisor_cache["computed_at"]) < 60.0 and _advisor_cache["rec"] is not None:
+        return _advisor_cache["rec"]
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve().parent / "generator_advisor.py"),
+             "--pack-csv", str(CSV_PATH),
+             "--weather-csv", str(WEATHER_CSV_PATH),
+             "--json"],
+            capture_output=True, text=True, timeout=10,
+            cwd=str(Path(__file__).resolve().parents[1]),
+        )
+        if proc.returncode != 0:
+            return None
+        rec = json.loads(proc.stdout)
+    except Exception:
+        return None
+    _advisor_cache["computed_at"] = now
+    _advisor_cache["rec"] = rec
+    return rec
 
 
 def get_discharge_profile():
@@ -320,6 +351,20 @@ INDEX_HTML = """<!doctype html>
   .projection .footer { color: var(--dim); font-size: 11px; margin-top: 10px; }
   .projection .alarm { color: var(--ylw); }
   .projection .critical { color: var(--red); }
+  .advisor {
+    margin-bottom: 18px; padding: 14px 16px; border-radius: 8px;
+    background: #161b22; border-left: 4px solid var(--grn);
+  }
+  .advisor.run { border-left-color: var(--ylw); }
+  .advisor.critical { border-left-color: var(--red); }
+  .advisor .lbl { text-transform: uppercase; letter-spacing: .12em;
+                  color: var(--dim); font-size: 11px; }
+  .advisor .verdict { font-size: 22px; font-weight: 600; margin: 4px 0 8px; }
+  .advisor .verdict.run { color: var(--ylw); }
+  .advisor .verdict.critical { color: var(--red); }
+  .advisor .verdict.good { color: var(--grn); }
+  .advisor .reason { font-size: 13px; line-height: 1.4; }
+  .advisor .meta { color: var(--dim); font-size: 11px; margin-top: 8px; }
   .spark { width: 100%; height: 80px; }
   .footer { color: var(--dim); font-size: 11px; margin-top: 14px; }
   .num { font-variant-numeric: tabular-nums; }
@@ -333,6 +378,7 @@ INDEX_HTML = """<!doctype html>
   <h1>The Barge Inn — Volthium 24 V Pack</h1>
   <div class="grid">
     <div class="panel">
+      <div id="advisor-panel"></div>
       <div class="label" id="state-label">state</div>
       <div class="headline num"><span id="state-value">…</span></div>
       <div class="label">time to <span id="target">—</span></div>
@@ -459,6 +505,32 @@ async function tick() {
     spark("spark-soc", socs, false, "var(--blu)");
     setText("updated", new Date().toLocaleTimeString() + "  •  " + series.length + " samples");
 
+    // Advisor panel
+    const advEl = document.getElementById("advisor-panel");
+    const rec = j.recommendation;
+    if (rec) {
+        const cls = rec.run_generator
+            ? (rec.projected_low_soc != null && rec.projected_low_soc < 15 ? "critical" : "run")
+            : "good";
+        const headline = rec.run_generator
+            ? `RUN GENERATOR · ${rec.duration_h.toFixed(1)} h`
+            : "no generator needed";
+        let whenLine = "";
+        if (rec.run_generator && rec.when_iso) {
+            const whenStr = rec.when_iso.slice(11, 16);
+            whenLine = `<div class="meta">recommended start ~ ${whenStr}</div>`;
+        }
+        advEl.innerHTML = `
+            <div class="advisor ${cls}">
+              <div class="lbl">recommendation (confidence: ${rec.confidence})</div>
+              <div class="verdict ${cls}">${headline}</div>
+              <div class="reason">${rec.reason}</div>
+              ${whenLine}
+            </div>`;
+    } else {
+        advEl.innerHTML = "";
+    }
+
     // Projection panel
     const projEl = document.getElementById("projection-panel");
     const proj = j.projection;
@@ -555,12 +627,14 @@ class Handler(BaseHTTPRequestHandler):
                 })
             events = [e.to_dict() for e in detect_events(ev_rows)]
             projection = compute_projection(history[-1], latest_weather_row())
+            recommendation = get_recommendation()
             return self._send(HTTPStatus.OK, "application/json",
                               json.dumps({
                                   "latest": history[-1],
                                   "history": history,
                                   "events": events[-20:],  # last 20 only, keep payload small
                                   "projection": projection,
+                                  "recommendation": recommendation,
                               }).encode())
         return self._send(HTTPStatus.NOT_FOUND, "text/plain", b"not found")
 

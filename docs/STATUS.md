@@ -220,6 +220,33 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **02:36** — Loop wake. Pack SOC 82-83 %. Fridge cycle at ~02:07
+  (only the "off" edge tripped the detector this time — cycle was
+  shorter than the 15 s persistence window). 6th cycle on the
+  34-min cadence overall.
+  - Design item: **wired generator_advisor into the dashboard**.
+    The /api/latest.json now includes a `recommendation` field
+    (run_generator / reason / when_iso / duration_h /
+    projected_low_soc / projected_sunrise_soc /
+    projected_tomorrow_evening_soc / confidence / inputs). The
+    dashboard HTML renders a prominent panel at the TOP of the
+    left column:
+      - green border + "no generator needed" headline when OK
+      - yellow border + "RUN GENERATOR · 1.2 h" when needed
+      - red border when projected_low < 15 %
+      - shows the reason text + recommended start time
+      - confidence label so users know how much to trust it
+  - Implementation: dashboard runs scripts/generator_advisor.py
+    as a subprocess with --json, caches the result for 60 s. Keeps
+    advisor logic single-source in one file rather than embedding it
+    in the dashboard.
+  - **Current live readout**: ✓ no generator needed. Projected low
+    76.5 %. Cabin is comfortable through the night and tomorrow.
+  - Re-ran advisor between iterations: 02:02 said 79 %, 02:36 says
+    76.5 % — small drift as the model picks up more data and the
+    pack actually discharged 2 % over those 34 min. Both well above
+    floor.
+
 - **02:02** — Loop wake. Pack SOC 84-85 %. Fridge cycle at 01:33:36
   (6th capture, 34 min after 00:59 — cadence absolutely locked in).
   Another BLE flap auto-recovered at 01:54.
