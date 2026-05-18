@@ -302,3 +302,9 @@
 2026-05-18 12:35:13,505 INFO n=6210  26.84V  +6.50A  +174W  SOC 80-81%  state=charging  remain≈285m
 2026-05-18 12:40:12,787 INFO n=6240  26.88V  +8.20A  +220W  SOC 81-82%  state=charging  remain≈176m
 2026-05-18 12:45:30,938 INFO n=6270  26.82V  +3.30A  +89W  SOC 81-82%  state=charging  remain≈371m
+2026-05-18 12:50:30,866 INFO n=6300  26.79V  +3.00A  +80W  SOC 81-82%  state=charging  remain≈567m
+2026-05-18 12:55:40,169 INFO n=6330  26.76V  +0.00A  +0W  SOC 81-82%  state=charging  remain≈1182m
+2026-05-18 13:00:48,251 INFO n=6360  26.70V  -0.60A  -16W  SOC 81-82%  state=discharging  remain≈8499m
+2026-05-18 13:05:52,303 INFO n=6390  26.72V  +0.00A  +0W  SOC 81-82%  state=idle  remain≈—
+2026-05-18 13:11:05,369 INFO n=6420  26.80V  +4.90A  +131W  SOC 81-82%  state=charging  remain≈364m
+2026-05-18 13:16:05,026 INFO n=6450  26.88V  +9.10A  +245W  SOC 81-83%  state=charging  remain≈175m

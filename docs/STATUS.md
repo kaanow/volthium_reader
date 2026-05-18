@@ -143,6 +143,49 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **13:12** — Loop wake. **Harvest stalled** — pack SOC unchanged at
+  **82/81 %** for 25 min, charging at +5.2 A but smoothed only +5.0 A.
+  Cloud back to **98 %** (was 91 → 94 → 98 in successive hours).
+  Irradiance 595 W/m² (slight drop). Today's harvest **20.9 Ah /
+  58 % of forecast** — gained +0.7 Ah in 25 min ≈ 1.7 Ah/hr (very
+  slow). **Live ratio 6.94 — back to exactly the model coefficient
+  (drift −0.9 %, green).** Today is firmly in the "thick cloud, low
+  harvest" regime; the brief morning bursts were the exception.
+  - Design item: **`scripts/calibration_log.py` — every meaningful
+    SolarModel coefficient change recorded with timestamp + cause.**
+    Up to now the model has been silently re-fit on every advisor
+    invocation. Tonight at ~21:00, today's row will transition from
+    `[partial]` to complete, and the SolarModel will quietly move
+    from the 7.0 default to its first data-fit coefficient. Without
+    a log, that transition is invisible until someone notices the
+    advisor's recommendation feels different.
+    - New `data/calibration_log.csv` with schema:
+      `ts, coefficient, n_observations, confidence, source, notes`.
+    - `record_if_changed(model, source)` compares to the last
+      logged entry and appends a new row only if the coefficient
+      moved by ≥ 0.01 Ah/(kWh/m²), OR n_observations changed, OR
+      the confidence tier flipped. Below those thresholds it's
+      a no-op — won't spam the log from per-fit sample-jitter.
+    - `generator_advisor.py` calls it on every invocation (try/
+      except wrapped so a logging failure can never block a
+      verdict). The dashboard's cached subprocess pattern is
+      naturally idempotent — N concurrent calls produce 0 or 1
+      rows depending on whether the model actually shifted.
+    - CLI: `python scripts/calibration_log.py --show` pretty-
+      prints the full history; `python scripts/calibration_log.py`
+      checks-and-records once.
+    - First baseline entry captured this loop:
+      `2026-05-18T13:13:50  coef=7.000  n=0  conf=low  source=loop-iteration`.
+    - **9 new unit tests** in `tests/test_calibration_log.py`
+      covering: empty-file behavior, first-record-always-writes,
+      sub-threshold no-op, significant-change-writes,
+      n_observations-only change writes (the case that'll fire
+      tonight), confidence-tier flip writes, exact-threshold
+      handling, idempotence on repeated identical calls.
+  - **59 Python tests pass** (up from 50).
+  - Tonight's 21:00 loop will see the first data-fit row land. The
+    log will record the default → fit transition with a timestamp.
+
 - **12:47** — Loop wake. **Harvest curve still bouncy.** Pack SOC
   **82/81 %**, charging at **+2.9 A** — slowed AGAIN from +9.4 A
   at 12:39. The recovery was brief; cloud thickened back over the

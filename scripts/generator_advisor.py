@@ -47,6 +47,7 @@ import statistics
 import discharge_model  # noqa: E402
 import weather as weather_mod  # noqa: E402
 import today_harvest as today_harvest_mod  # noqa: E402
+import calibration_log as calibration_log_mod  # noqa: E402
 from volthium.solar_model import SolarModel  # noqa: E402
 
 # Cache tomorrow's forecast so re-runs in a 5-min window don't pound the API.
@@ -291,6 +292,15 @@ def main() -> int:
         sunset_today = sunset_today - timedelta(days=1)
 
     solar = load_solar_model()
+
+    # Quietly record the model state to data/calibration_log.csv if it
+    # changed since the last entry (different coefficient, n_obs, or
+    # confidence tier). No-op when nothing has shifted. Best-effort:
+    # failures here must NOT block the advisor from emitting a verdict.
+    try:
+        calibration_log_mod.record_if_changed(solar, source="advisor-invocation")
+    except Exception:
+        pass
 
     # Reach into today_harvest for the live coefficient measurement.
     # This is what the SolarModel *would* fit to if it were trained on
