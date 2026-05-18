@@ -220,6 +220,29 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **06:10** — Loop wake (1 h past sunrise). Pack SOC 73-74 %,
+  baseline -2.6 A (down from -3.7 A 30 min ago, -4.6 A an hour
+  before that — **early-morning solar is closing the gap fast**).
+  Still discharging net; state flip imminent.
+  - **Bug found and fixed** in the advisor. At this iteration the
+    advisor first reported "RUN GENERATOR — projected sunrise SOC
+    32 %" — a false alarm. Root cause: when `now > today's sunrise`
+    the old code bumped `sunrise_dt` to tomorrow's 05:10, then
+    summed 23 hours of pure-discharge medians as "overnight" — it
+    didn't know the upcoming daytime would include solar.
+  - Fix: new `simulate_next_24h()` steps hour-by-hour, classifies
+    each hour as daylight (add solar Ah uniformly across day) vs
+    night (subtract per-hour discharge median). Tracks SOC across
+    all 24 hours and snapshots `projected_low_soc` /
+    `projected_sunrise_soc` / `projected_tomorrow_evening_soc`
+    via linear interpolation.
+  - Post-fix at the same moment: start 73 % → sunrise tomorrow
+    72 % → tomorrow eve 73 % → low **72 %**. Plenty of margin;
+    no run needed. **Huge improvement in correctness.**
+  - This was a high-leverage catch — would have been the first
+    bad-advice scenario any user saw on the dashboard during
+    normal daytime operation.
+
 - **05:42** — Loop wake (32 min past sunrise). Pack SOC 74-75 %,
   baseline discharge slowed from -4.6 → -3.7 A — **early morning
   solar is contributing ~ 1 A of offset** but net is still
