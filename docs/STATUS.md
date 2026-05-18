@@ -220,6 +220,26 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **22:09** — Loop wake. Projection sanity check: at 21:35 we predicted
+  75 % SOC at sunrise from a -5.9 A baseline; pack now at SOC 95-96 %
+  having dropped only ~1 % in 34 min (slightly worse than -5.9 A
+  would imply, because the ceiling-fan baseline shift bumped average
+  draw to ~ -6 to -8 A). Projection panel will catch up as the EMA
+  settles on the new baseline.
+  - Design item: wrote `scripts/voltage_soc_calibration.py`. Walks
+    pack.csv for rest windows (|smoothed_I| < 0.5 A sustained for
+    ≥ 5 min), records average OCV and SOC%, bucketizes into 5%-bins
+    so it produces a discrete table the firmware's ULP can
+    interpolate. First-run output: 4 rest windows today, all at
+    SOC ≈ 100 % (range 26.7 – 28.0 V depending on how relaxed the
+    pack was). Writes `data/voltage_soc_table.csv`. Designed to be
+    re-run periodically over the production install — every full
+    cycle the pack sees adds samples across the SOC range, and the
+    table sharpens. Especially valuable for the steep OCV regions
+    near 10 % (HARD_CUT threshold) and 95 % (FULL banner).
+  - Cross-references to `docs/firmware/state_machine.md` § "SOC
+    source per state" — this table will live in the ULP code path.
+
 - **22:01** (user input + observed) — User turned on a ceiling fan;
   said this paired with an overnight fire is normal nighttime
   pattern. **Captured cleanly in the data** at 22:00:41 — pack
