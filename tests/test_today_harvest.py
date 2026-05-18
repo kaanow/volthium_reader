@@ -19,7 +19,10 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.today_harvest import integrate_today_irradiance  # noqa: E402
+from scripts.today_harvest import (  # noqa: E402
+    integrate_today,
+    integrate_today_irradiance,
+)
 
 
 def _write_weather(path: Path, samples: list[tuple[datetime, float]]) -> None:
@@ -36,6 +39,17 @@ def _write_weather(path: Path, samples: list[tuple[datetime, float]]) -> None:
             w.writerow([ts.isoformat(), 51.07, -121.2, 10.0, 50,
                         wm2, 1.0, 2.0, 3, 1, "2026-05-18T05:09",
                         "2026-05-18T20:52", 4000.0, 5.0])
+
+
+def _write_pack(path: Path, samples: list[tuple[datetime, float]]) -> None:
+    """Write a minimal pack.csv with just ts + pack_i — the only two
+    columns integrate_today actually consumes. Real pack.csv has many
+    more columns; the function should ignore them."""
+    with path.open("w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["ts", "pack_i"])
+        for ts, pack_i in samples:
+            w.writerow([ts.isoformat(), pack_i])
 
 
 class TestIrradianceIntegrator(unittest.TestCase):
@@ -136,6 +150,188 @@ class TestIrradianceIntegrator(unittest.TestCase):
             now=datetime(2026, 5, 18, 4, 0),
         )
         self.assertAlmostEqual(result, 0.0, places=4)
+
+
+class TestIntegrateTodayPack(unittest.TestCase):
+    """Tests for integrate_today — the pack-side trapezoidal integration
+    that powers the harvest panel cumulative number, the sparkline, and
+    the per-hour bar chart. Drives directly into the dashboard so any
+    regression here is user-visible."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = Path(self.tmp.name) / "pack.csv"
+        self.day = date(2026, 5, 18)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_returns_zero_dict_when_file_missing(self) -> None:
+        bogus = Path(self.tmp.name) / "does_not_exist.csv"
+        result = integrate_today(bogus, self.day)
+        self.assertEqual(result["samples"], 0)
+        self.assertEqual(result["solar_ah"], 0.0)
+        self.assertEqual(result["series"], [])
+
+    def test_returns_zero_dict_with_no_today_rows(self) -> None:
+        _write_pack(self.path, [(datetime(2026, 5, 17, 12, 0), 5.0)])
+        result = integrate_today(self.path, self.day)
+        self.assertEqual(result["samples"], 0)
+        self.assertEqual(result["solar_ah"], 0.0)
+
+    def test_single_sample_integrates_to_zero(self) -> None:
+        """Need at least two samples to integrate — trapezoidal rule
+        consumes adjacent pairs."""
+        _write_pack(self.path, [(datetime(2026, 5, 18, 10, 0), 10.0)])
+        result = integrate_today(self.path, self.day)
+        self.assertEqual(result["samples"], 1)
+        self.assertEqual(result["charge_ah"], 0.0)
+
+    def _make_run(self, start: datetime, n: int, pack_i: float,
+                  step_s: int = 10) -> list[tuple[datetime, float]]:
+        """Build a list of (ts, pack_i) at `step_s` cadence — matches
+        the real 10-s logger spacing so the gap-skip rule (dt_s > 60)
+        never trips."""
+        out = []
+        t = start
+        for _ in range(n):
+            out.append((t, pack_i))
+            t = t + timedelta(seconds=step_s)
+        return out
+
+    def test_steady_charge_six_min(self) -> None:
+        """+10 A held over 6 min at 10-s cadence → 10 A * 6/60 h = 1 Ah."""
+        # 37 samples × 10 s = 360 s = 6 min
+        _write_pack(self.path,
+                    self._make_run(datetime(2026, 5, 18, 12, 0), 37, 10.0))
+        result = integrate_today(self.path, self.day)
+        self.assertAlmostEqual(result["charge_ah"], 1.0, places=2)
+        self.assertAlmostEqual(result["solar_ah"], 1.0, places=2)
+        self.assertEqual(result["generator_ah"], 0.0)
+        self.assertEqual(result["discharge_ah"], 0.0)
+
+    def test_generator_current_is_split_off_from_solar(self) -> None:
+        """Current > +30 A is generator, not solar. solar_ah must NOT
+        include the generator contribution."""
+        # +60 A held over 6 min → 60 × 6/60 = 6 Ah, all generator
+        _write_pack(self.path,
+                    self._make_run(datetime(2026, 5, 18, 15, 0), 37, 60.0))
+        result = integrate_today(self.path, self.day)
+        self.assertAlmostEqual(result["charge_ah"], 6.0, places=1)
+        self.assertAlmostEqual(result["generator_ah"], 6.0, places=1)
+        # solar_ah = charge_ah − generator_ah → 0
+        self.assertAlmostEqual(result["solar_ah"], 0.0, places=2)
+
+    def test_threshold_exactly_30A_is_NOT_generator(self) -> None:
+        """The generator threshold is strict `> 30 A` — exactly 30 A is
+        solar. Catches off-by-one if someone refactors the comparison."""
+        _write_pack(self.path,
+                    self._make_run(datetime(2026, 5, 18, 14, 0), 37, 30.0))
+        result = integrate_today(self.path, self.day)
+        # 30 A × 6/60 h = 3 Ah, all classified as solar (not generator)
+        self.assertAlmostEqual(result["charge_ah"], 3.0, places=1)
+        self.assertEqual(result["generator_ah"], 0.0)
+        self.assertAlmostEqual(result["solar_ah"], 3.0, places=1)
+
+    def test_negative_current_counts_as_discharge(self) -> None:
+        """Discharge current is recorded as positive Ah in discharge_ah."""
+        # -5 A held over 6 min → 5 × 6/60 = 0.5 Ah discharge
+        _write_pack(self.path,
+                    self._make_run(datetime(2026, 5, 18, 22, 0), 37, -5.0))
+        result = integrate_today(self.path, self.day)
+        self.assertEqual(result["charge_ah"], 0.0)
+        self.assertAlmostEqual(result["discharge_ah"], 0.5, places=2)
+
+    def test_gap_over_60s_is_skipped(self) -> None:
+        """The trapezoidal step is skipped when adjacent samples are
+        more than 60 s apart — prevents huge phantom Ah from logging
+        gaps (BLE reconnect, app restart). Without this, a 1 h gap at
+        +10 A would falsely book 10 Ah."""
+        _write_pack(self.path, [
+            (datetime(2026, 5, 18, 12,  0,  0), 10.0),
+            # Adjacent sample 5 minutes later → skipped (gap > 60 s)
+            (datetime(2026, 5, 18, 12,  5,  0), 10.0),
+        ])
+        result = integrate_today(self.path, self.day)
+        self.assertEqual(result["charge_ah"], 0.0)
+
+    def test_series_bins_to_5_minute_resolution(self) -> None:
+        """The series is downsampled to one (minute_of_day, cumulative_ah)
+        point per `series_bin_minutes` bucket. With 10-s pack samples
+        through a 15-minute span at 5-min bin → expect 3 points."""
+        samples = []
+        # 10:00 → 10:15, +10 A, every 10 s
+        t = datetime(2026, 5, 18, 10, 0, 0)
+        for _ in range(15 * 6 + 1):    # 15 min × 6 samples/min
+            samples.append((t, 10.0))
+            t = t + timedelta(seconds=10)
+        _write_pack(self.path, samples)
+        result = integrate_today(self.path, self.day, series_bin_minutes=5)
+        # Expect 3 points: bins for 10:00, 10:05, 10:10 (the 10:15 sample
+        # opens the 10:15 bin → 4 total). Series is non-decreasing.
+        self.assertGreaterEqual(len(result["series"]), 3)
+        self.assertLessEqual(len(result["series"]), 4)
+        # First point at or after minute 600 (10:00 = 600 min)
+        first_min, first_ah = result["series"][0]
+        self.assertGreaterEqual(first_min, 600)
+        # Last point's solar_ah must equal the final solar_ah total
+        last_min, last_ah = result["series"][-1]
+        self.assertAlmostEqual(last_ah, result["solar_ah"], places=2)
+        # Series must be non-decreasing in cumulative_ah
+        for i in range(1, len(result["series"])):
+            self.assertGreaterEqual(result["series"][i][1],
+                                    result["series"][i - 1][1])
+
+    def test_only_today_samples_count(self) -> None:
+        """Yesterday's pack samples must not pollute today's totals."""
+        yest = self._make_run(datetime(2026, 5, 17, 15, 0), 7, 50.0)
+        today = self._make_run(datetime(2026, 5, 18, 12, 0), 7, 10.0)
+        _write_pack(self.path, yest + today)
+        result = integrate_today(self.path, self.day)
+        # 7 samples × 10 s = 60 s span on today; charge = 10 A × 60/3600 = 0.167 Ah
+        self.assertEqual(result["samples"], 7)
+        self.assertAlmostEqual(result["charge_ah"], 0.167, places=2)
+        # Crucially, yesterday's 50 A samples did NOT bleed in
+        self.assertNotAlmostEqual(result["charge_ah"], 50.0 * (60.0 / 3600.0))
+
+    def test_none_pack_i_rows_are_skipped(self) -> None:
+        """A pack.csv row with no pack_i value (e.g. BMS read failure)
+        must not corrupt the integral. The function walks ADJACENT
+        pairs, so both pairs that include the None row are dropped —
+        a single missing sample creates a zero-Ah hole in the integral
+        (a small underestimate, but not a phantom contribution)."""
+        # Manual write to set an empty pack_i mid-stream
+        with self.path.open("w") as f:
+            f.write("ts,pack_i\n")
+            f.write("2026-05-18T10:00:00,10.0\n")
+            f.write("2026-05-18T10:00:30,\n")         # missing
+            f.write("2026-05-18T10:01:00,10.0\n")
+        result = integrate_today(self.path, self.day)
+        self.assertEqual(result["samples"], 3)
+        # Both adjacent pairs involve the None row → both skipped.
+        # Honest underestimate: charge_ah is 0, not a phantom contribution.
+        self.assertEqual(result["charge_ah"], 0.0)
+
+    def test_none_pack_i_does_not_corrupt_surrounding_segments(self) -> None:
+        """When a None row sits BETWEEN two valid runs, the valid runs
+        before and after still integrate cleanly. Only the pairs that
+        touch the None row get skipped."""
+        with self.path.open("w") as f:
+            f.write("ts,pack_i\n")
+            # Two valid samples 10 s apart (60 s apart from the None row)
+            f.write("2026-05-18T10:00:00,10.0\n")
+            f.write("2026-05-18T10:00:10,10.0\n")
+            f.write("2026-05-18T10:00:40,\n")         # missing
+            # Two more valid samples 10 s apart, AFTER the None
+            f.write("2026-05-18T10:01:10,10.0\n")
+            f.write("2026-05-18T10:01:20,10.0\n")
+        result = integrate_today(self.path, self.day)
+        self.assertEqual(result["samples"], 5)
+        # Valid pairs: (00, 10) and (10, 40-None) [dropped],
+        #              (40-None, 1:10) [dropped], (1:10, 1:20)
+        # → 2 valid 10-s × 10 A segments = 2 × 10/360 ≈ 0.0556 Ah,
+        # which integrate_today rounds to 2 decimals → 0.06.
+        self.assertAlmostEqual(result["charge_ah"], 0.06, places=2)
 
 
 if __name__ == "__main__":

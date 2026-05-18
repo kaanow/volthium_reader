@@ -632,3 +632,4 @@ LAN share URL: http://192.168.1.76:8421/
 2026-05-18 14:12:08,716 INFO n=6780  26.95V  +14.50A  +391W  SOC 86-87%  state=charging  remain≈65m
 2026-05-18 14:17:13,400 INFO n=6810  26.91V  +11.60A  +312W  SOC 86-87%  state=charging  remain≈92m
 2026-05-18 14:22:13,026 INFO n=6840  26.91V  +11.00A  +296W  SOC 87-88%  state=charging  remain≈74m
+2026-05-18 14:27:19,347 INFO n=6870  26.84V  +7.70A  +207W  SOC 87-88%  state=charging  remain≈183m

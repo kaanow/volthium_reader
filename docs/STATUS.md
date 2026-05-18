@@ -143,6 +143,47 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **14:27** — Loop wake. **Mini-stall after the sprint** — pack SOC
+  **88/87 %** (unchanged in 6 min after the 85→88 jump), charging
+  dropped from +11.5 A → **+4.1 A** sustained. Cloud-bouncy pattern
+  continues. Today's harvest **32.5 Ah / 89 % of forecast** —
+  comfortably above the morning trajectory. **Live ratio 8.81** —
+  same regime as last loop's 8.73 (+25.9 % drift, still RED). The
+  afternoon over-performance is now sustained, not a transient.
+  - Calibration log still single baseline entry; tonight's auto-fit
+    at ~21:00 will be the first time the system observes a real
+    coefficient (and likely a higher one than 7.0 given today's
+    afternoon contribution).
+  - Design item: **regression tests for `integrate_today()`.** This
+    is the core pack-side integrator that powers the harvest panel's
+    big-number, the cumulative sparkline, AND the per-hour bar chart
+    — directly user-visible — but had zero direct tests. Closed the
+    gap with `tests/test_today_harvest.py::TestIntegrateTodayPack`,
+    11 new cases covering:
+    - **File missing / no today rows / single sample** — return
+      shape sanity (samples=0, all zeros, empty series).
+    - **Steady charge** — +10 A held 6 min at 10-s cadence → 1.0 Ah.
+    - **Generator split** — +60 A goes into `generator_ah`, not
+      `solar_ah` (so the harvest panel doesn't credit generator runs
+      as solar wins).
+    - **Threshold exactly 30 A** is NOT generator — catches strict-
+      `>` vs `>=` off-by-one if anyone refactors the comparator.
+    - **Negative current** → `discharge_ah`.
+    - **Gap > 60 s** is skipped — protects against phantom Ah from
+      logging gaps (BLE reconnect, app restart). Without this a 1 h
+      gap at +10 A would falsely book 10 Ah.
+    - **Series bins to 5-min resolution** — monotonically non-
+      decreasing, last point matches total, length in expected range.
+    - **Cross-day filter** — yesterday's pack samples can't pollute
+      today's totals.
+    - **None pack_i mid-stream** — both adjacent pairs are dropped
+      (honest underestimate, not a phantom contribution).
+    - **None pack_i doesn't corrupt surrounding segments** — runs
+      before and after the None still integrate cleanly.
+  - **71 Python tests pass** (up from 59). Total assertion-points
+    across the suite: 71 Py + 22 wire-C + 17 est-C + 4 wire-cross +
+    49 est-cross = **163**, all green.
+
 - **14:21** — Loop wake. **SOC sprint!** Pack **88/87 %** (+3 % per
   battery in 28 min from 85/84), charging at +11.5 A sustained,
   voltage 26.91 V. Today's harvest **31.8 Ah / 87 % of forecast** —
