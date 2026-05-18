@@ -42,14 +42,20 @@ test-c: vectors
 	@echo "=== C tests (host build, no ESP-IDF needed) ==="
 	$(MAKE) -C $(VOLTHIUM_LIB) test
 
-# The cross-validation test reads Python-encoded .bin files. Regen them
-# if either the Python source or the vector generator has changed.
-vectors: $(VOLTHIUM_LIB)/test_vectors/expected.txt
+# The cross-validation tests read Python-generated reference files.
+# Regen them if either the Python source or the generator has changed.
+vectors: $(VOLTHIUM_LIB)/test_vectors/expected.txt \
+         $(VOLTHIUM_LIB)/test_vectors/estimator_scenarios.txt
 
 $(VOLTHIUM_LIB)/test_vectors/expected.txt: scripts/gen_test_vectors.py volthium/wire_protocol.py
 	@echo ""
-	@echo "=== regenerating test vectors ==="
+	@echo "=== regenerating wire-protocol test vectors ==="
 	$(PYTHON) scripts/gen_test_vectors.py
+
+$(VOLTHIUM_LIB)/test_vectors/estimator_scenarios.txt: scripts/gen_estimator_vectors.py volthium/estimator.py
+	@echo ""
+	@echo "=== regenerating estimator cross-validation scenarios ==="
+	$(PYTHON) scripts/gen_estimator_vectors.py
 
 clean:
 	$(MAKE) -C $(VOLTHIUM_LIB) clean

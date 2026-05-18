@@ -24,6 +24,7 @@ void volthium_estimator_init(volthium_estimator_t *e,
         e->cfg = VOLTHIUM_ESTIMATOR_CONFIG_DEFAULT;
     }
     e->ema_initialized = false;
+    e->ema_power_initialized = false;
     e->hybrid_initialized = false;
 }
 
@@ -91,8 +92,14 @@ volthium_estimate_t volthium_estimator_update(volthium_estimator_t *e,
 
     update_ema(&e->ema_i_a, &e->ema_initialized, s->pack_current_a, e->cfg.ema_alpha);
     if (s->has_pack_power) {
-        bool pwr_init = e->ema_initialized;   /* power EMA piggybacks */
-        update_ema(&e->ema_p_w, &pwr_init, s->pack_power_w, e->cfg.ema_alpha);
+        /* Power EMA tracks its own init state — the BMS may skip pack_power
+         * on the first sample and only start reporting it later, in which
+         * case the first power sample must seed the EMA (not blend with 0).
+         * Earlier piggyback-on-ema_initialized was wrong for this reason
+         * and caused a factor-of-(1/alpha) scaling on the first power
+         * sample. Caught by tests/test_estimator_cross.c. */
+        update_ema(&e->ema_p_w, &e->ema_power_initialized,
+                   s->pack_power_w, e->cfg.ema_alpha);
     }
 
     out.smoothed_current_a = e->ema_i_a;

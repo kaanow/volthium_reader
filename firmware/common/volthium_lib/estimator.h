@@ -61,7 +61,10 @@ typedef struct {
     volthium_estimator_config_t cfg;
     float    ema_i_a;             /* smoothed pack current, A */
     float    ema_p_w;             /* smoothed pack power, W */
-    bool     ema_initialized;
+    bool     ema_initialized;     /* current EMA seeded? */
+    bool     ema_power_initialized; /* power EMA seeded? (tracked separately
+                                       because a BMS may skip pack_power on
+                                       the first sample) */
     /* Hybrid-mode state — only used if cfg.use_hybrid */
     float    displayed_ah;
     float    last_anchor_ah;

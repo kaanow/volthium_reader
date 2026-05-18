@@ -137,6 +137,45 @@ roll into `docs/STATUS_archive.md`.
 
 *(appended chronologically, newest first)*
 
+- **10:14** — Loop wake. **Net-charging holding** — pack now at SOC
+  73/72 % charging at **+6.8 A** sustained, voltage climbed
+  26.34 → 26.62 V over 35 min. Today's harvest tracker reads
+  **3.0 Ah / 34 Ah forecast = 9 %**, up from 0.3 Ah / 1 % at 09:39.
+  Genuine momentum on this 98 %-cloud morning. Advisor still ✓.
+  - Design item: **Python ↔ C cross-validation for the estimator.**
+    Companion to the existing wire-protocol cross-test. Two pieces:
+    1. `scripts/gen_estimator_vectors.py` runs 6 hand-crafted
+       scenarios through `volthium/estimator.py` and writes
+       `firmware/common/volthium_lib/test_vectors/estimator_scenarios.txt`
+       — a plain-text format with `scenario:` / `config:` / `step:` /
+       `expect:` lines. 22 (input → expected output) pairs total.
+    2. `firmware/common/volthium_lib/test_estimator_cross.c` parses
+       the file, re-runs the C estimator on each input, asserts the
+       output matches the Python reference within tight tolerance
+       (1e-3 A on currents, 5e-3 W on power, 0.1 min on
+       minutes_remaining, 1e-3 Ah on displayed_ah).
+  - **It immediately caught a real bug** in `estimator.c`: the power
+    EMA was "piggybacking" on the current EMA's init flag, but
+    `update_ema` flips that flag to true on first call — so the
+    power EMA's first sample got blended with the zero-initialized
+    `ema_p_w` field, giving exactly `alpha × sample` (6.7× too
+    small) on the first sample. Fixed by adding a separate
+    `ema_power_initialized` flag in `volthium_estimator_t`.
+  - Bug exists since the estimator was C-ported (yesterday's
+    19:51 loop) but was missed by the existing per-side unit tests
+    because they only checked current/state/minutes, not the power
+    EMA's first-sample value. Cross-validation catches the gap
+    between "each side passes its own tests" and "both sides agree
+    on the same inputs" — exactly the same gap the wire-protocol
+    cross-test closes for byte-level encoding.
+  - Top-level `Makefile` updated so `make test` auto-regenerates
+    `estimator_scenarios.txt` whenever Python source changes.
+    `firmware/common/volthium_lib/Makefile` updated similarly for
+    when developing in-tree. Total test counts:
+    **41 Python + 22 wire-protocol-C + 17 estimator-C +
+    4 wire-protocol cross-validation + 22 estimator
+    cross-validation = 106 assertion points**, all green.
+
 - **09:39** — Loop wake. **First net-charging segment of the day,
   captured live in this loop.** Pack EMA smoothed_i crossed +0 A at
   about 09:38 (samples: +0.79 → +0.68 → +0.57 → +0.49 → +0.59 A, with
