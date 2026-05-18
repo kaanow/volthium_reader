@@ -1,0 +1,33 @@
+# sdkconfig defaults for the display-side ESP32-S3.
+#
+# Simpler than bms-link: no BLE central, no MOSFET, no ULP. Just
+# RS-485 RX, SPI to the e-paper, three buttons, and a watchdog.
+
+# Target — same ESP32-S3-WROOM-1-N16R8 module as the BoM specs for
+# unified-spare strategy; we don't use the PSRAM but the cost is the
+# same.
+CONFIG_IDF_TARGET="esp32s3"
+
+# Flash + PSRAM
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+
+# No Bluetooth on this side — the display never talks BLE.
+CONFIG_BT_ENABLED=n
+
+# FreeRTOS — default tick fine.
+CONFIG_FREERTOS_HZ=100
+
+# Light-sleep enabled; the display spends most of its life waiting
+# between RS-485 frames, so we can save serious power here.
+CONFIG_PM_ENABLE=y
+CONFIG_PM_DFS_INIT_AUTO=y
+CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
+
+# Debug console on UART0 (matches schematic).
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y

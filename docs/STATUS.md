@@ -220,6 +220,33 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **23:17** — Loop wake. Pack SOC 92-93 % discharging at -4.5 A
+  smoothed. Down ~1 % per 30 min on the fan+fridge baseline. No
+  new events. voltage_soc_calibration rerun yields the same 4
+  rest windows (pack hasn't been idle long enough since to add new
+  points). Projection from 22:42 implies ~ 80 % at sunrise — the
+  EMA-settled rate is more honest than the original 21:35
+  prediction of 75 % which was made just as the fan came on.
+  - Design item: **display-side ESP-IDF skeleton** in
+    `firmware/display/`. Symmetric to the battery-side one I built
+    last loop. Differences (per `docs/firmware/architecture.md` and
+    `state_machine.md`):
+    - `CONFIG_BT_ENABLED=n` — display never talks BLE
+    - No MOSFET / no ULP — display stays alive longer than the
+      battery side
+    - SPI bus to the e-paper instead of BLE
+    - 3 buttons (refresh / next / release-BLE) instead of one
+      override button
+    - Task set: `rx_task` (RS-485 receive + decode), `render_task`
+      (e-paper), `input_task` (buttons), `watchdog_task`
+      (link-down detection)
+    - rx_task stub posts a synthetic decoded frame every 30 s so
+      render_task can be developed independently of the RS-485 link
+  - Both `firmware/bms-link/` and `firmware/display/` now share the
+    common `firmware/common/volthium_lib/` C library via
+    EXTRA_COMPONENT_DIRS — single source for wire protocol +
+    estimator across both firmware images and the host C test suite.
+
 - **22:42** — Loop wake. Pack SOC 94 % discharging at -4.7 A smoothed
   (EMA has absorbed the ceiling-fan baseline). Tracking close to the
   projection.
