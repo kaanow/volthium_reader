@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+data/
+*.csv
+*.log
+hardware/kicad/outputs/
+hardware/kicad/projects/*/*-backups/
+hardware/kicad/projects/*/fp-info-cache
+
+# SKiDL leftover artifacts
+*.erc
+
+# Claude Code state
+.claude/

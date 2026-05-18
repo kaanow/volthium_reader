@@ -1,0 +1,73 @@
+#!/bin/bash
+# Silent launcher for the Volthium Monitor dashboard.
+#
+# When double-clicked:
+#   1. If logger / dashboard aren't running, start them
+#   2. Open the dashboard in the default browser
+#   3. Show a native macOS notification with the LAN URL (for sharing)
+# If anything fails: show a dialog with the error so the user knows.
+
+set -euo pipefail
+
+# Resolve repo root.  When run from inside the .app at:
+#   <REPO>/Volthium Monitor.app/Contents/MacOS/VolthiumMonitor
+# the repo is three levels up from the script.
+APP_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+cd "$APP_DIR"
+
+ADDR_A="9058AE7F-F98B-D0F6-237D-6769894DE118"
+ADDR_B="6EC69980-CA43-7DEF-519B-6235C8C535B7"
+CSV="data/pack.csv"
+LOG="data/pack.log"
+PORT=8421
+
+mkdir -p data
+
+# Quick sanity check that the venv exists. Anyone-can-launch UX means we
+# need to surface a clear error if the dev environment isn't set up.
+if [ ! -x ".venv/bin/python" ]; then
+    osascript -e 'display dialog "Volthium Monitor isn'\''t set up on this machine.\n\nMissing: .venv/\n\nAsk the dev to run the first-time setup." with title "Volthium Monitor" buttons {"OK"} default button "OK" with icon caution' >/dev/null 2>&1 || true
+    exit 1
+fi
+
+started_anything=0
+
+if ! pgrep -f "scripts/log\.py.*${CSV}" > /dev/null; then
+    nohup caffeinate -i .venv/bin/python scripts/log.py \
+        --a "$ADDR_A" --b "$ADDR_B" \
+        --interval 10 --csv "$CSV" --log "$LOG" \
+        >> "$APP_DIR/data/launch.log" 2>&1 &
+    disown
+    started_anything=1
+fi
+
+if ! pgrep -f "scripts/dashboard\.py.*${PORT}" > /dev/null; then
+    nohup .venv/bin/python scripts/dashboard.py \
+        --csv "$CSV" --port "$PORT" --host 0.0.0.0 \
+        >> "$APP_DIR/data/launch.log" 2>&1 &
+    disown
+    started_anything=1
+fi
+
+# Give the dashboard a moment to bind the port.
+if [ $started_anything -eq 1 ]; then
+    sleep 1.5
+fi
+
+# Determine LAN IP (best-effort).
+LAN_IP=$(ipconfig getifaddr en0 2>/dev/null || true)
+[ -z "$LAN_IP" ] && LAN_IP=$(ipconfig getifaddr en1 2>/dev/null || true)
+
+# Open the local browser window.
+open "http://localhost:${PORT}/"
+
+# Show a notification with the share URL.  Notifications need a stable
+# bundle ID and the user to have notifications enabled for our app the
+# first time; if the system blocks the notification we fall back silently.
+if [ -n "$LAN_IP" ]; then
+    osascript -e "display notification \"share: http://${LAN_IP}:${PORT}/\" with title \"Volthium Monitor\" subtitle \"running\"" >/dev/null 2>&1 || true
+else
+    osascript -e "display notification \"running\" with title \"Volthium Monitor\"" >/dev/null 2>&1 || true
+fi
+
+exit 0

@@ -1,0 +1,2 @@
+# Hardware design dependencies (SKiDL → KiCad netlist generation)
+skidl>=2.2.3

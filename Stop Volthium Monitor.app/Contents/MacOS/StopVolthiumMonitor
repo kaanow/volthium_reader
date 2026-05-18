@@ -1,0 +1,35 @@
+#!/bin/bash
+# Stop the logger + dashboard cleanly.
+
+# Count what's running before we touch it, so the notification is honest.
+running=0
+pgrep -f "scripts/log\.py"       > /dev/null && running=$((running + 1))
+pgrep -f "scripts/dashboard\.py" > /dev/null && running=$((running + 1))
+pgrep -f "caffeinate -i .venv/bin/python" > /dev/null && running=$((running + 1))
+
+if [ $running -eq 0 ]; then
+    osascript -e 'display notification "nothing to stop — services were not running" with title "Volthium Monitor" subtitle "already stopped"' >/dev/null 2>&1 || true
+    exit 0
+fi
+
+# Kill in order: logger Python, then its caffeinate wrapper, then dashboard.
+pkill -f "scripts/log\.py"        2>/dev/null || true
+pkill -f "scripts/dashboard\.py"  2>/dev/null || true
+pkill -f "caffeinate -i .venv/bin/python" 2>/dev/null || true
+
+# Give them a moment to die.
+sleep 1
+
+# Verify everything actually stopped.
+remaining=0
+pgrep -f "scripts/log\.py"        > /dev/null && remaining=$((remaining + 1))
+pgrep -f "scripts/dashboard\.py"  > /dev/null && remaining=$((remaining + 1))
+
+if [ $remaining -eq 0 ]; then
+    osascript -e 'display notification "logger + dashboard stopped" with title "Volthium Monitor" subtitle "stopped"' >/dev/null 2>&1 || true
+else
+    osascript -e 'display dialog "Some Volthium processes survived the stop signal. Open Activity Monitor and force-quit any remaining python or caffeinate processes." with title "Volthium Monitor" buttons {"OK"} default button "OK" with icon caution' >/dev/null 2>&1 || true
+    exit 1
+fi
+
+exit 0
