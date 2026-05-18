@@ -483,6 +483,9 @@ INDEX_HTML = """<!doctype html>
   .advisor .calib.warn .drift { color: var(--ylw); }
   .advisor .calib.bad  { border-left: 3px solid var(--red); }
   .advisor .calib.bad  .drift { color: var(--red); }
+  .advisor .calib-footer { color: var(--dim); font-size: 10px; font-style: italic;
+                           margin-top: 4px; padding-left: 10px;
+                           font-variant-numeric: tabular-nums; }
   .spark { width: 100%; height: 80px; }
   .footer { color: var(--dim); font-size: 11px; margin-top: 14px; }
   .num { font-variant-numeric: tabular-nums; }
@@ -709,12 +712,30 @@ async function tick() {
             const driftPct = Math.abs(liveRatio - modelCoef) / modelCoef * 100;
             const driftCls = driftPct < 10 ? "ok" : (driftPct < 20 ? "warn" : "bad");
             const driftSign = liveRatio >= modelCoef ? "+" : "−";
+            // Model-update timestamp: when did the SolarModel last
+            // meaningfully change? Until tonight's first post-sunset
+            // fit this just shows the baseline default; once a real
+            // fit lands, the timestamp marks that calibration event.
+            let calibFooter = "";
+            const luIso = ins.model_last_updated_iso;
+            const luSrc = ins.model_last_updated_source;
+            if (luIso) {
+              // Render as 'YYYY-MM-DD HH:MM (source)'. Strip seconds
+              // and the 'T' for readability; keep the date because
+              // an old log entry vs a fresh one matters.
+              const niceTs = luIso.length >= 16
+                ? luIso.slice(0, 10) + " " + luIso.slice(11, 16)
+                : luIso;
+              const srcTxt = luSrc ? ` · ${luSrc}` : "";
+              calibFooter = `<div class="calib-footer">model last updated ${niceTs}${srcTxt}</div>`;
+            }
             calibLine = `
               <div class="calib ${driftCls}">
                 <span class="lbl">model vs live</span>
                 <span class="v">${modelCoef.toFixed(2)} → ${liveRatio.toFixed(2)} Ah/(kWh/m²)</span>
                 <span class="drift">${driftSign}${driftPct.toFixed(1)}%</span>
-              </div>`;
+              </div>
+              ${calibFooter}`;
         }
 
         advEl.innerHTML = `

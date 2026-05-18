@@ -297,8 +297,14 @@ def main() -> int:
     # changed since the last entry (different coefficient, n_obs, or
     # confidence tier). No-op when nothing has shifted. Best-effort:
     # failures here must NOT block the advisor from emitting a verdict.
+    model_last_updated_iso: Optional[str] = None
+    model_last_updated_source: Optional[str] = None
     try:
         calibration_log_mod.record_if_changed(solar, source="advisor-invocation")
+        _last = calibration_log_mod.last_entry()
+        if _last is not None:
+            model_last_updated_iso = _last.ts
+            model_last_updated_source = _last.source
     except Exception:
         pass
 
@@ -400,6 +406,8 @@ def main() -> int:
                 "live_ratio_ah_per_kwh_m2": live_ratio,
                 "irradiance_kwh_m2_so_far": irradiance_so_far,
                 "solar_ah_so_far": solar_ah_so_far,
+                "model_last_updated_iso": model_last_updated_iso,
+                "model_last_updated_source": model_last_updated_source,
             },
             morning_watch=morning_watch,
             morning_watch_reason=morning_watch_reason,
@@ -438,6 +446,8 @@ def main() -> int:
                 "live_ratio_ah_per_kwh_m2": live_ratio,
                 "irradiance_kwh_m2_so_far": irradiance_so_far,
                 "solar_ah_so_far": solar_ah_so_far,
+                "model_last_updated_iso": model_last_updated_iso,
+                "model_last_updated_source": model_last_updated_source,
             },
             morning_watch=False,    # subsumed by the hard recommendation
         )

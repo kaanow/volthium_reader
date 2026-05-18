@@ -143,6 +143,39 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **13:47** — Loop wake. **Climb continues.** Pack SOC **84/83 %**
+  (+1 % per battery in 27 min), charging at **+10.8 A** sustained,
+  voltage 26.93 V. Cloud at 99 % (maxed) but harvest still cranking
+  through: **25.1 Ah / 69 % of forecast** at +3.0 Ah/27 min ≈ 6.7 Ah/hr.
+  At this rate today should overshoot the forecast — west-facing
+  geometry doing its job in late afternoon. **Live ratio drifted up
+  to 7.49** (+7 % from model, still safely green). Calibration log
+  unchanged from baseline (waiting for ~21:00 first auto-fit).
+  - Per-battery observation: i_a = 11.0 A, i_b = 10.6 A right now —
+    the same series current measured 4 % differently by the two BMS
+    sensors. That's noise floor for our installed sensors; the
+    average is what matters for pack-level integration.
+  - Design item: **advisor-panel model-update timestamp.**
+    Continues last loop's calibration_log thread. The advisor now
+    exposes two more diagnostic fields in `Recommendation.inputs`:
+    - `model_last_updated_iso` — ISO timestamp of the most recent
+      calibration_log entry (when the model meaningfully changed).
+    - `model_last_updated_source` — the source tag from that entry
+      ("advisor-invocation", "loop-iteration", "manual", etc.).
+  - Both come from `calibration_log.last_entry()` after the
+    record_if_changed call, so they reflect the freshest state.
+  - Dashboard renders a small italic line under the green/amber/red
+    model-vs-live chip: *"model last updated 2026-05-18 13:13 ·
+    loop-iteration"*. Right now it shows the baseline default-
+    constant entry. Tonight at ~21:00, after the first complete-day
+    row lands, this will flip to the fresh-fit timestamp.
+  - This closes the trust loop — the user can now see at a glance:
+    1. What the model thinks (`solar_model_coefficient`)
+    2. What today is measuring (`live_ratio_ah_per_kwh_m2`)
+    3. Whether they agree (drift % chip, colored)
+    4. **When the model was last calibrated** (new this loop)
+  - All 59 Python tests still pass.
+
 - **13:20** — Loop wake. **Recovery again.** Pack SOC **83/82 %**
   (climbed 1 % from the 25-min stall), charging back up to **+10.4 A**
   sustained, voltage 26.91 V. Today's harvest **22.1 Ah / 61 % of
