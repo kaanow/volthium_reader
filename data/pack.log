@@ -1,0 +1,270 @@
+2026-05-17 14:49:18,598 INFO starting: csv=data/pack.csv interval=10.0s a=9058AE7F-F98B-D0F6-237D-6769894DE118 b=6EC69980-CA43-7DEF-519B-6235C8C535B7
+2026-05-17 14:49:22,170 INFO n=1  26.69V  +16.30A  +435W  SOC 66-68%  state=charging  remain≈236m
+2026-05-17 14:54:21,405 INFO n=30  26.71V  +16.70A  +446W  SOC 67-69%  state=charging  remain≈228m
+2026-05-17 14:59:28,486 INFO n=60  26.73V  +17.50A  +468W  SOC 68-70%  state=charging  remain≈223m
+2026-05-17 15:04:31,792 INFO n=90  26.57V  -2.00A  -53W  SOC 68-70%  state=charging  remain≈792m
+2026-05-17 15:09:33,084 INFO n=120  26.46V  -3.20A  -85W  SOC 68-70%  state=discharging  remain≈2398m
+2026-05-17 15:12:57,551 INFO starting: csv=data/pack.csv interval=10.0s a=9058AE7F-F98B-D0F6-237D-6769894DE118 b=6EC69980-CA43-7DEF-519B-6235C8C535B7
+2026-05-17 15:13:00,396 INFO n=1  26.43V  -3.10A  -82W  SOC 68-70%  state=discharging  remain≈2245m
+2026-05-17 15:17:52,052 INFO n=30  26.40V  -3.70A  -98W  SOC 68-70%  state=discharging  remain≈2157m
+2026-05-17 15:22:57,511 INFO n=60  26.37V  -3.20A  -84W  SOC 68-70%  state=discharging  remain≈2265m
+2026-05-17 15:28:07,897 INFO n=90  26.33V  -6.00A  -158W  SOC 68-69%  state=discharging  remain≈1605m
+2026-05-17 15:33:15,360 INFO n=120  26.31V  -3.80A  -100W  SOC 67-69%  state=discharging  remain≈1697m
+2026-05-17 15:38:11,753 INFO n=150  27.06V  +60.10A  +1626W  SOC 69-71%  state=charging  remain≈49m
+2026-05-17 15:43:08,560 INFO n=180  27.12V  +60.10A  +1630W  SOC 72-73%  state=charging  remain≈44m
+2026-05-17 15:48:10,748 INFO n=210  27.07V  +49.00A  +1326W  SOC 74-76%  state=charging  remain≈44m
+2026-05-17 15:53:12,399 INFO n=240  27.05V  +44.40A  +1201W  SOC 76-78%  state=charging  remain≈46m
+2026-05-17 15:58:21,516 INFO n=270  27.05V  +44.90A  +1215W  SOC 78-80%  state=charging  remain≈40m
+2026-05-17 16:03:24,316 INFO n=300  27.15V  +61.00A  +1656W  SOC 81-82%  state=charging  remain≈25m
+2026-05-17 16:08:25,863 INFO n=330  27.17V  +61.70A  +1676W  SOC 83-84%  state=charging  remain≈22m
+2026-05-17 16:13:26,801 INFO n=360  27.18V  +60.70A  +1650W  SOC 86-87%  state=charging  remain≈16m
+2026-05-17 16:18:29,309 INFO n=390  27.21V  +60.70A  +1651W  SOC 89-89%  state=charging  remain≈12m
+2026-05-17 16:23:35,564 INFO n=420  26.86V  +11.20A  +301W  SOC 90-91%  state=charging  remain≈27m
+2026-05-17 16:28:34,466 INFO n=450  26.84V  +12.00A  +322W  SOC 91-92%  state=charging  remain≈29m
+2026-05-17 16:33:37,813 INFO n=480  26.85V  +12.40A  +333W  SOC 92-92%  state=charging  remain≈29m
+2026-05-17 16:38:44,730 INFO n=510  26.86V  +12.00A  +322W  SOC 92-93%  state=charging  remain≈20m
+2026-05-17 16:43:49,912 INFO n=540  26.87V  +12.20A  +328W  SOC 93-93%  state=charging  remain≈19m
+2026-05-17 16:49:03,474 INFO n=570  26.91V  +14.90A  +401W  SOC 93-94%  state=charging  remain≈8m
+2026-05-17 16:54:00,365 INFO n=600  26.91V  +14.40A  +388W  SOC 94-94%  state=charging  remain≈8m
+2026-05-17 16:59:07,154 INFO n=630  26.92V  +14.40A  +388W  SOC 95-95%  state=full  remain≈—
+2026-05-17 17:04:10,117 INFO n=660  26.94V  +14.10A  +380W  SOC 95-96%  state=full  remain≈—
+2026-05-17 17:09:09,416 INFO n=690  26.91V  +11.20A  +301W  SOC 96-96%  state=full  remain≈—
+2026-05-17 17:14:25,519 INFO n=720  26.92V  +10.60A  +285W  SOC 96-96%  state=full  remain≈—
+2026-05-17 17:19:30,355 INFO n=750  26.94V  +10.90A  +294W  SOC 97-97%  state=full  remain≈—
+2026-05-17 17:23:45,573 WARNING read #774 failed (1 in a row): RuntimeError: battery 9058AE7F-F98B-D0F6-237D-6769894DE118 not found in scan
+2026-05-17 17:23:50,375 INFO BLE recovered after 1 errors
+2026-05-17 17:24:48,786 INFO n=780  27.00V  +13.00A  +351W  SOC 97-97%  state=full  remain≈—
+2026-05-17 17:29:53,670 INFO n=810  27.02V  +12.40A  +335W  SOC 98-98%  state=full  remain≈—
+2026-05-17 17:34:55,429 INFO n=840  27.04V  +12.10A  +327W  SOC 98-99%  state=full  remain≈—
+2026-05-17 17:40:01,591 INFO n=870  27.06V  +11.00A  +298W  SOC 99-99%  state=full  remain≈—
+2026-05-17 17:45:08,162 INFO n=900  27.08V  +10.00A  +271W  SOC 99-99%  state=full  remain≈—
+2026-05-17 17:50:09,325 INFO n=930  26.95V  -2.90A  -78W  SOC 100-100%  state=full  remain≈—
+2026-05-17 17:55:14,477 INFO n=960  26.71V  -2.60A  -69W  SOC 99-100%  state=discharging  remain≈3756m
+2026-05-17 17:59:49,271 INFO starting: csv=data/pack.csv interval=10.0s a=9058AE7F-F98B-D0F6-237D-6769894DE118 b=6EC69980-CA43-7DEF-519B-6235C8C535B7
+2026-05-17 18:00:02,179 INFO n=1  26.70V  +0.00A  +0W  SOC 99-99%  state=idle  remain≈—
+2026-05-17 18:04:02,255 WARNING read #24 failed (1 in a row): RuntimeError: battery 6EC69980-CA43-7DEF-519B-6235C8C535B7 not found in scan
+2026-05-17 18:04:08,473 INFO BLE recovered after 1 errors
+2026-05-17 18:05:06,635 INFO n=30  26.69V  +0.00A  +0W  SOC 99-99%  state=idle  remain≈—
+2026-05-17 18:07:23,141 INFO starting: csv=data/pack.csv interval=10.0s a=9058AE7F-F98B-D0F6-237D-6769894DE118 b=6EC69980-CA43-7DEF-519B-6235C8C535B7
+2026-05-17 18:07:25,716 INFO n=1  26.71V  +5.00A  +134W  SOC 99-99%  state=full  remain≈—
+2026-05-17 18:09:29,864 INFO starting: csv=data/pack.csv interval=10.0s a=9058AE7F-F98B-D0F6-237D-6769894DE118 b=6EC69980-CA43-7DEF-519B-6235C8C535B7
+2026-05-17 18:09:38,009 INFO n=1  26.70V  +0.00A  +0W  SOC 99-99%  state=idle  remain≈—
+2026-05-17 18:09:59,898 INFO starting: csv=data/pack.csv interval=10.0s a=9058AE7F-F98B-D0F6-237D-6769894DE118 b=6EC69980-CA43-7DEF-519B-6235C8C535B7
+2026-05-17 18:10:09,025 INFO n=1  26.70V  +0.00A  +0W  SOC 99-99%  state=idle  remain≈—
+2026-05-17 18:10:35,021 INFO starting: csv=data/pack.csv interval=10.0s a=9058AE7F-F98B-D0F6-237D-6769894DE118 b=6EC69980-CA43-7DEF-519B-6235C8C535B7
+2026-05-17 18:10:38,335 INFO n=1  26.69V  +0.00A  +0W  SOC 99-99%  state=idle  remain≈—
+2026-05-17 18:15:33,177 INFO n=30  26.67V  +0.00A  +0W  SOC 99-99%  state=idle  remain≈—
+2026-05-17 18:20:37,856 INFO n=60  26.61V  -4.50A  -120W  SOC 99-99%  state=discharging  remain≈2913m
+2026-05-17 18:23:43,859 WARNING read #77 failed (1 in a row): RuntimeError: battery 9058AE7F-F98B-D0F6-237D-6769894DE118 not found in scan
+2026-05-17 18:23:46,792 INFO BLE recovered after 1 errors
+2026-05-17 18:26:00,051 INFO n=90  26.57V  -3.30A  -88W  SOC 99-99%  state=discharging  remain≈2905m
+2026-05-17 18:30:57,002 INFO n=120  26.57V  -1.40A  -37W  SOC 99-99%  state=discharging  remain≈4541m
+2026-05-17 18:35:57,087 INFO n=150  26.59V  +0.00A  +0W  SOC 99-99%  state=idle  remain≈—
+2026-05-17 18:41:11,452 INFO n=180  26.61V  +0.00A  +0W  SOC 99-99%  state=idle  remain≈—
+2026-05-17 18:45:21,608 WARNING read #204 failed (1 in a row): RuntimeError: battery 9058AE7F-F98B-D0F6-237D-6769894DE118 not found in scan
+2026-05-17 18:45:26,111 INFO BLE recovered after 1 errors
+2026-05-17 18:46:31,123 INFO n=210  26.66V  -0.80A  -21W  SOC 99-99%  state=full  remain≈—
+2026-05-17 18:49:13,962 INFO starting: csv=data/pack.csv interval=10.0s a=9058AE7F-F98B-D0F6-237D-6769894DE118 b=6EC69980-CA43-7DEF-519B-6235C8C535B7
+2026-05-17 18:49:17,774 INFO n=1  26.68V  -1.40A  -37W  SOC 99-99%  state=discharging  remain≈7629m
+2026-05-17 18:54:15,301 INFO n=30  26.63V  -2.00A  -53W  SOC 99-99%  state=discharging  remain≈4463m
+2026-05-17 18:58:00,906 INFO starting: csv=data/pack.csv interval=10.0s a=9058AE7F-F98B-D0F6-237D-6769894DE118 b=6EC69980-CA43-7DEF-519B-6235C8C535B7
+2026-05-17 18:58:05,257 INFO n=1  26.76V  +4.60A  +123W  SOC 99-99%  state=full  remain≈—
+2026-05-17 19:00:24,700 INFO starting: csv=data/pack.csv interval=10.0s a=9058AE7F-F98B-D0F6-237D-6769894DE118 b=6EC69980-CA43-7DEF-519B-6235C8C535B7
+2026-05-17 19:00:26,734 INFO n=1  26.80V  +4.70A  +126W  SOC 99-99%  state=full  remain≈—
+2026-05-17 19:05:16,794 INFO n=30  26.91V  +6.60A  +178W  SOC 99-100%  state=full  remain≈—
+2026-05-17 19:10:18,265 INFO n=60  27.01V  +5.90A  +159W  SOC 100-100%  state=full  remain≈—
+2026-05-17 19:15:18,038 INFO n=90  27.15V  +3.70A  +100W  SOC 100-100%  state=full  remain≈—
+2026-05-17 19:20:20,818 INFO n=120  27.32V  +4.50A  +123W  SOC 100-100%  state=full  remain≈—
+2026-05-17 19:25:18,534 INFO n=150  27.47V  +0.00A  +0W  SOC 100-100%  state=full  remain≈—
+2026-05-17 19:30:32,574 INFO n=180  27.42V  +0.00A  +0W  SOC 100-100%  state=idle  remain≈—
+2026-05-17 19:35:37,821 INFO n=210  27.38V  +0.00A  +0W  SOC 100-100%  state=idle  remain≈—
+2026-05-17 19:40:42,969 INFO n=240  27.59V  +1.70A  +47W  SOC 100-100%  state=full  remain≈—
+2026-05-17 19:45:38,987 INFO n=270  27.78V  +0.00A  +0W  SOC 100-100%  state=full  remain≈—
+2026-05-17 19:50:45,532 INFO n=300  28.00V  +0.00A  +0W  SOC 100-100%  state=idle  remain≈—
+2026-05-17 19:55:52,823 INFO n=330  27.57V  -2.90A  -80W  SOC 100-100%  state=discharging  remain≈4204m
+2026-05-17 20:00:57,743 INFO n=360  27.00V  -6.20A  -167W  SOC 100-100%  state=discharging  remain≈1940m
+2026-05-17 20:02:23,398 WARNING read #367 failed (1 in a row): RuntimeError: battery 6EC69980-CA43-7DEF-519B-6235C8C535B7 not found in scan
+2026-05-17 20:02:33,272 INFO BLE recovered after 1 errors
+2026-05-17 20:06:27,793 INFO n=390  26.71V  -3.50A  -93W  SOC 100-100%  state=discharging  remain≈2663m
+2026-05-17 20:11:27,587 INFO n=420  26.63V  -3.50A  -93W  SOC 100-100%  state=discharging  remain≈3108m
+2026-05-17 20:16:29,079 INFO n=450  26.58V  -3.50A  -93W  SOC 100-100%  state=discharging  remain≈3020m
+2026-05-17 20:21:31,700 INFO n=480  26.56V  -3.30A  -88W  SOC 100-100%  state=discharging  remain≈3244m
+2026-05-17 20:26:30,113 INFO n=510  26.50V  -6.70A  -178W  SOC 99-99%  state=discharging  remain≈1928m
+2026-05-17 20:31:39,258 INFO n=540  26.49V  -6.10A  -162W  SOC 99-99%  state=discharging  remain≈1744m
+2026-05-17 20:36:43,847 INFO n=570  26.49V  -5.50A  -146W  SOC 99-99%  state=discharging  remain≈1885m
+2026-05-17 20:41:41,538 INFO n=600  26.52V  -3.10A  -82W  SOC 99-99%  state=discharging  remain≈3388m
+2026-05-17 20:47:05,082 INFO n=630  26.52V  -3.20A  -85W  SOC 98-98%  state=discharging  remain≈3179m
+2026-05-17 20:52:11,246 INFO n=660  26.52V  -3.40A  -90W  SOC 98-98%  state=discharging  remain≈2907m
+2026-05-17 20:57:04,137 INFO n=690  26.51V  -4.00A  -106W  SOC 98-98%  state=discharging  remain≈2607m
+2026-05-17 21:02:28,315 INFO n=720  26.48V  -6.90A  -183W  SOC 98-98%  state=discharging  remain≈1522m
+2026-05-17 21:07:24,193 INFO n=750  26.49V  -5.80A  -154W  SOC 97-98%  state=discharging  remain≈1759m
+2026-05-17 21:12:37,476 INFO n=780  26.51V  -3.70A  -98W  SOC 97-97%  state=discharging  remain≈2801m
+2026-05-17 21:17:38,666 INFO n=810  26.52V  -3.00A  -80W  SOC 97-97%  state=discharging  remain≈3259m
+2026-05-17 21:22:43,447 INFO n=840  26.53V  -3.10A  -82W  SOC 97-97%  state=discharging  remain≈3458m
+2026-05-17 21:27:48,575 INFO n=870  26.53V  -3.20A  -85W  SOC 97-97%  state=discharging  remain≈3386m
+2026-05-17 21:33:00,704 INFO n=900  26.52V  -4.90A  -130W  SOC 97-97%  state=discharging  remain≈3283m
+2026-05-17 21:37:57,499 INFO n=930  26.49V  -5.90A  -156W  SOC 96-97%  state=discharging  remain≈1756m
+2026-05-17 21:42:58,588 INFO n=960  26.49V  -5.50A  -146W  SOC 96-96%  state=discharging  remain≈1859m
+2026-05-17 21:47:58,421 INFO n=990  26.52V  -3.10A  -82W  SOC 96-96%  state=discharging  remain≈3336m
+2026-05-17 21:52:59,625 INFO n=1020  26.52V  -3.70A  -98W  SOC 96-96%  state=discharging  remain≈2832m
+2026-05-17 21:58:03,079 INFO n=1050  26.52V  -3.70A  -98W  SOC 96-96%  state=discharging  remain≈2866m
+2026-05-17 22:03:16,110 INFO n=1080  26.50V  -5.00A  -133W  SOC 95-96%  state=discharging  remain≈2056m
+2026-05-17 22:08:24,402 INFO n=1110  26.47V  -8.30A  -220W  SOC 95-96%  state=discharging  remain≈1461m
+2026-05-17 22:13:29,775 INFO n=1140  26.46V  -7.50A  -198W  SOC 95-95%  state=discharging  remain≈1353m
+2026-05-17 22:18:32,451 INFO n=1170  26.47V  -5.90A  -156W  SOC 95-95%  state=discharging  remain≈1445m
+2026-05-17 22:23:33,869 INFO n=1200  26.49V  -4.50A  -119W  SOC 94-95%  state=discharging  remain≈2207m
+2026-05-17 22:28:36,809 INFO n=1230  26.49V  -4.60A  -122W  SOC 94-95%  state=discharging  remain≈2184m
+2026-05-17 22:33:43,335 INFO n=1260  26.49V  -4.60A  -122W  SOC 94-94%  state=discharging  remain≈2190m
+2026-05-17 22:38:46,770 INFO n=1290  26.50V  -4.70A  -125W  SOC 94-94%  state=discharging  remain≈2173m
+2026-05-17 22:43:47,941 INFO n=1320  26.46V  -7.90A  -209W  SOC 93-94%  state=discharging  remain≈1346m
+2026-05-17 22:48:52,000 INFO n=1350  26.46V  -7.30A  -193W  SOC 93-94%  state=discharging  remain≈1357m
+2026-05-17 22:53:52,969 INFO n=1380  26.48V  -4.50A  -119W  SOC 93-93%  state=discharging  remain≈1814m
+2026-05-17 22:59:16,365 INFO n=1410  26.49V  -4.50A  -119W  SOC 93-93%  state=discharging  remain≈2183m
+2026-05-17 23:04:25,474 INFO n=1440  26.49V  -4.60A  -122W  SOC 92-93%  state=discharging  remain≈2172m
+2026-05-17 23:09:24,240 INFO n=1470  26.49V  -4.60A  -122W  SOC 92-93%  state=discharging  remain≈2166m
+2026-05-17 23:14:43,037 INFO n=1500  26.49V  -4.50A  -119W  SOC 92-92%  state=discharging  remain≈2196m
+2026-05-17 23:19:47,405 INFO n=1530  26.46V  -7.50A  -198W  SOC 92-92%  state=discharging  remain≈1297m
+2026-05-17 23:24:44,093 INFO n=1560  26.45V  -7.00A  -185W  SOC 91-92%  state=discharging  remain≈1362m
+2026-05-17 23:29:49,026 INFO n=1590  26.48V  -4.30A  -114W  SOC 91-92%  state=discharging  remain≈2082m
+2026-05-17 23:34:52,726 INFO n=1620  26.49V  -4.30A  -114W  SOC 91-91%  state=discharging  remain≈2186m
+2026-05-17 23:39:58,585 INFO n=1650  26.49V  -4.40A  -117W  SOC 91-91%  state=discharging  remain≈2189m
+2026-05-17 23:44:52,960 INFO n=1680  26.49V  -4.30A  -114W  SOC 91-91%  state=discharging  remain≈2180m
+2026-05-17 23:50:06,817 INFO n=1710  26.49V  -4.50A  -119W  SOC 90-91%  state=discharging  remain≈2186m
+2026-05-17 23:55:02,788 INFO n=1740  26.45V  -7.30A  -193W  SOC 90-91%  state=discharging  remain≈1304m
+2026-05-18 00:00:06,221 INFO n=1770  26.45V  -7.10A  -188W  SOC 90-90%  state=discharging  remain≈1345m
+2026-05-18 00:05:20,549 INFO n=1800  26.48V  -4.50A  -119W  SOC 89-90%  state=discharging  remain≈2092m
+2026-05-18 00:10:18,573 INFO n=1830  26.48V  -4.60A  -122W  SOC 89-90%  state=discharging  remain≈2118m
+2026-05-18 00:15:26,736 INFO n=1860  26.49V  -4.60A  -122W  SOC 89-90%  state=discharging  remain≈2120m
+2026-05-18 00:20:21,165 INFO n=1890  26.49V  -4.50A  -119W  SOC 89-90%  state=discharging  remain≈2144m
+2026-05-18 00:25:22,603 INFO n=1920  26.47V  -6.70A  -177W  SOC 89-89%  state=discharging  remain≈1882m
+2026-05-18 00:30:27,175 INFO n=1950  26.45V  -6.90A  -182W  SOC 88-89%  state=discharging  remain≈1291m
+2026-05-18 00:35:40,664 INFO n=1980  26.45V  -6.90A  -182W  SOC 88-89%  state=discharging  remain≈1308m
+2026-05-18 00:40:46,721 INFO n=2010  26.48V  -4.60A  -122W  SOC 88-88%  state=discharging  remain≈2065m
+2026-05-18 00:45:47,705 INFO n=2040  26.48V  -4.30A  -114W  SOC 88-88%  state=discharging  remain≈2067m
+2026-05-18 00:50:54,422 INFO n=2070  26.48V  -4.10A  -109W  SOC 87-88%  state=discharging  remain≈2113m
+2026-05-18 00:55:56,520 INFO n=2100  26.48V  -4.50A  -119W  SOC 87-88%  state=discharging  remain≈2035m
+2026-05-18 01:00:59,984 INFO n=2130  26.44V  -7.90A  -209W  SOC 87-88%  state=discharging  remain≈1230m
+2026-05-18 01:01:36,090 WARNING read #2132 failed (1 in a row): RuntimeError: battery 9058AE7F-F98B-D0F6-237D-6769894DE118 not found in scan
+2026-05-18 01:01:42,562 INFO BLE recovered after 1 errors
+2026-05-18 01:06:18,312 INFO n=2160  26.44V  -7.20A  -190W  SOC 87-87%  state=discharging  remain≈1272m
+2026-05-18 01:11:23,966 INFO n=2190  26.46V  -4.50A  -119W  SOC 86-87%  state=discharging  remain≈1871m
+2026-05-18 01:16:26,821 INFO n=2220  26.47V  -5.10A  -135W  SOC 86-87%  state=discharging  remain≈1958m
+2026-05-18 01:21:29,594 INFO n=2250  26.48V  -4.70A  -124W  SOC 86-87%  state=discharging  remain≈2002m
+2026-05-18 01:26:51,186 INFO n=2280  26.47V  -4.40A  -116W  SOC 86-86%  state=discharging  remain≈2035m
+2026-05-18 01:31:56,236 INFO n=2310  26.48V  -4.40A  -116W  SOC 85-86%  state=discharging  remain≈2019m
+2026-05-18 01:36:55,140 INFO n=2340  26.44V  -7.40A  -196W  SOC 85-86%  state=discharging  remain≈1219m
+2026-05-18 01:42:00,666 INFO n=2370  26.43V  -7.30A  -193W  SOC 85-86%  state=discharging  remain≈1240m
+2026-05-18 01:47:03,365 INFO n=2400  26.46V  -4.80A  -127W  SOC 85-85%  state=discharging  remain≈1940m
+2026-05-18 01:52:09,649 INFO n=2430  26.47V  -4.50A  -119W  SOC 84-85%  state=discharging  remain≈2033m
+2026-05-18 01:54:56,816 WARNING read #2445 failed (1 in a row): RuntimeError: battery 6EC69980-CA43-7DEF-519B-6235C8C535B7 not found in scan
+2026-05-18 01:55:00,104 INFO BLE recovered after 1 errors
+2026-05-18 01:57:46,212 INFO n=2460  26.47V  -4.40A  -116W  SOC 84-85%  state=discharging  remain≈2021m
+2026-05-18 02:02:46,335 WARNING read #2489 failed (1 in a row): RuntimeError: battery 6EC69980-CA43-7DEF-519B-6235C8C535B7 not found in scan
+2026-05-18 02:02:51,756 INFO BLE recovered after 1 errors
+2026-05-18 02:03:04,910 INFO n=2490  26.47V  -4.60A  -122W  SOC 84-85%  state=discharging  remain≈2005m
+2026-05-18 02:08:18,982 INFO n=2520  26.44V  -7.90A  -209W  SOC 84-85%  state=discharging  remain≈1437m
+2026-05-18 02:13:26,759 INFO n=2550  26.42V  -7.30A  -193W  SOC 83-84%  state=discharging  remain≈1191m
+2026-05-18 02:18:26,804 INFO n=2580  26.43V  -6.90A  -182W  SOC 83-84%  state=discharging  remain≈1255m
+2026-05-18 02:23:28,862 INFO n=2610  26.46V  -4.40A  -116W  SOC 83-84%  state=discharging  remain≈1954m
+2026-05-18 02:28:46,070 INFO n=2640  26.46V  -4.40A  -116W  SOC 83-84%  state=discharging  remain≈2009m
+2026-05-18 02:33:44,083 INFO n=2670  26.46V  -4.30A  -114W  SOC 82-83%  state=discharging  remain≈1968m
+2026-05-18 02:38:47,950 INFO n=2700  26.47V  -4.30A  -114W  SOC 82-83%  state=discharging  remain≈1954m
+2026-05-18 02:43:48,479 INFO n=2730  26.43V  -7.90A  -209W  SOC 82-83%  state=discharging  remain≈1318m
+2026-05-18 02:48:49,291 INFO n=2760  26.42V  -7.10A  -188W  SOC 82-83%  state=discharging  remain≈1188m
+2026-05-18 02:53:55,765 INFO n=2790  26.44V  -4.40A  -116W  SOC 81-82%  state=discharging  remain≈1484m
+2026-05-18 02:58:58,553 INFO n=2820  26.45V  -4.60A  -122W  SOC 81-82%  state=discharging  remain≈1870m
+2026-05-18 03:04:13,518 INFO n=2850  26.46V  -4.10A  -108W  SOC 81-82%  state=discharging  remain≈1920m
+2026-05-18 03:09:13,543 INFO n=2880  26.46V  -4.40A  -116W  SOC 81-82%  state=discharging  remain≈1960m
+2026-05-18 03:14:27,425 INFO n=2910  26.46V  -4.50A  -119W  SOC 81-82%  state=discharging  remain≈1913m
+2026-05-18 03:19:32,168 INFO n=2940  26.42V  -7.90A  -209W  SOC 80-81%  state=discharging  remain≈1157m
+2026-05-18 03:24:33,163 INFO n=2970  26.41V  -7.30A  -193W  SOC 80-81%  state=discharging  remain≈1162m
+2026-05-18 03:29:36,585 INFO n=3000  26.43V  -4.50A  -119W  SOC 80-81%  state=discharging  remain≈1670m
+2026-05-18 03:34:33,673 INFO n=3030  26.44V  -4.50A  -119W  SOC 80-81%  state=discharging  remain≈1859m
+2026-05-18 03:39:39,248 INFO n=3060  26.45V  -4.50A  -119W  SOC 79-81%  state=discharging  remain≈1862m
+2026-05-18 03:45:03,931 INFO n=3090  26.45V  -4.40A  -116W  SOC 79-80%  state=discharging  remain≈1881m
+2026-05-18 03:49:58,468 INFO n=3120  26.45V  -4.50A  -119W  SOC 79-80%  state=discharging  remain≈1881m
+2026-05-18 03:54:24,113 WARNING read #3145 failed (1 in a row): RuntimeError: battery 9058AE7F-F98B-D0F6-237D-6769894DE118 not found in scan
+2026-05-18 03:54:25,972 INFO BLE recovered after 1 errors
+2026-05-18 03:55:18,123 INFO n=3150  26.40V  -7.50A  -198W  SOC 79-80%  state=discharging  remain≈1125m
+2026-05-18 04:00:24,953 INFO n=3180  26.39V  -7.10A  -187W  SOC 78-80%  state=discharging  remain≈1130m
+2026-05-18 04:05:23,559 INFO n=3210  26.42V  -4.50A  -119W  SOC 78-79%  state=discharging  remain≈1778m
+2026-05-18 04:10:42,212 INFO n=3240  26.43V  -4.50A  -119W  SOC 78-79%  state=discharging  remain≈1823m
+2026-05-18 04:15:39,354 INFO n=3270  26.43V  -4.30A  -114W  SOC 78-79%  state=discharging  remain≈1840m
+2026-05-18 04:20:42,983 INFO n=3300  26.43V  -4.30A  -114W  SOC 77-79%  state=discharging  remain≈1825m
+2026-05-18 04:25:42,663 INFO n=3330  26.42V  -4.50A  -119W  SOC 77-79%  state=discharging  remain≈1798m
+2026-05-18 04:30:55,804 INFO n=3360  26.38V  -7.30A  -193W  SOC 77-78%  state=discharging  remain≈1087m
+2026-05-18 04:36:02,736 INFO n=3390  26.36V  -7.30A  -192W  SOC 77-78%  state=discharging  remain≈1100m
+2026-05-18 04:41:14,722 INFO n=3420  26.40V  -4.40A  -116W  SOC 76-78%  state=discharging  remain≈1743m
+2026-05-18 04:46:23,067 INFO n=3450  26.40V  -4.60A  -121W  SOC 76-78%  state=discharging  remain≈1781m
+2026-05-18 04:51:20,769 INFO n=3480  26.39V  -4.50A  -119W  SOC 76-77%  state=discharging  remain≈1780m
+2026-05-18 04:56:34,020 INFO n=3510  26.39V  -4.70A  -124W  SOC 76-77%  state=discharging  remain≈1755m
+2026-05-18 05:01:34,136 INFO n=3540  26.38V  -4.60A  -121W  SOC 76-77%  state=discharging  remain≈1762m
+2026-05-18 05:06:37,535 INFO n=3570  26.33V  -7.40A  -195W  SOC 75-77%  state=discharging  remain≈1054m
+2026-05-18 05:11:36,897 INFO n=3600  26.31V  -7.00A  -184W  SOC 75-76%  state=discharging  remain≈1089m
+2026-05-18 05:16:47,075 INFO n=3630  26.34V  -4.50A  -119W  SOC 75-76%  state=discharging  remain≈1728m
+2026-05-18 05:21:49,423 INFO n=3660  26.34V  -4.60A  -121W  SOC 75-76%  state=discharging  remain≈1761m
+2026-05-18 05:27:02,825 INFO n=3690  26.34V  -4.00A  -105W  SOC 74-76%  state=discharging  remain≈1864m
+2026-05-18 05:32:30,274 INFO n=3720  26.34V  -3.90A  -103W  SOC 74-76%  state=discharging  remain≈1984m
+2026-05-18 05:37:42,444 INFO n=3750  26.33V  -3.70A  -97W  SOC 74-75%  state=discharging  remain≈2098m
+2026-05-18 05:42:42,339 INFO n=3780  26.28V  -6.50A  -171W  SOC 74-75%  state=discharging  remain≈1164m
+2026-05-18 05:47:54,244 INFO n=3810  26.27V  -5.90A  -155W  SOC 73-75%  state=discharging  remain≈1265m
+2026-05-18 05:52:56,525 INFO n=3840  26.30V  -3.00A  -79W  SOC 73-75%  state=discharging  remain≈2477m
+2026-05-18 05:57:59,944 INFO n=3870  26.31V  -2.90A  -76W  SOC 73-75%  state=discharging  remain≈2695m
+2026-05-18 06:02:58,420 INFO n=3900  26.31V  -2.60A  -68W  SOC 73-75%  state=discharging  remain≈2794m
+2026-05-18 06:08:00,256 INFO n=3930  26.30V  -2.60A  -68W  SOC 73-74%  state=discharging  remain≈3024m
+2026-05-18 06:12:14,916 WARNING read #3953 failed (1 in a row): RuntimeError: battery 6EC69980-CA43-7DEF-519B-6235C8C535B7 not found in scan
+2026-05-18 06:12:17,495 INFO BLE recovered after 1 errors
+2026-05-18 06:13:26,553 INFO n=3960  26.30V  -2.50A  -66W  SOC 73-74%  state=discharging  remain≈2990m
+2026-05-18 06:18:29,682 INFO n=3990  26.25V  -5.00A  -131W  SOC 73-74%  state=discharging  remain≈1430m
+2026-05-18 06:23:34,672 INFO n=4020  26.25V  -2.50A  -66W  SOC 72-74%  state=discharging  remain≈1840m
+2026-05-18 06:28:43,378 INFO n=4050  26.27V  -2.50A  -66W  SOC 72-74%  state=discharging  remain≈3100m
+2026-05-18 06:33:45,695 INFO n=4080  26.27V  -2.80A  -74W  SOC 72-74%  state=discharging  remain≈2910m
+2026-05-18 06:38:54,554 INFO n=4110  26.29V  +0.00A  +0W  SOC 72-74%  state=discharging  remain≈10599m
+2026-05-18 06:43:56,515 INFO n=4140  26.29V  +0.00A  +0W  SOC 72-74%  state=discharging  remain≈12397m
+2026-05-18 06:48:53,168 INFO n=4170  26.26V  -4.90A  -129W  SOC 72-74%  state=discharging  remain≈2943m
+2026-05-18 06:53:52,178 INFO n=4200  26.24V  -3.60A  -94W  SOC 72-73%  state=discharging  remain≈1952m
+2026-05-18 06:58:54,909 INFO n=4230  26.26V  +0.00A  +0W  SOC 72-73%  state=discharging  remain≈7386m
+2026-05-18 07:02:13,928 WARNING read #4248 failed (1 in a row): RuntimeError: battery 6EC69980-CA43-7DEF-519B-6235C8C535B7 not found in scan
+2026-05-18 07:02:16,871 INFO BLE recovered after 1 errors
+2026-05-18 07:04:16,917 INFO n=4260  26.28V  +0.00A  +0W  SOC 72-73%  state=idle  remain≈—
+2026-05-18 07:09:18,282 INFO n=4290  26.28V  +0.00A  +0W  SOC 71-73%  state=idle  remain≈—
+2026-05-18 07:14:36,547 INFO n=4320  26.28V  -0.60A  -16W  SOC 71-73%  state=idle  remain≈—
+2026-05-18 07:19:35,235 INFO n=4350  26.29V  +0.00A  +0W  SOC 71-73%  state=idle  remain≈—
+2026-05-18 07:24:35,041 INFO n=4380  26.26V  -4.30A  -113W  SOC 71-73%  state=discharging  remain≈2998m
+2026-05-18 07:29:49,182 INFO n=4410  26.23V  -3.30A  -87W  SOC 71-73%  state=discharging  remain≈2147m
+2026-05-18 07:34:49,843 INFO n=4440  26.27V  +0.00A  +0W  SOC 71-73%  state=discharging  remain≈13886m
+2026-05-18 07:39:56,256 INFO n=4470  26.29V  +0.00A  +0W  SOC 71-73%  state=idle  remain≈—
+2026-05-18 07:45:03,914 INFO n=4500  26.30V  +0.00A  +0W  SOC 71-73%  state=idle  remain≈—
+2026-05-18 07:50:09,829 INFO n=4530  26.30V  +0.00A  +0W  SOC 71-73%  state=idle  remain≈—
+2026-05-18 07:55:12,628 INFO n=4560  26.31V  +0.00A  +0W  SOC 71-73%  state=idle  remain≈—
+2026-05-18 08:00:16,167 INFO n=4590  26.27V  -2.20A  -58W  SOC 71-73%  state=discharging  remain≈3135m
+2026-05-18 08:05:12,327 INFO n=4620  26.26V  -1.80A  -47W  SOC 71-73%  state=discharging  remain≈3817m
+2026-05-18 08:10:14,674 INFO n=4650  26.26V  -1.60A  -42W  SOC 71-72%  state=discharging  remain≈4612m
+2026-05-18 08:15:30,157 INFO n=4680  26.27V  +0.00A  +0W  SOC 71-72%  state=idle  remain≈—
+2026-05-18 08:20:28,518 INFO n=4710  26.28V  +0.00A  +0W  SOC 71-72%  state=idle  remain≈—
+2026-05-18 08:25:33,360 INFO n=4740  26.28V  -0.70A  -18W  SOC 71-72%  state=idle  remain≈—
+2026-05-18 08:30:44,319 INFO n=4770  26.27V  -1.30A  -34W  SOC 71-72%  state=discharging  remain≈7398m
+2026-05-18 08:35:56,074 INFO n=4800  26.27V  +0.00A  +0W  SOC 71-72%  state=idle  remain≈—
+2026-05-18 08:40:56,693 INFO n=4830  26.27V  +0.00A  +0W  SOC 71-72%  state=idle  remain≈—
+2026-05-18 08:46:02,529 INFO n=4860  26.26V  -1.80A  -47W  SOC 70-72%  state=discharging  remain≈4695m
+2026-05-18 08:51:06,598 INFO n=4890  26.28V  +0.00A  +0W  SOC 70-72%  state=idle  remain≈—
+2026-05-18 08:56:12,111 INFO n=4920  26.30V  +0.00A  +0W  SOC 70-72%  state=idle  remain≈—
+2026-05-18 09:01:13,940 INFO n=4950  26.30V  +0.00A  +0W  SOC 70-72%  state=idle  remain≈—
+2026-05-18 09:06:17,531 INFO n=4980  26.30V  +0.00A  +0W  SOC 70-72%  state=idle  remain≈—
+2026-05-18 09:11:21,286 INFO n=5010  26.32V  +0.00A  +0W  SOC 70-72%  state=idle  remain≈—
+2026-05-18 09:16:34,923 INFO n=5040  26.34V  +0.00A  +0W  SOC 70-72%  state=idle  remain≈—
+2026-05-18 09:21:39,024 INFO n=5070  26.27V  -1.80A  -47W  SOC 70-72%  state=discharging  remain≈4561m
+2026-05-18 09:26:42,798 INFO n=5100  26.27V  -1.40A  -37W  SOC 70-72%  state=discharging  remain≈4310m
+2026-05-18 09:31:46,726 INFO n=5130  26.30V  +1.40A  +37W  SOC 70-72%  state=charging  remain≈4204m
+2026-05-18 09:36:40,529 INFO n=5160  26.34V  +1.20A  +32W  SOC 70-72%  state=charging  remain≈2332m
+2026-05-18 09:41:41,778 INFO n=5190  26.36V  +2.20A  +58W  SOC 70-72%  state=charging  remain≈1496m
+2026-05-18 09:46:39,720 INFO n=5220  26.40V  +0.60A  +16W  SOC 71-72%  state=charging  remain≈987m
+2026-05-18 09:51:46,569 INFO n=5250  26.41V  +3.30A  +87W  SOC 71-72%  state=charging  remain≈1084m
+2026-05-18 09:56:48,686 INFO n=5280  26.44V  +3.20A  +85W  SOC 71-72%  state=charging  remain≈901m
+2026-05-18 10:01:49,453 INFO n=5310  26.54V  +6.90A  +183W  SOC 71-73%  state=charging  remain≈388m
+2026-05-18 10:06:58,100 INFO n=5340  26.60V  +9.00A  +239W  SOC 71-73%  state=charging  remain≈317m
+2026-05-18 10:12:01,054 INFO n=5370  26.62V  +6.30A  +168W  SOC 72-73%  state=charging  remain≈371m
+2026-05-18 10:17:05,178 INFO n=5400  26.63V  +6.50A  +173W  SOC 72-74%  state=charging  remain≈392m
+2026-05-18 10:22:03,395 INFO n=5430  26.61V  +4.90A  +130W  SOC 72-74%  state=charging  remain≈527m
+2026-05-18 10:27:04,105 INFO n=5460  26.65V  +6.50A  +173W  SOC 72-74%  state=charging  remain≈406m
+2026-05-18 10:32:11,778 INFO n=5490  26.71V  +8.30A  +222W  SOC 73-74%  state=charging  remain≈293m

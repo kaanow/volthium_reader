@@ -133,6 +133,12 @@ Each cycle: analyze, push to GitHub, note new learnings here, push
 one design item further, schedule the next wake. Older entries
 roll into `docs/STATUS_archive.md`.
 
+**Data logs are committed too** (`data/pack.csv`, `weather.csv`,
+`daily_summary.csv`, `pack.log`, etc.) — each loop push captures
+the latest snapshot, so the full data trail lives in the repo
+and is recoverable from GitHub if anything happens to the laptop.
+Re-cloning gives you the data plus the code.
+
 ## Loop notes
 
 *(appended chronologically, newest first)*

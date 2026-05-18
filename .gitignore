@@ -1,15 +1,18 @@
 .venv/
 __pycache__/
 *.pyc
-data/
-*.csv
-*.log
+# Note: data/ is committed (pack.csv, weather.csv, daily_summary.csv,
+# pack.log etc.) so each autonomous-loop push keeps the cabin's data
+# trail in the repo. Drop a specific path below if a sub-file should
+# stay local-only.
 hardware/kicad/outputs/
 hardware/kicad/projects/*/*-backups/
 hardware/kicad/projects/*/fp-info-cache
 
 # SKiDL leftover artifacts
 *.erc
+/skidl_REPL.log
+/test_smoke.log
 
 # Claude Code state
 .claude/
