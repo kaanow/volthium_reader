@@ -143,6 +143,41 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **11:28** — Loop wake. Pack SOC **78/77 %** (battery B catching up
+  under sustained charge — gap from A narrowed 3 % → 1 % since
+  start of charging). Charging at +9.1 A, voltage 26.87 V. Today's
+  harvest **12.5 Ah / 37 %** (+3.3 Ah in 22 min ≈ 9 Ah/hr rate).
+  Advisor projections improving: sunrise SOC 71 % (was 67 % at
+  11:06). Steady, encouraging climb.
+  - Design item: **live SolarModel-coefficient measurement.** First
+    time the system surfaces today's actual Ah/(kWh/m²) ratio as
+    it's being measured.
+    - New `integrate_today_irradiance()` in `scripts/today_harvest.py`
+      trapezoidally integrates `shortwave_radiation_wm2` from
+      weather.csv samples (~ every 30 min) to give kWh/m² **delivered
+      so far today**. Independent of Open-Meteo's forecast-total
+      field; pairs with the partial-day pack harvest to extract a
+      coefficient in real time, not at sunset.
+    - New snapshot fields: `irradiance_kwh_m2_so_far`,
+      `live_ratio_ah_per_kwh_m2` (threshold-guarded so noisy
+      near-zero numerator/denominator early in the day don't
+      produce a wild reading — needs ≥ 0.5 kWh/m² actual and
+      ≥ 1.0 Ah harvested).
+    - **First live reading: 7.48 Ah/(kWh/m²)** — which is right on
+      our SolarModel default of 7.0! Today's morning data is
+      validating the calibration we extracted from yesterday's
+      partial-day rollup. This is the system's first cross-day
+      coefficient check.
+    - Dashboard: new `.live-ratio` row in the harvest panel showing
+      the number in green, with the actual-kWh/m²-so-far as an
+      aside. Dim background, compact — fits below the sparkline.
+    - 1.71 kWh/m² delivered through 11:28 today out of 4.86 kWh/m²
+      forecast = **35 % of today's expected irradiance**, vs 37 %
+      of the predicted Ah → the harvest is **slightly ahead of
+      the irradiance-linear projection**. Could indicate the
+      morning hours were dim and afternoon will outperform, or
+      the model coefficient is slightly low. End-of-day will tell.
+
 - **11:06** — Loop wake. **Harvest climb continues.** Pack SOC
   **77/75 %** (+1 % in 12 min), charging at **+10.2 A** sustained
   (was +7.5 A), voltage 26.85 V, irradiance **622 W/m²** still

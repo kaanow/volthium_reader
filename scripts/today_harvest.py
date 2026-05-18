@@ -165,6 +165,53 @@ def latest_weather_forecast_kwh(weather_csv: Path, today: date) -> Optional[floa
     return latest_kwh
 
 
+def integrate_today_irradiance(weather_csv: Path, today: date) -> Optional[float]:
+    """Integrate `shortwave_radiation_wm2` from today's weather samples
+    to estimate the kWh/m² actually delivered SO FAR today.
+
+    weather.csv has ~one row per 30 min. Each row reports the
+    instantaneous shortwave_radiation in W/m². Trapezoidal integration
+    in time, divided by 3600 s/h and 1000 W/kW, gives kWh/m².
+
+    This is independent of Open-Meteo's `shortwave_radiation_sum_today`
+    field (which is the forecast TOTAL for the day) — by integrating
+    the live samples ourselves we get a partial-day actual that we can
+    pair with the partial-day pack harvest to extract a real Ah/(kWh/m²)
+    coefficient *as the day progresses*, instead of waiting for sunset.
+
+    Returns None if we have <2 samples for today.
+    """
+    samples: list[tuple[datetime, float]] = []
+    try:
+        with weather_csv.open() as f:
+            for r in csv.DictReader(f):
+                try:
+                    ts = datetime.fromisoformat(r["ts"])
+                except Exception:
+                    continue
+                if ts.date() != today:
+                    continue
+                v = _f(r.get("shortwave_radiation_wm2"))
+                if v is not None:
+                    samples.append((ts, v))
+    except FileNotFoundError:
+        return None
+
+    if len(samples) < 2:
+        return None
+
+    samples.sort(key=lambda p: p[0])
+    wh_m2 = 0.0   # accumulated Wh/m²
+    for i in range(1, len(samples)):
+        (t0, w0), (t1, w1) = samples[i - 1], samples[i]
+        dt_h = (t1 - t0).total_seconds() / 3600.0
+        if dt_h <= 0 or dt_h > 2.0:
+            # gap larger than 2 h — treat as missing data, skip
+            continue
+        wh_m2 += (w0 + w1) / 2.0 * dt_h
+    return wh_m2 / 1000.0    # Wh/m² → kWh/m²
+
+
 def load_solar_model() -> SolarModel:
     """Same fit pipeline as generator_advisor — read daily_summary.csv
     if it exists, fall back to the constant default."""
@@ -185,6 +232,7 @@ def snapshot(pack_csv: Path, weather_csv: Path, today: Optional[date] = None) ->
 
     integrated = integrate_today(pack_csv, today)
     forecast_kwh = latest_weather_forecast_kwh(weather_csv, today)
+    actual_kwh_so_far = integrate_today_irradiance(weather_csv, today)
     model = load_solar_model()
 
     forecast_ah: Optional[float] = None
@@ -195,6 +243,15 @@ def snapshot(pack_csv: Path, weather_csv: Path, today: Optional[date] = None) ->
     if forecast_ah is not None and forecast_ah > 0:
         pct = max(0.0, min(200.0, integrated["solar_ah"] / forecast_ah * 100.0))
         pct = round(pct, 1)
+
+    # Live ratio: Ah harvested so far / kWh/m² delivered so far.
+    # First useful real-time measurement of the SolarModel coefficient.
+    # Threshold-guarded so noisy near-zero numerator/denominator early
+    # in the day don't produce a wild reading.
+    live_ratio: Optional[float] = None
+    if (actual_kwh_so_far is not None and actual_kwh_so_far >= 0.5
+            and integrated["solar_ah"] >= 1.0):
+        live_ratio = round(integrated["solar_ah"] / actual_kwh_so_far, 2)
 
     note = None
     if integrated["samples"] == 0:
@@ -216,6 +273,10 @@ def snapshot(pack_csv: Path, weather_csv: Path, today: Optional[date] = None) ->
         "irradiance_kwh_m2_forecast": (
             round(forecast_kwh, 2) if forecast_kwh is not None else None
         ),
+        "irradiance_kwh_m2_so_far": (
+            round(actual_kwh_so_far, 3) if actual_kwh_so_far is not None else None
+        ),
+        "live_ratio_ah_per_kwh_m2": live_ratio,
         "solar_ah_forecast": forecast_ah,
         "pct_of_forecast": pct,
         "confidence": model.confidence,
@@ -254,6 +315,11 @@ def main() -> int:
             print(f"  progress:         {snap['pct_of_forecast']:.0f}% of forecast")
     else:
         print(f"  forecast kWh/m²:  (no weather data yet)")
+    if snap["irradiance_kwh_m2_so_far"] is not None:
+        print(f"  actual kWh/m² so far:  {snap['irradiance_kwh_m2_so_far']:.3f}")
+        if snap["live_ratio_ah_per_kwh_m2"] is not None:
+            print(f"  live ratio so far:     "
+                  f"{snap['live_ratio_ah_per_kwh_m2']:.2f} Ah/(kWh/m²)")
     if snap["note"]:
         print(f"  note: {snap['note']}")
     return 0

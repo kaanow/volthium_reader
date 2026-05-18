@@ -427,6 +427,16 @@ INDEX_HTML = """<!doctype html>
                              color: var(--dim); font-size: 10px;
                              font-variant-numeric: tabular-nums;
                              margin-top: 2px; }
+  .harvest .live-ratio { margin-top: 10px; padding: 6px 10px;
+                         background: #0d1117; border-radius: 4px;
+                         display: flex; gap: 8px; align-items: baseline;
+                         flex-wrap: wrap; }
+  .harvest .live-ratio .lbl { text-transform: uppercase; letter-spacing: .1em;
+                              font-size: 10px; color: var(--dim); margin: 0; }
+  .harvest .live-ratio .v { font-size: 14px; font-weight: 500;
+                            font-variant-numeric: tabular-nums; color: var(--grn); }
+  .harvest .live-ratio .aside { font-size: 11px; color: var(--dim);
+                                margin-left: auto; }
   .advisor {
     margin-bottom: 18px; padding: 14px 16px; border-radius: 8px;
     background: #161b22; border-left: 4px solid var(--grn);
@@ -772,6 +782,12 @@ async function tick() {
             <div class="stat"><div class="lbl">irradiance forecast</div>
               <div class="v">${harv.irradiance_kwh_m2_forecast.toFixed(2)}<span class="u">kWh/m²</span></div></div>
           </div>
+          ${harv.live_ratio_ah_per_kwh_m2 != null ? `
+          <div class="live-ratio">
+            <span class="lbl">live ratio</span>
+            <span class="v">${harv.live_ratio_ah_per_kwh_m2.toFixed(2)} Ah/(kWh/m²)</span>
+            <span class="aside">${harv.irradiance_kwh_m2_so_far.toFixed(2)} kWh/m² actual so far</span>
+          </div>` : ""}
           <div class="footer">${harv.duration_h.toFixed(1)} h of data so far · ${harv.confidence} confidence</div>
           ${note}
         </div>`;
