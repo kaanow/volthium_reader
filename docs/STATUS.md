@@ -220,6 +220,23 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **07:33** — Loop wake. Pack SOC 71-73 % — still no sustained
+  charging despite being 2.5 h past sunrise. Likely because today's
+  forecast is 74 % cloud cover. The pack alternates 23-min idle
+  spans (solar matching load, voltage flat ~26.28 V) with brief
+  fridge-cycle discharges (-3 to -5 A for 9-11 min). Net: SOC
+  drifting down very slowly, not yet recovering.
+  - Advisor still ✓ no run, projected_low 68.6 % — the simulator
+    bug fix is still holding up under varied conditions.
+  - Design item: wrote **`firmware/common/volthium_lib/README.md`**
+    — the shared-C-library reference doc. Covers what's in the
+    directory, design rules ("no malloc, no ESP-IDF, Python is the
+    spec, C11 + -Werror"), usage examples for both firmware sides,
+    the Python ↔ C cross-validation procedure, when/how to bump
+    the wire-protocol version, and cross-references to all the
+    related docs. Polishes a piece of the firmware story that had
+    accumulated functionality without a focused entry point.
+
 - **07:06** — Loop wake. Pack SOC **72-73 %** (the daily low for this
   cycle, give or take a percent as the fridge cycles drift it).
   - **First major site-calibration finding captured**: the 10 h 45 m
