@@ -63,7 +63,14 @@ def lan_qr_svg(url: str) -> str:
     return buf.getvalue().decode()
 
 CSV_PATH: Path  # set in main()
+WEATHER_CSV_PATH: Path  # set in main()
 HISTORY_N = 720   # samples to keep in the rolling window for sparkline (≈ 2h @ 10s)
+
+# Working capacity estimate based on observed peak remaining_ah across the
+# Barge Inn pair (see docs/hardware/bms_calibration.md). Used only for the
+# overnight SOC projection — not for time-to-X math, which uses smoothed
+# current and per-battery SOC % directly.
+PROJECTION_CAPACITY_AH = 215.0
 
 # tail-cache so the dashboard doesn't re-read the whole file on every request
 _CACHE: dict = {"size": 0, "rows": deque(maxlen=HISTORY_N), "header": None}
@@ -111,6 +118,94 @@ def to_num(v: str | None):
         return float(v)
     except ValueError:
         return v
+
+
+def latest_weather_row() -> dict | None:
+    """Read the last data row of data/weather.csv (or None if missing)."""
+    if WEATHER_CSV_PATH is None or not WEATHER_CSV_PATH.exists():
+        return None
+    last = None
+    header = None
+    with WEATHER_CSV_PATH.open() as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if not line:
+                continue
+            if header is None:
+                header = line.split(",")
+                continue
+            last = line.split(",")
+    if not header or not last:
+        return None
+    return dict(zip(header, last))
+
+
+def compute_projection(latest_pack: dict, weather: dict | None) -> dict | None:
+    """Return {sunrise_iso, hours_to_sunrise, projected_soc_at_sunrise, ...}
+    or None if we can't compute (no weather, not discharging, etc.).
+
+    Only emits when state is `discharging` or `idle` and we have a sunrise.
+    For charging/full, the existing time-to-full headline is the right answer.
+    """
+    if weather is None:
+        return None
+    sunrise_iso = weather.get("sunrise_iso")
+    if not sunrise_iso:
+        return None
+    state = latest_pack.get("state")
+    if state not in ("discharging", "idle"):
+        return None
+
+    # Parse sunrise. The weather CSV stores today's sunrise. If it's in
+    # the past (overnight), the relevant one is +24h.
+    try:
+        sunrise_dt = datetime.fromisoformat(sunrise_iso)
+    except ValueError:
+        return None
+    now = datetime.now()
+    if sunrise_dt < now:
+        from datetime import timedelta
+        sunrise_dt = sunrise_dt + timedelta(days=1)
+    hours_to_sunrise = (sunrise_dt - now).total_seconds() / 3600.0
+
+    smoothed_i = latest_pack.get("smoothed_i")
+    if smoothed_i is None:
+        return None
+    smoothed_i = float(smoothed_i)
+
+    # Use the lower of (avg) per-battery SOC as the conservative starting
+    # point for the projection — that's the limiting battery on discharge.
+    sa = latest_pack.get("soc_a")
+    sb = latest_pack.get("soc_b")
+    if sa is None or sb is None:
+        return None
+    start_soc = min(float(sa), float(sb))
+
+    # Project at the smoothed current, treating idle (~0 A) as 0 change.
+    if abs(smoothed_i) < 0.5:
+        projected_soc = start_soc
+        rate_label = "current near zero"
+    else:
+        ah_change = smoothed_i * hours_to_sunrise           # signed; negative when discharging
+        pct_change = ah_change / PROJECTION_CAPACITY_AH * 100.0
+        projected_soc = start_soc + pct_change
+        # Display the rate as positive A regardless of sign
+        rate_label = f"at {smoothed_i:+.1f} A"
+
+    # Clamp display to reasonable bounds (-5 .. 100)
+    projected_soc_clamped = max(-5.0, min(100.0, projected_soc))
+
+    return {
+        "sunrise_iso": sunrise_dt.isoformat(timespec="minutes"),
+        "hours_to_sunrise": hours_to_sunrise,
+        "start_soc": start_soc,
+        "projected_soc": projected_soc_clamped,
+        "projected_soc_raw": projected_soc,
+        "rate_label": rate_label,
+        "weather_cloud_pct": float(weather["cloud_cover_pct"]) if weather.get("cloud_cover_pct") not in (None, "") else None,
+        "weather_temp_c": float(weather["temperature_c"]) if weather.get("temperature_c") not in (None, "") else None,
+        "day_irradiance_wh_m2": float(weather["shortwave_radiation_sum_today_wh_m2"]) if weather.get("shortwave_radiation_sum_today_wh_m2") not in (None, "") else None,
+    }
 
 
 INDEX_HTML = """<!doctype html>
@@ -169,6 +264,17 @@ INDEX_HTML = """<!doctype html>
                 font-size: 14px; user-select: all; }
   .share svg { width: 120px; height: 120px; background: #fff; padding: 6px; border-radius: 4px; display: block; }
   .share-label { text-transform: uppercase; letter-spacing: .1em; font-size: 11px; margin-bottom: 4px; }
+  .projection { margin-top: 16px; padding: 14px; border-radius: 8px;
+                background: #161b22; border: 1px solid #21262d; }
+  .projection .lbl { text-transform: uppercase; letter-spacing: .12em;
+                     color: var(--dim); font-size: 11px; margin-bottom: 4px; }
+  .projection .big { font-size: 32px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .projection .row { display: flex; gap: 18px; margin-top: 12px; align-items: baseline; }
+  .projection .stat .v { font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .projection .stat .u { color: var(--dim); font-size: 12px; margin-left: 3px; }
+  .projection .footer { color: var(--dim); font-size: 11px; margin-top: 10px; }
+  .projection .alarm { color: var(--ylw); }
+  .projection .critical { color: var(--red); }
   .spark { width: 100%; height: 80px; }
   .footer { color: var(--dim); font-size: 11px; margin-top: 14px; }
   .num { font-variant-numeric: tabular-nums; }
@@ -197,6 +303,7 @@ INDEX_HTML = """<!doctype html>
       <svg class="spark" id="spark-p" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
       <div class="label">SOC (%) — last 2 h</div>
       <svg class="spark" id="spark-soc" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
+      <div id="projection-panel"></div>
       <div class="footer"><span id="updated">—</span></div>
     </div>
     <div class="panel">
@@ -307,6 +414,39 @@ async function tick() {
     spark("spark-soc", socs, false, "var(--blu)");
     setText("updated", new Date().toLocaleTimeString() + "  •  " + series.length + " samples");
 
+    // Projection panel
+    const projEl = document.getElementById("projection-panel");
+    const proj = j.projection;
+    if (proj) {
+      const h = Math.floor(proj.hours_to_sunrise);
+      const m = Math.round((proj.hours_to_sunrise - h) * 60);
+      const sunriseTime = proj.sunrise_iso.slice(11, 16);   // HH:MM
+      let cls = "";
+      let label = `PROJECTED SOC AT SUNRISE (${sunriseTime})`;
+      if (proj.projected_soc < 10) cls = "critical";
+      else if (proj.projected_soc < 25) cls = "alarm";
+      const weatherBits = [];
+      if (proj.weather_cloud_pct != null) weatherBits.push(`${Math.round(proj.weather_cloud_pct)}% cloud`);
+      if (proj.weather_temp_c != null) weatherBits.push(`${proj.weather_temp_c.toFixed(1)}°C`);
+      if (proj.day_irradiance_wh_m2 != null) weatherBits.push(`${(proj.day_irradiance_wh_m2 / 1000).toFixed(1)} kWh/m² today`);
+      projEl.innerHTML = `
+        <div class="projection">
+          <div class="lbl">${label}</div>
+          <div class="big ${cls}">${proj.projected_soc.toFixed(0)}%</div>
+          <div class="row">
+            <div class="stat"><div class="lbl">in</div>
+              <div class="v">${h}h ${String(m).padStart(2,"0")}m</div></div>
+            <div class="stat"><div class="lbl">starting from</div>
+              <div class="v">${proj.start_soc.toFixed(0)}<span class="u">%</span></div></div>
+            <div class="stat"><div class="lbl">${proj.rate_label}</div>
+              <div class="v">&nbsp;</div></div>
+          </div>
+          <div class="footer">${weatherBits.join(" · ")}</div>
+        </div>`;
+    } else {
+      projEl.innerHTML = "";
+    }
+
     // Events
     const evList = document.getElementById("events");
     const events = (j.events || []).slice().reverse();   // newest first
@@ -369,11 +509,13 @@ class Handler(BaseHTTPRequestHandler):
                     "state": r.get("state"),
                 })
             events = [e.to_dict() for e in detect_events(ev_rows)]
+            projection = compute_projection(history[-1], latest_weather_row())
             return self._send(HTTPStatus.OK, "application/json",
                               json.dumps({
                                   "latest": history[-1],
                                   "history": history,
                                   "events": events[-20:],  # last 20 only, keep payload small
+                                  "projection": projection,
                               }).encode())
         return self._send(HTTPStatus.NOT_FOUND, "text/plain", b"not found")
 
@@ -387,9 +529,10 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> int:
-    global CSV_PATH
+    global CSV_PATH, WEATHER_CSV_PATH
     ap = argparse.ArgumentParser()
     ap.add_argument("--csv", type=Path, default=Path("data/pack.csv"))
+    ap.add_argument("--weather-csv", type=Path, default=Path("data/weather.csv"))
     ap.add_argument("--port", type=int, default=8421)
     ap.add_argument(
         "--host",
@@ -401,6 +544,7 @@ def main() -> int:
     )
     args = ap.parse_args()
     CSV_PATH = args.csv
+    WEATHER_CSV_PATH = args.weather_csv
 
     # Compute the share panel HTML once at startup.
     lan_ip = detect_lan_ip()
