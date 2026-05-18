@@ -62,7 +62,7 @@ as we capture more cycles.
 |--------------------------------------------|--------------|--------------------------------------|-------|
 | Cabin baseline (idle inverter + standby)   | ~ -3 A       | sustained, slow drift                | Always present when inverter is on |
 | Ceiling fan on (overnight comfort)         | + ~2.3 A     | step, sustained for hours            | Captured 22:00 on 2026-05-17. Below event-detector threshold by design. |
-| Fridge compressor (cycle)                  | + ~7 A pulse | ~60–90 s ON, then off for several min | Captured at the 16:55+ window as the pack was settling; expect more overnight. |
+| Fridge compressor (cycle)                  | + ~8 A pulse, peak -8.4 A | **10–55 s ON every ~34 min** (textbook fridge interval) | Detector threshold tuned from -10A to -8A on 2026-05-18 to capture these properly. |
 | Lights (multiple rooms, demo of monitor)   | + ~7–10 A    | brief, depends on what's switched on  | Triggered the heavy-load event detector. |
 | Solar charge (sunny mid-afternoon)         | -50 to -60 A | gradual ramp, peaks ~15:00–17:00      | West-facing roof bias |
 | Generator (~1.6 kW into pack)              | -60 A        | step on, sustained, step off          | Confirmed via 2026-05-17 generator run |

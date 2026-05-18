@@ -48,11 +48,20 @@ class Event:
 
 
 # (kind, severity, threshold, direction, persist_s)
+# Threshold tuning notes (2026-05-18 dev session):
+#   - Generator events at +30A are unambiguous; the observed generator
+#     dumps +50 to +60A so the threshold gives plenty of margin.
+#   - "Heavy load" was originally -10A. Observed cabin fridge pulses
+#     peak at only -8 to -8.4A (below the original threshold), runs
+#     of 10-55s every ~34 minutes. Lowered to -8A to capture them.
+#     The user demoing all lights tripped -10.3A so the lower threshold
+#     still picks up bigger appliance events as well.
+#   - Persistence lowered from 30s → 15s so short fridge cycles count.
 _CURRENT_RULES = [
     ("GENERATOR ON",  "good",    30.0,  "up",   30.0),
     ("generator off", "info",    30.0,  "down", 30.0),
-    ("heavy load on", "warning", -10.0, "down", 30.0),
-    ("heavy load off","info",    -10.0, "up",   30.0),
+    ("heavy load on", "warning", -8.0,  "down", 15.0),
+    ("heavy load off","info",    -8.0,  "up",   15.0),
 ]
 
 

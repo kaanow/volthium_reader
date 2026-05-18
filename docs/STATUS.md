@@ -220,6 +220,29 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **00:23** — Loop wake (crossed midnight). Pack at SOC 89-90 %,
+  -4.5 A baseline. **Found the fridge.** Ran a one-shot search for
+  sustained pulses below -8 A in the last 4 h: 8 runs, all peaking
+  -8.0 to -8.4 A, durations 10–55 s, starting at 22:08, 22:42,
+  23:16, 23:51 — a clean **34-minute cycle interval** (textbook
+  fridge compressor cadence). The -10 A "heavy load" threshold was
+  just barely missing them.
+  - Design item: **tuned event detector**. Lowered heavy-load
+    threshold -10A → -8A and persistence 30s → 15s in
+    `volthium/events.py`. Rerun on the captured data: all 8 fridge
+    cycle on/off pairs now fire as events alongside the existing
+    GENERATOR ON/OFF, FULL banner, STATE: full, and 20:22 lights
+    demo. Generator threshold (+30 A) unchanged — generator dumps
+    +50–60 A so plenty of margin.
+  - Updated `docs/site/loon_lake.md` load-signatures table with the
+    real measured numbers (-8.4 A peak, 10–55 s, ~34 min interval).
+  - This unlocks a real discharge model: overnight load profile is
+    now describable as "~ -4.5 A continuous baseline + 8 A pulse
+    for ~30 s every ~34 min", which averages to roughly
+    `4.5 + 8 × 30 / (34 × 60) ≈ 4.6 A`. So fridge contribution to
+    total Ah-per-hour is ~ 1 % over the steady baseline. Useful
+    starting model for the generator advisor.
+
 - **23:51** — Loop wake. Pack at SOC 90-91 %, ~ -4.5 A baseline.
   No new fridge cycle events tonight — either the threshold is too
   conservative (-10 A) for this fridge's compressor, OR the fridge
