@@ -143,6 +143,50 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **14:54** — Loop wake. **🎉 FORECAST EXCEEDED.** Pack SOC **90/89 %**
+  (+2 / +2 % per battery in 27 min), but charging current is now
+  tapering hard (+11.5 → +4.1 → **+1.9 A** sustained) — the LiFePO4
+  voltage-CV absorption knee is kicking in. Voltage 26.81 V (flat,
+  no longer climbing). Today's harvest **36.7 Ah / 101 % of
+  forecast** — the day has officially overshot. Net for the whole
+  day so far: **+0.9 Ah** (climbed from −35.8 Ah net at 12:02 — the
+  pack has fully recovered yesterday's evening discharge).
+  - **Live ratio 9.48 (+35.5 % drift, deeper RED).** Climb continues:
+    7.0 → 7.5 → 8.7 → 8.81 → 9.48 across the afternoon. Sustained
+    afternoon over-performance — exactly the pattern documented in
+    last loop's loon_lake.md / solar_model.py update.
+  - Natural solar likely **can't drive the pack into the 95 % FULL
+    banner today** because the absorption-mode current taper kicks
+    in too early (Volthium BMS pulls charge current down as cell
+    voltage approaches the upper knee). We'll settle around
+    91–92 % before sunset and tonight's daily_summary row will
+    finally cross into [complete] at ~21:00.
+  - Calibration log still just baseline.
+  - Design item: **regression tests for `daily_summary.summarize_day()`**
+    — the per-day rollup that feeds `data/daily_summary.csv`, which
+    in turn feeds `SolarModel.fit_from_daily_summary`. Critical path,
+    previously untested. New `tests/test_daily_summary.py` adds 13
+    test cases covering:
+    - Empty / no-SOC-pairs → returns None
+    - Steady charge / generator split / 30 A boundary / discharge —
+      mirrors the integrate_today coverage but against the
+      DailyRow output shape
+    - Gap > 60 s skipped
+    - SOC start / end / min / max tracking
+    - **Partial flag**: True when duration_h < 20, False when ≥ 20
+      — anchors the 2026-05-18 12:02 bug-fix in regression test form
+    - Weather joins: weather_kwh_m2 = max(today's irradiance-sums)
+      (Open-Meteo revises upward through the day → take the freshest),
+      cloud avg from mean, temp min/max
+    - No-weather day still produces a row with None weather columns
+    - None pack_i mid-stream is gap-safe (matches integrate_today)
+  - **84 Python tests pass** (up from 71). Suite total assertion-
+    points: 84 Py + 22 wire-C + 17 est-C + 4 wire-cross + 49 est-cross
+    = **176**, all green.
+  - Tonight will be the first **complete day** the system sees — both
+    daily_summary's [partial] flag and calibration_log's baseline
+    will flip at the same moment, around 21:00.
+
 - **14:27** — Loop wake. **Mini-stall after the sprint** — pack SOC
   **88/87 %** (unchanged in 6 min after the 85→88 jump), charging
   dropped from +11.5 A → **+4.1 A** sustained. Cloud-bouncy pattern

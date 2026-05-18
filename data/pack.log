@@ -322,3 +322,9 @@
 2026-05-18 14:17:13,400 INFO n=6810  26.91V  +11.60A  +312W  SOC 86-87%  state=charging  remain≈92m
 2026-05-18 14:22:13,026 INFO n=6840  26.91V  +11.00A  +296W  SOC 87-88%  state=charging  remain≈74m
 2026-05-18 14:27:19,347 INFO n=6870  26.84V  +7.70A  +207W  SOC 87-88%  state=charging  remain≈183m
+2026-05-18 14:32:27,541 INFO n=6900  26.96V  +15.20A  +410W  SOC 88-89%  state=charging  remain≈47m
+2026-05-18 14:37:31,566 INFO n=6930  26.89V  +9.70A  +261W  SOC 88-89%  state=charging  remain≈79m
+2026-05-18 14:42:36,380 INFO n=6960  26.86V  +6.90A  +185W  SOC 89-90%  state=charging  remain≈94m
+2026-05-18 14:47:32,603 INFO n=6990  26.85V  +4.90A  +132W  SOC 89-90%  state=charging  remain≈95m
+2026-05-18 14:52:51,265 INFO n=7020  26.84V  +5.80A  +156W  SOC 89-90%  state=charging  remain≈114m
+2026-05-18 14:57:04,803 WARNING read #7044 failed (1 in a row): RuntimeError: battery 6EC69980-CA43-7DEF-519B-6235C8C535B7 not found in scan
