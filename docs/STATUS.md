@@ -143,6 +143,37 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **15:37** — Loop wake. **PLATEAU confirmed.** Pack SOC **92/92 %**
+  (full series-pack symmetry holds), charging at +6.1 A sustained
+  (brief cloud break to 94 %, irradiance bumped 412 → 433 W/m²),
+  voltage 26.86 V. Harvest **40.7 Ah / 112 %** of forecast. **Live
+  ratio 9.74 — drift +39.1 %, finally flat after climbing all
+  afternoon (9.43 → 9.48 → 9.77 → 9.74).** The afternoon
+  over-performance has stabilized at ~9.7-9.8 Ah/(kWh/m²); today's
+  full-day fit (landing tonight at ~21:00) should settle around
+  ~8.1 Ah/(kWh/m²) — that's the day-total of ~42 Ah / 5.20 kWh/m²
+  forecast = an ~16 % uplift from the 7.0 default.
+  - Design item: **"today's peaks" subrow in the harvest panel.**
+    A glanceable end-of-day summary that's also useful mid-day —
+    "best charge so far today" + "peak SOC" + "first charging
+    started at HH:MM". Builds toward the eventual end-of-day
+    report.
+  - Backend: new `compute_today_peaks()` in `today_harvest.py`
+    walks today's pack.csv once and returns:
+    - `peak_charge_a` — max raw pack_i (today: +21.4 A from the
+      13:53 sprint segment)
+    - `peak_smoothed_a` — max EMA-smoothed current (today: +17.8 A)
+    - `peak_soc_pct` — max(soc_a, soc_b) (today: 92 %)
+    - `peak_pack_voltage_v` — max pack voltage (today: 27.00 V)
+    - `first_charge_time` — HH:MM of first sample with pack_i > 1 A
+      (today: 09:11 — within seconds of the empirical morning-
+      shadow-clear timing I logged in `loon_lake.md`)
+  - Dashboard: new `.peaks` subrow inside the harvest panel,
+    showing four stats side-by-side as compact numerals. Hidden
+    until peak_charge_a is populated (early cold-start safe).
+    Sits between the sparkline/bars and the forecast-rev chip.
+  - All 92 Python tests still pass.
+
 - **15:28** — Loop wake. Pack SOC **92/91 %** (+2/+1 % in 25 min from
   90/90 — gentle absorption climb continues), charging at +3-4 A
   sustained with brief excursions to ~+8 A, voltage 26.87 V. Cloud

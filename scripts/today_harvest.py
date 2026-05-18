@@ -56,6 +56,68 @@ def _f(v) -> Optional[float]:
         return None
 
 
+def compute_today_peaks(pack_csv: Path, today: date) -> dict:
+    """Walk today's pack.csv rows once and extract running-max stats.
+    Drives the dashboard's "TODAY'S PEAKS" subrow. Cheap — single
+    linear pass, no integration.
+
+    Returns dict with:
+        peak_charge_a       — max pack_i seen today (positive A)
+        peak_smoothed_a     — max smoothed_i seen today
+        peak_soc_pct        — max(soc_a, soc_b) across the day
+        peak_pack_voltage_v — max pack voltage observed
+        first_charge_time   — HH:MM of first sample where pack_i > +1A
+                              (the "net charging started" marker)
+
+    All values are None when no data is available yet for today.
+    """
+    peak_charge: Optional[float] = None
+    peak_smoothed: Optional[float] = None
+    peak_soc: Optional[float] = None
+    peak_voltage: Optional[float] = None
+    first_charge_time: Optional[str] = None
+
+    try:
+        with pack_csv.open() as f:
+            for r in csv.DictReader(f):
+                try:
+                    ts = datetime.fromisoformat(r["ts"])
+                except Exception:
+                    continue
+                if ts.date() != today:
+                    continue
+                pi = _f(r.get("pack_i"))
+                si = _f(r.get("smoothed_i"))
+                pv = _f(r.get("pack_v"))
+                sa = _f(r.get("soc_a"))
+                sb = _f(r.get("soc_b"))
+                if pi is not None:
+                    if peak_charge is None or pi > peak_charge:
+                        peak_charge = pi
+                    if first_charge_time is None and pi > 1.0:
+                        first_charge_time = ts.strftime("%H:%M")
+                if si is not None and (peak_smoothed is None or si > peak_smoothed):
+                    peak_smoothed = si
+                if pv is not None and (peak_voltage is None or pv > peak_voltage):
+                    peak_voltage = pv
+                if sa is not None:
+                    if peak_soc is None or sa > peak_soc:
+                        peak_soc = sa
+                if sb is not None:
+                    if peak_soc is None or sb > peak_soc:
+                        peak_soc = sb
+    except FileNotFoundError:
+        pass
+
+    return {
+        "peak_charge_a":       round(peak_charge, 2) if peak_charge is not None else None,
+        "peak_smoothed_a":     round(peak_smoothed, 2) if peak_smoothed is not None else None,
+        "peak_soc_pct":        round(peak_soc, 1) if peak_soc is not None else None,
+        "peak_pack_voltage_v": round(peak_voltage, 2) if peak_voltage is not None else None,
+        "first_charge_time":   first_charge_time,
+    }
+
+
 def integrate_today(pack_csv: Path, today: date,
                     series_bin_minutes: int = 5) -> dict:
     """Walk pack.csv rows for `today` and integrate.
@@ -351,6 +413,7 @@ def snapshot(pack_csv: Path, weather_csv: Path, today: Optional[date] = None) ->
     actual_kwh_so_far = integrate_today_irradiance(weather_csv, today)
     sunrise_min, sunset_min = latest_weather_sun_times(weather_csv, today)
     forecast_hist = weather_forecast_history(weather_csv, today)
+    peaks = compute_today_peaks(pack_csv, today)
     model = load_solar_model()
 
     forecast_ah: Optional[float] = None
@@ -407,6 +470,9 @@ def snapshot(pack_csv: Path, weather_csv: Path, today: Optional[date] = None) ->
         # Open-Meteo day-total forecast revision history (first vs latest,
         # min/max, signed drift %). High drift = forecast uncertainty.
         "forecast_history": forecast_hist,
+        # Today's running-max stats — peak charge current, peak SOC,
+        # peak voltage, and HH:MM of first net charging.
+        "peaks": peaks,
         # 5-min binned cumulative solar Ah series:
         # [[minute_of_day, ah], ...]. Sparkline source on the dashboard.
         "series": integrated.get("series", []),

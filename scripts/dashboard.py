@@ -453,6 +453,16 @@ INDEX_HTML = """<!doctype html>
   .harvest .forecast-rev.warn .drift { color: var(--ylw); }
   .harvest .forecast-rev.bad  { border-left: 3px solid var(--red); }
   .harvest .forecast-rev.bad  .drift { color: var(--red); }
+  .harvest .peaks { margin-top: 8px; padding: 6px 10px; border-radius: 4px;
+                    background: #0d1117;
+                    display: flex; gap: 14px; flex-wrap: wrap;
+                    align-items: baseline; font-size: 11px; }
+  .harvest .peaks .lbl { text-transform: uppercase; letter-spacing: .1em;
+                         font-size: 10px; color: var(--dim); margin: 0;
+                         width: 100%; margin-bottom: 4px; }
+  .harvest .peaks .stat { font-variant-numeric: tabular-nums; }
+  .harvest .peaks .stat .v { font-size: 14px; font-weight: 500; color: var(--ink); }
+  .harvest .peaks .stat .u { font-size: 10px; color: var(--dim); margin-left: 3px; }
   .harvest .hourly-wrap { margin-top: 10px; }
   .harvest .hourly-wrap .lbl { text-transform: uppercase; letter-spacing: .12em;
                                color: var(--dim); font-size: 10px;
@@ -970,6 +980,28 @@ async function tick() {
             <span class="v">${harv.live_ratio_ah_per_kwh_m2.toFixed(2)} Ah/(kWh/m²)</span>
             <span class="aside">${harv.irradiance_kwh_m2_so_far.toFixed(2)} kWh/m² actual so far</span>
           </div>` : ""}
+          ${(() => {
+            // "Today's peaks" subrow: glanceable end-of-day summary
+            // even mid-day. Peak charge / smoothed / SOC / first
+            // charging time. Hidden until we have at least a
+            // peak_charge value (otherwise the row reads empty).
+            const pk = harv.peaks;
+            if (!pk || pk.peak_charge_a == null) return "";
+            const charge = pk.peak_charge_a.toFixed(1);
+            const smoothed = pk.peak_smoothed_a != null
+              ? pk.peak_smoothed_a.toFixed(1) : "—";
+            const soc = pk.peak_soc_pct != null
+              ? pk.peak_soc_pct.toFixed(0) : "—";
+            const startedAt = pk.first_charge_time || "—";
+            return `
+              <div class="peaks">
+                <span class="lbl">today's peaks</span>
+                <span class="stat"><span class="v">${charge}</span><span class="u">A peak</span></span>
+                <span class="stat"><span class="v">${smoothed}</span><span class="u">A smoothed</span></span>
+                <span class="stat"><span class="v">${soc}</span><span class="u">% SOC</span></span>
+                <span class="stat"><span class="v">${startedAt}</span><span class="u">charging start</span></span>
+              </div>`;
+          })()}
           ${(() => {
             // Open-Meteo forecast-revision history: how stable was the
             // day's predicted kWh/m² as the model ingested today's
