@@ -112,6 +112,14 @@ arithmetic + a `deque(maxlen=20)`. Direct C port: a ring buffer plus
 two EMA accumulators. State persists across deep-sleep via NVS so we
 don't reset the smoothing when waking.
 
+## BLE flap recovery
+
+See [`ble_flap_recovery.md`](ble_flap_recovery.md) for observed flap
+behavior (5 events captured in the first 5 h of dev logging), root
+cause hypothesis, expected firmware retry policy (backoff 500 ms →
+30 s), telemetry-flag escalation rules, display-side responses by
+flap duration, and a regression-test sketch.
+
 ## OTA strategy
 
 ESP32-S3 has dual app partitions. Two paths:
