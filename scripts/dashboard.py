@@ -367,6 +367,16 @@ INDEX_HTML = """<!doctype html>
   .advisor .verdict.good { color: var(--grn); }
   .advisor .reason { font-size: 13px; line-height: 1.4; }
   .advisor .meta { color: var(--dim); font-size: 11px; margin-top: 8px; }
+  .advisor.conf-low { border-style: dashed; background: rgba(22, 27, 34, 0.5); }
+  .advisor .conf-pill {
+    display: inline-block; padding: 1px 7px; margin-left: 8px;
+    border-radius: 9px; font-size: 10px; letter-spacing: .08em;
+    text-transform: uppercase; vertical-align: middle;
+  }
+  .advisor .conf-pill.low    { background: rgba(210, 153, 34, 0.18); color: var(--ylw); }
+  .advisor .conf-pill.medium { background: rgba(88, 166, 255, 0.18); color: var(--blu); }
+  .advisor .conf-pill.high   { background: rgba(63, 185, 80, 0.18); color: var(--grn); }
+  .advisor .conf-explainer { color: var(--dim); font-size: 11px; font-style: italic; margin-top: 6px; }
   .spark { width: 100%; height: 80px; }
   .footer { color: var(--dim); font-size: 11px; margin-top: 14px; }
   .num { font-variant-numeric: tabular-nums; }
@@ -537,13 +547,27 @@ async function tick() {
         const watchLine = (!rec.run_generator && rec.morning_watch && rec.morning_watch_reason)
             ? `<div class="reason" style="margin-top:6px;color:var(--ylw)">${rec.morning_watch_reason}</div>`
             : "";
+
+        // Confidence styling: dashed border + muted background when "low",
+        // explanatory line about how confidence grows with data.
+        const confClass = `conf-${rec.confidence}`;
+        const confExplainer = {
+            "low":    "< 3 days of solar-fit data — projection is a rough estimate; expect refinement as the model accumulates observations.",
+            "medium": "3–6 days of solar-fit data — projection is plausible but still tightening.",
+            "high":   "",
+        }[rec.confidence] || "";
+        const confLine = confExplainer
+            ? `<div class="conf-explainer">${confExplainer}</div>`
+            : "";
+
         advEl.innerHTML = `
-            <div class="advisor ${cls}">
-              <div class="lbl">recommendation (confidence: ${rec.confidence})</div>
+            <div class="advisor ${cls} ${rec.confidence === 'low' ? 'conf-low' : ''}">
+              <div class="lbl">recommendation<span class="conf-pill ${confClass}">${rec.confidence} confidence</span></div>
               <div class="verdict ${cls}">${headline}</div>
               <div class="reason">${rec.reason}</div>
               ${watchLine}
               ${whenLine}
+              ${confLine}
             </div>`;
     } else {
         advEl.innerHTML = "";

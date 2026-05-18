@@ -220,6 +220,34 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **05:42** — Loop wake (32 min past sunrise). Pack SOC 74-75 %,
+  baseline discharge slowed from -4.6 → -3.7 A — **early morning
+  solar is contributing ~ 1 A of offset** but net is still
+  negative. No state flip to charging yet; west-facing array
+  expected to fully kick in 30–60 min after sunrise.
+  - Overnight summary (one big segment): 19:53 → 05:42 = 9h 48m,
+    SOC 100 → 74 % (26 % drop), avg -5.1 A, peak -11.8 A. The
+    "peak" was a lights/heavy-load demo earlier; the normal
+    fridge cycles peak around -8 A.
+  - Design item: **confidence-based UI tweaks** to the dashboard
+    advisor panel. Currently every recommendation reads with the
+    same authority. New treatment:
+    - Confidence pill next to "recommendation" label — amber/blue/
+      green for low/medium/high tiers
+    - Dashed border + muted background on the panel when confidence
+      is low
+    - One-line explainer in italics under the recommendation
+      ("< 3 days of solar-fit data — projection is a rough
+      estimate")
+    Both honest about the current state of our models (low until
+    ≥ 3 full-day rows of solar harvest data) and gives the user a
+    cue that this is "data still warming up" rather than "definitive
+    answer." Live-verified rendering.
+  - Also: pushed dashboard layout reorganization earlier
+    (projections + advisor below the live data per user feedback
+    for mobile viewers), and confirmed in `loon_lake.md` that the
+    overnight ~8 A pulses are the fridge.
+
 - **05:14** — Loop wake (just past sunrise 05:10). Pack SOC 75-76 %.
   No charging transition yet — the west-facing array won't see
   direct sun for another 30-60 min as morning shadow clears. Pack
