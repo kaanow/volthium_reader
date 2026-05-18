@@ -143,6 +143,44 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **15:03** — Loop wake. **Pack-symmetry achieved**: SOC **90/90 %**
+  — battery B finally caught up to A after 5h of sustained charging.
+  Series-pack physics doing its slow-but-steady work. Charging
+  continues to taper (+2.7 A sustained), voltage essentially flat at
+  26.79 V. Cloud 100 %, irradiance dropping 508 → 424 W/m² as sun
+  lowers. Harvest **37.1 Ah / 102 % of forecast** — slowly extending
+  the overshoot. **Live ratio 9.43** — essentially stable at last
+  loop's 9.48 (+34.7 % drift). Drift may be plateauing now that the
+  array's azimuth advantage is fading past 15:00.
+  - Design item: **Open-Meteo forecast-revision history widget.**
+    Open-Meteo's `shortwave_radiation_sum_today` value is the
+    model's *current best guess* for the whole day, refreshed every
+    weather-logger tick (~30 min). It moves through the day as the
+    model ingests today's observations. Tracking how much it moves
+    is a forecast-confidence signal — a flat line means Open-Meteo
+    was sure; a 10 %+ swing means there was real uncertainty.
+  - New `weather_forecast_history()` in today_harvest.py walks
+    today's weather.csv and returns `first` / `latest` / `min` /
+    `max` / `drift_pct` / `n`. Exposed as `forecast_history` in
+    the snapshot JSON.
+  - Dashboard adds a `.forecast-rev` chip below the live-ratio row:
+    "forecast revisions  5.34 → 5.20 kWh/m²  −2.6%, swing 9.0%".
+    Color band matches live-ratio: green |drift| < 5 %, amber
+    < 10 %, red ≥ 10 %.
+  - Today's revealing data: forecast STARTED at 5.34 kWh/m²
+    (captured at midnight, last night's prediction for today),
+    BOTTOMED at 4.86 mid-morning (when the system saw 98 % cloud),
+    and CLIMBED BACK to 5.20 mid-afternoon (when the harvest curve
+    started over-performing). Net drift is just −2.6 % but the
+    swing was a meaningful 9 % — Open-Meteo was genuinely
+    uncertain about today's outcome, which matches the reality
+    of an overcast day with intermittent breaks.
+  - This widget will be most useful on days where Open-Meteo's
+    forecast revisions large — a future user can see "the
+    forecast moved 20 % today, expect to second-guess the advisor
+    accordingly."
+  - All 84 Python tests still pass.
+
 - **14:54** — Loop wake. **🎉 FORECAST EXCEEDED.** Pack SOC **90/89 %**
   (+2 / +2 % per battery in 27 min), but charging current is now
   tapering hard (+11.5 → +4.1 → **+1.9 A** sustained) — the LiFePO4

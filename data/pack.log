@@ -328,3 +328,6 @@
 2026-05-18 14:47:32,603 INFO n=6990  26.85V  +4.90A  +132W  SOC 89-90%  state=charging  remain≈95m
 2026-05-18 14:52:51,265 INFO n=7020  26.84V  +5.80A  +156W  SOC 89-90%  state=charging  remain≈114m
 2026-05-18 14:57:04,803 WARNING read #7044 failed (1 in a row): RuntimeError: battery 6EC69980-CA43-7DEF-519B-6235C8C535B7 not found in scan
+2026-05-18 14:57:10,676 INFO BLE recovered after 1 errors
+2026-05-18 14:58:11,474 INFO n=7050  26.79V  +2.50A  +67W  SOC 90-90%  state=charging  remain≈256m
+2026-05-18 15:03:22,014 INFO n=7080  26.79V  +2.90A  +78W  SOC 90-90%  state=charging  remain≈198m

@@ -165,6 +165,59 @@ def latest_weather_forecast_kwh(weather_csv: Path, today: date) -> Optional[floa
     return latest_kwh
 
 
+def weather_forecast_history(weather_csv: Path, today: date) -> dict:
+    """Open-Meteo's `shortwave_radiation_sum_today` is the model's
+    forecast for the WHOLE day, refreshed every weather-logger tick
+    (~30 min). It moves as the model ingests today's observations and
+    refits — sometimes upward (today was conservative), sometimes
+    downward (today was over-confident). Tracking the revision
+    history is a forecast-confidence signal: a flat day-long line
+    means Open-Meteo was sure; a 10 %+ swing means there was real
+    uncertainty.
+
+    Returns a dict with:
+        first      — first kWh/m² value seen today (initial forecast)
+        latest     — most recent kWh/m² (current forecast)
+        min, max   — extremes seen today
+        drift_pct  — (latest − first) / first × 100, signed
+        n          — number of weather samples included
+
+    All values are None / 0 when no data is available yet.
+    """
+    values: list[float] = []
+    try:
+        with weather_csv.open() as f:
+            for r in csv.DictReader(f):
+                try:
+                    ts = datetime.fromisoformat(r["ts"])
+                except Exception:
+                    continue
+                if ts.date() != today:
+                    continue
+                v = _f(r.get("shortwave_radiation_sum_today_wh_m2"))
+                if v is not None:
+                    values.append(v / 1000.0)
+    except FileNotFoundError:
+        return {"first": None, "latest": None, "min": None, "max": None,
+                "drift_pct": None, "n": 0}
+
+    if not values:
+        return {"first": None, "latest": None, "min": None, "max": None,
+                "drift_pct": None, "n": 0}
+
+    first = values[0]
+    latest = values[-1]
+    drift = ((latest - first) / first * 100.0) if first > 0 else None
+    return {
+        "first":     round(first, 3),
+        "latest":    round(latest, 3),
+        "min":       round(min(values), 3),
+        "max":       round(max(values), 3),
+        "drift_pct": round(drift, 1) if drift is not None else None,
+        "n":         len(values),
+    }
+
+
 def latest_weather_sun_times(weather_csv: Path, today: date) -> tuple[Optional[int], Optional[int]]:
     """Pull today's sunrise/sunset times out of weather.csv and return
     them as minute-of-day integers, suitable for plotting on the
@@ -297,6 +350,7 @@ def snapshot(pack_csv: Path, weather_csv: Path, today: Optional[date] = None) ->
     forecast_kwh = latest_weather_forecast_kwh(weather_csv, today)
     actual_kwh_so_far = integrate_today_irradiance(weather_csv, today)
     sunrise_min, sunset_min = latest_weather_sun_times(weather_csv, today)
+    forecast_hist = weather_forecast_history(weather_csv, today)
     model = load_solar_model()
 
     forecast_ah: Optional[float] = None
@@ -350,6 +404,9 @@ def snapshot(pack_csv: Path, weather_csv: Path, today: Optional[date] = None) ->
         # row with the iso columns.
         "sunrise_min_of_day": sunrise_min,
         "sunset_min_of_day": sunset_min,
+        # Open-Meteo day-total forecast revision history (first vs latest,
+        # min/max, signed drift %). High drift = forecast uncertainty.
+        "forecast_history": forecast_hist,
         # 5-min binned cumulative solar Ah series:
         # [[minute_of_day, ah], ...]. Sparkline source on the dashboard.
         "series": integrated.get("series", []),

@@ -437,6 +437,22 @@ INDEX_HTML = """<!doctype html>
                             font-variant-numeric: tabular-nums; color: var(--grn); }
   .harvest .live-ratio .aside { font-size: 11px; color: var(--dim);
                                 margin-left: auto; }
+  .harvest .forecast-rev { display: flex; gap: 8px; align-items: baseline;
+                           flex-wrap: wrap; margin-top: 6px;
+                           padding: 4px 10px; border-radius: 4px;
+                           background: #0d1117; font-size: 11px; }
+  .harvest .forecast-rev .lbl { text-transform: uppercase; letter-spacing: .1em;
+                                font-size: 10px; color: var(--dim); margin: 0; }
+  .harvest .forecast-rev .v { font-variant-numeric: tabular-nums;
+                              font-size: 12px; }
+  .harvest .forecast-rev .drift { margin-left: auto; font-weight: 500;
+                                  font-variant-numeric: tabular-nums; }
+  .harvest .forecast-rev.ok   { border-left: 3px solid var(--grn); }
+  .harvest .forecast-rev.ok   .drift { color: var(--grn); }
+  .harvest .forecast-rev.warn { border-left: 3px solid var(--ylw); }
+  .harvest .forecast-rev.warn .drift { color: var(--ylw); }
+  .harvest .forecast-rev.bad  { border-left: 3px solid var(--red); }
+  .harvest .forecast-rev.bad  .drift { color: var(--red); }
   .harvest .hourly-wrap { margin-top: 10px; }
   .harvest .hourly-wrap .lbl { text-transform: uppercase; letter-spacing: .12em;
                                color: var(--dim); font-size: 10px;
@@ -954,6 +970,32 @@ async function tick() {
             <span class="v">${harv.live_ratio_ah_per_kwh_m2.toFixed(2)} Ah/(kWh/m²)</span>
             <span class="aside">${harv.irradiance_kwh_m2_so_far.toFixed(2)} kWh/m² actual so far</span>
           </div>` : ""}
+          ${(() => {
+            // Open-Meteo forecast-revision history: how stable was the
+            // day's predicted kWh/m² as the model ingested today's
+            // observations? Big drift or wide swing = forecast was
+            // uncertain. Hidden when we don't have ≥2 weather samples
+            // (early cold start).
+            const fh = harv.forecast_history;
+            if (!fh || !fh.first || !fh.latest || fh.n < 2) return "";
+            const drift = fh.drift_pct;
+            const swingPct = fh.first > 0
+              ? ((fh.max - fh.min) / fh.first * 100)
+              : null;
+            const driftSign = drift >= 0 ? "+" : "−";
+            const driftAbs = Math.abs(drift);
+            const driftCls = driftAbs < 5 ? "ok"
+                             : (driftAbs < 10 ? "warn" : "bad");
+            const swingStr = swingPct != null
+              ? `, swing ${swingPct.toFixed(1)}%`
+              : "";
+            return `
+              <div class="forecast-rev ${driftCls}">
+                <span class="lbl">forecast revisions</span>
+                <span class="v">${fh.first.toFixed(2)} → ${fh.latest.toFixed(2)} kWh/m²</span>
+                <span class="drift">${driftSign}${driftAbs.toFixed(1)}%${swingStr}</span>
+              </div>`;
+          })()}
           <div class="footer">${harv.duration_h.toFixed(1)} h of data so far · ${harv.confidence} confidence</div>
           ${note}
         </div>`;
