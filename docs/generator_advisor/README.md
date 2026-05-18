@@ -1,9 +1,10 @@
 # Generator advisor
 
-> Status: **architecture draft.** Data collection has just started — we
-> have one full pack cycle on file and one weather snapshot. The
-> implementation here will fill in over the coming days as data
-> accumulates.
+> Status: **v0 running on real data.** All the components in the
+> architecture below are now implemented; see
+> [`algorithm.md`](algorithm.md) for the math and caveats. The advisor
+> emits live recommendations on the dashboard. Improves incrementally
+> as more days of data accumulate (especially the solar model fit).
 
 ## What it does
 

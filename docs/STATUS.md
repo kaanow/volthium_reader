@@ -220,6 +220,29 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **05:14** — Loop wake (just past sunrise 05:10). Pack SOC 75-76 %.
+  No charging transition yet — the west-facing array won't see
+  direct sun for another 30-60 min as morning shadow clears. Pack
+  current still discharging at -4 to -7 A on fridge + fan baseline.
+  - Design item: wrote **`docs/generator_advisor/algorithm.md`** —
+    the math + caveats for the advisor. The advisor has gained
+    real complexity (discharge model + solar model + Open-Meteo
+    forecast + fallback chain + confidence tiers + morning watch),
+    and a focused algorithm doc consolidates the design so future-
+    me + the user can review the assumptions in one place.
+    Covered:
+    - Pipeline diagram (pack + weather + forecast → models →
+      forward sim → Recommendation).
+    - Step-by-step math for each stage.
+    - Decision table (no run / morning watch / RUN GENERATOR).
+    - Confidence label semantics (low <3 obs, medium <7, high ≥7).
+    - **6 known limitations** sorted by impact — most important
+      being the solar model is still a single constant until we
+      have ≥ 3 full-day rows.
+    - Priority list of next iterations.
+  - Updated `README.md` to reflect that the advisor is no longer a
+    "draft" — it's live, just with low confidence pending more data.
+
 - **04:46** — Loop wake. Pack SOC 76-78 %. 11th fridge cycle at
   04:28:32 (35 min after 03:53). Advisor still ✓ no generator
   needed; morning_watch still False (projected_low 65 % > 50 %).
