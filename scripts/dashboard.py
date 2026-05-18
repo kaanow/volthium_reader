@@ -902,6 +902,30 @@ async function tick() {
               <div class="v">${harv.solar_ah_forecast.toFixed(0)}<span class="u">Ah</span></div></div>
             <div class="stat"><div class="lbl">irradiance forecast</div>
               <div class="v">${harv.irradiance_kwh_m2_forecast.toFixed(2)}<span class="u">kWh/m²</span></div></div>
+            ${(() => {
+              // Hours of useful daylight remaining. Computed from
+              // sunrise/sunset minute-of-day in the snapshot. Hidden
+              // when we don't have weather sun-times yet.
+              if (harv.sunset_min_of_day == null) return "";
+              const nowD = new Date();
+              const nowMin = nowD.getHours() * 60 + nowD.getMinutes();
+              const remaining = harv.sunset_min_of_day - nowMin;
+              if (remaining <= 0) {
+                return `<div class="stat"><div class="lbl">daylight</div>
+                          <div class="v">post-sunset</div></div>`;
+              }
+              const preSunrise = harv.sunrise_min_of_day != null &&
+                                  nowMin < harv.sunrise_min_of_day;
+              if (preSunrise) {
+                const untilSr = harv.sunrise_min_of_day - nowMin;
+                const h = Math.floor(untilSr / 60), m = untilSr % 60;
+                return `<div class="stat"><div class="lbl">sun in</div>
+                          <div class="v">${h}h ${String(m).padStart(2,"0")}m</div></div>`;
+              }
+              const h = Math.floor(remaining / 60), m = remaining % 60;
+              return `<div class="stat"><div class="lbl">sun left</div>
+                        <div class="v">${h}h ${String(m).padStart(2,"0")}m</div></div>`;
+            })()}
           </div>
           ${harv.live_ratio_ah_per_kwh_m2 != null ? `
           <div class="live-ratio">

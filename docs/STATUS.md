@@ -143,6 +143,29 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **13:20** — Loop wake. **Recovery again.** Pack SOC **83/82 %**
+  (climbed 1 % from the 25-min stall), charging back up to **+10.4 A**
+  sustained, voltage 26.91 V. Today's harvest **22.1 Ah / 61 % of
+  forecast** at +1.2 Ah/8 min ≈ 9 Ah/hr — the cloud bounce continues.
+  **Live ratio 7.13** (within 2 % of model, green). Advisor sunrise
+  SOC ticked up to 74.5 %. Calibration log has only the baseline
+  entry — tonight 21:00 is still the trigger moment.
+  - Design item: **"sun left" indicator on the harvest panel.**
+    Small but immediately useful for the user's "is there enough
+    time today to top up?" intuition. Leverages last loop's
+    sunrise/sunset plumbing.
+    - Renders as a fourth stat-tile in the existing harvest stats
+      row, alongside progress / forecast / irradiance forecast.
+    - Three states based on current time vs sunrise/sunset:
+      - Pre-sunrise: "**sun in** 4h 12m" (until first light)
+      - Daylight: "**sun left** 7h 32m" (until sunset)
+      - Post-sunset: "post-sunset" (no harvest expected)
+    - Computed inline in JS from `harv.sunrise_min_of_day` /
+      `harv.sunset_min_of_day`, no backend change.
+    - Hidden when weather data hasn't loaded yet (early cold start).
+  - Right now should show "sun left 7h 31m" (now=13:20, sunset 20:52).
+  - All 59 Python tests still pass.
+
 - **13:12** — Loop wake. **Harvest stalled** — pack SOC unchanged at
   **82/81 %** for 25 min, charging at +5.2 A but smoothed only +5.0 A.
   Cloud back to **98 %** (was 91 → 94 → 98 in successive hours).
