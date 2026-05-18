@@ -309,6 +309,26 @@ INDEX_HTML = """<!doctype html>
   .below-grid .panel { margin-bottom: 18px; }
   .panel { background: var(--panel); border-radius: 10px; padding: 22px; }
   .headline { font-size: 64px; font-weight: 700; line-height: 1; margin: 4px 0 6px; }
+  .state-badge {
+    display: inline-block; font-size: 13px; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 9px;
+    background: rgba(139, 148, 158, 0.16); color: var(--dim);
+  }
+  .state-badge.state-charging    { background: rgba(63, 185, 80, 0.16);  color: var(--grn); }
+  .state-badge.state-discharging { background: rgba(210, 153, 34, 0.16); color: var(--ylw); }
+  .state-badge.state-idle        { background: rgba(139, 148, 158, 0.16); color: var(--dim); }
+  .state-badge.state-full        { background: rgba(63, 185, 80, 0.24);  color: var(--grn); letter-spacing: .2em; }
+  .state-badge.state-unknown     { background: rgba(248, 81, 73, 0.16); color: var(--red); }
+  .headline-pair {
+    display: flex; gap: 28px; flex-wrap: wrap; margin: 10px 0 14px;
+  }
+  .headline-pair .cell { flex: 1 1 130px; min-width: 130px; }
+  .headline-pair .cell .h { font-size: 64px; font-weight: 700; line-height: 1;
+                            font-variant-numeric: tabular-nums; }
+  .headline-pair .cell .h .u { font-size: 28px; color: var(--dim); margin-left: 4px; }
+  .headline-pair .cell .h-sub { color: var(--dim); font-size: 12px;
+                                 text-transform: uppercase; letter-spacing: .1em; margin-top: 4px; }
   .label { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
   .row { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 16px; }
   .stat { min-width: 90px; }
@@ -390,13 +410,19 @@ INDEX_HTML = """<!doctype html>
   <h1>The Barge Inn — Volthium 24 V Pack</h1>
   <div class="grid">
     <div class="panel">
-      <div class="label" id="state-label">state</div>
-      <div class="headline num"><span id="state-value">…</span></div>
-      <div class="label">time to <span id="target">—</span></div>
-      <div class="headline num" id="time-value">—</div>
+      <span class="state-badge" id="state-value">…</span>
+      <div class="headline-pair">
+        <div class="cell">
+          <div class="h" id="soc-headline">—<span class="u">%</span></div>
+          <div class="h-sub">state of charge</div>
+        </div>
+        <div class="cell">
+          <div class="h" id="time-value">—</div>
+          <div class="h-sub">time to <span id="target">—</span></div>
+        </div>
+      </div>
       <div class="soc-bar"><div id="soc-fill" style="width: 0%"></div></div>
       <div class="row">
-        <div class="stat"><div class="label">soc</div><div class="v num"><span id="soc">—</span><span class="u">%</span></div></div>
         <div class="stat"><div class="label">pack V</div><div class="v num"><span id="pv">—</span><span class="u">V</span></div></div>
         <div class="stat"><div class="label">pack I</div><div class="v num"><span id="pi">—</span><span class="u">A</span></div></div>
         <div class="stat"><div class="label">pack P</div><div class="v num"><span id="pp">—</span><span class="u">W</span></div></div>
@@ -450,8 +476,9 @@ async function tick() {
       return;
     }
     const x = j.latest;
-    setText("state-value", (x.state || "—").toUpperCase());
-    document.getElementById("state-value").className = stateClass(x.state);
+    const stateEl = document.getElementById("state-value");
+    stateEl.textContent = (x.state || "—").toUpperCase();
+    stateEl.className = "state-badge " + stateClass(x.state);
     if (x.state === "charging") {
       setText("target", "full (95%)");
       setText("time-value", fmtMin(x.minutes_remaining));
@@ -460,14 +487,20 @@ async function tick() {
       setText("time-value", fmtMin(x.minutes_remaining));
     } else if (x.state === "full") {
       setText("target", "—");
-      setText("time-value", "FULL");
+      document.getElementById("time-value").innerHTML = "FULL";
     } else {
       setText("target", "—");
       setText("time-value", "—");
     }
-    setText("soc", x.soc_a != null && x.soc_b != null ? Math.round((x.soc_a + x.soc_b) / 2) : "—");
-    const soc = (x.soc_a != null && x.soc_b != null) ? (x.soc_a + x.soc_b) / 2 : 0;
-    document.getElementById("soc-fill").style.width = soc + "%";
+    // SOC headline + bar
+    const socAvg = (x.soc_a != null && x.soc_b != null) ? (x.soc_a + x.soc_b) / 2 : null;
+    if (socAvg != null) {
+      document.getElementById("soc-headline").innerHTML =
+          `${Math.round(socAvg)}<span class="u">%</span>`;
+      document.getElementById("soc-fill").style.width = socAvg + "%";
+    } else {
+      document.getElementById("soc-headline").innerHTML = `—<span class="u">%</span>`;
+    }
     setText("pv", fixed(x.pack_v, 2));
     setText("pi", x.pack_i == null ? "—" : (x.pack_i > 0 ? "+" : "") + (+x.pack_i).toFixed(2));
     setText("pp", x.pack_p == null ? "—" : Math.round(x.pack_p));
