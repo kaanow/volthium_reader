@@ -220,6 +220,37 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **02:02** — Loop wake. Pack SOC 84-85 %. Fridge cycle at 01:33:36
+  (6th capture, 34 min after 00:59 — cadence absolutely locked in).
+  Another BLE flap auto-recovered at 01:54.
+  - Design item: **first generator-advisor.py shipped**. Synthesizes
+    everything we have:
+    - current pack state from pack.csv
+    - hour-of-day discharge profile from `discharge_model.fit()`
+    - weather + sunrise/sunset from weather.csv
+    - solar harvest STUB: `irradiance_kwh_m² × 12 Ah/(kWh/m²)`
+      (placeholder until we fit it on real harvest-vs-irradiance pairs)
+    - observed generator rate: 55 Ah/h
+  - Outputs a structured `Recommendation` (run_generator, reason,
+    when_iso, duration_h, projected_low_soc, confidence). Currently
+    always confidence=low because we have < 1 day of data + the
+    solar model is a stub.
+  - **First live recommendation just emitted**:
+    ```
+      ✓ no generator needed
+      sunrise SOC:           78.5%
+      tomorrow evening SOC:  86.5%
+      next-24h low SOC:      78.5%
+      stays comfortably above 25% comfort floor.
+    ```
+    Plausible given today's irradiance + observed discharge rate.
+  - Forward simulation now spans the full 24-hour cycle: discharge
+    overnight → solar harvest tomorrow → discharge tomorrow evening.
+    Naive comfort-floor check decides if a generator run is warranted.
+  - First piece of `docs/generator_advisor/README.md` actually
+    executed end-to-end against real data. Solar-model fitting and
+    UI integration (showing the advisor on the dashboard) are next.
+
 - **01:29** — Loop wake. Pack SOC 86-87 %, -4.5 A baseline. Fridge
   cycle on schedule at **00:59:19** (exactly 34 min after the
   00:25 one). Cadence rock-solid now over 5 captured cycles.
