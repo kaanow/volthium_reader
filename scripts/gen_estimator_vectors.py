@@ -233,6 +233,106 @@ SCENARIOS: list[Scenario] = [
             Step(ts_ms=20000, pack_i_a=+30.0, max_soc_pct=70, min_soc_pct=68),
         ],
     ),
+    # ------------------------------------------------------------------
+    # State-boundary scenarios — these exercise transitions, the code
+    # paths where bugs are easiest to miss when each state is only
+    # tested in isolation.
+    # ------------------------------------------------------------------
+
+    # 7. discharging → idle → charging — mimics dawn at the cabin: pack
+    #    drawing overnight, then solar matches load (idle), then solar
+    #    overtakes load (charging). The EMA crawls through 0; the state
+    #    classifier must follow it correctly each sample.
+    Scenario(
+        name="discharge_to_idle_to_charge",
+        capacity_ah=215.0, floor_soc=10.0, ceiling_soc=95.0,
+        idle_current_a=0.5, alpha=0.30,    # higher alpha so EMA catches up quickly
+        calibration=1.0, hybrid=False, blend=0.8,
+        steps=[
+            Step(ts_ms=0,      pack_i_a=-8.0, max_soc_pct=72, min_soc_pct=70),
+            Step(ts_ms=10000,  pack_i_a=-8.0, max_soc_pct=72, min_soc_pct=70),
+            Step(ts_ms=20000,  pack_i_a=-3.0, max_soc_pct=72, min_soc_pct=70),
+            Step(ts_ms=30000,  pack_i_a=+0.2, max_soc_pct=72, min_soc_pct=70),
+            Step(ts_ms=40000,  pack_i_a=+0.3, max_soc_pct=72, min_soc_pct=70),
+            Step(ts_ms=50000,  pack_i_a=+0.4, max_soc_pct=72, min_soc_pct=70),
+            Step(ts_ms=60000,  pack_i_a=+5.0, max_soc_pct=72, min_soc_pct=70),
+            Step(ts_ms=70000,  pack_i_a=+8.0, max_soc_pct=72, min_soc_pct=70),
+            Step(ts_ms=80000,  pack_i_a=+12.0, max_soc_pct=73, min_soc_pct=71),
+        ],
+    ),
+    # 8. charging → full crossing — pack on bulk charge, SOC climbs
+    #    through 94 → 95 → 96. The 95% sample must classify as FULL
+    #    (banner threshold) with minutes_remaining = 0; the 94 % sample
+    #    must still be CHARGING with a normal time-to-full estimate.
+    Scenario(
+        name="charging_crosses_to_full",
+        capacity_ah=215.0, floor_soc=10.0, ceiling_soc=95.0,
+        idle_current_a=0.5, alpha=0.15, calibration=1.0,
+        hybrid=False, blend=0.8,
+        steps=[
+            Step(ts_ms=0,      pack_i_a=+12.0, max_soc_pct=93, min_soc_pct=92),
+            Step(ts_ms=10000,  pack_i_a=+12.0, max_soc_pct=94, min_soc_pct=93),
+            Step(ts_ms=20000,  pack_i_a=+11.0, max_soc_pct=95, min_soc_pct=94),
+            Step(ts_ms=30000,  pack_i_a=+8.0,  max_soc_pct=96, min_soc_pct=95),
+            Step(ts_ms=40000,  pack_i_a=+5.0,  max_soc_pct=97, min_soc_pct=96),
+        ],
+    ),
+    # 9. Deep-discharge approaching the 10 % floor — exercises the
+    #    floor math near the boundary. Once SOC drops below floor the
+    #    "ah_left" goes negative; estimator should return no minutes.
+    Scenario(
+        name="discharge_approaching_floor",
+        capacity_ah=215.0, floor_soc=10.0, ceiling_soc=95.0,
+        idle_current_a=0.5, alpha=0.15, calibration=1.0,
+        hybrid=False, blend=0.8,
+        steps=[
+            Step(ts_ms=0,      pack_i_a=-10.0, max_soc_pct=14, min_soc_pct=12),
+            Step(ts_ms=10000,  pack_i_a=-10.0, max_soc_pct=13, min_soc_pct=11),
+            Step(ts_ms=20000,  pack_i_a=-10.0, max_soc_pct=12, min_soc_pct=10),
+            Step(ts_ms=30000,  pack_i_a=-10.0, max_soc_pct=11, min_soc_pct=9),
+        ],
+    ),
+    # 10. Hybrid mode with off-cadence anchor ticks. The BMS sometimes
+    #     reports a fresh remaining_ah only every ~minute even though
+    #     we sample every 10 s. Test cases:
+    #       - 4 samples at the same anchor (integrator advances only)
+    #       - then a sample with a new anchor (blend kicks in)
+    #       - then a few more at that new anchor
+    #     Verifies integrator math + blend trigger.
+    Scenario(
+        name="hybrid_anchor_off_cadence",
+        capacity_ah=215.0, floor_soc=10.0, ceiling_soc=95.0,
+        idle_current_a=0.5, alpha=0.15, calibration=1.0,
+        hybrid=True, blend=0.8,
+        steps=[
+            Step(ts_ms=0,      pack_i_a=-6.0, max_soc_pct=70, min_soc_pct=68, rem_ah_avg=150.0),
+            Step(ts_ms=10000,  pack_i_a=-6.0, max_soc_pct=70, min_soc_pct=68, rem_ah_avg=150.0),
+            Step(ts_ms=20000,  pack_i_a=-6.0, max_soc_pct=70, min_soc_pct=68, rem_ah_avg=150.0),
+            Step(ts_ms=30000,  pack_i_a=-6.0, max_soc_pct=70, min_soc_pct=68, rem_ah_avg=150.0),
+            # ~60 s of -6 A is roughly -0.1 Ah; BMS now ticks the anchor down.
+            Step(ts_ms=60000,  pack_i_a=-6.0, max_soc_pct=70, min_soc_pct=68, rem_ah_avg=149.9),
+            Step(ts_ms=70000,  pack_i_a=-6.0, max_soc_pct=70, min_soc_pct=68, rem_ah_avg=149.9),
+            Step(ts_ms=80000,  pack_i_a=-6.0, max_soc_pct=70, min_soc_pct=68, rem_ah_avg=149.9),
+        ],
+    ),
+    # 11. Edge case: pack_i exactly at the idle threshold. Python uses
+    #     `abs(si) < idle_current_a` (strict less-than), so 0.5 A is
+    #     NOT idle. C must agree exactly — off-by-one classification at
+    #     the boundary would be a silent UI bug.
+    Scenario(
+        name="boundary_at_idle_threshold",
+        capacity_ah=215.0, floor_soc=10.0, ceiling_soc=95.0,
+        idle_current_a=0.5, alpha=0.15, calibration=1.0,
+        hybrid=False, blend=0.8,
+        steps=[
+            # First sample: EMA seeds to +0.5 exactly. abs(0.5) < 0.5 is FALSE
+            # → state should be CHARGING.
+            Step(ts_ms=0,     pack_i_a=+0.5, max_soc_pct=70, min_soc_pct=68),
+            # Slightly below threshold next — EMA = 0.15*0.49 + 0.85*0.5 = 0.4985.
+            # abs(0.4985) < 0.5 is TRUE → state should be IDLE.
+            Step(ts_ms=10000, pack_i_a=+0.49, max_soc_pct=70, min_soc_pct=68),
+        ],
+    ),
 ]
 
 

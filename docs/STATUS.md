@@ -143,6 +143,39 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **11:06** — Loop wake. **Harvest climb continues.** Pack SOC
+  **77/75 %** (+1 % in 12 min), charging at **+10.2 A** sustained
+  (was +7.5 A), voltage 26.85 V, irradiance **622 W/m²** still
+  climbing toward midday peak. Harvest **9.2 Ah / 27 %**, gained
+  +1.5 Ah in 12 min = ~7.5 Ah/hr rate. On a 98 %-cloud day this
+  is genuinely encouraging — the west-facing array is working well
+  through cloud as the sun moves toward its viewing angle.
+  - Design item: **broadened estimator cross-validation scenarios.**
+    Last loop's bug fix proved the cross-test pattern catches what
+    per-side unit tests miss; now 5 new state-boundary scenarios
+    exercise the exact code paths where transition bugs hide:
+    - `discharge_to_idle_to_charge` — 9-step walk through a dawn-
+      style EMA crossing of zero current. Tests that classification
+      follows the smoothed value into each state.
+    - `charging_crosses_to_full` — SOC climbs 93→94→95→96→97 across
+      5 samples; verifies the 95 % FULL banner threshold trips on
+      the exact crossing sample, not one off.
+    - `discharge_approaching_floor` — SOC dropping toward the 10 %
+      floor; exercises floor math at and below the boundary.
+    - `hybrid_anchor_off_cadence` — BMS rem_ah anchor ticks only
+      once over a 60-s span, sample cadence is 10 s; verifies the
+      integrator advances correctly between anchors and the blend
+      math kicks in on the anchor change.
+    - `boundary_at_idle_threshold` — pack_i = +0.5 exactly. Python
+      uses `abs(si) < idle_current_a` (strict less-than), so 0.5 is
+      NOT idle — must be charging. Catches any off-by-one in C
+      classification at the boundary.
+    - **All 5 pass first try** on both implementations (49/49 step
+      assertions across 11 scenarios now). Test budget grew from
+      22 → 49 cross-validation step-assertions; total assertions
+      across the test suite: 41 Py + 22 wire-C + 17 est-C + 4 wire-
+      cross + **49 est-cross = 133**, all green.
+
 - **10:54** — Loop wake. **Recovery picking up speed.** Pack now at
   SOC 76/74 % (was 73/72 at 10:14), charging at +7.5 A sustained,
   voltage 26.78 V (+0.16 V in 40 min), irradiance 580 W/m². Today's

@@ -274,3 +274,6 @@
 2026-05-18 10:44:57,183 INFO BLE recovered after 1 errors
 2026-05-18 10:47:36,681 INFO n=5580  26.77V  +8.10A  +217W  SOC 74-75%  state=charging  remain≈306m
 2026-05-18 10:52:37,994 INFO n=5610  26.77V  +7.00A  +187W  SOC 74-76%  state=charging  remain≈332m
+2026-05-18 10:57:45,929 INFO n=5640  26.77V  +5.50A  +147W  SOC 75-76%  state=charging  remain≈363m
+2026-05-18 11:03:00,095 INFO n=5670  26.82V  +9.00A  +241W  SOC 75-76%  state=charging  remain≈260m
+2026-05-18 11:07:59,954 INFO n=5700  26.85V  +9.80A  +263W  SOC 75-77%  state=charging  remain≈219m
