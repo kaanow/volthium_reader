@@ -314,3 +314,4 @@
 2026-05-18 13:36:27,765 INFO n=6570  26.82V  +5.30A  +142W  SOC 83-84%  state=charging  remain≈338m
 2026-05-18 13:41:25,207 INFO n=6600  26.86V  +7.50A  +201W  SOC 83-84%  state=charging  remain≈198m
 2026-05-18 13:46:41,716 INFO n=6630  26.93V  +11.90A  +321W  SOC 83-84%  state=charging  remain≈112m
+2026-05-18 13:51:41,053 INFO n=6660  26.96V  +14.30A  +385W  SOC 84-85%  state=charging  remain≈86m

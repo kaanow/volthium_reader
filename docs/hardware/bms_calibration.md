@@ -211,6 +211,72 @@ backlog.
       `volthium/estimator.py` so Mac-side analysis can experiment with
       Option 2.
 
+## Per-BMS sensor bias — i_a vs i_b (added 2026-05-18)
+
+The two batteries are wired in **series**, so by Kirchhoff's law the
+current through them is physically identical at every instant. Any
+spread between the per-battery `i_a` and `i_b` readings is BMS-A's
+current sensor reading differently from BMS-B's.
+
+Captured 2026-05-18 mid-afternoon over 1,487 charging samples across
+four pack-current bands (full day's data, charging samples only,
+`pack_i > 0.5 A`):
+
+| Pack-current band  |    n |  med i_a |  med i_b | med (i_a − i_b) | median % spread |
+|--------------------|-----:|---------:|---------:|----------------:|----------------:|
+| 0.5 – 2 A          |  104 |   1.40 A |   1.40 A |       +0.000 A  |       +0.00 %   |
+| 2 – 5 A            |  450 |   3.60 A |   3.40 A |       +0.200 A  |       +4.44 %   |
+| 5 – 10 A           |  742 |   7.40 A |   7.20 A |       +0.200 A  |       +3.03 %   |
+| 10 – 20 A          |  191 |  11.20 A |  10.80 A |       +0.400 A  |       +3.33 %   |
+
+### What this tells us
+
+1. **A reads systematically high by ~ 0.2 – 0.4 A** across every
+   practical charging band. Direction is consistent — never the other
+   way around.
+
+2. The 0.5 – 2 A row tied at zero is a **quantization artifact**: BMS
+   current is reported in **0.2 A steps**, so in that band both A and
+   B often land in the same bin and the median diff floors at zero.
+   Visible in raw `pack.csv` rows — `i_a` / `i_b` values are always
+   multiples of 0.2.
+
+3. The bias profile leans toward "**fixed offset on A** with maybe a
+   tiny gain term":
+   - 0.2 A absolute at 2 – 10 A → ~ 3 – 4 % relative
+   - 0.4 A absolute at 10 – 20 A → ~ 3.3 % relative
+
+   A pure scale-factor bias would give a constant relative %; a pure
+   offset bias would give a constant absolute. We're seeing something
+   in between. Could also be ADC nonlinearity in one of the BMS units;
+   we can't disambiguate from passive observation alone.
+
+### Implications for the production firmware
+
+- **Don't trust `i_a` and `i_b` independently** as a sanity check on
+  each other — they should agree but won't. Use their **average** as
+  the pack current (which is what `PackReading.pack_current` already
+  does), or fall back to the BMS's own `remaining_ah` ticks (the
+  hybrid coulomb-counter path).
+
+- For the ESP32 firmware in `firmware/bms-link/`, the pack-current
+  field encoded into the RS-485 wire frame is the **average** of the
+  two BMS readings, accepting the ~ 2 % noise floor that this implies.
+  Fine for time-to-X math; not fine if we ever tried to use the
+  per-battery currents as cell-imbalance detectors.
+
+- The hybrid coulomb-counter sidesteps the issue entirely by
+  anchoring on `remaining_ah`, which is the BMS's *own* integrated
+  output and is unaffected by sensor-bias asymmetry with its sibling.
+
+### Useful negative finding (watch-against)
+
+If we ever capture data where `i_a − i_b` **flips sign** or grows
+beyond this ~ 0.4 A envelope, something has materially changed —
+loose connection, BMS firmware update, swap of which battery is "A",
+or one of the sensors degrading. The 3 – 4 % bias is a baseline to
+watch against.
+
 ## Cross-references
 
 - Raw data: `data/pack.csv` (snapshot of the 2026-05-17 session

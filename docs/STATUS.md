@@ -143,6 +143,42 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **13:53** — Loop wake. **Climb accelerating** — pack SOC **85/84 %**
+  (+1 % per battery in just 6 min), charging at **+12.2 A** sustained,
+  voltage 26.94 V. Today's harvest **26.4 Ah / 72 % of forecast** at
+  +1.3 Ah/6 min ≈ **13 Ah/hr** (fastest of the day). **Live ratio
+  7.75 — JUST CROSSED 10 % drift from the model** (+10.7 %), so the
+  dashboard's calibration chip will tip from green to **amber** on
+  next refresh. The drift trend is consistent: 6.94 → 7.13 → 7.49 →
+  7.75 over four loops. Either the west-facing array over-performs
+  the morning ratio in the afternoon (geometry), or the SolarModel
+  coefficient is biased slightly low. Tonight's first auto-fit on
+  today's complete-day row will resolve this — interested to see
+  whether the day-total ratio settles closer to 7.0 or stays high.
+  - Calibration log still just the baseline entry — first real fit
+    lands tonight ~21:00.
+  - Design item: **per-BMS sensor-bias documentation in
+    `docs/hardware/bms_calibration.md`.** Across 1,487 today-
+    charging samples in 4 current bands, BMS-A reads consistently
+    **+0.2 – 0.4 A higher** than BMS-B. Series-pack physics says
+    the current through both is identical, so this is pure sensor
+    bias on A. The profile (3 – 4 % relative across all bands)
+    suggests a fixed offset with a tiny gain term. Findings
+    captured:
+    - **A reads systematically high** by 0.2 A at 2-10 A bands,
+      0.4 A at 10-20 A. Direction never flips.
+    - The 0.5-2 A band tied at zero is a quantization artifact —
+      both BMSes report in 0.2 A steps.
+    - Implication for firmware: keep using the AVERAGE of i_a/i_b
+      as pack_current (which we already do). Don't try to use the
+      per-battery currents as a cross-check; they won't agree.
+    - Useful baseline to **watch against**: if i_a − i_b ever
+      flips sign or grows beyond the 0.4 A envelope, something
+      has materially changed (loose connection, BMS firmware
+      update, sensor degradation, swap of which battery is "A").
+  - Permanent record in the doc, useful when the firmware C port
+    needs to decide how to combine the two BMS streams.
+
 - **13:47** — Loop wake. **Climb continues.** Pack SOC **84/83 %**
   (+1 % per battery in 27 min), charging at **+10.8 A** sustained,
   voltage 26.93 V. Cloud at 99 % (maxed) but harvest still cranking
