@@ -220,6 +220,26 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **04:46** — Loop wake. Pack SOC 76-78 %. 11th fridge cycle at
+  04:28:32 (35 min after 03:53). Advisor still ✓ no generator
+  needed; morning_watch still False (projected_low 65 % > 50 %).
+  We're 24 min from sunrise.
+  - Design item: **advisor uses TOMORROW's forecast** for solar
+    harvest projection instead of today's irradiance-as-proxy.
+    - Added `fetch_today_tomorrow_irradiance()` to `scripts/weather.py`
+      (calls Open-Meteo with forecast_days=2; returns tuple).
+    - `generator_advisor.project_solar_ah()` now returns
+      `(ah, source)` where source ∈ {"tomorrow_forecast",
+      "today_as_proxy", "no_data"}. Cached 5 min so re-runs don't
+      hammer the API.
+    - Forecast input visible in advisor output: `solar_source:
+      tomorrow_forecast`, tomorrow's forecast irradiance is
+      **5.14 kWh/m²** vs today's actual 5.34. Slightly cloudier.
+    - Tomorrow evening projection: 67 % → **65 %** — a small
+      tightening that wouldn't have been visible with the proxy.
+  - All confidence intervals still wide ("low") since we have
+    < 1 day of solar fit data.
+
 - **04:14** — Loop wake. Pack SOC 78-80 %. 10th fridge cycle at
   03:53:07. **First inside the morning_watch window** (56 min to
   sunrise) — morning_watch correctly stayed False because

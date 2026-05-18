@@ -76,8 +76,14 @@ CSV_FIELDS = [
 ]
 
 
-def fetch(lat: float, lon: float, tz: str, timeout: float = 10.0) -> dict:
-    """One HTTPS GET; returns parsed JSON. Raises on network/parse failure."""
+def fetch(lat: float, lon: float, tz: str, timeout: float = 10.0,
+          forecast_days: int = 2) -> dict:
+    """One HTTPS GET; returns parsed JSON. Raises on network/parse failure.
+
+    forecast_days=2 gets today + tomorrow in the daily arrays — used by
+    the generator advisor to plan against tomorrow's expected irradiance
+    rather than treating today's number as a proxy.
+    """
     params = {
         "latitude":  lat,
         "longitude": lon,
@@ -98,12 +104,34 @@ def fetch(lat: float, lon: float, tz: str, timeout: float = 10.0) -> dict:
             "uv_index_max",
         )),
         "wind_speed_unit": "ms",
-        "forecast_days":   1,
+        "forecast_days":   forecast_days,
     }
     url = API_BASE + "?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(url, headers={"User-Agent": "volthium-reader/1.0"})
     with urllib.request.urlopen(req, timeout=timeout, context=_SSL_CTX) as resp:
         return json.loads(resp.read().decode())
+
+
+def fetch_today_tomorrow_irradiance(
+    lat: float = DEFAULT_LAT,
+    lon: float = DEFAULT_LON,
+    tz: str = DEFAULT_TZ,
+) -> tuple[Optional[float], Optional[float]]:
+    """Return (today_kwh_per_m2, tomorrow_kwh_per_m2). None on either
+    if Open-Meteo didn't supply that day. Wraps fetch() for callers
+    (like the generator advisor) that don't need the full payload."""
+    try:
+        data = fetch(lat, lon, tz, forecast_days=2)
+    except Exception:
+        return None, None
+    dly = data.get("daily") or {}
+    rad = dly.get("shortwave_radiation_sum") or []
+    # MJ/m² → kWh/m² (1 MJ ≈ 277.78 Wh, /1000 → kWh)
+    def conv(x):
+        return x * 277.778 / 1000.0 if x is not None else None
+    today    = conv(rad[0]) if len(rad) > 0 else None
+    tomorrow = conv(rad[1]) if len(rad) > 1 else None
+    return today, tomorrow
 
 
 def flatten(data: dict, lat: float, lon: float) -> dict:

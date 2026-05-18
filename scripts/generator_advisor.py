@@ -44,7 +44,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import csv as _csv
 import discharge_model  # noqa: E402
+import weather as weather_mod  # noqa: E402
 from volthium.solar_model import SolarModel  # noqa: E402
+
+# Cache tomorrow's forecast so re-runs in a 5-min window don't pound the API.
+_TOMORROW_KWH_CACHE = {"computed_at": 0.0, "value": None}
 
 
 # Empirical constants from `docs/hardware/bms_calibration.md` + observed runs.
@@ -113,17 +117,37 @@ def _f(v) -> Optional[float]:
         return None
 
 
-def project_solar_ah(weather_row: dict, model: SolarModel) -> float:
-    """Predict Ah delivered to the pack tomorrow given today's
-    irradiance total + a SolarModel. Today's irradiance is used as a
-    proxy for tomorrow's — a real implementation would query the
-    forecast for *tomorrow* specifically. Open-Meteo can do this; the
-    weather logger just isn't recording forecast-day rows yet."""
+def _get_tomorrow_kwh_per_m2() -> Optional[float]:
+    """Cached forecast lookup. 5-minute TTL is fine — weather doesn't
+    change that fast and we'd rather miss the latest update than make
+    the cabin's Starlink earn its keep on every refresh."""
+    import time as _time
+    now = _time.monotonic()
+    if (now - _TOMORROW_KWH_CACHE["computed_at"]) < 300.0:
+        return _TOMORROW_KWH_CACHE["value"]
+    _, tomorrow = weather_mod.fetch_today_tomorrow_irradiance()
+    _TOMORROW_KWH_CACHE["computed_at"] = now
+    _TOMORROW_KWH_CACHE["value"] = tomorrow
+    return tomorrow
+
+
+def project_solar_ah(weather_row: dict, model: SolarModel) -> tuple[float, str]:
+    """Predict Ah delivered to the pack tomorrow. Returns (ah, source).
+
+    Preferred path: query Open-Meteo for tomorrow's forecast irradiance.
+    Fallback: today's irradiance from the latest weather.csv row as a
+    proxy (worse but doesn't require network).
+    """
+    tomorrow_kwh = _get_tomorrow_kwh_per_m2()
+    if tomorrow_kwh is not None and tomorrow_kwh > 0:
+        return model.predict_ah(tomorrow_kwh), "tomorrow_forecast"
+
+    # Fallback: today's irradiance as a proxy
     today_total = _f(weather_row.get("shortwave_radiation_sum_today_wh_m2"))
     if today_total is None:
-        return 0.0
+        return 0.0, "no_data"
     kwh_per_m2 = today_total / 1000.0
-    return model.predict_ah(kwh_per_m2)
+    return model.predict_ah(kwh_per_m2), "today_as_proxy"
 
 
 def main() -> int:
@@ -176,7 +200,7 @@ def main() -> int:
 
     # === Solar harvest tomorrow ===
     solar = load_solar_model()
-    solar_ah = project_solar_ah(weather_now, solar)
+    solar_ah, solar_source = project_solar_ah(weather_now, solar)
     solar_pct_gain = solar_ah / PACK_CAPACITY_AH_PER_BATTERY * 100.0
 
     # === Discharge sunrise → tomorrow evening (rough; same profile) ===
@@ -237,6 +261,7 @@ def main() -> int:
                 "start_soc_pct": start_soc,
                 "overnight_ah": overnight_ah,
                 "solar_ah_estimate": solar_ah,
+                "solar_source": solar_source,
                 "next_eve_ah": next_eve_ah,
                 "today_irradiance_kwh_m2":
                     _f(weather_now.get("shortwave_radiation_sum_today_wh_m2")) and
@@ -272,6 +297,7 @@ def main() -> int:
                 "start_soc_pct": start_soc,
                 "overnight_ah": overnight_ah,
                 "solar_ah_estimate": solar_ah,
+                "solar_source": solar_source,
                 "next_eve_ah": next_eve_ah,
             },
             morning_watch=False,    # subsumed by the hard recommendation
