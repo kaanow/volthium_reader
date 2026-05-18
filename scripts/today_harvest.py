@@ -165,6 +165,45 @@ def latest_weather_forecast_kwh(weather_csv: Path, today: date) -> Optional[floa
     return latest_kwh
 
 
+def latest_weather_sun_times(weather_csv: Path, today: date) -> tuple[Optional[int], Optional[int]]:
+    """Pull today's sunrise/sunset times out of weather.csv and return
+    them as minute-of-day integers, suitable for plotting on the
+    sparkline's 0..1440 x-axis.
+
+    Returns (sunrise_min, sunset_min). Either or both may be None if
+    we don't have weather data yet or the columns are missing.
+    """
+    sunrise_min: Optional[int] = None
+    sunset_min: Optional[int] = None
+    try:
+        with weather_csv.open() as f:
+            for r in csv.DictReader(f):
+                try:
+                    ts = datetime.fromisoformat(r["ts"])
+                except Exception:
+                    continue
+                if ts.date() != today:
+                    continue
+                # Latest-wins: weather.csv appends rows every 30 min
+                sr = r.get("sunrise_iso")
+                ss = r.get("sunset_iso")
+                if sr:
+                    try:
+                        sr_dt = datetime.fromisoformat(sr)
+                        sunrise_min = sr_dt.hour * 60 + sr_dt.minute
+                    except Exception:
+                        pass
+                if ss:
+                    try:
+                        ss_dt = datetime.fromisoformat(ss)
+                        sunset_min = ss_dt.hour * 60 + ss_dt.minute
+                    except Exception:
+                        pass
+    except FileNotFoundError:
+        return (None, None)
+    return (sunrise_min, sunset_min)
+
+
 def integrate_today_irradiance(weather_csv: Path, today: date,
                                now: Optional[datetime] = None,
                                max_extrap_seconds: float = 2400.0,
@@ -257,6 +296,7 @@ def snapshot(pack_csv: Path, weather_csv: Path, today: Optional[date] = None) ->
     integrated = integrate_today(pack_csv, today)
     forecast_kwh = latest_weather_forecast_kwh(weather_csv, today)
     actual_kwh_so_far = integrate_today_irradiance(weather_csv, today)
+    sunrise_min, sunset_min = latest_weather_sun_times(weather_csv, today)
     model = load_solar_model()
 
     forecast_ah: Optional[float] = None
@@ -305,6 +345,11 @@ def snapshot(pack_csv: Path, weather_csv: Path, today: Optional[date] = None) ->
         "pct_of_forecast": pct,
         "confidence": model.confidence,
         "note": note,
+        # Sunrise / sunset minute-of-day, for sparkline marker overlays.
+        # Either or both may be null if weather.csv doesn't yet have a
+        # row with the iso columns.
+        "sunrise_min_of_day": sunrise_min,
+        "sunset_min_of_day": sunset_min,
         # 5-min binned cumulative solar Ah series:
         # [[minute_of_day, ah], ...]. Sparkline source on the dashboard.
         "series": integrated.get("series", []),

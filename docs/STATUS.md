@@ -143,6 +143,36 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **12:47** — Loop wake. **Harvest curve still bouncy.** Pack SOC
+  **82/81 %**, charging at **+2.9 A** — slowed AGAIN from +9.4 A
+  at 12:39. The recovery was brief; cloud thickened back over the
+  array. Voltage backed off 26.89 → 26.81 V. Harvest **20.2 Ah /
+  55 % of forecast**. **Live ratio 7.30** (+4.3 % from model — still
+  safely green). Battery B keeps closing the gap: now only 1 %
+  behind A (82 vs 81). This is normal for a 94-98 % cloud day —
+  brief sun-breaks then thickening.
+  - Design item: **sunrise/sunset markers on the harvest sparkline.**
+    Previously the sparkline ran 00:00 → 24:00 with no indication of
+    when sun was actually up. New visual elements:
+    - Subtle amber **daylight band** (4 % fill-opacity) between
+      sunrise and sunset, so the productive window is shaded.
+    - Two faint amber **dashed vertical lines** at the exact
+      sunrise (05:09) and sunset (20:52) times.
+    - Both contextualize the green harvest curve: now the user
+      can immediately see "the harvest only happens during the
+      shaded band, and we're at X % through it."
+  - Backend: new `latest_weather_sun_times()` in `today_harvest.py`
+    parses `sunrise_iso` / `sunset_iso` from weather.csv (latest
+    row wins) and returns them as `minute_of_day` integers for
+    direct plotting on the 0..1440 sparkline x-axis. Today:
+    `sunrise_min_of_day: 309` (05:09), `sunset_min_of_day: 1252`
+    (20:52).
+  - Frontend: rendered as SVG `<rect>` for the daylight band and
+    two `<line>` elements for sunrise/sunset. Hidden when weather
+    data isn't available yet (early cold-start).
+  - Will become visible on next dashboard restart.
+  - All 50 Python tests still pass.
+
 - **12:39** — Loop wake. **Recovery!** Pack SOC **82/80 %** (climbed
   +2/+1 % in 26 min — the noon slowdown was transient cloud).
   Charging back to **+9.4 A** sustained from a low of +3.3 A. Cloud

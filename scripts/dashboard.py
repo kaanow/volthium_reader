@@ -795,10 +795,38 @@ async function tick() {
         const forecastY = yOf(harv.solar_ah_forecast).toFixed(2);
         const nowMin = (new Date()).getHours() * 60 + (new Date()).getMinutes();
         const nowX = xOf(nowMin).toFixed(2);
+        // Optional sunrise/sunset marker lines.
+        const srMin = harv.sunrise_min_of_day;
+        const ssMin = harv.sunset_min_of_day;
+        const sunMarkers = [];
+        if (srMin != null) {
+          const x = xOf(srMin).toFixed(2);
+          sunMarkers.push(`<line x1="${x}" y1="0" x2="${x}" y2="${H}"
+                stroke="#d29922" stroke-width="0.3" stroke-opacity="0.55"
+                stroke-dasharray="0.6 0.6"/>`);
+        }
+        if (ssMin != null) {
+          const x = xOf(ssMin).toFixed(2);
+          sunMarkers.push(`<line x1="${x}" y1="0" x2="${x}" y2="${H}"
+                stroke="#d29922" stroke-width="0.3" stroke-opacity="0.55"
+                stroke-dasharray="0.6 0.6"/>`);
+        }
+        // Daylight tint between sunrise and sunset, very subtle, to
+        // contextualize "this is the productive window."
+        let daylightBand = "";
+        if (srMin != null && ssMin != null && ssMin > srMin) {
+          const x0 = xOf(srMin).toFixed(2);
+          const x1 = xOf(ssMin).toFixed(2);
+          daylightBand = `<rect x="${x0}" y="0" width="${(x1 - x0).toFixed(2)}"
+                                height="${H}"
+                                fill="#d29922" fill-opacity="0.04"/>`;
+        }
         sparkSvg = `
           <svg class="harvest-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+            ${daylightBand}
             <line x1="0" y1="${forecastY}" x2="${W}" y2="${forecastY}"
                   stroke="#30363d" stroke-width="0.4" stroke-dasharray="1 1.5"/>
+            ${sunMarkers.join("")}
             <polyline points="${points}" fill="none"
                       stroke="var(--grn)" stroke-width="0.9"
                       stroke-linecap="round" stroke-linejoin="round"/>
