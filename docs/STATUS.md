@@ -143,6 +143,37 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **10:54** — Loop wake. **Recovery picking up speed.** Pack now at
+  SOC 76/74 % (was 73/72 at 10:14), charging at +7.5 A sustained,
+  voltage 26.78 V (+0.16 V in 40 min), irradiance 580 W/m². Today's
+  harvest **7.7 Ah / 22 % of forecast**, gained +4.7 Ah in 40 min vs
+  the +2.7 Ah/35 min of the prior loop — the climb is accelerating
+  as solar moves westward toward the array's sweet spot. Advisor still ✓.
+  - Data logs now tracked: per user request, this loop is also the
+    first one pushing `data/pack.csv` and friends to GitHub so the
+    cabin's full record lives in the repo, not just locally.
+  - Design item: **sparkline of today's harvest curve** in the
+    dashboard's harvest panel. Concrete additions:
+    - `scripts/today_harvest.py` now emits a `series` field — a
+      5-min-binned list of `[minute_of_day, cumulative_solar_ah]`
+      pairs. For today: 132 points covering 00:00 → ~10:55, flat at
+      0 until 09:30 then rising. Cheap to compute (single linear
+      pass over today's pack rows), tiny payload (~2 KB JSON).
+    - Dashboard renders it as an inline SVG `<polyline>` inside the
+      harvest panel: green curve over a faint dashed horizontal
+      "forecast target" line, a soft vertical "now" marker, and an
+      x-axis label strip (00:00 · 06:00 · 12:00 · 18:00 · 24:00).
+      Uses `viewBox="0 0 100 28" preserveAspectRatio="none"` so it
+      scales cleanly to whatever width the panel has — desktop or
+      mobile.
+    - The curve scales y-axis to `max(forecast_ah, current * 1.1)`
+      so over-performing days don't clip and the forecast line
+      stays meaningful as a target.
+    - Gives the user an at-a-glance "is the day's harvest climbing,
+      flat, or about to plateau?" answer without reading numbers.
+      Today's curve will be visually striking: 9.5 hours flat,
+      then a steep climb starting ~09:30.
+
 - **10:14** — Loop wake. **Net-charging holding** — pack now at SOC
   73/72 % charging at **+6.8 A** sustained, voltage climbed
   26.34 → 26.62 V over 35 min. Today's harvest tracker reads

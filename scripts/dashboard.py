@@ -421,6 +421,12 @@ INDEX_HTML = """<!doctype html>
   .harvest .footer { color: var(--dim); font-size: 11px; margin-top: 8px; }
   .harvest .note { color: var(--dim); font-style: italic; font-size: 11px;
                    margin-top: 6px; }
+  .harvest-spark { display: block; width: 100%; height: 48px;
+                   margin-top: 12px; }
+  .harvest .spark-x-labels { display: flex; justify-content: space-between;
+                             color: var(--dim); font-size: 10px;
+                             font-variant-numeric: tabular-nums;
+                             margin-top: 2px; }
   .advisor {
     margin-bottom: 18px; padding: 14px 16px; border-radius: 8px;
     background: #161b22; border-left: 4px solid var(--grn);
@@ -721,11 +727,43 @@ async function tick() {
       const barCls = (pct != null && pct >= 100) ? "over"
                      : (pct != null && pct >= 50) ? "" : "partial";
       const note = harv.note ? `<div class="note">${harv.note}</div>` : "";
+
+      // Sparkline: cumulative solar Ah over the day so far. x = 0..1440
+      // (minute of day), y = 0..max(forecast, current * 1.1). Forecast
+      // target shown as a faint horizontal reference.
+      const series = harv.series || [];
+      let sparkSvg = "";
+      if (series.length >= 2) {
+        const W = 100, H = 28;   // viewBox units; CSS scales it up
+        const yMax = Math.max(harv.solar_ah_forecast, harv.solar_ah_so_far * 1.1, 1);
+        const xOf = m => (m / 1440) * W;
+        const yOf = ah => H - (ah / yMax) * H;
+        const points = series.map(([m, a]) => `${xOf(m).toFixed(2)},${yOf(a).toFixed(2)}`).join(" ");
+        const forecastY = yOf(harv.solar_ah_forecast).toFixed(2);
+        const nowMin = (new Date()).getHours() * 60 + (new Date()).getMinutes();
+        const nowX = xOf(nowMin).toFixed(2);
+        sparkSvg = `
+          <svg class="harvest-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+            <line x1="0" y1="${forecastY}" x2="${W}" y2="${forecastY}"
+                  stroke="#30363d" stroke-width="0.4" stroke-dasharray="1 1.5"/>
+            <polyline points="${points}" fill="none"
+                      stroke="var(--grn)" stroke-width="0.9"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="${nowX}" y1="0" x2="${nowX}" y2="${H}"
+                  stroke="#58a6ff" stroke-width="0.3" stroke-opacity="0.5"/>
+          </svg>
+          <div class="spark-x-labels">
+            <span>00:00</span><span>06:00</span><span>12:00</span>
+            <span>18:00</span><span>24:00</span>
+          </div>`;
+      }
+
       harvEl.innerHTML = `
         <div class="harvest">
           <div class="lbl">TODAY'S SOLAR HARVEST</div>
           <div class="big">${harv.solar_ah_so_far.toFixed(1)} <span class="u" style="font-size:14px">Ah</span></div>
           <div class="bar-wrap"><div class="bar ${barCls}" style="width:${barW}%"></div></div>
+          ${sparkSvg}
           <div class="row">
             <div class="stat"><div class="lbl">progress</div>
               <div class="v">${pctTxt}</div></div>

@@ -56,11 +56,15 @@ def _f(v) -> Optional[float]:
         return None
 
 
-def integrate_today(pack_csv: Path, today: date) -> dict:
+def integrate_today(pack_csv: Path, today: date,
+                    series_bin_minutes: int = 5) -> dict:
     """Walk pack.csv rows for `today` and integrate.
 
     Returns dict with: samples, duration_h, charge_ah, discharge_ah,
-    generator_ah, solar_ah (= charge_ah − generator_ah).
+    generator_ah, solar_ah (= charge_ah − generator_ah), and a
+    downsampled `series` of (minute_of_day, solar_ah_cumulative)
+    points binned to `series_bin_minutes` (default 5 min ⇒ up to
+    ~288 points per day, plenty for a sparkline).
 
     Mirrors `scripts/daily_summary.summarize_day` math but only for the
     given date. Trapezoidal integration of `pack_i` over time; samples
@@ -81,11 +85,13 @@ def integrate_today(pack_csv: Path, today: date) -> dict:
                 rows.append({"ts": ts, "pack_i": _f(r.get("pack_i"))})
     except FileNotFoundError:
         return {"samples": 0, "duration_h": 0.0, "charge_ah": 0.0,
-                "discharge_ah": 0.0, "generator_ah": 0.0, "solar_ah": 0.0}
+                "discharge_ah": 0.0, "generator_ah": 0.0, "solar_ah": 0.0,
+                "series": []}
 
     if not rows:
         return {"samples": 0, "duration_h": 0.0, "charge_ah": 0.0,
-                "discharge_ah": 0.0, "generator_ah": 0.0, "solar_ah": 0.0}
+                "discharge_ah": 0.0, "generator_ah": 0.0, "solar_ah": 0.0,
+                "series": []}
 
     rows.sort(key=lambda r: r["ts"])
     duration_h = (rows[-1]["ts"] - rows[0]["ts"]).total_seconds() / 3600.0
@@ -93,6 +99,14 @@ def integrate_today(pack_csv: Path, today: date) -> dict:
     charge_ah = 0.0
     discharge_ah = 0.0
     generator_ah = 0.0
+
+    # Downsampled cumulative-solar series. Emit at most one point per
+    # `series_bin_minutes` window (keeps payload tiny). Solar_ah is
+    # monotonically non-decreasing, so keeping the latest value per
+    # bucket gives an honest sparkline.
+    series: list[tuple[int, float]] = []
+    last_bin = -1
+
     for i in range(1, len(rows)):
         a, b = rows[i - 1], rows[i]
         if a["pack_i"] is None or b["pack_i"] is None:
@@ -109,6 +123,15 @@ def integrate_today(pack_csv: Path, today: date) -> dict:
         else:
             discharge_ah += -delta_ah
 
+        # Emit one (minute_of_day, solar_ah) per series_bin_minutes window.
+        # b['ts'] is timezone-naive ISO from pack.csv — use clock minutes.
+        minute_of_day = b["ts"].hour * 60 + b["ts"].minute
+        bin_idx = minute_of_day // series_bin_minutes
+        if bin_idx != last_bin:
+            series.append((minute_of_day,
+                           round(charge_ah - generator_ah, 3)))
+            last_bin = bin_idx
+
     return {
         "samples": len(rows),
         "duration_h": round(duration_h, 2),
@@ -116,6 +139,7 @@ def integrate_today(pack_csv: Path, today: date) -> dict:
         "discharge_ah": round(discharge_ah, 2),
         "generator_ah": round(generator_ah, 2),
         "solar_ah": round(charge_ah - generator_ah, 2),
+        "series": series,
     }
 
 
@@ -196,6 +220,9 @@ def snapshot(pack_csv: Path, weather_csv: Path, today: Optional[date] = None) ->
         "pct_of_forecast": pct,
         "confidence": model.confidence,
         "note": note,
+        # 5-min binned cumulative solar Ah series:
+        # [[minute_of_day, ah], ...]. Sparkline source on the dashboard.
+        "series": integrated.get("series", []),
     }
 
 
