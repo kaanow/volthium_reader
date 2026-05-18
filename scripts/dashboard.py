@@ -437,6 +437,14 @@ INDEX_HTML = """<!doctype html>
                             font-variant-numeric: tabular-nums; color: var(--grn); }
   .harvest .live-ratio .aside { font-size: 11px; color: var(--dim);
                                 margin-left: auto; }
+  .harvest .hourly-wrap { margin-top: 10px; }
+  .harvest .hourly-wrap .lbl { text-transform: uppercase; letter-spacing: .12em;
+                               color: var(--dim); font-size: 10px;
+                               margin-bottom: 3px; }
+  .harvest-hourly { display: block; width: 100%; height: 36px; }
+  .harvest-hourly .hbar { fill: var(--grn); fill-opacity: 0.85; }
+  .harvest-hourly .hbar.now { fill: #58a6ff; fill-opacity: 0.95; }
+  .harvest-hourly .hbar.empty { fill: #30363d; fill-opacity: 0.4; }
   .advisor {
     margin-bottom: 18px; padding: 14px 16px; border-radius: 8px;
     background: #161b22; border-left: 4px solid var(--grn);
@@ -768,12 +776,62 @@ async function tick() {
           </div>`;
       }
 
+      // Hourly delta bars: turn the cumulative series into per-hour Ah.
+      // For each hour 0..23, take the last cumulative value seen in that
+      // hour minus the last value before the hour started. Skips empty
+      // hours, then renders one bar per hour scaled to the largest hour.
+      let hourlySvg = "";
+      if (series.length >= 2) {
+        // Map of cumulative_ah at each hour boundary's "last seen" point.
+        // Use a sparse approach: for each point, update hourBuckets[hour]
+        // to its cumulative value. The hour's harvest = bucket[h] - bucket[h-1].
+        const lastByHour = new Array(24).fill(null);
+        for (const [m, a] of series) {
+          const h = Math.floor(m / 60);
+          if (h >= 0 && h < 24) lastByHour[h] = a;
+        }
+        // Carry forward the previous hour's "last" value as the baseline
+        // for an empty hour so the delta is 0 there, not negative.
+        let baseline = 0;
+        const hourDeltas = new Array(24).fill(0);
+        for (let h = 0; h < 24; h++) {
+          if (lastByHour[h] != null) {
+            hourDeltas[h] = Math.max(0, lastByHour[h] - baseline);
+            baseline = lastByHour[h];
+          } else {
+            hourDeltas[h] = 0;
+            // baseline stays the same
+          }
+        }
+        const maxDelta = Math.max(...hourDeltas, 0.001);
+        const Wh = 100, Hh = 22, gap = 0.6;
+        const barW = (Wh - gap * 23) / 24;
+        const nowHr = (new Date()).getHours();
+        const bars = hourDeltas.map((d, h) => {
+          const x = h * (barW + gap);
+          const bh = (d / maxDelta) * Hh;
+          const y = Hh - bh;
+          const fillCls = h === nowHr ? "now" : (d > 0 ? "" : "empty");
+          return `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}"
+                        width="${barW.toFixed(2)}" height="${bh.toFixed(2)}"
+                        class="hbar ${fillCls}"/>`;
+        }).join("");
+        const maxLabel = maxDelta.toFixed(1);
+        hourlySvg = `
+          <div class="hourly-wrap">
+            <div class="lbl">PER-HOUR HARVEST · max ${maxLabel} Ah</div>
+            <svg class="harvest-hourly" viewBox="0 0 ${Wh} ${Hh}"
+                 preserveAspectRatio="none">${bars}</svg>
+          </div>`;
+      }
+
       harvEl.innerHTML = `
         <div class="harvest">
           <div class="lbl">TODAY'S SOLAR HARVEST</div>
           <div class="big">${harv.solar_ah_so_far.toFixed(1)} <span class="u" style="font-size:14px">Ah</span></div>
           <div class="bar-wrap"><div class="bar ${barCls}" style="width:${barW}%"></div></div>
           ${sparkSvg}
+          ${hourlySvg}
           <div class="row">
             <div class="stat"><div class="lbl">progress</div>
               <div class="v">${pctTxt}</div></div>

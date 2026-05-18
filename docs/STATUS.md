@@ -143,6 +143,35 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **11:39** — Loop wake. Pack SOC **79/78 %** (+1 % per battery in
+  11 min), charging at +9.8 A. Harvest **14.5 Ah / 43 %** of
+  forecast; gained +2.0 Ah in 11 min (11 Ah/hr rate, picking up
+  pace as midday irradiance arrives). **Live ratio: 7.14 Ah/(kWh/m²)**
+  — converging from 7.48 → 7.14 as the irradiance integral grows
+  and morning noise damps out. Independent confirmation that the
+  SolarModel default of 7.0 is right for this site. Today now
+  tracking exactly the model: 2.03 kWh/m² actual = 42 % of forecast
+  vs 43 % of predicted Ah.
+  - Design item: **per-hour harvest bars** below the cumulative
+    sparkline in the dashboard harvest panel. The cumulative curve
+    shows the *integral*; the bars show the *rate per hour*.
+    Together they answer two different questions at a glance:
+    - sparkline: "where are we vs forecast?" (slope)
+    - bars: "is this hour ahead of, level with, or behind last hour?"
+    (instantaneous derivative)
+  - Implementation: in dashboard JS, walk the existing 5-min
+    cumulative series, compute per-hour deltas (last cumulative
+    value in hour minus baseline), render 24 vertical bars in an
+    SVG. Current hour highlighted blue, completed hours green,
+    empty hours muted gray. Max-bar label at top right.
+  - Why this is useful TODAY: on this 98 %-cloud morning the
+    visualization should show a clear inflection — flat dark
+    bars from 00:00 to 09:00, then climbing green bars 10:00,
+    11:00 (latest, blue: ~3.3 Ah). Tells the user "yes, harvest
+    started; here's how each hour is going."
+  - Will become visible on next dashboard restart. Running
+    instance is still pre-change.
+
 - **11:28** — Loop wake. Pack SOC **78/77 %** (battery B catching up
   under sustained charge — gap from A narrowed 3 % → 1 % since
   start of charging). Charging at +9.1 A, voltage 26.87 V. Today's
