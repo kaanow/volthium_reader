@@ -24,7 +24,32 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from volthium.events import detect_events  # noqa: E402
+import discharge_model  # noqa: E402  — sibling script
+
+# Cache the discharge profile fit for 60s.  The fit runs over the
+# entire pack.csv, which is fine for our scale (KBs of CSV per day)
+# but no need to redo it every 5s dashboard refresh.
+_discharge_cache = {"computed_at": 0.0, "profile": None}
+
+
+def get_discharge_profile():
+    """Return the cached hour-of-day discharge profile, recomputing
+    at most once a minute."""
+    now = time.monotonic()
+    if (now - _discharge_cache["computed_at"]) < 60.0 and _discharge_cache["profile"] is not None:
+        return _discharge_cache["profile"]
+    try:
+        samples = discharge_model.load(CSV_PATH)
+    except Exception:
+        return None
+    if not samples:
+        return None
+    profile = discharge_model.fit(samples)
+    _discharge_cache["computed_at"] = now
+    _discharge_cache["profile"] = profile
+    return profile
 
 try:
     import qrcode
@@ -181,16 +206,35 @@ def compute_projection(latest_pack: dict, weather: dict | None) -> dict | None:
         return None
     start_soc = min(float(sa), float(sb))
 
-    # Project at the smoothed current, treating idle (~0 A) as 0 change.
-    if abs(smoothed_i) < 0.5:
+    # Two ways to project — prefer the hour-by-hour discharge model
+    # if we have one, otherwise fall back to naive single-rate
+    # extrapolation. Both are signed: negative = consuming.
+    profile = get_discharge_profile()
+    rate_label = f"at {smoothed_i:+.1f} A (smoothed)"
+    method = "naive"
+
+    if abs(smoothed_i) < 0.5 and (profile is None or not profile):
         projected_soc = start_soc
         rate_label = "current near zero"
+    elif profile is not None and profile:
+        # Hour-by-hour projection: sum |median current| × 1h across
+        # the hours we'll traverse before sunrise.
+        ah_consumed = discharge_model.project_overnight_ah(
+            profile, now.hour, sunrise_dt.hour
+        )
+        if ah_consumed is not None and ah_consumed > 0:
+            pct_change = -ah_consumed / PROJECTION_CAPACITY_AH * 100.0
+            projected_soc = start_soc + pct_change
+            method = "discharge_model"
+            rate_label = f"profile fit (~{ah_consumed:.0f} Ah)"
+        else:
+            # No useful model output; fall through to naive
+            ah_change = smoothed_i * hours_to_sunrise
+            projected_soc = start_soc + ah_change / PROJECTION_CAPACITY_AH * 100.0
     else:
-        ah_change = smoothed_i * hours_to_sunrise           # signed; negative when discharging
-        pct_change = ah_change / PROJECTION_CAPACITY_AH * 100.0
-        projected_soc = start_soc + pct_change
-        # Display the rate as positive A regardless of sign
-        rate_label = f"at {smoothed_i:+.1f} A"
+        # Naive fallback when no profile yet
+        ah_change = smoothed_i * hours_to_sunrise
+        projected_soc = start_soc + ah_change / PROJECTION_CAPACITY_AH * 100.0
 
     # Clamp display to reasonable bounds (-5 .. 100)
     projected_soc_clamped = max(-5.0, min(100.0, projected_soc))
@@ -202,6 +246,7 @@ def compute_projection(latest_pack: dict, weather: dict | None) -> dict | None:
         "projected_soc": projected_soc_clamped,
         "projected_soc_raw": projected_soc,
         "rate_label": rate_label,
+        "method": method,
         "weather_cloud_pct": float(weather["cloud_cover_pct"]) if weather.get("cloud_cover_pct") not in (None, "") else None,
         "weather_temp_c": float(weather["temperature_c"]) if weather.get("temperature_c") not in (None, "") else None,
         "day_irradiance_wh_m2": float(weather["shortwave_radiation_sum_today_wh_m2"]) if weather.get("shortwave_radiation_sum_today_wh_m2") not in (None, "") else None,

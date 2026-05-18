@@ -220,6 +220,26 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **01:29** — Loop wake. Pack SOC 86-87 %, -4.5 A baseline. Fridge
+  cycle on schedule at **00:59:19** (exactly 34 min after the
+  00:25 one). Cadence rock-solid now over 5 captured cycles.
+  - Design item: **wired discharge_model into the dashboard
+    projection**. The /api/latest.json projection now picks the
+    hour-by-hour profile over the naive single-rate when a profile
+    is available. Cached 60 s to keep the per-request cost down.
+  - Live readout right after the deploy: pack SOC 85 %, sunrise
+    in 3h 38m, **profile predicts ~ 15 Ah discharge → 77.9 % at
+    sunrise** (model says `method: discharge_model`). Better
+    grounded than the earlier naive extrapolation that was
+    sensitive to the moment's smoothed current.
+  - Graceful fallback: if no profile yet (fresh install, no
+    discharging samples), the dashboard reverts to naive
+    extrapolation. Same panel either way.
+  - Two independent overnight-discharge predictors now agree:
+    discharge_model standalone CLI says 38.4 Ah over 21h-07h ⇒
+    17.9 % drop from 96 % start, i.e. arriving ~ 78 %; live
+    dashboard says ~ 78 % from the *remaining* hours. Consistent.
+
 - **00:56** — Loop wake. Pack at SOC 87-88 % ; -4.5 A baseline ;
   **new fridge cycle event at 00:25:42** (exactly 34 min after
   23:51 — pattern locked in). The detector tuning from last loop
