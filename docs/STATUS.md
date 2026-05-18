@@ -137,6 +137,41 @@ roll into `docs/STATUS_archive.md`.
 
 *(appended chronologically, newest first)*
 
+- **09:39** — Loop wake. **First net-charging segment of the day,
+  captured live in this loop.** Pack EMA smoothed_i crossed +0 A at
+  about 09:38 (samples: +0.79 → +0.68 → +0.57 → +0.49 → +0.59 A, with
+  the latest at 09:39:00 reading +1.2 A instantaneous). SOC 72/70,
+  voltage 26.34 V (creeping up from 26.295 at 09:06). Filled in the
+  TBD row in `docs/site/loon_lake.md` § "Empirical morning shadow
+  clears" with the time, but caveated that today is **98 % cloud
+  cover, forecast 4.86 kWh/m²** — so this 4.5 h lag from sunrise is
+  the **bad-weather lower bound**, not the typical lag.
+  - Advisor still ✓ no run, projected_low 65.6 % (sunrise tomorrow
+    66.6 %, tomorrow eve 70.0 %). Stable.
+  - Design item: **"today's solar harvest" tracker widget on the
+    dashboard.** New `scripts/today_harvest.py` (mirrors the
+    `daily_summary.summarize_day` math but only walks pack rows for
+    today's date) emits a snapshot JSON: `solar_ah_so_far`,
+    `charge_ah`, `generator_ah`, `irradiance_kwh_m2_forecast`,
+    `solar_ah_forecast` (via SolarModel), `pct_of_forecast`,
+    `confidence`, `note`. Live readout right now:
+    `0.3 Ah / 34.0 Ah = 1 % of forecast` — sensible since net
+    charging just started seconds ago.
+  - Wired into `scripts/dashboard.py` as a 60-s-cached subprocess
+    call (same pattern as the generator-advisor integration).
+    New `today_harvest` field in `/api/latest.json`. New
+    `.harvest`-styled panel below the projection panel in the
+    `.below-grid` row: big Ah-so-far number, progress bar
+    (green when ≥100 %, yellow when partial), three stats
+    (progress %, forecast Ah, forecast kWh/m²), plus a "h of data
+    so far · confidence" footer and an optional note line.
+    Will become visible on next dashboard restart via the .app
+    launcher — current running instance is the pre-change build.
+  - Answers the user-facing question "is today better, on-track, or
+    worse than predicted?" without requiring them to dig into CSVs.
+    Especially useful on days like today where the forecast is low
+    *and* reality may end up lower still.
+
 - **08:29** — Loop wake. Pack SOC 71-72 %, baseline drifted from
   -2.2 A → -1.0 A (solar gaining ground, slowly). Net still
   discharging; lots of tiny idle/discharge alternations. Today's

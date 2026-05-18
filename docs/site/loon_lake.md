@@ -29,13 +29,17 @@ Observed on **2026-05-18** (May, partly cloudy, 51 °N):
 | Civil sunrise                   | 05:10           | Open-Meteo                                |
 | First time pack current hit 0 A | ~ 06:38         | Early solar starting to match load        |
 | Long overnight discharge ended  | ~ 06:44         | Pack flat-lined; alternating idle/discharge |
-| First sustained charging        | TBD this loop   | When net positive Ah/h is sustained       |
+| First sustained charging (EMA)  | ~ 09:39         | smoothed pack current crossed positive — but on a **98 % cloud, 4.86 kWh/m² forecast day**, so this is the **bad-weather lower bound** for the lag |
 
-So **for this west-facing array, useful solar lags sunrise by roughly
-1.5 hours** in mid-May. In winter (lower sun angle, longer shadow from
-the roof's east edge) expect this lag to grow — the generator should
-not be scheduled to "finish before sunrise"; it should aim to finish
-~ 2 h after sunrise so the array can take over.
+So **for this west-facing array on a heavy-overcast day, useful solar
+lags sunrise by roughly 4.5 hours**. On a clearer day expect this to
+shrink toward 1.5–2.5 h after sunrise (when direct sun first hits the
+west-facing panels after morning shadow clears). In winter (lower sun
+angle, longer shadow from the roof's east edge) expect the lag to
+grow — the generator should not be scheduled to "finish before
+sunrise"; it should aim to finish at least ~ 2 h after sunrise so the
+array can take over, and on cloudy mornings the safe target is later
+still.
 
 ### Implications for daily harvest profile
 

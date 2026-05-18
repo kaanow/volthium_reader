@@ -36,6 +36,33 @@ _discharge_cache = {"computed_at": 0.0, "profile": None}
 
 
 _advisor_cache = {"computed_at": 0.0, "rec": None}
+_harvest_cache = {"computed_at": 0.0, "snap": None}
+
+
+def get_today_harvest():
+    """Run scripts/today_harvest's snapshot against current data.
+    Cached 60s. Returns a dict or None on any error / missing data."""
+    import subprocess
+    now = time.monotonic()
+    if (now - _harvest_cache["computed_at"]) < 60.0 and _harvest_cache["snap"] is not None:
+        return _harvest_cache["snap"]
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve().parent / "today_harvest.py"),
+             "--pack-csv", str(CSV_PATH),
+             "--weather-csv", str(WEATHER_CSV_PATH),
+             "--json"],
+            capture_output=True, text=True, timeout=10,
+            cwd=str(Path(__file__).resolve().parents[1]),
+        )
+        if proc.returncode != 0:
+            return None
+        snap = json.loads(proc.stdout)
+    except Exception:
+        return None
+    _harvest_cache["computed_at"] = now
+    _harvest_cache["snap"] = snap
+    return snap
 
 
 def get_recommendation():
@@ -378,6 +405,22 @@ INDEX_HTML = """<!doctype html>
   .projection .footer { color: var(--dim); font-size: 11px; margin-top: 10px; }
   .projection .alarm { color: var(--ylw); }
   .projection .critical { color: var(--red); }
+  .harvest { margin-top: 16px; padding: 14px; border-radius: 8px;
+             background: #161b22; border: 1px solid #21262d; }
+  .harvest .lbl { text-transform: uppercase; letter-spacing: .12em;
+                  color: var(--dim); font-size: 11px; margin-bottom: 4px; }
+  .harvest .big { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .harvest .row { display: flex; gap: 18px; margin-top: 8px; align-items: baseline; }
+  .harvest .stat .v { font-size: 16px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .harvest .stat .u { color: var(--dim); font-size: 12px; margin-left: 3px; }
+  .harvest .bar-wrap { margin-top: 10px; height: 8px; background: #21262d;
+                       border-radius: 4px; overflow: hidden; }
+  .harvest .bar { height: 100%; background: var(--grn); transition: width 0.5s; }
+  .harvest .bar.partial { background: var(--ylw); }
+  .harvest .bar.over { background: var(--grn); }
+  .harvest .footer { color: var(--dim); font-size: 11px; margin-top: 8px; }
+  .harvest .note { color: var(--dim); font-style: italic; font-size: 11px;
+                   margin-top: 6px; }
   .advisor {
     margin-bottom: 18px; padding: 14px 16px; border-radius: 8px;
     background: #161b22; border-left: 4px solid var(--grn);
@@ -459,6 +502,7 @@ INDEX_HTML = """<!doctype html>
   <div class="below-grid">
     <div class="panel" id="advisor-panel-wrap" style="display:none"><div id="advisor-panel"></div></div>
     <div class="panel" id="projection-panel-wrap" style="display:none"><div id="projection-panel"></div></div>
+    <div class="panel" id="harvest-panel-wrap" style="display:none"><div id="harvest-panel"></div></div>
   </div>
 
 <script>
@@ -665,6 +709,39 @@ async function tick() {
       projWrap.style.display = "none";
     }
 
+    // Today's harvest tracker
+    const harvWrap = document.getElementById("harvest-panel-wrap");
+    const harvEl = document.getElementById("harvest-panel");
+    const harv = j.today_harvest;
+    if (harv && harv.solar_ah_forecast != null) {
+      harvWrap.style.display = "";
+      const pct = harv.pct_of_forecast;
+      const pctTxt = (pct != null) ? `${pct.toFixed(0)}%` : "—";
+      const barW = (pct != null) ? Math.min(100, Math.max(0, pct)) : 0;
+      const barCls = (pct != null && pct >= 100) ? "over"
+                     : (pct != null && pct >= 50) ? "" : "partial";
+      const note = harv.note ? `<div class="note">${harv.note}</div>` : "";
+      harvEl.innerHTML = `
+        <div class="harvest">
+          <div class="lbl">TODAY'S SOLAR HARVEST</div>
+          <div class="big">${harv.solar_ah_so_far.toFixed(1)} <span class="u" style="font-size:14px">Ah</span></div>
+          <div class="bar-wrap"><div class="bar ${barCls}" style="width:${barW}%"></div></div>
+          <div class="row">
+            <div class="stat"><div class="lbl">progress</div>
+              <div class="v">${pctTxt}</div></div>
+            <div class="stat"><div class="lbl">forecast</div>
+              <div class="v">${harv.solar_ah_forecast.toFixed(0)}<span class="u">Ah</span></div></div>
+            <div class="stat"><div class="lbl">irradiance forecast</div>
+              <div class="v">${harv.irradiance_kwh_m2_forecast.toFixed(2)}<span class="u">kWh/m²</span></div></div>
+          </div>
+          <div class="footer">${harv.duration_h.toFixed(1)} h of data so far · ${harv.confidence} confidence</div>
+          ${note}
+        </div>`;
+    } else {
+      harvEl.innerHTML = "";
+      harvWrap.style.display = "none";
+    }
+
     // Events
     const evList = document.getElementById("events");
     const events = (j.events || []).slice().reverse();   // newest first
@@ -729,6 +806,7 @@ class Handler(BaseHTTPRequestHandler):
             events = [e.to_dict() for e in detect_events(ev_rows)]
             projection = compute_projection(history[-1], latest_weather_row())
             recommendation = get_recommendation()
+            today_harvest = get_today_harvest()
             return self._send(HTTPStatus.OK, "application/json",
                               json.dumps({
                                   "latest": history[-1],
@@ -736,6 +814,7 @@ class Handler(BaseHTTPRequestHandler):
                                   "events": events[-20:],  # last 20 only, keep payload small
                                   "projection": projection,
                                   "recommendation": recommendation,
+                                  "today_harvest": today_harvest,
                               }).encode())
         return self._send(HTTPStatus.NOT_FOUND, "text/plain", b"not found")
 
