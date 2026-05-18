@@ -346,3 +346,5 @@
 2026-05-18 15:59:15,500 INFO n=7410  26.76V  +0.00A  +0W  SOC 93-93%  state=idle  remain≈—
 2026-05-18 16:00:35,586 WARNING read #7417 failed (1 in a row): RuntimeError: battery 6EC69980-CA43-7DEF-519B-6235C8C535B7 not found in scan
 2026-05-18 16:00:36,854 INFO BLE recovered after 1 errors
+2026-05-18 16:04:36,871 INFO n=7440  26.76V  +2.00A  +54W  SOC 93-93%  state=charging  remain≈195m
+2026-05-18 16:09:33,260 INFO n=7470  26.78V  +2.30A  +62W  SOC 93-93%  state=charging  remain≈112m

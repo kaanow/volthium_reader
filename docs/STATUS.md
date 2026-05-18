@@ -143,6 +143,38 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **16:11** — Loop wake. Pack SOC **93/93 %** holding. Charging at
+  +2.4 A — the BMS is letting in a tiny trickle to maintain absorption
+  voltage but SOC isn't moving up. Cloud broke briefly to **88 %**
+  (was 100 % then 94 %) but irradiance still dropping (425 W/m², sun
+  lower). Harvest **43.4 Ah / 119 %** of forecast — only +0.3 Ah in
+  10 min. **Live ratio 9.82 — drift +40.3 %, basically flat** with
+  the last few loops (9.74 → 9.92 → 9.82). Settled. Pack is capped
+  at 93 % SOC for the rest of the day under solar-only.
+  - Calibration log still single baseline entry; first auto-fit
+    lands when daily_summary flips to complete (~21:00 tonight).
+  - Day-report regenerated to `data/reports/2026-05-18.md` per the
+    new loop step 7.
+  - Design item: **8 regression tests for `compute_today_peaks()`**.
+    Completes the test-coverage rhythm for last loop's peaks
+    function. Cases cover:
+    - Missing file → all-None return shape
+    - Cross-day filter (yesterday's huge values ignored)
+    - `peak_charge_a` tracks max across all today's rows
+    - `peak_smoothed_a` independent of `peak_charge_a` (different
+      EMA-lagged column)
+    - `peak_soc_pct` considers BOTH soc_a and soc_b (asymmetric
+      pairs where B leads A still surface the higher value)
+    - `first_charge_time` triggers on first sample with pack_i > 1 A,
+      not on earlier sub-1A trickle/discharge
+    - **Strict >** 1 A — exactly 1.0 A is not "charging" (off-by-one
+      catch)
+    - All-trickle day leaves `first_charge_time` as None while still
+      capturing `peak_charge_a` (graceful overnight-only behavior)
+  - **100 Python tests pass** (up from 92) — round milestone. Suite
+    total assertion-points: 100 Py + 22 wire-C + 17 est-C + 4 wire-
+    cross + 49 est-cross = **192**, all green.
+
 - **16:01** — Loop wake. **Pack hit absorption-CV regulation**: SOC
   **93/93 %**, but state flipped to **IDLE** — charge current went
   to **0.0 A**. Voltage relaxed 26.87 → 26.74 V. We never reached

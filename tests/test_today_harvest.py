@@ -20,6 +20,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.today_harvest import (  # noqa: E402
+    compute_today_peaks,
     integrate_today,
     integrate_today_irradiance,
     weather_forecast_history,
@@ -495,6 +496,146 @@ class TestWeatherForecastHistory(unittest.TestCase):
         # ...but first / latest / min / max are still populated
         self.assertEqual(r["n"], 2)
         self.assertAlmostEqual(r["latest"], 5.0, places=3)
+
+
+class TestComputeTodayPeaks(unittest.TestCase):
+    """Tests for `compute_today_peaks` — the single-pass running-max
+    scan that powers the dashboard's "TODAY'S PEAKS" subrow. Tested
+    separately from `integrate_today` because it tracks max values
+    instead of integrating, and reads more pack.csv columns (pack_v,
+    soc_a, soc_b, smoothed_i)."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = Path(self.tmp.name) / "pack.csv"
+        self.day = date(2026, 5, 18)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _write_rows(self, rows: list[dict]) -> None:
+        """Write pack.csv with the columns compute_today_peaks reads.
+        Anything else can be empty strings — the function ignores them."""
+        headers = ["ts", "state", "pack_v", "pack_i", "pack_p",
+                   "soc_a", "soc_b", "v_a", "v_b", "i_a", "i_b",
+                   "temp_a", "temp_b", "rem_a", "rem_b",
+                   "delta_v_a", "delta_v_b", "smoothed_i", "smoothed_p",
+                   "minutes_remaining", "name_a", "name_b"]
+        with self.path.open("w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(headers)
+            for r in rows:
+                w.writerow([r.get(c, "") for c in headers])
+
+    def test_returns_all_none_when_file_missing(self) -> None:
+        bogus = Path(self.tmp.name) / "no_such.csv"
+        r = compute_today_peaks(bogus, self.day)
+        self.assertIsNone(r["peak_charge_a"])
+        self.assertIsNone(r["peak_soc_pct"])
+        self.assertIsNone(r["peak_pack_voltage_v"])
+        self.assertIsNone(r["first_charge_time"])
+
+    def test_yesterday_rows_do_not_count(self) -> None:
+        """Cross-day filter: only today's rows contribute to peaks."""
+        self._write_rows([
+            # Yesterday — must be ignored:
+            {"ts": "2026-05-17T15:00:00", "pack_v": 27.5,
+             "pack_i": 60.0, "smoothed_i": 50.0,
+             "soc_a": 95, "soc_b": 95},
+            # Today — these are what should count:
+            {"ts": "2026-05-18T12:00:00", "pack_v": 26.5,
+             "pack_i": 10.0, "smoothed_i": 9.5,
+             "soc_a": 75, "soc_b": 73},
+        ])
+        r = compute_today_peaks(self.path, self.day)
+        self.assertAlmostEqual(r["peak_charge_a"], 10.0, places=2)
+        self.assertAlmostEqual(r["peak_pack_voltage_v"], 26.5, places=2)
+        self.assertAlmostEqual(r["peak_soc_pct"], 75.0, places=1)
+
+    def test_peak_charge_is_max_of_all_today_samples(self) -> None:
+        """peak_charge_a tracks the running max of pack_i across all
+        today's rows, not just the latest."""
+        self._write_rows([
+            {"ts": "2026-05-18T10:00:00", "pack_i": 5.0,
+             "soc_a": 70, "soc_b": 68, "pack_v": 26.2},
+            {"ts": "2026-05-18T13:00:00", "pack_i": 21.4,
+             "soc_a": 85, "soc_b": 84, "pack_v": 26.9},  # peak
+            {"ts": "2026-05-18T16:00:00", "pack_i": 2.5,
+             "soc_a": 93, "soc_b": 93, "pack_v": 26.75},
+        ])
+        r = compute_today_peaks(self.path, self.day)
+        self.assertAlmostEqual(r["peak_charge_a"], 21.4, places=2)
+
+    def test_peak_smoothed_tracks_smoothed_column(self) -> None:
+        """peak_smoothed_a is independent of peak_charge_a — comes
+        from the smoothed_i column, which may peak at a different
+        sample due to EMA lag."""
+        self._write_rows([
+            {"ts": "2026-05-18T12:00:00", "pack_i": 22.0, "smoothed_i": 10.0,
+             "soc_a": 70, "soc_b": 68, "pack_v": 26.5},
+            {"ts": "2026-05-18T12:10:00", "pack_i": 15.0, "smoothed_i": 17.8,  # peak
+             "soc_a": 72, "soc_b": 70, "pack_v": 26.6},
+        ])
+        r = compute_today_peaks(self.path, self.day)
+        self.assertAlmostEqual(r["peak_charge_a"], 22.0, places=2)
+        self.assertAlmostEqual(r["peak_smoothed_a"], 17.8, places=2)
+
+    def test_peak_soc_considers_both_batteries(self) -> None:
+        """peak_soc_pct is max across BOTH soc_a and soc_b, so an
+        asymmetric pair where one battery is ahead still surfaces."""
+        self._write_rows([
+            # A leads B
+            {"ts": "2026-05-18T10:00:00", "pack_i": 5.0,
+             "soc_a": 92, "soc_b": 85, "pack_v": 26.5},
+            # B leads A — peak should still pick the higher one
+            {"ts": "2026-05-18T14:00:00", "pack_i": 5.0,
+             "soc_a": 90, "soc_b": 94, "pack_v": 26.7},
+        ])
+        r = compute_today_peaks(self.path, self.day)
+        self.assertAlmostEqual(r["peak_soc_pct"], 94.0, places=1)
+
+    def test_first_charge_time_is_first_sample_above_1A(self) -> None:
+        """first_charge_time triggers on the first sample where
+        pack_i > 1.0 A, ignoring earlier sub-1A trickle/idle/discharge."""
+        self._write_rows([
+            {"ts": "2026-05-18T06:30:00", "pack_i": -3.0,
+             "soc_a": 75, "soc_b": 73, "pack_v": 26.2},   # discharging
+            {"ts": "2026-05-18T08:30:00", "pack_i": 0.5,
+             "soc_a": 75, "soc_b": 73, "pack_v": 26.3},   # below threshold
+            {"ts": "2026-05-18T09:11:00", "pack_i": 1.5,
+             "soc_a": 76, "soc_b": 74, "pack_v": 26.4},   # first > 1 A
+            {"ts": "2026-05-18T10:00:00", "pack_i": 8.0,
+             "soc_a": 80, "soc_b": 78, "pack_v": 26.6},   # later, stronger
+        ])
+        r = compute_today_peaks(self.path, self.day)
+        # Must record the FIRST > 1 A sample, not the strongest one
+        self.assertEqual(r["first_charge_time"], "09:11")
+
+    def test_exactly_1A_is_NOT_first_charging(self) -> None:
+        """Strict > 1.0 A — exactly 1.0 A is not enough. The dashboard
+        labels "first net charging" as a meaningful event, not noise."""
+        self._write_rows([
+            {"ts": "2026-05-18T09:00:00", "pack_i": 1.0,
+             "soc_a": 75, "soc_b": 73, "pack_v": 26.3},
+            {"ts": "2026-05-18T09:30:00", "pack_i": 1.1,
+             "soc_a": 76, "soc_b": 74, "pack_v": 26.4},
+        ])
+        r = compute_today_peaks(self.path, self.day)
+        self.assertEqual(r["first_charge_time"], "09:30")
+
+    def test_no_charging_samples_leaves_first_charge_time_none(self) -> None:
+        """If the pack never crosses +1 A today, first_charge_time
+        stays None (graceful for overnight-only / generator-only days)."""
+        self._write_rows([
+            {"ts": "2026-05-18T00:00:00", "pack_i": -5.0,
+             "soc_a": 80, "soc_b": 78, "pack_v": 26.2},
+            {"ts": "2026-05-18T06:00:00", "pack_i": 0.2,
+             "soc_a": 70, "soc_b": 68, "pack_v": 26.1},
+        ])
+        r = compute_today_peaks(self.path, self.day)
+        self.assertIsNone(r["first_charge_time"])
+        # peak_charge_a still captures the max we saw, even if < 1 A
+        self.assertAlmostEqual(r["peak_charge_a"], 0.2, places=2)
 
 
 if __name__ == "__main__":
