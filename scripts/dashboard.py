@@ -305,6 +305,8 @@ INDEX_HTML = """<!doctype html>
   body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--ink); margin: 0; padding: 24px; }
   h1 { font-size: 14px; font-weight: 600; color: var(--dim); margin: 0 0 18px; letter-spacing: .12em; text-transform: uppercase; }
   .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; max-width: 980px; }
+  .below-grid { max-width: 980px; margin-top: 18px; }
+  .below-grid .panel { margin-bottom: 18px; }
   .panel { background: var(--panel); border-radius: 10px; padding: 22px; }
   .headline { font-size: 64px; font-weight: 700; line-height: 1; margin: 4px 0 6px; }
   .label { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
@@ -378,7 +380,6 @@ INDEX_HTML = """<!doctype html>
   <h1>The Barge Inn — Volthium 24 V Pack</h1>
   <div class="grid">
     <div class="panel">
-      <div id="advisor-panel"></div>
       <div class="label" id="state-label">state</div>
       <div class="headline num"><span id="state-value">…</span></div>
       <div class="label">time to <span id="target">—</span></div>
@@ -394,7 +395,6 @@ INDEX_HTML = """<!doctype html>
       <svg class="spark" id="spark-p" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
       <div class="label">SOC (%) — last 2 h</div>
       <svg class="spark" id="spark-soc" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
-      <div id="projection-panel"></div>
       <div class="footer"><span id="updated">—</span></div>
     </div>
     <div class="panel">
@@ -410,6 +410,13 @@ INDEX_HTML = """<!doctype html>
       <ul class="events" id="events"><li class="info"><span class="t">—</span><span class="k">no events yet</span></li></ul>
       {{SHARE_PANEL}}
     </div>
+  </div>
+
+  <!-- Projections + advisor below the grid — secondary info on desktop,
+       bottom-of-scroll on mobile. -->
+  <div class="below-grid">
+    <div class="panel" id="advisor-panel-wrap" style="display:none"><div id="advisor-panel"></div></div>
+    <div class="panel" id="projection-panel-wrap" style="display:none"><div id="projection-panel"></div></div>
   </div>
 
 <script>
@@ -505,10 +512,12 @@ async function tick() {
     spark("spark-soc", socs, false, "var(--blu)");
     setText("updated", new Date().toLocaleTimeString() + "  •  " + series.length + " samples");
 
-    // Advisor panel
+    // Advisor panel — and hide its wrapper if there's nothing to show
+    const advWrap = document.getElementById("advisor-panel-wrap");
     const advEl = document.getElementById("advisor-panel");
     const rec = j.recommendation;
     if (rec) {
+      advWrap.style.display = "";
         let cls, headline;
         if (rec.run_generator) {
             cls = (rec.projected_low_soc != null && rec.projected_low_soc < 15) ? "critical" : "run";
@@ -538,12 +547,15 @@ async function tick() {
             </div>`;
     } else {
         advEl.innerHTML = "";
+        advWrap.style.display = "none";
     }
 
-    // Projection panel
+    // Projection panel — hide its wrapper too when not applicable
+    const projWrap = document.getElementById("projection-panel-wrap");
     const projEl = document.getElementById("projection-panel");
     const proj = j.projection;
     if (proj) {
+      projWrap.style.display = "";
       const h = Math.floor(proj.hours_to_sunrise);
       const m = Math.round((proj.hours_to_sunrise - h) * 60);
       const sunriseTime = proj.sunrise_iso.slice(11, 16);   // HH:MM
@@ -571,6 +583,7 @@ async function tick() {
         </div>`;
     } else {
       projEl.innerHTML = "";
+      projWrap.style.display = "none";
     }
 
     // Events
