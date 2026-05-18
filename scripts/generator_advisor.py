@@ -43,6 +43,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import csv as _csv
+import statistics
 import discharge_model  # noqa: E402
 import weather as weather_mod  # noqa: E402
 from volthium.solar_model import SolarModel  # noqa: E402
@@ -131,6 +132,84 @@ def _get_tomorrow_kwh_per_m2() -> Optional[float]:
     return tomorrow
 
 
+def simulate_next_24h(
+    start_soc: float,
+    now: datetime,
+    profile: dict,
+    sunrise_today: datetime,
+    sunset_today: datetime,
+    solar_today_full_ah: float,
+    solar_tomorrow_full_ah: float,
+    capacity_ah: float,
+) -> dict:
+    """Hour-by-hour SOC simulation over the next 24 hours.
+
+    Spreads each day's solar harvest uniformly across its daylight
+    hours (rough first cut — a future refinement can weight by the
+    west-facing array's afternoon-heavy profile). For night hours,
+    uses the discharge_model's per-hour median current.
+
+    Returns a dict with:
+        projected_low_soc       — minimum SOC anywhere in the window
+        projected_sunrise_soc   — SOC at tomorrow's sunrise
+        projected_tomorrow_evening_soc — SOC at tomorrow's sunset
+    """
+    sunrise_tomorrow = sunrise_today + timedelta(days=1)
+    sunset_tomorrow  = sunset_today + timedelta(days=1)
+
+    hours_today_daylight = max(0.1, (sunset_today - sunrise_today).total_seconds() / 3600)
+    today_ah_per_hour    = solar_today_full_ah    / hours_today_daylight
+    hours_tomorrow_daylight = max(0.1, (sunset_tomorrow - sunrise_tomorrow).total_seconds() / 3600)
+    tomorrow_ah_per_hour = solar_tomorrow_full_ah / hours_tomorrow_daylight
+
+    # Per-hour median discharge (signed; negative for consumption)
+    # Falls back to overall median when an hour has no data yet.
+    medians = [d["median_i"] for d in profile.values()] if profile else [-3.5]
+    overall_median = statistics.median(medians) if medians else -3.5
+
+    soc = start_soc
+    cur = now
+    samples: list[tuple[datetime, float]] = [(cur, soc)]
+
+    for _ in range(24):
+        # Classify the current hour as daylight or night
+        if sunrise_today <= cur < sunset_today:
+            ah_change = today_ah_per_hour
+        elif sunrise_tomorrow <= cur < sunset_tomorrow:
+            ah_change = tomorrow_ah_per_hour
+        else:
+            # Night — pull this hour's median discharge rate
+            hour_data = profile.get(cur.hour)
+            if hour_data is not None:
+                ah_change = hour_data["median_i"]
+            else:
+                ah_change = overall_median
+
+        soc += ah_change / capacity_ah * 100.0
+        soc = max(0.0, min(100.0, soc))
+        cur = cur + timedelta(hours=1)
+        samples.append((cur, soc))
+
+    def soc_at(target: datetime) -> float:
+        """Linear-interpolate SOC at target time from the samples."""
+        for i in range(len(samples) - 1):
+            t0, s0 = samples[i]
+            t1, s1 = samples[i + 1]
+            if t0 <= target <= t1:
+                span = (t1 - t0).total_seconds()
+                if span <= 0:
+                    return s0
+                f = (target - t0).total_seconds() / span
+                return s0 + (s1 - s0) * f
+        return samples[-1][1]
+
+    return {
+        "projected_low_soc": min(s for _, s in samples),
+        "projected_sunrise_soc": soc_at(sunrise_tomorrow),
+        "projected_tomorrow_evening_soc": soc_at(sunset_tomorrow),
+    }
+
+
 def project_solar_ah(weather_row: dict, model: SolarModel) -> tuple[float, str]:
     """Predict Ah delivered to the pack tomorrow. Returns (ah, source).
 
@@ -193,29 +272,50 @@ def main() -> int:
     if sunset_dt < now:
         sunset_dt += timedelta(days=1)
 
-    # === Discharge from now to sunrise ===
-    overnight_ah = discharge_model.project_overnight_ah(profile, now.hour, sunrise_dt.hour) or 0.0
-    sunrise_pct_drop = overnight_ah / PACK_CAPACITY_AH_PER_BATTERY * 100.0
-    projected_sunrise_soc = start_soc - sunrise_pct_drop
+    # === Hour-by-hour 24-hour simulation ===
+    # Determines today's daylight window vs night, distributes solar
+    # over daylight hours, uses per-hour discharge medians for night.
+    # Handles "now is past today's sunrise" correctly (previous logic
+    # treated everything from now to tomorrow's sunrise as one big
+    # discharge window — which over-predicted SOC drop by ~50 % during
+    # the daytime, causing false-positive "RUN GENERATOR" recs).
+    sunrise_today = sunrise_dt if sunrise_dt > now else sunrise_dt
+    sunset_today  = sunset_dt
+    # If both sunrise and sunset are tomorrow (i.e. we're in the dead
+    # of night), pull today's pair back by 24h. The weather row has
+    # today's, but our earlier bumping moved them ahead.
+    if sunrise_today > now and (sunrise_today - now) > timedelta(hours=12):
+        sunrise_today = sunrise_today - timedelta(days=1)
+    if sunset_today > now and (sunset_today - now) > timedelta(hours=24):
+        sunset_today = sunset_today - timedelta(days=1)
 
-    # === Solar harvest tomorrow ===
     solar = load_solar_model()
-    solar_ah, solar_source = project_solar_ah(weather_now, solar)
-    solar_pct_gain = solar_ah / PACK_CAPACITY_AH_PER_BATTERY * 100.0
+    today_kwh, tomorrow_kwh = weather_mod.fetch_today_tomorrow_irradiance()
+    # Fall back to weather.csv's today value if the live API isn't reachable
+    if today_kwh is None:
+        t = _f(weather_now.get("shortwave_radiation_sum_today_wh_m2"))
+        today_kwh = (t / 1000.0) if t is not None else 0.0
+    if tomorrow_kwh is None:
+        tomorrow_kwh = today_kwh
+    solar_today_full_ah    = solar.predict_ah(today_kwh)
+    solar_tomorrow_full_ah = solar.predict_ah(tomorrow_kwh)
+    solar_ah = solar_tomorrow_full_ah    # what we expect to gain across tomorrow
+    solar_source = "tomorrow_forecast" if tomorrow_kwh > 0 else "no_data"
 
-    # === Discharge sunrise → tomorrow evening (rough; same profile) ===
-    # We'll re-traverse hours from sunrise to ~sunset of the same day.
-    next_eve_ah = discharge_model.project_overnight_ah(profile, sunrise_dt.hour, sunset_dt.hour) or 0.0
-    next_eve_pct = next_eve_ah / PACK_CAPACITY_AH_PER_BATTERY * 100.0
-
-    # Forward simulation, naive:
-    #   sunrise:           start_soc − overnight_pct_drop
-    #   daytime peak:      + solar_gain − daytime_discharge
-    #   tomorrow evening:  daytime_peak − ~3-4 more hours of normal load
-    projected_tomorrow_evening_soc = (
-        projected_sunrise_soc + solar_pct_gain - next_eve_pct
+    sim = simulate_next_24h(
+        start_soc=start_soc, now=now, profile=profile,
+        sunrise_today=sunrise_today, sunset_today=sunset_today,
+        solar_today_full_ah=solar_today_full_ah,
+        solar_tomorrow_full_ah=solar_tomorrow_full_ah,
+        capacity_ah=PACK_CAPACITY_AH_PER_BATTERY,
     )
-    projected_low = min(projected_sunrise_soc, projected_tomorrow_evening_soc)
+    projected_sunrise_soc           = sim["projected_sunrise_soc"]
+    projected_tomorrow_evening_soc  = sim["projected_tomorrow_evening_soc"]
+    projected_low                   = sim["projected_low_soc"]
+
+    # Kept for the "inputs" diagnostic — show what we projected for each piece
+    overnight_ah = discharge_model.project_overnight_ah(profile, now.hour, sunrise_dt.hour) or 0.0
+    next_eve_ah  = discharge_model.project_overnight_ah(profile, sunrise_dt.hour, sunset_dt.hour) or 0.0
 
     # === Morning watch ===
     # If we're approaching sunrise (within 60 min) and projected_low is
