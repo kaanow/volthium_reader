@@ -220,6 +220,29 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **06:39** — Loop wake. **Pack just touched 0 A at 06:38:54** — the
+  state flip from discharging to charging is moments away (EMA still
+  catching up). SOC 72-74 %. Solar has fully caught the load. 7th
+  BLE flap auto-recovered at 06:12. Advisor sane post-bugfix:
+  projected_low 70.6 %, no run needed.
+  - Design item: **regression tests for `simulate_next_24h()`** in
+    `tests/test_advisor_simulator.py`. Five cases:
+    - `daytime_with_balancing_solar_keeps_soc_close_to_start` —
+      THE test for the bug we just fixed: anchors `now` at 06:10
+      (1h past sunrise) and asserts projected_low > 50 % when
+      solar + discharge are balanced. The pre-fix code would have
+      shown ~30 %.
+    - `pure_night_scenario_drops_as_expected` — post-sunset start;
+      monotonic SOC drop until tomorrow's solar.
+    - `strong_solar_day_lifts_soc` — clear sunny day with light
+      load → SOC rises across the window.
+    - `pre_sunrise_window_works` — `now` just before today's
+      sunrise; assert all projections stay in [0, 100].
+    - `zero_solar_zero_load_is_flat` — sanity check.
+    All 5 pass alongside the existing 23 Python + 22 wire-protocol +
+    17 estimator + 4 cross-validation tests. The regression case
+    explicitly anchors the bug shape so it can't quietly come back.
+
 - **06:10** — Loop wake (1 h past sunrise). Pack SOC 73-74 %,
   baseline -2.6 A (down from -3.7 A 30 min ago, -4.6 A an hour
   before that — **early-morning solar is closing the gap fast**).

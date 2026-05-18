@@ -1,0 +1,135 @@
+"""Regression tests for scripts.generator_advisor.simulate_next_24h.
+
+Specifically guards against the daytime false-positive bug captured at
+06:10 on 2026-05-18: the old "discharge from now to next sunrise" calc
+would treat 23 daytime hours as pure discharge, predicting a 40+ %
+SOC drop and firing a spurious "RUN GENERATOR" recommendation.
+"""
+
+from __future__ import annotations
+
+import pathlib
+import sys
+import unittest
+from datetime import datetime, timedelta
+
+# Make `scripts/` importable as a sibling
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
+from generator_advisor import simulate_next_24h
+
+
+def _flat_profile(median_a: float) -> dict:
+    """A profile where every hour has the same per-hour median current."""
+    return {h: {"median_i": median_a, "n": 100, "p25_i": median_a,
+                "p75_i": median_a, "sample_minutes": 60} for h in range(24)}
+
+
+class TestSimulator(unittest.TestCase):
+
+    def setUp(self):
+        # Anchor "now" at 06:10 (1h after sunrise) so we exercise the
+        # bug path explicitly.
+        self.now = datetime(2026, 5, 18, 6, 10)
+        self.sunrise_today = datetime(2026, 5, 18, 5, 10)
+        self.sunset_today  = datetime(2026, 5, 18, 20, 51)
+
+    # === The regression case ===
+
+    def test_daytime_with_balancing_solar_keeps_soc_close_to_start(self):
+        """Solar equal to overnight discharge → SOC roughly stable.
+        Pre-fix bug would have shown a 40+% drop."""
+        # Set numbers so solar exactly cancels discharge across daylight hours.
+        # Discharge median -4 A; daylight ~16h gives 16*4 = 64 Ah of discharge in
+        # those hours if we were treating them as night (the bug).
+        # If solar contributes ~64 Ah we should cancel out, leaving only the
+        # ~8 hours of real night discharge ≈ 32 Ah net.
+        profile = _flat_profile(-4.0)
+        result = simulate_next_24h(
+            start_soc=73.0,
+            now=self.now,
+            profile=profile,
+            sunrise_today=self.sunrise_today,
+            sunset_today=self.sunset_today,
+            solar_today_full_ah=64.0,
+            solar_tomorrow_full_ah=64.0,
+            capacity_ah=215.0,
+        )
+        # ~8h night × -4A = -32 Ah → ~15% SOC drop ≈ 58% lowest.
+        # The bug would have given ~30% projected_low — assert we're well above that.
+        self.assertGreater(result["projected_low_soc"], 50.0,
+                           "daytime solar should keep us well above 50%")
+        # Sanity: projection shouldn't be wildly negative
+        self.assertGreater(result["projected_low_soc"], 0.0)
+        self.assertLess(result["projected_low_soc"], 100.0)
+
+    def test_pure_night_scenario_drops_as_expected(self):
+        """When 'now' is just after sunset, only night discharge before
+        tomorrow's solar. SOC should drop monotonically until sunrise."""
+        now = datetime(2026, 5, 18, 21, 0)   # just after sunset
+        profile = _flat_profile(-5.0)
+        result = simulate_next_24h(
+            start_soc=80.0, now=now, profile=profile,
+            sunrise_today=self.sunrise_today, sunset_today=self.sunset_today,
+            solar_today_full_ah=0.0,           # today's already past
+            solar_tomorrow_full_ah=50.0,
+            capacity_ah=215.0,
+        )
+        # ~8 hours overnight × -5A = -40 Ah → ~18.6% drop → 61.4% at sunrise
+        self.assertLess(result["projected_sunrise_soc"], 80.0)
+        self.assertGreater(result["projected_sunrise_soc"], 50.0)
+        self.assertLess(result["projected_low_soc"],
+                        result["projected_sunrise_soc"] + 1.0,
+                        "low should be at or near sunrise (before solar kicks in)")
+
+    def test_strong_solar_day_lifts_soc(self):
+        """A clear sunny day with light load should leave us higher than we
+        started by tomorrow evening."""
+        profile = _flat_profile(-1.0)        # very light load
+        result = simulate_next_24h(
+            start_soc=50.0, now=self.now, profile=profile,
+            sunrise_today=self.sunrise_today, sunset_today=self.sunset_today,
+            solar_today_full_ah=80.0,
+            solar_tomorrow_full_ah=80.0,
+            capacity_ah=215.0,
+        )
+        # Net positive across the 24h window — projected_low should still
+        # exceed start (no big dips at this load level)
+        self.assertGreater(result["projected_sunrise_soc"], 50.0,
+                           "with light load + sunny day, SOC should rise")
+        self.assertGreater(result["projected_tomorrow_evening_soc"], 60.0)
+
+    def test_pre_sunrise_window_works(self):
+        """If 'now' is just before today's sunrise, the math should still
+        produce reasonable numbers — short pre-dawn discharge, then full
+        day of solar, then night."""
+        now = datetime(2026, 5, 18, 4, 30)
+        profile = _flat_profile(-4.0)
+        result = simulate_next_24h(
+            start_soc=70.0, now=now, profile=profile,
+            sunrise_today=self.sunrise_today, sunset_today=self.sunset_today,
+            solar_today_full_ah=60.0,
+            solar_tomorrow_full_ah=60.0,
+            capacity_ah=215.0,
+        )
+        # All projections must be in [0, 100]
+        for k in ("projected_low_soc", "projected_sunrise_soc",
+                  "projected_tomorrow_evening_soc"):
+            self.assertGreaterEqual(result[k], 0.0)
+            self.assertLessEqual(result[k], 100.0)
+
+    def test_zero_solar_zero_load_is_flat(self):
+        """No solar, no load → SOC unchanged everywhere."""
+        profile = _flat_profile(0.0)
+        result = simulate_next_24h(
+            start_soc=50.0, now=self.now, profile=profile,
+            sunrise_today=self.sunrise_today, sunset_today=self.sunset_today,
+            solar_today_full_ah=0.0, solar_tomorrow_full_ah=0.0,
+            capacity_ah=215.0,
+        )
+        self.assertAlmostEqual(result["projected_low_soc"], 50.0, places=1)
+        self.assertAlmostEqual(result["projected_sunrise_soc"], 50.0, places=1)
+        self.assertAlmostEqual(result["projected_tomorrow_evening_soc"], 50.0, places=1)
+
+
+if __name__ == "__main__":
+    unittest.main()
