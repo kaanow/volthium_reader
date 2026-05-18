@@ -220,6 +220,22 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **22:01** (user input + observed) — User turned on a ceiling fan;
+  said this paired with an overnight fire is normal nighttime
+  pattern. **Captured cleanly in the data** at 22:00:41 — pack
+  current stepped from -2.8 A to -5.1 A, a +2.3 A jump consistent
+  with a residential ceiling fan running via the inverter at low-
+  medium speed.
+  - Below the -10 A "heavy load" event threshold by design — this
+    is a baseline shift, not an alarm event. The discharge EMA will
+    absorb the new level and the sunrise projection will drift down
+    accordingly (estimating new arrival ~ 70 % instead of 75 % once
+    EMA settles).
+  - Updated `docs/site/loon_lake.md` with an observed-load-signatures
+    table and a typical "overnight normal" range (-5 to -8 A
+    baseline, +7 A fridge bumps). This is calibration data for the
+    eventual discharge model in the generator advisor.
+
 - **21:35** — Loop wake. Pack at SOC 96 % discharging at -5.9 A
   smoothed. Both data streams (pack + weather) flowing. **First
   forward projection wired into the dashboard**:

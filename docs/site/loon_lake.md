@@ -51,6 +51,40 @@ exists to backstop nights / overcast days when the west-facing array
 doesn't restore the pack on its own. Designed use: **bridge the morning
 gap when the pack is at its daily low and solar isn't yet contributing.**
 
+## Observed load signatures (pack-side, DC)
+
+These are real-world step changes we've seen in the pack current, after
+inverter conversion. Knowing them helps the discharge model recognize
+what's happening without explicit user input. Numbers will be refined
+as we capture more cycles.
+
+| Load                                       | Step at pack | Pattern                              | Notes |
+|--------------------------------------------|--------------|--------------------------------------|-------|
+| Cabin baseline (idle inverter + standby)   | ~ -3 A       | sustained, slow drift                | Always present when inverter is on |
+| Ceiling fan on (overnight comfort)         | + ~2.3 A     | step, sustained for hours            | Captured 22:00 on 2026-05-17. Below event-detector threshold by design. |
+| Fridge compressor (cycle)                  | + ~7 A pulse | ~60–90 s ON, then off for several min | Captured at the 16:55+ window as the pack was settling; expect more overnight. |
+| Lights (multiple rooms, demo of monitor)   | + ~7–10 A    | brief, depends on what's switched on  | Triggered the heavy-load event detector. |
+| Solar charge (sunny mid-afternoon)         | -50 to -60 A | gradual ramp, peaks ~15:00–17:00      | West-facing roof bias |
+| Generator (~1.6 kW into pack)              | -60 A        | step on, sustained, step off          | Confirmed via 2026-05-17 generator run |
+
+(Positive numbers are **draw**; negative numbers in this table are
+**charge**. The CSV uses the inverse sign — positive = into pack, but
+in conversation it's easier to say "+2 A load.")
+
+### Typical "overnight normal" load
+
+Per user: ceiling fan + overnight fire is standard.
+
+- Wood stove: zero electrical draw.
+- Ceiling fan: ~2.3 A continuous at 24 V pack ≈ ~55 W into the inverter,
+  which is about right for a residential fan at low–medium speed.
+- Background: fridge cycling on top of baseline.
+
+So a quiet, normal overnight has a discharge curve of roughly **-5 to
+-8 A average**, with brief +7 A bumps every several minutes when the
+fridge runs. Anything substantially above that is non-routine usage
+(tools, appliances) and worth surfacing as a heavy-load event.
+
 ## Weather sensitivity (working model)
 
 We don't have a calibrated model yet, but the working hypothesis is:
