@@ -80,19 +80,48 @@ class TestFit(unittest.TestCase):
 class TestFitFromDailySummary(unittest.TestCase):
     def test_excludes_short_days(self):
         rows = [
-            {"duration_h": 6, "weather_kwh_m2": 5.0, "solar_ah_estimated": 30.0},   # partial
-            {"duration_h": 23, "weather_kwh_m2": 6.0, "solar_ah_estimated": 42.0},  # full
-            {"duration_h": 24, "weather_kwh_m2": 7.0, "solar_ah_estimated": 49.0},  # full
+            # explicit partial flag — preferred new behavior
+            {"partial": "True",  "duration_h": 6,  "weather_kwh_m2": 5.0, "solar_ah_estimated": 30.0},
+            {"partial": "False", "duration_h": 23, "weather_kwh_m2": 6.0, "solar_ah_estimated": 42.0},
+            {"partial": "False", "duration_h": 24, "weather_kwh_m2": 7.0, "solar_ah_estimated": 49.0},
         ]
         m = SolarModel.fit_from_daily_summary(rows)
         self.assertEqual(m.n_observations, 2)
         self.assertAlmostEqual(m.coefficient_ah_per_kwh_m2, 7.0, places=2)
 
+    def test_excludes_noon_partial_via_partial_flag(self):
+        """Regression test for the 2026-05-18 12:02 bug. A midnight-
+        rolling logger has duration_h = 12.1 by noon; the old `> 12`
+        rule wrongly admitted it as a complete day and corrupted the
+        SolarModel fit (16.4 Ah / 5.34 kWh/m² ≈ 3.1 — way below any
+        real coefficient). The `partial=True` flag must veto.
+        """
+        rows = [
+            {"partial": "True",  "duration_h": 12.1, "weather_kwh_m2": 5.34, "solar_ah_estimated": 16.4},
+            {"partial": "False", "duration_h": 24.0, "weather_kwh_m2": 5.0,  "solar_ah_estimated": 35.0},  # 7.0
+        ]
+        m = SolarModel.fit_from_daily_summary(rows)
+        self.assertEqual(m.n_observations, 1)
+        self.assertAlmostEqual(m.coefficient_ah_per_kwh_m2, 7.0, places=2)
+
+    def test_backcompat_uses_duration_when_partial_absent(self):
+        """Older daily_summary.csv files don't have a `partial` column.
+        Fall back to a duration check of >= 20 h. The bug-trip case
+        (duration_h = 12.1) must still be excluded under fallback."""
+        rows = [
+            {"duration_h": 12.1, "weather_kwh_m2": 5.34, "solar_ah_estimated": 16.4},   # excluded
+            {"duration_h": 19.9, "weather_kwh_m2": 5.0,  "solar_ah_estimated": 35.0},   # also excluded
+            {"duration_h": 20.5, "weather_kwh_m2": 6.0,  "solar_ah_estimated": 42.0},   # 7.0
+        ]
+        m = SolarModel.fit_from_daily_summary(rows)
+        self.assertEqual(m.n_observations, 1)
+        self.assertAlmostEqual(m.coefficient_ah_per_kwh_m2, 7.0, places=2)
+
     def test_handles_missing_fields(self):
         rows = [
-            {"duration_h": 24, "weather_kwh_m2": None, "solar_ah_estimated": 42.0},
-            {"duration_h": 24, "weather_kwh_m2": 6.0, "solar_ah_estimated": None},
-            {"duration_h": 24, "weather_kwh_m2": 7.0, "solar_ah_estimated": 49.0},
+            {"partial": "False", "duration_h": 24, "weather_kwh_m2": None, "solar_ah_estimated": 42.0},
+            {"partial": "False", "duration_h": 24, "weather_kwh_m2": 6.0,  "solar_ah_estimated": None},
+            {"partial": "False", "duration_h": 24, "weather_kwh_m2": 7.0,  "solar_ah_estimated": 49.0},
         ]
         m = SolarModel.fit_from_daily_summary(rows)
         self.assertEqual(m.n_observations, 1)

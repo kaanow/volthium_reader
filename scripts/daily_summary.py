@@ -60,6 +60,15 @@ class DailyRow:
     weather_cloud_pct_avg: Optional[float]
     weather_temp_c_min: Optional[float]
     weather_temp_c_max: Optional[float]
+    # True if this row does NOT cover the full solar day. Bug-fix from
+    # 2026-05-18 12:02 loop: the old `duration_h > 12` complete-day
+    # heuristic tripped at NOON for a midnight-start logger because
+    # duration_h is just (last_ts − first_ts), not "data spans the whole
+    # solar day". A midnight-to-noon row got included in the SolarModel
+    # fit and produced a bogus 3.1 Ah/(kWh/m²) coefficient against the
+    # full-day FORECAST irradiance. New rule: complete = duration_h >= 20
+    # (must cover past ~21:00, post-sunset at this site/season).
+    partial: bool = True
 
 
 def _f(v) -> Optional[float]:
@@ -185,6 +194,7 @@ def summarize_day(rows: list[dict], weather_rows: list[dict]) -> Optional[DailyR
         weather_cloud_pct_avg=round(weather_cloud_avg, 1) if weather_cloud_avg is not None else None,
         weather_temp_c_min=round(weather_t_min, 1) if weather_t_min is not None else None,
         weather_temp_c_max=round(weather_t_max, 1) if weather_t_max is not None else None,
+        partial=(duration_h < 20.0),
     )
 
 
@@ -229,7 +239,8 @@ def main() -> int:
     print()
     print("=== daily summary ===")
     for r in daily_rows:
-        print(f"\n{r.date}  ({r.samples} samples over {r.duration_h:.1f} h)")
+        tag = " [partial]" if r.partial else ""
+        print(f"\n{r.date}{tag}  ({r.samples} samples over {r.duration_h:.1f} h)")
         print(f"  SOC:        {r.soc_start:.0f} → {r.soc_end:.0f} %   "
               f"(range {r.soc_min:.0f}–{r.soc_max:.0f} %)")
         print(f"  charge:     +{r.charge_ah:.1f} Ah  (generator {r.generator_minutes:.0f} min ⇒ "
@@ -246,9 +257,11 @@ def main() -> int:
             print(f"  weather:    (no data yet)")
 
     # Fit feedstock summary — how many usable (kwh, solar_ah) pairs?
+    # A row is "complete" when it covers the full solar day (see the
+    # DailyRow.partial docstring for why duration_h > 12 was wrong).
     fittable = [r for r in daily_rows
                 if r.weather_kwh_m2 is not None and r.solar_ah_estimated > 0
-                and r.duration_h > 12]   # only full-day rows
+                and not r.partial]
     print(f"\nrows usable for solar-model fit: {len(fittable)}")
     if fittable:
         for r in fittable:

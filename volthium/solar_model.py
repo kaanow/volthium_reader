@@ -123,18 +123,30 @@ class SolarModel:
         """Build a model from rows produced by scripts/daily_summary.py.
 
         Selects rows with:
-          - duration_h > 12      (full-day coverage, not a partial)
+          - partial=False        (complete day; see daily_summary.py for
+                                  why the old `duration_h > 12` rule was
+                                  wrong — it tripped at noon for a
+                                  midnight-start logger)
           - weather_kwh_m2 > 0
           - solar_ah_estimated > 0
         and fits via fit_from_pairs.
+
+        Backwards-compatibility: rows without a `partial` column (older
+        files) fall back to a duration check of >= 20 h.
         """
         pairs = []
         for r in daily_rows:
-            duration_h = _num(r.get("duration_h"))
+            partial_raw = r.get("partial")
+            if partial_raw not in (None, ""):
+                # CSV stores as 'True' / 'False'
+                is_partial = str(partial_raw).lower() in ("true", "1", "yes")
+            else:
+                duration_h = _num(r.get("duration_h"))
+                is_partial = duration_h is None or duration_h < 20.0
+            if is_partial:
+                continue
             kwh = _num(r.get("weather_kwh_m2"))
             ah  = _num(r.get("solar_ah_estimated"))
-            if duration_h is None or duration_h <= 12:
-                continue
             if kwh is None or ah is None:
                 continue
             pairs.append((kwh, ah))

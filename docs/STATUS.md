@@ -143,6 +143,59 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **12:02** — Loop wake. Pack SOC **80/79 %**, but charging current
+  **dropped from +9.8 → +4.7 A** — cloud thickened over the array.
+  Voltage backed off 26.90 → 26.82 V. Harvest **16.3 Ah / 48 % of
+  forecast** but **live ratio LEAPT 7.14 → 8.04** — which was a
+  caught-in-the-act **artifact**, not real. Two bugs found and
+  fixed this loop:
+  - **Bug 1 — irradiance integrator went stale at weather-sample
+    boundaries.** `today_harvest.integrate_today_irradiance()` only
+    integrated up to the last weather sample. weather.csv is on a
+    30-min cadence; pack.csv is on 10 s. Between samples the
+    numerator (harvest Ah) grew but the denominator (kWh/m²) was
+    frozen, jamming the live ratio upward until the next weather
+    tick. **Fix**: flat-extrapolate the integral past the last
+    sample with the most-recent wm2 held constant, capped at
+    `max_extrap_seconds` (default 40 min, slightly longer than the
+    weather cadence so a single missed sample doesn't silently
+    stall). Live ratio recomputed: **8.04 → 7.00 Ah/(kWh/m²)** —
+    even tighter to the SolarModel default of 7.0 than before. Added
+    `tests/test_today_harvest.py` with 7 regression tests
+    (trapezoidal basics, extrapolation tail, max-extrap cap, prior-
+    day samples filtered, etc.).
+  - **Bug 2 — partial-day rows wrongly entered the SolarModel fit.**
+    Both `daily_summary.py` and `volthium/solar_model.py` used a
+    `duration_h > 12` filter to skip partial days. But duration_h is
+    just `last_ts − first_ts` from pack.csv, and the logger has been
+    running continuously since yesterday — so by noon TODAY the row
+    had duration_h = 12.1 h and tripped the threshold as "complete".
+    The fit then saw `16.4 Ah / 5.34 kWh/m² = 3.1 Ah/(kWh/m²)` — a
+    completely wrong coefficient because the irradiance is the
+    full-day FORECAST while the harvest is only morning-through-noon.
+    **Fix**: added an explicit `partial: bool` field on `DailyRow`
+    set from `duration_h < 20.0`, written to CSV, consumed by both
+    `daily_summary.py` filtering and
+    `SolarModel.fit_from_daily_summary` (with a duration-fallback for
+    older CSV files lacking the column). Added 2 regression tests in
+    `tests/test_solar_model.py` anchored on the exact bug-trip
+    numbers so this can't quietly come back. Result: today is now
+    correctly tagged `[partial]` and excluded from the fit. **The
+    SolarModel keeps using its 7.0 default until tonight when this
+    day completes** — exactly the right behavior.
+  - Both bugs would have produced a wrong recommendation for the
+    advisor on cloudy days: the artifact would inflate the live
+    ratio (cosmetic), and the partial-day mis-fit would have
+    propagated a 3.1 coefficient through the next 24 hours of
+    advisor calls, drastically under-estimating tomorrow's harvest
+    and potentially triggering false-alarm generator runs.
+  - All 50 Python tests pass (up from 41 last loop). Total assertion
+    points across the whole suite: 50 Py + 22 wire-C + 17 est-C +
+    4 wire-cross + 49 est-cross = **142**, all green.
+  - Also: Open-Meteo bumped today's forecast 4.86 → 5.20 kWh/m²
+    mid-day — probably ingesting today's observed irradiance back
+    into their nowcast.
+
 - **11:39** — Loop wake. Pack SOC **79/78 %** (+1 % per battery in
   11 min), charging at +9.8 A. Harvest **14.5 Ah / 43 %** of
   forecast; gained +2.0 Ah in 11 min (11 Ah/hr rate, picking up

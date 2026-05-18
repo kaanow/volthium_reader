@@ -594,3 +594,14 @@ LAN share URL: http://192.168.1.76:8421/
 2026-05-18 11:28:11,068 INFO n=5820  26.87V  +8.80A  +236W  SOC 77-78%  state=charging  remain≈231m
 2026-05-18 11:33:34,302 INFO n=5850  26.90V  +10.50A  +282W  SOC 77-79%  state=charging  remain≈171m
 2026-05-18 11:38:28,315 INFO n=5880  26.89V  +9.20A  +247W  SOC 78-79%  state=charging  remain≈168m
+2026-05-18 11:43:39,115 WARNING read #5909 failed (1 in a row): RuntimeError: battery 6EC69980-CA43-7DEF-519B-6235C8C535B7 not found in scan
+2026-05-18 11:43:43,279 INFO BLE recovered after 1 errors
+2026-05-18 11:43:51,603 INFO n=5910  26.82V  +4.40A  +118W  SOC 78-79%  state=charging  remain≈403m
+2026-05-18 11:48:53,599 INFO n=5940  26.81V  +3.60A  +97W  SOC 78-80%  state=charging  remain≈465m
+2026-05-18 11:53:58,785 INFO n=5970  26.80V  +3.80A  +102W  SOC 79-80%  state=charging  remain≈504m
+2026-05-18 11:59:04,959 INFO n=6000  26.83V  +6.80A  +182W  SOC 79-80%  state=charging  remain≈324m
+2026-05-18 12:01:04,227 WARNING read #6010 failed (1 in a row): RuntimeError: battery 9058AE7F-F98B-D0F6-237D-6769894DE118 not found in scan
+2026-05-18 12:01:06,459 INFO BLE recovered after 1 errors
+2026-05-18 12:03:19,811 WARNING read #6021 failed (1 in a row): RuntimeError: battery 6EC69980-CA43-7DEF-519B-6235C8C535B7 not found in scan
+2026-05-18 12:03:23,332 INFO BLE recovered after 1 errors
+2026-05-18 12:05:01,217 INFO n=6030  26.79V  +2.10A  +56W  SOC 79-80%  state=charging  remain≈643m

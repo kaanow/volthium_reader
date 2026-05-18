@@ -165,7 +165,10 @@ def latest_weather_forecast_kwh(weather_csv: Path, today: date) -> Optional[floa
     return latest_kwh
 
 
-def integrate_today_irradiance(weather_csv: Path, today: date) -> Optional[float]:
+def integrate_today_irradiance(weather_csv: Path, today: date,
+                               now: Optional[datetime] = None,
+                               max_extrap_seconds: float = 2400.0,
+                               ) -> Optional[float]:
     """Integrate `shortwave_radiation_wm2` from today's weather samples
     to estimate the kWh/m² actually delivered SO FAR today.
 
@@ -173,11 +176,19 @@ def integrate_today_irradiance(weather_csv: Path, today: date) -> Optional[float
     instantaneous shortwave_radiation in W/m². Trapezoidal integration
     in time, divided by 3600 s/h and 1000 W/kW, gives kWh/m².
 
-    This is independent of Open-Meteo's `shortwave_radiation_sum_today`
-    field (which is the forecast TOTAL for the day) — by integrating
-    the live samples ourselves we get a partial-day actual that we can
-    pair with the partial-day pack harvest to extract a real Ah/(kWh/m²)
-    coefficient *as the day progresses*, instead of waiting for sunset.
+    To avoid an artifact where the live ratio jumps between weather
+    samples (denominator goes stale while harvest keeps growing), this
+    extends the integral with a flat-extrapolation tail from the last
+    weather sample to `now`, holding the most-recent wm2 constant.
+    Capped at `max_extrap_seconds` (default 40 min — slightly longer
+    than the 30-min weather cadence so a single missed sample doesn't
+    silently stall the integral).
+
+    Independent of Open-Meteo's `shortwave_radiation_sum_today` field
+    (which is the forecast TOTAL for the day) — by integrating live
+    samples ourselves we get a partial-day actual that can pair with
+    the partial-day pack harvest to extract a real Ah/(kWh/m²)
+    coefficient as the day progresses, instead of waiting for sunset.
 
     Returns None if we have <2 samples for today.
     """
@@ -209,6 +220,19 @@ def integrate_today_irradiance(weather_csv: Path, today: date) -> Optional[float
             # gap larger than 2 h — treat as missing data, skip
             continue
         wh_m2 += (w0 + w1) / 2.0 * dt_h
+
+    # Flat-extrapolation tail past the last weather sample: hold the
+    # last-known wm2 constant up to now (or +max_extrap_seconds,
+    # whichever is sooner). Removes the ratio-jump artifact at weather
+    # sample boundaries.
+    if now is None:
+        now = datetime.now()
+    last_ts, last_w = samples[-1]
+    if now > last_ts:
+        gap_s = (now - last_ts).total_seconds()
+        capped_s = min(gap_s, max_extrap_seconds)
+        wh_m2 += last_w * (capped_s / 3600.0)
+
     return wh_m2 / 1000.0    # Wh/m² → kWh/m²
 
 
