@@ -220,6 +220,26 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **20:23** — Loop wake. Pack flipped to **discharging** at -3.5 A
+  around 20:00 — overnight cabin loads have started kicking in. Also
+  caught a **heavy-load event at 20:22:22 (-10.3 A)** via the event
+  detector — first overnight load that crossed the threshold
+  (probably the fridge compressor). The events log is doing its job
+  in production. Third BLE flap auto-recovered at 20:02.
+  - Design item: **C port of the estimator** in
+    `firmware/common/volthium_lib/estimator.{h,c}`. Both modes
+    implemented (SOC-based + hybrid coulomb-counter w/ anchor blending).
+    Math identical to `volthium/estimator.py`. New
+    `test_estimator.c` has 17 assertions covering charging /
+    discharging / idle / full states, calibration multiplier
+    (including the "smoothed_current_a stays raw" invariant), hybrid
+    seeding, integrator advancement across 60 timestamped samples,
+    anchor blend math (0.8 × integrator + 0.2 × anchor), and the
+    legacy-mode no-displayed_ah path.
+  - **Cumulative C tests: 39 passing** (22 wire-protocol +
+    17 estimator). Both compile with stock clang on macOS, no
+    ESP-IDF dependency — firmware writer can iterate on any dev box.
+
 - **19:51** — Loop wake. Pack settled to OCV ~28.00 V at SOC 100 %
   (well into rest); trickle-charge bucket ratio climbed to **2.11**
   with 8 samples — non-linear BMS bias even more pronounced as

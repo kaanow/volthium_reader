@@ -8,7 +8,7 @@
 CC      ?= cc
 CFLAGS  ?= -std=c11 -Wall -Wextra -Werror -O2
 
-TESTS = test_wire_protocol
+TESTS = test_wire_protocol test_estimator
 
 .PHONY: all test clean
 
@@ -16,6 +16,9 @@ all: $(TESTS)
 
 test_wire_protocol: test_wire_protocol.c wire_protocol.c wire_protocol.h
 	$(CC) $(CFLAGS) -o $@ test_wire_protocol.c wire_protocol.c
+
+test_estimator: test_estimator.c estimator.c estimator.h
+	$(CC) $(CFLAGS) -o $@ test_estimator.c estimator.c -lm
 
 test: $(TESTS)
 	@for t in $(TESTS); do ./$$t || exit 1; done
