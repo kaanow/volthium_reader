@@ -220,6 +220,23 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **23:51** — Loop wake. Pack at SOC 90-91 %, ~ -4.5 A baseline.
+  No new fridge cycle events tonight — either the threshold is too
+  conservative (-10 A) for this fridge's compressor, OR the fridge
+  hasn't cycled yet (would expect to see at least one by now). Will
+  watch in subsequent wakes.
+  - Design item: top-level `Makefile` — single `make test` runs the
+    entire test suite end-to-end:
+    - Python tests (23 unittest cases across `volthium/`)
+    - C tests (22 wire-protocol + 17 estimator unit cases)
+    - Cross-validation (4 frames × ~25 assertions per byte-identity
+      check + 21-field decode match)
+    - Auto-regenerates the Python test-vector `.bin` files first if
+      `gen_test_vectors.py` or `volthium/wire_protocol.py` are newer
+    Other targets: `make test-py`, `make test-c`, `make vectors`,
+    `make clean`, `make help`. Everything still works via the
+    sub-tree Makefiles independently.
+
 - **23:17** — Loop wake. Pack SOC 92-93 % discharging at -4.5 A
   smoothed. Down ~1 % per 30 min on the fan+fridge baseline. No
   new events. voltage_soc_calibration rerun yields the same 4
