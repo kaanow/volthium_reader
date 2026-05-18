@@ -220,6 +220,38 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **03:42** — Loop wake. Pack SOC 79-81 %. 9th fridge cycle at
+  03:18:14 (35 min after 02:43 — on cadence). Advisor verdict
+  still ✓; morning_watch still False (sunrise still 1.5 h away).
+  - Design item: **`scripts/daily_summary.py`** — per-day rollup
+    that joins pack.csv + weather.csv into one row per calendar
+    date with all the metrics the solar model will fit against.
+    Per-day fields: SOC range, charge_ah, discharge_ah,
+    generator_minutes / generator_ah, solar_ah_estimated
+    (= charge_ah − generator_ah), weather kWh/m² + cloud avg
+    + temp range. Writes `data/daily_summary.csv`.
+  - First run produced:
+    ```
+      2026-05-17 (8.8h coverage):
+        charge +65.1 Ah  (generator 47min/43.7Ah, solar ≈ 21.4 Ah)
+        irradiance 7.19 kWh/m²
+      2026-05-18 (3.7h so far, overnight only):
+        discharge -19.8 Ah, no charging yet
+    ```
+  - **Calibration finding**: 21.4 Ah of solar over partial late-
+    afternoon observation of a 7.19-kWh/m² day, scaled to a full
+    day's worth, implies a coefficient of **roughly 7 Ah/(kWh/m²)
+    for our west-facing array**, NOT the 12 Ah/(kWh/m²) stub I
+    seeded into the advisor. The advisor has been **over-
+    estimating tomorrow's solar by ~40 %**.
+  - Updated `SOLAR_AH_PER_KWH_PER_M2_PER_DAY` from 12 → 7 with a
+    full comment explaining the data point. Rerun: tomorrow
+    evening projection drops 84 % → **69 %** (more honest).
+    Still well above 25 % comfort floor, but cushion is real
+    instead of imaginary.
+  - First useful (kWh/m², solar_Ah) data point captured. Need ≥3
+    full-day observations to fit a real linear coefficient.
+
 - **03:09** — Loop wake. Pack SOC 81-82 %, baseline -4.4 A. Fridge
   cycle at 02:43:16 — 8th capture, 35 min after 02:08 (one-min
   drift from the canonical 34-min interval; well within normal).

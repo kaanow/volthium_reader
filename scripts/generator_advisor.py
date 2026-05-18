@@ -48,7 +48,15 @@ import discharge_model  # noqa: E402
 # Empirical constants from `docs/hardware/bms_calibration.md` + observed runs.
 PACK_CAPACITY_AH_PER_BATTERY = 215.0
 GENERATOR_RATE_AH_PER_HOUR   = 55.0     # observed ~+55 A average → 55 Ah/h
-SOLAR_AH_PER_KWH_PER_M2_PER_DAY = 12.0  # STUB until we fit it from data
+# Solar coefficient — first data point from scripts/daily_summary.py
+# (2026-05-17, partial day): 21.4 Ah delivered during ~5.6h of late-
+# afternoon observation on a day with 7.19 kWh/m² total irradiance.
+# Scaling to a full day's worth of harvest gives roughly 7 Ah per
+# (kWh/m² total daily irradiance). West-facing array biases late, so
+# a clear morning still produces less than a clear afternoon.
+# Will be re-fit by a real linear regression once we have ≥3 full-day
+# observations with both irradiance + actual solar Ah.
+SOLAR_AH_PER_KWH_PER_M2_PER_DAY = 7.0
 
 
 @dataclass
