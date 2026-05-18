@@ -20,6 +20,23 @@
 - **Limited morning sun** — eastern aspect is significantly worse than
   a south-facing array would be.
 
+### Empirical "morning shadow clears" timing
+
+Observed on **2026-05-18** (May, partly cloudy, 51 °N):
+
+| Moment                          | Local time      | Notes                                     |
+|---------------------------------|-----------------|-------------------------------------------|
+| Civil sunrise                   | 05:10           | Open-Meteo                                |
+| First time pack current hit 0 A | ~ 06:38         | Early solar starting to match load        |
+| Long overnight discharge ended  | ~ 06:44         | Pack flat-lined; alternating idle/discharge |
+| First sustained charging        | TBD this loop   | When net positive Ah/h is sustained       |
+
+So **for this west-facing array, useful solar lags sunrise by roughly
+1.5 hours** in mid-May. In winter (lower sun angle, longer shadow from
+the roof's east edge) expect this lag to grow — the generator should
+not be scheduled to "finish before sunrise"; it should aim to finish
+~ 2 h after sunrise so the array can take over.
+
 ### Implications for daily harvest profile
 
 Most off-grid solar guides assume south-facing arrays in the northern

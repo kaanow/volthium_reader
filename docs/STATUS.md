@@ -220,6 +220,28 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **07:06** — Loop wake. Pack SOC **72-73 %** (the daily low for this
+  cycle, give or take a percent as the fridge cycles drift it).
+  - **First major site-calibration finding captured**: the 10 h 45 m
+    overnight discharge segment ended at **~ 06:44** — that's the
+    empirical "morning shadow clears" time for this west-facing
+    array. Civil sunrise was at 05:10, so the lag is **~ 1.5 h**.
+    First-zero current was 06:38; brief discharge/idle alternation
+    continues as solar oscillates with load (a fridge cycle in there
+    drew -3.2 A avg for 11 min, 06:48–06:59).
+  - Not yet net-charging — the array catches the load only
+    intermittently. Net-positive should arrive in the next 30–60 min
+    as the sun keeps climbing.
+  - 8th BLE flap auto-recovered at 07:02.
+  - Design item: updated **`docs/site/loon_lake.md`** with the
+    morning-shadow-clear empirical timing in a new table:
+    `civil sunrise 05:10 → first 0A 06:38 → long-discharge-ended
+    06:44 → first-sustained-charging TBD`. Plus an "Implications"
+    paragraph: the generator schedule should aim to finish ~2 h
+    after sunrise, NOT before, because the west-facing array can't
+    take over until then. This is calibration data the advisor will
+    need eventually to refine its "recommended start time" math.
+
 - **06:39** — Loop wake. **Pack just touched 0 A at 06:38:54** — the
   state flip from discharging to charging is moments away (EMA still
   catching up). SOC 72-74 %. Solar has fully caught the load. 7th
