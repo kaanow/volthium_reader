@@ -13,3 +13,7 @@ hardware/kicad/projects/*/fp-info-cache
 
 # Claude Code state
 .claude/
+
+# Compiled C tests
+firmware/common/volthium_lib/test_wire_protocol
+firmware/common/volthium_lib/*.o

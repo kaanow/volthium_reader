@@ -220,6 +220,22 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **19:51** — Loop wake. Pack settled to OCV ~28.00 V at SOC 100 %
+  (well into rest); trickle-charge bucket ratio climbed to **2.11**
+  with 8 samples — non-linear BMS bias even more pronounced as
+  voltage approaches the LiFePO4 OCV knee. Stable evening overall,
+  no major events.
+  - Design item: implemented the wire protocol in **C** —
+    `firmware/common/volthium_lib/wire_protocol.{h,c}` byte-for-byte
+    matching `volthium/wire_protocol.py`. Same CRC test vector
+    (`crc16("123456789") == 0x29B1`) confirmed on both sides. Added
+    a standalone C test (`test_wire_protocol.c`) plus a Makefile.
+    **22/22 C tests pass on this Mac** with stock clang. The C lib
+    has no ESP-IDF dependency so it builds on any C11 compiler —
+    the firmware writer can iterate against it on a dev laptop.
+  - Repo now also synced to GitHub:
+    https://github.com/kaanow/volthium_reader (public).
+
 - **19:20** — Loop wake. Services running (started ~19:00 via the
   user's .app launcher after the Stop-app test). Pack at SOC 100 %
   in `full` state, +3.7 A residual solar trickle. Quiet evening,
