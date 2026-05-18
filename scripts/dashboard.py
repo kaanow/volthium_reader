@@ -469,6 +469,20 @@ INDEX_HTML = """<!doctype html>
   .advisor .conf-pill.medium { background: rgba(88, 166, 255, 0.18); color: var(--blu); }
   .advisor .conf-pill.high   { background: rgba(63, 185, 80, 0.18); color: var(--grn); }
   .advisor .conf-explainer { color: var(--dim); font-size: 11px; font-style: italic; margin-top: 6px; }
+  .advisor .calib { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+                    margin-top: 10px; padding: 6px 10px; border-radius: 4px;
+                    background: rgba(13, 17, 23, 0.6); font-size: 12px; }
+  .advisor .calib .lbl { text-transform: uppercase; letter-spacing: .1em;
+                         font-size: 10px; color: var(--dim); margin: 0; }
+  .advisor .calib .v { font-variant-numeric: tabular-nums; }
+  .advisor .calib .drift { margin-left: auto; font-weight: 500;
+                           font-variant-numeric: tabular-nums; }
+  .advisor .calib.ok   { border-left: 3px solid var(--grn); }
+  .advisor .calib.ok   .drift { color: var(--grn); }
+  .advisor .calib.warn { border-left: 3px solid var(--ylw); }
+  .advisor .calib.warn .drift { color: var(--ylw); }
+  .advisor .calib.bad  { border-left: 3px solid var(--red); }
+  .advisor .calib.bad  .drift { color: var(--red); }
   .spark { width: 100%; height: 80px; }
   .footer { color: var(--dim); font-size: 11px; margin-top: 14px; }
   .num { font-variant-numeric: tabular-nums; }
@@ -683,6 +697,26 @@ async function tick() {
             ? `<div class="conf-explainer">${confExplainer}</div>`
             : "";
 
+        // Model-vs-live calibration chip: show what the SolarModel uses
+        // vs what today's live measurement is producing. Green when they
+        // agree (drift < 10 %), amber 10-20 %, red > 20 %.  Hidden until
+        // there's enough data for a live ratio.
+        const ins = rec.inputs || {};
+        const modelCoef = ins.solar_model_coefficient;
+        const liveRatio = ins.live_ratio_ah_per_kwh_m2;
+        let calibLine = "";
+        if (modelCoef != null && liveRatio != null && modelCoef > 0) {
+            const driftPct = Math.abs(liveRatio - modelCoef) / modelCoef * 100;
+            const driftCls = driftPct < 10 ? "ok" : (driftPct < 20 ? "warn" : "bad");
+            const driftSign = liveRatio >= modelCoef ? "+" : "−";
+            calibLine = `
+              <div class="calib ${driftCls}">
+                <span class="lbl">model vs live</span>
+                <span class="v">${modelCoef.toFixed(2)} → ${liveRatio.toFixed(2)} Ah/(kWh/m²)</span>
+                <span class="drift">${driftSign}${driftPct.toFixed(1)}%</span>
+              </div>`;
+        }
+
         advEl.innerHTML = `
             <div class="advisor ${cls} ${rec.confidence === 'low' ? 'conf-low' : ''}">
               <div class="lbl">recommendation<span class="conf-pill ${confClass}">${rec.confidence} confidence</span></div>
@@ -690,6 +724,7 @@ async function tick() {
               <div class="reason">${rec.reason}</div>
               ${watchLine}
               ${whenLine}
+              ${calibLine}
               ${confLine}
             </div>`;
     } else {

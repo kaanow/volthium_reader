@@ -143,6 +143,43 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **12:39** — Loop wake. **Recovery!** Pack SOC **82/80 %** (climbed
+  +2/+1 % in 26 min — the noon slowdown was transient cloud).
+  Charging back to **+9.4 A** sustained from a low of +3.3 A. Cloud
+  94 %, irradiance 601 W/m². Harvest **19.5 Ah / 53 % of forecast**.
+  **Live ratio drifted slightly 6.97 → 7.24** (~3 % above the
+  SolarModel coefficient of 7.0) — well within the 15 % flag
+  threshold, just noise as the irradiance integral evolves.
+  - Side observation: the trickle-charge bucket in `analyze.py`
+    now shows median dAh/hr +5.84 vs mean I +5.85 A (**ratio 1.00**)
+    with 40 samples — the BMS-bias discrepancy in that band has
+    resolved naturally with more data. Earlier loops saw ratios of
+    1.84–2.31 because the sample counts were tiny and dominated by
+    voltage-correction transients. Useful calibration data point
+    for the eventual firmware.
+  - Design item: **promoted the model-vs-live diagnostic into a
+    visible chip on the dashboard advisor panel.** Last loop
+    exposed the fields in `Recommendation.inputs` (JSON); this
+    loop makes them visible.
+    - New `.calib` row inside the advisor panel showing
+      `model 7.00 → live 7.24 Ah/(kWh/m²)` with a drift
+      percentage chip at the right.
+    - Color band: **green** when drift < 10 % (today: +3.4 %),
+      **amber** 10–20 %, **red** > 20 %. Border-left color band
+      matches.
+    - Hidden when there's no live measurement yet (early morning
+      before harvest starts).
+    - Renders below the existing `whenLine`, above the
+      confidence explainer — natural reading order: verdict →
+      reason → schedule → calibration check → confidence note.
+  - This closes the visibility loop: now anyone glancing at the
+    dashboard can immediately see whether today is tracking the
+    model or diverging, without having to inspect JSON. When the
+    chip stays green, the advisor's recommendation is trustworthy;
+    when amber/red, the user should be more skeptical of any
+    projection that depends on solar harvest.
+  - All 50 Python tests still pass.
+
 - **12:13** — Loop wake. **Harvest rate slowed further** — pack SOC
   stuck at **80/79 %** (no climb in 11 min), charging at **+3.3 A**
   (continued slide: 9.8 → 4.7 → 3.3 A over 35 min). Cloud 91 % (a
