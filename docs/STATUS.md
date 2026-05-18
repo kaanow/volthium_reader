@@ -220,6 +220,25 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **08:01** — Loop wake. Pack SOC 71-73 %, 3 h past sunrise.
+  **Still no sustained charging.** Today's forecast updated
+  downward to **4.86 kWh/m²** (was 5.34 yesterday — Open-Meteo
+  knows about the heavy cloud). Cabin baseline alternates 20+ min
+  idle spans with brief fridge-cycle discharges; voltage barely
+  moves. Real-world overcast-recovery data accumulating; this is
+  worth keeping in mind for the eventual advisor refinement.
+  - Design item: **trend indicator** on the dashboard. Small
+    `▲ gaining / ▼ losing / → steady` row right under the SOC
+    headline. Driven by `smoothed_i`:
+    - > +0.5 A → green ▲ "gaining +N.N A"
+    - < -0.5 A → yellow ▼ "losing N.N A"
+    - otherwise → dim → "steady"
+    Fits in the existing headline cell, no extra vertical space
+    on mobile. Live now showing "▼ losing -2.2 A" — exactly what
+    the pack is doing on this cloudy morning.
+  - All the headline info is now in 3 lines: state chip, SOC %
+    + trend, time-to-X. Three things, all immediately readable.
+
 - **07:33** — Loop wake. Pack SOC 71-73 % — still no sustained
   charging despite being 2.5 h past sunrise. Likely because today's
   forecast is 74 % cloud cover. The pack alternates 23-min idle

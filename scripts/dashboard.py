@@ -329,6 +329,11 @@ INDEX_HTML = """<!doctype html>
   .headline-pair .cell .h .u { font-size: 28px; color: var(--dim); margin-left: 4px; }
   .headline-pair .cell .h-sub { color: var(--dim); font-size: 12px;
                                  text-transform: uppercase; letter-spacing: .1em; margin-top: 4px; }
+  .trend { font-size: 14px; font-weight: 500; margin-top: 6px;
+           font-variant-numeric: tabular-nums; }
+  .trend.up    { color: var(--grn); }
+  .trend.down  { color: var(--ylw); }
+  .trend.flat  { color: var(--dim); }
   .label { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
   .row { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 16px; }
   .stat { min-width: 90px; }
@@ -415,6 +420,7 @@ INDEX_HTML = """<!doctype html>
         <div class="cell">
           <div class="h" id="soc-headline">—<span class="u">%</span></div>
           <div class="h-sub">state of charge</div>
+          <div class="trend" id="trend">—</div>
         </div>
         <div class="cell">
           <div class="h" id="time-value">—</div>
@@ -500,6 +506,22 @@ async function tick() {
       document.getElementById("soc-fill").style.width = socAvg + "%";
     } else {
       document.getElementById("soc-headline").innerHTML = `—<span class="u">%</span>`;
+    }
+
+    // Trend indicator under the SOC headline — quick "gaining / losing / steady"
+    // read using the smoothed pack current.
+    const trendEl = document.getElementById("trend");
+    if (x.smoothed_i != null) {
+      const si = +x.smoothed_i;
+      let cls, arrow, label;
+      if (si > 0.5)       { cls = "up";   arrow = "▲"; label = `gaining +${si.toFixed(1)} A`; }
+      else if (si < -0.5) { cls = "down"; arrow = "▼"; label = `losing ${si.toFixed(1)} A`; }
+      else                { cls = "flat"; arrow = "→"; label = "steady"; }
+      trendEl.className = "trend " + cls;
+      trendEl.textContent = `${arrow} ${label}`;
+    } else {
+      trendEl.className = "trend flat";
+      trendEl.textContent = "—";
     }
     setText("pv", fixed(x.pack_v, 2));
     setText("pi", x.pack_i == null ? "—" : (x.pack_i > 0 ? "+" : "") + (+x.pack_i).toFixed(2));
