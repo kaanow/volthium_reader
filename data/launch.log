@@ -659,3 +659,14 @@ LAN share URL: http://192.168.1.76:8421/
 2026-05-18 16:00:36,854 INFO BLE recovered after 1 errors
 2026-05-18 16:04:36,871 INFO n=7440  26.76V  +2.00A  +54W  SOC 93-93%  state=charging  remain≈195m
 2026-05-18 16:09:33,260 INFO n=7470  26.78V  +2.30A  +62W  SOC 93-93%  state=charging  remain≈112m
+2026-05-18 16:14:35,027 INFO n=7500  26.78V  +1.40A  +37W  SOC 93-94%  state=charging  remain≈63m
+2026-05-18 16:19:36,279 INFO n=7530  26.76V  +0.00A  +0W  SOC 93-94%  state=idle  remain≈—
+2026-05-18 16:22:00,830 WARNING read #7542 failed (1 in a row): RuntimeError: battery 9058AE7F-F98B-D0F6-237D-6769894DE118 not found in scan
+2026-05-18 16:22:03,661 INFO BLE recovered after 1 errors
+2026-05-18 16:25:02,929 INFO n=7560  26.69V  -2.30A  -61W  SOC 93-94%  state=discharging  remain≈4944m
+2026-05-18 16:30:19,682 INFO n=7590  26.67V  -1.50A  -40W  SOC 93-93%  state=discharging  remain≈6124m
+2026-05-18 16:35:30,458 WARNING read #7619 failed (1 in a row): RuntimeError: battery 6EC69980-CA43-7DEF-519B-6235C8C535B7 not found in scan
+2026-05-18 16:35:38,169 INFO BLE recovered after 1 errors
+2026-05-18 16:35:42,354 INFO n=7620  26.71V  +2.20A  +59W  SOC 93-93%  state=charging  remain≈180m
+2026-05-18 16:41:00,704 INFO n=7650  26.77V  +3.10A  +83W  SOC 93-94%  state=charging  remain≈41m
+2026-05-18 16:45:56,526 INFO n=7680  26.79V  +3.20A  +86W  SOC 93-94%  state=charging  remain≈38m

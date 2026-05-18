@@ -430,7 +430,8 @@ INDEX_HTML = """<!doctype html>
   .harvest .live-ratio { margin-top: 10px; padding: 6px 10px;
                          background: #0d1117; border-radius: 4px;
                          display: flex; gap: 8px; align-items: baseline;
-                         flex-wrap: wrap; }
+                         flex-wrap: wrap;
+                         cursor: help; }
   .harvest .live-ratio .lbl { text-transform: uppercase; letter-spacing: .1em;
                               font-size: 10px; color: var(--dim); margin: 0; }
   .harvest .live-ratio .v { font-size: 14px; font-weight: 500;
@@ -440,7 +441,8 @@ INDEX_HTML = """<!doctype html>
   .harvest .forecast-rev { display: flex; gap: 8px; align-items: baseline;
                            flex-wrap: wrap; margin-top: 6px;
                            padding: 4px 10px; border-radius: 4px;
-                           background: #0d1117; font-size: 11px; }
+                           background: #0d1117; font-size: 11px;
+                           cursor: help; }
   .harvest .forecast-rev .lbl { text-transform: uppercase; letter-spacing: .1em;
                                 font-size: 10px; color: var(--dim); margin: 0; }
   .harvest .forecast-rev .v { font-variant-numeric: tabular-nums;
@@ -456,7 +458,8 @@ INDEX_HTML = """<!doctype html>
   .harvest .peaks { margin-top: 8px; padding: 6px 10px; border-radius: 4px;
                     background: #0d1117;
                     display: flex; gap: 14px; flex-wrap: wrap;
-                    align-items: baseline; font-size: 11px; }
+                    align-items: baseline; font-size: 11px;
+                    cursor: help; }
   .harvest .peaks .lbl { text-transform: uppercase; letter-spacing: .1em;
                          font-size: 10px; color: var(--dim); margin: 0;
                          width: 100%; margin-bottom: 4px; }
@@ -497,7 +500,8 @@ INDEX_HTML = """<!doctype html>
   .advisor .conf-explainer { color: var(--dim); font-size: 11px; font-style: italic; margin-top: 6px; }
   .advisor .calib { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
                     margin-top: 10px; padding: 6px 10px; border-radius: 4px;
-                    background: rgba(13, 17, 23, 0.6); font-size: 12px; }
+                    background: rgba(13, 17, 23, 0.6); font-size: 12px;
+                    cursor: help; }
   .advisor .calib .lbl { text-transform: uppercase; letter-spacing: .1em;
                          font-size: 10px; color: var(--dim); margin: 0; }
   .advisor .calib .v { font-variant-numeric: tabular-nums; }
@@ -755,8 +759,19 @@ async function tick() {
               const srcTxt = luSrc ? ` · ${luSrc}` : "";
               calibFooter = `<div class="calib-footer">model last updated ${niceTs}${srcTxt}</div>`;
             }
+            const calibTip = (
+              "Solar harvest efficiency check.\n"
+              + "LEFT NUMBER (model): what the SolarModel uses to predict "
+              + "tomorrow's harvest — fit from prior complete days.\n"
+              + "RIGHT NUMBER (live): what today is measuring right now, "
+              + "Ah harvested / kWh/m² of irradiance delivered.\n"
+              + "DRIFT %: how far apart they are. <10% green (model and "
+              + "reality agree), 10-20% amber (today is unusual), "
+              + ">20% red (real divergence — see docs/site/loon_lake.md "
+              + "for known intra-day non-linearity on the west-facing array)."
+            );
             calibLine = `
-              <div class="calib ${driftCls}">
+              <div class="calib ${driftCls}" title="${calibTip}">
                 <span class="lbl">model vs live</span>
                 <span class="v">${modelCoef.toFixed(2)} → ${liveRatio.toFixed(2)} Ah/(kWh/m²)</span>
                 <span class="drift">${driftSign}${driftPct.toFixed(1)}%</span>
@@ -975,7 +990,7 @@ async function tick() {
             })()}
           </div>
           ${harv.live_ratio_ah_per_kwh_m2 != null ? `
-          <div class="live-ratio">
+          <div class="live-ratio" title="Solar harvest efficiency: Ah delivered to the pack today divided by kWh/m² of horizontal-plane irradiance received so far.&#10;Around 7 Ah/(kWh/m²) is the calibrated baseline for this west-facing array (see docs/site/loon_lake.md).&#10;A higher number in late afternoon is normal — direct beam hits the array at a more favorable angle than a horizontal pyranometer measures.">
             <span class="lbl">live ratio</span>
             <span class="v">${harv.live_ratio_ah_per_kwh_m2.toFixed(2)} Ah/(kWh/m²)</span>
             <span class="aside">${harv.irradiance_kwh_m2_so_far.toFixed(2)} kWh/m² actual so far</span>
@@ -993,8 +1008,18 @@ async function tick() {
             const soc = pk.peak_soc_pct != null
               ? pk.peak_soc_pct.toFixed(0) : "—";
             const startedAt = pk.first_charge_time || "—";
+            const pkTip = (
+              "Running maxima for today, captured from the full pack.csv "
+              + "(not just the rolling window).\n"
+              + "A PEAK: highest raw pack current.\n"
+              + "A SMOOTHED: highest EMA-smoothed current.\n"
+              + "% SOC: highest of either battery.\n"
+              + "CHARGING START: HH:MM of the first sample with pack "
+              + "current > 1 A — the empirical 'morning shadow cleared' "
+              + "time for this west-facing array."
+            );
             return `
-              <div class="peaks">
+              <div class="peaks" title="${pkTip}">
                 <span class="lbl">today's peaks</span>
                 <span class="stat"><span class="v">${charge}</span><span class="u">A peak</span></span>
                 <span class="stat"><span class="v">${smoothed}</span><span class="u">A smoothed</span></span>
@@ -1021,8 +1046,20 @@ async function tick() {
             const swingStr = swingPct != null
               ? `, swing ${swingPct.toFixed(1)}%`
               : "";
+            const frTip = (
+              "Open-Meteo's day-total irradiance forecast as it has been "
+              + "revised throughout the day.\n"
+              + "FIRST: forecast at the start of the day (often from "
+              + "yesterday's overnight model run).\n"
+              + "LATEST: current forecast after Open-Meteo has ingested "
+              + "today's observations.\n"
+              + "DRIFT: net change first → latest.\n"
+              + "SWING: (max − min) across the day, a measure of how "
+              + "uncertain the forecast was. A flat line means Open-Meteo "
+              + "was sure; a wide swing means the day was hard to predict."
+            );
             return `
-              <div class="forecast-rev ${driftCls}">
+              <div class="forecast-rev ${driftCls}" title="${frTip}">
                 <span class="lbl">forecast revisions</span>
                 <span class="v">${fh.first.toFixed(2)} → ${fh.latest.toFixed(2)} kWh/m²</span>
                 <span class="drift">${driftSign}${driftAbs.toFixed(1)}%${swingStr}</span>

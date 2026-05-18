@@ -143,6 +143,47 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **16:35** — Loop wake. **Pack holding at 93/93 %** under absorption-
+  CV regulation; BMS letting in a +1.6-1.8 A trickle to maintain
+  voltage. Cloud broke briefly to **88-90 %** (vs the day's 98-100 %
+  norm), but irradiance still falling (425 → 396 W/m² — sun lowering).
+  Harvest **43.6 Ah / 120 % of forecast** (only +0.2 Ah since last
+  loop). **Live ratio 9.53 — drift DROPPED to +36.1 %** from last
+  loop's +40.3 %. The predicted dynamic kicked in: harvest essentially
+  flat while irradiance integral keeps growing (4.42 → 4.58 kWh/m²),
+  so the ratio is naturally pulling back toward green. By sunset
+  should land around 8.0-8.5.
+  - Calibration log still single baseline; tonight at ~21:00 first
+    auto-fit.
+  - Design item: **explanatory tooltips on the dashboard's four
+    diagnostic chips** — small UX upgrade. Each of the
+    `live ratio`, `model vs live`, `forecast revisions`, and
+    `today's peaks` chips now carries a `title=` attribute
+    explaining what the numbers mean, plus a `cursor: help` hint
+    on hover so the user knows the chip is interactive.
+  - The tooltips cover:
+    - **live ratio**: "Ah delivered / kWh/m² of irradiance.
+      ~7 baseline for this west-facing array (see
+      docs/site/loon_lake.md). Higher in late afternoon is normal
+      — direct beam at favorable angle to a horizontal pyranometer."
+    - **model vs live**: explains the LEFT (model fit from prior
+      days) vs RIGHT (today's measurement), drift % bands
+      (<10 green, 10-20 amber, >20 red), and points at
+      loon_lake.md for the known intra-day non-linearity.
+    - **forecast revisions**: FIRST (overnight model run) vs
+      LATEST (after ingesting today's observations), the drift vs
+      swing distinction.
+    - **today's peaks**: explains A PEAK vs A SMOOTHED, that SOC
+      is max-of-both-batteries, and that CHARGING START is the
+      empirical 'morning shadow cleared' time.
+  - Native `title=` tooltips don't work on mobile (no hover), so
+    this is desktop-first. A future iteration could add tap-to-
+    show popovers using `<details>` or a small JS click handler.
+    For now this lifts the dashboard from "lots of numbers" to
+    "lots of numbers with hover-explanations" for the engineer-
+    mode user.
+  - All 100 Python tests still pass.
+
 - **16:11** — Loop wake. Pack SOC **93/93 %** holding. Charging at
   +2.4 A — the BMS is letting in a tiny trickle to maintain absorption
   voltage but SOC isn't moving up. Cloud broke briefly to **88 %**
