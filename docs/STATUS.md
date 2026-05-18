@@ -220,6 +220,34 @@ section below, push one design item further, schedule the next wake.
     because EMA hasn't caught up. Will be the first full→discharging
     transition we capture once smoothing settles.
 
+- **00:56** — Loop wake. Pack at SOC 87-88 % ; -4.5 A baseline ;
+  **new fridge cycle event at 00:25:42** (exactly 34 min after
+  23:51 — pattern locked in). The detector tuning from last loop
+  is working in production.
+  - Design item: **`scripts/discharge_model.py`** — first stab at an
+    hour-of-day discharge profile, the second building block of the
+    generator advisor. Walks pack.csv discharging+idle samples,
+    bins by hour-of-day, computes median + 25/75 percentile current
+    per bin. First run gives sensible numbers:
+    ```
+      00h  -4.5 A median   (overnight: fan + fridge baseline)
+      20h  -3.7 A          (evening: solar fading)
+      22h  -4.8 A          (overnight begins)
+      23h  -4.6 A
+    ```
+    Overall median across observed hours: -3.5 A. **Projected
+    overnight discharge from 21h→07h: 38.4 Ah ≈ 17.9 % SOC drop.**
+    Matches the dashboard's naive-rate projection within a few %
+    (independent corroboration is useful — both routes converge to
+    "pack will be at ~78 % at sunrise").
+  - Includes a `project_overnight_ah()` helper that the eventual
+    advisor will call to forward-simulate from "now" to a given hour.
+  - Caveats noted in the output: < 24 h of data means missing hours
+    fall back to overall median; the fit doesn't yet exclude
+    EMA-lag artifacts (some 18h/19h samples were classified
+    discharging during the actual transition). Both will resolve
+    naturally as more cycles accumulate.
+
 - **00:23** — Loop wake (crossed midnight). Pack at SOC 89-90 %,
   -4.5 A baseline. **Found the fridge.** Ran a one-shot search for
   sustained pulses below -8 A in the last 4 h: 8 runs, all peaking
