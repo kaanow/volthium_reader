@@ -143,6 +143,40 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **12:13** — Loop wake. **Harvest rate slowed further** — pack SOC
+  stuck at **80/79 %** (no climb in 11 min), charging at **+3.3 A**
+  (continued slide: 9.8 → 4.7 → 3.3 A over 35 min). Cloud 91 % (a
+  hair clearer than 98 %), irradiance 595 W/m² (down from 645). The
+  west-facing array is probably in a temporary worse-cloud patch.
+  Harvest **16.9 Ah / 46 % of forecast**. **Live ratio 6.97 — rock
+  steady at 7.0 now, the extrapolation fix is holding cleanly.**
+  Bug fix from last loop verified across a weather-sample boundary.
+  - Open-Meteo also bumped today's forecast 4.86 → 5.20 kWh/m²,
+    presumably ingesting today's morning observations into their
+    nowcast.
+  - Design item: **expose live measurements in the generator advisor
+    output.** Previously the advisor reported its projections but
+    not the live measurement that could vindicate or refute them.
+    Now `Recommendation.inputs` includes:
+    - `solar_model_coefficient` — what the SolarModel uses (today: 7.00)
+    - `live_ratio_ah_per_kwh_m2` — what today is observing (currently 6.96)
+    - `irradiance_kwh_m2_so_far` — partial-day actual (2.44 kWh/m²)
+    - `solar_ah_so_far` — partial-day harvest (17.0 Ah)
+  - Implementation: `generator_advisor.py` now imports
+    `today_harvest` as a module and calls `snapshot()` to read the
+    live numbers. Behaviour-neutral: the advisor's projections still
+    use `solar.predict_ah(...)`. Diagnostic only.
+  - Why this matters: when the model and reality disagree on a given
+    day, the user can immediately see it without having to inspect
+    two separate views. Right now they agree exactly (7.00 vs 6.96)
+    — concrete real-time evidence the SolarModel default is right
+    for this site. When they disagree by ≥ 15 % the system will know
+    something is off well before sunset.
+  - Dashboard advisor panel will pick these up automatically since
+    it already passes the entire `inputs` dict through to the API.
+    A future loop can promote them to a visible chip on the panel.
+  - All 50 Python tests still pass.
+
 - **12:02** — Loop wake. Pack SOC **80/79 %**, but charging current
   **dropped from +9.8 → +4.7 A** — cloud thickened over the array.
   Voltage backed off 26.90 → 26.82 V. Harvest **16.3 Ah / 48 % of

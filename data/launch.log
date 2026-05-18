@@ -605,3 +605,5 @@ LAN share URL: http://192.168.1.76:8421/
 2026-05-18 12:03:19,811 WARNING read #6021 failed (1 in a row): RuntimeError: battery 6EC69980-CA43-7DEF-519B-6235C8C535B7 not found in scan
 2026-05-18 12:03:23,332 INFO BLE recovered after 1 errors
 2026-05-18 12:05:01,217 INFO n=6030  26.79V  +2.10A  +56W  SOC 79-80%  state=charging  remain≈643m
+2026-05-18 12:10:00,444 INFO n=6060  26.79V  +3.50A  +94W  SOC 79-80%  state=charging  remain≈513m
+2026-05-18 12:15:00,684 INFO n=6090  26.79V  +2.90A  +78W  SOC 79-80%  state=charging  remain≈567m

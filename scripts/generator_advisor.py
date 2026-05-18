@@ -46,6 +46,7 @@ import csv as _csv
 import statistics
 import discharge_model  # noqa: E402
 import weather as weather_mod  # noqa: E402
+import today_harvest as today_harvest_mod  # noqa: E402
 from volthium.solar_model import SolarModel  # noqa: E402
 
 # Cache tomorrow's forecast so re-runs in a 5-min window don't pound the API.
@@ -290,6 +291,24 @@ def main() -> int:
         sunset_today = sunset_today - timedelta(days=1)
 
     solar = load_solar_model()
+
+    # Reach into today_harvest for the live coefficient measurement.
+    # This is what the SolarModel *would* fit to if it were trained on
+    # today's morning data. Surfacing it in inputs lets the user (and
+    # the dashboard) see "what the system is observing right now" vs
+    # "what the SolarModel was fit to from prior days" — a transparency
+    # input, not a decision input. The advisor itself still uses
+    # `solar.predict_ah(...)` for projections; live_ratio is diagnostic.
+    try:
+        _harvest_snap = today_harvest_mod.snapshot(args.pack_csv, args.weather_csv)
+        live_ratio = _harvest_snap.get("live_ratio_ah_per_kwh_m2")
+        irradiance_so_far = _harvest_snap.get("irradiance_kwh_m2_so_far")
+        solar_ah_so_far   = _harvest_snap.get("solar_ah_so_far")
+    except Exception:
+        live_ratio = None
+        irradiance_so_far = None
+        solar_ah_so_far = None
+
     today_kwh, tomorrow_kwh = weather_mod.fetch_today_tomorrow_irradiance()
     # Fall back to weather.csv's today value if the live API isn't reachable
     if today_kwh is None:
@@ -366,6 +385,11 @@ def main() -> int:
                 "today_irradiance_kwh_m2":
                     _f(weather_now.get("shortwave_radiation_sum_today_wh_m2")) and
                     _f(weather_now.get("shortwave_radiation_sum_today_wh_m2")) / 1000.0,
+                # Diagnostic — live measurement, not used in the projection
+                "solar_model_coefficient": solar.coefficient_ah_per_kwh_m2,
+                "live_ratio_ah_per_kwh_m2": live_ratio,
+                "irradiance_kwh_m2_so_far": irradiance_so_far,
+                "solar_ah_so_far": solar_ah_so_far,
             },
             morning_watch=morning_watch,
             morning_watch_reason=morning_watch_reason,
@@ -399,6 +423,11 @@ def main() -> int:
                 "solar_ah_estimate": solar_ah,
                 "solar_source": solar_source,
                 "next_eve_ah": next_eve_ah,
+                # Diagnostic — live measurement, not used in the projection
+                "solar_model_coefficient": solar.coefficient_ah_per_kwh_m2,
+                "live_ratio_ah_per_kwh_m2": live_ratio,
+                "irradiance_kwh_m2_so_far": irradiance_so_far,
+                "solar_ah_so_far": solar_ah_so_far,
             },
             morning_watch=False,    # subsumed by the hard recommendation
         )
