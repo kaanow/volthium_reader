@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts.today_harvest import (  # noqa: E402
     integrate_today,
     integrate_today_irradiance,
+    weather_forecast_history,
 )
 
 
@@ -332,6 +333,168 @@ class TestIntegrateTodayPack(unittest.TestCase):
         # → 2 valid 10-s × 10 A segments = 2 × 10/360 ≈ 0.0556 Ah,
         # which integrate_today rounds to 2 decimals → 0.06.
         self.assertAlmostEqual(result["charge_ah"], 0.06, places=2)
+
+
+class TestWeatherForecastHistory(unittest.TestCase):
+    """Tests for `weather_forecast_history` — the Open-Meteo forecast-
+    revision tracker. Drives the dashboard's forecast-rev chip; needs
+    to be robust to missing files, empty data, and single-sample edge
+    cases so the chip degrades gracefully rather than crashing."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = Path(self.tmp.name) / "weather.csv"
+        self.day = date(2026, 5, 18)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _write_forecast_series(
+        self, ts_kwh_pairs: list[tuple[datetime, float]],
+    ) -> None:
+        """Write a weather.csv with the forecast column populated to
+        the given (ts, kwh_today_Wh_m2) pairs."""
+        with self.path.open("w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow([
+                "ts", "lat", "lon", "temperature_c", "cloud_cover_pct",
+                "shortwave_radiation_wm2", "wind_speed_ms", "wind_gusts_ms",
+                "weather_code", "is_day", "sunrise_iso", "sunset_iso",
+                "shortwave_radiation_sum_today_wh_m2", "uv_index_max_today",
+            ])
+            for ts, kwh in ts_kwh_pairs:
+                w.writerow([ts.isoformat(), 51.07, -121.2, 10.0, 80,
+                            500.0, 1.0, 2.0, 3, 1,
+                            "2026-05-18T05:09", "2026-05-18T20:52",
+                            kwh, 5.0])
+
+    def test_missing_file_returns_empty_shape(self) -> None:
+        bogus = Path(self.tmp.name) / "no_such.csv"
+        r = weather_forecast_history(bogus, self.day)
+        self.assertIsNone(r["first"])
+        self.assertIsNone(r["latest"])
+        self.assertIsNone(r["drift_pct"])
+        self.assertEqual(r["n"], 0)
+
+    def test_no_today_rows_returns_empty_shape(self) -> None:
+        """Yesterday's rows shouldn't count toward today's history."""
+        self._write_forecast_series([
+            (datetime(2026, 5, 17, 12, 0), 4500.0),
+            (datetime(2026, 5, 17, 18, 0), 4800.0),
+        ])
+        r = weather_forecast_history(self.path, self.day)
+        self.assertEqual(r["n"], 0)
+        self.assertIsNone(r["first"])
+
+    def test_single_sample_has_zero_drift(self) -> None:
+        """A single forecast value → first == latest, drift_pct == 0."""
+        self._write_forecast_series([
+            (datetime(2026, 5, 18, 10, 0), 5000.0),
+        ])
+        r = weather_forecast_history(self.path, self.day)
+        self.assertEqual(r["n"], 1)
+        self.assertAlmostEqual(r["first"], 5.0, places=3)
+        self.assertAlmostEqual(r["latest"], 5.0, places=3)
+        self.assertAlmostEqual(r["min"], 5.0, places=3)
+        self.assertAlmostEqual(r["max"], 5.0, places=3)
+        self.assertAlmostEqual(r["drift_pct"], 0.0, places=2)
+
+    def test_upward_drift_is_positive(self) -> None:
+        """Forecast revised UPWARD across the day → positive drift_pct.
+        Mimics today's 4863.9 → 5202.8 path (real data from 2026-05-18)."""
+        self._write_forecast_series([
+            (datetime(2026, 5, 18, 0, 0),  4863.9),
+            (datetime(2026, 5, 18, 6, 0),  4900.0),
+            (datetime(2026, 5, 18, 12, 0), 5100.0),
+            (datetime(2026, 5, 18, 18, 0), 5202.8),
+        ])
+        r = weather_forecast_history(self.path, self.day)
+        self.assertEqual(r["n"], 4)
+        self.assertAlmostEqual(r["first"], 4.864, places=3)
+        self.assertAlmostEqual(r["latest"], 5.203, places=3)
+        # (5.203 - 4.864) / 4.864 ≈ 6.97 %
+        self.assertGreater(r["drift_pct"], 6.0)
+        self.assertLess(r["drift_pct"], 8.0)
+
+    def test_downward_drift_is_negative(self) -> None:
+        """Forecast revised DOWNWARD → negative drift_pct."""
+        self._write_forecast_series([
+            (datetime(2026, 5, 18, 6, 0),  5500.0),
+            (datetime(2026, 5, 18, 12, 0), 5200.0),
+            (datetime(2026, 5, 18, 18, 0), 5000.0),
+        ])
+        r = weather_forecast_history(self.path, self.day)
+        # (5.0 - 5.5) / 5.5 ≈ -9.09 %
+        self.assertLess(r["drift_pct"], -8.0)
+        self.assertGreater(r["drift_pct"], -10.0)
+
+    def test_swing_captured_by_min_max(self) -> None:
+        """The swing (max − min) is more meaningful than net drift on
+        days where the forecast wobbled. 2026-05-18 had first=5.342,
+        min=4.864, max=5.342, latest=5.203 → net drift small but swing
+        large. The dashboard uses both numbers."""
+        self._write_forecast_series([
+            (datetime(2026, 5, 18, 0, 0),  5342.0),    # midnight, high
+            (datetime(2026, 5, 18, 6, 0),  4864.0),    # morning, low
+            (datetime(2026, 5, 18, 12, 0), 5000.0),
+            (datetime(2026, 5, 18, 18, 0), 5203.0),    # afternoon, recovered
+        ])
+        r = weather_forecast_history(self.path, self.day)
+        self.assertAlmostEqual(r["first"], 5.342, places=3)
+        self.assertAlmostEqual(r["latest"], 5.203, places=3)
+        self.assertAlmostEqual(r["min"], 4.864, places=3)
+        self.assertAlmostEqual(r["max"], 5.342, places=3)
+        # Net drift is small...
+        self.assertLess(abs(r["drift_pct"]), 5.0)
+        # ...but swing (max - min) / first should be ~9 %
+        swing_pct = (r["max"] - r["min"]) / r["first"] * 100.0
+        self.assertGreater(swing_pct, 8.0)
+        self.assertLess(swing_pct, 10.0)
+
+    def test_rows_with_missing_forecast_field_are_skipped(self) -> None:
+        """If the weather row lacks a usable forecast value, skip it
+        rather than erroring out."""
+        with self.path.open("w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow([
+                "ts", "lat", "lon", "temperature_c", "cloud_cover_pct",
+                "shortwave_radiation_wm2", "wind_speed_ms", "wind_gusts_ms",
+                "weather_code", "is_day", "sunrise_iso", "sunset_iso",
+                "shortwave_radiation_sum_today_wh_m2", "uv_index_max_today",
+            ])
+            # Good row
+            w.writerow(["2026-05-18T10:00:00", 51.07, -121.2, 10.0, 80,
+                        500.0, 1.0, 2.0, 3, 1,
+                        "2026-05-18T05:09", "2026-05-18T20:52",
+                        5000.0, 5.0])
+            # Missing forecast — should be skipped
+            w.writerow(["2026-05-18T10:30:00", 51.07, -121.2, 10.0, 80,
+                        500.0, 1.0, 2.0, 3, 1,
+                        "2026-05-18T05:09", "2026-05-18T20:52",
+                        "", 5.0])
+            # Another good row
+            w.writerow(["2026-05-18T11:00:00", 51.07, -121.2, 10.0, 80,
+                        500.0, 1.0, 2.0, 3, 1,
+                        "2026-05-18T05:09", "2026-05-18T20:52",
+                        5100.0, 5.0])
+        r = weather_forecast_history(self.path, self.day)
+        self.assertEqual(r["n"], 2)
+        self.assertAlmostEqual(r["first"], 5.0, places=3)
+        self.assertAlmostEqual(r["latest"], 5.1, places=3)
+
+    def test_zero_first_value_does_not_divide_by_zero(self) -> None:
+        """Pathological case: if the first forecast value is 0 (e.g. an
+        edge-of-night reading), drift_pct should be None rather than
+        +inf or NaN. The dashboard hides the chip when drift_pct is null."""
+        self._write_forecast_series([
+            (datetime(2026, 5, 18, 0, 0),  0.0),
+            (datetime(2026, 5, 18, 12, 0), 5000.0),
+        ])
+        r = weather_forecast_history(self.path, self.day)
+        self.assertIsNone(r["drift_pct"])
+        # ...but first / latest / min / max are still populated
+        self.assertEqual(r["n"], 2)
+        self.assertAlmostEqual(r["latest"], 5.0, places=3)
 
 
 if __name__ == "__main__":

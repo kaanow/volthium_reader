@@ -143,6 +143,35 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **15:28** — Loop wake. Pack SOC **92/91 %** (+2/+1 % in 25 min from
+  90/90 — gentle absorption climb continues), charging at +3-4 A
+  sustained with brief excursions to ~+8 A, voltage 26.87 V. Cloud
+  100 %, irradiance 412 W/m² (slow drop as sun lowers). Harvest
+  **40.1 Ah / 110 % of forecast** — overshooting more. **Live ratio
+  9.77 — drift now +39.6 % (RED, still climbing)** — last loop I
+  predicted plateau by now; it hasn't yet. Today's full-day
+  coefficient is likely to settle north of 8.0.
+  - Design item: **8 regression tests for `weather_forecast_history()`**
+    (the function I added last loop for the forecast-revision chip).
+    Completes the test-coverage rhythm. Coverage:
+    - Missing file / no-today-rows → returns empty shape, n=0
+    - Single sample → first == latest, drift_pct == 0
+    - Upward drift (mimics today's 4863.9 → 5202.8 trajectory)
+    - Downward drift (negative percentage)
+    - **Swing-vs-drift** distinction — a day where first ≈ latest
+      but max-min was wide. Anchors today's 5.34 → 4.86 → 5.20
+      pattern as a permanent regression case (small net drift, but
+      ~9 % swing across the day).
+    - Rows with empty `shortwave_radiation_sum_today_wh_m2` are
+      skipped, not erroring out
+    - **Zero-first-value** edge: if the first forecast read was 0
+      (rare edge-of-night case), drift_pct returns None instead of
+      dividing-by-zero. Dashboard already handles None by hiding
+      the chip.
+  - **92 Python tests pass** (up from 84). Suite total: 92 Py +
+    22 wire-C + 17 est-C + 4 wire-cross + 49 est-cross =
+    **184 assertion-points**, all green.
+
 - **15:03** — Loop wake. **Pack-symmetry achieved**: SOC **90/90 %**
   — battery B finally caught up to A after 5h of sustained charging.
   Series-pack physics doing its slow-but-steady work. Charging
