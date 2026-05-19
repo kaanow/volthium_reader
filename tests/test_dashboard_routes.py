@@ -255,6 +255,58 @@ class TestDashboardRoutes(unittest.TestCase):
         # context so a new reader understands what they're looking at.
         self.assertIn(b"projected_low_soc", body)
 
+    def test_today_curve_empty_state(self) -> None:
+        """No pack.csv → friendly empty message, no crash."""
+        h, captured = _make_handler("/today-curve")
+        h.do_GET()
+        status, _, body = captured[0]
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertIn(b"Today's net Ah recovery curve", body)
+        self.assertIn(b"no pack samples for today yet", body)
+
+    def test_today_curve_renders_chart_with_data(self) -> None:
+        """When pack.csv has today's samples, the page renders an SVG
+        chart with a polyline and a summary line."""
+        path = self.root / "data" / "pack.csv"
+        # Write a small set of samples spanning ~30 min today: mostly
+        # discharge so cumulative net Ah goes negative.
+        from datetime import timedelta
+        with path.open("w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["ts", "state", "pack_v", "pack_i", "pack_p",
+                        "soc_a", "soc_b", "v_a", "v_b", "i_a", "i_b",
+                        "temp_a", "temp_b", "rem_a", "rem_b",
+                        "delta_v_a", "delta_v_b", "smoothed_i",
+                        "smoothed_p", "minutes_remaining",
+                        "name_a", "name_b"])
+            today = datetime.now()
+            t0 = today.replace(hour=10, minute=0, second=0, microsecond=0)
+            # Samples spanning ~25 min (5 bins at 5-min downsample
+            # cadence). Each consecutive pair must be <= 60 s apart
+            # to integrate (otherwise treated as a gap). Use 30 s
+            # cadence so 50 samples cover 1500 s = 25 min.
+            for i in range(50):
+                ts = (t0 + timedelta(seconds=30 * i)).isoformat()
+                ci = -4.0 if i % 2 == 0 else -3.0
+                w.writerow([ts, "discharging", "26.30", str(ci),
+                            str(ci * 26.3), "70", "68", "13.15", "13.14",
+                            str(ci / 2), str(ci / 2),
+                            "23", "23", "150", "130",
+                            "0.008", "0.009", str(ci), str(ci * 26.3),
+                            "", "V-12V200AH-0533", "V-12V200AH-0667"])
+        h, captured = _make_handler("/today-curve")
+        h.do_GET()
+        status, _, body = captured[0]
+        self.assertEqual(status, HTTPStatus.OK)
+        # Chart SVG present
+        self.assertIn(b"<svg", body)
+        self.assertIn(b"cumulative net Ah since midnight", body)
+        # Polyline drawn through the data
+        self.assertIn(b"<polyline", body)
+        # Summary line with cumulative figures
+        self.assertIn(b"cumulative charge", body)
+        self.assertIn(b"cumulative discharge", body)
+
     def test_drift_route_empty_state(self) -> None:
         """No live_ratio_log → friendly empty message, no crash."""
         h, captured = _make_handler("/drift")

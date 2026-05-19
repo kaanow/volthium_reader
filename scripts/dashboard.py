@@ -1600,7 +1600,8 @@ async function tick() {
             · <a href="/today-report" target="_blank" class="report-link">today's report ↗</a>
             · <a href="/reports" target="_blank" class="report-link">all reports ↗</a>
             · <a href="/health" target="_blank" class="report-link">health summary ↗</a>
-            · <a href="/drift" target="_blank" class="report-link">drift chart ↗</a></div>
+            · <a href="/drift" target="_blank" class="report-link">drift chart ↗</a>
+            · <a href="/today-curve" target="_blank" class="report-link">today's net Ah curve ↗</a></div>
           ${note}
         </div>`;
     } else {
@@ -1663,6 +1664,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._serve_confidence_log()
         if self.path == "/drift" or self.path == "/drift/":
             return self._serve_drift()
+        if self.path == "/today-curve" or self.path == "/today-curve/":
+            return self._serve_today_curve()
         if self.path == "/health" or self.path == "/health/":
             return self._serve_health()
         # /report/YYYY-MM-DD — historical day-report
@@ -2760,6 +2763,215 @@ class Handler(BaseHTTPRequestHandler):
             f"font-size='11' text-anchor='middle' "
             f"font-family='ui-monospace,monospace'>"
             f"live_ratio Ah/(kWh/m²) — {n} sample{'s' if n != 1 else ''}"
+            f"</text>"
+        )
+        body = "".join(pieces)
+        return (
+            f"<svg viewBox='0 0 {W} {H}' "
+            f"preserveAspectRatio='xMidYMid meet' "
+            f"style='display:block;width:100%;max-width:{W}px;"
+            f"margin:10px auto 0;background:#0d1117;border-radius:4px;"
+            f"padding:6px;box-sizing:border-box'>"
+            f"{title}{body}"
+            f"</svg>"
+        )
+
+    def _serve_today_curve(self):
+        """Render today's cumulative net Ah curve as a full-day chart.
+        Complements the rolling 2 h sparkline on the main page with a
+        view of the entire day's shape — overnight discharge, morning
+        low, afternoon recovery. solar_onset milestones overlaid as
+        vertical lines."""
+        from datetime import date as _date
+        import today_harvest as th_mod
+        import solar_onset as so_mod
+
+        today = _date.fromisoformat(datetime.now().date().isoformat())
+        try:
+            integrated = th_mod.integrate_today(CSV_PATH, today)
+        except Exception as e:
+            return self._send(HTTPStatus.OK, "text/plain; charset=utf-8",
+                              f"could not compute today's curve: {e}".encode())
+
+        net_series = integrated.get("net_series") or []
+        # Solar onset milestones (for vertical line overlays)
+        onset_recs = so_mod.read_log()
+        onset_today = next((r for r in onset_recs
+                            if r.date == today.isoformat()), None)
+
+        if not net_series:
+            body = (
+                "<p style='color:#8b949e;font-style:italic'>"
+                "(no pack samples for today yet — chart appears once "
+                "the logger has integrated at least one sample window)"
+                "</p>"
+            )
+            summary_html = ""
+        else:
+            chart_svg = self._render_today_curve_chart(
+                net_series, onset=onset_today,
+            )
+            # Summary stats
+            current_net = net_series[-1][1]
+            min_net = min(v for _, v in net_series)
+            max_net = max(v for _, v in net_series)
+            charge_ah = integrated.get("charge_ah", 0.0)
+            discharge_ah = integrated.get("discharge_ah", 0.0)
+            samples = integrated.get("samples", 0)
+            duration_h = integrated.get("duration_h", 0.0)
+            summary_html = (
+                "<p style='color:#8b949e;font-size:12px;margin-top:14px'>"
+                f"<strong>summary</strong> · "
+                f"n = {samples} pack samples over {duration_h:.1f} h · "
+                f"cumulative charge <strong>{charge_ah:+.1f} Ah</strong> · "
+                f"cumulative discharge <strong>-{discharge_ah:.1f} Ah</strong> · "
+                f"net <strong>{current_net:+.1f} Ah</strong> "
+                f"(min {min_net:+.1f}, max {max_net:+.1f})"
+                "</p>"
+            )
+            body = chart_svg + summary_html
+
+        intro = (
+            "<h2 style='margin-top:0'>Today's net Ah recovery curve</h2>"
+            "<p style='color:#8b949e;font-size:12px'>"
+            "Cumulative net Ah since midnight: charge minus discharge "
+            "integrated over each pack.csv sample window. Dips negative "
+            "during overnight discharge, climbs back through morning "
+            "solar onset, then accelerates through afternoon. Vertical "
+            "lines mark the solar_onset cascade milestones (first zero, "
+            "first idle, first positive, first net-positive). "
+            "Complements the rolling 2 h sparkline on the "
+            "<a href='/'>main dashboard</a> with a full-day view."
+            "</p>"
+        )
+
+        html = (
+            "<!doctype html><meta charset=utf-8>"
+            "<meta name=viewport content='width=device-width,initial-scale=1'>"
+            "<meta http-equiv='refresh' content='60'>"
+            "<title>Today's net Ah curve</title>"
+            f"<style>{self.REPORT_PAGE_STYLE}"
+            " strong{color:#c9d1d9}"
+            " code{background:#161b22;padding:1px 4px;border-radius:3px}"
+            "</style>"
+            "<p><a href='/'>&larr; dashboard</a> · "
+            "<a href='/today-report'>today's report</a> · "
+            "<a href='/drift'>drift chart</a> · "
+            "<a href='/health'>health</a></p>"
+            + intro
+            + body
+        )
+        return self._send(HTTPStatus.OK, "text/html; charset=utf-8",
+                          html.encode())
+
+    @staticmethod
+    def _render_today_curve_chart(net_series: list,
+                                  onset=None) -> str:
+        """Render the cumulative-net-Ah time series as a single SVG line.
+        net_series is a list of (minute_of_day, cumulative_net_ah). The
+        zero line (perfect break-even) is drawn dashed. Vertical lines
+        for solar_onset milestones overlay if `onset` is provided.
+
+        Y range auto-scales to the observed min/max with a small pad.
+        X range is 0..1440 (full day, 24 h)."""
+        W, H = 700, 240
+        PAD_L, PAD_R, PAD_T, PAD_B = 48, 16, 24, 32
+        plot_w = W - PAD_L - PAD_R
+        plot_h = H - PAD_T - PAD_B
+        # X mapping: minute-of-day 0..1440
+        x_min, x_max = 0, 1440
+        def x_pix(mod: int) -> float:
+            return PAD_L + (mod - x_min) / (x_max - x_min) * plot_w
+        # Y range
+        vals = [v for _, v in net_series]
+        lo = min(min(vals), 0.0)
+        hi = max(max(vals), 0.0)
+        pad_y = max((hi - lo) * 0.08, 1.0)
+        lo -= pad_y
+        hi += pad_y
+        y_range = hi - lo
+        def y_pix(v: float) -> float:
+            return PAD_T + plot_h - ((v - lo) / y_range) * plot_h
+        pieces: list[str] = []
+        # Zero baseline (perfect break-even)
+        zero_y = y_pix(0.0)
+        pieces.append(
+            f"<line x1='{PAD_L}' y1='{zero_y:.1f}' "
+            f"x2='{PAD_L + plot_w}' y2='{zero_y:.1f}' "
+            f"stroke='#30363d' stroke-width='1' stroke-dasharray='2,3'/>"
+        )
+        # Tick labels at 4 h intervals on X
+        for hh in range(0, 25, 4):
+            xp = x_pix(hh * 60)
+            pieces.append(
+                f"<line x1='{xp:.1f}' y1='{PAD_T + plot_h}' "
+                f"x2='{xp:.1f}' y2='{PAD_T + plot_h + 3}' "
+                f"stroke='#30363d' stroke-width='1'/>"
+            )
+            pieces.append(
+                f"<text x='{xp:.1f}' y='{H - 6}' fill='#8b949e' "
+                f"font-size='10' text-anchor='middle' "
+                f"font-family='ui-monospace,monospace'>{hh:02d}h</text>"
+            )
+        # Y axis labels at lo, 0, hi
+        for v in (lo + pad_y, 0.0, hi - pad_y):
+            yp = y_pix(v)
+            pieces.append(
+                f"<text x='{PAD_L - 6}' y='{yp + 3:.1f}' "
+                f"fill='#8b949e' font-size='10' text-anchor='end' "
+                f"font-family='ui-monospace,monospace'>{v:+.1f}</text>"
+            )
+        # Solar onset milestones — vertical dashed lines.
+        if onset is not None:
+            def _mod_from_iso(iso):
+                try:
+                    dt = datetime.fromisoformat(iso)
+                    return dt.hour * 60 + dt.minute
+                except Exception:
+                    return None
+            milestones = [
+                ("first_zero_iso",         "zero", "#8b949e"),
+                ("first_idle_iso",         "idle", "#8b949e"),
+                ("first_positive_iso",     "pos",  "#d29922"),
+                ("first_net_positive_iso", "net+", "#3fb950"),
+            ]
+            seen_mods: set[int] = set()
+            for attr, label, color in milestones:
+                iso = getattr(onset, attr, None)
+                if not iso:
+                    continue
+                mod = _mod_from_iso(iso)
+                if mod is None or mod in seen_mods:
+                    continue
+                seen_mods.add(mod)
+                xp = x_pix(mod)
+                pieces.append(
+                    f"<line x1='{xp:.1f}' y1='{PAD_T}' "
+                    f"x2='{xp:.1f}' y2='{PAD_T + plot_h}' "
+                    f"stroke='{color}' stroke-width='1' "
+                    f"stroke-dasharray='3,2' opacity='0.6'>"
+                    f"<title>{label} @ {iso[11:19]}</title></line>"
+                )
+        # The polyline
+        if len(net_series) >= 2:
+            pts = " ".join(
+                f"{x_pix(m):.1f},{y_pix(v):.1f}"
+                for m, v in net_series
+            )
+            # Colored fill below the line: green when above 0, red below
+            # — but a single-color polyline is much simpler and reads
+            # fine. Use blue (matches SOC sparkline on main page).
+            pieces.append(
+                f"<polyline points='{pts}' fill='none' "
+                f"stroke='#58a6ff' stroke-width='1.5'/>"
+            )
+        # Title
+        title = (
+            f"<text x='{W // 2}' y='14' fill='#c9d1d9' "
+            f"font-size='11' text-anchor='middle' "
+            f"font-family='ui-monospace,monospace'>"
+            f"cumulative net Ah since midnight · {len(net_series)} bin"
+            f"{'s' if len(net_series) != 1 else ''}"
             f"</text>"
         )
         body = "".join(pieces)

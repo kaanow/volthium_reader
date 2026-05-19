@@ -160,12 +160,12 @@ def integrate_today(pack_csv: Path, today: date,
     except FileNotFoundError:
         return {"samples": 0, "duration_h": 0.0, "charge_ah": 0.0,
                 "discharge_ah": 0.0, "generator_ah": 0.0, "solar_ah": 0.0,
-                "series": []}
+                "series": [], "net_series": []}
 
     if not rows:
         return {"samples": 0, "duration_h": 0.0, "charge_ah": 0.0,
                 "discharge_ah": 0.0, "generator_ah": 0.0, "solar_ah": 0.0,
-                "series": []}
+                "series": [], "net_series": []}
 
     rows.sort(key=lambda r: r["ts"])
     duration_h = (rows[-1]["ts"] - rows[0]["ts"]).total_seconds() / 3600.0
@@ -179,6 +179,11 @@ def integrate_today(pack_csv: Path, today: date,
     # monotonically non-decreasing, so keeping the latest value per
     # bucket gives an honest sparkline.
     series: list[tuple[int, float]] = []
+    # Parallel signed series: cumulative NET Ah (charge − discharge) since
+    # midnight (or first sample of the day). Used by /today-curve to
+    # visualize the day's recovery shape — dips negative during overnight
+    # discharge, climbs back through solar onset, peaks late afternoon.
+    net_series: list[tuple[int, float]] = []
     last_bin = -1
 
     for i in range(1, len(rows)):
@@ -204,6 +209,8 @@ def integrate_today(pack_csv: Path, today: date,
         if bin_idx != last_bin:
             series.append((minute_of_day,
                            round(charge_ah - generator_ah, 3)))
+            net_series.append((minute_of_day,
+                               round(charge_ah - discharge_ah, 3)))
             last_bin = bin_idx
 
     return {
@@ -214,6 +221,7 @@ def integrate_today(pack_csv: Path, today: date,
         "generator_ah": round(generator_ah, 2),
         "solar_ah": round(charge_ah - generator_ah, 2),
         "series": series,
+        "net_series": net_series,
     }
 
 

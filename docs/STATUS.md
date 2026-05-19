@@ -143,6 +143,64 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 13:18 ☀☀☀ — afternoon catch-up FULL THROTTLE.**
+  Pack ticked **SOC +3/+3 to 74/72**, pack_i **+17.7 A**,
+  smoothed +17.2 A, pack_v **26.79 V** (new daily high). 
+  `solar_ah_so_far` jumped **+6.1 Ah** to 19.9 (48 % of forecast).
+  live_ratio shot up to **9.85**, drift **+20.9% — advisory firing
+  AGAIN but flipped sign** (live now OVERperforming model).
+  - Today's full drift arc visible across 4 log rows:
+    ```
+    11:44  ratio 5.73  drift -29.7%  (advisory: too LOW)
+    12:09  ratio 6.01  drift -26.3%  (advisory: too LOW)
+    12:35  ratio 5.92  drift -27.4%  (advisory: too LOW)
+    13:01  ratio 8.59  drift  +5.4%  (within threshold)
+    [now]  ratio 9.85  drift +20.9%  (advisory: too HIGH)
+    ```
+    The afternoon's strong sun + the small remaining-irradiance
+    denominator means each new Ah-gained pushes the ratio
+    rapidly toward and past the SolarModel coefficient.
+  - **Design item picked: per-day net Ah recovery curve at
+    `/today-curve`.** With today's data being so dramatic
+    (overnight low at 63.5 → midday valley → afternoon climb
+    through 74), a full-day chart of cumulative net Ah finally
+    has a story to tell.
+    - `scripts/today_harvest.py`: `integrate_today()` now also
+      returns a `net_series` list of (minute_of_day,
+      cumulative_net_ah_signed) parallel to the existing
+      `series` (solar_ah). Computed in the same pass through
+      pack.csv so no extra cost. Cold-start paths return
+      `net_series: []`.
+    - `scripts/dashboard.py`: new `/today-curve` route +
+      `_render_today_curve_chart()` helper. SVG line chart:
+      X = 0..1440 min (full day), Y = cumulative net Ah signed.
+      Dashed zero baseline. Solar onset milestones overlay as
+      vertical dashed lines (gray for zero/idle, amber for
+      first_positive, green for first_net_positive). Auto-
+      refresh every 60 s.
+    - Summary line shows total cumulative charge, discharge,
+      net (with min/max).
+    - Cross-linked from main dashboard footer + own
+      navigation back to dashboard, today-report, /drift,
+      /health.
+    - 2 regression tests: empty-state cold start + populated
+      chart with polyline + summary stats. Suite: **270 tests
+      passing** (was 268, +2 new).
+  - **Why this matters**: the rolling 2 h sparkline on the main
+    page shows the LAST 2 hours of detail. `/today-curve` shows
+    the FULL DAY's trajectory. Together they zoom in/zoom out
+    on the same signal. A future operator investigating "what
+    happened today?" can scan the full-day curve to spot the
+    morning low or afternoon catch-up without scrolling
+    through 8+ hours of pack.csv.
+  - **Watch**: today is over-performing the SolarModel — by
+    sunset we may see drift +30% or higher. The afternoon catch
+    -up is partially compensating for the morning's cloudy
+    shortfall. Tomorrow's SolarModel re-fit (when daily_summary
+    integrates today's complete day data) will reveal whether
+    yesterday + today average back to a ~7-8 Ah/(kWh/m²)
+    coefficient or whether the model coefficient needs to shift.
+
 - **2026-05-19 12:54 — 🎉 drift fully cleared, live_ratio nearly
   matches model.** Pack still hard-charging: SOC **71/69** (+1
   each from last loop), pack_i +15.5 A, smoothed +13.0 A,
