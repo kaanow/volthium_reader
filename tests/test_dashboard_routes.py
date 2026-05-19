@@ -237,6 +237,35 @@ class TestDashboardRoutes(unittest.TestCase):
         self.assertIn(b"Projection accuracy", body)
         self.assertIn(b"no validatable projections yet", body)
 
+    # ---------- /low-accuracy ----------
+
+    def test_low_accuracy_renders_empty_message_without_data(self) -> None:
+        """No projection_log + no solar_onset → empty-state message.
+        The route MUST NOT crash on cold start."""
+        h, captured = _make_handler("/low-accuracy")
+        h.do_GET()
+        status, _, body = captured[0]
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertIn(b"Morning-low validation", body)
+        self.assertIn(b"no validatable morning-low projections yet", body)
+        # The page should explain the sister relationship + the bias-fix
+        # context so a new reader understands what they're looking at.
+        self.assertIn(b"projected_low_soc", body)
+
+    def test_low_accuracy_route_is_a_sister_of_accuracy(self) -> None:
+        """Both /accuracy and /low-accuracy should cross-link to each
+        other so a user can pivot between sunrise and morning-low
+        validation views."""
+        for path, must_contain in [
+            ("/accuracy", b"low-accuracy"),
+            ("/low-accuracy", b"/accuracy"),
+        ]:
+            with self.subTest(path=path):
+                h, captured = _make_handler(path)
+                h.do_GET()
+                body = captured[0][2]
+                self.assertIn(must_contain, body)
+
     # ---------- cross-page navigation links ----------
 
     def test_log_pages_cross_link_to_each_other(self) -> None:

@@ -1308,6 +1308,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._serve_projection_log()
         if self.path == "/accuracy" or self.path == "/accuracy/":
             return self._serve_projection_accuracy()
+        if self.path == "/low-accuracy" or self.path == "/low-accuracy/":
+            return self._serve_low_soc_accuracy()
         if self.path == "/confidence" or self.path == "/confidence/":
             return self._serve_confidence_log()
         # /report/YYYY-MM-DD — historical day-report
@@ -1704,6 +1706,174 @@ class Handler(BaseHTTPRequestHandler):
             "<p><a href='/'>&larr; dashboard</a> · "
             "<a href='/projections'>projection log</a> · "
             "<a href='/calibration'>calibration log</a> · "
+            "<a href='/low-accuracy'>morning-low accuracy</a> · "
+            "<a href='/confidence'>confidence log</a></p>"
+            + intro
+            + body
+        )
+        return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
+
+    def _serve_low_soc_accuracy(self):
+        """Render morning-low validation diff. Sister of /accuracy.
+        For each projection_log entry that has a matching, fully-
+        resolved solar_onset row, shows projected_low_soc vs the
+        empirical morning low (= soc_avg_at_net_positive). The
+        per-horizon breakdown surfaces the systematic lead-time bias
+        that drove the 2026-05-19 simulator floor-bias fix."""
+        import projection_log as proj_mod
+        import solar_onset as so_mod
+        import low_soc_accuracy as low_mod
+
+        try:
+            projections = proj_mod.read_log()
+            onsets = so_mod.read_log()
+            records = low_mod.compute_accuracy_records(projections, onsets)
+        except Exception as e:
+            return self._send(HTTPStatus.OK, "text/plain; charset=utf-8",
+                              f"could not compute low-soc accuracy: {e}".encode())
+
+        records = list(reversed(records))   # newest first
+
+        if records:
+            def _row(r):
+                made = r.projection_ts[:16] if len(r.projection_ts) >= 16 else r.projection_ts
+                sign = "+" if r.error_pct_points >= 0 else "−"
+                # Color band: <3 ok, <8 warn, else bad
+                err_cls = ("ok" if abs(r.error_pct_points) <= 3
+                           else "warn" if abs(r.error_pct_points) <= 8
+                           else "bad")
+                return (
+                    "<tr>"
+                    f"<td>{html_escape(made)}</td>"
+                    f"<td>{html_escape(r.target_date)}</td>"
+                    f"<td style='text-align:right'>{r.projected_low_soc:.1f}</td>"
+                    f"<td style='text-align:right'>{r.actual_low_soc:.1f}</td>"
+                    f"<td style='text-align:right' class='err-{err_cls}'>"
+                    f"{sign}{abs(r.error_pct_points):.1f}</td>"
+                    f"<td style='text-align:right'>{r.solar_model_coefficient:.3f}</td>"
+                    f"<td style='text-align:right;color:#8b949e'>"
+                    f"{r.horizon_min/60:.1f}h</td>"
+                    "</tr>"
+                )
+            rows_html = "".join(_row(r) for r in records)
+            chronological = list(reversed(records))
+            s = low_mod.summarize(chronological)
+            summary_html = (
+                "<p style='color:#8b949e;font-size:12px;margin-top:14px'>"
+                f"<strong>summary</strong> · n = {s['n']} · "
+                f"mean error <strong>{s['mean_error']:+.2f} pp</strong> · "
+                f"mean abs <strong>{s['mean_abs_error']:.2f} pp</strong> · "
+                f"RMS <strong>{s['rms_error']:.2f} pp</strong> · "
+                f"range [{s['min_error']:+.2f} .. {s['max_error']:+.2f}]"
+                "</p>"
+            )
+
+            by_h = low_mod.summarize_by_horizon(chronological)
+            if by_h:
+                def _h_row(b):
+                    err_cls = ("ok" if abs(b['mean_error']) <= 3
+                               else "warn" if abs(b['mean_error']) <= 8
+                               else "bad")
+                    return (
+                        "<tr>"
+                        f"<td>{html_escape(b['bucket'])}</td>"
+                        f"<td style='text-align:right'>{b['n']}</td>"
+                        f"<td style='text-align:right' class='err-{err_cls}'>"
+                        f"{b['mean_error']:+.2f}</td>"
+                        f"<td style='text-align:right'>{b['mean_abs_error']:.2f}</td>"
+                        f"<td style='text-align:right'>{b['rms_error']:.2f}</td>"
+                        f"<td style='text-align:right;color:#8b949e'>"
+                        f"[{b['min_error']:+.2f}..{b['max_error']:+.2f}]</td>"
+                        "</tr>"
+                    )
+                horizon_rows_html = "".join(_h_row(b) for b in by_h)
+                horizon_block = (
+                    "<h3 style='margin-top:24px;margin-bottom:6px;"
+                    "color:#c9d1d9;font-size:14px'>By lead-time horizon</h3>"
+                    "<p style='color:#8b949e;font-size:12px;margin-top:0'>"
+                    "How floor-projection error varies with how far ahead "
+                    "the projection was made. A monotonic negative trend "
+                    "with lead-time is the fingerprint of a model that "
+                    "doesn't account for post-sunrise discharge before "
+                    "solar overtakes load — driving force behind the "
+                    "2026-05-19 sinusoidal-solar fix."
+                    "</p>"
+                    "<table>"
+                    "<thead><tr>"
+                    "<th>horizon</th>"
+                    "<th style='text-align:right'>n</th>"
+                    "<th style='text-align:right'>mean</th>"
+                    "<th style='text-align:right'>abs</th>"
+                    "<th style='text-align:right'>rms</th>"
+                    "<th style='text-align:right'>range</th>"
+                    "</tr></thead>"
+                    f"<tbody>{horizon_rows_html}</tbody></table>"
+                )
+            else:
+                horizon_block = ""
+
+            table = (
+                "<h3 style='margin-top:24px;margin-bottom:6px;"
+                "color:#c9d1d9;font-size:14px'>All records</h3>"
+                "<table>"
+                "<thead><tr>"
+                "<th>made at</th>"
+                "<th>target day</th>"
+                "<th style='text-align:right'>projected low</th>"
+                "<th style='text-align:right'>actual low</th>"
+                "<th style='text-align:right'>error</th>"
+                "<th style='text-align:right'>coef</th>"
+                "<th style='text-align:right'>lead</th>"
+                "</tr></thead>"
+                f"<tbody>{rows_html}</tbody></table>"
+            )
+            body = horizon_block + table + summary_html
+        else:
+            body = (
+                "<p style='color:#8b949e;font-style:italic'>"
+                "(no validatable morning-low projections yet — the first "
+                "record lands once a day's <code>solar_onset.csv</code> "
+                "row has its <code>first_net_positive_iso</code> populated)"
+                "</p>"
+            )
+
+        intro = (
+            "<h2 style='margin-top:0'>Morning-low validation</h2>"
+            "<p style='color:#8b949e;font-size:12px'>"
+            "Sister of <a href='/accuracy'>/accuracy</a>. Validates the "
+            "advisor's <code>projected_low_soc</code> field against the "
+            "empirical morning low (the SOC at "
+            "<code>solar_onset.first_net_positive_iso</code> — the moment "
+            "sustained net charging begins). <strong>Negative error</strong> "
+            "= pack undershot the predicted floor (advisor was too "
+            "<em>optimistic</em>). The bias surfaced here drove the "
+            "2026-05-19 simulator fix: replacing uniform-NET daylight "
+            "solar with a sinusoidal gross-solar + per-hour-load model. "
+            "Watch this view over coming days to see whether the fix "
+            "closes the gap or whether a separate morning-load model is "
+            "needed."
+            "</p>"
+        )
+
+        html = (
+            "<!doctype html><meta charset=utf-8>"
+            "<meta name=viewport content='width=device-width,initial-scale=1'>"
+            "<title>Morning-low accuracy</title>"
+            f"<style>{self.REPORT_PAGE_STYLE}"
+            " table{border-collapse:collapse;font-size:12px;"
+            "font-variant-numeric:tabular-nums;margin-top:10px}"
+            " th,td{padding:5px 10px;border-bottom:1px solid #21262d;text-align:left}"
+            " th{color:#8b949e;border-bottom:1px solid #30363d}"
+            " .err-ok{color:#3fb950}"
+            " .err-warn{color:#d29922}"
+            " .err-bad{color:#f85149}"
+            " strong{color:#c9d1d9}"
+            " code{background:#161b22;padding:1px 4px;border-radius:3px}"
+            "</style>"
+            "<p><a href='/'>&larr; dashboard</a> · "
+            "<a href='/accuracy'>sunrise accuracy</a> · "
+            "<a href='/projections'>projection log</a> · "
+            "<a href='/calibration'>calibration log</a> · "
             "<a href='/confidence'>confidence log</a></p>"
             + intro
             + body
@@ -1791,6 +1961,7 @@ class Handler(BaseHTTPRequestHandler):
             "<p><a href='/'>&larr; dashboard</a> · "
             "<a href='/calibration'>calibration log</a> · "
             "<a href='/accuracy'>accuracy</a> · "
+            "<a href='/low-accuracy'>morning-low accuracy</a> · "
             "<a href='/confidence'>confidence log</a></p>"
             + intro
             + "".join(body_lines)
@@ -1868,6 +2039,7 @@ class Handler(BaseHTTPRequestHandler):
             "<p><a href='/'>&larr; dashboard</a> · "
             "<a href='/projections'>projection log</a> · "
             "<a href='/accuracy'>accuracy</a> · "
+            "<a href='/low-accuracy'>morning-low accuracy</a> · "
             "<a href='/confidence'>confidence log</a></p>"
             + intro
             + "".join(body_lines)
@@ -1974,6 +2146,7 @@ class Handler(BaseHTTPRequestHandler):
             "</style>"
             "<p><a href='/'>&larr; dashboard</a> · "
             "<a href='/accuracy'>accuracy</a> · "
+            "<a href='/low-accuracy'>morning-low accuracy</a> · "
             "<a href='/projections'>projection log</a> · "
             "<a href='/calibration'>calibration log</a></p>"
             + intro

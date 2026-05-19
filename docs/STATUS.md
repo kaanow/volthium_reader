@@ -143,6 +143,67 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 08:34** — Pack flicking between idle and charging
+  (pack_i 0.0 ↔ +1.6 A, state alternating). SOC still 65/63 — the
+  BMS Ah counter hasn't crystallized yet. `solar_ah_so_far = 0.54
+  Ah` (slow climb). Cloud 100 %, shortwave 72 W/m² (no fresh
+  weather row yet). The **new model's first two projections are
+  on disk**:
+  ```
+  08:00:45  start=63.0  proj_sunrise=62.0  proj_low=60.4  (NEW)
+  08:26:45  start=63.0  proj_sunrise=62.9  proj_low=62.2  (NEW)
+  ```
+  Compare to the last OLD-model entry (07:35:45) which had
+  `proj_low=63.0`. The new model projects a **2.6 pp lower
+  floor** for tomorrow's morning — exactly the corrective
+  direction we wanted. The validation will land tomorrow when
+  the 2026-05-20 first_net_positive crystallizes.
+  - **Design item picked: surface low_soc_accuracy on dashboard.**
+    The new validation chain now has a UI surface — sister of
+    `/accuracy`. Closes the visibility gap so a future operator
+    can pivot between sunrise SOC and morning-low SOC bias
+    diagnostics without dropping to the CLI.
+    - `scripts/dashboard.py`: new `/low-accuracy` route. Renders
+      the same shape as `/accuracy` but for `low_soc_accuracy`
+      records:
+      - Per-record table: made_at, target_day, projected_low,
+        actual_low, error (color-coded by |err|), coefficient,
+        lead-time-hours
+      - Per-horizon breakdown: same buckets as /accuracy so
+        comparisons read symmetrically
+      - Empty-state with explanatory text about waiting for
+        solar_onset.first_net_positive to crystallize
+    - Intro text explicitly names the sister relationship to
+      `/accuracy` and the 2026-05-19 sinusoidal-solar fix that
+      this view drove. Future operators reading the page see
+      the loop closed end-to-end.
+    - Cross-links: `/accuracy`, `/projections`, `/calibration`,
+      `/confidence` all now link to `/low-accuracy`. The
+      navigation graph is symmetric.
+    - 2 regression tests added: `/low-accuracy` empty-state
+      handling, sister-link cross-reference (both `/accuracy`
+      and `/low-accuracy` must link to each other). Suite:
+      **218 tests passing** (was 216, +2 new).
+  - **Why this matters**: completes the dashboard's
+    validation-chain UI surface area. The five accumulated
+    chains now have parallel views:
+    1. `/calibration` — SolarModel coefficient changes
+    2. `/projections` — each advisor projection snapshot
+    3. `/accuracy` — sunrise SOC validation (per-record + per-horizon)
+    4. **`/low-accuracy`** — morning-low SOC validation (this loop)
+    5. `/confidence` — lift-state transitions
+    
+    Together they're the complete audit trail of the advisor's
+    behavior over time, all accessible from any page in the
+    navigation graph.
+  - **Watch**: tomorrow's sunrise (2026-05-20 ~05:07) is the
+    next major validation event. With the new model now writing
+    projections AND the dashboard now surfacing low_soc_accuracy
+    diffs, the validation feedback will be immediate. The new
+    model's projected_low_soc has dropped from ~63 (old) to
+    60.4-62.2 (new) for tomorrow — if the actual tomorrow morning
+    low lands at ~60.5, mean error closes from -2.97 to near 0.
+
 - **2026-05-19 08:24** — Pack still in sustained charging (state=
   charging, pack_i +1.2 A oscillating to 0, smoothed_i +1.0 A,
   pack_v 26.29 V). SOC stuck at 65/63 — pack is at solar/load
