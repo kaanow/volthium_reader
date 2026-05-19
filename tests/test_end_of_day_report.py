@@ -116,6 +116,17 @@ class TestBuildReport(unittest.TestCase):
             for e in entries:
                 w.writerow({k: e.get(k, "") for k in PROJ_HEADER})
 
+    def _write_conf(self, entries: list[dict]) -> None:
+        """Write data/confidence_log.csv. Schema must match
+        scripts.confidence_log.FIELDS."""
+        import confidence_log as cl_mod   # already on sys.path
+        path = self.root / "data" / "confidence_log.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=cl_mod.FIELDS)
+            w.writeheader()
+            for e in entries:
+                w.writerow({k: e.get(k, "") for k in cl_mod.FIELDS})
+
     def _pack_run(self, start: datetime, n: int, pack_i: float,
                   soc_a: float = 80.0, soc_b: float = 78.0,
                   pack_v: float = 26.5, step_s: int = 10) -> list[dict]:
@@ -546,6 +557,97 @@ class TestBuildReport(unittest.TestCase):
         md = end_of_day_report_mod.build_report(date(2026, 5, 19))
         self.assertIn("| first net-positive (smoothed_i > 0) | 08:00:00 |", md)
         self.assertIn("+1.50 A", md)
+
+    # ---------- Confidence-lift events section ----------
+
+    def test_confidence_lift_section_empty_when_no_log(self) -> None:
+        """A day with no confidence_log file at all → friendly
+        empty-state message, NO table."""
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("## Confidence-lift events", md)
+        self.assertIn("No confidence-state transitions on this day", md)
+        # The table header must NOT appear in the empty state
+        self.assertNotIn("| timestamp | base | resolved | lifted? |", md)
+
+    def test_confidence_lift_section_empty_when_log_has_other_days_only(self) -> None:
+        """Log exists but no entries on this report's day → still
+        empty-state (the section filters by day prefix)."""
+        self._write_conf([
+            {"ts": "2026-05-18T13:00:00", "base": "low",
+             "resolved": "low", "lifted": "False",
+             "recent_abs_error_pp": "", "recent_n": "0",
+             "source": "advisor-invocation"},
+        ])
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("No confidence-state transitions on this day", md)
+
+    def test_confidence_lift_section_renders_single_event(self) -> None:
+        """One transition on this day → 1-row markdown table with
+        the right counts and bolded lifted=yes."""
+        self._write_conf([
+            {"ts": "2026-05-19T06:41:35", "base": "low",
+             "resolved": "medium", "lifted": "True",
+             "recent_abs_error_pp": "0.8930", "recent_n": "10",
+             "source": "advisor-invocation"},
+        ])
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("## Confidence-lift events", md)
+        self.assertIn("1 confidence-state transition on this day", md)
+        # Table header + single data row
+        self.assertIn("| timestamp | base | resolved | lifted? |", md)
+        # Time should be sliced to HH:MM:SS
+        self.assertIn("| 06:41:35 | low | medium | **yes** | 0.89 | 10",
+                      md)
+        # Single-event case: no "Net:" summary line since first==last
+        self.assertNotIn("Net: started day", md)
+
+    def test_confidence_lift_section_renders_multiple_events_with_net(self) -> None:
+        """When the day saw multiple transitions, the table has all
+        of them AND a Net summary line shows start → end state."""
+        self._write_conf([
+            # First lift to medium
+            {"ts": "2026-05-19T06:41:35", "base": "low",
+             "resolved": "medium", "lifted": "True",
+             "recent_abs_error_pp": "0.8930", "recent_n": "10",
+             "source": "advisor-invocation"},
+            # Later in the day, abs error drifted up and lift fell away
+            {"ts": "2026-05-19T20:00:00", "base": "low",
+             "resolved": "low", "lifted": "False",
+             "recent_abs_error_pp": "2.5000", "recent_n": "12",
+             "source": "advisor-invocation"},
+        ])
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("2 confidence-state transitions on this day", md)
+        # Both rows present
+        self.assertIn("| 06:41:35 | low | medium | **yes**", md)
+        self.assertIn("| 20:00:00 | low | low | no", md)
+        # Net summary line (state actually changed across the day)
+        self.assertIn("Net: started day at **medium**", md)
+        self.assertIn("ended at **low**", md)
+
+    def test_confidence_lift_section_filters_other_days_out(self) -> None:
+        """A log with events on multiple days should only show this
+        day's events. Prevents older transitions from contaminating
+        the report."""
+        self._write_conf([
+            {"ts": "2026-05-18T20:00:00", "base": "low",
+             "resolved": "low", "lifted": "False",
+             "recent_abs_error_pp": "", "recent_n": "0",
+             "source": "advisor-invocation"},
+            {"ts": "2026-05-19T06:41:35", "base": "low",
+             "resolved": "medium", "lifted": "True",
+             "recent_abs_error_pp": "0.89", "recent_n": "10",
+             "source": "advisor-invocation"},
+            {"ts": "2026-05-20T12:00:00", "base": "low",
+             "resolved": "medium", "lifted": "True",
+             "recent_abs_error_pp": "0.50", "recent_n": "20",
+             "source": "advisor-invocation"},
+        ])
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("1 confidence-state transition on this day", md)
+        # The 2026-05-18 and 2026-05-20 rows must NOT bleed in
+        self.assertNotIn("20:00:00 | low | low |", md)
+        self.assertNotIn("12:00:00 | low | medium |", md)
 
 
 if __name__ == "__main__":

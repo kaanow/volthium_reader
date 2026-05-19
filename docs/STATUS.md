@@ -143,6 +143,58 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 07:21** — Pack steady at **65/63 %** (the day's
+  apparent floor — advisor projected 63 last loop, pack is at
+  63 on the B side). Current -1.7 to -2.1 A baseline; cloud still
+  100 %, shortwave 65 W/m². No new milestones on the solar_onset
+  cascade (still stuck at first_zero/first_idle from 06:44:10).
+  Irradiance crept up to 0.081 kWh/m² (1.6 % of forecast).
+  Confidence log unchanged (still showing the single 06:41:35
+  transition).
+  - **Design item picked: surface confidence_log in day-report.**
+    Twin of last loop's solar_onset section — closes the fourth
+    archive loop. The advisor's confidence-lift transitions
+    (logged 2 loops ago to `data/confidence_log.csv`) now appear
+    on each day's report.
+    - `scripts/end_of_day_report.py`: new
+      `## Confidence-lift events` section between
+      `## Projection accuracy` and `## Cross-references`. Filters
+      log entries whose `ts` falls on the report's day; renders
+      as a markdown table (timestamp | base | resolved | lifted? |
+      recent abs err | recent n | source). Lifted=yes is bolded.
+    - When the day had multiple transitions, a "Net: started day
+      at **X**, ended at **Y**" summary line captures the
+      day-net change.
+    - Empty-state message when no transitions occurred on the day
+      ("the advisor's resolved tier held steady") — points the
+      reader to the full log for the previous transition.
+    - 5 regression tests added: empty-state (no log at all),
+      empty-state (log has other days only), single-event render,
+      multi-event render with Net summary, day-prefix filtering
+      (prevents 05-18 / 05-20 events from bleeding into 05-19).
+      Suite: **198 tests passing** (was 193, +5 new).
+  - **Today's regenerated report** at `data/reports/2026-05-19.md`
+    now shows the single 06:41:35 transition: `low → medium ·
+    **yes** · 0.89 · 10 · advisor-invocation`. Committed.
+  - **Why this matters**: the day-report is now a complete
+    snapshot of the validation/calibration audit trail. Five
+    chains landed on it:
+    1. Mechanical totals (the original)
+    2. SolarModel state (calibration_log changes)
+    3. Projection accuracy (per-record + per-horizon)
+    4. Solar onset cascade (last loop)
+    5. Confidence-lift events (this loop)
+    
+    A future operator opening any historical day-report sees the
+    full picture: what happened, what was predicted, when solar
+    arrived, when confidence shifted, and (via the calibration
+    section) when the model itself was retrained.
+  - **Watch**: confidence_log will show its next transition the
+    moment recent_abs_error_pp drifts above 2.0 pp or the
+    SolarModel base shifts. Currently abs=0.89 with 10 records —
+    very stable. The next sunrise's batch of validations will
+    likely keep the lift active.
+
 - **2026-05-19 07:13** — Sunrise +125 min, post-onset stall. Pack
   SOC dropped further to **65/63 %** (down another 1 pp from last
   loop). Current back to **-2.0 A** baseline — the 06:44 zero

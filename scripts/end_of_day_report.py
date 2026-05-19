@@ -33,6 +33,7 @@ import calibration_log as calibration_log_mod  # noqa: E402
 import projection_log as projection_log_mod  # noqa: E402
 import projection_accuracy as projection_accuracy_mod  # noqa: E402
 import solar_onset as solar_onset_mod  # noqa: E402
+import confidence_log as confidence_log_mod  # noqa: E402
 
 
 def _f(v) -> Optional[float]:
@@ -364,6 +365,56 @@ def build_report(day: date) -> str:
         lines.append("No validatable projections for this day yet — "
                      "the first record lands at the next sunrise after the "
                      "projection_log starts collecting.")
+    lines.append("")
+
+    # ---------- Confidence-lift events ----------
+    # The advisor's accuracy-aware confidence lift fires when the
+    # recent projection_accuracy track record is tight. Transitions
+    # are logged to data/confidence_log.csv; surface ones that
+    # happened on this day so the report carries the timeline.
+    lines.append("## Confidence-lift events")
+    lines.append("")
+    try:
+        all_lifts = confidence_log_mod.read_log()
+        day_lifts = [e for e in all_lifts
+                     if e.ts.startswith(day.isoformat())]
+    except Exception:
+        day_lifts = []
+
+    if day_lifts:
+        lines.append(f"{len(day_lifts)} confidence-state transition"
+                     f"{'s' if len(day_lifts) != 1 else ''} on this day. "
+                     f"Each row marks a moment when (base, resolved, lifted) "
+                     f"differed from the previous logged state — stable "
+                     f"runs are deduped.")
+        lines.append("")
+        lines.append("| timestamp | base | resolved | lifted? | "
+                     "recent abs err (pp) | recent n | source |")
+        lines.append("|-----------|------|----------|---------|"
+                     "--------------------:|---------:|--------|")
+        for e in day_lifts:
+            ts_short = e.ts[11:19] if "T" in e.ts and len(e.ts) >= 19 else e.ts
+            ae = ("—" if e.recent_abs_error_pp is None
+                  else f"{e.recent_abs_error_pp:.2f}")
+            lifted = "**yes**" if e.lifted else "no"
+            lines.append(
+                f"| {ts_short} | {e.base} | {e.resolved} | {lifted} | "
+                f"{ae} | {e.recent_n} | {e.source} |"
+            )
+        # Summary line capturing what the day's net effect was on
+        # confidence — useful for the archive reader.
+        first = day_lifts[0]
+        last = day_lifts[-1]
+        if first.resolved != last.resolved or first.lifted != last.lifted:
+            lines.append("")
+            lines.append(f"Net: started day at **{first.resolved}** "
+                         f"(lifted={first.lifted}), ended at "
+                         f"**{last.resolved}** (lifted={last.lifted}).")
+    else:
+        lines.append("No confidence-state transitions on this day — the "
+                     "advisor's resolved tier and lift status held steady. "
+                     "(See `data/confidence_log.csv` for the most recent "
+                     "prior transition.)")
     lines.append("")
 
     # ---------- Cross-refs ----------
