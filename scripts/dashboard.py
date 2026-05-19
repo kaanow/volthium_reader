@@ -496,6 +496,24 @@ INDEX_HTML = """<!doctype html>
     font-variant-numeric: tabular-nums;
   }
   .gaps-chip .gaps-icon { font-size: 14px; }
+  /* Load-surge chip: same amber palette as gaps-chip — both report
+     daily aggregate operational events. Distinct icon (⚡ vs ⏱)
+     differentiates the two at a glance. */
+  .surges-chip {
+    background: rgba(210, 153, 34, 0.10);
+    border-left: 3px solid var(--ylw);
+    color: var(--ylw);
+    padding: 6px 14px;
+    margin: 0 0 16px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    font-variant-numeric: tabular-nums;
+  }
+  .surges-chip .surges-icon { font-size: 14px; }
   .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; max-width: 980px; }
   .below-grid { max-width: 980px; margin-top: 18px; }
   .below-grid .panel { margin-bottom: 18px; }
@@ -764,6 +782,14 @@ INDEX_HTML = """<!doctype html>
     <span class="gaps-icon">⏱</span>
     <span id="gaps-text">BLE logger gaps today</span>
   </div>
+  <!-- Today's load-surge summary: hidden when 0 events.
+       Amber palette (same as gaps). Each surge is a contiguous
+       stretch of smoothed_i ≤ -20 A lasting at least 30 s —
+       cabin appliance cycling. -->
+  <div id="surges-chip" class="surges-chip" style="display:none">
+    <span class="surges-icon">⚡</span>
+    <span id="surges-text">load surge events today</span>
+  </div>
   <div class="grid">
     <div class="panel">
       <span class="state-badge" id="state-value">…</span>
@@ -881,6 +907,25 @@ function updateGapsChip(packGaps) {
   chip.style.display = "flex";
 }
 
+function updateSurgesChip(loadSurges) {
+  const chip = document.getElementById("surges-chip");
+  if (!chip) return;
+  if (!loadSurges || !loadSurges.count) {
+    chip.style.display = "none";
+    return;
+  }
+  const plural = loadSurges.count === 1 ? "" : "s";
+  const peakA = loadSurges.max_peak_a;
+  const totalDur = loadSurges.total_duration_s;
+  const txt = (
+    `${loadSurges.count} load surge${plural} today` +
+    ` · peak ${peakA.toFixed(1)} A` +
+    ` · total ${fmtAge(totalDur)}`
+  );
+  setText("surges-text", txt);
+  chip.style.display = "flex";
+}
+
 async function tick() {
   try {
     const r = await fetch("/api/latest.json");
@@ -889,11 +934,13 @@ async function tick() {
       setText("state-value", "no data yet");
       updateStaleBanner(null);
       updateGapsChip(j.pack_gaps);
+      updateSurgesChip(j.load_surges);
       return;
     }
     const x = j.latest;
     updateStaleBanner(x.ts);
     updateGapsChip(j.pack_gaps);
+    updateSurgesChip(j.load_surges);
     const stateEl = document.getElementById("state-value");
     stateEl.textContent = (x.state || "—").toUpperCase();
     stateEl.className = "state-badge " + stateClass(x.state);
@@ -1761,6 +1808,7 @@ class Handler(BaseHTTPRequestHandler):
             # small chip near the stale-data banner. Same threshold as
             # health.py and the existing stale check.
             pack_gaps = None
+            load_surges = None
             try:
                 import health as health_mod
                 gc, mg, tg, _ = health_mod.compute_today_pack_gaps(
@@ -1775,8 +1823,28 @@ class Handler(BaseHTTPRequestHandler):
                     "total_gap_s": tg,
                     "uptime_pct": uptime_pct,
                 }
+                # Load-surge events: large discharges from cabin
+                # appliances. Mirror the pack_gaps payload shape so
+                # the dashboard JS can render a parallel chip.
+                surges = health_mod.compute_today_load_surges(
+                    pack_csv=CSV_PATH,
+                )
+                if surges:
+                    load_surges = {
+                        "count": len(surges),
+                        # most-negative peak across all events
+                        "max_peak_a": min(s[1] for s in surges),
+                        "total_duration_s": sum(s[2] for s in surges),
+                    }
+                else:
+                    load_surges = {
+                        "count": 0,
+                        "max_peak_a": 0.0,
+                        "total_duration_s": 0.0,
+                    }
             except Exception:
                 pack_gaps = None
+                load_surges = None
             return self._send(HTTPStatus.OK, "application/json",
                               json.dumps({
                                   "latest": history[-1],
@@ -1787,6 +1855,7 @@ class Handler(BaseHTTPRequestHandler):
                                   "today_harvest": today_harvest,
                                   "solar_onset": solar_onset,
                                   "pack_gaps": pack_gaps,
+                                  "load_surges": load_surges,
                               }).encode())
         return self._send(HTTPStatus.NOT_FOUND, "text/plain", b"not found")
 

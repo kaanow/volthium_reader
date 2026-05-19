@@ -143,6 +143,60 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 15:29 🎉 — PAST FORECAST + 5 load surges captured.**
+  Pack at **SOC 77/76** (light discharge from another surge); pack
+  data 4 min stale (another BLE blip). `solar_ah_so_far = 41.7 Ah`,
+  forecast revised to 39.3 → **106 % of forecast** (Open-Meteo
+  trimmed the day's expected irradiance downward as cloud held;
+  pack delivered more anyway). Drift +49.2 % (steady). Row #9 of
+  live_ratio_log landed at 15:07:45 with drift **+51.2 %** (new
+  high). **LOAD SURGES grew to 5 events** — another big appliance
+  cycle pulled hard.
+  - **Design item picked: LOAD SURGES chip on dashboard main
+    page.** Last loop added load-surge detection to the CLI;
+    this commit completes the consistency by surfacing the
+    same data on the dashboard. Mirrors the existing PACK
+    GAPS chip pattern exactly.
+    - `scripts/dashboard.py`:
+      - `/api/latest.json` payload gains a `load_surges` field
+        with `{count, max_peak_a, total_duration_s}`. Always
+        populated (count=0 when no events) so the JS can read
+        it unconditionally.
+      - New `<div id="surges-chip">` element next to the
+        existing gaps-chip. Same amber palette (matches the
+        operational-events visual hierarchy) but distinct icon:
+        ⚡ for surges vs ⏱ for gaps.
+      - New `updateSurgesChip(loadSurges)` JS toggles
+        visibility when count > 0. Renders:
+        `5 load surges today · peak -63.7 A · total 13 min`
+      - Wired into `tick()` alongside the existing `updateStaleBanner`
+        and `updateGapsChip` calls.
+    - 2 regression tests in `test_dashboard_routes.py`:
+      - `test_api_includes_load_surges_field` (fixtured 1-min
+        -30A surge → API reports count=1, max_peak=-30, 60s)
+      - `test_index_includes_surges_chip_js` (DOM + CSS + JS
+        function name anchored in index)
+      Suite: **290 tests passing** (was 288, +2 new).
+    - Subtle fix discovered: initial test fixture used
+      `f"T14:30:{i*15:02d}"` which yields invalid ISO
+      `T14:30:60` for i=4. The detector silently dropped that
+      sample, making the duration come out 45s instead of 60s.
+      Switched to `datetime + timedelta(seconds=15*i)` so
+      seconds-60 properly rolls into the next minute.
+  - **Operational chip cluster now COMPLETE on dashboard**:
+    1. **⚠ STALE banner** (red) — real-time data freshness
+    2. **⏱ PACK GAPS chip** (amber) — today's logger reliability
+    3. **⚡ LOAD SURGES chip** (amber) — today's appliance events
+    
+    Together they answer "is everything OK?" at three timescales
+    — now, today's aggregate (gaps), and today's discrete events
+    (surges) — without the operator having to dig into logs.
+  - **Watch**: pack at 77/76, voltage 26.56 V (off the absorption
+    setpoint by ~0.2 V due to the surge load). If load stays low
+    for the next 25 min, voltage may climb back to 26.8+ V and
+    state=full could fire. Day is past forecast so harvest is no
+    longer the concern; load behaviour is the story.
+
 - **2026-05-19 15:02 — past 94% of forecast, drift +50% sustained.**
   Pack at SOC **78/76** (+1/+0), pack_i +1.6 A light absorption,
   smoothed +7.7 A, voltage 26.79 V. `solar_ah_so_far = 39.0 Ah`

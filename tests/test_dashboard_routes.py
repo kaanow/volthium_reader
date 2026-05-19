@@ -390,6 +390,58 @@ class TestDashboardRoutes(unittest.TestCase):
         # ~300 s gap (5 min)
         self.assertAlmostEqual(pg["max_gap_s"], 300.0, delta=1.0)
 
+    def test_api_includes_load_surges_field(self) -> None:
+        """/api/latest.json must surface today's load_surges stats so
+        the dashboard can render the surges chip. Field is always
+        present (even when 0 events) so the JS can read it
+        unconditionally."""
+        # Write a pack.csv with one obvious sustained -30 A surge
+        path = self.root / "data" / "pack.csv"
+        with path.open("w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["ts", "state", "pack_v", "pack_i", "pack_p",
+                        "soc_a", "soc_b", "v_a", "v_b", "i_a", "i_b",
+                        "temp_a", "temp_b", "rem_a", "rem_b",
+                        "delta_v_a", "delta_v_b", "smoothed_i",
+                        "smoothed_p", "minutes_remaining",
+                        "name_a", "name_b"])
+            today = datetime.now().date().isoformat()
+            # 5 samples 15 s apart spanning 60 s, all smoothed_i=-30.
+            # Use datetime arithmetic so seconds-60 rolls into the
+            # next minute properly (ISO 8601 disallows seconds=60).
+            from datetime import timedelta as _td
+            base = datetime.fromisoformat(f"{today}T14:30:00")
+            for i in range(5):
+                ts_str = (base + _td(seconds=15 * i)).isoformat()
+                w.writerow([ts_str, "discharging", "26.30", "-30.0",
+                            "-789.0", "70", "68", "13.15", "13.14",
+                            "-15.0", "-15.0", "23", "23", "150", "130",
+                            "0.008", "0.009", "-30.0", "-789.0", "",
+                            "V-12V200AH-0533", "V-12V200AH-0667"])
+        h, captured = _make_handler("/api/latest.json")
+        h.do_GET()
+        status, _, body = captured[0]
+        self.assertEqual(status, HTTPStatus.OK)
+        payload = json.loads(body)
+        self.assertIn("load_surges", payload)
+        ls = payload["load_surges"]
+        self.assertIsNotNone(ls)
+        self.assertEqual(ls["count"], 1)
+        # Peak should be the most-negative smoothed_i
+        self.assertAlmostEqual(ls["max_peak_a"], -30.0, places=1)
+        self.assertAlmostEqual(ls["total_duration_s"], 60.0, delta=1.0)
+
+    def test_index_includes_surges_chip_js(self) -> None:
+        """Main page includes the surges-chip element, CSS, and the JS
+        function that toggles its visibility. Symmetric to the
+        gaps-chip test."""
+        h, captured = _make_handler("/")
+        h.do_GET()
+        body = captured[0][2]
+        self.assertIn(b"id=\"surges-chip\"", body)
+        self.assertIn(b".surges-chip", body)
+        self.assertIn(b"updateSurgesChip", body)
+
     def test_index_includes_gaps_chip_js(self) -> None:
         """Main page includes the PACK GAPS chip element, CSS, and
         the JS that toggles its visibility from `pack_gaps` in the
