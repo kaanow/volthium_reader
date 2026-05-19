@@ -278,9 +278,17 @@ two meanings diverge.
 If the simulator's API were redesigned today, the parameters would
 rename to `next_sunrise` / `next_sunset` (matching what the caller
 actually passes), and the second pair would be `subsequent_sunrise`
-/ `subsequent_sunset` (= next + 1 day). The current names plus the
-bug-fix overrides work correctly but are historically confusing —
-the rename is a candidate refactor for a future loop.
+/ `subsequent_sunset` (= next + 1 day).
+
+**Update 2026-05-19 02:44 — the rename was done.** The simulator's
+preferred kwargs are now `next_sunrise` / `next_sunset` /
+`solar_first_day_ah` / `solar_second_day_ah`. The old aliases
+(`sunrise_today` / `sunset_today` / `solar_today_full_ah` /
+`solar_tomorrow_full_ah`) are still accepted for backwards
+compatibility — passing either set works. The internal logic uses
+the `next_*` names throughout, matching the comment-level mental
+model. Caller validation: if neither old nor new is provided, a
+`TypeError` is raised with a clear message.
 
 ## Cross-references
 

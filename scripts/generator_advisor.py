@@ -139,31 +139,79 @@ def simulate_next_24h(
     start_soc: float,
     now: datetime,
     profile: dict,
-    sunrise_today: datetime,
-    sunset_today: datetime,
-    solar_today_full_ah: float,
-    solar_tomorrow_full_ah: float,
     capacity_ah: float,
+    # Preferred new names — both old aliases below also accepted.
+    next_sunrise: Optional[datetime] = None,
+    next_sunset: Optional[datetime] = None,
+    solar_first_day_ah: Optional[float] = None,
+    solar_second_day_ah: Optional[float] = None,
+    # Backwards-compat: old kwarg names still accepted.
+    sunrise_today: Optional[datetime] = None,
+    sunset_today: Optional[datetime] = None,
+    solar_today_full_ah: Optional[float] = None,
+    solar_tomorrow_full_ah: Optional[float] = None,
 ) -> dict:
     """Hour-by-hour SOC simulation over the next 24 hours.
 
-    Spreads each day's solar harvest uniformly across its daylight
+    Parameters (preferred new names — see "Bug history" in
+    `docs/generator_advisor/algorithm.md` for the rename rationale):
+
+      next_sunrise          — the FIRST sunrise that occurs at or
+                              after `now` (caller is expected to bump
+                              past-time sunrises to the next-occurring;
+                              see the advisor's lines 272-275).
+      next_sunset           — same idea for sunset.
+      solar_first_day_ah    — predicted Ah delivered during the
+                              first daylight window in the 24-h sim
+                              (i.e. the window between next_sunrise
+                              and next_sunset). Use today's forecast
+                              if pre-sunset, tomorrow's if post-sunset.
+      solar_second_day_ah   — Ah for the window after that. Rarely
+                              relevant inside a single 24-h sim;
+                              passed for completeness.
+
+    Old aliases `sunrise_today` / `sunset_today` / `solar_today_full_ah`
+    / `solar_tomorrow_full_ah` still work but are deprecated.
+
+    Spreads each daylight window's solar harvest uniformly across its
     hours (rough first cut — a future refinement can weight by the
     west-facing array's afternoon-heavy profile). For night hours,
     uses the discharge_model's per-hour median current.
 
     Returns a dict with:
         projected_low_soc       — minimum SOC anywhere in the window
-        projected_sunrise_soc   — SOC at tomorrow's sunrise
-        projected_tomorrow_evening_soc — SOC at tomorrow's sunset
+        projected_sunrise_soc   — SOC at the next sunrise from now
+        projected_tomorrow_evening_soc — SOC at the next sunset from now
     """
-    sunrise_tomorrow = sunrise_today + timedelta(days=1)
-    sunset_tomorrow  = sunset_today + timedelta(days=1)
+    # Backwards-compat shim: if old kwargs passed, route them.
+    # Caller MUST provide one or the other of each pair.
+    if next_sunrise is None:
+        next_sunrise = sunrise_today
+    if next_sunset is None:
+        next_sunset = sunset_today
+    if solar_first_day_ah is None:
+        solar_first_day_ah = solar_today_full_ah
+    if solar_second_day_ah is None:
+        solar_second_day_ah = solar_tomorrow_full_ah
+    if next_sunrise is None or next_sunset is None:
+        raise TypeError(
+            "simulate_next_24h requires next_sunrise + next_sunset "
+            "(or the deprecated sunrise_today / sunset_today aliases)"
+        )
+    if solar_first_day_ah is None or solar_second_day_ah is None:
+        raise TypeError(
+            "simulate_next_24h requires solar_first_day_ah + "
+            "solar_second_day_ah (or the deprecated solar_today_full_ah "
+            "/ solar_tomorrow_full_ah aliases)"
+        )
 
-    hours_today_daylight = max(0.1, (sunset_today - sunrise_today).total_seconds() / 3600)
-    today_ah_per_hour    = solar_today_full_ah    / hours_today_daylight
-    hours_tomorrow_daylight = max(0.1, (sunset_tomorrow - sunrise_tomorrow).total_seconds() / 3600)
-    tomorrow_ah_per_hour = solar_tomorrow_full_ah / hours_tomorrow_daylight
+    subsequent_sunrise = next_sunrise + timedelta(days=1)
+    subsequent_sunset  = next_sunset + timedelta(days=1)
+
+    hours_first_daylight = max(0.1, (next_sunset - next_sunrise).total_seconds() / 3600)
+    first_ah_per_hour    = solar_first_day_ah    / hours_first_daylight
+    hours_second_daylight = max(0.1, (subsequent_sunset - subsequent_sunrise).total_seconds() / 3600)
+    second_ah_per_hour = solar_second_day_ah / hours_second_daylight
 
     # Per-hour median discharge (signed; negative for consumption)
     # Falls back to overall median when an hour has no data yet.
@@ -176,10 +224,10 @@ def simulate_next_24h(
 
     for _ in range(24):
         # Classify the current hour as daylight or night
-        if sunrise_today <= cur < sunset_today:
-            ah_change = today_ah_per_hour
-        elif sunrise_tomorrow <= cur < sunset_tomorrow:
-            ah_change = tomorrow_ah_per_hour
+        if next_sunrise <= cur < next_sunset:
+            ah_change = first_ah_per_hour
+        elif subsequent_sunrise <= cur < subsequent_sunset:
+            ah_change = second_ah_per_hour
         else:
             # Night — pull this hour's median discharge rate
             hour_data = profile.get(cur.hour)
@@ -207,16 +255,16 @@ def simulate_next_24h(
         return samples[-1][1]
 
     # Project to "the next sunrise after now" and "the next sunset after
-    # now", not unconditionally tomorrow's pair. Bug-fix from 2026-05-18
-    # 21:00 loop: post-sunset, sunrise_today/sunset_today are already
+    # now", not unconditionally subsequent's pair. Bug-fix from 2026-05-18
+    # 21:00 loop: post-sunset, next_sunrise/next_sunset are already
     # tomorrow's date (the caller's bumping made sunrise_dt next-occurring),
-    # so sunrise_tomorrow ends up at day-after-tomorrow — outside the
+    # so subsequent_sunrise ends up at day-after-tomorrow — outside the
     # 24h sim window — and soc_at() falls off the end of samples,
     # returning the same value for both projections. Fix: pick the
     # actual next-occurring time relative to `now`, then clamp into
     # the 24h window if needed.
-    proj_sunrise = sunrise_today if sunrise_today > now else sunrise_tomorrow
-    proj_sunset  = sunset_today  if sunset_today  > now else sunset_tomorrow
+    proj_sunrise = next_sunrise if next_sunrise > now else subsequent_sunrise
+    proj_sunset  = next_sunset  if next_sunset  > now else subsequent_sunset
     return {
         "projected_low_soc": min(s for _, s in samples),
         "projected_sunrise_soc": soc_at(proj_sunrise),
@@ -351,9 +399,9 @@ def main() -> int:
 
     sim = simulate_next_24h(
         start_soc=start_soc, now=now, profile=profile,
-        sunrise_today=sunrise_today, sunset_today=sunset_today,
-        solar_today_full_ah=solar_today_full_ah,
-        solar_tomorrow_full_ah=solar_tomorrow_full_ah,
+        next_sunrise=sunrise_today, next_sunset=sunset_today,
+        solar_first_day_ah=solar_today_full_ah,
+        solar_second_day_ah=solar_tomorrow_full_ah,
         capacity_ah=PACK_CAPACITY_AH_PER_BATTERY,
     )
     projected_sunrise_soc           = sim["projected_sunrise_soc"]

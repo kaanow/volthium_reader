@@ -143,6 +143,35 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 02:44** — Pack SOC **73/71 %** (gap holding 2 %),
+  but **discharge rate dropped -7 A → -4.2 A** between loops —
+  a steady ~3 A load came off (maybe a device timed out or someone
+  flipped a switch). Smoothed_i now -5.22 A, settling. Voltage
+  26.19 V. Per-battery: v_a 13.09, v_b 13.11 — gap narrowed to
+  20 mV (was 60 mV). Projection log gained entry #11 at 02:28:46.
+  - Design item: **refactored `simulate_next_24h` parameter names**
+    per the bug-history doc's stated future plan. The simulator's
+    preferred kwargs are now:
+    - `next_sunrise` (was `sunrise_today`)
+    - `next_sunset` (was `sunset_today`)
+    - `solar_first_day_ah` (was `solar_today_full_ah`)
+    - `solar_second_day_ah` (was `solar_tomorrow_full_ah`)
+  - **Backwards-compatible**: the old kwarg names still work as
+    aliases for any downstream caller (or test suite) that uses
+    them. Internal logic uses the new names throughout, matching
+    the comment-level mental model from the 21:00 bug-fix.
+  - Validation: if neither set is provided, raises `TypeError`
+    with a clear message pointing at both options.
+  - The simulator's internal variables follow the same convention:
+    - `subsequent_sunrise = next_sunrise + 1 day` (was `sunrise_tomorrow`)
+    - `subsequent_sunset = next_sunset + 1 day`
+    - `first_ah_per_hour` / `second_ah_per_hour` for the two days'
+      hourly solar Ah distribution
+  - Updated `docs/generator_advisor/algorithm.md` bug-history
+    section noting the rename landed.
+  - All 152 Python tests still pass — the back-compat aliases mean
+    no test had to change.
+
 - **2026-05-19 02:09** — Pack SOC **75/73 %** (gap back to 2 %),
   discharging at sustained -7.1 A. Voltage dropping fast 26.32 →
   26.24 V (per-battery curiosity holds: A's voltage drops faster
