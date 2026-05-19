@@ -143,6 +143,61 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 10:16 — both SOC ticks up + solar accelerating.**
+  Pack state: **charging**, pack_i +3.0 to +5.5 A, smoothed_i +3.9
+  A, voltage **26.42 V**. SOC has now ticked **both sides up to
+  66/64** — A reclaimed the 66 it had earlier, B added 1 from
+  63 → 64. Cloud holding at 96 % from the 10:04 weather sample
+  but shortwave was already at **238 W/m²** then. `solar_ah_so_far
+  = +2.9 Ah` (was 2.3 last loop, +0.6 in this 25-min window).
+  Live ratio climbed back to **7.33**, drift narrowed to **-10.1%**
+  — comfortably back under the 20% advisory threshold.
+  - **Design item picked: CLI health summary command.** Replaces
+    the need to invoke 10+ separate scripts to scan system state.
+    - `scripts/health.py`: aggregates state from every chain into
+      one ~14-line summary. Output layout (each line is one
+      chain):
+      ```
+      PACK         SOC 66/64  charging  +3.0 A  smoothed +3.9 A  26.42 V
+      TODAY        solar +2.9 Ah / 41.7 forecast (7%)  live_ratio 7.33
+      SOLAR ONSET  zero 06:44 → idle 06:44 → pos 07:44 → net+ 07:45  SOC 63.5%
+      SOLAR MODEL  coef 8.149  (1 obs, low conf, fit 2026-05-18T20:23)
+      CONFIDENCE   low → medium  lifted  n=10 ±0.89 pp
+      SUNRISE ACC  n=17, mean -0.12 pp, abs 1.15  [-2.4..+1.5]  latest +0.7
+      MORN-LOW ACC n=17, mean -2.97 pp, abs 2.97  [-5.7..-1.1]  latest -1.5
+      DRIFT        -10.1% (live 7.33 vs model 8.15) — within threshold
+      PROJECTION   start 63.0 → sunrise 60.8 → low 59.3 → eve 78.0 (next 24h)
+      ADVISORY     ✓ no generator needed  projected low 59%
+      ```
+    - Fixed column-1 labels (PACK/TODAY/SOLAR ONSET/etc.) make
+      visual scanning across runs trivial — any field that
+      changed jumps out without re-reading the structure.
+    - Cold-start graceful: every chain has an empty-state path
+      ("no pack.csv yet", "pre-onset, no milestones yet", etc.).
+    - Advisor verdict is reproduced from projection_log's
+      `projected_low_soc`: <25% → RUN GENERATOR; <50% → morning
+      watch; else → no generator needed. Same banding as the
+      live advisor.
+    - 6 regression tests in `tests/test_health.py`:
+      cold-start-doesn't-crash, all-chain-labels-present-in-order,
+      pack-line-format, advisory-band-thresholds (no generator /
+      morning watch / RUN GENERATOR cases). Suite: **237 tests
+      passing** (was 231, +6 new).
+  - **Why this matters**: until now, the loop body itself was a
+    sequence of 10+ separate script invocations. Now `python3
+    scripts/health.py` produces an equivalent summary in one
+    command. The dashboard provides the same data in HTML form,
+    but the CLI summary is ideal for: (a) terminal-only sessions
+    over SSH, (b) cron-job emails, (c) the loop checklist itself
+    where I want to verify everything's fine before picking the
+    next design item.
+  - **Watch**: as pack continues charging, the projection_low
+    will keep dropping (because the simulator starts later in
+    the day from a higher SOC, leaving more discharge time before
+    tomorrow's morning). Sometime today the advisor's
+    `next-24h low SOC` will likely stabilize as we approach
+    sunset's overnight starting point.
+
 - **2026-05-19 10:06 ⚠ — first live model-drift advisory fired.**
   Pack: state=charging, pack_i +2.6 to +3.2 A, smoothed_i **+2.85 A**,
   voltage 26.36 V. Cloud **broke from 100% to 96%**, shortwave
