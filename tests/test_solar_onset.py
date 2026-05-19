@@ -26,10 +26,10 @@ import solar_onset as so_mod  # noqa: E402
 
 
 def _write_pack(path: Path, rows: list[dict]) -> None:
-    """Write a minimal pack.csv fixture. The detector only reads
-    ts, state, pack_i, smoothed_i, soc_a, soc_b."""
+    """Write a minimal pack.csv fixture. The detector reads
+    ts, state, pack_v, pack_i, smoothed_i, soc_a, soc_b."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    fields = ["ts", "state", "pack_i", "smoothed_i", "soc_a", "soc_b"]
+    fields = ["ts", "state", "pack_v", "pack_i", "smoothed_i", "soc_a", "soc_b"]
     with path.open("w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
@@ -39,9 +39,11 @@ def _write_pack(path: Path, rows: list[dict]) -> None:
 
 def _row(ts: str, state: str = "discharging",
          pack_i: float = -3.0, smoothed_i: float = -3.0,
+         pack_v: float = 26.20,
          soc_a: float = 70.0, soc_b: float = 68.0) -> dict:
     return {
         "ts": ts, "state": state,
+        "pack_v": str(pack_v),
         "pack_i": str(pack_i), "smoothed_i": str(smoothed_i),
         "soc_a": str(soc_a), "soc_b": str(soc_b),
     }
@@ -240,6 +242,87 @@ class TestSolarOnsetDetection(unittest.TestCase):
         all_recs = so_mod.read_log(self.log)
         self.assertEqual(len(all_recs), 1)
         self.assertEqual(all_recs[0].first_zero_iso, "2026-05-19T06:44:10")
+
+    # ---------- afternoon cascade (absorption + full) ----------
+
+    def test_full_state_milestone_captured(self) -> None:
+        """When the BMS reports state='full', first_full_iso records
+        that exact sample's timestamp."""
+        _write_pack(self.pack, [
+            _row("2026-05-19T06:00:00", pack_i=-3.0, smoothed_i=-2.5),
+            # First net-positive: solar exceeds load
+            _row("2026-05-19T07:44:00", pack_v=26.40,
+                 pack_i=2.0, smoothed_i=1.0),
+            # Later, BMS classifies as full
+            _row("2026-05-19T15:00:00", state="full", pack_v=27.30,
+                 pack_i=0.5, smoothed_i=0.5),
+        ])
+        rec = so_mod.detect_onset(self.pack, date(2026, 5, 19))
+        self.assertEqual(rec.first_full_iso, "2026-05-19T15:00:00")
+
+    def test_absorption_milestone_via_voltage_and_taper(self) -> None:
+        """first_absorption_iso fires when (a) pack_v exceeds the
+        absorption threshold AND (b) smoothed_i has dropped below
+        the configured fraction of the running peak (post-net+).
+        Today's heuristic: V > 26.7, smoothed_i < peak × 0.75."""
+        _write_pack(self.pack, [
+            _row("2026-05-19T06:00:00", pack_v=26.10,
+                 pack_i=-3.0, smoothed_i=-2.5),
+            # First net-positive — smoothed crosses zero
+            _row("2026-05-19T07:44:00", pack_v=26.45,
+                 pack_i=2.0, smoothed_i=1.0),
+            # Peak charging: smoothed_i reaches 18 A
+            _row("2026-05-19T11:00:00", pack_v=26.70,
+                 pack_i=18.0, smoothed_i=18.0),
+            # Absorption: V crosses threshold AND smoothed has tapered
+            # below 0.75 × 18 = 13.5 A. 13 A here qualifies.
+            _row("2026-05-19T13:44:00", pack_v=26.92,
+                 pack_i=13.0, smoothed_i=13.0),
+        ])
+        rec = so_mod.detect_onset(self.pack, date(2026, 5, 19))
+        self.assertEqual(rec.first_absorption_iso, "2026-05-19T13:44:00")
+        # full not present
+        self.assertIsNone(rec.first_full_iso)
+
+    def test_absorption_not_fired_before_net_positive(self) -> None:
+        """The absorption heuristic must only consider samples AFTER
+        first_net_positive — otherwise a transient voltage spike on
+        a discharging morning would spuriously fire."""
+        _write_pack(self.pack, [
+            # Early-morning sample with high voltage but discharging
+            # (the BMS sometimes reports high V at rest before load).
+            _row("2026-05-19T05:00:00", pack_v=27.00,
+                 pack_i=-0.5, smoothed_i=-2.0),
+            _row("2026-05-19T07:00:00", pack_v=26.40,
+                 pack_i=-3.0, smoothed_i=-2.5),
+        ])
+        rec = so_mod.detect_onset(self.pack, date(2026, 5, 19))
+        # No net_positive ever happens → no absorption either
+        self.assertIsNone(rec.first_absorption_iso)
+        self.assertIsNone(rec.first_net_positive_iso)
+
+    def test_csv_round_trip_preserves_new_fields(self) -> None:
+        """Writing then reading back the log must preserve
+        first_absorption_iso and first_full_iso. Anchors the
+        schema-upgrade backward compat (the new fields land at
+        the end of the FIELDS list so old CSVs still load)."""
+        rec = so_mod.SolarOnsetRecord(
+            date="2026-05-19",
+            first_zero_iso="2026-05-19T06:44:10",
+            first_idle_iso="2026-05-19T06:44:10",
+            first_positive_iso="2026-05-19T07:44:21",
+            first_net_positive_iso="2026-05-19T07:45:40",
+            smoothed_i_at_net_positive=0.17,
+            soc_avg_at_net_positive=63.5,
+            first_absorption_iso="2026-05-19T13:44:00",
+            first_full_iso="2026-05-19T15:30:00",
+        )
+        so_mod.upsert(rec, self.log)
+        read_back = so_mod.read_log(self.log)
+        self.assertEqual(len(read_back), 1)
+        e = read_back[0]
+        self.assertEqual(e.first_absorption_iso, "2026-05-19T13:44:00")
+        self.assertEqual(e.first_full_iso, "2026-05-19T15:30:00")
 
 
 if __name__ == "__main__":

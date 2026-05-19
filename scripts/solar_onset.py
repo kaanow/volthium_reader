@@ -61,6 +61,11 @@ FIELDS = [
     "first_net_positive_iso",
     "smoothed_i_at_net_positive",
     "soc_avg_at_net_positive",
+    # Afternoon cascade (added 2026-05-19) — bookends the morning
+    # onset milestones. Both may be None if today's cloud + load
+    # prevent reaching absorption / full.
+    "first_absorption_iso",
+    "first_full_iso",
 ]
 
 # How close to zero a sample's instantaneous current must be to
@@ -68,6 +73,14 @@ FIELDS = [
 # available. The BMS's own state field is preferred; this is the
 # fallback heuristic.
 IDLE_CURRENT_THRESHOLD_A = 0.5
+
+# Heuristic absorption-onset detection: pack_v above this threshold
+# AND smoothed_i has fallen below this fraction of its running peak
+# during the same charge phase. Tuned against the SC12200G4DPH's
+# observed absorption-onset at ~26.8 V on a healthy series-2 24 V
+# pack with light load. Tomorrow's data may refine.
+ABSORPTION_VOLTAGE_THRESHOLD = 26.7
+ABSORPTION_CURRENT_TAPER_FRAC = 0.75
 
 
 @dataclass
@@ -81,6 +94,9 @@ class SolarOnsetRecord:
     first_net_positive_iso: Optional[str] = None
     smoothed_i_at_net_positive: Optional[float] = None
     soc_avg_at_net_positive: Optional[float] = None
+    # Afternoon cascade — bookends the morning's net+ moment.
+    first_absorption_iso: Optional[str] = None
+    first_full_iso: Optional[str] = None
 
     @classmethod
     def from_row(cls, r: dict) -> "SolarOnsetRecord":
@@ -103,16 +119,23 @@ class SolarOnsetRecord:
             first_net_positive_iso=_opt_s(r.get("first_net_positive_iso")),
             smoothed_i_at_net_positive=_opt_f(r.get("smoothed_i_at_net_positive")),
             soc_avg_at_net_positive=_opt_f(r.get("soc_avg_at_net_positive")),
+            first_absorption_iso=_opt_s(r.get("first_absorption_iso")),
+            first_full_iso=_opt_s(r.get("first_full_iso")),
         )
 
     def is_empty(self) -> bool:
         """True if no milestone has been observed yet (still
-        pre-onset). Worth not writing such rows."""
+        pre-onset). Worth not writing such rows. Absorption/full
+        are afternoon milestones — they don't affect pre-onset
+        detection (a day with only morning milestones is still
+        non-empty)."""
         return all(v is None for v in (
             self.first_zero_iso,
             self.first_idle_iso,
             self.first_positive_iso,
             self.first_net_positive_iso,
+            self.first_absorption_iso,
+            self.first_full_iso,
         ))
 
 
@@ -139,14 +162,27 @@ def _iter_day_samples(pack_csv: Path, day: date) -> Iterable[dict]:
 
 def detect_onset(pack_csv: Path, day: date) -> SolarOnsetRecord:
     """Scan a day's pack.csv samples in chronological order and
-    record the first occurrence of each milestone. Stops scanning
-    once all four milestones have been seen (cheap when re-running
-    later in the day)."""
+    record the first occurrence of each milestone.
+
+    Six milestones in two cascades:
+    - **Morning (onset)**: first_zero → first_idle → first_positive
+      → first_net_positive
+    - **Afternoon (top)**: first_absorption → first_full
+
+    The morning cascade marks the dawn transition from discharge to
+    charging. The afternoon cascade marks the daily peak: absorption
+    is the heuristic moment the charge controller starts tapering
+    current (voltage above threshold AND current dropped from
+    running peak); full is the BMS's own state="full" signal."""
     rec = SolarOnsetRecord(date=day.isoformat())
+    # Track the running peak smoothed_i while charging, for the
+    # absorption-onset heuristic (current taper from peak)
+    peak_smoothed = 0.0
     for r in _iter_day_samples(pack_csv, day):
         ts = r.get("ts", "")
         state = r.get("state", "")
         pack_i = _f(r.get("pack_i"))
+        pack_v = _f(r.get("pack_v"))
         smoothed_i = _f(r.get("smoothed_i"))
         soc_a = _f(r.get("soc_a"))
         soc_b = _f(r.get("soc_b"))
@@ -184,11 +220,36 @@ def detect_onset(pack_csv: Path, day: date) -> SolarOnsetRecord:
             else:
                 rec.soc_avg_at_net_positive = None
 
-        # Cheap early exit once all four milestones have landed.
+        # Track running peak smoothed_i during charging (post-net+)
+        if (rec.first_net_positive_iso is not None
+                and smoothed_i > peak_smoothed):
+            peak_smoothed = smoothed_i
+
+        # first_absorption: pack_v above the absorption threshold
+        # AND smoothed_i has dropped below the configured fraction
+        # of the running peak. This catches the moment the charge
+        # controller starts tapering current — typically at SOC ~85-90%.
+        # Skip if voltage missing or no peak yet (need post-net+ data).
+        if (rec.first_absorption_iso is None
+                and rec.first_net_positive_iso is not None
+                and pack_v is not None
+                and peak_smoothed > 0
+                and pack_v > ABSORPTION_VOLTAGE_THRESHOLD
+                and smoothed_i < peak_smoothed * ABSORPTION_CURRENT_TAPER_FRAC):
+            rec.first_absorption_iso = ts
+
+        # first_full: BMS state=="full" is the definitive signal.
+        # No heuristic needed — trust the BMS classification.
+        if rec.first_full_iso is None and state == "full":
+            rec.first_full_iso = ts
+
+        # Cheap early exit once all six milestones have landed.
         if (rec.first_zero_iso is not None
             and rec.first_idle_iso is not None
             and rec.first_positive_iso is not None
-            and rec.first_net_positive_iso is not None):
+            and rec.first_net_positive_iso is not None
+            and rec.first_absorption_iso is not None
+            and rec.first_full_iso is not None):
             break
 
     return rec
@@ -220,6 +281,8 @@ def _write_log(records: list[SolarOnsetRecord], path: Path = LOG_PATH) -> None:
                 "soc_avg_at_net_positive":
                     "" if r.soc_avg_at_net_positive is None
                     else f"{r.soc_avg_at_net_positive:.2f}",
+                "first_absorption_iso": r.first_absorption_iso or "",
+                "first_full_iso": r.first_full_iso or "",
             })
         f.flush()
 
@@ -271,8 +334,9 @@ def pretty_print(records: list[SolarOnsetRecord]) -> None:
         return
     print("=== Solar-onset history ===")
     print(f"{'date':<11}  {'zero':>8}  {'idle':>8}  {'pos':>8}  "
-          f"{'net+':>8}  {'smI':>5}  {'SOC':>5}")
-    print("-" * 64)
+          f"{'net+':>8}  {'absorp':>8}  {'full':>8}  "
+          f"{'smI':>5}  {'SOC':>5}")
+    print("-" * 80)
     for r in records:
         smi = ("—" if r.smoothed_i_at_net_positive is None
                else f"{r.smoothed_i_at_net_positive:+5.2f}")
@@ -282,10 +346,19 @@ def pretty_print(records: list[SolarOnsetRecord]) -> None:
               f"{_short_ts(r.first_idle_iso):>8}  "
               f"{_short_ts(r.first_positive_iso):>8}  "
               f"{_short_ts(r.first_net_positive_iso):>8}  "
+              f"{_short_ts(r.first_absorption_iso):>8}  "
+              f"{_short_ts(r.first_full_iso):>8}  "
               f"{smi:>5}  {soc:>5}")
     print()
     last = records[-1]
-    if last.first_net_positive_iso is not None:
+    if last.first_full_iso is not None:
+        print(f"latest: {last.date} reached BMS=full at "
+              f"{_short_ts(last.first_full_iso)}")
+    elif last.first_absorption_iso is not None:
+        print(f"latest: {last.date} entered absorption at "
+              f"{_short_ts(last.first_absorption_iso)}, "
+              f"full state still pending")
+    elif last.first_net_positive_iso is not None:
         print(f"latest: {last.date} crossed net-positive at "
               f"{_short_ts(last.first_net_positive_iso)} "
               f"(SOC {last.soc_avg_at_net_positive:.1f} %)")

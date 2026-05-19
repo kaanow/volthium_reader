@@ -143,6 +143,65 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 14:23 — pack in absorption, milestone captured at
+  13:44:00.** Voltage dropped from 26.92 V peak to 26.70 V as the
+  charge controller starts tapering current (pack_i +15.4 A from
+  +19.3 peak, smoothed +11.5 A from +18.9). SOC oscillated
+  79/77 → 77/75 — typical absorption-phase BMS counter noise.
+  `solar_ah_so_far = 32.5 Ah` (**78% of forecast**). Drift still
+  +42%. Row #7 of live_ratio_log landed at 14:16:45 with drift
+  +42.5%.
+  - **Design item picked: absorption + full milestone in
+    solar_onset.csv.** Extends the cascade from "morning low"
+    bookend (zero/idle/pos/net+) to "afternoon top" bookend
+    (absorption/full). Backward-compatible schema addition.
+    - `scripts/solar_onset.py`: schema gains two fields:
+      `first_absorption_iso` and `first_full_iso`. The CSV
+      column order keeps the new fields at the END so existing
+      readers don't break.
+    - **Absorption-onset heuristic**: `pack_v > 26.7 V` AND
+      `smoothed_i < running_peak_smoothed × 0.75` (post-
+      net_positive only — prevents pre-dawn voltage spikes
+      from spuriously firing).
+    - **Full state**: `state == "full"` BMS signal — trust the
+      classification, no heuristic.
+    - **Today's live capture**: absorption fired at
+      **13:44:00** — exactly when the morning's strong solar
+      pushed voltage past 26.7 V and current tapered below the
+      0.75 × peak threshold. full state still pending (will
+      land later this afternoon if voltage reaches 27.3+ V
+      stable).
+    - `pretty_print` extended with `absorp` and `full` columns;
+      `latest:` summary shows the highest-cascade milestone
+      reached (`reached BMS=full` if applicable, else
+      `entered absorption`, else `crossed net-positive`).
+    - 4 regression tests in `test_solar_onset.py`:
+      - `test_full_state_milestone_captured` (state="full"
+        triggers first_full_iso)
+      - `test_absorption_milestone_via_voltage_and_taper`
+        (the heuristic fires when both conditions met)
+      - `test_absorption_not_fired_before_net_positive` (no
+        spurious fire on early-morning voltage spikes)
+      - `test_csv_round_trip_preserves_new_fields` (schema
+        upgrade backward-compat)
+      Suite: **280 tests passing** (was 276, +4 new).
+  - **Why this matters**: the day's narrative is now complete
+    in solar_onset.csv:
+    ```
+    2026-05-19  zero 06:44  idle 06:44  pos 07:44  net+ 07:45
+                absorp 13:44  full (pending)
+                smI +0.17  SOC 63.5
+    ```
+    Six chronological milestones bracket the day's morning loss
+    and afternoon recovery. Tomorrow's calibration log re-fit
+    will incorporate this complete-day data and likely shift
+    the SolarModel coefficient upward.
+  - **Watch**: voltage briefly hit 26.92 V earlier; if it climbs
+    back above 27.0 V and holds, the BMS may signal `state=full`
+    and the cascade will complete. Today's projected full-day
+    Ah was 41.7, current 32.5 — we're on track to come in
+    slightly under forecast despite the strong afternoon.
+
 - **2026-05-19 13:56 — SOC 79/77, drift +46%, log row #6 in.**
   Pack approaching absorption: SOC **79/77** (+1/+1), pack_i
   +16.5 A, pack_v 26.91 V. `solar_ah_so_far = 29.8 Ah` (**71% of
