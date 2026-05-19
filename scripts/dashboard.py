@@ -459,6 +459,26 @@ INDEX_HTML = """<!doctype html>
   .harvest .forecast-rev.warn .drift { color: var(--ylw); }
   .harvest .forecast-rev.bad  { border-left: 3px solid var(--red); }
   .harvest .forecast-rev.bad  .drift { color: var(--red); }
+  /* Solar-onset cascade chip: lands once today's first zero-crossing
+     has happened. Color shifts green once net-positive is sustained. */
+  .harvest .solar-onset { display: flex; gap: 8px; align-items: baseline;
+                          flex-wrap: wrap; margin-top: 6px;
+                          padding: 4px 10px; border-radius: 4px;
+                          background: #0d1117; font-size: 11px;
+                          cursor: help; }
+  .harvest .solar-onset .lbl { text-transform: uppercase; letter-spacing: .1em;
+                               font-size: 10px; color: var(--dim); margin: 0; }
+  .harvest .solar-onset .v { font-variant-numeric: tabular-nums;
+                             font-size: 12px; font-weight: 500; }
+  .harvest .solar-onset .drift { margin-left: auto; color: var(--dim);
+                                 font-size: 11px;
+                                 font-variant-numeric: tabular-nums; }
+  .harvest .solar-onset.ok   { border-left: 3px solid var(--grn); }
+  .harvest .solar-onset.ok   .v { color: var(--grn); }
+  .harvest .solar-onset.warn { border-left: 3px solid var(--ylw); }
+  .harvest .solar-onset.warn .v { color: var(--ylw); }
+  .harvest .solar-onset.dim  { border-left: 3px solid #30363d; }
+  .harvest .solar-onset.dim  .v { color: var(--dim); }
   .harvest .peaks { margin-top: 8px; padding: 6px 10px; border-radius: 4px;
                     background: #0d1117;
                     display: flex; gap: 14px; flex-wrap: wrap;
@@ -1176,6 +1196,59 @@ async function tick() {
                 <span class="drift">${driftSign}${driftAbs.toFixed(1)}%${swingStr}</span>
               </div>`;
           })()}
+          ${(() => {
+            // Solar onset chip: the morning cascade of milestones.
+            // Empty until at least the first zero-crossing has been
+            // observed. Reads from j.solar_onset (set by the API).
+            const so = j.solar_onset;
+            if (!so || !so.first_zero_iso) return "";
+            const tShort = (iso) => iso ? iso.slice(11, 16) : "—";
+            // Determine how far along the cascade we are. The class
+            // toggles between "ok" (net-positive achieved), "warn"
+            // (still mid-cascade), and "dim" (just first-zero so far).
+            let stage, cls;
+            if (so.first_net_positive_iso) {
+              stage = "net-positive";  cls = "ok";
+            } else if (so.first_positive_iso) {
+              stage = "transient positive";  cls = "warn";
+            } else if (so.first_idle_iso) {
+              stage = "idle";  cls = "warn";
+            } else {
+              stage = "first zero";  cls = "dim";
+            }
+            // Build a compact cascade line: zero → idle → pos → net+
+            const cascadeBits = [
+              `zero ${tShort(so.first_zero_iso)}`,
+              so.first_idle_iso ? `idle ${tShort(so.first_idle_iso)}` : null,
+              so.first_positive_iso ? `pos ${tShort(so.first_positive_iso)}` : null,
+              so.first_net_positive_iso ? `net+ ${tShort(so.first_net_positive_iso)}` : null,
+            ].filter(Boolean);
+            const cascade = cascadeBits.join(" → ");
+            // SOC at net-positive is the bottom of the day's curve —
+            // valuable as a calibration check against the advisor's
+            // projected_low_soc. Show only when available.
+            const socLine = (so.soc_avg_at_net_positive != null)
+              ? `<span class="drift">SOC ${so.soc_avg_at_net_positive.toFixed(1)} %</span>`
+              : "";
+            const onsetTip = (
+              "Today's solar-onset cascade.\n"
+              + "ZERO: first sample at pack_i = 0 (solar matched load).\n"
+              + "IDLE: BMS classified state as idle, or |i| ≤ 0.5 A.\n"
+              + "POS: instantaneous current went strictly positive (a "
+              + "transient surge of solar over load).\n"
+              + "NET+: smoothed current went net-positive — sustained "
+              + "charging has begun.\n"
+              + "SOC at NET+ is the bottom of today's curve, useful as "
+              + "a check on the advisor's projected_low_soc."
+            );
+            return `
+              <div class="solar-onset ${cls}" title="${onsetTip}">
+                <span class="lbl">solar onset</span>
+                <span class="v">${stage}</span>
+                <span class="drift">${cascade}</span>
+                ${socLine}
+              </div>`;
+          })()}
           <div class="footer">${harv.duration_h.toFixed(1)} h of data so far · ${harv.confidence} confidence
             · <a href="/today-report" target="_blank" class="report-link">today's report ↗</a>
             · <a href="/reports" target="_blank" class="report-link">all reports ↗</a></div>
@@ -1273,6 +1346,26 @@ class Handler(BaseHTTPRequestHandler):
             projection = compute_projection(history[-1], latest_weather_row())
             recommendation = get_recommendation()
             today_harvest = get_today_harvest()
+            # Run solar-onset detection + upsert for today. Best-effort:
+            # detection scans a single day's pack.csv rows (cheap) and
+            # upserts the result. The returned record (which may have
+            # nones for milestones still pending) is surfaced on the
+            # harvest panel as a chip.
+            solar_onset = None
+            try:
+                import solar_onset as so_mod
+                rec, _ = so_mod.detect_and_record(pack_csv=CSV_PATH)
+                solar_onset = {
+                    "date": rec.date,
+                    "first_zero_iso": rec.first_zero_iso,
+                    "first_idle_iso": rec.first_idle_iso,
+                    "first_positive_iso": rec.first_positive_iso,
+                    "first_net_positive_iso": rec.first_net_positive_iso,
+                    "smoothed_i_at_net_positive": rec.smoothed_i_at_net_positive,
+                    "soc_avg_at_net_positive": rec.soc_avg_at_net_positive,
+                }
+            except Exception:
+                solar_onset = None
             return self._send(HTTPStatus.OK, "application/json",
                               json.dumps({
                                   "latest": history[-1],
@@ -1281,6 +1374,7 @@ class Handler(BaseHTTPRequestHandler):
                                   "projection": projection,
                                   "recommendation": recommendation,
                                   "today_harvest": today_harvest,
+                                  "solar_onset": solar_onset,
                               }).encode())
         return self._send(HTTPStatus.NOT_FOUND, "text/plain", b"not found")
 

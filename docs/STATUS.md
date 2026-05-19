@@ -143,6 +143,79 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 06:46 🌅 — DAY-2 SOLAR ONSET DETECTED.** First zero
+  crossing at **06:44:10** (1 h 36 min after sunrise on a
+  west-facing array under 100 % cloud); BMS state transitioned
+  from `discharging` to `idle` at **06:46:17** as smoothed current
+  climbed from -2.5 A to -0.4 A in ~3 minutes. Pack SOC at the
+  moment: **66/64 %** — the bottom of today's curve so far. Net-
+  positive (smoothed_i > 0) still pending but very close.
+  - **Design item picked: first-net-positive event detection.**
+    Perfect timing — the day-2 transition we've been watching for
+    landed in this loop's pack.csv samples. Built:
+    - `scripts/solar_onset.py`: detects the day's solar-onset
+      cascade in 4 milestones from pack.csv:
+      `first_zero` → `first_idle` → `first_positive` → `first_net_positive`.
+      Plus snapshots `smoothed_i` and SOC average at the
+      net-positive moment (the bottom of the day's SOC curve —
+      genuinely useful as a calibration check against the
+      advisor's projected_low_soc).
+    - Append-only-with-upsert log at `data/solar_onset.csv`:
+      one row per day, keyed by date. Later detections enrich
+      the row as more milestones land. Idempotent — re-running
+      with the same milestones is a no-op.
+    - The `first_idle` heuristic intentionally requires
+      `first_zero` to have been seen first; otherwise a transient
+      load-lull at 03:00 with |i| < 0.5 A would spuriously match
+      as "idle" before any solar contribution.
+    - CLI: `python3 scripts/solar_onset.py` (detect for today),
+      `--show` (print history), `--date YYYY-MM-DD` (backfill).
+    - Wired into dashboard's `/api/latest.json` so it auto-runs
+      on every page refresh; result surfaces as a new
+      `solar-onset` chip on the harvest panel showing the
+      cascade (`zero 06:44 → idle 06:46 → pos … → net+ …`) and
+      current stage label (`first zero` / `idle` / `transient
+      positive` / `net-positive`). Color shifts green once
+      net-positive is sustained.
+    - **First live record captured**:
+      `date=2026-05-19 first_zero=06:44:10 first_idle=06:44:10
+       first_positive=— first_net_positive=—`
+      (the latter two will fill in once smoothed_i crosses zero
+      later this morning).
+    - 12 regression tests in `tests/test_solar_onset.py` lock
+      down: pre-onset days yield empty records, first_zero is
+      the leading edge, idle requires first_zero to have been
+      seen first (no transient overnight load-lull match),
+      state="idle" string triggers it, full cascade detection,
+      day-boundary key matching (prev day's sun doesn't bleed
+      into today), upsert semantics (write/noop/replace),
+      multi-day chronological ordering, end-to-end detect-record
+      flow. Suite: **189 tests** (177 + 12 new).
+  - **Why this matters**: closes the morning audit trail. Together
+    with the four pre-existing logs (calibration, projection,
+    accuracy, confidence), we now have:
+    - `solar_onset.csv` — when did each day's solar actually start
+      
+    The advisor will eventually use this signal directly — once
+    `first_net_positive_iso` lands well before what the SolarModel
+    would have predicted for cloud cover, that's a calibration
+    update opportunity. Today's data:
+    cloud 100 % + west-facing array + sunrise 05:08 → first_zero
+    at 06:44 (~1.5 h post-sunrise). On a clear day this would be
+    much earlier; we'll see week-over-week.
+  - **Watch**: smoothed_i is still negative but climbing rapidly.
+    Next loop should capture `first_positive` (instantaneous
+    positive surge) and possibly `first_net_positive`. SOC at
+    that moment is genuinely useful for advisor calibration —
+    if it's 65 % and the advisor projected 64 %, that's a 1 pp
+    error on a SECOND independent validation event, complementing
+    the sunrise validation.
+  - Also: irradiance accumulated to 0.044 kWh/m² (0.9 % of the
+    5.11 forecast). The instantaneous shortwave readings hit 53
+    W/m² at 06:34 — enough to nudge the pack to net-zero current
+    under 100 % cloud, which is a remarkable demonstration of how
+    sensitive this system is at the bottom-of-cycle moment.
+
 - **2026-05-19 06:41** — Sunrise +93 min. Pack SOC dropped to **66/64**
   (lost another 1 pp on each side), current up to **-3.0 to -3.2 A**
   (heavier than the -1.7 A blip last loop — that was a load lull,
