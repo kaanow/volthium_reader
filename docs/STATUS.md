@@ -143,6 +143,34 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **23:54** — Late-evening steady. Pack SOC **81/80 %** (-1 % per
+  battery from 82/81 in 34 min). Current jumped to **-8.0 A peak**
+  at the last sample (smoothed -5.73 A) — looks like an unsustained
+  fridge-compressor spike, didn't quite trip the 15 s persistence
+  to log as a heavy-load event. Voltage 26.43 V.
+  **Projection log gained entry #4** at 23:29:46 (perfect cadence).
+  Four entries now; coef holding at 8.149.
+  - Design item: **"best harvest hour today" callout** on the
+    dashboard's peaks subrow.
+  - Backend: new `best_harvest_hour(series)` in
+    `scripts/today_harvest.py` walks the 5-min series the dashboard
+    sparkline already uses, finds the running max per hour with a
+    carry-forward baseline so empty hours can't go negative.
+    Returns `(hour_of_day, ah_in_that_hour)`. Wired into the
+    `peaks` dict output as two new fields.
+  - **Today's data**: `best_harvest_hour: 14, best_harvest_hour_ah:
+    10.03`. The single hour 14:00-15:00 contributed **22 % of the
+    whole day's 45.8 Ah harvest** — concretely confirms the
+    "afternoon over-performance" pattern documented in
+    `loon_lake.md`. Matches the +21.4 A peak charge observed at
+    13:53.
+  - Frontend: new 5th stat tile in the `.peaks` subrow:
+    `14h → 10.0` with the label "best hr (Ah)". Tooltip updated
+    to explain.
+  - **Day-report regenerated** picks this up automatically via
+    the today_harvest snapshot.
+  - All 142 Python tests still pass.
+
 - **23:20** — Steady evening. Pack SOC **82/81 %** (-2 % per battery
   in 33 min, -1 %/16 min cadence holding). Discharging at -4.3 A.
   Voltage 26.46 V. **Projection log gained entry #3** at 23:04:46

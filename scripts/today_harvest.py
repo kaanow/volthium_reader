@@ -280,6 +280,48 @@ def weather_forecast_history(weather_csv: Path, today: date) -> dict:
     }
 
 
+def best_harvest_hour(series: list) -> tuple[Optional[int], Optional[float]]:
+    """Given a 5-min-binned cumulative_solar_ah series (the same one
+    the dashboard sparkline uses), find the (hour_of_day, ah_in_hour)
+    pair that contributed the most Ah today.
+
+    Walks the series, tracks the running cumulative_ah at each hour
+    boundary (last seen value within that hour), and computes
+    per-hour deltas: harvest in hour h = cumulative_at_end_of_h −
+    cumulative_at_end_of_prior_h. Returns the hour with the biggest
+    delta. Empty hours register as 0 and naturally lose.
+
+    Mirrors the dashboard JS's per-hour bar logic so the two views
+    agree on "best hour".
+    """
+    if not series or len(series) < 2:
+        return (None, None)
+
+    last_in_hour: dict[int, float] = {}
+    for minute_of_day, ah in series:
+        h = int(minute_of_day) // 60
+        if 0 <= h < 24:
+            last_in_hour[h] = ah
+
+    # Carry-forward baseline so empty hours produce 0, not negative.
+    baseline = 0.0
+    best_h: Optional[int] = None
+    best_ah: float = -1.0
+    for h in range(24):
+        if h in last_in_hour:
+            delta = max(0.0, last_in_hour[h] - baseline)
+            baseline = last_in_hour[h]
+        else:
+            delta = 0.0
+        if delta > best_ah:
+            best_ah = delta
+            best_h = h
+
+    if best_h is None or best_ah <= 0.0:
+        return (None, None)
+    return (best_h, round(best_ah, 2))
+
+
 def latest_weather_sun_times(weather_csv: Path, today: date) -> tuple[Optional[int], Optional[int]]:
     """Pull today's sunrise/sunset times out of weather.csv and return
     them as minute-of-day integers, suitable for plotting on the
@@ -414,6 +456,11 @@ def snapshot(pack_csv: Path, weather_csv: Path, today: Optional[date] = None) ->
     sunrise_min, sunset_min = latest_weather_sun_times(weather_csv, today)
     forecast_hist = weather_forecast_history(weather_csv, today)
     peaks = compute_today_peaks(pack_csv, today)
+    # Best-harvest-hour fold-in: peaks struct gains two more fields
+    # derived from the 5-min series.
+    best_h, best_h_ah = best_harvest_hour(integrated.get("series", []))
+    peaks["best_harvest_hour"] = best_h
+    peaks["best_harvest_hour_ah"] = best_h_ah
     model = load_solar_model()
 
     forecast_ah: Optional[float] = None

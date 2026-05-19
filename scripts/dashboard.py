@@ -1024,8 +1024,19 @@ async function tick() {
               + "% SOC: highest of either battery.\n"
               + "CHARGING START: HH:MM of the first sample with pack "
               + "current > 1 A — the empirical 'morning shadow cleared' "
-              + "time for this west-facing array."
+              + "time for this west-facing array.\n"
+              + "BEST HOUR: clock hour with the largest Ah delivered today; "
+              + "useful retrospective on when the array peaked."
             );
+            // Best harvest hour (if any solar today). Show as 'HHh' →
+            // 'NN Ah' so the user sees both 'when' and 'how much'.
+            let bestHourStat = "";
+            if (pk.best_harvest_hour != null && pk.best_harvest_hour_ah != null) {
+              const hh = String(pk.best_harvest_hour).padStart(2, "0");
+              bestHourStat =
+                `<span class="stat"><span class="v">${hh}h →${pk.best_harvest_hour_ah.toFixed(1)}</span>`
+                + `<span class="u">best hr (Ah)</span></span>`;
+            }
             return `
               <div class="peaks" title="${pkTip}">
                 <span class="lbl">today's peaks</span>
@@ -1033,6 +1044,7 @@ async function tick() {
                 <span class="stat"><span class="v">${smoothed}</span><span class="u">A smoothed</span></span>
                 <span class="stat"><span class="v">${soc}</span><span class="u">% SOC</span></span>
                 <span class="stat"><span class="v">${startedAt}</span><span class="u">charging start</span></span>
+                ${bestHourStat}
               </div>`;
           })()}
           ${(() => {
