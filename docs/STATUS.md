@@ -143,6 +143,56 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **20:00** — Loop wake — **on the brink of the day-flip moment**.
+  Pack SOC **91/91 %** (ticked down another 1 % per battery from
+  92/92), discharging at sustained -3.7 A baseline. duration_h is
+  reading **20.0** (rounded) but the underlying value is 19.998 —
+  strictly less than 20.0 so the row is still [partial] by one
+  hair. The SolarModel auto-fit hasn't fired yet; calibration_log
+  still single baseline entry. **Next loop will catch the flip.**
+  - This is actually a nice live demonstration of why the strict
+    `duration_h < 20.0` rule matters — at 19:59:54 we're 6 s short
+    of the flip, and the rounded display says "20.0 h" — but the
+    fit eligibility correctly stays partial until the underlying
+    value crosses the threshold. Without the strict `<`, the row
+    could have flipped earlier and corrupted the SolarModel with
+    a partial-day reading.
+  - Live ratio **8.57** (+22.4 % drift, sliding further toward
+    green). Open-Meteo irradiance now 142 W/m² — sun is essentially
+    gone for the day. Sunset is 52 min away.
+  - Day report regenerated; still shows "(partial day so far)".
+  - Design item: **18 regression tests for the new
+    `_markdown_to_html` helper** in `dashboard.py`.
+    The function runs on every `/today-report` and
+    `/report/YYYY-MM-DD` view; previously it was untested. Cases:
+    - Heading levels promote correctly (# → h2, ## → h3, ### → h4).
+    - Inline formatters: `**bold**`, `*italic*`, `` `code` ``,
+      `[text](url)`.
+    - Bold + italic on the same line — neither pattern swallows
+      the other (regex non-overlap).
+    - Lists: `- item` collects into `<ul>`, properly closes on a
+      blank line before the next paragraph, supports inline
+      formatting inside items.
+    - Tables: `| col | col |` rows render as proper
+      `<table><thead>/<tbody>` with the `|---|---|` separator
+      ROW excluded from data.
+    - Tables terminate cleanly when the next line isn't a row.
+    - **HTML-escaping safety**: `<` and `>` in user content
+      escape, including content INSIDE `**bold**` — proves a
+      malicious-looking `**<script>alert(1)</script>**` cannot
+      break out (it doesn't actually parse to HTML).
+    - Empty input / blank-lines-only / unrecognized line all
+      degrade gracefully.
+  - **129 Python tests pass** (up from 111). Suite total
+    assertion-points: 129 Py + 22 wire-C + 17 est-C + 4 wire-cross
+    + 49 est-cross = **221**, all green.
+  - Tests are intentionally pinned to the **specific markdown
+    subset** that `end_of_day_report.build_report` emits — not a
+    full CommonMark spec. If we ever switch to a real markdown
+    library, all these tests will keep working (the library's
+    superset). And until we do, they lock down our hand-rolled
+    parser's behaviour.
+
 - **19:32** — Loop wake. **First SOC tick down of the evening**:
   pack **92/92 %** (was 93/93 all afternoon). Discharging at
   sustained -4.1 A baseline (smoothed -4.10 A, fully settled).
