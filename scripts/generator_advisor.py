@@ -579,6 +579,24 @@ def main() -> int:
         coefficient=solar.coefficient_ah_per_kwh_m2,
     )
 
+    # Append a row to data/live_ratio_log.csv (rate-limited, ~25 min
+    # min interval). Foundation for the future drift-over-time chart.
+    # Best-effort: try/except so logging failures never block the
+    # advisor's verdict.
+    try:
+        import live_ratio_log as live_ratio_log_mod
+        live_ratio_log_mod.record_if_due(
+            live_ratio_ah_per_kwh_m2=live_ratio,
+            solar_ah_so_far=solar_ah_so_far,
+            irradiance_kwh_m2_so_far=irradiance_so_far,
+            solar_model_coefficient=solar.coefficient_ah_per_kwh_m2,
+            drift_pct=model_drift_pct,
+            advisory_fired=(model_drift_advisory is not None),
+            now=now,
+        )
+    except Exception:
+        pass
+
     today_kwh, tomorrow_kwh = weather_mod.fetch_today_tomorrow_irradiance()
     # Fall back to weather.csv's today value if the live API isn't reachable
     if today_kwh is None:

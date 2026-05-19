@@ -143,6 +143,62 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 11:42** — BLE logger **recovered** (no STALE flag).
+  SOC ticked up to **67/65** (both batteries +1 from last loop).
+  `solar_ah_so_far` jumped 4.1 → **6.1 Ah** in 32 min — afternoon
+  catch-up underway as cloud (73 %) thins enough for shortwave to
+  hit **555 W/m²** (highest of the day). Pack reading -37.5 A
+  instantaneous (load spike) but smoothed_i -1.0 A — momentary
+  artifact, not real. Drift advisory still firing at -30.3 % —
+  but now arguably a **true positive**: today's overall live_ratio
+  has genuinely been bad because the morning load surge ate into
+  solar gain. The disentangling from last loop makes both
+  interpretations legible.
+  - **Design item picked: live_ratio sample logger.** Records the
+    advisor's live_ratio + drift snapshot on each invocation,
+    rate-limited at 25 min (matches projection_log cadence).
+    Foundation for the future drift-over-time chart.
+    - `scripts/live_ratio_log.py`: new append-only CSV at
+      `data/live_ratio_log.csv`. Schema: `ts,
+      live_ratio_ah_per_kwh_m2, solar_ah_so_far,
+      irradiance_kwh_m2_so_far, solar_model_coefficient,
+      drift_pct, advisory_fired`. `record_if_due()` skips
+      writing when live_ratio is None (early-morning threshold-
+      guarded state) so we don't pollute the log with empty
+      rows.
+    - Wired into `scripts/generator_advisor.py` right after
+      `compute_model_drift()`. Best-effort try/except so a
+      logging failure can't block the verdict. Same pattern as
+      `projection_log` and `confidence_log`.
+    - First live row landed this loop:
+      `ts=11:44:25 ratio=5.73 solar_ah=6.26 irr=1.09 coef=8.15
+      drift=-29.7 adv=yes`. The drift advisory is captured in
+      the log AND on the headline chip simultaneously — a future
+      chart will overlay them on the same timeline.
+    - 8 regression tests in `tests/test_live_ratio_log.py`:
+      empty-log read, first-row-writes, None-handling (skips
+      early morning), rate-limit prevents duplicates,
+      writes-again-after-interval, CSV round-trip with the
+      advisory_fired flag, header written, default-constant
+      anchor. Suite: **253 tests passing** (was 245, +8 new).
+  - **Why this matters**: the system now has a **sixth log**
+    feeding the audit trail:
+    1. `calibration_log.csv` — SolarModel coefficient changes
+    2. `projection_log.csv` — each projection snapshot
+    3. `projection_accuracy` (derived) — sunrise SOC validation
+    4. `low_soc_accuracy` (derived) — morning-low validation
+    5. `confidence_log.csv` — lift-state transitions
+    6. `solar_onset.csv` — morning cascade milestones
+    7. **`live_ratio_log.csv`** (NEW) — drift over time
+    The drift chart can now be built directly against this
+    log without back-computing from older logs. Logs that
+    accumulate from "now" onward will be sparse at first but
+    become genuinely informative over 7+ days.
+  - **Watch**: the next 25 min cadence will produce a second
+    row; we can confirm rate-limit is firing as designed. Over
+    a week the log will show how live_ratio evolves day-by-day
+    and against changing SolarModel coefficients.
+
 - **2026-05-19 11:17 ⚠ — BLE logger genuinely flaky today.** Health
   check showed `⚠ STALE: 6 min since last sample` AND `DRIFT
   -40.1% ⚠ advisory` simultaneously — exactly the pair the
