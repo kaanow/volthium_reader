@@ -249,6 +249,153 @@ class TestHealthSummary(unittest.TestCase):
         future = (datetime.now() + timedelta(hours=1)).isoformat()
         self.assertEqual(health_mod._staleness_seconds(future), 0.0)
 
+    # ---------- BLE gap tracker ----------
+
+    def test_compute_pack_gaps_no_file(self) -> None:
+        """Missing pack.csv → (0, 0, 0, 0) — defensive."""
+        # Don't write pack.csv (setUp already left it absent)
+        out = health_mod.compute_today_pack_gaps(day=datetime(2026, 5, 19))
+        self.assertEqual(out, (0, 0.0, 0.0, 0))
+
+    def test_compute_pack_gaps_clean_day(self) -> None:
+        """A day with consistent 10 s sample cadence → 0 gaps."""
+        path = self.root / "data" / "pack.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=[
+                "ts", "state", "pack_v", "pack_i", "smoothed_i",
+                "soc_a", "soc_b",
+            ])
+            w.writeheader()
+            base = datetime(2026, 5, 19, 10, 0, 0)
+            for i in range(6):
+                w.writerow({
+                    "ts": (base + timedelta(seconds=10 * i)).isoformat(),
+                    "state": "charging", "pack_v": "26.40",
+                    "pack_i": "3.0", "smoothed_i": "2.8",
+                    "soc_a": "70", "soc_b": "68",
+                })
+        gap_count, max_gap, total_gap, n = health_mod.compute_today_pack_gaps(
+            day=datetime(2026, 5, 19))
+        self.assertEqual(gap_count, 0)
+        self.assertEqual(max_gap, 0.0)
+        self.assertEqual(total_gap, 0.0)
+        self.assertEqual(n, 6)
+
+    def test_compute_pack_gaps_with_one_stall(self) -> None:
+        """Today has one 5-min gap → gap_count=1, max=300, total=300."""
+        path = self.root / "data" / "pack.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=[
+                "ts", "state", "pack_v", "pack_i", "smoothed_i",
+                "soc_a", "soc_b",
+            ])
+            w.writeheader()
+            t0 = datetime(2026, 5, 19, 10, 0, 0)
+            # First sample at 10:00
+            w.writerow({"ts": t0.isoformat(), "state": "idle",
+                        "pack_v": "26.30", "pack_i": "0.0",
+                        "smoothed_i": "0.0", "soc_a": "70", "soc_b": "68"})
+            # Next sample 5 min later — 300 s gap
+            w.writerow({"ts": (t0 + timedelta(minutes=5)).isoformat(),
+                        "state": "idle",
+                        "pack_v": "26.30", "pack_i": "0.0",
+                        "smoothed_i": "0.0", "soc_a": "70", "soc_b": "68"})
+        gap_count, max_gap, total_gap, _ = health_mod.compute_today_pack_gaps(
+            day=datetime(2026, 5, 19))
+        self.assertEqual(gap_count, 1)
+        self.assertAlmostEqual(max_gap, 300.0, delta=1.0)
+        self.assertAlmostEqual(total_gap, 300.0, delta=1.0)
+
+    def test_compute_pack_gaps_multiple_events(self) -> None:
+        """Today has two distinct stalls → gap_count=2, max=largest,
+        total=sum. Anchors that the tracker correctly sums multiple
+        events (exactly what we saw at the cabin today)."""
+        path = self.root / "data" / "pack.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=[
+                "ts", "state", "pack_v", "pack_i", "smoothed_i",
+                "soc_a", "soc_b",
+            ])
+            w.writeheader()
+            base = datetime(2026, 5, 19, 10, 0, 0)
+            # Samples at 10:00:00, 10:00:10, then gap 5 min to 10:05:10,
+            # then gap 10 min to 10:15:10
+            stamps = [
+                base,
+                base + timedelta(seconds=10),
+                base + timedelta(minutes=5, seconds=10),
+                base + timedelta(minutes=15, seconds=10),
+            ]
+            for ts in stamps:
+                w.writerow({"ts": ts.isoformat(), "state": "idle",
+                            "pack_v": "26.30", "pack_i": "0.0",
+                            "smoothed_i": "0.0", "soc_a": "70",
+                            "soc_b": "68"})
+        gap_count, max_gap, total_gap, _ = health_mod.compute_today_pack_gaps(
+            day=datetime(2026, 5, 19))
+        self.assertEqual(gap_count, 2)
+        # Larger gap is 10 min = 600 s
+        self.assertAlmostEqual(max_gap, 600.0, delta=1.0)
+        # Total: 300 + 600 = 900 s
+        self.assertAlmostEqual(total_gap, 900.0, delta=1.0)
+
+    def test_compute_pack_gaps_ignores_other_days(self) -> None:
+        """A gap that spans midnight (or samples from yesterday) must
+        not bleed into today's counter."""
+        path = self.root / "data" / "pack.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=[
+                "ts", "state", "pack_v", "pack_i", "smoothed_i",
+                "soc_a", "soc_b",
+            ])
+            w.writeheader()
+            # Yesterday — should be ignored
+            w.writerow({"ts": "2026-05-18T23:50:00", "state": "idle",
+                        "pack_v": "26.30", "pack_i": "0.0",
+                        "smoothed_i": "0.0",
+                        "soc_a": "70", "soc_b": "68"})
+            # Today, clean
+            w.writerow({"ts": "2026-05-19T10:00:00", "state": "idle",
+                        "pack_v": "26.30", "pack_i": "0.0",
+                        "smoothed_i": "0.0",
+                        "soc_a": "70", "soc_b": "68"})
+            w.writerow({"ts": "2026-05-19T10:00:10", "state": "idle",
+                        "pack_v": "26.30", "pack_i": "0.0",
+                        "smoothed_i": "0.0",
+                        "soc_a": "70", "soc_b": "68"})
+        gap_count, _, _, n = health_mod.compute_today_pack_gaps(
+            day=datetime(2026, 5, 19))
+        # Today has 2 clean samples 10 s apart → 0 gaps
+        self.assertEqual(gap_count, 0)
+        self.assertEqual(n, 2)  # only today's samples counted
+
+    def test_summary_includes_pack_gaps_line_when_gaps_exist(self) -> None:
+        """Day with gaps → 'PACK GAPS' line appears in the summary.
+        Day with clean cadence → line is OMITTED entirely (happy
+        path is silence)."""
+        path = self.root / "data" / "pack.csv"
+        # Day with a clear stall
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=[
+                "ts", "state", "pack_v", "pack_i", "smoothed_i",
+                "soc_a", "soc_b",
+            ])
+            w.writeheader()
+            today = datetime.now()
+            w.writerow({"ts": today.isoformat(timespec="seconds"),
+                        "state": "idle", "pack_v": "26.30",
+                        "pack_i": "0.0", "smoothed_i": "0.0",
+                        "soc_a": "70", "soc_b": "68"})
+            w.writerow({
+                "ts": (today + timedelta(minutes=10)).isoformat(timespec="seconds"),
+                "state": "idle", "pack_v": "26.30",
+                "pack_i": "0.0", "smoothed_i": "0.0",
+                "soc_a": "70", "soc_b": "68"})
+        out = health_mod.render_summary()
+        self.assertIn("PACK GAPS", out)
+        self.assertIn("1 event", out)
+        self.assertIn("10 min", out)
+
 
 if __name__ == "__main__":
     unittest.main()

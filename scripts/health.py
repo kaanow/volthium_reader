@@ -96,6 +96,70 @@ def _fmt_age(seconds: float) -> str:
     return f"{seconds / 86400:.1f} d"
 
 
+def compute_today_pack_gaps(
+    pack_csv: Path = PACK_CSV,
+    day: Optional[datetime] = None,
+    gap_threshold_s: float = PACK_STALE_THRESHOLD_S,
+) -> tuple[int, float, float, int]:
+    """Scan pack.csv for `day` (default today) and return tuple
+    (gap_count, max_gap_s, total_gap_s, sample_count) where a "gap"
+    is any consecutive-timestamp delta exceeding gap_threshold_s.
+
+    The BLE logger writes pack samples at ~10 s cadence; any delta
+    above gap_threshold_s indicates the logger stalled (BLE
+    disconnect, sleep, crashed daemon, etc.). Useful as a daily
+    reliability metric.
+
+    Returns (0, 0.0, 0.0, 0) on missing file or empty/single-row
+    day. `sample_count` lets callers compute uptime percentage.
+    """
+    if not pack_csv.exists():
+        return (0, 0.0, 0.0, 0)
+    if day is None:
+        day = datetime.now()
+    iso_prefix = day.strftime("%Y-%m-%d")
+    prev_ts: Optional[datetime] = None
+    gap_count = 0
+    max_gap = 0.0
+    total_gap = 0.0
+    sample_count = 0
+    with pack_csv.open() as f:
+        for r in csv.DictReader(f):
+            ts_str = r.get("ts", "")
+            if not ts_str.startswith(iso_prefix):
+                continue
+            try:
+                ts = datetime.fromisoformat(ts_str)
+            except ValueError:
+                continue
+            sample_count += 1
+            if prev_ts is not None:
+                delta = (ts - prev_ts).total_seconds()
+                if delta > gap_threshold_s:
+                    gap_count += 1
+                    if delta > max_gap:
+                        max_gap = delta
+                    total_gap += delta
+            prev_ts = ts
+    return (gap_count, max_gap, total_gap, sample_count)
+
+
+def _fmt_pack_gaps_line(pack_csv: Path = PACK_CSV,
+                        day: Optional[datetime] = None) -> Optional[str]:
+    """Return a "PACK GAPS  N events, max X, total Y today" line when
+    today has at least one logger gap above threshold, else None
+    (caller skips the line — no gap is the happy path)."""
+    gap_count, max_gap, total_gap, _ = compute_today_pack_gaps(
+        pack_csv=pack_csv, day=day,
+    )
+    if gap_count == 0:
+        return None
+    plural = "" if gap_count == 1 else "s"
+    return (f"PACK GAPS    {gap_count} event{plural}, "
+            f"max {_fmt_age(max_gap)}, "
+            f"total {_fmt_age(total_gap)} today")
+
+
 def _fmt_pack_line(row: Optional[dict],
                    now: Optional[datetime] = None) -> str:
     if not row:
@@ -273,6 +337,11 @@ def render_summary() -> str:
                  f"({now:%Y-%m-%d %H:%M}) ===")
     lines.append("")
     lines.append(_fmt_pack_line(_last_pack_row(), now=now))
+    # PACK GAPS appears only when today has BLE logger gaps — the
+    # happy path is silence.
+    gaps_line = _fmt_pack_gaps_line(day=now)
+    if gaps_line is not None:
+        lines.append(gaps_line)
     lines.append(_fmt_today_line(now=now))
     lines.append(_fmt_solar_onset_line())
     lines.append("")

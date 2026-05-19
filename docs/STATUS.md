@@ -143,6 +143,54 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 11:50 ☀☀ — solar pumping at peak.** Pack on full
+  charge: pack_i **+15.8 A**, smoothed_i **+11.8 A**, pack_v
+  **26.62 V** (highest of the day). SOC 67/65. Cloud 73 %,
+  shortwave 555 W/m². live_ratio_log still shows just the 11:44
+  row — rate-limit working (25 min not yet elapsed). Drift
+  narrowing: -29.7% → -26.0% as solar Ah accumulates.
+  - **Design item picked: BLE-logger gap tracker in health.py.**
+    Today had real BLE stalls (28 min + ~6 min). The CLI's STALE
+    flag shows "is it stale right now"; the new gap tracker
+    summarizes today's overall logger reliability.
+    - `scripts/health.py`: new pure helper
+      `compute_today_pack_gaps(pack_csv, day, gap_threshold_s)`
+      scans pack.csv for the requested day and returns
+      `(gap_count, max_gap_s, total_gap_s, sample_count)`.
+      A "gap" is any consecutive-timestamp delta exceeding
+      `PACK_STALE_THRESHOLD_S` (60 s).
+    - `_fmt_pack_gaps_line()` formats it as
+      `PACK GAPS    N events, max X, total Y today` and is
+      omitted entirely when there are no gaps (happy path is
+      silence). Wired into `render_summary()` between PACK and
+      TODAY lines.
+    - **Today's live output**:
+      `PACK GAPS    2 events, max 29 min, total 35 min today`
+      — caught the morning's reliability story directly. Both
+      gaps were the BLE-logger blips we saw earlier (the 28-min
+      one that fired the false drift advisory at 11:12, plus
+      a smaller one earlier).
+    - 6 regression tests in `tests/test_health.py`:
+      missing-file, clean-day (0 gaps), single-stall, multiple
+      events (sum/max correct), ignores other days (no bleed
+      across midnight), end-to-end summary integration.
+      Suite: **259 tests passing** (was 253, +6 new).
+  - **Why this matters**: complements the existing staleness
+    surfaces:
+    - `⚠ STALE` flag → "right now, data is X min old"
+    - `PACK GAPS` line → "today, X events, total Y down"
+    
+    Together they answer "is the logger healthy?" at both
+    point-in-time and aggregate timescales. If gap count keeps
+    climbing across loops, that's a clear signal to investigate
+    the cabin BLE setup.
+  - **Watch**: with cloud thinning and pack absorbing strong
+    current (+11.8 A smoothed), the afternoon should keep
+    delivering Ah. Forecast was 41.7 Ah/day and we're at 7.1 Ah
+    after 11.9 h of daylight — only 17% delivered. The
+    afternoon may close some of that gap if cloud holds at
+    < 75 %.
+
 - **2026-05-19 11:42** — BLE logger **recovered** (no STALE flag).
   SOC ticked up to **67/65** (both batteries +1 from last loop).
   `solar_ah_so_far` jumped 4.1 → **6.1 Ah** in 32 min — afternoon
