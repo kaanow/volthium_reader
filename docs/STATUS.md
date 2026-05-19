@@ -143,6 +143,61 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 12:46 — drift advisory CLEARED + SOC +2/+2.** Pack
+  recovered hard: SOC **70/68** (was 68/66 last loop), pack_i
+  **+15.5 A** charging, pack_v **26.69 V** (highest of day),
+  smoothed_i **+15.8 A**. `solar_ah_so_far` jumped **+3.3 Ah** to
+  11.8 (28% of forecast). live_ratio climbed back to **7.06**,
+  drift narrowed to **-13.4% — within threshold**, advisory cleared.
+  live_ratio_log row #3 landed at 12:35:45 (ratio 5.92, drift -27.4,
+  still in advisory zone — afternoon catch-up happened in the
+  10-min gap between row-write and health check).
+  - **Design item picked: PACK GAPS section on day-report.** The
+    health snapshot at the top already shows the daily summary
+    line; this commit adds a dedicated `## BLE logger reliability`
+    section with per-gap event detail. Grep-able across reports
+    for week-over-week uptime trends.
+    - `scripts/health.py`: new sister helper
+      `today_pack_gap_events(pack_csv, day, gap_threshold_s)`
+      returns `list[(gap_start_iso, gap_end_iso, gap_s)]`. Same
+      threshold (60 s) as the summary helper but enumerates each
+      event individually.
+    - `scripts/end_of_day_report.py`: new
+      `## BLE logger reliability` section between Confidence-lift
+      events and Cross-references. Renders either:
+      - **Clean day**: "Clean day — no BLE-logger gaps over 60 s"
+      - **Day with gaps**: summary line + markdown table with
+        `gap # | last sample before | next sample after | duration`
+        for each event.
+    - **Today's archived output**:
+      ```
+      | 1 | 10:41:59 | 11:11:02 | 29 min |
+      | 2 | 11:11:02 | 11:17:17 |  6 min |
+      ```
+      Future operators reading 2026-05-19's report see the exact
+      morning blip story.
+    - **Subtle Python bug caught**: a naive `import health as
+      health_mod` inside the new section's try/except shadowed
+      the top-of-file import as a function-scope name, breaking
+      the earlier `## Health snapshot` section's
+      `render_summary()` call (UnboundLocalError). Fixed by
+      removing the redundant local import — the top-level
+      binding already provides it. Added comment so the gotcha
+      doesn't recur.
+    - 2 regression tests in `test_end_of_day_report.py`:
+      `test_ble_logger_section_clean_day_message` (empty
+      pack.csv → "Clean day" branch), `test_ble_logger_section_renders_events`
+      (one 10-min gap → table row with start/end/duration).
+      Suite: **265 tests passing** (was 263, +2 new).
+  - **Why this matters**: the chain of operational signals now
+    spans real-time (stale-data banner on dashboard), aggregate
+    (PACK GAPS chip + line), AND archival (this day-report
+    section). The full BLE-logger reliability story is captured
+    on three timescales without any single surface being noisy.
+  - **Watch**: row #4 in live_ratio_log lands ~13:00. Pack
+    accelerating — `solar_ah_so_far` could reach 20+ Ah by
+    sunset if the current rate (+3.3 Ah / 32 min) holds.
+
 - **2026-05-19 12:21** — Pack at solar/load equilibrium again
   (pack_i 0.0 A momentary, smoothed +1.5 A — still net charging).
   SOC holding 68/66. `solar_ah_so_far = 9.0 Ah` (+0.5 since last

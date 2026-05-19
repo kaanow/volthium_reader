@@ -96,6 +96,47 @@ def _fmt_age(seconds: float) -> str:
     return f"{seconds / 86400:.1f} d"
 
 
+def today_pack_gap_events(
+    pack_csv: Path = PACK_CSV,
+    day: Optional[datetime] = None,
+    gap_threshold_s: float = PACK_STALE_THRESHOLD_S,
+) -> list[tuple[str, str, float]]:
+    """Return the day's individual BLE-logger gap events as
+    [(gap_start_iso, gap_end_iso, gap_duration_s), ...].
+
+    The start_iso is the LAST sample BEFORE the gap; end_iso is the
+    NEXT sample AFTER the gap. Both as ISO timestamps. Useful when
+    the day-report wants to enumerate each event, vs the summary
+    helper which collapses to counts.
+
+    Returns [] when no gaps, missing file, or no samples for `day`.
+    """
+    if not pack_csv.exists():
+        return []
+    if day is None:
+        day = datetime.now()
+    iso_prefix = day.strftime("%Y-%m-%d")
+    prev_ts_dt: Optional[datetime] = None
+    prev_ts_str: str = ""
+    events: list[tuple[str, str, float]] = []
+    with pack_csv.open() as f:
+        for r in csv.DictReader(f):
+            ts_str = r.get("ts", "")
+            if not ts_str.startswith(iso_prefix):
+                continue
+            try:
+                ts = datetime.fromisoformat(ts_str)
+            except ValueError:
+                continue
+            if prev_ts_dt is not None:
+                delta = (ts - prev_ts_dt).total_seconds()
+                if delta > gap_threshold_s:
+                    events.append((prev_ts_str, ts_str, delta))
+            prev_ts_dt = ts
+            prev_ts_str = ts_str
+    return events
+
+
 def compute_today_pack_gaps(
     pack_csv: Path = PACK_CSV,
     day: Optional[datetime] = None,

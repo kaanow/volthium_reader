@@ -818,6 +818,40 @@ class TestBuildReport(unittest.TestCase):
         # (Different target day; would only show on 2025-01-11's report)
         self.assertNotIn("| 2025-01-10T22:00 | 60.0", md)
 
+    # ---------- BLE logger reliability section ----------
+
+    def test_ble_logger_section_clean_day_message(self) -> None:
+        """No gaps in pack.csv → 'Clean day' message in the new
+        ## BLE logger reliability section."""
+        # Empty/no pack.csv → no events → clean-day message
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("## BLE logger reliability", md)
+        self.assertIn("Clean day", md)
+        # No event table when clean
+        self.assertNotIn("| gap # | last sample before |", md)
+
+    def test_ble_logger_section_renders_events(self) -> None:
+        """When pack.csv has gaps, the section lists each event with
+        start, end, and duration in a markdown table."""
+        # Build a pack.csv with one obvious 10-min gap
+        self._write_pack([
+            {"ts": "2026-05-19T10:00:00", "state": "idle",
+             "pack_v": "26.30", "pack_i": "0.0", "smoothed_i": "0.0",
+             "soc_a": "70", "soc_b": "68"},
+            # 10-minute gap before next sample
+            {"ts": "2026-05-19T10:10:00", "state": "idle",
+             "pack_v": "26.30", "pack_i": "0.0", "smoothed_i": "0.0",
+             "soc_a": "70", "soc_b": "68"},
+        ])
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        # Headline summary
+        self.assertIn("1 BLE-logger gap today", md)
+        self.assertIn("max 10 min", md)
+        # Event table with the start and end timestamps
+        self.assertIn("| gap # | last sample before | next sample after | duration |", md)
+        self.assertIn("| 1 | 10:00:00 | 10:10:00 | 10 min |", md)
+
+
     def test_confidence_lift_section_filters_other_days_out(self) -> None:
         """A log with events on multiple days should only show this
         day's events. Prevents older transitions from contaminating

@@ -519,6 +519,59 @@ def build_report(day: date) -> str:
                      "prior transition.)")
     lines.append("")
 
+    # ---------- BLE logger reliability ----------
+    # Per-day archive of pack.csv gaps (BLE-logger stalls). Pairs
+    # with the health-snapshot PACK GAPS line at the top, but goes
+    # further by enumerating each individual event. Grep-able
+    # across reports: e.g. `grep -A 8 "BLE logger reliability"
+    # data/reports/*.md` for week-over-week uptime trend.
+    lines.append("## BLE logger reliability")
+    lines.append("")
+    try:
+        # health_mod is the top-of-file import; re-importing locally
+        # would shadow it as a function-scope name and break the
+        # earlier `## Health snapshot` section's render_summary() call.
+        events = health_mod.today_pack_gap_events(
+            pack_csv=Path("data/pack.csv"),
+            day=datetime.combine(day, datetime.min.time()),
+        )
+    except Exception:
+        events = []
+
+    if not events:
+        lines.append("**Clean day** — no BLE-logger gaps over 60 s "
+                     "between consecutive pack samples. The cabin's "
+                     "Volthium Monitor.app held a continuous BLE link "
+                     "to both batteries.")
+    else:
+        total_s = sum(e[2] for e in events)
+        max_s = max(e[2] for e in events)
+        plural = "" if len(events) == 1 else "s"
+
+        def _fmt_dur(s: float) -> str:
+            if s < 90:
+                return f"{int(s)} s"
+            if s < 60 * 90:
+                return f"{int(s / 60)} min"
+            return f"{s / 3600:.1f} h"
+
+        lines.append(
+            f"{len(events)} BLE-logger gap{plural} today: "
+            f"max {_fmt_dur(max_s)}, total {_fmt_dur(total_s)} "
+            f"downtime. Each gap is a stretch where pack.csv had no "
+            f"sample for more than 60 s — likely the macOS BLE stack "
+            f"sleeping or a battery's BLE radio dropping the link."
+        )
+        lines.append("")
+        lines.append("| gap # | last sample before | next sample after | duration |")
+        lines.append("|------:|--------------------|-------------------|---------:|")
+        for i, (start_iso, end_iso, dur) in enumerate(events, start=1):
+            # Display ts as HH:MM:SS slice for readability
+            s_short = start_iso[11:19] if len(start_iso) >= 19 else start_iso
+            e_short = end_iso[11:19] if len(end_iso) >= 19 else end_iso
+            lines.append(f"| {i} | {s_short} | {e_short} | {_fmt_dur(dur)} |")
+    lines.append("")
+
     # ---------- Cross-refs ----------
     lines.append("## Cross-references")
     lines.append("")
