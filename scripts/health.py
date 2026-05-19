@@ -124,7 +124,10 @@ def _fmt_solar_model_line() -> str:
     entries = cal_mod.read_log()
     if not entries:
         return "SOLAR MODEL  (no calibration_log entries yet)"
-    e = entries[-1]
+    # Pick the chronologically-latest entry (the production log is
+    # append-only by ts, but defensive sort handles out-of-order
+    # appends from test fixtures or manual edits)
+    e = max(entries, key=lambda r: r.ts)
     return (f"SOLAR MODEL  coef {e.coefficient:.3f}  "
             f"({e.n_observations} obs, {e.confidence} conf, "
             f"fit {e.ts[:16]})")
@@ -134,7 +137,9 @@ def _fmt_confidence_line() -> str:
     entries = conf_mod.read_log()
     if not entries:
         return "CONFIDENCE   (no transitions logged yet)"
-    e = entries[-1]
+    # Pick the chronologically-latest entry (defensive against
+    # out-of-order appends; production is append-only by ts)
+    e = max(entries, key=lambda r: r.ts)
     lifted = "lifted" if e.lifted else "not lifted"
     ae = (f"±{e.recent_abs_error_pp:.2f} pp" if e.recent_abs_error_pp is not None
           else "—")

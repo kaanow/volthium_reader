@@ -163,12 +163,36 @@ class TestBuildReport(unittest.TestCase):
         md = end_of_day_report_mod.build_report(date(2026, 5, 18))
         self.assertIn("Day report — 2026-05-18", md)
         self.assertIn("Day in progress.", md)
-        # The five major sections must all be present
+        # The major sections must all be present
+        self.assertIn("## Health snapshot", md)
         self.assertIn("## Pack", md)
         self.assertIn("## Solar harvest", md)
         self.assertIn("## Weather", md)
         self.assertIn("## SolarModel state", md)
         self.assertIn("## Cross-references", md)
+
+    def test_health_snapshot_section_renders_at_top(self) -> None:
+        """The "## Health snapshot" section appears RIGHT AFTER the
+        Summary line and BEFORE the per-chain detail sections.
+        Anchors the document structure so a future refactor can't
+        silently push the snapshot to the bottom (defeating its
+        purpose as a quick-scan opener)."""
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        health_idx = md.find("## Health snapshot")
+        pack_idx = md.find("## Pack")
+        summary_idx = md.find("**Summary**")
+        self.assertGreater(health_idx, summary_idx,
+                           "Health snapshot must come after **Summary**")
+        self.assertLess(health_idx, pack_idx,
+                        "Health snapshot must come before ## Pack")
+        # Code-fence wrapper preserves the monospace layout
+        self.assertIn("```\n=== Volthium pack health summary", md)
+        # All 10 chain labels present in the embedded summary
+        for label in ("PACK", "TODAY", "SOLAR ONSET", "SOLAR MODEL",
+                      "CONFIDENCE", "SUNRISE ACC", "MORN-LOW ACC",
+                      "DRIFT", "PROJECTION", "ADVISORY"):
+            self.assertIn(label, md,
+                          f"Health snapshot missing chain label '{label}'")
 
     def test_partial_day_shows_partial_tag(self) -> None:
         """A daily_summary row with partial=True → '*(partial day so far)*'."""

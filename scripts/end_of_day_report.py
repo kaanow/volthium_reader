@@ -35,6 +35,7 @@ import projection_accuracy as projection_accuracy_mod  # noqa: E402
 import solar_onset as solar_onset_mod  # noqa: E402
 import confidence_log as confidence_log_mod  # noqa: E402
 import low_soc_accuracy as low_soc_accuracy_mod  # noqa: E402
+import health as health_mod  # noqa: E402
 
 
 def _f(v) -> Optional[float]:
@@ -143,6 +144,24 @@ def build_report(day: date) -> str:
 
     summary = _build_summary_sentence(snap, daily_row)
     lines.append(f"**Summary**: {summary}")
+    lines.append("")
+
+    # ---------- Health snapshot ----------
+    # At-a-glance one-screen state captured at report-build time.
+    # Identical content to `python3 scripts/health.py` and the
+    # dashboard's /health route — same render_summary() function so
+    # the three surfaces never diverge. Embedded in a fenced code
+    # block so the markdown viewer preserves the monospace layout.
+    lines.append("## Health snapshot")
+    lines.append("")
+    try:
+        health_text = health_mod.render_summary()
+    except Exception as e:
+        health_text = f"(could not build health snapshot: {e})"
+    lines.append("```")
+    # Strip trailing newline if any (the render_summary() adds one)
+    lines.append(health_text.rstrip("\n"))
+    lines.append("```")
     lines.append("")
 
     # ---------- Pack ----------

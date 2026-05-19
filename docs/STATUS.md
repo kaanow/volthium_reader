@@ -143,6 +143,58 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 10:46 — load surge eats the morning's solar gain.**
+  Pack flipped back to **discharging** (pack_i -4.1 A, smoothed
+  -3.9 A, voltage dropped to **26.28 V**). SOC holds at 66/64.
+  `solar_ah_so_far` stuck at 4.1 Ah — the load is consuming faster
+  than solar can replace, even with cloud cover at 75% and
+  shortwave 400 W/m². live_ratio drifted to **6.94** (-14.8%
+  vs model 8.15), still under the 20% advisory threshold. The
+  CLI `health.py` captured this state shift in one screen — exactly
+  the use case the command was built for.
+  - **Design item picked: add health summary to day-report top.**
+    Completes the symmetry with last loop's `/health` dashboard
+    route. Health snapshot is now archived in markdown for every
+    historical day.
+    - `scripts/end_of_day_report.py`: new `## Health snapshot`
+      section between `**Summary**` and `## Pack`. Embeds
+      `health.render_summary()` output in a fenced code block
+      to preserve the monospace tabular layout. Identical
+      content to the CLI command and the `/health` route.
+    - The snapshot becomes the day-report's **opening overview** —
+      a future reader scanning the markdown archive sees the
+      day's at-a-glance state immediately, before drilling into
+      the per-chain detail sections below.
+    - Defensive fix: `health.py`'s `_fmt_solar_model_line()` and
+      `_fmt_confidence_line()` now select entries by
+      `max(...key=ts)` instead of `entries[-1]` so they're
+      robust to out-of-order log appends (e.g. from test
+      fixtures or manual edits). Production logs are append-only
+      by ts, but the defensive sort costs nothing.
+    - 1 regression test added:
+      `test_health_snapshot_section_renders_at_top` pins the
+      section to its position (after Summary, before Pack) and
+      anchors all 10 chain labels in the embedded snapshot.
+      Suite: **240 tests passing** (was 239, +1 new).
+  - **Why this matters**: closes the triangle. The same content
+    now lives on **four surfaces**:
+    1. CLI (`python3 scripts/health.py`)
+    2. Dashboard footer link → `/health` HTML page
+    3. Direct browser bookmark to `/health` (auto-refreshes
+       every 30 s)
+    4. **Day-report markdown archive** (this loop) — captures
+       the snapshot at the moment the report is built
+    
+    A future operator investigating "what was system state on
+    2026-05-21?" opens that day's report and the snapshot tops
+    the page. Investigating an anomaly across days becomes:
+    `grep -A 12 "Health snapshot" data/reports/*.md`.
+  - **Watch**: if solar returns this afternoon (cloud is still
+    breaking — 75% holding), live_ratio should climb back. The
+    drift advisory band has been doing useful work today,
+    bouncing between -6% (good) and -21% (advisory firing) as
+    the load and solar each take turns dominating.
+
 - **2026-05-19 10:38 ☀☀ — sky is genuinely clearing.** Major
   weather shift: cloud **96% → 75%**, shortwave **238 → 400 W/m²**,
   weather_code 51 (drizzle) → **2 (partly cloudy)**. Pack momentarily
