@@ -252,6 +252,30 @@ class TestDashboardRoutes(unittest.TestCase):
         # context so a new reader understands what they're looking at.
         self.assertIn(b"projected_low_soc", body)
 
+    def test_index_includes_stale_banner_js(self) -> None:
+        """The dashboard's main page includes the stale-banner element,
+        CSS, and the JS that toggles its visibility. Anchors the
+        feature against accidental removal in a future refactor.
+
+        Caught a real operational issue on 2026-05-19 when the BLE
+        logger stalled — drift advisory fired with -36 % because
+        solar_ah froze while irradiance kept accumulating. The
+        staleness banner makes that exact signal visible on the
+        most-viewed surface."""
+        h, captured = _make_handler("/")
+        h.do_GET()
+        status, _, body = captured[0]
+        self.assertEqual(status, HTTPStatus.OK)
+        # The DOM element
+        self.assertIn(b"id=\"stale-banner\"", body)
+        # The CSS class (matches the model-drift advisory's red palette)
+        self.assertIn(b".stale-banner", body)
+        # The JS function that toggles visibility
+        self.assertIn(b"updateStaleBanner", body)
+        # Shared threshold name so CLI / web agree (60 s matches
+        # scripts/health.py PACK_STALE_THRESHOLD_S)
+        self.assertIn(b"STALE_THRESHOLD_S", body)
+
     def test_health_route_renders_summary(self) -> None:
         """/health renders the scripts.health.render_summary() output
         inside a <pre> block with auto-refresh. Cold start (no data)

@@ -143,6 +143,51 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 11:17 ⚠ — BLE logger genuinely flaky today.** Health
+  check showed `⚠ STALE: 6 min since last sample` AND `DRIFT
+  -40.1% ⚠ advisory` simultaneously — exactly the pair the
+  staleness-vs-drift disentangling from last loop predicted.
+  The CLI banner makes it instantly clear: pack.csv is the
+  problem, not the SolarModel. Meanwhile weather is great
+  (cloud 59 %, shortwave 501 W/m²). Pack still at SOC 66/64.
+  - **Design item picked: stale-data banner on dashboard main
+    page.** The CLI `health.py` surfaces staleness clearly,
+    but the dashboard's main HTML page was silently showing
+    stale data (auto-refreshing the chart but the values
+    underneath were 6 min old). Closes that gap.
+    - `scripts/dashboard.py`: new `<div id="stale-banner">`
+      hidden by default at the top of the page, between
+      `<h1>` and the main grid. Tier-1 red palette (same as
+      the model-drift advisory chip) so the visual association
+      with "operator-attention-needed" is consistent.
+    - `updateStaleBanner(latestTs)` JS function computes
+      `Date.now() - Date.parse(latestTs)` and toggles
+      visibility when `> STALE_THRESHOLD_S` (60 s, matches
+      `health.py`'s `PACK_STALE_THRESHOLD_S`). Banner text
+      shows the age in compact units (`6 min`, `2.3 h`, etc.)
+      — same format as the CLI's `_fmt_age`.
+    - Wired into `tick()` which already runs every 5 s; banner
+      hides on the next fresh sample.
+    - 1 regression test added — `test_index_includes_stale_banner_js`
+      anchors the DOM element, CSS class, JS function, and
+      shared threshold-constant name. Suite: **245 tests
+      passing** (was 244, +1 new).
+  - **Why this matters**: the staleness signal now has parity
+    across all four health surfaces:
+    1. CLI `health.py` → PACK line gains `⚠ STALE` suffix
+    2. Dashboard `/health` route → same (via render_summary)
+    3. Day-report markdown → same (via render_summary)
+    4. **Dashboard main page** → top-of-page red banner (NEW)
+    Consistent threshold (60 s) across all four — flipping
+    that constant later would propagate to all surfaces
+    automatically.
+  - **Watch**: BLE logger health. If staleness keeps recurring
+    in the next few loops, may need to investigate pack.log on
+    the cabin laptop or restart the Volthium Monitor.app.
+    Right now staleness is ~6 min, drift is -40 % — both will
+    clear as soon as pack.csv catches up with the actual pack
+    state.
+
 - **2026-05-19 11:12 ⚠ — DRIFT advisory firing + pack.csv BLE blip
   exposed by new staleness check.** Health summary at the top of
   the loop showed **drift -35.7%** (live 5.24 vs model 8.15) with

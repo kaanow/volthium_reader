@@ -457,6 +457,27 @@ INDEX_HTML = """<!doctype html>
   }
   body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--ink); margin: 0; padding: 24px; }
   h1 { font-size: 14px; font-weight: 600; color: var(--dim); margin: 0 0 18px; letter-spacing: .12em; text-transform: uppercase; }
+  /* Stale-data banner: shown when latest pack sample is older than
+     STALE_THRESHOLD_S (60 s by default, matches health.py). Same
+     red palette as the model-drift advisory chip so the operator
+     associates both with "something needs attention". */
+  .stale-banner {
+    background: rgba(248, 81, 73, 0.10);
+    border-left: 3px solid var(--red);
+    color: var(--red);
+    padding: 8px 14px;
+    margin: 0 0 16px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    font-variant-numeric: tabular-nums;
+  }
+  .stale-banner .stale-icon { font-size: 16px; }
+  .stale-banner .stale-hint { color: var(--dim); font-size: 11px;
+                              font-weight: 400; margin-left: auto; }
   .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; max-width: 980px; }
   .below-grid { max-width: 980px; margin-top: 18px; }
   .below-grid .panel { margin-bottom: 18px; }
@@ -708,6 +729,15 @@ INDEX_HTML = """<!doctype html>
 </head>
 <body>
   <h1>The Barge Inn — Volthium 24 V Pack</h1>
+  <!-- Stale-data banner: hidden by default; the JS toggles its
+       visibility when latest pack sample is > 60 s old. Tier-1
+       visibility because a stalled BLE logger means everything
+       below is reading frozen data. -->
+  <div id="stale-banner" class="stale-banner" style="display:none">
+    <span class="stale-icon">⚠</span>
+    <span id="stale-text">pack data is stale</span>
+    <span class="stale-hint">(check the BLE logger at the cabin)</span>
+  </div>
   <div class="grid">
     <div class="panel">
       <span class="state-badge" id="state-value">…</span>
@@ -769,15 +799,48 @@ const setText = (id, v) => document.getElementById(id).textContent = v;
 const fixed = (v, p) => v == null ? "—" : (+v).toFixed(p);
 const stateClass = s => "state-" + (s || "unknown");
 
+// Threshold matches scripts/health.py PACK_STALE_THRESHOLD_S so
+// the CLI and dashboard agree on when "stale" means stale.
+const STALE_THRESHOLD_S = 60;
+
+function updateStaleBanner(latestTs) {
+  const banner = document.getElementById("stale-banner");
+  if (!banner) return;
+  if (!latestTs) {
+    banner.style.display = "none";
+    return;
+  }
+  const t = Date.parse(latestTs);
+  if (isNaN(t)) {
+    banner.style.display = "none";
+    return;
+  }
+  const ageS = (Date.now() - t) / 1000;
+  if (ageS <= STALE_THRESHOLD_S) {
+    banner.style.display = "none";
+    return;
+  }
+  // Compact unit-appropriate age string (mirrors health._fmt_age)
+  let ageStr;
+  if (ageS < 90) ageStr = `${Math.floor(ageS)} s`;
+  else if (ageS < 60 * 90) ageStr = `${Math.floor(ageS / 60)} min`;
+  else if (ageS < 24 * 3600) ageStr = `${(ageS / 3600).toFixed(1)} h`;
+  else ageStr = `${(ageS / 86400).toFixed(1)} d`;
+  setText("stale-text", `pack data is stale — last sample ${ageStr} ago`);
+  banner.style.display = "flex";
+}
+
 async function tick() {
   try {
     const r = await fetch("/api/latest.json");
     const j = await r.json();
     if (!j.latest) {
       setText("state-value", "no data yet");
+      updateStaleBanner(null);
       return;
     }
     const x = j.latest;
+    updateStaleBanner(x.ts);
     const stateEl = document.getElementById("state-value");
     stateEl.textContent = (x.state || "—").toUpperCase();
     stateEl.className = "state-badge " + stateClass(x.state);
