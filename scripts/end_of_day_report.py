@@ -34,6 +34,7 @@ import projection_log as projection_log_mod  # noqa: E402
 import projection_accuracy as projection_accuracy_mod  # noqa: E402
 import solar_onset as solar_onset_mod  # noqa: E402
 import confidence_log as confidence_log_mod  # noqa: E402
+import low_soc_accuracy as low_soc_accuracy_mod  # noqa: E402
 
 
 def _f(v) -> Optional[float]:
@@ -365,6 +366,88 @@ def build_report(day: date) -> str:
         lines.append("No validatable projections for this day yet — "
                      "the first record lands at the next sunrise after the "
                      "projection_log starts collecting.")
+    lines.append("")
+
+    # ---------- Morning-low validation ----------
+    # For each projection whose sunrise_iso fell on `day`, compare its
+    # projected_low_soc against the empirical morning low (= the SOC
+    # average at first_net_positive from solar_onset.csv). Pairs with
+    # the sunrise-SOC accuracy section above — different validation
+    # target, same model + same data → independent error signature.
+    lines.append("## Morning-low validation")
+    lines.append("")
+    try:
+        all_proj = projection_log_mod.read_log()
+        all_onsets = solar_onset_mod.read_log()
+        day_proj = [p for p in all_proj
+                    if p.sunrise_iso.startswith(day.isoformat())]
+        low_records = low_soc_accuracy_mod.compute_accuracy_records(
+            day_proj, all_onsets,
+        )
+    except Exception:
+        low_records = []
+
+    if low_records:
+        s = low_soc_accuracy_mod.summarize(low_records)
+        lines.append(
+            f"{len(low_records)} projection{'s' if len(low_records) != 1 else ''} "
+            f"of `projected_low_soc` for **{day.isoformat()}** validated "
+            f"against the empirical morning low "
+            f"(`solar_onset.soc_avg_at_net_positive`). "
+            f"Mean error **{s['mean_error']:+.2f} pp**, "
+            f"abs **{s['mean_abs_error']:.2f}**, RMS "
+            f"**{s['rms_error']:.2f}**, "
+            f"range [{s['min_error']:+.2f} .. {s['max_error']:+.2f}]."
+        )
+        lines.append("")
+        lines.append(
+            "Sign convention: negative error = pack undershot the predicted "
+            "floor (advisor was too **optimistic** about the morning low)."
+        )
+        lines.append("")
+        lines.append("| made at | projected low | actual low | error (pp) |")
+        lines.append("|---------|--------------:|-----------:|-----------:|")
+        for r in low_records:
+            short_made = (r.projection_ts[:16] if len(r.projection_ts) >= 16
+                          else r.projection_ts)
+            sign = "+" if r.error_pct_points >= 0 else "−"
+            lines.append(
+                f"| {short_made} | {r.projected_low_soc:.1f} | "
+                f"{r.actual_low_soc:.1f} | "
+                f"{sign}{abs(r.error_pct_points):.1f} |"
+            )
+
+        # Per-horizon breakdown — mirrors the sunrise-accuracy section.
+        by_h = low_soc_accuracy_mod.summarize_by_horizon(low_records)
+        if by_h:
+            lines.append("")
+            lines.append("### By lead-time horizon")
+            lines.append("")
+            lines.append(
+                "How floor-projection error varies with how far ahead "
+                "the projection was made. A monotonic negative trend "
+                "with lead-time is the fingerprint of a discharge_model "
+                "that doesn't account for post-sunrise discharge "
+                "before solar onset."
+            )
+            lines.append("")
+            lines.append("| horizon | n | mean (pp) | abs (pp) | rms (pp) | range (pp) |")
+            lines.append("|---------|--:|----------:|---------:|---------:|-----------:|")
+            for b in by_h:
+                lines.append(
+                    f"| {b['bucket']} | {b['n']} | "
+                    f"{b['mean_error']:+.2f} | "
+                    f"{b['mean_abs_error']:.2f} | "
+                    f"{b['rms_error']:.2f} | "
+                    f"[{b['min_error']:+.2f}..{b['max_error']:+.2f}] |"
+                )
+    else:
+        lines.append(
+            "No validatable morning-low projections for this day yet — "
+            "the first record lands once the day's `solar_onset.csv` row "
+            "has its `first_net_positive_iso` populated (typically a few "
+            "hours after sunrise on a sunny day, later under heavy cloud)."
+        )
     lines.append("")
 
     # ---------- Confidence-lift events ----------

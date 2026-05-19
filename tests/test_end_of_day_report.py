@@ -127,6 +127,17 @@ class TestBuildReport(unittest.TestCase):
             for e in entries:
                 w.writerow({k: e.get(k, "") for k in cl_mod.FIELDS})
 
+    def _write_onset(self, entries: list[dict]) -> None:
+        """Write data/solar_onset.csv. Schema is the FIELDS constant
+        in scripts.solar_onset."""
+        import solar_onset as so_mod   # already on sys.path
+        path = self.root / "data" / "solar_onset.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=so_mod.FIELDS)
+            w.writeheader()
+            for e in entries:
+                w.writerow({k: e.get(k, "") for k in so_mod.FIELDS})
+
     def _pack_run(self, start: datetime, n: int, pack_i: float,
                   soc_a: float = 80.0, soc_b: float = 78.0,
                   pack_v: float = 26.5, step_s: int = 10) -> list[dict]:
@@ -624,6 +635,164 @@ class TestBuildReport(unittest.TestCase):
         # Net summary line (state actually changed across the day)
         self.assertIn("Net: started day at **medium**", md)
         self.assertIn("ended at **low**", md)
+
+    # ---------- Morning-low validation section ----------
+
+    def test_morning_low_section_empty_when_no_data(self) -> None:
+        """No projection log + no solar onset → friendly empty-state
+        message, no table."""
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("## Morning-low validation", md)
+        self.assertIn("No validatable morning-low projections", md)
+        self.assertNotIn("| made at | projected low |", md)
+
+    def test_morning_low_section_empty_when_onset_unresolved(self) -> None:
+        """Projection log has entries targeting the day's sunrise, but
+        solar_onset row hasn't reached first_net_positive yet → still
+        empty (we have nothing to validate against)."""
+        self._write_proj([{
+            "ts": "2025-01-09T22:14:46",
+            "start_soc_pct": "84.0",
+            "projected_sunrise_soc": "70.0",
+            "projected_tomorrow_evening_soc": "90.0",
+            "projected_low_soc": "68.0",
+            "solar_model_coefficient": "8.15",
+            "today_irradiance_kwh_m2": "5.62",
+            "sunrise_iso": "2025-01-10T08:00",
+            "source": "advisor-invocation",
+        }])
+        # Onset row exists but first_net_positive is empty
+        self._write_onset([{
+            "date": "2025-01-10",
+            "first_zero_iso": "2025-01-10T08:30:00",
+            "first_idle_iso": "2025-01-10T08:30:00",
+            "first_positive_iso": "",
+            "first_net_positive_iso": "",
+            "smoothed_i_at_net_positive": "",
+            "soc_avg_at_net_positive": "",
+        }])
+        md = end_of_day_report_mod.build_report(date(2025, 1, 10))
+        self.assertIn("No validatable morning-low projections", md)
+
+    def test_morning_low_section_renders_single_record(self) -> None:
+        """Projection + fully-resolved onset → 1-row table + header
+        summary line with the correct stats."""
+        self._write_proj([{
+            "ts": "2025-01-09T22:14:46",
+            "start_soc_pct": "84.0",
+            "projected_sunrise_soc": "70.0",
+            "projected_tomorrow_evening_soc": "90.0",
+            "projected_low_soc": "68.0",
+            "solar_model_coefficient": "8.15",
+            "today_irradiance_kwh_m2": "5.62",
+            "sunrise_iso": "2025-01-10T08:00",
+            "source": "advisor-invocation",
+        }])
+        self._write_onset([{
+            "date": "2025-01-10",
+            "first_zero_iso": "2025-01-10T08:30:00",
+            "first_idle_iso": "2025-01-10T08:30:00",
+            "first_positive_iso": "2025-01-10T09:15:00",
+            "first_net_positive_iso": "2025-01-10T09:45:00",
+            "smoothed_i_at_net_positive": "0.50",
+            "soc_avg_at_net_positive": "63.50",
+        }])
+        md = end_of_day_report_mod.build_report(date(2025, 1, 10))
+        # Header line
+        self.assertIn("1 projection of `projected_low_soc`", md)
+        self.assertIn("for **2025-01-10**", md)
+        # Sign convention note
+        self.assertIn("Sign convention", md)
+        # Table header + data row
+        self.assertIn("| made at | projected low | actual low | error (pp) |", md)
+        self.assertIn("| 2025-01-09T22:14 | 68.0 | 63.5 |", md)
+        # Error = 63.5 − 68 = −4.5
+        self.assertIn("−4.5", md)
+
+    def test_morning_low_section_includes_horizon_breakdown(self) -> None:
+        """When records exist, the per-horizon breakdown subsection
+        should appear with the matching bucket row."""
+        # Two projections at distinct horizons (~10h and ~1h)
+        self._write_proj([
+            {"ts": "2025-01-09T23:45:00",     # ~10h ahead of 09:45
+             "start_soc_pct": "84.0",
+             "projected_sunrise_soc": "70.0",
+             "projected_tomorrow_evening_soc": "90.0",
+             "projected_low_soc": "68.0",
+             "solar_model_coefficient": "8.15",
+             "today_irradiance_kwh_m2": "5.62",
+             "sunrise_iso": "2025-01-10T08:00",
+             "source": "advisor-invocation"},
+            {"ts": "2025-01-10T08:45:00",     # ~1h ahead
+             "start_soc_pct": "64.0",
+             "projected_sunrise_soc": "63.0",
+             "projected_tomorrow_evening_soc": "88.0",
+             "projected_low_soc": "63.0",
+             "solar_model_coefficient": "8.15",
+             "today_irradiance_kwh_m2": "5.62",
+             "sunrise_iso": "2025-01-10T08:00",
+             "source": "advisor-invocation"},
+        ])
+        self._write_onset([{
+            "date": "2025-01-10",
+            "first_zero_iso": "2025-01-10T08:30:00",
+            "first_idle_iso": "2025-01-10T08:30:00",
+            "first_positive_iso": "2025-01-10T09:15:00",
+            "first_net_positive_iso": "2025-01-10T09:45:00",
+            "smoothed_i_at_net_positive": "0.50",
+            "soc_avg_at_net_positive": "63.50",
+        }])
+        md = end_of_day_report_mod.build_report(date(2025, 1, 10))
+        # Both projections validated
+        self.assertIn("2 projections of `projected_low_soc`", md)
+        # Per-horizon subsection present
+        self.assertIn("### By lead-time horizon", md)
+        # Should have at least one bucket row matching each horizon
+        # (~10h → 7h+ bucket; ~1h → 1-2h bucket)
+        # We only check for one of them — exact bucket bins are tested
+        # in test_low_soc_accuracy.py
+        self.assertIn("| 7h+ |", md)
+
+    def test_morning_low_section_filters_to_target_day_only(self) -> None:
+        """Projections targeting OTHER days' sunrise must not appear
+        in this day's morning-low validation table."""
+        self._write_proj([
+            # Targets 2025-01-10 — should appear
+            {"ts": "2025-01-09T22:14:46",
+             "start_soc_pct": "84.0",
+             "projected_sunrise_soc": "70.0",
+             "projected_tomorrow_evening_soc": "90.0",
+             "projected_low_soc": "68.0",
+             "solar_model_coefficient": "8.15",
+             "today_irradiance_kwh_m2": "5.62",
+             "sunrise_iso": "2025-01-10T08:00",
+             "source": "advisor-invocation"},
+            # Targets 2025-01-11 — should NOT appear in 2025-01-10's report
+            {"ts": "2025-01-10T22:00:00",
+             "start_soc_pct": "70.0",
+             "projected_sunrise_soc": "65.0",
+             "projected_tomorrow_evening_soc": "85.0",
+             "projected_low_soc": "60.0",
+             "solar_model_coefficient": "8.15",
+             "today_irradiance_kwh_m2": "5.0",
+             "sunrise_iso": "2025-01-11T08:00",
+             "source": "advisor-invocation"},
+        ])
+        self._write_onset([{
+            "date": "2025-01-10",
+            "first_zero_iso": "2025-01-10T08:30:00",
+            "first_idle_iso": "2025-01-10T08:30:00",
+            "first_positive_iso": "2025-01-10T09:15:00",
+            "first_net_positive_iso": "2025-01-10T09:45:00",
+            "smoothed_i_at_net_positive": "0.50",
+            "soc_avg_at_net_positive": "63.50",
+        }])
+        md = end_of_day_report_mod.build_report(date(2025, 1, 10))
+        # Only the 22:14 projection's projected_low (68.0) should appear
+        self.assertIn("| 2025-01-09T22:14 | 68.0", md)
+        # The 22:00 projection's projected_low (60.0) must NOT appear
+        # (Different target day; would only show on 2025-01-11's report)
+        self.assertNotIn("| 2025-01-10T22:00 | 60.0", md)
 
     def test_confidence_lift_section_filters_other_days_out(self) -> None:
         """A log with events on multiple days should only show this

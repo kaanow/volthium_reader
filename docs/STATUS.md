@@ -143,6 +143,70 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 07:57** — Post-onset recovery underway. Pack
+  charging sustained: **state=charging**, pack_i +1.2 to +1.4 A,
+  smoothed_i climbed to **+1.6 A**, pack voltage up from
+  26.18 → **26.29 V**. SOC still reads 65/63 (BMS lags Ah).
+  `solar_ah_so_far = +0.34 Ah` (first nonzero of the day; 1 % of
+  forecast). The advisor's `next-24h low SOC` has updated to
+  **60.4 %** — that's now projecting *tomorrow's* morning low
+  (today's already happened at 63.5).
+  - **Design item picked: surface low_soc_accuracy on day-report.**
+    The new validation chain landed last loop with the
+    surface-finding (mean -2.97 pp systematic optimistic bias).
+    The day-report needed a corresponding section so the
+    archival markdown carries the morning-low validation chain
+    alongside the existing sunrise validation chain.
+    - `scripts/end_of_day_report.py`: new
+      `## Morning-low validation` section between
+      `## Projection accuracy` and `## Confidence-lift events`.
+      Filters projection_log to entries targeting the day's
+      sunrise, computes `low_soc_accuracy.compute_accuracy_records`
+      against the day's solar_onset row, renders summary line +
+      table + per-horizon breakdown.
+    - Sign convention note explicitly states "negative error =
+      pack undershot the predicted floor (advisor was too
+      **optimistic** about the morning low)" — making the bias
+      direction immediately legible to any future reader.
+    - Empty-state branches: no projection data at all, AND no
+      onset row OR onset row pre-resolved (no first_net_positive
+      yet). Both render the same friendly message.
+    - 5 regression tests added: empty-state with no data,
+      empty-state when onset unresolved, single-record render
+      with summary line, multi-record with per-horizon
+      breakdown, day-filter excluding projections targeting
+      other days. Suite: **212 tests passing** (was 207, +5
+      new).
+  - **Today's day-report** at `data/reports/2026-05-19.md` now
+    archives the full discovery: 17 projections, all 17 negative,
+    spanning -5.7 pp (worst, 7+h lead) to -1.1 pp (best, 2-3h
+    lead). The per-horizon breakdown is right there in the
+    markdown — a future operator opening this archive sees the
+    bias pattern without needing to re-run the script.
+  - **Why this matters**: the day-report is now genuinely a
+    *six-chain* archive (mechanical totals + SolarModel state +
+    sunrise accuracy + morning-low accuracy + solar onset +
+    confidence lifts). Today's report captures the **first
+    empirical evidence of a model deficiency** that we can fix
+    in a future loop. The exact numerical target (−2.97 pp mean
+    error) is now durable across days.
+  - **The fix candidate** — when ready: `simulate_next_24h` at
+    line 274-286 in `scripts/generator_advisor.py` currently
+    switches to "charging at average rate" the moment `cur` hits
+    `next_sunrise`. In reality there's a 1-3h gap where the pack
+    keeps discharging at -2 A baseline before solar overtakes
+    load (today: 2 h 37 min between sunrise 05:08 and net+
+    07:45). A per-hour solar profile (e.g. sinusoidal:
+    `peak_ah_per_hour * sin(π * (t-sunrise) / daylight_hours)`)
+    would push morning Ah delivery down toward zero, allowing
+    the discharge to continue, and would close most of the gap.
+    Risk to existing sunrise-accuracy is real (different
+    distribution might shift sunrise SOC slightly) — wants
+    careful regression testing.
+  - **Watch**: pack should recover through the day. live_ratio
+    chip on dashboard should populate next loop now that
+    `solar_ah_so_far > 0`.
+
 - **2026-05-19 07:47 🌞 — DAY-2 NET-POSITIVE LANDED + SECOND
   VALIDATION CHAIN OPERATIONAL.** Pack transitioned `discharging`
   → `charging` between 07:44 and 07:46. Solar onset cascade fully
