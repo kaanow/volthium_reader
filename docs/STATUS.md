@@ -143,6 +143,70 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 05:38** — Post-sunrise (30 min in), still waiting on
+  day-2 solar onset. Pack SOC **68/65 %** (B just dropped 1 pp into
+  fresh overnight-low territory), discharging at -2.5/-2.6 A
+  baseline. Cloud cover **99 %**, shortwave only **7 W/m²** —
+  technical sunrise has happened but the array is still in
+  cloud-shadow. `today_harvest.py` reports `solar Ah so far +0.0`
+  with the SolarModel forecasting **40.1 Ah** today against the
+  4.92 kWh/m² weather forecast (low confidence — single-day fit).
+  Calibration still 2 entries, coef stuck at 8.149. Projection log
+  now 18+ entries; 17 stay validatable until next sunrise produces
+  more. Day-report regenerated.
+  - **Design item picked**: **per-projection-horizon accuracy
+    breakdown**. The 17-record table from last loop showed a
+    striking time-evolution bias (7h → -2.4 pp optimistic, 4-5h →
+    perfect, 2-3h → +1+ pp pessimistic, 7min → +0.7 pp). Made it
+    a first-class view:
+    - Added `horizon_min` field to `AccuracyRecord` (computed at
+      construction time from `sunrise_iso − projection_ts`).
+    - Added `HORIZON_BUCKETS` and `summarize_by_horizon()` to
+      `scripts/projection_accuracy.py`. Buckets: <1h, 1-2h, ...,
+      6-7h, 7h+. Empty buckets are omitted from output.
+    - New `--by-horizon` CLI flag. First-run output on the live
+      data is gorgeous — the bias pattern is crystal clear:
+      ```
+      horizon   n   mean   abs   rms   min   max
+      < 1h      3  +0.93  0.93  1.02  +0.59  +1.50
+      1-2h      2  +1.34  1.34  1.34  +1.28  +1.40
+      2-3h      2  +1.12  1.12  1.12  +1.05  +1.18
+      3-4h      3  +0.26  0.41  0.58  -0.13  +1.00
+      4-5h      2  -0.34  0.34  0.34  -0.40  -0.27
+      5-6h      2  -1.55  1.55  1.65  -2.12  -0.99
+      6-7h      3  -2.27  2.27  2.27  -2.36  -2.20
+      ```
+      Reads top-to-bottom: close-in pessimistic ↗ → far-out
+      optimistic. The 4-5h band is the advisor's sweet spot today
+      (mean abs 0.34 pp — barely measurable).
+    - Surfaced on the dashboard: `/accuracy` page now has a new
+      "By lead-time horizon" table at the top, color-coded with
+      the same |error| thresholds as the per-record table (<3 pp
+      green, <8 amber, else red). Helps spot model-fit bias at a
+      glance over many days.
+    - 4 regression tests added (`test_projection_accuracy.py`):
+      `test_horizon_min_populated_from_projection_ts_vs_sunrise`,
+      `test_summarize_by_horizon_buckets_records`,
+      `test_summarize_by_horizon_skips_empty_buckets`,
+      `test_summarize_by_horizon_empty_records`. Suite: 158
+      passing (was 154; the +4 are all in this module).
+  - **Why this matters**: now that the advisor is calibrated and
+    producing first-pass validations, the next signal we want to
+    track is *systematic bias by horizon*. If tomorrow morning's
+    breakdown shows the same shape (optimistic far out, pessimistic
+    close in), it's a real characteristic of this model
+    combination and tells us what to tune next. If the shape
+    flips, the SolarModel coef shifted overnight in a way that
+    needs investigation. This is the per-day signal that turns
+    "the advisor was within 1.15 pp" into actionable model-tuning
+    feedback.
+  - Open watch: first net-charging current still expected
+    06:30-09:00 based on yesterday's morning pattern. The
+    `--by-horizon` view will get a second day of data tomorrow
+    morning — once we have 2+ sunrises validated, the buckets
+    become genuinely informative rather than just descriptive of
+    one overnight.
+
 - **2026-05-19 05:32 ⭐ — FIRST PROJECTION ACCURACY VALIDATION
   LANDED.** Sunrise (05:08) crossed; the 17 projections made
   overnight all targeted today's sunrise; `projection_accuracy.py`

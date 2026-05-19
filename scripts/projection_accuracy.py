@@ -51,6 +51,32 @@ class AccuracyRecord:
     solar_model_coefficient: float
     sample_ts: str                   # the pack.csv sample we matched
     sample_offset_min: float         # |sample_ts − sunrise_iso| in minutes
+    horizon_min: float = 0.0         # sunrise_iso − projection_ts in minutes
+                                     # (how far ahead the projection was made)
+
+
+# Horizon buckets for the by-horizon breakdown. Each entry is
+# (label, lo_minutes_inclusive, hi_minutes_exclusive). Tuned to the
+# pattern we observe in practice: a single overnight cycle spans
+# ~7 hours, so 1-2h buckets are the right resolution.
+HORIZON_BUCKETS: list[tuple[str, float, float]] = [
+    ("< 1h",   0.0,   60.0),
+    ("1-2h",   60.0,  120.0),
+    ("2-3h",   120.0, 180.0),
+    ("3-4h",   180.0, 240.0),
+    ("4-5h",   240.0, 300.0),
+    ("5-6h",   300.0, 360.0),
+    ("6-7h",   360.0, 420.0),
+    ("7h+",    420.0, math.inf),
+]
+
+
+def _bucket_for_horizon(horizon_min: float) -> str:
+    """Return the bucket label for a given horizon in minutes."""
+    for label, lo, hi in HORIZON_BUCKETS:
+        if lo <= horizon_min < hi:
+            return label
+    return "?"
 
 
 def _f(v) -> Optional[float]:
@@ -134,6 +160,14 @@ def compute_accuracy_records(
             continue
         sample_ts, actual_soc = match
         sample_offset_min = abs((sample_ts - sr_target).total_seconds()) / 60.0
+        # Horizon: how far ahead the projection was made. We use the
+        # projection_log entry's own `ts` (when it was recorded) so the
+        # number reflects the operational lead-time of the advisor.
+        try:
+            proj_dt = datetime.fromisoformat(e.ts)
+            horizon_min = max(0.0, (sr_target - proj_dt).total_seconds() / 60.0)
+        except Exception:
+            horizon_min = 0.0
         out.append(AccuracyRecord(
             projection_ts=e.ts,
             sunrise_iso=e.sunrise_iso,
@@ -143,6 +177,7 @@ def compute_accuracy_records(
             solar_model_coefficient=e.solar_model_coefficient,
             sample_ts=sample_ts.isoformat(timespec="minutes"),
             sample_offset_min=sample_offset_min,
+            horizon_min=horizon_min,
         ))
     return out
 
@@ -162,6 +197,30 @@ def summarize(records: list[AccuracyRecord]) -> dict:
         "min_error":      round(min(errors), 2),
         "max_error":      round(max(errors), 2),
     }
+
+
+def summarize_by_horizon(records: list[AccuracyRecord]) -> list[dict]:
+    """Bucket records by how far ahead the projection was made
+    (sunrise_iso − projection_ts) and summarise each bucket.
+
+    Returns a list of dicts ordered by ascending lead-time bucket:
+        [{"bucket": "< 1h", "lo_min": 0, "hi_min": 60, **summary}, ...]
+
+    Empty buckets are omitted. Use this to inspect the time-evolution
+    pattern of the advisor — e.g. far-out projections may be biased
+    optimistic while near-target projections may swing pessimistic.
+    """
+    out: list[dict] = []
+    for label, lo, hi in HORIZON_BUCKETS:
+        bucket = [r for r in records if lo <= r.horizon_min < hi]
+        if not bucket:
+            continue
+        s = summarize(bucket)
+        s["bucket"] = label
+        s["lo_min"] = lo
+        s["hi_min"] = hi if hi != math.inf else None
+        out.append(s)
+    return out
 
 
 def pretty_print(records: list[AccuracyRecord], tail: Optional[int] = None) -> None:
@@ -190,6 +249,36 @@ def pretty_print(records: list[AccuracyRecord], tail: Optional[int] = None) -> N
           f"range [{s['min_error']:+.2f} .. {s['max_error']:+.2f}]")
 
 
+def pretty_print_by_horizon(records: list[AccuracyRecord]) -> None:
+    """Render the per-horizon breakdown table.
+
+    Shows one row per non-empty lead-time bucket so the operator can
+    see whether the advisor's bias depends on how far ahead it's
+    projecting — the signal we want to track over time.
+    """
+    if not records:
+        print("(no validatable projections yet — wait for sunrise_iso targets to pass)")
+        return
+    by_h = summarize_by_horizon(records)
+    if not by_h:
+        print("(no horizon buckets matched — check projection_ts/sunrise_iso parsing)")
+        return
+    print("=== Projection accuracy by lead-time horizon ===")
+    print(f"{'horizon':<8}  {'n':>3}  {'mean':>6}  {'abs':>5}  "
+          f"{'rms':>5}  {'min':>5}  {'max':>5}")
+    print("-" * 50)
+    for s in by_h:
+        print(f"{s['bucket']:<8}  {s['n']:>3}  "
+              f"{s['mean_error']:+6.2f}  "
+              f"{s['mean_abs_error']:5.2f}  "
+              f"{s['rms_error']:5.2f}  "
+              f"{s['min_error']:+5.2f}  "
+              f"{s['max_error']:+5.2f}")
+    print()
+    print("legend: mean/min/max are signed errors (actual − projected, pp);")
+    print("        abs = mean |error|; rms = root-mean-square.")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tail", type=int, default=None,
@@ -198,6 +287,9 @@ def main() -> int:
     ap.add_argument("--tolerance-min", type=float, default=30.0,
                     help="how close (in minutes) a pack sample must be "
                          "to the sunrise target to count as a match")
+    ap.add_argument("--by-horizon", action="store_true",
+                    help="show the per-lead-time-horizon breakdown "
+                         "instead of the per-record table")
     args = ap.parse_args()
 
     projections = projection_log_mod.read_log()
@@ -205,7 +297,10 @@ def main() -> int:
     records = compute_accuracy_records(
         projections, pack_samples, tolerance_min=args.tolerance_min,
     )
-    pretty_print(records, tail=args.tail)
+    if args.by_horizon:
+        pretty_print_by_horizon(records)
+    else:
+        pretty_print(records, tail=args.tail)
     return 0
 
 

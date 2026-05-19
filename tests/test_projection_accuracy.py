@@ -21,6 +21,7 @@ import projection_log as projection_log_mod  # noqa: E402
 from projection_accuracy import (  # noqa: E402
     compute_accuracy_records,
     summarize,
+    summarize_by_horizon,
 )
 
 
@@ -180,6 +181,80 @@ class TestProjectionAccuracy(unittest.TestCase):
         self.assertAlmostEqual(s["rms_error"], 1.73, places=2)
         self.assertAlmostEqual(s["min_error"], -2.0, places=2)
         self.assertAlmostEqual(s["max_error"], +2.0, places=2)
+
+    def test_horizon_min_populated_from_projection_ts_vs_sunrise(self) -> None:
+        """`horizon_min` should equal sunrise_iso − projection_ts in
+        minutes. Anchors the field that drives the per-horizon view."""
+        entries = [
+            _entry("2026-05-18T22:09:00",     # exactly 7h before 05:09
+                   "2026-05-19T05:09", projected=70.0),
+            _entry("2026-05-19T04:09:00",     # exactly 1h before
+                   "2026-05-19T05:09", projected=70.0),
+        ]
+        samples = _pack_samples(
+            ("2026-05-19T05:09:00", 70.0, 70.0),
+        )
+        result = compute_accuracy_records(
+            entries, samples,
+            now=datetime(2026, 5, 19, 8, 0),
+        )
+        self.assertEqual(len(result), 2)
+        self.assertAlmostEqual(result[0].horizon_min, 420.0, places=1)
+        self.assertAlmostEqual(result[1].horizon_min, 60.0, places=1)
+
+    def test_summarize_by_horizon_buckets_records(self) -> None:
+        """Three projections at distinct horizons should land in
+        three distinct buckets and not bleed into each other."""
+        entries = [
+            _entry("2026-05-18T22:39:00",   # 6.5h ahead → 6-7h bucket
+                   "2026-05-19T05:09", projected=70.0),
+            _entry("2026-05-19T01:09:00",   # 4h ahead → 4-5h bucket
+                   "2026-05-19T05:09", projected=68.0),
+            _entry("2026-05-19T04:39:00",   # 30 min ahead → < 1h bucket
+                   "2026-05-19T05:09", projected=66.0),
+        ]
+        samples = _pack_samples(
+            ("2026-05-19T05:09:00", 68.0, 68.0),    # avg 68
+        )
+        result = compute_accuracy_records(
+            entries, samples,
+            now=datetime(2026, 5, 19, 8, 0),
+        )
+        self.assertEqual(len(result), 3)
+        buckets = summarize_by_horizon(result)
+        labels = [b["bucket"] for b in buckets]
+        self.assertIn("< 1h", labels)
+        self.assertIn("4-5h", labels)
+        self.assertIn("6-7h", labels)
+        # 7h-ahead projected 70, actual 68 → error -2  (optimistic)
+        seven = next(b for b in buckets if b["bucket"] == "6-7h")
+        self.assertEqual(seven["n"], 1)
+        self.assertAlmostEqual(seven["mean_error"], -2.0, places=2)
+        # 30-min-ahead projected 66, actual 68 → error +2 (pessimistic)
+        near = next(b for b in buckets if b["bucket"] == "< 1h")
+        self.assertEqual(near["n"], 1)
+        self.assertAlmostEqual(near["mean_error"], +2.0, places=2)
+
+    def test_summarize_by_horizon_skips_empty_buckets(self) -> None:
+        """No 2-3h projections in this fixture → that bucket must
+        be absent from the output (rather than appearing as n=0)."""
+        entries = [
+            _entry("2026-05-19T04:39:00",   # 30 min ahead
+                   "2026-05-19T05:09", projected=70.0),
+        ]
+        samples = _pack_samples(
+            ("2026-05-19T05:09:00", 70.0, 70.0),
+        )
+        result = compute_accuracy_records(
+            entries, samples,
+            now=datetime(2026, 5, 19, 8, 0),
+        )
+        buckets = summarize_by_horizon(result)
+        self.assertEqual(len(buckets), 1)
+        self.assertEqual(buckets[0]["bucket"], "< 1h")
+
+    def test_summarize_by_horizon_empty_records(self) -> None:
+        self.assertEqual(summarize_by_horizon([]), [])
 
 
 if __name__ == "__main__":

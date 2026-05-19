@@ -1445,7 +1445,8 @@ class Handler(BaseHTTPRequestHandler):
                     "</tr>"
                 )
             rows_html = "".join(_row(r) for r in records)
-            s = acc_mod.summarize(list(reversed(records)))  # mean over all
+            chronological = list(reversed(records))
+            s = acc_mod.summarize(chronological)  # mean over all
             summary_html = (
                 "<p style='color:#8b949e;font-size:12px;margin-top:14px'>"
                 f"<strong>summary</strong> · n = {s['n']} · "
@@ -1455,7 +1456,58 @@ class Handler(BaseHTTPRequestHandler):
                 f"range [{s['min_error']:+.2f} .. {s['max_error']:+.2f}]"
                 "</p>"
             )
+
+            # Per-horizon breakdown: how does the error change with
+            # lead-time? Shows whether the advisor is biased one way
+            # far out and the other way close in.
+            by_h = acc_mod.summarize_by_horizon(chronological)
+            if by_h:
+                def _h_row(b):
+                    err_cls = ("ok" if abs(b['mean_error']) <= 3
+                               else "warn" if abs(b['mean_error']) <= 8
+                               else "bad")
+                    return (
+                        "<tr>"
+                        f"<td>{html_escape(b['bucket'])}</td>"
+                        f"<td style='text-align:right'>{b['n']}</td>"
+                        f"<td style='text-align:right' class='err-{err_cls}'>"
+                        f"{b['mean_error']:+.2f}</td>"
+                        f"<td style='text-align:right'>{b['mean_abs_error']:.2f}</td>"
+                        f"<td style='text-align:right'>{b['rms_error']:.2f}</td>"
+                        f"<td style='text-align:right;color:#8b949e'>"
+                        f"[{b['min_error']:+.2f}..{b['max_error']:+.2f}]</td>"
+                        "</tr>"
+                    )
+                horizon_rows_html = "".join(_h_row(b) for b in by_h)
+                horizon_block = (
+                    "<h3 style='margin-top:24px;margin-bottom:6px;"
+                    "color:#c9d1d9;font-size:14px'>By lead-time horizon</h3>"
+                    "<p style='color:#8b949e;font-size:12px;margin-top:0'>"
+                    "How far ahead the projection was made vs how it landed. "
+                    "A consistent bias here is the strongest signal of a "
+                    "model-fit issue — e.g. far-out projections systematically "
+                    "optimistic suggests the discharge_model is too gentle, "
+                    "while close-in projections systematically pessimistic "
+                    "suggests something else (e.g. solar arriving earlier than "
+                    "the SolarModel expects)."
+                    "</p>"
+                    "<table>"
+                    "<thead><tr>"
+                    "<th>horizon</th>"
+                    "<th style='text-align:right'>n</th>"
+                    "<th style='text-align:right'>mean</th>"
+                    "<th style='text-align:right'>abs</th>"
+                    "<th style='text-align:right'>rms</th>"
+                    "<th style='text-align:right'>range</th>"
+                    "</tr></thead>"
+                    f"<tbody>{horizon_rows_html}</tbody></table>"
+                )
+            else:
+                horizon_block = ""
+
             table = (
+                "<h3 style='margin-top:24px;margin-bottom:6px;"
+                "color:#c9d1d9;font-size:14px'>All records</h3>"
                 "<table>"
                 "<thead><tr>"
                 "<th>made at</th>"
@@ -1468,7 +1520,7 @@ class Handler(BaseHTTPRequestHandler):
                 "</tr></thead>"
                 f"<tbody>{rows_html}</tbody></table>"
             )
-            body = table + summary_html
+            body = horizon_block + table + summary_html
         else:
             body = (
                 "<p style='color:#8b949e;font-style:italic'>"
