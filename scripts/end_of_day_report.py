@@ -35,6 +35,7 @@ import projection_accuracy as projection_accuracy_mod  # noqa: E402
 import solar_onset as solar_onset_mod  # noqa: E402
 import confidence_log as confidence_log_mod  # noqa: E402
 import low_soc_accuracy as low_soc_accuracy_mod  # noqa: E402
+import live_ratio_log as live_ratio_log_mod  # noqa: E402
 import health as health_mod  # noqa: E402
 
 
@@ -572,6 +573,67 @@ def build_report(day: date) -> str:
             lines.append(f"| {i} | {s_short} | {e_short} | {_fmt_dur(dur)} |")
     lines.append("")
 
+    # ---------- Live-ratio drift ----------
+    # Per-day archive of the live_ratio_log entries. The dashboard
+    # /drift route renders this same data as a chart (with the
+    # SolarModel coefficient reference line and ±20% advisory band);
+    # the day-report archives the underlying tabular data so a future
+    # operator can analyse drift trends without needing the live
+    # server to be running. Filtered to entries whose ts falls on
+    # `day`.
+    lines.append("## Live-ratio drift")
+    lines.append("")
+    try:
+        all_lr = live_ratio_log_mod.read_log()
+        day_lr = [e for e in all_lr
+                  if e.ts.startswith(day.isoformat())]
+    except Exception:
+        day_lr = []
+
+    if day_lr:
+        # Summary stats
+        n = len(day_lr)
+        advs = sum(1 for e in day_lr if e.advisory_fired)
+        ratios = [e.live_ratio_ah_per_kwh_m2 for e in day_lr]
+        mean_ratio = sum(ratios) / n
+        mean_drift = sum(e.drift_pct for e in day_lr) / n
+        min_drift = min(e.drift_pct for e in day_lr)
+        max_drift = max(e.drift_pct for e in day_lr)
+        lines.append(
+            f"{n} live_ratio sample{'s' if n != 1 else ''} on this day. "
+            f"Mean ratio **{mean_ratio:.2f} Ah/(kWh/m²)**, "
+            f"mean drift **{mean_drift:+.1f}%**, "
+            f"range [{min_drift:+.1f}..{max_drift:+.1f}]. "
+            f"Drift advisory fired in **{advs} / {n}** samples."
+        )
+        lines.append("")
+        lines.append("| time | live_ratio | coef | drift | solar Ah | kWh/m² | advisory |")
+        lines.append("|------|-----------:|-----:|------:|---------:|-------:|:--------:|")
+        for e in day_lr:
+            short_ts = e.ts[11:19] if len(e.ts) >= 19 else e.ts
+            adv = "**yes**" if e.advisory_fired else "no"
+            lines.append(
+                f"| {short_ts} | {e.live_ratio_ah_per_kwh_m2:.2f} | "
+                f"{e.solar_model_coefficient:.2f} | "
+                f"{e.drift_pct:+.1f}% | "
+                f"{e.solar_ah_so_far:.2f} | "
+                f"{e.irradiance_kwh_m2_so_far:.2f} | {adv} |"
+            )
+        lines.append("")
+        lines.append("(See [/drift](/drift) on the live dashboard for the "
+                     "same data rendered as a time-series chart with the "
+                     "SolarModel coefficient reference line and ±20% "
+                     "advisory band.)")
+    else:
+        lines.append(
+            "No live_ratio samples on this day — either the advisor "
+            "didn't run during daylight, or the day stayed below the "
+            "harvest-detection threshold (0.2 kWh/m² + 0.5 Ah). "
+            "Drift advisories rely on live_ratio_log; absence here "
+            "means the chain wasn't exercised."
+        )
+    lines.append("")
+
     # ---------- Cross-refs ----------
     lines.append("## Cross-references")
     lines.append("")
@@ -584,6 +646,7 @@ def build_report(day: date) -> str:
     lines.append("- Projection log: `data/projection_log.csv`")
     lines.append("- Solar onset log: `data/solar_onset.csv`")
     lines.append("- Confidence-lift log: `data/confidence_log.csv`")
+    lines.append("- Live-ratio drift log: `data/live_ratio_log.csv`")
     lines.append("")
 
     return "\n".join(lines) + "\n"

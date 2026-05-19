@@ -143,6 +143,59 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 12:54 — 🎉 drift fully cleared, live_ratio nearly
+  matches model.** Pack still hard-charging: SOC **71/69** (+1
+  each from last loop), pack_i +15.5 A, smoothed +13.0 A,
+  pack_v 26.69 V. **live_ratio 7.87** vs model 8.15 → **drift
+  -3.4%** (essentially calibrated, well within threshold).
+  `solar_ah_so_far` up to **13.8 Ah** (33% of forecast).
+  live_ratio_log still at 3 rows — row #4 due ~13:00.
+  - **Design item picked: live-ratio drift section on day-report.**
+    The dashboard's /drift chart shows the time-series visually;
+    the day-report should archive the same data in markdown
+    table form so future operators can grep the history without
+    needing the live server.
+    - `scripts/end_of_day_report.py`: new `## Live-ratio drift`
+      section between `## BLE logger reliability` and
+      `## Cross-references`. Filters live_ratio_log by today's
+      ISO date prefix.
+    - Renders summary stats (n, mean ratio, mean drift, range,
+      advisory-fired count) + a markdown table with HH:MM:SS
+      timestamps and a `**yes**`-bolded advisory column.
+    - Link to `/drift` for the live chart view (markdown
+      reference link).
+    - Empty-state when no entries: "advisor didn't run during
+      daylight" / "day stayed below harvest-detection threshold".
+    - Cross-references section gains a row for
+      `data/live_ratio_log.csv`.
+    - 3 regression tests: empty-state, populated rows render
+      with summary line + bolded advisory column, and day-filter
+      excludes yesterday's entries. Suite: **268 tests passing**
+      (was 265, +3 new).
+  - **Today's archived output captures the morning's drift
+    story exactly**:
+    ```
+    3 live_ratio samples on this day. Mean ratio 5.89,
+    mean drift -27.8%, range [-29.7..-26.3].
+    Drift advisory fired in 3 / 3 samples.
+    ```
+    Row #4 (after the afternoon catch-up) will land at ratio
+    ~7.87 and shift the mean ratio significantly upward — the
+    table will then tell a "morning sag, afternoon recovery"
+    story.
+  - **Why this matters**: the system's third archival surface
+    for drift data:
+    1. Live data: `data/live_ratio_log.csv` (raw)
+    2. Live chart: `/drift` (visual)
+    3. **Day-report**: `data/reports/YYYY-MM-DD.md`
+       `## Live-ratio drift` (archive)
+    Same data, three surfaces, never diverge. The day-report
+    surface lets `grep "live_ratio samples" data/reports/*.md`
+    show how drift evolved week-over-week.
+  - **Watch**: with the day's drift trending toward 0, the
+    afternoon's row #4-7 should all be GREEN (within threshold)
+    — visually proving the calibration is sound across the day.
+
 - **2026-05-19 12:46 — drift advisory CLEARED + SOC +2/+2.** Pack
   recovered hard: SOC **70/68** (was 68/66 last loop), pack_i
   **+15.5 A** charging, pack_v **26.69 V** (highest of day),

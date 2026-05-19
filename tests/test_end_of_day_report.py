@@ -830,6 +830,87 @@ class TestBuildReport(unittest.TestCase):
         # No event table when clean
         self.assertNotIn("| gap # | last sample before |", md)
 
+    def _write_lr(self, entries: list[dict]) -> None:
+        """Write data/live_ratio_log.csv. Schema must match
+        scripts.live_ratio_log.FIELDS."""
+        import live_ratio_log as lrl_mod
+        path = self.root / "data" / "live_ratio_log.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=lrl_mod.FIELDS)
+            w.writeheader()
+            for e in entries:
+                w.writerow({k: e.get(k, "") for k in lrl_mod.FIELDS})
+
+    def test_live_ratio_drift_section_empty_state(self) -> None:
+        """No live_ratio_log → friendly empty message; no table."""
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("## Live-ratio drift", md)
+        self.assertIn("No live_ratio samples on this day", md)
+        # Table header must NOT appear in empty state
+        self.assertNotIn("| time | live_ratio | coef | drift |", md)
+
+    def test_live_ratio_drift_section_renders_rows(self) -> None:
+        """Today's entries → markdown table + summary stats line.
+        Bolded 'yes' when advisory_fired=True."""
+        self._write_lr([
+            {"ts": "2026-05-19T11:44:25",
+             "live_ratio_ah_per_kwh_m2": "5.73",
+             "solar_ah_so_far": "6.26",
+             "irradiance_kwh_m2_so_far": "1.09",
+             "solar_model_coefficient": "8.15",
+             "drift_pct": "-29.70",
+             "advisory_fired": "True"},
+            {"ts": "2026-05-19T12:09:45",
+             "live_ratio_ah_per_kwh_m2": "6.01",
+             "solar_ah_so_far": "8.01",
+             "irradiance_kwh_m2_so_far": "1.33",
+             "solar_model_coefficient": "8.15",
+             "drift_pct": "-26.30",
+             "advisory_fired": "True"},
+        ])
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("## Live-ratio drift", md)
+        # Summary line with stats
+        self.assertIn("2 live_ratio samples on this day", md)
+        self.assertIn("advisory fired in **2 / 2**", md)
+        # Table header + data rows (HH:MM:SS slices of ts)
+        self.assertIn("| time | live_ratio | coef | drift |", md)
+        self.assertIn("| 11:44:25 | 5.73 |", md)
+        self.assertIn("| 12:09:45 | 6.01 |", md)
+        # advisory_fired=True renders bolded
+        self.assertIn("**yes**", md)
+        # Link to /drift on the live dashboard
+        self.assertIn("[/drift](/drift)", md)
+
+    def test_live_ratio_drift_filters_other_days(self) -> None:
+        """A log row from a different day must NOT appear in today's
+        report. Standard day-prefix filter test."""
+        self._write_lr([
+            # Yesterday's row — should be excluded
+            {"ts": "2026-05-18T15:00:00",
+             "live_ratio_ah_per_kwh_m2": "8.00",
+             "solar_ah_so_far": "30.0",
+             "irradiance_kwh_m2_so_far": "3.75",
+             "solar_model_coefficient": "8.15",
+             "drift_pct": "-1.8",
+             "advisory_fired": "False"},
+            # Today's row — should appear
+            {"ts": "2026-05-19T11:44:25",
+             "live_ratio_ah_per_kwh_m2": "5.73",
+             "solar_ah_so_far": "6.26",
+             "irradiance_kwh_m2_so_far": "1.09",
+             "solar_model_coefficient": "8.15",
+             "drift_pct": "-29.70",
+             "advisory_fired": "True"},
+        ])
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        # Today's row only
+        self.assertIn("1 live_ratio sample", md)
+        self.assertIn("| 11:44:25 |", md)
+        # Yesterday's row must NOT bleed in
+        self.assertNotIn("| 15:00:00 |", md)
+        self.assertNotIn("8.00 | 8.15 | -1.8", md)
+
     def test_ble_logger_section_renders_events(self) -> None:
         """When pack.csv has gaps, the section lists each event with
         start, end, and duration in a markdown table."""
