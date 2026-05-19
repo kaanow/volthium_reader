@@ -143,6 +143,48 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **18:25** — Loop wake. Pack SOC **93/93 %** holding. **Surprise
+  late-day cloud break**: cloud at **64 %** (lowest of the day from
+  98 % peak), giving a small +2.3 A trickle charge. Voltage 26.66 V
+  (ticked up slightly). Irradiance still dropping (224 → 182 W/m²)
+  despite the break — sun is too low for direct beam to add much.
+  Today's harvest still **44.4 Ah / 122 %** (the cloud break added
+  fractions of an Ah). **Live ratio dropped further to 8.79** (+25.6 %
+  drift, sliding toward green on the still-flat numerator and growing
+  irradiance denominator).
+  - Daily_summary still tagged [partial] at duration_h 18.42; will
+    flip to complete around 20:00 when duration crosses 20 h.
+  - Calibration log still single baseline; first auto-fit lands
+    when daily_summary flips.
+  - Day-report refreshed.
+  - Design item: **11 regression tests for `end_of_day_report.build_report`**.
+    The report builder is now consumed in two places — the CLI
+    script (`data/reports/YYYY-MM-DD.md`) AND the dashboard's
+    inline render at `/today-report` and `/report/YYYY-MM-DD`.
+    Any regression breaks both surfaces. New
+    `tests/test_end_of_day_report.py` exercises the markdown
+    output directly against fixtured CSVs in a tempdir:
+    - **Empty day** → "Day in progress." summary with all five
+      sections rendered (Pack, Solar harvest, Weather, SolarModel
+      state, Cross-references) with em-dashes instead of crashes.
+    - **Partial day** flag → `*(partial day so far)*` tag.
+    - **Complete day** flag → `**Complete day**` tag.
+    - **Lede tone** matches harvest fraction: ≥110 % "strong day",
+      ≥90 % "on track", ≥50 % "soft day", <50 % "well below".
+    - **Calibration table** renders entries dated to the report's
+      day with the correct columns; yesterday's entries excluded.
+    - **Empty calibration_log** shows the friendly fallback
+      "No SolarModel coefficient changes logged today."
+    - **Peaks** line populates when pack data exists (peak charge,
+      smoothed, SOC, voltage; first-charging HH:MM).
+    - **Generator activity** line: "45 min ⇒ 40.0 Ah" when run;
+      "Generator: not run today" when not.
+    - **Cross-references** section always present even on empty
+      days — tells the reader where the raw data lives.
+  - **111 Python tests pass** (up from 100). Suite total assertion-
+    points: 111 Py + 22 wire-C + 17 est-C + 4 wire-cross + 49 est-
+    cross = **203**, all green.
+
 - **17:52** — Loop wake. **First evening discharge!** Pack SOC
   **93/93 %** (A relaxed back from 94 to 93 as voltage settled),
   state cycling IDLE → discharging at **−2.4 A** in the latest

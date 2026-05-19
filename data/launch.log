@@ -708,3 +708,11 @@ LAN share URL: http://192.168.1.76:8421/
 2026-05-18 17:43:28,441 INFO n=7920  26.63V  +0.00A  +0W  SOC 93-93%  state=idle  remain≈—
 2026-05-18 17:48:28,232 INFO n=7950  26.63V  +0.00A  +0W  SOC 93-93%  state=idle  remain≈—
 2026-05-18 17:53:43,854 INFO n=7980  26.59V  -3.50A  -93W  SOC 93-93%  state=discharging  remain≈3322m
+2026-05-18 17:58:39,013 INFO n=8010  26.57V  -3.20A  -85W  SOC 93-93%  state=discharging  remain≈2925m
+2026-05-18 18:03:43,536 INFO n=8040  26.59V  +0.00A  +0W  SOC 93-93%  state=discharging  remain≈8598m
+2026-05-18 18:08:51,376 INFO n=8070  26.63V  +0.00A  +0W  SOC 93-93%  state=idle  remain≈—
+2026-05-18 18:10:53,021 WARNING read #8081 failed (1 in a row): RuntimeError: battery 9058AE7F-F98B-D0F6-237D-6769894DE118 not found in scan
+2026-05-18 18:10:58,659 INFO BLE recovered after 1 errors
+2026-05-18 18:14:18,786 INFO n=8100  26.64V  +0.00A  +0W  SOC 93-93%  state=idle  remain≈—
+2026-05-18 18:19:20,778 INFO n=8130  26.66V  +0.00A  +0W  SOC 93-93%  state=idle  remain≈—
+2026-05-18 18:24:29,564 INFO n=8160  26.65V  +0.00A  +0W  SOC 93-93%  state=idle  remain≈—
