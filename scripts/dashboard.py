@@ -478,6 +478,24 @@ INDEX_HTML = """<!doctype html>
   .stale-banner .stale-icon { font-size: 16px; }
   .stale-banner .stale-hint { color: var(--dim); font-size: 11px;
                               font-weight: 400; margin-left: auto; }
+  /* PACK GAPS chip: amber palette, lower visual weight than the red
+     stale banner. Surfaces today's aggregate BLE-logger reliability;
+     hidden by default when 0 events occurred. */
+  .gaps-chip {
+    background: rgba(210, 153, 34, 0.10);
+    border-left: 3px solid var(--ylw);
+    color: var(--ylw);
+    padding: 6px 14px;
+    margin: 0 0 16px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    font-variant-numeric: tabular-nums;
+  }
+  .gaps-chip .gaps-icon { font-size: 14px; }
   .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; max-width: 980px; }
   .below-grid { max-width: 980px; margin-top: 18px; }
   .below-grid .panel { margin-bottom: 18px; }
@@ -738,6 +756,14 @@ INDEX_HTML = """<!doctype html>
     <span id="stale-text">pack data is stale</span>
     <span class="stale-hint">(check the BLE logger at the cabin)</span>
   </div>
+  <!-- Today's BLE-logger gap summary: hidden when 0 events.
+       Amber palette (lower priority than the red stale-banner).
+       Same operational territory as the stale banner: stale = now,
+       gaps = today's aggregate. -->
+  <div id="gaps-chip" class="gaps-chip" style="display:none">
+    <span class="gaps-icon">⏱</span>
+    <span id="gaps-text">BLE logger gaps today</span>
+  </div>
   <div class="grid">
     <div class="panel">
       <span class="state-badge" id="state-value">…</span>
@@ -821,13 +847,34 @@ function updateStaleBanner(latestTs) {
     return;
   }
   // Compact unit-appropriate age string (mirrors health._fmt_age)
-  let ageStr;
-  if (ageS < 90) ageStr = `${Math.floor(ageS)} s`;
-  else if (ageS < 60 * 90) ageStr = `${Math.floor(ageS / 60)} min`;
-  else if (ageS < 24 * 3600) ageStr = `${(ageS / 3600).toFixed(1)} h`;
-  else ageStr = `${(ageS / 86400).toFixed(1)} d`;
-  setText("stale-text", `pack data is stale — last sample ${ageStr} ago`);
+  setText("stale-text", `pack data is stale — last sample ${fmtAge(ageS)} ago`);
   banner.style.display = "flex";
+}
+
+// Compact unit-appropriate age formatter — mirrors health._fmt_age
+// so CLI and dashboard print the same strings.
+function fmtAge(seconds) {
+  if (seconds < 90) return `${Math.floor(seconds)} s`;
+  if (seconds < 60 * 90) return `${Math.floor(seconds / 60)} min`;
+  if (seconds < 24 * 3600) return `${(seconds / 3600).toFixed(1)} h`;
+  return `${(seconds / 86400).toFixed(1)} d`;
+}
+
+function updateGapsChip(packGaps) {
+  const chip = document.getElementById("gaps-chip");
+  if (!chip) return;
+  if (!packGaps || !packGaps.count) {
+    chip.style.display = "none";
+    return;
+  }
+  const plural = packGaps.count === 1 ? "" : "s";
+  const txt = (
+    `${packGaps.count} BLE logger gap${plural} today` +
+    ` · max ${fmtAge(packGaps.max_gap_s)}` +
+    ` · total ${fmtAge(packGaps.total_gap_s)}`
+  );
+  setText("gaps-text", txt);
+  chip.style.display = "flex";
 }
 
 async function tick() {
@@ -837,10 +884,12 @@ async function tick() {
     if (!j.latest) {
       setText("state-value", "no data yet");
       updateStaleBanner(null);
+      updateGapsChip(j.pack_gaps);
       return;
     }
     const x = j.latest;
     updateStaleBanner(x.ts);
+    updateGapsChip(j.pack_gaps);
     const stateEl = document.getElementById("state-value");
     stateEl.textContent = (x.state || "—").toUpperCase();
     stateEl.className = "state-badge " + stateClass(x.state);
@@ -1668,6 +1717,23 @@ class Handler(BaseHTTPRequestHandler):
                 }
             except Exception:
                 solar_onset = None
+            # Today's BLE-logger gap stats (count, max_gap_s, total_gap_s).
+            # Surfaces today's reliability story on the main page as a
+            # small chip near the stale-data banner. Same threshold as
+            # health.py and the existing stale check.
+            pack_gaps = None
+            try:
+                import health as health_mod
+                gc, mg, tg, _ = health_mod.compute_today_pack_gaps(
+                    pack_csv=CSV_PATH,
+                )
+                pack_gaps = {
+                    "count": gc,
+                    "max_gap_s": mg,
+                    "total_gap_s": tg,
+                }
+            except Exception:
+                pack_gaps = None
             return self._send(HTTPStatus.OK, "application/json",
                               json.dumps({
                                   "latest": history[-1],
@@ -1677,6 +1743,7 @@ class Handler(BaseHTTPRequestHandler):
                                   "recommendation": recommendation,
                                   "today_harvest": today_harvest,
                                   "solar_onset": solar_onset,
+                                  "pack_gaps": pack_gaps,
                               }).encode())
         return self._send(HTTPStatus.NOT_FOUND, "text/plain", b"not found")
 

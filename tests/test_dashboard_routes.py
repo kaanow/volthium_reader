@@ -21,10 +21,13 @@ Routes covered:
 
 from __future__ import annotations
 
+import csv
+import json
 import os
 import sys
 import tempfile
 import unittest
+from datetime import datetime
 from http import HTTPStatus
 from pathlib import Path
 
@@ -251,6 +254,63 @@ class TestDashboardRoutes(unittest.TestCase):
         # The page should explain the sister relationship + the bias-fix
         # context so a new reader understands what they're looking at.
         self.assertIn(b"projected_low_soc", body)
+
+    def test_api_includes_pack_gaps_field(self) -> None:
+        """/api/latest.json must surface today's pack_gaps stats so
+        the dashboard can render the BLE-logger reliability chip
+        without re-scanning pack.csv client-side."""
+        # Write a pack.csv with one obvious gap so the API has
+        # something to report
+        path = self.root / "data" / "pack.csv"
+        with path.open("w", newline="") as f:
+            w = csv.writer(f)
+            # Use a header that mirrors the production schema's
+            # tracked columns; the dashboard test fixture's PACK_HEADER
+            # already covers the rest.
+            w.writerow(["ts", "state", "pack_v", "pack_i", "pack_p",
+                        "soc_a", "soc_b", "v_a", "v_b", "i_a", "i_b",
+                        "temp_a", "temp_b", "rem_a", "rem_b",
+                        "delta_v_a", "delta_v_b", "smoothed_i",
+                        "smoothed_p", "minutes_remaining",
+                        "name_a", "name_b"])
+            # Two samples today, 5 minutes apart → 1 gap
+            today = datetime.now().date().isoformat()
+            ts1 = f"{today}T10:00:00"
+            ts2 = f"{today}T10:05:00"
+            for ts in (ts1, ts2):
+                w.writerow([ts, "idle", "26.30", "0.0", "0.0",
+                            "70", "68", "13.15", "13.14",
+                            "0.0", "0.0", "23", "23", "150", "130",
+                            "0.008", "0.009", "0.0", "0.0", "",
+                            "V-12V200AH-0533", "V-12V200AH-0667"])
+        h, captured = _make_handler("/api/latest.json")
+        h.do_GET()
+        status, _, body = captured[0]
+        self.assertEqual(status, HTTPStatus.OK)
+        payload = json.loads(body)
+        self.assertIn("pack_gaps", payload)
+        pg = payload["pack_gaps"]
+        self.assertIsNotNone(pg)
+        self.assertEqual(pg["count"], 1)
+        # ~300 s gap (5 min)
+        self.assertAlmostEqual(pg["max_gap_s"], 300.0, delta=1.0)
+
+    def test_index_includes_gaps_chip_js(self) -> None:
+        """Main page includes the PACK GAPS chip element, CSS, and
+        the JS that toggles its visibility from `pack_gaps` in the
+        API payload. Anchors the feature against accidental removal."""
+        h, captured = _make_handler("/")
+        h.do_GET()
+        status, _, body = captured[0]
+        self.assertEqual(status, HTTPStatus.OK)
+        # The DOM element
+        self.assertIn(b"id=\"gaps-chip\"", body)
+        # CSS class
+        self.assertIn(b".gaps-chip", body)
+        # JS function that toggles visibility
+        self.assertIn(b"updateGapsChip", body)
+        # Shared fmtAge helper (used by both stale-banner and gaps chip)
+        self.assertIn(b"function fmtAge", body)
 
     def test_index_includes_stale_banner_js(self) -> None:
         """The dashboard's main page includes the stale-banner element,

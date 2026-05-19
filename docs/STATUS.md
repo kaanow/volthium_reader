@@ -143,6 +143,57 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 12:14** — **Rate-limit verified** + SOC ticked
+  again to **68/66**. live_ratio_log now has 2 rows:
+  ```
+  11:44:25  ratio 5.73, drift -29.7%, adv yes
+  12:09:45  ratio 6.01, drift -26.3%, adv yes
+  ```
+  Row #2 landed 25 min 20 s after #1 — rate-limit exactly as
+  designed. live_ratio climbing as solar accumulates (6.01 →
+  6.19 between row-write and health check). `solar_ah_so_far`
+  up to **+8.5 Ah** (20 % of forecast). Pack at +7-8 A
+  charging. PACK GAPS still showing 2 events from morning — no
+  new gaps.
+  - **Design item picked: PACK GAPS chip on dashboard main
+    page.** Completes the visibility pair with the stale-data
+    banner shipped two loops ago.
+    - `scripts/dashboard.py`: `/api/latest.json` payload gains
+      a new `pack_gaps` field with `{count, max_gap_s,
+      total_gap_s}` populated from `health.compute_today_pack_gaps()`
+      — same threshold (60 s) so all surfaces agree on what
+      constitutes a gap.
+    - Main page gains a `<div id="gaps-chip">` element between
+      the stale-banner and the main grid. Amber palette (lower
+      priority than the red stale-banner — gaps are aggregate
+      "today's reliability" while stale is "right now").
+      Hidden by default; shows when `pack_gaps.count > 0`.
+    - New `fmtAge(seconds)` JS helper mirrors `health._fmt_age`
+      so the CLI and dashboard render the same age strings
+      (`"29 min"`, `"2.3 h"`, etc.). Refactored
+      `updateStaleBanner` to use it too — consistency.
+    - `updateGapsChip(packGaps)` JS toggles visibility and
+      renders `"N BLE logger gaps today · max X · total Y"`.
+    - 2 regression tests: API payload includes
+      `pack_gaps` field with correct count/max/total values
+      from fixtured pack.csv; index page includes the chip
+      element, CSS class, JS function, and `fmtAge` helper.
+      Suite: **261 tests passing** (was 259, +2 new).
+  - **Why this matters**: signals now consistent across all
+    surfaces:
+    - **STALE** (red, point-in-time): banner + PACK line suffix
+    - **PACK GAPS** (amber, aggregate today): chip + PACK GAPS line
+    - Together they answer "is logger healthy now?" and "was
+      logger healthy today?" without the operator having to
+      drill into pack.log on the cabin laptop.
+  - **Watch**: 1.4 Ah gained this loop (7.1 → 8.5). At this
+    rate the afternoon could deliver ~10-15 more Ah by sunset.
+    Total day forecast was 41.7; today will likely come in
+    well below that (~25 Ah) because the cloudy morning ate
+    the productive hours. Tomorrow's morning low projection
+    based on this lower-than-forecast day will be a good test
+    of the new model's bias-fix.
+
 - **2026-05-19 11:50 ☀☀ — solar pumping at peak.** Pack on full
   charge: pack_i **+15.8 A**, smoothed_i **+11.8 A**, pack_v
   **26.62 V** (highest of the day). SOC 67/65. Cloud 73 %,

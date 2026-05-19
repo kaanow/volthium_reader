@@ -1,2 +1,3 @@
 ts,live_ratio_ah_per_kwh_m2,solar_ah_so_far,irradiance_kwh_m2_so_far,solar_model_coefficient,drift_pct,advisory_fired
 2026-05-19T11:44:25,5.7300,6.2600,1.0920,8.1495,-29.70,True
+2026-05-19T12:09:45,6.0100,8.0100,1.3320,8.1495,-26.30,True
