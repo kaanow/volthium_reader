@@ -42,6 +42,15 @@ WEATHER_CSV = Path("data/weather.csv")
 PACK_STALE_THRESHOLD_S    = 60      # ~6 pack cycles
 WEATHER_STALE_THRESHOLD_S = 60 * 60 # ~2 weather cycles
 
+# Load-surge detection: a "surge" is a stretch where smoothed_i
+# dips below -SURGE_CURRENT_THRESHOLD_A for at least SURGE_MIN_DURATION_S.
+# Threshold of -20 A catches large transient draws (water heater, big
+# inverter load) without picking up routine overnight discharge
+# (typically -2 to -8 A). The smoothed_i filter avoids single-sample
+# noise spikes.
+SURGE_CURRENT_THRESHOLD_A = 20.0
+SURGE_MIN_DURATION_S      = 30.0
+
 
 def _last_pack_row() -> Optional[dict]:
     """Return the final row of pack.csv as a dict, or None."""
@@ -227,6 +236,96 @@ def compute_today_uptime_pct(
     # Clamp to [0, 100] — defensive against pathological data
     pct = max(0.0, min(100.0, (span_s - total_gap_s) / span_s * 100.0))
     return round(pct, 1)
+
+
+def compute_today_load_surges(
+    pack_csv: Path = PACK_CSV,
+    day: Optional[datetime] = None,
+    current_threshold_a: float = SURGE_CURRENT_THRESHOLD_A,
+    min_duration_s: float = SURGE_MIN_DURATION_S,
+) -> list[tuple[str, float, float]]:
+    """Return list of (start_iso, peak_smoothed_a, duration_s) for
+    each load-surge event today.
+
+    A surge is a contiguous stretch of pack.csv samples where
+    `smoothed_i` ≤ -current_threshold_a, lasting at least
+    `min_duration_s`. `peak_smoothed_a` is the MOST NEGATIVE value
+    seen during the event (worst-case load). `start_iso` is the
+    first sample of the dip.
+
+    Smoothed_i is used rather than instantaneous pack_i so a single
+    BMS noise spike doesn't fire a false-positive — the EMA window
+    filters those.
+    """
+    if not pack_csv.exists():
+        return []
+    if day is None:
+        day = datetime.now()
+    iso_prefix = day.strftime("%Y-%m-%d")
+
+    surges: list[tuple[str, float, float]] = []
+    in_surge = False
+    surge_start_ts: Optional[datetime] = None
+    surge_start_iso: str = ""
+    surge_peak: float = 0.0   # most-negative smoothed_i during event
+    last_below_ts: Optional[datetime] = None
+
+    with pack_csv.open() as f:
+        for r in csv.DictReader(f):
+            ts_str = r.get("ts", "")
+            if not ts_str.startswith(iso_prefix):
+                continue
+            try:
+                ts = datetime.fromisoformat(ts_str)
+            except ValueError:
+                continue
+            si = _f(r.get("smoothed_i"))
+            if si is None:
+                continue
+            if si <= -current_threshold_a:
+                if not in_surge:
+                    in_surge = True
+                    surge_start_ts = ts
+                    surge_start_iso = ts_str
+                    surge_peak = si
+                else:
+                    if si < surge_peak:    # more negative
+                        surge_peak = si
+                last_below_ts = ts
+            else:
+                if in_surge and surge_start_ts is not None:
+                    # Close the event
+                    end_ts = last_below_ts or surge_start_ts
+                    duration = (end_ts - surge_start_ts).total_seconds()
+                    if duration >= min_duration_s:
+                        surges.append((surge_start_iso,
+                                       surge_peak, duration))
+                in_surge = False
+                surge_start_ts = None
+                surge_peak = 0.0
+    # Close out an unfinished surge at end of scan
+    if in_surge and surge_start_ts is not None:
+        end_ts = last_below_ts or surge_start_ts
+        duration = (end_ts - surge_start_ts).total_seconds()
+        if duration >= min_duration_s:
+            surges.append((surge_start_iso, surge_peak, duration))
+    return surges
+
+
+def _fmt_load_surges_line(pack_csv: Path = PACK_CSV,
+                          day: Optional[datetime] = None) -> Optional[str]:
+    """Return a "LOAD SURGES  N events, max -X A, total Y s today"
+    line when today has at least one surge event, else None.
+    Mirrors the PACK GAPS line's conditional-render pattern."""
+    surges = compute_today_load_surges(pack_csv=pack_csv, day=day)
+    if not surges:
+        return None
+    plural = "" if len(surges) == 1 else "s"
+    max_peak = min(s[1] for s in surges)   # most negative
+    total_dur = sum(s[2] for s in surges)
+    return (f"LOAD SURGES  {len(surges)} event{plural}, "
+            f"max {max_peak:.1f} A, "
+            f"total {_fmt_age(total_dur)} today")
 
 
 def _fmt_pack_gaps_line(pack_csv: Path = PACK_CSV,
@@ -430,6 +529,11 @@ def render_summary() -> str:
     gaps_line = _fmt_pack_gaps_line(day=now)
     if gaps_line is not None:
         lines.append(gaps_line)
+    # LOAD SURGES similarly only appears when today saw any sustained
+    # large discharge events. Same conditional-render pattern.
+    surges_line = _fmt_load_surges_line(day=now)
+    if surges_line is not None:
+        lines.append(surges_line)
     lines.append(_fmt_today_line(now=now))
     lines.append(_fmt_solar_onset_line())
     lines.append("")

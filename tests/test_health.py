@@ -369,6 +369,118 @@ class TestHealthSummary(unittest.TestCase):
         self.assertEqual(gap_count, 0)
         self.assertEqual(n, 2)  # only today's samples counted
 
+    # ---------- Load surges ----------
+
+    def test_compute_load_surges_no_file(self) -> None:
+        """Missing pack.csv → empty list. Defensive."""
+        self.assertEqual(
+            health_mod.compute_today_load_surges(day=datetime(2026, 5, 19)),
+            [],
+        )
+
+    def test_compute_load_surges_below_threshold_no_event(self) -> None:
+        """Baseline overnight discharge (~-5A) must NOT trigger a
+        surge event — only sustained large draws should."""
+        path = self.root / "data" / "pack.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=[
+                "ts", "state", "pack_v", "pack_i", "smoothed_i",
+                "soc_a", "soc_b",
+            ])
+            w.writeheader()
+            base = datetime(2026, 5, 19, 2, 0, 0)
+            for i in range(30):
+                w.writerow({
+                    "ts": (base + timedelta(seconds=10 * i)).isoformat(),
+                    "state": "discharging", "pack_v": "26.10",
+                    "pack_i": "-5.0", "smoothed_i": "-5.0",
+                    "soc_a": "70", "soc_b": "68",
+                })
+        self.assertEqual(
+            health_mod.compute_today_load_surges(day=datetime(2026, 5, 19)),
+            [],
+        )
+
+    def test_compute_load_surges_detects_sustained_event(self) -> None:
+        """A 1-min stretch of smoothed_i ≤ -25 A → 1 event with the
+        peak captured. Anchors the threshold + duration semantics."""
+        path = self.root / "data" / "pack.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=[
+                "ts", "state", "pack_v", "pack_i", "smoothed_i",
+                "soc_a", "soc_b",
+            ])
+            w.writeheader()
+            base = datetime(2026, 5, 19, 14, 30, 0)
+            # 6 samples at -25 A baseline + 1 sample with peak -35 A
+            # in the middle. Duration: 60 s.
+            for i in range(7):
+                si = -35.0 if i == 3 else -25.0
+                w.writerow({
+                    "ts": (base + timedelta(seconds=10 * i)).isoformat(),
+                    "state": "discharging", "pack_v": "26.10",
+                    "pack_i": str(si), "smoothed_i": str(si),
+                    "soc_a": "70", "soc_b": "68",
+                })
+        surges = health_mod.compute_today_load_surges(
+            day=datetime(2026, 5, 19))
+        self.assertEqual(len(surges), 1)
+        start_iso, peak, dur = surges[0]
+        self.assertEqual(start_iso, "2026-05-19T14:30:00")
+        self.assertAlmostEqual(peak, -35.0, places=1)
+        self.assertAlmostEqual(dur, 60.0, delta=1.0)
+
+    def test_compute_load_surges_filters_brief_spikes(self) -> None:
+        """A single -30 A sample surrounded by normal load is BELOW
+        min_duration_s and should not register. Anchors the
+        noise-filter behaviour."""
+        path = self.root / "data" / "pack.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=[
+                "ts", "state", "pack_v", "pack_i", "smoothed_i",
+                "soc_a", "soc_b",
+            ])
+            w.writeheader()
+            base = datetime(2026, 5, 19, 14, 30, 0)
+            # Normal, then single -30 A sample, then normal again
+            for i in range(5):
+                si = -30.0 if i == 2 else -5.0
+                w.writerow({
+                    "ts": (base + timedelta(seconds=10 * i)).isoformat(),
+                    "state": "discharging", "pack_v": "26.10",
+                    "pack_i": str(si), "smoothed_i": str(si),
+                    "soc_a": "70", "soc_b": "68",
+                })
+        self.assertEqual(
+            health_mod.compute_today_load_surges(day=datetime(2026, 5, 19)),
+            [],
+            "single-sample spike should not register as a surge",
+        )
+
+    def test_summary_includes_load_surges_line(self) -> None:
+        """When today has surge events, the summary shows a
+        LOAD SURGES line between PACK GAPS and TODAY."""
+        path = self.root / "data" / "pack.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=[
+                "ts", "state", "pack_v", "pack_i", "smoothed_i",
+                "soc_a", "soc_b",
+            ])
+            w.writeheader()
+            base = datetime.now().replace(microsecond=0)
+            for i in range(7):
+                si = -30.0
+                w.writerow({
+                    "ts": (base + timedelta(seconds=10 * i)).isoformat(),
+                    "state": "discharging", "pack_v": "26.10",
+                    "pack_i": str(si), "smoothed_i": str(si),
+                    "soc_a": "70", "soc_b": "68",
+                })
+        out = health_mod.render_summary()
+        self.assertIn("LOAD SURGES", out)
+        self.assertIn("1 event", out)
+        self.assertIn("max -30.0 A", out)
+
     # ---------- Uptime % ----------
 
     def test_compute_uptime_no_file(self) -> None:

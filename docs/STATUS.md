@@ -143,6 +143,63 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 15:02 — past 94% of forecast, drift +50% sustained.**
+  Pack at SOC **78/76** (+1/+0), pack_i +1.6 A light absorption,
+  smoothed +7.7 A, voltage 26.79 V. `solar_ah_so_far = 39.0 Ah`
+  (**94% of forecast**). Drift +50.8% (live 12.29 vs model 8.15).
+  Cloud thickened back to 95 % but shortwave still hit 563 W/m² —
+  the day's gross irradiance is well past forecast despite the
+  cloudy patches.
+  - **Design item picked: load-surge detector.** The system has
+    been logging plenty of signals (sample density, irradiance,
+    cascade milestones) but had no record of when LARGE loads
+    cycled — even though we saw an obvious -28.9 A pull at 14:30.
+    This commit captures that signal.
+    - `scripts/health.py`:
+      - New module constants `SURGE_CURRENT_THRESHOLD_A = 20.0`
+        and `SURGE_MIN_DURATION_S = 30.0`. A "surge" is a
+        contiguous stretch where `smoothed_i ≤ -20 A` for at
+        least 30 s. The smoothed-current filter avoids
+        single-sample BMS noise.
+      - New helper `compute_today_load_surges(pack_csv, day,
+        current_threshold_a, min_duration_s)` returns
+        `list[(start_iso, peak_smoothed_a, duration_s)]`.
+      - New `_fmt_load_surges_line()` formats as
+        `LOAD SURGES  N events, max -X A, total Y today`.
+        Conditional render (only appears when events > 0,
+        same pattern as PACK GAPS).
+      - Wired into `render_summary()` between PACK GAPS and
+        TODAY lines.
+    - **Today's live capture**:
+      ```
+      LOAD SURGES  4 events, max -63.7 A, total 11 min today
+      ```
+      The 14:30 event (water heater or similar) wasn't the only
+      one — there have been **4 distinct surge events today,
+      with the biggest hitting -63.7 A peak smoothed_i**. That's
+      ~1700 W on a 24 V pack. Real diagnostic visibility.
+    - 5 regression tests in `test_health.py`:
+      missing-file, baseline-overnight-no-event (-5 A doesn't
+      trigger), sustained-event-detected (1-min stretch
+      registers with correct peak), single-sample-spike-filtered
+      (brief blips don't register), end-to-end summary
+      integration. Suite: **288 tests passing** (was 283, +5 new).
+  - **Why this matters**: the operational signals chain now
+    captures the three main "events" a cabin operator cares about:
+    1. **BLE gaps** (logger reliability)
+    2. **Load surges** (appliance behaviour — NEW)
+    3. **Solar onset cascade** (the day's charge phases)
+    Together they answer "what happened today?" without scrolling
+    through 8+ hours of pack.csv. Especially useful for
+    weekly trending: `grep "LOAD SURGES" data/reports/*.md`
+    (when surfaced on day-report) would reveal cycling patterns.
+  - **Watch**: with 4 surge events today, the daily energy
+    deficit from those is approximately 4 events × 11/4 min/event
+    × ~40 A average × 24 V = ~440 Wh of unplanned consumption.
+    That's why today's full-state still hasn't fired despite
+    94% of forecast — the load surges have been keeping the
+    pack voltage from holding the absorption setpoint.
+
 - **2026-05-19 14:57 — load cleared, solar resuming, 91% of
   forecast.** Pack back to charging (smoothed_i +8.6 A despite
   brief -13.4 A instantaneous), voltage recovered to 26.78 V.
