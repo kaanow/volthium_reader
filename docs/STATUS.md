@@ -143,6 +143,35 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 04:30** — Pre-dawn (sunrise still 38 min away). Pack
+  SOC **70/68 %** (gap held 2 %), discharging at sustained -2.8 A.
+  Voltage 26.19 V steady. **Cloud broke significantly to 45 %** at
+  04:04 (was 99 % most of the night) — there's actually some clear
+  sky ahead of sunrise. Per-battery v_a/v_b agree within 3 mV.
+  **Projection log entry #15** at 04:10:46. Projection accuracy
+  still pending until 05:08 crosses.
+  - Design item: **`data/README.md` — comprehensive index of the
+    data folder**. With many CSV files now (`pack.csv`,
+    `weather.csv`, `daily_summary.csv`, `calibration_log.csv`,
+    `projection_log.csv`, `voltage_soc_table.csv`) plus
+    `reports/*.md` and log files, anyone cloning the repo
+    benefits from a map of what each file is.
+  - Sections:
+    - **Source-of-truth files** (logger-written, append-only):
+      pack.csv, weather.csv, pack.log, launch.log, weather.log
+    - **Derived / rolled-up files** (loop-regenerated):
+      daily_summary.csv, calibration_log.csv, projection_log.csv,
+      voltage_soc_table.csv
+    - **Reports**: data/reports/YYYY-MM-DD.md
+    - **Archived backups**: pack.csv.v0-1512
+    - **Sizing notes** about pack.csv growth + rotation roadmap
+    - **Dashboard surfaces** mapping CSV files → live HTML routes
+    - **Cross-references** to the producing scripts
+  - Closes the documentation gap that's been quietly growing as I
+    added each new derived file. A future-me cloning the repo
+    fresh now gets the map immediately.
+  - 167 tests still pass.
+
 - **2026-05-19 03:55** — Pre-dawn. Pack SOC **71/69 %** (gap 2 %),
   discharging at sustained -2.7 A — the lighter overnight pattern
   holds. Voltage 26.20 V (steady). Cloud broke to 63 % (lowest of
