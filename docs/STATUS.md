@@ -143,6 +143,61 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 09:02 ☀ — solar genuinely arriving.** Pack
+  current jumped from +1.6 A to **+4.0 A** (smoothed_i +3.6 A);
+  pack voltage climbed from 26.29 → **26.40 V**. `solar_ah_so_far`
+  tripled from 0.5 → **+1.5 Ah** in 30 min. SOC still pinned at
+  65/63 on the BMS readout (Ah counter stale; remaining_ah ticked
+  up by 2 to 132 on B side). Cloud holding at 100 % but
+  weather_code = 51 ("Drizzle: Light") suggests intermittent
+  breaks. Shortwave reading 75 W/m² — but the array is clearly
+  doing better than that single-point reading implies (probably
+  cloud thinning between samples). Advisor's `next-24h low SOC`
+  has fallen to **61.8 %** for tomorrow — the new model now has
+  3 entries on disk:
+  ```
+  08:00:45  proj_low=60.4
+  08:26:45  proj_low=62.2
+  08:51:45  proj_low=63.0  (the start_soc recovered)
+  ```
+  - **Design item picked: update data/README.md.** Seven loops
+    of new features had accumulated without updating the data-
+    folder index. Refresh covers:
+    - **New source-of-truth files**: `solar_onset.csv` (cascade
+      milestones), `confidence_log.csv` (lift transitions) —
+      with full column schemas + what writes them + idempotency
+      semantics.
+    - **New derived-in-memory views section**: explains
+      sunrise SOC accuracy, morning-low SOC accuracy, and the
+      per-horizon breakdown. Captures the **-2.97 pp bias
+      finding** that drove the sinusoidal-solar fix as part of
+      the morning-low view's blurb — anchored in the doc as
+      institutional knowledge.
+    - **Report section refresh**: documents the six-chain
+      archive structure of `data/reports/YYYY-MM-DD.md`.
+    - **Dashboard surfaces refresh**: adds `/low-accuracy` and
+      `/confidence` to the route list with descriptions.
+    - **New "audit-trail topology" ASCII diagram**: shows how
+      `pack.csv` feeds both accuracy chains, how `solar_onset.csv`
+      sits between `pack.csv` and the morning-low view, how
+      `daily_summary.csv` feeds the SolarModel fit → calibration
+      log, and how the advisor orchestrates all of it.
+    - Cross-references list extended with the new scripts
+      (`solar_onset.py`, `low_soc_accuracy.py`, `confidence_log.py`)
+      and the orchestrator role of `generator_advisor.py`.
+    - File grew from 70 → **121 lines**. No tests needed (doc
+      change), but the suite still passes at **218 tests**.
+  - **Why this matters**: any new operator cloning the repo
+    lands in a fully-documented data folder. The ASCII topology
+    in particular reduces "where do I start" cognitive load by
+    showing the lineage between files at a glance. Combined
+    with the existing per-script docstrings, the system is now
+    self-explanatory from the outside.
+  - **Watch**: pack should keep recovering. The new-model
+    projections will continue accumulating; tomorrow's sunrise
+    (05:07 ~ 19 h away) is the moment of truth for the bias
+    fix's empirical impact.
+
 - **2026-05-19 08:34** — Pack flicking between idle and charging
   (pack_i 0.0 ↔ +1.6 A, state alternating). SOC still 65/63 — the
   BMS Ah counter hasn't crystallized yet. `solar_ah_so_far = 0.54
