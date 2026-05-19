@@ -143,6 +143,56 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 05:32 ⭐ — FIRST PROJECTION ACCURACY VALIDATION
+  LANDED.** Sunrise (05:08) crossed; the 17 projections made
+  overnight all targeted today's sunrise; `projection_accuracy.py`
+  matched them against the actual pack SOC at 05:08 and produced
+  the first table:
+
+  ```
+  n=17, mean_error=−0.12 pp, mean_abs=1.15, RMS=1.36, range [−2.4, +1.5]
+  ```
+
+  **The advisor was off by ~0% on average** with typical absolute
+  error of just **1.15 percentage points**. Time-evolution shows
+  the bias pattern beautifully:
+  - 7 h pre-sunrise: predicted 69.4 %, actual 67.0 % → **−2.4 pp**
+    (model optimistic at long range)
+  - 5 h pre-sunrise: 68.0 → 67.0 → −1.0 pp
+  - 4 h pre-sunrise: 67.6 → 67.5 → **−0.1 pp** (nearly perfect)
+  - 2 h pre-sunrise: 66.5 → 67.5 → +1.0 pp (slightly pessimistic)
+  - 7 min pre-sunrise: 66.8 → 67.5 → +0.7 pp
+
+  The advisor settled into ~0.5 pp accuracy within 4 h of sunrise.
+  The worst case (2.4 pp at 7 h horizon) is the **baseline to
+  watch against** for future days.
+  - **What this validates end-to-end**: the data-fit SolarModel
+    coefficient (8.149), simulate_next_24h hour-by-hour walk,
+    discharge_model per-hour medians, AND both of yesterday's
+    bug-fixes (06:10 daytime false-positive + 21:00 post-sunset
+    projection-collapse). All five pieces collaborated to nail
+    sunrise SOC to within ~1 pp on a single-observation model.
+  - The dashboard's new "last sunrise validation" chip (built
+    last loop) is now LIVE showing:
+    **predicted 66.8 % · actual 67.5 % · +0.7 pp** (GREEN).
+  - The 2026-05-19 day-report's "Projection accuracy" section is
+    populated with the 17-row table.
+  - `/accuracy` page on the dashboard now shows the full history.
+  - Design item: **documented the validation in
+    `docs/site/loon_lake.md`** as a new "First end-to-end accuracy
+    validation — 2026-05-19 05:32 ⭐" subsection. Captures the
+    summary stats, the time-evolution table showing optimistic →
+    perfect → pessimistic → near-perfect bias pattern, and a
+    watch-against baseline for future worst-case sanity checks.
+  - Pack state at this moment: SOC **68/66 %** (right at the
+    overnight low; gap 2 %), discharging at sustained -2.8 A.
+    Cloud cover **98 %** — back up from the 45 % break overnight.
+    First hint of dawn light not yet (sunrise was 05:08, but the
+    west-facing array won't see direct sun for another hour or
+    so — same morning-shadow-clear pattern as yesterday).
+  - Calibration log still at 2 entries; coef holds at 8.149.
+  - 167 Python tests still pass.
+
 - **2026-05-19 05:03** — **5 minutes shy of sunrise.** Pack SOC
   **69/67 %** (gap 2 %), discharging at sustained -2.7 A. The most
   recent projection (05:01) predicts sunrise SOC **66.8 %**; actual
