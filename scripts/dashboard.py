@@ -1142,7 +1142,8 @@ async function tick() {
                 <span class="v">${ratio.toFixed(2)} vs ${coef.toFixed(2)}</span>
                 <span class="drift">${driftSign}${driftPct.toFixed(1)}%</span>
               </div>
-              <div class="calib-footer">${insTmp.model_drift_advisory}</div>`;
+              <div class="calib-footer">${insTmp.model_drift_advisory}
+                · <a href="/drift" target="_blank" class="report-link">drift history ↗</a></div>`;
         }
 
         // Model-vs-live calibration chip: show what the SolarModel uses
@@ -1598,7 +1599,8 @@ async function tick() {
           <div class="footer">${harv.duration_h.toFixed(1)} h of data so far · ${harv.confidence} confidence
             · <a href="/today-report" target="_blank" class="report-link">today's report ↗</a>
             · <a href="/reports" target="_blank" class="report-link">all reports ↗</a>
-            · <a href="/health" target="_blank" class="report-link">health summary ↗</a></div>
+            · <a href="/health" target="_blank" class="report-link">health summary ↗</a>
+            · <a href="/drift" target="_blank" class="report-link">drift chart ↗</a></div>
           ${note}
         </div>`;
     } else {
@@ -1659,6 +1661,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._serve_low_soc_accuracy()
         if self.path == "/confidence" or self.path == "/confidence/":
             return self._serve_confidence_log()
+        if self.path == "/drift" or self.path == "/drift/":
+            return self._serve_drift()
         if self.path == "/health" or self.path == "/health/":
             return self._serve_health()
         # /report/YYYY-MM-DD — historical day-report
@@ -2076,7 +2080,7 @@ class Handler(BaseHTTPRequestHandler):
             "<a href='/projections'>projection log</a> · "
             "<a href='/calibration'>calibration log</a> · "
             "<a href='/low-accuracy'>morning-low accuracy</a> · "
-            "<a href='/confidence'>confidence log</a></p>"
+            "<a href='/confidence'>confidence log</a> · <a href='/drift'>drift chart</a></p>"
             + intro
             + body
         )
@@ -2245,7 +2249,7 @@ class Handler(BaseHTTPRequestHandler):
             "<a href='/accuracy'>sunrise accuracy</a> · "
             "<a href='/projections'>projection log</a> · "
             "<a href='/calibration'>calibration log</a> · "
-            "<a href='/confidence'>confidence log</a></p>"
+            "<a href='/confidence'>confidence log</a> · <a href='/drift'>drift chart</a></p>"
             + intro
             + body
         )
@@ -2333,7 +2337,7 @@ class Handler(BaseHTTPRequestHandler):
             "<a href='/calibration'>calibration log</a> · "
             "<a href='/accuracy'>accuracy</a> · "
             "<a href='/low-accuracy'>morning-low accuracy</a> · "
-            "<a href='/confidence'>confidence log</a></p>"
+            "<a href='/confidence'>confidence log</a> · <a href='/drift'>drift chart</a></p>"
             + intro
             + "".join(body_lines)
         )
@@ -2411,7 +2415,7 @@ class Handler(BaseHTTPRequestHandler):
             "<a href='/projections'>projection log</a> · "
             "<a href='/accuracy'>accuracy</a> · "
             "<a href='/low-accuracy'>morning-low accuracy</a> · "
-            "<a href='/confidence'>confidence log</a></p>"
+            "<a href='/confidence'>confidence log</a> · <a href='/drift'>drift chart</a></p>"
             + intro
             + "".join(body_lines)
         )
@@ -2525,6 +2529,250 @@ class Handler(BaseHTTPRequestHandler):
         )
         return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
 
+    def _serve_drift(self):
+        """Render the live-ratio history as an SVG time-series chart.
+        Reads data/live_ratio_log.csv (one row per ~25 min of advisor
+        invocations during daylight). Y axis = live_ratio (Ah / kWh/m²);
+        horizontal reference line at the SolarModel coefficient with a
+        shaded ±20% advisory band. Dots are red when the row's
+        advisory_fired flag was True, gray otherwise.
+
+        Below the chart, the standard per-record table same shape as
+        /accuracy and /low-accuracy."""
+        import live_ratio_log as lrl_mod
+        try:
+            entries = lrl_mod.read_log()
+        except Exception as e:
+            return self._send(HTTPStatus.OK, "text/plain; charset=utf-8",
+                              f"could not read live_ratio log: {e}".encode())
+
+        # If empty: graceful empty-state
+        if not entries:
+            body = (
+                "<p style='color:#8b949e;font-style:italic'>"
+                "(no live_ratio_log entries yet — the first row lands "
+                "the next time the advisor runs with a populated "
+                "live_ratio, typically after morning solar onset)"
+                "</p>"
+            )
+            chart_svg = ""
+            summary_html = ""
+        else:
+            # Pull the SolarModel coefficient from the most-recent
+            # entry — it's the most relevant target for the band.
+            coef = entries[-1].solar_model_coefficient or 8.0
+            chart_svg = self._render_drift_chart(entries, coef=coef)
+
+            # Per-record table — newest first
+            def _row(e):
+                ts_short = e.ts[:16] if len(e.ts) >= 16 else e.ts
+                drift_cls = "warn" if e.advisory_fired else "ok"
+                adv_str = "<strong>yes</strong>" if e.advisory_fired else "no"
+                return (
+                    "<tr>"
+                    f"<td>{html_escape(ts_short)}</td>"
+                    f"<td style='text-align:right'>{e.live_ratio_ah_per_kwh_m2:.2f}</td>"
+                    f"<td style='text-align:right'>{e.solar_model_coefficient:.2f}</td>"
+                    f"<td style='text-align:right' class='err-{drift_cls}'>"
+                    f"{e.drift_pct:+.1f}%</td>"
+                    f"<td style='text-align:right'>{e.solar_ah_so_far:.2f}</td>"
+                    f"<td style='text-align:right'>{e.irradiance_kwh_m2_so_far:.2f}</td>"
+                    f"<td style='text-align:center'>{adv_str}</td>"
+                    "</tr>"
+                )
+            rows_html = "".join(_row(e) for e in reversed(entries))
+            # Summary stats
+            n = len(entries)
+            advs = sum(1 for e in entries if e.advisory_fired)
+            ratios = [e.live_ratio_ah_per_kwh_m2 for e in entries]
+            mean_ratio = sum(ratios) / len(ratios)
+            mean_drift = sum(e.drift_pct for e in entries) / n
+            summary_html = (
+                "<p style='color:#8b949e;font-size:12px;margin-top:14px'>"
+                f"<strong>summary</strong> · n = {n} rows · "
+                f"mean ratio <strong>{mean_ratio:.2f}</strong> · "
+                f"mean drift <strong>{mean_drift:+.1f}%</strong> · "
+                f"advisory fired in <strong>{advs} / {n}</strong> rows"
+                "</p>"
+            )
+            table = (
+                "<h3 style='margin-top:24px;margin-bottom:6px;"
+                "color:#c9d1d9;font-size:14px'>All rows</h3>"
+                "<table>"
+                "<thead><tr>"
+                "<th>timestamp</th>"
+                "<th style='text-align:right'>live_ratio</th>"
+                "<th style='text-align:right'>coef</th>"
+                "<th style='text-align:right'>drift</th>"
+                "<th style='text-align:right'>solar Ah</th>"
+                "<th style='text-align:right'>kWh/m²</th>"
+                "<th style='text-align:center'>advisory?</th>"
+                "</tr></thead>"
+                f"<tbody>{rows_html}</tbody></table>"
+            )
+            body = chart_svg + table + summary_html
+
+        intro = (
+            "<h2 style='margin-top:0'>Live-ratio drift over time</h2>"
+            "<p style='color:#8b949e;font-size:12px'>"
+            "Today's (and across days, eventually) live_ratio "
+            "<code>(Ah delivered to pack) / (kWh/m² received)</code> "
+            "vs the SolarModel coefficient. The shaded band marks the "
+            "advisory zone (|drift| ≥ 20% — see "
+            "<a href='/'>main dashboard</a> for the live drift chip). "
+            "When live_ratio stays in the band for multiple days "
+            "running, the SolarModel needs re-fitting; transient "
+            "advisories (single-day weather anomalies) are normal."
+            "</p>"
+        )
+
+        html = (
+            "<!doctype html><meta charset=utf-8>"
+            "<meta name=viewport content='width=device-width,initial-scale=1'>"
+            "<title>Drift over time</title>"
+            f"<style>{self.REPORT_PAGE_STYLE}"
+            " table{border-collapse:collapse;font-size:12px;"
+            "font-variant-numeric:tabular-nums;margin-top:10px}"
+            " th,td{padding:5px 10px;border-bottom:1px solid #21262d;text-align:left}"
+            " th{color:#8b949e;border-bottom:1px solid #30363d}"
+            " .err-ok{color:#3fb950}"
+            " .err-warn{color:#d29922}"
+            " strong{color:#c9d1d9}"
+            " code{background:#161b22;padding:1px 4px;border-radius:3px}"
+            "</style>"
+            "<p><a href='/'>&larr; dashboard</a> · "
+            "<a href='/accuracy'>accuracy</a> · "
+            "<a href='/low-accuracy'>morning-low accuracy</a> · "
+            "<a href='/confidence'>confidence log</a> · <a href='/drift'>drift chart</a></p>"
+            + intro
+            + body
+        )
+        return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
+
+    @staticmethod
+    def _render_drift_chart(entries: list, coef: float) -> str:
+        """Build the time-series SVG. X axis = sample index (0..n-1),
+        Y axis = live_ratio. Coefficient is the horizontal reference
+        line; ±20 % shaded band marks the advisory zone. Dots are
+        red when advisory_fired, gray otherwise."""
+        import math
+        if not entries:
+            return ""
+        n = len(entries)
+        W, H = 600, 200
+        PAD_L, PAD_R, PAD_T, PAD_B = 50, 16, 24, 40
+        plot_w = W - PAD_L - PAD_R
+        plot_h = H - PAD_T - PAD_B
+        # Y range: include the coefficient + 30% band so axes have headroom
+        ratios = [e.live_ratio_ah_per_kwh_m2 for e in entries]
+        lo = min(min(ratios), coef * 0.6)
+        hi = max(max(ratios), coef * 1.2)
+        y_range = hi - lo if hi > lo else 1.0
+        def y_pix(v: float) -> float:
+            return PAD_T + plot_h - ((v - lo) / y_range) * plot_h
+        def x_pix(i: int) -> float:
+            if n == 1:
+                return PAD_L + plot_w / 2
+            return PAD_L + (i / (n - 1)) * plot_w
+        pieces: list[str] = []
+        # Advisory band: rectangle from coef*0.8 to coef*1.2
+        band_top = y_pix(coef * 1.20)
+        band_bot = y_pix(coef * 0.80)
+        pieces.append(
+            f"<rect x='{PAD_L}' y='{band_top:.1f}' "
+            f"width='{plot_w}' height='{(band_bot - band_top):.1f}' "
+            f"fill='rgba(63,185,80,0.06)'/>"
+        )
+        # Reference line at the coefficient
+        cy = y_pix(coef)
+        pieces.append(
+            f"<line x1='{PAD_L}' y1='{cy:.1f}' "
+            f"x2='{PAD_L + plot_w}' y2='{cy:.1f}' "
+            f"stroke='#3fb950' stroke-width='1' stroke-dasharray='4,3'/>"
+        )
+        pieces.append(
+            f"<text x='{PAD_L + plot_w - 4}' y='{cy - 4:.1f}' "
+            f"fill='#3fb950' font-size='10' text-anchor='end' "
+            f"font-family='ui-monospace,monospace'>"
+            f"SolarModel coef {coef:.2f}</text>"
+        )
+        # Threshold band edges
+        for mult, label in ((1.20, "+20%"), (0.80, "-20%")):
+            ty = y_pix(coef * mult)
+            pieces.append(
+                f"<line x1='{PAD_L}' y1='{ty:.1f}' "
+                f"x2='{PAD_L + plot_w}' y2='{ty:.1f}' "
+                f"stroke='#30363d' stroke-width='0.5' stroke-dasharray='2,3'/>"
+            )
+            pieces.append(
+                f"<text x='{PAD_L - 4}' y='{ty + 3:.1f}' "
+                f"fill='#8b949e' font-size='9' text-anchor='end' "
+                f"font-family='ui-monospace,monospace'>{label}</text>"
+            )
+        # Polyline through the data
+        if n >= 2:
+            pts = " ".join(
+                f"{x_pix(i):.1f},{y_pix(e.live_ratio_ah_per_kwh_m2):.1f}"
+                for i, e in enumerate(entries)
+            )
+            pieces.append(
+                f"<polyline points='{pts}' fill='none' "
+                f"stroke='#58a6ff' stroke-width='1.5'/>"
+            )
+        # Dots, colored by advisory_fired
+        for i, e in enumerate(entries):
+            cxp = x_pix(i)
+            cyp = y_pix(e.live_ratio_ah_per_kwh_m2)
+            color = "#f85149" if e.advisory_fired else "#8b949e"
+            tip = (f"{e.ts}: ratio {e.live_ratio_ah_per_kwh_m2:.2f}, "
+                   f"drift {e.drift_pct:+.1f}%, "
+                   f"adv {'yes' if e.advisory_fired else 'no'}")
+            pieces.append(
+                f"<circle cx='{cxp:.1f}' cy='{cyp:.1f}' r='3.5' "
+                f"fill='{color}'><title>{html_escape(tip)}</title></circle>"
+            )
+        # Y-axis tick labels at lo, mid, hi
+        for v in (lo, (lo + hi) / 2, hi):
+            yp = y_pix(v)
+            pieces.append(
+                f"<text x='{PAD_L - 6}' y='{yp + 3:.1f}' "
+                f"fill='#8b949e' font-size='10' text-anchor='end' "
+                f"font-family='ui-monospace,monospace'>{v:.2f}</text>"
+            )
+        # X-axis labels: first and last timestamp (HH:MM)
+        if entries:
+            first_t = entries[0].ts[11:16] if len(entries[0].ts) >= 16 else entries[0].ts
+            last_t = entries[-1].ts[11:16] if len(entries[-1].ts) >= 16 else entries[-1].ts
+            pieces.append(
+                f"<text x='{PAD_L}' y='{H - 8}' fill='#8b949e' "
+                f"font-size='10' text-anchor='start' "
+                f"font-family='ui-monospace,monospace'>{first_t}</text>"
+            )
+            if n > 1:
+                pieces.append(
+                    f"<text x='{PAD_L + plot_w}' y='{H - 8}' fill='#8b949e' "
+                    f"font-size='10' text-anchor='end' "
+                    f"font-family='ui-monospace,monospace'>{last_t}</text>"
+                )
+        # Title
+        title = (
+            f"<text x='{W // 2}' y='14' fill='#c9d1d9' "
+            f"font-size='11' text-anchor='middle' "
+            f"font-family='ui-monospace,monospace'>"
+            f"live_ratio Ah/(kWh/m²) — {n} sample{'s' if n != 1 else ''}"
+            f"</text>"
+        )
+        body = "".join(pieces)
+        return (
+            f"<svg viewBox='0 0 {W} {H}' "
+            f"preserveAspectRatio='xMidYMid meet' "
+            f"style='display:block;width:100%;max-width:{W}px;"
+            f"margin:10px auto 0;background:#0d1117;border-radius:4px;"
+            f"padding:6px;box-sizing:border-box'>"
+            f"{title}{body}"
+            f"</svg>"
+        )
+
     def _serve_health(self):
         """Render scripts.health.render_summary() as a clean preformatted
         HTML page. Quick lightweight overview when the chart-heavy main
@@ -2561,7 +2809,7 @@ class Handler(BaseHTTPRequestHandler):
             "<a href='/today-report'>today's report</a> · "
             "<a href='/accuracy'>accuracy</a> · "
             "<a href='/low-accuracy'>morning-low accuracy</a> · "
-            "<a href='/confidence'>confidence log</a></p>"
+            "<a href='/confidence'>confidence log</a> · <a href='/drift'>drift chart</a></p>"
             f"<pre>{html_escape(summary)}</pre>"
             "<p class='footer'>Auto-refreshes every 30 s. "
             "Same content as <code>python3 scripts/health.py</code> on "

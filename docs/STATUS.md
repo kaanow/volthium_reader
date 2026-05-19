@@ -143,6 +143,58 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 12:21** — Pack at solar/load equilibrium again
+  (pack_i 0.0 A momentary, smoothed +1.5 A — still net charging).
+  SOC holding 68/66. `solar_ah_so_far = 9.0 Ah` (+0.5 since last
+  loop). Drift narrowing to **-23.1%** (from -24.0%). PACK GAPS
+  unchanged at 2 events. live_ratio_log still has 2 rows — row
+  #3 will land at ~12:34:46 (25 min after #2).
+  - **Design item picked: live-ratio drift chart at `/drift`.**
+    The log started populating last loop; this commit adds the
+    visualization that lets the operator see how today's drift
+    has evolved at-a-glance instead of scanning the raw CSV.
+    - `scripts/dashboard.py`: new `/drift` route + new
+      `_render_drift_chart()` helper. Renders an SVG time-series:
+      - X axis = sample index (chronological)
+      - Y axis = live_ratio (Ah / kWh/m²)
+      - Horizontal reference line at the SolarModel coefficient
+        (the "target")
+      - Shaded ±20 % band marking the advisory zone (matches
+        `MODEL_DRIFT_ADVISORY_THRESHOLD_PCT`)
+      - Dots: **red** when `advisory_fired=True`, **gray** when
+        within threshold
+      - SVG `<title>` tooltips on every dot showing ts + drift
+      - First/last timestamps labeled on the X axis
+    - Below the chart, a per-record table with summary stats
+      (n, mean ratio, mean drift, advisory-fired count).
+    - Cross-linked from all the other log pages (`/accuracy`,
+      `/low-accuracy`, `/projections`, `/calibration`,
+      `/confidence`) AND the main dashboard footer AND the drift
+      advisory chip's footer.
+    - **Today's chart**: two red dots near the bottom of the
+      Y axis (ratio 5.73 → 6.01, drift -29.7% → -26.3%) below
+      the -20% threshold band — exactly the "advisory zone"
+      story we've been telling. As more rows accumulate the
+      visual will show the recovery curve directly.
+    - 2 regression tests: `test_drift_route_empty_state`
+      (cold-start no crash) + `test_drift_route_renders_chart_with_data`
+      (SVG + circles + reference lines + summary table all
+      present with fixtured rows). Suite: **263 tests passing**
+      (was 261, +2 new).
+  - **Why this matters**: the drift advisory has been firing
+    on-and-off for hours today. The chart immediately answers
+    "is this a transient spike or a sustained trend?" — for
+    today's data, it's clearly the latter (both rows below the
+    band). Over coming days the chart will show whether the
+    advisory clears cleanly (model fits OK) or persists (model
+    needs re-fitting). Same shape as `/accuracy` and
+    `/low-accuracy` so the operator's mental model is consistent
+    across all three validation chains.
+  - **Watch**: row #3 lands ~12:34. With each row the chart
+    becomes more informative; by end-of-day we should have ~6
+    rows spanning the afternoon — enough to see whether the
+    drift trajectory continues narrowing.
+
 - **2026-05-19 12:14** — **Rate-limit verified** + SOC ticked
   again to **68/66**. live_ratio_log now has 2 rows:
   ```

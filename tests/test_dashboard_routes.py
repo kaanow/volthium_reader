@@ -255,6 +255,49 @@ class TestDashboardRoutes(unittest.TestCase):
         # context so a new reader understands what they're looking at.
         self.assertIn(b"projected_low_soc", body)
 
+    def test_drift_route_empty_state(self) -> None:
+        """No live_ratio_log → friendly empty message, no crash."""
+        h, captured = _make_handler("/drift")
+        h.do_GET()
+        status, _, body = captured[0]
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertIn(b"Live-ratio drift over time", body)
+        self.assertIn(b"no live_ratio_log entries yet", body)
+
+    def test_drift_route_renders_chart_with_data(self) -> None:
+        """When live_ratio_log has rows, the page renders an SVG
+        chart + a per-record table with summary stats."""
+        path = self.root / "data" / "live_ratio_log.csv"
+        with path.open("w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["ts", "live_ratio_ah_per_kwh_m2",
+                        "solar_ah_so_far", "irradiance_kwh_m2_so_far",
+                        "solar_model_coefficient", "drift_pct",
+                        "advisory_fired"])
+            w.writerow(["2026-05-19T11:44:25", "5.73", "6.26", "1.09",
+                        "8.15", "-29.70", "True"])
+            w.writerow(["2026-05-19T12:09:45", "6.01", "8.01", "1.33",
+                        "8.15", "-26.30", "True"])
+        h, captured = _make_handler("/drift")
+        h.do_GET()
+        status, _, body = captured[0]
+        self.assertEqual(status, HTTPStatus.OK)
+        # SVG chart present
+        self.assertIn(b"<svg", body)
+        self.assertIn(b"live_ratio Ah", body)
+        # Data points rendered as circles
+        self.assertIn(b"<circle", body)
+        # The coefficient reference line + ±20 % band labels
+        self.assertIn(b"SolarModel coef", body)
+        self.assertIn(b"+20%", body)
+        self.assertIn(b"-20%", body)
+        # Table with both rows + summary
+        self.assertIn(b"n = 2 rows", body)
+        self.assertIn(b"advisory fired in", body)
+        # Cross-links to sister pages
+        self.assertIn(b"/accuracy", body)
+        self.assertIn(b"/low-accuracy", body)
+
     def test_api_includes_pack_gaps_field(self) -> None:
         """/api/latest.json must surface today's pack_gaps stats so
         the dashboard can render the BLE-logger reliability chip
