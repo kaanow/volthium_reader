@@ -482,6 +482,25 @@ class TestDashboardRoutes(unittest.TestCase):
         # symbol the CLI prints
         self.assertIn(b"model drift", body)
 
+    def test_onset_markers_include_afternoon_cascade(self) -> None:
+        """The JS computeOnsetMarkers must include the afternoon
+        cascade keys (first_absorption_iso, first_full_iso) along
+        with the morning four. Anchors the schema-upgrade against
+        a refactor that might drop them."""
+        h, captured = _make_handler("/")
+        h.do_GET()
+        body = captured[0][2]
+        # All six milestone keys present
+        for key in (b"first_zero_iso", b"first_idle_iso",
+                    b"first_positive_iso", b"first_net_positive_iso",
+                    b"first_absorption_iso", b"first_full_iso"):
+            self.assertIn(key, body, f"missing milestone key {key!r}")
+        # Marker labels for the afternoon cascade
+        self.assertIn(b"absorp", body)
+        # Color codes for the new milestones
+        self.assertIn(b"#a371f7", body)   # purple for absorption
+        self.assertIn(b"#ffd700", body)   # gold for full
+
     def test_index_includes_onset_marker_js(self) -> None:
         """The dashboard's index page must include the
         computeOnsetMarkers JS function so the sparklines can

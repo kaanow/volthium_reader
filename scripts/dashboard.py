@@ -975,11 +975,19 @@ async function tick() {
     // are commonly equal) are de-duped to a single marker.
     function computeOnsetMarkers(series, onset) {
       if (!series || !series.length || !onset) return [];
+      // Six chronological milestones across the day:
+      //  Morning cascade: zero → idle → pos → net+ (greys+amber+green)
+      //  Afternoon cascade: absorption → full (purple+gold)
+      // The afternoon two were added 2026-05-19; they may be null
+      // until later in the day when voltage + tapering current
+      // trigger absorption-onset, or when the BMS reports state="full".
       const milestones = [
-        {key: "first_zero_iso",         label: "zero", color: "#8b949e"},
-        {key: "first_idle_iso",         label: "idle", color: "#8b949e"},
-        {key: "first_positive_iso",     label: "pos",  color: "#d29922"},
-        {key: "first_net_positive_iso", label: "net+", color: "#3fb950"},
+        {key: "first_zero_iso",         label: "zero",   color: "#8b949e"},
+        {key: "first_idle_iso",         label: "idle",   color: "#8b949e"},
+        {key: "first_positive_iso",     label: "pos",    color: "#d29922"},
+        {key: "first_net_positive_iso", label: "net+",   color: "#3fb950"},
+        {key: "first_absorption_iso",   label: "absorp", color: "#a371f7"},
+        {key: "first_full_iso",         label: "full",   color: "#ffd700"},
       ];
       const out = [];
       const firstT = Date.parse(series[0].ts);
@@ -1554,11 +1562,16 @@ async function tick() {
             const so = j.solar_onset;
             if (!so || !so.first_zero_iso) return "";
             const tShort = (iso) => iso ? iso.slice(11, 16) : "—";
-            // Determine how far along the cascade we are. The class
-            // toggles between "ok" (net-positive achieved), "warn"
-            // (still mid-cascade), and "dim" (just first-zero so far).
+            // Determine how far along the cascade we are. Class
+            // tracks the day's progress: from "first zero" → "idle"
+            // → "transient positive" → "net-positive" → "absorption"
+            // → "full". Highest milestone reached wins.
             let stage, cls;
-            if (so.first_net_positive_iso) {
+            if (so.first_full_iso) {
+              stage = "full";  cls = "ok";
+            } else if (so.first_absorption_iso) {
+              stage = "absorption";  cls = "ok";
+            } else if (so.first_net_positive_iso) {
               stage = "net-positive";  cls = "ok";
             } else if (so.first_positive_iso) {
               stage = "transient positive";  cls = "warn";
@@ -1567,12 +1580,16 @@ async function tick() {
             } else {
               stage = "first zero";  cls = "dim";
             }
-            // Build a compact cascade line: zero → idle → pos → net+
+            // Build a compact cascade line spanning all 6 milestones
+            // (morning → afternoon). Empty milestones are filtered out
+            // so the line stays compact as the day progresses.
             const cascadeBits = [
               `zero ${tShort(so.first_zero_iso)}`,
               so.first_idle_iso ? `idle ${tShort(so.first_idle_iso)}` : null,
               so.first_positive_iso ? `pos ${tShort(so.first_positive_iso)}` : null,
               so.first_net_positive_iso ? `net+ ${tShort(so.first_net_positive_iso)}` : null,
+              so.first_absorption_iso ? `absorp ${tShort(so.first_absorption_iso)}` : null,
+              so.first_full_iso ? `full ${tShort(so.first_full_iso)}` : null,
             ].filter(Boolean);
             const cascade = cascadeBits.join(" → ");
             // SOC at net-positive is the bottom of the day's curve —
@@ -1582,7 +1599,8 @@ async function tick() {
               ? `<span class="drift">SOC ${so.soc_avg_at_net_positive.toFixed(1)} %</span>`
               : "";
             const onsetTip = (
-              "Today's solar-onset cascade.\n"
+              "Today's solar cascade — six milestones across the day.\n\n"
+              + "MORNING CASCADE:\n"
               + "ZERO: first sample at pack_i = 0 (solar matched load).\n"
               + "IDLE: BMS classified state as idle, or |i| ≤ 0.5 A.\n"
               + "POS: instantaneous current went strictly positive (a "
@@ -1590,7 +1608,12 @@ async function tick() {
               + "NET+: smoothed current went net-positive — sustained "
               + "charging has begun.\n"
               + "SOC at NET+ is the bottom of today's curve, useful as "
-              + "a check on the advisor's projected_low_soc."
+              + "a check on the advisor's projected_low_soc.\n\n"
+              + "AFTERNOON CASCADE:\n"
+              + "ABSORP: voltage crossed 26.7 V AND current tapered "
+              + "below 75 % of running peak — charge controller backed "
+              + "off bulk charging.\n"
+              + "FULL: BMS reported state=full — complete charge."
             );
             return `
               <div class="solar-onset ${cls}" title="${onsetTip}">
@@ -1725,6 +1748,11 @@ class Handler(BaseHTTPRequestHandler):
                     "first_net_positive_iso": rec.first_net_positive_iso,
                     "smoothed_i_at_net_positive": rec.smoothed_i_at_net_positive,
                     "soc_avg_at_net_positive": rec.soc_avg_at_net_positive,
+                    # Afternoon cascade (added 2026-05-19) —
+                    # bookends the morning's net+ moment with
+                    # the day's charge-cycle endpoints.
+                    "first_absorption_iso": rec.first_absorption_iso,
+                    "first_full_iso": rec.first_full_iso,
                 }
             except Exception:
                 solar_onset = None

@@ -143,6 +143,65 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 14:57 — load cleared, solar resuming, 91% of
+  forecast.** Pack back to charging (smoothed_i +8.6 A despite
+  brief -13.4 A instantaneous), voltage recovered to 26.78 V.
+  SOC 77/76. `solar_ah_so_far = 38.0 Ah` (**91% of forecast** —
+  was 81%). Drift continued climbing to +49.1%. Row #8 of
+  live_ratio_log landed at 14:42:45 with drift +44.4%. Uptime
+  ticked up to 96.1%. Full state still pending.
+  - **Design item picked: absorption/full markers on dashboard
+    sparkline.** The morning cascade (zero/idle/pos/net+) has
+    been visible on the sparkline since loop ~5; this commit
+    extends the visualization to ALL six milestones across the
+    day.
+    - `scripts/dashboard.py`:
+      - `/api/latest.json`'s `solar_onset` field gains
+        `first_absorption_iso` and `first_full_iso` (the API
+        now propagates the schema-upgrade from 2 loops ago).
+      - JS `computeOnsetMarkers()` extended with two new
+        milestones: `absorp` (purple `#a371f7`) and `full`
+        (gold `#ffd700`). Colors deliberately distinct from
+        the morning cascade greys/amber/green so the eye can
+        tell phases apart.
+      - The harvest-panel "solar onset" chip's cascade text
+        and stage detection both extended:
+        - Stage hierarchy: `first zero → idle → transient
+          positive → net-positive → absorption → full` (the
+          highest milestone reached wins)
+        - Cascade text:
+          `zero 06:44 → idle 06:44 → pos 07:44 → net+ 07:45
+          → absorp 13:44`
+        - Tooltip text reorganized into MORNING + AFTERNOON
+          sections explaining each milestone.
+    - 1 regression test added — `test_onset_markers_include_afternoon_cascade`
+      anchors the 6 milestone keys, the `absorp` marker label,
+      and the new color codes (`#a371f7`, `#ffd700`).
+      Suite: **283 tests passing** (was 282, +1 new).
+  - **Why this matters**: the sparkline + chip on the main
+    dashboard now reflect the **full day's narrative** at a
+    glance. The morning ramp-up shows greys+amber+green
+    markers; the afternoon endpoint shows purple+gold (when
+    triggered). A future operator glancing at the chart sees
+    "we hit absorption at 13:44 — pack made it past the
+    morning low" without scrolling.
+  - **Coverage status**: solar_onset now has parity across all
+    surfaces (full 6-milestone cascade):
+    1. `data/solar_onset.csv` (raw, append-only)
+    2. CLI `python3 scripts/solar_onset.py --show`
+    3. Dashboard `/api/latest.json` (used by sparkline
+       markers + harvest-panel chip)
+    4. Day-report markdown `## Solar onset` cascade table
+    5. Day-report markdown narrative paragraph
+    All five surfaces stay in lockstep — change the schema once
+    in `solar_onset.py`, the rest follow automatically (because
+    they pull from `read_log()` and `SolarOnsetRecord`).
+  - **Watch**: pack at 77/76 with full charge controller now
+    fighting the load. If voltage climbs back to 27+ V and
+    state flips to `full`, the cascade completes and the chart
+    gets its 6th marker. Today might still hit full despite
+    the load surge.
+
 - **2026-05-19 14:30 ⚡ — major load surge.** Pack flipped to
   **discharging**: pack_i **-28.9 A** (≈760 W instantaneous draw,
   likely a major appliance), smoothed_i **-20.0 A**, voltage
