@@ -143,6 +143,72 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 07:13** — Sunrise +125 min, post-onset stall. Pack
+  SOC dropped further to **65/63 %** (down another 1 pp from last
+  loop). Current back to **-2.0 A** baseline — the 06:44 zero
+  crossing was a transient solar surge that didn't sustain. Cloud
+  holding at **100 %**, shortwave inching up to **65 W/m²** (from
+  53 last loop). Irradiance accumulated: **0.072 kWh/m²** (1.4 %
+  of the 5.11 forecast — the cloud is severely curtailing the
+  west-facing array). Advisor projection has converged
+  beautifully: `next-24h low SOC` now **63 %** with pack actually
+  at 63/65 — the projection is essentially landing on reality as
+  we approach the floor. `solar_onset.csv` still shows
+  first_zero=06:44, first_idle=06:44, with positive and
+  net-positive pending. Confidence holds at `medium · lifted from
+  low` (no new transition logged).
+  - **Design item picked: surface solar_onset on day-report.**
+    The solar_onset chain landed last loop with a live first_zero
+    captured; the day-report needed a matching section so the
+    archival markdown carries the morning cascade forward.
+    Wired up:
+    - `scripts/end_of_day_report.py`: new `## Solar onset`
+      section between Solar harvest and Weather. Reads from
+      `data/solar_onset.csv` when a row exists for the day
+      (preferred — preserves the answer even if pack.csv has
+      rolled over); falls back to fresh `detect_onset(pack.csv,
+      day)` for historical days without a logged row.
+    - Renders three states gracefully:
+      - **Pre-onset**: friendly "No solar onset detected" note
+        with reasons (heavy cloud, system shutdown, pre-dawn).
+      - **Mid-cascade**: 4-row milestone table with em-dashes
+        for pending milestones + "Net-positive crossover still
+        pending" note.
+      - **Complete cascade**: full table + summary line with
+        smoothed_i and SOC at the moment, framed as "the bottom
+        of the day's SOC curve and a useful calibration check
+        against `projected_low_soc`".
+    - Cross-references section gains entries for both
+      `data/solar_onset.csv` and `data/confidence_log.csv`
+      (which was missing — fixed in the same commit).
+    - 4 regression tests in `test_end_of_day_report.py` cover:
+      pre-onset empty state, mid-cascade partial table,
+      complete cascade with summary line, logged-row preferred
+      over fresh pack.csv scan. Suite: **193 tests** (was 189,
+      +4 new).
+  - **Today's regenerated report** at `data/reports/2026-05-19.md`
+    now shows the actual partial cascade (`first zero 06:44:10`,
+    `first idle 06:44:10`, others pending) — committed to the
+    repo so future reruns of historical days don't need pack.csv
+    to be available.
+  - **Why this matters**: closes the third archive loop. We now
+    have THREE layers of historical record on the day-report:
+    1. The day's mechanical totals (SOC walk, peaks, harvest)
+    2. The advisor's validation (projection accuracy + horizon
+       breakdown — landed two loops ago)
+    3. The morning transition (solar onset cascade — this loop)
+    
+    A future Volthium operator opening any historical day-report
+    will see exactly what happened AND what the model thought
+    would happen, side-by-side.
+  - **Watch**: solar_onset's missing milestones (first_positive,
+    first_net_positive) may not land today if cloud holds. If
+    so, today's day-report will preserve "Net-positive crossover
+    still pending" as the FINAL state for the day — itself a
+    useful historical signal (these are the days where the
+    advisor's confidence lift matters most because the system is
+    operating very close to the projected_low).
+
 - **2026-05-19 06:46 🌅 — DAY-2 SOLAR ONSET DETECTED.** First zero
   crossing at **06:44:10** (1 h 36 min after sunrise on a
   west-facing array under 100 % cloud); BMS state transitioned

@@ -32,6 +32,7 @@ import today_harvest as today_harvest_mod  # noqa: E402
 import calibration_log as calibration_log_mod  # noqa: E402
 import projection_log as projection_log_mod  # noqa: E402
 import projection_accuracy as projection_accuracy_mod  # noqa: E402
+import solar_onset as solar_onset_mod  # noqa: E402
 
 
 def _f(v) -> Optional[float]:
@@ -197,6 +198,60 @@ def build_report(day: date) -> str:
         lines.append(f"- Live ratio (latest): "
                      f"**{snap['live_ratio_ah_per_kwh_m2']:.2f} Ah/(kWh/m²)**")
 
+    # ---------- Solar onset ----------
+    # The morning cascade — when each milestone of the discharge-to-
+    # charge transition was observed. Reads from data/solar_onset.csv
+    # if a row exists for this day, otherwise scans pack.csv directly.
+    # The latter is the path for re-running on a historical day before
+    # the log was retroactively backfilled.
+    lines.append("")
+    lines.append("## Solar onset")
+    lines.append("")
+    try:
+        # Prefer the logged row (idempotent across reruns), but fall
+        # back to fresh detection if missing.
+        logged = {r.date: r for r in solar_onset_mod.read_log()}
+        rec = logged.get(day.isoformat())
+        if rec is None:
+            rec = solar_onset_mod.detect_onset(Path("data/pack.csv"), day)
+    except Exception:
+        rec = solar_onset_mod.SolarOnsetRecord(date=day.isoformat())
+
+    if rec.is_empty():
+        lines.append("No solar onset detected — pack stayed in discharge "
+                     "all day (heavy cloud, or system shut down before "
+                     "morning, or the report is being generated pre-dawn).")
+    else:
+        def _short(iso: Optional[str]) -> str:
+            return iso[11:19] if (iso and "T" in iso) else "—"
+
+        lines.append("| milestone | timestamp |")
+        lines.append("|-----------|-----------|")
+        lines.append(f"| first zero crossing (pack_i = 0) | "
+                     f"{_short(rec.first_zero_iso)} |")
+        lines.append(f"| first idle (state=idle or \\|i\\| ≤ 0.5 A) | "
+                     f"{_short(rec.first_idle_iso)} |")
+        lines.append(f"| first positive current (pack_i > 0) | "
+                     f"{_short(rec.first_positive_iso)} |")
+        lines.append(f"| first net-positive (smoothed_i > 0) | "
+                     f"{_short(rec.first_net_positive_iso)} |")
+        lines.append("")
+        if rec.first_net_positive_iso is not None:
+            smi = (f"**{rec.smoothed_i_at_net_positive:+.2f} A**"
+                   if rec.smoothed_i_at_net_positive is not None else "—")
+            soc = (f"**{rec.soc_avg_at_net_positive:.1f} %**"
+                   if rec.soc_avg_at_net_positive is not None else "—")
+            lines.append(f"At net-positive crossover: smoothed current "
+                         f"{smi}, pack SOC (avg) {soc} — this is the "
+                         f"bottom of the day's SOC curve and a useful "
+                         f"calibration check against the advisor's "
+                         f"`projected_low_soc`.")
+        elif rec.first_zero_iso is not None:
+            lines.append("Net-positive crossover still pending — solar "
+                         "managed to offset load briefly but hasn't yet "
+                         "sustained net charging.")
+    lines.append("")
+
     # ---------- Weather ----------
     fh = snap.get("forecast_history") or {}
     lines.append("")
@@ -321,6 +376,8 @@ def build_report(day: date) -> str:
     lines.append("- Daily summary row: `data/daily_summary.csv`")
     lines.append("- Calibration log: `data/calibration_log.csv`")
     lines.append("- Projection log: `data/projection_log.csv`")
+    lines.append("- Solar onset log: `data/solar_onset.csv`")
+    lines.append("- Confidence-lift log: `data/confidence_log.csv`")
     lines.append("")
 
     return "\n".join(lines) + "\n"

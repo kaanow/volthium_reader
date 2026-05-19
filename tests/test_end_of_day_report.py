@@ -453,6 +453,100 @@ class TestBuildReport(unittest.TestCase):
         md = end_of_day_report_mod.build_report(date(2026, 5, 19))
         self.assertNotIn("### By lead-time horizon", md)
 
+    # ---------- Solar onset section ----------
+
+    def test_solar_onset_section_empty_when_pre_onset(self) -> None:
+        """A day with only discharge samples (no zero crossing) should
+        show the 'no solar onset detected' empty-state message."""
+        # Pack samples all in discharge — no zero or positive
+        self._write_pack(
+            self._pack_run(datetime(2026, 5, 19, 6, 0), 60, -3.0,
+                           soc_a=68, soc_b=66))
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("## Solar onset", md)
+        self.assertIn("No solar onset detected", md)
+        # No milestone table when the day is pre-onset
+        self.assertNotIn("first zero crossing", md)
+
+    def test_solar_onset_section_renders_partial_cascade(self) -> None:
+        """First-zero only (no net-positive yet) → table renders with
+        em-dashes for the remaining milestones, plus the 'still
+        pending' note."""
+        # Mix of discharge + a zero crossing midway, no positive yet
+        rows = (
+            self._pack_run(datetime(2026, 5, 19, 6, 0), 30, -2.5,
+                           soc_a=68, soc_b=66)
+            + [{"ts": "2026-05-19T06:44:10",
+                "pack_v": 26.18, "pack_i": 0.0,
+                "smoothed_i": -2.0,
+                "soc_a": 66.0, "soc_b": 64.0,
+                "state": "discharging"}]
+            + self._pack_run(datetime(2026, 5, 19, 7, 0), 10, -2.0,
+                             soc_a=65, soc_b=63)
+        )
+        self._write_pack(rows)
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("## Solar onset", md)
+        self.assertIn("| first zero crossing (pack_i = 0) | 06:44:10 |", md)
+        # Net-positive line absent (table still rendered with em-dash)
+        self.assertIn("first net-positive (smoothed_i > 0) | — |", md)
+        self.assertIn("Net-positive crossover still pending", md)
+
+    def test_solar_onset_section_renders_complete_cascade(self) -> None:
+        """All four milestones land → full table + the 'at crossover'
+        smoothed_i + SOC summary line."""
+        rows = (
+            self._pack_run(datetime(2026, 5, 19, 6, 0), 5, -2.5,
+                           soc_a=68, soc_b=66)
+            + [
+                {"ts": "2026-05-19T06:44:10",
+                 "pack_v": 26.18, "pack_i": 0.0,
+                 "smoothed_i": -2.0,
+                 "soc_a": 66.0, "soc_b": 64.0,
+                 "state": "discharging"},
+                {"ts": "2026-05-19T07:30:00",
+                 "pack_v": 26.5, "pack_i": 1.0,
+                 "smoothed_i": -0.5,
+                 "soc_a": 66.0, "soc_b": 64.0,
+                 "state": "charging"},
+                {"ts": "2026-05-19T08:00:00",
+                 "pack_v": 26.7, "pack_i": 3.0,
+                 "smoothed_i": 1.5,
+                 "soc_a": 66.0, "soc_b": 64.0,
+                 "state": "charging"},
+            ]
+        )
+        self._write_pack(rows)
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("| first zero crossing (pack_i = 0) | 06:44:10 |", md)
+        self.assertIn("| first positive current (pack_i > 0) | 07:30:00 |", md)
+        self.assertIn("| first net-positive (smoothed_i > 0) | 08:00:00 |", md)
+        # Summary line with smoothed_i and SOC
+        self.assertIn("smoothed current", md)
+        self.assertIn("+1.50 A", md)
+        self.assertIn("65.0 %", md)    # avg of 66 + 64
+        # The "still pending" note must NOT appear in the complete case
+        self.assertNotIn("Net-positive crossover still pending", md)
+
+    def test_solar_onset_section_uses_logged_row_when_present(self) -> None:
+        """If data/solar_onset.csv already has a row for `day`, the
+        report should use it rather than re-scanning pack.csv. This
+        is important for historical days whose pack.csv has rolled
+        over but whose logged row preserves the answer."""
+        # Write a logged row but DELIBERATELY no matching pack.csv
+        # data — if the section uses the log, it'll still render.
+        log_path = self.root / "data" / "solar_onset.csv"
+        log_path.write_text(
+            "date,first_zero_iso,first_idle_iso,first_positive_iso,"
+            "first_net_positive_iso,smoothed_i_at_net_positive,"
+            "soc_avg_at_net_positive\n"
+            "2026-05-19,2026-05-19T06:44:10,2026-05-19T06:46:17,"
+            "2026-05-19T07:30:00,2026-05-19T08:00:00,1.50,65.00\n"
+        )
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("| first net-positive (smoothed_i > 0) | 08:00:00 |", md)
+        self.assertIn("+1.50 A", md)
+
 
 if __name__ == "__main__":
     unittest.main()
