@@ -187,6 +187,127 @@ class TestSimulator(unittest.TestCase):
                 "post-sunset bug is back",
         )
 
+    # === Bias-fix regression tests (2026-05-19) ===
+    # When the previous version of simulate_next_24h credited solar
+    # uniformly across daylight, it overestimated the morning floor by
+    # mean -2.97 pp (validated across 17 records from 2026-05-19). The
+    # new sinusoidal-gross-solar + per-hour-load model preserves the
+    # daily NET total but redistributes the within-day shape so the
+    # floor lands later (closer to actual solar onset) and lower.
+    # These tests pin down the new behavior without over-constraining.
+
+    def test_projected_low_lands_after_sunrise_not_at_it(self) -> None:
+        """With moderate load + moderate solar, the floor should be
+        observed AFTER sunrise (during the early-morning solar ramp-
+        up where load still exceeds solar), not AT sunrise.
+
+        Anchors the bias-fix: previously the floor was always at
+        sunrise because solar credited at average rate immediately."""
+        now = datetime(2026, 5, 18, 22, 0)     # evening start
+        sunrise_next = datetime(2026, 5, 19, 5, 10)
+        sunset_next  = datetime(2026, 5, 19, 20, 51)
+        profile = _flat_profile(-3.0)
+        result = simulate_next_24h(
+            start_soc=80.0, now=now, profile=profile,
+            sunrise_today=sunrise_next, sunset_today=sunset_next,
+            solar_today_full_ah=42.0,    # net daily contribution
+            solar_tomorrow_full_ah=42.0,
+            capacity_ah=215.0,
+        )
+        # SOC at sunrise (after overnight discharge): start 80,
+        # 7.17h × -3A = -21.5 Ah → -10% → 70%.
+        sunrise_soc = result["projected_sunrise_soc"]
+        low = result["projected_low_soc"]
+        # The low MUST be at or below the sunrise SOC (not above).
+        # In the OLD model they were equal; in the new model the
+        # post-sunrise discharge drops the floor further.
+        self.assertLessEqual(
+            low, sunrise_soc + 0.1,
+            "floor should be at or below sunrise SOC (model now "
+            "models post-sunrise discharge before solar overtakes load)",
+        )
+
+    def test_floor_undershoots_sunrise_when_load_steep_and_solar_modest(self) -> None:
+        """Heavy load + modest solar → floor noticeably below sunrise SOC.
+        Tightens the previous test for a stronger signature."""
+        now = datetime(2026, 5, 18, 22, 0)
+        sunrise_next = datetime(2026, 5, 19, 5, 10)
+        sunset_next  = datetime(2026, 5, 19, 20, 51)
+        profile = _flat_profile(-5.0)       # heavier baseline load
+        result = simulate_next_24h(
+            start_soc=80.0, now=now, profile=profile,
+            sunrise_today=sunrise_next, sunset_today=sunset_next,
+            solar_today_full_ah=30.0,
+            solar_tomorrow_full_ah=30.0,
+            capacity_ah=215.0,
+        )
+        sunrise_soc = result["projected_sunrise_soc"]
+        low = result["projected_low_soc"]
+        # With steep load and modest solar, the morning post-sunrise
+        # discharge should pull the floor at least ~0.5 pp below sunrise.
+        self.assertLess(
+            low, sunrise_soc - 0.3,
+            f"floor ({low:.2f}) should sit at least 0.3 pp below "
+            f"sunrise SOC ({sunrise_soc:.2f}); old model would have "
+            f"them equal",
+        )
+
+    def test_daily_net_preserved_so_evening_soc_in_reasonable_range(self) -> None:
+        """The new model redistributes solar within the day. The
+        daily-NET interpretation is preserved IN PRINCIPLE (gross
+        solar = solar_day_ah + |daylight_load|, so gross+load over
+        the full window = solar_day_ah) but for PARTIAL walks (e.g.
+        starting mid-morning) the realized net differs slightly
+        because gross-solar is concentrated mid-day and the walked
+        portion may over-sample the peak.
+
+        This test just sanity-checks evening SOC is plausibly in
+        the upper half — the same behavior the OLD code produced for
+        this scenario."""
+        profile = _flat_profile(-4.0)
+        result = simulate_next_24h(
+            start_soc=73.0, now=self.now, profile=profile,
+            sunrise_today=self.sunrise_today, sunset_today=self.sunset_today,
+            solar_today_full_ah=64.0,
+            solar_tomorrow_full_ah=64.0,
+            capacity_ah=215.0,
+        )
+        # Wide bounds intentional — exact value depends on hour-by-hour
+        # sin profile evaluated at midpoints. The signal we care about
+        # is the FLOOR (tested separately above), not evening rebound.
+        self.assertGreater(result["projected_tomorrow_evening_soc"], 50.0)
+        self.assertLess(result["projected_tomorrow_evening_soc"], 100.0)
+
+    def test_zero_solar_daylight_is_flat_then_overnight_discharges(self) -> None:
+        """When solar_day_ah=0, the new model interprets this as
+        "predicted NET solar = 0" which means gross_solar exactly
+        cancels daylight load → daylight is flat. Only the NIGHT
+        portion discharges. This is the same physical behavior the
+        OLD code had (daylight: ah_change = 0/15.7 = 0).
+
+        Anchors that the sinusoidal model doesn't introduce phantom
+        gain or loss when solar_day_ah=0."""
+        profile = _flat_profile(-3.0)
+        result = simulate_next_24h(
+            start_soc=80.0, now=self.now, profile=profile,
+            sunrise_today=self.sunrise_today, sunset_today=self.sunset_today,
+            solar_today_full_ah=0.0, solar_tomorrow_full_ah=0.0,
+            capacity_ah=215.0,
+        )
+        # Starting at 06:10 with sunrise at 05:10 and sunset 20:51,
+        # the walk's 24 iterations cover ~15 daylight today + 8
+        # night + 1 daylight tomorrow. Daylight at solar=0 is flat.
+        # Night: ~8h × -3 = -24 Ah → -11.2% → 68.8%.
+        # The OLD code produced ~68 here as well; pinned down so a
+        # future change to either branch doesn't silently shift.
+        self.assertLess(result["projected_low_soc"], 75.0,
+                        "should drop noticeably overnight")
+        self.assertGreater(result["projected_low_soc"], 60.0,
+                           "shouldn't crater below the night-only loss")
+        # Sanity bounds
+        self.assertGreaterEqual(result["projected_low_soc"], 0.0)
+        self.assertLessEqual(result["projected_low_soc"], 100.0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import sys
 import time
 from dataclasses import dataclass, asdict
@@ -258,14 +259,65 @@ def simulate_next_24h(
     subsequent_sunset  = next_sunset + timedelta(days=1)
 
     hours_first_daylight = max(0.1, (next_sunset - next_sunrise).total_seconds() / 3600)
-    first_ah_per_hour    = solar_first_day_ah    / hours_first_daylight
     hours_second_daylight = max(0.1, (subsequent_sunset - subsequent_sunrise).total_seconds() / 3600)
-    second_ah_per_hour = solar_second_day_ah / hours_second_daylight
 
     # Per-hour median discharge (signed; negative for consumption)
     # Falls back to overall median when an hour has no data yet.
     medians = [d["median_i"] for d in profile.values()] if profile else [-3.5]
     overall_median = statistics.median(medians) if medians else -3.5
+
+    def _load_at_hour(hour: int) -> float:
+        """Per-hour median current from the profile, or overall median."""
+        hd = profile.get(hour)
+        return hd["median_i"] if hd is not None else overall_median
+
+    def _daylight_load_total(sunrise: datetime, sunset: datetime) -> float:
+        """Sum the per-hour median load across the daylight window.
+        Negative (since the medians are negative consumption)."""
+        total = 0.0
+        h = sunrise
+        # Iterate hourly. Partial trailing hour gets a fractional weight
+        # so the total integrates accurately for non-integer daylight.
+        while h < sunset:
+            step = min(timedelta(hours=1), sunset - h)
+            frac = step.total_seconds() / 3600.0
+            total += _load_at_hour(h.hour) * frac
+            h = h + step
+        return total
+
+    # Pre-compute load and gross-solar totals once per day. The fix from
+    # the 2026-05-19 floor-bias loop: the previous code distributed
+    # `solar_first_day_ah` uniformly across daylight hours and credited
+    # only solar during daylight (no load). That meant at sunrise the
+    # simulator IMMEDIATELY switched from "discharging" to "charging at
+    # daily-average rate", which overestimated the morning floor.
+    #
+    # New model: during daylight, ah_change = gross_solar_at_hour +
+    # load_at_hour (load is negative). `gross_solar` follows a
+    # sinusoidal arc that peaks at solar noon and tapers to 0 at the
+    # sunrise/sunset endpoints. `gross_solar_total` is chosen so that
+    # (gross_solar_total + daylight_load_total) == solar_first_day_ah,
+    # preserving the daily NET pack gain (the quantity SolarModel was
+    # fit against). The within-day shape is what changes.
+    daylight_load_total_first  = _daylight_load_total(next_sunrise, next_sunset)
+    daylight_load_total_second = _daylight_load_total(subsequent_sunrise,
+                                                      subsequent_sunset)
+    gross_solar_total_first    = solar_first_day_ah - daylight_load_total_first
+    gross_solar_total_second   = solar_second_day_ah - daylight_load_total_second
+
+    def _gross_solar_rate(cur: datetime, sunrise: datetime, sunset: datetime,
+                          gross_total: float, daylight_h: float) -> float:
+        """Sinusoidal gross-solar rate at the midpoint of the hour
+        starting at `cur`. Returns 0 outside daylight or when total is
+        non-positive."""
+        if daylight_h <= 0 or gross_total <= 0:
+            return 0.0
+        hours_since_sunrise = (cur - sunrise).total_seconds() / 3600.0
+        h_sample = hours_since_sunrise + 0.5
+        if h_sample < 0 or h_sample > daylight_h:
+            return 0.0
+        peak = gross_total * math.pi / (2.0 * daylight_h)
+        return peak * math.sin(math.pi * h_sample / daylight_h)
 
     soc = start_soc
     cur = now
@@ -274,16 +326,18 @@ def simulate_next_24h(
     for _ in range(24):
         # Classify the current hour as daylight or night
         if next_sunrise <= cur < next_sunset:
-            ah_change = first_ah_per_hour
+            gross_solar = _gross_solar_rate(
+                cur, next_sunrise, next_sunset,
+                gross_solar_total_first, hours_first_daylight)
+            ah_change = gross_solar + _load_at_hour(cur.hour)
         elif subsequent_sunrise <= cur < subsequent_sunset:
-            ah_change = second_ah_per_hour
+            gross_solar = _gross_solar_rate(
+                cur, subsequent_sunrise, subsequent_sunset,
+                gross_solar_total_second, hours_second_daylight)
+            ah_change = gross_solar + _load_at_hour(cur.hour)
         else:
             # Night — pull this hour's median discharge rate
-            hour_data = profile.get(cur.hour)
-            if hour_data is not None:
-                ah_change = hour_data["median_i"]
-            else:
-                ah_change = overall_median
+            ah_change = _load_at_hour(cur.hour)
 
         soc += ah_change / capacity_ah * 100.0
         soc = max(0.0, min(100.0, soc))
