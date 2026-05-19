@@ -143,6 +143,47 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **19:32** — Loop wake. **First SOC tick down of the evening**:
+  pack **92/92 %** (was 93/93 all afternoon). Discharging at
+  sustained -4.1 A baseline (smoothed -4.10 A, fully settled).
+  Voltage 26.51 V (still relaxing). Cloud 71 %, irradiance now
+  193 W/m² — sun about an hour from setting. **Live ratio 8.66 —
+  drift +23.7 %, sliding past 25 % toward amber boundary** (will
+  cross into <20 % amber territory within the next loop or two as
+  irradiance integral keeps growing while harvest stays flat).
+  - Duration_h is now **19.54** — within 28 min of the
+    [partial] → complete flip at 20.0. Next loop should catch the
+    transition. The auto-fit landing in calibration_log is imminent.
+  - No new fridge cycle events captured this evening despite
+    ~3 h of discharge. Either the cycles are shorter than the
+    15-s detector persistence, or the fridge isn't running.
+    Worth watching.
+  - Design item: **minimal markdown rendering for `/today-report`
+    and `/report/YYYY-MM-DD`.** Previously the reports were dumped
+    raw inside `<pre>`. Even on a phone the wall-of-text was
+    readable but ugly. New `_markdown_to_html()` helper in
+    `dashboard.py` parses the specific markdown subset the report
+    builder emits:
+    - `# heading` → `<h2>` (page already has `<h1>` for the title)
+    - `## heading` → `<h3>`
+    - `### heading` → `<h4>`
+    - `**bold**` → `<strong>` (highlighted color)
+    - `*italic*` → `<em>`
+    - `` `code` `` → `<code>` (boxed background)
+    - `- item` → `<ul>`/`<li>`
+    - `[text](url)` → `<a>`
+    - Markdown tables → proper `<table>` with header row
+  - Self-contained — no external markdown dependency, ~80 lines
+    of Python with `html.escape` on user content. Anything
+    unrecognized still passes through as a paragraph.
+  - Smoke-tested against today's actual report: all sections
+    render (h2, h3, lists, tables, code, bold).
+  - The reports now look like proper documents on the dashboard
+    — particularly nice on a phone where the raw `<pre>` was
+    cramped. Tonight's complete-day report will be the first
+    nicely-formatted one to view from the dashboard link.
+  - All 111 Python tests still pass.
+
 - **18:59** — Loop wake. **Evening discharge established.** Pack SOC
   **93/93 %** still but state is **discharging at sustained -4.0 A**
   baseline (smoothed -3.87 A). Matches the expected -3 to -5 A

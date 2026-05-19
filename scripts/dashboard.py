@@ -1185,6 +1185,119 @@ class Handler(BaseHTTPRequestHandler):
         ".today{color:#3fb950;font-weight:600}"
     )
 
+    @staticmethod
+    def _markdown_to_html(md: str) -> str:
+        """Minimal markdown → HTML converter sized for our day-report
+        format. Supports: # heading, ## heading, ### heading,
+        **bold**, *italic*, `code`, - list items, [text](url),
+        markdown tables. Anything unrecognized passes through
+        html-escaped. No external dep so the dashboard stays
+        self-contained.
+
+        Deliberately not a full markdown spec — just the subset
+        end_of_day_report.build_report emits.
+        """
+        import re
+
+        lines = md.split("\n")
+        out: list[str] = []
+        in_ul = False
+        in_table = False
+        table_rows: list[list[str]] = []
+        table_header: list[str] = []
+
+        def flush_ul() -> None:
+            nonlocal in_ul
+            if in_ul:
+                out.append("</ul>")
+                in_ul = False
+
+        def flush_table() -> None:
+            nonlocal in_table, table_rows, table_header
+            if in_table and table_header and table_rows:
+                hdr = "".join(f"<th>{c}</th>" for c in table_header)
+                body = "".join(
+                    "<tr>" + "".join(f"<td>{c}</td>" for c in row) + "</tr>"
+                    for row in table_rows
+                )
+                out.append(
+                    f"<table><thead><tr>{hdr}</tr></thead>"
+                    f"<tbody>{body}</tbody></table>"
+                )
+            in_table = False
+            table_rows = []
+            table_header = []
+
+        def inline(text: str) -> str:
+            """Apply inline formatters to an already-escaped line."""
+            # `code`
+            text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
+            # **bold**
+            text = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
+            # *italic* (only when not part of **)
+            text = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", text)
+            # [text](url)
+            text = re.sub(
+                r"\[([^\]]+)\]\(([^)]+)\)",
+                r'<a href="\2">\1</a>',
+                text,
+            )
+            return text
+
+        for raw in lines:
+            line = raw.rstrip()
+            # Tables
+            if line.startswith("|"):
+                cells = [c.strip() for c in line.strip("|").split("|")]
+                # Header separator row (---|---|---)
+                if all(re.fullmatch(r":?-+:?", c) for c in cells if c):
+                    continue
+                cells_esc = [inline(html_escape(c)) for c in cells]
+                if not in_table:
+                    in_table = True
+                    table_header = cells_esc
+                else:
+                    table_rows.append(cells_esc)
+                flush_ul()
+                continue
+            else:
+                flush_table()
+
+            # Empty line ends list
+            if not line:
+                flush_ul()
+                out.append("")
+                continue
+
+            # Headings
+            m = re.match(r"^(#{1,3})\s+(.+)$", line)
+            if m:
+                flush_ul()
+                level = len(m.group(1))
+                # H1 in the page is already the <h1>; bump report
+                # headings down one level so the visual hierarchy
+                # stays sane.
+                tag = {1: "h2", 2: "h3", 3: "h4"}[level]
+                out.append(f"<{tag}>{inline(html_escape(m.group(2)))}</{tag}>")
+                continue
+
+            # List item
+            m = re.match(r"^[-*]\s+(.+)$", line)
+            if m:
+                if not in_ul:
+                    out.append("<ul>")
+                    in_ul = True
+                out.append(f"<li>{inline(html_escape(m.group(1)))}</li>")
+                continue
+
+            # Paragraph (single-line)
+            flush_ul()
+            out.append(f"<p>{inline(html_escape(line))}</p>")
+
+        flush_ul()
+        flush_table()
+        return "\n".join(out)
+
     def _serve_report(self, day):
         """Render one day's report. For today the report is regenerated
         live on each request (no stale-snapshot risk); for historical
@@ -1209,10 +1322,22 @@ class Handler(BaseHTTPRequestHandler):
             "<!doctype html><meta charset=utf-8>"
             "<meta name=viewport content='width=device-width,initial-scale=1'>"
             f"<title>Day report — {day.isoformat()}</title>"
-            f"<style>{self.REPORT_PAGE_STYLE}</style>"
+            f"<style>{self.REPORT_PAGE_STYLE}"
+            " h2{margin-top:24px;margin-bottom:8px;color:#f0f6fc}"
+            " h3{margin-top:18px;margin-bottom:6px;color:#c9d1d9}"
+            " p{margin:6px 0}"
+            " ul{padding-left:22px;margin:6px 0}"
+            " li{margin:3px 0}"
+            " strong{color:#f0f6fc}"
+            " code{background:#161b22;padding:1px 4px;border-radius:3px;font-size:12px}"
+            " table{border-collapse:collapse;margin:10px 0;font-size:12px;"
+            " font-variant-numeric:tabular-nums}"
+            " th,td{padding:4px 10px;border-bottom:1px solid #21262d;text-align:left}"
+            " th{color:#8b949e;border-bottom:1px solid #30363d}"
+            "</style>"
             "<p><a href='/'>&larr; dashboard</a> · "
             "<a href='/reports'>all reports</a></p>"
-            "<pre>" + html_escape(report_md) + "</pre>"
+            + self._markdown_to_html(report_md)
         )
         return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
 
