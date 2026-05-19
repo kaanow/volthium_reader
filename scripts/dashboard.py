@@ -1070,7 +1070,8 @@ async function tick() {
               </div>`;
           })()}
           <div class="footer">${harv.duration_h.toFixed(1)} h of data so far · ${harv.confidence} confidence
-            · <a href="/today-report" target="_blank" class="report-link">today's full report ↗</a></div>
+            · <a href="/today-report" target="_blank" class="report-link">today's report ↗</a>
+            · <a href="/reports" target="_blank" class="report-link">all reports ↗</a></div>
           ${note}
         </div>`;
     } else {
@@ -1118,34 +1119,19 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/" or self.path == "/index.html":
             return self._send(HTTPStatus.OK, "text/html; charset=utf-8", self.INDEX_HTML.encode())
         if self.path == "/today-report" or self.path == "/today-report.md":
-            # Serve today's day-report from data/reports/YYYY-MM-DD.md.
-            # Re-generates it first so even a stale loop doesn't show
-            # users a frozen snapshot. Renders as a minimal HTML page
-            # with the markdown text inside <pre> so phones can read it
-            # without a markdown library on the server.
+            return self._serve_report(datetime.now().date())
+        if self.path == "/reports" or self.path == "/reports/":
+            return self._serve_report_index()
+        # /report/YYYY-MM-DD — historical day-report
+        if self.path.startswith("/report/"):
+            date_str = self.path[len("/report/"):].rstrip("/")
             try:
-                # Inline-call the report builder so we don't shell out.
-                today = datetime.now().date()
-                report_md = end_of_day_report_mod.build_report(today)
-            except Exception as e:
-                return self._send(HTTPStatus.OK, "text/plain; charset=utf-8",
-                                  f"could not generate today's report: {e}".encode())
-            html = (
-                "<!doctype html><meta charset=utf-8>"
-                "<meta name=viewport content='width=device-width,initial-scale=1'>"
-                "<title>Day report</title>"
-                "<style>"
-                "body{background:#0d1117;color:#c9d1d9;"
-                "font-family:ui-monospace,SFMono-Regular,monospace;"
-                "max-width:780px;margin:0 auto;padding:24px 16px;"
-                "font-size:14px;line-height:1.5}"
-                "a{color:#58a6ff}"
-                "pre{white-space:pre-wrap;word-wrap:break-word;margin:0}"
-                "</style>"
-                "<p><a href='/'>&larr; dashboard</a></p>"
-                "<pre>" + html_escape(report_md) + "</pre>"
-            )
-            return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
+                from datetime import date as _date
+                d = _date.fromisoformat(date_str)
+            except ValueError:
+                return self._send(HTTPStatus.NOT_FOUND, "text/plain",
+                                  b"bad date format; use /report/YYYY-MM-DD")
+            return self._serve_report(d)
         if self.path.startswith("/api/latest.json"):
             rows = read_recent(CSV_PATH, HISTORY_N)
             if not rows:
@@ -1182,6 +1168,101 @@ class Handler(BaseHTTPRequestHandler):
                                   "today_harvest": today_harvest,
                               }).encode())
         return self._send(HTTPStatus.NOT_FOUND, "text/plain", b"not found")
+
+    REPORT_PAGE_STYLE = (
+        "body{background:#0d1117;color:#c9d1d9;"
+        "font-family:ui-monospace,SFMono-Regular,monospace;"
+        "max-width:780px;margin:0 auto;padding:24px 16px;"
+        "font-size:14px;line-height:1.5}"
+        "a{color:#58a6ff}"
+        "pre{white-space:pre-wrap;word-wrap:break-word;margin:0}"
+        "ul{padding-left:18px} li{margin:6px 0}"
+        ".today{color:#3fb950;font-weight:600}"
+    )
+
+    def _serve_report(self, day):
+        """Render one day's report. For today the report is regenerated
+        live on each request (no stale-snapshot risk); for historical
+        days, read the committed file as-is (avoids touching old data
+        with newer scripts)."""
+        from datetime import date as _date
+        today = datetime.now().date()
+        try:
+            if day == today:
+                report_md = end_of_day_report_mod.build_report(day)
+            else:
+                fpath = Path("data/reports") / f"{day.isoformat()}.md"
+                if not fpath.exists():
+                    return self._send(
+                        HTTPStatus.NOT_FOUND, "text/plain",
+                        f"no report for {day.isoformat()}".encode())
+                report_md = fpath.read_text()
+        except Exception as e:
+            return self._send(HTTPStatus.OK, "text/plain; charset=utf-8",
+                              f"could not generate report: {e}".encode())
+        html = (
+            "<!doctype html><meta charset=utf-8>"
+            "<meta name=viewport content='width=device-width,initial-scale=1'>"
+            f"<title>Day report — {day.isoformat()}</title>"
+            f"<style>{self.REPORT_PAGE_STYLE}</style>"
+            "<p><a href='/'>&larr; dashboard</a> · "
+            "<a href='/reports'>all reports</a></p>"
+            "<pre>" + html_escape(report_md) + "</pre>"
+        )
+        return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
+
+    def _serve_report_index(self):
+        """List every data/reports/*.md, newest first, with the live
+        'today' entry pinned at top (re-rendered each request)."""
+        from datetime import date as _date
+        today = datetime.now().date()
+        reports_dir = Path("data/reports")
+        if reports_dir.exists():
+            files = sorted(
+                [p.stem for p in reports_dir.glob("*.md")
+                 if len(p.stem) == 10],
+                reverse=True,
+            )
+        else:
+            files = []
+        # Drop today from the historical list — we want it pinned at top
+        # as the live link so even if the file is stale it gets regenerated.
+        today_iso = today.isoformat()
+        historical = [d for d in files if d != today_iso]
+
+        lines = ["<ul>"]
+        lines.append(
+            f'<li><a class="today" href="/today-report">📊 {today_iso} '
+            "(today, live)</a></li>"
+        )
+        for d in historical:
+            lines.append(
+                f'<li><a href="/report/{d}">{d}</a></li>'
+            )
+        if not historical:
+            lines.append(
+                '<li style="color:#8b949e;font-style:italic">'
+                "(no past reports yet — they accumulate from tonight onward)"
+                "</li>"
+            )
+        lines.append("</ul>")
+
+        html = (
+            "<!doctype html><meta charset=utf-8>"
+            "<meta name=viewport content='width=device-width,initial-scale=1'>"
+            "<title>Day reports</title>"
+            f"<style>{self.REPORT_PAGE_STYLE}</style>"
+            "<p><a href='/'>&larr; dashboard</a></p>"
+            "<h2 style='margin-top:0'>Day reports</h2>"
+            "<p style='color:#8b949e;font-size:12px'>"
+            "Generated by <code>scripts/end_of_day_report.py</code> at every "
+            "autonomous-loop iteration. Each entry links to a Markdown "
+            "summary of that day's pack data, solar harvest, weather, "
+            "and SolarModel state."
+            "</p>"
+            + "".join(lines)
+        )
+        return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
 
     def _send(self, status, ctype, body):
         self.send_response(status)

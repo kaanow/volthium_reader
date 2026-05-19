@@ -701,3 +701,10 @@ LAN share URL: http://192.168.1.76:8421/
 2026-05-18 17:16:17,576 ERROR V-12V200AH-0533|DE118: TX BLE request error (BleakError)
 2026-05-18 17:17:22,187 INFO BLE recovered after 13 errors
 2026-05-18 17:18:18,784 INFO n=7770  26.70V  +0.00A  +0W  SOC 93-94%  state=idle  remain≈—
+2026-05-18 17:23:23,287 INFO n=7800  26.66V  -2.60A  -69W  SOC 93-94%  state=discharging  remain≈5140m
+2026-05-18 17:28:24,242 INFO n=7830  26.63V  -2.20A  -59W  SOC 93-94%  state=discharging  remain≈4703m
+2026-05-18 17:33:24,481 INFO n=7860  26.61V  -2.60A  -69W  SOC 93-94%  state=discharging  remain≈3843m
+2026-05-18 17:38:27,666 INFO n=7890  26.64V  +0.00A  +0W  SOC 93-93%  state=idle  remain≈—
+2026-05-18 17:43:28,441 INFO n=7920  26.63V  +0.00A  +0W  SOC 93-93%  state=idle  remain≈—
+2026-05-18 17:48:28,232 INFO n=7950  26.63V  +0.00A  +0W  SOC 93-93%  state=idle  remain≈—
+2026-05-18 17:53:43,854 INFO n=7980  26.59V  -3.50A  -93W  SOC 93-93%  state=discharging  remain≈3322m

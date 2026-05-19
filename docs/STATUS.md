@@ -143,6 +143,40 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **17:52** — Loop wake. **First evening discharge!** Pack SOC
+  **93/93 %** (A relaxed back from 94 to 93 as voltage settled),
+  state cycling IDLE → discharging at **−2.4 A** in the latest
+  sample (smoothed_i at -0.36 A and growing — load EMA building).
+  Voltage 26.63 V (down from 26.70 — relaxation continues). Cloud
+  broke briefly to **77 %** (lowest of the day) but irradiance
+  already dropping fast (316 → 224 W/m²) as sunset approaches.
+  Today's solar harvest is **DONE** at 44.4 Ah / 122 % of forecast.
+  **Live ratio 8.96 — drift +28 %, continued pull-back toward green**.
+  - Open-Meteo's UV-index field bumped 4.25 → **5.45** mid-afternoon —
+    not a metric we use, but a sign their model is still revising.
+  - Design item: **`/reports` index page on the dashboard.** Only
+    one report exists today, but as days accumulate the dashboard
+    needs a browse view. Architecture set up now so tomorrow's
+    report appears naturally.
+    - **`/today-report`** — unchanged; today's report regenerated
+      live on each request (no stale-snapshot risk).
+    - **`/reports`** — new index page listing every `data/reports/
+      *.md` file, newest-first, with today's entry pinned at top
+      with a green badge and a "(today, live)" label.
+    - **`/report/YYYY-MM-DD`** — new route serving a specific
+      historical day's report. Reads the committed file as-is
+      (doesn't re-run report-builder against old data with newer
+      scripts — keeps historical reports stable).
+    - Bad date format → 404 with a helpful "use /report/YYYY-MM-DD"
+      message.
+    - Harvest panel footer now has TWO links instead of one:
+      `today's report ↗` (live) and `all reports ↗` (index).
+  - Once the loop accumulates a week of reports, the index becomes
+    the natural "how have we been doing?" page — historical
+    pattern reference for the user without needing to clone the
+    repo.
+  - All 100 Python tests still pass.
+
 - **17:18** — Loop wake. Pack SOC **94/93 %** — battery A ticked UP
   to 94 % as voltage relaxation lets the BMS recompute SOC upward
   (voltage 26.70 V, settling from the absorption-CV peak). State:
