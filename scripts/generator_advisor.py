@@ -49,6 +49,7 @@ import weather as weather_mod  # noqa: E402
 import today_harvest as today_harvest_mod  # noqa: E402
 import calibration_log as calibration_log_mod  # noqa: E402
 import projection_log as projection_log_mod  # noqa: E402
+import projection_accuracy as projection_accuracy_mod  # noqa: E402
 from volthium.solar_model import SolarModel  # noqa: E402
 
 # Cache tomorrow's forecast so re-runs in a 5-min window don't pound the API.
@@ -368,6 +369,29 @@ def main() -> int:
     except Exception:
         pass
 
+    # Pull the most-recent projection_accuracy record (if any) so the
+    # dashboard can surface "last sunrise: predicted X, actual Y,
+    # error ±Z". Empty until the first sunrise after the projection_log
+    # starts collecting (lands the first time projection_accuracy
+    # produces a record). Best-effort.
+    last_accuracy_proj: Optional[float] = None
+    last_accuracy_actual: Optional[float] = None
+    last_accuracy_error_pp: Optional[float] = None
+    last_accuracy_target_iso: Optional[str] = None
+    try:
+        _all_proj = projection_log_mod.read_log()
+        _pack_samples = projection_accuracy_mod._load_pack_samples(args.pack_csv)
+        _records = projection_accuracy_mod.compute_accuracy_records(
+            _all_proj, _pack_samples)
+        if _records:
+            _r = _records[-1]    # newest validated record
+            last_accuracy_proj = _r.projected_sunrise_soc
+            last_accuracy_actual = _r.actual_sunrise_soc
+            last_accuracy_error_pp = _r.error_pct_points
+            last_accuracy_target_iso = _r.sunrise_iso
+    except Exception:
+        pass
+
     # Reach into today_harvest for the live coefficient measurement.
     # This is what the SolarModel *would* fit to if it were trained on
     # today's morning data. Surfacing it in inputs lets the user (and
@@ -487,6 +511,10 @@ def main() -> int:
                 "solar_ah_so_far": solar_ah_so_far,
                 "model_last_updated_iso": model_last_updated_iso,
                 "model_last_updated_source": model_last_updated_source,
+                "last_accuracy_proj": last_accuracy_proj,
+                "last_accuracy_actual": last_accuracy_actual,
+                "last_accuracy_error_pp": last_accuracy_error_pp,
+                "last_accuracy_target_iso": last_accuracy_target_iso,
             },
             morning_watch=morning_watch,
             morning_watch_reason=morning_watch_reason,
@@ -527,6 +555,10 @@ def main() -> int:
                 "solar_ah_so_far": solar_ah_so_far,
                 "model_last_updated_iso": model_last_updated_iso,
                 "model_last_updated_source": model_last_updated_source,
+                "last_accuracy_proj": last_accuracy_proj,
+                "last_accuracy_actual": last_accuracy_actual,
+                "last_accuracy_error_pp": last_accuracy_error_pp,
+                "last_accuracy_target_iso": last_accuracy_target_iso,
             },
             morning_watch=False,    # subsumed by the hard recommendation
         )

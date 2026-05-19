@@ -143,6 +143,39 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 05:03** — **5 minutes shy of sunrise.** Pack SOC
+  **69/67 %** (gap 2 %), discharging at sustained -2.7 A. The most
+  recent projection (05:01) predicts sunrise SOC **66.8 %**; actual
+  current SOC averages **68.0 %**. If we hold this rate for 5 more
+  min the actual sunrise SOC will land ~67.7 % — **about 1 pp
+  ABOVE the prediction** (i.e. the model was slightly pessimistic).
+  Projection log entries up to #18 (05:01).
+  - Sunrise 05:08 is just minutes away; projection_accuracy still
+    shows "no validatable" (target time still in the future by a
+    hair); next wake at 05:30 catches the first record.
+  - Design item: **"last sunrise validation" chip on the advisor
+    panel.** Prepares for the moment when the first
+    projection_accuracy record lands — the dashboard will
+    immediately surface "last sunrise: predicted N.N% · actual
+    M.M% · ±X.X pp" with the same green/amber/red color band as
+    the model-vs-live chip.
+    - `generator_advisor.py` pulls the most-recent accuracy record
+      via `projection_accuracy.compute_accuracy_records()`,
+      exposes 4 new fields in `Recommendation.inputs`:
+      `last_accuracy_proj`, `last_accuracy_actual`,
+      `last_accuracy_error_pp`, `last_accuracy_target_iso`.
+    - Dashboard adds a `.calib`-styled row after the model-vs-live
+      chip showing the validation. Empty when fields are null
+      (early-state); appears the moment the first record lands.
+    - Footer links to `/accuracy` page for the full history.
+    - Tooltip explains the metric and color band.
+  - All 167 tests still pass.
+  - **Tomorrow morning at ~05:30, when the wake fires** post-
+    sunrise: projection_accuracy will produce its first record,
+    the advisor panel will surface it, the 2026-05-19 day-report's
+    Projection accuracy section comes alive, and `/accuracy` page
+    populates.
+
 - **2026-05-19 04:30** — Pre-dawn (sunrise still 38 min away). Pack
   SOC **70/68 %** (gap held 2 %), discharging at sustained -2.8 A.
   Voltage 26.19 V steady. **Cloud broke significantly to 45 %** at

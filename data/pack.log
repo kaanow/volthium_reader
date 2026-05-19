@@ -532,3 +532,12 @@
 2026-05-19 04:19:48,208 INFO n=11670  26.15V  -5.90A  -154W  SOC 68-70%  state=discharging  remain≈1233m
 2026-05-19 04:24:59,908 INFO n=11700  26.18V  -3.30A  -86W  SOC 68-70%  state=discharging  remain≈2291m
 2026-05-19 04:29:58,563 INFO n=11730  26.19V  -3.30A  -86W  SOC 68-70%  state=discharging  remain≈2300m
+2026-05-19 04:34:58,239 INFO n=11760  26.19V  -3.00A  -79W  SOC 68-70%  state=discharging  remain≈2339m
+2026-05-19 04:39:58,824 INFO n=11790  26.19V  -2.80A  -73W  SOC 67-69%  state=discharging  remain≈2357m
+2026-05-19 04:45:01,047 INFO n=11820  26.15V  -6.30A  -165W  SOC 67-69%  state=discharging  remain≈1304m
+2026-05-19 04:49:01,071 WARNING read #11841 failed (1 in a row): RuntimeError: battery 6EC69980-CA43-7DEF-519B-6235C8C535B7 not found in scan
+2026-05-19 04:49:11,918 INFO BLE recovered after 1 errors
+2026-05-19 04:50:37,150 INFO n=11850  26.14V  -5.80A  -152W  SOC 67-69%  state=discharging  remain≈1204m
+2026-05-19 04:55:34,474 INFO n=11880  26.17V  -2.80A  -73W  SOC 67-69%  state=discharging  remain≈2033m
+2026-05-19 05:00:45,088 INFO n=11910  26.18V  -2.90A  -76W  SOC 67-69%  state=discharging  remain≈2360m
+2026-05-19 05:05:53,894 INFO n=11940  26.18V  -2.80A  -73W  SOC 67-69%  state=discharging  remain≈2390m

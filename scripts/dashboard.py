@@ -786,6 +786,34 @@ async function tick() {
               </div>
               ${calibFooter}`;
         }
+        // Last sunrise accuracy chip (uses projection_accuracy data)
+        // — shows up once the first projection_log entry's sunrise
+        // target has crossed. Empty before that, naturally.
+        let lastAccuracyLine = "";
+        if (ins.last_accuracy_proj != null && ins.last_accuracy_actual != null) {
+            const errPP = ins.last_accuracy_error_pp;
+            const errCls = Math.abs(errPP) < 3 ? "ok"
+                           : Math.abs(errPP) < 8 ? "warn" : "bad";
+            const errSign = errPP >= 0 ? "+" : "−";
+            const targetShort = ins.last_accuracy_target_iso ?
+                ins.last_accuracy_target_iso.slice(0, 16) : "—";
+            const accuracyTip = (
+              "Result of the most recent projection_accuracy validation. "
+              + "When the projection_log captures an advisor's predicted "
+              + "sunrise SOC, we wait until that sunrise time arrives, then "
+              + "compare against the actual pack SOC at that moment.\n"
+              + "Positive error = pack overshot the prediction (good).\n"
+              + "Negative = pack undershot.\n"
+              + "Color band: |err| < 3 pp green, < 8 pp amber, otherwise red."
+            );
+            lastAccuracyLine = `
+              <div class="calib ${errCls}" title="${accuracyTip}" style="margin-top:6px">
+                <span class="lbl">last sunrise validation</span>
+                <span class="v">predicted ${ins.last_accuracy_proj.toFixed(1)}% · actual ${ins.last_accuracy_actual.toFixed(1)}%</span>
+                <span class="drift">${errSign}${Math.abs(errPP).toFixed(1)} pp</span>
+              </div>
+              <div class="calib-footer">target ${targetShort} · <a href="/accuracy" target="_blank" class="report-link">full history ↗</a></div>`;
+        }
 
         advEl.innerHTML = `
             <div class="advisor ${cls} ${rec.confidence === 'low' ? 'conf-low' : ''}">
@@ -795,6 +823,7 @@ async function tick() {
               ${watchLine}
               ${whenLine}
               ${calibLine}
+              ${lastAccuracyLine}
               ${confLine}
             </div>`;
     } else {
