@@ -180,6 +180,75 @@ class TestHealthSummary(unittest.TestCase):
         self.assertIn("▶ RUN GENERATOR", out)
         self.assertIn("below 25% comfort floor", out)
 
+    # ---------- Staleness detection ----------
+
+    def test_pack_line_flags_stale_data(self) -> None:
+        """When pack.csv's latest sample is older than the threshold,
+        the PACK line surfaces a ⚠ STALE warning with the age. Real
+        operational signal — caught a BLE-logger stall on 2026-05-19."""
+        path = self.root / "data" / "pack.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=[
+                "ts", "state", "pack_v", "pack_i", "smoothed_i",
+                "soc_a", "soc_b",
+            ])
+            w.writeheader()
+            # Latest sample 10 minutes old → past 60 s threshold
+            old_ts = (datetime.now() - timedelta(minutes=10)).isoformat(
+                timespec="seconds")
+            w.writerow({
+                "ts": old_ts, "state": "discharging",
+                "pack_v": "26.30", "pack_i": "-2.5", "smoothed_i": "-2.4",
+                "soc_a": "66", "soc_b": "64",
+            })
+        out = health_mod.render_summary()
+        self.assertIn("⚠ STALE", out)
+        self.assertIn("since last sample", out)
+        # The age should be in minutes (since 10 min > 90 s)
+        self.assertIn("10 min", out)
+
+    def test_pack_line_does_not_flag_fresh_data(self) -> None:
+        """A 5-second-old sample should NOT trigger the staleness
+        warning (well under the 60 s threshold)."""
+        path = self.root / "data" / "pack.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=[
+                "ts", "state", "pack_v", "pack_i", "smoothed_i",
+                "soc_a", "soc_b",
+            ])
+            w.writeheader()
+            fresh_ts = (datetime.now() - timedelta(seconds=5)).isoformat(
+                timespec="seconds")
+            w.writerow({
+                "ts": fresh_ts, "state": "charging",
+                "pack_v": "26.40", "pack_i": "3.0", "smoothed_i": "2.8",
+                "soc_a": "70", "soc_b": "68",
+            })
+        out = health_mod.render_summary()
+        self.assertNotIn("⚠ STALE", out)
+
+    def test_fmt_age_compact_form(self) -> None:
+        """Age strings should be compact and unit-appropriate:
+        seconds for < 90 s, minutes for < 90 min, hours for < 24 h,
+        days otherwise."""
+        self.assertEqual(health_mod._fmt_age(0.0), "0 s")
+        self.assertEqual(health_mod._fmt_age(45.0), "45 s")
+        self.assertEqual(health_mod._fmt_age(89.9), "89 s")
+        self.assertEqual(health_mod._fmt_age(90.0), "1 min")
+        self.assertEqual(health_mod._fmt_age(60 * 30.0), "30 min")
+        self.assertEqual(health_mod._fmt_age(60 * 90.0), "1.5 h")
+        self.assertEqual(health_mod._fmt_age(3600 * 5.5), "5.5 h")
+        self.assertEqual(health_mod._fmt_age(86400.0), "1.0 d")
+
+    def test_staleness_seconds_handles_bad_input(self) -> None:
+        """None / unparseable / future timestamps must NOT crash."""
+        self.assertIsNone(health_mod._staleness_seconds(None))
+        self.assertIsNone(health_mod._staleness_seconds("not-an-iso-ts"))
+        self.assertIsNone(health_mod._staleness_seconds(""))
+        # Future ts → clamp to 0
+        future = (datetime.now() + timedelta(hours=1)).isoformat()
+        self.assertEqual(health_mod._staleness_seconds(future), 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()

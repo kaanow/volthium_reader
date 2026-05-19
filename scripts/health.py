@@ -36,6 +36,12 @@ import today_harvest as today_mod  # noqa: E402
 PACK_CSV = Path("data/pack.csv")
 WEATHER_CSV = Path("data/weather.csv")
 
+# Staleness thresholds (seconds since latest sample). Pack samples
+# at ~10 s cadence, weather at ~30 min. Stale-flag both at ~6× their
+# expected cadence so transient single-poll misses don't false-alarm.
+PACK_STALE_THRESHOLD_S    = 60      # ~6 pack cycles
+WEATHER_STALE_THRESHOLD_S = 60 * 60 # ~2 weather cycles
+
 
 def _last_pack_row() -> Optional[dict]:
     """Return the final row of pack.csv as a dict, or None."""
@@ -63,7 +69,35 @@ def _short_ts(iso: Optional[str]) -> str:
     return iso[11:16] if "T" in iso and len(iso) >= 16 else iso[:16]
 
 
-def _fmt_pack_line(row: Optional[dict]) -> str:
+def _staleness_seconds(ts_str: Optional[str],
+                       now: Optional[datetime] = None) -> Optional[float]:
+    """Return seconds-since `ts_str` (an ISO timestamp), or None if
+    parseable check fails. Negative values (future ts) clamp to 0."""
+    if not ts_str:
+        return None
+    try:
+        ts = datetime.fromisoformat(ts_str)
+    except ValueError:
+        return None
+    if now is None:
+        now = datetime.now()
+    delta = (now - ts).total_seconds()
+    return max(0.0, delta)
+
+
+def _fmt_age(seconds: float) -> str:
+    """Compact age string: '12 s', '4 min', '2.3 h', '1.5 d'."""
+    if seconds < 90:
+        return f"{int(seconds)} s"
+    if seconds < 60 * 90:
+        return f"{int(seconds / 60)} min"
+    if seconds < 24 * 3600:
+        return f"{seconds / 3600:.1f} h"
+    return f"{seconds / 86400:.1f} d"
+
+
+def _fmt_pack_line(row: Optional[dict],
+                   now: Optional[datetime] = None) -> str:
     if not row:
         return "PACK         (no pack.csv yet)"
     soc_a = _f(row.get("soc_a"))
@@ -76,11 +110,32 @@ def _fmt_pack_line(row: Optional[dict]) -> str:
     i_str = (f"{pack_i:+.1f} A" if pack_i is not None else "—")
     smi_str = (f"smoothed {smoothed_i:+.1f} A" if smoothed_i is not None else "")
     v_str = (f"{pack_v:.2f} V" if pack_v is not None else "—")
+    # Staleness: if the latest sample is older than the threshold,
+    # surface a tier-1 warning. The system has caught a real BLE-
+    # logger stall by this signal before — see STATUS.md 2026-05-19
+    # 11:10 loop note for the diagnostic story.
+    stale = _staleness_seconds(row.get("ts"), now=now)
+    stale_str = ""
+    if stale is not None and stale > PACK_STALE_THRESHOLD_S:
+        stale_str = f"  ⚠ STALE: {_fmt_age(stale)} since last sample"
     return (f"PACK         SOC {soc_str}  {state}  "
-            f"{i_str}  {smi_str}  {v_str}")
+            f"{i_str}  {smi_str}  {v_str}{stale_str}")
 
 
-def _fmt_today_line() -> str:
+def _latest_weather_ts() -> Optional[str]:
+    """Return the ts of the newest weather.csv row, or None."""
+    if not WEATHER_CSV.exists():
+        return None
+    last: Optional[str] = None
+    with WEATHER_CSV.open() as f:
+        for r in csv.DictReader(f):
+            ts = r.get("ts")
+            if ts:
+                last = ts
+    return last
+
+
+def _fmt_today_line(now: Optional[datetime] = None) -> str:
     try:
         snap = today_mod.snapshot(PACK_CSV, WEATHER_CSV)
     except Exception:
@@ -97,8 +152,12 @@ def _fmt_today_line() -> str:
     lr_str = (f"live_ratio {lr:.2f}" if lr is not None
               else f"live_ratio — (kWh/m² {kwh_so_far:.2f})" if kwh_so_far is not None
               else "live_ratio —")
+    stale = _staleness_seconds(_latest_weather_ts(), now=now)
+    stale_str = ""
+    if stale is not None and stale > WEATHER_STALE_THRESHOLD_S:
+        stale_str = f"  ⚠ weather stale {_fmt_age(stale)}"
     return (f"TODAY        solar {ah_so_far:+.1f} Ah / "
-            f"{ah_forecast:.1f} forecast ({pct_str})  {lr_str}")
+            f"{ah_forecast:.1f} forecast ({pct_str})  {lr_str}{stale_str}")
 
 
 def _fmt_solar_onset_line() -> str:
@@ -213,8 +272,8 @@ def render_summary() -> str:
     lines.append(f"=== Volthium pack health summary "
                  f"({now:%Y-%m-%d %H:%M}) ===")
     lines.append("")
-    lines.append(_fmt_pack_line(_last_pack_row()))
-    lines.append(_fmt_today_line())
+    lines.append(_fmt_pack_line(_last_pack_row(), now=now))
+    lines.append(_fmt_today_line(now=now))
     lines.append(_fmt_solar_onset_line())
     lines.append("")
     lines.append(_fmt_solar_model_line())

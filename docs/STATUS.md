@@ -143,6 +143,64 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 11:12 ⚠ — DRIFT advisory firing + pack.csv BLE blip
+  exposed by new staleness check.** Health summary at the top of
+  the loop showed **drift -35.7%** (live 5.24 vs model 8.15) with
+  pack still in discharge. Investigating: pack.csv last sample was
+  **10:41:59 → 28 min old at the time of check**. Solar irradiance
+  kept accumulating from weather.csv (cloud 59 %, shortwave
+  501 W/m²!) but pack.csv wasn't seeing the recovery — so
+  live_ratio (= solar_ah / irradiance) collapsed as the numerator
+  froze.
+  - The drift advisory caught this **indirectly** — it flagged a
+    -36% miscalibration when the real cause was data staleness.
+    Worth fixing the direct signal.
+  - **Design item picked: pack-data staleness detection in
+    health.py.** Adds a tier-1 direct warning so future BLE
+    stalls surface without the operator having to infer them
+    from drift.
+    - `scripts/health.py`:
+      - New `_staleness_seconds(ts, now=None)` pure helper.
+        Returns seconds-since-`ts`, or None for unparseable
+        inputs. Future timestamps clamp to 0.
+      - New `_fmt_age(seconds)` compact human-readable formatter:
+        seconds < 90 s, minutes < 90 min, hours < 24 h, else days.
+      - `_fmt_pack_line()` extended: if latest pack.csv sample is
+        older than `PACK_STALE_THRESHOLD_S` (60 s), append
+        `⚠ STALE: N min since last sample` to the PACK line.
+        60 s = ~6× the 10 s polling cadence — transient single-
+        poll misses don't false-alarm.
+      - `_fmt_today_line()` similarly stale-checks weather.csv
+        against a 60-min threshold (~2× the 30 min polling
+        cadence). Appends `⚠ weather stale Xh` when triggered.
+      - Thresholds exposed as module-level constants so tests
+        and future deployments can tune.
+    - 4 regression tests in `test_health.py`:
+      `test_pack_line_flags_stale_data` (10-min-old sample
+      triggers the warning),
+      `test_pack_line_does_not_flag_fresh_data` (5-s-old does
+      not),
+      `test_fmt_age_compact_form` (unit-appropriate output
+      across the full range),
+      `test_staleness_seconds_handles_bad_input` (None,
+      unparseable, future-ts must not crash).
+      Suite: **244 tests passing** (was 240, +4 new).
+  - Live verification: ran `python3 scripts/health.py` again
+    after building — by then pack.csv had refreshed (87 s gap;
+    BLE logger is alive). The PACK line correctly showed
+    `⚠ STALE: 87 s since last sample`, then on the next sample
+    cleared. Working.
+  - **Why this matters**: the drift advisory had become an
+    over-loaded signal — firing for both model miscalibration
+    AND data staleness. Now they're disentangled. An operator
+    seeing the PACK line's STALE warning knows to investigate
+    the BLE logger / launchd job; one seeing DRIFT without
+    STALE knows it's a real model issue.
+  - **Watch**: confirm BLE logger keeps running. If the gap
+    grows or recurs in the next loops, dig into `pack.log` for
+    the actual error. Worst case, restart the Volthium Monitor
+    .app at the cabin laptop.
+
 - **2026-05-19 10:46 — load surge eats the morning's solar gain.**
   Pack flipped back to **discharging** (pack_i -4.1 A, smoothed
   -3.9 A, voltage dropped to **26.28 V**). SOC holds at 66/64.
