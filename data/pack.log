@@ -405,3 +405,10 @@
 2026-05-18 18:14:18,786 INFO n=8100  26.64V  +0.00A  +0W  SOC 93-93%  state=idle  remain≈—
 2026-05-18 18:19:20,778 INFO n=8130  26.66V  +0.00A  +0W  SOC 93-93%  state=idle  remain≈—
 2026-05-18 18:24:29,564 INFO n=8160  26.65V  +0.00A  +0W  SOC 93-93%  state=idle  remain≈—
+2026-05-18 18:29:41,475 INFO n=8190  26.77V  +7.30A  +195W  SOC 93-93%  state=charging  remain≈46m
+2026-05-18 18:34:42,558 INFO n=8220  26.93V  +9.90A  +267W  SOC 93-94%  state=charging  remain≈12m
+2026-05-18 18:39:41,680 INFO n=8250  26.80V  +0.00A  +0W  SOC 93-94%  state=charging  remain≈222m
+2026-05-18 18:45:01,378 INFO n=8280  26.72V  +0.00A  +0W  SOC 93-94%  state=idle  remain≈—
+2026-05-18 18:49:59,924 INFO n=8310  26.62V  -4.40A  -117W  SOC 93-94%  state=discharging  remain≈2387m
+2026-05-18 18:55:12,757 INFO n=8340  26.58V  -3.80A  -101W  SOC 93-93%  state=discharging  remain≈2529m
+2026-05-18 19:00:07,115 INFO n=8370  26.56V  -4.00A  -106W  SOC 93-93%  state=discharging  remain≈2612m

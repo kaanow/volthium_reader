@@ -143,6 +143,47 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **18:59** — Loop wake. **Evening discharge established.** Pack SOC
+  **93/93 %** still but state is **discharging at sustained -4.0 A**
+  baseline (smoothed -3.87 A). Matches the expected -3 to -5 A
+  evening pattern (inverter idle + standby + maybe a fan). Voltage
+  dropping fast: 26.66 → 26.56 V. Today's harvest **45.8 Ah / 116 %**
+  of forecast — the late-day cloud break (64 %) actually delivered
+  another +1.4 Ah on top of the previous 44.4. **Live ratio 8.83**,
+  basically flat with last loop's 8.79 — denominator caught back up.
+  - **Open-Meteo did another late-day forecast revision**: bumped
+    today's day-total 5.20 → 5.62 kWh/m² (+8 %). That's the largest
+    upward revision yet. Forecast-rev chip on the dashboard will
+    show drift +5.2 % from the initial 5.34 (still amber).
+  - No new fridge cycle events captured yet this evening — the
+    34-min cadence means we'll see one shortly. Daily_summary
+    still partial at 18.98 h.
+  - Design item: **`/calibration` page on the dashboard.** Tonight's
+    first SolarModel auto-fit lands in `data/calibration_log.csv`
+    when daily_summary flips to complete (~20:00); the advisor
+    panel's "model last updated" footer now LINKS to a new page
+    showing the full coefficient history.
+    - New GET handler in `dashboard.py` for `/calibration`. Reads
+      `data/calibration_log.csv` via the shared
+      `calibration_log.read_log()`, renders newest-first as a
+      dark-themed HTML table with columns: timestamp, coefficient,
+      n_obs, confidence, source, notes.
+    - Empty-log fallback: friendly italicized message
+      "(no calibration log entries yet — they accumulate as
+      SolarModel coefficients change)".
+    - Linked from the existing "model last updated 2026-05-18
+      13:13 · loop-iteration" line in the advisor panel as a
+      "full log ↗" link to the right.
+    - Uses the same `REPORT_PAGE_STYLE` chrome as `/today-report`
+      and `/reports` so the user gets a consistent feel across
+      drill-down pages.
+  - Closes the visibility loop for the SolarModel calibration
+    chain: chip → footer → full history page. Tonight when the
+    first real fit lands, the user can see the transition from
+    7.0 default to whatever today's data fits to (probably ~8.0-
+    8.3 given the day's harvest pattern).
+  - All 111 Python tests still pass.
+
 - **18:25** — Loop wake. Pack SOC **93/93 %** holding. **Surprise
   late-day cloud break**: cloud at **64 %** (lowest of the day from
   98 % peak), giving a small +2.3 A trickle charge. Voltage 26.66 V

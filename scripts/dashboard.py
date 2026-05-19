@@ -761,7 +761,10 @@ async function tick() {
                 ? luIso.slice(0, 10) + " " + luIso.slice(11, 16)
                 : luIso;
               const srcTxt = luSrc ? ` · ${luSrc}` : "";
-              calibFooter = `<div class="calib-footer">model last updated ${niceTs}${srcTxt}</div>`;
+              // Link the footer to the full calibration log page so
+              // the user can drill into the history of coefficient
+              // changes (especially useful when a new auto-fit lands).
+              calibFooter = `<div class="calib-footer">model last updated ${niceTs}${srcTxt} · <a href="/calibration" target="_blank" class="report-link">full log ↗</a></div>`;
             }
             const calibTip = (
               "Solar harvest efficiency check.\n"
@@ -1122,6 +1125,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._serve_report(datetime.now().date())
         if self.path == "/reports" or self.path == "/reports/":
             return self._serve_report_index()
+        if self.path == "/calibration" or self.path == "/calibration/":
+            return self._serve_calibration_log()
         # /report/YYYY-MM-DD — historical day-report
         if self.path.startswith("/report/"):
             date_str = self.path[len("/report/"):].rstrip("/")
@@ -1208,6 +1213,80 @@ class Handler(BaseHTTPRequestHandler):
             "<p><a href='/'>&larr; dashboard</a> · "
             "<a href='/reports'>all reports</a></p>"
             "<pre>" + html_escape(report_md) + "</pre>"
+        )
+        return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
+
+    def _serve_calibration_log(self):
+        """Render data/calibration_log.csv as a dark-themed HTML table.
+        Each row captures a SolarModel coefficient change with timestamp
+        + cause. Linked from the advisor panel's calib-footer line so
+        the user can drill in from 'model last updated 2026-05-18 21:00'
+        to the full history. Empty log degrades gracefully."""
+        import calibration_log as cal_mod
+        try:
+            entries = cal_mod.read_log()
+        except Exception as e:
+            return self._send(HTTPStatus.OK, "text/plain; charset=utf-8",
+                              f"could not read calibration log: {e}".encode())
+
+        # Newest first (the log appends so file order is oldest-first)
+        entries = list(reversed(entries))
+
+        if entries:
+            rows_html = "".join(
+                f"<tr><td>{html_escape(e.ts)}</td>"
+                f"<td style='text-align:right'>{e.coefficient:.4f}</td>"
+                f"<td style='text-align:right'>{e.n_observations}</td>"
+                f"<td>{html_escape(e.confidence)}</td>"
+                f"<td>{html_escape(e.source)}</td>"
+                f"<td>{html_escape(e.notes)}</td></tr>"
+                for e in entries
+            )
+            table = (
+                "<table style='border-collapse:collapse;width:100%;"
+                "font-size:12px;font-variant-numeric:tabular-nums'>"
+                "<thead><tr style='text-align:left;color:#8b949e;"
+                "border-bottom:1px solid #30363d'>"
+                "<th style='padding:6px 8px'>timestamp</th>"
+                "<th style='padding:6px 8px;text-align:right'>coef</th>"
+                "<th style='padding:6px 8px;text-align:right'>n_obs</th>"
+                "<th style='padding:6px 8px'>confidence</th>"
+                "<th style='padding:6px 8px'>source</th>"
+                "<th style='padding:6px 8px'>notes</th>"
+                "</tr></thead>"
+                "<tbody style='border-bottom:1px solid #30363d'>"
+                + rows_html.replace("<tr>",
+                                    "<tr style='border-bottom:1px solid #21262d'>"
+                                    .replace("<tr>", "<tr>"))
+                + "</tbody></table>"
+            )
+            body_lines = [table]
+        else:
+            body_lines = ["<p style='color:#8b949e;font-style:italic'>"
+                          "(no calibration log entries yet — "
+                          "they accumulate as SolarModel coefficients change)"
+                          "</p>"]
+
+        intro = (
+            "<h2 style='margin-top:0'>SolarModel calibration log</h2>"
+            "<p style='color:#8b949e;font-size:12px'>"
+            "Every meaningful SolarModel coefficient change is recorded here, "
+            "newest first. Triggered automatically by the generator advisor "
+            "(once per invocation, idempotent — no-op when nothing has shifted). "
+            "Sources: <code>loop-iteration</code>, <code>advisor-invocation</code>, "
+            "<code>manual</code>. See <code>scripts/calibration_log.py</code>.</p>"
+        )
+
+        html = (
+            "<!doctype html><meta charset=utf-8>"
+            "<meta name=viewport content='width=device-width,initial-scale=1'>"
+            "<title>Calibration log</title>"
+            f"<style>{self.REPORT_PAGE_STYLE}"
+            " td{padding:6px 8px;vertical-align:top}"
+            "</style>"
+            "<p><a href='/'>&larr; dashboard</a></p>"
+            + intro
+            + "".join(body_lines)
         )
         return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
 
