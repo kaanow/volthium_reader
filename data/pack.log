@@ -430,3 +430,13 @@
 2026-05-18 20:21:13,771 INFO n=8850  26.47V  -6.00A  -159W  SOC 90-90%  state=discharging  remain≈1552m
 2026-05-18 20:23:11,992 WARNING read #8860 failed (1 in a row): RuntimeError: battery 9058AE7F-F98B-D0F6-237D-6769894DE118 not found in scan
 2026-05-18 20:23:15,684 INFO BLE recovered after 1 errors
+2026-05-18 20:26:39,692 INFO n=8880  26.48V  -3.90A  -103W  SOC 89-90%  state=discharging  remain≈1644m
+2026-05-18 20:31:42,361 INFO n=8910  26.50V  -4.10A  -109W  SOC 89-90%  state=discharging  remain≈2402m
+2026-05-18 20:32:32,839 WARNING read #8913 failed (1 in a row): RuntimeError: battery 9058AE7F-F98B-D0F6-237D-6769894DE118 not found in scan
+2026-05-18 20:32:37,501 INFO BLE recovered after 1 errors
+2026-05-18 20:37:19,232 INFO n=8940  26.50V  -4.00A  -106W  SOC 89-90%  state=discharging  remain≈2424m
+2026-05-18 20:42:24,355 INFO n=8970  26.50V  -3.80A  -101W  SOC 89-90%  state=discharging  remain≈2493m
+2026-05-18 20:47:20,133 INFO n=9000  26.46V  -6.70A  -177W  SOC 89-89%  state=discharging  remain≈1397m
+2026-05-18 20:52:41,089 INFO n=9030  26.44V  -8.80A  -233W  SOC 88-89%  state=discharging  remain≈1197m
+2026-05-18 20:57:48,047 INFO n=9060  26.46V  -5.70A  -151W  SOC 88-89%  state=discharging  remain≈1406m
+2026-05-18 21:02:48,141 INFO n=9090  26.48V  -4.60A  -122W  SOC 88-89%  state=discharging  remain≈1984m

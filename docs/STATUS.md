@@ -143,6 +143,58 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **20:57 — Post-milestone bug caught by the freshly-fitted model.**
+  Pack SOC **89/88 %** discharging at sustained -6 A (heavier than
+  baseline). Sunset (20:52) just passed. Calibration log stable at
+  2 entries; live ratio 8.51 vs model 8.149 (drift +4.4 %, GREEN).
+  But the advisor's projections looked wrong: `sunrise SOC: 90.0 %`
+  AND `tomorrow evening SOC: 90.0 %` — identical, and unphysically
+  optimistic given an overnight discharge ahead.
+  - **Root cause**: when the calling code at lines 272-275 bumps
+    `sunrise_dt` / `sunset_dt` past `now` (so they're always
+    "next-occurring"), and we're post-sunset, BOTH end up dated
+    tomorrow. The simulator then computes `sunrise_tomorrow =
+    sunrise_today + 1 day` = **day-after-tomorrow**, which lies
+    OUTSIDE the 24-hour sim window. The `soc_at()` lookup falls
+    off the end of the samples list and returns `samples[-1]` —
+    the same end-of-window value for both `sunrise_tomorrow` and
+    `sunset_tomorrow`. Result: both projections collapse to the
+    same number.
+  - The `projected_low_soc` was unaffected because it's
+    `min(s for _, s in samples)` over the window — that
+    correctly captured the overnight low at ~69 %.
+  - Pre-sunset the bug was masked: lines 289-292 pull `sunrise_today`
+    back by 24 h when needed, which puts it inside the window, so
+    `sunrise_tomorrow` lands within 24 h too.
+  - **Fix**: changed the projection lookups in
+    `simulate_next_24h()` to pick the next-occurring sunrise/sunset
+    relative to `now`, not unconditionally tomorrow's pair. Two
+    lines:
+    ```python
+    proj_sunrise = sunrise_today if sunrise_today > now else sunrise_tomorrow
+    proj_sunset  = sunset_today  if sunset_today  > now else sunset_tomorrow
+    return {..., "projected_sunrise_soc": soc_at(proj_sunrise),
+            "projected_tomorrow_evening_soc": soc_at(proj_sunset)}
+    ```
+  - **Result**: advisor at 21:00 now reports `sunrise SOC: 71.3 %`
+    (not 89.78 %), `tomorrow evening SOC: 89.4 %`, `low: 69.4 %`.
+    Two values, different, sensible.
+  - Added regression test
+    `test_post_sunset_projections_target_NEXT_sunrise_not_day_after`
+    in `tests/test_advisor_simulator.py`. Asserts both that the
+    values are in the right range AND — crucially — that they
+    are NOT equal (the bug-shape check that catches if the values
+    collapse to samples[-1] again).
+  - **This is the second high-leverage advisor bug found by the
+    loop** — first was the 06:10 daytime false-positive on
+    2026-05-18 morning, this is the 21:00 post-sunset duplication.
+    Both surfaced when the actual data started exercising the
+    edge of the simulator's frame-handling.
+  - **130 Python tests pass** (up from 129). Suite total:
+    130 Py + 22 wire-C + 17 est-C + 4 wire-cross + 49 est-cross =
+    **222 assertion-points**, all green.
+  - Day report regenerated with the corrected advisor numbers.
+
 - **20:23 ⭐ — THE DAY-FLIP LANDED.** Every prediction across the
   past two days of loops paid off in one moment:
   - Daily_summary's strict `duration_h < 20.0` rule cleared at

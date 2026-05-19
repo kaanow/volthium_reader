@@ -205,10 +205,21 @@ def simulate_next_24h(
                 return s0 + (s1 - s0) * f
         return samples[-1][1]
 
+    # Project to "the next sunrise after now" and "the next sunset after
+    # now", not unconditionally tomorrow's pair. Bug-fix from 2026-05-18
+    # 21:00 loop: post-sunset, sunrise_today/sunset_today are already
+    # tomorrow's date (the caller's bumping made sunrise_dt next-occurring),
+    # so sunrise_tomorrow ends up at day-after-tomorrow — outside the
+    # 24h sim window — and soc_at() falls off the end of samples,
+    # returning the same value for both projections. Fix: pick the
+    # actual next-occurring time relative to `now`, then clamp into
+    # the 24h window if needed.
+    proj_sunrise = sunrise_today if sunrise_today > now else sunrise_tomorrow
+    proj_sunset  = sunset_today  if sunset_today  > now else sunset_tomorrow
     return {
         "projected_low_soc": min(s for _, s in samples),
-        "projected_sunrise_soc": soc_at(sunrise_tomorrow),
-        "projected_tomorrow_evening_soc": soc_at(sunset_tomorrow),
+        "projected_sunrise_soc": soc_at(proj_sunrise),
+        "projected_tomorrow_evening_soc": soc_at(proj_sunset),
     }
 
 

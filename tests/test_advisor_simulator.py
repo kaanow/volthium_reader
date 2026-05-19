@@ -130,6 +130,63 @@ class TestSimulator(unittest.TestCase):
         self.assertAlmostEqual(result["projected_sunrise_soc"], 50.0, places=1)
         self.assertAlmostEqual(result["projected_tomorrow_evening_soc"], 50.0, places=1)
 
+    def test_post_sunset_projections_target_NEXT_sunrise_not_day_after(self):
+        """**Regression test for the 2026-05-18 21:00 bug.**
+
+        Post-sunset, the advisor's caller bumps sunrise_today/
+        sunset_today to TOMORROW's date (so they're 'next-occurring').
+        Then the simulator's `sunrise_tomorrow = sunrise_today + 1 day`
+        becomes DAY-AFTER-TOMORROW — outside the 24-h sim window. The
+        old code's `soc_at(sunrise_tomorrow)` and `soc_at(sunset_tomorrow)`
+        both fell off the end of the samples list and returned the SAME
+        value (the last sample's SOC), making sunrise SOC and tomorrow-
+        evening SOC always equal post-sunset.
+
+        Fix: pick the actual next-occurring sunrise/sunset relative to
+        `now` for the projection lookups. The two values must differ
+        and must both be plausibly within the 24-h window.
+        """
+        # 21:00 post-sunset; sunrise/sunset bumped to TOMORROW (as the
+        # advisor does at lines 272-275 + 284-292)
+        now = datetime(2026, 5, 18, 21, 0)
+        sunrise_next = datetime(2026, 5, 19, 5, 9)
+        sunset_next  = datetime(2026, 5, 19, 20, 52)
+
+        profile = _flat_profile(-5.0)
+        result = simulate_next_24h(
+            start_soc=90.0, now=now, profile=profile,
+            sunrise_today=sunrise_next, sunset_today=sunset_next,
+            solar_today_full_ah=45.0, solar_tomorrow_full_ah=45.0,
+            capacity_ah=215.0,
+        )
+
+        # Sunrise projection: 8 h of -5 A discharge ≈ 40 Ah ≈ 18.6 %.
+        # Start 90 % → sunrise ~71 %. NOT 90 % (would mean it pulled
+        # samples[-1] from the very end of the window post-rebound).
+        self.assertLess(result["projected_sunrise_soc"], 80.0,
+                        "post-sunset projected_sunrise_soc should reflect "
+                        "the overnight drop, not the end-of-window value")
+        self.assertGreater(result["projected_sunrise_soc"], 65.0,
+                           "shouldn't undershoot either")
+
+        # Tomorrow evening: by 20:52 tomorrow we've had the daylight
+        # window (~ +45 Ah / 215 = +20.9 %) on top of the overnight low.
+        # Expect SOC near or above the start (90 %).
+        self.assertGreater(result["projected_tomorrow_evening_soc"], 85.0,
+                           "evening SOC should rebound past start after "
+                           "a full day of solar")
+
+        # **Critical bug-shape check**: sunrise SOC and tomorrow-evening
+        # SOC must NOT be identical (the old bug had them tied at the
+        # samples[-1] value).
+        self.assertNotAlmostEqual(
+            result["projected_sunrise_soc"],
+            result["projected_tomorrow_evening_soc"],
+            places=2,
+            msg="sunrise SOC and tomorrow evening SOC were equal — the "
+                "post-sunset bug is back",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
