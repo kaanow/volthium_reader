@@ -143,6 +143,45 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **22:47** — Steady. Pack SOC **84/83 %** (down 1 % from 85/84
+  over 34 min). Discharging at sustained -4.6 A (smoothed -4.53 A).
+  **Projection log gained entry #2** at 22:39:46 — rate-limit
+  working correctly:
+  ```
+  22:14:46  start 84.0  sunrise 69.4  eve 90.3  low 69.2  coef 8.15
+  22:39:46  start 83.0  sunrise 69.2  eve 88.8  low 68.2  coef 8.15
+  ```
+  The dashboard's cached-subprocess advisor calls between those
+  two moments produced zero new rows — exactly what the 25-min
+  rate-limit is designed for.
+  - No new fridge cycle this loop (last was 21:47; the 34-min
+    cadence would predict ~22:21 but the detector didn't fire —
+    cycle was either shorter than the 15-s persistence or skipped).
+  - Calibration log stable at 2 entries; coef 8.149.
+  - Design item: **12 regression tests for `projection_log.py`**.
+    Mirrors `test_calibration_log.py` pattern:
+    - **Empty file** → `read_log()` returns `[]`; `last_entry()`
+      returns None.
+    - **First record always writes**; round-trip preserves all 9
+      fields (start_soc, sunrise, evening, low, coef, kwh, sunrise_iso,
+      source, ts).
+    - **Rate-limit boundary** explicitly anchored: 5 min apart →
+      suppressed; exactly at threshold (25 min) → admitted; >threshold
+      → admitted. `min_minutes_between` override works.
+    - **Dashboard-burst scenario**: simulated 5 advisor calls
+      within 5 min produces exactly 1 row (the protection the
+      rate-limit is built for).
+    - **`today_irradiance_kwh_m2=None`** (Open-Meteo unreachable)
+      handled gracefully — row written with blank irradiance,
+      not a crash.
+    - Multiple entries preserve **oldest-first order** in the
+      file; `--tail` slices the end.
+    - `append_entry()` creates the file with a **CSV header row**
+      so DictReader can parse it.
+  - **142 Python tests pass** (up from 130). Suite total: 142 Py +
+    22 wire-C + 17 est-C + 4 wire-cross + 49 est-cross =
+    **234 assertion-points**, all green.
+
 - **22:12** — Quiet evening continues. Pack SOC **85/84 %** (-2 %
   per battery in 34 min — consistent baseline drain rate).
   Discharging at sustained -4.3 A. Voltage 26.47 V. **Another fridge
