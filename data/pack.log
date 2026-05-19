@@ -519,3 +519,9 @@
 2026-05-19 03:15:26,000 INFO BLE recovered after 1 errors
 2026-05-19 03:18:51,332 INFO n=11310  26.20V  -2.90A  -76W  SOC 70-72%  state=discharging  remain≈2439m
 2026-05-19 03:23:51,728 INFO n=11340  26.21V  -3.10A  -81W  SOC 70-72%  state=discharging  remain≈2436m
+2026-05-19 03:29:13,485 INFO n=11370  26.21V  -3.00A  -79W  SOC 70-72%  state=discharging  remain≈2436m
+2026-05-19 03:34:15,792 INFO n=11400  26.21V  -2.80A  -73W  SOC 70-72%  state=discharging  remain≈2582m
+2026-05-19 03:39:22,089 INFO n=11430  26.17V  -6.10A  -160W  SOC 69-71%  state=discharging  remain≈1203m
+2026-05-19 03:44:36,262 INFO n=11460  26.16V  -5.50A  -144W  SOC 69-71%  state=discharging  remain≈1281m
+2026-05-19 03:49:38,067 INFO n=11490  26.19V  -2.80A  -73W  SOC 69-71%  state=discharging  remain≈2195m
+2026-05-19 03:54:39,882 INFO n=11520  26.20V  -2.80A  -73W  SOC 69-71%  state=discharging  remain≈2496m

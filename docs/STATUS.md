@@ -143,6 +143,43 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 03:55** — Pre-dawn. Pack SOC **71/69 %** (gap 2 %),
+  discharging at sustained -2.7 A — the lighter overnight pattern
+  holds. Voltage 26.20 V (steady). Cloud broke to 63 % (lowest of
+  the night). Per-battery v_a/v_b agree within 6 mV. **Projection
+  log entry #14** landed at 03:44:46. Sunrise 05:08 about 73 min
+  away; **first projection_accuracy validation in the wake-after-next**.
+  - Design item: **15 regression tests for dashboard HTTP routes.**
+    Routes are now numerous (`/`, `/api/latest.json`, `/today-
+    report`, `/report/<date>`, `/reports`, `/calibration`,
+    `/projections`, `/accuracy`) with zero direct coverage.
+    Approach: construct Handler instances via `__new__` (bypass
+    BaseHTTPRequestHandler's stream-bound `__init__`), mock the
+    `_send` method to capture responses, exercise `do_GET()`.
+  - Cases covered:
+    - **`/`** returns 200 + HTML containing the main panel IDs +
+      JS bundle hook
+    - **`/index.html`** aliases to `/`
+    - **`/api/latest.json`** on empty pack.csv returns graceful JSON
+      with `latest: null`, not a 500
+    - **Unknown path** returns 404
+    - **`/today-report`** generates an HTML page even with no data
+      files (degraded content, not 500); `.md` alias works
+    - **`/report/<bogus>`** → 404 with helpful "use YYYY-MM-DD"
+    - **`/report/<unknown_date>`** → 404 "no report for X"
+    - **`/report/<existing_date>`** serves the committed file
+    - **`/reports`** index page lists historical reports newest-
+      first, today pinned at top with "(today, live)" label
+    - **`/calibration`**, **`/projections`**, **`/accuracy`**
+      empty-state messages render
+    - **Cross-page navigation**: the three log pages each link to
+      the other two and back to `/`
+  - Tests fixture a tempdir + chdir so file reads don't pick up the
+    real installation data — reproducible regardless of live state.
+  - **167 Python tests pass** (up from 152). Total suite: 167 Py +
+    22 wire-C + 17 est-C + 4 wire-cross + 49 est-cross =
+    **259 assertion-points**, all green.
+
 - **2026-05-19 03:21** — Pack SOC **72/70 %** (gap 2 %), discharge
   dropped FURTHER to **-2.9 A** (smoothed -2.88) — continuing
   trend from -7 → -4.2 → -2.9 A over the last hour. Voltage
