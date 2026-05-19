@@ -143,6 +143,43 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **17:18** — Loop wake. Pack SOC **94/93 %** — battery A ticked UP
+  to 94 % as voltage relaxation lets the BMS recompute SOC upward
+  (voltage 26.70 V, settling from the absorption-CV peak). State:
+  IDLE, charge current 0.0 A. Cloud broke to **91 %** but irradiance
+  now down to 316 W/m² (sun lower than the array's azimuth window).
+  Harvest **44.4 Ah / 122 % of forecast** — gained +0.8 Ah since last
+  loop in final trickle. **Live ratio dropped 9.53 → 9.19** (+31.3 %
+  drift, continued pull-back toward green exactly as predicted —
+  the harvest is essentially flat now while the irradiance integral
+  keeps growing). By sunset should land in the 8.0-8.5 range.
+  - Advisor projection: today's pack will see ~31 % drop overnight +
+    partial recovery, settling at flat 62.7 % equilibrium across
+    sunrise/tomorrow_eve/low under the current 7.0 SolarModel
+    coefficient. Tonight's first auto-fit (after the today's row
+    flips to [complete] at ~21:00) will likely lift this — today's
+    actual day-total ratio is on track for ~8.0-8.5, so the
+    advisor's solar prediction will tick upward by ~15-20 %.
+  - Design item: **day-report served from the dashboard.** Per the
+    new loop step 7 we regenerate `data/reports/2026-05-18.md` each
+    cycle, but users had to clone the repo to read it. Now a small
+    link **"today's full report ↗"** in the harvest panel footer
+    opens `/today-report` in a new tab — server inline-renders the
+    Markdown as a minimalist dark-themed HTML page with a `← dashboard`
+    link to navigate back.
+  - Implementation: new GET handler in `dashboard.py` matches
+    `/today-report` or `/today-report.md`, calls
+    `end_of_day_report.build_report(today_date)` inline (no shell-out
+    so it works without subprocess overhead), wraps the markdown in
+    `<pre>` with html-escaping for safety. Loads the full narrative
+    on a phone tap — sparkline, peaks, model state, weather, cross-
+    references all readable.
+  - Closes one more visibility loop: the loop iteration writes the
+    report, pushes the file to GitHub, AND now serves it live on the
+    dashboard. Three ways to find it (repo file, GitHub web, live
+    dashboard) — whichever fits the user's situation.
+  - All 100 Python tests still pass.
+
 - **16:35** — Loop wake. **Pack holding at 93/93 %** under absorption-
   CV regulation; BMS letting in a +1.6-1.8 A trickle to maintain
   voltage. Cloud broke briefly to **88-90 %** (vs the day's 98-100 %

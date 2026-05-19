@@ -670,3 +670,34 @@ LAN share URL: http://192.168.1.76:8421/
 2026-05-18 16:35:42,354 INFO n=7620  26.71V  +2.20A  +59W  SOC 93-93%  state=charging  remain≈180m
 2026-05-18 16:41:00,704 INFO n=7650  26.77V  +3.10A  +83W  SOC 93-94%  state=charging  remain≈41m
 2026-05-18 16:45:56,526 INFO n=7680  26.79V  +3.20A  +86W  SOC 93-94%  state=charging  remain≈38m
+2026-05-18 16:51:05,569 INFO n=7710  26.78V  +1.80A  +48W  SOC 93-94%  state=charging  remain≈68m
+2026-05-18 16:56:05,325 INFO n=7740  26.69V  -1.80A  -48W  SOC 93-94%  state=discharging  remain≈5997m
+2026-05-18 17:00:13,070 ERROR V-12V200AH-0667|535B7: TX BLE request error (BleakError)
+2026-05-18 17:00:13,072 ERROR V-12V200AH-0667|535B7: TX BLE request error (BleakError)
+2026-05-18 17:00:13,073 WARNING read #7764 failed (1 in a row): TimeoutError: 
+2026-05-18 17:01:07,576 WARNING read #7764 failed (2 in a row): BleakConnectionError: 9058AE7F-F98B-D0F6-237D-6769894DE118 - 9058AE7F-F98B-D0F6-237D-6769894DE118: Failed to connect after 4 attempt(s): disconnected
+2026-05-18 17:02:32,042 WARNING read #7764 failed (3 in a row): BleakNotFoundError: 9058AE7F-F98B-D0F6-237D-6769894DE118 - 9058AE7F-F98B-D0F6-237D-6769894DE118: Failed to connect after 4 attempt(s): TimeoutError
+2026-05-18 17:04:00,442 WARNING read #7764 failed (4 in a row): BleakNotFoundError: 9058AE7F-F98B-D0F6-237D-6769894DE118 - 9058AE7F-F98B-D0F6-237D-6769894DE118: Failed to connect after 4 attempt(s): TimeoutError
+2026-05-18 17:05:47,991 WARNING read #7764 failed (5 in a row): BleakNotFoundError: 9058AE7F-F98B-D0F6-237D-6769894DE118 - 9058AE7F-F98B-D0F6-237D-6769894DE118: Failed to connect after 4 attempt(s): TimeoutError
+2026-05-18 17:07:35,038 WARNING read #7764 failed (6 in a row): BleakNotFoundError: 9058AE7F-F98B-D0F6-237D-6769894DE118 - 9058AE7F-F98B-D0F6-237D-6769894DE118: Failed to connect after 4 attempt(s): TimeoutError
+2026-05-18 17:08:57,588 WARNING read #7764 failed (7 in a row): BleakConnectionError: 6EC69980-CA43-7DEF-519B-6235C8C535B7 - 6EC69980-CA43-7DEF-519B-6235C8C535B7: Failed to connect after 4 attempt(s): disconnected
+2026-05-18 17:09:43,739 ERROR V-12V200AH-0667|535B7: TX BLE request error (BleakError)
+2026-05-18 17:09:43,745 ERROR V-12V200AH-0667|535B7: TX BLE request error (BleakError)
+2026-05-18 17:09:43,746 WARNING read #7764 failed (8 in a row): TimeoutError: 
+2026-05-18 17:11:01,096 WARNING read #7764 failed (9 in a row): BleakConnectionError: 6EC69980-CA43-7DEF-519B-6235C8C535B7 - 6EC69980-CA43-7DEF-519B-6235C8C535B7: Failed to connect after 4 attempt(s): disconnected
+2026-05-18 17:12:17,823 ERROR V-12V200AH-0667|535B7: TX BLE request error (BleakError)
+2026-05-18 17:12:17,825 ERROR V-12V200AH-0667|535B7: TX BLE request error (BleakError)
+2026-05-18 17:12:17,826 WARNING read #7764 failed (10 in a row): TimeoutError: 
+2026-05-18 17:13:27,896 WARNING read #7764 failed (11 in a row): RuntimeError: battery 9058AE7F-F98B-D0F6-237D-6769894DE118 not found in scan
+2026-05-18 17:15:14,929 ERROR V-12V200AH-0533|DE118: TX BLE request error (BleakError)
+2026-05-18 17:15:14,931 ERROR V-12V200AH-0533|DE118: TX BLE request error (BleakError)
+2026-05-18 17:15:14,932 WARNING read #7764 failed (12 in a row): TimeoutError: 
+2026-05-18 17:15:23,447 ERROR V-12V200AH-0667|535B7: TX BLE request error (BleakError)
+2026-05-18 17:15:23,447 ERROR V-12V200AH-0667|535B7: TX BLE request error (BleakError)
+2026-05-18 17:16:17,132 ERROR V-12V200AH-0667|535B7: TX BLE request error (BleakError)
+2026-05-18 17:16:17,133 ERROR V-12V200AH-0667|535B7: TX BLE request error (BleakError)
+2026-05-18 17:16:17,134 WARNING read #7764 failed (13 in a row): TimeoutError: 
+2026-05-18 17:16:17,575 ERROR V-12V200AH-0533|DE118: TX BLE request error (BleakError)
+2026-05-18 17:16:17,576 ERROR V-12V200AH-0533|DE118: TX BLE request error (BleakError)
+2026-05-18 17:17:22,187 INFO BLE recovered after 13 errors
+2026-05-18 17:18:18,784 INFO n=7770  26.70V  +0.00A  +0W  SOC 93-94%  state=idle  remain≈—

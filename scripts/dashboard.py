@@ -25,9 +25,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+from html import escape as html_escape  # noqa: E402
 from volthium.events import detect_events  # noqa: E402
 import discharge_model  # noqa: E402  — sibling script
 import generator_advisor  # noqa: E402  — sibling script
+import end_of_day_report as end_of_day_report_mod  # noqa: E402
 
 # Cache the discharge profile fit for 60s.  The fit runs over the
 # entire pack.csv, which is fine for our scale (KBs of CSV per day)
@@ -419,6 +421,8 @@ INDEX_HTML = """<!doctype html>
   .harvest .bar.partial { background: var(--ylw); }
   .harvest .bar.over { background: var(--grn); }
   .harvest .footer { color: var(--dim); font-size: 11px; margin-top: 8px; }
+  .harvest .report-link { color: var(--blu); text-decoration: none; }
+  .harvest .report-link:hover { text-decoration: underline; }
   .harvest .note { color: var(--dim); font-style: italic; font-size: 11px;
                    margin-top: 6px; }
   .harvest-spark { display: block; width: 100%; height: 48px;
@@ -1065,7 +1069,8 @@ async function tick() {
                 <span class="drift">${driftSign}${driftAbs.toFixed(1)}%${swingStr}</span>
               </div>`;
           })()}
-          <div class="footer">${harv.duration_h.toFixed(1)} h of data so far · ${harv.confidence} confidence</div>
+          <div class="footer">${harv.duration_h.toFixed(1)} h of data so far · ${harv.confidence} confidence
+            · <a href="/today-report" target="_blank" class="report-link">today's full report ↗</a></div>
           ${note}
         </div>`;
     } else {
@@ -1112,6 +1117,35 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/" or self.path == "/index.html":
             return self._send(HTTPStatus.OK, "text/html; charset=utf-8", self.INDEX_HTML.encode())
+        if self.path == "/today-report" or self.path == "/today-report.md":
+            # Serve today's day-report from data/reports/YYYY-MM-DD.md.
+            # Re-generates it first so even a stale loop doesn't show
+            # users a frozen snapshot. Renders as a minimal HTML page
+            # with the markdown text inside <pre> so phones can read it
+            # without a markdown library on the server.
+            try:
+                # Inline-call the report builder so we don't shell out.
+                today = datetime.now().date()
+                report_md = end_of_day_report_mod.build_report(today)
+            except Exception as e:
+                return self._send(HTTPStatus.OK, "text/plain; charset=utf-8",
+                                  f"could not generate today's report: {e}".encode())
+            html = (
+                "<!doctype html><meta charset=utf-8>"
+                "<meta name=viewport content='width=device-width,initial-scale=1'>"
+                "<title>Day report</title>"
+                "<style>"
+                "body{background:#0d1117;color:#c9d1d9;"
+                "font-family:ui-monospace,SFMono-Regular,monospace;"
+                "max-width:780px;margin:0 auto;padding:24px 16px;"
+                "font-size:14px;line-height:1.5}"
+                "a{color:#58a6ff}"
+                "pre{white-space:pre-wrap;word-wrap:break-word;margin:0}"
+                "</style>"
+                "<p><a href='/'>&larr; dashboard</a></p>"
+                "<pre>" + html_escape(report_md) + "</pre>"
+            )
+            return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
         if self.path.startswith("/api/latest.json"):
             rows = read_recent(CSV_PATH, HISTORY_N)
             if not rows:
