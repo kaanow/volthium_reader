@@ -68,6 +68,11 @@ def compute_today_peaks(pack_csv: Path, today: date) -> dict:
         peak_pack_voltage_v — max pack voltage observed
         first_charge_time   — HH:MM of first sample where pack_i > +1A
                               (the "net charging started" marker)
+        peak_soc_gap_pct    — max |soc_a − soc_b| seen today; in a
+                              healthy series pack this stays under
+                              ~3 %. Widening gap under heavy load is
+                              an early signal of cell imbalance or
+                              one battery aging faster.
 
     All values are None when no data is available yet for today.
     """
@@ -76,6 +81,7 @@ def compute_today_peaks(pack_csv: Path, today: date) -> dict:
     peak_soc: Optional[float] = None
     peak_voltage: Optional[float] = None
     first_charge_time: Optional[str] = None
+    peak_soc_gap: Optional[float] = None
 
     try:
         with pack_csv.open() as f:
@@ -106,6 +112,11 @@ def compute_today_peaks(pack_csv: Path, today: date) -> dict:
                 if sb is not None:
                     if peak_soc is None or sb > peak_soc:
                         peak_soc = sb
+                # SOC gap: track the max |soc_a − soc_b| seen today
+                if sa is not None and sb is not None:
+                    gap = abs(sa - sb)
+                    if peak_soc_gap is None or gap > peak_soc_gap:
+                        peak_soc_gap = gap
     except FileNotFoundError:
         pass
 
@@ -115,6 +126,7 @@ def compute_today_peaks(pack_csv: Path, today: date) -> dict:
         "peak_soc_pct":        round(peak_soc, 1) if peak_soc is not None else None,
         "peak_pack_voltage_v": round(peak_voltage, 2) if peak_voltage is not None else None,
         "first_charge_time":   first_charge_time,
+        "peak_soc_gap_pct":    round(peak_soc_gap, 1) if peak_soc_gap is not None else None,
     }
 
 

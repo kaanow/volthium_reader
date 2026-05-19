@@ -469,6 +469,7 @@ INDEX_HTML = """<!doctype html>
                          width: 100%; margin-bottom: 4px; }
   .harvest .peaks .stat { font-variant-numeric: tabular-nums; }
   .harvest .peaks .stat .v { font-size: 14px; font-weight: 500; color: var(--ink); }
+  .harvest .peaks .stat .v.warn { color: var(--ylw); }
   .harvest .peaks .stat .u { font-size: 10px; color: var(--dim); margin-left: 3px; }
   .harvest .hourly-wrap { margin-top: 10px; }
   .harvest .hourly-wrap .lbl { text-transform: uppercase; letter-spacing: .12em;
@@ -1026,7 +1027,11 @@ async function tick() {
               + "current > 1 A — the empirical 'morning shadow cleared' "
               + "time for this west-facing array.\n"
               + "BEST HOUR: clock hour with the largest Ah delivered today; "
-              + "useful retrospective on when the array peaked."
+              + "useful retrospective on when the array peaked.\n"
+              + "A↔B GAP: the largest |soc_a − soc_b| seen today. In a "
+              + "healthy series pack this stays under ~3 %. Widening gap "
+              + "under heavy load is an early signal of cell imbalance "
+              + "or one battery aging faster."
             );
             // Best harvest hour (if any solar today). Show as 'HHh' →
             // 'NN Ah' so the user sees both 'when' and 'how much'.
@@ -1037,6 +1042,16 @@ async function tick() {
                 `<span class="stat"><span class="v">${hh}h →${pk.best_harvest_hour_ah.toFixed(1)}</span>`
                 + `<span class="u">best hr (Ah)</span></span>`;
             }
+            // A vs B SOC gap (max seen today). Subtle amber color above
+            // 3 % to surface a widening trend without raising alarm.
+            let gapStat = "";
+            if (pk.peak_soc_gap_pct != null) {
+              const g = pk.peak_soc_gap_pct;
+              const cls = g >= 3.0 ? "warn" : "";
+              gapStat =
+                `<span class="stat"><span class="v ${cls}">${g.toFixed(1)}%</span>`
+                + `<span class="u">A↔B gap (max)</span></span>`;
+            }
             return `
               <div class="peaks" title="${pkTip}">
                 <span class="lbl">today's peaks</span>
@@ -1045,6 +1060,7 @@ async function tick() {
                 <span class="stat"><span class="v">${soc}</span><span class="u">% SOC</span></span>
                 <span class="stat"><span class="v">${startedAt}</span><span class="u">charging start</span></span>
                 ${bestHourStat}
+                ${gapStat}
               </div>`;
           })()}
           ${(() => {

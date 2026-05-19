@@ -143,6 +143,39 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 01:35** — Pack SOC **76/75 %** (−2/−1 in 33 min,
+  gap held at 1 % though it touched 2 % earlier). Discharging at
+  sustained -7.0 A. Voltage 26.32 V. Per-battery curiosity:
+  v_a 13.13 vs v_b 13.19 — **B's cell voltage is HIGHER even
+  though B reports LOWER SOC**. The two BMSes disagree about
+  their own SOC anchoring more than they disagree about
+  voltage. Worth watching as a long-term sensor-bias check
+  alongside the i_a−i_b drift documented in `bms_calibration.md`.
+  - Projection log gained entry #8 at 01:10:46. projection_accuracy
+    still "(no validatable projections yet)" — sunrise at 05:08
+    is 3.5 h away.
+  - Today's row 2026-05-19: −8.2 Ah net so far over 1.58 h
+    covered. Discharge rate ~4.9 Ah/hr is heavy — extra ~2 A on
+    top of the documented "ceiling fan + standby" baseline.
+    Possibly an extra device on tonight.
+  - Design item: **per-battery SOC delta tracker** in the
+    dashboard's peaks subrow.
+  - Backend: `compute_today_peaks()` now also tracks
+    `peak_soc_gap_pct = max(|soc_a − soc_b|)` over the day.
+    Today's value: **2.0 %** (touched 2 % during the heavy-draw
+    window before recovering to 1 %).
+  - Frontend: new 6th stat on the `.peaks` subrow showing
+    `2.0%` / `A↔B gap (max)`. Color band: ≥ 3 % renders amber to
+    flag a widening trend without sounding alarm.
+  - Tooltip extended to explain: "In a healthy series pack this
+    stays under ~3 %. Widening gap under heavy load is an early
+    signal of cell imbalance or one battery aging faster."
+  - This is the natural early-warning system for cell health:
+    today's pack-symmetry days (gap < 1 %) are the baseline;
+    once we see a 5 %+ persistent gap we'll know one battery
+    needs attention.
+  - All 150 Python tests still pass.
+
 - **2026-05-19 01:02** — Overnight, third hour. Pack SOC **78/76 %**
   — **battery B gap widened to 2 %** under the sustained -7.3 A
   draw (gap had been 1 % all evening; the weaker cell drains faster
