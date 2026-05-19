@@ -547,6 +547,10 @@ def snapshot(pack_csv: Path, weather_csv: Path, today: Optional[date] = None) ->
         # 5-min binned cumulative solar Ah series:
         # [[minute_of_day, ah], ...]. Sparkline source on the dashboard.
         "series": integrated.get("series", []),
+        # 5-min binned cumulative NET Ah (signed = charge − discharge).
+        # Source for /today-curve and the day-report's hourly snapshot
+        # table.
+        "net_series": integrated.get("net_series", []),
     }
 
 

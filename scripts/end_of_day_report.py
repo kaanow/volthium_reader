@@ -634,6 +634,75 @@ def build_report(day: date) -> str:
         )
     lines.append("")
 
+    # ---------- Net Ah curve (hourly snapshot) ----------
+    # Sister of the dashboard /today-curve chart. Compact hourly
+    # downsample of cumulative net Ah from the integrate_today's
+    # net_series (which is itself 5-min binned). Lets future
+    # operators see today's recovery shape from the archived
+    # markdown without needing the live server.
+    lines.append("## Net Ah curve (hourly)")
+    lines.append("")
+    net_series = snap.get("net_series") or []
+    if net_series:
+        # Build hourly snapshot: take the LAST net_ah within each hour
+        # bucket. net_series is already monotonic-time so a single pass
+        # works.
+        hourly: dict[int, float] = {}
+        for minute_of_day, net_ah in net_series:
+            hour = minute_of_day // 60
+            hourly[hour] = net_ah   # later in the hour overwrites earlier
+
+        # Solar onset milestones — render the hours they occurred in
+        # so they appear next to the relevant rows. Defensive
+        # try/except: solar_onset may not be available.
+        onset_hours: dict[int, list[str]] = {}
+        try:
+            onsets = solar_onset_mod.read_log()
+            onset_today = next((r for r in onsets
+                                if r.date == day.isoformat()), None)
+            if onset_today is not None:
+                milestones = [
+                    ("first_zero_iso",         "zero"),
+                    ("first_idle_iso",         "idle"),
+                    ("first_positive_iso",     "pos"),
+                    ("first_net_positive_iso", "net+"),
+                ]
+                for attr, label in milestones:
+                    iso = getattr(onset_today, attr, None)
+                    if iso:
+                        try:
+                            h = datetime.fromisoformat(iso).hour
+                            onset_hours.setdefault(h, []).append(label)
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+
+        # Headline summary
+        current_net = net_series[-1][1]
+        min_net = min(v for _, v in net_series)
+        max_net = max(v for _, v in net_series)
+        min_h = next((m for m, v in net_series if v == min_net), 0) // 60
+        max_h = next((m for m, v in net_series if v == max_net), 0) // 60
+        lines.append(
+            f"Cumulative net Ah at hourly snapshots through the day. "
+            f"Current net **{current_net:+.1f} Ah** "
+            f"(min {min_net:+.1f} at hour {min_h:02d}, "
+            f"max {max_net:+.1f} at hour {max_h:02d}). "
+            f"See [/today-curve](/today-curve) on the live dashboard for "
+            f"the 5-min-binned chart with solar_onset milestones overlaid."
+        )
+        lines.append("")
+        lines.append("| hour | cumulative net Ah | milestones |")
+        lines.append("|-----:|------------------:|------------|")
+        for h in sorted(hourly.keys()):
+            milestones = ", ".join(onset_hours.get(h, [])) or ""
+            lines.append(f"| {h:02d}:00 | {hourly[h]:+.1f} | {milestones} |")
+    else:
+        lines.append("No pack data integrated for this day yet — chart "
+                     "fills in as samples accumulate.")
+    lines.append("")
+
     # ---------- Cross-refs ----------
     lines.append("## Cross-references")
     lines.append("")

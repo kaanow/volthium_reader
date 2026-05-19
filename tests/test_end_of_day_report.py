@@ -882,6 +882,51 @@ class TestBuildReport(unittest.TestCase):
         # Link to /drift on the live dashboard
         self.assertIn("[/drift](/drift)", md)
 
+    # ---------- Net Ah curve (hourly) section ----------
+
+    def test_net_ah_curve_section_empty_state(self) -> None:
+        """No pack data → friendly empty message."""
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("## Net Ah curve (hourly)", md)
+        self.assertIn("No pack data integrated for this day yet", md)
+        # No table when no data
+        self.assertNotIn("| hour | cumulative net Ah |", md)
+
+    def test_net_ah_curve_section_renders_hourly_table(self) -> None:
+        """When pack.csv has integrable samples across multiple hours,
+        the section renders one row per hour with cumulative net Ah."""
+        # Write samples at 30 s cadence (< 60 s gap → integrable)
+        # across 3 hours, all discharging at -4 A. Cumulative net Ah
+        # should be negative and decreasing.
+        samples: list[dict] = []
+        t0 = datetime(2026, 5, 19, 8, 0, 0)
+        # 360 samples over 180 min (30 s cadence) → 3 hours of data
+        for i in range(360):
+            samples.append({
+                "ts": (t0 + timedelta(seconds=30 * i)).isoformat(),
+                "state": "discharging",
+                "pack_v": "26.30",
+                "pack_i": "-4.0",
+                "smoothed_i": "-4.0",
+                "soc_a": "70",
+                "soc_b": "68",
+            })
+        self._write_pack(samples)
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("## Net Ah curve (hourly)", md)
+        # Headline summary mentions a numerical current net + min/max
+        self.assertIn("Current net", md)
+        self.assertIn("min ", md)
+        # Table header
+        self.assertIn("| hour | cumulative net Ah | milestones |", md)
+        # At least one hour row appears (08:00 or 09:00)
+        self.assertTrue(
+            "| 08:00 |" in md or "| 09:00 |" in md,
+            "expected at least one hour row from the integrated samples",
+        )
+        # Link to /today-curve on the live dashboard
+        self.assertIn("[/today-curve](/today-curve)", md)
+
     def test_live_ratio_drift_filters_other_days(self) -> None:
         """A log row from a different day must NOT appear in today's
         report. Standard day-prefix filter test."""

@@ -143,6 +143,71 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 13:25 — past halfway.** SOC **75/73** (+1/+1),
+  `solar_ah_so_far = 21.8 Ah` (**52% of forecast — past halfway!**).
+  pack_i 13.8 A, smoothed +15.4 A, pack_v **26.80 V**. live_ratio
+  climbing to **10.38**, drift **+27.4%** (advisory firing strongly
+  in positive direction). live_ratio_log still at 4 rows; row #5
+  due in ~2 min.
+  - **Design item picked: net Ah curve hourly table on day-report.**
+    Completes the surface trio for today's net Ah curve:
+    - CLI / dashboard chart at `/today-curve`
+    - **Day-report markdown table** (this commit)
+    Future operators reading 2026-05-19's archived report can see
+    the recovery shape without needing the live server.
+    - `scripts/today_harvest.py`: `snapshot()` return dict now
+      also propagates the `net_series` (5-min binned cumulative
+      net Ah) — was being computed but not exposed.
+    - `scripts/end_of_day_report.py`: new `## Net Ah curve
+      (hourly)` section between Live-ratio drift and
+      Cross-references. Downsamples the 5-min `net_series` to
+      hourly (taking the LAST value per hour bucket). Marks
+      hours that contained any solar_onset milestone
+      (zero/idle/pos/net+). Headline summary line names the
+      current net, plus min/max with their hour.
+    - **Today's archived output captures the recovery story
+      compactly**:
+      ```
+      | hour | cumulative net Ah | milestones |
+      | 00:00 |  -4.7 |
+      | 06:00 | -29.1 | zero, idle
+      | 07:00 | -30.8 | pos, net+     ← morning low
+      | 08:00 | -30.5 |
+      ...
+      | 12:00 | -18.7 |
+      | 13:00 | -11.0 |                ← afternoon climb
+      ```
+      Anyone scanning that table immediately sees the day's
+      shape: overnight drop, valley at 07:00 (precisely the
+      hour solar_onset milestones fired), then steep climb.
+    - 2 regression tests: empty-state cold start +
+      multi-hour-table with milestone marking. Suite: **272
+      tests passing** (was 270, +2 new).
+  - **Why this matters**: the day-report is now a comprehensive
+    archive covering EVERY chain on three timescales:
+    
+    | chain | live CSV | dashboard | day-report |
+    |-------|----------|-----------|-----------|
+    | pack samples | pack.csv | sparkline | (raw) |
+    | solar onset | solar_onset.csv | chip + markers | cascade table |
+    | sunrise accuracy | projection_log | /accuracy chart | per-record table |
+    | morning-low | projection_log + onset | /low-accuracy chart | per-record table |
+    | confidence | confidence_log.csv | conf-lift chip | events table |
+    | drift | live_ratio_log.csv | /drift chart | per-record table |
+    | net Ah curve | net_series | /today-curve | hourly snapshot |
+    | BLE reliability | (derived) | stale banner + gaps chip | events table |
+    | health | (composite) | /health | snapshot section |
+    
+    Every signal has 3 surfaces. The day-report's 9 sections
+    capture the entire system state in markdown that grep
+    treats like a database.
+  - **Watch**: row #5 lands any moment now. By sunset the
+    afternoon's run of high-drift rows will balance the
+    morning's low-drift rows in the daily summary; tomorrow's
+    SolarModel re-fit will incorporate today's complete-day
+    data and likely produce a coefficient close to the existing
+    8.149.
+
 - **2026-05-19 13:18 ☀☀☀ — afternoon catch-up FULL THROTTLE.**
   Pack ticked **SOC +3/+3 to 74/72**, pack_i **+17.7 A**,
   smoothed +17.2 A, pack_v **26.79 V** (new daily high). 
