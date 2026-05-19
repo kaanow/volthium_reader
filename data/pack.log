@@ -447,3 +447,10 @@
 2026-05-18 21:27:58,962 INFO n=9240  26.46V  -4.30A  -114W  SOC 86-87%  state=discharging  remain≈1525m
 2026-05-18 21:33:02,320 INFO n=9270  26.48V  -4.40A  -116W  SOC 86-87%  state=discharging  remain≈2041m
 2026-05-18 21:38:00,857 INFO n=9300  26.48V  -4.20A  -111W  SOC 86-87%  state=discharging  remain≈2102m
+2026-05-18 21:43:10,826 INFO n=9330  26.48V  -4.60A  -122W  SOC 86-87%  state=discharging  remain≈2032m
+2026-05-18 21:48:11,044 INFO n=9360  26.45V  -7.90A  -209W  SOC 86-87%  state=discharging  remain≈1338m
+2026-05-18 21:53:16,948 INFO n=9390  26.44V  -7.40A  -196W  SOC 85-86%  state=discharging  remain≈1223m
+2026-05-18 21:58:21,309 INFO n=9420  26.45V  -6.80A  -180W  SOC 85-86%  state=discharging  remain≈1283m
+2026-05-18 22:03:21,653 INFO n=9450  26.47V  -4.30A  -114W  SOC 85-86%  state=discharging  remain≈2047m
+2026-05-18 22:08:22,874 INFO n=9480  26.48V  -4.10A  -109W  SOC 85-86%  state=discharging  remain≈2043m
+2026-05-18 22:13:24,838 INFO n=9510  26.47V  -4.40A  -116W  SOC 84-85%  state=discharging  remain≈1968m

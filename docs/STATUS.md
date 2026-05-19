@@ -143,6 +143,47 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **22:12** — Quiet evening continues. Pack SOC **85/84 %** (-2 %
+  per battery in 34 min — consistent baseline drain rate).
+  Discharging at sustained -4.3 A. Voltage 26.47 V. **Another fridge
+  cycle captured**: 21:47:33 ON / 21:47:49 OFF — 16-second
+  compressor pulse this time. Advisor projections still sensible
+  (sunrise 69.3 %, eve 90.4 %, low 69.2 %). Calibration log stable
+  at 2 entries.
+  - Design item: **`scripts/projection_log.py` — captures each
+    advisor invocation's projections to `data/projection_log.csv`.**
+    Foundation for the eventual "nightly diff" feature
+    (projected sunrise SOC vs actual sunrise SOC over time).
+  - Schema: `ts, start_soc_pct, projected_sunrise_soc,
+    projected_tomorrow_evening_soc, projected_low_soc,
+    solar_model_coefficient, today_irradiance_kwh_m2, sunrise_iso,
+    source`.
+  - **Rate-limited to one row per 25 min** — the dashboard's
+    cached-subprocess advisor call would otherwise spam ~60 rows
+    per hour. The autonomous loop's ~25-30 min cadence naturally
+    aligns; loop iteration rows land, dashboard re-renders are
+    suppressed.
+  - `record_if_due()` reads the last log entry, compares timestamp
+    to `now`, only appends if >= `min_minutes_between` apart.
+    Idempotent under repeated calls in a short window.
+  - Wired into `generator_advisor.py` right after the projections
+    are computed, try/except wrapped so a logging failure never
+    blocks the verdict.
+  - First entry just landed:
+    `2026-05-18T22:14:46  start 84.0  sunrise 69.4  eve 90.3
+     low 69.2  coef 8.15  advisor-invocation`. This is the first
+    historical-accuracy data-point.
+  - **Tomorrow** when the actual sunrise SOC is observed, we can
+    compare to today's 69.4 % prediction and start building a
+    track-record of the advisor's accuracy. After a week we'll
+    have meaningful "predicted vs actual" data to feed back into
+    confidence tuning.
+  - Tests will follow in a future loop (the pattern mirrors
+    `tests/test_calibration_log.py` closely). For now the priority
+    was capturing tonight's first projection before more time
+    elapses.
+  - 130 Python tests still pass; calibration_log stable.
+
 - **21:38** — Quiet evening rhythm. Pack SOC **87/86 %** (down 2 %
   per battery in 40 min — normal -1 %/20 min rate). Discharging at
   sustained -4.2 A baseline. Voltage 26.48 V. **First evening

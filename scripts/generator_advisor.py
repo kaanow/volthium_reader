@@ -48,6 +48,7 @@ import discharge_model  # noqa: E402
 import weather as weather_mod  # noqa: E402
 import today_harvest as today_harvest_mod  # noqa: E402
 import calibration_log as calibration_log_mod  # noqa: E402
+import projection_log as projection_log_mod  # noqa: E402
 from volthium.solar_model import SolarModel  # noqa: E402
 
 # Cache tomorrow's forecast so re-runs in a 5-min window don't pound the API.
@@ -358,6 +359,25 @@ def main() -> int:
     projected_sunrise_soc           = sim["projected_sunrise_soc"]
     projected_tomorrow_evening_soc  = sim["projected_tomorrow_evening_soc"]
     projected_low                   = sim["projected_low_soc"]
+
+    # Record the projection to data/projection_log.csv (rate-limited,
+    # at most one row per ~25 min). Builds the historical record for
+    # advisor self-evaluation: did the projection hold up vs reality?
+    # Best-effort try/except — must NOT block the verdict.
+    try:
+        projection_log_mod.record_if_due(
+            start_soc_pct=start_soc,
+            projected_sunrise_soc=projected_sunrise_soc,
+            projected_tomorrow_evening_soc=projected_tomorrow_evening_soc,
+            projected_low_soc=projected_low,
+            solar_model_coefficient=solar.coefficient_ah_per_kwh_m2,
+            today_irradiance_kwh_m2=today_kwh,
+            sunrise_iso=sunrise_dt.isoformat(timespec="minutes"),
+            source="advisor-invocation",
+            now=now,
+        )
+    except Exception:
+        pass
 
     # Kept for the "inputs" diagnostic — show what we projected for each piece
     overnight_ah = discharge_model.project_overnight_ah(profile, now.hour, sunrise_dt.hour) or 0.0

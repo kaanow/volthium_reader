@@ -1,0 +1,2 @@
+ts,start_soc_pct,projected_sunrise_soc,projected_tomorrow_evening_soc,projected_low_soc,solar_model_coefficient,today_irradiance_kwh_m2,sunrise_iso,source
+2026-05-18T22:14:46,84.00,69.36,90.34,69.16,8.1495,5.622,2026-05-19T05:09,advisor-invocation
