@@ -153,6 +153,47 @@ its single-day-total assumption, and the dashboard's live-ratio chip
 will surface the divergence (today's late-afternoon chip went red).
 A future iteration could:
 
+### First data-fit coefficient — 2026-05-18 20:23 ⭐
+
+After the 2026-05-18 row crossed `duration_h ≥ 20.0` (the strict
+complete-day threshold), the SolarModel auto-fit landed in
+`data/calibration_log.csv` for the first time:
+
+| timestamp           | coef   | n_obs | confidence | source              |
+|---------------------|-------:|------:|------------|---------------------|
+| 2026-05-18T13:13:50 | 7.000  |     0 | low        | loop-iteration (baseline / default) |
+| 2026-05-18T20:23:30 | **8.149** | 1 | low        | advisor-invocation (first data fit) |
+
+The day produced **45.8 Ah of solar harvest against a forecast of
+5.62 kWh/m²** of horizontal-plane irradiance — coefficient =
+45.8 ÷ 5.62 = 8.149 Ah/(kWh/m²).
+
+That's a **+16 % uplift from the 7.0 default** baked in from the
+2026-05-17 partial-day rollup. Three notes:
+
+1. **The afternoon over-performance** documented in the section
+   above is what pushed the daily total above the 7.0 baseline.
+   Today's morning ratio hovered around 7.0 (matched the default
+   exactly); the afternoon's geometric advantage lifted it to 8.15
+   by sunset.
+2. **The live-ratio chip went red mid-afternoon (+35 % drift) but
+   pulled back to amber and finally green** as the irradiance
+   integral grew past the flat harvest. By the time the auto-fit
+   landed the drift was a healthy +4.8 %.
+3. **Today was 92 % average cloud cover** — definitively not a
+   sunny day. The 8.15 coefficient is therefore representative of
+   the *cloudy* side of this site's distribution. Sunny days
+   should produce a higher coefficient; the model will widen its
+   uncertainty band as more days accumulate.
+
+This is the first non-trivial calibration the system has seen. With
+this single observation the model is still tagged `low` confidence;
+the threshold to `medium` is ≥ 3 complete-day observations.
+
+---
+
+A future iteration of the SolarModel could:
+
 1. Bin the (kWh/m², Ah) pairs by **hour-of-day** and fit per-hour
    coefficients (24 numbers instead of 1).
 2. Multiply Open-Meteo's horizontal irradiance by a **tilt+azimuth

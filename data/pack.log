@@ -424,3 +424,9 @@
 2026-05-18 19:50:50,649 INFO n=8670  26.48V  -5.80A  -154W  SOC 91-92%  state=discharging  remain≈1596m
 2026-05-18 19:55:56,010 INFO n=8700  26.48V  -5.90A  -156W  SOC 91-91%  state=discharging  remain≈1605m
 2026-05-18 20:00:56,442 INFO n=8730  26.51V  -3.60A  -95W  SOC 91-91%  state=discharging  remain≈2767m
+2026-05-18 20:05:58,291 INFO n=8760  26.51V  -3.50A  -93W  SOC 90-91%  state=discharging  remain≈2591m
+2026-05-18 20:11:06,923 INFO n=8790  26.51V  -3.60A  -95W  SOC 90-91%  state=discharging  remain≈2607m
+2026-05-18 20:16:19,420 INFO n=8820  26.47V  -6.50A  -172W  SOC 90-91%  state=discharging  remain≈1477m
+2026-05-18 20:21:13,771 INFO n=8850  26.47V  -6.00A  -159W  SOC 90-90%  state=discharging  remain≈1552m
+2026-05-18 20:23:11,992 WARNING read #8860 failed (1 in a row): RuntimeError: battery 9058AE7F-F98B-D0F6-237D-6769894DE118 not found in scan
+2026-05-18 20:23:15,684 INFO BLE recovered after 1 errors

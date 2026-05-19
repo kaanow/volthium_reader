@@ -1,2 +1,3 @@
 ts,coefficient,n_observations,confidence,source,notes
 2026-05-18T13:13:50,7.0000,0,low,loop-iteration,no usable observations yet; using default
+2026-05-18T20:23:30,8.1495,1,low,advisor-invocation,fit from 1 observations; median ratio 8.15

@@ -143,6 +143,59 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **20:23 ⭐ — THE DAY-FLIP LANDED.** Every prediction across the
+  past two days of loops paid off in one moment:
+  - Daily_summary's strict `duration_h < 20.0` rule cleared at
+    20:23 (duration_h was actually 20.4 by the time the script ran).
+    Today's row dropped its `[partial]` tag → **`rows usable for
+    solar-model fit: 1`** (was 0 for the entire run-up).
+  - The next `generator_advisor` invocation auto-fit:
+    **`solar_model_coefficient: 7.000 → 8.149 Ah/(kWh/m²)`** —
+    landed exactly in the predicted 8.0-8.3 range. Median ratio
+    from 45.8 Ah / 5.62 kWh/m² = 8.149.
+  - The `record_if_changed()` hook fired and **calibration_log.csv
+    gained its second entry**: `2026-05-18T20:23:30  8.149  n=1
+    low  advisor-invocation`. The first non-default coefficient
+    the system has ever known.
+  - The dashboard's `/calibration` page now shows the **default →
+    fit transition** as a permanent record.
+  - The model-vs-live chip on the advisor panel: previously red
+    at +40 % drift; now **green** at +4.8 % drift (live ratio 8.54
+    vs new model 8.149) — the model has caught up to reality.
+  - "Today's harvest progress" rebases from 116 % of forecast to
+    **100 %** — because the forecast itself just learned today's
+    pattern. Tautological-but-honest.
+  - `end_of_day_report.build_report()` lede changes from
+    "*(partial day so far)*" to "**Complete day**:". The
+    calibration-log table in the report now shows both entries.
+  - This whole sequence happened automatically — no human
+    intervention, no manual fitting, no hand-tuning. The autonomous
+    loop wrote the code days ago, ran the data through it, and at
+    the appointed moment the calibration auto-landed.
+  - Pack state at this moment: SOC **90/90 %** (ticked down 1 %
+    over the loop), discharging at -6.0 A baseline (slightly
+    heavier than -4 A — possibly a fan came on), voltage 26.47 V.
+    Sunset is 29 min away.
+  - Design item: **documented this landmark moment in
+    `docs/site/loon_lake.md`** with a new "First data-fit
+    coefficient — 2026-05-18 20:23 ⭐" subsection. Captures:
+    1. The coefficient (8.149) and the +16 % uplift from the 7.0
+       baseline default
+    2. The afternoon-overperformance pattern (documented earlier
+       in the doc) is what pushed the daily total above 7.0
+    3. The live-ratio chip's red → amber → green journey, ending
+       at +4.8 % drift when the auto-fit landed
+    4. **92 % average cloud cover today** — so 8.15 represents the
+       *cloudy* side of this site's distribution; sunny days will
+       likely produce a higher coefficient still
+  - Confidence stays `low` until n_observations ≥ 3 — but tomorrow
+    will be the second day, and so on. The bootstrap is underway.
+  - 129 Python tests still pass.
+  - **Loop architecture verdict: the autonomous loop did its job.**
+    Wrote the calibration_log infrastructure days ago, the dashboard
+    chip + footer + /calibration page, the test coverage, and
+    today it all converged cleanly on this transition. Closed-loop.
+
 - **20:00** — Loop wake — **on the brink of the day-flip moment**.
   Pack SOC **91/91 %** (ticked down another 1 % per battery from
   92/92), discharging at sustained -3.7 A baseline. duration_h is
