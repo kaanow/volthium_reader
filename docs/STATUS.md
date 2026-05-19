@@ -143,6 +143,41 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **21:38** — Quiet evening rhythm. Pack SOC **87/86 %** (down 2 %
+  per battery in 40 min — normal -1 %/20 min rate). Discharging at
+  sustained -4.2 A baseline. Voltage 26.48 V. **First evening
+  fridge cycles captured!** Heavy-load events at 20:55 ON / 20:56
+  OFF (40 s compressor pulse, classic) and a second OFF at 21:16.
+  Advisor projections sensible post-fix: **sunrise 70.0 %,
+  tomorrow eve 89.7 %, low 69.0 %**. Two distinct values — bug
+  fix from the prior loop is holding cleanly. Live ratio 8.52
+  vs model 8.149 = +4.5 % drift, **GREEN**.
+  - Design item: **documented today's two bug-fixes in
+    `docs/generator_advisor/algorithm.md`.** New "Bug history"
+    section, 4 subsections:
+    1. **Bug #1 — 06:10 daytime false-positive** — root cause
+       (single-window discharge calc across a sunrise crossing),
+       fix (hour-by-hour simulate_next_24h), regression-test ref,
+       lesson ("walk projections that span state transitions").
+    2. **Bug #2 — 21:00 post-sunset projection collapse** —
+       root cause (sunrise_today + 1 day → day-after-tomorrow,
+       outside 24h window, soc_at returns samples[-1] for both),
+       fix (next-occurring-from-now), regression-test ref,
+       lesson ("equality of distinct projections is a smell").
+    3. **Why both bugs share a common theme** — the simulator's
+       "today" vs "now" diverging at day boundaries because the
+       caller bumps sunrise/sunset to "next-occurring" but the
+       simulator's `_tomorrow` arithmetic assumed they were literal
+       "today's" values.
+    4. **Future refactor candidate**: rename simulator params to
+       `next_sunrise` / `next_sunset` (and `subsequent_*` for the
+       day after) to match what the caller actually passes.
+  - Permanent record of *why* the code is shaped the way it is —
+    future-me reading the simulator won't have to re-derive the
+    bug history from STATUS notes.
+  - All 130 Python tests still pass; calibration_log holds at
+    2 entries; coef 8.149 stable.
+
 - **20:57 — Post-milestone bug caught by the freshly-fitted model.**
   Pack SOC **89/88 %** discharging at sustained -6 A (heavier than
   baseline). Sunset (20:52) just passed. Calibration log stable at

@@ -179,6 +179,109 @@ slightly conservative beyond the bare math.
    wall display can show the recommendation directly, not just the
    laptop dashboard.
 
+## Bug history (added 2026-05-18)
+
+The advisor's hour-by-hour simulator (`simulate_next_24h`) has been
+through two important bug-fixes, both surfaced when real cabin data
+exercised the edges of the simulator's day/night frame handling.
+Both are now anchored with regression tests so they can't quietly
+come back. Recording the history here so future-me knows *why* the
+code is shaped the way it is.
+
+### Bug #1 — 2026-05-18 06:10 — "daytime false-positive"
+
+**Symptom**: at 06:10 (1 h past sunrise), the advisor reported
+`RUN GENERATOR — projected sunrise SOC 32 %`, a false alarm. Pack
+was actually fine at 73 % SOC.
+
+**Root cause**: the *original* projection code (pre-simulator) did
+"discharge from `now` until `next sunrise`", but when `now` was
+past today's sunrise, `next sunrise` got bumped to **tomorrow's**
+05:09. The 23-hour window between 06:10 today and 05:09 tomorrow
+was then treated as one big pure-discharge interval — ignoring
+the ~14 of those hours that were daytime with active solar.
+Result: a predicted SOC drop of ~40 % across the "overnight"
+falsely tripped the RUN GENERATOR threshold.
+
+**Fix**: replaced the single-window calc with
+`simulate_next_24h()` — an hour-by-hour walk that classifies each
+hour as daylight (apply solar Ah uniformly across the day) or
+night (apply per-hour discharge median). Five regression tests in
+`tests/test_advisor_simulator.py` anchor the bug-shape, most
+importantly
+`test_daytime_with_balancing_solar_keeps_soc_close_to_start`.
+
+**Lesson**: when a projection's time window crosses a major state
+transition (night→day), you can't treat the whole window as a
+single rate. Walk it hour-by-hour.
+
+### Bug #2 — 2026-05-18 21:00 — "post-sunset projection collapse"
+
+**Symptom**: at 21:00 (post-sunset), the advisor reported identical
+values for `sunrise SOC` and `tomorrow evening SOC` — both
+89.78 %. Physically impossible (an overnight discharge sits
+between those two times). `projected_low_soc` was correct at ~69 %.
+
+**Root cause**: the calling code at the advisor's lines 272-275
+bumps `sunrise_dt` / `sunset_dt` past `now` so they're always
+*next-occurring* times (needed elsewhere, e.g. to schedule
+generator runs in the future). Post-sunset, both got bumped to
+tomorrow's date. Then inside `simulate_next_24h`:
+
+```python
+sunrise_tomorrow = sunrise_today + timedelta(days=1)  # day-AFTER-tomorrow!
+sunset_tomorrow  = sunset_today  + timedelta(days=1)
+```
+
+These target times then sat OUTSIDE the 24-h sim window. The
+`soc_at()` linear-interpolator fell off the end of the samples
+list and returned `samples[-1]` for both — collapsing the two
+projections to the same end-of-window value.
+
+Pre-sunset this was masked: the lines 289-292 "pull back by 1 day"
+heuristics put `sunrise_today` inside the window when needed, so
+`sunrise_tomorrow` also stayed inside. Those pull-back heuristics
+don't fire post-sunset (the gaps don't exceed the >12 h / >24 h
+thresholds), exposing the bug.
+
+**Fix**: replaced the unconditional `+1 day` projection target
+with "pick the next-occurring time relative to `now`":
+
+```python
+proj_sunrise = sunrise_today if sunrise_today > now else sunrise_tomorrow
+proj_sunset  = sunset_today  if sunset_today  > now else sunset_tomorrow
+```
+
+Post-sunset, `proj_sunrise = sunrise_today` (which is already
+tomorrow's 05:09, in the future) → within the 24-h window →
+`soc_at()` returns the actual interpolated overnight SOC.
+
+Regression test:
+`test_post_sunset_projections_target_NEXT_sunrise_not_day_after`
+includes a **bug-shape assertion** that the two projection values
+are NOT equal — so if either lookup ever falls off the end of
+samples again, the test fires.
+
+**Lesson**: a function returning two interpolated lookups should
+defend against both falling off the end and returning the same
+sentinel value. Equality of distinct projections is a smell.
+
+### Why both bugs share a common theme
+
+Both came from the simulator's idea of "today" vs "now" getting
+out of sync at day-boundary edges. The simulator was designed
+assuming `sunrise_today` and `sunset_today` were literally
+**today's calendar** sunrise/sunset, but the calling code bumps
+them to mean *next-occurring* — at certain times of day, those
+two meanings diverge.
+
+If the simulator's API were redesigned today, the parameters would
+rename to `next_sunrise` / `next_sunset` (matching what the caller
+actually passes), and the second pair would be `subsequent_sunrise`
+/ `subsequent_sunset` (= next + 1 day). The current names plus the
+bug-fix overrides work correctly but are historically confusing —
+the rename is a candidate refactor for a future loop.
+
 ## Cross-references
 
 - [`README.md`](README.md) — architecture overview
