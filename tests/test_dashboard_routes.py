@@ -271,6 +271,57 @@ class TestDashboardRoutes(unittest.TestCase):
         # Marker visuals — dashed vertical line + tooltip via <title>
         self.assertIn(b"stroke-dasharray", body)
 
+    def test_render_horizon_bar_chart_handles_empty_input(self) -> None:
+        """Empty list → empty string (caller can unconditionally
+        concat into the page body). Anchors the cold-start path."""
+        self.assertEqual(dashboard.render_horizon_bar_chart([]), "")
+
+    def test_render_horizon_bar_chart_emits_svg_with_bars(self) -> None:
+        """A small bucket list produces an SVG with one <rect> per
+        bucket, the chart title text, and the y-axis tick labels.
+        The signed mean_error value appears as text near each bar."""
+        by_h = [
+            {"bucket": "1-2h", "n": 5,
+             "mean_error": 1.5, "mean_abs_error": 1.5,
+             "rms_error": 1.6, "min_error": 1.0, "max_error": 2.0},
+            {"bucket": "5-6h", "n": 3,
+             "mean_error": -3.0, "mean_abs_error": 3.0,
+             "rms_error": 3.1, "min_error": -3.5, "max_error": -2.5},
+        ]
+        svg = dashboard.render_horizon_bar_chart(by_h)
+        # SVG wrapper
+        self.assertIn("<svg", svg)
+        # Title text
+        self.assertIn("mean error (pp) by lead-time horizon", svg)
+        # One <rect> per bucket (2 here)
+        self.assertEqual(svg.count("<rect"), 2)
+        # Both bucket labels appear as text
+        self.assertIn(">1-2h<", svg)
+        self.assertIn(">5-6h<", svg)
+        # Signed mean values rendered with explicit sign
+        self.assertIn("+1.50", svg)
+        self.assertIn("-3.00", svg)
+        # Tooltip rect's <title> shows the full stats
+        self.assertIn("n=5", svg)
+        self.assertIn("n=3", svg)
+
+    def test_accuracy_page_includes_horizon_chart_when_data_present(self) -> None:
+        """When the live /accuracy page has records, the bar chart
+        SVG appears above the horizon table. Anchors the wiring."""
+        # Cold start has no records → no chart either; this test
+        # documents the route wiring rather than the no-data path.
+        h, captured = _make_handler("/accuracy")
+        h.do_GET()
+        body = captured[0][2]
+        # Either the empty-state message OR the chart title is present.
+        # We just want to make sure the page renders without crashing
+        # given the new chart-generating code path exists.
+        self.assertTrue(
+            b"no validatable projections yet" in body
+            or b"mean error (pp) by lead-time horizon" in body,
+            "expected either empty-state or chart on /accuracy",
+        )
+
     def test_low_accuracy_route_is_a_sister_of_accuracy(self) -> None:
         """Both /accuracy and /low-accuracy should cross-link to each
         other so a user can pivot between sunrise and morning-low

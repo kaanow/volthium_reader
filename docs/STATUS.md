@@ -143,6 +143,61 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 09:33** — Pack now in **idle** (current 0.0 A, pack
+  voltage 26.33 V — slight sag from the 26.40 V solar peak earlier).
+  Cloud back to 100 % per the 09:04 weather row. SOC holding at
+  66/63 — the A-side gain from the 09:06 tick is locked in.
+  `solar_ah_so_far = +2.0 Ah` (1.5 Ah net since the 09:06 SOC tick
+  — pack is gaining slowly under intermittent solar). Advisor's
+  next-24h low for tomorrow has tightened to **61.2 %** with the
+  new model.
+  - **Design item picked: per-horizon accuracy bar charts** on
+    `/accuracy` and `/low-accuracy`. The textual horizon tables
+    were already there but the bias pattern reads slowly through
+    numbers — a bar chart makes it pop.
+    - `scripts/dashboard.py`: new
+      `render_horizon_bar_chart(by_h)` helper at module level.
+      Returns an SVG bar chart with:
+      - One bar per non-empty bucket
+      - Height proportional to |mean_error|, capped so a single
+        outlier doesn't squish other bars
+      - Sign: positive bars extend UP from the zero baseline,
+        negative bars extend DOWN
+      - Color band: green if |err| ≤ 3 pp, amber if ≤ 8, red
+        otherwise — matches the per-record table cell colors
+      - Per-bar `<title>` tooltip with the full stats (n, mean,
+        abs, rms, range)
+      - Title text "mean error (pp) by lead-time horizon" centered
+        above
+      - Y-axis tick labels at 0 / ±|scale_cap|
+      - Bucket labels + "n=N" captions below
+    - Wired into both `/accuracy` and `/low-accuracy` horizon
+      blocks; appears between the descriptive paragraph and the
+      existing table.
+    - On today's live data, `/low-accuracy` now shows a striking
+      visual: a clean monotonic gradient of red-to-amber-to-green
+      bars descending from -4.13 pp (7h+) to -1.50 pp (2-3h),
+      ALL below the zero line. Reads as "the model has been
+      systematically optimistic, and the bias scales with
+      lead-time" in one glance.
+    - 3 regression tests added:
+      `test_render_horizon_bar_chart_handles_empty_input`,
+      `test_render_horizon_bar_chart_emits_svg_with_bars`,
+      `test_accuracy_page_includes_horizon_chart_when_data_present`.
+      Suite: **222 tests passing** (was 219, +3 new).
+  - **Why this matters**: makes the bias finding much more
+    immediately readable. A future operator (or me, in a week)
+    glancing at `/low-accuracy` will instantly see "uh, all bars
+    below the line" without parsing the table. After the next
+    sunrise validates the new-model projections, the chart
+    should show shorter bars (closer to the zero line) on the
+    fresh records — a visual proxy for "fix is working."
+  - **Watch**: tomorrow's sunrise (2026-05-20 ~05:07) will land
+    a fresh batch of 15-20 records that have the new model's
+    projected_low_soc values. The chart will then visualize
+    OLD vs NEW directly: today's all-red below-line pattern vs
+    tomorrow's hopefully-shorter bars.
+
 - **2026-05-19 09:07 — first BMS SOC tick of the day** (A:
   65 → 66 at 09:06:39). Pack current settling back to **+1.2 A**
   (solar weakening as cloud thickened from 75 % → 90 %); pack

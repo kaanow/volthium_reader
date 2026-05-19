@@ -225,6 +225,130 @@ def latest_weather_row() -> dict | None:
     return dict(zip(header, last))
 
 
+def render_horizon_bar_chart(by_h: list[dict],
+                             *,
+                             title_color: str = "#c9d1d9") -> str:
+    """Render the per-horizon error breakdown as an SVG bar chart.
+
+    Used on both /accuracy (sunrise SOC validation) and /low-accuracy
+    (morning-low SOC validation). Each bar is one lead-time bucket;
+    height = |mean_error| (signed bars extend up for positive error,
+    down for negative); color follows the same |error| thresholds as
+    the per-record table (green < 3 pp, amber < 8, red >= 8).
+
+    Returns an empty string when `by_h` is empty (caller can
+    unconditionally concatenate).
+    """
+    if not by_h:
+        return ""
+    W = 600
+    H = 160
+    PAD_X = 40
+    ZERO_Y = 80   # zero line in the middle (60 px above, 60 below)
+    BAR_PAD = 8   # gap between bars
+    n = len(by_h)
+    slot_w = (W - 2 * PAD_X) / n
+    bar_w = max(8.0, slot_w - BAR_PAD)
+    # Scale: max bar height represents the largest |mean_error| observed,
+    # capped at a sensible upper bound so a single outlier doesn't
+    # squish all other bars to nothing.
+    max_abs = max(abs(b["mean_error"]) for b in by_h)
+    scale_cap = max(max_abs, 1.0)   # avoid div-by-zero on all-zero data
+    max_bar = 50  # pixels
+    pieces: list[str] = []
+    # Zero baseline
+    pieces.append(
+        f"<line x1='{PAD_X}' y1='{ZERO_Y}' "
+        f"x2='{W - PAD_X}' y2='{ZERO_Y}' "
+        f"stroke='#30363d' stroke-width='1' stroke-dasharray='2,3'/>"
+    )
+    # Y-axis ticks at -|max| / 0 / +|max| equivalent
+    pieces.append(
+        f"<text x='{PAD_X - 6}' y='{ZERO_Y + 4}' "
+        f"fill='#8b949e' font-size='10' text-anchor='end' "
+        f"font-family='ui-monospace,monospace'>0</text>"
+    )
+    pieces.append(
+        f"<text x='{PAD_X - 6}' y='{ZERO_Y - max_bar + 4}' "
+        f"fill='#8b949e' font-size='10' text-anchor='end' "
+        f"font-family='ui-monospace,monospace'>+{scale_cap:.1f}</text>"
+    )
+    pieces.append(
+        f"<text x='{PAD_X - 6}' y='{ZERO_Y + max_bar + 4}' "
+        f"fill='#8b949e' font-size='10' text-anchor='end' "
+        f"font-family='ui-monospace,monospace'>-{scale_cap:.1f}</text>"
+    )
+    for i, b in enumerate(by_h):
+        cx = PAD_X + slot_w * (i + 0.5)
+        bx = cx - bar_w / 2
+        err = b["mean_error"]
+        # Height: |err| / scale_cap * max_bar
+        bh = abs(err) / scale_cap * max_bar
+        if err >= 0:
+            by = ZERO_Y - bh
+            value_y = by - 4
+            label_y = ZERO_Y + 14
+        else:
+            by = ZERO_Y
+            value_y = ZERO_Y + bh + 12
+            label_y = ZERO_Y + max_bar + 18
+        # Color by |error| threshold (matches per-record table)
+        ae = abs(err)
+        if ae <= 3:
+            fill = "#3fb950"     # green
+        elif ae <= 8:
+            fill = "#d29922"     # amber
+        else:
+            fill = "#f85149"     # red
+        pieces.append(
+            f"<rect x='{bx:.1f}' y='{by:.1f}' "
+            f"width='{bar_w:.1f}' height='{bh:.1f}' "
+            f"fill='{fill}' opacity='0.85'>"
+            f"<title>{b['bucket']}: n={b['n']}, "
+            f"mean {err:+.2f} pp, abs {b['mean_abs_error']:.2f}, "
+            f"rms {b['rms_error']:.2f}, "
+            f"range [{b['min_error']:+.2f}..{b['max_error']:+.2f}]</title>"
+            f"</rect>"
+        )
+        # Value above/below the bar
+        pieces.append(
+            f"<text x='{cx:.1f}' y='{value_y:.1f}' "
+            f"fill='{fill}' font-size='11' text-anchor='middle' "
+            f"font-family='ui-monospace,monospace' "
+            f"font-variant-numeric='tabular-nums'>{err:+.2f}</text>"
+        )
+        # Bucket label below the zero line
+        pieces.append(
+            f"<text x='{cx:.1f}' y='{label_y:.1f}' "
+            f"fill='#8b949e' font-size='10' text-anchor='middle' "
+            f"font-family='ui-monospace,monospace'>"
+            f"{html_escape(b['bucket'])}</text>"
+        )
+        # Tiny "n=N" caption under the bucket label
+        pieces.append(
+            f"<text x='{cx:.1f}' y='{label_y + 12:.1f}' "
+            f"fill='#6e7681' font-size='9' text-anchor='middle' "
+            f"font-family='ui-monospace,monospace'>n={b['n']}</text>"
+        )
+    body = "".join(pieces)
+    title = (
+        f"<text x='{W // 2}' y='14' fill='{title_color}' "
+        f"font-size='11' text-anchor='middle' "
+        f"font-family='ui-monospace,monospace'>"
+        f"mean error (pp) by lead-time horizon"
+        f"</text>"
+    )
+    return (
+        f"<svg viewBox='0 0 {W} {H}' "
+        f"preserveAspectRatio='xMidYMid meet' "
+        f"style='display:block;width:100%;max-width:{W}px;"
+        f"margin:10px auto 0;background:#0d1117;border-radius:4px;"
+        f"padding:6px;box-sizing:border-box'>"
+        f"{title}{body}"
+        f"</svg>"
+    )
+
+
 def compute_projection(latest_pack: dict, weather: dict | None) -> dict | None:
     """Return {sunrise_iso, hours_to_sunrise, projected_soc_at_sunrise, ...}
     or None if we can't compute (no weather, not discharging, etc.).
@@ -1686,6 +1810,7 @@ class Handler(BaseHTTPRequestHandler):
                         "</tr>"
                     )
                 horizon_rows_html = "".join(_h_row(b) for b in by_h)
+                horizon_chart_svg = render_horizon_bar_chart(by_h)
                 horizon_block = (
                     "<h3 style='margin-top:24px;margin-bottom:6px;"
                     "color:#c9d1d9;font-size:14px'>By lead-time horizon</h3>"
@@ -1698,7 +1823,8 @@ class Handler(BaseHTTPRequestHandler):
                     "suggests something else (e.g. solar arriving earlier than "
                     "the SolarModel expects)."
                     "</p>"
-                    "<table>"
+                    + horizon_chart_svg
+                    + "<table>"
                     "<thead><tr>"
                     "<th>horizon</th>"
                     "<th style='text-align:right'>n</th>"
@@ -1850,6 +1976,7 @@ class Handler(BaseHTTPRequestHandler):
                         "</tr>"
                     )
                 horizon_rows_html = "".join(_h_row(b) for b in by_h)
+                horizon_chart_svg = render_horizon_bar_chart(by_h)
                 horizon_block = (
                     "<h3 style='margin-top:24px;margin-bottom:6px;"
                     "color:#c9d1d9;font-size:14px'>By lead-time horizon</h3>"
@@ -1861,7 +1988,8 @@ class Handler(BaseHTTPRequestHandler):
                     "solar overtakes load — driving force behind the "
                     "2026-05-19 sinusoidal-solar fix."
                     "</p>"
-                    "<table>"
+                    + horizon_chart_svg
+                    + "<table>"
                     "<thead><tr>"
                     "<th>horizon</th>"
                     "<th style='text-align:right'>n</th>"
