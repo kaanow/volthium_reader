@@ -143,6 +143,69 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 10:06 ⚠ — first live model-drift advisory fired.**
+  Pack: state=charging, pack_i +2.6 to +3.2 A, smoothed_i **+2.85 A**,
+  voltage 26.36 V. Cloud **broke from 100% to 96%**, shortwave
+  jumped to **238 W/m²** (3× the last reading). SOC reads 65/63 —
+  A actually ticked DOWN from 66 between 09:33-10:00 during the
+  idle interlude (net negative without sun), so we're back near
+  the morning's low. `solar_ah_so_far = 2.3 Ah` (forecast 41.7
+  — only 6% delivered after 10 h).
+  - **🚨 Live model_drift_advisory fired at 10:06**:
+    ```
+    Live ratio 6.42 Ah/(kWh/m²) is 21.2% below the SolarModel
+    coefficient 8.15. Consider re-fitting once more complete-day
+    data accumulates.
+    ```
+    Mechanism working: irradiance accumulated faster than Ah during
+    the idle interlude (sun came back as cloud broke at 09:34 but
+    pack stayed idle until ~10:00), pulling live_ratio from 7.30
+    → 6.42 → crossing the 20% threshold. The advisory cleared
+    on the next sample at -19.7% as the pack gained Ah quickly
+    under the new solar — but the LIFT moment validates the
+    feature's design.
+  - **Design item picked: surface model_drift_advisory on
+    dashboard.** Calibration feedback is hitting in real time;
+    the operator UI should reflect it.
+    - `scripts/dashboard.py`: new red-bordered `drift-advisory`
+      chip on the advisor panel. Renders only when
+      `model_drift_advisory` is non-null in the advisor's
+      inputs (matches the CLI's `⚠ model drift:` line). Layout:
+      `⚠ MODEL DRIFT · 6.42 vs 8.15 · -21.2%` plus the full
+      advisory text in the footer.
+    - Tier-1 red coloring (matches `var(--red)`) so it stands
+      out from the green-bordered confidence-lift chip and
+      amber/green calibration-drift chip already on the panel.
+    - Hover tooltip explains what the advisory means and points
+      to `docs/site/loon_lake.md` for context on intra-day
+      variability that can drive transient drift.
+    - 1 regression test added — `test_index_includes_drift_advisory_badge_js`
+      anchors the badge construction code + CSS class + data
+      field name in the HTML. Suite: **231 tests passing** (was
+      230, +1 new).
+  - **Why this matters**: the advisor now has THREE feedback
+    chips:
+    1. **calib** (model vs live) — diagnostic, always shows
+       when both numbers exist
+    2. **last sunrise validation** — most recent
+       projection_accuracy outcome
+    3. **confidence lifted** — accuracy-aware tier promotion
+    4. **drift advisory** (NEW) — tier-1 alert when miscalibration
+       is likely
+    A future operator opening the dashboard sees the advisor's
+    full calibration state at a glance: model coefficient,
+    live measurement, recent validation outcome, current
+    confidence, and any drift alert. Together these surface
+    the full model-trust signal from one panel.
+  - **Watch**: as the pack continues to gain Ah under stronger
+    sun, live_ratio should climb back toward 8.15 and the
+    advisory will stay dormant. If tomorrow morning's actual
+    morning low validates the new model's projections to
+    within ~1 pp (i.e. tomorrow's low_soc_accuracy mean shifts
+    closer to 0), the bias-fix from yesterday is confirmed
+    working. The 4-chip advisor panel becomes the operational
+    summary.
+
 - **2026-05-19 09:39** — Pack still idle, current still 0.0 A,
   voltage drifted down to **26.32 V** as no charging occurs.
   Weather row at 09:34 shows **shortwave jumped to 127 W/m²**

@@ -252,6 +252,23 @@ class TestDashboardRoutes(unittest.TestCase):
         # context so a new reader understands what they're looking at.
         self.assertIn(b"projected_low_soc", body)
 
+    def test_index_includes_drift_advisory_badge_js(self) -> None:
+        """The dashboard's index page must include the drift-advisory
+        badge code so the advisor's model_drift_advisory string lands
+        on screen when it's non-null. Anchors the feature against
+        accidental removal."""
+        h, captured = _make_handler("/")
+        h.do_GET()
+        status, ctype, body = captured[0]
+        self.assertEqual(status, HTTPStatus.OK)
+        # The badge construction + the CSS class + the data field
+        self.assertIn(b"driftBadge", body)
+        self.assertIn(b"drift-advisory", body)
+        self.assertIn(b"model_drift_advisory", body)
+        # The label "⚠ model drift" makes it tier-1 visible — same
+        # symbol the CLI prints
+        self.assertIn(b"model drift", body)
+
     def test_index_includes_onset_marker_js(self) -> None:
         """The dashboard's index page must include the
         computeOnsetMarkers JS function so the sparklines can

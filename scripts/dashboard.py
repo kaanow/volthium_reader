@@ -680,6 +680,23 @@ INDEX_HTML = """<!doctype html>
                            font-weight: 500; }
   .advisor .conf-lift .drift { margin-left: auto; color: var(--dim);
                                font-size: 11px; font-variant-numeric: tabular-nums; }
+  /* Model-drift advisory: red-bordered chip when today's live_ratio
+     diverges significantly from the SolarModel coefficient. Tier-1
+     visibility — operator should notice and consider re-fitting. */
+  .advisor .drift-advisory { display: flex; gap: 8px; align-items: baseline;
+                             flex-wrap: wrap; margin-top: 6px;
+                             padding: 6px 10px; border-radius: 4px;
+                             background: rgba(248, 81, 73, 0.08);
+                             border-left: 3px solid var(--red);
+                             font-size: 12px; cursor: help; }
+  .advisor .drift-advisory .lbl { text-transform: uppercase; letter-spacing: .1em;
+                                  font-size: 10px; color: var(--red); margin: 0;
+                                  font-weight: 500; }
+  .advisor .drift-advisory .v { font-variant-numeric: tabular-nums;
+                                color: var(--red); font-weight: 500; }
+  .advisor .drift-advisory .drift { margin-left: auto; color: var(--red);
+                                    font-weight: 500;
+                                    font-variant-numeric: tabular-nums; }
   .spark { width: 100%; height: 80px; }
   .footer { color: var(--dim); font-size: 11px; margin-top: 14px; }
   .num { font-variant-numeric: tabular-nums; }
@@ -987,6 +1004,35 @@ async function tick() {
               </div>`;
         }
 
+        // Model-drift advisory: when today's live_ratio diverges from
+        // the SolarModel coefficient by >= MODEL_DRIFT_ADVISORY_THRESHOLD_PCT,
+        // the advisor surfaces a string advisory. Render as a tier-1
+        // red-bordered chip so the operator notices when the model is
+        // potentially miscalibrated.
+        let driftBadge = "";
+        if (insTmp.model_drift_advisory) {
+            const driftPct = insTmp.model_drift_pct;
+            const ratio    = insTmp.live_ratio_ah_per_kwh_m2;
+            const coef     = insTmp.solar_model_coefficient;
+            const driftSign = (driftPct != null && driftPct >= 0) ? "+" : "";
+            const driftTip = (
+              "Today's measured live_ratio (Ah / kWh/m²) diverges "
+              + "significantly from the SolarModel coefficient (fit from "
+              + "prior complete days). When this advisory fires, the model "
+              + "may be miscalibrated for current conditions — re-fitting "
+              + "once more complete-day data accumulates is recommended. "
+              + "See docs/site/loon_lake.md for context on known intra-day "
+              + "and seasonal solar variability."
+            );
+            driftBadge = `
+              <div class="drift-advisory" title="${driftTip}">
+                <span class="lbl">⚠ model drift</span>
+                <span class="v">${ratio.toFixed(2)} vs ${coef.toFixed(2)}</span>
+                <span class="drift">${driftSign}${driftPct.toFixed(1)}%</span>
+              </div>
+              <div class="calib-footer">${insTmp.model_drift_advisory}</div>`;
+        }
+
         // Model-vs-live calibration chip: show what the SolarModel uses
         // vs what today's live measurement is producing. Green when they
         // agree (drift < 10 %), amber 10-20 %, red > 20 %.  Hidden until
@@ -1077,6 +1123,7 @@ async function tick() {
               ${calibLine}
               ${lastAccuracyLine}
               ${confLiftBadge}
+              ${driftBadge}
               ${confLine}
             </div>`;
     } else {
