@@ -556,12 +556,25 @@ def build_report(day: date) -> str:
                 return f"{int(s / 60)} min"
             return f"{s / 3600:.1f} h"
 
+        # Uptime % = (span_s − total_gap_s) / span_s × 100. The CLI
+        # health summary and dashboard chip both show this; including
+        # it here keeps the three surfaces consistent.
+        try:
+            uptime_pct = health_mod.compute_today_uptime_pct(
+                pack_csv=Path("data/pack.csv"),
+                day=datetime.combine(day, datetime.min.time()),
+            )
+        except Exception:
+            uptime_pct = None
+        uptime_phrase = (f" (uptime **{uptime_pct:.1f}%**)"
+                         if uptime_pct is not None else "")
         lines.append(
             f"{len(events)} BLE-logger gap{plural} today: "
             f"max {_fmt_dur(max_s)}, total {_fmt_dur(total_s)} "
-            f"downtime. Each gap is a stretch where pack.csv had no "
-            f"sample for more than 60 s — likely the macOS BLE stack "
-            f"sleeping or a battery's BLE radio dropping the link."
+            f"downtime{uptime_phrase}. Each gap is a stretch where "
+            f"pack.csv had no sample for more than 60 s — likely the "
+            f"macOS BLE stack sleeping or a battery's BLE radio "
+            f"dropping the link."
         )
         lines.append("")
         lines.append("| gap # | last sample before | next sample after | duration |")

@@ -973,6 +973,8 @@ class TestBuildReport(unittest.TestCase):
         # Headline summary
         self.assertIn("1 BLE-logger gap today", md)
         self.assertIn("max 10 min", md)
+        # Uptime % embedded in headline (consistency with CLI + chip)
+        self.assertIn("uptime", md)
         # Event table with the start and end timestamps
         self.assertIn("| gap # | last sample before | next sample after | duration |", md)
         self.assertIn("| 1 | 10:00:00 | 10:10:00 | 10 min |", md)

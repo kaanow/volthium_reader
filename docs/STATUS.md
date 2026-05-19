@@ -143,6 +143,49 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 13:56 — SOC 79/77, drift +46%, log row #6 in.**
+  Pack approaching absorption: SOC **79/77** (+1/+1), pack_i
+  +16.5 A, pack_v 26.91 V. `solar_ah_so_far = 29.8 Ah` (**71% of
+  forecast**). live_ratio **11.90** vs model 8.15 → drift
+  **+46.0%**. Row #6 landed at 13:51:45 with drift +43.0%
+  (advisory firing positive). The day's full arc now spans
+  **75 pp** of drift across 6 log rows — symmetric advisory
+  excursions in both directions.
+  - **Design item picked: embed uptime % in day-report BLE
+    logger reliability headline.** Small consistency completion
+    — the CLI and dashboard already show uptime%, now the
+    day-report's BLE section headline does too.
+    - `scripts/end_of_day_report.py`: BLE-logger reliability
+      headline gains `(uptime **95.8%**)` (or whatever the
+      day's value). Computed best-effort via
+      `health_mod.compute_today_uptime_pct()`; silently omits
+      the suffix if computation fails. **Today's archived
+      output**:
+      ```
+      2 BLE-logger gaps today: max 29 min, total 35 min
+      downtime (uptime **95.8%**). Each gap is a stretch where...
+      ```
+    - 1 regression test added to the existing
+      `test_ble_logger_section_renders_events`: asserts
+      `"uptime"` appears in the headline alongside the existing
+      assertions. Suite still **276 tests passing** (extended
+      existing test, not adding new).
+  - **Why this matters**: uptime % now lives on ALL three
+    surfaces with identical formatting:
+    1. CLI `health.py` PACK GAPS line
+    2. Dashboard `gaps-chip` text
+    3. Day-report `## BLE logger reliability` headline
+    A future operator scanning any of these three sees the same
+    number. Grep `grep "uptime" data/reports/*.md` extracts the
+    weekly trend.
+  - **Watch**: pack approaching absorption. Voltage hit 26.92 V
+    a few loops ago and is now hovering at 26.91 V — close to
+    the 26.8 V absorption-onset Volthium typically uses to
+    transition out of bulk. If SOC ticks 1-2 more times,
+    expect state to change from `charging` to `full` and the
+    advisor's projected_low to start incorporating tomorrow's
+    full overnight discharge rather than today's recovery.
+
 - **2026-05-19 13:51 — pushing 80% SOC, drift +43%.** Pack at
   **SOC 78/76** (+3/+3 since last loop), pack_i +19.3 A, voltage
   **26.92 V** (new daily high). `solar_ah_so_far = 28.4 Ah`
