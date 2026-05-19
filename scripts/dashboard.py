@@ -868,10 +868,14 @@ function updateGapsChip(packGaps) {
     return;
   }
   const plural = packGaps.count === 1 ? "" : "s";
+  const uptimeStr = (packGaps.uptime_pct != null)
+    ? ` · uptime ${packGaps.uptime_pct.toFixed(1)}%`
+    : "";
   const txt = (
     `${packGaps.count} BLE logger gap${plural} today` +
     ` · max ${fmtAge(packGaps.max_gap_s)}` +
-    ` · total ${fmtAge(packGaps.total_gap_s)}`
+    ` · total ${fmtAge(packGaps.total_gap_s)}` +
+    uptimeStr
   );
   setText("gaps-text", txt);
   chip.style.display = "flex";
@@ -1734,10 +1738,14 @@ class Handler(BaseHTTPRequestHandler):
                 gc, mg, tg, _ = health_mod.compute_today_pack_gaps(
                     pack_csv=CSV_PATH,
                 )
+                uptime_pct = health_mod.compute_today_uptime_pct(
+                    pack_csv=CSV_PATH,
+                )
                 pack_gaps = {
                     "count": gc,
                     "max_gap_s": mg,
                     "total_gap_s": tg,
+                    "uptime_pct": uptime_pct,
                 }
             except Exception:
                 pack_gaps = None

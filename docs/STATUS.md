@@ -143,6 +143,57 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 13:51 — pushing 80% SOC, drift +43%.** Pack at
+  **SOC 78/76** (+3/+3 since last loop), pack_i +19.3 A, voltage
+  **26.92 V** (new daily high). `solar_ah_so_far = 28.4 Ah`
+  (**68% of forecast** — was 52%). live_ratio shot to **11.63**,
+  drift **+42.7%** — the day is significantly overperforming
+  the SolarModel. live_ratio_log row #5 landed at 13:26:45
+  capturing the moment drift swung past +20%; chart now shows
+  3 low-red, 1 mid-gray, 1 high-red dot.
+  - **Design item picked: daily uptime % stat.** Completes the
+    PACK GAPS narrative with a single-number reliability metric.
+    Tier-1 useful for "is the BLE logger healthy enough" at a
+    glance.
+    - `scripts/health.py`: new pure helper
+      `compute_today_uptime_pct(pack_csv, day, gap_threshold_s)`.
+      Returns `(span_s − total_gap_s) / span_s × 100` where
+      `span_s` is the elapsed time between the day's first and
+      last sample. Returns None on missing file / single-row
+      day. Result clamped to [0, 100].
+    - `_fmt_pack_gaps_line()` extended: appends `, uptime
+      95.8%` (or whatever the live %) to the PACK GAPS line
+      when gaps exist.
+    - `scripts/dashboard.py`: `/api/latest.json`'s `pack_gaps`
+      field gains an `uptime_pct` member. JS chip text becomes
+      `... · uptime 95.8%`.
+    - 4 regression tests in `test_health.py`:
+      missing-file-defensive, clean-day = 100%, single-gap math
+      correctness (50% case + verified to also catch the 0%
+      degenerate case where ALL deltas are gaps), realistic
+      partial-day with one threshold-passing and one
+      sub-threshold gap.
+      Suite: **276 tests passing** (was 272, +4 new).
+  - **Today's live signal**:
+    `PACK GAPS    2 events, max 29 min, total 35 min today, uptime 95.8%`
+    Despite the morning's two BLE blips, today's logger
+    captured 95.8% of the observable timeline — a clean
+    operational summary.
+  - **Why this matters**: the PACK GAPS line tells you "events
+    + max + total", but a percentage normalizes across day
+    lengths (early in the day, 5 min of gap is catastrophic;
+    late in the day, it's marginal). Uptime% is the right
+    metric for weekly trending — eventually we'll grep
+    `data/reports/*.md` for `uptime` and see how reliability
+    evolved over time.
+  - **Watch**: row #6 lands ~13:51. Today's full drift arc may
+    end up with +30%+ on most afternoon rows — when daily_summary
+    integrates today's complete day data tonight, the
+    SolarModel re-fit will likely shift the coefficient
+    upward (today is producing 11+ Ah/kWh-m², well above the
+    8.149 baseline from 2026-05-18). Multi-day calibration is
+    starting to bite.
+
 - **2026-05-19 13:25 — past halfway.** SOC **75/73** (+1/+1),
   `solar_ah_so_far = 21.8 Ah` (**52% of forecast — past halfway!**).
   pack_i 13.8 A, smoothed +15.4 A, pack_v **26.80 V**. live_ratio

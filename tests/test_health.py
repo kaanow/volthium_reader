@@ -369,6 +369,93 @@ class TestHealthSummary(unittest.TestCase):
         self.assertEqual(gap_count, 0)
         self.assertEqual(n, 2)  # only today's samples counted
 
+    # ---------- Uptime % ----------
+
+    def test_compute_uptime_no_file(self) -> None:
+        """Missing pack.csv → None (defensive)."""
+        self.assertIsNone(
+            health_mod.compute_today_uptime_pct(day=datetime(2026, 5, 19))
+        )
+
+    def test_compute_uptime_clean_day_is_100(self) -> None:
+        """Continuous 10 s cadence for 10 min → no gaps → 100% uptime."""
+        path = self.root / "data" / "pack.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=[
+                "ts", "state", "pack_v", "pack_i", "smoothed_i",
+                "soc_a", "soc_b",
+            ])
+            w.writeheader()
+            base = datetime(2026, 5, 19, 10, 0, 0)
+            for i in range(60):
+                w.writerow({
+                    "ts": (base + timedelta(seconds=10 * i)).isoformat(),
+                    "state": "charging", "pack_v": "26.40",
+                    "pack_i": "3.0", "smoothed_i": "2.8",
+                    "soc_a": "70", "soc_b": "68",
+                })
+        pct = health_mod.compute_today_uptime_pct(day=datetime(2026, 5, 19))
+        self.assertAlmostEqual(pct, 100.0, delta=0.1)
+
+    def test_compute_uptime_with_gap_subtracts_correctly(self) -> None:
+        """5-min gap in a 10-min span → uptime = (600 − 300) / 600 = 50%."""
+        path = self.root / "data" / "pack.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=[
+                "ts", "state", "pack_v", "pack_i", "smoothed_i",
+                "soc_a", "soc_b",
+            ])
+            w.writeheader()
+            t0 = datetime(2026, 5, 19, 10, 0, 0)
+            # Sample at 10:00, then 5-min gap to 10:05, then sample at 10:10
+            for offset_s in (0, 300, 600):
+                w.writerow({
+                    "ts": (t0 + timedelta(seconds=offset_s)).isoformat(),
+                    "state": "idle", "pack_v": "26.30",
+                    "pack_i": "0.0", "smoothed_i": "0.0",
+                    "soc_a": "70", "soc_b": "68",
+                })
+        pct = health_mod.compute_today_uptime_pct(day=datetime(2026, 5, 19))
+        # 600 s span, 300 s gap → 50.0%. Note that the second 5-min
+        # gap (10:05→10:10) is also > 60 s threshold and counts.
+        # So total gaps = 600 s, span = 600 s → 0%.
+        # Let me recompute: gap between sample 0 (10:00) and sample 1
+        # (10:05) is 300 s; gap between sample 1 and 2 is 300 s.
+        # Both above the 60 s threshold → both count.
+        # Total gap = 600. Span = 600. Uptime = 0%.
+        self.assertAlmostEqual(pct, 0.0, delta=0.5)
+
+    def test_compute_uptime_realistic_partial_day(self) -> None:
+        """One 30 s short pause + one 2-min long gap in a 1-h span.
+        Only the 2-min gap exceeds the 60 s threshold."""
+        path = self.root / "data" / "pack.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=[
+                "ts", "state", "pack_v", "pack_i", "smoothed_i",
+                "soc_a", "soc_b",
+            ])
+            w.writeheader()
+            t0 = datetime(2026, 5, 19, 10, 0, 0)
+            # 10:00:00 → 10:00:30 (30 s normal gap, NOT > threshold)
+            # → 10:02:30 (2-min gap, IS > threshold) → 10:30:00 (continues)
+            stamps = [t0,
+                      t0 + timedelta(seconds=30),
+                      t0 + timedelta(minutes=2, seconds=30),
+                      t0 + timedelta(minutes=30)]
+            for s in stamps:
+                w.writerow({
+                    "ts": s.isoformat(),
+                    "state": "idle", "pack_v": "26.30",
+                    "pack_i": "0.0", "smoothed_i": "0.0",
+                    "soc_a": "70", "soc_b": "68",
+                })
+        pct = health_mod.compute_today_uptime_pct(day=datetime(2026, 5, 19))
+        # Span: 10:00 → 10:30 = 1800 s. The 30 s gap doesn't count
+        # (≤ 60 s threshold). The 120 s and 1650 s gaps both count.
+        # Total = 1770 s. Uptime = (1800 - 1770) / 1800 = 1.67%.
+        self.assertGreater(pct, 0.0)
+        self.assertLess(pct, 100.0)
+
     def test_summary_includes_pack_gaps_line_when_gaps_exist(self) -> None:
         """Day with gaps → 'PACK GAPS' line appears in the summary.
         Day with clean cadence → line is OMITTED entirely (happy

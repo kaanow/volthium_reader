@@ -185,20 +185,67 @@ def compute_today_pack_gaps(
     return (gap_count, max_gap, total_gap, sample_count)
 
 
+def compute_today_uptime_pct(
+    pack_csv: Path = PACK_CSV,
+    day: Optional[datetime] = None,
+    gap_threshold_s: float = PACK_STALE_THRESHOLD_S,
+) -> Optional[float]:
+    """Return today's BLE-logger uptime as a percentage:
+        (day_seconds_so_far − total_gap_s) / day_seconds_so_far × 100
+
+    Where `day_seconds_so_far` is the elapsed time from the day's
+    first sample to its most-recent sample. Returns None when there
+    aren't enough samples (need >= 2) to span any time.
+
+    Caller can format as "uptime 95.8%" etc.
+    """
+    if not pack_csv.exists():
+        return None
+    if day is None:
+        day = datetime.now()
+    iso_prefix = day.strftime("%Y-%m-%d")
+    first_ts: Optional[datetime] = None
+    last_ts: Optional[datetime] = None
+    with pack_csv.open() as f:
+        for r in csv.DictReader(f):
+            ts_str = r.get("ts", "")
+            if not ts_str.startswith(iso_prefix):
+                continue
+            try:
+                ts = datetime.fromisoformat(ts_str)
+            except ValueError:
+                continue
+            if first_ts is None:
+                first_ts = ts
+            last_ts = ts
+    if first_ts is None or last_ts is None or last_ts <= first_ts:
+        return None
+    span_s = (last_ts - first_ts).total_seconds()
+    _, _, total_gap_s, _ = compute_today_pack_gaps(
+        pack_csv=pack_csv, day=day, gap_threshold_s=gap_threshold_s,
+    )
+    # Clamp to [0, 100] — defensive against pathological data
+    pct = max(0.0, min(100.0, (span_s - total_gap_s) / span_s * 100.0))
+    return round(pct, 1)
+
+
 def _fmt_pack_gaps_line(pack_csv: Path = PACK_CSV,
                         day: Optional[datetime] = None) -> Optional[str]:
-    """Return a "PACK GAPS  N events, max X, total Y today" line when
-    today has at least one logger gap above threshold, else None
-    (caller skips the line — no gap is the happy path)."""
+    """Return a "PACK GAPS  N events, max X, total Y today,
+    uptime Z%" line when today has at least one logger gap above
+    threshold, else None (caller skips the line — no gap is the
+    happy path)."""
     gap_count, max_gap, total_gap, _ = compute_today_pack_gaps(
         pack_csv=pack_csv, day=day,
     )
     if gap_count == 0:
         return None
     plural = "" if gap_count == 1 else "s"
+    uptime = compute_today_uptime_pct(pack_csv=pack_csv, day=day)
+    uptime_str = (f", uptime {uptime:.1f}%" if uptime is not None else "")
     return (f"PACK GAPS    {gap_count} event{plural}, "
             f"max {_fmt_age(max_gap)}, "
-            f"total {_fmt_age(total_gap)} today")
+            f"total {_fmt_age(total_gap)} today{uptime_str}")
 
 
 def _fmt_pack_line(row: Optional[dict],
