@@ -143,6 +143,37 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 01:02** — Overnight, third hour. Pack SOC **78/76 %**
+  — **battery B gap widened to 2 %** under the sustained -7.3 A
+  draw (gap had been 1 % all evening; the weaker cell drains faster
+  under higher current). Voltage 26.37 V. **Projection log gained
+  entry #7** at 00:44:46 — first entry wholly in 2026-05-19.
+  Today's row (2026-05-19) so far: net -5.5 Ah, 1.03 h covered.
+  Advisor projections drifting downward as start_soc tracks the
+  drain: sunrise 67.4 %, eve 83.1 %, low 65.5 %. Calibration log
+  stable at 2 entries.
+  - Design item: **`/accuracy` page on the dashboard.** Completes
+    the log-page pattern (`/calibration` → `/projections` →
+    `/accuracy`). When the first projection_accuracy record lands
+    at ~05:09 sunrise tomorrow morning, the page will display
+    it; until then shows a graceful "no validatable projections
+    yet — the first record lands at the next sunrise" message.
+  - New `_serve_projection_accuracy` GET handler reads the
+    projection_log + pack_csv, runs
+    `projection_accuracy.compute_accuracy_records()`, renders
+    newest-first as an HTML table:
+    `made_at | target | projected | actual | error | coef | ±t`
+    The error column is **color-banded**: |err| < 3 pp green,
+    < 8 pp amber, otherwise red. Mirrors the model-vs-live chip's
+    thresholds for visual consistency.
+  - Summary row at the bottom: n, mean error, mean-abs error,
+    RMS, range — so future-me can scan "how is the advisor
+    biased over the last N days?"
+  - **Three-way cross-linking** between `/calibration`,
+    `/projections`, `/accuracy` so you can hop between the three
+    related views without going back to the dashboard root.
+  - All 150 Python tests still pass.
+
 - **2026-05-19 00:28 — Day-boundary rolled cleanly.** No manual
   intervention; every module handled the transition gracefully:
   - **`today_harvest`** → reports 2026-05-19 fresh (0.5 h coverage,

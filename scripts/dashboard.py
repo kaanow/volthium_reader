@@ -1142,6 +1142,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._serve_calibration_log()
         if self.path == "/projections" or self.path == "/projections/":
             return self._serve_projection_log()
+        if self.path == "/accuracy" or self.path == "/accuracy/":
+            return self._serve_projection_accuracy()
         # /report/YYYY-MM-DD — historical day-report
         if self.path.startswith("/report/"):
             date_str = self.path[len("/report/"):].rstrip("/")
@@ -1356,6 +1358,118 @@ class Handler(BaseHTTPRequestHandler):
         )
         return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
 
+    def _serve_projection_accuracy(self):
+        """Render projection-vs-actual diff. Empty until the first
+        projection_log entry's sunrise_iso target time passes (first
+        sunrise after the log starts collecting). Until then shows
+        a graceful 'waiting for first sunrise' message."""
+        import projection_log as proj_mod
+        import projection_accuracy as acc_mod
+
+        try:
+            projections = proj_mod.read_log()
+            pack_samples = acc_mod._load_pack_samples(CSV_PATH)
+            records = acc_mod.compute_accuracy_records(
+                projections, pack_samples,
+            )
+        except Exception as e:
+            return self._send(HTTPStatus.OK, "text/plain; charset=utf-8",
+                              f"could not compute accuracy: {e}".encode())
+
+        records = list(reversed(records))   # newest first
+
+        if records:
+            def _row(r):
+                sr = r.sunrise_iso[:16] if len(r.sunrise_iso) >= 16 else r.sunrise_iso
+                made = r.projection_ts[:16] if len(r.projection_ts) >= 16 else r.projection_ts
+                sign = "+" if r.error_pct_points >= 0 else "−"
+                err_cls = ("ok" if abs(r.error_pct_points) <= 3
+                           else "warn" if abs(r.error_pct_points) <= 8
+                           else "bad")
+                return (
+                    "<tr>"
+                    f"<td>{html_escape(made)}</td>"
+                    f"<td>{html_escape(sr)}</td>"
+                    f"<td style='text-align:right'>{r.projected_sunrise_soc:.1f}</td>"
+                    f"<td style='text-align:right'>{r.actual_sunrise_soc:.1f}</td>"
+                    f"<td style='text-align:right' class='err-{err_cls}'>"
+                    f"{sign}{abs(r.error_pct_points):.1f}</td>"
+                    f"<td style='text-align:right'>{r.solar_model_coefficient:.3f}</td>"
+                    f"<td style='text-align:right;color:#8b949e'>"
+                    f"{r.sample_offset_min:.0f} min</td>"
+                    "</tr>"
+                )
+            rows_html = "".join(_row(r) for r in records)
+            s = acc_mod.summarize(list(reversed(records)))  # mean over all
+            summary_html = (
+                "<p style='color:#8b949e;font-size:12px;margin-top:14px'>"
+                f"<strong>summary</strong> · n = {s['n']} · "
+                f"mean error <strong>{s['mean_error']:+.2f} pp</strong> · "
+                f"mean abs <strong>{s['mean_abs_error']:.2f} pp</strong> · "
+                f"RMS <strong>{s['rms_error']:.2f} pp</strong> · "
+                f"range [{s['min_error']:+.2f} .. {s['max_error']:+.2f}]"
+                "</p>"
+            )
+            table = (
+                "<table>"
+                "<thead><tr>"
+                "<th>made at</th>"
+                "<th>target</th>"
+                "<th style='text-align:right'>projected</th>"
+                "<th style='text-align:right'>actual</th>"
+                "<th style='text-align:right'>error</th>"
+                "<th style='text-align:right'>coef</th>"
+                "<th style='text-align:right'>±t</th>"
+                "</tr></thead>"
+                f"<tbody>{rows_html}</tbody></table>"
+            )
+            body = table + summary_html
+        else:
+            body = (
+                "<p style='color:#8b949e;font-style:italic'>"
+                "(no validatable projections yet — the first record "
+                "lands at the next sunrise after the projection log "
+                "starts collecting; until then, all entries' sunrise "
+                "targets are still in the future)"
+                "</p>"
+            )
+
+        intro = (
+            "<h2 style='margin-top:0'>Projection accuracy</h2>"
+            "<p style='color:#8b949e;font-size:12px'>"
+            "For each historical advisor projection whose sunrise "
+            "target time has passed, the actual pack SOC at that time "
+            "(closest sample within ±30 min) is compared to what the "
+            "advisor predicted. <strong>Positive error</strong> = pack "
+            "did better than predicted; <strong>negative</strong> = "
+            "worse. Color band: |error| &lt; 3 pp green, &lt; 8 pp "
+            "amber, otherwise red. Useful for spotting systematic "
+            "bias in the SolarModel or discharge_model over many days."
+            "</p>"
+        )
+
+        html = (
+            "<!doctype html><meta charset=utf-8>"
+            "<meta name=viewport content='width=device-width,initial-scale=1'>"
+            "<title>Projection accuracy</title>"
+            f"<style>{self.REPORT_PAGE_STYLE}"
+            " table{border-collapse:collapse;font-size:12px;"
+            "font-variant-numeric:tabular-nums;margin-top:10px}"
+            " th,td{padding:5px 10px;border-bottom:1px solid #21262d;text-align:left}"
+            " th{color:#8b949e;border-bottom:1px solid #30363d}"
+            " .err-ok{color:#3fb950}"
+            " .err-warn{color:#d29922}"
+            " .err-bad{color:#f85149}"
+            " strong{color:#c9d1d9}"
+            "</style>"
+            "<p><a href='/'>&larr; dashboard</a> · "
+            "<a href='/projections'>projection log</a> · "
+            "<a href='/calibration'>calibration log</a></p>"
+            + intro
+            + body
+        )
+        return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
+
     def _serve_projection_log(self):
         """Render data/projection_log.csv as a dark-themed HTML table.
         Each row is an advisor invocation's projection snapshot —
@@ -1435,7 +1549,8 @@ class Handler(BaseHTTPRequestHandler):
             " th{color:#8b949e;border-bottom:1px solid #30363d}"
             "</style>"
             "<p><a href='/'>&larr; dashboard</a> · "
-            "<a href='/calibration'>calibration log</a></p>"
+            "<a href='/calibration'>calibration log</a> · "
+            "<a href='/accuracy'>accuracy</a></p>"
             + intro
             + "".join(body_lines)
         )
@@ -1510,7 +1625,8 @@ class Handler(BaseHTTPRequestHandler):
             " td{padding:6px 8px;vertical-align:top}"
             "</style>"
             "<p><a href='/'>&larr; dashboard</a> · "
-            "<a href='/projections'>projection log</a></p>"
+            "<a href='/projections'>projection log</a> · "
+            "<a href='/accuracy'>accuracy</a></p>"
             + intro
             + "".join(body_lines)
         )

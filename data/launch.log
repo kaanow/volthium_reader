@@ -794,3 +794,9 @@ LAN share URL: http://192.168.1.76:8421/
 2026-05-19 00:20:49,240 INFO n=10260  26.44V  -4.30A  -114W  SOC 78-80%  state=discharging  remain≈1871m
 2026-05-19 00:25:53,105 INFO n=10290  26.41V  -7.70A  -203W  SOC 78-79%  state=discharging  remain≈1314m
 2026-05-19 00:31:07,379 INFO n=10320  26.39V  -6.90A  -182W  SOC 78-79%  state=discharging  remain≈1130m
+2026-05-19 00:36:09,566 INFO n=10350  26.39V  -6.90A  -182W  SOC 77-79%  state=discharging  remain≈1158m
+2026-05-19 00:41:20,270 INFO n=10380  26.42V  -4.30A  -114W  SOC 77-79%  state=discharging  remain≈1815m
+2026-05-19 00:46:23,157 INFO n=10410  26.42V  -4.40A  -116W  SOC 77-78%  state=discharging  remain≈1823m
+2026-05-19 00:51:21,672 INFO n=10440  26.42V  -4.30A  -114W  SOC 77-78%  state=discharging  remain≈1857m
+2026-05-19 00:56:32,206 INFO n=10470  26.42V  -4.30A  -114W  SOC 77-78%  state=discharging  remain≈1843m
+2026-05-19 01:01:29,769 INFO n=10500  26.37V  -7.20A  -190W  SOC 76-78%  state=discharging  remain≈1084m
