@@ -143,6 +143,59 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 14:30 ⚡ — major load surge.** Pack flipped to
+  **discharging**: pack_i **-28.9 A** (≈760 W instantaneous draw,
+  likely a major appliance), smoothed_i **-20.0 A**, voltage
+  collapsed 26.91 → **26.29 V**. SOC 77/76. `solar_ah_so_far`
+  still climbed to **33.9 Ah** (81% of forecast) — solar
+  contribution was partially absorbed by the load. Drift holds
+  at +43.4%. The load event came right after absorption-onset —
+  classic afternoon "pack hits absorption, charge controller
+  backs off, then a load surge pulls hard from the cushion".
+  - **Design item picked: absorption/full rows in day-report
+    cascade table.** Last loop's solar_onset.csv schema upgrade
+    added two new milestones; the day-report's solar onset
+    section showed only the morning 4. This commit extends the
+    table to 6 rows in 2 phases.
+    - `scripts/end_of_day_report.py`: solar onset table gains a
+      `phase` column to organize morning vs afternoon. Six
+      rows total:
+      ```
+      | morning   | first zero crossing            | 06:44:10 |
+      | morning   | first idle                     | 06:44:10 |
+      | morning   | first positive current         | 07:44:21 |
+      | morning   | first net-positive             | 07:45:40 |
+      | afternoon | first absorption (V > 26.7…)  | 13:44:00 |
+      | afternoon | first full (state=full)        | — |
+      ```
+    - New narrative paragraph below the table surfaces the
+      highest milestone reached:
+      - If full → "BMS reached **state=full** at `HH:MM:SS`"
+      - else if absorption → "Pack entered **absorption** at
+        `HH:MM:SS` — voltage crossed 26.7 V and smoothed
+        current dropped below 75 % of the running peak. Full
+        state may follow if voltage holds."
+      - else if net+ → existing "calibration check" line
+      - else if first_zero → existing "still pending" line
+    - 2 new tests + 2 updated tests in `test_end_of_day_report.py`
+      to cover the new 3-column format and afternoon-cascade
+      rendering. Suite: **282 tests passing** (was 280, +2 new).
+  - **Why this matters**: the day-report's solar onset section
+    now tells the complete daily story in one section:
+    
+    morning → mid-day peak → absorption-onset → (optionally) full
+    
+    A future operator opening 2026-05-19's report sees
+    "absorption fired at 13:44:00, full pending" without needing
+    to cross-reference solar_onset.csv or the dashboard.
+  - **Watch**: the load surge may keep the pack from reaching
+    state=full today. If voltage stays below 27 V for the next
+    hour, today's cascade ends at absorption. Tomorrow's
+    overnight discharge will start from a partial-charge state
+    (not 100 %) — projected_low_soc will need to reflect that.
+    The advisor's projection should pick this up automatically
+    via the next live_ratio sample's start_soc.
+
 - **2026-05-19 14:23 — pack in absorption, milestone captured at
   13:44:00.** Voltage dropped from 26.92 V peak to 26.70 V as the
   charge controller starts tapering current (pack_i +15.4 A from

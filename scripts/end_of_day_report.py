@@ -247,16 +247,24 @@ def build_report(day: date) -> str:
         def _short(iso: Optional[str]) -> str:
             return iso[11:19] if (iso and "T" in iso) else "—"
 
-        lines.append("| milestone | timestamp |")
-        lines.append("|-----------|-----------|")
-        lines.append(f"| first zero crossing (pack_i = 0) | "
+        lines.append("| phase | milestone | timestamp |")
+        lines.append("|-------|-----------|-----------|")
+        lines.append(f"| morning | first zero crossing (pack_i = 0) | "
                      f"{_short(rec.first_zero_iso)} |")
-        lines.append(f"| first idle (state=idle or \\|i\\| ≤ 0.5 A) | "
+        lines.append(f"| morning | first idle (state=idle or \\|i\\| ≤ 0.5 A) | "
                      f"{_short(rec.first_idle_iso)} |")
-        lines.append(f"| first positive current (pack_i > 0) | "
+        lines.append(f"| morning | first positive current (pack_i > 0) | "
                      f"{_short(rec.first_positive_iso)} |")
-        lines.append(f"| first net-positive (smoothed_i > 0) | "
+        lines.append(f"| morning | first net-positive (smoothed_i > 0) | "
                      f"{_short(rec.first_net_positive_iso)} |")
+        # Afternoon cascade — bookends the morning's net+ moment.
+        # absorption: heuristic (V > 26.7 + smoothed_i tapered to
+        # < 75 % of running peak). full: BMS's own state="full".
+        lines.append(f"| afternoon | first absorption "
+                     f"(V > 26.7 + i tapered) | "
+                     f"{_short(rec.first_absorption_iso)} |")
+        lines.append(f"| afternoon | first full (state=full) | "
+                     f"{_short(rec.first_full_iso)} |")
         lines.append("")
         if rec.first_net_positive_iso is not None:
             smi = (f"**{rec.smoothed_i_at_net_positive:+.2f} A**"
@@ -272,6 +280,21 @@ def build_report(day: date) -> str:
             lines.append("Net-positive crossover still pending — solar "
                          "managed to offset load briefly but hasn't yet "
                          "sustained net charging.")
+        # Afternoon-cascade narrative: surface the highest milestone
+        # reached so the report reads like a daily story.
+        if rec.first_full_iso is not None:
+            lines.append("")
+            lines.append(f"BMS reached **state=full** at "
+                         f"`{_short(rec.first_full_iso)}` — the pack "
+                         f"hit absorption-onset earlier and the charge "
+                         f"controller completed bulk charging.")
+        elif rec.first_absorption_iso is not None:
+            lines.append("")
+            lines.append(f"Pack entered **absorption** at "
+                         f"`{_short(rec.first_absorption_iso)}` — "
+                         f"voltage crossed 26.7 V and smoothed current "
+                         f"dropped below 75 % of the running peak. "
+                         f"Full state may follow if voltage holds.")
     lines.append("")
 
     # ---------- Weather ----------

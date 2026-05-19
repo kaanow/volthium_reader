@@ -533,9 +533,13 @@ class TestBuildReport(unittest.TestCase):
         self._write_pack(rows)
         md = end_of_day_report_mod.build_report(date(2026, 5, 19))
         self.assertIn("## Solar onset", md)
-        self.assertIn("| first zero crossing (pack_i = 0) | 06:44:10 |", md)
+        # 3-column table: phase | milestone | timestamp
+        self.assertIn("| morning | first zero crossing (pack_i = 0) | 06:44:10 |", md)
         # Net-positive line absent (table still rendered with em-dash)
         self.assertIn("first net-positive (smoothed_i > 0) | — |", md)
+        # Afternoon cascade rows present with em-dashes
+        self.assertIn("| afternoon | first absorption", md)
+        self.assertIn("| afternoon | first full (state=full) | — |", md)
         self.assertIn("Net-positive crossover still pending", md)
 
     def test_solar_onset_section_renders_complete_cascade(self) -> None:
@@ -564,15 +568,64 @@ class TestBuildReport(unittest.TestCase):
         )
         self._write_pack(rows)
         md = end_of_day_report_mod.build_report(date(2026, 5, 19))
-        self.assertIn("| first zero crossing (pack_i = 0) | 06:44:10 |", md)
-        self.assertIn("| first positive current (pack_i > 0) | 07:30:00 |", md)
-        self.assertIn("| first net-positive (smoothed_i > 0) | 08:00:00 |", md)
+        # 3-column table now: phase | milestone | timestamp
+        self.assertIn("| morning | first zero crossing (pack_i = 0) | 06:44:10 |", md)
+        self.assertIn("| morning | first positive current (pack_i > 0) | 07:30:00 |", md)
+        self.assertIn("| morning | first net-positive (smoothed_i > 0) | 08:00:00 |", md)
         # Summary line with smoothed_i and SOC
         self.assertIn("smoothed current", md)
         self.assertIn("+1.50 A", md)
         self.assertIn("65.0 %", md)    # avg of 66 + 64
         # The "still pending" note must NOT appear in the complete case
         self.assertNotIn("Net-positive crossover still pending", md)
+
+    def test_solar_onset_section_afternoon_cascade_rows(self) -> None:
+        """When solar_onset.csv has absorption and/or full milestones,
+        the afternoon-cascade rows display the timestamps. Mirrors the
+        morning-cascade rendering."""
+        # Pre-write a fully-resolved solar_onset row (afternoon
+        # milestones populated). The day-report reads from this log
+        # rather than re-scanning pack.csv.
+        log_path = self.root / "data" / "solar_onset.csv"
+        log_path.write_text(
+            "date,first_zero_iso,first_idle_iso,first_positive_iso,"
+            "first_net_positive_iso,smoothed_i_at_net_positive,"
+            "soc_avg_at_net_positive,first_absorption_iso,"
+            "first_full_iso\n"
+            "2026-05-19,2026-05-19T06:44:10,2026-05-19T06:44:10,"
+            "2026-05-19T07:44:21,2026-05-19T07:45:40,1.50,65.00,"
+            "2026-05-19T13:44:00,2026-05-19T15:30:00\n"
+        )
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        # Afternoon cascade rows render with timestamps
+        self.assertIn("| afternoon | first absorption "
+                      "(V > 26.7 + i tapered) | 13:44:00 |", md)
+        self.assertIn("| afternoon | first full (state=full) | 15:30:00 |", md)
+        # Narrative paragraph for the highest milestone reached (full)
+        self.assertIn("BMS reached **state=full** at `15:30:00`", md)
+
+    def test_solar_onset_section_absorption_only_narrative(self) -> None:
+        """When absorption fired but full hasn't, the narrative
+        paragraph mentions absorption (not full) and notes that
+        full may follow."""
+        log_path = self.root / "data" / "solar_onset.csv"
+        log_path.write_text(
+            "date,first_zero_iso,first_idle_iso,first_positive_iso,"
+            "first_net_positive_iso,smoothed_i_at_net_positive,"
+            "soc_avg_at_net_positive,first_absorption_iso,"
+            "first_full_iso\n"
+            "2026-05-19,2026-05-19T06:44:10,2026-05-19T06:44:10,"
+            "2026-05-19T07:44:21,2026-05-19T07:45:40,1.50,65.00,"
+            "2026-05-19T13:44:00,\n"
+        )
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        # Absorption row has timestamp; full row has em-dash
+        self.assertIn("| afternoon | first absorption "
+                      "(V > 26.7 + i tapered) | 13:44:00 |", md)
+        self.assertIn("| afternoon | first full (state=full) | — |", md)
+        # Absorption narrative paragraph (not the full paragraph)
+        self.assertIn("Pack entered **absorption** at `13:44:00`", md)
+        self.assertNotIn("BMS reached **state=full**", md)
 
     def test_solar_onset_section_uses_logged_row_when_present(self) -> None:
         """If data/solar_onset.csv already has a row for `day`, the
