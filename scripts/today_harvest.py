@@ -487,10 +487,14 @@ def snapshot(pack_csv: Path, weather_csv: Path, today: Optional[date] = None) ->
     # Live ratio: Ah harvested so far / kWh/m² delivered so far.
     # First useful real-time measurement of the SolarModel coefficient.
     # Threshold-guarded so noisy near-zero numerator/denominator early
-    # in the day don't produce a wild reading.
+    # in the day don't produce a wild reading. Thresholds lowered on
+    # 2026-05-19 (0.5/1.0 → 0.2/0.5) so the chip populates on heavily-
+    # cloudy days too — today's 100 % cloud morning held at ~0.25
+    # kWh/m² + 1.5 Ah for hours, suppressing the ratio entirely under
+    # the old gate.
     live_ratio: Optional[float] = None
-    if (actual_kwh_so_far is not None and actual_kwh_so_far >= 0.5
-            and integrated["solar_ah"] >= 1.0):
+    if (actual_kwh_so_far is not None and actual_kwh_so_far >= 0.2
+            and integrated["solar_ah"] >= 0.5):
         live_ratio = round(integrated["solar_ah"] / actual_kwh_so_far, 2)
 
     note = None

@@ -143,6 +143,62 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 09:39** — Pack still idle, current still 0.0 A,
+  voltage drifted down to **26.32 V** as no charging occurs.
+  Weather row at 09:34 shows **shortwave jumped to 127 W/m²**
+  (from 90 last reading) — cloud is thinning! But the pack data
+  is from 09:39 and still shows no current — there's lag between
+  the weather sensor reading and the array's actual contribution
+  through the cloud cover. SOC still 66/63.
+  - **Design item picked: smarter advisor with live_ratio drift
+    advisory.** Two-part fix that connects the live measurement
+    to model trust in real-time:
+    - **(1)** Lowered `today_harvest`'s live_ratio threshold
+      from `actual_kwh>=0.5 AND solar_ah>=1.0` to `>=0.2 / >=0.5`.
+      Today's 100 % cloud morning had 0.25 kWh/m² + 1.5 Ah for
+      hours, suppressing the ratio entirely under the old gate.
+      The lowered threshold lets the chip populate on cloudy days
+      too. Today's value now shows **7.30 Ah/(kWh/m²)** vs the
+      SolarModel's 8.149.
+    - **(2)** New `compute_model_drift(live_ratio, coefficient,
+      threshold_pct)` pure helper in `generator_advisor.py`.
+      Computes signed drift percentage. When |drift| crosses
+      `MODEL_DRIFT_ADVISORY_THRESHOLD_PCT` (20 %), returns an
+      advisory string mentioning both numbers, direction
+      (above/below), and the re-fit suggestion. Below threshold,
+      returns just the numeric drift (still surfaced in inputs
+      for charting) without the alert.
+    - Advisor inputs gained `model_drift_pct` and
+      `model_drift_advisory`. CLI prints the advisory inline
+      between "morning watch" and the "inputs:" header when it
+      fires.
+    - Today's drift: **−11.9 %** (live 7.18 vs model 8.15). Below
+      the 20 % advisory threshold — drift is tracked but no alarm.
+      This is the correct calibration: a single day of light
+      cloud isn't reason to re-fit; persistent 20 %+ drift over
+      multiple days WOULD be.
+    - 8 regression tests in `tests/test_advisor_confidence_lift.py`:
+      None-handling (live_ratio None, coefficient 0), small drift
+      returns pct but no advisory, large negative and large
+      positive drift cases, exact-threshold-fires boundary,
+      override-threshold knob, default-constant anchor. Suite:
+      **230 tests passing** (was 222, +8 new).
+  - **Why this matters**: the advisor was producing a live_ratio
+    diagnostic but the comparison with the SolarModel coefficient
+    was implicit (operator had to eyeball it). Now it's an
+    explicit number on the input dump, plus a tier-1 alert when
+    significant. Connects the two halves of the calibration
+    feedback loop: live measurement now actively informs model
+    trust, not just sits there.
+  - **Watch**: tomorrow if a clearer day produces a higher
+    live_ratio, the advisor might surface the first model-drift
+    advisory. The actual fit-from-2026-05-18 was 8.149; if
+    tomorrow's live ratio lands at 6.5 (heavy cloud) or 10.0
+    (clear sky), the advisory will fire. Over a week of
+    accumulating data the SolarModel coefficient will stabilize
+    via auto-fit, and persistent drift advisories will become
+    a meaningful re-fit trigger.
+
 - **2026-05-19 09:33** — Pack now in **idle** (current 0.0 A, pack
   voltage 26.33 V — slight sag from the 26.40 V solar peak earlier).
   Cloud back to 100 % per the 09:04 weather row. SOC holding at

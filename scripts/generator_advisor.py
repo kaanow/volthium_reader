@@ -76,6 +76,14 @@ ACCURACY_LIFT_WINDOW          = 10
 ACCURACY_LIFT_THRESHOLD_PP    = 2.0
 ACCURACY_LIFT_MIN_RECORDS     = 5
 
+# Model-drift advisory: if the live measured ratio (Ah delivered today
+# / kWh/m² delivered today) diverges from the SolarModel coefficient
+# by at least this percentage, the advisor surfaces a "consider
+# re-fit" advisory. 20 % is calibrated to ignore normal intra-day
+# wobble while catching genuine miscalibration (e.g. one extreme-cloud
+# day producing live=4, model=8 → 50 % drift = clear advisory).
+MODEL_DRIFT_ADVISORY_THRESHOLD_PCT = 20.0
+
 
 # Confidence tier ordering used by the accuracy-aware lift logic.
 _CONFIDENCE_TIERS = ["low", "medium", "high"]
@@ -108,6 +116,40 @@ def lift_confidence_by_accuracy(
     if idx >= len(_CONFIDENCE_TIERS) - 1:
         return base, False    # already at "high"
     return _CONFIDENCE_TIERS[idx + 1], True
+
+
+def compute_model_drift(
+    live_ratio: Optional[float],
+    coefficient: float,
+    threshold_pct: float = MODEL_DRIFT_ADVISORY_THRESHOLD_PCT,
+) -> tuple[Optional[float], Optional[str]]:
+    """Return (drift_pct, advisory_or_None).
+
+    Compares today's measured `live_ratio` (Ah / kWh/m²) against the
+    SolarModel `coefficient`. Returns the signed drift percentage
+    (positive = live exceeds model, negative = live undershoots). When
+    |drift| crosses `threshold_pct`, also returns a human-readable
+    advisory string suggesting re-fit consideration.
+
+    `live_ratio=None` (early-morning or low-irradiance day) → returns
+    (None, None) — caller can suppress the advisory chip entirely.
+
+    Pure function so it can be unit-tested without going through the
+    full advisor invocation.
+    """
+    if live_ratio is None or coefficient <= 0.0:
+        return None, None
+    drift_pct = round((live_ratio - coefficient) / coefficient * 100.0, 1)
+    if abs(drift_pct) < threshold_pct:
+        return drift_pct, None
+    direction = "below" if drift_pct < 0 else "above"
+    advisory = (
+        f"Live ratio {live_ratio:.2f} Ah/(kWh/m²) is "
+        f"{abs(drift_pct):.1f}% {direction} the SolarModel "
+        f"coefficient {coefficient:.2f}. "
+        f"Consider re-fitting once more complete-day data accumulates."
+    )
+    return drift_pct, advisory
 
 
 def load_solar_model() -> SolarModel:
@@ -526,6 +568,17 @@ def main() -> int:
         irradiance_so_far = None
         solar_ah_so_far = None
 
+    # Model-vs-live drift diagnostic.  When live_ratio is populated AND
+    # diverges meaningfully from the SolarModel coefficient, flag it.
+    # The advisor itself still uses solar.predict_ah() for projections;
+    # this advisory is informational — a hint that the SolarModel
+    # coefficient may need re-fitting once more days accumulate.
+    # Surfaced in inputs so the dashboard can render an advisory chip.
+    model_drift_pct, model_drift_advisory = compute_model_drift(
+        live_ratio=live_ratio,
+        coefficient=solar.coefficient_ah_per_kwh_m2,
+    )
+
     today_kwh, tomorrow_kwh = weather_mod.fetch_today_tomorrow_irradiance()
     # Fall back to weather.csv's today value if the live API isn't reachable
     if today_kwh is None:
@@ -652,6 +705,8 @@ def main() -> int:
                 # Diagnostic — live measurement, not used in the projection
                 "solar_model_coefficient": solar.coefficient_ah_per_kwh_m2,
                 "live_ratio_ah_per_kwh_m2": live_ratio,
+                "model_drift_pct": model_drift_pct,
+                "model_drift_advisory": model_drift_advisory,
                 "irradiance_kwh_m2_so_far": irradiance_so_far,
                 "solar_ah_so_far": solar_ah_so_far,
                 "model_last_updated_iso": model_last_updated_iso,
@@ -700,6 +755,8 @@ def main() -> int:
                 # Diagnostic — live measurement, not used in the projection
                 "solar_model_coefficient": solar.coefficient_ah_per_kwh_m2,
                 "live_ratio_ah_per_kwh_m2": live_ratio,
+                "model_drift_pct": model_drift_pct,
+                "model_drift_advisory": model_drift_advisory,
                 "irradiance_kwh_m2_so_far": irradiance_so_far,
                 "solar_ah_so_far": solar_ah_so_far,
                 "model_last_updated_iso": model_last_updated_iso,
@@ -732,6 +789,8 @@ def main() -> int:
     print(f"\n  reason: {rec.reason}")
     if rec.morning_watch_reason:
         print(f"  morning watch: {rec.morning_watch_reason}")
+    if rec.inputs.get("model_drift_advisory"):
+        print(f"  ⚠ model drift: {rec.inputs['model_drift_advisory']}")
     print(f"\n  inputs:")
     for k, v in rec.inputs.items():
         if v is None:
