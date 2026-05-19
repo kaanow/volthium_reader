@@ -252,6 +252,40 @@ class TestDashboardRoutes(unittest.TestCase):
         # context so a new reader understands what they're looking at.
         self.assertIn(b"projected_low_soc", body)
 
+    def test_health_route_renders_summary(self) -> None:
+        """/health renders the scripts.health.render_summary() output
+        inside a <pre> block with auto-refresh. Cold start (no data)
+        still produces a valid page with the structural labels."""
+        h, captured = _make_handler("/health")
+        h.do_GET()
+        status, ctype, body = captured[0]
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertIn("text/html", ctype)
+        # Preformatted summary wrapper
+        self.assertIn(b"<pre>", body)
+        # All chain labels appear (same as the CLI's structural test)
+        for label in (b"PACK", b"TODAY", b"SOLAR ONSET", b"SOLAR MODEL",
+                      b"CONFIDENCE", b"SUNRISE ACC", b"MORN-LOW ACC",
+                      b"DRIFT", b"PROJECTION", b"ADVISORY"):
+            self.assertIn(label, body, f"missing chain label {label!r}")
+        # Auto-refresh meta tag
+        self.assertIn(b"http-equiv='refresh'", body)
+        # Navigation back to home + sister pages
+        self.assertIn(b"href='/'", body)
+        self.assertIn(b"/accuracy", body)
+        # Footer reference to the CLI command (anchors the doc claim
+        # that web and CLI never diverge)
+        self.assertIn(b"scripts/health.py", body)
+
+    def test_index_links_to_health(self) -> None:
+        """The main dashboard footer must link to /health so the user
+        can find the lightweight summary view."""
+        h, captured = _make_handler("/")
+        h.do_GET()
+        status, _, body = captured[0]
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertIn(b'href="/health"', body)
+
     def test_index_includes_drift_advisory_badge_js(self) -> None:
         """The dashboard's index page must include the drift-advisory
         badge code so the advisor's model_drift_advisory string lands

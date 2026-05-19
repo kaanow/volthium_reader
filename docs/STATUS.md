@@ -143,6 +143,54 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 10:38 ☀☀ — sky is genuinely clearing.** Major
+  weather shift: cloud **96% → 75%**, shortwave **238 → 400 W/m²**,
+  weather_code 51 (drizzle) → **2 (partly cloudy)**. Pack momentarily
+  in idle (sun-load balanced just as last sample landed at
+  state=idle 0.0 A) but recent samples show charging spikes to
+  +5+ A. `solar_ah_so_far` climbed from 2.9 → **4.1 Ah** in 22
+  min (+1.2). live_ratio recovering: **7.66** (drift narrowed to
+  **-6.0%**, well clear of the 20% advisory threshold). The CLI
+  health summary now shows the day's progress in 10 lines.
+  - **Design item picked: surface health summary on dashboard.**
+    The CLI `health.py` lands one-screen overviews; same content
+    deserves a web surface for the SSH-from-phone / low-bandwidth
+    case where the chart-heavy main page is overkill.
+    - `scripts/dashboard.py`: new `/health` route that wraps
+      `health.render_summary()` in a dark-themed `<pre>` block.
+      Reuses the CLI's function directly so the two surfaces
+      **never diverge** — both pull from the same underlying
+      logs, format identically.
+    - Auto-refresh meta tag at 30 s (vs the main page's 5 s
+      polling) — targets the bandwidth-constrained use case
+      where chart re-renders would burn the data budget.
+    - Header navigation back to `/`, `/today-report`,
+      `/accuracy`, `/low-accuracy`, `/confidence` so the user
+      can pivot to detail views without going home.
+    - Main dashboard's harvest-panel footer gains a `health
+      summary ↗` link, completing the discoverability loop.
+    - Footer note ("Same content as `python3 scripts/health.py`
+      on the cabin laptop — kept identical so CLI and web
+      views never diverge") makes the design contract explicit
+      for future maintainers.
+    - 2 regression tests: `/health` renders with all 10 chain
+      labels + auto-refresh + nav, AND the main dashboard footer
+      links to it. Suite: **239 tests passing** (was 237, +2
+      new).
+  - **Why this matters**: the health summary is now accessible
+    from THREE surfaces with identical content — CLI (`python3
+    scripts/health.py`), main dashboard footer link, and
+    `/health` HTML page. The operator picks the surface that
+    matches their context: terminal session, full dashboard
+    pivot, or quick-glance browser bookmark.
+  - **Watch**: weather is the news of this loop. If the
+    400 W/m² holds and cloud continues thinning, the
+    afternoon could deliver real Ah catch-up. Today's
+    `solar_ah_so_far` (4.1) is still only 10% of forecast (41.7),
+    but the trend is accelerating — at the recent 1.2 Ah / 22
+    min rate, we'd hit ~30 Ah by sunset (still well short of
+    forecast because the morning was burned by cloud).
+
 - **2026-05-19 10:16 — both SOC ticks up + solar accelerating.**
   Pack state: **charging**, pack_i +3.0 to +5.5 A, smoothed_i +3.9
   A, voltage **26.42 V**. SOC has now ticked **both sides up to

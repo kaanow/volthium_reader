@@ -1485,7 +1485,8 @@ async function tick() {
           })()}
           <div class="footer">${harv.duration_h.toFixed(1)} h of data so far · ${harv.confidence} confidence
             · <a href="/today-report" target="_blank" class="report-link">today's report ↗</a>
-            · <a href="/reports" target="_blank" class="report-link">all reports ↗</a></div>
+            · <a href="/reports" target="_blank" class="report-link">all reports ↗</a>
+            · <a href="/health" target="_blank" class="report-link">health summary ↗</a></div>
           ${note}
         </div>`;
     } else {
@@ -1546,6 +1547,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._serve_low_soc_accuracy()
         if self.path == "/confidence" or self.path == "/confidence/":
             return self._serve_confidence_log()
+        if self.path == "/health" or self.path == "/health/":
+            return self._serve_health()
         # /report/YYYY-MM-DD — historical day-report
         if self.path.startswith("/report/"):
             date_str = self.path[len("/report/"):].rstrip("/")
@@ -2391,6 +2394,52 @@ class Handler(BaseHTTPRequestHandler):
             + body
         )
         return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
+
+    def _serve_health(self):
+        """Render scripts.health.render_summary() as a clean preformatted
+        HTML page. Quick lightweight overview when the chart-heavy main
+        page is overkill (SSH on slow link, mobile, etc.). Reuses the
+        CLI's render function directly so the two surfaces never
+        diverge."""
+        import health as health_mod
+        try:
+            summary = health_mod.render_summary()
+        except Exception as e:
+            return self._send(HTTPStatus.OK, "text/plain; charset=utf-8",
+                              f"could not build summary: {e}".encode())
+
+        # Auto-refresh every 30 s so the page stays fresh without the
+        # full dashboard's per-5-s polling. Targets the SSH-from-phone
+        # use case where bandwidth is the constraint.
+        body = (
+            "<!doctype html><meta charset=utf-8>"
+            "<meta name=viewport content='width=device-width,initial-scale=1'>"
+            "<meta http-equiv='refresh' content='30'>"
+            "<title>Volthium health</title>"
+            "<style>"
+            "body{background:#0d1117;color:#c9d1d9;"
+            "font-family:ui-monospace,SFMono-Regular,monospace;"
+            "max-width:780px;margin:0 auto;padding:16px;"
+            "font-size:14px;line-height:1.5}"
+            "a{color:#58a6ff}"
+            "pre{white-space:pre-wrap;word-wrap:break-word;margin:0;"
+            "padding:14px;background:#161b22;border-radius:6px;"
+            "font-size:13px}"
+            ".footer{color:#8b949e;font-size:11px;margin-top:14px}"
+            "</style>"
+            "<p><a href='/'>&larr; full dashboard</a> · "
+            "<a href='/today-report'>today's report</a> · "
+            "<a href='/accuracy'>accuracy</a> · "
+            "<a href='/low-accuracy'>morning-low accuracy</a> · "
+            "<a href='/confidence'>confidence log</a></p>"
+            f"<pre>{html_escape(summary)}</pre>"
+            "<p class='footer'>Auto-refreshes every 30 s. "
+            "Same content as <code>python3 scripts/health.py</code> on "
+            "the cabin laptop — kept identical so CLI and web views "
+            "never diverge.</p>"
+        )
+        return self._send(HTTPStatus.OK, "text/html; charset=utf-8",
+                          body.encode())
 
     def _serve_report_index(self):
         """List every data/reports/*.md, newest first, with the live
