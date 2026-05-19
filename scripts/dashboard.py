@@ -774,6 +774,9 @@ async function tick() {
                 <span class="lbl">confidence lifted</span>
                 <span class="v">${base} → ${rec.confidence}</span>
                 <span class="drift">last ${n} within ±${ae.toFixed(2)} pp</span>
+              </div>
+              <div class="calib-footer">
+                <a href="/confidence" target="_blank" class="report-link">lift history ↗</a>
               </div>`;
         }
 
@@ -1232,6 +1235,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._serve_projection_log()
         if self.path == "/accuracy" or self.path == "/accuracy/":
             return self._serve_projection_accuracy()
+        if self.path == "/confidence" or self.path == "/confidence/":
+            return self._serve_confidence_log()
         # /report/YYYY-MM-DD — historical day-report
         if self.path.startswith("/report/"):
             date_str = self.path[len("/report/"):].rstrip("/")
@@ -1604,7 +1609,8 @@ class Handler(BaseHTTPRequestHandler):
             "</style>"
             "<p><a href='/'>&larr; dashboard</a> · "
             "<a href='/projections'>projection log</a> · "
-            "<a href='/calibration'>calibration log</a></p>"
+            "<a href='/calibration'>calibration log</a> · "
+            "<a href='/confidence'>confidence log</a></p>"
             + intro
             + body
         )
@@ -1690,7 +1696,8 @@ class Handler(BaseHTTPRequestHandler):
             "</style>"
             "<p><a href='/'>&larr; dashboard</a> · "
             "<a href='/calibration'>calibration log</a> · "
-            "<a href='/accuracy'>accuracy</a></p>"
+            "<a href='/accuracy'>accuracy</a> · "
+            "<a href='/confidence'>confidence log</a></p>"
             + intro
             + "".join(body_lines)
         )
@@ -1766,9 +1773,117 @@ class Handler(BaseHTTPRequestHandler):
             "</style>"
             "<p><a href='/'>&larr; dashboard</a> · "
             "<a href='/projections'>projection log</a> · "
-            "<a href='/accuracy'>accuracy</a></p>"
+            "<a href='/accuracy'>accuracy</a> · "
+            "<a href='/confidence'>confidence log</a></p>"
             + intro
             + "".join(body_lines)
+        )
+        return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
+
+    def _serve_confidence_log(self):
+        """Render data/confidence_log.csv as a dark-themed HTML table.
+        One row per confidence-lift TRANSITION (base/resolved/lifted
+        flag changes). The advisor calls confidence_log.record_if_changed
+        on each invocation; stable states stay quiet so the log is a
+        timeline of meaningful events, not a stream of duplicates.
+
+        Linked from the advisor panel's `conf-lift` badge tooltip and
+        from the other log pages."""
+        import confidence_log as conf_mod
+        try:
+            entries = conf_mod.read_log()
+        except Exception as e:
+            return self._send(HTTPStatus.OK, "text/plain; charset=utf-8",
+                              f"could not read confidence log: {e}".encode())
+
+        entries = list(reversed(entries))    # newest first
+
+        if entries:
+            def _row(e):
+                lifted_cls = "ok" if e.lifted else "dim"
+                lifted_label = "lifted" if e.lifted else "—"
+                ae = ("—" if e.recent_abs_error_pp is None
+                      else f"{e.recent_abs_error_pp:.2f}")
+                # The "delta" column makes the transition obvious at a
+                # glance: when base == resolved it's just the base;
+                # when lifted, it's "base → resolved" with an arrow.
+                if e.base == e.resolved:
+                    transition = html_escape(e.base)
+                else:
+                    transition = (
+                        f"{html_escape(e.base)} → "
+                        f"<strong>{html_escape(e.resolved)}</strong>"
+                    )
+                return (
+                    "<tr>"
+                    f"<td>{html_escape(e.ts)}</td>"
+                    f"<td>{transition}</td>"
+                    f"<td class='lift-{lifted_cls}' style='text-align:center'>"
+                    f"{lifted_label}</td>"
+                    f"<td style='text-align:right'>{ae}</td>"
+                    f"<td style='text-align:right'>{e.recent_n}</td>"
+                    f"<td>{html_escape(e.source)}</td>"
+                    "</tr>"
+                )
+            rows_html = "".join(_row(e) for e in entries)
+            table = (
+                "<table>"
+                "<thead><tr>"
+                "<th>timestamp</th>"
+                "<th>tier (base → resolved)</th>"
+                "<th style='text-align:center'>lifted?</th>"
+                "<th style='text-align:right'>recent abs err (pp)</th>"
+                "<th style='text-align:right'>recent n</th>"
+                "<th>source</th>"
+                "</tr></thead>"
+                f"<tbody>{rows_html}</tbody></table>"
+            )
+            body = table
+        else:
+            body = (
+                "<p style='color:#8b949e;font-style:italic'>"
+                "(no confidence-lift events logged yet — the first "
+                "row lands the next time the generator advisor "
+                "computes a confidence tier with a non-default "
+                "track record)"
+                "</p>"
+            )
+
+        intro = (
+            "<h2 style='margin-top:0'>Confidence-lift history</h2>"
+            "<p style='color:#8b949e;font-size:12px'>"
+            "Each row marks a moment when the advisor's accuracy-aware "
+            "confidence state changed. Sources: <code>advisor-invocation</code>. "
+            "<strong>base</strong> is the SolarModel's underlying confidence "
+            "(driven by days-of-fit data); <strong>resolved</strong> is what "
+            "the advisor actually emits after the accuracy-aware lift. "
+            "<strong>lifted?</strong> = whether the recent track record was "
+            "tight enough to bump the tier one notch "
+            "(see <code>scripts/generator_advisor.py</code> → "
+            "<code>lift_confidence_by_accuracy</code>). Stable states are "
+            "deduped so this view is a timeline of transitions."
+            "</p>"
+        )
+
+        html = (
+            "<!doctype html><meta charset=utf-8>"
+            "<meta name=viewport content='width=device-width,initial-scale=1'>"
+            "<title>Confidence-lift history</title>"
+            f"<style>{self.REPORT_PAGE_STYLE}"
+            " table{border-collapse:collapse;font-size:12px;"
+            "font-variant-numeric:tabular-nums;margin-top:10px;width:100%}"
+            " th,td{padding:5px 10px;border-bottom:1px solid #21262d;text-align:left}"
+            " th{color:#8b949e;border-bottom:1px solid #30363d}"
+            " .lift-ok{color:#3fb950;font-weight:500}"
+            " .lift-dim{color:#8b949e}"
+            " strong{color:#c9d1d9}"
+            "</style>"
+            "<p><a href='/'>&larr; dashboard</a> · "
+            "<a href='/accuracy'>accuracy</a> · "
+            "<a href='/projections'>projection log</a> · "
+            "<a href='/calibration'>calibration log</a></p>"
+            + intro
+            + body
         )
         return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
 

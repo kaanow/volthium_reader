@@ -50,6 +50,7 @@ import today_harvest as today_harvest_mod  # noqa: E402
 import calibration_log as calibration_log_mod  # noqa: E402
 import projection_log as projection_log_mod  # noqa: E402
 import projection_accuracy as projection_accuracy_mod  # noqa: E402
+import confidence_log as confidence_log_mod  # noqa: E402
 from volthium.solar_model import SolarModel  # noqa: E402
 
 # Cache tomorrow's forecast so re-runs in a 5-min window don't pound the API.
@@ -550,6 +551,25 @@ def main() -> int:
     overall_confidence, confidence_lifted = lift_confidence_by_accuracy(
         confidence_base, recent_abs_error_pp, recent_accuracy_n,
     )
+
+    # Log the lift transition to data/confidence_log.csv. Only fires
+    # when (base, resolved, lifted) differs from the last logged
+    # entry — so a stable "lifted to medium" state writes one row
+    # and stays quiet; the next event is logged the moment the lift
+    # changes (e.g. recent_abs_error_pp drifts above the threshold
+    # and the lift falls away). Best-effort.
+    try:
+        confidence_log_mod.record_if_changed(
+            base=confidence_base,
+            resolved=overall_confidence,
+            lifted=confidence_lifted,
+            recent_abs_error_pp=recent_abs_error_pp,
+            recent_n=recent_accuracy_n,
+            source="advisor-invocation",
+            now=now,
+        )
+    except Exception:
+        pass
 
     # === Decide ===
     if projected_low >= args.comfort_floor:

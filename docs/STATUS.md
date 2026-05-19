@@ -143,6 +143,71 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 06:41** — Sunrise +93 min. Pack SOC dropped to **66/64**
+  (lost another 1 pp on each side), current up to **-3.0 to -3.2 A**
+  (heavier than the -1.7 A blip last loop — that was a load lull,
+  not solar). Weather: **cloud 100 %**, shortwave 53 W/m² (still
+  very low). Irradiance accumulated: **0.037 kWh/m²** (0.7 % of
+  the 5.11 forecast). The west-facing array isn't going to see
+  much direct sun under 100 % cloud — and the projection's
+  `next-24h low SOC` has tightened to **64 %**, which is still
+  comfortably above the 25 % floor but the lowest the advisor has
+  reported. **Net-charging not yet** (still on the discharge side).
+  - **Design item picked: confidence-lift history log + view.**
+    The advisor has been lifting confidence from `low → medium`
+    for the last few invocations, but the event was invisible —
+    no archive of when it first fired or whether it would ever
+    fall back. Wired up:
+    - `scripts/confidence_log.py`: new append-only CSV
+      (`data/confidence_log.csv`). One row per transition in
+      `(base, resolved, lifted)` tuple; stable states are deduped
+      so the log is a timeline of *events*, not a stream of
+      duplicates. Schema: `ts, base, resolved, lifted,
+      recent_abs_error_pp, recent_n, source`.
+    - `record_if_changed(...)` is the canonical write path. The
+      advisor calls it after computing the lift, best-effort
+      try/except.
+    - `scripts/confidence_log.py --show` pretty-prints the
+      history with a "current state" footer ("lifted from 'low'
+      to 'medium'").
+    - **First live event captured**: `2026-05-19T06:41:35 · low →
+      medium · lifted · abs_err 0.89 · n=10`. Going forward
+      every time the lift transitions (back to low, or up to
+      high, or the SolarModel's base shifts) a new row will
+      land.
+    - Dashboard `/confidence` route: dark-themed HTML table,
+      newest-first, with a green-highlighted `lifted` column.
+      Cross-linked from the advisor panel's conf-lift badge
+      footer ("lift history ↗") and from the other log pages
+      (`/calibration`, `/projections`, `/accuracy` all now link
+      to `/confidence`).
+    - 8 regression tests
+      (`tests/test_confidence_log.py`) lock down: empty-log
+      handling, first-row-always-writes, idempotent
+      same-state-noop, drift-in-abs-err-doesn't-write (only
+      transitions do), lift-falls-away writes, base-change
+      writes, resolved-change writes, CSV round-trip preserves
+      None abs error, header presence. Suite: **177 tests
+      passing** (169 + 8 new).
+  - **Why this matters**: closes the meta-loop. We now have four
+    parallel logs:
+    - `calibration_log.csv` — SolarModel coefficient changes
+    - `projection_log.csv` — each advisor projection snapshot
+    - `projection_accuracy.csv` (derived) — projection vs actual
+    - `confidence_log.csv` — lift state transitions
+    
+    Together they're the audit trail of *how the model evolved*
+    AND *how confidence in it evolved*. A few weeks from now,
+    when the advisor's confidence shifts from `medium` back to
+    `low` (because the recent_abs_error_pp drifted above 2 pp
+    after a weather anomaly), the row in `confidence_log.csv`
+    will pinpoint the moment.
+  - **Watch**: tomorrow's sunrise will produce another batch of
+    15-20 validated projections. If the new track record stays
+    tight, the lift will hold; if it loosens, we'll see the
+    transition logged. The `confidence_log` becomes genuinely
+    informative once the lift starts moving with real signal.
+
 - **2026-05-19 06:12** — Sunrise +64 min. Pack SOC **67/65 %** (gap
   steady at 2 %), current **-1.7 to -1.8 A** — gentlest discharge
   yet, hint that some morning ambient light may be barely offsetting
