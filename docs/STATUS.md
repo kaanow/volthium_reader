@@ -143,6 +143,66 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 09:07 — first BMS SOC tick of the day** (A:
+  65 → 66 at 09:06:39). Pack current settling back to **+1.2 A**
+  (solar weakening as cloud thickened from 75 % → 90 %); pack
+  voltage holding at 26.39 V. `solar_ah_so_far` climbed slightly
+  to **+1.7 Ah**. Advisor's next-24h low for tomorrow is 61.7 %
+  (latest new-model entry).
+  - **Design item picked: solar-onset milestones on dashboard
+    sparkline.** Visually surfaces the morning cascade events on
+    both the pack-power and SOC sparklines — pairs with the
+    existing "solar onset" chip on the harvest panel.
+    - `scripts/dashboard.py`: new client-side
+      `computeOnsetMarkers(series, onset)` helper. For each of
+      the four cascade milestones (`first_zero_iso`,
+      `first_idle_iso`, `first_positive_iso`,
+      `first_net_positive_iso`), maps the iso timestamp to an
+      x-fraction in the rolling sparkline window. Milestones
+      outside the window are silently dropped.
+    - **Two-pass merge**: milestones at identical timestamps
+      (e.g. today's first_zero and first_idle both at 06:44:10)
+      are combined into a single marker with a joined tooltip
+      label ("zero + idle @ 06:44:10"). Avoids drawing the same
+      line twice and keeps the visual clean.
+    - The `spark(id, values, includeZero, color, markers)`
+      function now accepts a markers array. Each marker renders
+      as a dashed vertical line through the chart with a
+      tooltip `<title>` showing the full milestone label and
+      time. Drawn BEFORE the polyline so the data line still
+      reads cleanly on top.
+    - Color graduation: gray for `zero`/`idle` (pre-charging
+      milestones), amber for `first_positive` (transient solar
+      > load), green for `first_net_positive` (sustained
+      charging). When milestones share a timestamp the latest
+      one wins on color — visually communicating the "highest
+      cascade stage achieved at this moment".
+    - 1 regression test added — `test_index_includes_onset_marker_js`
+      anchors the function name + cascade keys + dashed-line
+      visuals in the HTML so a future refactor can't silently
+      strip the feature. Suite: **219 tests passing** (was 218,
+      +1 new).
+  - **Live behavior right now**: with the rolling window at
+    ~07:07-09:07, today's cascade markers visible should be
+    `pos @ 07:44:21` and `net+ @ 07:45:40` (very close to each
+    other, near the left edge). The earlier `zero` and `idle`
+    milestones (06:44:10) have already scrolled off — exactly
+    the expected "rolling history" behavior.
+  - **Why this matters**: the harvest-panel chip is a static
+    summary; the sparkline annotations let you SEE the cascade
+    in the context of the pack's current/SOC curve. The two
+    surfaces complement each other — chip for "what happened",
+    chart for "where in the recent timeline". A future operator
+    debugging an unusual day (e.g. "why is the floor so low?")
+    can spot the cascade timing on the chart and check whether
+    it landed at a reasonable hour vs sunrise.
+  - **Watch**: pack should keep recovering through the day even
+    with patchy clouds. The dashboard's new sparkline markers
+    will tell us if any LATER solar-onset events fire — they
+    shouldn't (only the FIRST occurrence of each milestone is
+    recorded), but it's a chance to validate the
+    once-per-day-only behavior in `solar_onset.upsert()`.
+
 - **2026-05-19 09:02 ☀ — solar genuinely arriving.** Pack
   current jumped from +1.6 A to **+4.0 A** (smoothed_i +3.6 A);
   pack voltage climbed from 26.29 → **26.40 V**. `solar_ah_so_far`

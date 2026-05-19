@@ -252,6 +252,25 @@ class TestDashboardRoutes(unittest.TestCase):
         # context so a new reader understands what they're looking at.
         self.assertIn(b"projected_low_soc", body)
 
+    def test_index_includes_onset_marker_js(self) -> None:
+        """The dashboard's index page must include the
+        computeOnsetMarkers JS function so the sparklines can
+        annotate today's solar_onset milestones. Pinning the
+        function name down anchors the feature against accidental
+        removal (e.g. by an unrelated dashboard refactor)."""
+        h, captured = _make_handler("/")
+        h.do_GET()
+        status, ctype, body = captured[0]
+        self.assertEqual(status, HTTPStatus.OK)
+        # The marker pipeline: helper function + the cascade keys
+        # passed in. We don't assert on rendered marker count
+        # (depends on live data) — just on the code being present.
+        self.assertIn(b"computeOnsetMarkers", body)
+        self.assertIn(b"first_zero_iso", body)
+        self.assertIn(b"first_net_positive_iso", body)
+        # Marker visuals — dashed vertical line + tooltip via <title>
+        self.assertIn(b"stroke-dasharray", body)
+
     def test_low_accuracy_route_is_a_sister_of_accuracy(self) -> None:
         """Both /accuracy and /low-accuracy should cross-link to each
         other so a user can pivot between sunrise and morning-low

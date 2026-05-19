@@ -707,7 +707,57 @@ async function tick() {
 
     const series = j.history || [];
     const W = 600, H = 80, PAD = 4;
-    function spark(id, values, includeZero, color) {
+
+    // Compute solar-onset milestone markers for the visible window.
+    // Each milestone (first_zero / idle / positive / net_positive)
+    // becomes a dashed vertical line on the sparklines if its
+    // timestamp falls within the rolling window. Today's morning
+    // cascade is most useful right after it happens; older milestones
+    // scroll off the chart as the window advances.
+    // Milestones at identical timestamps (first_zero and first_idle
+    // are commonly equal) are de-duped to a single marker.
+    function computeOnsetMarkers(series, onset) {
+      if (!series || !series.length || !onset) return [];
+      const milestones = [
+        {key: "first_zero_iso",         label: "zero", color: "#8b949e"},
+        {key: "first_idle_iso",         label: "idle", color: "#8b949e"},
+        {key: "first_positive_iso",     label: "pos",  color: "#d29922"},
+        {key: "first_net_positive_iso", label: "net+", color: "#3fb950"},
+      ];
+      const out = [];
+      const firstT = Date.parse(series[0].ts);
+      const lastT  = Date.parse(series[series.length - 1].ts);
+      const span = lastT - firstT;
+      if (!(span > 0)) return [];
+      // Two-pass: first collect raw label-parts per iso ts, then build
+      // markers. Keeps the merge clean ("zero + idle @ 06:44:10") even
+      // when 2+ milestones share the same timestamp (very common —
+      // first_zero and first_idle often coincide).
+      const partsByIso = new Map();
+      for (const m of milestones) {
+        const iso = onset[m.key];
+        if (!iso) continue;
+        const t = Date.parse(iso);
+        if (isNaN(t) || t < firstT || t > lastT) continue;
+        if (!partsByIso.has(iso)) {
+          partsByIso.set(iso, {labels: [], color: m.color, t});
+        }
+        partsByIso.get(iso).labels.push(m.label);
+        // Latest milestone wins on color (so net+ green overrides idle gray)
+        partsByIso.get(iso).color = m.color;
+      }
+      for (const [iso, info] of partsByIso) {
+        const xFrac = (info.t - firstT) / span;
+        out.push({
+          xFrac,
+          label: info.labels.join(" + ") + " @ " + iso.slice(11, 19),
+          color: info.color,
+        });
+      }
+      return out;
+    }
+
+    function spark(id, values, includeZero, color, markers) {
       const svg = document.getElementById(id);
       if (values.length < 2) { svg.innerHTML = ""; return; }
       let lo = Math.min(...values), hi = Math.max(...values);
@@ -723,13 +773,26 @@ async function tick() {
       }).join(" ");
       const zeroLine = includeZero && lo <= 0 && hi >= 0
         ? `<line x1="0" y1="${zeroY}" x2="${W}" y2="${zeroY}" stroke="#30363d" stroke-width="1"/>` : "";
-      svg.innerHTML = zeroLine +
+      // Solar-onset milestone markers: dashed vertical lines at the
+      // mapped x-fraction, with a hover-tooltip showing which event
+      // and when. Drawn UNDER the polyline so the data still reads
+      // cleanly on top.
+      const markerSvg = (markers || []).map(m => {
+        const x = (PAD + m.xFrac * (W - 2 * PAD)).toFixed(1);
+        return `<line x1="${x}" y1="0" x2="${x}" y2="${H}" `
+             + `stroke="${m.color}" stroke-width="1" `
+             + `stroke-dasharray="3,2" opacity="0.6">`
+             + `<title>${m.label}</title></line>`;
+      }).join("");
+      svg.innerHTML = zeroLine + markerSvg +
         `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/>`;
     }
+
+    const onsetMarkers = computeOnsetMarkers(series, j.solar_onset);
     const ps = series.map(x => x.pack_p ?? 0);
-    spark("spark-p", ps, true, ps[ps.length-1] >= 0 ? "var(--grn)" : "var(--ylw)");
+    spark("spark-p", ps, true, ps[ps.length-1] >= 0 ? "var(--grn)" : "var(--ylw)", onsetMarkers);
     const socs = series.map(x => (x.soc_a != null && x.soc_b != null) ? (x.soc_a + x.soc_b) / 2 : null).filter(v => v != null);
-    spark("spark-soc", socs, false, "var(--blu)");
+    spark("spark-soc", socs, false, "var(--blu)", onsetMarkers);
     setText("updated", new Date().toLocaleTimeString() + "  •  " + series.length + " samples");
 
     // Advisor panel — and hide its wrapper if there's nothing to show
