@@ -143,6 +143,59 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 00:28 — Day-boundary rolled cleanly.** No manual
+  intervention; every module handled the transition gracefully:
+  - **`today_harvest`** → reports 2026-05-19 fresh (0.5 h coverage,
+    0 Ah solar, graceful "no solar harvest yet today" note).
+  - **`daily_summary`** → shows BOTH rows: 2026-05-18 [complete]
+    with final ratio **8.1 Ah/(kWh/m²)** anchored, and 2026-05-19
+    [partial] just starting.
+  - **`end_of_day_report`** → wrote `data/reports/2026-05-19.md`
+    for the new day; **`2026-05-18.md` stays frozen** as the
+    historical record.
+  - **`projection_log`** → gained entries #5 (23:54) and #6 (00:19)
+    seamlessly across midnight, same 25-min cadence.
+  - **`calibration_log`** → stayed at 2 entries (correctly — only
+    the 2026-05-18 row is fit-eligible; tomorrow night will add
+    the 2026-05-19 fit).
+  - **Open-Meteo for the new day**: forecast 4.92 kWh/m² (was 5.62
+    for 2026-05-18 — slightly cloudier today).
+  - Pack: SOC **79/78 %** discharging at -7.3 A (heavier than -4
+    baseline — possibly the fan + something else).
+  - This is what well-designed software should feel like: months
+    of careful day-boundary thinking paid off in one quiet moment.
+  - Design item: **`scripts/projection_accuracy.py` — projection-
+    vs-actual diff infrastructure**, ready for tomorrow morning's
+    sunrise validation.
+  - For each projection_log entry whose `sunrise_iso` target time
+    has passed, finds the closest pack.csv sample within ±30 min
+    and computes the error = `actual − projected`. Outputs
+    per-row table + summary (n, mean, median, RMS, abs-mean,
+    min/max).
+  - Current state: **`(no validatable projections yet — wait for
+    sunrise_iso targets to pass)`** — all 6 projection_log entries
+    target 2026-05-19 05:09, which is ~4.5 h from now.
+  - **Tomorrow morning at 05:09**: the script will produce its
+    first real accuracy record. Yesterday's six projections all
+    predicted ~67-69 % sunrise SOC; we'll see whether reality lands
+    within a few percentage points.
+  - **8 regression tests** in `tests/test_projection_accuracy.py`
+    cover:
+    - Empty input → empty output
+    - Future targets skipped (don't crash, don't make up data)
+    - Closest-match selection picks the right sample
+    - ±tolerance enforcement (samples outside the window dropped)
+    - Negative error → pack undershot
+    - Mixed past/future → only past validates
+    - `summarize()` aggregates correctly (mean, abs-mean, RMS,
+      min/max)
+  - Locking in test coverage BEFORE the first live data lands so
+    regressions can't slip in silently when the script starts
+    producing real numbers.
+  - **150 Python tests pass** (up from 142). Suite total: 150 Py +
+    22 wire-C + 17 est-C + 4 wire-cross + 49 est-cross = **242
+    assertion-points**, all green.
+
 - **23:54** — Late-evening steady. Pack SOC **81/80 %** (-1 % per
   battery from 82/81 in 34 min). Current jumped to **-8.0 A peak**
   at the last sample (smoothed -5.73 A) — looks like an unsustained
