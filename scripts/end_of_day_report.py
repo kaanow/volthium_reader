@@ -30,6 +30,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import today_harvest as today_harvest_mod  # noqa: E402
 import calibration_log as calibration_log_mod  # noqa: E402
+import projection_log as projection_log_mod  # noqa: E402
+import projection_accuracy as projection_accuracy_mod  # noqa: E402
 
 
 def _f(v) -> Optional[float]:
@@ -240,6 +242,49 @@ def build_report(day: date) -> str:
         lines.append("No SolarModel coefficient changes logged today.")
     lines.append("")
 
+    # ---------- Projection accuracy ----------
+    # For projections whose sunrise_iso fell within `day`, compare what
+    # the advisor predicted against what actually happened in pack.csv.
+    # Pairs with the dashboard's /accuracy page.
+    lines.append("## Projection accuracy")
+    lines.append("")
+    try:
+        all_proj = projection_log_mod.read_log()
+        pack_samples = projection_accuracy_mod._load_pack_samples(
+            Path("data/pack.csv"))
+        # Filter projections whose sunrise_iso fell in `day` — i.e. the
+        # projections that PREDICTED something about the sunrise on
+        # this report's day.
+        day_proj = [p for p in all_proj
+                    if p.sunrise_iso.startswith(day.isoformat())]
+        records = projection_accuracy_mod.compute_accuracy_records(
+            day_proj, pack_samples)
+    except Exception:
+        records = []
+
+    if records:
+        s = projection_accuracy_mod.summarize(records)
+        lines.append(f"{len(records)} projection{'s' if len(records) != 1 else ''} "
+                     f"targeting **{day.isoformat()} sunrise** validated against "
+                     f"actual SOC. Mean error **{s['mean_error']:+.1f} pp**, "
+                     f"abs **{s['mean_abs_error']:.1f}**, RMS "
+                     f"**{s['rms_error']:.1f}**.")
+        lines.append("")
+        lines.append("| made at | projected | actual | error (pp) |")
+        lines.append("|---------|----------:|-------:|-----------:|")
+        for r in records:
+            short_made = (r.projection_ts[:16] if len(r.projection_ts) >= 16
+                          else r.projection_ts)
+            sign = "+" if r.error_pct_points >= 0 else "−"
+            lines.append(f"| {short_made} | {r.projected_sunrise_soc:.1f} | "
+                         f"{r.actual_sunrise_soc:.1f} | "
+                         f"{sign}{abs(r.error_pct_points):.1f} |")
+    else:
+        lines.append("No validatable projections for this day yet — "
+                     "the first record lands at the next sunrise after the "
+                     "projection_log starts collecting.")
+    lines.append("")
+
     # ---------- Cross-refs ----------
     lines.append("## Cross-references")
     lines.append("")
@@ -249,6 +294,7 @@ def build_report(day: date) -> str:
     lines.append("- Weather data: `data/weather.csv`")
     lines.append("- Daily summary row: `data/daily_summary.csv`")
     lines.append("- Calibration log: `data/calibration_log.csv`")
+    lines.append("- Projection log: `data/projection_log.csv`")
     lines.append("")
 
     return "\n".join(lines) + "\n"

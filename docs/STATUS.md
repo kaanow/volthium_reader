@@ -143,6 +143,42 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 02:09** — Pack SOC **75/73 %** (gap back to 2 %),
+  discharging at sustained -7.1 A. Voltage dropping fast 26.32 →
+  26.24 V (per-battery curiosity holds: A's voltage drops faster
+  than B's). **Projection log gained 2 entries this loop** (01:36
+  + 02:02 — slightly faster than 25 min apart due to dashboard
+  subprocess + loop call timing alignment).
+  - Design item: **`end_of_day_report` gains a "Projection
+    accuracy" section.** Pairs with the dashboard's `/accuracy`
+    page added last loop — same data, two surfaces (live web view
+    + permanent markdown artifact).
+  - The section filters projection_log entries whose `sunrise_iso`
+    falls within the report's `day`, runs them through
+    `projection_accuracy.compute_accuracy_records`, and renders:
+    - **summary line** with n + mean + abs + RMS error
+    - **markdown table** with `made at | projected | actual |
+      error (pp)` columns
+  - Empty state (most days right now, before our first sunrise
+    validation tomorrow morning): friendly *"No validatable
+    projections for this day yet — the first record lands at the
+    next sunrise after the projection_log starts collecting."*
+  - **Tomorrow morning at 05:08 (sunrise)**: the 2026-05-19 day
+    report will start showing yesterday's 8 projections validated
+    against today's actual sunrise SOC. Real meta-evaluation
+    data lands automatically into a permanent file.
+  - 2 new regression tests in `tests/test_end_of_day_report.py`:
+    - Empty state when no projections exist
+    - Records section renders correctly when a projection +
+      matching pack sample are fixtured (tested against past-dated
+      fixtures so the `compute_accuracy_records` "is the target
+      passed?" check fires deterministically)
+  - The Cross-references section also gains a pointer to
+    `data/projection_log.csv`.
+  - **152 Python tests pass** (up from 150). Total assertion-points
+    across the suite: 152 Py + 22 wire-C + 17 est-C + 4 wire-cross
+    + 49 est-cross = **244**, all green.
+
 - **2026-05-19 01:35** — Pack SOC **76/75 %** (−2/−1 in 33 min,
   gap held at 1 % though it touched 2 % earlier). Discharging at
   sustained -7.0 A. Voltage 26.32 V. Per-battery curiosity:

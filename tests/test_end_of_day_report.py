@@ -51,6 +51,12 @@ DAILY_HEADER = ["date", "duration_h", "samples", "soc_min", "soc_max",
 CALIB_HEADER = ["ts", "coefficient", "n_observations", "confidence",
                 "source", "notes"]
 
+PROJ_HEADER = ["ts", "start_soc_pct",
+               "projected_sunrise_soc", "projected_tomorrow_evening_soc",
+               "projected_low_soc",
+               "solar_model_coefficient", "today_irradiance_kwh_m2",
+               "sunrise_iso", "source"]
+
 
 class TestBuildReport(unittest.TestCase):
 
@@ -101,6 +107,14 @@ class TestBuildReport(unittest.TestCase):
             w.writeheader()
             for e in entries:
                 w.writerow({k: e.get(k, "") for k in CALIB_HEADER})
+
+    def _write_proj(self, entries: list[dict]) -> None:
+        path = self.root / "data" / "projection_log.csv"
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=PROJ_HEADER)
+            w.writeheader()
+            for e in entries:
+                w.writerow({k: e.get(k, "") for k in PROJ_HEADER})
 
     def _pack_run(self, start: datetime, n: int, pack_i: float,
                   soc_a: float = 80.0, soc_b: float = 78.0,
@@ -334,7 +348,54 @@ class TestBuildReport(unittest.TestCase):
         self.assertIn("data/weather.csv", md)
         self.assertIn("data/daily_summary.csv", md)
         self.assertIn("data/calibration_log.csv", md)
+        self.assertIn("data/projection_log.csv", md)
         self.assertIn("docs/STATUS.md", md)
+
+    # ---------- Projection accuracy section ----------
+
+    def test_projection_accuracy_section_empty_when_no_records(self) -> None:
+        """No projection_log + no pack samples → the 'Projection
+        accuracy' section renders the friendly empty-state message."""
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertIn("## Projection accuracy", md)
+        self.assertIn("No validatable projections for this day yet", md)
+
+    def test_projection_accuracy_section_renders_records_after_sunrise(self) -> None:
+        """If projections targeting `day` sunrise have matching pack
+        samples, the section renders a markdown table with one row
+        per validated projection. Uses dates well in the past so the
+        sunrise target is unambiguously a past time relative to test
+        run-time (compute_accuracy_records uses datetime.now() by
+        default to gate 'is the target valid yet')."""
+        # Projection MADE on 2025-01-09 (year ago), targeting that
+        # day's sunrise time. Definitely past relative to test now.
+        self._write_proj([{
+            "ts": "2025-01-09T22:14:46",
+            "start_soc_pct": "84.0",
+            "projected_sunrise_soc": "70.0",
+            "projected_tomorrow_evening_soc": "90.0",
+            "projected_low_soc": "69.0",
+            "solar_model_coefficient": "8.15",
+            "today_irradiance_kwh_m2": "5.62",
+            "sunrise_iso": "2025-01-10T08:00",
+            "source": "advisor-invocation",
+        }])
+        # Pack sample at the sunrise time with actual SOC = 72 % (avg
+        # of 73 and 71)
+        self._write_pack(
+            self._pack_run(datetime(2025, 1, 10, 8, 0), 6, -5.0,
+                           soc_a=73, soc_b=71))
+        md = end_of_day_report_mod.build_report(date(2025, 1, 10))
+        # Header + summary line
+        self.assertIn("## Projection accuracy", md)
+        self.assertIn("targeting **2025-01-10 sunrise**", md)
+        # Table rendered with row for the projection
+        self.assertIn("| made at | projected | actual | error (pp) |", md)
+        self.assertIn("2025-01-09T22:14", md)        # made-at timestamp
+        self.assertIn("70.0", md)                     # projected
+        self.assertIn("72.0", md)                     # actual
+        # Error = 72.0 - 70.0 = +2.0
+        self.assertIn("+2.0", md)
 
 
 if __name__ == "__main__":
