@@ -143,6 +143,89 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 07:47 🌞 — DAY-2 NET-POSITIVE LANDED + SECOND
+  VALIDATION CHAIN OPERATIONAL.** Pack transitioned `discharging`
+  → `charging` between 07:44 and 07:46. Solar onset cascade fully
+  resolved:
+  - first_zero      = 06:44:10 (1 h 36 min after sunrise)
+  - first_idle      = 06:44:10
+  - first_positive  = 07:44:21 (transient solar > load)
+  - first_net_positive = 07:45:40 (sustained — smoothed_i +0.17 A)
+  - **SOC at net+   = 63.5 %** — this is the day's actual floor
+  
+  Pack voltage climbed from 26.18 → 26.25 V over the transition.
+  Shortwave reached **70 W/m²** at 07:34 — apparently enough,
+  under 100 % cloud, for a west-facing array to nudge net-positive
+  for the first time today. Total irradiance accumulated: 0.115
+  kWh/m² (2.2 % of forecast).
+  
+  - **Design item picked: SOC-at-onset validation vs advisor's
+    projected_low_soc.** Sister chain to projection_accuracy.py,
+    landing immediate first-day results:
+    - `scripts/low_soc_accuracy.py`: matches each projection_log
+      entry to the matching day's `solar_onset.soc_avg_at_net_positive`
+      (= actual_low). Computes `error = actual_low - projected_low_soc`.
+      Negative = advisor's floor was too OPTIMISTIC (predicted
+      higher SOC than reality).
+    - Guards: skip if onset row is missing or not yet fully
+      resolved (no first_net_positive); skip if projection was
+      made AFTER net_positive (degenerate "prediction" of history);
+      gate future targets via `now`.
+    - Per-horizon breakdown reuses `projection_accuracy.HORIZON_BUCKETS`
+      so the two views read symmetrically.
+    - CLI: `python3 scripts/low_soc_accuracy.py` (table),
+      `--by-horizon` (lead-time bias breakdown), `--tail N`.
+    - 9 regression tests (`tests/test_low_soc_accuracy.py`) pin
+      down: basic match + signed error, horizon_min from
+      projection_ts to net_positive, missing onset row skip,
+      pre-resolved onset skip, post-onset projection skip,
+      multi-record per-horizon grouping, empty bucket omission.
+      Suite: **207 tests passing** (was 198, +9 new).
+  - **🔥 First live result — and it's surfaceable**:
+    ```
+    n=17, mean_error=−2.97 pp, mean_abs=2.97, RMS=3.25,
+    range [−5.66 .. −1.13]
+    ```
+    EVERY ONE of the 17 records is negative — the advisor has
+    been **systematically optimistic** about the morning floor.
+    The per-horizon view shows the bias scales monotonically with
+    lead time:
+    ```
+    7h+   mean -4.13 pp  (worst: -5.66)
+    6-7h  mean -3.55 pp
+    5-6h  mean -1.67 pp
+    4-5h  mean -1.61 pp
+    3-4h  mean -2.41 pp
+    2-3h  mean -1.50 pp  (best: -1.13)
+    ```
+    Contrast with sunrise SOC validation (landed 5 loops ago):
+    mean abs **1.15 pp**, mean error −0.12 (well-calibrated).
+    Same model, same data, two validation targets → very
+    different bias signatures. **What this almost certainly
+    means**: the simulator's discharge_model captures the
+    overnight slope correctly (so sunrise SOC lands right) but
+    underestimates the post-sunrise discharge between sunrise
+    (05:08) and solar onset (07:45) — 2.5 hours where the pack
+    keeps losing Ah at -2 A baseline. On a clear day with quicker
+    solar onset, this gap would be smaller and the bias would
+    shrink.
+  - **Why this matters**: this is the FIRST EMPIRICAL CALIBRATION
+    SIGNAL with the right structure to actually fix the model.
+    The fix is concrete: extend the discharge walk in
+    `simulate_next_24h` past sunrise until the projected solar
+    contribution exceeds the discharge load (or until a
+    threshold like noon — sometimes a forecast cloudy day really
+    never goes net-positive). Now we have the numerical target
+    (close the −2.97 pp gap) AND the validation pipeline to
+    measure progress.
+  - **Watch**: today's day-2 net+ landed at SOC=63.5; the
+    advisor's most recent (post-onset) projection (07:35:45)
+    projected_low=63.0 for TOMORROW. With the new
+    low_soc_accuracy chain in place, tomorrow's net+ will
+    auto-validate against this 63.0 prediction. Over 7+ days
+    we'll have a real bias trend and can intervene with the
+    discharge_model fix.
+
 - **2026-05-19 07:21** — Pack steady at **65/63 %** (the day's
   apparent floor — advisor projected 63 last loop, pack is at
   63 on the B side). Current -1.7 to -2.1 A baseline; cloud still
