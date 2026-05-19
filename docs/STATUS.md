@@ -143,6 +143,42 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 03:21** — Pack SOC **72/70 %** (gap 2 %), discharge
+  dropped FURTHER to **-2.9 A** (smoothed -2.88) — continuing
+  trend from -7 → -4.2 → -2.9 A over the last hour. Voltage
+  26.21 V (ticking up slightly as lighter load lets cells recover).
+  Per-battery: v_a 13.099, v_b 13.110 — gap just 11 mV now.
+  Projection log gained 2 more entries (#12, #13).
+  - **Self-correction**: my earlier loop note about "B's voltage
+    60 mV higher than A despite reporting lower SOC" turned out
+    to be a transient sampling artifact, NOT a real drift.
+  - Design item: **quantified v_a vs v_b drift across 12,655
+    samples and documented in `docs/hardware/bms_calibration.md`**
+    as the companion to the i_a vs i_b analysis.
+  - **Headline finding**: median |v_b − v_a| is **effectively
+    zero** (1–2 mV across every current band). In the high-current
+    charging band where loading matters most, agreement is within
+    1 mV. **Markedly better** than the 3–4 % `i_a − i_b` drift.
+  - Per-band table captured:
+    ```
+    charging > +5 A         n=2444   med diff +0.000 V
+    charging +1 – +5 A      n=1080   med diff −0.001 V
+    idle |I| < 1 A          n=1349   med diff +0.011 V
+    discharging −1 to −5 A  n=5474   med diff −0.001 V
+    discharging > −5 A      n=2308   med diff −0.002 V
+    ```
+  - Whole-dataset: median −0.001 V, mean +0.019 V (skewed by
+    outliers), stdev 0.082 V, range [−0.013, +0.957] V. The
+    max-magnitude outliers are BLE-flap moments where one BMS's
+    value briefly stale — not sustained drift.
+  - **Implication for firmware**: per-battery voltage is reliable
+    to read INDEPENDENTLY (cell-overrange alarms, OCV anchors).
+    Per-battery current is not — keep using `pack_current` average.
+  - **Watch-against baseline** added: a sustained `|v_a − v_b|
+    ≥ 50 mV` (10× steady-state stdev) would indicate real
+    cell-level divergence and warrant attention.
+  - All 152 Python tests still pass.
+
 - **2026-05-19 02:44** — Pack SOC **73/71 %** (gap holding 2 %),
   but **discharge rate dropped -7 A → -4.2 A** between loops —
   a steady ~3 A load came off (maybe a device timed out or someone

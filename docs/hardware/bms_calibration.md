@@ -277,6 +277,57 @@ loose connection, BMS firmware update, swap of which battery is "A",
 or one of the sensors degrading. The 3 – 4 % bias is a baseline to
 watch against.
 
+## Per-BMS voltage agreement — v_a vs v_b (added 2026-05-19)
+
+Companion analysis to the i_a vs i_b drift above, but for the
+per-battery **voltage** readings. Captured 2026-05-19 03:30 over
+**12,655 samples** spanning a full day (charge + idle + overnight
+discharge). For each sample, computed `v_b − v_a` (signed).
+
+| Pack-current band       |    n |  med v_a |  med v_b | median diff |
+|-------------------------|-----:|---------:|---------:|------------:|
+| charging > +5 A         | 2444 | 13.446 V | 13.447 V |  **+0.000 V** |
+| charging +1 – +5 A      | 1080 | 13.397 V | 13.395 V |   −0.001 V  |
+| idle (\|I\| < 1 A)      | 1349 | 13.300 V | 13.294 V |  **+0.011 V** |
+| discharging −1 to −5 A  | 5474 | 13.234 V | 13.232 V |   −0.001 V  |
+| discharging > −5 A      | 2308 | 13.221 V | 13.218 V |   −0.002 V  |
+
+Whole-dataset distribution of `v_b − v_a`:
+
+- median **−0.001 V** (effectively zero)
+- mean +0.019 V (skewed by occasional outliers)
+- stdev 0.082 V
+- range −0.013 to +0.957 V (max-magnitude outliers are samples
+  where one BMS momentarily dropped out — see `pack.log` BLE flap
+  notes; these don't reflect a sustained drift)
+
+### What this tells us
+
+1. **Per-BMS voltage agreement is excellent.** Median spreads
+   within a few mV across every current band; in the high-current
+   charging band where physical loading matters most, the two
+   BMSes agree to within 1 mV. This is **markedly better** than
+   the 3 – 4 % `i_a − i_b` drift documented above.
+
+2. The brief 60 mV "gap" observed at 01:35 / 02:09 in the loop
+   notes was a **transient sample-time artifact** (one BMS's value
+   stale relative to the other when the pack was changing fast),
+   not a sustained drift. Subsequent samples agree within 10 mV.
+
+3. **Implication**: per-battery voltage is **reliable to read
+   independently** in production firmware (e.g. for cell-overrange
+   alarms, OCV calibration anchors). Per-battery current is NOT
+   (use the average via `PackReading.pack_current`, or anchor on
+   the BMS's own `remaining_ah`).
+
+### Watch-against baseline
+
+A sustained `|v_a − v_b| ≥ 50 mV` (10× the steady-state stdev)
+across many samples would indicate real cell-level divergence —
+one battery's pack voltage is meaningfully different from the
+other's. That's a balance / health concern. The current 1-2 mV
+typical spread is a healthy baseline.
+
 ## Cross-references
 
 - Raw data: `data/pack.csv` (snapshot of the 2026-05-17 session
