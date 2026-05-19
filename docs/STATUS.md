@@ -143,6 +143,53 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 06:12** — Sunrise +64 min. Pack SOC **67/65 %** (gap
+  steady at 2 %), current **-1.7 to -1.8 A** — gentlest discharge
+  yet, hint that some morning ambient light may be barely offsetting
+  baseline load. No new weather row since 06:04. Accumulated
+  irradiance up to **0.016 kWh/m²** (0.3 % of the 5.11 forecast).
+  Advisor still firing on `medium` (lifted from `low`), 0.89 pp
+  track record. Day-report regenerated.
+  - **Design item picked: surface horizon-breakdown on day-report.**
+    The dashboard's `/accuracy` page got the per-lead-time-horizon
+    breakdown two loops ago; the day-report had only the per-record
+    table. Day-reports are the long-term archive — without the
+    horizon view, historical days would lose the bias signal we
+    just learned to read. Fix:
+    - `scripts/end_of_day_report.py`: when the "Projection
+      accuracy" section has records, append a new
+      `### By lead-time horizon` subsection rendered as a markdown
+      table (`horizon | n | mean | abs | rms | range`). Uses
+      `summarize_by_horizon()` on the same day-filtered records.
+      Subsection is skipped on empty-state days.
+    - The freshly regenerated `data/reports/2026-05-19.md` now
+      shows the 17-record table AND the 7-bucket horizon view
+      side-by-side. Once this day's report is archived (it's
+      already on disk), the horizon signal stays preserved
+      forever — even when the rolling-window dashboard moves on
+      to tomorrow's data.
+    - 2 regression tests added
+      (`test_projection_accuracy_section_includes_by_horizon_table`,
+      `test_projection_accuracy_horizon_section_skipped_when_empty`).
+      Suite: **169 tests passing** (167 + 2 new). Pre-existing
+      aiobmsble env error unchanged.
+  - **Why this matters**: closes the loop on the
+    projection_accuracy → horizon-breakdown → archive pipeline.
+    Today's day-report is now a complete snapshot of the
+    advisor's validation chain: per-record table (when each
+    projection was made + what it predicted vs actuals) AND
+    per-horizon breakdown (the bias pattern). Historical reports
+    become the dataset for analyzing model behavior over time.
+  - **Watch**: tonight's overnight projections will keep
+    accumulating in `projection_log.csv` targeting tomorrow's
+    sunrise (2026-05-20T05:07). The next sunrise validation will
+    add a fresh set of 15-20 records to the accuracy chain —
+    crucial because all 17 current records are from a single
+    overnight, so the per-horizon buckets aren't yet statistically
+    independent. A second day's worth of records will tell us
+    whether the optimistic-far / pessimistic-close pattern is a
+    real characteristic or just an artifact of one cloudy night.
+
 - **2026-05-19 06:05** — Sunrise +57 min. Pack SOC **67/65 %**
   (A is drifting down to match B, both at gentle baseline);
   current **-2.0 to -2.2 A** (lighter than overnight average; some

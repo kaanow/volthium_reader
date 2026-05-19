@@ -279,6 +279,32 @@ def build_report(day: date) -> str:
             lines.append(f"| {short_made} | {r.projected_sunrise_soc:.1f} | "
                          f"{r.actual_sunrise_soc:.1f} | "
                          f"{sign}{abs(r.error_pct_points):.1f} |")
+
+        # By-lead-time-horizon breakdown — the same view the dashboard
+        # /accuracy page shows. Day-reports are the long-term archive
+        # so historical days carry this signal even after data
+        # accumulates and the live dashboard rolls past. Skipped when
+        # no records (handled by the outer `if records`).
+        by_h = projection_accuracy_mod.summarize_by_horizon(records)
+        if by_h:
+            lines.append("")
+            lines.append("### By lead-time horizon")
+            lines.append("")
+            lines.append("How error varies with how far ahead each projection "
+                         "was made. A consistent shape (e.g. optimistic far "
+                         "out, pessimistic close in) is the strongest signal "
+                         "of model-fit bias to track over time.")
+            lines.append("")
+            lines.append("| horizon | n | mean (pp) | abs (pp) | rms (pp) | range (pp) |")
+            lines.append("|---------|--:|----------:|---------:|---------:|-----------:|")
+            for b in by_h:
+                lines.append(
+                    f"| {b['bucket']} | {b['n']} | "
+                    f"{b['mean_error']:+.2f} | "
+                    f"{b['mean_abs_error']:.2f} | "
+                    f"{b['rms_error']:.2f} | "
+                    f"[{b['min_error']:+.2f}..{b['max_error']:+.2f}] |"
+                )
     else:
         lines.append("No validatable projections for this day yet — "
                      "the first record lands at the next sunrise after the "

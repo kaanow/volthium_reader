@@ -397,6 +397,62 @@ class TestBuildReport(unittest.TestCase):
         # Error = 72.0 - 70.0 = +2.0
         self.assertIn("+2.0", md)
 
+    def test_projection_accuracy_section_includes_by_horizon_table(self) -> None:
+        """When records exist, the day-report should ALSO render the
+        per-lead-time-horizon breakdown beneath the per-record table.
+        This mirrors what /accuracy on the dashboard shows so the
+        archived markdown reports carry the same signal forward."""
+        # Two projections at different horizons. Sunrise at 08:00,
+        # one projection made 7h ahead (01:00) and one 30 min ahead
+        # (07:30) — they land in different horizon buckets.
+        self._write_proj([
+            {
+                "ts": "2025-01-10T01:30:00",   # 6.5h ahead → 6-7h bucket
+                "start_soc_pct": "85.0",
+                "projected_sunrise_soc": "70.0",
+                "projected_tomorrow_evening_soc": "88.0",
+                "projected_low_soc": "68.0",
+                "solar_model_coefficient": "8.15",
+                "today_irradiance_kwh_m2": "5.62",
+                "sunrise_iso": "2025-01-10T08:00",
+                "source": "advisor-invocation",
+            },
+            {
+                "ts": "2025-01-10T07:30:00",   # 30 min ahead → < 1h
+                "start_soc_pct": "72.0",
+                "projected_sunrise_soc": "71.0",
+                "projected_tomorrow_evening_soc": "88.0",
+                "projected_low_soc": "70.0",
+                "solar_model_coefficient": "8.15",
+                "today_irradiance_kwh_m2": "5.62",
+                "sunrise_iso": "2025-01-10T08:00",
+                "source": "advisor-invocation",
+            },
+        ])
+        self._write_pack(
+            self._pack_run(datetime(2025, 1, 10, 8, 0), 6, -5.0,
+                           soc_a=73, soc_b=71))
+        md = end_of_day_report_mod.build_report(date(2025, 1, 10))
+
+        # The horizon subsection header is present
+        self.assertIn("### By lead-time horizon", md)
+        # The table header
+        self.assertIn(
+            "| horizon | n | mean (pp) | abs (pp) | rms (pp) | range (pp) |",
+            md,
+        )
+        # Both horizon buckets that contain a record should appear
+        # as rows. 6-7h has the 01:00 projection (proj 70, actual 72,
+        # err +2); < 1h has the 07:30 (proj 71, actual 72, err +1).
+        self.assertIn("| 6-7h |", md)
+        self.assertIn("| < 1h |", md)
+
+    def test_projection_accuracy_horizon_section_skipped_when_empty(self) -> None:
+        """Empty-state day shouldn't show a partial horizon table —
+        the friendly 'no validatable projections' message is enough."""
+        md = end_of_day_report_mod.build_report(date(2026, 5, 19))
+        self.assertNotIn("### By lead-time horizon", md)
+
 
 if __name__ == "__main__":
     unittest.main()
