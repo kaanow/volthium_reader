@@ -143,6 +143,65 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 06:05** — Sunrise +57 min. Pack SOC **67/65 %**
+  (A is drifting down to match B, both at gentle baseline);
+  current **-2.0 to -2.2 A** (lighter than overnight average; some
+  load apparently came off). Weather: cloud still **99 %**, but
+  **shortwave 33 W/m²** (up from 7 last loop) — sun is starting
+  to penetrate. `today_harvest.py` still reports `solar Ah +0.0`
+  with 0.012 kWh/m² accumulated (0.2 % of the 5.11 kWh/m² forecast).
+  Pack still net-discharging — the West-facing array hasn't crossed
+  net-positive yet. **Projection log now 18 entries**; the newest
+  (05:52) projects sunrise SOC 69.4 % from start_soc=65 — these
+  rows target **tomorrow's** sunrise (2026-05-20), the next round
+  of validations. Day-report regenerated.
+  - **Design item picked: accuracy-aware confidence.** The advisor
+    has been reporting `low` confidence as a stub because we only
+    have 1 day of solar-fit data. But the projection_accuracy
+    history shows mean |error| = **0.89 pp** over the last 10
+    records — empirically excellent. Wired up:
+    - `scripts/generator_advisor.py`: new
+      `lift_confidence_by_accuracy(base, recent_abs, recent_n)`
+      pure function. Rule: if recent_n ≥ `ACCURACY_LIFT_MIN_RECORDS`
+      (5) and `recent_abs < ACCURACY_LIFT_THRESHOLD_PP` (2.0 pp),
+      lift one tier (low → medium → high). Caps at high.
+    - The advisor pulls `recent_abs_error_pp` from the last 10
+      `projection_accuracy` records (`ACCURACY_LIFT_WINDOW`) and
+      passes it through `lift_confidence_by_accuracy`. Surfaces
+      both `confidence_base` (pre-lift) and
+      `confidence_lifted_by_accuracy` (bool) in `inputs`.
+    - **First live result**: confidence lifted from **`low` →
+      `medium`** because recent_abs_error_pp = 0.89 over n=10
+      records. The CLI now prints `lifted from 'low' — last 10
+      projections within ±0.89 pp of actual` instead of the
+      "still a stub" disclaimer.
+    - Dashboard advisor panel: new green-bordered `conf-lift`
+      badge surfaces just below the existing "last sunrise
+      validation" chip. Shows `low → medium · last 10 within
+      ±0.89 pp`. Tooltip explains the rule.
+    - 9 regression tests in `tests/test_advisor_confidence_lift.py`
+      pin down: low→medium tight, medium→high tight, no further
+      lift past high, no-lift below min_records, no-lift at or
+      above threshold (strict <), unrecognized base passes
+      through, configurable threshold/min_records knobs work,
+      default constants anchored. Suite: **167 tests passing**
+      (158 + 9 new; pre-existing aiobmsble env error unchanged).
+  - **Why this matters**: connects the new validation chain
+    (projection_log → projection_accuracy) to the headline number
+    the user actually sees (confidence pill on advisor panel).
+    Empirically-grounded confidence reads more honestly than
+    sample-count-based. As days accumulate, the lift will
+    eventually shift this to `medium → high` once the SolarModel
+    has 3+ days of fit data AND the recent accuracy stays tight.
+  - **Watch**: tonight's overnight projections will validate
+    against tomorrow's sunrise. If the per-horizon bias pattern
+    we observed yesterday (optimistic far out, pessimistic close
+    in) repeats, it's a genuine model characteristic. If it
+    flips, something shifted in the SolarModel coefficient
+    overnight. Either way, the new `--by-horizon` view + the
+    confidence-lift readout will make the next validation richer
+    to interpret.
+
 - **2026-05-19 05:38** — Post-sunrise (30 min in), still waiting on
   day-2 solar onset. Pack SOC **68/65 %** (B just dropped 1 pp into
   fresh overnight-low territory), discharging at -2.5/-2.6 A

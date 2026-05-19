@@ -521,6 +521,21 @@ INDEX_HTML = """<!doctype html>
   .advisor .calib-footer { color: var(--dim); font-size: 10px; font-style: italic;
                            margin-top: 4px; padding-left: 10px;
                            font-variant-numeric: tabular-nums; }
+  /* Confidence-lift badge: shown when the advisor's recent
+     projection track record was tight enough to lift the
+     confidence tier one notch. */
+  .advisor .conf-lift { display: flex; gap: 8px; align-items: baseline;
+                        flex-wrap: wrap; margin-top: 6px;
+                        padding: 6px 10px; border-radius: 4px;
+                        background: rgba(63, 185, 80, 0.08);
+                        border-left: 3px solid var(--grn);
+                        font-size: 12px; cursor: help; }
+  .advisor .conf-lift .lbl { text-transform: uppercase; letter-spacing: .1em;
+                             font-size: 10px; color: var(--dim); margin: 0; }
+  .advisor .conf-lift .v { font-variant-numeric: tabular-nums; color: var(--grn);
+                           font-weight: 500; }
+  .advisor .conf-lift .drift { margin-left: auto; color: var(--dim);
+                               font-size: 11px; font-variant-numeric: tabular-nums; }
   .spark { width: 100%; height: 80px; }
   .footer { color: var(--dim); font-size: 11px; margin-top: 14px; }
   .num { font-variant-numeric: tabular-nums; }
@@ -735,6 +750,33 @@ async function tick() {
             ? `<div class="conf-explainer">${confExplainer}</div>`
             : "";
 
+        // Accuracy-aware confidence badge: when the advisor's recent
+        // projection track record is tight enough to lift the tier, the
+        // user should see WHY. Surfaces (base → lifted) and the
+        // empirical evidence behind it.
+        const insTmp = rec.inputs || {};
+        const liftedByAccuracy = insTmp.confidence_lifted_by_accuracy === true;
+        let confLiftBadge = "";
+        if (liftedByAccuracy) {
+            const base = insTmp.confidence_base || "low";
+            const ae   = insTmp.recent_abs_error_pp;
+            const n    = insTmp.recent_accuracy_n;
+            const liftTip = (
+              "The advisor's recent projection track record is tight enough "
+              + "to lift the confidence tier one notch. Base is the SolarModel's "
+              + "data-fit confidence (driven by how many full days of harvest "
+              + "we have). The lift comes from observed agreement between "
+              + "projected and actual sunrise SOC — see /accuracy for the "
+              + "full history."
+            );
+            confLiftBadge = `
+              <div class="conf-lift" title="${liftTip}">
+                <span class="lbl">confidence lifted</span>
+                <span class="v">${base} → ${rec.confidence}</span>
+                <span class="drift">last ${n} within ±${ae.toFixed(2)} pp</span>
+              </div>`;
+        }
+
         // Model-vs-live calibration chip: show what the SolarModel uses
         // vs what today's live measurement is producing. Green when they
         // agree (drift < 10 %), amber 10-20 %, red > 20 %.  Hidden until
@@ -824,6 +866,7 @@ async function tick() {
               ${whenLine}
               ${calibLine}
               ${lastAccuracyLine}
+              ${confLiftBadge}
               ${confLine}
             </div>`;
     } else {

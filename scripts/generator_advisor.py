@@ -60,6 +60,53 @@ _TOMORROW_KWH_CACHE = {"computed_at": 0.0, "value": None}
 PACK_CAPACITY_AH_PER_BATTERY = 215.0
 GENERATOR_RATE_AH_PER_HOUR   = 55.0     # observed ~+55 A average → 55 Ah/h
 
+# Accuracy-aware confidence:
+#   If the last `ACCURACY_LIFT_WINDOW` validated projection_accuracy
+#   records have mean |error| below `ACCURACY_LIFT_THRESHOLD_PP`, lift
+#   the overall confidence one tier (low → medium, medium → high).
+#   `ACCURACY_LIFT_MIN_RECORDS` guards against lifting on a tiny sample.
+#
+# Threshold of 2.0 pp is the bar requested in the design candidates
+# list: "accuracy-aware confidence (lift confidence one tier if recent
+# abs error < 2 pp)". Window of 10 keeps the signal recent — old
+# records from before a SolarModel re-fit shouldn't dominate.
+ACCURACY_LIFT_WINDOW          = 10
+ACCURACY_LIFT_THRESHOLD_PP    = 2.0
+ACCURACY_LIFT_MIN_RECORDS     = 5
+
+
+# Confidence tier ordering used by the accuracy-aware lift logic.
+_CONFIDENCE_TIERS = ["low", "medium", "high"]
+
+
+def lift_confidence_by_accuracy(
+    base: str,
+    recent_abs_error_pp: Optional[float],
+    recent_n: int,
+    threshold_pp: float = ACCURACY_LIFT_THRESHOLD_PP,
+    min_records: int = ACCURACY_LIFT_MIN_RECORDS,
+) -> tuple[str, bool]:
+    """Return (lifted_confidence, was_lifted).
+
+    Lifts `base` one tier (max "high") when the recent track record
+    has at least `min_records` validated entries AND mean |error|
+    below `threshold_pp`. Otherwise returns `base` unchanged.
+
+    Pure function so it can be unit-tested without going through the
+    full advisor invocation.
+    """
+    if recent_abs_error_pp is None or recent_n < min_records:
+        return base, False
+    if recent_abs_error_pp >= threshold_pp:
+        return base, False
+    try:
+        idx = _CONFIDENCE_TIERS.index(base)
+    except ValueError:
+        return base, False
+    if idx >= len(_CONFIDENCE_TIERS) - 1:
+        return base, False    # already at "high"
+    return _CONFIDENCE_TIERS[idx + 1], True
+
 
 def load_solar_model() -> SolarModel:
     """Try to fit the solar model from data/daily_summary.csv; fall
@@ -378,6 +425,12 @@ def main() -> int:
     last_accuracy_actual: Optional[float] = None
     last_accuracy_error_pp: Optional[float] = None
     last_accuracy_target_iso: Optional[str] = None
+    # Accuracy-aware confidence: if recent validated projections have
+    # been consistently within `ACCURACY_LIFT_THRESHOLD_PP` of actual,
+    # lift the advisor's confidence one tier. Computed below; surfaced
+    # in inputs so the dashboard can show "lifted by accuracy" badge.
+    recent_abs_error_pp: Optional[float] = None
+    recent_accuracy_n: int = 0
     try:
         _all_proj = projection_log_mod.read_log()
         _pack_samples = projection_accuracy_mod._load_pack_samples(args.pack_csv)
@@ -389,6 +442,15 @@ def main() -> int:
             last_accuracy_actual = _r.actual_sunrise_soc
             last_accuracy_error_pp = _r.error_pct_points
             last_accuracy_target_iso = _r.sunrise_iso
+            # Window the last N records and compute mean |error|. We
+            # use the most recent ones because the model evolves: an
+            # old bad record before yesterday's coefficient fit shouldn't
+            # drag down today's confidence.
+            _recent = _records[-ACCURACY_LIFT_WINDOW:]
+            recent_accuracy_n = len(_recent)
+            recent_abs_error_pp = (
+                sum(abs(r.error_pct_points) for r in _recent) / recent_accuracy_n
+            )
     except Exception:
         pass
 
@@ -474,11 +536,20 @@ def main() -> int:
             f"forecast doesn't promise a strong harvest."
         )
 
-    # The solar model's confidence is the advisor's overall confidence
-    # ceiling. As days accumulate it shifts low → medium → high.
+    # The solar model's confidence is the advisor's base confidence
+    # tier. As days accumulate it shifts low → medium → high.
     # discharge_model confidence isn't tracked yet; for now the advisor
     # inherits the solar model's label.
-    overall_confidence = solar.confidence
+    confidence_base = solar.confidence
+
+    # Accuracy-aware lift: if the recent projection_accuracy track
+    # record looks tight, lift one tier. The base is preserved in
+    # `inputs` so the dashboard can show both ("low → medium, lifted
+    # by accuracy"). See lift_confidence_by_accuracy() above for the
+    # rule.
+    overall_confidence, confidence_lifted = lift_confidence_by_accuracy(
+        confidence_base, recent_abs_error_pp, recent_accuracy_n,
+    )
 
     # === Decide ===
     if projected_low >= args.comfort_floor:
@@ -515,6 +586,10 @@ def main() -> int:
                 "last_accuracy_actual": last_accuracy_actual,
                 "last_accuracy_error_pp": last_accuracy_error_pp,
                 "last_accuracy_target_iso": last_accuracy_target_iso,
+                "confidence_base": confidence_base,
+                "confidence_lifted_by_accuracy": confidence_lifted,
+                "recent_abs_error_pp": recent_abs_error_pp,
+                "recent_accuracy_n": recent_accuracy_n,
             },
             morning_watch=morning_watch,
             morning_watch_reason=morning_watch_reason,
@@ -559,6 +634,10 @@ def main() -> int:
                 "last_accuracy_actual": last_accuracy_actual,
                 "last_accuracy_error_pp": last_accuracy_error_pp,
                 "last_accuracy_target_iso": last_accuracy_target_iso,
+                "confidence_base": confidence_base,
+                "confidence_lifted_by_accuracy": confidence_lifted,
+                "recent_abs_error_pp": recent_abs_error_pp,
+                "recent_accuracy_n": recent_accuracy_n,
             },
             morning_watch=False,    # subsumed by the hard recommendation
         )
@@ -592,8 +671,15 @@ def main() -> int:
     print(f"    tomorrow evening SOC:      {rec.projected_tomorrow_evening_soc:.1f} %")
     print(f"    next-24h low SOC:          {rec.projected_low_soc:.1f} %")
     print(f"\n  confidence: {rec.confidence}")
-    print(f"    (only ~1 day of data; solar model is still a stub — see")
-    print(f"    docs/generator_advisor/README.md for the path to higher confidence)")
+    if rec.inputs.get("confidence_lifted_by_accuracy"):
+        base = rec.inputs.get("confidence_base")
+        ae = rec.inputs.get("recent_abs_error_pp")
+        n = rec.inputs.get("recent_accuracy_n")
+        print(f"    lifted from '{base}' — last {n} projections within "
+              f"±{ae:.2f} pp of actual (< {ACCURACY_LIFT_THRESHOLD_PP:.1f} pp threshold)")
+    else:
+        print(f"    (only ~1 day of data; solar model is still a stub — see")
+        print(f"    docs/generator_advisor/README.md for the path to higher confidence)")
     return 0
 
 
