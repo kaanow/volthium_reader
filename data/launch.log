@@ -772,3 +772,11 @@ LAN share URL: http://192.168.1.76:8421/
 2026-05-18 22:38:27,539 INFO n=9660  26.47V  -4.30A  -114W  SOC 83-84%  state=discharging  remain≈2021m
 2026-05-18 22:43:28,483 INFO n=9690  26.47V  -4.40A  -116W  SOC 83-84%  state=discharging  remain≈1995m
 2026-05-18 22:48:35,668 INFO n=9720  26.47V  -4.70A  -124W  SOC 83-84%  state=discharging  remain≈1940m
+2026-05-18 22:50:44,180 WARNING read #9731 failed (1 in a row): RuntimeError: battery 9058AE7F-F98B-D0F6-237D-6769894DE118 not found in scan
+2026-05-18 22:50:47,434 INFO BLE recovered after 1 errors
+2026-05-18 22:54:10,420 INFO n=9750  26.43V  -7.10A  -188W  SOC 82-83%  state=discharging  remain≈1189m
+2026-05-18 22:59:23,789 INFO n=9780  26.42V  -6.90A  -182W  SOC 82-83%  state=discharging  remain≈1226m
+2026-05-18 23:04:32,203 INFO n=9810  26.46V  -4.50A  -119W  SOC 82-83%  state=discharging  remain≈1937m
+2026-05-18 23:09:37,257 INFO n=9840  26.46V  -4.60A  -122W  SOC 82-83%  state=discharging  remain≈1992m
+2026-05-18 23:14:39,836 INFO n=9870  26.46V  -4.50A  -119W  SOC 81-83%  state=discharging  remain≈1913m
+2026-05-18 23:19:46,777 INFO n=9900  26.46V  -4.40A  -116W  SOC 81-82%  state=discharging  remain≈1954m

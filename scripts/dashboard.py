@@ -830,7 +830,8 @@ async function tick() {
             <div class="stat"><div class="lbl">${proj.rate_label}</div>
               <div class="v">&nbsp;</div></div>
           </div>
-          <div class="footer">${weatherBits.join(" · ")}</div>
+          <div class="footer">${weatherBits.join(" · ")}
+            · <a href="/projections" target="_blank" class="report-link">history ↗</a></div>
         </div>`;
     } else {
       projEl.innerHTML = "";
@@ -1127,6 +1128,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._serve_report_index()
         if self.path == "/calibration" or self.path == "/calibration/":
             return self._serve_calibration_log()
+        if self.path == "/projections" or self.path == "/projections/":
+            return self._serve_projection_log()
         # /report/YYYY-MM-DD — historical day-report
         if self.path.startswith("/report/"):
             date_str = self.path[len("/report/"):].rstrip("/")
@@ -1341,6 +1344,91 @@ class Handler(BaseHTTPRequestHandler):
         )
         return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
 
+    def _serve_projection_log(self):
+        """Render data/projection_log.csv as a dark-themed HTML table.
+        Each row is an advisor invocation's projection snapshot —
+        start SOC, predicted sunrise SOC, predicted tomorrow-evening
+        SOC, predicted low SOC, the SolarModel coefficient in effect.
+
+        Builds the historical record for the eventual 'nightly diff'
+        feature (predicted sunrise SOC vs actual). Newest-first so
+        the freshest data is at the top of the page."""
+        import projection_log as proj_mod
+        try:
+            entries = proj_mod.read_log()
+        except Exception as e:
+            return self._send(HTTPStatus.OK, "text/plain; charset=utf-8",
+                              f"could not read projection log: {e}".encode())
+
+        entries = list(reversed(entries))  # newest first
+
+        if entries:
+            def _row(e):
+                kwh = (f"{e.today_irradiance_kwh_m2:.2f}"
+                       if e.today_irradiance_kwh_m2 is not None else "—")
+                return (
+                    "<tr>"
+                    f"<td>{html_escape(e.ts)}</td>"
+                    f"<td style='text-align:right'>{e.start_soc_pct:.1f}</td>"
+                    f"<td style='text-align:right'>{e.projected_sunrise_soc:.1f}</td>"
+                    f"<td style='text-align:right'>{e.projected_tomorrow_evening_soc:.1f}</td>"
+                    f"<td style='text-align:right'>{e.projected_low_soc:.1f}</td>"
+                    f"<td style='text-align:right'>{e.solar_model_coefficient:.3f}</td>"
+                    f"<td style='text-align:right'>{kwh}</td>"
+                    f"<td>{html_escape(e.source)}</td>"
+                    "</tr>"
+                )
+            rows_html = "".join(_row(e) for e in entries)
+            table = (
+                "<table>"
+                "<thead><tr>"
+                "<th>timestamp</th>"
+                "<th style='text-align:right'>start SOC</th>"
+                "<th style='text-align:right'>→ sunrise</th>"
+                "<th style='text-align:right'>→ tom eve</th>"
+                "<th style='text-align:right'>→ low</th>"
+                "<th style='text-align:right'>coef</th>"
+                "<th style='text-align:right'>kWh/m²</th>"
+                "<th>source</th>"
+                "</tr></thead>"
+                f"<tbody>{rows_html}</tbody></table>"
+            )
+            body_lines = [table]
+        else:
+            body_lines = ["<p style='color:#8b949e;font-style:italic'>"
+                          "(no projection log entries yet — they accumulate "
+                          "as the advisor runs)"
+                          "</p>"]
+
+        intro = (
+            "<h2 style='margin-top:0'>Advisor projection log</h2>"
+            "<p style='color:#8b949e;font-size:12px'>"
+            "Each row captures a `generator_advisor` invocation's "
+            "projection of next-24-h SOC walk. Newest first. "
+            "Rate-limited to one entry per 25 min so the dashboard's "
+            "minute-rate subprocess calls don't spam the log. Use this "
+            "history to compare past predictions against subsequently-"
+            "observed reality (the 'nightly diff' is on the roadmap)."
+            "</p>"
+        )
+
+        html = (
+            "<!doctype html><meta charset=utf-8>"
+            "<meta name=viewport content='width=device-width,initial-scale=1'>"
+            "<title>Projection log</title>"
+            f"<style>{self.REPORT_PAGE_STYLE}"
+            " table{border-collapse:collapse;font-size:12px;"
+            "font-variant-numeric:tabular-nums;margin-top:10px}"
+            " th,td{padding:5px 10px;border-bottom:1px solid #21262d;text-align:left}"
+            " th{color:#8b949e;border-bottom:1px solid #30363d}"
+            "</style>"
+            "<p><a href='/'>&larr; dashboard</a> · "
+            "<a href='/calibration'>calibration log</a></p>"
+            + intro
+            + "".join(body_lines)
+        )
+        return self._send(HTTPStatus.OK, "text/html; charset=utf-8", html.encode())
+
     def _serve_calibration_log(self):
         """Render data/calibration_log.csv as a dark-themed HTML table.
         Each row captures a SolarModel coefficient change with timestamp
@@ -1409,7 +1497,8 @@ class Handler(BaseHTTPRequestHandler):
             f"<style>{self.REPORT_PAGE_STYLE}"
             " td{padding:6px 8px;vertical-align:top}"
             "</style>"
-            "<p><a href='/'>&larr; dashboard</a></p>"
+            "<p><a href='/'>&larr; dashboard</a> · "
+            "<a href='/projections'>projection log</a></p>"
             + intro
             + "".join(body_lines)
         )

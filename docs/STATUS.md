@@ -143,6 +143,44 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **23:20** — Steady evening. Pack SOC **82/81 %** (-2 % per battery
+  in 33 min, -1 %/16 min cadence holding). Discharging at -4.3 A.
+  Voltage 26.46 V. **Projection log gained entry #3** at 23:04:46
+  (perfect 25-min cadence). Three entries now showing start_soc
+  drift cleanly:
+  ```
+  22:14  start 84.0  sunrise 69.4  eve 90.3  low 69.2  coef 8.15
+  22:39  start 83.0  sunrise 69.2  eve 88.8  low 68.2  coef 8.15
+  23:04  start 82.0  sunrise 69.2  eve 87.3  low 67.3  coef 8.15
+  ```
+  Each projection slightly more conservative than the last as the
+  pack drains — the sim is correctly walking forward from the
+  freshest start_soc.
+  - No new fridge cycles since 21:47 (96 min ago — well past the
+    34-min cadence). Either the fridge isn't cycling tonight or
+    the cycles are too brief for the 15-s detector persistence.
+  - Calibration log stable at 2 entries; coef 8.149.
+  - Design item: **`/projections` page on the dashboard**, mirroring
+    the `/calibration` page from earlier loops. The projection_log
+    is becoming a real history (3 entries and growing); it deserves
+    a viewable surface.
+    - New `_serve_projection_log` GET handler reads
+      `data/projection_log.csv` via `projection_log.read_log()`,
+      renders newest-first as a dark-themed HTML table with
+      columns: timestamp, start SOC, → sunrise, → tomorrow eve,
+      → low, coef, kWh/m², source.
+    - Empty-log fallback message gracefully handles the early-day
+      case ("they accumulate as the advisor runs").
+    - Linked from the **projection panel's footer** in the main
+      dashboard: `weather bits · history ↗`. Also cross-linked
+      from `/calibration` ↔ `/projections`.
+    - The page uses the shared `REPORT_PAGE_STYLE` for consistent
+      look across `/today-report`, `/reports`, `/calibration`,
+      and now `/projections`.
+  - Closes another visibility loop: the projection_log isn't just
+    a CSV anymore — it's a navigable history page.
+  - All 142 Python tests still pass.
+
 - **22:47** — Steady. Pack SOC **84/83 %** (down 1 % from 85/84
   over 34 min). Discharging at sustained -4.6 A (smoothed -4.53 A).
   **Projection log gained entry #2** at 22:39:46 — rate-limit
