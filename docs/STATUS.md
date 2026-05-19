@@ -143,6 +143,88 @@ Re-cloning gives you the data plus the code.
 
 *(appended chronologically, newest first)*
 
+- **2026-05-19 16:01 🚨🛠 — disk-full recovery + LOAD SURGES on
+  day-report.** Last loop ENOSPC'd mid-edit (dev rig disk filled
+  to 100 %); the failed Edit didn't corrupt anything (git showed
+  only data/ files modified). The BLE logger had also stalled
+  during the disk fill — pack.csv was 27 min stale at the start
+  of this loop (now a **4th PACK GAP** event for the day),
+  uptime ticked down to 95.7 %, and one more LOAD SURGE landed
+  in the meantime (now 6 total, peak still -63.7 A). live_ratio_log
+  row #10 had managed to land at 15:32:45 just before the disk
+  filled. Picked back up by resuming the failed design item.
+  - **Design item resumed and shipped: LOAD SURGES section on
+    day-report.** Completes the surface-trio for the load-surge
+    signal:
+    1. CLI: `health.py` PACK GAPS line shows daily totals
+    2. Dashboard: amber `⚡` chip (shipped last loop)
+    3. **Day-report markdown** (this loop): `## Load surge
+       events` section with summary + per-event table
+    - `scripts/end_of_day_report.py`: new section between
+      `## BLE logger reliability` and `## Live-ratio drift`.
+      Renders either:
+      - **No surges**: "No load surges today" message
+      - **With surges**: summary line ("N events, max peak
+        -X A, total Y downtime") + markdown table
+        `event # | start | peak smoothed_i | duration` per
+        event.
+    - **Today's archive captures all 6 events** with timestamps:
+      ```
+      | 1 | 14:06:08 | -63.7 A | 2 min |    ← biggest peak
+      | 2 | 14:18:07 | -45.8 A | 2 min |
+      | 3 | 14:30:15 | -25.3 A | 40 s |
+      | 4 | 14:31:15 | -36.0 A | 4 min |    ← longest duration
+      | 5 | 15:19:36 | -35.2 A | 1 min |
+      | 6 | 15:30:37 | -47.3 A | 2 min |
+      ```
+      Events 3+4 are likely the same appliance cycling on/off
+      (40s pause between -25A and -36A); the 14:00-15:30 cluster
+      shows clear appliance behaviour.
+    - **Subtle Python scoping bug** caught + fixed: `_fmt_dur`
+      was a nested function inside the BLE-logger reliability
+      `else:` branch. When the LOAD SURGES section tried to use
+      it on a day with no BLE gaps, UnboundLocalError. Hoisted
+      `_fmt_dur` to the shared `build_report` scope above both
+      sections — same pattern as the `health_mod` scoping bug
+      from a few loops ago.
+    - 2 regression tests added:
+      `test_load_surge_section_no_surges_message` (clean-day
+      happy path),
+      `test_load_surge_section_renders_events_table` (1 event
+      with peak/duration verified). Suite: **292 tests passing**
+      (was 290, +2 new).
+  - **Why this matters**: the day-report now has THREE
+    operational-event sections — BLE logger reliability, **Load
+    surge events**, Live-ratio drift — alongside the
+    chain-validation sections (sunrise accuracy, morning-low,
+    confidence-lift, solar onset). A future operator scanning
+    today's report sees the complete daily story without
+    leaving markdown.
+  - **The disk-full incident lessons**:
+    1. data/ growth is real — the BLE logger's pack.csv had
+       grown enough to push the dev rig past 100 % over the
+       course of ~12 hours of monitoring. Next checkpoint
+       should consider periodic log rotation or upload-and-
+       prune. data/README.md already notes the growth
+       trajectory (~13 MB/day) but the cabin laptop's free
+       space was already tight before today started.
+    2. The autonomous loop correctly **detected and reported**
+       the failure (caught ENOSPC, marked task #54 pending
+       with a "BLOCKED" note, stopped without scheduling a
+       wake-up). The user's manual cleanup recovered space and
+       the loop resumed cleanly.
+    3. The staleness signal we built earlier (PACK GAPS line
+       + STALE banner) **caught the BLE logger outage
+       caused by the disk fill** automatically — the new gap
+       counts and reduced uptime% reflect the disk-full
+       incident's downstream effect on the BLE logger.
+  - **Watch**: pack data finally caught up partway through the
+    loop (STALE went from 27 min → cleared, then current samples
+    arrived). PACK GAPS will likely climb 1 more in the next
+    loop as that stretch gets logged into the gap counter. Pack
+    voltage 26.38 V is well below absorption setpoint due to
+    sustained load — full state unlikely today.
+
 - **2026-05-19 15:29 🎉 — PAST FORECAST + 5 load surges captured.**
   Pack at **SOC 77/76** (light discharge from another surge); pack
   data 4 min stale (another BLE blip). `solar_ah_so_far = 41.7 Ah`,

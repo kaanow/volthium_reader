@@ -543,6 +543,18 @@ def build_report(day: date) -> str:
                      "prior transition.)")
     lines.append("")
 
+    # ---------- BLE logger reliability + Load surge events ----------
+    # Both sections format durations the same way — share one
+    # helper at this scope so the LOAD SURGES section can reach it
+    # even when the BLE section's else-branch never defines it.
+    # (Caught 2026-05-19 while wiring up the two sections back-to-back.)
+    def _fmt_dur(s: float) -> str:
+        if s < 90:
+            return f"{int(s)} s"
+        if s < 60 * 90:
+            return f"{int(s / 60)} min"
+        return f"{s / 3600:.1f} h"
+
     # ---------- BLE logger reliability ----------
     # Per-day archive of pack.csv gaps (BLE-logger stalls). Pairs
     # with the health-snapshot PACK GAPS line at the top, but goes
@@ -572,13 +584,6 @@ def build_report(day: date) -> str:
         max_s = max(e[2] for e in events)
         plural = "" if len(events) == 1 else "s"
 
-        def _fmt_dur(s: float) -> str:
-            if s < 90:
-                return f"{int(s)} s"
-            if s < 60 * 90:
-                return f"{int(s / 60)} min"
-            return f"{s / 3600:.1f} h"
-
         # Uptime % = (span_s − total_gap_s) / span_s × 100. The CLI
         # health summary and dashboard chip both show this; including
         # it here keeps the three surfaces consistent.
@@ -607,6 +612,52 @@ def build_report(day: date) -> str:
             s_short = start_iso[11:19] if len(start_iso) >= 19 else start_iso
             e_short = end_iso[11:19] if len(end_iso) >= 19 else end_iso
             lines.append(f"| {i} | {s_short} | {e_short} | {_fmt_dur(dur)} |")
+    lines.append("")
+
+    # ---------- Load surge events ----------
+    # Per-day archive of large-discharge events (cabin appliances
+    # cycling). Pairs with the dashboard's LOAD SURGES chip and the
+    # CLI health.py LOAD SURGES line — both report the daily total;
+    # this section enumerates each event with start, peak, duration.
+    lines.append("## Load surge events")
+    lines.append("")
+    try:
+        surges = health_mod.compute_today_load_surges(
+            pack_csv=Path("data/pack.csv"),
+            day=datetime.combine(day, datetime.min.time()),
+        )
+    except Exception:
+        surges = []
+
+    if not surges:
+        lines.append("**No load surges today** — no contiguous "
+                     "stretches of `smoothed_i ≤ -20 A` lasting at "
+                     "least 30 s. The day's loads stayed within "
+                     "baseline (typically -2 to -8 A overnight, "
+                     "lighter daytime).")
+    else:
+        total_dur_s = sum(s[2] for s in surges)
+        max_peak_a = min(s[1] for s in surges)   # most-negative
+        plural = "" if len(surges) == 1 else "s"
+        lines.append(
+            f"{len(surges)} load-surge event{plural} today: "
+            f"max peak **{max_peak_a:.1f} A**, total "
+            f"**{_fmt_dur(total_dur_s)}** downtime. Each event is a "
+            f"contiguous stretch where `smoothed_i ≤ -20 A` for at "
+            f"least 30 s — typically a major appliance cycle "
+            f"(water heater, inverter spike, etc.). Sustained high "
+            f"draws can prevent the BMS from reaching state=full "
+            f"even on otherwise sunny days, since the charge "
+            f"controller backs off when voltage drops below the "
+            f"absorption setpoint."
+        )
+        lines.append("")
+        lines.append("| event # | start | peak smoothed_i | duration |")
+        lines.append("|--------:|-------|----------------:|---------:|")
+        for i, (start_iso, peak_a, dur) in enumerate(surges, start=1):
+            s_short = start_iso[11:19] if len(start_iso) >= 19 else start_iso
+            lines.append(f"| {i} | {s_short} | {peak_a:.1f} A | "
+                         f"{_fmt_dur(dur)} |")
     lines.append("")
 
     # ---------- Live-ratio drift ----------

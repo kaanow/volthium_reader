@@ -1009,6 +1009,74 @@ class TestBuildReport(unittest.TestCase):
         self.assertNotIn("| 15:00:00 |", md)
         self.assertNotIn("8.00 | 8.15 | -1.8", md)
 
+    # ---------- Load surge events section ----------
+
+    def test_load_surge_section_no_surges_message(self) -> None:
+        """A day with no load surges shows the 'No load surges today'
+        message — happy path."""
+        # Pack samples all at baseline overnight discharge (-5 A) — no
+        # surge candidates. Use today's date so the live computation
+        # path is exercised end-to-end.
+        today = datetime.now()
+        samples: list[dict] = []
+        t0 = today.replace(hour=10, minute=0, second=0, microsecond=0)
+        for i in range(20):
+            samples.append({
+                "ts": (t0 + timedelta(seconds=10 * i)).isoformat(),
+                "state": "discharging", "pack_v": "26.30",
+                "pack_i": "-5.0", "smoothed_i": "-5.0",
+                "soc_a": "70", "soc_b": "68",
+            })
+        self._write_pack(samples)
+        md = end_of_day_report_mod.build_report(today.date())
+        self.assertIn("## Load surge events", md)
+        self.assertIn("No load surges today", md)
+        # Empty table is suppressed
+        self.assertNotIn("| event # | start | peak smoothed_i | duration |",
+                         md)
+
+    def test_load_surge_section_renders_events_table(self) -> None:
+        """When pack.csv has events, the section lists each one with
+        start, peak smoothed_i, and duration in a markdown table."""
+        # Synthesize one sustained event: 7 samples of smoothed_i=-30A
+        # at 10s cadence — spans 60s, well past the 30s threshold.
+        today = datetime.now()
+        samples: list[dict] = []
+        t0 = today.replace(hour=14, minute=30, second=0, microsecond=0)
+        # Baseline before
+        for i in range(2):
+            samples.append({
+                "ts": (t0 + timedelta(seconds=10 * i)).isoformat(),
+                "state": "discharging", "pack_v": "26.30",
+                "pack_i": "-5.0", "smoothed_i": "-5.0",
+                "soc_a": "70", "soc_b": "68",
+            })
+        # The surge
+        for i in range(7):
+            ts = (t0 + timedelta(seconds=10 * (i + 2))).isoformat()
+            samples.append({
+                "ts": ts, "state": "discharging", "pack_v": "26.10",
+                "pack_i": "-30.0", "smoothed_i": "-30.0",
+                "soc_a": "68", "soc_b": "66",
+            })
+        # Baseline after
+        for i in range(2):
+            ts = (t0 + timedelta(seconds=10 * (i + 9))).isoformat()
+            samples.append({
+                "ts": ts, "state": "discharging", "pack_v": "26.20",
+                "pack_i": "-5.0", "smoothed_i": "-5.0",
+                "soc_a": "68", "soc_b": "66",
+            })
+        self._write_pack(samples)
+        md = end_of_day_report_mod.build_report(today.date())
+        # Headline summary
+        self.assertIn("1 load-surge event today", md)
+        self.assertIn("-30.0 A", md)
+        # Table header + first row
+        self.assertIn("| event # | start | peak smoothed_i | duration |", md)
+        self.assertIn("| 1 | 14:30:20 | -30.0 A |", md)
+
+
     def test_ble_logger_section_renders_events(self) -> None:
         """When pack.csv has gaps, the section lists each event with
         start, end, and duration in a markdown table."""
