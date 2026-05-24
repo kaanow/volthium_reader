@@ -84,8 +84,10 @@ STOCK_SYMBOLS: list[tuple[str, str, Optional[str]]] = [
     ("Device", "D_TVS", None),
     # MCU + module
     ("RF_Module", "ESP32-S3-WROOM-1", None),
-    # regulator
-    ("Regulator_Switching", "TPS62933F", None),
+    # regulator (TPS62933F extends TPS62933; using the parent directly
+    # avoids the missing-extends-parent issue we hit with the diode family.
+    # Value field is overridden to "TPS62933FDRLR" per instance.)
+    ("Regulator_Switching", "TPS62933", None),
     # RTC (DS3231M is electrically equivalent to DS3231SN#)
     ("Timer_RTC", "DS3231M", None),
     # MOSFETs
@@ -344,6 +346,14 @@ def _place_label(sch: Schematic, text: str, pos: tuple[float, float], *, angle: 
     sch.globalLabels.append(lbl)
 
 
+def _place_noconnect(sch: Schematic, pos: tuple[float, float]) -> None:
+    """Place a NoConnect marker at the given pin endpoint."""
+    nc = NoConnect()
+    nc.position = Position(X=pos[0], Y=pos[1], angle=0)
+    nc.uuid = _uuid()
+    sch.noConnects.append(nc)
+
+
 def _place_power_flag(sch: Schematic, net: str, pos: tuple[float, float], lib: SymbolLib) -> None:
     """Place a PWR_FLAG symbol at pos, anchoring it to a global label `net`.
 
@@ -468,17 +478,76 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "V24_SENSE", (C5_X, C5_Y - 3 * G))
     _place_label(s, "GND",       (C5_X, C5_Y + 3 * G))
 
-    # ===== Power flags (kept until real power-output pins land in iter 11+) =====
-    # PWR_FLAG on V24_FUSED previously sourced this net. Now that D1's cathode
-    # connects, the net has a real upstream connection (through F1, J1). But
-    # KiCad's ERC requires a `power_output` pin for full validation, and D1's
-    # cathode is `passive`. We keep PWR_FLAG on V24_FUSED until U1 (TPS62933F)
-    # provides a real `power_output` pin in the next iter, then drop it.
+    # ===== Iter 12: 3V3 converter — U1 (TPS62933F) + L1 + bulk caps =====
+
+    # U1 — TPS62933 buck regulator, 8-pin SOT-563. Pin geometry (lib coords;
+    # schematic Y-flip applies):
+    #   pin 1 RT  (-7.62, -5.08) passive → sch (X-7.62, Y+5.08)
+    #   pin 2 EN  (-7.62,  5.08) input   → sch (X-7.62, Y-5.08)
+    #   pin 3 VIN (-7.62,  7.62) power_in→ sch (X-7.62, Y-7.62)
+    #   pin 4 GND ( 0,   -12.7)  power_in→ sch (X,      Y+12.7) — bottom of body
+    #   pin 5 SW  ( 7.62,  0)    output  → sch (X+7.62, Y)
+    #   pin 6 BST ( 7.62,  7.62) passive → sch (X+7.62, Y-7.62)
+    #   pin 7 SS  (-7.62, -2.54) passive → sch (X-7.62, Y+2.54)
+    #   pin 8 FB  ( 7.62, -7.62) input   → sch (X+7.62, Y+7.62)
+    U1_X, U1_Y = 120 * G, 30 * G   # (152.4, 38.1)
+    _place_symbol(s, "TPS62933", "U1", "TPS62933FDRLR",
+                  "Package_SO:SOT-23-6",   # SOT-563, placeholder; finalize at CP3
+                  (U1_X, U1_Y), lib=lib)
+    # Pin connections per CP1 §5 net list:
+    #   VIN ← V24_FUSED
+    #   GND ← GND
+    #   EN  ← V24_FUSED (always-on; firmware kills U1 via the Q1 path)
+    #   SW  → U1_SW (internal to U1+L1)
+    #   FB  ← V3V3_SW (fixed-3.3 variant pin is tied to VOUT)
+    #   BST → 100nF bootstrap cap (placeholder NoConnect for now; cap added
+    #         in iter 14 when MOSFET cluster lands — they share decoupling)
+    #   SS, RT → NoConnect (use internal defaults)
+    _place_label(s, "V24_FUSED", (U1_X - 6 * G, U1_Y - 6 * G))   # pin 3 VIN
+    _place_label(s, "V24_FUSED", (U1_X - 6 * G, U1_Y - 4 * G))   # pin 2 EN
+    _place_label(s, "GND",       (U1_X,         U1_Y + 10 * G))  # pin 4 GND
+    _place_label(s, "U1_SW",     (U1_X + 6 * G, U1_Y))           # pin 5 SW
+    _place_label(s, "V3V3_SW",   (U1_X + 6 * G, U1_Y + 6 * G))   # pin 8 FB
+    _place_noconnect(s, (U1_X - 6 * G, U1_Y + 4 * G))            # pin 1 RT
+    _place_noconnect(s, (U1_X - 6 * G, U1_Y + 2 * G))            # pin 7 SS
+    _place_noconnect(s, (U1_X + 6 * G, U1_Y - 6 * G))            # pin 6 BST
+
+    # L1 — 2.2 µH inductor (2-pin, same geometry as R: ±3.81 from center).
+    L1_X, L1_Y = U1_X + 20 * G, U1_Y   # (177.8, 38.1)
+    _place_symbol(s, "L", "L1", "2.2uH",
+                  "Inductor_SMD:L_0805_2012Metric",  # placeholder
+                  (L1_X, L1_Y), lib=lib)
+    _place_label(s, "U1_SW",   (L1_X, L1_Y - 3 * G))     # pin 1 (top, lib Y+3.81)
+    _place_label(s, "V3V3_SW", (L1_X, L1_Y + 3 * G))     # pin 2 (bottom)
+
+    # C1 — 22 µF bulk on V24_FUSED (U1 VIN decoupling)
+    C1_X, C1_Y = U1_X - 14 * G, U1_Y + 4 * G   # (134.62, 43.18)
+    _place_symbol(s, "C", "C1", "22uF/25V",
+                  "Capacitor_SMD:C_1210_3225Metric",
+                  (C1_X, C1_Y), lib=lib)
+    _place_label(s, "V24_FUSED", (C1_X, C1_Y - 3 * G))   # pin 1
+    _place_label(s, "GND",       (C1_X, C1_Y + 3 * G))   # pin 2
+
+    # C2 — 22 µF bulk on V3V3_SW (U1 VOUT decoupling)
+    C2_X, C2_Y = L1_X + 8 * G, L1_Y + 4 * G   # (188.4, 43.18)
+    _place_symbol(s, "C", "C2", "22uF/25V",
+                  "Capacitor_SMD:C_1210_3225Metric",
+                  (C2_X, C2_Y), lib=lib)
+    _place_label(s, "V3V3_SW", (C2_X, C2_Y - 3 * G))
+    _place_label(s, "GND",     (C2_X, C2_Y + 3 * G))
+
+    # ===== Power flags =====
+    # In KiCad's ERC model, a `power_in` pin (like U1.VIN, U1.GND) needs a
+    # matching `power_out` pin OR a PWR_FLAG on the same net. Our V24 source
+    # is the battery itself (external to the schematic) and arrives via
+    # passive connector pins — those don't satisfy ERC. PWR_FLAG is the
+    # standard pattern for nets sourced from outside the schematic. We
+    # keep these for the lifetime of the design.
     _place_power_flag(s, "V24_FUSED", (R5_X - 20 * G, R5_Y - 3 * G), lib)
-    # Same logic for GND — J1.2 is a passive connector pin, not a power_input.
-    # PWR_FLAG persists until a regulator's GND pin provides authoritative
-    # net classification.
     _place_power_flag(s, "GND",       (R5_X - 20 * G, R6_Y + 3 * G), lib)
+    # Once U1's V3V3_SW output is connected (now), V3V3_SW has a power_out
+    # source — no PWR_FLAG needed there. Same will be true for V12_CAT5E
+    # once U2 (Recom R-78E12) lands in the next iter.
 
     out = BATT_DIR / "battery_side.kicad_sch"
     out.parent.mkdir(parents=True, exist_ok=True)

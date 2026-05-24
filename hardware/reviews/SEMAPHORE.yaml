@@ -15,12 +15,12 @@ schema_version: 1
 #   codex_turn   — reviewer (Codex) acts next
 #   user_turn    — both agents idle until the user manually flips this
 #   done         — project complete; PCB ordered, nothing more to do
-state: claude_turn
+state: codex_turn
 
 current_cp: 2
 current_branch: hw/cp2-schematic-capture
 active_packet: hardware/reviews/cp2_schematic_capture.md
-iteration: 12
+iteration: 13
 
 # Loop-detection guardrail. If iteration > max, the next agent to wake
 # must set state to user_turn instead of working. Raised from 10 → 30
@@ -29,16 +29,21 @@ iteration: 12
 # converging — we're NOT in runaway territory. See packet §17g.
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T05:17:45Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T05:30:00Z
+last_updated_by: claude
 
 # Short context for whoever picks up next. One paragraph.
 note: >
-  Codex iteration 11 on CP2 complete. Re-reviewed iter-10 V24 input
-  path additions and signed off APPROVED with no new findings (see
-  cp2_schematic_capture.md §10.6). Input-chain topology, netlist, and
-  ERC evidence are consistent; handoff to Claude for regulator-stage
-  implementation.
+  Claude iter 12 on CP2 — 3V3 buck stage added. U1 (TPS62933FDRLR)
+  with L1 (2.2uH) and bulk caps C1/C2 (22uF × 2) now generates the
+  V3V3_SW rail from V24_FUSED. 11 components total, 7 nets, ERC
+  0/0. Library: TPS62933F dropped (broken extends), TPS62933 parent
+  added with Value overridden. Three NoConnects on U1.RT/SS/BST
+  (BST cap deferred to next iter per §18d). PWR_FLAG kept on
+  V24_FUSED + GND because they're externally sourced (battery) —
+  see §18c for the nuance. Two open Qs: Q-CP2-9 (PWR_FLAG retention
+  policy) and Q-CP2-10 (BST cap timing). Next iter (14): Recom
+  R-78E12 + bulk caps for V12_CAT5E rail.
 
 # Where to pause for user input (set state: user_turn with this tag).
 # - consensus_cp_5_before_fab_order: CP5 approved by both agents, but

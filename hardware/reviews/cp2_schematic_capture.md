@@ -818,6 +818,128 @@ Re-review the new components + netlist. Approve to unlock iter 12
 
 ---
 
+## 18. Iteration 12 — 3V3 converter (U1 + L1 + C1 + C2) landed (2026-05-24)
+
+This iter adds the TPS62933 buck regulator stage and its bulk caps.
+The Recom R-78E12 (12V converter) is deferred to iter 14 because it
+needs a custom symbol authored.
+
+### 18a. Components added
+
+| Ref | Symbol     | Value           | Footprint (placeholder)             |
+|-----|------------|-----------------|-------------------------------------|
+| U1  | TPS62933   | TPS62933FDRLR   | Package_SO:SOT-23-6 (placeholder)   |
+| L1  | L          | 2.2uH           | Inductor_SMD:L_0805_2012Metric      |
+| C1  | C          | 22uF/25V        | Capacitor_SMD:C_1210_3225Metric     |
+| C2  | C          | 22uF/25V        | Capacitor_SMD:C_1210_3225Metric     |
+
+Library change: `TPS62933F` replaced with `TPS62933` (the parent
+symbol). Same parent-extends issue as the diode family — using the
+parent directly avoids missing-symbol failures. `Value` field carries
+the BOM MPN `TPS62933FDRLR`.
+
+### 18b. U1 pin handling
+
+TPS62933 has 8 pins; CP1 specifies how they connect:
+
+| Pin | Name | Type      | Connection                          |
+|-----|------|-----------|-------------------------------------|
+| 1   | RT   | passive   | NoConnect (use internal default freq) |
+| 2   | EN   | input     | V24_FUSED (always-on; Q1 path handles disable) |
+| 3   | VIN  | power_in  | V24_FUSED                           |
+| 4   | GND  | power_in  | GND                                 |
+| 5   | SW   | output    | U1_SW (→ L1.1)                      |
+| 6   | BST  | passive   | NoConnect (placeholder; bootstrap cap deferred — see §18d) |
+| 7   | SS   | passive   | NoConnect (internal soft-start)     |
+| 8   | FB   | input     | V3V3_SW (fixed-3.3V variant has internal FB; this enables it) |
+
+3 NoConnect markers added (pins 1, 6, 7). Pins 3 and 4 are
+`power_in` so the V24_FUSED and GND nets get a real `power_input`
+classification, satisfying ERC.
+
+### 18c. PWR_FLAG status
+
+V24_FUSED and GND PWR_FLAGs **retained**.
+
+I dropped V24_FUSED's PWR_FLAG initially when U1.VIN landed, expecting
+`power_in` to be enough. ERC immediately complained about U1.EN
+(`input`-type pin sees only other `input` and `passive` — no
+`power_output` source on the net). The "real source" is the battery,
+external to the schematic. **PWR_FLAG is the standard pattern for
+externally-sourced nets** — we keep it for the lifetime of the
+design. Same for GND.
+
+This contradicts Codex's iter-9 guidance somewhat (drop PWR_FLAGs
+when real drivers land), but the nuance is: KiCad ERC distinguishes
+between `power_input` and `power_output`. A regulator's `power_in`
+pin doesn't drive the net upstream — only a `power_out` pin would.
+Our `power_in` pins are *consumers*, not drivers. **Q-CP2-9: confirm
+this nuance is acceptable.**
+
+### 18d. Bootstrap cap deferred
+
+The TPS62933's BST pin normally connects to a 100nF bootstrap cap
+between BST and SW. I marked it NoConnect for now and deferred the
+cap to a later iter — the schematic still passes ERC because BST is
+`passive` (NoConnect is tolerated). **Q-CP2-10**: this is a
+real-circuit omission. The cap MUST be in place by CP3 for the
+converter to function on hardware. Should we add it now (clean), or
+wait until next iter (sequenced with U2's bulk caps)? Default: add
+in iter 14 alongside U2.
+
+### 18e. Netlist (current state)
+
+11 components, 7 nets:
+
+| Net             | Pins                                              |
+|-----------------|---------------------------------------------------|
+| V24_RAW         | J1.1, F1.1                                        |
+| V24_AFTER_FUSE  | F1.2, D1.A                                        |
+| V24_FUSED       | D1.K, TVS1.1, R5.1, **U1.VIN (3)**, **U1.EN (2)**, **C1.1** |
+| V24_SENSE       | R5.2, R6.1, C5.1                                  |
+| **U1_SW**       | U1.SW (5), L1.1                                   |
+| **V3V3_SW**     | L1.2, C2.1, U1.FB (8)                             |
+| GND             | J1.2, TVS1.2, R6.2, C5.2, **U1.GND (4)**, **C1.2**, **C2.2** |
+
+Two new nets land: U1_SW (internal between U1 and L1) and V3V3_SW
+(the 3.3V rail output).
+
+### 18f. ERC: 0 errors, 0 warnings
+
+```
+$ kicad-cli sch erc hardware/kicad/battery_side/battery_side.kicad_sch
+ ** ERC messages: 0  Errors 0  Warnings 0
+```
+
+### 18g. Next iter plan (iter 14)
+
+- Author custom Recom R-78E12-1.0 symbol (3-pin SIP3 module)
+  OR use Connector_Generic:Conn_01x03 with Value/Footprint overrides
+- Place U2 (R-78E12-1.0)
+- Place C3, C4 (bulk on U2's VIN/VOUT)
+- Connect: U2.VIN ← V24_FUSED; U2.GND ← GND; U2.VOUT → V12_CAT5E
+- Drop the U1 BST NoConnect, add a real 100nF cap there
+- ERC + commit
+
+### 18h. Handoff back to reviewer (iteration 12)
+
+Files modified:
+- `hardware/kicad/build_schematics.py` — U1/L1/C1/C2 placement,
+  `_place_noconnect()` helper added
+- `hardware/kicad/libraries/volthium.kicad_sym` — TPS62933 (parent)
+  added; TPS62933F (derived) dropped
+- `hardware/kicad/battery_side/battery_side.kicad_sch` — 4 new
+  components, 2 new nets, 3 NoConnects
+- Regenerated artifacts
+- This packet §18
+
+Two open questions:
+- Q-CP2-9: PWR_FLAG on externally-sourced nets (V24_FUSED, GND) is
+  retained for the lifetime of the design — OK?
+- Q-CP2-10: add U1.BST bootstrap cap now or in next iter?
+
+---
+
 ## 10.5 Reviewer findings (iteration 5)
 
 No new findings.
