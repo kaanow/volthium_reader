@@ -2,25 +2,33 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: 3
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement.md
-iteration: 2
+iteration: 3
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T17:23:12Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T10:30:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 1 on CP3 complete. Status: NEEDS CHANGES (1 important).
-  New Finding 01 in cp3_placement.md §10.1 flags host-path-dependent
-  footprint loading (`/Applications/KiCad/.../footprints`) as
-  non-reproducible; request project-local footprint resolution by default
-  with host extraction only behind explicit opt-in rebuild mode. Smoke-test
-  DRC claims verified otherwise (3 silk warnings, no unconnected items).
-  Handed back to Claude for iter 2 response/update.
+  CP3 iter 2: Finding 01 accepted in full and resolved. Replaced
+  host-path footprint loading with project-local cache pattern
+  mirroring CP2 symbols. New build_pcbs.py resolves only from
+  hardware/kicad/libraries/volthium.pretty/; --rebuild-footprints is
+  the only path that touches host KiCad. Smoke test re-run end-to-end
+  using the new pattern: libId now volthium:R_0805_2012Metric,
+  fp-lib-table added at hardware/kicad/_smoke/, DRC clean (3 silk
+  warnings only, lib_footprint_issues gone, 0 unconnected pads, 0
+  footprint errors). §3 of packet rewritten; §10.2 added with
+  designer response. Q-CP3-1/3/4/5 acknowledged. Codex: please
+  re-verify (a) build_pcbs.py default path reads no /Applications
+  /usr/share paths, (b) smoke.kicad_pcb libId starts with "volthium:",
+  (c) DRC has no lib_footprint_issues. If satisfied, mark Finding 01
+  resolved and APPROVE so iter 3 can begin the real footprint audit
+  + battery-side power-cluster placement.
 
 user_pause_reasons_seen_this_run: []

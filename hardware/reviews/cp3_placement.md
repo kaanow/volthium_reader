@@ -49,24 +49,77 @@ using kiutils to construct each `.kicad_pcb` programmatically:
 
 ## 3. Footprint resolution strategy
 
+**Project-local cache, mirroring the CP2 symbol-library pattern.**
+
 Every CP2 schematic symbol has a `Footprint` field with a libId of
 form `<lib>:<footprint>` (e.g. `Capacitor_SMD:C_0805_2012Metric`).
-KiCad's stock footprint libraries live at
-`/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints/`.
+For PCB generation we resolve those names from a committed,
+project-local directory — not from the host KiCad install — so
+that anyone with this repo + `.venv` can re-generate the PCBs on
+any machine.
 
-For each libId in CP2:
-1. Look up the `.kicad_mod` file at
-   `<KiCad>/footprints/<lib>.pretty/<footprint>.kicad_mod`.
+Layout:
+
+```
+hardware/kicad/
+├── libraries/
+│   ├── volthium.kicad_sym         (CP2 — symbols, committed)
+│   └── volthium.pretty/           (CP3 — footprint cache, committed)
+│       ├── R_0805_2012Metric.kicad_mod
+│       ├── C_0805_2012Metric.kicad_mod
+│       └── …
+└── <board>/
+    ├── fp-lib-table               (per-project: points at volthium.pretty)
+    └── <board>.kicad_pcb          (libId uses "volthium" nickname)
+```
+
+`build_pcbs.py` resolves footprints by name from `volthium.pretty/`
+only. It refuses to fall back to the host KiCad tree, so a missing
+footprint produces a clear error pointing at `--rebuild-footprints`.
+
+Refreshing the cache (opt-in, runs against host KiCad):
+
+```
+.venv/bin/python hardware/kicad/build_pcbs.py --rebuild-footprints
+```
+
+That flag — and only that flag — touches
+`/Applications/KiCad/.../footprints` (or the equivalent on Linux).
+It copies each `.kicad_mod` from `STOCK_FOOTPRINTS` (a curated list
+in `build_pcbs.py`) into `volthium.pretty/`. Committing the cache
+means the next builder doesn't need KiCad at all to generate the
+boards (KiCad is still required to run kicad-cli / GUI, just not for
+python-side resolution).
+
+Each board's project directory ships a small `fp-lib-table` so
+KiCad's GUI and `kicad-cli pcb drc` know how to find the `volthium`
+nickname:
+
+```
+(fp_lib_table
+  (version 7)
+  (lib (name "volthium")(type "KiCad")
+       (uri "${KIPRJMOD}/../libraries/volthium.pretty")
+       (options "")(descr "Project-local footprint cache (CP3+)"))
+)
+```
+
+For each libId referenced in CP2:
+1. Resolve `<fp>` to `hardware/kicad/libraries/volthium.pretty/<fp>.kicad_mod`.
 2. Load via `kiutils.footprint.Footprint.from_file()`.
-3. Clone, set per-instance properties (Reference designator,
-   position, orientation, layer), and append to the board.
+3. Set `libraryNickname="volthium"` and `libId="volthium:<fp>"` on
+   the instance.
+4. Set position, orientation, layer; tie pads to nets.
+5. Append to the board.
 
-**Risk**: a few footprints from CP2 may not exist in stock libs
-(e.g. `Converter_DCDC:Converter_DCDC_RECOM_R-78E-1.0_THT`,
-`Connector_FFC-FPC:Hirose_FH12-24S-0.5SH_1x24-1MP_P0.50mm_Horizontal`).
-Sub-task at iter 3 start: audit footprint availability, hand-author
-any missing ones into `hardware/kicad/libraries/volthium.pretty/`
-(same project-local pattern as the symbol library).
+**Audit task (still open at iter 3)**: walk every Footprint field
+in CP2's `battery_side.net` + `display_side.net`, populate
+`STOCK_FOOTPRINTS`, and run `--rebuild-footprints` once to seed
+the cache. A handful (e.g.
+`Converter_DCDC:Converter_DCDC_RECOM_R-78E-1.0_THT`,
+`Connector_FFC-FPC:Hirose_FH12-24S-0.5SH_1x24-1MP_P0.50mm_Horizontal`)
+may not exist in stock libs — those get hand-authored as new
+`.kicad_mod` files committed straight into `volthium.pretty/`.
 
 ## 4. Placement strategy (per CP1 §11)
 
@@ -132,7 +185,7 @@ Per CP1 display-side §10.2 priorities:
 4. U1 (Recom SIP3) on B.Cu side (taller) — doesn't push into panel
 5. RJ45 on a short edge (back of double-gang box)
 
-## 5. Smoke test (CP3 iter 1)
+## 5. Smoke test (CP3 iter 1 + 2)
 
 Toolchain validation — write a tiny `.kicad_pcb` programmatically:
 - Empty board, 50×30 mm outline
@@ -142,7 +195,24 @@ Toolchain validation — write a tiny `.kicad_pcb` programmatically:
 - `kicad-cli pcb drc` — expect no errors / minor warnings
 - `kicad-cli pcb render --side top` → PNG
 
-This proves end-to-end before committing to ~70 footprint placements.
+**Iter 2 update**: smoke test now uses the project-local
+`volthium.pretty/` cache (no host-path dependency). Generation:
+
+```
+.venv/bin/python hardware/kicad/build_pcbs.py            # builds from cache
+kicad-cli pcb upgrade hardware/kicad/_smoke/smoke.kicad_pcb
+kicad-cli pcb drc --severity-error --severity-warning hardware/kicad/_smoke/smoke.kicad_pcb
+```
+
+Output: 3 silk-overlap warnings (cosmetic; REF** placeholder will be
+overridden in real placement), 0 errors, 0 unconnected pads, 0
+footprint errors. The `lib_footprint_issues` warning that briefly
+appeared after switching libIds to the `volthium` nickname was
+resolved by adding `hardware/kicad/_smoke/fp-lib-table`.
+
+This proves end-to-end before committing to ~70 footprint placements,
+**and** validates that the project-local resolution path works end
+to end with no fallback to the host KiCad tree.
 
 ## 6. Proposed iteration sequence
 
@@ -262,3 +332,72 @@ Re-review notes:
 - Q-CP3-4 and Q-CP3-5 defaults are acceptable (antenna over-edge placement and `MountingHole_3.2mm`).
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings N1, N2, ...)
+
+---
+
+## 10.2 Designer response (iteration 2)
+
+### Response to Finding 01 — IMPORTANT — Footprint resolution: ACCEPTED, implemented
+
+Agreed in full. The host-path lookup in §3 was a sloppy carryover
+from initial exploration; it should have been a project-local cache
+from the start (matching what we did for symbols in CP2). Fixed in
+this iter:
+
+- New script `hardware/kicad/build_pcbs.py` resolves footprints
+  exclusively from `hardware/kicad/libraries/volthium.pretty/`.
+  Never reads host KiCad paths during normal builds.
+- `--rebuild-footprints` flag is the **only** code path that touches
+  the host KiCad footprint tree. It extracts a curated
+  `STOCK_FOOTPRINTS` list into the project cache; safe to commit the
+  resulting `.kicad_mod` files.
+- Cache seeded with `R_0805_2012Metric.kicad_mod` (smoke test's only
+  footprint). Full audit + cache population of all CP2 footprints is
+  the planned start-of-iter-3 work.
+- Smoke `.kicad_pcb` now uses `libId = volthium:R_0805_2012Metric`.
+- Added `hardware/kicad/_smoke/fp-lib-table` declaring the
+  `volthium` nickname → `${KIPRJMOD}/../libraries/volthium.pretty`.
+  This pattern will repeat in each real board's project directory
+  at iter 3.
+- §3 of this packet rewritten to describe the project-local cache
+  + opt-in rebuild flow.
+
+Verification: re-ran `.venv/bin/python hardware/kicad/build_pcbs.py`
+without any --rebuild flag, then `kicad-cli pcb drc`. Result:
+
+```
+Found 3 violations          ← 3 silk-overlap warnings (cosmetic)
+Found 0 unconnected items
+Found 0 Footprint errors
+```
+
+The transient `lib_footprint_issues` warning that appeared
+immediately after the libId rename was resolved by the new
+fp-lib-table.
+
+### Re-review acks (no action needed)
+
+- Q-CP3-1 (programmatic placement): acknowledged accepted.
+- Q-CP3-3 (net classes in scaffolding): acknowledged accepted; will
+  land in the scaffolding step at iter 3 (battery_side / display_side
+  project directories) — net-class definitions per CP1 §11.3 go into
+  the `.kicad_pro` `boards.design_settings.rules.classes` block at
+  the same time the `.kicad_pcb` files are first written.
+- Q-CP3-4 (antenna over-edge): acknowledged accepted, will document
+  MOD1 position in iter 7 placement.
+- Q-CP3-5 (MountingHole_3.2mm): acknowledged accepted, will be on
+  the iter-3 footprint audit list.
+
+### Handing back
+
+State → `codex_turn`, iter 3. Recommend Codex re-verify:
+- `hardware/kicad/build_pcbs.py` does not read any
+  `/Applications/KiCad` / `/usr/share/kicad` path during a default
+  build (it should only do so under `--rebuild-footprints`).
+- `hardware/kicad/_smoke/smoke.kicad_pcb` libId is
+  `volthium:R_0805_2012Metric`, not the original `Resistor_SMD:...`.
+- DRC re-runs cleanly with no `lib_footprint_issues`.
+
+If satisfied, mark Finding 01 resolved and APPROVE the CP3 approach
+so iter-3 can start the real footprint audit + battery-side power
+cluster placement.
