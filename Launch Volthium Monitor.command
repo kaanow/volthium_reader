@@ -1,25 +1,64 @@
 #!/bin/bash
-# Double-click this to: (1) start the logger if it isn't running, (2) start
-# the dashboard if it isn't running, (3) open the dashboard in your browser.
+# Double-click this on a Mac (Finder shows it as "Launch Volthium Monitor"
+# and runs it in Terminal), or run it directly on Linux:
+#     ./'Launch Volthium Monitor.command'
 #
-# Finder shows this file as "Launch Volthium Monitor" and runs it in Terminal.
+# (1) start the logger if it isn't running, (2) start the weather poller and
+# the dashboard if they aren't running, (3) open the dashboard in a browser
+# (best-effort on headless Linux), (4) print a phone-friendly LAN URL + QR.
 
 set -e
 cd "$(dirname "$0")"
 
-ADDR_A="9058AE7F-F98B-D0F6-237D-6769894DE118"
-ADDR_B="6EC69980-CA43-7DEF-519B-6235C8C535B7"
+# Battery addresses live in pack.env (committed — the two physical packs
+# never change). The file holds both macOS CoreBluetooth UUIDs and Linux
+# BlueZ MACs; we pick the pair that matches this OS.
+. "$(dirname "$0")/pack.env"
+
 CSV="data/pack.csv"
 LOG="data/pack.log"
 PORT=8421
 
 mkdir -p data
 
+# OS-specific shims: address pair, keepawake prefix, browser-open, LAN-IP.
+KEEPAWAKE=()
+case "$(uname -s)" in
+    Darwin)
+        ADDR_A="$ADDR_A_DARWIN"
+        ADDR_B="$ADDR_B_DARWIN"
+        KEEPAWAKE=(caffeinate -i)
+        open_url()  { open "$1"; }
+        lan_ip()    { ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null; }
+        ;;
+    Linux)
+        ADDR_A="$ADDR_A_LINUX"
+        ADDR_B="$ADDR_B_LINUX"
+        if command -v systemd-inhibit >/dev/null 2>&1; then
+            KEEPAWAKE=(systemd-inhibit --what=sleep --why=volthium-logger --mode=block)
+        fi
+        open_url()  { command -v xdg-open >/dev/null 2>&1 && xdg-open "$1" >/dev/null 2>&1 || true; }
+        lan_ip()    { hostname -I 2>/dev/null | awk '{print $1}'; }
+        ;;
+    *)
+        open_url()  { :; }
+        lan_ip()    { :; }
+        ;;
+esac
+
+if [ -z "${ADDR_A:-}" ] || [ -z "${ADDR_B:-}" ]; then
+    echo "ERROR: pack.env has no addresses for $(uname -s)." >&2
+    echo "  Run:    .venv/bin/python scripts/scan.py" >&2
+    echo "  Paste:  the two V-12V200AH-* addresses into pack.env" >&2
+    echo "          (ADDR_A_LINUX=… / ADDR_B_LINUX=… on this machine)" >&2
+    exit 1
+fi
+
 started_logger=0
 started_dashboard=0
 
 if ! pgrep -f "scripts/log\.py.*${CSV}" > /dev/null; then
-    nohup caffeinate -i .venv/bin/python scripts/log.py \
+    nohup "${KEEPAWAKE[@]}" .venv/bin/python scripts/log.py \
         --a "$ADDR_A" --b "$ADDR_B" \
         --interval 10 --csv "$CSV" --log "$LOG" \
         > /dev/null 2>&1 &
@@ -46,16 +85,14 @@ fi
 # Give the dashboard a beat to bind the port before we open the browser.
 sleep 1
 
-# Find the LAN IP so we can show a phone-friendly URL too.
-LAN_IP=$(ipconfig getifaddr en0 2>/dev/null)
-[ -z "$LAN_IP" ] && LAN_IP=$(ipconfig getifaddr en1 2>/dev/null)
+LAN_IP=$(lan_ip)
 
 echo ""
 echo "  ┌─ Volthium Monitor ─────────────────────────────────┐"
 [ $started_logger    -eq 1 ] && echo "  │  • logger:    started"    || echo "  │  • logger:    already running"
 [ $started_dashboard -eq 1 ] && echo "  │  • dashboard: started"    || echo "  │  • dashboard: already running"
 echo "  │"
-echo "  │  on this laptop:   http://localhost:${PORT}/"
+echo "  │  on this machine:  http://localhost:${PORT}/"
 if [ -n "$LAN_IP" ]; then
     echo "  │  on the LAN:       http://${LAN_IP}:${PORT}/"
 fi
@@ -73,8 +110,8 @@ q.print_ascii(invert=True)
 "
 fi
 
-echo "  You can close this Terminal window."
-echo "  To stop everything: pkill -f scripts/log.py ; pkill -f scripts/dashboard.py"
+echo "  You can close this terminal window."
+echo "  To stop everything: pkill -f scripts/log.py ; pkill -f scripts/dashboard.py ; pkill -f scripts/weather.py"
 echo ""
 
-open "http://localhost:${PORT}/"
+open_url "http://localhost:${PORT}/"
