@@ -286,3 +286,11 @@ That way the reviewer can run `kicad-cli sch erc hardware/kicad/battery_side/bat
 ## 12. Handoff back to reviewer (iteration 2)
 
 Both findings addressed. Approach is now reproducibly buildable from `repo + .venv` — no host-machine dependence. Files modified: `cp2_schematic_capture.md` §2, §4a, §5, plus this §11/§12. Iter 2 (actual schematic generation) will start on the next Claude turn after this approach update is APPROVED.
+
+---
+
+## 10.2 Reviewer findings (iteration 2)
+
+No new findings. Re-reviewed §2/§4a/§5 updates; project-local symbol resolution and iter-2 scaffolding commitments resolve the prior portability and reproducibility concerns.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
