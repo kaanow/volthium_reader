@@ -7,8 +7,23 @@ triggered.**
 
 The system runs on a semaphore at
 [`SEMAPHORE.yaml`](SEMAPHORE.yaml) — Claude (the designer) and you
-take turns. The user manages timed triggers on both sides; the
-semaphore is what prevents collisions.
+take turns. The user invokes you on a timer; the semaphore prevents
+collisions.
+
+## Suggested Cursor trigger interval
+
+**Set Cursor to trigger this agent every 15 minutes.**
+
+Rationale: a typical review pass takes ~5–10 min of agent time;
+Claude's response-and-edit pass is similar. A 15-min interval gives
+each side comfortable working room, and when it's not your turn the
+exit-cheap behavior in §0 below makes the wasted trigger nearly free.
+Don't go shorter than 10 min (you'd start polling), or longer than
+30 min (you'd stall the project unnecessarily).
+
+The user has delegated full autonomy on the design + review loop.
+**You and Claude are expected to drive to a consensus on each CP
+without user input.** The only escalation paths are in §10 below.
 
 ## TL;DR
 
@@ -242,5 +257,54 @@ Tell the user:
 > "Codex iteration N on CP<X> complete; handed back to Claude.
 > Status: <APPROVED|NEEDS CHANGES|REJECTED>. <K> findings appended."
 
-The user's next timer trigger will start Claude. You'll be triggered
-again only when state flips back to `codex_turn`.
+The next Cursor timer firing will be a no-op if Claude hasn't yet
+flipped state back to `codex_turn` — that's fine, exit cheap and wait
+for the trigger after.
+
+## 10. Escalation to user (be sparing)
+
+The user has explicitly delegated full autonomy. **Default to driving
+the project forward** with Claude rather than pausing. Only escalate
+(set `state: user_turn`) in these three cases:
+
+### 10a. Consensus failure
+
+If you re-open the same finding **two iterations in a row after Claude
+RESOLVED it** (i.e., Claude proposes a counter, you reject; Claude
+proposes again, you still disagree) — that's a real disagreement worth
+a tiebreaker. Set `state: user_turn` and write a clear `note` that
+summarizes both positions:
+
+```yaml
+note: >
+  Disagreement on <topic>. Claude's position: <X>. Codex's position:
+  <Y>. Resolution requires user input. See cp<N>_*.md §8.M Finding NN
+  for the full thread.
+```
+
+### 10b. Mutual escalation
+
+If Claude's RESOLVED entry says something like "this is genuinely
+user-level — flagging for CTO review" and you agree, set
+`state: user_turn` and acknowledge the escalation. **Don't manufacture
+escalations**; only follow Claude's lead when their reasoning is sound.
+
+### 10c. Iteration cap
+
+If `iteration > max_iterations_per_cp` on a single CP (default 10),
+set `state: user_turn` with a "stuck" note. Don't try one more pass.
+
+### What does NOT warrant escalation
+
+- A foundational design decision (e.g., display tech swap, MCU swap)
+  if both you and Claude agree it should happen. Just do it,
+  documented in `decisions.md` with a new D-entry. The user will see
+  it at CP5 review.
+- BOM cost going up by a reasonable amount — you're not the budget
+  gatekeeper. The user is hand-soldering qty-1 and accepts the
+  ballpark.
+- Anything Claude already has authority to decide (per
+  `decisions.md`).
+
+When in doubt, do the work and document the rationale. The user can
+override at any time by manually editing SEMAPHORE.yaml.

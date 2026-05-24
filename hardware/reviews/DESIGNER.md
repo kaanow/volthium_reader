@@ -196,45 +196,108 @@ You ARE NOT allowed to:
 - Place the actual fab order. That's the user-only "spend money"
   step.
 
-## 8. User-pause checkpoints
+## 8. Escalation to user (be sparing)
 
-Set `state: user_turn` with a clear `note` when:
+The user has explicitly delegated full autonomy. **Default to driving
+forward** in consensus with Codex rather than pausing. Only escalate
+(set `state: user_turn`) in these three cases:
 
-1. **CP5 APPROVED → before fab order placed.** Definite. Only
-   spend-money moment in the project.
-2. **Stuck on a CP.** If `iteration > max_iterations_per_cp`, escalate
-   to user rather than loop forever.
-3. **Explicit redirection needed.** If Codex pushes back on a
-   foundational decision (e.g., display choice) and you genuinely
-   can't decide, escalate.
+### 8a. Mandatory: CP5 APPROVED → before fab order
 
-Otherwise drive autonomously. The user said "drive the project
-forward like a boss." CP1→CP4 transitions don't need user review;
-the design decisions baked into CP1's `decisions.md` already reflect
-their preferences.
+This is the only spend-money step in the project. After Codex
+APPROVES the CP5 fab-ready packet, set `state: user_turn` with a note
+that the renders + Gerbers are in `hardware/outputs/` and the user
+should review before placing the JLCPCB order.
 
-## 9. Triggers + cadence
+### 8b. Consensus failure
 
-The user invokes you on some interval (manual prompt or `/loop`).
-You don't control this — just exit cheaply if it's not your turn.
+If Codex re-opens the same finding **two iterations in a row** after
+you RESOLVED it (you proposed counter A, they re-opened; you proposed
+counter B, they re-opened again) — that's a real disagreement worth
+a tiebreaker. Set `state: user_turn` with a clear `note`:
 
-If you ARE in a `/loop` session, you can use `ScheduleWakeup` to
-self-pace. Reasonable cadence:
-- During an active CP: wake every 1200–1800 s (20–30 min). Long
-  enough that Codex has time to run between your wakeups.
-- During `user_turn`: wake every 3600 s (1 hour) just to check
-  if user flipped state. (Or just stop and let the user re-trigger
-  when ready.)
+```yaml
+note: >
+  Disagreement with Codex on <topic>. My position: <X>. Codex's
+  position: <Y>. Resolution requires user input. See cp<N>_*.md
+  §8.M / §9.M for the full thread.
+```
 
-If you're NOT in `/loop`, just stop after each turn. The user will
-trigger you again.
+### 8c. Iteration cap
 
-## 10. Done
+If `iteration > max_iterations_per_cp` (default 10) on a single CP,
+set `state: user_turn` with a "stuck" note. Don't try one more pass.
 
-After committing + pushing, **stop**. Tell the user one sentence:
+### What does NOT warrant escalation
 
-> "Claude iteration N on CP<X> complete; handed to Codex. <Short
-> summary>. Next: Codex re-review on its next trigger."
+- A foundational design pivot (display swap, MCU swap, fab swap) if
+  Codex agrees with you. Just do it, document a new entry in
+  `decisions.md`, move on. The user will see it at CP5.
+- BOM cost going up by a reasonable amount. You're not the budget
+  gatekeeper unless we're talking 2× the current $154 ballpark.
+- Codex finding something you uncovered yourself. Just fix it.
+
+When in doubt, **propose the path to Codex as part of your work and
+let them push back if it's wrong**. Codex IS the consensus check.
+
+## 9. When you're uncertain
+
+You're allowed to be wrong, and the protocol catches it. If you're
+making a non-obvious technical call, **don't paper over the
+uncertainty in your RESOLVED entry**. Write:
+
+> RESOLVED — Finding NN
+> **Fix**: <what I changed>.
+> **Confidence**: medium — I'm <X confident> but if Codex sees a
+> concrete reason this is wrong, please re-open and I'll re-evaluate.
+
+That gives Codex permission to push back with concrete evidence. If
+they don't, you proceed. If they do with valid reasoning, you adjust
+and the cycle continues. **The honest "confidence" field is what
+makes the loop converge instead of bouncing.**
+
+## 10. Triggers + cadence
+
+You're invoked one of two ways:
+
+### Manual mode (no /loop)
+
+The user types something like "you're up" in the terminal. You read
+SEMAPHORE, act if it's your turn, stop. Simple.
+
+### Autonomous mode (/loop)
+
+The user invokes `/loop` once with the prompt below. After that, you
+use `ScheduleWakeup` at the end of each turn to self-pace.
+
+**The prompt the user should use to start `/loop`:**
+
+> Check `/Users/pivot/Documents/repo/volthium_reader/hardware/reviews/SEMAPHORE.yaml`.
+> If `state` is `claude_turn`, follow `hardware/reviews/DESIGNER.md` and do the
+> next Claude action. If `state` is `codex_turn` or `user_turn`, exit cheaply.
+> If `state` is `done`, stop the loop entirely. Schedule the next wake in
+> 20 minutes.
+
+In autonomous mode, end every turn with:
+
+```
+ScheduleWakeup(delaySeconds=1200,
+               prompt="<same prompt as above>",
+               reason="autonomous CP loop")
+```
+
+20 minutes is offset from Codex's 15-minute Cursor interval — keeps us
+out of phase, reduces collisions. If the project's pace warrants it,
+you can tune the wake delay (e.g. shorter while a CP is being
+iterated rapidly, longer during long-running KiCad operations).
+
+## 11. Done
+
+After committing + pushing, **stop** (or `ScheduleWakeup` in
+autonomous mode). Tell the user one sentence:
+
+> "Claude iteration N on CP<X> complete; handed to Codex.
+> <Short summary>. Next: Codex re-review on its next trigger."
 
 Or for advancement:
 
