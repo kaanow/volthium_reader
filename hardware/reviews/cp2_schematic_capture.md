@@ -289,6 +289,176 @@ Both findings addressed. Approach is now reproducibly buildable from `repo + .ve
 
 ---
 
+## 13. Iteration 4 — implementation lands (2026-05-24)
+
+After approach APPROVED, this iteration produced the **full project
+scaffolding** and proved the end-to-end pipeline works against
+committed artifacts. **Scope-cut: actual component placement was
+deferred** — see §13c.
+
+### 13a. What landed
+
+```
+hardware/kicad/
+├── libraries/
+│   └── volthium.kicad_sym       58 KB — 28 stock symbols extracted
+├── battery_side/
+│   ├── battery_side.kicad_pro   minimal JSON project file
+│   ├── battery_side.kicad_sch   empty but ERC-clean (KiCad 10 format)
+│   └── sym-lib-table            points at ${KIPRJMOD}/../libraries/volthium.kicad_sym
+├── display_side/
+│   └── (same three files)
+├── build_schematics.py          end-to-end build script (rewritten)
+hardware/outputs/
+├── battery_side/
+│   ├── erc.rpt                  0 errors, 0 warnings
+│   ├── schematic.pdf            empty schematic (placeholder)
+│   └── battery_side.net         (placeholder netlist)
+└── display_side/
+    └── (same three artifacts)
+```
+
+### 13b. Library: 28 stock symbols extracted, 2 custom symbols deferred
+
+`libraries/volthium.kicad_sym` contains:
+
+- Passives: `R`, `C`, `L`, `Fuse`, `Polyfuse`, `LED`, `Battery_Cell`
+- Diodes / TVS: `SS24`, `SMAJ12CA`, `SMAJ15A`, `SMAJ30CA`
+- Active: `ESP32-S3-WROOM-1`, `TPS62933F`, `DS3231M` (DS3231SN# pin-equivalent),
+  `AO3401A`, `AO3400A`, `MAX3485` (used as electrically-equivalent stand-in
+  for `SN65HVD3082E` — identical 8-pin RS-485 pinout, Value field overridden
+  per-instance in the schematic)
+- Switches: `SW_Push`
+- Connectors: `RJ45`, `Conn_01x02`, `Conn_01x03`, `Conn_01x04`, `Conn_01x24`
+- Power: `+3V3`, `+12V`, `+24V`, `GND`, `PWR_FLAG`
+
+**Two stand-ins to call out:**
+
+1. **MAX3485 for SN65HVD3082E** — pin-identical (1=R, 2=RE, 3=DE, 4=D, 5=GND,
+   6=A, 7=B, 8=VCC). Per-instance Value="SN65HVD3082E" + Footprint match
+   the BOM. Same trick is used in countless KiCad projects; doesn't affect
+   netlist or ERC.
+
+2. **DS3231M for DS3231SN#** — both are 16-pin SOIC RTCs from Maxim with
+   identical pinout. Value="DS3231SN#" per instance.
+
+**Deferred to iter 5** (when their nets need to be wired):
+- Custom 3-pin `R-78E12-1.0` Recom symbol (VIN/GND/VOUT)
+- Custom 3-pin `R-78E3.3-0.5` Recom symbol (VIN/GND/VOUT)
+
+### 13c. Scope cut on actual component placement
+
+Codex's iter-1 §5 review approved an iter-2 deliverable of "partial
+battery_side.kicad_sch ERC-clean **for the subset**" — meaning at
+least the power-input cluster placed and labeled. **What landed is
+project scaffolding + empty (but ERC-clean) schematics**, not the
+power-input cluster.
+
+**Why**: producing valid `SchematicSymbol` instances in kiutils
+requires more careful work than I budgeted in this turn — each
+symbol instance needs its `libSymbols` cache entry, pin UUIDs that
+match between symbol definition and per-instance pin references,
+property positions, and label coordinates that exactly match the
+symbol's pin positions. Doing this safely for ~10 components
+(power-input cluster) is a multi-iteration coding effort. Doing it
+badly produces ERC errors that hide real netlist mistakes.
+
+**Mitigation**: the toolchain is proven end-to-end against committed
+artifacts. Reviewer can verify by running `kicad-cli sch erc
+hardware/kicad/battery_side/battery_side.kicad_sch` (0 violations).
+That validates the methodology — only the component-population step
+is deferred.
+
+**Revised iteration sequence**:
+
+| Iter   | Scope (revised) | Status |
+|--------|-----------------|--------|
+| 1 (#3) | Approach review | APPROVED |
+| 2 (#4) | **Project scaffolding + library** (this iter) | Pending review |
+| 3      | Symbol-instancing harness in `build_schematics.py` + 2-3 component proof (e.g. F1 + D1 + TVS1, labels + power flag — minimal end-to-end ERC-clean schematic with actual content) | Next |
+| 4      | Rest of battery-side power-input cluster (U1, U2, L1, sense divider, Q1/Q2) | After |
+| 5      | Battery-side MCU + RS-485 + support | After |
+| 6      | Display-side board (full) | After |
+| 7      | Final exports + CP2 close | Final |
+
+The original 5-iter plan grows to 7 iters because the component-
+instancing harness is a separate substantial piece of work.
+
+### 13d. Three questions for Codex (iter 4 → iter 5 gating)
+
+#### Q-CP2-4: Is the scope cut acceptable?
+
+I deferred component instancing to iter 5. Toolchain is proven; only
+the actual schematic content is missing. **Two paths forward:**
+
+- **(A) Accept the cut**: APPROVE the scaffolding, let iter 5 add a
+  2-3 component "harness proof" before the full power-input cluster.
+- **(B) Reject the cut**: NEEDS CHANGES on iter 4 — require me to
+  add at least one component instance + ERC pass before APPROVE.
+
+My recommendation is (A): the harness work is non-trivial and worth
+its own iteration so we catch problems early on a small example.
+
+#### Q-CP2-5: MAX3485 stand-in OK?
+
+I used MAX3485 as a symbol for SN65HVD3082E and DS3231M for
+DS3231SN#. Both are electrically equivalent and pin-identical, with
+Value field overridden per-instance in the schematic. Standard
+practice but flagging in case you'd prefer custom symbols for
+clarity.
+
+#### Q-CP2-6: Empty schematic ERC pass — is that meaningful?
+
+The ERC-pass on an empty schematic is technically vacuous (zero
+components → zero violations). It does prove the toolchain runs
+clean end-to-end, but it doesn't prove that a schematic WITH content
+will pass. **If you want me to add a single test component (e.g. a
+floating resistor) and re-run ERC to see a real result, say so.**
+
+### 13e. How to reproduce
+
+From the repo root:
+
+```bash
+.venv/bin/python hardware/kicad/build_schematics.py
+```
+
+Output (truncated, full run shown in commit log):
+```
+=== Build project library ===
+  + Device:R ... (28 symbols)
+[lib] wrote .../libraries/volthium.kicad_sym (58336 bytes)
+
+=== Write project files ===
+  + battery_side.kicad_pro
+  + sym-lib-table
+  + display_side.kicad_pro
+  + sym-lib-table
+
+=== Generate schematics ===
+  + battery_side.kicad_sch (151 bytes)
+  + display_side.kicad_sch (151 bytes)
+
+=== Post-process: upgrade, ERC, export ===
+--- battery_side ---
+  [upgrade] rc=0
+  [erc] rc=0    ** ERC messages: 0  Errors 0  Warnings 0
+  [pdf] rc=0 → hardware/outputs/battery_side/schematic.pdf
+  [netlist] rc=0 → hardware/outputs/battery_side/battery_side.net
+--- display_side ---
+  (same; ERC clean)
+```
+
+The host KiCad library at
+`/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols` is
+read **only** during library extraction (line ~129 of
+`build_schematics.py`). Once `volthium.kicad_sym` is committed, the
+script can be replayed without the host install — provided the library
+file isn't deleted. A future iteration can pin the symbol extraction
+behind a `--rebuild-library` flag to make this explicit.
+
+---
+
 ## 10.2 Reviewer findings (iteration 2)
 
 No new findings. Re-reviewed §2/§4a/§5 updates; project-local symbol resolution and iter-2 scaffolding commitments resolve the prior portability and reproducibility concerns.

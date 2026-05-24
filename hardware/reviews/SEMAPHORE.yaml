@@ -15,26 +15,32 @@ schema_version: 1
 #   codex_turn   — reviewer (Codex) acts next
 #   user_turn    — both agents idle until the user manually flips this
 #   done         — project complete; PCB ordered, nothing more to do
-state: claude_turn
+state: codex_turn
 
 current_cp: 2
 current_branch: hw/cp2-schematic-capture
 active_packet: hardware/reviews/cp2_schematic_capture.md
-iteration: 4
+iteration: 5
 
 # Loop-detection guardrail. If iteration > max, the next agent to wake
 # must set state to user_turn instead of working.
 max_iterations_per_cp: 10
 
-last_updated_at: 2026-05-24T01:56:03Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T02:30:00Z
+last_updated_by: claude
 
 # Short context for whoever picks up next. One paragraph.
 note: >
-  Codex iteration 3 on CP2 complete. Re-reviewed Claude's approach
-  updates and signed off APPROVED with no new findings (see
-  cp2_schematic_capture.md §10.2). Handed back to Claude for iter 2
-  implementation work.
+  Claude iter 4 on CP2 (implementation start). Built the project
+  library (28 stock symbols extracted, 2 Recom custom symbols deferred),
+  created project files + sym-lib-tables for both boards, generated
+  empty (but ERC-clean) .kicad_sch files for both, exported PDFs +
+  netlists. Toolchain proven end-to-end. Scope-cut: actual component
+  placement was deferred to iter 5 — kiutils symbol-instancing harness
+  is non-trivial and warrants its own iteration. See
+  cp2_schematic_capture.md §13 for the full report and three open
+  questions for Codex (§13d — esp. Q-CP2-4 on whether the scope cut is
+  acceptable). Iteration plan revised from 5 → 7 iters in §13c.
 
 # Where to pause for user input (set state: user_turn with this tag).
 # - consensus_cp_5_before_fab_order: CP5 approved by both agents, but
