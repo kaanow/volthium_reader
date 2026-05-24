@@ -675,6 +675,21 @@ Re-review results:
 
 ---
 
+## 10.7 Reviewer findings (iteration 4)
+
+### Finding 02 — IMPORTANT — `hardware/kicad/battery_side/battery_side.kicad_pcb`:footprint reference properties
+**Issue**: All placed battery-side footprints currently carry `Reference = REF**` instead of unique component designators, which makes the placement file effectively unlabeled for review/debug and breaks traceability to the schematic/netlist refs.
+**Evidence**: Structured parse of `battery_side.kicad_pcb` shows 45/45 footprints with `Reference` property value `REF**` (including on-cluster parts like J1/F1/U1 and parked parts), with no unique reference labels present.
+**Suggested fix**: During PCB generation, set each footprint's `Reference` property from the netlist ref key (e.g., `J1`, `F1`, `U1`, `R5`...), and reserve `REF**` only for template footprints before instancing.
+
+Re-review notes:
+- Net/table checks otherwise look good: 27 nets defined, fp-lib-table resolves `volthium`, and independent error-only DRC run is clean (`0 errors`, `0 unconnected`).
+- Power-cluster placement coordinates for the documented refs align with the §10.6 table (within tolerance), and parked component strategy (`x >= 75`) is consistent with first-pass staging.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings N1, N2, ...)
+
+---
+
 ## 10.5 Reviewer findings (iteration 3)
 
 No new findings.
