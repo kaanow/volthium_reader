@@ -13,6 +13,31 @@ Conventions:
   PCB minimum order) for hand-solder rework. Some passives (the common
   values) can be shared across boards and ordered in bulk.
 
+## ⚠ SKU verification status
+
+The SKU columns below were written based on the prior pass's `docs/hardware/bom.md`
+plus Claude's working knowledge. **They have NOT been live-checked against
+DigiKey/Mouser at CP1.** Codex's CP1 review (Finding 03, 2026-05-23) flagged
+that several DigiKey SKUs appear stale relative to currently-orderable entries:
+
+| Part                          | CP1 SKU (this doc)         | Codex's spotted alternate (verify) |
+|-------------------------------|----------------------------|------------------------------------|
+| Hirose FH12-24S-0.5SH(55) FFC | `670-2719-1-ND`            | `HFJ124CT-ND` (~7,533 in stock; please re-verify — `HFJ` prefix is unusual for this Hirose part) |
+| DS3231SN# RTC                 | `DS3231SN#-ND`             | `DS3231SN#T&RCT-ND` (~6,609; reel vs cut-tape) |
+| SN65HVD3082EDR transceiver    | `296-21908-1-ND`           | `296-31719-1-ND` (~11,546) |
+
+**Action**: At **CP5 procurement**, before clicking ORDER:
+1. Visit DigiKey for each line, search the manufacturer part number, and
+   capture the current SKU + stock count.
+2. If the CP1 SKU here is EOL or out-of-stock, swap to the Codex-flagged
+   alternate (or another current SKU for the same MPN).
+3. Stamp the BOM table with `last verified: YYYY-MM-DD` per line.
+
+CP1 doesn't gate on SKU correctness — design rules and topology don't
+depend on the exact reel/cut-tape variant. Procurement-time verification
+is CP5's job. The CP1 BOM is "design intent": correct manufacturer
+part numbers and packages.
+
 ## Order strategy
 
 Two carts:

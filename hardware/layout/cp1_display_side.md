@@ -331,7 +331,7 @@ ground pour).
 |------------|----------|-----------|---------------------------------------------|
 | Power-12V  | 0.5 mm   | 0.25 mm   | V12_CAT5E, V12_PROT                         |
 | Power-3V3  | 0.4 mm   | 0.2 mm    | V3V3                                        |
-| Default sig| 0.2 mm   | 0.15 mm   | UART, SPI, BTN_IN, EPD_*                    |
+| Default sig| 0.2 mm   | 0.20 mm   | UART, SPI, BTN_IN, EPD_*                    |
 | RS485-diff | 0.25 mm  | 0.2 mm    | RS485_A, RS485_B (route as pair)            |
 
 ### 10.4 Ground

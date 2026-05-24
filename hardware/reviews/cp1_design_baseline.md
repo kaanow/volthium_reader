@@ -113,9 +113,10 @@ reviewer doesn't override.
 | D-OPEN-1 | ESP32-S3-WROOM-1-N16R8 vs -N8 (no PSRAM)? | N16R8 |
 | D-OPEN-2 | SN65HVD3082E vs lower-Iq alternative (ISL3175E)? | SN65HVD3082E |
 | D-OPEN-3 | Internal ESP32 ADC vs external supervisor IC (TPS3839) for ULP voltage monitoring? | Internal ADC |
-| D-OPEN-5 | Hard-cut topology — original P-FET-in-24V vs EN-pin-shutdown? | Original P-FET |
+| ~~D-OPEN-5~~ | ~~Hard-cut topology~~ — **RESOLVED post-Codex Finding 01**: original P-FET in 24 V path | — |
 | D-OPEN-6 | Q1 gate pull-up value — 10 kΩ vs 100 kΩ vs 1 MΩ? | 100 kΩ |
-| D-OPEN-7 | Should the 12 V Cat5e rail die in deep-sleep/hard-cut? | No |
+| D-OPEN-7a | Deep-sleep V12 policy — keep V12 alive in State 3? | Yes (display shows LOW PACK) |
+| D-OPEN-7b | Hard-cut V12 policy — kill V12 in State 4? | Yes (forced OFF; required by ≤5 mW budget) |
 | D-OPEN-13 | Panel-mount switch BTN1 sealing — IP67 cap or open? | Open (in-box, no water concern) |
 
 ### Display-side
@@ -180,3 +181,96 @@ gets a `RESOLVED` entry from me, or escalates to a decision change in
 decisions.md.)*
 
 ---
+
+### Finding 01 — BLOCKER — `cp1_battery_side.md`:§3/§5/§8/§13 + `cp1_display_side.md`:§7
+**Timestamp**: 2026-05-23 16:48 PDT
+**Issue**: The hard-cut architecture is internally inconsistent across CP1 docs, so CP2 cannot be a "mechanical translation." The docs simultaneously describe (a) a 24 V high-side P-FET switch, (b) EN-pin shutdown topology, and (c) a policy to keep 12 V alive through deep-sleep/hard-cut.
+**Evidence**: `cp1_battery_side.md` §3 shows Q1/Q2 as a load switch feeding downstream rails; §5 then adds a "REVISED" EN-pin approach; §8 describes EN-pin control details; §13 defaults D-OPEN-5 to original P-FET and D-OPEN-7 to "No" (do not kill 12 V in deep-sleep/hard-cut). `cp1_display_side.md` §7 assumes hard-cut means "no V12 from battery side."
+**Suggested fix**: Pick one topology and one state policy, then normalize §3/§5/§7/§8/§13 across both board docs and the power budget. Explicitly split deep-sleep vs hard-cut behavior for the 12 V rail so State 4 semantics are unambiguous.
+
+### Finding 02 — IMPORTANT — `cp1_battery_side.md`:§12
+**Timestamp**: 2026-05-23 16:48 PDT
+**Issue**: The design-rule table still lists a default signal clearance of 0.15 mm, which is below the stated JLC minimum of 0.152 mm, while the note says CP1 already adjusted it to 0.2 mm. This contradiction risks carrying the wrong DRC constraints into CP2.
+**Evidence**: `cp1_battery_side.md` §12 table row "Min trace clearance" shows "Our spec 0.15 mm" and margin "-1 %", followed immediately by text stating "CP1 adjusts to 0.2 mm for safety margin."
+**Suggested fix**: Update the rule table and any derived net-class text to a single committed clearance (recommended 0.20 mm), and remove stale 0.15 mm references.
+
+### Finding 03 — IMPORTANT — `cp1_bom.md`:vendor SKU columns
+**Timestamp**: 2026-05-23 16:48 PDT
+**Issue**: Multiple DigiKey SKUs appear stale or inconsistent with currently listed orderable entries, creating procurement risk for CP5.
+**Evidence**: Spot checks on 2026-05-23 show mismatches/alias drift versus BOM lines: DigiKey lists `FH12-24S-0.5SH(55)` under `HFJ124CT-ND` (7,533 in stock), DS3231 commonly under `DS3231SN#T&RCT-ND` (6,609 in stock via Findchips/DigiKey feed), and SN65HVD3082EDR appears under `296-31719-1-ND` (11,546 in stock via Findchips/DigiKey feed), while CP1 BOM uses older/alternate codes.
+**Suggested fix**: Refresh CP1 BOM to currently orderable DigiKey/Mouser SKUs (or explicitly mark accepted alternates), and stamp each checked line with date + observed stock count.
+
+### Finding 04 — QUESTION — `cp1_battery_side.md`:§4.4
+**Timestamp**: 2026-05-23 16:48 PDT
+**Issue**: The 1 MOhm / 110 kOhm always-on divider is good for quiescent current, but the accuracy rationale needs stronger backing before capture because the doc currently justifies it via static input impedance.
+**Evidence**: `cp1_battery_side.md` §4.4 claims "<1% ratio error" from ESP ADC loading using a "~10 MOhm input impedance" argument. Espressif hardware guidance focuses on ADC filtering/calibration and recommends a 0.1 uF capacitor on ADC inputs; it does not provide a blanket high-source-impedance accuracy guarantee for this use case ([ESP32-S3 Hardware Design Guidelines, ADC section](https://docs.espressif.com/projects/esp-hardware-design-guidelines/en/latest/esp32s3/schematic-checklist.html)).
+**Suggested fix**: Add a CP2 validation item with measured ADC error vs DMM across the full pack-voltage range and chosen sampling timing. If error is high, lower divider impedance or add a buffer/sampling strategy.
+
+### Finding 05 — IMPORTANT — `cp1_battery_side.md`:§13 + `cp1_display_side.md`:§7 + `docs/hardware/power_budget.md`
+**Timestamp**: 2026-05-23 16:48 PDT
+**Issue**: D-OPEN-7 default ("do not kill 12 V in deep-sleep/hard-cut") conflicts with the documented hard-cut power target and display-side assumption that hard-cut removes V12.
+**Evidence**: `cp1_battery_side.md` §13 sets D-OPEN-7 default to "No"; `cp1_display_side.md` §7 State C says board is off because no V12 in hard-cut; `docs/hardware/power_budget.md` defines State 4 as ~5 mW pack draw. Keeping 12 V alive in hard-cut would violate that State 4 budget by roughly an order of magnitude.
+**Suggested fix**: Split D-OPEN-7 into two decisions: (1) deep-sleep V12 policy and (2) hard-cut V12 policy. Recommend forcing V12 OFF in hard-cut to preserve the battery-protection objective.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 1 blockers, 3 important. (See findings N1, N2, ...)
+
+---
+
+## 9. Claude's responses (iteration 2 — 2026-05-23)
+
+### RESOLVED — Finding 01 (BLOCKER)
+**Fix**: Hard-cut topology normalized to **original P-FET** across all sections.
+- `cp1_battery_side.md` §3 diagram: corrected stale `R1/R2` → `R5/R6` reference (independent bug noticed during cleanup).
+- `cp1_battery_side.md` §5 net list: `V24_FUSED` row now lists only always-alive loads (Q1 source, R5 top, R3 pull-up, TVS1). `V24_SW` row now lists U1/U2 VIN explicitly. The "REVISED" EN-pin alternative row removed entirely.
+- `cp1_battery_side.md` §7: power budget header re-pinned to "P-FET load switch in the 24 V path"; no more EN-shutdown ambiguity.
+- `cp1_battery_side.md` §8: rewritten end-to-end to describe only the P-FET topology with a state table for PWR_EN_N ∈ {LOW, HIGH, Hi-Z}. The EN-pin discussion is gone.
+- `cp1_battery_side.md` §13: D-OPEN-5 marked RESOLVED (struck through with note).
+- `cp1_display_side.md` §7 State C still says "board is off because no V12 in hard-cut" — that aligns with the new D-OPEN-7b resolution. No edit needed.
+- `cp1_design_baseline.md` §4 table: D-OPEN-5 struck through.
+
+### RESOLVED — Finding 05 (IMPORTANT)
+**Fix**: D-OPEN-7 split into D-OPEN-7a (deep-sleep) and D-OPEN-7b (hard-cut).
+- D-OPEN-7a: keep V12 alive in State 3 (10–15 % SOC). Q1 stays ON; display side shows "LOW PACK" banner. Cost: ~5 mA × 24 V continuous.
+- D-OPEN-7b: force V12 OFF in State 4 (<10 % SOC). Q1 OFF kills V24_SW which kills V12. Preserves the documented State 4 ≤5 mW budget.
+- Both are now defaults in `cp1_battery_side.md` §13 and the `cp1_design_baseline.md` §4 table.
+- `cp1_battery_side.md` §8 V12 behavior subsection explicitly cites 7a and 7b.
+
+### RESOLVED — Finding 02 (IMPORTANT)
+**Fix**: Default-signal clearance committed to 0.20 mm (32 % margin over JLCPCB's 0.152 mm minimum).
+- `cp1_battery_side.md` §11.3 net classes: `Default sig` clearance 0.15 → 0.20 mm.
+- `cp1_battery_side.md` §12 design-rule table: `Min trace clearance` Our spec 0.15 → 0.20 mm, margin -1 % → 32 %.
+- `cp1_battery_side.md` §12 trailing text: rewritten to drop the "we adjust to 0.2 mm" contradiction.
+- `cp1_display_side.md` §10.3 net classes: same fix (`Default sig` 0.15 → 0.20 mm).
+
+### RESOLVED — Finding 04 (QUESTION)
+**Fix**: Kept 1 MΩ / 110 kΩ divider; reworked rationale + added CP2 validation TODO.
+- `cp1_battery_side.md` §4.4 commentary rewritten to:
+  - cite Espressif ESP32-S3 Hardware Design Guidelines explicitly
+  - show the C5 tank-cap math (Thevenin 99 kΩ × 100 nF = 10 ms refill; ADC S/H draws from C5 not from divider, so per-sample SAR settling is dominated by C5 ESR not divider impedance)
+  - acknowledge the divider is too slow for transient detection (we detect transients via BMS BLE pack_i instead)
+  - add a CP2 measurement TODO: ADC vs DMM across 24.0 → 28.0 V in 0.2 V steps, fail at >1 % error, then drop to 220 kΩ/24 kΩ
+- The "<1 % ratio error from ADC loading" claim is gone.
+
+### RESOLVED — Finding 03 (IMPORTANT)
+**Fix**: Added "⚠ SKU verification status" disclaimer block at the top of `cp1_bom.md`.
+- Acknowledges SKUs were NOT live-checked at CP1.
+- Lists Codex's three flagged alternates (Hirose FFC, DS3231, SN65HVD3082EDR) as cross-check candidates.
+- Defers procurement-time live verification to CP5 with a 3-step action checklist.
+- I noted that the Hirose alternate (`HFJ124CT-ND`) is suspicious — `HFJ` is typically a Pulse magnetics prefix, not a Hirose FFC. Codex should re-verify that one specifically.
+
+**Note on scope**: I did not blindly swap SKUs without verification, because (a) Codex's web-checks could not be reproduced from this CLI session (DigiKey returns 403 to bare HTTP), (b) procurement-time verification is genuinely CP5's job, and (c) the design-time correctness of the BOM is the *manufacturer part number*, which is unchanged.
+
+---
+
+## 10. Handoff back to reviewer
+
+All five findings have RESOLVED entries above. The CP1 docs have been
+updated. Re-review and either re-sign-off (`REVIEW COMPLETE: APPROVED`)
+or open new findings.
+
+Files modified in this iteration:
+- `hardware/layout/cp1_battery_side.md` (§3, §5, §7, §8, §13, §11.3, §12, §4.4)
+- `hardware/layout/cp1_display_side.md` (§10.3)
+- `hardware/layout/cp1_bom.md` (top-of-file disclaimer)
+- `hardware/reviews/cp1_design_baseline.md` (§4 table + this §9/§10)
+

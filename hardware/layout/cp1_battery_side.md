@@ -56,7 +56,7 @@ D1 [SS24 Schottky, A→K]                                  ← reverse-polarity 
     ├─[V24_FUSED]─────────────────────────────┬─────────────┐
     │                                          │             │
     │                                          ▼             ▼
-    ▼                                       Q1/Q2          R1/R2 divider
+    ▼                                       Q1/Q2          R5/R6 divider
 TVS1 [SMAJ30CA, V24_FUSED ↔ GND]             P/N-MOSFET     →V24_SENSE
                                               load switch   (always alive,
                                                             survives hard-cut)
@@ -145,11 +145,33 @@ capacitance is ~330 pF; even at 100 kΩ the RC turn-OFF time is
 
 **Power-first commentary**: increasing the divider impedance from
 100 kΩ/11 kΩ to 1 MΩ/110 kΩ trades 220 µA for 22 µA on the
-permanently-alive path. The ADC's input impedance is ~10 MΩ on ESP32-S3
-when configured for 12-bit operation, so the ratio error from loading is
-<1 %. Voltage settling is slower (~RC = 100 ms) but the sense is read at
-~Hz rates, so settling is irrelevant. **This is the single biggest
-power optimization in the design.**
+permanently-alive path. **This is the single biggest power optimization
+in the design.**
+
+**ADC accuracy caveat — addressed at CP2 validation, not at design time**.
+Espressif's
+[ESP32-S3 Hardware Design Guidelines (ADC section)](https://docs.espressif.com/projects/esp-hardware-design-guidelines/en/latest/esp32s3/schematic-checklist.html)
+recommend a 100 nF cap on every ADC input (C5 here does that) but do
+not provide an explicit high-source-impedance accuracy guarantee. With
+our values:
+
+- Divider Thevenin source: 1 MΩ ‖ 110 kΩ ≈ 99 kΩ
+- Tank cap C5 = 100 nF on the ADC node
+- Time constant to refill C5 from V24_FUSED through the divider: ~10 ms
+- ADC S/H cap (~10 pF) draws from C5, not directly from the divider —
+  so the per-sample SAR settling is dominated by C5's ESR (mΩ), not by
+  the divider impedance
+
+For SOC monitoring at ≤1 Hz sample cadence, the tank cap is fully
+settled between samples and ADC reads should match a DMM within
+calibration tolerance. For transient detection (load surges, inrush
+during charging), this divider is too slow — but transient detection
+happens via the BMS-reported `pack_i` over BLE, not via this ADC.
+
+**CP2 validation TODO**: measure ADC reading vs DMM across the
+pack-voltage range (24.0 V → 28.0 V in 0.2 V steps) and verify error
+≤ 1 % across the range. If error exceeds 1 %, either drop divider to
+220 kΩ/24 kΩ (98 µA idle, RC ~2 ms) or buffer with an op-amp.
 
 ### 4.5 MCU & support
 
@@ -219,9 +241,8 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | Net          | Voltage     | Source                | Sinks                                         | Notes |
 |--------------|-------------|-----------------------|-----------------------------------------------|-------|
 | V24_RAW      | 24–28 V     | J1 pin 1             | F1                                            | Pack tap, unfused |
-| V24_FUSED    | 24–28 V     | D1 cathode           | TPS62933 VIN, R-78E12 VIN, Q1 source, R5 top, R3 (Q1 gate pull-up), TVS1 | Always-on 24 V rail (post-fuse, post-reverse) |
-| V24_SW       | 24–28 V     | Q1 drain             | (none directly — collapses to 0 when Q1 OFF; currently unused as a routed rail because U1/U2 sit on V24_FUSED) | **CP1 design choice**: instead of switching V24 through Q1 and powering U1/U2 from V24_SW, we move the load-switch to the **3V3 side** — Q1 disables U1 via the EN pin and U2 via cutting its enable. This avoids putting a SOT-23 P-MOSFET in the high-current 24V path |
-| **REVISED:** V24_FUSED feeds U1 and U2 directly. Q1 is replaced by **driving U1's EN pin and U2's EN pin LOW** from PWR_EN_N | | | | See §13 D-OPEN-5 below |
+| V24_FUSED    | 24–28 V     | D1 cathode           | Q1 source, R5 top (sense divider), R3 (Q1 gate pull-up), TVS1, BAT1+ via diode-OR | Always-alive 24 V rail (post-fuse, post-reverse). Only loads are the load-switch input, the sense divider, the gate pull-up, and the TVS clamp — minimal idle draw |
+| V24_SW       | 24–28 V     | Q1 drain             | TPS62933 VIN (U1), R-78E12 VIN (U2)            | Switched 24 V rail downstream of the P-FET load switch. Collapses to ~0 V when PWR_EN_N is HIGH (deep-sleep, hard-cut, or MCU boot/brown-out). Carries the full 24 V monitor load |
 | V3V3_SW      | 3.3 V       | TPS62933 VOUT        | ESP3V3, RTC VCC, U3 VCC, R8/R9, R11, R13, C6/C7/C8 | Switched 3.3 V; survives only while U1 is enabled |
 | V12_CAT5E    | 12 V        | R-78E12 VOUT         | J2 RJ45 pins 1/2/3                            | Powers display side over Cat5e |
 | GND          | 0 V         | (chassis)            | every IC GND, J2 pins 6/7/8, chassis stud near J2 | Single-point shield-drain bond at J2 |
@@ -266,8 +287,10 @@ extra LED, etc.) via J3.
 
 ## 7. Power budget per state
 
-Computed for **CP1 part choices** (with the 1 MΩ sense divider, no debug LED,
-100 kΩ Q1 pull-up, and the EN-based shutdown described in §13 D-OPEN-5).
+Computed for **CP1 part choices**: 1 MΩ/110 kΩ sense divider, no debug
+LED, 100 kΩ Q1 gate pull-up, P-FET load switch in the 24 V path
+(§8), V12 policy split between deep-sleep (alive) and hard-cut (off) —
+see [§13 D-OPEN-7a/7b](#13-open-decisions-for-reviewer).
 
 | State | SOC band | Subsystem draws (at 24 V end) | Pack draw | Notes |
 |-------|----------|--------------------------------|-----------|-------|
@@ -279,41 +302,61 @@ Computed for **CP1 part choices** (with the 1 MΩ sense divider, no debug LED,
 State 4 budget: at 7 mW, ~2 years to lose 1 % SOC from monitor alone.
 Acceptable.
 
-## 8. Hard-cut MOSFET behavior (revised — see §13 D-OPEN-5)
+## 8. Hard-cut MOSFET behavior
 
-The original SKiDL used a P-FET in the 24 V high-side path to kill all
-downstream rails. CP1 proposes an alternative: keep U1 and U2 on
-V24_FUSED, and drive their **EN pins** LOW from PWR_EN_N via Q2 + an
-inversion stage.
+**Topology**: P-FET high-side load switch in the 24 V path
+([D-OPEN-5 resolved](#13-open-decisions-for-reviewer) → original P-FET).
+Q1 (AO3401A P-MOSFET) passes V24_FUSED → V24_SW, gated by Q2
+(AO3400A N-MOSFET) which is driven by ESP GPIO4 (PWR_EN_N).
 
 ```
-PWR_EN_N (ESP IO4) ──[Q2: AO3400A pulldown]── EN_U1 (TPS62933) and EN_U2 (R-78E12)
-                                              with R3 pull-up to V24_FUSED
+V24_FUSED ──┬───────────────────┬─────── always-alive (TVS1, R5/R6, R3)
+            │                    │
+            │  R3 [100 kΩ]      │
+            │  ↓                 │
+            └─►●──── Q1 gate ◄──┐│
+            │                    ││ Q1 SOURCE → V24_FUSED
+            ●─── Q1 source     ││ Q1 DRAIN  → V24_SW
+            │                    ││ Q1 GATE   → tied to Q2 drain + R3 pull-up
+            ▼                    ▼▼
+         Q1 [P-FET AO3401A] ──── V24_SW ──► U1, U2
+              │
+              gate ◄── Q2 [N-FET AO3400A] drain
+                              source ── GND
+                              gate    ◄── PWR_EN_N (ESP IO4) + R4 [100 kΩ pulldown]
 ```
 
-When PWR_EN_N is LOW → Q2 OFF → EN pins pulled HIGH by R3 → regulators
-ON.
-When PWR_EN_N is HIGH (default on MCU boot / brown-out / lockup) → Q2
-ON → EN pins pulled LOW → regulators OFF.
+**State table:**
 
-**Why this is preferred over a SOT-23 P-FET in the 24 V path**:
-- The TPS62933 EN pin is rated for 12 V max — needs a level-shift or
-  divider from V24_FUSED. Trivial: 100 kΩ + 22 kΩ divider keeps EN below
-  spec while still > V_IH.
-- The R-78E12 doesn't have an EN pin natively — we'd need to gate its
-  VIN via another switch. The module *can* be controlled by a small
-  P-FET in series with its VIN; same as the original SKiDL plan.
-- **Tradeoff**: this CP1 proposal moves the switch to the 3.3 V side
-  (TPS62933 EN) but still needs a series switch for U2's VIN if we want
-  the 12 V Cat5e rail to die in deep-sleep/hard-cut. Two options:
-  - **A**: keep the original P-FET in the 24 V path (as docs/hardware/
-    specifies). Simple, proven topology. ~0.4 W heat dissipation in the
-    P-FET at full load — fine in a SOT-23.
-  - **B**: have U2 always-on; rely on the display side's own light-sleep
-    to keep its draw low. Drops one MOSFET from BOM. Slight worse
-    deep-sleep draw (~5 mA at 24 V always on the V12 rail).
+| PWR_EN_N (ESP IO4) | Q2  | Q1 gate          | Q1   | V24_SW  | Notes                          |
+|--------------------|-----|------------------|------|---------|--------------------------------|
+| LOW                | OFF | pulled HIGH by R3| OFF  | 0 V     | Default on MCU boot / brown-out / unknown — rails are OFF (safe) |
+| HIGH (3.3 V)       | ON  | pulled LOW by Q2 | ON   | V24_FUSED | Normal operation; firmware drives HIGH to enable rails |
+| Hi-Z (MCU reset)   | R4 pulls Q2 gate to GND → Q2 OFF | pulled HIGH by R3 | OFF | 0 V | Failsafe — any MCU fault collapses the downstream rails |
 
-**Reviewer decision needed** (D-OPEN-5).
+**Why this topology**:
+- **Default-OFF behavior** matches the pack-safety objective: on any
+  power-on or MCU fault, the rails default to OFF. The firmware must
+  affirmatively drive PWR_EN_N HIGH to bring them up.
+- The AO3401A passes ~50 mA × V24 with RDS(on) ~70 mΩ at Vgs = -3.3 V →
+  ~3.5 mW dissipation, trivial for a SOT-23.
+- Brown-out recovery is automatic: if V_DD dips below the ESP32-S3
+  brown-out threshold and GPIO4 goes Hi-Z, R4 pulls Q2 OFF, R3 pulls Q1
+  OFF, downstream rails collapse, the ESP eventually re-boots, ULP
+  takes over, voltage recovers, and firmware re-engages.
+
+**V12 (Cat5e) behavior**:
+- V12 is generated by U2 (R-78E12) on V24_SW. So V12 follows V24_SW
+  exactly — when Q1 is OFF, V12 is also OFF.
+- **State 3 (deep-sleep, 10–15 % SOC)**: Q1 stays ON (V24_SW alive),
+  V12 stays alive, display side sees frames at a slower cadence and
+  can show the "LOW PACK" banner. See [D-OPEN-7a](#13-open-decisions-for-reviewer).
+- **State 4 (hard-cut, <10 % SOC)**: Q1 OFF → V24_SW collapses → V12
+  collapses → display side is dark. The State 4 budget (≤5 mW pack
+  draw) requires this. See [D-OPEN-7b](#13-open-decisions-for-reviewer).
+
+This matches the documented State 4 budget in
+[`power_budget.md`](../../docs/hardware/power_budget.md) §State 4.
 
 ## 9. RS-485 interface
 
@@ -372,7 +415,7 @@ optional (see CP1 display-side §4.6).
 | Power-24V   | 1.0 mm   | 0.3 mm    | V24_RAW, V24_FUSED                         |
 | Power-12V   | 0.5 mm   | 0.25 mm   | V12_CAT5E                                  |
 | Power-3V3   | 0.4 mm   | 0.2 mm    | V3V3_SW                                    |
-| Default sig | 0.2 mm   | 0.15 mm   | UART, I²C, SPI (none here), BTN, sense     |
+| Default sig | 0.2 mm   | 0.20 mm   | UART, I²C, SPI (none here), BTN, sense     |
 | RS485-diff  | 0.25 mm  | 0.2 mm    | RS485_A, RS485_B (route as pair, equal-length, no stubs) |
 
 JLCPCB minimum is 6 mil (0.152 mm) trace and 6 mil clearance — all
@@ -390,14 +433,15 @@ SW loop).
 | Rule                         | Min spec  | Our spec   | Margin |
 |------------------------------|-----------|------------|--------|
 | Min trace width              | 0.152 mm  | 0.2 mm     | 32 %    |
-| Min trace clearance          | 0.152 mm  | 0.15 mm    | -1 %    |
+| Min trace clearance          | 0.152 mm  | 0.20 mm    | 32 %    |
 | Min drill hole               | 0.3 mm    | 0.3 mm (vias 0.4 mm)  | 0 % via, 33 % through-hole |
 | Min annular ring             | 0.13 mm   | 0.15 mm    | 15 %    |
 | Edge clearance               | 0.3 mm    | 0.3 mm     | 0 %    |
 | Hole-to-trace                | 0.2 mm    | 0.2 mm     | 0 %    |
 
-Default-sig clearance of 0.15 mm is right at the JLCPCB minimum. CP1
-adjusts to 0.2 mm for safety margin.
+All net classes sit comfortably above JLCPCB's 6 mil (0.152 mm)
+minimums. Default-sig clearance is committed to 0.20 mm for safety
+margin.
 
 ## 13. Open decisions for reviewer
 
@@ -406,9 +450,10 @@ adjusts to 0.2 mm for safety margin.
 | **D-OPEN-1**  | ESP32-S3-WROOM-1-N16R8 vs -N8 (no PSRAM)? | N16R8 — keep existing BOM choice; minor $1.50 difference doesn't move the needle |
 | **D-OPEN-2**  | SN65HVD3082E vs lower-Iq alternative (ISL3175E)? | SN65HVD3082E — stocked, proven |
 | **D-OPEN-3**  | Internal ESP32 ADC vs external supervisor IC (TPS3839) for ULP voltage monitoring? | **Internal ADC** — saves $1.50 + footprint; ULP draws ~10 µA which dominates over the regulator Iq anyway |
-| **D-OPEN-5**  | Hard-cut topology — original P-FET-in-24V vs EN-pin-shutdown? | **Original P-FET** — proven topology, simpler debug, ~$1 cost |
+| ~~D-OPEN-5~~  | ~~Hard-cut topology~~ — **RESOLVED 2026-05-23 (post-CP1 Codex Finding 01)**: original P-FET in the 24 V path. Topology described in §8. No EN-pin alternative |
 | **D-OPEN-6**  | Q1 gate pull-up value — 10 kΩ (~2.4 mA) vs 100 kΩ (~240 µA) vs 1 MΩ (~24 µA)? | **100 kΩ** — balance of fast turn-OFF (RC ~33 µs) and low idle current |
-| **D-OPEN-7**  | Should the 12 V Cat5e rail die in deep-sleep/hard-cut? | **No** — display side has its own light-sleep, keeping V12 alive means STALE banner / link status keeps working in LOW SOC tier |
+| **D-OPEN-7a** | **Deep-sleep V12 policy** — should the 12 V Cat5e rail be kept alive in State 3 (10–15 % SOC, deep-sleep)? | **Yes** — Q1 stays ON in deep-sleep; display side sees slow-cadence frames and can show "LOW PACK" banner. Cost: ~5 mA × 24 V continuous via V24_SW |
+| **D-OPEN-7b** | **Hard-cut V12 policy** — should the 12 V Cat5e rail die in State 4 (<10 % SOC, hard-cut)? | **Yes (forced OFF)** — Q1 OFF kills V24_SW which kills V12. Required to preserve the State 4 ≤5 mW pack-draw target. Display side goes dark; ESP NVS preserves its last-rendered screen for the next State-1 recovery |
 
 ## 14. Risk register
 
