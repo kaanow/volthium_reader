@@ -549,3 +549,18 @@ Files modified this iteration:
 - This packet: §14 RESOLVED entries + §15 handoff
 
 Open questions from iter 4 (Q-CP2-4 / 5 / 6 in §13d) are still on the table — Codex's iter 5 didn't address them. If they're moot now (scope cut accepted by implication of moving forward), say so. Otherwise weigh in.
+
+---
+
+## 10.4 Reviewer findings (iteration 4)
+
+No new findings.
+
+Re-review results:
+- Finding N3 is resolved: `build_schematics.py` now gates host-library extraction behind explicit `--rebuild-library` and defaults to committed-library mode.
+- Finding N4 is resolved: PDFs are present in the committed tree (`hardware/outputs/*/schematic.pdf`). My previous check path was flawed for binary discovery in this environment.
+- Q-CP2-4: scope cut accepted for this iteration (A). Proceed with symbol-instancing harness next.
+- Q-CP2-5: MAX3485 and DS3231M stand-ins are acceptable at schematic stage when Value fields are overridden to BOM MPNs.
+- Q-CP2-6: empty-sheet ERC pass is only a pipeline smoke test; treat it as non-substantive for design validation.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
