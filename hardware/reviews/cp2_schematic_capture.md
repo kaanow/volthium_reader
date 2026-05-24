@@ -37,6 +37,20 @@ using [`kiutils`](https://pypi.org/project/kiutils/) v1.4.8 to write
 the schematic files programmatically, then `kicad-cli sch upgrade`
 to migrate to KiCad 10's format.
 
+**Symbol resolution — project-local**: every symbol the design uses
+(stock or custom) is copied/authored into
+`hardware/kicad/libraries/volthium.kicad_sym`, a file committed to
+the repo. The build script reads symbols from there with
+repo-relative paths. **No reference to the host KiCad install** in
+committed artifacts. (Originally proposed using the host install's
+library directly — fixed per Codex Finding 01 iter 1.)
+
+The host KiCad library at
+`/Applications/KiCad/.../symbols/*.kicad_sym` is used only as a
+*development-time source* — a separate one-shot script can pull
+fresh symbol definitions when we need to extend the project library.
+Generation and ERC always run against the committed local library.
+
 **Why programmatic, not GUI?**
 - This session has no GUI access; KiCad's interactive schematic editor
   is out of reach.
@@ -80,22 +94,33 @@ cli operations succeed despite the warning.)
 
 ## 4. Known challenges (call out before we hit them)
 
-### 4a. Library symbol lookups
+### 4a. Library symbol lookups (project-local)
 
-To place a component, kiutils needs the symbol's library reference
-(e.g. `Device:R`) AND the schematic file needs a `libSymbols` section
-containing a copy of that symbol's definition. KiCad 10 ships symbol
-libraries at
-`/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols/*.kicad_sym`.
+Resolution is project-local for full reproducibility:
 
-**Plan**: parse the relevant `.kicad_sym` files via kiutils'
-`SymbolLib.from_file()` and copy the needed symbols into each
-generated schematic's `libSymbols` section. Should "just work" for
-the stock parts from CP1's BOM.
+1. The committed file `hardware/kicad/libraries/volthium.kicad_sym`
+   contains every symbol the design uses — both stock parts pulled
+   from KiCad's distribution (`Device:R`, `Device:C`,
+   `RF_Module:ESP32-S3-WROOM-1`, etc.) and any custom symbols (Recom
+   R-78E modules).
+2. `build_schematics.py` reads from that file via
+   `kiutils.symbol.SymbolLib.from_file(repo_root / "hardware/kicad/libraries/volthium.kicad_sym")`.
+3. Each generated schematic's `libSymbols` section gets a copy of
+   the symbols it uses (KiCad's convention — symbols are cached
+   inside each `.kicad_sch`).
+4. KiCad project files (`.kicad_pro`, `sym-lib-table`) point at the
+   repo-local library via `${KIPRJMOD}/libraries/volthium.kicad_sym`
+   so the schematic editor (GUI or CLI) finds them on any machine
+   with the repo checked out.
 
-**Risk**: KiCad 10 may have renamed symbols vs KiCad 8 era (which is
-what the legacy SKiDL targets). The `RF_Module:ESP32-S3-WROOM-1`
-symbol is the main one to verify. Will check at iteration 2 start.
+A separate dev-time script (not in the CP2 deliverables) can
+extract symbols from the host KiCad install when we need to add a
+new part — but **regeneration, ERC, and exports never touch the host
+install**. Repo + venv = sufficient.
+
+**Risk** (unchanged): KiCad 10 may have renamed symbols vs KiCad 8
+(SKiDL's target). The `RF_Module:ESP32-S3-WROOM-1` symbol is the
+main one to verify. Will check at iter 2 start.
 
 ### 4b. Recom R-78E12 / R-78E3.3 modules
 
@@ -135,8 +160,8 @@ text placement) can come from the user in KiCad GUI if desired.
 
 | Iter | Scope | Deliverable |
 |------|-------|-------------|
-| 1    | **Approach review (this one)** | This packet + smoke test + scaffolding |
-| 2    | Battery-side power-input cluster (J1, F1, D1, TVS1, U1, L1, U2, sense divider, Q1/Q2 load switch) | Partial `battery_side.kicad_sch` ERC-clean for the subset; PDF + netlist for subset |
+| 1    | Approach review | This packet + smoke test |
+| 2    | **Project scaffolding + battery-side power-input cluster** (`.kicad_pro` for both boards; `libraries/volthium.kicad_sym` seeded with all symbols both boards will need; battery_side.kicad_sch with J1, F1, D1, TVS1, U1, L1, U2, sense divider, Q1/Q2 load switch placed and labeled) | Project files + library committed; partial `battery_side.kicad_sch` ERC-clean for the subset; PDF + netlist exports for subset |
 | 3    | Battery-side MCU + support + RS-485 (MOD1, RTC1, BAT1, U3, R/C support, dev headers) | Complete `battery_side.kicad_sch` ERC clean |
 | 4    | Display-side board (full, smaller than battery side) | Complete `display_side.kicad_sch` ERC clean |
 | 5    | Final polish + final exports (PDFs, netlists) | CP2 closes |
@@ -231,3 +256,33 @@ unless you've already seen this and have a recommendation.
 **Suggested fix**: In iter 2, include minimal project scaffolding alongside the first schematic slice (project file + any required library table references) so reviewer-side `kicad-cli sch erc` and export commands are independently reproducible.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings N1, N2.)
+
+---
+
+## 11. Claude's responses (iteration 1 — 2026-05-24)
+
+### RESOLVED — Finding 01 (IMPORTANT)
+**Fix**: Approach updated to project-local symbol resolution. The committed file `hardware/kicad/libraries/volthium.kicad_sym` will contain every symbol the design uses (stock + custom). `build_schematics.py` reads from there with repo-relative paths. KiCad project files point at the library via `${KIPRJMOD}/libraries/volthium.kicad_sym` so the schematic editor finds them on any machine with the repo checked out. Host KiCad install is reduced to a dev-time source for extracting new symbols; it's never on the regeneration/ERC/export path.
+
+**Confidence**: high — this is the standard KiCad project-local library convention; no surprises expected.
+
+Updated `cp2_schematic_capture.md` §2 (Generation method now includes "Symbol resolution — project-local" subsection) and §4a (rewritten to describe the project-local lookup + the `${KIPRJMOD}` reference).
+
+### RESOLVED — Finding 02 (QUESTION)
+**Fix**: Confirmed — iter 2 will land all project scaffolding alongside the first schematic slice so reviewer-side `kicad-cli sch erc` / `sch export` commands run against committed artifacts. Specifically, iter 2 will commit:
+
+- `hardware/kicad/battery_side/battery_side.kicad_pro` (project file)
+- `hardware/kicad/display_side/display_side.kicad_pro` (project file — even though display-side schematic doesn't land until iter 4, the project file goes in early)
+- `hardware/kicad/libraries/volthium.kicad_sym` (seeded with **every** symbol both boards will need, not just the iter 2 subset)
+- `hardware/kicad/battery_side/sym-lib-table` (per-project symbol library table referencing `${KIPRJMOD}/../libraries/volthium.kicad_sym`)
+- `hardware/kicad/battery_side/battery_side.kicad_sch` (partial — the power-input cluster only)
+
+That way the reviewer can run `kicad-cli sch erc hardware/kicad/battery_side/battery_side.kicad_sch` against the partial schematic and get a clean result (or a documented set of expected warnings for the not-yet-populated sections).
+
+`cp2_schematic_capture.md` §5 iteration-sequence table updated to list these explicitly under iter 2.
+
+---
+
+## 12. Handoff back to reviewer (iteration 2)
+
+Both findings addressed. Approach is now reproducibly buildable from `repo + .venv` — no host-machine dependence. Files modified: `cp2_schematic_capture.md` §2, §4a, §5, plus this §11/§12. Iter 2 (actual schematic generation) will start on the next Claude turn after this approach update is APPROVED.
