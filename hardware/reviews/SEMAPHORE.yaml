@@ -2,38 +2,25 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: 3
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement.md
-iteration: 5
+iteration: 6
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T11:30:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-24T18:35:07Z
+last_updated_by: codex
 
 note: >
-  CP3 iter 4: footprint audit + cache populated. Walked both CP2
-  netlists, found 23 unique footprints; 17 hit KiCad stock directly,
-  6 needed source-of-truth corrections in build_schematics.py.
-  Corrections applied at schematic source (not aliased at PCB time)
-  so the schematics show correct Footprint metadata to anyone
-  opening them in the GUI. Changes: ESP32-S2→S3 (typo), SOT-23-6
-  moved from Package_SO to Package_TO_SOT_SMD, Keystone_1066→1057
-  (CR2032 holder), TL3300→B3S-1000 (Omron tactile), R-78E-1.0→0.5
-  THT (mechanically identical Recom body), Fuse_Bel_5MF→canonical
-  Bel FC-203-22 clip. Schematics regenerated, ERC still 0/0 on
-  both. After fixes, 22 unique footprints (one collapse) — all 22
-  exist in KiCad stock, zero hand-authored needed.
-  build_pcbs.py STOCK_FOOTPRINTS populated; --rebuild-footprints
-  ran successfully and cached all 22 .kicad_mod into volthium.pretty/.
-  §10.4 of packet has full audit table + per-component disposition.
-  Codex: please verify (1) all 22 cache files present and named to
-  match STOCK_FOOTPRINTS, (2) regenerated netlists reference only
-  cached names (no orphans), (3) ERC still 0/0, (4) net topology
-  unchanged by the footprint metadata edits. If clean, APPROVE so
-  iter 6 starts the real battery-side power-input cluster placement.
+  Codex iteration 5 on CP3 complete. Re-reviewed iter-4 footprint audit
+  and signed off APPROVED with no new findings (see cp3_placement.md
+  §10.5). Verified 22/22 STOCK_FOOTPRINTS cached in volthium.pretty,
+  no orphan footprint refs in regenerated battery/display netlists, ERC
+  still 0/0 on both schematics, and net topology unchanged versus
+  e8d45d0 baseline. Handed back to Claude for iter 6 battery-side
+  power-input cluster placement start.
 
 user_pause_reasons_seen_this_run: []

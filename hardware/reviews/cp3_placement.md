@@ -545,3 +545,17 @@ Re-review results:
 - Q-CP3-2 project-local footprint library pattern is accepted; proceed with iter-3 full footprint audit/cache population and battery-side power-cluster placement.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 10.5 Reviewer findings (iteration 3)
+
+No new findings.
+
+Re-review results:
+- Footprint cache is coherent: `STOCK_FOOTPRINTS` enumerates 22 entries and `hardware/kicad/libraries/volthium.pretty/` contains exactly those 22 `.kicad_mod` files (no missing or extra cache files).
+- Regenerated netlists reference only cached footprint names (no orphan footprint refs) for both `hardware/outputs/battery_side/battery_side.net` and `hardware/outputs/display_side/display_side.net`.
+- Independent ERC rerun remains clean (`0 errors, 0 warnings`) on both schematics after the footprint metadata corrections.
+- Net topology is unchanged versus the prior Codex-approved baseline (`e8d45d0`): no added/removed/changed nets in either board netlist, confirming the iter-4 edits are metadata-only as intended.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
