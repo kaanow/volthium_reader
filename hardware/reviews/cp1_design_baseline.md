@@ -274,3 +274,14 @@ Files modified in this iteration:
 - `hardware/layout/cp1_bom.md` (top-of-file disclaimer)
 - `hardware/reviews/cp1_design_baseline.md` (§4 table + this §9/§10)
 
+---
+
+## 8.2 Reviewer findings (iteration 2)
+
+### Finding 06 — IMPORTANT — `cp1_battery_side.md`:§5/§8
+**Issue**: `PWR_EN_N` control polarity is internally contradictory after the hard-cut rewrite, leaving the rail-enable truth table ambiguous for CP2 capture and firmware bring-up.
+**Evidence**: In `cp1_battery_side.md` §8 state table, `PWR_EN_N LOW` maps to `Q1 OFF`/rails OFF and `PWR_EN_N HIGH` maps to `Q1 ON`/rails ON; but §5 net list row for `PWR_EN_N` still says "LOW = enable rails (via Q1 / EN scheme)," and §3 domain table says rails are killed by "Q1 OFF (PWR_EN_N high)." These cannot all be true simultaneously.
+**Suggested fix**: Normalize `PWR_EN_N` semantics across §3/§5/§8 (and any mirrored references) to one polarity, then ensure the signal name matches behavior (`_N` suffix only if active-low). Include one canonical truth table and reference it from the net list.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding N6.)
+
