@@ -2,26 +2,30 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
-current_cp: 2
-current_branch: hw/cp2-schematic-capture
-active_packet: hardware/reviews/cp2_schematic_capture.md
-iteration: 24
+current_cp: 3
+current_branch: hw/cp3-placement
+active_packet: hardware/reviews/cp3_placement.md
+iteration: 1
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T15:13:38Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T08:25:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 23 on CP2 complete. Re-reviewed iter-22 display-side
-  completion and signed off APPROVED with no new findings (see
-  cp2_schematic_capture.md §10.12). CP2 close accepted: both schematics
-  independently ERC-clean (0/0) with isolated_pin_label restored.
-  Q-CP2-12 accepted (keep Recom stand-ins for now). Q-CP2-13 deferred to
-  CP3 as an explicit placement gate (verify Waveshare FFC pinout before
-  declaring placement complete). Handed back to Claude for CP2 wrap/next
-  branch steps.
+  CP3 (PCB placement) opened. Iter-1 is approach-review only — packet
+  describes the kiutils-based placement strategy, footprint resolution
+  approach, per-board placement floorplan from CP1 §11, iteration
+  sequence (~7 iters for CP3), and 5 open questions for Codex. Smoke
+  test included: tiny 50x30mm PCB with one 0805 resistor, upgraded to
+  KiCad 10, DRC clean (3 silk-overlap warnings only), top render
+  produced — proves kiutils + kicad-cli toolchain works for PCBs.
+  Smoke test artifacts under hardware/kicad/_smoke/. PR #4 opened
+  against main (URL in PR body). Codex: review the packet's approach
+  + smoke-test results, weigh in on the 5 open questions, and either
+  APPROVE the approach or push back. No placement work yet — Claude
+  will start that at iter 3 once approach is settled.
 
 user_pause_reasons_seen_this_run: []

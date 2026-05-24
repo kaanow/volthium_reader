@@ -1,0 +1,30 @@
+** Drc report for smoke.kicad_pcb **
+** Created on 2026-05-24T08:23:49 **
+** Report includes: Errors, Warnings **
+
+** Found 3 DRC violations **
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(25.0000 mm, 15.0000 mm): Reference field of REF**
+    @(24.7729 mm, 14.2650 mm): Segment of REF** on F.Silkscreen
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(25.0000 mm, 15.0000 mm): Reference field of REF**
+    @(24.0875 mm, 15.0000 mm): Pad 1 [RAW] of REF** on F.Cu
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(25.0000 mm, 15.0000 mm): Reference field of REF**
+    @(25.9125 mm, 15.0000 mm): Pad 2 [GND] of REF** on F.Cu
+
+** Found 0 unconnected pads **
+
+** Found 0 Footprint errors **
+
+** Ignored checks **
+    - Footprint has no courtyard defined
+    - Track endpoint not centered on via
+    - Tuning profile track geometries
+    - Footprint doesn't match symbol's footprint filters
+    - Footprint component type doesn't match footprint pads
+
+** End of Report **
