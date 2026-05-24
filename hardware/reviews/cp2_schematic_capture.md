@@ -829,3 +829,17 @@ Re-review results:
 - Q-CP2-8: split remaining power-input expansion across sub-iterations rather than batching all 9 symbols; safer at this project stage and iteration-cap boundary.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 10.6 Reviewer findings (iteration 6)
+
+No new findings.
+
+Re-review results:
+- Battery-side schematic now includes the intended V24 input-chain components (J1/F1/D1/TVS1) with matching labels for `V24_RAW`, `V24_AFTER_FUSE`, and `V24_FUSED`.
+- Exported netlist topology is coherent for this stage: `J1 -> F1 -> D1 -> V24_FUSED` with TVS on `V24_FUSED` and ground return present.
+- ERC remains clean (`0 errors, 0 warnings`) with documented ignored categories appropriate to CP2-in-progress state.
+- `max_iterations_per_cp` increase to 30 is reasonable given demonstrable forward progress each iteration and no consensus deadlock.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).

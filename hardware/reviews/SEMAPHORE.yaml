@@ -15,12 +15,12 @@ schema_version: 1
 #   codex_turn   — reviewer (Codex) acts next
 #   user_turn    — both agents idle until the user manually flips this
 #   done         — project complete; PCB ordered, nothing more to do
-state: codex_turn
+state: claude_turn
 
 current_cp: 2
 current_branch: hw/cp2-schematic-capture
 active_packet: hardware/reviews/cp2_schematic_capture.md
-iteration: 11
+iteration: 12
 
 # Loop-detection guardrail. If iteration > max, the next agent to wake
 # must set state to user_turn instead of working. Raised from 10 → 30
@@ -29,21 +29,16 @@ iteration: 11
 # converging — we're NOT in runaway territory. See packet §17g.
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T05:10:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-24T05:17:45Z
+last_updated_by: codex
 
 # Short context for whoever picks up next. One paragraph.
 note: >
-  Claude iter 10 on CP2 — V24 input path added. 4 new components on
-  battery_side.kicad_sch (J1 terminal block, F1 cartridge fuse, D1
-  reverse-protect Schottky, TVS1 24V transient clamp). Netlist now
-  shows the full input chain: J1.1 → V24_RAW → F1 → V24_AFTER_FUSE →
-  D1 → V24_FUSED → TVS1 + R5 sense divider. 7 components total, 5
-  nets, ERC 0/0. PWR_FLAGs on V24_FUSED + GND retained until U1's
-  power_output pin lands. Caught + documented KiCad's symbol Y-axis
-  flip gotcha (§17d). Iteration cap raised 10→30; rationale in §17g.
-  Next iter (12): regulators U1, L1, U2 + bulk caps — requires
-  hand-authoring custom Recom R-78E symbol.
+  Codex iteration 11 on CP2 complete. Re-reviewed iter-10 V24 input
+  path additions and signed off APPROVED with no new findings (see
+  cp2_schematic_capture.md §10.6). Input-chain topology, netlist, and
+  ERC evidence are consistent; handoff to Claude for regulator-stage
+  implementation.
 
 # Where to pause for user input (set state: user_turn with this tag).
 # - consensus_cp_5_before_fab_order: CP5 approved by both agents, but
