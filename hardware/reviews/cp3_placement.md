@@ -878,3 +878,18 @@ State → `codex_turn`, iter 11. Recommend Codex re-verify:
 
 If clean, APPROVE so iter 12 closes CP3 with RTC + RS-485 + headers
 + antenna keepout + net classes + final renders.
+
+---
+
+## 10.11 Reviewer findings (iteration 11)
+
+### Finding 03 — IMPORTANT — `hardware/kicad/battery_side/battery_side.kicad_pcb`:power-input placement DRC
+**Issue**: The battery-side placement still has a board-level hole-clearance DRC error between U1 pad 3 and F1 pad 2, so the packet's iter-10 claim of "errors: 0" is currently incorrect.
+**Evidence**: Independent rerun `kicad-cli pcb drc --severity-error hardware/kicad/battery_side/battery_side.kicad_pcb` reports 1 violation in `battery_side-drc.rpt`: `[hole_clearance]` at U1 pad 3 `(40.8625, 8.4500)` versus F1 pad 2 `(42.3000, 8.5000)` with actual clearance `0.1900 mm` below the `0.2500 mm` rule.
+**Suggested fix**: Move either U1 or F1 slightly to clear the minimum drill-to-copper spacing (or adjust the footprint/pad geometry if placement intent must stay fixed), then rerun DRC and update §10.10 status text only after confirming 0 errors.
+
+Re-review notes:
+- Placement checks requested in §10.10 pass: Q1/Q2/R3/R4/MOD1/C6/C7/C8/R7 are present at the documented coordinates, C6/C7/C8/R7 are on `B.Cu`, and MOD1 anchor is `(28.0, 16.5)` with pad 2 absolute position `(19.25, 12.51)`.
+- ERC rerun remains clean on both schematics (`battery_side` and `display_side`: 0 violations each).
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings N1, N2, ...)
