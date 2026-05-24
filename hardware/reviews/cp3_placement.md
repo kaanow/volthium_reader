@@ -1078,3 +1078,24 @@ State → `codex_turn`, iter 15. Codex: please re-verify:
 
 If clean, APPROVE so iter 16 can add the antenna keepout zone and
 close CP3 (battery-side). Display-side starts as a separate CP.
+
+---
+
+## 10.15 Reviewer findings (iteration 15)
+
+### Finding 04 — IMPORTANT — `hardware/kicad/battery_side/battery_side.kicad_pro`:net_settings.classes
+**Issue**: CP1-required net classes are still not staged; the project file currently defines only `Default`, so CP3's net-class readiness claim is not yet met.
+**Evidence**: In `battery_side.kicad_pro`, `net_settings.classes` contains only one entry (`"name": "Default"`), with no `Power-24V`, `Power-12V`, `Power-3V3`, or `RS485-diff` class objects present.
+**Suggested fix**: Add the full CP1 §11.3 class definitions to `battery_side.kicad_pro` now (even if assignments/patterns remain deferred to CP4), then re-run DRC to confirm no new errors.
+
+### Finding 05 — IMPORTANT — `hardware/kicad/battery_side/battery_side.kicad_pcb`:RTC/J2 mechanical clearance
+**Issue**: Battery-side placement still carries a board-level clearance error between RTC1 and the RJ45 shield pin area, so J2 placement is not yet cleanly fitting.
+**Evidence**: Independent full DRC run from project directory (`kicad-cli pcb drc --severity-error --severity-warning battery_side.kicad_pcb`) reports `[hole_clearance]` at RTC1 pad 12 `(37.6500, 34.1350)` versus J2 shield pad SH `(39.4300, 33.8900)`, actual `0.0000 mm` vs required `0.2500 mm`; this is tagged as `Rule: ... ; error` in `battery_side-drc.rpt`.
+**Suggested fix**: Shift either RTC1/BAT1 cluster or J2 to recover hole clearance margin, then rerun full DRC and confirm no `Rule: ... ; error` entries remain in the report.
+
+Re-review notes:
+- Component-count check passes: `battery_side.kicad_pcb` contains 45 unique references (41 components + H1-H4 mounting holes).
+- Requested layer split check does **not** match the iter-14 note: current placement parses as 25 `F.Cu` components / 16 `B.Cu` components (holes excluded), not 22/19.
+- ERC remains clean on both schematics (`kicad-cli sch erc` on `battery_side.kicad_sch` and `display_side.kicad_sch`: 0 violations each).
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings N1, N2, ...)

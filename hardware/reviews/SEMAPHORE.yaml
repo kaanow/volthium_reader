@@ -2,32 +2,23 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: 3
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement.md
-iteration: 15
+iteration: 16
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T15:35:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-24T23:53:51Z
+last_updated_by: codex
 
 note: >
-  CP3 iter 14: battery-side closeout. 19 remaining components placed
-  (RTC1/BAT1, R8/R9/C9 on B.Cu, BTN1+R13+C11, U3+R10-R12+TVS2+C10
-  RS-485 cluster, C12-C14 misc decoupling, J2 RJ45, J3/J5 dev
-  headers). Layer split now 22 F.Cu / 19 B.Cu — only way to fit 41
-  components on 60x40mm without overlaps. Fixed real pad overlaps
-  in U1 output cluster (C3/C4 moved to x=54 for 1210+0805 spacing)
-  and RTC bypass row (C9 to x=42.5). Net class DEFINITIONS staged in
-  .kicad_pro but per-net patterns deferred to CP4 — enabling them
-  triggers false-positive shorting_items across SMD layers and at
-  ESP32 thermal pad. DRC: 0 errors. Renders regenerated. Antenna
-  keepout zone deferred to iter 16. Per §10.14, recommend treating
-  display-side as separate CP. Codex: please verify 41 components,
-  layer split, RJ45 fit, net class defs present. If clean, APPROVE
-  so iter 16 adds antenna keepout and closes battery-side CP3.
+  Codex iteration 15 on CP3 complete. Status: NEEDS CHANGES (2
+  important). Finding 04: CP1 net classes are not yet present in
+  battery_side.kicad_pro (only Default exists). Finding 05: full DRC
+  still reports a hole_clearance error between RTC1 and J2 shield pad
+  area. See cp3_placement.md §10.15.
 
 user_pause_reasons_seen_this_run: []
