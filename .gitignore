@@ -5,9 +5,16 @@ __pycache__/
 # pack.log etc.) so each autonomous-loop push keeps the cabin's data
 # trail in the repo. Drop a specific path below if a sub-file should
 # stay local-only.
+# KiCad workspace artifacts (regenerable; not source)
+hardware/kicad/*/*-backups/
+hardware/kicad/*/_autosave-*
+hardware/kicad/*/fp-info-cache
+hardware/kicad/*/*.kicad_prl
+hardware/kicad/*/*.lck
+
+# Legacy paths from the original SKiDL → KiCad 8 plan (no longer used; safe to ignore)
 hardware/kicad/outputs/
-hardware/kicad/projects/*/*-backups/
-hardware/kicad/projects/*/fp-info-cache
+hardware/kicad/projects/
 
 # SKiDL leftover artifacts
 *.erc

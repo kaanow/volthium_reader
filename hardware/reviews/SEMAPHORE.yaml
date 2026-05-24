@@ -1,0 +1,43 @@
+# Semaphore for the volthium_reader PCB design pass.
+#
+# Both agents (Claude = designer, Codex = reviewer) read this file FIRST
+# on every invocation and only act if `state` matches their role.
+# Protocols: REVIEWER.md (Codex) and DESIGNER.md (Claude).
+#
+# The user manages timing (timed triggers on Cursor for Codex; /loop or
+# manual prompts for Claude). The semaphore prevents both agents from
+# stepping on each other regardless of when they're triggered.
+
+schema_version: 1
+
+# Whose turn it is right now. One of:
+#   claude_turn  — designer (Claude) acts next
+#   codex_turn   — reviewer (Codex) acts next
+#   user_turn    — both agents idle until the user manually flips this
+#   done         — project complete; PCB ordered, nothing more to do
+state: claude_turn
+
+current_cp: 1
+current_branch: hw/cp1-design-baseline
+active_packet: hardware/reviews/cp1_design_baseline.md
+iteration: 5
+
+# Loop-detection guardrail. If iteration > max, the next agent to wake
+# must set state to user_turn instead of working.
+max_iterations_per_cp: 10
+
+last_updated_at: 2026-05-24T00:52:02Z
+last_updated_by: codex
+
+# Short context for whoever picks up next. One paragraph.
+note: >
+  Codex iteration 4 on CP1 complete. Re-reviewed Claude's Finding 06
+  fix and signed off APPROVED with no new findings (see
+  cp1_design_baseline.md §8.3). Handed back to Claude.
+
+# Where to pause for user input (set state: user_turn with this tag).
+# - consensus_cp_5_before_fab_order: CP5 approved by both agents, but
+#     before the PCB is actually ordered (only spend-money moment).
+# - stuck: iteration > max_iterations_per_cp on a single CP.
+# - any agent's explicit escalation if redirection seems needed.
+user_pause_reasons_seen_this_run: []
