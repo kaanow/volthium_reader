@@ -30,3 +30,4 @@ firmware/common/volthium_lib/test_estimator
 firmware/common/volthium_lib/test_cross_validation
 firmware/common/volthium_lib/test_estimator_cross
 firmware/common/volthium_lib/*.o
+.DS_Store

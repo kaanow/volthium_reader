@@ -404,6 +404,136 @@ cluster placement.
 
 ---
 
+## 10.3 Reviewer findings (iteration 3)
+
+*(Codex re-review of iter 2 — APPROVED, see SEMAPHORE note. Inlining
+here for completeness.)*
+
+- Finding 01 verified resolved: `build_pcbs.py` default path reads
+  only from `volthium.pretty/`; host extraction gated on
+  `--rebuild-footprints`.
+- Smoke PCB libId is `volthium:R_0805_2012Metric`; fp-lib-table
+  resolves the `volthium` nickname.
+- DRC: 3 silk warnings, 0 unconnected pads, 0 footprint errors.
+
+**REVIEW COMPLETE**: APPROVED.
+
+---
+
+## 10.4 Designer iter 4 — footprint audit + cache population
+
+**Scope**: walk CP2 netlists, enumerate every Footprint field, audit
+against KiCad 10 stock libraries, fix mismatches at the schematic
+source, populate the project-local `volthium.pretty/` cache.
+
+### Audit results
+
+23 unique Footprint references across both boards. 17 matched
+KiCad stock directly. 6 did not match — diagnosis below.
+
+| # | Original libId | Diagnosis | Resolution |
+|---|----------------|-----------|------------|
+| 1 | `Package_SO:SOT-23-6` | Wrong library namespace | Moved to `Package_TO_SOT_SMD:SOT-23-6` |
+| 2 | `RF_Module:ESP32-S2-WROOM-1` | Typo (S2 vs S3) | Changed to `RF_Module:ESP32-S3-WROOM-1` |
+| 3 | `Battery:BatteryHolder_Keystone_1066_1x12mm` | 1066 not in KiCad libs | Switched to `Battery:BatteryHolder_Keystone_1057_1x2032` (same Keystone CR2032 holder family) |
+| 4 | `Button_Switch_SMD:SW_SPST_TL3300` | TL3300 not in KiCad libs | Switched to `Button_Switch_SMD:SW_SPST_B3S-1000` (Omron B3S — common 6×6mm tactile, hand-solderable) |
+| 5 | `Converter_DCDC:Converter_DCDC_RECOM_R-78E-1.0_THT` | KiCad ships only the 0.5A variant footprint; R-78E body is mechanically identical across current ratings | Switched to `Converter_DCDC_RECOM_R-78E-0.5_THT` (BOM MPN R-78E12-1.0 still carried in Value field) |
+| 6 | `Fuse:Fuse_Bel_5MF` | Bel "5MF" series name not in KiCad; KiCad has the canonical Bel FC-203-22 clip | Switched to `Fuse:Fuseholder_Clip-5x20mm_Bel_FC-203-22_Lateral_P17.80x5.00mm_D1.17mm_Horizontal` |
+
+All 6 fixes were applied at the source — `STOCK_SYMBOLS` Footprint
+fields in `build_schematics.py`. Schematics regenerated, ERC still
+0 / 0 / 0 on both boards.
+
+### After fixes
+
+After re-running the schematic build pass, the audit shows 22
+unique footprints (one libId collapsed because R-78E-0.5_THT is now
+shared by both Recom modules). **22 / 22 hit KiCad stock libraries.
+Zero hand-authored footprints needed.**
+
+### Cache population
+
+```
+.venv/bin/python hardware/kicad/build_pcbs.py --rebuild-footprints
+→ rebuilt 22 footprint(s) into hardware/kicad/libraries/volthium.pretty/
+```
+
+The cache now contains every `.kicad_mod` referenced by either
+board. Committed to the branch.
+
+### Per-component disposition
+
+```
+battery-side (41 components → 13 distinct footprints used):
+  J1   TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal
+  F1   Fuseholder_Clip-5x20mm_Bel_FC-203-22_Lateral
+  D1   D_SMA
+  TVS1 D_SMA
+  U1   SOT-23-6        (TPS62933)
+  L1   L_0805_2012Metric
+  C1/C2/C3/C4   C_1210_3225Metric  (10µF X7R 50V)
+  C_BST (not in netlist — bootstrap of U1, integrated in TPS62933 schematic)
+  U2   Converter_DCDC_RECOM_R-78E-0.5_THT  (R-78E12-1.0)
+  Q1/Q2 SOT-23          (AO3401A / AO3400A — both 3-pin)
+  MOD1 ESP32-S3-WROOM-1
+  R*   R_0805_2012Metric  (×13 instances)
+  C5/C8/C9/C10/C11/C12/C13/C14   C_0603_1608Metric
+  C6   C_0805_2012Metric
+  C7   C_0402_1005Metric
+  RTC1 SOIC-16W_7.5x10.3mm_P1.27mm  (DS3231M)
+  BAT1 BatteryHolder_Keystone_1057_1x2032
+  BTN1 SW_PUSH_6mm      (THT 6mm momentary)
+  U3   SOIC-8_3.9x4.9mm_P1.27mm  (RS-485 transceiver)
+  TVS2 D_SMA
+  J2   RJ45_Amphenol_RJHSE5380
+  J3/J5 PinHeader_1x04_P2.54mm_Vertical
+
+display-side (30 components → ~12 distinct footprints):
+  J1   RJ45_Amphenol_RJHSE5380
+  F1   R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal  (resettable polyfuse THT)
+  TVS1/TVS2 D_SMA
+  C1   C_1210_3225Metric
+  U1   Converter_DCDC_RECOM_R-78E-0.5_THT  (3V3 0.5A)
+  C2/C3 C_0805_2012Metric
+  U2   SOIC-8_3.9x4.9mm_P1.27mm  (RS-485)
+  C4   C_0402_1005Metric
+  R*   R_0805_2012Metric  (×5 instances)
+  C5/C6   C_0603_1608Metric  (×4 instances)
+  MOD1 ESP32-S3-WROOM-1
+  J2   Hirose_FH12-24S-0.5SH_1x24-1MP_P0.50mm_Horizontal  (FFC)
+  BTN1/2/3 SW_SPST_B3S-1000  (SMD tactile)
+  J3/J4 PinHeader_1x04_P2.54mm_Vertical
+```
+
+### Verification commands
+
+```
+.venv/bin/python hardware/kicad/build_schematics.py        # regen schematics + nets (ERC 0/0)
+.venv/bin/python hardware/kicad/build_pcbs.py --rebuild-footprints  # repopulate cache
+ls hardware/kicad/libraries/volthium.pretty/ | wc -l       # → 22
+```
+
+### Handing back
+
+State → `codex_turn`, iter 5. Recommend Codex re-verify:
+- All 22 cached `.kicad_mod` files match the names in
+  `STOCK_FOOTPRINTS`.
+- Netlist footprints now reference only names that exist in the
+  cache (no orphan refs).
+- Schematic regen still produces 0 / 0 / 0 ERC on both boards.
+- The 6 footprint corrections in this iter don't change net
+  topology (they're metadata strings only, not pin connections) —
+  spot-check by diffing battery_side.net + display_side.net
+  before/after this commit's `.net` files (only the
+  `(footprint ...)` strings should differ; refs/pins/nets stable).
+
+Next deliverable (iter 6 if Codex approves): begin actual PCB
+generation for battery-side power-input cluster
+(J1 / F1 / D1 / TVS1 / U1 / L1 / Cs / U2 / sense divider) with
+real (x, y) coordinates from §4 ASCII floorplan.
+
+---
+
 ## 10.3 Reviewer findings (iteration 2)
 
 No new findings.

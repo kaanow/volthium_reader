@@ -435,7 +435,7 @@ def build_battery_side_schematic() -> None:
     # F1 — 5×20 mm cartridge fuse holder, 2-pin vertical (like R).
     F1_X, F1_Y = 60 * G, 30 * G   # (76.2, 38.1)
     _place_symbol(s, "Fuse", "F1", "1A 5x20",
-                  "Fuse:Fuse_Bel_5MF",   # cartridge clip footprint family
+                  "Fuse:Fuseholder_Clip-5x20mm_Bel_FC-203-22_Lateral_P17.80x5.00mm_D1.17mm_Horizontal",
                   (F1_X, F1_Y), lib=lib)
     _place_label(s, "V24_RAW",        (F1_X, F1_Y - 3 * G))     # pin 1 (top)
     _place_label(s, "V24_AFTER_FUSE", (F1_X, F1_Y + 3 * G))     # pin 2 (bottom)
@@ -499,7 +499,7 @@ def build_battery_side_schematic() -> None:
     #   pin 8 FB  ( 7.62, -7.62) input   → sch (X+7.62, Y+7.62)
     U1_X, U1_Y = 120 * G, 30 * G   # (152.4, 38.1)
     _place_symbol(s, "TPS62933", "U1", "TPS62933FDRLR",
-                  "Package_SO:SOT-23-6",   # SOT-563, placeholder; finalize at CP3
+                  "Package_TO_SOT_SMD:SOT-23-6",
                   (U1_X, U1_Y), lib=lib)
     # Pin connections per CP1 §5 net list:
     #   VIN ← V24_FUSED
@@ -568,7 +568,7 @@ def build_battery_side_schematic() -> None:
     # Mapping (per Recom datasheet): pin 1 = VIN, pin 2 = GND, pin 3 = VOUT.
     U2_X, U2_Y = 160 * G, 30 * G   # (203.2, 38.1)
     _place_symbol(s, "Conn_01x03", "U2", "R-78E12-1.0",
-                  "Converter_DCDC:Converter_DCDC_RECOM_R-78E-1.0_THT",
+                  "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT",
                   (U2_X, U2_Y), lib=lib)
     _place_label(s, "V24_SW",     (U2_X - 4 * G, U2_Y - 2 * G))   # pin 1 VIN (top)
     _place_label(s, "GND",        (U2_X - 4 * G, U2_Y))           # pin 2 GND (mid)
@@ -717,7 +717,7 @@ def build_battery_side_schematic() -> None:
     }
 
     _place_symbol(s, "ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
-                  "RF_Module:ESP32-S2-WROOM-1",
+                  "RF_Module:ESP32-S3-WROOM-1",
                   (MOD1_X, MOD1_Y), lib=lib)
     for pin_num, net in esp_pins.items():
         lib_x, lib_y = _esp_pin_pos[pin_num]
@@ -799,7 +799,7 @@ def build_battery_side_schematic() -> None:
     #   pin 2 - lib (0, -2.54),  90 → sch (X, Y+2.54)
     BAT1_X, BAT1_Y = 40 * G, 85 * G   # (50.8, 107.95)
     _place_symbol(s, "Battery_Cell", "BAT1", "CR2032",
-                  "Battery:BatteryHolder_Keystone_1066_1x12mm",
+                  "Battery:BatteryHolder_Keystone_1057_1x2032",
                   (BAT1_X, BAT1_Y), lib=lib)
     _place_label(s, "V_BAT_RTC", (BAT1_X, BAT1_Y - 4 * G))   # pin 1 + (4*G = -5.08 rounded; lib_Y=5.08)
     _place_label(s, "GND",       (BAT1_X, BAT1_Y + 2 * G))   # pin 2 - (lib_Y=-2.54)
@@ -1153,7 +1153,7 @@ def build_display_side_schematic() -> None:
     }
 
     _place_symbol(s, "ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
-                  "RF_Module:ESP32-S2-WROOM-1",
+                  "RF_Module:ESP32-S3-WROOM-1",
                   (MOD1_X, MOD1_Y), lib=lib)
     for pin_num, net in esp_pins.items():
         lib_x, lib_y = _esp_pin_pos[pin_num]
@@ -1308,7 +1308,7 @@ def build_display_side_schematic() -> None:
         BTN_X = (200 + i * 30) * G   # 254, 292.1, 330.2
         BTN_Y = 150 * G              # 190.5
         _place_symbol(s, "SW_Push", btn_ref, btn_ref,
-                      "Button_Switch_SMD:SW_SPST_TL3300",
+                      "Button_Switch_SMD:SW_SPST_B3S-1000",
                       (BTN_X, BTN_Y), lib=lib)
         _place_label(s, btn_net, (BTN_X - 4 * G, BTN_Y))   # pin 1
         _place_label(s, "GND",   (BTN_X + 4 * G, BTN_Y))   # pin 2

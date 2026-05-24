@@ -2,7 +2,7 @@
 	(version "E")
 	(design
 		(source "/Users/pivot/Documents/repo/volthium_reader/hardware/kicad/display_side/display_side.kicad_sch")
-		(date "2026-05-24T07:36:54")
+		(date "2026-05-24T11:26:37")
 		(tool "Eeschema 10.0.3")
 		(sheet
 			(number "1")
@@ -57,10 +57,10 @@
 		(comp
 			(ref "BTN1")
 			(value "BTN1")
-			(footprint "Button_Switch_SMD:SW_SPST_TL3300")
+			(footprint "Button_Switch_SMD:SW_SPST_B3S-1000")
 			(fields
 				(field
-					(name "Footprint") "Button_Switch_SMD:SW_SPST_TL3300")
+					(name "Footprint") "Button_Switch_SMD:SW_SPST_B3S-1000")
 				(field
 					(name "Datasheet")
 				)
@@ -89,7 +89,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "5da0af1b-6a57-47cf-8a62-64459938e3b1")
+			(tstamps "659da792-d137-4ad0-9995-cf8428f75a6a")
 			(units
 				(unit
 					(name "A")
@@ -107,10 +107,10 @@
 		(comp
 			(ref "BTN2")
 			(value "BTN2")
-			(footprint "Button_Switch_SMD:SW_SPST_TL3300")
+			(footprint "Button_Switch_SMD:SW_SPST_B3S-1000")
 			(fields
 				(field
-					(name "Footprint") "Button_Switch_SMD:SW_SPST_TL3300")
+					(name "Footprint") "Button_Switch_SMD:SW_SPST_B3S-1000")
 				(field
 					(name "Datasheet")
 				)
@@ -139,7 +139,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "885b17fa-f261-4869-b1bc-b9af70ea803f")
+			(tstamps "1c46aad7-603e-498f-8e88-272b6effddf1")
 			(units
 				(unit
 					(name "A")
@@ -157,10 +157,10 @@
 		(comp
 			(ref "BTN3")
 			(value "BTN3")
-			(footprint "Button_Switch_SMD:SW_SPST_TL3300")
+			(footprint "Button_Switch_SMD:SW_SPST_B3S-1000")
 			(fields
 				(field
-					(name "Footprint") "Button_Switch_SMD:SW_SPST_TL3300")
+					(name "Footprint") "Button_Switch_SMD:SW_SPST_B3S-1000")
 				(field
 					(name "Datasheet")
 				)
@@ -189,7 +189,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "c2fa9aa5-9a65-428f-8b2a-46b74d123a0e")
+			(tstamps "7abde6ec-cbb0-45bf-8a1b-c41885b4ccef")
 			(units
 				(unit
 					(name "A")
@@ -243,7 +243,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "d5169fe0-8c93-4ed4-a047-04d2ca9dc418")
+			(tstamps "8e177d05-8d86-45ac-813c-9478d3a9b625")
 			(units
 				(unit
 					(name "A")
@@ -297,7 +297,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "eaab65f4-71bb-4f26-93ed-6f01995630c9")
+			(tstamps "19912930-02e5-433a-bb7b-377b70c8ae83")
 			(units
 				(unit
 					(name "A")
@@ -351,7 +351,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "3cfa0587-ae9e-46d1-802d-20ee2c22c3c2")
+			(tstamps "f176ac35-8b85-4d43-a105-aa245f51cec9")
 			(units
 				(unit
 					(name "A")
@@ -405,7 +405,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "9532bfe1-acc6-44b6-b262-a09b132227f9")
+			(tstamps "8577861d-3abd-4167-8e20-5862224ef5c9")
 			(units
 				(unit
 					(name "A")
@@ -459,7 +459,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "b7ff53e5-8a68-4ee9-a460-f1b80a799786")
+			(tstamps "652403b5-ba62-43e5-8e5f-2b526c854b02")
 			(units
 				(unit
 					(name "A")
@@ -513,7 +513,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "f017f110-2c74-4dd7-82fd-8ed65043fead")
+			(tstamps "3ab5ce85-dad4-4c0f-9b75-fc7abebce6ce")
 			(units
 				(unit
 					(name "A")
@@ -567,7 +567,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "8e5fc59b-966d-40aa-9b93-7ec617f50fdd")
+			(tstamps "b1266d30-240d-4508-9762-5842b94e98c6")
 			(units
 				(unit
 					(name "A")
@@ -621,7 +621,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "0c2fcc4a-8356-4627-9b58-1f0e716c9ada")
+			(tstamps "82e7890c-6891-414a-a613-5fbf0020b6c3")
 			(units
 				(unit
 					(name "A")
@@ -675,7 +675,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "d4cc43bb-9690-416d-8403-c43fbd951cd9")
+			(tstamps "716dac02-57d5-4d4a-998b-b9722d21f7cc")
 			(units
 				(unit
 					(name "A")
@@ -729,7 +729,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "0fc3827e-fa97-48f9-8214-9369afe74c5b")
+			(tstamps "054ad2a1-8496-4fc1-a743-39003fa97bf0")
 			(units
 				(unit
 					(name "A")
@@ -783,7 +783,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "5c5cefee-48dc-44f9-b0f5-0ef799446cab")
+			(tstamps "c8402cb3-c531-48c2-b5bc-e75918072f66")
 			(units
 				(unit
 					(name "A")
@@ -837,7 +837,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "5524ab8b-f2ea-4031-b6b3-47dac7305306")
+			(tstamps "7a25d39b-7a34-495b-803c-b5d1deb56258")
 			(units
 				(unit
 					(name "A")
@@ -909,7 +909,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "e60dce8b-c0c2-444c-8830-78ffed44cf1e")
+			(tstamps "c80cd510-f9ed-4f87-aa6c-b9ab06ebdb97")
 			(units
 				(unit
 					(name "A")
@@ -1029,7 +1029,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "b5d7ce44-97be-41f0-9eab-d19136e36026")
+			(tstamps "13dbd57f-5843-4a4d-9a9a-1bb3f478a1ca")
 			(units
 				(unit
 					(name "A")
@@ -1089,7 +1089,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "e76cbd48-3aea-488e-966c-852d281de000")
+			(tstamps "271c8427-afa1-4508-bedc-d68366616e9d")
 			(units
 				(unit
 					(name "A")
@@ -1113,10 +1113,10 @@
 		(comp
 			(ref "MOD1")
 			(value "ESP32-S3-WROOM-1-N16R8")
-			(footprint "RF_Module:ESP32-S2-WROOM-1")
+			(footprint "RF_Module:ESP32-S3-WROOM-1")
 			(fields
 				(field
-					(name "Footprint") "RF_Module:ESP32-S2-WROOM-1")
+					(name "Footprint") "RF_Module:ESP32-S3-WROOM-1")
 				(field
 					(name "Datasheet")
 				)
@@ -1149,7 +1149,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "3e1a1e1e-e774-44c9-9da7-17cf6aa69486")
+			(tstamps "78e13c32-974b-48c7-b641-770f766d4d6b")
 			(units
 				(unit
 					(name "A")
@@ -1320,7 +1320,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "ae3bd05b-7451-4604-b105-e2a002b92493")
+			(tstamps "918da4dd-85d2-4be0-b4a8-c5c1e59b5d3e")
 			(units
 				(unit
 					(name "A")
@@ -1374,7 +1374,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "eb3943fb-17d9-4309-ba17-c92df6c8aaa6")
+			(tstamps "1824cddc-47ab-4551-84df-cfc37e6c6fca")
 			(units
 				(unit
 					(name "A")
@@ -1428,7 +1428,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "d1e117d5-cabb-4821-973d-881266e3496f")
+			(tstamps "e65a40d2-052e-4d60-ae22-98cb13edaaa7")
 			(units
 				(unit
 					(name "A")
@@ -1482,7 +1482,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "53398e1a-9119-485d-b9c9-10fb932f457e")
+			(tstamps "f4191bd1-aa47-4ce8-9d64-6c91105362d2")
 			(units
 				(unit
 					(name "A")
@@ -1536,7 +1536,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "13d36f1c-5c05-4776-8335-f1c67b275ffc")
+			(tstamps "9051007e-52a6-487a-9851-f84a4f30fd72")
 			(units
 				(unit
 					(name "A")
@@ -1590,7 +1590,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "e8ba6424-d9af-48f7-92b0-a0ff553ac1fe")
+			(tstamps "07c08d65-bddb-4b0e-b666-ca86264bbe91")
 			(units
 				(unit
 					(name "A")
@@ -1644,7 +1644,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "6ff62b22-5fd6-4a72-ab7d-6dcd82ad692b")
+			(tstamps "1962aee0-e27c-4736-bee0-25b786c52bc9")
 			(units
 				(unit
 					(name "A")
@@ -1698,7 +1698,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "551b4553-722b-4255-8c75-91de12da9f36")
+			(tstamps "5be03e23-85ee-4f47-90fe-d6b0f19d93b2")
 			(units
 				(unit
 					(name "A")
@@ -1752,7 +1752,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "24c1ee27-c11e-491e-a7bf-12b9cb8b5a66")
+			(tstamps "425f7fa3-d42a-4c3c-b2d6-816ae8fcf060")
 			(units
 				(unit
 					(name "A")
@@ -1806,7 +1806,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "656072b5-aa25-466a-ba47-726c76c86933")
+			(tstamps "4ad3c7e1-9682-4de8-928b-344aaaca4ee9")
 			(units
 				(unit
 					(name "A")
@@ -1863,7 +1863,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "ccaa3997-ecc0-4468-9822-f0a5d66510f5")
+			(tstamps "acddc871-7eaf-452a-bb1a-ece91b78af51")
 			(units
 				(unit
 					(name "A")

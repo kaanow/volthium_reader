@@ -37,10 +37,32 @@ HOST_FP_ROOTS = [
 ]
 
 # Curated set of footprints the project needs. Each entry is
-# (host_lib_name, footprint_name). At iter 3 this list grows to cover
-# every Footprint field referenced by the CP2 schematics.
+# (host_lib_name, footprint_name). Sourced from the CP2 netlists at
+# CP3 iter 4 — 22 unique footprints across both boards, all present
+# in KiCad 10 stock libraries (no hand-authoring required).
 STOCK_FOOTPRINTS = [
-    ("Resistor_SMD", "R_0805_2012Metric"),
+    ("Battery",                 "BatteryHolder_Keystone_1057_1x2032"),
+    ("Button_Switch_SMD",       "SW_SPST_B3S-1000"),
+    ("Button_Switch_THT",       "SW_PUSH_6mm"),
+    ("Capacitor_SMD",           "C_0402_1005Metric"),
+    ("Capacitor_SMD",           "C_0603_1608Metric"),
+    ("Capacitor_SMD",           "C_0805_2012Metric"),
+    ("Capacitor_SMD",           "C_1210_3225Metric"),
+    ("Connector_FFC-FPC",       "Hirose_FH12-24S-0.5SH_1x24-1MP_P0.50mm_Horizontal"),
+    ("Connector_PinHeader_2.54mm", "PinHeader_1x04_P2.54mm_Vertical"),
+    ("Connector_RJ",            "RJ45_Amphenol_RJHSE5380"),
+    ("Converter_DCDC",          "Converter_DCDC_RECOM_R-78E-0.5_THT"),
+    ("Diode_SMD",               "D_SMA"),
+    ("Fuse",                    "Fuseholder_Clip-5x20mm_Bel_FC-203-22_Lateral_P17.80x5.00mm_D1.17mm_Horizontal"),
+    ("Inductor_SMD",            "L_0805_2012Metric"),
+    ("Package_SO",              "SOIC-16W_7.5x10.3mm_P1.27mm"),
+    ("Package_SO",              "SOIC-8_3.9x4.9mm_P1.27mm"),
+    ("Package_TO_SOT_SMD",      "SOT-23"),
+    ("Package_TO_SOT_SMD",      "SOT-23-6"),
+    ("RF_Module",               "ESP32-S3-WROOM-1"),
+    ("Resistor_SMD",            "R_0805_2012Metric"),
+    ("Resistor_THT",            "R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"),
+    ("TerminalBlock_Phoenix",   "TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal"),
 ]
 
 
