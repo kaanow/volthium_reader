@@ -96,15 +96,15 @@ STOCK_SYMBOLS: list[tuple[str, str, Optional[str]]] = [
     # the BOM MPN per instance.
     ("Transistor_FET", "Q_PMOS_GSD", None),
     ("Transistor_FET", "Q_NMOS_GSD", None),
-    # RS-485 transceiver (MAX3485 used as electrically-equivalent stand-in
-    # for SN65HVD3082E — same SOIC-8 pinout: 1=R, 2=RE, 3=DE, 4=D,
-    # 5=GND, 6=A, 7=B, 8=VCC. The schematic's Value field overrides
-    # the visible part number to SN65HVD3082E.)
-    ("Interface_UART", "MAX3485", None),
+    # RS-485 transceiver — LTC2850xS8 is the parent of MAX3485 (and many
+    # other 8-pin RS-485 parts). Same SOIC-8 pinout as SN65HVD3082E:
+    # 1=RO, 2=RE, 3=DE, 4=DI, 5=GND, 6=A, 7=B, 8=VCC. Value field
+    # overrides per-instance to SN65HVD3082E (BOM MPN).
+    ("Interface_UART", "LTC2850xS8", None),
     # switches
     ("Switch", "SW_Push", None),
-    # connectors
-    ("Connector", "RJ45", None),
+    # connectors — RJ45 extends 8P8C; use the 8P8C parent directly
+    ("Connector", "8P8C", None),
     ("Connector_Generic", "Conn_01x02", None),
     ("Connector_Generic", "Conn_01x03", None),
     ("Connector_Generic", "Conn_01x04", None),
@@ -770,6 +770,210 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "V3V3_SW", (C7_X, C7_Y - 3 * G))
     _place_label(s, "GND",     (C7_X, C7_Y + 3 * G))
 
+    # ===== Iter 20: RTC + RS-485 + button + connectors + dev headers =====
+    # Last sub-iter on the battery-side schematic. Completes the design.
+
+    # RTC1 — DS3231M (SOIC-16). Pin geometry from inspection:
+    #   pin 2  VCC          lib (-2.54, 10.16), 270  → sch (X-2.54, Y-10.16)
+    #   pin 13 GND (pwr_in) lib ( 0,   -10.16), 90   → sch (X, Y+10.16)
+    #   pin 14 VBAT         lib ( 0,    10.16), 270  → sch (X, Y-10.16)
+    #   pin 15 SDA          lib (-12.7, 2.54),  0    → sch (X-12.7, Y-2.54)
+    #   pin 16 SCL          lib (-12.7, 5.08),  0    → sch (X-12.7, Y-5.08)
+    #   pin 4  RST (bidir)  lib (-12.7,-5.08),  0    → sch (X-12.7, Y+5.08)
+    #   pin 1  32KHZ (oc)   lib ( 12.7, 5.08),  180  → sch (X+12.7, Y-5.08)
+    #   pin 3  INT/SQW (oc) lib ( 12.7,-2.54),  180  → sch (X+12.7, Y+2.54)
+    #   pins 5-12 GND all map to (X, Y+10.16) — same endpoint as pin 13
+    RTC1_X, RTC1_Y = 60 * G, 95 * G   # (76.2, 120.65)
+    _place_symbol(s, "DS3231M", "RTC1", "DS3231SN#",
+                  "Package_SO:SOIC-16W_7.5x10.3mm_P1.27mm",
+                  (RTC1_X, RTC1_Y), lib=lib)
+    _place_label(s, "V3V3_SW",  (RTC1_X - 2 * G, RTC1_Y - 8 * G))   # pin 2 VCC
+    _place_label(s, "V_BAT_RTC",(RTC1_X,         RTC1_Y - 8 * G))   # pin 14 VBAT
+    _place_label(s, "GND",      (RTC1_X,         RTC1_Y + 8 * G))   # pins 5-13 GND (shared endpoint)
+    _place_label(s, "I2C_SDA",  (RTC1_X - 10 * G, RTC1_Y - 2 * G))  # pin 15 SDA
+    _place_label(s, "I2C_SCL",  (RTC1_X - 10 * G, RTC1_Y - 4 * G))  # pin 16 SCL
+    _place_noconnect(s, (RTC1_X - 10 * G, RTC1_Y + 4 * G))          # pin 4 RST
+    _place_noconnect(s, (RTC1_X + 10 * G, RTC1_Y - 4 * G))          # pin 1 32KHZ
+    _place_noconnect(s, (RTC1_X + 10 * G, RTC1_Y + 2 * G))          # pin 3 INT/SQW
+
+    # BAT1 — CR2032 holder, 2-pin (+, -)
+    #   pin 1 + lib (0,  5.08), 270 → sch (X, Y-5.08)
+    #   pin 2 - lib (0, -2.54),  90 → sch (X, Y+2.54)
+    BAT1_X, BAT1_Y = 40 * G, 85 * G   # (50.8, 107.95)
+    _place_symbol(s, "Battery_Cell", "BAT1", "CR2032",
+                  "Battery:BatteryHolder_Keystone_1066_1x12mm",
+                  (BAT1_X, BAT1_Y), lib=lib)
+    _place_label(s, "V_BAT_RTC", (BAT1_X, BAT1_Y - 4 * G))   # pin 1 + (4*G = -5.08 rounded; lib_Y=5.08)
+    _place_label(s, "GND",       (BAT1_X, BAT1_Y + 2 * G))   # pin 2 - (lib_Y=-2.54)
+
+    # C9 — 100 nF RTC VCC decoupling. Moved well away from RTC1's left-edge
+    # pins (SCL/SDA/RST at X=63.5) to avoid endpoint collisions with the
+    # I2C labels — C9 pin 2 used to land at (63.5, 115.57) right on top of
+    # RTC1.SCL's endpoint, forcing GND and I2C_SCL onto the same net.
+    C9_X, C9_Y = 16 * G, 95 * G   # (20.32, 120.65)
+    _place_symbol(s, "C", "C9", "100nF",
+                  "Capacitor_SMD:C_0603_1608Metric",
+                  (C9_X, C9_Y), lib=lib)
+    _place_label(s, "V3V3_SW", (C9_X, C9_Y - 3 * G))
+    _place_label(s, "GND",     (C9_X, C9_Y + 3 * G))
+
+    # R8/R9 — I²C pull-ups (SDA/SCL → V3V3_SW)
+    R8_X, R8_Y = 36 * G, 90 * G   # (45.72, 114.3)
+    _place_symbol(s, "R", "R8", "4.7k",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (R8_X, R8_Y), lib=lib)
+    _place_label(s, "V3V3_SW", (R8_X, R8_Y - 3 * G))
+    _place_label(s, "I2C_SDA", (R8_X, R8_Y + 3 * G))
+    R9_X, R9_Y = 30 * G, 90 * G   # (38.1, 114.3)
+    _place_symbol(s, "R", "R9", "4.7k",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (R9_X, R9_Y), lib=lib)
+    _place_label(s, "V3V3_SW", (R9_X, R9_Y - 3 * G))
+    _place_label(s, "I2C_SCL", (R9_X, R9_Y + 3 * G))
+
+    # U3 — RS-485 transceiver (LTC2850xS8 stand-in for SN65HVD3082E).
+    # Pin geometry from inspection:
+    #   pin 1 RO     lib (-10.16,  5.08), 0    → sch (X-10.16, Y-5.08)
+    #   pin 2 ~RE    lib (-10.16,  2.54), 0    → sch (X-10.16, Y-2.54)
+    #   pin 3 DE     lib (-10.16,  0),    0    → sch (X-10.16, Y)
+    #   pin 4 DI     lib (-10.16, -5.08), 0    → sch (X-10.16, Y+5.08)
+    #   pin 5 GND    lib (0,     -15.24), 90   → sch (X,       Y+15.24)
+    #   pin 6 A      lib (10.16,  7.62),  180  → sch (X+10.16, Y-7.62)
+    #   pin 7 B      lib (10.16,  2.54),  180  → sch (X+10.16, Y-2.54)
+    #   pin 8 VCC    lib (0,      15.24), 270  → sch (X,       Y-15.24)
+    U3_X, U3_Y = 220 * G, 50 * G   # (279.4, 63.5)
+    _place_symbol(s, "LTC2850xS8", "U3", "SN65HVD3082E",
+                  "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+                  (U3_X, U3_Y), lib=lib)
+    _place_label(s, "UART_RX_3V3", (U3_X - 8 * G,  U3_Y - 4 * G))   # pin 1 RO
+    _place_label(s, "DE_RE",       (U3_X - 8 * G,  U3_Y - 2 * G))   # pin 2 ~RE (tied to DE)
+    _place_label(s, "DE_RE",       (U3_X - 8 * G,  U3_Y))            # pin 3 DE
+    _place_label(s, "UART_TX_3V3", (U3_X - 8 * G,  U3_Y + 4 * G))   # pin 4 DI
+    _place_label(s, "GND",         (U3_X,          U3_Y + 12 * G))   # pin 5 GND
+    _place_label(s, "RS485_A",     (U3_X + 8 * G,  U3_Y - 6 * G))   # pin 6 A
+    _place_label(s, "RS485_B",     (U3_X + 8 * G,  U3_Y - 2 * G))   # pin 7 B
+    _place_label(s, "V3V3_SW",     (U3_X,          U3_Y - 12 * G))   # pin 8 VCC
+
+    # C10 — 100 nF U3 VCC decoupling
+    C10_X, C10_Y = U3_X + 6 * G, U3_Y - 10 * G   # (287.02, 50.8)
+    _place_symbol(s, "C", "C10", "100nF",
+                  "Capacitor_SMD:C_0603_1608Metric",
+                  (C10_X, C10_Y), lib=lib)
+    _place_label(s, "V3V3_SW", (C10_X, C10_Y - 3 * G))
+    _place_label(s, "GND",     (C10_X, C10_Y + 3 * G))
+
+    # R10 — 120 Ω RS-485 termination (A ↔ B). Horizontal so both pins
+    # land on the A/B nets without rotating the symbol.
+    R10_X, R10_Y = U3_X + 16 * G, U3_Y - 4 * G   # (299.72, 58.42)
+    _place_symbol(s, "R", "R10", "120",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (R10_X, R10_Y), lib=lib)
+    _place_label(s, "RS485_A", (R10_X, R10_Y - 3 * G))   # pin 1
+    _place_label(s, "RS485_B", (R10_X, R10_Y + 3 * G))   # pin 2
+
+    # R11 — 680 Ω idle bias A → V3V3_SW
+    R11_X, R11_Y = U3_X + 12 * G, U3_Y - 12 * G   # (294.64, 47.62)
+    _place_symbol(s, "R", "R11", "680",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (R11_X, R11_Y), lib=lib)
+    _place_label(s, "V3V3_SW", (R11_X, R11_Y - 3 * G))
+    _place_label(s, "RS485_A", (R11_X, R11_Y + 3 * G))
+
+    # R12 — 680 Ω idle bias B → GND
+    R12_X, R12_Y = U3_X + 12 * G, U3_Y + 8 * G   # (294.64, 73.66)
+    _place_symbol(s, "R", "R12", "680",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (R12_X, R12_Y), lib=lib)
+    _place_label(s, "RS485_B", (R12_X, R12_Y - 3 * G))
+    _place_label(s, "GND",     (R12_X, R12_Y + 3 * G))
+
+    # TVS2 — SMAJ12CA differential clamp across A/B. Device:D_TVS with
+    # Value override. Horizontal (pins ±3.81 X from center).
+    TVS2_X, TVS2_Y = U3_X + 20 * G, U3_Y - 4 * G   # (304.8, 58.42)
+    _place_symbol(s, "D_TVS", "TVS2", "SMAJ12CA",
+                  "Diode_SMD:D_SMA",
+                  (TVS2_X, TVS2_Y), lib=lib)
+    _place_label(s, "RS485_A", (TVS2_X - 3 * G, TVS2_Y))   # pin 1
+    _place_label(s, "RS485_B", (TVS2_X + 3 * G, TVS2_Y))   # pin 2
+
+    # BTN1 — Override pushbutton, SW_Push (2-pin horizontal).
+    # Pin geometry: pin 1 lib (-5.08, 0) angle 0 → sch (X-5.08, Y);
+    #               pin 2 lib (5.08, 0)  angle 180 → sch (X+5.08, Y).
+    BTN1_X, BTN1_Y = 60 * G, 110 * G   # (76.2, 139.7)
+    _place_symbol(s, "SW_Push", "BTN1", "OVERRIDE",
+                  "Button_Switch_THT:SW_PUSH_6mm",
+                  (BTN1_X, BTN1_Y), lib=lib)
+    _place_label(s, "BTN_OVERRIDE", (BTN1_X - 4 * G, BTN1_Y))   # pin 1
+    _place_label(s, "GND",          (BTN1_X + 4 * G, BTN1_Y))   # pin 2
+
+    # R13 — 1 MΩ pull-up BTN_OVERRIDE → V3V3_SW
+    R13_X, R13_Y = 70 * G, 110 * G   # (88.9, 139.7)
+    _place_symbol(s, "R", "R13", "1M",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (R13_X, R13_Y), lib=lib)
+    _place_label(s, "V3V3_SW",      (R13_X, R13_Y - 3 * G))
+    _place_label(s, "BTN_OVERRIDE", (R13_X, R13_Y + 3 * G))
+
+    # C11 — 100 nF button debounce
+    C11_X, C11_Y = 80 * G, 110 * G   # (101.6, 139.7)
+    _place_symbol(s, "C", "C11", "100nF",
+                  "Capacitor_SMD:C_0603_1608Metric",
+                  (C11_X, C11_Y), lib=lib)
+    _place_label(s, "BTN_OVERRIDE", (C11_X, C11_Y - 3 * G))
+    _place_label(s, "GND",          (C11_X, C11_Y + 3 * G))
+
+    # J2 — RJ45 (8P8C parent). Cat5e to display side. T568B pinout
+    # per docs/hardware/cat5e_pinout.md:
+    #   pin 1 white-orange  → +12V (V12_CAT5E)
+    #   pin 2 orange        → +12V
+    #   pin 3 white-green   → +12V
+    #   pin 4 blue          → RS485_A
+    #   pin 5 white-blue    → RS485_B
+    #   pin 6 green         → GND
+    #   pin 7 white-brown   → GND
+    #   pin 8 brown         → GND
+    # 8P8C pin lib coords: all at X=+10.16, Y from -7.62 (pin 1) to
+    # +10.16 (pin 8) in 2.54mm steps → sch (X+10.16, Y - lib_Y).
+    J2_X, J2_Y = 240 * G, 90 * G   # (304.8, 114.3)
+    _place_symbol(s, "8P8C", "J2", "RJ45",
+                  "Connector_RJ:RJ45_Amphenol_RJHSE5380",
+                  (J2_X, J2_Y), lib=lib)
+    # Pin Y offsets from symbol center (after Y-flip): pin 1=+7.62 below,
+    # pin 8=-10.16 above. Use 3*G grid alignment (lib_Y values are
+    # multiples of 2.54 = 2*G, so Y-flip gives multiples of 2*G).
+    _place_label(s, "V12_CAT5E", (J2_X + 8 * G, J2_Y + 6 * G))   # pin 1 (lib_Y=-7.62)
+    _place_label(s, "V12_CAT5E", (J2_X + 8 * G, J2_Y + 4 * G))   # pin 2 (lib_Y=-5.08)
+    _place_label(s, "V12_CAT5E", (J2_X + 8 * G, J2_Y + 2 * G))   # pin 3 (lib_Y=-2.54)
+    _place_label(s, "RS485_A",   (J2_X + 8 * G, J2_Y))            # pin 4 (lib_Y= 0)
+    _place_label(s, "RS485_B",   (J2_X + 8 * G, J2_Y - 2 * G))   # pin 5 (lib_Y=+2.54)
+    _place_label(s, "GND",       (J2_X + 8 * G, J2_Y - 4 * G))   # pin 6 (lib_Y=+5.08)
+    _place_label(s, "GND",       (J2_X + 8 * G, J2_Y - 6 * G))   # pin 7 (lib_Y=+7.62)
+    _place_label(s, "GND",       (J2_X + 8 * G, J2_Y - 8 * G))   # pin 8 (lib_Y=+10.16)
+
+    # J3 — 4-pin USB-OTG dev header (D+/D-/EN/GND)
+    # Conn_01x04 pin lib: pin 1 (-5.08, 2.54), pin 2 (-5.08, 0),
+    # pin 3 (-5.08, -2.54), pin 4 (-5.08, -5.08).
+    # Sch endpoints: (X-5.08, Y - lib_Y).
+    J3_X, J3_Y = 270 * G, 110 * G   # (342.9, 139.7)
+    _place_symbol(s, "Conn_01x04", "J3", "USB-OTG",
+                  "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+                  (J3_X, J3_Y), lib=lib)
+    _place_label(s, "USB_DP",  (J3_X - 4 * G, J3_Y - 2 * G))   # pin 1 (lib_Y=+2.54)
+    _place_label(s, "USB_DM",  (J3_X - 4 * G, J3_Y))           # pin 2 (lib_Y= 0)
+    _place_label(s, "ESP_EN",  (J3_X - 4 * G, J3_Y + 2 * G))   # pin 3 (lib_Y=-2.54)
+    _place_label(s, "GND",     (J3_X - 4 * G, J3_Y + 4 * G))   # pin 4 (lib_Y=-5.08)
+
+    # J5 — 4-pin UART debug header (TX/RX/GND/RESET#).
+    # Reset (ESP_EN) reuses J3.3; J5 just exposes UART RX/TX + GND + EN.
+    J5_X, J5_Y = 270 * G, 120 * G   # (342.9, 152.4)
+    _place_symbol(s, "Conn_01x04", "J5", "UART-DBG",
+                  "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+                  (J5_X, J5_Y), lib=lib)
+    _place_label(s, "DBG_UART_TX", (J5_X - 4 * G, J5_Y - 2 * G))   # pin 1
+    _place_label(s, "DBG_UART_RX", (J5_X - 4 * G, J5_Y))           # pin 2
+    _place_label(s, "GND",         (J5_X - 4 * G, J5_Y + 2 * G))   # pin 3
+    _place_label(s, "ESP_EN",      (J5_X - 4 * G, J5_Y + 4 * G))   # pin 4 RESET#
+
     # ===== Power flags =====
     # In KiCad's ERC model, a `power_in` pin (like U1.VIN, U1.GND) needs a
     # matching `power_out` pin OR a PWR_FLAG on the same net. Our V24 source
@@ -787,6 +991,9 @@ def build_battery_side_schematic() -> None:
     # `power_output`, so ERC needs a flag here. The regulator output IS
     # really the source — flag is just ERC bookkeeping.
     _place_power_flag(s, "V3V3_SW",   (R5_X - 20 * G, R5_Y + 16 * G), lib)
+    # V_BAT_RTC: RTC1.VBAT is `power_input`. BAT1.+ (CR2032 holder) is
+    # `passive` per KiCad — the cell IS the source but ERC needs a flag.
+    _place_power_flag(s, "V_BAT_RTC", (R5_X - 20 * G, R5_Y + 20 * G), lib)
     # PWR_EN is now driven by MOD1.IO4 (bidirectional). MOD1 landed in
     # iter 18, so the synthetic PWR_EN PWR_FLAG is no longer needed —
     # dropped.

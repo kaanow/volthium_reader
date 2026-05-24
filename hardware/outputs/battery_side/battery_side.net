@@ -2,7 +2,7 @@
 	(version "E")
 	(design
 		(source "/Users/pivot/Documents/repo/volthium_reader/hardware/kicad/battery_side/battery_side.kicad_sch")
-		(date "2026-05-24T07:07:57")
+		(date "2026-05-24T07:18:31")
 		(tool "Eeschema 10.0.3")
 		(sheet
 			(number "1")
@@ -55,6 +55,106 @@
 	)
 	(components
 		(comp
+			(ref "BAT1")
+			(value "CR2032")
+			(footprint "Battery:BatteryHolder_Keystone_1066_1x12mm")
+			(fields
+				(field
+					(name "Footprint") "Battery:BatteryHolder_Keystone_1066_1x12mm")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "Battery_Cell")
+				(description "Single-cell battery")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "battery cell")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "7fa4d1fc-b1af-4dda-b28e-902c686fad31")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "BTN1")
+			(value "OVERRIDE")
+			(footprint "Button_Switch_THT:SW_PUSH_6mm")
+			(fields
+				(field
+					(name "Footprint") "Button_Switch_THT:SW_PUSH_6mm")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "SW_Push")
+				(description "Push button switch, generic, two pins")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "switch normally-open pushbutton push-button")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "8d8d8ca6-c86c-48df-b569-29f22f63c7b5")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
 			(ref "C1")
 			(value "22uF/25V")
 			(footprint "Capacitor_SMD:C_1210_3225Metric")
@@ -93,7 +193,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "2c284d77-698f-41bf-b8da-60cb5e8df27e")
+			(tstamps "9348a71a-a37f-43b2-b15d-de20901caa39")
 			(units
 				(unit
 					(name "A")
@@ -147,7 +247,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "40631687-9346-40c4-99ce-6b3ee1985eda")
+			(tstamps "59427f96-9ad2-4559-81b1-35c90123da5c")
 			(units
 				(unit
 					(name "A")
@@ -201,7 +301,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "043fdc7e-2591-459d-b109-d63c138be2c8")
+			(tstamps "83e1d203-e071-42d3-bcd2-3205e7cdbdc1")
 			(units
 				(unit
 					(name "A")
@@ -255,7 +355,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "74953ba9-4729-48f8-8bc6-f196d50755d0")
+			(tstamps "15a938df-96e8-474a-846e-a8d8d8343c6a")
 			(units
 				(unit
 					(name "A")
@@ -309,7 +409,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "f4482b12-2e35-4b13-9b9f-041e4df9fe5f")
+			(tstamps "e3a8c5a4-a524-4f09-9410-3738df5ebd1a")
 			(units
 				(unit
 					(name "A")
@@ -363,7 +463,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "a7f1b776-5252-4f07-a314-31b0914e6831")
+			(tstamps "b43a42a3-3bc8-49cf-b2a0-e16daee407ae")
 			(units
 				(unit
 					(name "A")
@@ -417,7 +517,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "8670ea4f-cb7f-4eb1-a06d-82cd4ba3eaba")
+			(tstamps "68957691-a549-4e64-a8cb-9601c23748a3")
 			(units
 				(unit
 					(name "A")
@@ -471,7 +571,169 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "c174e098-7905-4bde-a016-5ae5a2831a3d")
+			(tstamps "2d079e50-42e0-4b65-8528-9d47d7d63f92")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C9")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "6abb28fa-1e97-4817-9abd-2acaa2dee818")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C10")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "1c058eac-6877-4c92-ae80-e16d7acb9f4b")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C11")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "b9519af9-39ea-4e71-8446-72d7c4450b1e")
 			(units
 				(unit
 					(name "A")
@@ -525,7 +787,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "35fbbc3b-6804-4bcc-88a1-d3cc1fe4f0e1")
+			(tstamps "9e2b041e-a73c-443b-b491-22351b0b96a7")
 			(units
 				(unit
 					(name "A")
@@ -579,7 +841,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "411890a9-f054-4950-ac65-3d2fa7ec4a00")
+			(tstamps "e47013f2-882c-4500-820a-105de1552133")
 			(units
 				(unit
 					(name "A")
@@ -633,7 +895,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "ccd259de-f881-4af6-826d-747e8c8002ea")
+			(tstamps "5f6d0697-7172-4afc-9163-05ad45539d1f")
 			(units
 				(unit
 					(name "A")
@@ -687,7 +949,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "2508c049-6d82-49bf-9d83-915f6ccaae74")
+			(tstamps "93697974-8410-4759-aa59-002fb3351690")
 			(units
 				(unit
 					(name "A")
@@ -697,6 +959,198 @@
 						)
 						(pin
 							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J2")
+			(value "RJ45")
+			(footprint "Connector_RJ:RJ45_Amphenol_RJHSE5380")
+			(fields
+				(field
+					(name "Footprint") "Connector_RJ:RJ45_Amphenol_RJHSE5380")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "8P8C")
+				(description "RJ connector, 8P8C (8 positions 8 connected), RJ31/RJ32/RJ33/RJ34/RJ35/RJ41/RJ45/RJ49/RJ61")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "8P8C RJ socket connector")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "8P8C* RJ31* RJ32* RJ33* RJ34* RJ35* RJ41* RJ45* RJ49* RJ61*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "0954c3fe-f059-40de-8316-02969823fd67")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "8")
+						)
+						(pin
+							(num "7")
+						)
+						(pin
+							(num "6")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "1")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J3")
+			(value "USB-OTG")
+			(footprint "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical")
+			(fields
+				(field
+					(name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "Conn_01x04")
+				(description "Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "connector")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "Connector*:*_1x??_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "8fc3ce2c-2d13-4d53-bc01-29ef4eb63466")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "4")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J5")
+			(value "UART-DBG")
+			(footprint "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical")
+			(fields
+				(field
+					(name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "Conn_01x04")
+				(description "Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "connector")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "Connector*:*_1x??_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "2f0063ab-2c3c-4d44-9cc2-493588268564")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "4")
 						)
 					)
 				)
@@ -741,7 +1195,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "8304da3a-784c-404c-a25a-ecea037b28b6")
+			(tstamps "c18b9761-50d7-4998-9e2b-4f301153c906")
 			(units
 				(unit
 					(name "A")
@@ -795,7 +1249,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "f2024099-7ead-4eb4-9309-c2ab963ac7a7")
+			(tstamps "e7966185-8c89-4646-ba25-62a13b561841")
 			(units
 				(unit
 					(name "A")
@@ -962,7 +1416,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "e88ea196-991f-4bcc-a391-7580acfba2b8")
+			(tstamps "c668d670-673e-4849-a3f5-2feb0c009866")
 			(units
 				(unit
 					(name "A")
@@ -1015,7 +1469,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "4c225a7d-afd5-4fd3-a487-35a21edddf1e")
+			(tstamps "b3172824-a7a3-4470-9b93-1b7eb0045e52")
 			(units
 				(unit
 					(name "A")
@@ -1072,7 +1526,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "4214c0f4-1516-4342-87f8-e03545351b30")
+			(tstamps "e583f020-ba87-4119-86f4-0637651ff935")
 			(units
 				(unit
 					(name "A")
@@ -1126,7 +1580,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "79de6ce9-fb04-42b0-9b19-a01dc858dfc2")
+			(tstamps "f3dc39da-415e-4f3a-878c-c6cb468a30f3")
 			(units
 				(unit
 					(name "A")
@@ -1180,7 +1634,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "da2de366-bbe9-427f-beed-66588ecb220a")
+			(tstamps "7289c8e6-7658-4f10-9ae1-11505353887c")
 			(units
 				(unit
 					(name "A")
@@ -1234,7 +1688,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "26d2f79b-6e57-4ba5-bbb1-7b758a999be9")
+			(tstamps "e759c47d-f48d-4093-ad9d-a6329b4d03ca")
 			(units
 				(unit
 					(name "A")
@@ -1288,7 +1742,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "1fa4788a-94cc-463e-a05b-605635a7c4c5")
+			(tstamps "caa1a708-3f12-4c81-9d6e-b08530b3d69a")
 			(units
 				(unit
 					(name "A")
@@ -1298,6 +1752,426 @@
 						)
 						(pin
 							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R8")
+			(value "4.7k")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "9a20ecf5-645a-4f5a-9ba7-1bb7e618c4d1")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R9")
+			(value "4.7k")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "d3bc25bc-2887-49ff-b6f7-8461af5fff58")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R10")
+			(value "120")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "3340e78f-7ae9-4329-89b8-06288226711f")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R11")
+			(value "680")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "34aef518-ef73-446f-a57a-378173dbeb0b")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R12")
+			(value "680")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "ce7e0048-1e75-4e38-afd7-8d3e438e4cac")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R13")
+			(value "1M")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "da1f6083-8238-4182-84bc-b17d754f6d91")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "RTC1")
+			(value "DS3231SN#")
+			(footprint "Package_SO:SOIC-16W_7.5x10.3mm_P1.27mm")
+			(fields
+				(field
+					(name "Footprint") "Package_SO:SOIC-16W_7.5x10.3mm_P1.27mm")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "DS3231M")
+				(description "Extremely Accurate I2C-Integrated RTC/TCXO/Crystal SOIC-16")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "RTC TCXO Realtime Time Clock Crystal Oscillator I2C")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "SOIC*7.5x10.3mm*P1.27mm*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "79141d74-64f5-43f5-b73c-6f8826e35ef1")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "16")
+						)
+						(pin
+							(num "15")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "14")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "6")
+						)
+						(pin
+							(num "7")
+						)
+						(pin
+							(num "8")
+						)
+						(pin
+							(num "9")
+						)
+						(pin
+							(num "10")
+						)
+						(pin
+							(num "11")
+						)
+						(pin
+							(num "12")
+						)
+						(pin
+							(num "13")
+						)
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "3")
 						)
 					)
 				)
@@ -1342,7 +2216,61 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "b6efe7c1-d08c-4476-8bd5-d971c9a039f4")
+			(tstamps "257a706d-85d2-4c3a-9f6c-945dd0657771")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "TVS2")
+			(value "SMAJ12CA")
+			(footprint "Diode_SMD:D_SMA")
+			(fields
+				(field
+					(name "Footprint") "Diode_SMD:D_SMA")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "D_TVS")
+				(description "Bidirectional transient-voltage-suppression diode")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "diode TVS thyrector")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "TO-???* *_Diode_* *SingleDiode* D_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "4dcf47ce-8c35-4106-82d3-bf236aae567b")
 			(units
 				(unit
 					(name "A")
@@ -1396,7 +2324,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "f9414950-01e1-4921-b709-6429540fcb43")
+			(tstamps "1947b464-d091-4d3b-a6df-a96a6b932f34")
 			(units
 				(unit
 					(name "A")
@@ -1468,7 +2396,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "e3db79ee-2fe8-45cf-ab8e-91d3bdbd4ea9")
+			(tstamps "cec492c0-3a9d-41ae-989e-032cbbf3dfd3")
 			(units
 				(unit
 					(name "A")
@@ -1486,10 +2414,192 @@
 				)
 			)
 		)
+		(comp
+			(ref "U3")
+			(value "SN65HVD3082E")
+			(footprint "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm")
+			(fields
+				(field
+					(name "Footprint") "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "LTC2850xS8")
+				(description "RS-485, RS-422 Half-duplex 20Mbps transceiver, SOIC-8")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "RS485 RS422 transceiver half duplex")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "SOIC*3.9x4.9mm*P1.27mm*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "64de1317-afbb-42eb-8805-103dd0be51db")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "8")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "6")
+						)
+						(pin
+							(num "7")
+						)
+					)
+				)
+			)
+		)
 	)
 	(groups)
 	(variants)
 	(libparts
+		(libpart
+			(lib "volthium")
+			(part "8P8C")
+			(description "RJ connector, 8P8C (8 positions 8 connected), RJ31/RJ32/RJ33/RJ34/RJ35/RJ41/RJ45/RJ49/RJ61")
+			(footprints
+				(fp "8P8C*")
+				(fp "RJ31*")
+				(fp "RJ32*")
+				(fp "RJ33*")
+				(fp "RJ34*")
+				(fp "RJ35*")
+				(fp "RJ41*")
+				(fp "RJ45*")
+				(fp "RJ49*")
+				(fp "RJ61*")
+			)
+			(fields
+				(field
+					(name "Reference") "J")
+				(field
+					(name "Value") "8P8C")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "RJ connector, 8P8C (8 positions 8 connected), RJ31/RJ32/RJ33/RJ34/RJ35/RJ41/RJ45/RJ49/RJ61")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "3")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "4")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "5")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "6")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "7")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "8")
+					(name "")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "Battery_Cell")
+			(description "Single-cell battery")
+			(fields
+				(field
+					(name "Reference") "BT")
+				(field
+					(name "Value") "Battery_Cell")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Single-cell battery")
+				(field
+					(name "Sim.Device") "V")
+				(field
+					(name "Sim.Type") "DC")
+				(field
+					(name "Sim.Pins") "1=+ 2=-")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "+")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "-")
+					(type "passive")
+				)
+			)
+		)
 		(libpart
 			(lib "volthium")
 			(part "C")
@@ -1599,6 +2709,50 @@
 		)
 		(libpart
 			(lib "volthium")
+			(part "Conn_01x04")
+			(description "Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			(footprints
+				(fp "Connector*:*_1x??_*")
+			)
+			(fields
+				(field
+					(name "Reference") "J")
+				(field
+					(name "Value") "Conn_01x04")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "Pin_1")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "Pin_2")
+					(type "passive")
+				)
+				(pin
+					(num "3")
+					(name "Pin_3")
+					(type "passive")
+				)
+				(pin
+					(num "4")
+					(name "Pin_4")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
 			(part "D")
 			(description "Diode")
 			(footprints
@@ -1635,6 +2789,109 @@
 					(num "2")
 					(name "A")
 					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "DS3231M")
+			(description "Extremely Accurate I2C-Integrated RTC/TCXO/Crystal SOIC-16")
+			(docs "http://datasheets.maximintegrated.com/en/ds/DS3231.pdf")
+			(footprints
+				(fp "SOIC*7.5x10.3mm*P1.27mm*")
+			)
+			(fields
+				(field
+					(name "Reference") "U")
+				(field
+					(name "Value") "DS3231M")
+				(field
+					(name "Footprint") "Package_SO:SOIC-16W_7.5x10.3mm_P1.27mm")
+				(field
+					(name "Datasheet") "http://datasheets.maximintegrated.com/en/ds/DS3231.pdf")
+				(field
+					(name "Description") "Extremely Accurate I2C-Integrated RTC/TCXO/Crystal SOIC-16")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "32KHZ")
+					(type "open_collector")
+				)
+				(pin
+					(num "2")
+					(name "VCC")
+					(type "power_in")
+				)
+				(pin
+					(num "3")
+					(name "~{INT}/SQW")
+					(type "open_collector")
+				)
+				(pin
+					(num "4")
+					(name "~{RST}")
+					(type "bidirectional")
+				)
+				(pin
+					(num "5")
+					(name "GND")
+					(type "passive")
+				)
+				(pin
+					(num "6")
+					(name "GND")
+					(type "passive")
+				)
+				(pin
+					(num "7")
+					(name "GND")
+					(type "passive")
+				)
+				(pin
+					(num "8")
+					(name "GND")
+					(type "passive")
+				)
+				(pin
+					(num "9")
+					(name "GND")
+					(type "passive")
+				)
+				(pin
+					(num "10")
+					(name "GND")
+					(type "passive")
+				)
+				(pin
+					(num "11")
+					(name "GND")
+					(type "passive")
+				)
+				(pin
+					(num "12")
+					(name "GND")
+					(type "passive")
+				)
+				(pin
+					(num "13")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "14")
+					(name "VBAT")
+					(type "power_in")
+				)
+				(pin
+					(num "15")
+					(name "SDA")
+					(type "bidirectional")
+				)
+				(pin
+					(num "16")
+					(name "SCL")
+					(type "input")
 				)
 			)
 		)
@@ -1976,6 +3233,69 @@
 		)
 		(libpart
 			(lib "volthium")
+			(part "LTC2850xS8")
+			(description "RS-485, RS-422 Half-duplex 20Mbps transceiver, SOIC-8")
+			(docs "https://www.analog.com/media/en/technical-documentation/data-sheets/285012fe.pdf")
+			(footprints
+				(fp "SOIC*3.9x4.9mm*P1.27mm*")
+			)
+			(fields
+				(field
+					(name "Reference") "U")
+				(field
+					(name "Value") "LTC2850xS8")
+				(field
+					(name "Footprint") "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm")
+				(field
+					(name "Datasheet") "https://www.analog.com/media/en/technical-documentation/data-sheets/285012fe.pdf")
+				(field
+					(name "Description") "RS-485, RS-422 Half-duplex 20Mbps transceiver, SOIC-8")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "RO")
+					(type "output")
+				)
+				(pin
+					(num "2")
+					(name "~{RE}")
+					(type "input")
+				)
+				(pin
+					(num "3")
+					(name "DE")
+					(type "input")
+				)
+				(pin
+					(num "4")
+					(name "DI")
+					(type "input")
+				)
+				(pin
+					(num "5")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "6")
+					(name "A")
+					(type "bidirectional")
+				)
+				(pin
+					(num "7")
+					(name "B")
+					(type "bidirectional")
+				)
+				(pin
+					(num "8")
+					(name "VCC")
+					(type "power_in")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
 			(part "Q_NMOS_GSD")
 			(description "N-MOSFET transistor, gate/source/drain")
 			(fields
@@ -2082,6 +3402,37 @@
 		)
 		(libpart
 			(lib "volthium")
+			(part "SW_Push")
+			(description "Push button switch, generic, two pins")
+			(fields
+				(field
+					(name "Reference") "SW")
+				(field
+					(name "Value") "SW_Push")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Push button switch, generic, two pins")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "1")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "2")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
 			(part "TPS62933")
 			(description "3.8-30V, 3A Synchronous Buck Converters with pulse frequency modulation (PFM), SOT583-8")
 			(docs "https://www.ti.com/lit/ds/symlink/tps62933.pdf")
@@ -2156,16 +3507,38 @@
 			(name "BTN_OVERRIDE")
 			(class "Default")
 			(node
+				(ref "BTN1")
+				(pin "1")
+				(pinfunction "1_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C11")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
 				(ref "MOD1")
 				(pin "7")
 				(pinfunction "IO7_7")
 				(pintype "bidirectional")
+			)
+			(node
+				(ref "R13")
+				(pin "2")
+				(pintype "passive")
 			)
 		)
 		(net
 			(code "2")
 			(name "DBG_UART_RX")
 			(class "Default")
+			(node
+				(ref "J5")
+				(pin "2")
+				(pinfunction "Pin_2_2")
+				(pintype "passive")
+			)
 			(node
 				(ref "MOD1")
 				(pin "36")
@@ -2177,6 +3550,12 @@
 			(code "3")
 			(name "DBG_UART_TX")
 			(class "Default")
+			(node
+				(ref "J5")
+				(pin "1")
+				(pinfunction "Pin_1_1")
+				(pintype "passive")
+			)
 			(node
 				(ref "MOD1")
 				(pin "37")
@@ -2194,6 +3573,18 @@
 				(pinfunction "IO2_38")
 				(pintype "bidirectional")
 			)
+			(node
+				(ref "U3")
+				(pin "2")
+				(pinfunction "~{RE}_2")
+				(pintype "input")
+			)
+			(node
+				(ref "U3")
+				(pin "3")
+				(pinfunction "DE_3")
+				(pintype "input")
+			)
 		)
 		(net
 			(code "5")
@@ -2202,6 +3593,18 @@
 			(node
 				(ref "C8")
 				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J3")
+				(pin "3")
+				(pinfunction "Pin_3_3")
+				(pintype "passive")
+			)
+			(node
+				(ref "J5")
+				(pin "4")
+				(pinfunction "Pin_4_4")
 				(pintype "passive")
 			)
 			(node
@@ -2221,7 +3624,29 @@
 			(name "GND")
 			(class "Default")
 			(node
+				(ref "BAT1")
+				(pin "2")
+				(pinfunction "-_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "BTN1")
+				(pin "2")
+				(pinfunction "2_2")
+				(pintype "passive")
+			)
+			(node
 				(ref "C1")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C10")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C11")
 				(pin "2")
 				(pintype "passive")
 			)
@@ -2261,9 +3686,41 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "C9")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
 				(ref "J1")
 				(pin "2")
 				(pinfunction "Pin_2_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "6")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "7")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "8")
+				(pintype "passive")
+			)
+			(node
+				(ref "J3")
+				(pin "4")
+				(pinfunction "Pin_4_4")
+				(pintype "passive")
+			)
+			(node
+				(ref "J5")
+				(pin "3")
+				(pinfunction "Pin_3_3")
 				(pintype "passive")
 			)
 			(node
@@ -2291,6 +3748,11 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "R12")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
 				(ref "R4")
 				(pin "2")
 				(pintype "passive")
@@ -2298,6 +3760,60 @@
 			(node
 				(ref "R6")
 				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "RTC1")
+				(pin "10")
+				(pinfunction "GND_10")
+				(pintype "passive")
+			)
+			(node
+				(ref "RTC1")
+				(pin "11")
+				(pinfunction "GND_11")
+				(pintype "passive")
+			)
+			(node
+				(ref "RTC1")
+				(pin "12")
+				(pinfunction "GND_12")
+				(pintype "passive")
+			)
+			(node
+				(ref "RTC1")
+				(pin "13")
+				(pinfunction "GND_13")
+				(pintype "power_in")
+			)
+			(node
+				(ref "RTC1")
+				(pin "5")
+				(pinfunction "GND_5")
+				(pintype "passive")
+			)
+			(node
+				(ref "RTC1")
+				(pin "6")
+				(pinfunction "GND_6")
+				(pintype "passive")
+			)
+			(node
+				(ref "RTC1")
+				(pin "7")
+				(pinfunction "GND_7")
+				(pintype "passive")
+			)
+			(node
+				(ref "RTC1")
+				(pin "8")
+				(pinfunction "GND_8")
+				(pintype "passive")
+			)
+			(node
+				(ref "RTC1")
+				(pin "9")
+				(pinfunction "GND_9")
 				(pintype "passive")
 			)
 			(node
@@ -2318,6 +3834,12 @@
 				(pinfunction "Pin_2_2")
 				(pintype "passive")
 			)
+			(node
+				(ref "U3")
+				(pin "5")
+				(pinfunction "GND_5")
+				(pintype "power_in")
+			)
 		)
 		(net
 			(code "7")
@@ -2329,6 +3851,17 @@
 				(pinfunction "IO6_6")
 				(pintype "bidirectional")
 			)
+			(node
+				(ref "R9")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "RTC1")
+				(pin "16")
+				(pinfunction "SCL_16")
+				(pintype "input")
+			)
 		)
 		(net
 			(code "8")
@@ -2338,6 +3871,17 @@
 				(ref "MOD1")
 				(pin "5")
 				(pinfunction "IO5_5")
+				(pintype "bidirectional")
+			)
+			(node
+				(ref "R8")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "RTC1")
+				(pin "15")
+				(pinfunction "SDA_15")
 				(pintype "bidirectional")
 			)
 		)
@@ -2387,6 +3931,70 @@
 		)
 		(net
 			(code "11")
+			(name "RS485_A")
+			(class "Default")
+			(node
+				(ref "J2")
+				(pin "4")
+				(pintype "passive")
+			)
+			(node
+				(ref "R10")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "R11")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "TVS2")
+				(pin "1")
+				(pinfunction "A1_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U3")
+				(pin "6")
+				(pinfunction "A_6")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "12")
+			(name "RS485_B")
+			(class "Default")
+			(node
+				(ref "J2")
+				(pin "5")
+				(pintype "passive")
+			)
+			(node
+				(ref "R10")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "R12")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "TVS2")
+				(pin "2")
+				(pinfunction "A2_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "U3")
+				(pin "7")
+				(pinfunction "B_7")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "13")
 			(name "U1_BST")
 			(class "Default")
 			(node
@@ -2402,7 +4010,7 @@
 			)
 		)
 		(net
-			(code "12")
+			(code "14")
 			(name "U1_SW")
 			(class "Default")
 			(node
@@ -2424,7 +4032,7 @@
 			)
 		)
 		(net
-			(code "13")
+			(code "15")
 			(name "UART_RX_3V3")
 			(class "Default")
 			(node
@@ -2433,9 +4041,15 @@
 				(pinfunction "IO18_11")
 				(pintype "bidirectional")
 			)
+			(node
+				(ref "U3")
+				(pin "1")
+				(pinfunction "RO_1")
+				(pintype "output")
+			)
 		)
 		(net
-			(code "14")
+			(code "16")
 			(name "UART_TX_3V3")
 			(class "Default")
 			(node
@@ -2444,11 +4058,23 @@
 				(pinfunction "IO17_10")
 				(pintype "bidirectional")
 			)
+			(node
+				(ref "U3")
+				(pin "4")
+				(pinfunction "DI_4")
+				(pintype "input")
+			)
 		)
 		(net
-			(code "15")
+			(code "17")
 			(name "USB_DM")
 			(class "Default")
+			(node
+				(ref "J3")
+				(pin "2")
+				(pinfunction "Pin_2_2")
+				(pintype "passive")
+			)
 			(node
 				(ref "MOD1")
 				(pin "13")
@@ -2457,9 +4083,15 @@
 			)
 		)
 		(net
-			(code "16")
+			(code "18")
 			(name "USB_DP")
 			(class "Default")
+			(node
+				(ref "J3")
+				(pin "1")
+				(pinfunction "Pin_1_1")
+				(pintype "passive")
+			)
 			(node
 				(ref "MOD1")
 				(pin "14")
@@ -2468,9 +4100,14 @@
 			)
 		)
 		(net
-			(code "17")
+			(code "19")
 			(name "V3V3_SW")
 			(class "Default")
+			(node
+				(ref "C10")
+				(pin "1")
+				(pintype "passive")
+			)
 			(node
 				(ref "C2")
 				(pin "1")
@@ -2487,6 +4124,11 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "C9")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
 				(ref "L1")
 				(pin "2")
 				(pinfunction "2_2")
@@ -2499,9 +4141,35 @@
 				(pintype "power_in")
 			)
 			(node
+				(ref "R11")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "R13")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
 				(ref "R7")
 				(pin "1")
 				(pintype "passive")
+			)
+			(node
+				(ref "R8")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "R9")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "RTC1")
+				(pin "2")
+				(pinfunction "VCC_2")
+				(pintype "power_in")
 			)
 			(node
 				(ref "U1")
@@ -2509,14 +4177,35 @@
 				(pinfunction "FB_8")
 				(pintype "input")
 			)
+			(node
+				(ref "U3")
+				(pin "8")
+				(pinfunction "VCC_8")
+				(pintype "power_in")
+			)
 		)
 		(net
-			(code "18")
+			(code "20")
 			(name "V12_CAT5E")
 			(class "Default")
 			(node
 				(ref "C4")
 				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "3")
 				(pintype "passive")
 			)
 			(node
@@ -2527,7 +4216,7 @@
 			)
 		)
 		(net
-			(code "19")
+			(code "21")
 			(name "V24_AFTER_FUSE")
 			(class "Default")
 			(node
@@ -2543,7 +4232,7 @@
 			)
 		)
 		(net
-			(code "20")
+			(code "22")
 			(name "V24_FUSED")
 			(class "Default")
 			(node
@@ -2576,7 +4265,7 @@
 			)
 		)
 		(net
-			(code "21")
+			(code "23")
 			(name "V24_RAW")
 			(class "Default")
 			(node
@@ -2592,7 +4281,7 @@
 			)
 		)
 		(net
-			(code "22")
+			(code "24")
 			(name "V24_SENSE")
 			(class "Default")
 			(node
@@ -2618,7 +4307,7 @@
 			)
 		)
 		(net
-			(code "23")
+			(code "25")
 			(name "V24_SW")
 			(class "Default")
 			(node
@@ -2654,6 +4343,23 @@
 				(pin "1")
 				(pinfunction "Pin_1_1")
 				(pintype "passive")
+			)
+		)
+		(net
+			(code "26")
+			(name "V_BAT_RTC")
+			(class "Default")
+			(node
+				(ref "BAT1")
+				(pin "1")
+				(pinfunction "+_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "RTC1")
+				(pin "14")
+				(pinfunction "VBAT_14")
+				(pintype "power_in")
 			)
 		)
 	)

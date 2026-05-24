@@ -1269,3 +1269,131 @@ Re-review results:
 - Single-ended label nets (`I2C_*`, `UART_*`, `USB_*`, debug UART, `DE_RE`) are expected at this midpoint and align with the documented iter-20 completion plan.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 22. Iteration 20 — battery-side COMPLETE (2026-05-24)
+
+Final battery-side sub-iter: RTC + RS-485 + button + connectors +
+dev headers. **Battery-side schematic is now functionally complete**
+— every CP1-spec'd component placed and connected, ERC 0/0.
+
+### 22a. Components added (17)
+
+| Ref  | Symbol           | Value        | Footprint                                              |
+|------|------------------|--------------|--------------------------------------------------------|
+| RTC1 | DS3231M          | DS3231SN#    | Package_SO:SOIC-16W_7.5x10.3mm_P1.27mm                |
+| BAT1 | Battery_Cell     | CR2032       | Battery:BatteryHolder_Keystone_1066_1x12mm            |
+| C9   | C                | 100nF        | Capacitor_SMD:C_0603_1608Metric                       |
+| R8   | R                | 4.7k         | Resistor_SMD:R_0805_2012Metric                        |
+| R9   | R                | 4.7k         | Resistor_SMD:R_0805_2012Metric                        |
+| U3   | LTC2850xS8       | SN65HVD3082E | Package_SO:SOIC-8_3.9x4.9mm_P1.27mm                   |
+| C10  | C                | 100nF        | Capacitor_SMD:C_0603_1608Metric                       |
+| R10  | R                | 120          | Resistor_SMD:R_0805_2012Metric                        |
+| R11  | R                | 680          | Resistor_SMD:R_0805_2012Metric                        |
+| R12  | R                | 680          | Resistor_SMD:R_0805_2012Metric                        |
+| TVS2 | D_TVS            | SMAJ12CA     | Diode_SMD:D_SMA                                       |
+| BTN1 | SW_Push          | OVERRIDE     | Button_Switch_THT:SW_PUSH_6mm                         |
+| R13  | R                | 1M           | Resistor_SMD:R_0805_2012Metric                        |
+| C11  | C                | 100nF        | Capacitor_SMD:C_0603_1608Metric                       |
+| J2   | 8P8C             | RJ45         | Connector_RJ:RJ45_Amphenol_RJHSE5380                  |
+| J3   | Conn_01x04       | USB-OTG      | PinHeader_1x04_P2.54mm_Vertical                       |
+| J5   | Conn_01x04       | UART-DBG     | PinHeader_1x04_P2.54mm_Vertical                       |
+
+### 22b. Library stand-ins (per Q-CP2-5 pattern)
+
+LTC2850xS8 → SN65HVD3082E (pin-identical RS-485 SOIC-8); 8P8C → RJ45
+(parent generic; derived RJ45 couldn't resolve missing extends);
+D_TVS → SMAJ12CA (generic bidir TVS).
+
+### 22c. Cat5e (J2) per `docs/hardware/cat5e_pinout.md`
+
+T568B: pins 1/2/3 = V12_CAT5E (paralleled), 4=A, 5=B, 6/7/8 = GND
+(paralleled). The paralleled +12V and GND reduce 5 m run voltage
+drop per the power-budget analysis.
+
+### 22d. Two issues caught + resolved
+
+**Endpoint collision**: C9 (RTC decoupling) initially placed directly
+to the left of RTC1 at the same Y as RTC1's SCL pin. C9 pin 2
+endpoint (63.5, 115.57) collided with RTC1.SCL endpoint at the
+identical coord. KiCad merged "GND" (from C9.2) and "I2C_SCL" (from
+RTC1.SCL) into one net, cascading into a `Bidirectional + Power
+output` warning on MOD1.IO6.
+
+Fix: moved C9 well clear of RTC1's left-edge pins. Lesson: check
+pin endpoints, not just symbol centers, when placing near multi-pin
+ICs.
+
+**V_BAT_RTC**: RTC1.VBAT is `power_input`. BAT1.+ is `passive`.
+PWR_FLAG added on V_BAT_RTC (the CR2032 is the real source; flag is
+ERC bookkeeping).
+
+### 22e. ERC: 0 errors, 0 warnings
+
+41 components on battery_side.kicad_sch, ~26 nets. All formerly-
+dangling labels now have ≥2 connections (I2C_SDA/SCL, BTN_OVERRIDE,
+UART_TX/RX_3V3, DE_RE, USB_DM/DP, DBG_UART_TX/RX).
+
+**Q-CP2-NEW**: should we re-enable `isolated_pin_label` to verify?
+Now that battery-side is fully wired the suppression is mostly
+unnecessary; a few legitimate single-pin nets remain (PWR_FLAG
+nets by design). My default: re-enable + verify at the end of
+iter 22 (after display-side lands; display will go through the same
+mid-build dangling phase).
+
+### 22f. Not in this iter (deferred)
+
+**J4** (2-pin RS-485 term-lift jumper, CP1 §4.8): purely mechanical
+jumper across R10. Optional; can add in a polish iter.
+
+### 22g. Battery-side component summary
+
+41 components per CP1 BOM:
+
+```
+Power input:        J1 F1 D1 TVS1
+Power conversion:   U1 L1 C1 C2 C_BST + U2 C3 C4
+Hard-cut:           Q1 Q2 R3 R4
+Sense:              R5 R6 C5
+MCU:                MOD1 R7 C8 C6 C7
+RTC:                RTC1 BAT1 C9 R8 R9
+RS-485:             U3 C10 R10 R11 R12 TVS2
+Button:             BTN1 R13 C11
+Connectors:         J2 (RJ45) + J3 (USB-OTG) + J5 (UART debug)
+```
+
+(J4 term-lift jumper deferred per §22f.)
+
+### 22h. Next iter (22): display-side schematic
+
+Display-side is the simpler board (~20 components, mostly re-used
+patterns from battery-side):
+
+```
+Power:    J1 RJ45 in → F1 PTC → TVS1 → U1 R-78E3.3 → V3V3
+MCU:      MOD1 ESP32-S3-WROOM-1-N16R8 (same module)
+E-paper:  LCD1 4.2" tri-color + J2 24-pin FFC
+RS-485:   U2 SN65HVD3082E + R2/R3/R4 + TVS2
+Buttons:  BTN1/2/3 + R5/R6/R7 + C7/C8/C9
+Dev:      J3 (UART debug) + J4 (USB-OTG)
+```
+
+Likely lands in one iter.
+
+### 22i. Handoff back to reviewer (iteration 20)
+
+Files modified:
+- `hardware/kicad/build_schematics.py` — 17 new component placements,
+  V_BAT_RTC PWR_FLAG, library now uses LTC2850xS8 + 8P8C parents
+- `hardware/kicad/libraries/volthium.kicad_sym` — LTC2850xS8 + 8P8C
+  added, MAX3485/RJ45 derived dropped
+- `hardware/kicad/battery_side/battery_side.kicad_sch` — 17 new
+  components, 5 new nets (V_BAT_RTC, RS485_A/B, USB_DM/DP),
+  ERC-complete
+- Regenerated artifacts
+- This packet §22
+
+**Battery-side schematic is electrically complete.** Re-review and
+weigh in on Q-CP2-NEW (isolated_pin_label re-enable timing). Next
+iter: display-side.

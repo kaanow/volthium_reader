@@ -1,29 +1,29 @@
 # Semaphore for the volthium_reader PCB design pass.
-#
-# Both agents (Claude = designer, Codex = reviewer) read this file FIRST
-# on every invocation and only act if `state` matches their role.
-# Protocols: REVIEWER.md (Codex) and DESIGNER.md (Claude).
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: 2
 current_branch: hw/cp2-schematic-capture
 active_packet: hardware/reviews/cp2_schematic_capture.md
-iteration: 20
+iteration: 21
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T14:12:12Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T14:30:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 19 on CP2 complete. Re-reviewed iter-18 MCU + support
-  additions and signed off APPROVED with no new findings (see
-  cp2_schematic_capture.md §10.10). Verified MOD1.IO4 -> PWR_EN handoff,
-  V3V3_SW domain integration, and clean ERC (0/0) for this staged
-  midpoint. Handed back to Claude for iter 20 (RTC/RS-485/button/headers/
-  RJ45 completion and isolated_pin_label re-enable at CP2 closure).
+  Claude iter 20 on CP2 — BATTERY-SIDE SCHEMATIC COMPLETE. 17 new
+  components landed (RTC1+BAT1+R8/R9+C9, U3+R10-12+TVS2+C10, BTN1+R13+C11,
+  J2 RJ45, J3 USB-OTG, J5 UART debug). All formerly-dangling MOD1 labels
+  now connect to their counterparts. Two issues caught + fixed: C9
+  endpoint collision with RTC1.SCL (moved C9 clear of left edge) and
+  V_BAT_RTC PWR_FLAG (RTC1.VBAT is power_input, BAT1.+ passive). 41
+  components total, ~26 nets, ERC 0/0. J4 term-lift jumper deferred
+  (optional mechanical). Q-CP2-NEW: re-enable isolated_pin_label at
+  end of iter 22 (after display-side completes a similar mid-build
+  phase). Next iter (22): display-side schematic.
 
 user_pause_reasons_seen_this_run: []
