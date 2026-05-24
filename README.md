@@ -28,6 +28,8 @@ The estimator uses an exponential moving average on current so the displayed
 
 ## Setup
 
+### macOS (dev rig)
+
 ```bash
 brew install python@3.13        # only if not already installed
 /opt/homebrew/bin/python3.13 -m venv .venv
@@ -36,6 +38,29 @@ brew install python@3.13        # only if not already installed
 
 macOS will prompt for Bluetooth permission the first time the Terminal app
 tries to scan. Approve it under *System Settings → Privacy & Security → Bluetooth*.
+
+### Linux / Raspberry Pi (cabin-side)
+
+```bash
+sudo apt install -y bluez python3-venv rfkill
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+```
+
+`bluetooth.service` is enabled by the bluez install; bleak talks to it over
+D-Bus, no user-group changes needed on Ubuntu 24.04.
+
+The two physical batteries' addresses live in `pack.env` (committed). macOS
+sees them under CoreBluetooth peripheral UUIDs; Linux sees the real BLE
+MACs. The Mac UUIDs are already filled in; once you've scanned from the Pi:
+
+```bash
+.venv/bin/python scripts/scan.py
+```
+
+paste the two `V-12V200AH-*` MACs into `pack.env` as `ADDR_A_LINUX` and
+`ADDR_B_LINUX` and commit. From then on the launcher just works on either
+machine.
 
 ## Use
 
@@ -72,10 +97,10 @@ real charge/discharge curves to tune the smoothing constant.
 
 ### Easiest way to launch (for anyone, no Terminal needed)
 
-Double-click **Volthium Monitor** on the Desktop. It silently starts the
-logger + dashboard if they aren't already running, opens the dashboard
-in your default browser, and shows a notification with the LAN URL to
-share with phones on the same Wi-Fi.
+**macOS:** Double-click **Volthium Monitor** on the Desktop. It silently
+starts the logger + dashboard if they aren't already running, opens the
+dashboard in your default browser, and shows a notification with the LAN
+URL to share with phones on the same Wi-Fi.
 
 If the Desktop alias gets deleted, recreate it with:
 
@@ -86,6 +111,21 @@ If the Desktop alias gets deleted, recreate it with:
 The .app bundle lives at `Volthium Monitor.app/` in the repo root; the
 Desktop alias just points at it, so any future improvements to the .app
 are picked up automatically.
+
+**Linux / Pi:** Run the same script from a terminal:
+
+```bash
+./'Launch Volthium Monitor.command'
+```
+
+It's a portable bash script that detects the OS — `caffeinate` is swapped
+for `systemd-inhibit`, `ipconfig` for `hostname -I`, `open` for `xdg-open`.
+The dashboard binds `0.0.0.0:8421`, so a phone on the same Wi-Fi can hit
+the printed LAN URL. `scripts/install_desktop_launcher.sh` also handles
+Linux: it writes `~/.local/share/applications/volthium-monitor.desktop`
+(plus a Desktop copy if `~/Desktop` exists). On a fully headless Pi,
+prefer a systemd unit instead — `Launch Volthium Monitor.command` is the
+single command you'd put in the unit's `ExecStart=`.
 
 ### 4. Headless logger + browser dashboard
 
