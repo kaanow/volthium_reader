@@ -2,7 +2,7 @@
 	(version "E")
 	(design
 		(source "/Users/pivot/Documents/repo/volthium_reader/hardware/kicad/display_side/display_side.kicad_sch")
-		(date "2026-05-23T21:15:46")
+		(date "2026-05-23T22:08:20")
 		(tool "Eeschema 10.0.3")
 		(sheet
 			(number "1")

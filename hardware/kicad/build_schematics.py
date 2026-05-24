@@ -77,11 +77,11 @@ STOCK_SYMBOLS: list[tuple[str, str, Optional[str]]] = [
     ("Device", "Polyfuse", None),
     ("Device", "LED", None),
     ("Device", "Battery_Cell", None),
-    # diodes / TVS
-    ("Diode", "SS24", None),
-    ("Diode", "SMAJ12CA", None),
-    ("Diode", "SMAJ15A", None),
-    ("Diode", "SMAJ30CA", None),
+    # diodes / TVS — use Device:D and Device:D_TVS generics (Value field
+    # overridden per-instance to the BOM MPN). Avoids pulling in the long
+    # chain of derived-symbol parents that lives in Diode.kicad_sym.
+    ("Device", "D", None),
+    ("Device", "D_TVS", None),
     # MCU + module
     ("RF_Module", "ESP32-S3-WROOM-1", None),
     # regulator
@@ -172,9 +172,13 @@ def write_project_file(board_dir: Path, name: str) -> None:
             "rule_severities": {
                 # kicad-cli's library-resolution complaint is non-functional —
                 # the schematic's embedded libSymbols section is authoritative
-                # for ERC and netlist correctness. Suppress the warning to
-                # keep the report focused on real design issues.
+                # for ERC and netlist correctness. Suppress to keep the
+                # report focused on real design issues.
                 "lib_symbol_issues": "ignore",
+                # Footprints aren't finalized at CP2 (schematic capture).
+                # CP3 (placement) is where footprint links are resolved.
+                # Until then, suppress the linkage warning.
+                "footprint_link_issues": "ignore",
             },
         },
         "libraries": {
@@ -390,13 +394,57 @@ def build_battery_side_schematic() -> None:
     s.generator = "volthium-build-schematics"
     lib = _load_project_lib()
 
-    # KiCad connection grid is 1.27 mm. All symbol centers and label
-    # endpoints must be multiples of 1.27 mm to avoid `endpoint_off_grid`
-    # warnings. Device:R pins are at ±3.81 mm = ±3×1.27 from center, so
-    # placing the symbol on the grid keeps the pin endpoints on it too.
+    # KiCad connection grid is 1.27 mm. All positions are expressed as n×G
+    # so endpoints land on the grid (resistor pins are at ±3*G from center,
+    # so symbol-center alignment propagates to pin alignment).
     G = 1.27
 
-    # R5 — 1 MΩ, top of sense divider. Place symbol on grid (80×G = 101.6).
+    # ===== Iter 10: V24 input path (J1 → F1 → D1 → V24_FUSED), TVS1 clamp =====
+
+    # J1 — 2-pin terminal block (Phoenix MSTB-2,5/2-G-5,08). Pins at:
+    #   pin 1 (V24_RAW): symbol-relative (-5.08, 0) → endpoint (X-5.08, Y)
+    #   pin 2 (GND):     symbol-relative (-5.08, -2.54) → endpoint (X-5.08, Y-2.54)
+    J1_X, J1_Y = 40 * G, 30 * G   # (50.8, 38.1)
+    _place_symbol(s, "Conn_01x02", "J1", "Conn_01x02",
+                  "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal",
+                  (J1_X, J1_Y), lib=lib)
+    # Note: KiCad flips Y between symbol library and schematic. Lib pin Y
+    # becomes -lib_Y on the schematic (relative to symbol center). For
+    # Conn_01x02: pin 1 lib (-5.08, 0) → schematic (X-5.08, Y); pin 2 lib
+    # (-5.08, -2.54) → schematic (X-5.08, Y+2.54).
+    _place_label(s, "V24_RAW", (J1_X - 4 * G, J1_Y))            # pin 1 endpoint
+    _place_label(s, "GND",     (J1_X - 4 * G, J1_Y + 2 * G))    # pin 2 endpoint
+
+    # F1 — 5×20 mm cartridge fuse holder, 2-pin vertical (like R).
+    F1_X, F1_Y = 60 * G, 30 * G   # (76.2, 38.1)
+    _place_symbol(s, "Fuse", "F1", "1A 5x20",
+                  "Fuse:Fuse_Bel_5MF",   # cartridge clip footprint family
+                  (F1_X, F1_Y), lib=lib)
+    _place_label(s, "V24_RAW",        (F1_X, F1_Y - 3 * G))     # pin 1 (top)
+    _place_label(s, "V24_AFTER_FUSE", (F1_X, F1_Y + 3 * G))     # pin 2 (bottom)
+
+    # D1 — SS24 Schottky reverse-polarity diode (Device:D generic, Value
+    # overridden to BOM MPN). Horizontal: pin 1 (K) on left, pin 2 (A) on
+    # right; pins at ±3.81 = ±3*G from center.
+    D1_X, D1_Y = 80 * G, 30 * G   # (101.6, 38.1)
+    _place_symbol(s, "D", "D1", "SS24",
+                  "Diode_SMD:D_SMA",
+                  (D1_X, D1_Y), lib=lib)
+    _place_label(s, "V24_FUSED",      (D1_X - 3 * G, D1_Y))     # pin 1 (K) endpoint
+    _place_label(s, "V24_AFTER_FUSE", (D1_X + 3 * G, D1_Y))     # pin 2 (A) endpoint
+
+    # TVS1 — SMAJ30CA bidirectional 24V TVS (Device:D_TVS generic, Value
+    # overridden). Pins same geometry as D.
+    TVS1_X, TVS1_Y = 95 * G, 30 * G   # (120.65, 38.1)
+    _place_symbol(s, "D_TVS", "TVS1", "SMAJ30CA",
+                  "Diode_SMD:D_SMA",
+                  (TVS1_X, TVS1_Y), lib=lib)
+    _place_label(s, "V24_FUSED", (TVS1_X - 3 * G, TVS1_Y))      # pin 1 endpoint
+    _place_label(s, "GND",       (TVS1_X + 3 * G, TVS1_Y))      # pin 2 endpoint
+
+    # ===== Iter 8 (existing): V24 sense divider + filter cap =====
+
+    # R5 — 1 MΩ, top of sense divider
     R5_X, R5_Y = 80 * G, 40 * G   # (101.6, 50.8)
     _place_symbol(s, "R", "R5", "1M",
                   "Resistor_SMD:R_0805_2012Metric",
@@ -404,27 +452,32 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "V24_FUSED", (R5_X, R5_Y - 3 * G))   # pin 1 endpoint
     _place_label(s, "V24_SENSE", (R5_X, R5_Y + 3 * G))   # pin 2 endpoint
 
-    # R6 — 110 kΩ, bottom of sense divider. 10 grid units (12.7 mm) below R5.
+    # R6 — 110 kΩ, bottom of sense divider
     R6_X, R6_Y = R5_X, R5_Y + 10 * G   # (101.6, 63.5)
     _place_symbol(s, "R", "R6", "110k",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R6_X, R6_Y), lib=lib)
     _place_label(s, "V24_SENSE", (R6_X, R6_Y - 3 * G))
-    _place_label(s, "GND", (R6_X, R6_Y + 3 * G))
+    _place_label(s, "GND",       (R6_X, R6_Y + 3 * G))
 
-    # C5 — 100 nF filter cap on V24_SENSE, parallel to R6. Capacitor pin
-    # geometry mirrors R's (pins at ±X * G from center). Place to the right
-    # of R6 at the same Y so it visually parallels the divider.
+    # C5 — 100 nF filter cap on V24_SENSE
     C5_X, C5_Y = R6_X + 10 * G, R6_Y   # (114.3, 63.5)
     _place_symbol(s, "C", "C5", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (C5_X, C5_Y), lib=lib)
-    _place_label(s, "V24_SENSE", (C5_X, C5_Y - 3 * G))   # pin 1 (C uses ±0.508 + ±... TBD)
-    _place_label(s, "GND",       (C5_X, C5_Y + 3 * G))   # pin 2
+    _place_label(s, "V24_SENSE", (C5_X, C5_Y - 3 * G))
+    _place_label(s, "GND",       (C5_X, C5_Y + 3 * G))
 
-    # Power flags so ERC accepts V24_FUSED and GND as having sources.
-    # (Synthetic for this iter; the real upstream sources land in the next iter.)
+    # ===== Power flags (kept until real power-output pins land in iter 11+) =====
+    # PWR_FLAG on V24_FUSED previously sourced this net. Now that D1's cathode
+    # connects, the net has a real upstream connection (through F1, J1). But
+    # KiCad's ERC requires a `power_output` pin for full validation, and D1's
+    # cathode is `passive`. We keep PWR_FLAG on V24_FUSED until U1 (TPS62933F)
+    # provides a real `power_output` pin in the next iter, then drop it.
     _place_power_flag(s, "V24_FUSED", (R5_X - 20 * G, R5_Y - 3 * G), lib)
+    # Same logic for GND — J1.2 is a passive connector pin, not a power_input.
+    # PWR_FLAG persists until a regulator's GND pin provides authoritative
+    # net classification.
     _place_power_flag(s, "GND",       (R5_X - 20 * G, R6_Y + 3 * G), lib)
 
     out = BATT_DIR / "battery_side.kicad_sch"

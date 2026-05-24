@@ -17,7 +17,8 @@
     },
     "pin_map": [],
     "rule_severities": {
-      "lib_symbol_issues": "ignore"
+      "lib_symbol_issues": "ignore",
+      "footprint_link_issues": "ignore"
     }
   },
   "libraries": {

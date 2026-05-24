@@ -1,4 +1,4 @@
-ERC report (2026-05-23T21:15:43, Encoding UTF8)
+ERC report (2026-05-23T22:08:17, Encoding UTF8)
 Report includes: Errors, Warnings
 
 ***** Sheet /
@@ -10,4 +10,5 @@ Report includes: Errors, Warnings
     - Four connection points are joined together
     - SPICE model issue
     - Library symbol issue
+    - Footprint link issue
     - Assigned footprint doesn't match footprint filters
