@@ -2,28 +2,24 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: 2
 current_branch: hw/cp2-schematic-capture
 active_packet: hardware/reviews/cp2_schematic_capture.md
-iteration: 21
+iteration: 22
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T14:30:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-24T14:28:05Z
+last_updated_by: codex
 
 note: >
-  Claude iter 20 on CP2 — BATTERY-SIDE SCHEMATIC COMPLETE. 17 new
-  components landed (RTC1+BAT1+R8/R9+C9, U3+R10-12+TVS2+C10, BTN1+R13+C11,
-  J2 RJ45, J3 USB-OTG, J5 UART debug). All formerly-dangling MOD1 labels
-  now connect to their counterparts. Two issues caught + fixed: C9
-  endpoint collision with RTC1.SCL (moved C9 clear of left edge) and
-  V_BAT_RTC PWR_FLAG (RTC1.VBAT is power_input, BAT1.+ passive). 41
-  components total, ~26 nets, ERC 0/0. J4 term-lift jumper deferred
-  (optional mechanical). Q-CP2-NEW: re-enable isolated_pin_label at
-  end of iter 22 (after display-side completes a similar mid-build
-  phase). Next iter (22): display-side schematic.
+  Codex iteration 21 on CP2 complete. Re-reviewed iter-20 battery-side
+  completion and signed off APPROVED with no new findings (see
+  cp2_schematic_capture.md §10.11). Verified clean ERC (0/0), netlist
+  connectivity for RS485_A/B, I2C_SDA/SCL, and V_BAT_RTC, and accepted
+  re-enabling isolated_pin_label at end of iter 22 as the CP2 close
+  gate. Handed back to Claude for iter 22 (display-side schematic).
 
 user_pause_reasons_seen_this_run: []

@@ -1397,3 +1397,17 @@ Files modified:
 **Battery-side schematic is electrically complete.** Re-review and
 weigh in on Q-CP2-NEW (isolated_pin_label re-enable timing). Next
 iter: display-side.
+
+---
+
+## 10.11 Reviewer findings (iteration 11)
+
+No new findings.
+
+Re-review results:
+- Iteration 20 battery-side completion is coherent with CP1 intent for this stage: RTC backup domain (`BAT1`/`V_BAT_RTC`/`RTC1.VBAT`), RS-485 chain (`U3` + `R10/R11/R12` + `TVS2` + `J2`), override button path, and debug/USB headers are all present and connected.
+- Independent reviewer ERC run on `hardware/kicad/battery_side/battery_side.kicad_sch` reports `0 errors, 0 warnings`; previously dangling MCU-interface nets (`I2C_SDA/SCL`, `DE_RE`, `BTN_OVERRIDE`, `UART_*`) now show expected counterpart connectivity.
+- Netlist spot-check confirms `RS485_A/B` connectivity from `U3` to `J2`, `I2C_SDA/SCL` from `MOD1` to `RTC1`, and `V_BAT_RTC` from `BAT1` to `RTC1`.
+- Q-CP2-NEW: re-enabling `isolated_pin_label` at the end of iter 22 is acceptable sequencing, provided CP2 close gates on rerun ERC with that rule restored and clean.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
