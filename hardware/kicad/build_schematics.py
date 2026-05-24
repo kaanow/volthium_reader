@@ -510,7 +510,10 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "V3V3_SW",   (U1_X + 6 * G, U1_Y + 6 * G))   # pin 8 FB
     _place_noconnect(s, (U1_X - 6 * G, U1_Y + 4 * G))            # pin 1 RT
     _place_noconnect(s, (U1_X - 6 * G, U1_Y + 2 * G))            # pin 7 SS
-    _place_noconnect(s, (U1_X + 6 * G, U1_Y - 6 * G))            # pin 6 BST
+    # BST: 100 nF bootstrap cap between U1.BST (pin 6) and U1.SW (pin 5).
+    # Per Codex iter-13 guidance Q-CP2-10 — required for the high-side MOSFET
+    # gate drive to function on real hardware.
+    _place_label(s, "U1_BST", (U1_X + 6 * G, U1_Y - 6 * G))      # pin 6 BST → cap
 
     # L1 — 2.2 µH inductor (2-pin, same geometry as R: ±3.81 from center).
     L1_X, L1_Y = U1_X + 20 * G, U1_Y   # (177.8, 38.1)
@@ -535,6 +538,50 @@ def build_battery_side_schematic() -> None:
                   (C2_X, C2_Y), lib=lib)
     _place_label(s, "V3V3_SW", (C2_X, C2_Y - 3 * G))
     _place_label(s, "GND",     (C2_X, C2_Y + 3 * G))
+
+    # C_BST — 100 nF bootstrap cap between U1.BST and U1.SW. Required for
+    # TPS62933 high-side MOSFET gate drive. Per Codex iter-13 Q-CP2-10.
+    CBST_X, CBST_Y = U1_X + 10 * G, U1_Y - 4 * G   # (165.1, 33.02)
+    _place_symbol(s, "C", "C_BST", "100nF",
+                  "Capacitor_SMD:C_0603_1608Metric",
+                  (CBST_X, CBST_Y), lib=lib)
+    _place_label(s, "U1_BST", (CBST_X, CBST_Y - 3 * G))   # pin 1 → BST
+    _place_label(s, "U1_SW",  (CBST_X, CBST_Y + 3 * G))   # pin 2 → SW
+
+    # ===== Iter 14: 12V converter — U2 (Recom R-78E12-1.0) + C3 + C4 =====
+    #
+    # U2 is a Recom R-78E12-1.0 SIP3 buck module: 3-pin VIN/GND/VOUT. The
+    # stock KiCad library doesn't have this part, so we instance the generic
+    # Connector_Generic:Conn_01x03 with Value="R-78E12-1.0" + the proper
+    # Footprint per CP1 BOM. Conn_01x03 pin geometry (in lib coords; KiCad
+    # Y-flip applies on schematic placement):
+    #   pin 1 lib (-5.08,  2.54) → schematic (X-5.08, Y-2.54)  [TOP pin]
+    #   pin 2 lib (-5.08,  0)    → schematic (X-5.08, Y)
+    #   pin 3 lib (-5.08, -2.54) → schematic (X-5.08, Y+2.54)  [BOTTOM pin]
+    # Mapping (per Recom datasheet): pin 1 = VIN, pin 2 = GND, pin 3 = VOUT.
+    U2_X, U2_Y = 160 * G, 30 * G   # (203.2, 38.1)
+    _place_symbol(s, "Conn_01x03", "U2", "R-78E12-1.0",
+                  "Converter_DCDC:Converter_DCDC_RECOM_R-78E-1.0_THT",
+                  (U2_X, U2_Y), lib=lib)
+    _place_label(s, "V24_FUSED",  (U2_X - 4 * G, U2_Y - 2 * G))   # pin 1 VIN (top)
+    _place_label(s, "GND",        (U2_X - 4 * G, U2_Y))           # pin 2 GND (mid)
+    _place_label(s, "V12_CAT5E",  (U2_X - 4 * G, U2_Y + 2 * G))   # pin 3 VOUT (bot)
+
+    # C3 — 22 µF bulk on V24_FUSED (U2 VIN decoupling)
+    C3_X, C3_Y = U2_X - 14 * G, U2_Y + 4 * G   # (185.42, 43.18)
+    _place_symbol(s, "C", "C3", "22uF/35V",
+                  "Capacitor_SMD:C_1210_3225Metric",
+                  (C3_X, C3_Y), lib=lib)
+    _place_label(s, "V24_FUSED", (C3_X, C3_Y - 3 * G))
+    _place_label(s, "GND",       (C3_X, C3_Y + 3 * G))
+
+    # C4 — 22 µF bulk on V12_CAT5E (U2 VOUT decoupling)
+    C4_X, C4_Y = U2_X + 8 * G, U2_Y + 4 * G   # (213.36, 43.18)
+    _place_symbol(s, "C", "C4", "22uF/25V",
+                  "Capacitor_SMD:C_1210_3225Metric",
+                  (C4_X, C4_Y), lib=lib)
+    _place_label(s, "V12_CAT5E", (C4_X, C4_Y - 3 * G))
+    _place_label(s, "GND",       (C4_X, C4_Y + 3 * G))
 
     # ===== Power flags =====
     # In KiCad's ERC model, a `power_in` pin (like U1.VIN, U1.GND) needs a

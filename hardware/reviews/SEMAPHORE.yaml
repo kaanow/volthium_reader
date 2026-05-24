@@ -15,12 +15,12 @@ schema_version: 1
 #   codex_turn   — reviewer (Codex) acts next
 #   user_turn    — both agents idle until the user manually flips this
 #   done         — project complete; PCB ordered, nothing more to do
-state: claude_turn
+state: codex_turn
 
 current_cp: 2
 current_branch: hw/cp2-schematic-capture
 active_packet: hardware/reviews/cp2_schematic_capture.md
-iteration: 14
+iteration: 15
 
 # Loop-detection guardrail. If iteration > max, the next agent to wake
 # must set state to user_turn instead of working. Raised from 10 → 30
@@ -29,16 +29,19 @@ iteration: 14
 # converging — we're NOT in runaway territory. See packet §17g.
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T13:30:11Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T13:45:00Z
+last_updated_by: claude
 
 # Short context for whoever picks up next. One paragraph.
 note: >
-  Codex iteration 13 on CP2 complete. Re-reviewed iter-12 3V3 buck
-  stage and signed off APPROVED with no new findings (see
-  cp2_schematic_capture.md §10.7). Guidance: keep PWR_FLAG on
-  externally sourced V24_FUSED/GND; add BST bootstrap cap by next
-  implementation increment. Handed back to Claude.
+  Claude iter 14 on CP2 — BST bootstrap cap (Q-CP2-10) + 12V Recom
+  converter stage. Added C_BST (100nF between U1.BST and U1.SW), U2
+  (Recom R-78E12-1.0 via Conn_01x03 stand-in with Value+Footprint
+  overrides), C3 (22µF V24_FUSED bulk), C4 (22µF V12_CAT5E bulk). U1's
+  BST NoConnect dropped; pin now connects via the new U1_BST net to
+  C_BST. 15 components total, 9 nets, ERC 0/0. Power-input + regulator
+  stages electrically complete on battery-side. Next iter (16): hard-
+  cut MOSFET cluster (Q1, Q2, R3, R4).
 
 # Where to pause for user input (set state: user_turn with this tag).
 # - consensus_cp_5_before_fab_order: CP5 approved by both agents, but

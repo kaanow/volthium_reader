@@ -940,6 +940,89 @@ Two open questions:
 
 ---
 
+## 19. Iteration 14 — BST cap + 12V converter (U2 + C3 + C4) landed (2026-05-24)
+
+Per Codex iter-13 guidance: Q-CP2-9 PWR_FLAG retention confirmed, Q-CP2-10
+BST cap to land "by next implementation increment" (= this iter).
+
+### 19a. Components added (4)
+
+| Ref   | Symbol     | Value         | Footprint (placeholder)                       |
+|-------|------------|---------------|-----------------------------------------------|
+| C_BST | C          | 100nF         | Capacitor_SMD:C_0603_1608Metric               |
+| U2    | Conn_01x03 | R-78E12-1.0   | Converter_DCDC:Converter_DCDC_RECOM_R-78E-1.0_THT |
+| C3    | C          | 22uF/35V      | Capacitor_SMD:C_1210_3225Metric               |
+| C4    | C          | 22uF/25V      | Capacitor_SMD:C_1210_3225Metric               |
+
+### 19b. New nets + connections
+
+- **U1_BST** (new): U1.BST (pin 6) ↔ C_BST.1 — bootstrap cap top
+- **V12_CAT5E** (new): U2.VOUT (pin 3) ↔ C4.1 — 12 V rail to Cat5e
+- **U1_SW** extended: C_BST.2 joins L1.1 + U1.SW
+- **V24_FUSED** extended: U2.VIN (pin 1) + C3.1
+- **GND** extended: U2.GND (pin 2) + C3.2 + C4.2 + C_BST has no GND tie
+
+The U1.BST NoConnect from iter 12 is gone (replaced with the
+U1_BST label that connects to C_BST.1).
+
+### 19c. U2 (Recom R-78E12-1.0) — stand-in symbol pattern
+
+Per CP2 §4b, the Recom modules aren't in stock KiCad libraries. Used
+`Connector_Generic:Conn_01x03` as the symbol with overrides:
+
+- **Value** = `R-78E12-1.0` (BOM part number)
+- **Footprint** = `Converter_DCDC:Converter_DCDC_RECOM_R-78E-1.0_THT`
+  (KiCad ships this footprint in the Converter_DCDC library; verifies
+  at CP3)
+
+Pin geometry (Conn_01x03 lib coords with KiCad Y-flip on schematic):
+
+| Pin | Lib (X, Y)    | Schematic offset from center | Function |
+|-----|---------------|------------------------------|----------|
+| 1   | (-5.08, +2.54) | (X-5.08, Y-2.54) — TOP       | VIN      |
+| 2   | (-5.08,  0)    | (X-5.08, Y)                  | GND      |
+| 3   | (-5.08, -2.54) | (X-5.08, Y+2.54) — BOTTOM    | VOUT     |
+
+(Caught a gotcha: Conn_01x03 has pin 1 at lib_Y = +2.54, not 0 like
+Conn_01x02. My first attempt put labels at the wrong Y — ERC fired
+immediately. Fixed.)
+
+### 19d. ERC: 0 errors, 0 warnings
+
+15 components total on battery_side.kicad_sch: J1, F1, D1, TVS1, U1,
+L1, C1, C2, C_BST, R5, R6, C5, U2, C3, C4. 9 nets: V24_RAW,
+V24_AFTER_FUSE, V24_FUSED, V24_SENSE, U1_SW, U1_BST, V3V3_SW,
+V12_CAT5E, GND. Power-input + regulator stages now electrically
+complete.
+
+### 19e. Remaining work on battery-side
+
+Per the §17g revised iteration plan, after this iter we still need:
+
+- **iter 16**: hard-cut MOSFET cluster (Q1, Q2, R3, R4 — completes the
+  power-input section)
+- **iter 18**: MCU + RS-485 (MOD1 ESP32-S3-WROOM-1, RTC1 DS3231M,
+  BAT1 CR2032, U3 RS-485 transceiver, R/C support, dev headers)
+- Then display-side (full board)
+- Then exports + close
+
+We're ~1/3 through the battery-side schematic. The MCU iter will be
+the largest single step because the ESP32-S3-WROOM-1 has ~38 pins.
+
+### 19f. Handoff back to reviewer (iteration 14)
+
+Files modified:
+- `hardware/kicad/build_schematics.py` — 4 new placements, U1.BST
+  NoConnect replaced with U1_BST label
+- `hardware/kicad/battery_side/battery_side.kicad_sch` — 4 new
+  components, 2 new nets (U1_BST, V12_CAT5E)
+- Regenerated artifacts
+- This packet §19
+
+No open questions this iter. Next on tap: hard-cut MOSFET cluster.
+
+---
+
 ## 10.5 Reviewer findings (iteration 5)
 
 No new findings.

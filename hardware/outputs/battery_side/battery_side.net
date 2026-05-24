@@ -2,7 +2,7 @@
 	(version "E")
 	(design
 		(source "/Users/pivot/Documents/repo/volthium_reader/hardware/kicad/battery_side/battery_side.kicad_sch")
-		(date "2026-05-23T22:29:19")
+		(date "2026-05-24T06:34:16")
 		(tool "Eeschema 10.0.3")
 		(sheet
 			(number "1")
@@ -93,7 +93,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "efb6302e-f87c-4813-92c9-37d26bf0152e")
+			(tstamps "177c48af-e6a4-4a8c-bb2b-7f40840b5729")
 			(units
 				(unit
 					(name "A")
@@ -147,7 +147,115 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "4f96e818-04de-49a1-bdb7-64092a10a363")
+			(tstamps "3a7fbf96-5d16-42aa-b36e-fb5a9c7579a7")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C3")
+			(value "22uF/35V")
+			(footprint "Capacitor_SMD:C_1210_3225Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_1210_3225Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "6964ecdb-2efb-4d78-a2e3-1c771a293bc8")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C4")
+			(value "22uF/25V")
+			(footprint "Capacitor_SMD:C_1210_3225Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_1210_3225Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "b81a83a3-a982-4a76-b9a3-70e37c5c0014")
 			(units
 				(unit
 					(name "A")
@@ -201,7 +309,61 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "a5ce260b-eb3e-43c4-8475-7bcfdf2251be")
+			(tstamps "8baebd12-b19b-4e13-b85c-0f16abe4f62f")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C_BST")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "d622a44b-ba3a-4d1e-abf2-96819ea3056b")
 			(units
 				(unit
 					(name "A")
@@ -255,7 +417,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "7be977f1-9516-4bab-abea-c1b3215a17cf")
+			(tstamps "8168450b-4bbf-4678-af55-936fe79404d1")
 			(units
 				(unit
 					(name "A")
@@ -309,7 +471,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "1e7978e7-e109-4bd0-b9b3-afe8e8f40ce3")
+			(tstamps "bea1fa5a-cc96-4bef-b938-42afb3746416")
 			(units
 				(unit
 					(name "A")
@@ -363,7 +525,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "fc2ee307-966a-413f-ad47-18bc4d59375b")
+			(tstamps "cf033d27-1ae0-4d27-9a5d-aeeeb478f252")
 			(units
 				(unit
 					(name "A")
@@ -417,7 +579,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "a0f60547-ca56-4141-b279-9250d9f156fd")
+			(tstamps "48bbdfda-0609-408c-b176-f7298e806e68")
 			(units
 				(unit
 					(name "A")
@@ -471,7 +633,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "c8563ab4-3758-414b-b42c-a2bbbd827247")
+			(tstamps "d9b52541-66f6-49e7-811f-3806142c4667")
 			(units
 				(unit
 					(name "A")
@@ -525,7 +687,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "66d4be6b-5dad-49ca-a6e8-c511c81cbdbf")
+			(tstamps "0cf34ac6-20ce-4411-8b69-4453f5ea9787")
 			(units
 				(unit
 					(name "A")
@@ -579,7 +741,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "cb9b3b82-699c-4dcf-bf55-35520f6f33e7")
+			(tstamps "c8e270f3-5967-4b72-a06e-74d21ded6868")
 			(units
 				(unit
 					(name "A")
@@ -633,7 +795,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "f1fac5c4-33c2-4104-b329-afc05b1c811b")
+			(tstamps "301a3e34-b88b-456e-a44b-2857f5307152")
 			(units
 				(unit
 					(name "A")
@@ -661,6 +823,63 @@
 						)
 						(pin
 							(num "8")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "U2")
+			(value "R-78E12-1.0")
+			(footprint "Converter_DCDC:Converter_DCDC_RECOM_R-78E-1.0_THT")
+			(fields
+				(field
+					(name "Footprint") "Converter_DCDC:Converter_DCDC_RECOM_R-78E-1.0_THT")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "Conn_01x03")
+				(description "Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "connector")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "Connector*:*_1x??_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "1e3a3d00-7b0e-40c0-bf0e-18587a43c602")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "3")
 						)
 					)
 				)
@@ -734,6 +953,45 @@
 				(pin
 					(num "2")
 					(name "Pin_2")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "Conn_01x03")
+			(description "Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			(footprints
+				(fp "Connector*:*_1x??_*")
+			)
+			(fields
+				(field
+					(name "Reference") "J")
+				(field
+					(name "Value") "Conn_01x03")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Generic connector, single row, 01x03, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "Pin_1")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "Pin_2")
+					(type "passive")
+				)
+				(pin
+					(num "3")
+					(name "Pin_3")
 					(type "passive")
 				)
 			)
@@ -1007,6 +1265,16 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "C3")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C4")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
 				(ref "C5")
 				(pin "2")
 				(pintype "passive")
@@ -1034,11 +1302,38 @@
 				(pinfunction "GND_4")
 				(pintype "power_in")
 			)
+			(node
+				(ref "U2")
+				(pin "2")
+				(pinfunction "Pin_2_2")
+				(pintype "passive")
+			)
 		)
 		(net
 			(code "2")
+			(name "U1_BST")
+			(class "Default")
+			(node
+				(ref "C_BST")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "6")
+				(pinfunction "BST_6")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "3")
 			(name "U1_SW")
 			(class "Default")
+			(node
+				(ref "C_BST")
+				(pin "2")
+				(pintype "passive")
+			)
 			(node
 				(ref "L1")
 				(pin "1")
@@ -1053,7 +1348,7 @@
 			)
 		)
 		(net
-			(code "3")
+			(code "4")
 			(name "V3V3_SW")
 			(class "Default")
 			(node
@@ -1075,7 +1370,23 @@
 			)
 		)
 		(net
-			(code "4")
+			(code "5")
+			(name "V12_CAT5E")
+			(class "Default")
+			(node
+				(ref "C4")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U2")
+				(pin "3")
+				(pinfunction "Pin_3_3")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "6")
 			(name "V24_AFTER_FUSE")
 			(class "Default")
 			(node
@@ -1091,11 +1402,16 @@
 			)
 		)
 		(net
-			(code "5")
+			(code "7")
 			(name "V24_FUSED")
 			(class "Default")
 			(node
 				(ref "C1")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C3")
 				(pin "1")
 				(pintype "passive")
 			)
@@ -1128,9 +1444,15 @@
 				(pinfunction "VIN_3")
 				(pintype "power_in")
 			)
+			(node
+				(ref "U2")
+				(pin "1")
+				(pinfunction "Pin_1_1")
+				(pintype "passive")
+			)
 		)
 		(net
-			(code "6")
+			(code "8")
 			(name "V24_RAW")
 			(class "Default")
 			(node
@@ -1146,7 +1468,7 @@
 			)
 		)
 		(net
-			(code "7")
+			(code "9")
 			(name "V24_SENSE")
 			(class "Default")
 			(node
