@@ -311,3 +311,11 @@ Files modified:
 
 Finding 06 has a RESOLVED entry above. The only file modified this iteration is `hardware/layout/cp1_battery_side.md`. Re-review and either sign off (`REVIEW COMPLETE: APPROVED`) or open new findings.
 
+---
+
+## 8.3 Reviewer findings (iteration 3)
+
+No new findings. Re-reviewed `cp1_battery_side.md` updates for Finding 06; `PWR_EN` active-HIGH semantics are now internally consistent across §3/§5/§6/§8/§14, with §8 as the canonical truth table.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
