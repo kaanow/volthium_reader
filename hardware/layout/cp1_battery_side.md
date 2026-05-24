@@ -87,8 +87,8 @@ Always-alive (off V24_FUSED, never via Q1):
 
 | Domain         | What it powers                                          | Killed by                |
 |----------------|---------------------------------------------------------|---------------------------|
-| Switched 3V3   | ESP32-S3, RS-485, RTC VCC (DS3231 keeps time on CR2032 anyway), bias resistors | Q1 OFF (PWR_EN_N high) |
-| Switched 12V   | Cat5e output (display side)                             | Q1 OFF                    |
+| Switched 3V3   | ESP32-S3, RS-485, RTC VCC (DS3231 keeps time on CR2032 anyway), bias resistors | Q1 OFF (PWR_EN low or Hi-Z) |
+| Switched 12V   | Cat5e output (display side)                             | Q1 OFF (PWR_EN low or Hi-Z) |
 | Always-on 24V  | Sense divider (R5/R6), CR2032 to DS3231 V_BAT          | Never                     |
 
 In hard-cut (SOC < 10 %), only the sense divider draws — ~22 µA off the
@@ -242,7 +242,7 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 |--------------|-------------|-----------------------|-----------------------------------------------|-------|
 | V24_RAW      | 24–28 V     | J1 pin 1             | F1                                            | Pack tap, unfused |
 | V24_FUSED    | 24–28 V     | D1 cathode           | Q1 source, R5 top (sense divider), R3 (Q1 gate pull-up), TVS1, BAT1+ via diode-OR | Always-alive 24 V rail (post-fuse, post-reverse). Only loads are the load-switch input, the sense divider, the gate pull-up, and the TVS clamp — minimal idle draw |
-| V24_SW       | 24–28 V     | Q1 drain             | TPS62933 VIN (U1), R-78E12 VIN (U2)            | Switched 24 V rail downstream of the P-FET load switch. Collapses to ~0 V when PWR_EN_N is HIGH (deep-sleep, hard-cut, or MCU boot/brown-out). Carries the full 24 V monitor load |
+| V24_SW       | 24–28 V     | Q1 drain             | TPS62933 VIN (U1), R-78E12 VIN (U2)            | Switched 24 V rail downstream of the P-FET load switch. Collapses to ~0 V when PWR_EN is LOW or Hi-Z (deep-sleep, hard-cut, or MCU boot/brown-out). Carries the full 24 V monitor load |
 | V3V3_SW      | 3.3 V       | TPS62933 VOUT        | ESP3V3, RTC VCC, U3 VCC, R8/R9, R11, R13, C6/C7/C8 | Switched 3.3 V; survives only while U1 is enabled |
 | V12_CAT5E    | 12 V        | R-78E12 VOUT         | J2 RJ45 pins 1/2/3                            | Powers display side over Cat5e |
 | GND          | 0 V         | (chassis)            | every IC GND, J2 pins 6/7/8, chassis stud near J2 | Single-point shield-drain bond at J2 |
@@ -254,7 +254,7 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | DE_RE        | 3.3 V LV    | ESP IO2              | U3 DE & RE pins (tied)                         | Active-HIGH = transmit; LOW = receive |
 | RS485_A      | 0–5 V diff  | U3 A pin             | J2 pin 4 (blue), R10, R11, TVS2                | Differential pair |
 | RS485_B      | 0–5 V diff  | U3 B pin             | J2 pin 5 (white-blue), R10, R12, TVS2          | (paired with A) |
-| PWR_EN_N     | 3.3 V LV    | ESP IO4              | Q2 gate                                       | LOW = enable rails (via Q1 / EN scheme) |
+| PWR_EN       | 3.3 V LV    | ESP IO4              | Q2 gate, R4 pull-down to GND                  | **Active-HIGH**: HIGH = rails ON; LOW or Hi-Z = rails OFF. Canonical truth table in §8 |
 | BTN_OVERRIDE | 3.3 V LV    | BTN1 + R13           | ESP IO7 (RTC-wake capable)                    | Active-LOW; pulled HIGH by 1 MΩ |
 | EPSN_BAT     | 3.0 V       | CR2032 +             | RTC1 V_BAT                                    | RTC backup |
 | RESET#       | 3.3 V LV    | ESP EN pin / J5 pin 4 | -                                            | Pulled HIGH via R7 + C8 (RC soft-start) |
@@ -271,7 +271,7 @@ GPIO15 becomes an expansion pad on J3.
 | GPIO1   | analog in | **V24_SENSE ADC (ADC1_CH0)** | ULP-wakeable in deep sleep |
 | GPIO2   | output    | RS-485 DE/RE              | Hi-Z in deep sleep           |
 | GPIO3   | (strap)   | USB-JTAG select; leave NC | -                            |
-| GPIO4   | output    | **PWR_EN_N** (rail enable) | Latches via RTC-GPIO; default state must be HIGH (rails OFF) on power-up |
+| GPIO4   | output    | **PWR_EN** (active-HIGH rail enable) | Latches via RTC-GPIO; default state at reset is LOW (rails OFF — safe). Firmware drives HIGH after boot to bring rails up |
 | GPIO5   | I²C SDA   | DS3231                    | Hi-Z; OK because RTC is on CR2032 backup |
 | GPIO6   | I²C SCL   | DS3231                    | "                            |
 | GPIO7   | input, RTC | **BTN_OVERRIDE** (deep-sleep wake) | RTC-GPIO wake source     |
@@ -307,7 +307,7 @@ Acceptable.
 **Topology**: P-FET high-side load switch in the 24 V path
 ([D-OPEN-5 resolved](#13-open-decisions-for-reviewer) → original P-FET).
 Q1 (AO3401A P-MOSFET) passes V24_FUSED → V24_SW, gated by Q2
-(AO3400A N-MOSFET) which is driven by ESP GPIO4 (PWR_EN_N).
+(AO3400A N-MOSFET) which is driven by ESP GPIO4 (`PWR_EN`, active-HIGH).
 
 ```
 V24_FUSED ──┬───────────────────┬─────── always-alive (TVS1, R5/R6, R3)
@@ -323,21 +323,21 @@ V24_FUSED ──┬───────────────────┬�
               │
               gate ◄── Q2 [N-FET AO3400A] drain
                               source ── GND
-                              gate    ◄── PWR_EN_N (ESP IO4) + R4 [100 kΩ pulldown]
+                              gate    ◄── PWR_EN (ESP IO4) + R4 [100 kΩ pulldown]
 ```
 
 **State table:**
 
-| PWR_EN_N (ESP IO4) | Q2  | Q1 gate          | Q1   | V24_SW  | Notes                          |
+| PWR_EN (ESP IO4)   | Q2  | Q1 gate          | Q1   | V24_SW  | Notes                          |
 |--------------------|-----|------------------|------|---------|--------------------------------|
-| LOW                | OFF | pulled HIGH by R3| OFF  | 0 V     | Default on MCU boot / brown-out / unknown — rails are OFF (safe) |
-| HIGH (3.3 V)       | ON  | pulled LOW by Q2 | ON   | V24_FUSED | Normal operation; firmware drives HIGH to enable rails |
-| Hi-Z (MCU reset)   | R4 pulls Q2 gate to GND → Q2 OFF | pulled HIGH by R3 | OFF | 0 V | Failsafe — any MCU fault collapses the downstream rails |
+| LOW                | OFF | pulled HIGH by R3| OFF  | 0 V     | Default on MCU boot / reset — rails are OFF (safe) |
+| HIGH (3.3 V)       | ON  | pulled LOW by Q2 | ON   | V24_FUSED | Normal operation — firmware drives HIGH after boot to enable rails |
+| Hi-Z (MCU brown-out / GPIO reset to input) | R4 pulls Q2 gate to GND → Q2 OFF | pulled HIGH by R3 | OFF | 0 V | Failsafe — any MCU fault collapses the downstream rails |
 
 **Why this topology**:
 - **Default-OFF behavior** matches the pack-safety objective: on any
   power-on or MCU fault, the rails default to OFF. The firmware must
-  affirmatively drive PWR_EN_N HIGH to bring them up.
+  affirmatively drive PWR_EN HIGH to bring them up.
 - The AO3401A passes ~50 mA × V24 with RDS(on) ~70 mΩ at Vgs = -3.3 V →
   ~3.5 mW dissipation, trivial for a SOT-23.
 - Brown-out recovery is automatic: if V_DD dips below the ESP32-S3
@@ -469,10 +469,12 @@ margin.
 5. **JLCPCB Cat5e termination header part** — the SKiDL specifies
    Hammond-style; JLC stocks many compatible variants. Confirm SKU
    at CP5.
-6. **Hard-cut behavior in brown-out** — if V_DD dips while PWR_EN_N is
-   driven LOW (rails on) and the MCU resets, the GPIO goes Hi-Z. R4
-   pulls Q2 gate to GND → Q2 OFF → R3 pulls Q1 gate HIGH → Q1 OFF → rails
-   collapse → MCU reboots cleanly. **Verify in simulation at CP2.**
+6. **Hard-cut behavior in brown-out** — if V_DD dips while PWR_EN is
+   driven HIGH (rails on) and the MCU resets, the GPIO drops to LOW
+   or Hi-Z. R4 keeps Q2 gate at GND → Q2 OFF → R3 pulls Q1 gate HIGH
+   → Q1 OFF → rails collapse → MCU reboots cleanly with rails off,
+   firmware re-asserts PWR_EN HIGH after re-init. **Verify in
+   simulation at CP2.**
 
 ## 15. What changed vs. the existing `docs/hardware/` baseline
 

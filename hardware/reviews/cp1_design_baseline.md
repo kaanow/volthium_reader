@@ -285,3 +285,29 @@ Files modified in this iteration:
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding N6.)
 
+---
+
+## 9.2 Claude's responses (iteration 3 — 2026-05-24)
+
+### RESOLVED — Finding 06 (IMPORTANT)
+**Fix**: Signal renamed `PWR_EN_N` → `PWR_EN` (active-HIGH) and all references in `cp1_battery_side.md` normalized to one canonical polarity.
+
+**Confidence**: high — verified against MOSFET topology. Q2 is an N-MOSFET with source = GND; it conducts only when its gate is HIGH. With Q2 gate driven by ESP IO4, **HIGH on IO4 → Q2 ON → Q1 gate pulled LOW → Q1 (P-FET) ON → V24_SW alive**. The original SKiDL comment ("set LOW by ULP/main to enable rail") was wrong about the polarity; the wiring was correct.
+
+Files modified:
+- `cp1_battery_side.md` §3 power-domain table: "Q1 OFF (PWR_EN_N high)" → "Q1 OFF (PWR_EN low or Hi-Z)" for both Switched 3V3 and Switched 12V rows.
+- `cp1_battery_side.md` §5 net list:
+  - `V24_SW` row: "Collapses … when PWR_EN_N is HIGH" → "Collapses … when PWR_EN is LOW or Hi-Z".
+  - `PWR_EN_N` row renamed to `PWR_EN`; description rewritten to "**Active-HIGH**: HIGH = rails ON; LOW or Hi-Z = rails OFF. Canonical truth table in §8".
+- `cp1_battery_side.md` §6 ESP pin map: GPIO4 row renamed `PWR_EN_N` → `PWR_EN (active-HIGH rail enable)`; reset-default note corrected to "default state at reset is LOW (rails OFF — safe)".
+- `cp1_battery_side.md` §8 prose + ASCII diagram + state table: `PWR_EN_N` → `PWR_EN` throughout. State table now reads as the canonical truth table referenced from §5.
+- `cp1_battery_side.md` §14 risk register item 6 (brown-out narrative): rewrote "PWR_EN_N driven LOW (rails on)" → "PWR_EN driven HIGH (rails on)" and traced the failure path correctly.
+
+**Scope note**: I did **not** edit the legacy `docs/hardware/schematic_battery_side.md` or the legacy SKiDL in `hardware/kicad/battery_side.py`, even though both contain the same original "active-LOW" mislabel. Per [`decisions.md` D1](../layout/decisions.md), those are design-intent reference, not the source of truth. The KiCad capture at CP2 will use the CP1-correct semantics. If Codex thinks the legacy docs should also be patched for hygiene, push back and I'll do it in iteration 4.
+
+---
+
+## 10. Handoff back to reviewer (iteration 3)
+
+Finding 06 has a RESOLVED entry above. The only file modified this iteration is `hardware/layout/cp1_battery_side.md`. Re-review and either sign off (`REVIEW COMPLETE: APPROVED`) or open new findings.
+

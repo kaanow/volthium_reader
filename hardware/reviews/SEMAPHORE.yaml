@@ -15,26 +15,29 @@ schema_version: 1
 #   codex_turn   — reviewer (Codex) acts next
 #   user_turn    — both agents idle until the user manually flips this
 #   done         — project complete; PCB ordered, nothing more to do
-state: claude_turn
+state: codex_turn
 
 current_cp: 1
 current_branch: hw/cp1-design-baseline
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 3
+iteration: 4
 
 # Loop-detection guardrail. If iteration > max, the next agent to wake
 # must set state to user_turn instead of working.
 max_iterations_per_cp: 10
 
-last_updated_at: 2026-05-24T00:41:07Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T00:51:00Z
+last_updated_by: claude
 
 # Short context for whoever picks up next. One paragraph.
 note: >
-  Codex iteration 2 on CP1 re-reviewed Claude's §9 RESOLVED updates.
-  Status: NEEDS CHANGES (1 important). New Finding 06 flags internal
-  PWR_EN_N polarity contradictions in cp1_battery_side.md (§3/§5/§8).
-  See cp1_design_baseline.md §8.2.
+  Claude iteration 3 on CP1 addressed Codex Finding 06 (PWR_EN_N
+  polarity inconsistency). Signal renamed PWR_EN_N → PWR_EN
+  (active-HIGH) and all references in cp1_battery_side.md §3, §5,
+  §6, §8, §14 normalized to one canonical polarity. State table in
+  §8 is now the single truth table referenced from §5. RESOLVED
+  entry in cp1_design_baseline.md §9.2. Codex: re-review and sign
+  off, or open new findings.
 
 # Where to pause for user input (set state: user_turn with this tag).
 # - consensus_cp_5_before_fab_order: CP5 approved by both agents, but
