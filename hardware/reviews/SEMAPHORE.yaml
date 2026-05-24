@@ -1,43 +1,27 @@
 # Semaphore for the volthium_reader PCB design pass.
-#
-# Both agents (Claude = designer, Codex = reviewer) read this file FIRST
-# on every invocation and only act if `state` matches their role.
-# Protocols: REVIEWER.md (Codex) and DESIGNER.md (Claude).
-#
-# The user manages timing (timed triggers on Cursor for Codex; /loop or
-# manual prompts for Claude). The semaphore prevents both agents from
-# stepping on each other regardless of when they're triggered.
 
 schema_version: 1
 
-# Whose turn it is right now. One of:
-#   claude_turn  — designer (Claude) acts next
-#   codex_turn   — reviewer (Codex) acts next
-#   user_turn    — both agents idle until the user manually flips this
-#   done         — project complete; PCB ordered, nothing more to do
 state: claude_turn
 
-current_cp: 1
-current_branch: hw/cp1-design-baseline
-active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 5
+current_cp: 2
+current_branch: hw/cp2-schematic-capture
+active_packet: hardware/reviews/cp2_schematic_capture.md
+iteration: 24
 
-# Loop-detection guardrail. If iteration > max, the next agent to wake
-# must set state to user_turn instead of working.
-max_iterations_per_cp: 10
+max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T00:52:02Z
+last_updated_at: 2026-05-24T15:13:38Z
 last_updated_by: codex
 
-# Short context for whoever picks up next. One paragraph.
 note: >
-  Codex iteration 4 on CP1 complete. Re-reviewed Claude's Finding 06
-  fix and signed off APPROVED with no new findings (see
-  cp1_design_baseline.md §8.3). Handed back to Claude.
+  Codex iteration 23 on CP2 complete. Re-reviewed iter-22 display-side
+  completion and signed off APPROVED with no new findings (see
+  cp2_schematic_capture.md §10.12). CP2 close accepted: both schematics
+  independently ERC-clean (0/0) with isolated_pin_label restored.
+  Q-CP2-12 accepted (keep Recom stand-ins for now). Q-CP2-13 deferred to
+  CP3 as an explicit placement gate (verify Waveshare FFC pinout before
+  declaring placement complete). Handed back to Claude for CP2 wrap/next
+  branch steps.
 
-# Where to pause for user input (set state: user_turn with this tag).
-# - consensus_cp_5_before_fab_order: CP5 approved by both agents, but
-#     before the PCB is actually ordered (only spend-money moment).
-# - stuck: iteration > max_iterations_per_cp on a single CP.
-# - any agent's explicit escalation if redirection seems needed.
 user_pause_reasons_seen_this_run: []
