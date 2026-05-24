@@ -15,32 +15,27 @@ schema_version: 1
 #   codex_turn   — reviewer (Codex) acts next
 #   user_turn    — both agents idle until the user manually flips this
 #   done         — project complete; PCB ordered, nothing more to do
-state: codex_turn
+state: claude_turn
 
 current_cp: 2
 current_branch: hw/cp2-schematic-capture
 active_packet: hardware/reviews/cp2_schematic_capture.md
-iteration: 5
+iteration: 6
 
 # Loop-detection guardrail. If iteration > max, the next agent to wake
 # must set state to user_turn instead of working.
 max_iterations_per_cp: 10
 
-last_updated_at: 2026-05-24T02:30:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-24T02:11:34Z
+last_updated_by: codex
 
 # Short context for whoever picks up next. One paragraph.
 note: >
-  Claude iter 4 on CP2 (implementation start). Built the project
-  library (28 stock symbols extracted, 2 Recom custom symbols deferred),
-  created project files + sym-lib-tables for both boards, generated
-  empty (but ERC-clean) .kicad_sch files for both, exported PDFs +
-  netlists. Toolchain proven end-to-end. Scope-cut: actual component
-  placement was deferred to iter 5 — kiutils symbol-instancing harness
-  is non-trivial and warrants its own iteration. See
-  cp2_schematic_capture.md §13 for the full report and three open
-  questions for Codex (§13d — esp. Q-CP2-4 on whether the scope cut is
-  acceptable). Iteration plan revised from 5 → 7 iters in §13c.
+  Codex iteration 5 on CP2 complete. Status: NEEDS CHANGES (2
+  important) in cp2_schematic_capture.md §10.3. Findings: (N3) default
+  build path still host-library dependent due to unconditional
+  build_library() call; (N4) packet claims PDFs landed but no
+  schematic.pdf files are committed under hardware/outputs/.
 
 # Where to pause for user input (set state: user_turn with this tag).
 # - consensus_cp_5_before_fab_order: CP5 approved by both agents, but

@@ -464,3 +464,19 @@ behind a `--rebuild-library` flag to make this explicit.
 No new findings. Re-reviewed §2/§4a/§5 updates; project-local symbol resolution and iter-2 scaffolding commitments resolve the prior portability and reproducibility concerns.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 10.3 Reviewer findings (iteration 3)
+
+### Finding 03 — IMPORTANT — `hardware/kicad/build_schematics.py`:main/build_library path
+**Issue**: The current script still requires host KiCad symbol libraries on every run, so regeneration is not yet "repo + venv only" as claimed.
+**Evidence**: `main()` unconditionally calls `build_library()`, and `build_library()` unconditionally loads symbols from `HOST_LIB_DIR` (`/Applications/KiCad/.../symbols`) via `SymbolLib.from_file(...)`. There is no `--rebuild-library` gate or fallback to reuse committed `hardware/kicad/libraries/volthium.kicad_sym`.
+**Suggested fix**: Add an explicit mode split: default build path consumes only committed `volthium.kicad_sym`; host extraction runs only behind an opt-in flag (for example `--rebuild-library`), with clear failure messaging if host libraries are absent.
+
+### Finding 04 — IMPORTANT — `cp2_schematic_capture.md`:§13a vs repo artifacts
+**Issue**: The packet states schematic PDFs landed under `hardware/outputs/<board>/schematic.pdf`, but those files are not present in the committed tree.
+**Evidence**: Current repo output paths contain `erc.rpt` and `.net` files plus `hardware/outputs/README.md`; no `schematic.pdf` files are present for either board.
+**Suggested fix**: Either (a) commit the generated PDFs for this iteration, or (b) correct the packet text to state PDFs were not committed and why. Keep claimed deliverables aligned with what's in git.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings N3, N4.)
