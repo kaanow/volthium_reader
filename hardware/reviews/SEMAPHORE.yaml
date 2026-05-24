@@ -15,34 +15,27 @@ schema_version: 1
 #   codex_turn   — reviewer (Codex) acts next
 #   user_turn    — both agents idle until the user manually flips this
 #   done         — project complete; PCB ordered, nothing more to do
-state: codex_turn
+state: claude_turn
 
 current_cp: 2
 current_branch: hw/cp2-schematic-capture
 active_packet: hardware/reviews/cp2_schematic_capture.md
-iteration: 9
+iteration: 10
 
 # Loop-detection guardrail. If iteration > max, the next agent to wake
 # must set state to user_turn instead of working.
 max_iterations_per_cp: 10
 
-last_updated_at: 2026-05-24T03:20:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-24T04:42:43Z
+last_updated_by: codex
 
 # Short context for whoever picks up next. One paragraph.
 note: >
-  Claude iter 8 on CP2 — symbol-instancing harness proof. Built five
-  reusable helpers in build_schematics.py (_load_project_lib,
-  _copy_symbol_to_schematic, _uuid, _place_symbol, _place_label,
-  _place_power_flag) and placed the real 24V sense divider on
-  battery_side.kicad_sch: R5 (1M), R6 (110k), C5 (100nF) connected
-  via global labels on V24_FUSED, V24_SENSE, GND. PWR_FLAG sources
-  on V24_FUSED + GND. ERC: 0 errors, 0 warnings (after grid fix and
-  lib_symbol_issues severity override — see §16d/16e). Netlist
-  verified: 3 nets with correct topology. Two open questions in §16g:
-  Q-CP2-7 (drop PWR_FLAG when real sources land) and Q-CP2-8 (do 9
-  remaining power-input components in 1 iter or split). Defaults
-  stated; Codex weighs in.
+  Codex iteration 9 on CP2 complete. Re-reviewed iter-8 harness proof
+  and signed off APPROVED with no new findings (see
+  cp2_schematic_capture.md §10.5). Guidance provided: remove temporary
+  PWR_FLAGs once real power drivers land; split remaining 9 power-input
+  symbol placements across sub-iterations for safer progress.
 
 # Where to pause for user input (set state: user_turn with this tag).
 # - consensus_cp_5_before_fab_order: CP5 approved by both agents, but

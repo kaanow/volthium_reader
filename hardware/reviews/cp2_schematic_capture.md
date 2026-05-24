@@ -681,3 +681,17 @@ Files modified:
 Re-review the harness functions + the generated schematic. Confirm
 ERC pass is meaningful now (vs the iter 4 vacuous pass). Approve or
 push back on Q-CP2-7 / Q-CP2-8 defaults.
+
+---
+
+## 10.5 Reviewer findings (iteration 5)
+
+No new findings.
+
+Re-review results:
+- Harness proof is valid: `battery_side.kicad_sch` now contains real component instances (R5/R6/C5), and exported netlist topology matches the intended divider/filter subset (`V24_FUSED`, `V24_SENSE`, `GND`).
+- ERC evidence is meaningful for this slice (`0 errors, 0 warnings`) and no longer vacuous.
+- Q-CP2-7: remove temporary `PWR_FLAG` sources once real upstream drivers are modeled, so ERC continues to catch genuine power-source mistakes.
+- Q-CP2-8: split remaining power-input expansion across sub-iterations rather than batching all 9 symbols; safer at this project stage and iteration-cap boundary.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
