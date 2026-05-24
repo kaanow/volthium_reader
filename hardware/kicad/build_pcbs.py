@@ -256,9 +256,9 @@ BATTERY_PLACEMENT = {
     "L1":    (49.0,   7.5,    0,   "F.Cu"),
     # 1210 output bulk cap on 3V3 rail.
     "C2":    (49.0,  11.5,    0,   "F.Cu"),
-    # Additional 3V3 bulk caps separated to right.
-    "C3":    (52.5,   7.5,    0,   "F.Cu"),
-    "C4":    (52.5,  11.5,    0,   "F.Cu"),
+    # Additional 3V3 bulk caps separated further right (1210 needs ≥3.5mm pitch).
+    "C3":    (54.0,   7.5,    0,   "F.Cu"),
+    "C4":    (54.0,  11.5,    0,   "F.Cu"),
     # Recom R-78E12 SIP3 (V12 rail for CAT5e PoE-style output). 11.5x6mm body.
     # Moved down at iter 12 to clear U1-cluster output caps (C3/C4).
     "U2":    (54.0,  25.0,   90,   "F.Cu"),
@@ -299,23 +299,59 @@ BATTERY_PLACEMENT = {
     # Place R7 on B.Cu just below the bypass row.
     "R7":    (20.0,  15.5,    0,   "B.Cu"),
 
-    # ===== Parked off-board (iter 12 will move these) =====
-    # X >= 70 keeps them out of the 60mm board area. Stack in rows.
-}
+    # ===== RTC + CR2032 backup cell (iter 14) =====
+    # Per CP1 §11.2: RTC1 near MOD1, away from L1. MOD1 occupies
+    # y=3.75-29.25, so place RTC cluster in the strip y=30-37.
+    # RTC1 = DS3231M, SOIC-16W (10.3x7.5mm).
+    "RTC1":  (33.0,  33.5,    0,   "F.Cu"),
+    # Keystone_1057 CR2032 holder. Pads at ±15.15mm in x; Edge.Cuts
+    # extends ±11.5mm in y (footprint draws the cell outline on the
+    # board edge layer). Anchor at (17, 28) keeps Edge.Cuts y range
+    # 16.5-39.5, inside the 40mm board.
+    "BAT1":  (17.0,  28.0,    0,   "F.Cu"),
+    # I2C pullups + RTC bypass — on B.Cu near RTC1 to save F.Cu space.
+    "R8":    (35.0,  37.5,    0,   "B.Cu"),   # SCL pullup
+    "R9":    (37.5,  37.5,    0,   "B.Cu"),   # SDA pullup
+    "C9":    (42.5,  37.5,    0,   "B.Cu"),   # RTC VCC bypass 100nF
 
-# Parked off-board positions for the remaining components (iter 12).
-# Placed on a 15mm-step grid starting at x=75 so courtyards stay clear.
-_PARKED = [
-    "RTC1", "BAT1", "R8", "R9", "C9",                    # RTC + backup cell
-    "BTN1", "R13",                                       # override button
-    "U3", "R10", "R11", "R12", "TVS2", "C10",            # RS-485
-    "C11", "C12", "C13", "C14",                          # misc decoupling
-    "J2", "J3", "J5",                                    # RJ45 + headers
-]
-# Park each on a 30mm row stride / 15mm column stride to keep courtyards clear.
-for i, ref in enumerate(_PARKED):
-    row, col = divmod(i, 4)
-    BATTERY_PLACEMENT[ref] = (75.0 + col * 15.0, 10.0 + row * 15.0, 0, "F.Cu")
+    # ===== Override button + debounce (iter 14) =====
+    # BTN1 = SW_PUSH_6mm THT, 6.5x4.5mm body. Place left of BAT1 in
+    # the leftmost column. BAT1 anchor at (17, 28), pad 1 at (1.85, 28).
+    # BTN1 below BAT1's pad-1 column.
+    "BTN1":  ( 8.0,  37.0,    0,   "F.Cu"),
+    "R13":   (12.0,  37.0,    0,   "B.Cu"),   # 1M pullup, B.Cu
+    "C11":   (12.0,  35.5,    0,   "B.Cu"),   # debounce cap, B.Cu
+
+    # ===== RS-485 transceiver + protection (iter 14) =====
+    # U3 = SN65HVD3082E SOIC-8 (3.9x4.9mm). Per CP1 §11.2 priority 4:
+    # near board edge with shield drain to J2 RJ45. Place top-right
+    # area below the U1 cluster.
+    "U3":    (50.0,  16.0,    0,   "F.Cu"),
+    "R10":   (54.0,  14.0,    0,   "B.Cu"),   # RS-485 A bias (B.Cu)
+    "R11":   (54.0,  16.0,    0,   "B.Cu"),   # 120Ω termination (B.Cu)
+    "R12":   (54.0,  18.0,    0,   "B.Cu"),   # RS-485 B bias (B.Cu)
+    "TVS2":  (54.0,  20.5,    0,   "F.Cu"),   # RS-485 line TVS (D_SMA)
+    "C10":   (50.0,  19.0,    0,   "B.Cu"),   # U3 VCC bypass 100nF (B.Cu)
+
+    # ===== Misc decoupling (iter 14) — all on B.Cu =====
+    # Additional bypass for U2 (V12 rail) and digital section.
+    "C12":   (51.0,  29.5,    0,   "B.Cu"),   # near U2 input
+    "C13":   (53.0,  29.5,    0,   "B.Cu"),   # near U2 output
+    "C14":   (50.0,  31.5,    0,   "B.Cu"),   # general 3V3 bypass
+
+    # ===== RJ45 + dev headers (iter 14) =====
+    # J2 = RJ45 Amphenol RJHSE5380 (~14x16mm body, 12 pads x∈[-4.57,
+    # +11.69], y∈[-2.54, +1.78] from anchor). Anchor at (44, 33) puts
+    # pads x=39.43-55.69, y=30.46-34.78. Body occupies that footprint
+    # area; the receptacle face exits the board (south). Conflict
+    # with nothing on F.Cu — BTN cluster is now left, RTC1 above,
+    # decoupling/R8-9/C9 all moved to B.Cu.
+    "J2":    (44.0,  33.0,    0,   "F.Cu"),
+    # Dev headers J3 (UART debug) + J5 (USB OTG). Place rot 0° (pads
+    # vertical) on right edge below sense divider.
+    "J3":    (57.0,  10.5,    0,   "F.Cu"),
+    "J5":    (57.0,  33.0,    0,   "F.Cu"),
+}
 
 
 def _add_edge_cuts(b, w, h):
