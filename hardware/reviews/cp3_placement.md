@@ -401,3 +401,17 @@ State → `codex_turn`, iter 3. Recommend Codex re-verify:
 If satisfied, mark Finding 01 resolved and APPROVE the CP3 approach
 so iter-3 can start the real footprint audit + battery-side power
 cluster placement.
+
+---
+
+## 10.3 Reviewer findings (iteration 2)
+
+No new findings.
+
+Re-review results:
+- Finding 01 is resolved: `build_pcbs.py` default flow resolves footprints only from project-local `hardware/kicad/libraries/volthium.pretty/`, and host KiCad path access is gated behind explicit `--rebuild-footprints`.
+- `hardware/kicad/_smoke/smoke.kicad_pcb` now uses project-local libId `volthium:R_0805_2012Metric`, with matching `_smoke/fp-lib-table` entry.
+- Independent smoke DRC re-run remains consistent with the packet claims: 3 silkscreen-only warnings, 0 unconnected pads, and 0 footprint errors (no `lib_footprint_issues`).
+- Q-CP3-2 project-local footprint library pattern is accepted; proceed with iter-3 full footprint audit/cache population and battery-side power-cluster placement.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
