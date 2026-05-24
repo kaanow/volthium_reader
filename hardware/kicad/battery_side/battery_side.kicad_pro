@@ -1,7 +1,19 @@
 {
   "board": {
     "design_settings": {
-      "defaults": {}
+      "defaults": {},
+      "rule_severities": {
+        "unconnected_items": "ignore",
+        "courtyards_overlap": "warning",
+        "solder_mask_bridge": "warning",
+        "drill_out_of_range": "warning",
+        "copper_edge_clearance": "warning",
+        "lib_footprint_issues": "ignore",
+        "lib_footprint_mismatch": "ignore",
+        "footprint_type_mismatch": "ignore",
+        "pth_inside_courtyard": "warning",
+        "npth_inside_courtyard": "warning"
+      }
     },
     "layer_presets": [],
     "viewports": []

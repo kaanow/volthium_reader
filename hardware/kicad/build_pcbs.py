@@ -63,6 +63,8 @@ STOCK_FOOTPRINTS = [
     ("Resistor_SMD",            "R_0805_2012Metric"),
     ("Resistor_THT",            "R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"),
     ("TerminalBlock_Phoenix",   "TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal"),
+    # Mounting hardware (CP3 iter 6+)
+    ("MountingHole",            "MountingHole_3.2mm_M3_DIN965"),
 ]
 
 
@@ -171,6 +173,263 @@ def build_smoke() -> None:
     print(f"wrote {out.relative_to(REPO)} ({out.stat().st_size} bytes)")
 
 
+# ---------------------------------------------------------------------------
+# Netlist parsing — read CP2 outputs and build {ref: pin -> net} + {ref: meta}.
+# ---------------------------------------------------------------------------
+
+import re
+from collections import defaultdict
+
+
+def parse_netlist(netlist_path: Path):
+    """Return (nets, components) parsed from a KiCad .net file.
+
+    nets:        list of (code:int, name:str)
+    components:  dict[ref] -> {"value": str, "footprint": str, "pins": {pin: net}}
+    """
+    text = netlist_path.read_text()
+
+    # Components section
+    comp_pat = re.compile(
+        r'\(comp\s+\(ref\s+"([^"]+)"\)\s+\(value\s+"([^"]+)"\).*?\(footprint\s+"([^"]+)"\)',
+        re.DOTALL,
+    )
+    components = {
+        ref: {"value": value, "footprint": fp, "pins": {}}
+        for ref, value, fp in comp_pat.findall(text)
+    }
+
+    # Nets section
+    net_pat = re.compile(
+        r'\(net\s+\(code\s+"?(\d+)"?\)\s+\(name\s+"([^"]*)"\)(.*?)(?=\(net\s+\(code|\)\s*\)\s*\))',
+        re.DOTALL,
+    )
+    node_pat = re.compile(r'\(node\s+\(ref\s+"([^"]+)"\)\s+\(pin\s+"([^"]+)"\)')
+    nets = []
+    for code, name, body in net_pat.findall(text):
+        nets.append((int(code), name))
+        for ref, pin in node_pat.findall(body):
+            if ref in components:
+                components[ref]["pins"][pin] = name
+
+    return nets, components
+
+
+# ---------------------------------------------------------------------------
+# Battery-side placement — CP3 iter 6.
+# ---------------------------------------------------------------------------
+
+# Board outline (mm). 60x40 per CP1 §2. Origin (0,0) at top-left.
+BATTERY_W, BATTERY_H = 60.0, 40.0
+
+# Per-component placement on the battery-side board.
+# Iter 6 scope: power-input cluster placed with intent. All other
+# components parked off-board (x>=70) until iters 8/10 refine them.
+#
+# Each entry: ref -> (x_mm, y_mm, rotation_deg, layer)
+# layer in {"F.Cu", "B.Cu"}.
+BATTERY_PLACEMENT = {
+    # ===== Power-input cluster (iter 6 — placed with intent) =====
+    # Input terminal block on the left edge, 5.08mm 2-pin Phoenix horizontal.
+    # Body ~12.8x9.5mm so center near (8.5, 9.0) keeps body within 3-15mm.
+    "J1":    ( 9.0,   8.5,    0,   "F.Cu"),
+    # Cartridge fuse holder. Pads at 17.8mm pitch, body ~21mm wide, ~6mm tall.
+    # Center at (24.5, 8.5) → pads at ~15.6 and ~33.4.
+    "F1":    (24.5,   8.5,    0,   "F.Cu"),
+    # Schottky reverse-polarity diode (D_SMA, 4.3x2.6mm). Right of fuse output.
+    "D1":    (37.0,   7.5,    0,   "F.Cu"),
+    # 24V TVS — bottom row below D1 (parallel diode to GND on V24_FUSED rail).
+    "TVS1":  (37.0,  10.5,    0,   "F.Cu"),
+    # TPS62933 buck (SOT-23-6, 3x3mm).
+    "U1":    (42.0,   7.5,    0,   "F.Cu"),
+    # 0805 input bulk cap, below U1.
+    "C1":    (42.0,  11.5,    0,   "F.Cu"),
+    # Bootstrap cap (0603, between pins 5/6 of U1).
+    "C_BST": (43.5,   4.0,    0,   "F.Cu"),
+    # 0805 inductor — close to U1 pin 5 (SW).
+    "L1":    (46.5,   7.5,    0,   "F.Cu"),
+    # 1210 output bulk cap on 3V3 rail.
+    "C2":    (46.5,  11.5,    0,   "F.Cu"),
+    # Additional 3V3 bulk caps separated to right.
+    "C3":    (51.0,   7.5,    0,   "F.Cu"),
+    "C4":    (51.0,  11.5,    0,   "F.Cu"),
+    # Recom R-78E12 SIP3 (V12 rail for CAT5e PoE-style output). 11.5x6mm body.
+    "U2":    (54.0,  18.0,   90,   "F.Cu"),
+    # Sense divider on bottom layer per CP1 §11.2 (5,6 + 0603 cap).
+    "R5":    (10.0,  16.0,    0,   "B.Cu"),
+    "R6":    (10.0,  18.5,    0,   "B.Cu"),
+    "C5":    (10.0,  21.0,    0,   "B.Cu"),
+
+    # ===== Parked off-board (iter 8/10 will move these) =====
+    # X >= 70 keeps them out of the 60mm board area. Stack in rows.
+}
+
+# Parked off-board positions for the remaining 28 components.
+# Placed on a 5mm-step grid starting at x=75 so they don't collide
+# with the board outline.
+_PARKED = [
+    "Q1", "Q2", "R3", "R4",                             # hard-cut
+    "MOD1",                                              # ESP32 module
+    "C6", "C7", "C8",                                    # MCU bypass
+    "R7",                                                # ESP_EN pullup
+    "RTC1", "BAT1", "R8", "R9", "C9",                    # RTC + backup cell
+    "BTN1", "R13",                                       # override button
+    "U3", "R10", "R11", "R12", "TVS2", "C10",            # RS-485
+    "C11", "C12", "C13", "C14",                          # misc decoupling
+    "J2", "J3", "J5",                                    # RJ45 + headers
+]
+# Park each on a 30mm row stride / 15mm column stride to keep courtyards clear.
+for i, ref in enumerate(_PARKED):
+    row, col = divmod(i, 4)
+    BATTERY_PLACEMENT[ref] = (75.0 + col * 15.0, 10.0 + row * 15.0, 0, "F.Cu")
+
+
+def _add_edge_cuts(b, w, h):
+    """Draw board outline rectangle on Edge.Cuts."""
+    from kiutils.items.gritems import GrLine
+    from kiutils.items.common import Position
+    def edge(x1, y1, x2, y2):
+        return GrLine(
+            start=Position(X=x1, Y=y1),
+            end=Position(X=x2, Y=y2),
+            layer="Edge.Cuts",
+            width=0.05,
+        )
+    if b.graphicItems is None:
+        b.graphicItems = []
+    b.graphicItems.extend([
+        edge(0, 0, w, 0),
+        edge(w, 0, w, h),
+        edge(w, h, 0, h),
+        edge(0, h, 0, 0),
+    ])
+
+
+def _place_footprint(b, ref, comp_meta, placement, nets_by_name):
+    """Load a footprint from cache, set instance properties, tie pads to nets."""
+    from kiutils.footprint import Footprint
+    from kiutils.items.common import Position, Net
+    from kiutils.items.fpitems import FpText
+
+    # Strip lib prefix: "Resistor_SMD:R_0805_2012Metric" -> "R_0805_2012Metric"
+    libId_full = comp_meta["footprint"]
+    fp_name = libId_full.split(":", 1)[1]
+
+    fp = Footprint.from_file(str(resolve_footprint(fp_name)))
+    fp.libraryNickname = "volthium"
+    fp.entryName = fp_name
+    fp.libId = f"volthium:{fp_name}"
+
+    x, y, rot, layer = placement
+    fp.position = Position(X=x, Y=y, angle=rot)
+    fp.layer = layer
+
+    # Override silkscreen text
+    for txt in (fp.graphicItems or []):
+        if isinstance(txt, FpText):
+            if txt.type == "reference":
+                txt.text = ref
+            elif txt.type == "value":
+                txt.text = comp_meta["value"]
+
+    # Assign pads to nets
+    pin_to_net = comp_meta["pins"]
+    for pad in (fp.pads or []):
+        net_name = pin_to_net.get(pad.number)
+        if net_name and net_name in nets_by_name:
+            code = nets_by_name[net_name]
+            pad.net = Net(number=code, name=net_name)
+        else:
+            pad.net = Net(number=0, name="")
+
+    if b.footprints is None:
+        b.footprints = []
+    b.footprints.append(fp)
+
+
+def _add_mounting_holes(b, w, h, margin=3.0):
+    """Add 4× M3 corner mounting holes (3.2mm drill, NPTH)."""
+    from kiutils.footprint import Footprint
+    from kiutils.items.common import Position
+
+    hole_name = "MountingHole_3.2mm_M3_DIN965"
+    hole_fp = resolve_footprint_optional(hole_name)
+    if hole_fp is None:
+        return
+
+    corners = [
+        (margin, margin),
+        (w - margin, margin),
+        (margin, h - margin),
+        (w - margin, h - margin),
+    ]
+    for i, (x, y) in enumerate(corners, start=1):
+        fp = Footprint.from_file(str(hole_fp))
+        fp.libraryNickname = "volthium"
+        fp.entryName = hole_name
+        fp.libId = f"volthium:{hole_name}"
+        fp.position = Position(X=x, Y=y, angle=0)
+        fp.layer = "F.Cu"
+        if b.footprints is None:
+            b.footprints = []
+        b.footprints.append(fp)
+
+
+def resolve_footprint_optional(fp_name: str):
+    """Like resolve_footprint but returns None instead of raising."""
+    p = PROJ_FP / f"{fp_name}.kicad_mod"
+    return p if p.is_file() else None
+
+
+def _write_fp_lib_table(project_dir: Path) -> None:
+    """Write a project-local fp-lib-table mapping 'volthium' to the cache."""
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "fp-lib-table").write_text(
+        '(fp_lib_table\n'
+        '  (version 7)\n'
+        '  (lib (name "volthium")(type "KiCad")'
+        '(uri "${KIPRJMOD}/../libraries/volthium.pretty")'
+        '(options "")(descr "Project-local footprint cache (CP3+)"))\n'
+        ')\n'
+    )
+
+
+def build_battery_side() -> None:
+    """Build hardware/kicad/battery_side/battery_side.kicad_pcb from CP2 netlist."""
+    from kiutils.board import Board
+    from kiutils.items.common import Net
+
+    project_dir = REPO / "hardware/kicad/battery_side"
+    netlist = REPO / "hardware/outputs/battery_side/battery_side.net"
+    nets, components = parse_netlist(netlist)
+
+    b = Board.create_new()
+    _add_edge_cuts(b, BATTERY_W, BATTERY_H)
+
+    # Nets table — code 0 is reserved "no connection"
+    b.nets = [Net(number=0, name="")]
+    nets_by_name = {"": 0}
+    for code, name in nets:
+        b.nets.append(Net(number=code, name=name))
+        nets_by_name[name] = code
+
+    # Place every footprint
+    for ref, meta in sorted(components.items()):
+        if ref not in BATTERY_PLACEMENT:
+            print(f"  WARNING: no placement for {ref}, skipping")
+            continue
+        _place_footprint(b, ref, meta, BATTERY_PLACEMENT[ref], nets_by_name)
+
+    _add_mounting_holes(b, BATTERY_W, BATTERY_H)
+    _write_fp_lib_table(project_dir)
+
+    out = project_dir / "battery_side.kicad_pcb"
+    b.to_file(str(out))
+    print(f"wrote {out.relative_to(REPO)} ({out.stat().st_size} bytes)")
+    print(f"  components placed: {len([r for r in components if r in BATTERY_PLACEMENT])}")
+    print(f"  nets: {len(b.nets)}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument(
@@ -182,16 +441,32 @@ def main() -> int:
     ap.add_argument(
         "--smoke",
         action="store_true",
-        default=True,
-        help="Build the CP3 smoke-test PCB (default).",
+        help="Build the CP3 smoke-test PCB.",
+    )
+    ap.add_argument(
+        "--battery",
+        action="store_true",
+        help="Build the battery-side PCB from CP2 netlist.",
+    )
+    ap.add_argument(
+        "--all",
+        action="store_true",
+        help="Build all PCBs (smoke + battery + display).",
     )
     args = ap.parse_args()
 
     if args.rebuild_footprints:
         rebuild_footprint_cache()
 
-    if args.smoke:
+    if args.smoke or args.all:
         build_smoke()
+    if args.battery or args.all:
+        build_battery_side()
+
+    if not any([args.rebuild_footprints, args.smoke, args.battery, args.all]):
+        # Default: build everything
+        build_smoke()
+        build_battery_side()
 
     return 0
 
