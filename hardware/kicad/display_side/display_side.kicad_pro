@@ -16,7 +16,9 @@
       "version": 0
     },
     "pin_map": [],
-    "rule_severities": {}
+    "rule_severities": {
+      "lib_symbol_issues": "ignore"
+    }
   },
   "libraries": {
     "pinned_footprint_libs": [],

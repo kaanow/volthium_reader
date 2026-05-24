@@ -1,4 +1,10 @@
 (sym_lib_table
-  (version 7)
-  (lib (name "volthium")(type "KiCad")(uri "${KIPRJMOD}/../libraries/volthium.kicad_sym")(options "")(descr "Project-local symbol library"))
+	(version 7)
+	(lib
+		(name "volthium")
+		(type "KiCad")
+		(uri "${KIPRJMOD}/../libraries/volthium.kicad_sym")
+		(options "")
+		(descr "Project-local symbol library")
+	)
 )
