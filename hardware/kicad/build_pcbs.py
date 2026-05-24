@@ -244,21 +244,24 @@ BATTERY_PLACEMENT = {
     "D1":    (37.0,   7.5,    0,   "F.Cu"),
     # 24V TVS — bottom row below D1 (parallel diode to GND on V24_FUSED rail).
     "TVS1":  (37.0,  10.5,    0,   "F.Cu"),
-    # TPS62933 buck (SOT-23-6, 3x3mm).
-    "U1":    (42.0,   7.5,    0,   "F.Cu"),
+    # TPS62933 buck cluster — moved past F1's right edge (x=42.9 max)
+    # to clear hole-clearance from F1's 1.17mm THT pads (iter 12,
+    # Finding 03). F1 spans x=24.5-42.3 with pads in a 2x2 grid.
+    "U1":    (45.0,   7.5,    0,   "F.Cu"),
     # 0805 input bulk cap, below U1.
-    "C1":    (42.0,  11.5,    0,   "F.Cu"),
+    "C1":    (45.0,  11.5,    0,   "F.Cu"),
     # Bootstrap cap (0603, between pins 5/6 of U1).
-    "C_BST": (43.5,   4.0,    0,   "F.Cu"),
+    "C_BST": (46.5,   4.0,    0,   "F.Cu"),
     # 0805 inductor — close to U1 pin 5 (SW).
-    "L1":    (46.5,   7.5,    0,   "F.Cu"),
+    "L1":    (49.0,   7.5,    0,   "F.Cu"),
     # 1210 output bulk cap on 3V3 rail.
-    "C2":    (46.5,  11.5,    0,   "F.Cu"),
+    "C2":    (49.0,  11.5,    0,   "F.Cu"),
     # Additional 3V3 bulk caps separated to right.
-    "C3":    (51.0,   7.5,    0,   "F.Cu"),
-    "C4":    (51.0,  11.5,    0,   "F.Cu"),
+    "C3":    (52.5,   7.5,    0,   "F.Cu"),
+    "C4":    (52.5,  11.5,    0,   "F.Cu"),
     # Recom R-78E12 SIP3 (V12 rail for CAT5e PoE-style output). 11.5x6mm body.
-    "U2":    (54.0,  18.0,   90,   "F.Cu"),
+    # Moved down at iter 12 to clear U1-cluster output caps (C3/C4).
+    "U2":    (54.0,  25.0,   90,   "F.Cu"),
     # Sense divider on bottom layer per CP1 §11.2 (5,6 + 0603 cap).
     "R5":    (10.0,  16.0,    0,   "B.Cu"),
     "R6":    (10.0,  18.5,    0,   "B.Cu"),

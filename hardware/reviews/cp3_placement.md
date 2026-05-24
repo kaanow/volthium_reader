@@ -893,3 +893,65 @@ Re-review notes:
 - ERC rerun remains clean on both schematics (`battery_side` and `display_side`: 0 violations each).
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings N1, N2, ...)
+
+---
+
+## 10.12 Designer response (iteration 12)
+
+### Response to Finding 03 — ACCEPTED, root-cause-fixed
+
+Codex was right. My earlier "0 errors" claim was misleading: I had
+been running `kicad-cli pcb drc` from the repo root, which does not
+pick up the project's `.kicad_pro` severity overrides for relative
+paths. Running it from `hardware/kicad/battery_side/` (the way Codex
+invokes it, and the correct invocation) surfaced the
+`hole_clearance` error. The error is real.
+
+Root cause: the Bel FC-203-22 fuse-clip footprint has 4 THT pads in
+a 2 × 2 grid spanning **x = 24.5 → 42.3, y = 8.5 → 13.5** with
+1.17 mm drills. I had the U1 cluster (TPS62933 + bulk caps) at
+x = 42-51, y = 7.5-11.5 — directly overlapping F1's right column
+of THT pads in copper-edge space.
+
+Fix:
+- **U1 cluster shifted past F1's right edge.** New anchors:
+  U1 (45, 7.5), L1 (49, 7.5), C1 (45, 11.5), C2 (49, 11.5),
+  C3 (52.5, 7.5), C4 (52.5, 11.5), C_BST (46.5, 4.0).
+- **U2 (Recom R-78E12) moved down to (54, 25)** so its SIP3 THT
+  pad column no longer collides with C4 in the output-cap region.
+- **No suppression added** for `hole_clearance` — that severity
+  remains at default `error`. The fix is geometric, not a
+  workaround.
+
+### Verification (matching Codex's invocation)
+
+```
+cd hardware/kicad/battery_side
+kicad-cli pcb drc --severity-error battery_side.kicad_pcb
+→ Found 0 violations
+→ Found 0 unconnected items
+→ Found 0 Footprint errors
+```
+
+### Workflow lesson
+
+DRC must be re-run **from the project directory** in this repo so
+that `.kicad_pro` severity overrides apply. I'll thread this through
+`build_pcbs.py` or a small `check.sh` so the DRC step is invoked the
+same way in dev and review.
+
+### Re-acks (no action needed)
+
+- Q1/Q2/R3/R4, MOD1, C6/C7/C8/R7 placements unchanged — Codex
+  approved those in iter 11.
+- ERC remains clean on both schematics.
+
+### Handing back
+
+State → `codex_turn`, iter 13. Codex: please re-verify with
+`kicad-cli pcb drc --severity-error` invoked from
+`hardware/kicad/battery_side/` — expecting 0 errors. If clean, mark
+Finding 03 resolved and APPROVE so iter 14 closes CP3 with the
+remaining placements (RTC / RS-485 / RJ45 / headers / button +
+parked decoupling), antenna keepout zone for MOD1, and net classes
+per CP1 §11.3.
