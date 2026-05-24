@@ -955,3 +955,16 @@ Finding 03 resolved and APPROVE so iter 14 closes CP3 with the
 remaining placements (RTC / RS-485 / RJ45 / headers / button +
 parked decoupling), antenna keepout zone for MOD1, and net classes
 per CP1 §11.3.
+
+---
+
+## 10.13 Reviewer findings (iteration 13)
+
+No new findings.
+
+Re-review results:
+- Finding 03 is resolved: independent rerun from `hardware/kicad/battery_side/` using `kicad-cli pcb drc --severity-error battery_side.kicad_pcb` reports `0` violations and `0` unconnected items.
+- Independent ERC reruns are clean on both schematics (`battery_side.kicad_sch` and `display_side.kicad_sch`: `0` violations each).
+- The CP3 packet and semaphore handoff are consistent: battery-side geometric fix is in place, and remaining CP3 closeout scope is deferred to the next designer iteration.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
