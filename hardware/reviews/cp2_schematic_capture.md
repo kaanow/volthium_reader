@@ -465,6 +465,8 @@ No new findings. Re-reviewed §2/§4a/§5 updates; project-local symbol resoluti
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
 
+---
+
 ## 10.3 Reviewer findings (iteration 3)
 
 ### Finding 03 — IMPORTANT — `hardware/kicad/build_schematics.py`:main/build_library path
@@ -562,6 +564,8 @@ Re-review results:
 - Q-CP2-6: empty-sheet ERC pass is only a pipeline smoke test; treat it as non-substantive for design validation.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
 
 ## 16. Iteration 8 — symbol-instancing harness lands (2026-05-24)
 
@@ -1031,6 +1035,8 @@ Re-review results:
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
 
+---
+
 ## 10.6 Reviewer findings (iteration 6)
 
 No new findings.
@@ -1247,5 +1253,19 @@ Re-review results:
 - Re-route to `V24_SW` is correct for switched-domain behavior: `U1.VIN`, `U1.EN`, `C1.1`, `U2.VIN`, and `C3.1` now sit downstream of Q1 while `V24_FUSED` remains on the always-alive input path.
 - Independent reviewer ERC run on `hardware/kicad/battery_side/battery_side.kicad_sch` is clean (`0 errors, 0 warnings`) with the same expected ignored categories for in-progress CP2 capture.
 - Temporary `PWR_FLAG` on `PWR_EN` is acceptable for this sub-iteration and should be removed when `MOD1.IO4` is connected in the MCU integration step.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 10.10 Reviewer findings (iteration 10)
+
+No new findings.
+
+Re-review results:
+- Iteration 18 MCU/support additions are consistent with CP1 intent for this phase: `MOD1.IO4 -> PWR_EN` is now the real hard-cut control driver and the prior synthetic `PWR_EN` `PWR_FLAG` is correctly removed.
+- `V3V3_SW` domain integration is coherent for the current slice: `MOD1.3V3`, decoupling (`C6`, `C7`), and `R7` pull-up are all tied to the switched 3V3 rail with no topology conflicts in the exported netlist.
+- Independent reviewer ERC run on `hardware/kicad/battery_side/battery_side.kicad_sch` reports `0 errors, 0 warnings`; temporary `isolated_pin_label` suppression is acceptable for this staged build-out with explicit commitment to re-enable at CP2 closure.
+- Single-ended label nets (`I2C_*`, `UART_*`, `USB_*`, debug UART, `DE_RE`) are expected at this midpoint and align with the documented iter-20 completion plan.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).

@@ -6,31 +6,24 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: 2
 current_branch: hw/cp2-schematic-capture
 active_packet: hardware/reviews/cp2_schematic_capture.md
-iteration: 19
+iteration: 20
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T14:15:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-24T14:12:12Z
+last_updated_by: codex
 
 note: >
-  Claude iter 18 on CP2 — MCU (MOD1 ESP32-S3-WROOM-1-N16R8) + ESP
-  support. 41-pin module placed with all CP1 §6 connections labeled
-  (11 connections per spec) and 28 unused GPIOs as NoConnect. Pin
-  positions derived from the symbol library, no hardcoded coords.
-  R7 (10k EN pull-up), C8 (1µF EN soft-start), C6 (10µF V3V3 bulk),
-  C7 (100nF HF decoupling) added. Synthetic PWR_EN PWR_FLAG dropped
-  (MOD1.IO4 is the real driver now); V3V3_SW PWR_FLAG added (MOD1.3V3
-  is power_input, U1.SW is output not power_output). New ERC severity
-  override: isolated_pin_label = "ignore" — many MOD1 pins are
-  intentionally dangling this iter until RTC/U3/BTN/headers land in
-  iter 20. CP2 close will re-enable and confirm. 24 components total,
-  ERC 0/0. Next iter (20): RTC1, BAT1, U3, R10-13, TVS2, BTN1, J2,
-  J3, J5 — completes battery-side.
+  Codex iteration 19 on CP2 complete. Re-reviewed iter-18 MCU + support
+  additions and signed off APPROVED with no new findings (see
+  cp2_schematic_capture.md §10.10). Verified MOD1.IO4 -> PWR_EN handoff,
+  V3V3_SW domain integration, and clean ERC (0/0) for this staged
+  midpoint. Handed back to Claude for iter 20 (RTC/RS-485/button/headers/
+  RJ45 completion and isolated_pin_label re-enable at CP2 closure).
 
 user_pause_reasons_seen_this_run: []
