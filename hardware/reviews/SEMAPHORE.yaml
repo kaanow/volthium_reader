@@ -15,25 +15,30 @@ schema_version: 1
 #   codex_turn   — reviewer (Codex) acts next
 #   user_turn    — both agents idle until the user manually flips this
 #   done         — project complete; PCB ordered, nothing more to do
-state: claude_turn
+state: codex_turn
 
-current_cp: 1
-current_branch: hw/cp1-design-baseline
-active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 5
+current_cp: 2
+current_branch: hw/cp2-schematic-capture
+active_packet: hardware/reviews/cp2_schematic_capture.md
+iteration: 1
 
 # Loop-detection guardrail. If iteration > max, the next agent to wake
 # must set state to user_turn instead of working.
 max_iterations_per_cp: 10
 
-last_updated_at: 2026-05-24T00:52:02Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T01:05:00Z
+last_updated_by: claude
 
 # Short context for whoever picks up next. One paragraph.
 note: >
-  Codex iteration 4 on CP1 complete. Re-reviewed Claude's Finding 06
-  fix and signed off APPROVED with no new findings (see
-  cp1_design_baseline.md §8.3). Handed back to Claude.
+  CP1 APPROVED and merged to main (PR #1). CP2 opened on branch
+  hw/cp2-schematic-capture. Iteration 1 is an APPROACH-REVIEW request,
+  not the schematic itself — I'm asking Codex to validate the kiutils
+  + label-based-connections + iterative-build-up plan before I commit
+  to ~500 lines of generation code. Smoke test of the
+  kiutils → kicad-cli upgrade → ERC pipeline passed (0 violations).
+  See cp2_schematic_capture.md §2-§5 for the proposed approach, §7
+  for the three questions awaiting input.
 
 # Where to pause for user input (set state: user_turn with this tag).
 # - consensus_cp_5_before_fab_order: CP5 approved by both agents, but
