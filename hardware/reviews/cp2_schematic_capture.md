@@ -1068,3 +1068,75 @@ Re-review results:
 - Netlist export topology aligns with packet claims for the new nets (`U1_BST`, `V12_CAT5E`) and existing power chain (`V24_FUSED`, `U1_SW`, `GND`).
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 20. Iteration 16 — hard-cut MOSFETs + V24_SW re-route (2026-05-24)
+
+P-FET load-switch cluster + regulators re-routed downstream of Q1 per
+CP1 §3 power-architecture diagram.
+
+### 20a. Components added (4)
+
+| Ref | Symbol     | Value     | Footprint                       |
+|-----|------------|-----------|----------------------------------|
+| Q1  | Q_PMOS_GSD | AO3401A   | Package_TO_SOT_SMD:SOT-23       |
+| Q2  | Q_NMOS_GSD | AO3400A   | Package_TO_SOT_SMD:SOT-23       |
+| R3  | R          | 100k      | Resistor_SMD:R_0805_2012Metric  |
+| R4  | R          | 100k      | Resistor_SMD:R_0805_2012Metric  |
+
+Library: AO3401A / AO3400A (extends TP0610T / Q_NMOS_GSD) replaced
+with the parent generics Q_PMOS_GSD / Q_NMOS_GSD. Same workaround
+pattern as the diode family — Value field carries the BOM MPN.
+
+### 20b. V24_SW re-route per CP1 §3
+
+Previously U1, U2, C1, C3 were on V24_FUSED. Per CP1 §3 the regulators
+sit on V24_SW (downstream of Q1) so they collapse cleanly when Q1 OFF.
+
+Re-routed: U1.VIN, U1.EN, C1.1, U2.VIN, C3.1 → **V24_SW**.
+
+V24_FUSED now has only always-alive passive consumers: D1.K, TVS1.1,
+R5.1, Q1.S, R3.1 + PWR_FLAG. V24_SW gains a new PWR_FLAG too.
+
+### 20c. Hard-cut topology (per cp1_battery_side.md §8)
+
+```
+PWR_EN HIGH → Q2 ON → Q1.gate to GND → Q1 (P-FET) ON → V24_SW alive
+PWR_EN LOW  → Q2 OFF → Q1.gate pulled HIGH by R3 → Q1 OFF → V24_SW=0
+PWR_EN Hi-Z → R4 to GND → Q2 OFF → same as LOW (failsafe)
+```
+
+New nets: **Q1_GATE** (Q1.G + Q2.D + R3.2), **PWR_EN** (Q2.G + R4.1 +
+synthetic PWR_FLAG — real driver lands when MOD1.IO4 is wired in
+iter 18).
+
+### 20d. PWR_FLAGs added
+
+- **V24_SW**: U1.VIN + U2.VIN are `power_in`, Q1.D is `passive`.
+  Flag bridges the ERC requirement permanently (Q1.D stays passive).
+- **PWR_EN**: Q2.G is `input`. R4.1 passive. No driver until iter 18
+  when MOD1.IO4 lands; flag is synthetic and drops then.
+
+### 20e. ERC: 0 errors, 0 warnings
+
+19 components, 12 nets: V24_RAW, V24_AFTER_FUSE, V24_FUSED, V24_SW,
+V24_SENSE, U1_SW, U1_BST, V3V3_SW, V12_CAT5E, Q1_GATE, PWR_EN, GND.
+Power-input + hard-cut + regulator stages now electrically complete.
+~65 % of battery-side components placed.
+
+### 20f. Handoff back to reviewer (iteration 16)
+
+Files modified:
+- `hardware/kicad/build_schematics.py` — Q1/Q2/R3/R4 placement, V24_SW
+  re-route, V24_SW + PWR_EN PWR_FLAGs, MOSFET symbol generics
+- `hardware/kicad/libraries/volthium.kicad_sym` — MOSFET parents added,
+  derived symbols dropped
+- `hardware/kicad/battery_side/battery_side.kicad_sch` — 4 new
+  components, 2 new nets, 5 label re-routes, 2 new PWR_FLAGs
+- Regenerated artifacts
+- This packet §20
+
+No open questions. Next: MCU + RS-485 cluster (iter 18) — the big one
+because ESP32-S3-WROOM-1 has ~38 pins. May split into MCU + RS-485
+sub-iters if scope warrants.

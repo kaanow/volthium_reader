@@ -2,7 +2,7 @@
 	(version "E")
 	(design
 		(source "/Users/pivot/Documents/repo/volthium_reader/hardware/kicad/battery_side/battery_side.kicad_sch")
-		(date "2026-05-24T06:34:16")
+		(date "2026-05-24T06:49:40")
 		(tool "Eeschema 10.0.3")
 		(sheet
 			(number "1")
@@ -93,7 +93,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "177c48af-e6a4-4a8c-bb2b-7f40840b5729")
+			(tstamps "44dbf287-bb6a-4a47-8f8d-7a524614d303")
 			(units
 				(unit
 					(name "A")
@@ -147,7 +147,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "3a7fbf96-5d16-42aa-b36e-fb5a9c7579a7")
+			(tstamps "e5e76dec-0c4e-4a69-ab31-06c00feff246")
 			(units
 				(unit
 					(name "A")
@@ -201,7 +201,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "6964ecdb-2efb-4d78-a2e3-1c771a293bc8")
+			(tstamps "a05393eb-6025-41f3-9647-c04c286d9f2e")
 			(units
 				(unit
 					(name "A")
@@ -255,7 +255,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "b81a83a3-a982-4a76-b9a3-70e37c5c0014")
+			(tstamps "7e2452e3-5224-4b5f-b7ad-da9d9a13913c")
 			(units
 				(unit
 					(name "A")
@@ -309,7 +309,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "8baebd12-b19b-4e13-b85c-0f16abe4f62f")
+			(tstamps "e46525d0-7536-4a5c-a822-db805e78a6c1")
 			(units
 				(unit
 					(name "A")
@@ -363,7 +363,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "d622a44b-ba3a-4d1e-abf2-96819ea3056b")
+			(tstamps "e089aa24-47a8-4d6f-a589-b60763e72180")
 			(units
 				(unit
 					(name "A")
@@ -417,7 +417,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "8168450b-4bbf-4678-af55-936fe79404d1")
+			(tstamps "cac97273-d86c-4407-a6a5-f845c20c2109")
 			(units
 				(unit
 					(name "A")
@@ -471,7 +471,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "bea1fa5a-cc96-4bef-b938-42afb3746416")
+			(tstamps "afc5247f-050a-4958-88de-36b249463dc0")
 			(units
 				(unit
 					(name "A")
@@ -525,7 +525,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "cf033d27-1ae0-4d27-9a5d-aeeeb478f252")
+			(tstamps "f209447f-f81d-4d08-957d-471861e15fb1")
 			(units
 				(unit
 					(name "A")
@@ -579,7 +579,221 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "48bbdfda-0609-408c-b176-f7298e806e68")
+			(tstamps "5f40ed5a-70bd-46e3-adbc-f9415cd380d2")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "Q1")
+			(value "AO3401A")
+			(footprint "Package_TO_SOT_SMD:SOT-23")
+			(fields
+				(field
+					(name "Footprint") "Package_TO_SOT_SMD:SOT-23")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "Q_PMOS_GSD")
+				(description "P-MOSFET transistor, gate/source/drain")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "transistor PMOS P-MOS P-MOSFET")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "9a30e9f6-c6ab-4dc0-a70f-8af721017e00")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "Q2")
+			(value "AO3400A")
+			(footprint "Package_TO_SOT_SMD:SOT-23")
+			(fields
+				(field
+					(name "Footprint") "Package_TO_SOT_SMD:SOT-23")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "Q_NMOS_GSD")
+				(description "N-MOSFET transistor, gate/source/drain")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "transistor NMOS N-MOS N-MOSFET")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "bc215f92-9a50-4053-b83b-5355fa5cb319")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R3")
+			(value "100k")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "6814ce8a-0493-461b-99f9-e6f01c8a5264")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R4")
+			(value "100k")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "df60fe7d-731b-439e-bc10-0a64f3059899")
 			(units
 				(unit
 					(name "A")
@@ -633,7 +847,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "d9b52541-66f6-49e7-811f-3806142c4667")
+			(tstamps "2e7b230d-cd10-4029-b992-0b54d7c88e7c")
 			(units
 				(unit
 					(name "A")
@@ -687,7 +901,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "0cf34ac6-20ce-4411-8b69-4453f5ea9787")
+			(tstamps "9efd922d-75c3-4f91-badf-ed8bf3849511")
 			(units
 				(unit
 					(name "A")
@@ -741,7 +955,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "c8e270f3-5967-4b72-a06e-74d21ded6868")
+			(tstamps "df44ad86-2270-40fc-8a64-767f2743b8c0")
 			(units
 				(unit
 					(name "A")
@@ -795,7 +1009,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "301a3e34-b88b-456e-a44b-2857f5307152")
+			(tstamps "75495737-5e48-4de3-9886-8108a9c21c21")
 			(units
 				(unit
 					(name "A")
@@ -867,7 +1081,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "1e3a3d00-7b0e-40c0-bf0e-18587a43c602")
+			(tstamps "f6820747-26e7-4905-beb9-17cd7c62c51b")
 			(units
 				(unit
 					(name "A")
@@ -1147,6 +1361,78 @@
 		)
 		(libpart
 			(lib "volthium")
+			(part "Q_NMOS_GSD")
+			(description "N-MOSFET transistor, gate/source/drain")
+			(fields
+				(field
+					(name "Reference") "Q")
+				(field
+					(name "Value") "Q_NMOS_GSD")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "N-MOSFET transistor, gate/source/drain")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "G")
+					(type "input")
+				)
+				(pin
+					(num "2")
+					(name "S")
+					(type "passive")
+				)
+				(pin
+					(num "3")
+					(name "D")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "Q_PMOS_GSD")
+			(description "P-MOSFET transistor, gate/source/drain")
+			(fields
+				(field
+					(name "Reference") "Q")
+				(field
+					(name "Value") "Q_PMOS_GSD")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "P-MOSFET transistor, gate/source/drain")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "G")
+					(type "input")
+				)
+				(pin
+					(num "2")
+					(name "S")
+					(type "passive")
+				)
+				(pin
+					(num "3")
+					(name "D")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
 			(part "R")
 			(description "Resistor")
 			(footprints
@@ -1286,6 +1572,17 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "Q2")
+				(pin "2")
+				(pinfunction "S_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "R4")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
 				(ref "R6")
 				(pin "2")
 				(pintype "passive")
@@ -1311,6 +1608,44 @@
 		)
 		(net
 			(code "2")
+			(name "PWR_EN")
+			(class "Default")
+			(node
+				(ref "Q2")
+				(pin "1")
+				(pinfunction "G_1")
+				(pintype "input")
+			)
+			(node
+				(ref "R4")
+				(pin "1")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "3")
+			(name "Q1_GATE")
+			(class "Default")
+			(node
+				(ref "Q1")
+				(pin "1")
+				(pinfunction "G_1")
+				(pintype "input")
+			)
+			(node
+				(ref "Q2")
+				(pin "3")
+				(pinfunction "D_3")
+				(pintype "passive")
+			)
+			(node
+				(ref "R3")
+				(pin "2")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "4")
 			(name "U1_BST")
 			(class "Default")
 			(node
@@ -1326,7 +1661,7 @@
 			)
 		)
 		(net
-			(code "3")
+			(code "5")
 			(name "U1_SW")
 			(class "Default")
 			(node
@@ -1348,7 +1683,7 @@
 			)
 		)
 		(net
-			(code "4")
+			(code "6")
 			(name "V3V3_SW")
 			(class "Default")
 			(node
@@ -1370,7 +1705,7 @@
 			)
 		)
 		(net
-			(code "5")
+			(code "7")
 			(name "V12_CAT5E")
 			(class "Default")
 			(node
@@ -1386,7 +1721,7 @@
 			)
 		)
 		(net
-			(code "6")
+			(code "8")
 			(name "V24_AFTER_FUSE")
 			(class "Default")
 			(node
@@ -1402,8 +1737,77 @@
 			)
 		)
 		(net
-			(code "7")
+			(code "9")
 			(name "V24_FUSED")
+			(class "Default")
+			(node
+				(ref "D1")
+				(pin "1")
+				(pinfunction "K_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "Q1")
+				(pin "2")
+				(pinfunction "S_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "R3")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "R5")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "TVS1")
+				(pin "1")
+				(pinfunction "A1_1")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "10")
+			(name "V24_RAW")
+			(class "Default")
+			(node
+				(ref "F1")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "1")
+				(pinfunction "Pin_1_1")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "11")
+			(name "V24_SENSE")
+			(class "Default")
+			(node
+				(ref "C5")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "R5")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "R6")
+				(pin "1")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "12")
+			(name "V24_SW")
 			(class "Default")
 			(node
 				(ref "C1")
@@ -1416,20 +1820,9 @@
 				(pintype "passive")
 			)
 			(node
-				(ref "D1")
-				(pin "1")
-				(pinfunction "K_1")
-				(pintype "passive")
-			)
-			(node
-				(ref "R5")
-				(pin "1")
-				(pintype "passive")
-			)
-			(node
-				(ref "TVS1")
-				(pin "1")
-				(pinfunction "A1_1")
+				(ref "Q1")
+				(pin "3")
+				(pinfunction "D_3")
 				(pintype "passive")
 			)
 			(node
@@ -1448,42 +1841,6 @@
 				(ref "U2")
 				(pin "1")
 				(pinfunction "Pin_1_1")
-				(pintype "passive")
-			)
-		)
-		(net
-			(code "8")
-			(name "V24_RAW")
-			(class "Default")
-			(node
-				(ref "F1")
-				(pin "1")
-				(pintype "passive")
-			)
-			(node
-				(ref "J1")
-				(pin "1")
-				(pinfunction "Pin_1_1")
-				(pintype "passive")
-			)
-		)
-		(net
-			(code "9")
-			(name "V24_SENSE")
-			(class "Default")
-			(node
-				(ref "C5")
-				(pin "1")
-				(pintype "passive")
-			)
-			(node
-				(ref "R5")
-				(pin "2")
-				(pintype "passive")
-			)
-			(node
-				(ref "R6")
-				(pin "1")
 				(pintype "passive")
 			)
 		)

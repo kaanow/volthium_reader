@@ -90,9 +90,12 @@ STOCK_SYMBOLS: list[tuple[str, str, Optional[str]]] = [
     ("Regulator_Switching", "TPS62933", None),
     # RTC (DS3231M is electrically equivalent to DS3231SN#)
     ("Timer_RTC", "DS3231M", None),
-    # MOSFETs
-    ("Transistor_FET", "AO3401A", None),
-    ("Transistor_FET", "AO3400A", None),
+    # MOSFETs: AO3401A extends TP0610T (P-FET), AO3400A extends Q_NMOS_GSD.
+    # Use the Q_PMOS_GSD / Q_NMOS_GSD generics directly to avoid the same
+    # missing-extends-parent issue we hit with diodes; Value field carries
+    # the BOM MPN per instance.
+    ("Transistor_FET", "Q_PMOS_GSD", None),
+    ("Transistor_FET", "Q_NMOS_GSD", None),
     # RS-485 transceiver (MAX3485 used as electrically-equivalent stand-in
     # for SN65HVD3082E — same SOIC-8 pinout: 1=R, 2=RE, 3=DE, 4=D,
     # 5=GND, 6=A, 7=B, 8=VCC. The schematic's Value field overrides
@@ -503,8 +506,8 @@ def build_battery_side_schematic() -> None:
     #   BST → 100nF bootstrap cap (placeholder NoConnect for now; cap added
     #         in iter 14 when MOSFET cluster lands — they share decoupling)
     #   SS, RT → NoConnect (use internal defaults)
-    _place_label(s, "V24_FUSED", (U1_X - 6 * G, U1_Y - 6 * G))   # pin 3 VIN
-    _place_label(s, "V24_FUSED", (U1_X - 6 * G, U1_Y - 4 * G))   # pin 2 EN
+    _place_label(s, "V24_SW", (U1_X - 6 * G, U1_Y - 6 * G))      # pin 3 VIN
+    _place_label(s, "V24_SW", (U1_X - 6 * G, U1_Y - 4 * G))      # pin 2 EN
     _place_label(s, "GND",       (U1_X,         U1_Y + 10 * G))  # pin 4 GND
     _place_label(s, "U1_SW",     (U1_X + 6 * G, U1_Y))           # pin 5 SW
     _place_label(s, "V3V3_SW",   (U1_X + 6 * G, U1_Y + 6 * G))   # pin 8 FB
@@ -523,13 +526,13 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "U1_SW",   (L1_X, L1_Y - 3 * G))     # pin 1 (top, lib Y+3.81)
     _place_label(s, "V3V3_SW", (L1_X, L1_Y + 3 * G))     # pin 2 (bottom)
 
-    # C1 — 22 µF bulk on V24_FUSED (U1 VIN decoupling)
+    # C1 — 22 µF bulk on V24_SW (U1 VIN decoupling)
     C1_X, C1_Y = U1_X - 14 * G, U1_Y + 4 * G   # (134.62, 43.18)
     _place_symbol(s, "C", "C1", "22uF/25V",
                   "Capacitor_SMD:C_1210_3225Metric",
                   (C1_X, C1_Y), lib=lib)
-    _place_label(s, "V24_FUSED", (C1_X, C1_Y - 3 * G))   # pin 1
-    _place_label(s, "GND",       (C1_X, C1_Y + 3 * G))   # pin 2
+    _place_label(s, "V24_SW", (C1_X, C1_Y - 3 * G))   # pin 1
+    _place_label(s, "GND",    (C1_X, C1_Y + 3 * G))   # pin 2
 
     # C2 — 22 µF bulk on V3V3_SW (U1 VOUT decoupling)
     C2_X, C2_Y = L1_X + 8 * G, L1_Y + 4 * G   # (188.4, 43.18)
@@ -563,17 +566,17 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "Conn_01x03", "U2", "R-78E12-1.0",
                   "Converter_DCDC:Converter_DCDC_RECOM_R-78E-1.0_THT",
                   (U2_X, U2_Y), lib=lib)
-    _place_label(s, "V24_FUSED",  (U2_X - 4 * G, U2_Y - 2 * G))   # pin 1 VIN (top)
+    _place_label(s, "V24_SW",     (U2_X - 4 * G, U2_Y - 2 * G))   # pin 1 VIN (top)
     _place_label(s, "GND",        (U2_X - 4 * G, U2_Y))           # pin 2 GND (mid)
     _place_label(s, "V12_CAT5E",  (U2_X - 4 * G, U2_Y + 2 * G))   # pin 3 VOUT (bot)
 
-    # C3 — 22 µF bulk on V24_FUSED (U2 VIN decoupling)
+    # C3 — 22 µF bulk on V24_SW (U2 VIN decoupling)
     C3_X, C3_Y = U2_X - 14 * G, U2_Y + 4 * G   # (185.42, 43.18)
     _place_symbol(s, "C", "C3", "22uF/35V",
                   "Capacitor_SMD:C_1210_3225Metric",
                   (C3_X, C3_Y), lib=lib)
-    _place_label(s, "V24_FUSED", (C3_X, C3_Y - 3 * G))
-    _place_label(s, "GND",       (C3_X, C3_Y + 3 * G))
+    _place_label(s, "V24_SW", (C3_X, C3_Y - 3 * G))
+    _place_label(s, "GND",    (C3_X, C3_Y + 3 * G))
 
     # C4 — 22 µF bulk on V12_CAT5E (U2 VOUT decoupling)
     C4_X, C4_Y = U2_X + 8 * G, U2_Y + 4 * G   # (213.36, 43.18)
@@ -582,6 +585,52 @@ def build_battery_side_schematic() -> None:
                   (C4_X, C4_Y), lib=lib)
     _place_label(s, "V12_CAT5E", (C4_X, C4_Y - 3 * G))
     _place_label(s, "GND",       (C4_X, C4_Y + 3 * G))
+
+    # ===== Iter 16: hard-cut MOSFET cluster (Q1, Q2, R3, R4) =====
+    #
+    # Per cp1_battery_side.md §8 — the P-FET load switch that kills V24_SW
+    # when the MCU drives PWR_EN low (or boots / faults / browns-out).
+    # MOSFET pin geometry (Q_PMOS_GSD / Q_NMOS_GSD, identical):
+    #   pin 1 G lib (-5.08, 0)    → schematic (X-5.08, Y)        [left]
+    #   pin 2 S lib ( 2.54, -5.08)→ schematic (X+2.54, Y+5.08)   [bottom]
+    #   pin 3 D lib ( 2.54,  5.08)→ schematic (X+2.54, Y-5.08)   [top]
+    #
+    # V24_SW connects Q1.drain → U1.VIN/EN + U2.VIN + C1, C3 (input
+    # bulk caps on the regulators), per CP1 §3 power-architecture
+    # diagram. Routing the regulators to V24_SW means they collapse
+    # cleanly when Q1 is OFF — the whole point of the hard-cut.
+
+    # Q1 — AO3401A P-MOSFET, hard-cut load switch
+    Q1_X, Q1_Y = 70 * G, 50 * G   # (88.9, 63.5)
+    _place_symbol(s, "Q_PMOS_GSD", "Q1", "AO3401A",
+                  "Package_TO_SOT_SMD:SOT-23", (Q1_X, Q1_Y), lib=lib)
+    _place_label(s, "Q1_GATE",   (Q1_X - 4 * G, Q1_Y))             # pin 1 G
+    _place_label(s, "V24_FUSED", (Q1_X + 2 * G, Q1_Y + 4 * G))     # pin 2 S
+    _place_label(s, "V24_SW",    (Q1_X + 2 * G, Q1_Y - 4 * G))     # pin 3 D
+
+    # Q2 — AO3400A N-MOSFET, drives Q1's gate from PWR_EN
+    Q2_X, Q2_Y = 60 * G, 60 * G   # (76.2, 76.2)
+    _place_symbol(s, "Q_NMOS_GSD", "Q2", "AO3400A",
+                  "Package_TO_SOT_SMD:SOT-23", (Q2_X, Q2_Y), lib=lib)
+    _place_label(s, "PWR_EN",  (Q2_X - 4 * G, Q2_Y))               # pin 1 G
+    _place_label(s, "GND",     (Q2_X + 2 * G, Q2_Y + 4 * G))       # pin 2 S
+    _place_label(s, "Q1_GATE", (Q2_X + 2 * G, Q2_Y - 4 * G))       # pin 3 D
+
+    # R3 — 100 kΩ Q1 gate pull-up to V24_FUSED (default-OFF)
+    R3_X, R3_Y = 60 * G, 44 * G   # (76.2, 55.88)
+    _place_symbol(s, "R", "R3", "100k",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (R3_X, R3_Y), lib=lib)
+    _place_label(s, "V24_FUSED", (R3_X, R3_Y - 3 * G))   # pin 1
+    _place_label(s, "Q1_GATE",   (R3_X, R3_Y + 3 * G))   # pin 2
+
+    # R4 — 100 kΩ Q2 gate pull-down to GND (failsafe on MCU brown-out)
+    R4_X, R4_Y = 48 * G, 60 * G   # (60.96, 76.2)
+    _place_symbol(s, "R", "R4", "100k",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (R4_X, R4_Y), lib=lib)
+    _place_label(s, "PWR_EN", (R4_X, R4_Y - 3 * G))   # pin 1
+    _place_label(s, "GND",    (R4_X, R4_Y + 3 * G))   # pin 2
 
     # ===== Power flags =====
     # In KiCad's ERC model, a `power_in` pin (like U1.VIN, U1.GND) needs a
@@ -592,9 +641,16 @@ def build_battery_side_schematic() -> None:
     # keep these for the lifetime of the design.
     _place_power_flag(s, "V24_FUSED", (R5_X - 20 * G, R5_Y - 3 * G), lib)
     _place_power_flag(s, "GND",       (R5_X - 20 * G, R6_Y + 3 * G), lib)
-    # Once U1's V3V3_SW output is connected (now), V3V3_SW has a power_out
-    # source — no PWR_FLAG needed there. Same will be true for V12_CAT5E
-    # once U2 (Recom R-78E12) lands in the next iter.
+    # V24_SW gets a PWR_FLAG too. ERC-wise, Q1.drain is `passive`, so it
+    # doesn't drive the net even though Q1 physically passes V24_FUSED → V24_SW
+    # when ON. U1.VIN and U2.VIN are `power_in` pins that need a source.
+    _place_power_flag(s, "V24_SW",    (R5_X - 20 * G, (R5_Y + R6_Y) / 2), lib)
+    # PWR_EN net also needs a flag — it's driven by ESP IO4 (which will land
+    # in iter 18). Until then, Q2.G ("input" type) is dangling without a
+    # source. PWR_FLAG bridges that until the MCU is wired in.
+    _place_power_flag(s, "PWR_EN",    (R5_X - 20 * G, R5_Y + 8 * G), lib)
+    # V3V3_SW (U1 output) and V12_CAT5E (U2 output): regulator outputs are
+    # `output` type which ERC accepts as drivers. No PWR_FLAG needed.
 
     out = BATT_DIR / "battery_side.kicad_sch"
     out.parent.mkdir(parents=True, exist_ok=True)
