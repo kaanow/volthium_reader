@@ -18,8 +18,7 @@
     "pin_map": [],
     "rule_severities": {
       "lib_symbol_issues": "ignore",
-      "footprint_link_issues": "ignore",
-      "isolated_pin_label": "ignore"
+      "footprint_link_issues": "ignore"
     }
   },
   "libraries": {

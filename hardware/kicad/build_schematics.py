@@ -184,12 +184,10 @@ def write_project_file(board_dir: Path, name: str) -> None:
                 # CP3 (placement) is where footprint links are resolved.
                 # Until then, suppress the linkage warning.
                 "footprint_link_issues": "ignore",
-                # `isolated_pin_label` fires when a global label appears on
-                # only one pin. Mid-CP2 this is expected: many nets land on
-                # MOD1's pins before their counterpart components (RTC, U3,
-                # buttons, dev headers) arrive in later iters. Suppressed
-                # for now; CP2 close will re-enable and confirm 0 violations.
-                "isolated_pin_label": "ignore",
+                # `isolated_pin_label`: was suppressed during mid-CP2
+                # build-out (many labels landed on MOD1 before counterpart
+                # components). Re-enabled at CP2 close (iter 22) per
+                # Q-CP2-NEW. If this fires, a real wiring gap exists.
             },
         },
         "libraries": {
@@ -1007,13 +1005,368 @@ def build_battery_side_schematic() -> None:
 
 
 def build_display_side_schematic() -> None:
-    """Generate display-side schematic — empty placeholder for iter 4."""
+    """Generate the display-side schematic (CP2 iter 22).
+
+    Per cp1_display_side.md. Simpler than battery-side: no hard-cut MOSFETs,
+    no V24 rail, no RTC. Just a Cat5e-fed 12V→3V3 buck, the same ESP32-S3
+    module, the e-paper FFC, an RS-485 transceiver, three software-defined
+    buttons, and dev headers.
+    """
     s = Schematic.create_new()
     s.generator = "volthium-build-schematics"
+    lib = _load_project_lib()
+    G = 1.27
+
+    # ===== Power input: J1 RJ45 → F1 PTC → TVS1 → C1 input bulk =====
+
+    # J1 — RJ45 Cat5e in (T568B). Pin mapping per docs/hardware/cat5e_pinout.md:
+    # pins 1/2/3 = V12_CAT5E, pin 4 = RS485_A, pin 5 = RS485_B,
+    # pins 6/7/8 = GND. Symbol 8P8C with Value=RJ45 override.
+    J1_X, J1_Y = 30 * G, 50 * G   # (38.1, 63.5)
+    _place_symbol(s, "8P8C", "J1", "RJ45",
+                  "Connector_RJ:RJ45_Amphenol_RJHSE5380",
+                  (J1_X, J1_Y), lib=lib)
+    # 8P8C pins at X=+10.16, lib_Y from -7.62 (pin 1) to +10.16 (pin 8)
+    # in 2.54 mm steps → schematic endpoint (X+10.16, Y - lib_Y).
+    _place_label(s, "V12_CAT5E", (J1_X + 8 * G, J1_Y + 6 * G))   # pin 1
+    _place_label(s, "V12_CAT5E", (J1_X + 8 * G, J1_Y + 4 * G))   # pin 2
+    _place_label(s, "V12_CAT5E", (J1_X + 8 * G, J1_Y + 2 * G))   # pin 3
+    _place_label(s, "RS485_A",   (J1_X + 8 * G, J1_Y))            # pin 4
+    _place_label(s, "RS485_B",   (J1_X + 8 * G, J1_Y - 2 * G))   # pin 5
+    _place_label(s, "GND",       (J1_X + 8 * G, J1_Y - 4 * G))   # pin 6
+    _place_label(s, "GND",       (J1_X + 8 * G, J1_Y - 6 * G))   # pin 7
+    _place_label(s, "GND",       (J1_X + 8 * G, J1_Y - 8 * G))   # pin 8
+
+    # F1 — PTC polyfuse (0.5A hold) on V12_CAT5E
+    F1_X, F1_Y = 55 * G, 50 * G   # (69.85, 63.5)
+    _place_symbol(s, "Polyfuse", "F1", "MF-R050",
+                  "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal",
+                  (F1_X, F1_Y), lib=lib)
+    # Polyfuse pin geometry mirrors Fuse/R (lib Y ±3.81 → sch Y ∓3.81).
+    _place_label(s, "V12_CAT5E", (F1_X, F1_Y - 3 * G))   # pin 1
+    _place_label(s, "V12_PROT",  (F1_X, F1_Y + 3 * G))   # pin 2
+
+    # TVS1 — SMAJ15A unidirectional TVS on V12_PROT ↔ GND
+    TVS1_X, TVS1_Y = 70 * G, 50 * G   # (88.9, 63.5)
+    _place_symbol(s, "D", "TVS1", "SMAJ15A",
+                  "Diode_SMD:D_SMA",
+                  (TVS1_X, TVS1_Y), lib=lib)
+    _place_label(s, "GND",      (TVS1_X - 3 * G, TVS1_Y))   # pin 1 K
+    _place_label(s, "V12_PROT", (TVS1_X + 3 * G, TVS1_Y))   # pin 2 A
+
+    # C1 — 22µF/25V input bulk on V12_PROT
+    C1_X, C1_Y = 60 * G, 60 * G   # (76.2, 76.2)
+    _place_symbol(s, "C", "C1", "22uF/25V",
+                  "Capacitor_SMD:C_1210_3225Metric",
+                  (C1_X, C1_Y), lib=lib)
+    _place_label(s, "V12_PROT", (C1_X, C1_Y - 3 * G))
+    _place_label(s, "GND",      (C1_X, C1_Y + 3 * G))
+
+    # ===== Power conversion: U1 Recom R-78E3.3-0.5 + C2 output bulk =====
+
+    # U1 — Recom R-78E3.3-0.5 (12V → 3V3, 0.5A). Conn_01x03 stand-in:
+    # pin 1 lib (-5.08, +2.54) → sch (X-5.08, Y-2.54) — VIN
+    # pin 2 lib (-5.08, 0)     → sch (X-5.08, Y)        — GND
+    # pin 3 lib (-5.08, -2.54) → sch (X-5.08, Y+2.54)   — VOUT
+    U1_X, U1_Y = 85 * G, 50 * G   # (107.95, 63.5)
+    _place_symbol(s, "Conn_01x03", "U1", "R-78E3.3-0.5",
+                  "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT",
+                  (U1_X, U1_Y), lib=lib)
+    _place_label(s, "V12_PROT", (U1_X - 4 * G, U1_Y - 2 * G))   # pin 1 VIN
+    _place_label(s, "GND",      (U1_X - 4 * G, U1_Y))            # pin 2 GND
+    _place_label(s, "V3V3",     (U1_X - 4 * G, U1_Y + 2 * G))   # pin 3 VOUT
+
+    # C2 — 10µF output bulk on V3V3
+    C2_X, C2_Y = 95 * G, 60 * G   # (120.65, 76.2)
+    _place_symbol(s, "C", "C2", "10uF",
+                  "Capacitor_SMD:C_0805_2012Metric",
+                  (C2_X, C2_Y), lib=lib)
+    _place_label(s, "V3V3", (C2_X, C2_Y - 3 * G))
+    _place_label(s, "GND",  (C2_X, C2_Y + 3 * G))
+
+    # ===== MCU: MOD1 ESP32-S3-WROOM-1-N16R8 (different pin map vs battery side) =====
+
+    MOD1_X, MOD1_Y = 140 * G, 100 * G   # (177.8, 127.0)
+
+    # Pin map per cp1_display_side.md §6. Different from battery side:
+    # no PWR_EN/V24_SENSE/BTN_OVERRIDE/I2C; instead SPI to e-paper +
+    # 3 buttons + dev headers.
+    esp_pins: dict[int, str] = {
+        # Power
+        1:  "GND",
+        2:  "V3V3",
+        40: "GND",
+        41: "GND",
+        # EN
+        3:  "ESP_EN",
+        # RS-485 control + UART1
+        38: "DE_RE",         # IO2
+        10: "UART_TX_3V3",   # IO17
+        11: "UART_RX_3V3",   # IO18
+        # E-paper SPI
+        5:  "EPD_CS",        # IO5
+        6:  "EPD_DC",        # IO6
+        7:  "EPD_RST",       # IO7
+        12: "EPD_BUSY",      # IO8
+        17: "SPI_SCK",       # IO9
+        18: "SPI_MOSI",      # IO10
+        # Buttons
+        20: "BTN1_IN",       # IO12
+        21: "BTN2_IN",       # IO13
+        22: "BTN3_IN",       # IO14
+        # USB-OTG (dev)
+        13: "USB_DM",        # USB_D-
+        14: "USB_DP",        # USB_D+
+        # Debug UART (dev)
+        36: "DBG_UART_RX",   # RXD0
+        37: "DBG_UART_TX",   # TXD0
+        # Strap pins — leave NC per CP1 §6
+        27: "NC",            # IO0
+        15: "NC",            # IO3
+        16: "NC",            # IO46 (boot)
+        26: "NC",            # IO45 (VDD_SPI)
+        # Unused expansion
+        4:  "NC",            # IO4 (no PWR_EN on display side)
+        8:  "NC",            # IO15
+        9:  "NC",            # IO16
+        19: "NC",            # IO11
+        23: "NC",            # IO21
+        24: "NC",            # IO47
+        25: "NC",            # IO48
+        28: "NC",            # IO35
+        29: "NC",            # IO36
+        30: "NC",            # IO37
+        31: "NC",            # IO38
+        32: "NC",            # IO39
+        33: "NC",            # IO40
+        34: "NC",            # IO41
+        35: "NC",            # IO42
+        # Pins 38, 39 = IO2/IO1 — IO2 used (DE_RE), IO1 unused
+        39: "NC",            # IO1
+    }
+
+    # Pin position lookup from symbol definition
+    _esp_sym = next(s for s in lib.symbols if s.entryName == "ESP32-S3-WROOM-1")
+    _esp_pin_pos = {
+        int(p.number): (p.position.X, p.position.Y)
+        for u in _esp_sym.units for p in u.pins
+    }
+
+    _place_symbol(s, "ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
+                  "RF_Module:ESP32-S2-WROOM-1",
+                  (MOD1_X, MOD1_Y), lib=lib)
+    for pin_num, net in esp_pins.items():
+        lib_x, lib_y = _esp_pin_pos[pin_num]
+        endpoint = (MOD1_X + lib_x, MOD1_Y - lib_y)
+        if net == "NC":
+            _place_noconnect(s, endpoint)
+        else:
+            _place_label(s, net, endpoint)
+
+    # ===== ESP support: R1 EN pull-up + C5 EN soft-start + C3 bulk + C4 HF =====
+    SUP_Y = MOD1_Y - 32 * G
+    # R1 — 10kΩ EN pull-up
+    R1_X, R1_Y = MOD1_X - 24 * G, SUP_Y
+    _place_symbol(s, "R", "R1", "10k",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (R1_X, R1_Y), lib=lib)
+    _place_label(s, "V3V3",   (R1_X, R1_Y - 3 * G))
+    _place_label(s, "ESP_EN", (R1_X, R1_Y + 3 * G))
+    # C5 — 1µF EN soft-start
+    C5_X, C5_Y = MOD1_X - 16 * G, SUP_Y
+    _place_symbol(s, "C", "C5", "1uF",
+                  "Capacitor_SMD:C_0603_1608Metric",
+                  (C5_X, C5_Y), lib=lib)
+    _place_label(s, "ESP_EN", (C5_X, C5_Y - 3 * G))
+    _place_label(s, "GND",    (C5_X, C5_Y + 3 * G))
+    # C3 — 10µF ESP bulk
+    C3_X, C3_Y = MOD1_X - 8 * G, SUP_Y
+    _place_symbol(s, "C", "C3", "10uF",
+                  "Capacitor_SMD:C_0805_2012Metric",
+                  (C3_X, C3_Y), lib=lib)
+    _place_label(s, "V3V3", (C3_X, C3_Y - 3 * G))
+    _place_label(s, "GND",  (C3_X, C3_Y + 3 * G))
+    # C4 — 100nF ESP HF decoupling
+    C4_X, C4_Y = MOD1_X, SUP_Y
+    _place_symbol(s, "C", "C4", "100nF",
+                  "Capacitor_SMD:C_0402_1005Metric",
+                  (C4_X, C4_Y), lib=lib)
+    _place_label(s, "V3V3", (C4_X, C4_Y - 3 * G))
+    _place_label(s, "GND",  (C4_X, C4_Y + 3 * G))
+
+    # ===== E-paper FFC: J2 Hirose FH12-24S + C6 panel VCC bulk =====
+    #
+    # Tentative pin mapping per legacy SKiDL — Waveshare 4.2" e-Paper (B) v2.
+    # CP1 §4.4 calls out that this must be verified against the panel
+    # datasheet before fab. Placeholder mapping:
+    #   pin 1 GND, pin 2 VCC (V3V3), pin 3 V3V3 logic, pin 4 GND,
+    #   pin 5 BUSY, pin 6 RST, pin 7 DC, pin 8 CS,
+    #   pin 9 SCK, pin 10 MOSI, pins 11-24 unused (NC).
+    # Conn_01x24 pin geometry: pin N at lib (-5.08, 27.94 - 2.54*(N-1)),
+    # angle 0 → sch (X-5.08, Y - lib_Y).
+    J2_X, J2_Y = 50 * G, 130 * G   # (63.5, 165.1)
+    _place_symbol(s, "Conn_01x24", "J2", "EPD_FFC_24",
+                  "Connector_FFC-FPC:Hirose_FH12-24S-0.5SH_1x24-1MP_P0.50mm_Horizontal",
+                  (J2_X, J2_Y), lib=lib)
+    epd_pins = {
+        1: "GND",
+        2: "V3V3",
+        3: "V3V3",
+        4: "GND",
+        5: "EPD_BUSY",
+        6: "EPD_RST",
+        7: "EPD_DC",
+        8: "EPD_CS",
+        9: "SPI_SCK",
+        10: "SPI_MOSI",
+        # pins 11-24 reserved / unused — NoConnect
+    }
+    for pin in range(1, 25):
+        # lib_Y = 27.94 - 2.54*(pin-1) → schematic Y = J2_Y - lib_Y
+        lib_y = 27.94 - 2.54 * (pin - 1)
+        endpoint = (J2_X - 5.08, J2_Y - lib_y)
+        if pin in epd_pins:
+            _place_label(s, epd_pins[pin], endpoint)
+        else:
+            _place_noconnect(s, endpoint)
+
+    # C6 — 1µF panel VCC bulk (reduces VCC dip during refresh)
+    C6_X, C6_Y = 60 * G, 90 * G   # (76.2, 114.3)
+    _place_symbol(s, "C", "C6", "1uF",
+                  "Capacitor_SMD:C_0603_1608Metric",
+                  (C6_X, C6_Y), lib=lib)
+    _place_label(s, "V3V3", (C6_X, C6_Y - 3 * G))
+    _place_label(s, "GND",  (C6_X, C6_Y + 3 * G))
+
+    # ===== RS-485: U2 (LTC2850xS8 stand-in for SN65HVD3082E) + passives =====
+    # Same topology as battery-side U3. This end is the bus terminus (R2
+    # populated). Idle bias R3/R4 footprints provided but treated as
+    # populated for ERC simplicity (CP1 D-OPEN-8 default says "don't
+    # populate by default" but ERC-wise we still place them since the
+    # bias defines the idle state of the differential pair).
+    U2_X, U2_Y = 220 * G, 80 * G   # (279.4, 101.6)
+    _place_symbol(s, "LTC2850xS8", "U2", "SN65HVD3082E",
+                  "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+                  (U2_X, U2_Y), lib=lib)
+    _place_label(s, "UART_RX_3V3", (U2_X - 8 * G, U2_Y - 4 * G))   # pin 1 RO
+    _place_label(s, "DE_RE",       (U2_X - 8 * G, U2_Y - 2 * G))   # pin 2 ~RE
+    _place_label(s, "DE_RE",       (U2_X - 8 * G, U2_Y))            # pin 3 DE
+    _place_label(s, "UART_TX_3V3", (U2_X - 8 * G, U2_Y + 4 * G))   # pin 4 DI
+    _place_label(s, "GND",         (U2_X,         U2_Y + 12 * G))   # pin 5 GND
+    _place_label(s, "RS485_A",     (U2_X + 8 * G, U2_Y - 6 * G))   # pin 6 A
+    _place_label(s, "RS485_B",     (U2_X + 8 * G, U2_Y - 2 * G))   # pin 7 B
+    _place_label(s, "V3V3",        (U2_X,         U2_Y - 12 * G))   # pin 8 VCC
+
+    # C7 — 100nF U2 VCC decoupling
+    C7_X, C7_Y = U2_X + 6 * G, U2_Y - 10 * G   # (286.94, 88.9)
+    _place_symbol(s, "C", "C7", "100nF",
+                  "Capacitor_SMD:C_0603_1608Metric",
+                  (C7_X, C7_Y), lib=lib)
+    _place_label(s, "V3V3", (C7_X, C7_Y - 3 * G))
+    _place_label(s, "GND",  (C7_X, C7_Y + 3 * G))
+
+    # R2 — 120Ω termination (A ↔ B), bus terminus
+    R2_X, R2_Y = U2_X + 16 * G, U2_Y - 4 * G   # (299.72, 96.52)
+    _place_symbol(s, "R", "R2", "120",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (R2_X, R2_Y), lib=lib)
+    _place_label(s, "RS485_A", (R2_X, R2_Y - 3 * G))
+    _place_label(s, "RS485_B", (R2_X, R2_Y + 3 * G))
+
+    # R3 — 680Ω idle bias A → V3V3
+    R3_X, R3_Y = U2_X + 12 * G, U2_Y - 12 * G   # (294.64, 85.72)
+    _place_symbol(s, "R", "R3", "680",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (R3_X, R3_Y), lib=lib)
+    _place_label(s, "V3V3",    (R3_X, R3_Y - 3 * G))
+    _place_label(s, "RS485_A", (R3_X, R3_Y + 3 * G))
+
+    # R4 — 680Ω idle bias B → GND
+    R4_X, R4_Y = U2_X + 12 * G, U2_Y + 8 * G   # (294.64, 111.76)
+    _place_symbol(s, "R", "R4", "680",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (R4_X, R4_Y), lib=lib)
+    _place_label(s, "RS485_B", (R4_X, R4_Y - 3 * G))
+    _place_label(s, "GND",     (R4_X, R4_Y + 3 * G))
+
+    # TVS2 — SMAJ12CA differential clamp across A/B
+    TVS2_X, TVS2_Y = U2_X + 20 * G, U2_Y - 4 * G   # (304.8, 96.52)
+    _place_symbol(s, "D_TVS", "TVS2", "SMAJ12CA",
+                  "Diode_SMD:D_SMA",
+                  (TVS2_X, TVS2_Y), lib=lib)
+    _place_label(s, "RS485_A", (TVS2_X - 3 * G, TVS2_Y))
+    _place_label(s, "RS485_B", (TVS2_X + 3 * G, TVS2_Y))
+
+    # ===== Buttons: BTN1/2/3 + R5/R6/R7 (1MΩ pull-ups) + C8/C9/C10 (debounce) =====
+
+    # Place 3 button clusters horizontally, evenly spaced.
+    for i, (btn_ref, r_ref, c_ref, btn_net) in enumerate([
+        ("BTN1", "R5", "C8",  "BTN1_IN"),
+        ("BTN2", "R6", "C9",  "BTN2_IN"),
+        ("BTN3", "R7", "C10", "BTN3_IN"),
+    ]):
+        BTN_X = (200 + i * 30) * G   # 254, 292.1, 330.2
+        BTN_Y = 150 * G              # 190.5
+        _place_symbol(s, "SW_Push", btn_ref, btn_ref,
+                      "Button_Switch_SMD:SW_SPST_TL3300",
+                      (BTN_X, BTN_Y), lib=lib)
+        _place_label(s, btn_net, (BTN_X - 4 * G, BTN_Y))   # pin 1
+        _place_label(s, "GND",   (BTN_X + 4 * G, BTN_Y))   # pin 2
+        # R — 1MΩ pull-up
+        R_X = BTN_X + 8 * G
+        _place_symbol(s, "R", r_ref, "1M",
+                      "Resistor_SMD:R_0805_2012Metric",
+                      (R_X, BTN_Y), lib=lib)
+        _place_label(s, "V3V3",  (R_X, BTN_Y - 3 * G))
+        _place_label(s, btn_net, (R_X, BTN_Y + 3 * G))
+        # C — 100nF debounce
+        C_X = BTN_X + 16 * G
+        _place_symbol(s, "C", c_ref, "100nF",
+                      "Capacitor_SMD:C_0603_1608Metric",
+                      (C_X, BTN_Y), lib=lib)
+        _place_label(s, btn_net, (C_X, BTN_Y - 3 * G))
+        _place_label(s, "GND",   (C_X, BTN_Y + 3 * G))
+
+    # ===== Dev headers: J3 (UART debug) + J4 (USB-OTG) =====
+
+    # J3 — UART debug: TX/RX/GND/RESET#
+    J3_X, J3_Y = 30 * G, 120 * G   # (38.1, 152.4)
+    _place_symbol(s, "Conn_01x04", "J3", "UART-DBG",
+                  "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+                  (J3_X, J3_Y), lib=lib)
+    _place_label(s, "DBG_UART_TX", (J3_X - 4 * G, J3_Y - 2 * G))   # pin 1
+    _place_label(s, "DBG_UART_RX", (J3_X - 4 * G, J3_Y))            # pin 2
+    _place_label(s, "GND",         (J3_X - 4 * G, J3_Y + 2 * G))   # pin 3
+    _place_label(s, "ESP_EN",      (J3_X - 4 * G, J3_Y + 4 * G))   # pin 4
+
+    # J4 — USB-OTG: D+/D-/GND/V3V3
+    J4_X, J4_Y = 30 * G, 130 * G   # (38.1, 165.1)
+    _place_symbol(s, "Conn_01x04", "J4", "USB-OTG",
+                  "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+                  (J4_X, J4_Y), lib=lib)
+    _place_label(s, "USB_DP", (J4_X - 4 * G, J4_Y - 2 * G))
+    _place_label(s, "USB_DM", (J4_X - 4 * G, J4_Y))
+    _place_label(s, "GND",    (J4_X - 4 * G, J4_Y + 2 * G))
+    _place_label(s, "V3V3",   (J4_X - 4 * G, J4_Y + 4 * G))
+
+    # ===== Power flags =====
+    # V12_CAT5E sourced externally (from Cat5e battery side) via J1's
+    # `passive` connector pins. Same pattern as V24_FUSED on battery side.
+    _place_power_flag(s, "V12_CAT5E", (8 * G, 50 * G), lib)
+    # GND sourced externally via J1; passive pins don't drive ERC.
+    _place_power_flag(s, "GND",       (8 * G, 60 * G), lib)
+    # V12_PROT: post-PTC, post-TVS. F1.2 is passive, TVS1.A is passive,
+    # U1.VIN (Conn_01x03) is passive. PWR_FLAG bridges.
+    _place_power_flag(s, "V12_PROT",  (8 * G, 70 * G), lib)
+    # V3V3: U1.VOUT is passive. MOD1.3V3 is power_input. PWR_FLAG bridges.
+    _place_power_flag(s, "V3V3",      (8 * G, 80 * G), lib)
+
     out = DISP_DIR / "display_side.kicad_sch"
     out.parent.mkdir(parents=True, exist_ok=True)
     s.to_file(str(out))
-    print(f"  + {out} ({out.stat().st_size} bytes)")
+    print(f"  + {out} ({out.stat().st_size} bytes; "
+          f"{len(s.schematicSymbols)} symbols, {len(s.globalLabels)} labels, "
+          f"{len(s.noConnects)} NCs)")
 
 
 # -------------------------------------------------------------------- kicad-cli

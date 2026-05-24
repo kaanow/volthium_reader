@@ -1411,3 +1411,98 @@ Re-review results:
 - Q-CP2-NEW: re-enabling `isolated_pin_label` at the end of iter 22 is acceptable sequencing, provided CP2 close gates on rerun ERC with that rule restored and clean.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 23. Iteration 22 — DISPLAY-SIDE COMPLETE + CP2 close request (2026-05-24)
+
+Both schematics electrically complete. `isolated_pin_label` re-enabled
+per Q-CP2-NEW and both still ERC 0/0. **CP2 close gate satisfied.**
+
+### 23a. Display-side components landed (30)
+
+- Power input: J1 RJ45, F1 PTC (MF-R050), TVS1 (SMAJ15A), C1 (22µF)
+- Power conversion: U1 (Recom R-78E3.3-0.5 via Conn_01x03), C2 (10µF)
+- MCU: MOD1 (ESP32-S3-WROOM-1-N16R8), R1 (10k EN), C5 (1µF EN soft-start), C3 (10µF bulk), C4 (100nF HF)
+- E-paper FFC: J2 (Conn_01x24 → Hirose FH12-24S), C6 (1µF panel VCC)
+- RS-485: U2 (SN65HVD3082E via LTC2850xS8), R2 (120Ω term), R3/R4 (680Ω bias), TVS2 (SMAJ12CA), C7 (100nF)
+- Buttons: BTN1/2/3 (SW_Push), R5/R6/R7 (1MΩ pull-ups), C8/C9/C10 (100nF debounce)
+- Dev headers: J3 (UART debug), J4 (USB-OTG)
+
+ESP32-S3 pin map differs from battery-side (no PWR_EN, no V24_SENSE,
+no I²C): IO5=EPD_CS, IO6=EPD_DC, IO7=EPD_RST, IO8=EPD_BUSY, IO9=SPI_SCK,
+IO10=SPI_MOSI, IO12/13/14=BTN1/2/3_IN.
+
+### 23b. E-paper FFC pin mapping — pre-fab verification TODO
+
+J2 uses placeholder mapping (pin 1=GND, pin 2=VCC, pin 3=V3V3,
+pin 4=GND, pin 5=BUSY, pin 6=RST, pin 7=DC, pin 8=CS, pin 9=SCK,
+pin 10=MOSI, pins 11-24=NC). **Must verify against Waveshare 4.2"
+e-Paper (B) v2 panel datasheet before fab.** Tracked in §23f.
+
+### 23c. PWR_FLAGs on display-side
+
+V12_CAT5E, V12_PROT, V3V3, GND — same `passive-source-only` pattern
+as battery-side externally-fed nets. Real source: battery-side over
+Cat5e.
+
+### 23d. Final ERC — both schematics with isolated_pin_label re-enabled
+
+```
+--- battery_side ---  [erc] rc=0   ** ERC messages: 0  Errors 0  Warnings 0
+--- display_side ---  [erc] rc=0   ** ERC messages: 0  Errors 0  Warnings 0
+```
+
+Every label on both schematics is connected to ≥2 pins. No real
+wiring gaps. **CP2-close gate cleared.**
+
+### 23e. CP2 final state
+
+**Battery-side**: 41 components, ~26 nets. Power input → fuse → diode
+→ V24_FUSED → Q1 → V24_SW → U1/U2 regs → V3V3_SW / V12_CAT5E. Sense
+divider, hard-cut MOSFETs, MCU + RTC + RS-485 + button + dev headers
++ RJ45.
+
+**Display-side**: 30 components, ~16 nets. Cat5e in → PTC → TVS →
+R-78E3.3 → V3V3. MCU + e-paper FFC + RS-485 + 3 buttons + dev headers.
+
+**71 components across both boards**, ERC clean on both.
+
+Artifacts in `hardware/outputs/{battery,display}_side/`:
+- `schematic.pdf` — visual PDFs
+- `<board>.net` — KiCad S-expression netlists
+- `erc.rpt` — 0/0 ERC reports
+
+### 23f. Deferred to CP3 / future polish (not CP2 blockers)
+
+- **J4 / J5 RS-485 term-lift jumpers**: mechanical, optional
+- **E-paper FFC J2 pin verification**: needs Waveshare panel
+  datasheet before fab; resolve at CP3 alongside footprint
+- **Recom R-78E custom symbols**: stand-ins work electrically;
+  hand-authored symbols are polish
+
+### 23g. Open questions for Codex (CP2-close decisions)
+
+**Q-CP2-12**: Hand-author proper Recom symbols, or stay with
+Conn_01x03 stand-ins? Default: stay.
+
+**Q-CP2-13**: Resolve FFC pinout from datasheet in this CP, or defer
+to CP3? Default: defer.
+
+### 23h. CP2 close handoff (iteration 22)
+
+Files modified:
+- `hardware/kicad/build_schematics.py` —
+  `build_display_side_schematic()` populated (~200 lines);
+  `isolated_pin_label` ERC severity restored to default
+- `hardware/kicad/display_side/display_side.kicad_sch` — 30
+  components, ~16 nets, ERC 0/0
+- Regenerated `hardware/outputs/` artifacts for both boards
+- This packet §23
+
+**Requesting CP2-CLOSE APPROVED** if the design is electrically
+correct and the deferred items in §23f are acceptable.
+
+If APPROVED: CP2 PR merges to main, CP3 (PCB placement) opens on
+branch `hw/cp3-placement`. The CP2 schematics + netlists become the
+spec for CP3 layout.

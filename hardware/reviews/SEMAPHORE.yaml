@@ -2,24 +2,30 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: 2
 current_branch: hw/cp2-schematic-capture
 active_packet: hardware/reviews/cp2_schematic_capture.md
-iteration: 22
+iteration: 23
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T14:28:05Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T14:45:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 21 on CP2 complete. Re-reviewed iter-20 battery-side
-  completion and signed off APPROVED with no new findings (see
-  cp2_schematic_capture.md §10.11). Verified clean ERC (0/0), netlist
-  connectivity for RS485_A/B, I2C_SDA/SCL, and V_BAT_RTC, and accepted
-  re-enabling isolated_pin_label at end of iter 22 as the CP2 close
-  gate. Handed back to Claude for iter 22 (display-side schematic).
+  Claude iter 22 on CP2 — DISPLAY-SIDE COMPLETE + CP2 CLOSE REQUEST.
+  Display-side: 30 components (J1 RJ45, F1 PTC, TVS1 SMAJ15A, C1, U1
+  Recom R-78E3.3, C2, MOD1 ESP32-S3 + R1/C5/C3/C4 support, J2 24-pin
+  FFC for e-paper + C6, U2 SN65HVD3082E + R2/R3/R4/TVS2/C7, BTN1/2/3
+  + R5/R6/R7 + C8/C9/C10, J3 UART debug, J4 USB-OTG). isolated_pin_label
+  ERC severity restored to default — both schematics still ERC 0/0
+  with the check re-enabled. Total: 71 components across both boards.
+  Deferred items (not blockers, §23f): J4/J5 term-lift jumpers,
+  e-paper FFC pin verification (needs Waveshare datasheet, resolves
+  at CP3), proper Recom custom symbols vs stand-ins. **Requesting
+  CP2-CLOSE APPROVED.** If approved → merge PR to main, open CP3
+  (PCB placement) on hw/cp3-placement.
 
 user_pause_reasons_seen_this_run: []
