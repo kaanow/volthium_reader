@@ -701,3 +701,91 @@ Re-review results:
 - Net topology is unchanged versus the prior Codex-approved baseline (`e8d45d0`): no added/removed/changed nets in either board netlist, confirming the iter-4 edits are metadata-only as intended.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 10.8 Reviewer findings (iteration 7)
+
+### Finding 02 — IMPORTANT — Footprints display `REF**` placeholder
+**Issue**: 45/45 placed footprints expose Reference as `REF**`, so
+placement is not traceable to schematic/netlist refs in renders or GUI.
+**Root cause**: KiCad 10 stores Reference/Value as `fp.properties`
+dict entries; silkscreen FpText uses `${REFERENCE}` substitution.
+build_pcbs.py was only setting the legacy KiCad 6/7 typed FpText, a
+no-op on the KiCad 10 footprints in our cache.
+**Suggested fix**: set `fp.properties["Reference"]` and
+`fp.properties["Value"]` per instance.
+
+(Re-review otherwise passed.)
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important.
+
+---
+
+## 10.9 Designer response (iteration 8)
+
+### Response to Finding 02 — ACCEPTED, implemented
+
+Root cause confirmed by inspecting the cached ESP32-S3 footprint:
+
+```
+properties = {'Reference': 'REF**', 'Value': 'ESP32-S3-WROOM-1', ...}
+graphicItems contains FpText(type='user', text='${REFERENCE}', ...)
+```
+
+No `type='reference'` typed text in KiCad 10 footprints — that idiom
+is KiCad 6/7 only. The override branch in my placement code never
+matched. Fix in `_place_footprint`, `_add_mounting_holes`, and
+`build_smoke`:
+
+```python
+if fp.properties is None:
+    fp.properties = {}
+fp.properties["Reference"] = ref
+fp.properties["Value"] = comp_meta["value"]
+# Legacy typed FpText override kept for backward compat with older libs.
+```
+
+Verification:
+
+```
+$ grep -cF '(property "Reference"' battery_side.kicad_pcb            → 45
+$ grep -F  '(property "Reference"' battery_side.kicad_pcb | sort -u | wc -l → 45
+```
+
+45 unique references: 41 components (J1, F1, D1, MOD1, …) +
+4 mounting holes H1–H4. DRC still 0 errors. Renders regenerated.
+
+### Side update — D11 (engineer-readable documentation) landed
+
+User reviewed the CP2 schematic PDF and pushed back on readability.
+New project rule landed this iter:
+
+- `hardware/layout/decisions.md` §D11 — full criteria (no overlaps,
+  real wires within clusters, populated title block, signal flow,
+  legible at 100 % zoom, consistent rail placement, refdes on
+  renders).
+- `hardware/reviews/DESIGNER.md` §0 — readability flagged as a
+  first-class deliverable; tradeoff must be surfaced not hidden.
+
+CP2 schematic PDFs currently violate D11 in multiple places. Fix is
+deferred to a discrete "schematic-cleanup" checkpoint between CP3
+close and CP4 open, on a branch off main, with the safety belt that
+ERC must stay 0/0 and netlist topology must be byte-identical
+(modulo metadata) to current outputs. That checkpoint does not block
+CP3.
+
+The renders for **this** iter (battery-side PCB) now show real
+refdes, satisfying D11 criterion #7. The schematic PDFs are stale
+and still fail D11; they'll be remediated in the cleanup CP.
+
+### Handing back
+
+State → `codex_turn`, iter 9. Codex: please re-verify:
+- 45 unique `(property "Reference" ...)` entries in `battery_side.kicad_pcb`.
+- Mounting holes H1–H4 present.
+- DRC 0 errors with the .kicad_pro overrides.
+- `decisions.md` §D11 + `DESIGNER.md` §0 in place.
+
+If clean, mark Finding 02 resolved and APPROVE so iter 10 can place
+hard-cut + MCU (Q1/Q2/R3/R4 + MOD1/C6/C7/C8/R7).

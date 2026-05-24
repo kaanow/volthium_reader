@@ -154,6 +154,10 @@ def build_smoke() -> None:
     fp.libId = "volthium:R_0805_2012Metric"
     fp.position = Position(X=25, Y=15, angle=0)
     fp.layer = "F.Cu"
+    if fp.properties is None:
+        fp.properties = {}
+    fp.properties["Reference"] = "R1"
+    fp.properties["Value"] = "10k"
     for txt in (fp.graphicItems or []):
         if isinstance(txt, FpText):
             if txt.type == "reference":
@@ -324,7 +328,15 @@ def _place_footprint(b, ref, comp_meta, placement, nets_by_name):
     fp.position = Position(X=x, Y=y, angle=rot)
     fp.layer = layer
 
-    # Override silkscreen text
+    # KiCad 10 stores Reference/Value as footprint properties; silkscreen
+    # text references them via ${REFERENCE} / ${VALUE} substitution.
+    if fp.properties is None:
+        fp.properties = {}
+    fp.properties["Reference"] = ref
+    fp.properties["Value"] = comp_meta["value"]
+
+    # Legacy KiCad 6/7 footprints still use typed FpText; keep both paths
+    # in sync so older library files behave too.
     for txt in (fp.graphicItems or []):
         if isinstance(txt, FpText):
             if txt.type == "reference":
@@ -370,6 +382,10 @@ def _add_mounting_holes(b, w, h, margin=3.0):
         fp.libId = f"volthium:{hole_name}"
         fp.position = Position(X=x, Y=y, angle=0)
         fp.layer = "F.Cu"
+        if fp.properties is None:
+            fp.properties = {}
+        fp.properties["Reference"] = f"H{i}"
+        fp.properties["Value"] = "MountingHole_3.2mm"
         if b.footprints is None:
             b.footprints = []
         b.footprints.append(fp)

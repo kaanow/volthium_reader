@@ -24,6 +24,18 @@ On every wake:
    cycle (unless they invoked `/loop`, in which case
    `ScheduleWakeup` is fine).
 
+## 0. Documentation readability is a first-class deliverable (D11)
+
+Every PDF, schematic, render, BOM, and assembly drawing you commit
+must satisfy `decisions.md` D11 — engineer-readable bar. Read D11
+before generating any document. Treat readability as equal to
+correctness, not a side effect. Codex enforces this in review.
+
+If a programmatic generation strategy produces machine-valid but
+human-unreadable output (overlapping symbols, label-spaghetti
+without wires, blank title blocks), surface that tradeoff in the
+review packet — don't ship it silently.
+
 ## 1. The project in 30 seconds
 
 Same as REVIEWER.md §1. Two PCBs (battery-side + display-side), power-
