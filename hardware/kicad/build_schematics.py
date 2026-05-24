@@ -184,6 +184,12 @@ def write_project_file(board_dir: Path, name: str) -> None:
                 # CP3 (placement) is where footprint links are resolved.
                 # Until then, suppress the linkage warning.
                 "footprint_link_issues": "ignore",
+                # `isolated_pin_label` fires when a global label appears on
+                # only one pin. Mid-CP2 this is expected: many nets land on
+                # MOD1's pins before their counterpart components (RTC, U3,
+                # buttons, dev headers) arrive in later iters. Suppressed
+                # for now; CP2 close will re-enable and confirm 0 violations.
+                "isolated_pin_label": "ignore",
             },
         },
         "libraries": {
@@ -632,6 +638,138 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "PWR_EN", (R4_X, R4_Y - 3 * G))   # pin 1
     _place_label(s, "GND",    (R4_X, R4_Y + 3 * G))   # pin 2
 
+    # ===== Iter 18: MCU — MOD1 (ESP32-S3-WROOM-1-N16R8) + ESP support =====
+    #
+    # ESP32-S3-WROOM-1 has 41 pins. CP1 §6 (battery-side pin assignment)
+    # uses 11 of them; the rest get NoConnect markers. Pin geometry from
+    # the library (lib coords; KiCad Y-flip applies on schematic
+    # placement → schematic_endpoint_Y = ESP_Y - lib_pin_Y).
+    #
+    # Module dimensions are large: 30 mm wide (±15.24 mm pins on left/right)
+    # × 56 mm tall (±27.94 mm pins on top/bottom). Placed below the
+    # existing power cluster so everything fits on one A4 landscape page.
+
+    MOD1_X, MOD1_Y = 120 * G, 90 * G   # (152.4, 114.3)
+
+    # Pin number → (net_name or "NC"). NC pins get a NoConnect marker.
+    # Per CP1 §6 ESP32-S3 pin assignment table (battery-side).
+    esp_pins: dict[int, str] = {
+        # Power
+        1:  "GND",
+        2:  "V3V3_SW",
+        40: "GND",
+        41: "GND",
+        # EN + ADC + control
+        3:  "ESP_EN",        # to R7 pull-up + C8 soft-start cap
+        4:  "PWR_EN",        # IO4 → Q2 gate (real driver, drops the synthetic PWR_FLAG)
+        39: "V24_SENSE",     # IO1, ADC1_CH0
+        # I²C (RTC DS3231M)
+        5:  "I2C_SDA",       # IO5
+        6:  "I2C_SCL",       # IO6
+        # Override button
+        7:  "BTN_OVERRIDE",  # IO7 (RTC-wake)
+        # UART1 to RS-485
+        10: "UART_TX_3V3",   # IO17
+        11: "UART_RX_3V3",   # IO18
+        # RS-485 DE/RE
+        38: "DE_RE",         # IO2
+        # USB-OTG (J3 dev header — defer cluster to iter 20)
+        13: "USB_DM",        # USB_D-
+        14: "USB_D+ → USB_DP",  # USB_D+ — see below; using USB_DP net
+        # Strap pins — leave NC per CP1 §6
+        27: "NC",            # IO0 (bootloader strap)
+        15: "NC",            # IO3 (USB-JTAG strap)
+        # Unused expansion GPIOs — all NC per CP1 §6
+        8:  "NC",            # IO15 (was debug LED — D4 removed)
+        9:  "NC",            # IO16
+        12: "NC",            # IO8
+        16: "NC",            # IO46 (boot strap)
+        17: "NC",            # IO9
+        18: "NC",            # IO10
+        19: "NC",            # IO11
+        20: "NC",            # IO12
+        21: "NC",            # IO13
+        22: "NC",            # IO14
+        23: "NC",            # IO21
+        24: "NC",            # IO47
+        25: "NC",            # IO48
+        26: "NC",            # IO45 (VDD_SPI strap)
+        28: "NC",            # IO35
+        29: "NC",            # IO36
+        30: "NC",            # IO37
+        31: "NC",            # IO38
+        32: "NC",            # IO39
+        33: "NC",            # IO40
+        34: "NC",            # IO41
+        35: "NC",            # IO42
+        # Debug UART (J5 dev header — defer cluster to iter 20)
+        36: "DBG_UART_RX",   # RXD0
+        37: "DBG_UART_TX",   # TXD0
+    }
+    # Fix the USB_D+ entry — that was a typo above. Should be USB_DP.
+    esp_pins[14] = "USB_DP"
+
+    # Pin lookup: build the (lib_x, lib_y) per pin number from the symbol
+    # definition. This avoids hardcoding pin positions (which can change
+    # if KiCad updates the symbol library).
+    _esp_sym = next(s for s in lib.symbols if s.entryName == "ESP32-S3-WROOM-1")
+    _esp_pin_pos = {
+        int(p.number): (p.position.X, p.position.Y)
+        for u in _esp_sym.units for p in u.pins
+    }
+
+    _place_symbol(s, "ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
+                  "RF_Module:ESP32-S2-WROOM-1",
+                  (MOD1_X, MOD1_Y), lib=lib)
+    for pin_num, net in esp_pins.items():
+        lib_x, lib_y = _esp_pin_pos[pin_num]
+        # KiCad Y-flip: schematic_Y = symbol_Y - lib_pin_Y
+        endpoint = (MOD1_X + lib_x, MOD1_Y - lib_y)
+        if net == "NC":
+            _place_noconnect(s, endpoint)
+        else:
+            _place_label(s, net, endpoint)
+
+    # ===== Iter 18: ESP support — R7 EN pull-up + C8 EN soft-start cap +
+    #               C6 ESP bulk decoupling + C7 ESP HF decoupling =====
+
+    # Place ESP support caps + R7 to the LEFT of MOD1 (free area above the
+    # existing power cluster). Y at MOD1_Y - 30*G so the support cluster
+    # is above ESP horizontally.
+    SUP_Y = MOD1_Y - 30 * G
+
+    # R7 — 10 kΩ pull-up from ESP_EN to V3V3_SW. Vertical (R pins ±3*G).
+    R7_X, R7_Y = MOD1_X - 24 * G, SUP_Y
+    _place_symbol(s, "R", "R7", "10k",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (R7_X, R7_Y), lib=lib)
+    _place_label(s, "V3V3_SW", (R7_X, R7_Y - 3 * G))   # pin 1 top
+    _place_label(s, "ESP_EN",  (R7_X, R7_Y + 3 * G))   # pin 2 bottom
+
+    # C8 — 1 µF EN soft-start cap. EN to GND.
+    C8_X, C8_Y = MOD1_X - 16 * G, SUP_Y
+    _place_symbol(s, "C", "C8", "1uF",
+                  "Capacitor_SMD:C_0603_1608Metric",
+                  (C8_X, C8_Y), lib=lib)
+    _place_label(s, "ESP_EN", (C8_X, C8_Y - 3 * G))
+    _place_label(s, "GND",    (C8_X, C8_Y + 3 * G))
+
+    # C6 — 10 µF ESP bulk on V3V3_SW
+    C6_X, C6_Y = MOD1_X - 8 * G, SUP_Y
+    _place_symbol(s, "C", "C6", "10uF",
+                  "Capacitor_SMD:C_0805_2012Metric",
+                  (C6_X, C6_Y), lib=lib)
+    _place_label(s, "V3V3_SW", (C6_X, C6_Y - 3 * G))
+    _place_label(s, "GND",     (C6_X, C6_Y + 3 * G))
+
+    # C7 — 100 nF ESP HF decoupling
+    C7_X, C7_Y = MOD1_X, SUP_Y
+    _place_symbol(s, "C", "C7", "100nF",
+                  "Capacitor_SMD:C_0402_1005Metric",
+                  (C7_X, C7_Y), lib=lib)
+    _place_label(s, "V3V3_SW", (C7_X, C7_Y - 3 * G))
+    _place_label(s, "GND",     (C7_X, C7_Y + 3 * G))
+
     # ===== Power flags =====
     # In KiCad's ERC model, a `power_in` pin (like U1.VIN, U1.GND) needs a
     # matching `power_out` pin OR a PWR_FLAG on the same net. Our V24 source
@@ -645,10 +783,13 @@ def build_battery_side_schematic() -> None:
     # doesn't drive the net even though Q1 physically passes V24_FUSED → V24_SW
     # when ON. U1.VIN and U2.VIN are `power_in` pins that need a source.
     _place_power_flag(s, "V24_SW",    (R5_X - 20 * G, (R5_Y + R6_Y) / 2), lib)
-    # PWR_EN net also needs a flag — it's driven by ESP IO4 (which will land
-    # in iter 18). Until then, Q2.G ("input" type) is dangling without a
-    # source. PWR_FLAG bridges that until the MCU is wired in.
-    _place_power_flag(s, "PWR_EN",    (R5_X - 20 * G, R5_Y + 8 * G), lib)
+    # V3V3_SW: MOD1.3V3 is `power_input`. U1's SW pin is `output`, not
+    # `power_output`, so ERC needs a flag here. The regulator output IS
+    # really the source — flag is just ERC bookkeeping.
+    _place_power_flag(s, "V3V3_SW",   (R5_X - 20 * G, R5_Y + 16 * G), lib)
+    # PWR_EN is now driven by MOD1.IO4 (bidirectional). MOD1 landed in
+    # iter 18, so the synthetic PWR_EN PWR_FLAG is no longer needed —
+    # dropped.
     # V3V3_SW (U1 output) and V12_CAT5E (U2 output): regulator outputs are
     # `output` type which ERC accepts as drivers. No PWR_FLAG needed.
 

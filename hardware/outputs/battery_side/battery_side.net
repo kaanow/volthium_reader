@@ -2,7 +2,7 @@
 	(version "E")
 	(design
 		(source "/Users/pivot/Documents/repo/volthium_reader/hardware/kicad/battery_side/battery_side.kicad_sch")
-		(date "2026-05-24T06:49:40")
+		(date "2026-05-24T07:07:57")
 		(tool "Eeschema 10.0.3")
 		(sheet
 			(number "1")
@@ -93,7 +93,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "44dbf287-bb6a-4a47-8f8d-7a524614d303")
+			(tstamps "2c284d77-698f-41bf-b8da-60cb5e8df27e")
 			(units
 				(unit
 					(name "A")
@@ -147,7 +147,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "e5e76dec-0c4e-4a69-ab31-06c00feff246")
+			(tstamps "40631687-9346-40c4-99ce-6b3ee1985eda")
 			(units
 				(unit
 					(name "A")
@@ -201,7 +201,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "a05393eb-6025-41f3-9647-c04c286d9f2e")
+			(tstamps "043fdc7e-2591-459d-b109-d63c138be2c8")
 			(units
 				(unit
 					(name "A")
@@ -255,7 +255,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "7e2452e3-5224-4b5f-b7ad-da9d9a13913c")
+			(tstamps "74953ba9-4729-48f8-8bc6-f196d50755d0")
 			(units
 				(unit
 					(name "A")
@@ -309,7 +309,169 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "e46525d0-7536-4a5c-a822-db805e78a6c1")
+			(tstamps "f4482b12-2e35-4b13-9b9f-041e4df9fe5f")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C6")
+			(value "10uF")
+			(footprint "Capacitor_SMD:C_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "a7f1b776-5252-4f07-a314-31b0914e6831")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C7")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0402_1005Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0402_1005Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "8670ea4f-cb7f-4eb1-a06d-82cd4ba3eaba")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C8")
+			(value "1uF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "c174e098-7905-4bde-a016-5ae5a2831a3d")
 			(units
 				(unit
 					(name "A")
@@ -363,7 +525,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "e089aa24-47a8-4d6f-a589-b60763e72180")
+			(tstamps "35fbbc3b-6804-4bcc-88a1-d3cc1fe4f0e1")
 			(units
 				(unit
 					(name "A")
@@ -417,7 +579,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "cac97273-d86c-4407-a6a5-f845c20c2109")
+			(tstamps "411890a9-f054-4950-ac65-3d2fa7ec4a00")
 			(units
 				(unit
 					(name "A")
@@ -471,7 +633,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "afc5247f-050a-4958-88de-36b249463dc0")
+			(tstamps "ccd259de-f881-4af6-826d-747e8c8002ea")
 			(units
 				(unit
 					(name "A")
@@ -525,7 +687,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "f209447f-f81d-4d08-957d-471861e15fb1")
+			(tstamps "2508c049-6d82-49bf-9d83-915f6ccaae74")
 			(units
 				(unit
 					(name "A")
@@ -579,7 +741,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "5f40ed5a-70bd-46e3-adbc-f9415cd380d2")
+			(tstamps "8304da3a-784c-404c-a25a-ecea037b28b6")
 			(units
 				(unit
 					(name "A")
@@ -589,6 +751,177 @@
 						)
 						(pin
 							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "MOD1")
+			(value "ESP32-S3-WROOM-1-N16R8")
+			(footprint "RF_Module:ESP32-S2-WROOM-1")
+			(fields
+				(field
+					(name "Footprint") "RF_Module:ESP32-S2-WROOM-1")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "ESP32-S3-WROOM-1")
+				(description "RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboard antenna, SMD")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "RF Radio BT ESP ESP32-S3 Espressif onboard PCB antenna")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "ESP32?S3?WROOM?1*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "f2024099-7ead-4eb4-9309-c2ab963ac7a7")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "27")
+						)
+						(pin
+							(num "39")
+						)
+						(pin
+							(num "38")
+						)
+						(pin
+							(num "15")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "6")
+						)
+						(pin
+							(num "7")
+						)
+						(pin
+							(num "12")
+						)
+						(pin
+							(num "17")
+						)
+						(pin
+							(num "18")
+						)
+						(pin
+							(num "19")
+						)
+						(pin
+							(num "20")
+						)
+						(pin
+							(num "21")
+						)
+						(pin
+							(num "22")
+						)
+						(pin
+							(num "8")
+						)
+						(pin
+							(num "9")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "40")
+						)
+						(pin
+							(num "41")
+						)
+						(pin
+							(num "37")
+						)
+						(pin
+							(num "36")
+						)
+						(pin
+							(num "10")
+						)
+						(pin
+							(num "11")
+						)
+						(pin
+							(num "13")
+						)
+						(pin
+							(num "14")
+						)
+						(pin
+							(num "23")
+						)
+						(pin
+							(num "28")
+						)
+						(pin
+							(num "29")
+						)
+						(pin
+							(num "30")
+						)
+						(pin
+							(num "31")
+						)
+						(pin
+							(num "32")
+						)
+						(pin
+							(num "33")
+						)
+						(pin
+							(num "34")
+						)
+						(pin
+							(num "35")
+						)
+						(pin
+							(num "26")
+						)
+						(pin
+							(num "16")
+						)
+						(pin
+							(num "24")
+						)
+						(pin
+							(num "25")
 						)
 					)
 				)
@@ -629,7 +962,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "9a30e9f6-c6ab-4dc0-a70f-8af721017e00")
+			(tstamps "e88ea196-991f-4bcc-a391-7580acfba2b8")
 			(units
 				(unit
 					(name "A")
@@ -682,7 +1015,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "bc215f92-9a50-4053-b83b-5355fa5cb319")
+			(tstamps "4c225a7d-afd5-4fd3-a487-35a21edddf1e")
 			(units
 				(unit
 					(name "A")
@@ -739,7 +1072,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "6814ce8a-0493-461b-99f9-e6f01c8a5264")
+			(tstamps "4214c0f4-1516-4342-87f8-e03545351b30")
 			(units
 				(unit
 					(name "A")
@@ -793,7 +1126,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "df60fe7d-731b-439e-bc10-0a64f3059899")
+			(tstamps "79de6ce9-fb04-42b0-9b19-a01dc858dfc2")
 			(units
 				(unit
 					(name "A")
@@ -847,7 +1180,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "2e7b230d-cd10-4029-b992-0b54d7c88e7c")
+			(tstamps "da2de366-bbe9-427f-beed-66588ecb220a")
 			(units
 				(unit
 					(name "A")
@@ -901,7 +1234,61 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "9efd922d-75c3-4f91-badf-ed8bf3849511")
+			(tstamps "26d2f79b-6e57-4ba5-bbb1-7b758a999be9")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R7")
+			(value "10k")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "")
+			)
+			(property
+				(name "Sheetfile")
+				(value "battery_side.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "1fa4788a-94cc-463e-a05b-605635a7c4c5")
 			(units
 				(unit
 					(name "A")
@@ -955,7 +1342,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "df44ad86-2270-40fc-8a64-767f2743b8c0")
+			(tstamps "b6efe7c1-d08c-4476-8bd5-d971c9a039f4")
 			(units
 				(unit
 					(name "A")
@@ -1009,7 +1396,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "75495737-5e48-4de3-9886-8108a9c21c21")
+			(tstamps "f9414950-01e1-4921-b709-6429540fcb43")
 			(units
 				(unit
 					(name "A")
@@ -1081,7 +1468,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "f6820747-26e7-4905-beb9-17cd7c62c51b")
+			(tstamps "e3db79ee-2fe8-45cf-ab8e-91d3bdbd4ea9")
 			(units
 				(unit
 					(name "A")
@@ -1284,6 +1671,234 @@
 				(pin
 					(num "2")
 					(name "A2")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "ESP32-S3-WROOM-1")
+			(description "RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboard antenna, SMD")
+			(docs "https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf")
+			(footprints
+				(fp "ESP32?S3?WROOM?1*")
+			)
+			(fields
+				(field
+					(name "Reference") "U")
+				(field
+					(name "Value") "ESP32-S3-WROOM-1")
+				(field
+					(name "Footprint") "RF_Module:ESP32-S3-WROOM-1")
+				(field
+					(name "Datasheet") "https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf")
+				(field
+					(name "Description") "RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboard antenna, SMD")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "2")
+					(name "3V3")
+					(type "power_in")
+				)
+				(pin
+					(num "3")
+					(name "EN")
+					(type "input")
+				)
+				(pin
+					(num "4")
+					(name "IO4")
+					(type "bidirectional")
+				)
+				(pin
+					(num "5")
+					(name "IO5")
+					(type "bidirectional")
+				)
+				(pin
+					(num "6")
+					(name "IO6")
+					(type "bidirectional")
+				)
+				(pin
+					(num "7")
+					(name "IO7")
+					(type "bidirectional")
+				)
+				(pin
+					(num "8")
+					(name "IO15")
+					(type "bidirectional")
+				)
+				(pin
+					(num "9")
+					(name "IO16")
+					(type "bidirectional")
+				)
+				(pin
+					(num "10")
+					(name "IO17")
+					(type "bidirectional")
+				)
+				(pin
+					(num "11")
+					(name "IO18")
+					(type "bidirectional")
+				)
+				(pin
+					(num "12")
+					(name "IO8")
+					(type "bidirectional")
+				)
+				(pin
+					(num "13")
+					(name "USB_D-")
+					(type "bidirectional")
+				)
+				(pin
+					(num "14")
+					(name "USB_D+")
+					(type "bidirectional")
+				)
+				(pin
+					(num "15")
+					(name "IO3")
+					(type "bidirectional")
+				)
+				(pin
+					(num "16")
+					(name "IO46")
+					(type "bidirectional")
+				)
+				(pin
+					(num "17")
+					(name "IO9")
+					(type "bidirectional")
+				)
+				(pin
+					(num "18")
+					(name "IO10")
+					(type "bidirectional")
+				)
+				(pin
+					(num "19")
+					(name "IO11")
+					(type "bidirectional")
+				)
+				(pin
+					(num "20")
+					(name "IO12")
+					(type "bidirectional")
+				)
+				(pin
+					(num "21")
+					(name "IO13")
+					(type "bidirectional")
+				)
+				(pin
+					(num "22")
+					(name "IO14")
+					(type "bidirectional")
+				)
+				(pin
+					(num "23")
+					(name "IO21")
+					(type "bidirectional")
+				)
+				(pin
+					(num "24")
+					(name "IO47")
+					(type "bidirectional")
+				)
+				(pin
+					(num "25")
+					(name "IO48")
+					(type "bidirectional")
+				)
+				(pin
+					(num "26")
+					(name "IO45")
+					(type "bidirectional")
+				)
+				(pin
+					(num "27")
+					(name "IO0")
+					(type "bidirectional")
+				)
+				(pin
+					(num "28")
+					(name "IO35")
+					(type "bidirectional")
+				)
+				(pin
+					(num "29")
+					(name "IO36")
+					(type "bidirectional")
+				)
+				(pin
+					(num "30")
+					(name "IO37")
+					(type "bidirectional")
+				)
+				(pin
+					(num "31")
+					(name "IO38")
+					(type "bidirectional")
+				)
+				(pin
+					(num "32")
+					(name "IO39")
+					(type "bidirectional")
+				)
+				(pin
+					(num "33")
+					(name "IO40")
+					(type "bidirectional")
+				)
+				(pin
+					(num "34")
+					(name "IO41")
+					(type "bidirectional")
+				)
+				(pin
+					(num "35")
+					(name "IO42")
+					(type "bidirectional")
+				)
+				(pin
+					(num "36")
+					(name "RXD0")
+					(type "bidirectional")
+				)
+				(pin
+					(num "37")
+					(name "TXD0")
+					(type "bidirectional")
+				)
+				(pin
+					(num "38")
+					(name "IO2")
+					(type "bidirectional")
+				)
+				(pin
+					(num "39")
+					(name "IO1")
+					(type "bidirectional")
+				)
+				(pin
+					(num "40")
+					(name "GND")
+					(type "passive")
+				)
+				(pin
+					(num "41")
+					(name "GND")
 					(type "passive")
 				)
 			)
@@ -1538,6 +2153,71 @@
 	(nets
 		(net
 			(code "1")
+			(name "BTN_OVERRIDE")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "7")
+				(pinfunction "IO7_7")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "2")
+			(name "DBG_UART_RX")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "36")
+				(pinfunction "RXD0_36")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "3")
+			(name "DBG_UART_TX")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "37")
+				(pinfunction "TXD0_37")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "4")
+			(name "DE_RE")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "38")
+				(pinfunction "IO2_38")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "5")
+			(name "ESP_EN")
+			(class "Default")
+			(node
+				(ref "C8")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "3")
+				(pinfunction "EN_3")
+				(pintype "input")
+			)
+			(node
+				(ref "R7")
+				(pin "2")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "6")
 			(name "GND")
 			(class "Default")
 			(node
@@ -1566,9 +2246,42 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "C6")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C7")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C8")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
 				(ref "J1")
 				(pin "2")
 				(pinfunction "Pin_2_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "1")
+				(pinfunction "GND_1")
+				(pintype "power_in")
+			)
+			(node
+				(ref "MOD1")
+				(pin "40")
+				(pinfunction "GND_40")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "41")
+				(pinfunction "GND_41")
 				(pintype "passive")
 			)
 			(node
@@ -1607,9 +2320,37 @@
 			)
 		)
 		(net
-			(code "2")
+			(code "7")
+			(name "I2C_SCL")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "6")
+				(pinfunction "IO6_6")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "8")
+			(name "I2C_SDA")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "5")
+				(pinfunction "IO5_5")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "9")
 			(name "PWR_EN")
 			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "4")
+				(pinfunction "IO4_4")
+				(pintype "bidirectional")
+			)
 			(node
 				(ref "Q2")
 				(pin "1")
@@ -1623,7 +2364,7 @@
 			)
 		)
 		(net
-			(code "3")
+			(code "10")
 			(name "Q1_GATE")
 			(class "Default")
 			(node
@@ -1645,7 +2386,7 @@
 			)
 		)
 		(net
-			(code "4")
+			(code "11")
 			(name "U1_BST")
 			(class "Default")
 			(node
@@ -1661,7 +2402,7 @@
 			)
 		)
 		(net
-			(code "5")
+			(code "12")
 			(name "U1_SW")
 			(class "Default")
 			(node
@@ -1683,11 +2424,65 @@
 			)
 		)
 		(net
-			(code "6")
+			(code "13")
+			(name "UART_RX_3V3")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "11")
+				(pinfunction "IO18_11")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "14")
+			(name "UART_TX_3V3")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "10")
+				(pinfunction "IO17_10")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "15")
+			(name "USB_DM")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "13")
+				(pinfunction "USB_D-_13")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "16")
+			(name "USB_DP")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "14")
+				(pinfunction "USB_D+_14")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "17")
 			(name "V3V3_SW")
 			(class "Default")
 			(node
 				(ref "C2")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C6")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C7")
 				(pin "1")
 				(pintype "passive")
 			)
@@ -1698,6 +2493,17 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "MOD1")
+				(pin "2")
+				(pinfunction "3V3_2")
+				(pintype "power_in")
+			)
+			(node
+				(ref "R7")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
 				(ref "U1")
 				(pin "8")
 				(pinfunction "FB_8")
@@ -1705,7 +2511,7 @@
 			)
 		)
 		(net
-			(code "7")
+			(code "18")
 			(name "V12_CAT5E")
 			(class "Default")
 			(node
@@ -1721,7 +2527,7 @@
 			)
 		)
 		(net
-			(code "8")
+			(code "19")
 			(name "V24_AFTER_FUSE")
 			(class "Default")
 			(node
@@ -1737,7 +2543,7 @@
 			)
 		)
 		(net
-			(code "9")
+			(code "20")
 			(name "V24_FUSED")
 			(class "Default")
 			(node
@@ -1770,7 +2576,7 @@
 			)
 		)
 		(net
-			(code "10")
+			(code "21")
 			(name "V24_RAW")
 			(class "Default")
 			(node
@@ -1786,13 +2592,19 @@
 			)
 		)
 		(net
-			(code "11")
+			(code "22")
 			(name "V24_SENSE")
 			(class "Default")
 			(node
 				(ref "C5")
 				(pin "1")
 				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "39")
+				(pinfunction "IO1_39")
+				(pintype "bidirectional")
 			)
 			(node
 				(ref "R5")
@@ -1806,7 +2618,7 @@
 			)
 		)
 		(net
-			(code "12")
+			(code "23")
 			(name "V24_SW")
 			(class "Default")
 			(node

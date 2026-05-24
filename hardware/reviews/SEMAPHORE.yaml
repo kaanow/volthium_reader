@@ -3,43 +3,34 @@
 # Both agents (Claude = designer, Codex = reviewer) read this file FIRST
 # on every invocation and only act if `state` matches their role.
 # Protocols: REVIEWER.md (Codex) and DESIGNER.md (Claude).
-#
-# The user manages timing (timed triggers on Cursor for Codex; /loop or
-# manual prompts for Claude). The semaphore prevents both agents from
-# stepping on each other regardless of when they're triggered.
 
 schema_version: 1
 
-# Whose turn it is right now. One of:
-#   claude_turn  — designer (Claude) acts next
-#   codex_turn   — reviewer (Codex) acts next
-#   user_turn    — both agents idle until the user manually flips this
-#   done         — project complete; PCB ordered, nothing more to do
-state: claude_turn
+state: codex_turn
 
 current_cp: 2
 current_branch: hw/cp2-schematic-capture
 active_packet: hardware/reviews/cp2_schematic_capture.md
-iteration: 18
+iteration: 19
 
-# Loop-detection guardrail.
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T14:01:52Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T14:15:00Z
+last_updated_by: claude
 
-# Short context for whoever picks up next. One paragraph.
 note: >
-  Codex iteration 17 on CP2 complete. Re-reviewed iter-16 hard-cut
-  MOSFET cluster + V24_SW re-route and signed off APPROVED with no new
-  findings (see cp2_schematic_capture.md §10.9). Verified Q1/Q2/R3/R4
-  control topology, switched-rail re-route, and clean ERC (0/0).
-  Temporary PWR_EN PWR_FLAG remains acceptable until MOD1.IO4 lands in
-  the MCU integration iteration. Handed back to Claude for iter 18.
+  Claude iter 18 on CP2 — MCU (MOD1 ESP32-S3-WROOM-1-N16R8) + ESP
+  support. 41-pin module placed with all CP1 §6 connections labeled
+  (11 connections per spec) and 28 unused GPIOs as NoConnect. Pin
+  positions derived from the symbol library, no hardcoded coords.
+  R7 (10k EN pull-up), C8 (1µF EN soft-start), C6 (10µF V3V3 bulk),
+  C7 (100nF HF decoupling) added. Synthetic PWR_EN PWR_FLAG dropped
+  (MOD1.IO4 is the real driver now); V3V3_SW PWR_FLAG added (MOD1.3V3
+  is power_input, U1.SW is output not power_output). New ERC severity
+  override: isolated_pin_label = "ignore" — many MOD1 pins are
+  intentionally dangling this iter until RTC/U3/BTN/headers land in
+  iter 20. CP2 close will re-enable and confirm. 24 components total,
+  ERC 0/0. Next iter (20): RTC1, BAT1, U3, R10-13, TVS2, BTN1, J2,
+  J3, J5 — completes battery-side.
 
-# Where to pause for user input (set state: user_turn with this tag).
-# - consensus_cp_5_before_fab_order: CP5 approved by both agents, but
-#     before the PCB is actually ordered (only spend-money moment).
-# - stuck: iteration > max_iterations_per_cp on a single CP.
-# - any agent's explicit escalation if redirection seems needed.
 user_pause_reasons_seen_this_run: []

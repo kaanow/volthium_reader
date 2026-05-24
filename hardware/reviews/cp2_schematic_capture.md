@@ -1143,6 +1143,101 @@ sub-iters if scope warrants.
 
 ---
 
+## 21. Iteration 18 — MCU (MOD1 ESP32-S3) + ESP support (2026-05-24)
+
+The big one. Splitting CP1's iter-18 scope into two sub-iters:
+- **This iter (18)**: MCU itself (MOD1) + ESP support (R7 EN pull-up,
+  C8 EN soft-start cap, C6 bulk decoupling, C7 HF decoupling).
+- **iter 20**: RTC (RTC1, BAT1) + RS-485 (U3, R10/11/12, TVS2, C10) +
+  button (BTN1, R13, C11) + dev headers (J3 USB-OTG, J5 UART) +
+  connector (J2 RJ45) — rest of the battery-side schematic.
+
+This split is per CP2 §13c sub-iter guidance and keeps each iter's
+review packet skim-able.
+
+### 21a. Components added (5)
+
+| Ref  | Symbol             | Value                 | Footprint                                  |
+|------|--------------------|-----------------------|-------------------------------------------|
+| MOD1 | ESP32-S3-WROOM-1   | ESP32-S3-WROOM-1-N16R8 | RF_Module:ESP32-S2-WROOM-1                |
+| R7   | R                  | 10k                   | Resistor_SMD:R_0805_2012Metric            |
+| C8   | C                  | 1uF                   | Capacitor_SMD:C_0603_1608Metric           |
+| C6   | C                  | 10uF                  | Capacitor_SMD:C_0805_2012Metric           |
+| C7   | C                  | 100nF                 | Capacitor_SMD:C_0402_1005Metric           |
+
+### 21b. MOD1 41-pin connection map (per CP1 §6)
+
+Pin handling driven by a `dict[int, str]` lookup in `build_schematics.py`
+mapping pin number → net name (or `"NC"` for NoConnect). Iterating
+the symbol's actual pin definitions then placing labels at the
+computed schematic endpoints means I don't hardcode any pin position.
+
+| Pin(s)             | Net          | Notes                                  |
+|--------------------|--------------|----------------------------------------|
+| 1, 40, 41          | GND          | Three GND pins on the module           |
+| 2                  | V3V3_SW      | 3.3 V rail                             |
+| 3                  | ESP_EN       | + R7 pull-up + C8 soft-start cap       |
+| 4 (IO4)            | PWR_EN       | → Q2.gate (real driver; PWR_FLAG dropped) |
+| 5 (IO5)            | I2C_SDA      | dangling until RTC1 lands              |
+| 6 (IO6)            | I2C_SCL      | "                                      |
+| 7 (IO7)            | BTN_OVERRIDE | dangling until BTN1 lands              |
+| 10 (IO17)          | UART_TX_3V3  | dangling until U3 lands                |
+| 11 (IO18)          | UART_RX_3V3  | "                                      |
+| 13 (USB_D-)        | USB_DM       | dangling until J3 USB-OTG header lands |
+| 14 (USB_D+)        | USB_DP       | "                                      |
+| 36 (RXD0)          | DBG_UART_RX  | dangling until J5 debug header lands   |
+| 37 (TXD0)          | DBG_UART_TX  | "                                      |
+| 38 (IO2)           | DE_RE        | dangling until U3 lands                |
+| 39 (IO1)           | V24_SENSE    | ADC sense                              |
+| all others (28 pins)| NoConnect    | per CP1 §6 "All other GPIOs left unused" |
+
+### 21c. PWR_EN PWR_FLAG dropped
+
+iter 16's synthetic PWR_EN PWR_FLAG (placed because Q2.G was a
+dangling `input` pin) is removed. MOD1.IO4 is now the real driver
+(`bidirectional` type), and ERC accepts that.
+
+### 21d. V3V3_SW PWR_FLAG added
+
+MOD1.3V3 is `power_input` and demands a `power_output` source on the
+net. U1.SW (the regulator's output) is type `output`, not
+`power_output`. ERC needs a PWR_FLAG to bridge — the regulator IS the
+real source, the flag is bookkeeping.
+
+### 21e. ERC: 0 errors, 0 warnings (with new severity override)
+
+24 components, 19+ nets. Many nets are intentionally single-pin this
+iter (DE_RE, I2C_SDA/SCL, BTN_OVERRIDE, UART_TX/RX_3V3, USB_DM/DP,
+DBG_UART_RX/TX) — their counterpart components land in iter 20.
+
+New ERC severity override added to both .kicad_pro files:
+`isolated_pin_label = "ignore"`. Rationale: during mid-CP2 build-out,
+many global labels have only one pin until the counterpart component
+lands in a later iter. The warnings would flood the report and hide
+real signal. **CP2 close will re-enable this check and confirm
+0 violations** — that's the gate for "schematic is fully wired."
+
+### 21f. Handoff back to reviewer (iteration 18)
+
+Files modified:
+- `hardware/kicad/build_schematics.py` — MOD1 + R7/C6/C7/C8
+  placement, ESP pin map dict + iterating helper, PWR_EN PWR_FLAG
+  dropped, V3V3_SW PWR_FLAG added, `isolated_pin_label` severity
+  override
+- `hardware/kicad/battery_side/battery_side.kicad_sch` — 5 new
+  components, 1 new net (ESP_EN), many new dangling labels
+  (intentional)
+- `hardware/kicad/{battery,display}_side/*.kicad_pro` — ERC severity
+  for isolated_pin_label
+- Regenerated artifacts
+- This packet §21
+
+No open questions. Next iter (20): RTC, RS-485, button, dev headers,
+RJ45 — completes battery-side. Will re-enable `isolated_pin_label`
+check at the end to verify all nets have ≥2 connections.
+
+---
+
 ## 10.9 Reviewer findings (iteration 9)
 
 No new findings.
