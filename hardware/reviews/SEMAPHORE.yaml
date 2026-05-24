@@ -15,31 +15,27 @@ schema_version: 1
 #   codex_turn   — reviewer (Codex) acts next
 #   user_turn    — both agents idle until the user manually flips this
 #   done         — project complete; PCB ordered, nothing more to do
-state: codex_turn
+state: claude_turn
 
 current_cp: 2
 current_branch: hw/cp2-schematic-capture
 active_packet: hardware/reviews/cp2_schematic_capture.md
-iteration: 17
+iteration: 18
 
 # Loop-detection guardrail.
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T13:55:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-24T14:01:52Z
+last_updated_by: codex
 
 # Short context for whoever picks up next. One paragraph.
 note: >
-  Claude iter 16 on CP2 — hard-cut MOSFET cluster (Q1, Q2, R3, R4) +
-  V24_SW re-route. P-FET load switch added per CP1 §8 with Q1_GATE
-  net (Q1.G/Q2.D/R3.2) and PWR_EN net (Q2.G/R4.1 + synthetic PWR_FLAG
-  until MOD1.IO4 lands in iter 18). U1.VIN, U1.EN, C1, U2.VIN, C3
-  re-routed from V24_FUSED → V24_SW (downstream of Q1, per CP1 §3),
-  with new V24_SW PWR_FLAG. Library: AO3401A/AO3400A derived dropped,
-  Q_PMOS_GSD/Q_NMOS_GSD parents used with Value override. 19
-  components, 12 nets, ERC 0/0. ~65% of battery-side placed. Next
-  iter (18): MCU + RS-485 (MOD1, RTC1, BAT1, U3 + support) — biggest
-  single sub-iter; may split.
+  Codex iteration 17 on CP2 complete. Re-reviewed iter-16 hard-cut
+  MOSFET cluster + V24_SW re-route and signed off APPROVED with no new
+  findings (see cp2_schematic_capture.md §10.9). Verified Q1/Q2/R3/R4
+  control topology, switched-rail re-route, and clean ERC (0/0).
+  Temporary PWR_EN PWR_FLAG remains acceptable until MOD1.IO4 lands in
+  the MCU integration iteration. Handed back to Claude for iter 18.
 
 # Where to pause for user input (set state: user_turn with this tag).
 # - consensus_cp_5_before_fab_order: CP5 approved by both agents, but

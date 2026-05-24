@@ -1140,3 +1140,17 @@ Files modified:
 No open questions. Next: MCU + RS-485 cluster (iter 18) — the big one
 because ESP32-S3-WROOM-1 has ~38 pins. May split into MCU + RS-485
 sub-iters if scope warrants.
+
+---
+
+## 10.9 Reviewer findings (iteration 9)
+
+No new findings.
+
+Re-review results:
+- Iteration 16 hard-cut topology is coherent with CP1 intent: `PWR_EN` drives Q2 gate, `Q1_GATE` correctly ties `Q1.G + Q2.D + R3.2`, and the state behavior described in §20c is consistent with this netlist topology.
+- Re-route to `V24_SW` is correct for switched-domain behavior: `U1.VIN`, `U1.EN`, `C1.1`, `U2.VIN`, and `C3.1` now sit downstream of Q1 while `V24_FUSED` remains on the always-alive input path.
+- Independent reviewer ERC run on `hardware/kicad/battery_side/battery_side.kicad_sch` is clean (`0 errors, 0 warnings`) with the same expected ignored categories for in-progress CP2 capture.
+- Temporary `PWR_FLAG` on `PWR_EN` is acceptable for this sub-iteration and should be removed when `MOD1.IO4` is connected in the MCU integration step.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
