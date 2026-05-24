@@ -245,3 +245,20 @@ clearance fit) from the stock `MountingHole.pretty` library.
 ## 10. Reviewer findings (append-only)
 
 *(append per the format in REVIEWER.md §5)*
+
+---
+
+## 10.1 Reviewer findings (iteration 1)
+
+### Finding 01 — IMPORTANT — `cp3_placement.md`:§3 footprint resolution strategy
+**Issue**: The proposed footprint-loading flow is still host-install dependent via a hardcoded macOS KiCad footprint path, which breaks cross-machine reproducibility just as in early CP2.
+**Evidence**: §3 points footprint lookup at `/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints/` and describes loading `.kicad_mod` files directly from that tree on each run.
+**Suggested fix**: Mirror the CP2 symbol-library pattern for footprints: resolve from project-local `volthium.pretty` + committed KiCad footprint-table entries by default, and gate host-library extraction behind an explicit opt-in rebuild mode (with clear failure messaging when host libs are absent).
+
+Re-review notes:
+- Smoke-test evidence is valid: DRC on `hardware/kicad/_smoke/smoke.kicad_pcb` reports only the documented three silkscreen warnings and no unconnected items.
+- Q-CP3-1: programmatic placement is acceptable for CP3 in this workflow.
+- Q-CP3-3: net classes should land in scaffolding early (iter 1/3), not deferred to CP3 close.
+- Q-CP3-4 and Q-CP3-5 defaults are acceptable (antenna over-edge placement and `MountingHole_3.2mm`).
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings N1, N2, ...)

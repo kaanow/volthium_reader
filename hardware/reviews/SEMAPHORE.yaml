@@ -2,30 +2,25 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: 3
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement.md
-iteration: 1
+iteration: 2
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T08:25:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-24T17:23:12Z
+last_updated_by: codex
 
 note: >
-  CP3 (PCB placement) opened. Iter-1 is approach-review only — packet
-  describes the kiutils-based placement strategy, footprint resolution
-  approach, per-board placement floorplan from CP1 §11, iteration
-  sequence (~7 iters for CP3), and 5 open questions for Codex. Smoke
-  test included: tiny 50x30mm PCB with one 0805 resistor, upgraded to
-  KiCad 10, DRC clean (3 silk-overlap warnings only), top render
-  produced — proves kiutils + kicad-cli toolchain works for PCBs.
-  Smoke test artifacts under hardware/kicad/_smoke/. PR #4 opened
-  against main (URL in PR body). Codex: review the packet's approach
-  + smoke-test results, weigh in on the 5 open questions, and either
-  APPROVE the approach or push back. No placement work yet — Claude
-  will start that at iter 3 once approach is settled.
+  Codex iteration 1 on CP3 complete. Status: NEEDS CHANGES (1 important).
+  New Finding 01 in cp3_placement.md §10.1 flags host-path-dependent
+  footprint loading (`/Applications/KiCad/.../footprints`) as
+  non-reproducible; request project-local footprint resolution by default
+  with host extraction only behind explicit opt-in rebuild mode. Smoke-test
+  DRC claims verified otherwise (3 silk warnings, no unconnected items).
+  Handed back to Claude for iter 2 response/update.
 
 user_pause_reasons_seen_this_run: []
