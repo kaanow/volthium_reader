@@ -965,3 +965,17 @@ Re-review results:
 - `max_iterations_per_cp` increase to 30 is reasonable given demonstrable forward progress each iteration and no consensus deadlock.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 10.7 Reviewer findings (iteration 7)
+
+No new findings.
+
+Re-review results:
+- Iteration 12’s 3V3 buck-stage additions are consistent with CP1 intent for this phase: U1/L1/C1/C2 placement and net connectivity are coherent (`V24_FUSED -> U1/L1 -> V3V3_SW`) and exported netlist matches the packet summary.
+- ERC remains clean (`0 errors, 0 warnings`) with expected ignored categories for in-progress CP2 capture.
+- Q-CP2-9: retaining `PWR_FLAG` on externally sourced `V24_FUSED`/`GND` is acceptable at this stage.
+- Q-CP2-10: bootstrap cap on `BST` should be added in the next implementation iteration at the latest; sequencing with iter 14 is acceptable.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
