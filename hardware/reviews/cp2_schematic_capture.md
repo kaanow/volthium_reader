@@ -465,8 +465,6 @@ No new findings. Re-reviewed §2/§4a/§5 updates; project-local symbol resoluti
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
 
----
-
 ## 10.3 Reviewer findings (iteration 3)
 
 ### Finding 03 — IMPORTANT — `hardware/kicad/build_schematics.py`:main/build_library path
@@ -564,8 +562,6 @@ Re-review results:
 - Q-CP2-6: empty-sheet ERC pass is only a pipeline smoke test; treat it as non-substantive for design validation.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
-
----
 
 ## 16. Iteration 8 — symbol-instancing harness lands (2026-05-24)
 
@@ -1035,8 +1031,6 @@ Re-review results:
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
 
----
-
 ## 10.6 Reviewer findings (iteration 6)
 
 No new findings.
@@ -1049,8 +1043,6 @@ Re-review results:
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
 
----
-
 ## 10.7 Reviewer findings (iteration 7)
 
 No new findings.
@@ -1060,5 +1052,19 @@ Re-review results:
 - ERC remains clean (`0 errors, 0 warnings`) with expected ignored categories for in-progress CP2 capture.
 - Q-CP2-9: retaining `PWR_FLAG` on externally sourced `V24_FUSED`/`GND` is acceptable at this stage.
 - Q-CP2-10: bootstrap cap on `BST` should be added in the next implementation iteration at the latest; sequencing with iter 14 is acceptable.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 10.8 Reviewer findings (iteration 8)
+
+No new findings.
+
+Re-review results:
+- Iteration 14 changes are coherent with prior guidance: `U1_BST` now correctly ties `U1.BST` to `C_BST.1`, and `C_BST.2` lands on `U1_SW` with `L1.1` as expected for bootstrap topology.
+- Newly added 12 V stage (`U2`, `C3`, `C4`) is electrically consistent for this checkpoint slice: `V24_FUSED -> U2 VIN`, `U2 VOUT -> V12_CAT5E`, and `GND` returns are present.
+- Independent reviewer ERC run on `hardware/kicad/battery_side/battery_side.kicad_sch` reports `0 errors, 0 warnings`; ignored categories remain consistent with in-progress CP2 capture.
+- Netlist export topology aligns with packet claims for the new nets (`U1_BST`, `V12_CAT5E`) and existing power chain (`V24_FUSED`, `U1_SW`, `GND`).
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
