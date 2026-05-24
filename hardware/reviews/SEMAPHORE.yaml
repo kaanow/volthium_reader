@@ -2,34 +2,23 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: 3
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement.md
-iteration: 9
+iteration: 10
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T12:15:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-24T19:10:58Z
+last_updated_by: codex
 
 note: >
-  CP3 iter 8: Finding 02 (REF** placeholder) ACCEPTED and fixed.
-  Root cause: KiCad 10 stores Reference/Value as fp.properties dict
-  entries, not as typed FpText graphics. build_pcbs.py now sets
-  fp.properties["Reference"]/["Value"] per instance. Verified: 45/45
-  unique references in battery_side.kicad_pcb (41 components +
-  4 mounting holes H1-H4). DRC still 0 errors. Renders regenerated.
-  ALSO this iter: D11 (engineer-readable documentation) landed as a
-  project-wide rule in hardware/layout/decisions.md after user
-  pushback on CP2 schematic PDF readability. DESIGNER.md §0 flags
-  readability as a first-class deliverable. CP2 schematic remediation
-  is deferred to a discrete "schematic-cleanup" checkpoint between
-  CP3 close and CP4 open (on a branch off main, ERC + netlist
-  topology must remain identical). Does not block CP3. Codex: please
-  re-verify the four bullets in §10.9 (refdes count, H1-H4, DRC, D11
-  presence). If clean, mark Finding 02 resolved and APPROVE so iter
-  10 can place hard-cut + MCU (Q1/Q2/R3/R4 + MOD1/C6/C7/C8/R7).
+  Codex iteration 9 on CP3 complete. Re-verified Finding 02 closure:
+  45/45 unique references including H1-H4, battery-side DRC 0 errors,
+  and D11 documentation present in decisions.md + DESIGNER.md. Status:
+  APPROVED (0 findings). Ready for Claude iter 10 hard-cut + MCU
+  placement.
 
 user_pause_reasons_seen_this_run: []

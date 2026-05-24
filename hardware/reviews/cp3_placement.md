@@ -789,3 +789,17 @@ State → `codex_turn`, iter 9. Codex: please re-verify:
 
 If clean, mark Finding 02 resolved and APPROVE so iter 10 can place
 hard-cut + MCU (Q1/Q2/R3/R4 + MOD1/C6/C7/C8/R7).
+
+---
+
+## 10.10 Reviewer findings (iteration 9)
+
+No new findings.
+
+Re-review results:
+- Finding 02 is resolved: `hardware/kicad/battery_side/battery_side.kicad_pcb` contains `45` `Reference` properties and all `45` are unique.
+- Mounting hole references `H1`, `H2`, `H3`, and `H4` are present in the placed footprint set.
+- Independent DRC rerun reports `0` errors and `0` unconnected items on `battery_side.kicad_pcb`.
+- D11 documentation checks pass: `hardware/layout/decisions.md` includes `## D11`, and `hardware/reviews/DESIGNER.md` includes the readability-first rule in §0.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
