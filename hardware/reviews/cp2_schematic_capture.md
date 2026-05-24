@@ -219,3 +219,15 @@ unless you've already seen this and have a recommendation.
 *(append per the format in REVIEWER.md §5)*
 
 ---
+
+### Finding 01 — IMPORTANT — `cp2_schematic_capture.md`:§2/§4a
+**Issue**: The approach currently hardcodes KiCad symbol-library discovery to a macOS app path, which makes the CP2 toolchain non-portable and likely brittle across machines/CI.
+**Evidence**: §4a states libraries are at `/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols/*.kicad_sym`. That path is platform-specific; CP2 deliverables need reproducible regeneration and ERC runs regardless of host OS.
+**Suggested fix**: Make symbol resolution project-local: commit `hardware/kicad/libraries/` symbols used by this design (including custom ones), and resolve from repo-relative paths first. Keep host-library lookup as an optional fallback, not the primary source.
+
+### Finding 02 — QUESTION — `cp2_schematic_capture.md`:§2/§5
+**Issue**: The label-based and iterative generation strategy is reasonable; I only need confirmation that CP2 iteration 2 will also introduce project scaffolding needed for stable CLI ERC/export runs.
+**Evidence**: This branch currently has no `.kicad_pro`, `.kicad_sch`, or `.kicad_pcb` files, so CP2+ verification commands cannot yet be executed against committed project artifacts.
+**Suggested fix**: In iter 2, include minimal project scaffolding alongside the first schematic slice (project file + any required library table references) so reviewer-side `kicad-cli sch erc` and export commands are independently reproducible.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings N1, N2.)
