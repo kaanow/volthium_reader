@@ -34,6 +34,7 @@ support). Iter 4 generates the display-side schematic.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import subprocess
@@ -302,8 +303,43 @@ def post_process(board_dir: Path, board_name: str, out_dir: Path) -> None:
 
 # -------------------------------------------------------------------- main
 def main() -> None:
-    print("=== Build project library ===")
-    build_library()
+    parser = argparse.ArgumentParser(
+        description=(
+            "Regenerate KiCad 10 schematic artifacts. Default path uses the "
+            "committed project library at hardware/kicad/libraries/volthium.kicad_sym "
+            "and does NOT touch the host KiCad install. Use --rebuild-library "
+            "to re-extract symbols from the host install (e.g. when adding a new part)."
+        )
+    )
+    parser.add_argument(
+        "--rebuild-library",
+        action="store_true",
+        help=(
+            "Re-extract stock symbols from the host KiCad install at "
+            f"{HOST_LIB_DIR} and re-author custom symbols. Writes "
+            "hardware/kicad/libraries/volthium.kicad_sym. Requires the host "
+            "KiCad install to be present at the expected path."
+        ),
+    )
+    args = parser.parse_args()
+
+    if args.rebuild_library:
+        if not HOST_LIB_DIR.exists():
+            raise SystemExit(
+                f"FATAL: --rebuild-library requested but host KiCad libraries "
+                f"not found at {HOST_LIB_DIR}. Install KiCad 10 or adjust "
+                f"HOST_LIB_DIR in this script."
+            )
+        print("=== Rebuilding project library from host KiCad install ===")
+        build_library()
+    else:
+        if not LIB_FILE.exists():
+            raise SystemExit(
+                f"FATAL: project library not found at {LIB_FILE}. "
+                f"Re-run with --rebuild-library to extract from host KiCad install."
+            )
+        print(f"=== Using committed project library at {LIB_FILE.relative_to(REPO)} ===")
+        print(f"    ({LIB_FILE.stat().st_size} bytes; no host KiCad access this run)")
 
     print("\n=== Write project files ===")
     write_project_file(BATT_DIR, "battery_side")

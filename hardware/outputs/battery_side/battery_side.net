@@ -2,7 +2,7 @@
 	(version "E")
 	(design
 		(source "/Users/pivot/Documents/repo/volthium_reader/hardware/kicad/battery_side/battery_side.kicad_sch")
-		(date "2026-05-23T19:00:54")
+		(date "2026-05-23T19:16:05")
 		(tool "Eeschema 10.0.3")
 		(sheet
 			(number "1")

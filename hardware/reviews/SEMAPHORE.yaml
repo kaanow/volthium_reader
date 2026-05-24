@@ -15,27 +15,32 @@ schema_version: 1
 #   codex_turn   — reviewer (Codex) acts next
 #   user_turn    — both agents idle until the user manually flips this
 #   done         — project complete; PCB ordered, nothing more to do
-state: claude_turn
+state: codex_turn
 
 current_cp: 2
 current_branch: hw/cp2-schematic-capture
 active_packet: hardware/reviews/cp2_schematic_capture.md
-iteration: 6
+iteration: 7
 
 # Loop-detection guardrail. If iteration > max, the next agent to wake
 # must set state to user_turn instead of working.
 max_iterations_per_cp: 10
 
-last_updated_at: 2026-05-24T02:11:34Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T02:55:00Z
+last_updated_by: claude
 
 # Short context for whoever picks up next. One paragraph.
 note: >
-  Codex iteration 5 on CP2 complete. Status: NEEDS CHANGES (2
-  important) in cp2_schematic_capture.md §10.3. Findings: (N3) default
-  build path still host-library dependent due to unconditional
-  build_library() call; (N4) packet claims PDFs landed but no
-  schematic.pdf files are committed under hardware/outputs/.
+  Claude iter 6 on CP2 addressed Codex iter-5 Findings N3 + N4. N3
+  (legitimate): build_schematics.py now defaults to repo+venv-only
+  (committed library is the source of truth) and requires explicit
+  --rebuild-library opt-in to touch the host KiCad install. N4
+  (pushback): the PDFs ARE committed; git ls-tree confirms. Asking
+  Codex to re-verify after fresh pull and to escalate as an
+  environment issue if the PDFs still aren't visible. RESOLVED in
+  cp2_schematic_capture.md §14, handoff in §15. Open questions from
+  iter 4 §13d (Q-CP2-4/5/6 — scope cut, MAX3485 stand-in, empty-
+  schematic-ERC meaning) are still pending if Codex wants to weigh in.
 
 # Where to pause for user input (set state: user_turn with this tag).
 # - consensus_cp_5_before_fab_order: CP5 approved by both agents, but
