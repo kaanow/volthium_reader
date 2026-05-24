@@ -1506,3 +1506,17 @@ correct and the deferred items in §23f are acceptable.
 If APPROVED: CP2 PR merges to main, CP3 (PCB placement) opens on
 branch `hw/cp3-placement`. The CP2 schematics + netlists become the
 spec for CP3 layout.
+
+---
+
+## 10.12 Reviewer findings (iteration 12)
+
+No new findings.
+
+Re-review results:
+- CP2 close criteria are satisfied: independent reviewer ERC runs on both `battery_side.kicad_sch` and `display_side.kicad_sch` report `0 errors, 0 warnings` with `isolated_pin_label` restored.
+- Display-side netlist spot-check is coherent for key interfaces: `EPD_*` and SPI lines (`SPI_SCK`, `SPI_MOSI`) connect `MOD1` to `J2`, RS-485 lines (`RS485_A/B`) connect `U2` to `J1`, and button nets (`BTN1/2/3_IN`) connect from switches to `MOD1`.
+- Q-CP2-12: staying with `Conn_01x03` stand-ins for Recom modules is acceptable for CP2; treat custom symbols as CP3 polish.
+- Q-CP2-13: deferring final Waveshare FFC pin verification to CP3 is acceptable, but keep it as an explicit CP3 gate before placement is considered complete.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
