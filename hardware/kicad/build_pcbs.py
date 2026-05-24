@@ -264,18 +264,45 @@ BATTERY_PLACEMENT = {
     "R6":    (10.0,  18.5,    0,   "B.Cu"),
     "C5":    (10.0,  21.0,    0,   "B.Cu"),
 
-    # ===== Parked off-board (iter 8/10 will move these) =====
+    # ===== Hard-cut MOSFET pair + gate net (iter 10) =====
+    # Q1 = AO3401A P-MOSFET (high-side, SOT-23 G/S/D), V24 load switch.
+    # Q2 = AO3400A N-MOSFET, gate driver pulling Q1 gate low when ESP
+    # asserts PWR_EN. R3 = Q2 gate pulldown, R4 = Q1 gate pullup to source.
+    # Per CP1 §11.2 priority 5: hard-cut MOSFETs near the regulators they
+    # control. Placed below the power-cluster row, x≈15-23 (left of MOD1).
+    "Q1":    (16.0,  17.0,    0,   "F.Cu"),
+    "Q2":    (16.0,  21.5,    0,   "F.Cu"),
+    "R3":    (20.0,  21.5,    0,   "F.Cu"),
+    "R4":    (20.0,  17.0,    0,   "F.Cu"),
+
+    # ===== ESP32-S3 module (iter 10) =====
+    # MOD1 = ESP32-S3-WROOM-1-N16R8. Footprint body ~18x25.5mm.
+    # KiCad's ESP32-S3-WROOM-1 footprint origin is at pin 1 corner with
+    # the body extending +x and +y from there; antenna is on the +y end.
+    # Placing pin-1 origin at (24, 13.5) puts the module body x=24-42,
+    # y=13.5-39 — antenna sticks off the bottom of the 40 mm board
+    # by 1 mm (acceptable per Q-CP3-4 default; refine in iter 12).
+    "MOD1":  (28.0,  16.5,    0,   "F.Cu"),
+
+    # ===== MCU bypass caps + EN pullup (iter 10) =====
+    # 10uF + 100nF + 1uF in parallel close to pin 2 (3V3). Pin 2 at
+    # absolute (19.25, 12.51); the module body occupies the F.Cu real
+    # estate around pin 2, so bypass caps go on B.Cu directly under
+    # pin 2 with short via stitches up to it. Loop area stays small.
+    "C6":    (18.0,  13.5,    0,   "B.Cu"),  # 10µF X7R, 0805
+    "C7":    (20.0,  13.5,    0,   "B.Cu"),  # 100nF, 0603 — closest to pin 2
+    "C8":    (22.0,  13.5,    0,   "B.Cu"),  # 1µF, 0603
+    # R7 = 10kΩ EN-pullup. Pin 3 (EN) at (-8.75, -2.72) → (19.25, 13.78).
+    # Place R7 on B.Cu just below the bypass row.
+    "R7":    (20.0,  15.5,    0,   "B.Cu"),
+
+    # ===== Parked off-board (iter 12 will move these) =====
     # X >= 70 keeps them out of the 60mm board area. Stack in rows.
 }
 
-# Parked off-board positions for the remaining 28 components.
-# Placed on a 5mm-step grid starting at x=75 so they don't collide
-# with the board outline.
+# Parked off-board positions for the remaining components (iter 12).
+# Placed on a 15mm-step grid starting at x=75 so courtyards stay clear.
 _PARKED = [
-    "Q1", "Q2", "R3", "R4",                             # hard-cut
-    "MOD1",                                              # ESP32 module
-    "C6", "C7", "C8",                                    # MCU bypass
-    "R7",                                                # ESP_EN pullup
     "RTC1", "BAT1", "R8", "R9", "C9",                    # RTC + backup cell
     "BTN1", "R13",                                       # override button
     "U3", "R10", "R11", "R12", "TVS2", "C10",            # RS-485

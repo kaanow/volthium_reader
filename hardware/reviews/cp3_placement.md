@@ -803,3 +803,78 @@ Re-review results:
 - D11 documentation checks pass: `hardware/layout/decisions.md` includes `## D11`, and `hardware/reviews/DESIGNER.md` includes the readability-first rule in §0.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 10.10 Designer iter 10 — hard-cut + ESP32 module + MCU bypass
+
+**Scope**: place the second batch of battery-side components per the
+iter sequence in §6 — hard-cut MOSFET pair, ESP32-S3 module, MCU
+bypass caps, EN pullup. 9 components move from parked to on-board.
+
+### Placements added
+
+| Ref  | (x, y) mm   | Rot | Layer | Notes |
+|------|-------------|----:|:-----:|-------|
+| Q1   | (16.0, 17.0)| 0°  | F.Cu  | AO3401A P-MOSFET, high-side load switch |
+| Q2   | (16.0, 21.5)| 0°  | F.Cu  | AO3400A N-MOSFET, Q1 gate driver |
+| R3   | (20.0, 21.5)| 0°  | F.Cu  | 100kΩ Q2 gate pulldown |
+| R4   | (20.0, 17.0)| 0°  | F.Cu  | 100kΩ Q1 gate pullup to source |
+| MOD1 | (28.0, 16.5)| 0°  | F.Cu  | ESP32-S3-WROOM-1, anchor at body center |
+| C6   | (18.0, 13.5)| 0°  | B.Cu  | 10µF X7R MCU bypass, under pin 2 |
+| C7   | (20.0, 13.5)| 0°  | B.Cu  | 100nF MCU bypass, closest to pin 2 |
+| C8   | (22.0, 13.5)| 0°  | B.Cu  | 1µF MCU bypass |
+| R7   | (20.0, 15.5)| 0°  | B.Cu  | 10kΩ EN pullup, under pin 3 |
+
+### Design notes
+
+- **Bypass caps on B.Cu under pin 2.** Pin 2 (3V3) of MOD1 lands at
+  absolute (19.25, 12.51). F.Cu real estate next to pin 2 is occupied
+  by the module body itself, so the bypass row sits on B.Cu directly
+  under pin 2 with short via stitches. Loop area to the MCU stays
+  small. This is the same trick used on most ESP32-S3 reference
+  designs that have a top-side module.
+- **EN pullup on B.Cu next to bypass row.** R7 ties EN (pin 3) to 3V3
+  via the same B.Cu pour as the bypass cap row.
+- **Hard-cut pair on F.Cu, left of MOD1.** Q1/Q2/R3/R4 cluster at
+  x=16-20, y=17-22 sits between the power-cluster output (which
+  feeds Q1 source) and MOD1 (which drives the gate). The
+  ESP-controlled PWR_EN signal exits MOD1 pin 4 and routes a short
+  trace to Q2 gate. Per CP1 §11.2 priority 5.
+- **MOD1 anchor at (28, 16.5)** puts the module body at
+  x=19→37, y=3.75→29.25. Antenna end (top in this footprint
+  orientation) sticks up to y=3.75 which is on-board. Antenna keepout
+  zone is **not yet placed** — that's iter 12 work alongside net
+  classes and the final placement pass.
+
+### DRC status
+
+```
+errors:   0
+warnings: ~125 (down from 131 in iter 6 — fewer parked components)
+```
+
+Renders regenerated: `render_top.png` (shows MOD1, hard-cut, power
+cluster, parked components at x ≥ 75) and `render_bot.png` (shows
+sense divider R5/R6/C5 plus the new B.Cu bypass row C6/C7/C8/R7).
+
+### What this iter does not cover
+
+- Antenna keepout zone for MOD1 (iter 12)
+- Net classes per CP1 §11.3 (iter 12)
+- RTC + RS-485 + RJ45 + dev headers + button + parked decoupling
+  (iter 12)
+- Display-side placement (iter 14, was 11 in the original plan but
+  CP3 iteration count drifted)
+
+### Handing back
+
+State → `codex_turn`, iter 11. Recommend Codex re-verify:
+- All 9 new components present at the §10.10 coordinates.
+- DRC stays at 0 errors with overrides in `.kicad_pro`.
+- Bypass caps + R7 are on B.Cu, on-board.
+- MOD1 anchor at (28, 16.5); pin 2 at absolute (19.25, 12.51).
+- Renders show MOD1 + hard-cut on-board, parked cluster shrinking.
+
+If clean, APPROVE so iter 12 closes CP3 with RTC + RS-485 + headers
++ antenna keepout + net classes + final renders.
