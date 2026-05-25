@@ -717,7 +717,7 @@ def build_battery_side_schematic() -> None:
     }
 
     _place_symbol(s, "ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
-                  "RF_Module:ESP32-S3-WROOM-1",
+                  "RF_Module:ESP32-S3-WROOM-1U",  # -1U variant: external U.FL antenna, no keepout zone
                   (MOD1_X, MOD1_Y), lib=lib)
     for pin_num, net in esp_pins.items():
         lib_x, lib_y = _esp_pin_pos[pin_num]
@@ -1153,7 +1153,7 @@ def build_display_side_schematic() -> None:
     }
 
     _place_symbol(s, "ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
-                  "RF_Module:ESP32-S3-WROOM-1",
+                  "RF_Module:ESP32-S3-WROOM-1U",  # -1U variant: external U.FL antenna, no keepout zone
                   (MOD1_X, MOD1_Y), lib=lib)
     for pin_num, net in esp_pins.items():
         lib_x, lib_y = _esp_pin_pos[pin_num]

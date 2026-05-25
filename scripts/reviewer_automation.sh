@@ -15,6 +15,7 @@ INTERVAL_SEC="${INTERVAL_SEC:-600}"          # 10 minutes
 POLL_SEC="${POLL_SEC:-20}"                   # scheduler poll period
 MAX_RETRIES="${MAX_RETRIES:-3}"              # per due cycle
 RETRY_BACKOFF_SEC="${RETRY_BACKOFF_SEC:-60}" # retry wait
+MODEL_ID="${MODEL_ID:-gpt-5.3-codex}"        # pinned model (effective next daemon restart)
 
 PROMPT="Read ${REPO_DIR}/hardware/reviews/REVIEWER.md fully and follow its protocol end-to-end. If state is not codex_turn, exit immediately without modifications. If codex_turn, complete exactly one full reviewer iteration including git pull, findings append, semaphore handoff, commit, and push."
 
@@ -69,7 +70,7 @@ run_once() {
   local rc=0
   (
     cd "${REPO_DIR}"
-    cursor-agent -p --trust --yolo --output-format text "${PROMPT}"
+    cursor-agent -p --trust --yolo --output-format text --model "${MODEL_ID}" "${PROMPT}"
   ) >>"${LOG_FILE}" 2>&1 || rc=$?
 
   if [ "${rc}" -eq 0 ]; then
@@ -176,7 +177,7 @@ Usage:
   scripts/reviewer_automation.sh daemon
 
 Environment overrides:
-  INTERVAL_SEC, POLL_SEC, MAX_RETRIES, RETRY_BACKOFF_SEC
+  INTERVAL_SEC, POLL_SEC, MAX_RETRIES, RETRY_BACKOFF_SEC, MODEL_ID
 EOF
 }
 

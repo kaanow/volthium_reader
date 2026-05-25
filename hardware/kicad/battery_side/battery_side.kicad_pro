@@ -44,7 +44,7 @@
     "version": 3
   },
   "net_settings": {
-    "_comment_cp3": "Class definitions per CP1 §11.3. Numeric track/clearance values are stored here as comments only — they are not bound into KiCad's clearance checker until CP4 (routing) so we don't trigger placement-phase clearance churn between adjacent SMD pads. CP4 will: (a) add the numeric fields below to each class, (b) re-enable netclass_patterns to assign nets to classes, (c) actually route copper traces at those widths.",
+    "_comment_cp3": "Class definitions per CP1 §11.3. Numeric track/clearance values stored in _intended_classes_cp4 below — not yet bound to KiCad's clearance checker (would trigger placement-phase clearance churn between SMD pads). CP4 routing reinstates numerics + netclass_patterns.",
     "_intended_classes_cp4": {
       "Default":     { "clearance": 0.2,  "track_width": 0.2,  "via_diameter": 0.6, "via_drill": 0.3 },
       "Power-24V":   { "clearance": 0.3,  "track_width": 1.0,  "via_diameter": 0.8, "via_drill": 0.4 },

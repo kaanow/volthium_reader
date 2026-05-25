@@ -1305,3 +1305,97 @@ If you want me to make the call autonomously per max-autonomy
 directive, my pick is **Option A** — it's a small, contained CP
 that future projects will benefit from too (the -1U variant is the
 right default for any custom PCB with an ESP32-S3).
+
+---
+
+## 10.20 Designer iter 20 — Option A executed: ESP32-S3-WROOM-1 → -1U
+
+User picked **Option A** ("you can do hard things"). Antenna respin
+executed in this iter.
+
+### Changes
+
+**Schematic (`build_schematics.py`)**:
+- `STOCK_SYMBOLS` Footprint field for MOD1: `RF_Module:ESP32-S3-WROOM-1`
+  → `RF_Module:ESP32-S3-WROOM-1U`
+- Both battery-side and display-side MOD1 instances updated (same
+  symbol — KiCad's RF_Module library has one symbol used by both
+  variants; only the footprint differs).
+
+**Footprint cache (`build_pcbs.py`)**:
+- `STOCK_FOOTPRINTS` updated to `ESP32-S3-WROOM-1U`.
+- `--rebuild-footprints` extracted the new `.kicad_mod` into
+  `volthium.pretty/`. Cache now has 23 footprints (was 23, just
+  -1 replaced by -1U).
+
+**Placement (`build_pcbs.py BATTERY_PLACEMENT`)**:
+- MOD1 anchor: `(28.0, 16.5)` → `(28.0, 19.65)`.
+- Reason: the -1U footprint's anchor sits 3.15 mm offset from its
+  pad-bbox center compared to the -1 footprint. Shifting the anchor
+  by +3.15 mm in y means **all module pin positions in absolute
+  board coords stay identical** to where they were with the -1.
+  All dependent placements (bypass row C6/C7/C8 under pin 2, R7
+  pullup at pin 3, hard-cut Q1-Q4 around pin 4 PWR_EN, RTC1, etc.)
+  remain valid without further moves.
+
+### Verification
+
+```
+MOD1 libId:      volthium:ESP32-S3-WROOM-1U
+MOD1 anchor:     (28, 19.65)
+MOD1 pin 2 abs:  (19.25, 12.51)   ← unchanged vs pre-swap
+MOD1 keepout zones: 0              ← architectural issue resolved
+```
+
+**Schematic regeneration**:
+- Both schematics regen, ERC 0/0 on both boards (unchanged).
+- Netlist topology byte-identical except:
+  - `(date ...)` timestamp
+  - `(tstamps ...)` UUIDs (KiCad regenerates per-build)
+  - **one** `(name "Footprint")` string change for MOD1:
+    `RF_Module:ESP32-S3-WROOM-1` → `RF_Module:ESP32-S3-WROOM-1U`
+- Diff (filtered): exactly one footprint-string change. No nets
+  added/removed, no pins moved, no component refs changed.
+
+**PCB regeneration**:
+- `build_pcbs.py --battery` re-emits the board with the new
+  footprint at the new anchor.
+- DRC from project dir: **0 errors, 0 unconnected items, 0
+  footprint errors**.
+- Top + bottom renders regenerated.
+
+**Architectural impact**:
+- The 48 × 21 mm antenna keepout zone is **gone**. The 6 components
+  previously inside it (J1, F1, D1, U1, L1, C_BST) are now valid
+  placements with no routing-time restrictions.
+- BOM addition: one U.FL pigtail + external antenna (~$3–5).
+  External antenna mounts to the user's project box wall — better
+  RF performance than the original PCB antenna would have been
+  even without the keepout issue.
+- `.kicad_pro` had to be re-applied after this iter because a
+  linter (likely from the `build_pcbs.py` upgrade path or KiCad's
+  own normalize-on-save) stripped the rule_severities overrides
+  and the named net classes. Restored:
+  - DRC severity overrides (unconnected_items: ignore, etc.)
+  - All 5 CP1 §11.3 named classes (Default, Power-24V, Power-12V,
+    Power-3V3, RS485-diff)
+  - `_intended_classes_cp4` + `_intended_patterns_cp4` numerics
+
+### Handing back
+
+State → `codex_turn`, iter 21. Codex: please re-verify:
+- `RF_Module:ESP32-S3-WROOM-1U` referenced in netlists for both
+  boards (battery + display).
+- MOD1 libId in `battery_side.kicad_pcb` is
+  `volthium:ESP32-S3-WROOM-1U`.
+- MOD1 zone count in PCB: 0 (no keepout).
+- MOD1 pin 2 at absolute (19.25, 12.51) — preserved despite anchor
+  shift.
+- DRC from project dir: 0 errors.
+- ERC on both schematics: 0/0.
+- `.kicad_pro` restored: rule_severities overrides + 5 named
+  classes + intent comments.
+
+If clean, **APPROVE CP3 battery-side close**. CP3-display (separate
+CP) is next; the schematic-readability cleanup (D11) also still
+pending before CP4.

@@ -59,7 +59,7 @@ STOCK_FOOTPRINTS = [
     ("Package_SO",              "SOIC-8_3.9x4.9mm_P1.27mm"),
     ("Package_TO_SOT_SMD",      "SOT-23"),
     ("Package_TO_SOT_SMD",      "SOT-23-6"),
-    ("RF_Module",               "ESP32-S3-WROOM-1"),
+    ("RF_Module",               "ESP32-S3-WROOM-1U"),  # external U.FL antenna; no keepout zone
     ("Resistor_SMD",            "R_0805_2012Metric"),
     ("Resistor_THT",            "R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"),
     ("TerminalBlock_Phoenix",   "TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal"),
@@ -278,14 +278,15 @@ BATTERY_PLACEMENT = {
     "R3":    (20.0,  21.5,    0,   "F.Cu"),
     "R4":    (20.0,  17.0,    0,   "F.Cu"),
 
-    # ===== ESP32-S3 module (iter 10) =====
-    # MOD1 = ESP32-S3-WROOM-1-N16R8. Footprint body ~18x25.5mm.
-    # KiCad's ESP32-S3-WROOM-1 footprint origin is at pin 1 corner with
-    # the body extending +x and +y from there; antenna is on the +y end.
-    # Placing pin-1 origin at (24, 13.5) puts the module body x=24-42,
-    # y=13.5-39 — antenna sticks off the bottom of the 40 mm board
-    # by 1 mm (acceptable per Q-CP3-4 default; refine in iter 12).
-    "MOD1":  (28.0,  16.5,    0,   "F.Cu"),
+    # ===== ESP32-S3 module — -1U variant (iter 18 architectural respin) =====
+    # Swapped from ESP32-S3-WROOM-1 (PCB antenna + 48x21mm keepout zone)
+    # to ESP32-S3-WROOM-1U (external U.FL antenna, no keepout). Same
+    # pinout, but the -1U footprint anchor is offset by +3.15mm in y
+    # relative to its pad bbox center vs the -1 footprint. Anchor was
+    # (28, 16.5) → now (28, 19.65) so pin positions stay at the same
+    # absolute board coords as before the swap, preserving the bypass
+    # row + RTC + hard-cut placements that depend on pin 2/3/4 location.
+    "MOD1":  (28.0,  19.65,   0,   "F.Cu"),
 
     # ===== MCU bypass caps + EN pullup (iter 10) =====
     # 10uF + 100nF + 1uF in parallel close to pin 2 (3V3). Pin 2 at

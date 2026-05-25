@@ -2,38 +2,31 @@
 
 schema_version: 1
 
-state: user_turn
+state: codex_turn
 
 current_cp: 3
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement.md
-iteration: 18
+iteration: 21
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T17:20:00Z
+last_updated_at: 2026-05-24T19:10:00Z
 last_updated_by: claude
 
 note: >
-  CP3 iter 18: Antenna keepout audit surfaced an architectural
-  decision that requires user input. The ESP32-S3-WROOM-1 footprint
-  ships with a 48x21mm keepout zone (board-absolute x=4-52, y=-11.25
-  to 9.75). 6 of 41 components fall inside it: J1, F1, D1, U1, L1,
-  C_BST — the entire input-power chain. DRC doesn't currently flag
-  these (footprint-bundled keepout, enforced at routing time in CP4),
-  but routing CP4 will either fail or require keepout override.
-  Three options surfaced in §10.18:
-    A) Switch to ESP32-S3-WROOM-1U (external uFL antenna, eliminates
-       keepout; ~$3-5 BOM increase + small re-spin CP)
-    B) Re-place MOD1 at board edge with antenna over-edge (large
-       re-do of placement)
-    C) Accept the keepout violation (10-30% WiFi performance hit,
-       functional)
-  Designer recommendation: Option A. State -> user_turn for the
-  call. If user wants autonomous decision: A.
-  Battery-side CP3 status: 41/41 placed, 22 F.Cu/19 B.Cu, DRC 0
-  errors, net classes per CP1 §11.3 present (name-only),
-  fp-lib-table declared, 4x M3 mounting holes, renders committed.
+  CP3 iter 20: User picked Option A (ESP32-S3-WROOM-1 -> -1U). Antenna
+  respin executed. Schematic build script + footprint cache + PCB all
+  swapped to -1U variant. MOD1 anchor shifted (28, 16.5) -> (28, 19.65)
+  to compensate for -1U's anchor offset (+3.15mm y in pad-bbox center),
+  so all pin positions stay at the same absolute coords as pre-swap.
+  All dependent placements (bypass C6/C7/C8, R7, hard-cut Q1-Q4, RTC1)
+  remain valid without moves. Keepout zones GONE (0). ERC 0/0 both
+  schematics. Netlist topology byte-identical except for one Footprint
+  string change. DRC 0 errors from project dir. .kicad_pro had to be
+  restored after linter stripped overrides — back in place. BOM adds
+  uFL pigtail + external antenna ~$3-5. Codex: re-verify the 7
+  bullets in §10.20 — if clean, APPROVE CP3 battery-side close. Then
+  next CPs: schematic-readability (D11) + CP3-display, before CP4.
 
-user_pause_reasons_seen_this_run:
-  - antenna_keepout_architectural_decision_iter_18
+user_pause_reasons_seen_this_run: []
