@@ -399,3 +399,108 @@ Re-review completed for iter-4 handoff claims and gate evidence:
 - Confirmed battery-side `.kicad_pro` contains `rule_severities` and named net classes, matching the DRC-regression side-fix intent.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 13. Designer iter 6 — D11 criterion #3 (functional grouping)
+
+### Changes
+
+**1. Paper size: A4 → A3 landscape**
+`_set_title_block` now sets `sch.paper.paperSize = "A3"`. A4
+landscape (297 × 210 mm) was too small for ~40-component
+schematics — components and labels crammed into the upper-left
+quadrant. A3 landscape (420 × 297 mm) doubles the usable area at
+the same aspect ratio.
+
+**2. MOD1 relocation**
+Battery-side `MOD1_X, MOD1_Y` moved from `(120*G, 90*G)` to
+`(180*G, 110*G)` — shifted right by ~76 mm and down ~25 mm. The
+ESP32-S3-WROOM-1 module body is ~30 × 56 mm; the previous position
+overlapped with the regulator row visually. New location gives MOD1
+its own region in the center-right of the sheet with breathing
+room on all sides.
+
+### Visual outcome
+
+The regenerated battery-side PDF now has clearly distinct
+functional regions:
+
+```
+TOP HALF (y < 50% of sheet)
+  top-left:    Power input  (J1 → F1 → D1 → TVS1)
+  top-mid:     Buck regulator (U1 + L1 + C_BST + C1 + C2)
+  top-mid-R:   Recom V12  (U2 + C3 + C4)
+  top-right:   RS-485     (U3 + R10/R11/R12 + TVS2 + C10)
+
+CENTER (y ≈ 50% of sheet)
+  left-center: Hard-cut  (Q1, Q2, R3, R4) + Sense divider (R5/R6/C5)
+  center:      MCU bypass (C6/C7/C8/R7) feeding MOD1
+  center:      MOD1 ESP32-S3-WROOM-1 (large module)
+  right:       RJ45 J2
+
+BOTTOM HALF
+  bottom-left:  RTC + backup (RTC1, BAT1, R8, R9, C9)
+                + Override button (BTN1, R13, C11)
+  bottom-right: Dev headers (J3, J5)
+```
+
+Signal flow is roughly left-to-right: V24_RAW input on left edge →
+regulators → V3V3/V12 rails → MOD1 in center → peripherals on right.
+
+### Per-board verification
+
+| Gate | battery_side | display_side |
+|------|--------------|--------------|
+| 1. `build_schematics.py` exit 0 | PASS | PASS |
+| 2. ERC 0/0 | PASS (0/0) | PASS (0/0) |
+| 3. Netlist diff = paper-size + title-block only | PASS | PASS |
+| 4. `(pin ...)` byte-identical | PASS | PASS |
+| 5. `(comp (ref X) ...)` stable | PASS | PASS |
+| 6. PCB DRC 0 errors from project dir | PASS (0 violations, 0 unconnected) | N/A |
+
+**Coord collision audit**:
+```
+battery_side: 46 symbols, 46 unique positions, 0 collisions
+display_side: 34 symbols, 34 unique positions, 0 collisions
+```
+
+**A3 verification**: `(paper "A3")` present in both `.kicad_sch`
+files; PDF title block reports "Size: A3".
+
+### D11 status update
+
+| Criterion | battery_side | display_side |
+|-----------|--------------|--------------|
+| #1 no symbol overlap | PASS | PASS |
+| #3 functional grouping + signal flow | **PASS** (clear regions visible in PDF) | PARTIAL (display-side reflow at iter 10) |
+| #4 populated title block | PASS | PASS |
+| #6 power rails on consistent edges | pending iter 8 (label-position audit) | pending iter 10 |
+| #2 real wires within clusters | pending iter 12 | pending iter 12 |
+| #5 legibility at 100% zoom | improved by A3 — final audit iter 14 | improved — final audit iter 14 |
+| #7 refdes visible | PASS | PASS |
+
+### What this iter does NOT cover
+
+- **Display-side reflow** (iter 10) — display-side gets the same
+  A3 treatment now (paper size change is shared by both schematics
+  via `_set_title_block`), but the MOD1 relocation for display-side
+  is a separate decision because the display's MOD1 has different
+  surrounding clusters.
+- **Power rail consistency** (criterion #6) — labels still cluster
+  near pin endpoints. Iter 8 will audit GND-below / V3V3-above /
+  V24_*-left conventions and adjust.
+- **Wire replacement** (criterion #2) — deferred to iter 12.
+
+### Handing back
+
+State → `codex_turn`, iter 7. Codex: please re-verify:
+- Both schematics now generate to A3 (`(paper "A3")` in
+  `.kicad_sch`).
+- Battery-side MOD1 at `(180*G, 110*G) = (228.6, 139.7)`.
+- All 6 gates per board still pass.
+- PDF rendering shows visually-distinct functional regions on
+  battery-side.
+
+If clean, APPROVE so iter 8 starts criterion #6 (power rails on
+consistent edges) — label-position audit for both schematics.

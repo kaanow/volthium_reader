@@ -323,12 +323,14 @@ def _load_project_lib() -> SymbolLib:
 
 
 def _set_title_block(sch: Schematic, title: str) -> None:
-    """Populate the schematic title block (D11 criterion #4).
+    """Populate the schematic title block + set A3 paper size.
 
-    KiCad reads `title`, `revision`, `date`, `company` from the
-    `(title_block ...)` block at the schematic root and renders them in
-    the sheet's title-block corner. Without this, the rendered PDF has
-    a blank title block — fails D11.
+    D11 criterion #4: title block must be populated.
+    D11 criterion #3 + #5: A4 landscape is too small for ~40-component
+    schematics — components and labels cram into the upper-left
+    quadrant. A3 landscape (420×297 mm vs 297×210 mm) gives ~2× area
+    at the same aspect ratio so functional blocks can occupy
+    visually-distinct regions with breathing room.
     """
     from kiutils.items.common import TitleBlock
     tb = TitleBlock()
@@ -337,6 +339,7 @@ def _set_title_block(sch: Schematic, title: str) -> None:
     tb.date = "2026-05-24"
     tb.company = "Volthium"
     sch.titleBlock = tb
+    sch.paper.paperSize = "A3"
 
 
 def _copy_symbol_to_schematic(lib: SymbolLib, sym_name: str, sch: Schematic) -> Symbol:
@@ -718,7 +721,11 @@ def build_battery_side_schematic() -> None:
     # × 56 mm tall (±27.94 mm pins on top/bottom). Placed below the
     # existing power cluster so everything fits on one A4 landscape page.
 
-    MOD1_X, MOD1_Y = 120 * G, 90 * G   # (152.4, 114.3)
+    # Moved to its own right-side column on A3 (CP-schematic-cleanup
+    # iter 6, criterion #3): keeps MOD1's ~30×56mm body from
+    # overlapping the regulator row above it, and gives left-side
+    # space for the bypass + RTC clusters that hang off MOD1's pins.
+    MOD1_X, MOD1_Y = 180 * G, 110 * G   # (228.6, 139.7)
 
     # Pin number → (net_name or "NC"). NC pins get a NoConnect marker.
     # Per CP1 §6 ESP32-S3 pin assignment table (battery-side).
