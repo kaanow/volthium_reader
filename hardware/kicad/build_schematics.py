@@ -1406,10 +1406,14 @@ def build_display_side_schematic() -> None:
     _place_symbol(s, "Conn_01x24", "J2", "EPD_FFC_24",
                   "Connector_FFC-FPC:Hirose_FH12-24S-0.5SH_1x24-1MP_P0.50mm_Horizontal",
                   (J2_X, J2_Y), lib=lib)
+    # CP-cleanup iter 26 (Finding 08): pins 2/3 share V3V3 (adjacent on
+    # the FFC). Dedupe with a wire + single label so the 24-pin stack
+    # at x=248.92 has one fewer redundant label. Pins 1/4 also share
+    # GND but they're separated by V3V3 pins, so the wire would need
+    # to route around — keep two GND labels there.
     epd_pins = {
         1: "GND",
-        2: "V3V3",
-        3: "V3V3",
+        # pin 2/3 V3V3 — single label below; wire connects pin 2 to pin 3
         4: "GND",
         5: "EPD_BUSY",
         6: "EPD_RST",
@@ -1425,8 +1429,16 @@ def build_display_side_schematic() -> None:
         endpoint = (J2_X - 5.08, J2_Y - lib_y)
         if pin in epd_pins:
             _place_label(s, epd_pins[pin], endpoint)
+        elif pin in (2, 3):
+            continue  # handled below as shared V3V3 with wire
         else:
             _place_noconnect(s, endpoint)
+
+    # V3V3 dedup: pin 2 at lib_y=25.4 → schematic y = 88.9-25.4 = 63.5
+    #             pin 3 at lib_y=22.86 → schematic y = 88.9-22.86 = 66.04
+    _v3v3_x = J2_X - 5.08
+    _place_wire(s, (_v3v3_x, J2_Y - 25.4), (_v3v3_x, J2_Y - 22.86))   # pin 2 → pin 3
+    _place_label(s, "V3V3", (_v3v3_x, J2_Y - 22.86))                  # at pin 3
 
     # C6 — 1µF panel VCC bulk (reduces VCC dip during refresh)
     C6_X, C6_Y = 60 * G, 90 * G   # (76.2, 114.3)

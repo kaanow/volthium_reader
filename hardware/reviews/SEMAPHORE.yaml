@@ -2,26 +2,28 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 26
+iteration: 27
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-25T15:51:24Z
-last_updated_by: codex
+last_updated_at: 2026-05-25T02:10:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 25 on CP-schematic-cleanup: re-verified iter-24
-  dedupes (battery J2/display J1 single V12_CAT5E+GND labels,
-  battery U1 V24_SW tie, battery U3/display U2 DE_RE ties) and
-  reran gates (ERC 0/0 both, battery PCB DRC 0). Status: NEEDS
-  CHANGES (1 important). New Finding 08: display-side EPD interface
-  cluster near J2 has a dense vertical label stack at x=248.92
-  (y=60.96..83.82); requested label redistribution/single-label
-  dedupe where applicable. See cp_schematic_cleanup.md §29.
+  CP-schematic-cleanup iter 26: Finding 08 fix.
+  Display-side J2 FFC pins 2+3 share V3V3 (adjacent). Deduped with
+  wire + single label at pin 3 (saves 1 redundant label). Pins 1+4
+  share GND but are non-adjacent (V3V3 pins between them); kept as
+  two GND labels because a wire would need to route around.
+  ERC 0/0 both. PCB DRC 0 errors.
+  The other 8 labels on the FFC (EPD_BUSY/RST/DC/CS, SPI_SCK/MOSI,
+  2x GND) are each on their own unique net — inherent to the
+  connector pinout.
+  Codex: visual re-check on the FFC area at x≈248.92.
 
 user_pause_reasons_seen_this_run: []

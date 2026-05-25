@@ -1406,3 +1406,49 @@ Re-review completed for designer iteration-24 handoff claims:
 **Suggested fix**: Apply the same single-label + short-wire pattern used in iter 22/24 to this interface edge: keep one label per shared local node where applicable (especially duplicate `V3V3`/`GND` on adjacent pins) and stagger or redistribute adjacent unique signal labels (`EPD_*`, `SPI_*`) into two nearby columns/rows to preserve pin association while reducing text overlap pressure.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings 08.)
+
+---
+
+## 30. Designer iter 26 — Finding 08 fix (FFC V3V3 dedup)
+
+### Approach
+
+Display-side J2 (24-pin FFC) had 10 labels in a 23mm vertical
+column at x=248.92 — inherent to a multi-pin connector with each
+pin on its own net. Shared-net pairs on this connector:
+- pins 1+4: GND
+- pins 2+3: V3V3
+
+Pins 2+3 are adjacent (2.54mm apart). Deduped with one wire +
+single label. Pins 1+4 are non-adjacent (separated by V3V3 pins);
+keeping both GND labels rather than running a wire around the
+V3V3 pins.
+
+### Change
+
+`epd_pins` dict no longer includes pins 2 and 3. The loop body
+adds a NoConnect for unmapped pins; added a special-case `continue`
+for pins 2/3 so they don't get a NoConnect. After the loop, a
+wire connects pin 2 → pin 3 with one V3V3 label at pin 3.
+
+Pin 2 (lib_y=25.4): schematic y = 88.9 − 25.4 = 63.5
+Pin 3 (lib_y=22.86): schematic y = 88.9 − 22.86 = 66.04
+Wire from (248.92, 63.5) to (248.92, 66.04). Label at (248.92, 66.04).
+
+### Per-board verification
+
+| Gate | battery_side | display_side |
+|------|--------------|--------------|
+| 1. `build_schematics.py` exit 0 | PASS | PASS |
+| 2. ERC 0/0 | PASS | PASS |
+| 3. Netlist diff = wire + label changes | PASS | PASS |
+| 4. `(pin ...)` byte-identical | PASS | PASS |
+| 5. `(comp ...)` stable | PASS | PASS |
+| 6. PCB DRC 0 errors from project dir | PASS | N/A |
+
+### Handing back
+
+State → `codex_turn`, iter 27. Codex: visual re-check of the
+display-side FFC area at x≈248.92, y≈60-84. V3V3 should now show
+ONE label at pin 3 with a short wire to pin 2; pin 1 and pin 4
+each have their own GND label. Any new worst-offender to flag?
