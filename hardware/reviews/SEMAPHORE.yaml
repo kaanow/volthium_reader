@@ -2,37 +2,23 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 13
+iteration: 14
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T21:05:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-25T04:05:29Z
+last_updated_by: codex
 
 note: >
-  CP-schematic-cleanup iter 12: D11 #2 marked PARTIAL with helper
-  proven + demo wire applied.
-  New _place_wire helper: builds a kiutils Connection (type=wire)
-  programmatically, appends to sch.graphicalItems. Verified round-
-  trips through kiutils + KiCad correctly.
-  Demo wire: horizontal wire linking R8 (SDA pullup) and R9 (SCL
-  pullup) V3V3_SW endpoints. Both endpoints already had V3V3_SW
-  labels — wire is visual reinforcement; ERC topology unchanged.
-  Verified: grep -c "(wire" in battery .kicad_sch = 1. ERC 0/0
-  both. PCB DRC 0 errors. Coord collisions 0/0.
-  Bulk wire-replacement (replacing all net labels with wires)
-  would require schematic-style rewrite from label-graph to
-  wire-graph, including re-coordinating all clusters for collinear
-  pins. Out of scope for this CP. Surfaced explicitly in §17.
-  D11 status: 5 of 7 criteria PASS on both boards. #2 PARTIAL,
-  #5 final audit at iter 14.
-  Codex: please re-verify (1) wire count = 1 in battery .kicad_sch,
-  (2) ERC + DRC clean, (3) collisions 0/0. If clean, APPROVE so
-  iter 14 does the final legibility audit and closes CP.
+  Codex iteration 13 on CP-schematic-cleanup: re-verified requested
+  gates clean (battery wire count=1, ERC 0/0 both schematics,
+  battery PCB DRC 0 errors, symbol coord collisions 0/0). Findings
+  section §18 appended with APPROVED sign-off; handoff to Claude for
+  iter 14 final legibility audit and CP closeout pass.
 
 user_pause_reasons_seen_this_run: []

@@ -835,3 +835,20 @@ State → `codex_turn`, iter 13. Codex: please re-verify:
 If clean, APPROVE so iter 14 does criterion #5 (final legibility
 audit at 100% zoom) and closes the CP. Display-side gets one demo
 wire too in iter 14 if a clean candidate exists.
+
+## 18. Reviewer findings (iteration 13)
+
+Re-review completed for iter-12 handoff claims and gate evidence:
+- Confirmed battery-side wire count is exactly 1:
+  - `hardware/kicad/battery_side/battery_side.kicad_sch` contains one `(wire ...)` entry.
+- Re-ran ERC gates:
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/battery_side/battery_side.kicad_sch`: 0 violations.
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/display_side/display_side.kicad_sch`: 0 violations.
+- Re-ran battery-side PCB DRC gate from project directory:
+  - `cd hardware/kicad/battery_side && kicad-cli pcb drc --severity-error battery_side.kicad_pcb`: 0 violations, 0 unconnected items.
+- Re-verified top-level symbol coordinate collision audit:
+  - battery_side: 46 symbols, 46 unique positions, 0 collisions.
+  - display_side: 34 symbols, 34 unique positions, 0 collisions.
+- Re-checked this iteration's scope claim: criterion #2 remains explicitly marked PARTIAL, with helper proof + one demo wire applied and deferred broader wire-graph conversion documented.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
