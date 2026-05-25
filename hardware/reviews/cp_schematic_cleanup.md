@@ -156,3 +156,25 @@ one-line fix.
 ## 10. Reviewer findings (append-only)
 
 *(append per the format in REVIEWER.md §5)*
+
+### Finding 01 — IMPORTANT — cp_schematic_cleanup.md:§6 Verification gates
+**Issue**: The per-iteration verification gates do not check PCB DRC stability, even though this CP's guardrail says CP3 PCB work must not be invalidated and REVIEWER protocol for CP2+ requires running `kicad-cli pcb drc`.
+**Evidence**: Running `kicad-cli pcb drc hardware/kicad/battery_side/battery_side.kicad_pcb` on this branch reports `Found 359 violations` (report: `battery_side-drc.rpt`). Current §6 gates only mention schematic ERC + netlist checks.
+**Suggested fix**: Add a DRC regression gate that compares against a checked-in baseline report/count (or at minimum violation count + classes), and fail the iteration if new violations appear.
+
+### Finding 02 — IMPORTANT — cp_schematic_cleanup.md:§7 Q-SCH-1
+**Issue**: The plan assumes kiutils may expose a direct `Wire` API, but the currently pinned environment does not expose a `Wire` class in `kiutils.items.schitems`; treating that path as likely can block criterion #2 implementation.
+**Evidence**: Runtime inspection in project venv: `hasattr(kiutils.items.schitems, "Wire") == False`; available related classes include `PolyLine`, `BusEntry`, and `BusAlias`.
+**Suggested fix**: Treat direct S-expression emission of `(wire ...)` segments as the primary plan for criterion #2 (not fallback), and keep a small serialization test that confirms KiCad re-opens + ERC stays 0/0 after emission.
+
+### Finding 03 — QUESTION — cp_schematic_cleanup.md:§7 Q-SCH-2
+**Issue**: Confirmed naming detail: in current kiutils the schematic-level title block field is `Schematic.titleBlock` (camelCase), not `title_block`; this should be explicit in the plan to avoid no-op writes.
+**Evidence**: Runtime inspection in project venv: `hasattr(Schematic(), "titleBlock") == True`, `hasattr(Schematic(), "title_block") == False`. Current generated schematic also has no `(title_block ...)` node.
+**Suggested fix**: Update the implementation note to set `s.titleBlock` explicitly, then verify by asserting `(title_block` appears in both emitted `.kicad_sch` files and in exported PDFs.
+
+### Finding 04 — QUESTION — cp_schematic_cleanup.md:§7 Q-SCH-4
+**Issue**: One CP for both boards is acceptable if each iteration keeps objective acceptance checks board-scoped; otherwise regressions can hide behind aggregate "both boards" statements.
+**Evidence**: This CP already has board-specific artifacts (`hardware/outputs/battery_side/*` and `hardware/outputs/display_side/*`) and independent ERC runs.
+**Suggested fix**: Keep a single CP, but report criterion pass/fail per board in each iteration note (battery-side vs display-side), then aggregate only in the final closeout.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings 01, 02.)
