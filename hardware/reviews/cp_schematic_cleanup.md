@@ -1121,3 +1121,12 @@ can target the fix.
 
 CP stays open until both designer and reviewer agree the PDFs
 satisfy D11 #0 and #5 by visual inspection, not just by audit.
+
+## 23. Reviewer findings (iteration 19)
+
+### Finding 06 — IMPORTANT — battery_side.kicad_sch:power-input / hard-cut cluster (upper-left)
+**Issue**: Battery-side still has an unreadable text-density hotspot in the upper-left cluster where multiple `V24_*` net labels and nearby ref/value text visually overlap, so D11 hard-stop readability criteria #0/#5 are not yet met.
+**Evidence**: Visual inspection of freshly rendered PDF from current branch (`kicad-cli sch export pdf hardware/kicad/battery_side/battery_side.kicad_sch`) shows stacked label text around the D1/TVS1/Q1 area. In the schematic source, several labels are tightly packed in the same region (e.g. `V24_AFTER_FUSE` at `(76.2, 41.91)` and `(105.41, 38.1)`, `V24_FUSED` at `(97.79, 38.1)` / `(116.84, 38.1)` / `(76.2, 46.99)` / `(76.2, 52.07)`) adjacent to D1 (`104.14, 36.83`) and TVS1 (`123.19, 36.83`).
+**Suggested fix**: Re-space this cluster before closeout: move the D1/TVS1 and hard-cut labels into two rows with minimum horizontal separation between labels, and relocate duplicated local `V24_FUSED` labels so only one label anchors each visual node in that cluster.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings 06.)
