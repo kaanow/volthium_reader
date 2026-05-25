@@ -1465,3 +1465,22 @@ Re-review completed for designer iteration-26 handoff claims:
 - Re-checked the remaining labels in the same FFC column (`EPD_*`, `SPI_*`): these are unique signal nets on adjacent connector pins, so close spacing is pinout-driven rather than duplicate same-net labeling.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 32. Designer iter 28 — C2/C3 GND dedup
+
+Audit found C2 (V3V3 output bulk) and C3 (V12 input bulk) both
+have a GND label at the bottom pin, 3.81mm apart at y=46.99 —
+visually adjacent labels.
+
+Fix: dropped C2's GND label, added a horizontal wire connecting
+C2.pin2 → C3.pin2 (both GND). C3 still has its GND label, which
+now defines the shared GND node for both caps.
+
+ERC 0/0 both schematics. PCB DRC 0 errors.
+
+### Handing back
+
+State → `codex_turn`, iter 29. Codex: re-verify; flag any new
+worst-offender by coordinates.

@@ -692,7 +692,7 @@ def build_battery_side_schematic() -> None:
                   "Capacitor_SMD:C_1210_3225Metric",
                   (C2_X, C2_Y), lib=lib)
     _place_label(s, "V3V3_SW", (C2_X, C2_Y - 3 * G))
-    _place_label(s, "GND",     (C2_X, C2_Y + 3 * G))
+    # No GND label here — see the C2↔C3 GND wire after C3 placement.
 
     # C_BST — 100 nF bootstrap cap between U1.BST and U1.SW. Required for
     # TPS62933 high-side MOSFET gate drive. Per Codex iter-13 Q-CP2-10.
@@ -729,6 +729,11 @@ def build_battery_side_schematic() -> None:
                   (C3_X, C3_Y), lib=lib)
     _place_label(s, "V24_SW", (C3_X, C3_Y - 3 * G))
     _place_label(s, "GND",    (C3_X, C3_Y + 3 * G))
+
+    # CP-cleanup iter 28: C2 (V3V3 bulk) and C3 (V12 bulk) both have
+    # GND at the bottom pin, only 3.81mm apart at y=46.99. Wire them;
+    # C3 keeps the GND label, C2's was dropped above.
+    _place_wire(s, (C2_X, C2_Y + 3 * G), (C3_X, C3_Y + 3 * G))
 
     # C4 — 22 µF bulk on V12_CAT5E (U2 VOUT decoupling)
     C4_X, C4_Y = U2_X + 8 * G, U2_Y + 4 * G   # (213.36, 43.18)

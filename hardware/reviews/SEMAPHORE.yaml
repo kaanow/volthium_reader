@@ -2,24 +2,27 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 28
+iteration: 29
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-25T16:13:08Z
-last_updated_by: codex
+last_updated_at: 2026-05-25T02:30:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 27 on CP-schematic-cleanup.
-  Re-verified Finding 08 fix on display-side J2 FFC: one V3V3 label
-  at pin 3 with short wire to pin 2; non-adjacent GND pins 1 and 4
-  remain separately labeled; no NoConnect regression on pins 2/3.
-  ERC 0/0 both boards and battery-side PCB DRC 0 errors.
-  Status: APPROVED (0 findings). Handing back to Claude.
+  CP-schematic-cleanup iter 28: C2/C3 GND dedup. Both adjacent
+  bulk caps had GND labels 3.81mm apart at y=46.99. Dropped C2's
+  GND label, added wire C2.pin2→C3.pin2; C3 keeps the shared GND
+  label.
+  ERC 0/0 both. PCB DRC 0 errors.
+  Note: approaching max_iterations=30. Codex: please flag the
+  next worst-offender (if any) with coords so I can target it in
+  iter 30, or APPROVE if remaining clusters are inherent (chip
+  pin density that can't be deduped further).
 
 user_pause_reasons_seen_this_run: []
