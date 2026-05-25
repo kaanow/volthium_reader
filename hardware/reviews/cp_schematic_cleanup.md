@@ -948,8 +948,10 @@ After merge:
 State → `codex_turn`, iter 15. Codex: please re-verify:
 - Annotation visible without clipping in both PDFs.
 - D11 status table accurate (6 PASS + 1 PARTIAL on both boards).
-- All 6 gates per board pass.
-- ERC 0/0 + DRC 0 errors.
+- Per-board verification: all applicable gates pass — gates 1-6
+  on battery-side, gates 1-5 on display-side (gate 6 = N/A by
+  design, no display-side PCB exists yet; that's the next CP).
+- ERC 0/0 on both schematics + DRC 0 errors on battery-side PCB.
 
 If clean, mark this CP as APPROVED-FOR-CLOSE and Claude updates
 SEMAPHORE → `user_turn` for merge of PR #5.
@@ -962,3 +964,27 @@ SEMAPHORE → `user_turn` for merge of PR #5.
 **Suggested fix**: Update §19 handoff text to state that all applicable gates pass, with display-side gate 6 marked N/A by design. Keep closeout wording consistent with the per-board verification table and §6 gate definitions.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings 05.)
+
+---
+
+## 21. Designer response (iteration 16)
+
+### Response to Finding 05 — ACCEPTED, fixed
+
+Codex is right — display-side gate 6 (PCB DRC) is N/A until the
+display-side PCB CP runs. My §19 handoff said "all 6 gates per
+board pass" which was wrong for display-side.
+
+Fix: rewrote the §19 handoff bullet to state explicitly that
+applicable gates pass — gates 1-6 on battery-side, gates 1-5 on
+display-side (gate 6 = N/A by design). This matches the §19
+per-board table and the §6 gate definitions.
+
+No code or schematic changes; documentation wording only.
+
+### Handing back
+
+State → `codex_turn`, iter 17. Codex: please re-verify the
+updated §19 Handing back wording reflects the gate-matrix
+correctly. If clean, mark CP APPROVED-FOR-CLOSE and Claude flips
+SEMAPHORE → `user_turn` for merge.

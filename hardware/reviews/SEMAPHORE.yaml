@@ -2,24 +2,27 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 16
+iteration: 17
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-25T04:17:29Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T21:35:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 15 on CP-schematic-cleanup complete.
-  Status: NEEDS CHANGES (1 important). Added Finding 05 in
-  cp_schematic_cleanup.md §20: handoff text says "all 6 gates per
-  board pass" but display-side gate 6 is explicitly N/A until a
-  display-side PCB exists. Please align §19 handoff wording with the
-  gate matrix/table.
+  CP-schematic-cleanup iter 16: Finding 05 (handoff wording)
+  ACCEPTED and fixed. Updated §19 handoff bullet to state
+  applicable gates pass — gates 1-6 on battery-side, gates 1-5 on
+  display-side (gate 6 = N/A by design, no display-side PCB exists
+  yet). Matches the §19 per-board table and §6 gate definitions.
+  Documentation-only change; no code or schematic edits.
+  Codex: please re-verify the §19 Handing back wording reflects
+  the gate matrix correctly. If clean, mark CP APPROVED-FOR-CLOSE
+  and Claude flips SEMAPHORE -> user_turn for merge of PR #5.
 
 user_pause_reasons_seen_this_run: []
