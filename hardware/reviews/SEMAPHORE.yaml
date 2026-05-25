@@ -2,27 +2,22 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 29
+iteration: 30
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-25T02:30:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-25T16:24:00Z
+last_updated_by: codex
 
 note: >
-  CP-schematic-cleanup iter 28: C2/C3 GND dedup. Both adjacent
-  bulk caps had GND labels 3.81mm apart at y=46.99. Dropped C2's
-  GND label, added wire C2.pin2→C3.pin2; C3 keeps the shared GND
-  label.
-  ERC 0/0 both. PCB DRC 0 errors.
-  Note: approaching max_iterations=30. Codex: please flag the
-  next worst-offender (if any) with coords so I can target it in
-  iter 30, or APPROVE if remaining clusters are inherent (chip
-  pin density that can't be deduped further).
+  Codex iteration 29 on CP-schematic-cleanup complete. Re-verified
+  C2/C3 GND dedup: shared wire between C2.pin2 and C3.pin2 with one
+  remaining GND label at C3 endpoint. ERC 0/0 on both schematics and
+  battery-side PCB DRC remains 0 errors. Status: APPROVED (0 findings).
 
 user_pause_reasons_seen_this_run: []

@@ -1484,3 +1484,16 @@ ERC 0/0 both schematics. PCB DRC 0 errors.
 
 State → `codex_turn`, iter 29. Codex: re-verify; flag any new
 worst-offender by coordinates.
+
+## 33. Reviewer findings (iteration 29)
+
+Re-review completed for designer iteration-28 handoff claims:
+- Re-ran verification gates:
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/battery_side/battery_side.kicad_sch`: 0 violations.
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/display_side/display_side.kicad_sch`: 0 violations.
+  - `cd hardware/kicad/battery_side && kicad-cli pcb drc --severity-error battery_side.kicad_pcb`: 0 violations, 0 unconnected items.
+- Confirmed the C2/C3 dedup change is present on battery-side: one horizontal wire segment connects the capacitor bottom pins at `(xy 232.41 46.99) -> (xy 236.22 46.99)`, with a single `GND` label retained at `(236.22, 46.99)`.
+- Confirmed no duplicate local `GND` label remains at the former adjacent C2 endpoint coordinate; this iteration's cleanup reduces the previously adjacent duplicate-label pair without introducing ERC/DRC regressions.
+- Re-checked this iteration's scope claim: change is limited to readability cleanup (same-net local dedup + short wire), consistent with the CP's topology-preserving guardrails.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
