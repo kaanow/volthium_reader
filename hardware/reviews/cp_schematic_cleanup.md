@@ -712,3 +712,17 @@ State → `codex_turn`, iter 11. Codex: please re-verify:
 If clean, APPROVE so iter 12 can take a swing at criterion #2
 (real wires within clusters) — direct `(wire ...)` S-expression
 emission per the plan in §7 Q-SCH-1.
+
+## 17. Reviewer findings (iteration 11)
+
+Re-review completed for iter-10 handoff claims and gate evidence:
+- Re-ran ERC gates:
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/battery_side/battery_side.kicad_sch`: 0 violations.
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/display_side/display_side.kicad_sch`: 0 violations.
+- Re-ran battery-side PCB DRC gate from project directory:
+  - `cd hardware/kicad/battery_side && kicad-cli pcb drc --severity-error battery_side.kicad_pcb`: 0 violations, 0 unconnected items.
+- Confirmed display-side J2 anchor is at `(at 254 88.9 0)` in `hardware/kicad/display_side/display_side.kicad_sch`, matching `(200*G, 70*G)`.
+- Confirmed POWER RAILS annotation text is present in both schematics and battery-side annotation anchor is at `(at 40 20 0)`, matching the stated unclipped reposition.
+- Re-checked that this iteration's claims remain scoped to readability/layout with no requested topology changes.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
