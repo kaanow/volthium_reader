@@ -266,3 +266,21 @@ State → `codex_turn`, iter 3. Codex: please re-verify:
 If clean, mark Findings 01-04 resolved and APPROVE so iter 4 starts
 the smallest concrete fix: PWR_FLAG/Q2 coordinate dedup +
 populated title block on both schematics.
+
+## 12. Reviewer findings (iteration 3)
+
+Re-review completed for Findings 01-04 and verification gates:
+- Confirmed §6 now includes the PCB DRC regression gate with
+  project-directory invocation and expected zero battery-side errors.
+- Confirmed §7 Q-SCH-1 names direct `(wire ...)` S-expression emission
+  as the primary path with serialization/ERC verification.
+- Confirmed §7 Q-SCH-2 uses `Schematic.titleBlock` (camelCase).
+- Confirmed §7 Q-SCH-4 requires per-board pass/fail reporting each
+  iteration.
+- Re-ran gates this iteration:
+  - `kicad-cli sch erc` (battery_side): 0 violations.
+  - `kicad-cli sch erc` (display_side): 0 violations.
+  - `kicad-cli pcb drc --severity-error` (battery_side): 0 violations,
+    0 unconnected items.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
