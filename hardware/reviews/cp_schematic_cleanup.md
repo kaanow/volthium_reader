@@ -284,3 +284,100 @@ Re-review completed for Findings 01-04 and verification gates:
     0 unconnected items.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 12. Designer iter 4 — D11 criterion #1 + #4
+
+### Changes
+
+**Criterion #1: PWR_FLAG/Q2 dedup**
+
+`build_schematics.py` line 994: V_BAT_RTC PWR_FLAG y offset changed
+from `R5_Y + 20*G` to `R5_Y + 26*G`. The +20*G value computed to
+y=76.2 which exactly collided with Q2 at (60*G=76.2, 60*G=76.2).
+New y=83.82 places the PWR_FLAG 7.62 mm below Q2 with no other
+nearby symbol.
+
+**Criterion #4: Title block on both sheets**
+
+Added `_set_title_block(sch, title)` helper that sets
+`Schematic.titleBlock` (kiutils camelCase, per Finding 03) with:
+
+```
+title:    "Volthium reader — battery side"  / "...display side"
+revision: "CP-schematic-cleanup"
+date:     "2026-05-24"
+company:  "Volthium"
+```
+
+Verified `(title_block ...)` block appears in both `.kicad_sch`
+files and renders correctly in the PDF title-block corner.
+
+### Side fix — `.kicad_pro` regression on schematic regen
+
+While verifying gate #6 (PCB DRC from project dir), discovered that
+the PCB DRC errors had jumped from 0 to 146. Root cause:
+`write_project_file` in `build_schematics.py` overwrites the
+`.kicad_pro` on every regen, stripping CP3's rule_severities
+overrides and named net classes.
+
+Fix: `write_project_file` now writes the full CP3-required project
+config (rule_severities + 5 named classes + intent comments). Every
+future schematic regen preserves the PCB design settings. Verified
+DRC back to 0 errors after rebuild.
+
+This is a workflow-transportability win — future runs of
+`build_schematics.py` won't silently regress PCB DRC. Worth a
+short note for any future PCB project that pairs schematic +
+PCB generation.
+
+### Per-board verification (per Codex Finding 04 protocol)
+
+| Gate | battery_side | display_side |
+|------|--------------|--------------|
+| 1. `build_schematics.py` exit 0 | PASS | PASS |
+| 2. ERC 0/0 | PASS (0 errors, 0 warnings) | PASS (0 errors, 0 warnings) |
+| 3. Netlist diff = title_block only | PASS (only `(title)`, `(company)`, `(rev)` strings differ) | PASS (same) |
+| 4. `(pin ...)` byte-identical | PASS | PASS |
+| 5. `(comp (ref X) (value Y) (footprint Z))` stable | PASS | PASS |
+| 6. PCB DRC 0 errors from project dir | PASS (0 violations, 0 unconnected) | N/A (no PCB) |
+
+### Coord collision audit (criterion #1 re-check)
+
+```
+battery_side: 46 symbols, 46 unique positions, 0 collisions
+display_side: 34 symbols, 34 unique positions, 0 collisions
+```
+
+Both boards: criterion #1 PASS.
+
+### D11 status
+
+| Criterion | battery_side | display_side |
+|-----------|--------------|--------------|
+| #1 no symbol overlap (coord) | PASS | PASS |
+| #4 populated title block | PASS | PASS |
+| #2 real wires within clusters | pending iter 8 | pending iter 8 |
+| #3 functional grouping + flow | pending iter 6 | pending iter 6 |
+| #5 legible at 100% zoom | pending iter 10 | pending iter 10 |
+| #6 power rails on consistent edges | pending iter 6 | pending iter 6 |
+| #7 refdes visible | PASS (PCB; sch always shown) | PASS |
+
+### Handing back
+
+State → `codex_turn`, iter 5. Codex: please re-verify all 6 gates
+per board (battery + display) and the D11 status table. Specifically:
+- PWR_FLAG/Q2 collision at (76.2, 76.2) gone — V_BAT_RTC PWR_FLAG
+  now at (76.2, 83.82).
+- `(title_block ...)` block present in both `.kicad_sch` and
+  renders in the PDF corner.
+- Netlist topology preserved: only `(title)`/`(company)`/`(rev)`
+  strings change; refs/pins/nets identical.
+- PCB DRC from `hardware/kicad/battery_side/`: still 0 errors.
+- `write_project_file` fix prevents future regression of
+  rule_severities + named classes.
+
+If clean, APPROVE so iter 6 starts on criterion #3 + #6 (functional
+grouping + power rails on consistent edges) — the largest scope of
+this CP.

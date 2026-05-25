@@ -10,6 +10,8 @@ PID_FILE="${STATE_DIR}/daemon.pid"
 LOCK_DIR="${STATE_DIR}/run.lock"
 LOG_FILE="${STATE_DIR}/automation.log"
 DUE_FILE="${STATE_DIR}/next_due_epoch"
+HEARTBEAT_FILE="${STATE_DIR}/heartbeat_epoch"
+STOP_FILE="${STATE_DIR}/stop_requested"
 
 INTERVAL_SEC="${INTERVAL_SEC:-600}"          # 10 minutes
 POLL_SEC="${POLL_SEC:-20}"                   # scheduler poll period
@@ -23,6 +25,10 @@ mkdir -p "${STATE_DIR}"
 
 log() {
   printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S %Z')" "$*" | tee -a "${LOG_FILE}" >/dev/null
+}
+
+heartbeat() {
+  date +%s > "${HEARTBEAT_FILE}"
 }
 
 is_running() {
@@ -101,13 +107,18 @@ run_due_cycle() {
 }
 
 daemon_loop() {
-  log "DAEMON: started (interval=${INTERVAL_SEC}s poll=${POLL_SEC}s retries=${MAX_RETRIES})"
+  log "DAEMON: worker started (interval=${INTERVAL_SEC}s poll=${POLL_SEC}s retries=${MAX_RETRIES})"
+  heartbeat
   if [ ! -f "${DUE_FILE}" ]; then
     # Start with an immediate run when first launched.
     printf '%s\n' "$(date +%s)" > "${DUE_FILE}"
   fi
 
   while true; do
+    if [ -f "${STOP_FILE}" ]; then
+      log "DAEMON: stop requested; worker exiting"
+      return 0
+    fi
     local now due
     now="$(date +%s)"
     due="$(get_due)"
@@ -115,7 +126,28 @@ daemon_loop() {
       log "DAEMON: due reached (now=${now} due=${due})"
       run_due_cycle || true
     fi
+    heartbeat
     sleep "${POLL_SEC}"
+  done
+}
+
+supervisor_loop() {
+  trap 'log "DAEMON: supervisor got termination signal"; rm -f "${PID_FILE}"' INT TERM HUP
+  log "DAEMON: supervisor started (pid=$$)"
+  heartbeat
+  while true; do
+    if [ -f "${STOP_FILE}" ]; then
+      log "DAEMON: supervisor stop flag seen; exiting"
+      rm -f "${STOP_FILE}"
+      rm -f "${PID_FILE}"
+      return 0
+    fi
+    daemon_loop || true
+    if [ -f "${STOP_FILE}" ]; then
+      continue
+    fi
+    log "DAEMON: worker exited unexpectedly; restarting in 5s"
+    sleep 5
   done
 }
 
@@ -125,7 +157,8 @@ start_daemon() {
     echo "already running"
     return 0
   fi
-  nohup "$0" daemon >>"${LOG_FILE}" 2>&1 &
+  rm -f "${STOP_FILE}"
+  nohup "$0" supervise >>"${LOG_FILE}" 2>&1 &
   local pid="$!"
   printf '%s\n' "${pid}" > "${PID_FILE}"
   log "DAEMON: launched (pid=${pid})"
@@ -140,29 +173,41 @@ stop_daemon() {
   fi
   local pid
   pid="$(cat "${PID_FILE}")"
+  touch "${STOP_FILE}"
   kill "${pid}" >/dev/null 2>&1 || true
   sleep 1
   if ps -p "${pid}" >/dev/null 2>&1; then
     kill -9 "${pid}" >/dev/null 2>&1 || true
   fi
   rm -f "${PID_FILE}"
+  rm -f "${STOP_FILE}"
   log "DAEMON: stopped (pid=${pid})"
   echo "stopped"
 }
 
 status_daemon() {
-  local due due_human
+  local due due_human hb hb_age
   due="$(get_due)"
   if [ "${due}" -gt 0 ]; then
     due_human="$(date -r "${due}" '+%Y-%m-%d %H:%M:%S %Z' 2>/dev/null || echo "${due}")"
   else
     due_human="unset"
   fi
+  if [ -f "${HEARTBEAT_FILE}" ]; then
+    hb="$(cat "${HEARTBEAT_FILE}" 2>/dev/null || echo 0)"
+    if [ "${hb}" -gt 0 ]; then
+      hb_age="$(( $(date +%s) - hb ))s"
+    else
+      hb_age="unknown"
+    fi
+  else
+    hb_age="none"
+  fi
 
   if is_running; then
-    echo "running pid=$(cat "${PID_FILE}") next_due=${due_human}"
+    echo "running pid=$(cat "${PID_FILE}") next_due=${due_human} heartbeat_age=${hb_age}"
   else
-    echo "stopped next_due=${due_human}"
+    echo "stopped next_due=${due_human} heartbeat_age=${hb_age}"
   fi
   echo "log=${LOG_FILE}"
 }
@@ -175,6 +220,7 @@ Usage:
   scripts/reviewer_automation.sh status
   scripts/reviewer_automation.sh run-now
   scripts/reviewer_automation.sh daemon
+  scripts/reviewer_automation.sh supervise
 
 Environment overrides:
   INTERVAL_SEC, POLL_SEC, MAX_RETRIES, RETRY_BACKOFF_SEC, MODEL_ID
@@ -188,5 +234,6 @@ case "${cmd}" in
   status)  status_daemon ;;
   run-now) run_due_cycle ;;
   daemon)  daemon_loop ;;
+  supervise) supervisor_loop ;;
   *)       usage; exit 1 ;;
 esac
