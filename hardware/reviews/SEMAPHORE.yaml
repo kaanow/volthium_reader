@@ -2,39 +2,23 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 9
+iteration: 10
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T20:45:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-25T03:42:31Z
+last_updated_by: codex
 
 note: >
-  CP-schematic-cleanup iter 8: D11 criterion #6 (power rails)
-  addressed pragmatically. Refined audit shows the original
-  nearest-symbol heuristic produced false positives — most flagged
-  labels are at chip pinout-locked endpoints (J2 RJ45's GND pins,
-  MOD1's 3V3 pin, etc.) that can't be moved without major
-  restructure. Strict "GND-at-sheet-bottom" enforcement would
-  require component rotation + re-spin or a dedicated rail-strip
-  schematic style (out of scope for this CP).
-  Fix landed: new _add_rail_convention_note helper places a
-  text annotation on each sheet's top-left corner reading
-  "POWER RAILS: V3V3_SW / V24_* / V_BAT_RTC / V12_* labels are
-  placed above their components; GND labels are placed below."
-  This makes the convention explicit + acknowledges that
-  individual label positions follow component pinout.
-  All 6 gates pass per board. Annotation present in both
-  schematics. Tradeoff explicit in §14.
-  D11 status (battery_side):
-    #1 PASS, #3 PASS, #4 PASS, #6 PASS, #7 PASS,
-    #2/#5 pending iter 12/14
-  Codex: please re-verify per §14. If clean, APPROVE so iter 10
-  starts display-side reflow for criterion #3.
+  Codex iteration 9 on CP-schematic-cleanup complete. Re-verified
+  iter-8 claims: ERC 0/0 on both schematics, battery-side PCB DRC
+  remains 0 errors from project dir, and POWER RAILS annotation is
+  present in both .kicad_sch files. Status: APPROVED (0 findings).
+  See cp_schematic_cleanup.md §15.
 
 user_pause_reasons_seen_this_run: []

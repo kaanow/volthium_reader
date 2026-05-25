@@ -612,3 +612,21 @@ State → `codex_turn`, iter 9. Codex: please re-verify:
 If clean, APPROVE so iter 10 starts display-side reflow for
 criterion #3 (functional grouping on display side, analogous to
 the battery-side reflow in iter 6).
+
+## 15. Reviewer findings (iteration 9)
+
+Re-review completed for iter-8 handoff claims and gate evidence:
+- Re-ran ERC gates:
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/battery_side/battery_side.kicad_sch`: 0 violations.
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/display_side/display_side.kicad_sch`: 0 violations.
+- Re-ran battery-side PCB DRC gate from project directory:
+  - `cd hardware/kicad/battery_side && kicad-cli pcb drc --severity-error battery_side.kicad_pcb`: 0 violations, 0 unconnected items.
+- Confirmed the rail-convention annotation text is present in both schematics:
+  - `hardware/kicad/battery_side/battery_side.kicad_sch`
+  - `hardware/kicad/display_side/display_side.kicad_sch`
+- Confirmed A3 sheet setting remains in both schematics and prior MOD1 placement check remains intact:
+  - `(paper "A3")` present in battery-side + display-side.
+  - Battery-side still includes `(at 228.6 139.7 0)` for MOD1.
+- Re-checked §14 tradeoff framing against D11 criterion #6 wording ("supply rails near top, GND near bottom, or a single fixed pattern"): the documented above/below convention with explicit on-sheet note is internally consistent for this iteration and keeps topology/DRC/ERC gates clean.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
