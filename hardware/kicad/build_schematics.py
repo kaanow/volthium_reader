@@ -342,6 +342,27 @@ def _set_title_block(sch: Schematic, title: str) -> None:
     sch.paper.paperSize = "A3"
 
 
+def _place_wire(sch: Schematic, start: tuple[float, float], end: tuple[float, float]) -> None:
+    """Add a (wire ...) graphical item between two pin endpoints.
+
+    D11 criterion #2: real wires within clusters. Use sparingly — wires
+    are visually redundant with net labels but visually reinforce that
+    two adjacent components share a net. Add a wire only when both
+    endpoints are already on the same labeled net (so ERC topology is
+    unchanged and the wire is purely decorative).
+    """
+    from kiutils.items.schitems import Connection
+    from kiutils.items.common import Position, Stroke
+    w = Connection()
+    w.type = "wire"
+    w.points = [Position(X=start[0], Y=start[1]), Position(X=end[0], Y=end[1])]
+    w.stroke = Stroke(width=0.0, type="default")
+    w.uuid = _uuid()
+    if sch.graphicalItems is None:
+        sch.graphicalItems = []
+    sch.graphicalItems.append(w)
+
+
 def _add_rail_convention_note(sch: Schematic, x: float = 40.0, y: float = 20.0) -> None:
     """Add a sheet-level text annotation documenting the power-rail convention.
 
@@ -925,6 +946,11 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "V3V3_SW", (R8_X, R8_Y - 3 * G))
     _place_label(s, "I2C_SDA", (R8_X, R8_Y + 3 * G))
     R9_X, R9_Y = 30 * G, 90 * G   # (38.1, 114.3)
+    # D11 #2 demo: horizontal wire linking R8/R9 V3V3_SW endpoints visually.
+    # Both endpoints already have V3V3_SW labels; the wire is decorative
+    # reinforcement that these I2C pullups share the same rail. ERC
+    # topology unchanged (labels are the topological source-of-truth).
+    _place_wire(s, (R9_X, R9_Y - 3 * G), (R8_X, R8_Y - 3 * G))
     _place_symbol(s, "R", "R9", "4.7k",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R9_X, R9_Y), lib=lib)

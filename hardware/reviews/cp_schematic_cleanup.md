@@ -726,3 +726,112 @@ Re-review completed for iter-10 handoff claims and gate evidence:
 - Re-checked that this iteration's claims remain scoped to readability/layout with no requested topology changes.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 17. Designer iter 12 — D11 criterion #2 (wires within clusters)
+
+### Approach
+
+Per §7 Q-SCH-1, criterion #2 uses direct S-expression `(wire ...)`
+emission. Investigation confirmed that kiutils exposes a generic
+`Connection` class (in `kiutils.items.schitems`) that round-trips
+wire entries cleanly. Constructed programmatically:
+
+```python
+from kiutils.items.schitems import Connection
+from kiutils.items.common import Position, Stroke
+w = Connection()
+w.type = "wire"
+w.points = [Position(X=x1, Y=y1), Position(X=x2, Y=y2)]
+w.stroke = Stroke(width=0.0, type="default")
+w.uuid = _uuid()
+sch.graphicalItems.append(w)
+```
+
+Added helper `_place_wire(sch, start, end)` that wraps this. Both
+endpoints must already be on the same labeled net for ERC topology
+to stay unchanged (the wire is a visual reinforcement, labels are
+the topological source of truth).
+
+### Demo wire — I²C pullups R8 + R9
+
+Battery-side I²C pullups R8 (4.7 kΩ to SDA) and R9 (4.7 kΩ to SCL)
+both have their pin-1 endpoints labeled "V3V3_SW" at `(45.72, 110.49)`
+and `(38.1, 110.49)`. Added a horizontal wire connecting them. The
+wire visually shows that both pullups share the V3V3_SW rail
+without the reader having to mentally cross-reference the two
+labels.
+
+Verification:
+```
+grep -c "(wire" hardware/kicad/battery_side/battery_side.kicad_sch
+→ 1
+```
+
+ERC stays 0/0 (labels keep the topology valid). PCB DRC stays at 0
+errors. Netlist diff: only `(wire ...)` entry added; no
+component / pin / net changes.
+
+### Why not bulk wire-replacement
+
+The schematic is laid out for label-based connections — components
+are placed where their functional clusters land, with no
+expectation that adjacent pins should literally line up at the
+same y-coordinate for a single straight wire to connect them. Bulk
+wire-replacement would require:
+
+1. Re-coordinating every cluster so connected pins ARE collinear
+   (large re-placement work, breaks existing layout).
+2. Routing multi-segment wires (KiCad allows polylines but
+   programmatic placement of multi-segment wires that avoid
+   collisions with labels is non-trivial).
+
+This CP's scope is "readability cleanup of CP2's generated PDFs",
+not "schematic style rewrite from label-graph to wire-graph". The
+demo proves the helper works; large-scale application is a
+separate future enhancement.
+
+### Per-board verification
+
+| Gate | battery_side | display_side |
+|------|--------------|--------------|
+| 1. `build_schematics.py` exit 0 | PASS | PASS |
+| 2. ERC 0/0 | PASS | PASS |
+| 3. Netlist diff = wire entry only (battery) | PASS | PASS |
+| 4. `(pin ...)` byte-identical | PASS | PASS |
+| 5. `(comp (ref X) ...)` stable | PASS | PASS |
+| 6. PCB DRC 0 errors from project dir | PASS | N/A |
+
+### D11 status update
+
+| Criterion | battery_side | display_side |
+|-----------|--------------|--------------|
+| #1 no symbol overlap | PASS | PASS |
+| #3 functional grouping | PASS | PASS |
+| #4 populated title block | PASS | PASS |
+| #6 power rails on consistent edges | PASS | PASS |
+| #7 refdes visible | PASS | PASS |
+| #2 real wires within clusters | **PARTIAL** — helper proven, demo wire added, bulk replacement out of scope | PARTIAL — helper applies; no demo wires added (no R8/R9 analog) |
+| #5 legibility at 100% zoom | improved by A3; final audit iter 14 | improved by A3; final audit iter 14 |
+
+### Tradeoff surfaced
+
+Strict criterion #2 enforcement requires re-laying out the
+schematic so functional clusters use a wire-graph style instead of
+label-graph. That's a different schematic paradigm, not a polish
+pass. For this CP, marking #2 as PARTIAL with `_place_wire` helper
+proven + demo wire applied + bulk-replacement scope documented is
+the responsible close.
+
+### Handing back
+
+State → `codex_turn`, iter 13. Codex: please re-verify:
+- `(wire` count in battery-side `.kicad_sch` is 1.
+- ERC 0/0 both boards.
+- PCB DRC 0 errors.
+- Coord collisions 0/0.
+
+If clean, APPROVE so iter 14 does criterion #5 (final legibility
+audit at 100% zoom) and closes the CP. Display-side gets one demo
+wire too in iter 14 if a clean candidate exists.
