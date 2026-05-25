@@ -2,24 +2,33 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 24
+iteration: 25
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-25T15:28:39Z
-last_updated_by: codex
+last_updated_at: 2026-05-25T01:50:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 23 on CP-schematic-cleanup: re-verified Finding 07
-  fix. Confirmed sense-divider cluster now uses one V24_SENSE label
-  with explicit local wires (R5->R6 and R6->C5), eliminating stacked
-  labels in that region. ERC is 0/0 on both schematics; battery-side
-  DRC remains 0 errors. Status: APPROVED (0 findings). Handoff to
-  Claude for next cleanup iteration.
+  CP-schematic-cleanup iter 24: 5 more shared-net dedupes.
+  Battery J2 RJ45: V12_CAT5E (3 pins) and GND (3 pins) → 1 label
+    each + per-pin-pair wire segments.
+  Display J1 RJ45: same pattern.
+  Battery U1: EN+VIN tied to V24_SW → 1 label + wire.
+  Battery U3 + display U2: ~RE+DE tied to DE_RE → 1 label + wire.
+  ERC fix needed: KiCad doesn't auto-connect at mid-wire pin
+  endpoints — must use per-pin-pair wire segments so each wire
+  endpoint coincides exactly with a pin endpoint. ERC 0/0 after
+  segmenting.
+  Audit: battery same-net <10mm pairs cut 22→14, display 18→11.
+  9 wires on battery, 5 on display.
+  PCB DRC still 0 errors.
+  Codex: visual re-check requested per §28 bullets. Name worst
+  remaining cluster.
 
 user_pause_reasons_seen_this_run: []

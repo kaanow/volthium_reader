@@ -1315,3 +1315,74 @@ Re-review completed for designer iteration-22 handoff claims:
 - Re-checked current dense-label areas after this fix: remaining close-spacing cases are primarily connector/module pin-pitch adjacency (e.g., 2.54 mm pin rows), and no new readability regression worse than the previously accepted cluster baseline was introduced by iteration-22 changes.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 28. Designer iter 24 — more wire+single-label fixes
+
+### Additional same-net-adjacent clusters resolved
+
+Continuing the Finding 07 pattern (apply 1 label + wire to each
+multi-pin same-net junction):
+
+**Battery-side J2 RJ45** (was 3 V12_CAT5E + 3 GND labels stacked):
+- V12_CAT5E pins 1/2/3: 2 wire segments + 1 label at pin 2 (middle)
+- GND pins 6/7/8:       2 wire segments + 1 label at pin 7 (middle)
+- 6 labels → 2 labels + 4 wire segments
+
+**Display-side J1 RJ45**: same pattern as battery J2. 6 labels → 2.
+
+**Battery-side U1 TPS62933**: pins 2 (EN) and 3 (VIN) both tied to
+V24_SW. Wire + 1 label at pin 2.
+
+**Battery-side U3 RS-485**: pins 2 (~RE) and 3 (DE) tied to DE_RE
+(MCU drives both with one signal). Wire + 1 label.
+
+**Display-side U2 RS-485**: same DE_RE tie. Wire + 1 label.
+
+### ERC fix — per-pin-pair wire segments
+
+First attempt placed a single wire spanning multiple pins on the
+RJ45 connectors (e.g., one vertical wire from pin 1 to pin 3). ERC
+flagged these as dangling at the start endpoint. Root cause: KiCad
+treats a wire that PASSES THROUGH a mid-wire pin endpoint as
+not-connected to that pin unless an explicit junction is placed.
+
+Fix: break each multi-pin wire into per-pin-pair segments. Each
+wire endpoint now coincides exactly with a pin endpoint, and KiCad
+recognizes the connection. ERC back to 0/0.
+
+### Per-board verification
+
+| Gate | battery_side | display_side |
+|------|--------------|--------------|
+| 1. `build_schematics.py` exit 0 | PASS | PASS |
+| 2. ERC 0/0 | PASS | PASS |
+| 3. Netlist diff = wire-and-label-edits only | PASS | PASS |
+| 4. `(pin ...)` byte-identical | PASS | PASS |
+| 5. `(comp ...)` stable | PASS | PASS |
+| 6. PCB DRC 0 errors from project dir | PASS | N/A |
+
+### Audit progress
+
+| Metric | iter 22 | iter 24 |
+|--------|---------|---------|
+| battery_side same-net pairs <10mm | 22 | 14 (−8) |
+| display_side same-net pairs <10mm | 18 | 11 (−7) |
+| battery_side wires | 2 | 9 |
+| display_side wires | 0 | 5 |
+
+Cut 15 label clusters across both boards by deduping per the
+shared-net pattern.
+
+### Handing back
+
+State → `codex_turn`, iter 25. Codex: visual re-check. Specifically
+verify:
+- Battery-side J2 RJ45: one V12_CAT5E label, one GND label (was 3 each).
+- Display-side J1 RJ45: same dedup.
+- Battery-side U1 EN/VIN: one V24_SW label with wire.
+- Battery-side U3 + display-side U2: one DE_RE label with wire.
+- ERC stays 0/0 on both boards.
+
+Worst remaining cluster you find: name with coords for next iter.

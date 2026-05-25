@@ -655,8 +655,11 @@ def build_battery_side_schematic() -> None:
     #   BST → 100nF bootstrap cap (placeholder NoConnect for now; cap added
     #         in iter 14 when MOSFET cluster lands — they share decoupling)
     #   SS, RT → NoConnect (use internal defaults)
-    _place_label(s, "V24_SW", (U1_X - 6 * G, U1_Y - 6 * G))      # pin 3 VIN
-    _place_label(s, "V24_SW", (U1_X - 6 * G, U1_Y - 4 * G))      # pin 2 EN
+    # CP-cleanup iter 24: U1.VIN (pin 3) and U1.EN (pin 2) are both
+    # tied to V24_SW (always-on regulator). Replace stacked labels
+    # with a wire from pin 3 to pin 2 + one label at pin 2.
+    _place_wire(s, (U1_X - 6 * G, U1_Y - 6 * G), (U1_X - 6 * G, U1_Y - 4 * G))
+    _place_label(s, "V24_SW", (U1_X - 6 * G, U1_Y - 4 * G))      # pin 2 EN (also drives pin 3 via wire)
     _place_label(s, "GND",       (U1_X,         U1_Y + 10 * G))  # pin 4 GND
     _place_label(s, "U1_SW",     (U1_X + 6 * G, U1_Y))           # pin 5 SW
     _place_label(s, "V3V3_SW",   (U1_X + 6 * G, U1_Y + 6 * G))   # pin 8 FB
@@ -1009,8 +1012,10 @@ def build_battery_side_schematic() -> None:
                   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
                   (U3_X, U3_Y), lib=lib)
     _place_label(s, "UART_RX_3V3", (U3_X - 8 * G,  U3_Y - 4 * G))   # pin 1 RO
-    _place_label(s, "DE_RE",       (U3_X - 8 * G,  U3_Y - 2 * G))   # pin 2 ~RE (tied to DE)
-    _place_label(s, "DE_RE",       (U3_X - 8 * G,  U3_Y))            # pin 3 DE
+    # CP-cleanup iter 24: U3 ~RE (pin 2) and DE (pin 3) are tied so
+    # the MCU drives both with a single DE_RE signal. Wire + 1 label.
+    _place_wire(s, (U3_X - 8 * G, U3_Y - 2 * G), (U3_X - 8 * G, U3_Y))
+    _place_label(s, "DE_RE",       (U3_X - 8 * G,  U3_Y - 2 * G))   # pin 2/3 (tied)
     _place_label(s, "UART_TX_3V3", (U3_X - 8 * G,  U3_Y + 4 * G))   # pin 4 DI
     _place_label(s, "GND",         (U3_X,          U3_Y + 12 * G))   # pin 5 GND
     _place_label(s, "RS485_A",     (U3_X + 8 * G,  U3_Y - 6 * G))   # pin 6 A
@@ -1104,14 +1109,24 @@ def build_battery_side_schematic() -> None:
     # Pin Y offsets from symbol center (after Y-flip): pin 1=+7.62 below,
     # pin 8=-10.16 above. Use 3*G grid alignment (lib_Y values are
     # multiples of 2.54 = 2*G, so Y-flip gives multiples of 2*G).
-    _place_label(s, "V12_CAT5E", (J2_X + 8 * G, J2_Y + 6 * G))   # pin 1 (lib_Y=-7.62)
-    _place_label(s, "V12_CAT5E", (J2_X + 8 * G, J2_Y + 4 * G))   # pin 2 (lib_Y=-5.08)
-    _place_label(s, "V12_CAT5E", (J2_X + 8 * G, J2_Y + 2 * G))   # pin 3 (lib_Y=-2.54)
-    _place_label(s, "RS485_A",   (J2_X + 8 * G, J2_Y))            # pin 4 (lib_Y= 0)
-    _place_label(s, "RS485_B",   (J2_X + 8 * G, J2_Y - 2 * G))   # pin 5 (lib_Y=+2.54)
-    _place_label(s, "GND",       (J2_X + 8 * G, J2_Y - 4 * G))   # pin 6 (lib_Y=+5.08)
-    _place_label(s, "GND",       (J2_X + 8 * G, J2_Y - 6 * G))   # pin 7 (lib_Y=+7.62)
-    _place_label(s, "GND",       (J2_X + 8 * G, J2_Y - 8 * G))   # pin 8 (lib_Y=+10.16)
+    # CP-cleanup iter 24: pins 1/2/3 share V12_CAT5E, pins 6/7/8 share
+    # GND. Previously each pin got its own label → 3 stacked labels per
+    # rail at 2.54mm pitch (unreadable). Replaced with one label + a
+    # vertical wire that spans the three same-net pin endpoints
+    # (criterion #2 pattern).
+    _PIN_X = J2_X + 8 * G
+    # V12_CAT5E: 2 wire segments (pin 1↔2 and pin 2↔3) so each wire
+    # endpoint coincides with an actual pin endpoint (ERC requirement
+    # — KiCad doesn't auto-connect at wire midpoint without junctions).
+    _place_wire(s, (_PIN_X, J2_Y + 6 * G), (_PIN_X, J2_Y + 4 * G))   # pin 1 → pin 2
+    _place_wire(s, (_PIN_X, J2_Y + 4 * G), (_PIN_X, J2_Y + 2 * G))   # pin 2 → pin 3
+    _place_label(s, "V12_CAT5E", (_PIN_X, J2_Y + 4 * G))             # at pin 2 (middle)
+    _place_label(s, "RS485_A",   (_PIN_X, J2_Y))                     # pin 4
+    _place_label(s, "RS485_B",   (_PIN_X, J2_Y - 2 * G))             # pin 5
+    # GND: 2 wire segments (pin 6↔7 and pin 7↔8)
+    _place_wire(s, (_PIN_X, J2_Y - 4 * G), (_PIN_X, J2_Y - 6 * G))   # pin 6 → pin 7
+    _place_wire(s, (_PIN_X, J2_Y - 6 * G), (_PIN_X, J2_Y - 8 * G))   # pin 7 → pin 8
+    _place_label(s, "GND",       (_PIN_X, J2_Y - 6 * G))             # at pin 7 (middle)
 
     # J3 — 4-pin USB-OTG dev header (D+/D-/EN/GND)
     # Conn_01x04 pin lib: pin 1 (-5.08, 2.54), pin 2 (-5.08, 0),
@@ -1194,14 +1209,20 @@ def build_display_side_schematic() -> None:
                   (J1_X, J1_Y), lib=lib)
     # 8P8C pins at X=+10.16, lib_Y from -7.62 (pin 1) to +10.16 (pin 8)
     # in 2.54 mm steps → schematic endpoint (X+10.16, Y - lib_Y).
-    _place_label(s, "V12_CAT5E", (J1_X + 8 * G, J1_Y + 6 * G))   # pin 1
-    _place_label(s, "V12_CAT5E", (J1_X + 8 * G, J1_Y + 4 * G))   # pin 2
-    _place_label(s, "V12_CAT5E", (J1_X + 8 * G, J1_Y + 2 * G))   # pin 3
-    _place_label(s, "RS485_A",   (J1_X + 8 * G, J1_Y))            # pin 4
-    _place_label(s, "RS485_B",   (J1_X + 8 * G, J1_Y - 2 * G))   # pin 5
-    _place_label(s, "GND",       (J1_X + 8 * G, J1_Y - 4 * G))   # pin 6
-    _place_label(s, "GND",       (J1_X + 8 * G, J1_Y - 6 * G))   # pin 7
-    _place_label(s, "GND",       (J1_X + 8 * G, J1_Y - 8 * G))   # pin 8
+    # CP-cleanup iter 24: same RJ45 dedup as battery-side J2 — pins
+    # 1/2/3 share V12_CAT5E, pins 6/7/8 share GND. Replace stacked
+    # labels with a vertical wire + single label per rail.
+    _PIN_X = J1_X + 8 * G
+    # Same per-segment wire pattern as battery-side J2 (so each wire
+    # endpoint coincides with an actual pin endpoint for ERC).
+    _place_wire(s, (_PIN_X, J1_Y + 6 * G), (_PIN_X, J1_Y + 4 * G))
+    _place_wire(s, (_PIN_X, J1_Y + 4 * G), (_PIN_X, J1_Y + 2 * G))
+    _place_label(s, "V12_CAT5E", (_PIN_X, J1_Y + 4 * G))
+    _place_label(s, "RS485_A",   (_PIN_X, J1_Y))            # pin 4
+    _place_label(s, "RS485_B",   (_PIN_X, J1_Y - 2 * G))    # pin 5
+    _place_wire(s, (_PIN_X, J1_Y - 4 * G), (_PIN_X, J1_Y - 6 * G))
+    _place_wire(s, (_PIN_X, J1_Y - 6 * G), (_PIN_X, J1_Y - 8 * G))
+    _place_label(s, "GND",       (_PIN_X, J1_Y - 6 * G))
 
     # F1 — PTC polyfuse (0.5A hold) on V12_CAT5E
     F1_X, F1_Y = 55 * G, 50 * G   # (69.85, 63.5)
@@ -1426,8 +1447,9 @@ def build_display_side_schematic() -> None:
                   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
                   (U2_X, U2_Y), lib=lib)
     _place_label(s, "UART_RX_3V3", (U2_X - 8 * G, U2_Y - 4 * G))   # pin 1 RO
-    _place_label(s, "DE_RE",       (U2_X - 8 * G, U2_Y - 2 * G))   # pin 2 ~RE
-    _place_label(s, "DE_RE",       (U2_X - 8 * G, U2_Y))            # pin 3 DE
+    # CP-cleanup iter 24: same DE_RE tie as battery-side U3.
+    _place_wire(s, (U2_X - 8 * G, U2_Y - 2 * G), (U2_X - 8 * G, U2_Y))
+    _place_label(s, "DE_RE",       (U2_X - 8 * G, U2_Y - 2 * G))   # pin 2/3 (tied)
     _place_label(s, "UART_TX_3V3", (U2_X - 8 * G, U2_Y + 4 * G))   # pin 4 DI
     _place_label(s, "GND",         (U2_X,         U2_Y + 12 * G))   # pin 5 GND
     _place_label(s, "RS485_A",     (U2_X + 8 * G, U2_Y - 6 * G))   # pin 6 A
