@@ -193,42 +193,56 @@ this template should not inherit that defect.
 
 ### Concrete acceptance criteria
 
-A committed document passes D11 if all apply:
+A committed document passes D11 if **ALL** apply. Criteria #0 and #5
+are absolute — failing either means the document is not finished
+and may not ship. "Checklist-compliant but visually-unreadable" does
+not pass.
 
-1. **No symbol/footprint overlap.** Programmatically-placed schematic
-   symbols and PCB footprints must not share coordinates. Verifiable
-   by scripted check (`grep` for duplicate `(at x y)` positions in
-   .kicad_sch / .kicad_pcb).
-2. **Real wires within clusters.** In schematics, components that are
-   electrically adjacent and visually adjacent must be connected by
-   wires, not labels. Net labels are reserved for power rails (GND,
-   V3V3, etc.) and for cross-cluster signals that genuinely span the
-   sheet.
-3. **Functional grouping with visible signal flow.** Components that
-   form a functional block (power input chain, regulator + caps,
-   MCU + bypass, etc.) must be grouped together with a clear primary
-   flow direction (left → right or top → bottom).
-4. **Populated title block.** Every committed PDF must have a non-empty
+0. **HARD STOP: No overlapping text or symbols, no text or symbols
+   off the document.** Both designer and reviewer must open the
+   rendered PDF, look at it, and confirm: (a) no two pieces of text
+   overlap each other, (b) no text overlaps any symbol body,
+   (c) no symbol body overlaps another symbol body, (d) every piece
+   of text and every symbol fits entirely inside the sheet frame
+   (none clipped at the page edge). If any of these fails, the
+   document is not finished — fix it before any other gate is
+   considered. **No "PARTIAL" rating is acceptable on this criterion.**
+1. **No symbol/footprint coordinate collision.** Programmatically
+   placed schematic symbols and PCB footprints must not share
+   anchor coordinates. Verifiable by scripted check.
+2. **Real wires within clusters.** Components electrically adjacent
+   and visually adjacent are connected by wires, not labels. Net
+   labels are reserved for power rails and cross-cluster signals.
+3. **Functional grouping with visible signal flow.** Components
+   forming a functional block are grouped with a clear primary flow
+   direction (left → right or top → bottom).
+4. **Populated title block.** Every committed PDF has non-empty
    Title, Rev, and Date.
-5. **Legible at 100 % zoom.** Net labels, ref designators, and pin
-   numbers must not overlap each other when the PDF is viewed at
-   1:1 scale. (Subjective but the reviewer must confirm.)
-6. **Power rails on consistent edges.** Within a sheet, supply rails
-   stay near the top, GND near the bottom (or a single fixed pattern).
-   Don't scatter the same rail across the sheet.
+5. **HARD STOP: Legible at 100 % zoom.** Net labels, ref designators,
+   pin numbers, and any annotations are individually readable at 1:1
+   scale, with clear whitespace between adjacent text. No "dense
+   cluster of labels you can mentally parse if you squint" — if a
+   reader at 100 % zoom can't read every piece of text without
+   visual ambiguity, this fails. **No "PARTIAL" rating is acceptable
+   on this criterion.**
+6. **Power rails on consistent edges.** Supply rails near the top,
+   GND near the bottom (or a single fixed sheet-wide pattern). Don't
+   scatter the same rail across the sheet.
 7. **Reference designators visible on PCB renders.** Top/bottom
-   renders committed for review must show each footprint's refdes,
-   not the KiCad `REF**` placeholder.
+   renders show each footprint's refdes, not `REF**`.
 
 ### Enforcement
 
 - Each CP review packet's "Success criteria" section must include a
-  "D11: docs pass engineer-readability bar" checkbox. The reviewer
-  (Codex) cites D11 when pushing back on documentation that fails any
-  of the criteria above.
-- `DESIGNER.md` is updated to call out D11 as a deliverable, not a
-  side effect: when generating any document, treat readability as a
-  first-class requirement equal to correctness.
+  "D11: docs pass engineer-readability bar" checkbox.
+- **Both the designer and the reviewer must open and visually
+  inspect the rendered PDFs before claiming a D11 criterion passes.**
+  A grep-based audit alone is not sufficient — overlapping labels,
+  off-page text, and unreadable clusters are visual defects that
+  scripted checks can miss.
+- Codex cites D11 when pushing back on documentation that fails any
+  of the criteria above. Criteria #0 and #5 are non-negotiable.
+- `DESIGNER.md` calls out D11 as a deliverable equal to correctness.
 
 ### Existing violations
 
