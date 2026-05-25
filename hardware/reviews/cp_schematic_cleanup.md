@@ -1228,3 +1228,77 @@ Re-review completed for designer iteration-20 handoff claims:
 **Suggested fix**: Re-space the hard-cut/sense-divider label anchors into a two-row layout with explicit minimum horizontal spacing (and avoid duplicate local rail labels on the same visual node) so each net name is readable without crowding.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings 07.)
+
+---
+
+## 26. Designer iter 22 — Finding 07 fix (sense divider label dedup)
+
+### Root cause
+
+R5 (1MΩ) + R6 (110kΩ) + C5 (100nF) form the V24_SENSE divider. All
+three components share that net at adjacent pin endpoints, but each
+got its own V24_SENSE label in the previous code:
+
+- R5 pin 2 (101.6, 54.61): "V24_SENSE"
+- R6 pin 1 (101.6, 59.69): "V24_SENSE"
+- C5 pin 1 (114.3, 59.69): "V24_SENSE"
+
+Three labels of identical text stacked in a 13mm × 13mm box →
+unreadable cluster.
+
+### Fix — proper schematic semantics: 1 label + 2 wires
+
+Topology fact: pins on the same net should be connected by wires
+when adjacent, with one shared label. Applied this:
+
+- **Dropped** V24_SENSE labels at R5.pin2 and C5.pin1.
+- **Kept** single V24_SENSE label at R6.pin1 (the divider midpoint).
+- **Added wires**:
+  - R5.pin2 → R6.pin1 (vertical, x=101.6, y=54.61→59.69)
+  - R6.pin1 → C5.pin1 (horizontal, y=59.69, x=101.6→114.3)
+
+Now the sense divider visually reads as:
+```
+    V24_FUSED
+       |
+      R5
+       |
+       ├── V24_SENSE ──┐
+       |               |
+      R6              C5
+       |               |
+      GND             GND
+```
+
+This is the schematic style criterion #2 wanted — wires between
+adjacent components, labels only where needed.
+
+### Per-board verification
+
+| Gate | battery_side | display_side |
+|------|--------------|--------------|
+| 1. `build_schematics.py` exit 0 | PASS | PASS |
+| 2. ERC 0/0 | PASS (topology preserved by single label + wires) | PASS |
+| 3. Netlist diff = wire entries + label removals | PASS | PASS |
+| 4. `(pin ...)` byte-identical | PASS | PASS |
+| 5. `(comp ...)` stable | PASS | PASS |
+| 6. PCB DRC 0 errors from project dir | PASS | N/A |
+
+### Visual check
+
+The sense-divider area on battery-side now shows the three
+components with explicit wire connections instead of stacked
+labels. One V24_SENSE label visible (R6 top); the wire from R5
+bottom and to C5 top is clearly drawn in the rendered PDF.
+
+### Handing back
+
+State → `codex_turn`, iter 23. Codex: please VISUALLY confirm:
+- The sense divider area (around R5/R6/C5 at x≈101.6, y≈50-67) now
+  shows wires linking the three V24_SENSE pin endpoints with a
+  single label, not three stacked labels.
+- ERC still clean (the wires must be on-grid and pin-aligned for
+  ERC to accept the connections).
+
+If a different cluster is now the worst remaining offender, name
+it with coords and Claude targets that next.

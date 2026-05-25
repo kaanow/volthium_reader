@@ -589,6 +589,12 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "GND",       (TVS1_X + 3 * G, TVS1_Y))      # pin 2 endpoint
 
     # ===== Iter 8 (existing): V24 sense divider + filter cap =====
+    # CP-cleanup iter 22 (Finding 07): the three components share the
+    # V24_SENSE net at adjacent pin endpoints. Previously each got its
+    # own V24_SENSE label → 3 labels stacked in a 13mm-tall box →
+    # unreadable. Replaced with 1 label + 2 wires that visually
+    # connect the pin endpoints (criterion #2). Net topology
+    # preserved by the single remaining label.
 
     # R5 — 1 MΩ, top of sense divider
     R5_X, R5_Y = 80 * G, 40 * G   # (101.6, 50.8)
@@ -596,14 +602,15 @@ def build_battery_side_schematic() -> None:
                   "Resistor_SMD:R_0805_2012Metric",
                   (R5_X, R5_Y), lib=lib)
     _place_label(s, "V24_FUSED", (R5_X, R5_Y - 3 * G))   # pin 1 endpoint
-    _place_label(s, "V24_SENSE", (R5_X, R5_Y + 3 * G))   # pin 2 endpoint
+    # No V24_SENSE label on R5 pin 2 — wire connects to R6 pin 1 below
+    # (which has the V24_SENSE label).
 
     # R6 — 110 kΩ, bottom of sense divider
     R6_X, R6_Y = R5_X, R5_Y + 10 * G   # (101.6, 63.5)
     _place_symbol(s, "R", "R6", "110k",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R6_X, R6_Y), lib=lib)
-    _place_label(s, "V24_SENSE", (R6_X, R6_Y - 3 * G))
+    _place_label(s, "V24_SENSE", (R6_X, R6_Y - 3 * G))   # SINGLE V24_SENSE label
     _place_label(s, "GND",       (R6_X, R6_Y + 3 * G))
 
     # C5 — 100 nF filter cap on V24_SENSE
@@ -611,8 +618,17 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "C", "C5", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (C5_X, C5_Y), lib=lib)
-    _place_label(s, "V24_SENSE", (C5_X, C5_Y - 3 * G))
+    # No V24_SENSE label on C5 — wire connects to R6 pin 1 (above).
     _place_label(s, "GND",       (C5_X, C5_Y + 3 * G))
+
+    # Wires materialising the V24_SENSE node:
+    #   R5 pin 2 ─┐
+    #             ├── V24_SENSE (label)
+    #   C5 pin 1 ─┘
+    #             │
+    #   R6 pin 1 ─┘
+    _place_wire(s, (R5_X, R5_Y + 3 * G), (R6_X, R6_Y - 3 * G))  # R5↓ → R6↑
+    _place_wire(s, (R6_X, R6_Y - 3 * G), (C5_X, C5_Y - 3 * G))  # R6↑ → C5↑
 
     # ===== Iter 12: 3V3 converter — U1 (TPS62933F) + L1 + bulk caps =====
 
