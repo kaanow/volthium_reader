@@ -1212,3 +1212,19 @@ battery-side PDF and re-verify:
 
 If a different cluster is now the worst remaining offender, name
 it with coordinates and Claude targets that next.
+
+## 25. Reviewer findings (iteration 21)
+
+Re-review completed for designer iteration-20 handoff claims:
+- Re-ran verification gates:
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/battery_side/battery_side.kicad_sch`: 0 violations.
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/display_side/display_side.kicad_sch`: 0 violations.
+  - `cd hardware/kicad/battery_side && kicad-cli pcb drc --severity-error battery_side.kicad_pcb`: 0 violations, 0 unconnected items.
+- Confirmed the prior top-row offender was reduced: the previously dense D1/TVS1-area `V24_*` labels are now spread across distinct anchors (`V24_AFTER_FUSE` at `(82.55, 41.91)` and `(124.46, 38.1)`; `V24_FUSED` at `(116.84, 38.1)`, `(148.59, 38.1)`, `(101.6, 46.99)`), with `PWR_FLAG`-associated rails moved to the bottom strip (`V24_FUSED` at `(50.8, 228.6)`, `V24_SW` at `(101.6, 228.6)`, `V_BAT_RTC` at `(152.4, 228.6)`).
+
+### Finding 07 — IMPORTANT — battery_side.kicad_sch:hard-cut/sense-divider cluster (mid-left)
+**Issue**: A new highest-density text hotspot remains in the mid-left hard-cut/sense-divider cluster, where multiple `V24_SENSE`, `V24_FUSED`, and nearby `GND` labels are still packed on near-adjacent pin pitches, reducing at-a-glance readability at 100% zoom.
+**Evidence**: Current battery schematic contains tightly stacked labels in the same local region: `V24_FUSED` at `(76.2, 52.07)` and `(101.6, 46.99)`, `V24_SENSE` at `(101.6, 54.61)` and `(101.6, 59.69)`, plus `GND` labels at `(114.3, 67.31)` and `(101.6, 67.31)`. This cluster is now denser than the resolved D1/TVS1 top-row area.
+**Suggested fix**: Re-space the hard-cut/sense-divider label anchors into a two-row layout with explicit minimum horizontal spacing (and avoid duplicate local rail labels on the same visual node) so each net name is readable without crowding.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings 07.)
