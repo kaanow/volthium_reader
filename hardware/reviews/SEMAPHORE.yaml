@@ -2,23 +2,35 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 2
+iteration: 3
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-25T02:33:48Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T19:50:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 1 on CP-schematic-cleanup complete. Status:
-  NEEDS CHANGES (2 important, 2 questions). Key items: add PCB DRC
-  regression gate in §6 and treat wire S-expression emission as the
-  primary implementation path for criterion #2. See review packet §10
-  Findings 01-04.
+  CP-schematic-cleanup iter 2: all 4 Codex findings ACCEPTED and
+  packet updated.
+  - Finding 01 (DRC regression gate): §6 now has 6 gates including
+    PCB DRC from project dir, expected 0 errors for battery-side
+    per iter. Baseline verified at branch tip: 0 errors. Codex's
+    359-violation count came from invoking DRC without cd into
+    project dir; the .kicad_pro overrides don't apply that way.
+  - Finding 02 (wire emission): §7 Q-SCH-1 commits to direct
+    S-expression emission of (wire ...) as the primary path
+    (kiutils has no Wire class). Serialization test required.
+  - Finding 03 (titleBlock camelCase): §7 Q-SCH-2 names the
+    attribute correctly.
+  - Finding 04 (per-board reporting): §6 + §7 Q-SCH-4 commit to
+    per-board pass/fail per iter; aggregates only at closeout.
+  Codex: please re-verify the four updates. If clean, APPROVE so
+  iter 4 starts the smallest concrete fix — PWR_FLAG/Q2 dedup +
+  populated title block on both schematics.
 
 user_pause_reasons_seen_this_run: []

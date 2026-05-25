@@ -76,32 +76,57 @@ files and report duplicate (X, Y).
 
 ## 6. Verification gates per iter
 
-Each iter must satisfy before handoff:
-1. `python build_schematics.py` exits 0
-2. `kicad-cli sch erc` returns 0/0 on both boards
-3. `git diff hardware/outputs/*/[board].net` shows only:
+Each iter must satisfy ALL of the following before handoff. Per-board
+results are reported separately (battery-side and display-side
+explicitly listed in the iter handoff note) so regressions can't
+hide behind aggregate language.
+
+1. `python build_schematics.py` exits 0.
+2. `kicad-cli sch erc` returns 0/0 on each board independently.
+3. `git diff hardware/outputs/<board>/<board>.net` for each board
+   shows only:
    - `(date ...)` differences
    - `(tstamps ...)` UUIDs
    - (Maybe `(at X Y angle)` lines for component positions —
      these are metadata, not topology, but flag if any other diffs)
-4. Lines with `(pin ...)` net membership: byte-identical
-5. Lines with `(comp (ref X) (value Y) (footprint Z))`: stable
-   (only Footprint may change if we tweak it; refs and values stay)
+4. Lines with `(pin ...)` net membership: byte-identical per board.
+5. Lines with `(comp (ref X) (value Y) (footprint Z))`: stable per
+   board (refs + values must not change; Footprint string may
+   change if intentional).
+6. **PCB DRC regression gate** (added per Finding 01): for each
+   board, run
+   ```
+   cd hardware/kicad/<board>
+   kicad-cli pcb drc --severity-error <board>.kicad_pcb
+   ```
+   from the project directory so the project's `.kicad_pro`
+   severity overrides apply. Expected: **0 errors** for
+   battery-side at every iter (matches CP3-close baseline);
+   display-side is N/A until a PCB exists for it. If error count
+   rises above 0, the iter aborts.
 
 ## 7. Open questions for Codex
 
-### Q-SCH-1: Does the kiutils-based approach support wires?
+### Q-SCH-1: Wire emission — kiutils API vs direct S-expression?
 
-kiutils' Schematic class includes a `graphicalItems` list that
-holds Wire objects. Need to verify the API for creating Wire(start,
-end, stroke). If kiutils doesn't expose it cleanly, fall back to
-emitting the S-expression directly.
+**Resolved per Codex Finding 02**: the pinned kiutils does not
+expose a `Wire` class in `kiutils.items.schitems` (verified by
+runtime inspection). Available related classes: `PolyLine`,
+`BusEntry`, `BusAlias`. Plan: **direct S-expression emission of
+`(wire (pts (xy X1 Y1) (xy X2 Y2)) (stroke ...) (uuid ...))`** as
+the primary implementation path for criterion #2. Wrap in a small
+helper in `build_schematics.py` that takes (start, end) and emits
+the wire S-expr. Keep a serialization test that confirms KiCad
+re-opens the schematic and ERC stays 0/0 after each wire is added.
 
-### Q-SCH-2: Title block fields — KiCad property or schematic-level?
+### Q-SCH-2: Title block fields — kiutils attribute name?
 
-KiCad 10 stores Title/Rev/Date on the .kicad_sch root via
-`(title_block ...)`. Need to set via kiutils Schematic.title_block
-or equivalent.
+**Resolved per Codex Finding 03**: the kiutils attribute is
+`Schematic.titleBlock` (camelCase), not `title_block`. Verified by
+runtime inspection. Plan: set `s.titleBlock.title`,
+`s.titleBlock.revision`, `s.titleBlock.date`, `s.titleBlock.company`
+explicitly. Verify by asserting `(title_block` appears in both
+emitted `.kicad_sch` files and in exported PDFs.
 
 ### Q-SCH-3: How aggressive should "wire-replacement" be?
 
@@ -112,10 +137,11 @@ connections only. Codex: agree?
 
 ### Q-SCH-4: Single CP vs split battery + display?
 
-Both schematics have the same issues. Plan above does both in one
-CP. Alternative: do battery-side first, get APPROVED, then display.
-
-Default: one CP, both schematics, ~6 iters total.
+**Resolved per Codex Finding 04**: one CP, both boards, but **each
+iter handoff note reports criterion pass/fail per board** —
+battery-side vs display-side — so regressions cannot hide behind
+aggregate language. Aggregate "both boards" statements only appear
+in the final closeout, not in per-iter notes.
 
 ## 8. Success criteria (CP overall)
 
@@ -178,3 +204,65 @@ one-line fix.
 **Suggested fix**: Keep a single CP, but report criterion pass/fail per board in each iteration note (battery-side vs display-side), then aggregate only in the final closeout.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings 01, 02.)
+
+---
+
+## 11. Designer response (iteration 2)
+
+### Response to Finding 01 — DRC regression gate — ACCEPTED
+
+Updated §6 to add gate #6: PCB DRC must be re-run from the project
+directory (`hardware/kicad/<board>/`) so the project's `.kicad_pro`
+severity overrides apply, and must report **0 errors** at every
+iter handoff.
+
+Note on Codex's 359-violation evidence: that count came from
+invoking `kicad-cli pcb drc` without `cd`ing into the project
+directory, so the `.kicad_pro` rule_severities overrides (in place
+since CP3 iter 6) didn't apply. From the project directory at this
+branch's tip:
+
+```
+cd hardware/kicad/battery_side
+kicad-cli pcb drc --severity-error battery_side.kicad_pcb
+→ Found 0 violations, 0 unconnected items, 0 footprint errors
+```
+
+This is the baseline for the gate. Every iter on this branch must
+keep it at 0 errors for the battery-side. (Display-side has no PCB
+yet; gate is N/A there.)
+
+### Response to Finding 02 — Wire emission via S-expr — ACCEPTED
+
+Updated §7 Q-SCH-1 to make direct `(wire ...)` S-expression
+emission the primary implementation path, not the fallback. Added
+a serialization-test requirement: every iter that adds wires must
+verify `kicad-cli sch erc` still returns 0/0 on each board.
+
+### Response to Finding 03 — `titleBlock` attribute — ACCEPTED
+
+Updated §7 Q-SCH-2 with the correct kiutils attribute name
+(`Schematic.titleBlock`, camelCase). Will assert `(title_block`
+appears in both emitted `.kicad_sch` files and the rendered PDFs
+as part of the iter-3 verification.
+
+### Response to Finding 04 — per-board reporting — ACCEPTED
+
+Updated §6 to require per-board reporting in each iter handoff
+note. Updated §7 Q-SCH-4 with the resolved policy. Aggregate
+"both boards" language only appears in the final closeout.
+
+### Handing back
+
+State → `codex_turn`, iter 3. Codex: please re-verify:
+- §6 now lists 6 verification gates including the DRC regression
+  gate run from project dir.
+- §7 Q-SCH-1 commits to S-expression wire emission as the primary
+  path, with a serialization test requirement.
+- §7 Q-SCH-2 names the kiutils attribute correctly as
+  `Schematic.titleBlock` (camelCase).
+- §7 Q-SCH-4 commits to per-board reporting per iter.
+
+If clean, mark Findings 01-04 resolved and APPROVE so iter 4 starts
+the smallest concrete fix: PWR_FLAG/Q2 coordinate dedup +
+populated title block on both schematics.
