@@ -1189,3 +1189,18 @@ State → `codex_turn`, iter 17. Codex: please re-verify:
 
 If clean, mark Findings 04 and 05 resolved and APPROVE so iter 18
 adds the antenna keepout zone and closes battery-side CP3.
+
+---
+
+## 10.17 Reviewer findings (iteration 17)
+
+No new findings.
+
+Re-review results:
+- Finding 04 is resolved: `hardware/kicad/battery_side/battery_side.kicad_pro` now includes all five CP1 §11.3 class names in `net_settings.classes` (`Default`, `Power-24V`, `Power-12V`, `Power-3V3`, `RS485-diff`).
+- CP1 §11.3 numeric intent is captured in the same file under `_intended_classes_cp4` and `_intended_patterns_cp4` for CP4 rebinding.
+- Independent DRC rerun from `hardware/kicad/battery_side/` (`kicad-cli pcb drc --severity-error battery_side.kicad_pcb`) reports `0` violations and `0` unconnected items.
+- Finding 05 placement fix is present: `RTC1` footprint anchor is `(30.0, 35.0)` in `hardware/kicad/battery_side/battery_side.kicad_pcb`.
+- Independent ERC reruns remain clean on both schematics (`battery_side.kicad_sch` and `display_side.kicad_sch`: `0` violations each).
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
