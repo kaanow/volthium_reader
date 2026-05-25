@@ -999,3 +999,125 @@ Re-review completed for designer iteration-16 wording fix:
 - Confirmed iteration-16 contains documentation-only changes and does not alter schematic/PCB artifacts.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 22. Designer iter 18 — actual readability fixes (post user rejection)
+
+User reviewed iter-14 PDFs and rejected: "if they aren't easy to
+read, they aren't finished." D11 sharpened with HARD STOPs #0
+and #5. CP reopened.
+
+### Root-cause fixes
+
+**1. Duplicate GND labels stacked on ESP32-S3 (battery + display)**
+
+ESP32-S3-WROOM-1 symbol pins 1, 40, 41 (all GND) share the SAME
+library position (0, -27.94). Iterating over `esp_pins.items()`
+placed THREE GND labels at the exact same coordinate
+`(MOD1_X, MOD1_Y + 27.94) = (228.6, 167.64)` on battery-side, and
+similar on display-side.
+
+Fix: dedupe by endpoint in the placement loop on both sides:
+```python
+_placed = set()
+for pin_num, net in esp_pins.items():
+    endpoint = (MOD1_X + lib_x, MOD1_Y - lib_y)
+    if endpoint in _placed:
+        continue
+    _placed.add(endpoint)
+    ...
+```
+
+Audit: exact-duplicate label coords on battery went from 4+ to 0.
+
+**2. Display-side PWR_FLAGs off-page**
+
+Four PWR_FLAGs (V12_CAT5E, GND, V12_PROT, V3V3) anchored at
+x=8*G=10.16 — clipped at left page edge. Moved to x=20*G=25.4.
+
+**3. Battery-side C9 too close to left edge**
+
+C9 was at (16*G, 95*G) = (20.32, 120.65) with its labels at the
+same x — barely inside the page boundary. Moved to (22*G, 95*G) =
+(27.94, 120.65) so labels stay safely on-page.
+
+**4. Rail-convention annotation extends past page edge**
+
+Even with left-justify, the longer annotation text rendered partly
+clipped. Shortened to:
+> "Convention: power rails above components; GND below."
+
+Fits comfortably within A3 left margin.
+
+### Audit after fixes
+
+| Audit | battery_side | display_side |
+|-------|--------------|--------------|
+| Symbol coord collisions | 0 | 0 |
+| Off-page labels/texts | 1 (annotation y=12 — actually on-page; audit margin too strict) | 1 (same) |
+| Exact-duplicate label coords | 0 | 0 |
+| Label pairs within 4mm | 5 | 1 |
+
+The remaining 5 + 1 "near-collision" cases are labels at
+**adjacent chip pins** with 2.54 mm pin pitch (RJ45, ESP32, FFC,
+SOIC). These are inherent to the schematic style where each pin
+gets its own label — labels visually occupy more than 2.54 mm
+horizontally, so neighboring pin labels appear close. Fixing this
+would require either:
+- Placing labels alternately above/below the chip body (would
+  need per-chip pin geometry logic) — significant rewrite.
+- Drawing actual wires from pins to label-free routing
+  (criterion #2 bulk replacement, out of scope).
+
+### Visual outcome (manual PDF inspection)
+
+**battery-side**: annotation visible top-left, no longer clipped.
+Power-input row still clusters in upper-left because the row uses
+~half the page width — visually the lower half of the sheet is
+mostly empty. Components in functional regions but the regions
+are still cramped at the top.
+
+**display-side**: annotation visible top-left, no longer clipped.
+Layout markedly improved over iter 10 — J2 FFC right of MOD1,
+clear distinct regions, bottom half partly used by BTN cluster.
+
+### Per-board verification
+
+| Gate | battery_side | display_side |
+|------|--------------|--------------|
+| 1. `build_schematics.py` exit 0 | PASS | PASS |
+| 2. ERC 0/0 | PASS | PASS |
+| 3. Netlist diff topology-preserving | PASS | PASS |
+| 4. `(pin ...)` byte-identical | PASS | PASS |
+| 5. `(comp ...)` stable | PASS | PASS |
+| 6. PCB DRC 0 errors from project dir | PASS | N/A |
+
+### Remaining work (acknowledged, not yet done)
+
+- Battery-side: spread power-input row (J1, F1, D1, TVS1, U1, U2)
+  across more of the page width so they don't cluster in
+  upper-left. Likely requires moving U2 (Recom) significantly
+  right or downward into a separate row.
+- Battery-side: utilize the lower half of the A3 sheet — currently
+  most of y>150mm is empty whitespace. Move BTN1 cluster lower,
+  or relocate dev headers.
+- Both: consider alternating label placement (above/below chip
+  body) for components with dense pin rows.
+
+### Handing back
+
+State → `codex_turn`, iter 19. Codex: **per the new D11 enforcement
+rule, you MUST open both rendered PDFs and visually verify
+criteria #0 and #5 before APPROVE.** Specifically:
+- Confirm no two pieces of text overlap each other.
+- Confirm no text or symbol is clipped at the page edge.
+- Confirm each label is individually readable at 100% zoom.
+
+If acceptable: APPROVE.
+If you see remaining unreadable clusters or off-page items: list
+each one specifically (with coordinates if possible) so Claude
+can target the fix.
+
+CP stays open until both designer and reviewer agree the PDFs
+satisfy D11 #0 and #5 by visual inspection, not just by audit.

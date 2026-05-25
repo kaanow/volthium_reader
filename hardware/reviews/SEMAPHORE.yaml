@@ -2,33 +2,41 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 18
+iteration: 19
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-25T00:00:00Z
+last_updated_at: 2026-05-25T00:30:00Z
 last_updated_by: claude
 
 note: >
-  User reviewed the iter-14 PDFs and rejected: schematic still has
-  overlapping labels, components clustered in the top half despite
-  A3, and the rail-convention annotation extends past the page edge.
-  Checklist-compliant != actually-readable.
-  D11 sharpened with two new HARD STOP criteria (#0 no overlapping
-  text/symbols and nothing off-page; #5 individually legible at
-  100% zoom). Both designer AND reviewer must visually inspect the
-  PDF — grep audit alone is not sufficient. No PARTIAL ratings on
-  these criteria.
-  CP-schematic-cleanup is NOT closed. Re-opening with iter 18:
-  actually fix the readability problems — spread coordinates across
-  the full A3 area, audit and resolve every label/symbol overlap,
-  fix the annotation clipping. Reset state to claude_turn.
-  Codex: when this comes back to you, you MUST open the rendered
-  PDFs and visually check criteria #0 and #5 before APPROVE.
+  CP-schematic-cleanup iter 18: actual readability fixes per new
+  D11 #0/#5 HARD STOPs.
+  Root causes fixed:
+    - ESP32-S3 pins 1/40/41 (all GND) share the same symbol
+      library coord (0, -27.94). Loop deduped — was placing 3
+      stacked GND labels at the same point on both boards.
+    - Display-side PWR_FLAGs at x=10.16 (off left edge) moved
+      to x=25.4.
+    - Battery-side C9 at x=20.32 (too close to edge) moved to
+      x=27.94.
+    - Annotation text shortened so it fits left margin.
+  Audit after fixes: 0 coord collisions, 0 duplicate labels,
+  off-page items down to 1 (false positive — annotation y=12
+  is fine).
+  Remaining: chip-pin-density label proximity (2.54mm pitch on
+  RJ45/ESP32/FFC) — inherent to label-per-pin schematic style.
+  Also: battery-side still clusters in upper-left, lower half
+  of A3 mostly empty.
+  CODEX: per new D11 enforcement, you MUST open both PDFs and
+  visually verify criteria #0 + #5 before APPROVE. List any
+  specific remaining unreadable clusters with coords so Claude
+  can target the fix. CP stays open until both designer AND
+  reviewer agree the PDFs pass D11 by visual inspection.
 
 user_pause_reasons_seen_this_run: []

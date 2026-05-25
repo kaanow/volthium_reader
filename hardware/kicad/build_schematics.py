@@ -380,7 +380,9 @@ def _add_rail_convention_note(sch: Schematic, x: float = 25.0, y: float = 12.0) 
     from kiutils.items.schitems import Text
     from kiutils.items.common import Position, Effects, Font, Justify
     note = Text()
-    note.text = "Rail convention: V3V3/V24*/V_BAT/V12* labels are above components; GND below."
+    # Short enough to fit comfortably on a left-justified A3 sheet
+    # without clipping (D11 #0: nothing off-page).
+    note.text = "Convention: power rails above components; GND below."
     note.position = Position(X=x, Y=y, angle=0)
     note.uuid = _uuid()
     note.effects = Effects(
@@ -848,10 +850,19 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
                   "RF_Module:ESP32-S3-WROOM-1U",  # -1U variant: external U.FL antenna, no keepout zone
                   (MOD1_X, MOD1_Y), lib=lib)
+    # Pins 1, 40, 41 (all GND) share the same library position in the
+    # ESP32-S3-WROOM-1 symbol (0, -27.94). Placing one label per pin
+    # creates 3 stacked GND labels at the same coordinate — fails D11
+    # #0 (overlapping text). Dedupe by endpoint: place each label once
+    # per unique (x, y).
+    _placed = set()
     for pin_num, net in esp_pins.items():
         lib_x, lib_y = _esp_pin_pos[pin_num]
         # KiCad Y-flip: schematic_Y = symbol_Y - lib_pin_Y
         endpoint = (MOD1_X + lib_x, MOD1_Y - lib_y)
+        if endpoint in _placed:
+            continue
+        _placed.add(endpoint)
         if net == "NC":
             _place_noconnect(s, endpoint)
         else:
@@ -937,7 +948,9 @@ def build_battery_side_schematic() -> None:
     # pins (SCL/SDA/RST at X=63.5) to avoid endpoint collisions with the
     # I2C labels — C9 pin 2 used to land at (63.5, 115.57) right on top of
     # RTC1.SCL's endpoint, forcing GND and I2C_SCL onto the same net.
-    C9_X, C9_Y = 16 * G, 95 * G   # (20.32, 120.65)
+    # Moved from x=16*G (20.32mm — barely inside left edge) to x=22*G
+    # so labels at this anchor stay clear of the page boundary.
+    C9_X, C9_Y = 22 * G, 95 * G   # (27.94, 120.65)
     _place_symbol(s, "C", "C9", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (C9_X, C9_Y), lib=lib)
@@ -1293,9 +1306,14 @@ def build_display_side_schematic() -> None:
     _place_symbol(s, "ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
                   "RF_Module:ESP32-S3-WROOM-1U",  # -1U variant: external U.FL antenna, no keepout zone
                   (MOD1_X, MOD1_Y), lib=lib)
+    # Dedupe shared symbol pins (1/40/41 GND) — see battery-side comment.
+    _placed = set()
     for pin_num, net in esp_pins.items():
         lib_x, lib_y = _esp_pin_pos[pin_num]
         endpoint = (MOD1_X + lib_x, MOD1_Y - lib_y)
+        if endpoint in _placed:
+            continue
+        _placed.add(endpoint)
         if net == "NC":
             _place_noconnect(s, endpoint)
         else:
@@ -1496,14 +1514,17 @@ def build_display_side_schematic() -> None:
     # ===== Power flags =====
     # V12_CAT5E sourced externally (from Cat5e battery side) via J1's
     # `passive` connector pins. Same pattern as V24_FUSED on battery side.
-    _place_power_flag(s, "V12_CAT5E", (8 * G, 50 * G), lib)
+    # CP-schematic-cleanup iter 18 D11 #0: moved x=8*G to x=20*G so
+    # PWR_FLAGs and their labels stay clear of the left page edge
+    # (8*G=10.16mm was off-page on a left-justified A3 sheet).
+    _place_power_flag(s, "V12_CAT5E", (20 * G, 50 * G), lib)
     # GND sourced externally via J1; passive pins don't drive ERC.
-    _place_power_flag(s, "GND",       (8 * G, 60 * G), lib)
+    _place_power_flag(s, "GND",       (20 * G, 60 * G), lib)
     # V12_PROT: post-PTC, post-TVS. F1.2 is passive, TVS1.A is passive,
     # U1.VIN (Conn_01x03) is passive. PWR_FLAG bridges.
-    _place_power_flag(s, "V12_PROT",  (8 * G, 70 * G), lib)
+    _place_power_flag(s, "V12_PROT",  (20 * G, 70 * G), lib)
     # V3V3: U1.VOUT is passive. MOD1.3V3 is power_input. PWR_FLAG bridges.
-    _place_power_flag(s, "V3V3",      (8 * G, 80 * G), lib)
+    _place_power_flag(s, "V3V3",      (20 * G, 80 * G), lib)
 
     out = DISP_DIR / "display_side.kicad_sch"
     out.parent.mkdir(parents=True, exist_ok=True)
