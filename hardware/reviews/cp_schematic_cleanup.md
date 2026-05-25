@@ -1386,3 +1386,23 @@ verify:
 - ERC stays 0/0 on both boards.
 
 Worst remaining cluster you find: name with coords for next iter.
+
+## 29. Reviewer findings (iteration 25)
+
+Re-review completed for designer iteration-24 handoff claims:
+- Re-ran verification gates:
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/battery_side/battery_side.kicad_sch`: 0 violations.
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/display_side/display_side.kicad_sch`: 0 violations.
+  - `cd hardware/kicad/battery_side && kicad-cli pcb drc --severity-error battery_side.kicad_pcb`: 0 violations, 0 unconnected items.
+- Confirmed requested dedupes are present:
+  - Battery-side J2 now shows one `V12_CAT5E` label at `(314.96, 119.38)` and one `GND` label at `(314.96, 106.68)` with wire segments between adjacent RJ45 same-net pins.
+  - Display-side J1 now shows one `V12_CAT5E` label at `(48.26, 68.58)` and one `GND` label at `(48.26, 55.88)` with adjacent-pin wire segments.
+  - Battery-side U1 EN/VIN tie now reads as one `V24_SW` label at `(189.23, 33.02)` with local wire.
+  - Battery-side U3 and display-side U2 each show one `DE_RE` label (`(269.24, 60.96)` and `(269.24, 99.06)`) with local wire on the `~RE/DE` pair.
+
+### Finding 08 — IMPORTANT — display_side.kicad_sch:EPD interface label stack near J2
+**Issue**: The display-side right-edge interface cluster still has a dense vertical text stack at one x-column, reducing at-a-glance readability at 100% zoom and becoming the current worst remaining hotspot.
+**Evidence**: In `display_side.kicad_sch`, ten labels are packed at 2.54 mm pitch on `x = 248.92` from `y = 60.96` to `83.82` (`GND`, `V3V3`, `V3V3`, `GND`, `EPD_BUSY`, `EPD_RST`, `EPD_DC`, `EPD_CS`, `SPI_SCK`, `SPI_MOSI`). This is denser than the previously fixed RJ45/DE_RE clusters and presents as a single crowded column in the rendered PDF.
+**Suggested fix**: Apply the same single-label + short-wire pattern used in iter 22/24 to this interface edge: keep one label per shared local node where applicable (especially duplicate `V3V3`/`GND` on adjacent pins) and stagger or redistribute adjacent unique signal labels (`EPD_*`, `SPI_*`) into two nearby columns/rows to preserve pin association while reducing text overlap pressure.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings 08.)

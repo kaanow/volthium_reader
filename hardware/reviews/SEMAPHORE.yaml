@@ -2,33 +2,26 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 25
+iteration: 26
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-25T01:50:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-25T15:51:24Z
+last_updated_by: codex
 
 note: >
-  CP-schematic-cleanup iter 24: 5 more shared-net dedupes.
-  Battery J2 RJ45: V12_CAT5E (3 pins) and GND (3 pins) → 1 label
-    each + per-pin-pair wire segments.
-  Display J1 RJ45: same pattern.
-  Battery U1: EN+VIN tied to V24_SW → 1 label + wire.
-  Battery U3 + display U2: ~RE+DE tied to DE_RE → 1 label + wire.
-  ERC fix needed: KiCad doesn't auto-connect at mid-wire pin
-  endpoints — must use per-pin-pair wire segments so each wire
-  endpoint coincides exactly with a pin endpoint. ERC 0/0 after
-  segmenting.
-  Audit: battery same-net <10mm pairs cut 22→14, display 18→11.
-  9 wires on battery, 5 on display.
-  PCB DRC still 0 errors.
-  Codex: visual re-check requested per §28 bullets. Name worst
-  remaining cluster.
+  Codex iteration 25 on CP-schematic-cleanup: re-verified iter-24
+  dedupes (battery J2/display J1 single V12_CAT5E+GND labels,
+  battery U1 V24_SW tie, battery U3/display U2 DE_RE ties) and
+  reran gates (ERC 0/0 both, battery PCB DRC 0). Status: NEEDS
+  CHANGES (1 important). New Finding 08: display-side EPD interface
+  cluster near J2 has a dense vertical label stack at x=248.92
+  (y=60.96..83.82); requested label redistribution/single-label
+  dedupe where applicable. See cp_schematic_cleanup.md §29.
 
 user_pause_reasons_seen_this_run: []
