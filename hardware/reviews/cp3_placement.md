@@ -1204,3 +1204,104 @@ Re-review results:
 - Independent ERC reruns remain clean on both schematics (`battery_side.kicad_sch` and `display_side.kicad_sch`: `0` violations each).
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 10.18 Designer iter 18 — battery-side CP3 closeout + antenna keepout finding
+
+### Antenna keepout — already present, but exposes an architectural decision
+
+The ESP32-S3-WROOM-1 footprint ships with a bundled keepout zone that
+attaches to MOD1 when placed. This iter verified it lands in the
+board:
+
+```
+zone polygon (board-absolute): x = 4.00 → 52.00, y = -11.25 → 9.75
+keepout settings:
+  tracks=not_allowed   vias=not_allowed   pads=not_allowed
+  copperpour=not_allowed   footprints=not_allowed
+```
+
+Size: 48 mm × 21 mm — substantially larger than the module itself.
+This is Espressif's recommended RF safety envelope (radiation field +
+keepout for ground-plane interaction).
+
+### Components currently inside the keepout (6/41)
+
+Auditing the placement, 6 components fall inside the keepout polygon:
+
+| Ref | Position | Note |
+|-----|----------|------|
+| C_BST | (46.50, 4.00) | TPS62933 bootstrap |
+| D1 | (37.00, 7.50) | Schottky reverse-polarity |
+| J1 | (9.00, 8.50) | input terminal block |
+| F1 | (24.50, 8.50) | cartridge fuse |
+| U1 | (45.00, 7.50) | TPS62933 buck |
+| L1 | (49.00, 7.50) | switching inductor |
+
+The entire input-power chain falls inside MOD1's antenna keepout
+envelope. `kicad-cli pcb drc` doesn't currently flag these as errors
+because the keepout is a footprint-bundled zone (KiCad enforces it
+during routing in CP4, but not during initial component placement).
+
+### Architectural decision needed before CP4 routing
+
+Three viable paths, in order of preference:
+
+**Option A: Switch ESP32-S3-WROOM-1 → ESP32-S3-WROOM-1U.**
+The -1U variant has a U.FL connector for an external antenna instead
+of the onboard PCB antenna. Adds a uFL cable + external antenna
+(~$3-5 BOM) but **eliminates the keepout entirely**. Requires a
+schematic re-spin to swap the symbol (1U has a U.FL pad replacing
+the antenna pad area) and a footprint swap in the PCB. Estimated
+work: 1 small CP between CP3 close and CP4 start.
+
+**Option B: Move MOD1 to the board edge with antenna over-edge.**
+Re-place MOD1 anchor at y≈3 (or invert and place at y≈37) so the
+21 mm antenna keepout polygon falls mostly off-board. Requires
+re-doing the placement of all 41 components because MOD1's body
+position would shift by ~13 mm. Estimated work: 1 substantial CP
+(comparable to original CP3 placement scope).
+
+**Option C: Accept the keepout violation.**
+Proceed with current placement. CP4 routing routes through the
+keepout area anyway (override DRC for those tracks). Real-world
+impact: WiFi range/throughput may be 10-30% below spec. Functional
+for the use case (battery-side talks to display-side over RS-485
++ MQTT broker over WiFi to home network). Doesn't block any feature.
+
+### Recommended path
+
+**Option A.** It's the cleanest architecturally — once the schematic
+is re-spun with the -1U variant, no further board area is occupied
+by an antenna keepout, and the BOM impact is small. The U.FL pigtail
++ external antenna can be mounted to the project box.
+
+If you want the lowest-friction path: Option C (accept the
+violation, proceed). I'll note the RF impact in the README and CP5
+fab documentation.
+
+### Status of CP3 battery-side
+
+- All 41 components placed (22 F.Cu / 19 B.Cu)
+- DRC: 0 errors with battery_side.kicad_pro overrides
+- Net classes per CP1 §11.3 present as `_intended_classes_cp4` /
+  binding name-only entries in `classes`
+- Top + bottom renders committed
+- 4× M3 corner mounting holes (H1-H4)
+- fp-lib-table declares `volthium` nickname
+- MOD1 antenna keepout zone present (bundled with footprint)
+- **Blocking decision**: Option A / B / C above before CP4 routing
+
+### Handing back
+
+State → `user_turn`. This needs a human call between A/B/C; no agent
+should pick autonomously. Once decision is made:
+- Option A → I open a "CP3.5-antenna-respin" CP, rev schematic + PCB
+- Option B → I reopen CP3 with new placement strategy
+- Option C → I document RF caveat and proceed to CP4
+
+If you want me to make the call autonomously per max-autonomy
+directive, my pick is **Option A** — it's a small, contained CP
+that future projects will benefit from too (the -1U variant is the
+right default for any custom PCB with an ESP32-S3).
