@@ -173,6 +173,74 @@ enclosure constraint. We target a small board (~60 × 40 mm) sized to fit a
 generic IP65 project box (e.g. Hammond 1591ATBU or similar) and mount with
 4 corner standoffs. User can swap enclosures freely.
 
+## D11 — All committed documentation must be engineer-readable
+
+**Date**: 2026-05-24
+**Status**: committed
+**Applies to**: all PDFs, schematics, board renders, BOMs, and assembly
+drawings committed to this repo from this point forward. Existing CP2
+schematic PDFs are out of scope for immediate fix (see "Existing
+violations" below) but must satisfy this rule before CP4 begins.
+
+### Motivation
+
+This workflow is intended to be transportable to future PCB projects.
+Programmatic generation that produces machine-valid but
+human-unreadable artifacts (e.g. ERC-clean schematics with overlapping
+symbols and only net-label connections) creates documentation that no
+engineer can review, hand off, or maintain. Future projects following
+this template should not inherit that defect.
+
+### Concrete acceptance criteria
+
+A committed document passes D11 if all apply:
+
+1. **No symbol/footprint overlap.** Programmatically-placed schematic
+   symbols and PCB footprints must not share coordinates. Verifiable
+   by scripted check (`grep` for duplicate `(at x y)` positions in
+   .kicad_sch / .kicad_pcb).
+2. **Real wires within clusters.** In schematics, components that are
+   electrically adjacent and visually adjacent must be connected by
+   wires, not labels. Net labels are reserved for power rails (GND,
+   V3V3, etc.) and for cross-cluster signals that genuinely span the
+   sheet.
+3. **Functional grouping with visible signal flow.** Components that
+   form a functional block (power input chain, regulator + caps,
+   MCU + bypass, etc.) must be grouped together with a clear primary
+   flow direction (left → right or top → bottom).
+4. **Populated title block.** Every committed PDF must have a non-empty
+   Title, Rev, and Date.
+5. **Legible at 100 % zoom.** Net labels, ref designators, and pin
+   numbers must not overlap each other when the PDF is viewed at
+   1:1 scale. (Subjective but the reviewer must confirm.)
+6. **Power rails on consistent edges.** Within a sheet, supply rails
+   stay near the top, GND near the bottom (or a single fixed pattern).
+   Don't scatter the same rail across the sheet.
+7. **Reference designators visible on PCB renders.** Top/bottom
+   renders committed for review must show each footprint's refdes,
+   not the KiCad `REF**` placeholder.
+
+### Enforcement
+
+- Each CP review packet's "Success criteria" section must include a
+  "D11: docs pass engineer-readability bar" checkbox. The reviewer
+  (Codex) cites D11 when pushing back on documentation that fails any
+  of the criteria above.
+- `DESIGNER.md` is updated to call out D11 as a deliverable, not a
+  side effect: when generating any document, treat readability as a
+  first-class requirement equal to correctness.
+
+### Existing violations
+
+The CP2-output schematic PDFs at
+`hardware/outputs/{battery,display}_side/schematic.pdf` currently
+fail criteria #1, #2, #3, #4, and #5. Fix planned as a separate
+checkpoint (working name: "CP-schematic-cleanup") landed
+**before CP4 starts**, on a branch off main that does not perturb
+the CP3 placement work. Acceptance: ERC must stay 0/0 and netlist
+topology must be byte-identical to current CP2 outputs (modulo
+metadata strings).
+
 ---
 
 ## Open decisions (not yet committed)

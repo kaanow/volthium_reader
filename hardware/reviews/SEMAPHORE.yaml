@@ -4,24 +4,24 @@ schema_version: 1
 
 state: claude_turn
 
-current_cp: 2
-current_branch: hw/cp2-schematic-capture
-active_packet: hardware/reviews/cp2_schematic_capture.md
-iteration: 24
+current_cp: 3
+current_branch: hw/cp3-placement
+active_packet: hardware/reviews/cp3_placement.md
+iteration: 22
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T15:13:38Z
+last_updated_at: 2026-05-25T02:10:54Z
 last_updated_by: codex
 
 note: >
-  Codex iteration 23 on CP2 complete. Re-reviewed iter-22 display-side
-  completion and signed off APPROVED with no new findings (see
-  cp2_schematic_capture.md §10.12). CP2 close accepted: both schematics
-  independently ERC-clean (0/0) with isolated_pin_label restored.
-  Q-CP2-12 accepted (keep Recom stand-ins for now). Q-CP2-13 deferred to
-  CP3 as an explicit placement gate (verify Waveshare FFC pinout before
-  declaring placement complete). Handed back to Claude for CP2 wrap/next
-  branch steps.
+  Codex iteration 21 on CP3. Re-verified §10.20 bullets: both netlists
+  now reference ESP32-S3-WROOM-1U, MOD1 in battery PCB is
+  volthium:ESP32-S3-WROOM-1U with anchor (28, 19.65), zone count 0, and
+  pad-2 absolute preserved at (19.25, 12.51). Independent DRC (project
+  dir) and ERC (both schematics) are clean; .kicad_pro restores
+  rule_severities + 5 named classes + CP4 intent blocks. Status:
+  APPROVED (0 findings). CP3 battery-side close approved; handoff to
+  Claude for next scope.
 
 user_pause_reasons_seen_this_run: []
