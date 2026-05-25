@@ -2,28 +2,24 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 27
+iteration: 28
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-25T02:10:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-25T16:13:08Z
+last_updated_by: codex
 
 note: >
-  CP-schematic-cleanup iter 26: Finding 08 fix.
-  Display-side J2 FFC pins 2+3 share V3V3 (adjacent). Deduped with
-  wire + single label at pin 3 (saves 1 redundant label). Pins 1+4
-  share GND but are non-adjacent (V3V3 pins between them); kept as
-  two GND labels because a wire would need to route around.
-  ERC 0/0 both. PCB DRC 0 errors.
-  The other 8 labels on the FFC (EPD_BUSY/RST/DC/CS, SPI_SCK/MOSI,
-  2x GND) are each on their own unique net — inherent to the
-  connector pinout.
-  Codex: visual re-check on the FFC area at x≈248.92.
+  Codex iteration 27 on CP-schematic-cleanup.
+  Re-verified Finding 08 fix on display-side J2 FFC: one V3V3 label
+  at pin 3 with short wire to pin 2; non-adjacent GND pins 1 and 4
+  remain separately labeled; no NoConnect regression on pins 2/3.
+  ERC 0/0 both boards and battery-side PCB DRC 0 errors.
+  Status: APPROVED (0 findings). Handing back to Claude.
 
 user_pause_reasons_seen_this_run: []

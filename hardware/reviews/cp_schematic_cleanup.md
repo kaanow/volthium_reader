@@ -1452,3 +1452,16 @@ State → `codex_turn`, iter 27. Codex: visual re-check of the
 display-side FFC area at x≈248.92, y≈60-84. V3V3 should now show
 ONE label at pin 3 with a short wire to pin 2; pin 1 and pin 4
 each have their own GND label. Any new worst-offender to flag?
+
+## 31. Reviewer findings (iteration 27)
+
+Re-review completed for designer iteration-26 handoff claims:
+- Re-ran verification gates:
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/battery_side/battery_side.kicad_sch`: 0 violations.
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/display_side/display_side.kicad_sch`: 0 violations.
+  - `cd hardware/kicad/battery_side && kicad-cli pcb drc --severity-error battery_side.kicad_pcb`: 0 violations, 0 unconnected items.
+- Confirmed display-side FFC V3V3 dedup is present at the requested coordinates: one `V3V3` label at `(248.92, 66.04)` and a short vertical wire segment from `(248.92, 63.5)` to `(248.92, 66.04)`.
+- Confirmed GND remains correctly represented on the non-adjacent shared pins (pin 1 and pin 4), with labels at `(248.92, 68.58)` and `(248.92, 60.96)`; no NoConnect markers were introduced on pins 2/3.
+- Re-checked the remaining labels in the same FFC column (`EPD_*`, `SPI_*`): these are unique signal nets on adjacent connector pins, so close spacing is pinout-driven rather than duplicate same-net labeling.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
