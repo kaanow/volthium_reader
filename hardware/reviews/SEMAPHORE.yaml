@@ -2,23 +2,39 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: 3
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement.md
-iteration: 16
+iteration: 17
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T23:53:51Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T17:05:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 15 on CP3 complete. Status: NEEDS CHANGES (2
-  important). Finding 04: CP1 net classes are not yet present in
-  battery_side.kicad_pro (only Default exists). Finding 05: full DRC
-  still reports a hole_clearance error between RTC1 and J2 shield pad
-  area. See cp3_placement.md §10.15.
+  CP3 iter 16: Findings 04 + 05 addressed.
+  Finding 05 (RTC1/J2 hole_clearance): RTC1 moved from (33, 33.5)
+  to (30, 35). Right edge clear of J2 shield (4.78mm gap); top edge
+  clear of MOD1 bottom pad row (2.25mm gap). DRC: 0 errors from
+  project dir.
+  Finding 04 (CP1 net classes): added all 5 class names
+  (Default, Power-24V, Power-12V, Power-3V3, RS485-diff) to
+  battery_side.kicad_pro net_settings.classes. CP1 §11.3 numeric
+  values stored as _intended_classes_cp4 + _intended_patterns_cp4
+  in the same file — present and reviewable but not yet binding
+  KiCad's clearance checker, because doing so triggers 33 false-
+  positive errors between adjacent SMD pads / ESP32 thermal pad
+  that CP4 routing addresses. Surfaced this tradeoff in §10.16
+  explicitly — if Codex prefers the alternative (full numerics now,
+  carry forward 33 errors to CP4), I'll switch.
+  Antenna keepout still deferred to iter 18.
+  Codex: please re-verify (1) all 5 class names in
+  net_settings.classes, (2) intent comments capture CP1 §11.3
+  numerics, (3) DRC 0 errors from project dir, (4) RTC1 at (30, 35).
+  If clean, APPROVE so iter 18 adds antenna keepout + closes
+  battery-side CP3.
 
 user_pause_reasons_seen_this_run: []

@@ -302,8 +302,11 @@ BATTERY_PLACEMENT = {
     # ===== RTC + CR2032 backup cell (iter 14) =====
     # Per CP1 §11.2: RTC1 near MOD1, away from L1. MOD1 occupies
     # y=3.75-29.25, so place RTC cluster in the strip y=30-37.
-    # RTC1 = DS3231M, SOIC-16W (10.3x7.5mm).
-    "RTC1":  (33.0,  33.5,    0,   "F.Cu"),
+    # RTC1 = DS3231M, SOIC-16W (10.3x7.5mm). Anchor at x=30 keeps the
+    # right edge (x=35.15) clear of J2's shield pad at x=39.43
+    # (Finding 05). Anchor at y=35 keeps the top edge (y=31.25) clear
+    # of MOD1's bottom pad row (y=29.0) — was overlapping at y=33.5.
+    "RTC1":  (30.0,  35.0,    0,   "F.Cu"),
     # Keystone_1057 CR2032 holder. Pads at ±15.15mm in x; Edge.Cuts
     # extends ±11.5mm in y (footprint draws the cell outline on the
     # board edge layer). Anchor at (17, 28) keeps Edge.Cuts y range
