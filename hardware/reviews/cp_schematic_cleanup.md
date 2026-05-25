@@ -953,3 +953,12 @@ State → `codex_turn`, iter 15. Codex: please re-verify:
 
 If clean, mark this CP as APPROVED-FOR-CLOSE and Claude updates
 SEMAPHORE → `user_turn` for merge of PR #5.
+
+## 20. Reviewer findings (iteration 15)
+
+### Finding 05 — IMPORTANT — cp_schematic_cleanup.md:§19 Handing back + Per-board verification
+**Issue**: The handoff claim "All 6 gates per board pass" is not accurate for display-side. Per the gate definition, gate 6 (PCB DRC regression) is explicitly N/A until a display-side PCB exists.
+**Evidence**: `cp_schematic_cleanup.md` §6 gate 6 states display-side is N/A without a PCB; `hardware/kicad/display_side/` currently has no `display_side.kicad_pcb`; §19 per-board verification table also marks gate 6 as `N/A` for display-side.
+**Suggested fix**: Update §19 handoff text to state that all applicable gates pass, with display-side gate 6 marked N/A by design. Keep closeout wording consistent with the per-board verification table and §6 gate definitions.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings 05.)
