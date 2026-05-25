@@ -363,7 +363,7 @@ def _place_wire(sch: Schematic, start: tuple[float, float], end: tuple[float, fl
     sch.graphicalItems.append(w)
 
 
-def _add_rail_convention_note(sch: Schematic, x: float = 40.0, y: float = 20.0) -> None:
+def _add_rail_convention_note(sch: Schematic, x: float = 25.0, y: float = 12.0) -> None:
     """Add a sheet-level text annotation documenting the power-rail convention.
 
     D11 criterion #6: power rails on consistent edges. Since most power
@@ -372,15 +372,21 @@ def _add_rail_convention_note(sch: Schematic, x: float = 40.0, y: float = 20.0) 
     at top" would require re-orienting every component — out of scope
     for this CP. Instead, this annotation makes the convention explicit
     so any reader knows which side to look at for each rail.
+
+    Uses left-aligned justification so the text starts at the anchor
+    (KiCad's default centers text on the anchor, which pushed the
+    leading portion off the page on long strings).
     """
     from kiutils.items.schitems import Text
-    from kiutils.items.common import Position, Effects, Font
+    from kiutils.items.common import Position, Effects, Font, Justify
     note = Text()
-    note.text = ("POWER RAILS:  V3V3_SW / V24_* / V_BAT_RTC / V12_* labels are placed"
-                 " above their components; GND labels are placed below.")
+    note.text = "Rail convention: V3V3/V24*/V_BAT/V12* labels are above components; GND below."
     note.position = Position(X=x, Y=y, angle=0)
     note.uuid = _uuid()
-    note.effects = Effects(font=Font(height=2.0, width=2.0))
+    note.effects = Effects(
+        font=Font(height=2.0, width=2.0),
+        justify=Justify(horizontally="left"),
+    )
     if sch.texts is None:
         sch.texts = []
     sch.texts.append(note)

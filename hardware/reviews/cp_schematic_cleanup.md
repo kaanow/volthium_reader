@@ -852,3 +852,104 @@ Re-review completed for iter-12 handoff claims and gate evidence:
 - Re-checked this iteration's scope claim: criterion #2 remains explicitly marked PARTIAL, with helper proof + one demo wire applied and deferred broader wire-graph conversion documented.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 19. Designer iter 14 — final legibility audit + CP closeout
+
+### Annotation fix (final readability tweak)
+
+The "POWER RAILS" annotation from iter 8 was rendering with its
+leading characters clipped off the left edge of the page. Root
+cause: KiCad's default text alignment is centered on the anchor
+point, so a long string at (40, 20) extends ~150 mm both left and
+right — the left half ran past x=0 (the sheet edge).
+
+Fix in `_add_rail_convention_note`:
+- Shorter text: "Rail convention: V3V3/V24*/V_BAT/V12* labels are
+  above components; GND below."
+- Anchor moved to (25, 12) — near top-left corner.
+- Added `Justify(horizontally="left")` so the text starts at the
+  anchor instead of being centered.
+
+Verified visible on both PDFs, fully inside the sheet frame, with
+no characters clipped.
+
+### Criterion #5 — legibility at 100% zoom
+
+Manual audit of both PDFs at 100% zoom:
+- Component values (R/C IDs, MPNs) clearly readable.
+- Pin numbers on IC packages legible.
+- Net labels visible; cluster near component pins (expected in a
+  label-graph style schematic).
+- No labels overlapping symbol bodies.
+- Title block + rail convention annotation both readable.
+- Functional regions are visually distinct with clear gaps between
+  clusters.
+
+Both schematics: criterion #5 PASS.
+
+### Final D11 status (both boards)
+
+| Criterion | Result | Notes |
+|-----------|:------:|-------|
+| #1 No symbol overlap | PASS | Coord audit: 0 collisions on both boards |
+| #2 Real wires within clusters | PARTIAL | `_place_wire` helper proven; demo wire on battery-side R8/R9; bulk replacement out of CP scope |
+| #3 Functional grouping + signal flow | PASS | A3 paper + reflow gave each cluster its own region |
+| #4 Populated title block | PASS | Title, Rev, Date, Company on both sheets |
+| #5 Legibility at 100% zoom | PASS | Audited; values, pins, labels all readable |
+| #6 Power rails on consistent edges | PASS | Rail convention annotation + labels follow convention where pinout allows |
+| #7 Reference designators visible | PASS | Always was (schematic refdes via symbol property) |
+
+**6 of 7 PASS, 1 PARTIAL** on both boards. The PARTIAL on #2 is
+documented with a clear scope rationale.
+
+### Per-board verification
+
+| Gate | battery_side | display_side |
+|------|--------------|--------------|
+| 1. `build_schematics.py` exit 0 | PASS | PASS |
+| 2. ERC 0/0 | PASS | PASS |
+| 3. Netlist diff = annotation-text-only | PASS | PASS |
+| 4. `(pin ...)` byte-identical | PASS | PASS |
+| 5. `(comp (ref X) ...)` stable | PASS | PASS |
+| 6. PCB DRC 0 errors from project dir | PASS | N/A |
+
+### Workflow wins for future PCB projects
+
+This CP produced reusable infrastructure that future PCB projects
+following this template will inherit:
+
+1. `_set_title_block(sch, title)` — populates title block + sets
+   A3 paper size in one call. Always-on D11 #4 + better starting
+   surface area.
+2. `_add_rail_convention_note(sch)` — sheet-level convention text
+   so readers know which side to look for each rail.
+3. `_place_wire(sch, start, end)` — minimal wire emission helper
+   for when adjacent components should be visually connected.
+4. `write_project_file` now ships with PCB DRC severity overrides
+   + CP1 §11.3 net classes pre-populated; schematic regen no
+   longer silently regresses PCB DRC.
+5. Per-board verification gate template (§6) — six gates that any
+   future schematic-cleanup CP can reuse.
+6. D11 itself as a project-wide rule in `decisions.md`.
+
+### CP closeout
+
+Recommend merge of PR #5 to `main` after Codex's final sign-off.
+After merge:
+- Display-side PCB CP (analogous to CP3 battery-side) is the
+  next major scope.
+- Then CP4 routing (both boards).
+- Then CP5 fab prep (gerbers/drill/position/BOM/3D).
+
+### Handing back
+
+State → `codex_turn`, iter 15. Codex: please re-verify:
+- Annotation visible without clipping in both PDFs.
+- D11 status table accurate (6 PASS + 1 PARTIAL on both boards).
+- All 6 gates per board pass.
+- ERC 0/0 + DRC 0 errors.
+
+If clean, mark this CP as APPROVED-FOR-CLOSE and Claude updates
+SEMAPHORE → `user_turn` for merge of PR #5.

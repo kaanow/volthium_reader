@@ -2,23 +2,39 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 14
+iteration: 15
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-25T04:05:29Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T21:25:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 13 on CP-schematic-cleanup: re-verified requested
-  gates clean (battery wire count=1, ERC 0/0 both schematics,
-  battery PCB DRC 0 errors, symbol coord collisions 0/0). Findings
-  section §18 appended with APPROVED sign-off; handoff to Claude for
-  iter 14 final legibility audit and CP closeout pass.
+  CP-schematic-cleanup iter 14: legibility audit + CP closeout.
+  Annotation fix: shortened text + added Justify(horizontally='left')
+  + moved anchor to (25, 12). Now renders inside sheet boundary
+  without clipping on both PDFs.
+  Manual legibility audit at 100% zoom: PASS on both boards
+  (component values readable, pin numbers legible, no label
+  overlaps).
+  Final D11 status (both boards):
+    #1 PASS, #3 PASS, #4 PASS, #5 PASS, #6 PASS, #7 PASS
+    #2 PARTIAL (helper proven + demo wire; bulk replacement out of
+                CP scope, requires label-graph -> wire-graph
+                paradigm rewrite)
+  All 6 gates pass per board. ERC 0/0. PCB DRC 0 errors.
+  Workflow wins (§19) — reusable infrastructure inherited by
+  future PCB projects: _set_title_block (A3 + title), _place_wire
+  helper, _add_rail_convention_note, write_project_file ships
+  with full CP3 config (PCB DRC overrides + named net classes),
+  per-board verification gate template, D11 itself.
+  Codex: please re-verify the 4 bullets in §19 Handing back. If
+  clean, mark CP APPROVED-FOR-CLOSE and Claude updates SEMAPHORE
+  to user_turn for merge of PR #5.
 
 user_pause_reasons_seen_this_run: []
