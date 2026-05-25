@@ -342,7 +342,7 @@ def _set_title_block(sch: Schematic, title: str) -> None:
     sch.paper.paperSize = "A3"
 
 
-def _add_rail_convention_note(sch: Schematic, x: float = 20.0, y: float = 8.0) -> None:
+def _add_rail_convention_note(sch: Schematic, x: float = 40.0, y: float = 20.0) -> None:
     """Add a sheet-level text annotation documenting the power-rail convention.
 
     D11 criterion #6: power rails on consistent edges. Since most power
@@ -1310,7 +1310,13 @@ def build_display_side_schematic() -> None:
     #   pin 9 SCK, pin 10 MOSI, pins 11-24 unused (NC).
     # Conn_01x24 pin geometry: pin N at lib (-5.08, 27.94 - 2.54*(N-1)),
     # angle 0 → sch (X-5.08, Y - lib_Y).
-    J2_X, J2_Y = 50 * G, 130 * G   # (63.5, 165.1)
+    # Moved right of MOD1 (CP-schematic-cleanup iter 10, criterion #3):
+    # the e-paper FFC visually represents the panel that sits to the
+    # right of the MCU in the physical layout. Putting it on the right
+    # side of the sheet aligns schematic geometry with signal flow.
+    # 24-pin column extends 23*G = 29.2 mm down from anchor; anchor at
+    # y=70*G means pins span y=70-99*G, clear of MOD1's body at y=78-122*G.
+    J2_X, J2_Y = 200 * G, 70 * G   # (254.0, 88.9)
     _place_symbol(s, "Conn_01x24", "J2", "EPD_FFC_24",
                   "Connector_FFC-FPC:Hirose_FH12-24S-0.5SH_1x24-1MP_P0.50mm_Horizontal",
                   (J2_X, J2_Y), lib=lib)

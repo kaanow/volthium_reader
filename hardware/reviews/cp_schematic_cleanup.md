@@ -630,3 +630,85 @@ Re-review completed for iter-8 handoff claims and gate evidence:
 - Re-checked §14 tradeoff framing against D11 criterion #6 wording ("supply rails near top, GND near bottom, or a single fixed pattern"): the documented above/below convention with explicit on-sheet note is internally consistent for this iteration and keeps topology/DRC/ERC gates clean.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 16. Designer iter 10 — D11 criterion #3 (display-side reflow)
+
+### Changes
+
+**1. Display-side J2 FFC relocated**
+Moved `J2_X, J2_Y` from `(50*G, 130*G) = (63.5, 165.1)` to
+`(200*G, 70*G) = (254.0, 88.9)`. J2 is the 24-pin Hirose FFC that
+connects to the e-paper panel. Putting it on the right side of the
+sheet aligns the schematic geometry with physical signal flow:
+the panel sits to the right of the MCU in real space, so its
+connector reads right-of-MOD1 in the schematic too.
+
+The 24-pin column extends 23·G = 29.2 mm down from anchor, so its
+pins span y = 70-99 ·G. MOD1's body occupies y = 78-122 ·G; J2's
+column is clear of MOD1's right edge (MOD1 right edge ≈ 152·G).
+
+**2. POWER RAILS annotation repositioned**
+Moved `_add_rail_convention_note` default position from
+`(20, 8)` to `(40, 20)` so the text isn't clipped by KiCad's
+page-border rendering. Verified visible in both PDFs now.
+
+### Visual outcome (display-side)
+
+```
+TOP HALF
+  top-left:    Power input  (J1 RJ45 → F1 → TVS1 → C1 → U1 → C2)
+  top-mid:     MCU bypass row  (R1/C3/C4/C5/C6) feeding MOD1
+  top-right:   RS-485 cluster  (U2 + R2/R3/R4/TVS2 + C7)
+
+CENTER
+  center:      MOD1 ESP32-S3-WROOM-1
+  right:       J2 FFC (24-pin column to e-paper panel)
+
+BOTTOM HALF
+  bottom-left: Dev headers  (J3 UART-DBG, J4 USB-OTG)
+  bottom-mid:  BTN1, BTN2, BTN3 cluster row (each with 1MΩ pullup +
+               100nF debounce)
+```
+
+Signal flow on display-side: V12_CAT5E enters top-left via J1 →
+PolyFuse F1 → TVS1 → U1 R-78E3.3 → V3V3 → MOD1 → e-paper (right)
++ RS-485 back to battery-side (top-right) + button cluster
+(bottom).
+
+### Per-board verification
+
+| Gate | battery_side | display_side |
+|------|--------------|--------------|
+| 1. `build_schematics.py` exit 0 | PASS | PASS |
+| 2. ERC 0/0 | PASS | PASS |
+| 3. Netlist diff = J2 anchor move only (display) | PASS | PASS |
+| 4. `(pin ...)` byte-identical | PASS | PASS |
+| 5. `(comp (ref X) ...)` stable | PASS | PASS |
+| 6. PCB DRC 0 errors from project dir | PASS | N/A |
+
+**Coord collision audit**: 0 collisions on both boards.
+
+### D11 status update
+
+| Criterion | battery_side | display_side |
+|-----------|--------------|--------------|
+| #1 no symbol overlap | PASS | PASS |
+| #3 functional grouping | PASS | **PASS** |
+| #4 populated title block | PASS | PASS |
+| #6 power rails | PASS | PASS |
+| #7 refdes visible | PASS | PASS |
+| #2 real wires within clusters | pending iter 12 | pending iter 12 |
+| #5 legibility at 100% zoom | improved by A3; final audit iter 14 | improved by A3; final audit iter 14 |
+
+### Handing back
+
+State → `codex_turn`, iter 11. Codex: please re-verify:
+- Display-side J2 anchor at `(200*G, 70*G) = (254.0, 88.9)`.
+- POWER RAILS annotation visible (not clipped) on both PDFs.
+- All 6 gates pass per board.
+
+If clean, APPROVE so iter 12 can take a swing at criterion #2
+(real wires within clusters) — direct `(wire ...)` S-expression
+emission per the plan in §7 Q-SCH-1.

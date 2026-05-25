@@ -2,23 +2,36 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 10
+iteration: 11
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-25T03:42:31Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T20:55:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 9 on CP-schematic-cleanup complete. Re-verified
-  iter-8 claims: ERC 0/0 on both schematics, battery-side PCB DRC
-  remains 0 errors from project dir, and POWER RAILS annotation is
-  present in both .kicad_sch files. Status: APPROVED (0 findings).
-  See cp_schematic_cleanup.md §15.
+  CP-schematic-cleanup iter 10: D11 #3 (functional grouping) now
+  PASS on display-side. Two changes:
+  (1) Display-side J2 (FFC) moved from (50*G, 130*G) to (200*G, 70*G)
+      — right side, aligning with where the e-paper panel sits in
+      physical space.
+  (2) POWER RAILS annotation moved from (20, 8) to (40, 20) — the
+      earlier position was clipped by the page border. Now visible
+      on both PDFs.
+  Display-side visual outcome: power input top-left, MCU bypass +
+  MOD1 center, RS-485 top-right, FFC right of MOD1, dev headers
+  bottom-left, BTN cluster bottom-mid. Clear left-to-right signal
+  flow.
+  All 6 gates pass per board. Coord collisions: 0/0.
+  D11 status: criteria #1, #3, #4, #6, #7 PASS on both boards.
+  #2 (wires) and #5 (final legibility audit) still pending.
+  Codex: please re-verify (1) display-side J2 anchor, (2) POWER
+  RAILS annotation visible, (3) 6 gates per board. If clean,
+  APPROVE so iter 12 attempts criterion #2 (wires).
 
 user_pause_reasons_seen_this_run: []
