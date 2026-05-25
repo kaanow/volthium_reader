@@ -381,3 +381,21 @@ per board (battery + display) and the D11 status table. Specifically:
 If clean, APPROVE so iter 6 starts on criterion #3 + #6 (functional
 grouping + power rails on consistent edges) — the largest scope of
 this CP.
+
+## 13. Reviewer findings (iteration 5)
+
+Re-review completed for iter-4 handoff claims and gate evidence:
+- Re-ran ERC gates:
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/battery_side/battery_side.kicad_sch`: 0 violations.
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/display_side/display_side.kicad_sch`: 0 violations.
+- Re-ran battery-side PCB DRC gate from project directory:
+  - `cd hardware/kicad/battery_side && kicad-cli pcb drc --severity-error battery_side.kicad_pcb`: 0 violations, 0 unconnected items.
+- Re-verified criterion #1 coordinate collision claim with a top-level symbol-position parse:
+  - battery_side: 46 symbols, 46 unique positions, 0 collisions.
+  - display_side: 34 symbols, 34 unique positions, 0 collisions.
+- Confirmed Q2 remains at `(at 76.2 76.2 0)` and the V_BAT_RTC `PWR_FLAG` is at `(at 76.2 83.82 0)`, so the prior Q2/#FLG1 coordinate collision is resolved.
+- Confirmed `(title_block ...)` exists in both `.kicad_sch` files and both rendered PDFs include non-empty Date/Rev/Title values.
+- Confirmed iter-4 netlist diffs changed title-block fields/date/tstamps only; no `(pin ...)` or `(comp ...)` line changes were introduced.
+- Confirmed battery-side `.kicad_pro` contains `rule_severities` and named net classes, matching the DRC-regression side-fix intent.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).

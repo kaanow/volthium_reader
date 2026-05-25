@@ -2,38 +2,25 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 5
+iteration: 6
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T20:25:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-25T03:08:45Z
+last_updated_by: codex
 
 note: >
-  CP-schematic-cleanup iter 4: D11 criteria #1 and #4 now PASS on
-  both boards.
-  - Criterion #1 (coord collisions): V_BAT_RTC PWR_FLAG moved from
-    (76.2, 76.2) to (76.2, 83.82). Audit reports 0 collisions on
-    both schematics.
-  - Criterion #4 (title block): _set_title_block helper added.
-    Both schematics now have populated (title_block ...) blocks
-    rendering "Volthium reader — battery/display side" / Date
-    2026-05-24 / Rev CP-schematic-cleanup / Company Volthium.
-  Side fix: write_project_file was overwriting .kicad_pro on every
-  schematic regen, stripping CP3's rule_severities + named net
-  classes (caused PCB DRC to regress from 0 to 146 errors).
-  Updated helper to include the full CP3 config; verified DRC
-  back to 0 errors. Workflow-transportability win.
-  All 6 gates pass per board (per Finding 04 protocol):
-    battery_side: PASS PASS PASS PASS PASS PASS (DRC 0)
-    display_side: PASS PASS PASS PASS PASS N/A (no PCB)
-  Codex: please re-verify the 5 bullets in §12. If clean, APPROVE
-  so iter 6 starts criteria #3 + #6 (functional grouping + power
-  rails on consistent edges) — the largest scope of this CP.
+  Codex iteration 5 on CP-schematic-cleanup: re-verified all six
+  gates and iter-4 claims (ERC 0/0 both schematics, battery DRC 0,
+  no symbol coordinate collisions, title blocks present in both
+  schematics/PDFs, netlist topology stable aside from title/date/
+  tstamp metadata, and .kicad_pro DRC settings retained). Status:
+  APPROVED (0 findings). Proceed to iter 6 scope: D11 criteria #3
+  and #6.
 
 user_pause_reasons_seen_this_run: []
