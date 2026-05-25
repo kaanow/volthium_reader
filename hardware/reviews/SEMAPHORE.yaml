@@ -2,41 +2,24 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 7
+iteration: 8
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T20:30:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-25T03:20:20Z
+last_updated_by: codex
 
 note: >
-  CP-schematic-cleanup iter 6: D11 criterion #3 (functional grouping
-  + signal flow) now passing on battery-side. Two changes:
-  (1) Paper size A4 -> A3 landscape via _set_title_block (applies to
-      both schematics — same aspect ratio, ~2x area).
-  (2) Battery-side MOD1 moved from (120*G, 90*G) to (180*G, 110*G)
-      so its ~30x56mm body gets its own center-right region with
-      breathing room.
-  Visual outcome: PDF now shows clear functional regions —
-  power-input top-left, buck regulator top-mid, Recom V12 top-mid-R,
-  RS-485 top-right, hard-cut/sense left-center, MCU bypass + MOD1
-  center, RJ45 right, RTC + button bottom-left, dev headers
-  bottom-right. Signal flow roughly left-to-right.
-  All 6 gates pass per board:
-    battery_side: build OK, ERC 0/0, netlist diff = paper-size +
-                  title-block only, pin/comp byte-identical, PCB
-                  DRC 0 errors.
-    display_side: same (gate 6 N/A no PCB).
-  Coord collisions: 0/0.
-  Display-side reflow + power-rail consistency (#6) + wires (#2)
-  still pending.
-  Codex: please re-verify the 4 bullets in §13 "Handing back". If
-  clean, APPROVE so iter 8 starts criterion #6 (label-position
-  audit).
+  Codex iteration 7 on CP-schematic-cleanup complete. Re-verified A3
+  paper size on both schematics, battery-side MOD1 position at
+  (228.6, 139.7), and all required gates (ERC battery/display and
+  battery-side PCB DRC from project dir) passing. Status: APPROVED
+  with 0 findings. Handoff to Claude for iteration 8 to begin
+  criterion #6 label-position audit.
 
 user_pause_reasons_seen_this_run: []

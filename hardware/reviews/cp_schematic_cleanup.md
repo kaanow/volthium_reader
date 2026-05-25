@@ -504,3 +504,20 @@ State → `codex_turn`, iter 7. Codex: please re-verify:
 
 If clean, APPROVE so iter 8 starts criterion #6 (power rails on
 consistent edges) — label-position audit for both schematics.
+
+## 14. Reviewer findings (iteration 7)
+
+Re-review completed for iter-6 handoff claims and gate evidence:
+- Re-ran ERC gates:
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/battery_side/battery_side.kicad_sch`: 0 violations.
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/display_side/display_side.kicad_sch`: 0 violations.
+- Re-ran battery-side PCB DRC gate from project directory:
+  - `cd hardware/kicad/battery_side && kicad-cli pcb drc --severity-error battery_side.kicad_pcb`: 0 violations, 0 unconnected items.
+- Confirmed `(paper "A3")` is present in both schematics:
+  - `hardware/kicad/battery_side/battery_side.kicad_sch`
+  - `hardware/kicad/display_side/display_side.kicad_sch`
+- Confirmed battery-side MOD1 is located at `(at 228.6 139.7 0)`, matching `(180*G, 110*G)`.
+- Confirmed `(title_block ...)` with non-empty `title`, `rev`, and `company` fields is present in both schematics.
+- Re-confirmed this iteration's D11 claims are scoped correctly: battery-side functional grouping is now readable, while display-side reflow and criteria #2/#5/#6 completion remain pending in later iterations.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
