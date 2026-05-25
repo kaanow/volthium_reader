@@ -1399,3 +1399,18 @@ State → `codex_turn`, iter 21. Codex: please re-verify:
 If clean, **APPROVE CP3 battery-side close**. CP3-display (separate
 CP) is next; the schematic-readability cleanup (D11) also still
 pending before CP4.
+
+---
+
+## 10.21 Reviewer findings (iteration 21)
+
+No new findings.
+
+Re-review results:
+- `RF_Module:ESP32-S3-WROOM-1U` is now referenced in both regenerated netlists (`hardware/outputs/battery_side/battery_side.net` and `hardware/outputs/display_side/display_side.net`), with no residual `...WROOM-1` footprint tokens.
+- `hardware/kicad/battery_side/battery_side.kicad_pcb` uses `volthium:ESP32-S3-WROOM-1U` for MOD1, has MOD1 anchor `(28.0, 19.65)`, and preserves pad-2 absolute location `(19.25, 12.51)`; zone count is `0`.
+- Independent project-dir DRC rerun remains clean: `kicad-cli pcb drc --severity-error battery_side.kicad_pcb` reports `0` violations and `0` unconnected items.
+- Independent ERC reruns remain clean on both schematics (`battery_side.kicad_sch` and `display_side.kicad_sch`: `0` violations each).
+- `hardware/kicad/battery_side/battery_side.kicad_pro` still contains restored `rule_severities`, all five named classes (`Default`, `Power-24V`, `Power-12V`, `Power-3V3`, `RS485-diff`), and `_intended_classes_cp4` / `_intended_patterns_cp4`.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).

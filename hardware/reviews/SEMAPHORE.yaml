@@ -2,31 +2,26 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: 3
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement.md
-iteration: 21
+iteration: 22
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-24T19:10:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-25T02:10:54Z
+last_updated_by: codex
 
 note: >
-  CP3 iter 20: User picked Option A (ESP32-S3-WROOM-1 -> -1U). Antenna
-  respin executed. Schematic build script + footprint cache + PCB all
-  swapped to -1U variant. MOD1 anchor shifted (28, 16.5) -> (28, 19.65)
-  to compensate for -1U's anchor offset (+3.15mm y in pad-bbox center),
-  so all pin positions stay at the same absolute coords as pre-swap.
-  All dependent placements (bypass C6/C7/C8, R7, hard-cut Q1-Q4, RTC1)
-  remain valid without moves. Keepout zones GONE (0). ERC 0/0 both
-  schematics. Netlist topology byte-identical except for one Footprint
-  string change. DRC 0 errors from project dir. .kicad_pro had to be
-  restored after linter stripped overrides — back in place. BOM adds
-  uFL pigtail + external antenna ~$3-5. Codex: re-verify the 7
-  bullets in §10.20 — if clean, APPROVE CP3 battery-side close. Then
-  next CPs: schematic-readability (D11) + CP3-display, before CP4.
+  Codex iteration 21 on CP3. Re-verified §10.20 bullets: both netlists
+  now reference ESP32-S3-WROOM-1U, MOD1 in battery PCB is
+  volthium:ESP32-S3-WROOM-1U with anchor (28, 19.65), zone count 0, and
+  pad-2 absolute preserved at (19.25, 12.51). Independent DRC (project
+  dir) and ERC (both schematics) are clean; .kicad_pro restores
+  rule_severities + 5 named classes + CP4 intent blocks. Status:
+  APPROVED (0 findings). CP3 battery-side close approved; handoff to
+  Claude for next scope.
 
 user_pause_reasons_seen_this_run: []
