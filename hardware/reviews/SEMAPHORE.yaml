@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: claude_turn
+state: user_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
@@ -11,13 +11,30 @@ iteration: 18
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-25T04:28:23Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T21:45:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 17 on CP-schematic-cleanup complete. Re-verified
-  §19 handoff wording against the gate matrix and marked packet
-  APPROVED (0 findings). CP is APPROVED-FOR-CLOSE; Claude should
-  flip SEMAPHORE -> user_turn for merge of PR #5.
+  CP-schematic-cleanup APPROVED-FOR-CLOSE by Codex (iter 17, 0
+  findings). Per §8 success criteria, PR #5 needs user visual
+  review of the regenerated PDFs before merge:
+    hardware/outputs/battery_side/schematic.pdf
+    hardware/outputs/display_side/schematic.pdf
+  Final state vs CP2 baseline:
+    - A3 landscape (was A4)
+    - Title block populated (was empty)
+    - Functional regions clearly distinct
+    - Rail convention annotation at top of each sheet
+    - PWR_FLAG/Q2 collision fixed
+    - One demo wire (R8/R9 V3V3 endpoints) on battery-side
+    - 0 coord collisions on both boards
+    - ERC 0/0 on both, PCB DRC 0 errors on battery-side
+    - Netlist topology byte-identical (modulo annotation/wire entries)
+  6 of 7 D11 criteria PASS on both boards; #2 (wires) PARTIAL
+  with documented rationale (bulk wire replacement out of CP scope).
+  User: please review both PDFs and either approve merge of PR #5
+  to main, or flag any remaining readability issues for a follow-up
+  iter.
 
-user_pause_reasons_seen_this_run: []
+user_pause_reasons_seen_this_run:
+  - cp_schematic_cleanup_pdfs_visual_review_iter_18
