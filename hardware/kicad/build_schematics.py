@@ -560,7 +560,9 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "GND",     (J1_X - 4 * G, J1_Y + 2 * G))    # pin 2 endpoint
 
     # F1 — 5×20 mm cartridge fuse holder, 2-pin vertical (like R).
-    F1_X, F1_Y = 60 * G, 30 * G   # (76.2, 38.1)
+    # Spread iter 20: power row stretched across the page width to give
+    # each component's V24_* labels clear horizontal space (D11 #5).
+    F1_X, F1_Y = 65 * G, 30 * G   # (82.55, 38.1)
     _place_symbol(s, "Fuse", "F1", "1A 5x20",
                   "Fuse:Fuseholder_Clip-5x20mm_Bel_FC-203-22_Lateral_P17.80x5.00mm_D1.17mm_Horizontal",
                   (F1_X, F1_Y), lib=lib)
@@ -570,7 +572,7 @@ def build_battery_side_schematic() -> None:
     # D1 — SS24 Schottky reverse-polarity diode (Device:D generic, Value
     # overridden to BOM MPN). Horizontal: pin 1 (K) on left, pin 2 (A) on
     # right; pins at ±3.81 = ±3*G from center.
-    D1_X, D1_Y = 80 * G, 30 * G   # (101.6, 38.1)
+    D1_X, D1_Y = 95 * G, 30 * G   # (120.65, 38.1)
     _place_symbol(s, "D", "D1", "SS24",
                   "Diode_SMD:D_SMA",
                   (D1_X, D1_Y), lib=lib)
@@ -579,7 +581,7 @@ def build_battery_side_schematic() -> None:
 
     # TVS1 — SMAJ30CA bidirectional 24V TVS (Device:D_TVS generic, Value
     # overridden). Pins same geometry as D.
-    TVS1_X, TVS1_Y = 95 * G, 30 * G   # (120.65, 38.1)
+    TVS1_X, TVS1_Y = 120 * G, 30 * G   # (152.4, 38.1)
     _place_symbol(s, "D_TVS", "TVS1", "SMAJ30CA",
                   "Diode_SMD:D_SMA",
                   (TVS1_X, TVS1_Y), lib=lib)
@@ -624,7 +626,7 @@ def build_battery_side_schematic() -> None:
     #   pin 6 BST ( 7.62,  7.62) passive → sch (X+7.62, Y-7.62)
     #   pin 7 SS  (-7.62, -2.54) passive → sch (X-7.62, Y+2.54)
     #   pin 8 FB  ( 7.62, -7.62) input   → sch (X+7.62, Y+7.62)
-    U1_X, U1_Y = 120 * G, 30 * G   # (152.4, 38.1)
+    U1_X, U1_Y = 155 * G, 30 * G   # (196.85, 38.1)
     _place_symbol(s, "TPS62933", "U1", "TPS62933FDRLR",
                   "Package_TO_SOT_SMD:SOT-23-6",
                   (U1_X, U1_Y), lib=lib)
@@ -693,7 +695,7 @@ def build_battery_side_schematic() -> None:
     #   pin 2 lib (-5.08,  0)    → schematic (X-5.08, Y)
     #   pin 3 lib (-5.08, -2.54) → schematic (X-5.08, Y+2.54)  [BOTTOM pin]
     # Mapping (per Recom datasheet): pin 1 = VIN, pin 2 = GND, pin 3 = VOUT.
-    U2_X, U2_Y = 160 * G, 30 * G   # (203.2, 38.1)
+    U2_X, U2_Y = 200 * G, 30 * G   # (254.0, 38.1)
     _place_symbol(s, "Conn_01x03", "U2", "R-78E12-1.0",
                   "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT",
                   (U2_X, U2_Y), lib=lib)
@@ -1126,21 +1128,18 @@ def build_battery_side_schematic() -> None:
     # passive connector pins — those don't satisfy ERC. PWR_FLAG is the
     # standard pattern for nets sourced from outside the schematic. We
     # keep these for the lifetime of the design.
-    _place_power_flag(s, "V24_FUSED", (R5_X - 20 * G, R5_Y - 3 * G), lib)
-    _place_power_flag(s, "GND",       (R5_X - 20 * G, R6_Y + 3 * G), lib)
-    # V24_SW gets a PWR_FLAG too. ERC-wise, Q1.drain is `passive`, so it
-    # doesn't drive the net even though Q1 physically passes V24_FUSED → V24_SW
-    # when ON. U1.VIN and U2.VIN are `power_in` pins that need a source.
-    _place_power_flag(s, "V24_SW",    (R5_X - 20 * G, (R5_Y + R6_Y) / 2), lib)
-    # V3V3_SW: MOD1.3V3 is `power_input`. U1's SW pin is `output`, not
-    # `power_output`, so ERC needs a flag here. The regulator output IS
-    # really the source — flag is just ERC bookkeeping.
-    _place_power_flag(s, "V3V3_SW",   (R5_X - 20 * G, R5_Y + 16 * G), lib)
-    # V_BAT_RTC: RTC1.VBAT is `power_input`. BAT1.+ (CR2032 holder) is
-    # `passive` per KiCad — the cell IS the source but ERC needs a flag.
-    # Y offset moved from +20*G to +26*G to clear Q2 at (60*G, 60*G);
-    # the +20*G value collided exactly with Q2 (D11 criterion #1 fix).
-    _place_power_flag(s, "V_BAT_RTC", (R5_X - 20 * G, R5_Y + 26 * G), lib)
+    # CP-cleanup iter 20 (Finding 06): moved PWR_FLAG column from
+    # x=R5_X-20*G=60*G — which clashed with F1's column (76.2 mm) and
+    # produced the dense V24_* label cluster — to a dedicated
+    # horizontal strip at y=180*G=228.6mm (bottom of the A3 sheet,
+    # well below all other components). Spaced 20*G=25.4mm apart so
+    # adjacent flag labels have plenty of horizontal breathing room.
+    _PF_Y = 180 * G
+    _place_power_flag(s, "V24_FUSED", (40 * G,  _PF_Y), lib)
+    _place_power_flag(s, "GND",       (60 * G,  _PF_Y), lib)
+    _place_power_flag(s, "V24_SW",    (80 * G,  _PF_Y), lib)
+    _place_power_flag(s, "V3V3_SW",   (100 * G, _PF_Y), lib)
+    _place_power_flag(s, "V_BAT_RTC", (120 * G, _PF_Y), lib)
     # PWR_EN is now driven by MOD1.IO4 (bidirectional). MOD1 landed in
     # iter 18, so the synthetic PWR_EN PWR_FLAG is no longer needed —
     # dropped.

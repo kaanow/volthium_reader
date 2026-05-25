@@ -1130,3 +1130,85 @@ satisfy D11 #0 and #5 by visual inspection, not just by audit.
 **Suggested fix**: Re-space this cluster before closeout: move the D1/TVS1 and hard-cut labels into two rows with minimum horizontal separation between labels, and relocate duplicated local `V24_FUSED` labels so only one label anchors each visual node in that cluster.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings 06.)
+
+---
+
+## 24. Designer iter 20 — Finding 06 fix (power-row spread + PWR_FLAG relocation)
+
+### Root cause
+
+Two structural issues stacked to produce the D1/TVS1 label cluster:
+
+1. **Power-input row too compressed.** Components were spaced at
+   ~20*G (25.4 mm) in x, but the labels are ~7-15 mm wide
+   (V24_AFTER_FUSE alone is 14 chars ≈ 9 mm). With small horizontal
+   gaps, adjacent labels visually overlap.
+
+2. **PWR_FLAG column at x=60*G clashed with F1.** F1 sat at
+   x=60*G=76.2 and the PWR_FLAG column was also at x=60*G. Both
+   sets of V24_* labels stacked at the same x-column.
+
+### Fixes
+
+**Power-input row spread**:
+- F1:  60*G → 65*G  (+6.35 mm)
+- D1:  80*G → 95*G  (+19.05 mm)
+- TVS1: 95*G → 120*G (+31.75 mm)
+- U1:  120*G → 155*G (+44.45 mm)
+- U2:  160*G → 200*G (+50.8 mm)
+
+U1's children (L1, C1, C2, C_BST) follow U1_X derivation —
+automatic. U2's children (C3, C4) same. Sense divider and hard-cut
+unchanged in this iter.
+
+**PWR_FLAG column relocated to bottom strip**:
+
+| Net        | Old anchor   | New anchor   |
+|------------|--------------|--------------|
+| V24_FUSED  | (60*G, 37*G) | (40*G, 180*G)|
+| GND        | (60*G, 53*G) | (60*G, 180*G)|
+| V24_SW     | (60*G, 45*G) | (80*G, 180*G)|
+| V3V3_SW    | (60*G, 56*G) | (100*G, 180*G)|
+| V_BAT_RTC  | (60*G, 66*G) | (120*G, 180*G)|
+
+Horizontal strip at y=180*G=228.6 mm — well below all other
+components on A3, lower half of sheet finally used. 20*G=25.4 mm
+horizontal spacing between flags gives clear label whitespace.
+
+### Per-board verification
+
+| Gate | battery_side | display_side |
+|------|--------------|--------------|
+| 1. `build_schematics.py` exit 0 | PASS | PASS |
+| 2. ERC 0/0 | PASS | PASS |
+| 3. Netlist diff = position-only changes | PASS | PASS |
+| 4. `(pin ...)` byte-identical | PASS | PASS |
+| 5. `(comp ...)` stable | PASS | PASS |
+| 6. PCB DRC 0 errors from project dir | PASS | N/A |
+
+### Visual check (manual PDF inspection)
+
+The D1/TVS1/Q1 cluster that Codex flagged in Finding 06 now has
+visibly more horizontal breathing room. V24_FUSED labels are no
+longer adjacent to one another in the top row — they each live at
+their respective component's pin endpoints with ~25-35 mm separation.
+
+The PWR_FLAGs are clearly visible at the bottom of the sheet as a
+horizontal strip, well clear of the top-row labels they previously
+collided with.
+
+Battery-side still has some density in the middle-left
+(sense divider + hard-cut cluster around R5/R6/Q1/Q2/R3/R4) but the
+horizontal V24_* stack flagged in Finding 06 is resolved.
+
+### Handing back
+
+State → `codex_turn`, iter 21. Codex: please VISUALLY open the
+battery-side PDF and re-verify:
+- The D1/TVS1/Q1 cluster from Finding 06 no longer has the dense
+  V24_* horizontal label stack.
+- PWR_FLAGs are at the bottom of the sheet, not on the F1 column.
+- No new overlap regressions introduced by the power-row spread.
+
+If a different cluster is now the worst remaining offender, name
+it with coordinates and Claude targets that next.
