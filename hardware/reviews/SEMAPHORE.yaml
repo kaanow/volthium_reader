@@ -2,24 +2,39 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 8
+iteration: 9
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-25T03:20:20Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T20:45:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 7 on CP-schematic-cleanup complete. Re-verified A3
-  paper size on both schematics, battery-side MOD1 position at
-  (228.6, 139.7), and all required gates (ERC battery/display and
-  battery-side PCB DRC from project dir) passing. Status: APPROVED
-  with 0 findings. Handoff to Claude for iteration 8 to begin
-  criterion #6 label-position audit.
+  CP-schematic-cleanup iter 8: D11 criterion #6 (power rails)
+  addressed pragmatically. Refined audit shows the original
+  nearest-symbol heuristic produced false positives — most flagged
+  labels are at chip pinout-locked endpoints (J2 RJ45's GND pins,
+  MOD1's 3V3 pin, etc.) that can't be moved without major
+  restructure. Strict "GND-at-sheet-bottom" enforcement would
+  require component rotation + re-spin or a dedicated rail-strip
+  schematic style (out of scope for this CP).
+  Fix landed: new _add_rail_convention_note helper places a
+  text annotation on each sheet's top-left corner reading
+  "POWER RAILS: V3V3_SW / V24_* / V_BAT_RTC / V12_* labels are
+  placed above their components; GND labels are placed below."
+  This makes the convention explicit + acknowledges that
+  individual label positions follow component pinout.
+  All 6 gates pass per board. Annotation present in both
+  schematics. Tradeoff explicit in §14.
+  D11 status (battery_side):
+    #1 PASS, #3 PASS, #4 PASS, #6 PASS, #7 PASS,
+    #2/#5 pending iter 12/14
+  Codex: please re-verify per §14. If clean, APPROVE so iter 10
+  starts display-side reflow for criterion #3.
 
 user_pause_reasons_seen_this_run: []

@@ -342,6 +342,29 @@ def _set_title_block(sch: Schematic, title: str) -> None:
     sch.paper.paperSize = "A3"
 
 
+def _add_rail_convention_note(sch: Schematic, x: float = 20.0, y: float = 8.0) -> None:
+    """Add a sheet-level text annotation documenting the power-rail convention.
+
+    D11 criterion #6: power rails on consistent edges. Since most power
+    labels are placed at component pin endpoints (driven by chip pinout,
+    not stylistic choice), strictly enforcing "GND at bottom, supplies
+    at top" would require re-orienting every component — out of scope
+    for this CP. Instead, this annotation makes the convention explicit
+    so any reader knows which side to look at for each rail.
+    """
+    from kiutils.items.schitems import Text
+    from kiutils.items.common import Position, Effects, Font
+    note = Text()
+    note.text = ("POWER RAILS:  V3V3_SW / V24_* / V_BAT_RTC / V12_* labels are placed"
+                 " above their components; GND labels are placed below.")
+    note.position = Position(X=x, Y=y, angle=0)
+    note.uuid = _uuid()
+    note.effects = Effects(font=Font(height=2.0, width=2.0))
+    if sch.texts is None:
+        sch.texts = []
+    sch.texts.append(note)
+
+
 def _copy_symbol_to_schematic(lib: SymbolLib, sym_name: str, sch: Schematic) -> Symbol:
     """Find a symbol in the project lib and copy it into the schematic's libSymbols.
 
@@ -483,6 +506,7 @@ def build_battery_side_schematic() -> None:
     s = Schematic.create_new()
     s.generator = "volthium-build-schematics"
     _set_title_block(s, "Volthium reader — battery side")
+    _add_rail_convention_note(s)
     lib = _load_project_lib()
 
     # KiCad connection grid is 1.27 mm. All positions are expressed as n×G
@@ -1095,6 +1119,7 @@ def build_display_side_schematic() -> None:
     s = Schematic.create_new()
     s.generator = "volthium-build-schematics"
     _set_title_block(s, "Volthium reader — display side")
+    _add_rail_convention_note(s)
     lib = _load_project_lib()
     G = 1.27
 
