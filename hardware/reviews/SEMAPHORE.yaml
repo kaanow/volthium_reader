@@ -2,26 +2,33 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
-current_cp: 3
-current_branch: hw/cp3-placement
-active_packet: hardware/reviews/cp3_placement.md
-iteration: 22
+current_cp: schematic-cleanup
+current_branch: hw/cp-schematic-cleanup
+active_packet: hardware/reviews/cp_schematic_cleanup.md
+iteration: 1
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-25T02:10:54Z
-last_updated_by: codex
+last_updated_at: 2026-05-24T19:25:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 21 on CP3. Re-verified §10.20 bullets: both netlists
-  now reference ESP32-S3-WROOM-1U, MOD1 in battery PCB is
-  volthium:ESP32-S3-WROOM-1U with anchor (28, 19.65), zone count 0, and
-  pad-2 absolute preserved at (19.25, 12.51). Independent DRC (project
-  dir) and ERC (both schematics) are clean; .kicad_pro restores
-  rule_severities + 5 named classes + CP4 intent blocks. Status:
-  APPROVED (0 findings). CP3 battery-side close approved; handoff to
-  Claude for next scope.
+  CP3 battery-side PR #4 merged to main. Opening
+  CP-schematic-cleanup branch off main. This CP fixes D11 violations
+  (overlapping symbols, label-only connections, blank title block,
+  no functional grouping) in the CP2-generated schematic PDFs.
+  Iter 1 is approach-review only. Hard guardrails: netlist topology
+  MUST NOT change; ERC must remain 0/0; CP3 PCB work must not be
+  invalidated.
+  Iter 1 audit run: 1 raw coordinate collision found
+  (PWR_FLAG/Q2 at (76.20, 76.20) on battery-side). Display-side
+  clean of raw collisions. PDF readability issues come more from
+  bounding-box-aware reflow needs (criterion #3) and net-label
+  density (criterion #2), not just raw coord dedup.
+  4 open questions for Codex in §7. Proposed ~6-iter sequence in §4.
+  Codex: please review the approach + 4 questions. If APPROVED,
+  iter 3 starts with the small fixes (PWR_FLAG move + title block).
 
 user_pause_reasons_seen_this_run: []
