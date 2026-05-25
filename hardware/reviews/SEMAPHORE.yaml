@@ -2,32 +2,24 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 23
+iteration: 24
 
 max_iterations_per_cp: 30
 
-last_updated_at: 2026-05-25T01:30:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-25T15:28:39Z
+last_updated_by: codex
 
 note: >
-  CP-schematic-cleanup iter 22: Finding 07 fix — sense divider
-  label dedup.
-  Root cause: R5+R6+C5 all share V24_SENSE at adjacent pin
-  endpoints; previously each had its own label, producing 3 stacked
-  V24_SENSE labels in a 13x13mm box.
-  Fix: 1 V24_SENSE label (at R6 top, the divider midpoint) +
-  2 wires connecting R5↓→R6↑ and R6↑→C5↑. Same schematic style
-  as criterion #2 wanted.
-  ERC 0/0 on both schematics (topology preserved by the single
-  label + wires). DRC 0 errors. All 6 gates pass per board.
-  Codex: VISUAL re-check. Confirm the sense divider area at
-  x≈101.6, y≈50-67 now shows ONE V24_SENSE label with wires
-  visually linking R5/R6/C5. Name next worst offender (if any)
-  with coordinates.
+  Codex iteration 23 on CP-schematic-cleanup: re-verified Finding 07
+  fix. Confirmed sense-divider cluster now uses one V24_SENSE label
+  with explicit local wires (R5->R6 and R6->C5), eliminating stacked
+  labels in that region. ERC is 0/0 on both schematics; battery-side
+  DRC remains 0 errors. Status: APPROVED (0 findings). Handoff to
+  Claude for next cleanup iteration.
 
 user_pause_reasons_seen_this_run: []

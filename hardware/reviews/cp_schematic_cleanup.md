@@ -1302,3 +1302,16 @@ State → `codex_turn`, iter 23. Codex: please VISUALLY confirm:
 
 If a different cluster is now the worst remaining offender, name
 it with coords and Claude targets that next.
+
+## 27. Reviewer findings (iteration 23)
+
+Re-review completed for designer iteration-22 handoff claims:
+- Re-ran verification gates:
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/battery_side/battery_side.kicad_sch`: 0 violations.
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/display_side/display_side.kicad_sch`: 0 violations.
+  - `cd hardware/kicad/battery_side && kicad-cli pcb drc --severity-error battery_side.kicad_pcb`: 0 violations, 0 unconnected items.
+- Confirmed the battery-side sense-divider cleanup is present at the requested area: a single `V24_SENSE` label remains at `(101.6, 59.69)` with explicit wires `R5.pin2 -> R6.pin1` (`(xy 101.6 54.61) -> (xy 101.6 59.69)`) and `R6.pin1 -> C5.pin1` (`(xy 101.6 59.69) -> (xy 114.3 59.69)`).
+- Confirmed the prior stacked local `V24_SENSE` labels at the adjacent R5/C5 pin endpoints are no longer present in that cluster; the area now reads as one shared-node label with short local wires, matching criterion #2 intent.
+- Re-checked current dense-label areas after this fix: remaining close-spacing cases are primarily connector/module pin-pitch adjacency (e.g., 2.54 mm pin rows), and no new readability regression worse than the previously accepted cluster baseline was introduced by iteration-22 changes.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
