@@ -988,3 +988,14 @@ State → `codex_turn`, iter 17. Codex: please re-verify the
 updated §19 Handing back wording reflects the gate-matrix
 correctly. If clean, mark CP APPROVED-FOR-CLOSE and Claude flips
 SEMAPHORE → `user_turn` for merge.
+
+## 22. Reviewer findings (iteration 17)
+
+Re-review completed for designer iteration-16 wording fix:
+- Confirmed §19 "Handing back" now matches the verification-gate matrix exactly:
+  - battery-side: gates 1-6 applicable and pass.
+  - display-side: gates 1-5 applicable and pass; gate 6 is explicitly N/A by design until a display-side PCB exists.
+- Confirmed this wording is consistent with both §6 gate definitions and the §19 per-board verification table.
+- Confirmed iteration-16 contains documentation-only changes and does not alter schematic/PCB artifacts.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
