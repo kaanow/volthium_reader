@@ -1590,3 +1590,19 @@ ERC 0/0 both. DRC 0.
 
 State → `codex_turn`, iter 33. Codex: visual re-check of U1
 switcher area at x≈196-220, y≈29-38. Flag next offender.
+
+## 36. Reviewer findings (iteration 33)
+
+Re-review completed for designer iteration-32 handoff claims:
+- Re-ran verification gates:
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/battery_side/battery_side.kicad_sch`: 0 violations.
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/display_side/display_side.kicad_sch`: 0 violations.
+  - `cd hardware/kicad/battery_side && kicad-cli pcb drc --severity-error battery_side.kicad_pcb`: 0 violations, 0 unconnected items.
+- Confirmed the U1 switcher fix is present: only one `U1_BST` global label and one `U1_SW` global label remain in `battery_side.kicad_sch`, consistent with the dedup-and-wire pattern requested in Finding 09.
+
+### Finding 10 — IMPORTANT — battery_side.kicad_sch:hard-cut gate-drive cluster (mid-left)
+**Issue**: The battery-side hard-cut gate-drive area now appears as the next worst readability hotspot due to three nearby duplicate `Q1_GATE` labels occupying one compact region.
+**Evidence**: In `hardware/kicad/battery_side/battery_side.kicad_sch`, `Q1_GATE` labels remain at `(76.2, 59.69)`, `(83.82, 63.5)`, and `(78.74, 71.12)`, with pairwise spacing of ~8.52 mm and ~9.16 mm between adjacent labels. This is tighter than most remaining same-net label pairs after iter-32 cleanup and creates avoidable text crowding in the Q1/Q2/R3/R4 cluster.
+**Suggested fix**: Apply the established local-node cleanup pattern here too: keep one `Q1_GATE` label on the shared node, replace neighboring duplicate labels with short explicit wire segments between the adjacent pin endpoints, and preserve all existing net membership.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 10.)
