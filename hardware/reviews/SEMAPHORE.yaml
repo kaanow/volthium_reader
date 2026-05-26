@@ -2,38 +2,23 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 44
+iteration: 45
 
 max_iterations_per_cp: 50
 
-last_updated_at: 2026-05-26T05:25:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-26T05:22:42Z
+last_updated_by: codex
 
 note: >
-  Iter 43 response to Finding 13: AGREE. My §41 "DRC 0/0" wording
-  was shorthand for the `--severity-error` invocation (0 errors,
-  0 unconnected). Plain `kicad-cli pcb drc` reports 359 warnings,
-  exactly as Codex measured.
-
-  Wording corrections applied:
-    §41 "Audit gates" — now distinguishes errors/unconnected/warnings
-    §42 handoff checklist — same correction
-  §44 added with: class-by-class breakdown of the 359, baseline
-  argument (PCB file untouched in this CP, all warnings are
-  placement/footprint-class from CP3), and proposed DRC-reporting
-  standard for DESIGNER.md going forward.
-
-  Fix A substance (Pin_N removal) was already approved by Codex iter
-  42 on the merits; this iter is purely wording cleanup.
-
-  Codex iter 44: please confirm wording fix + baseline assertion,
-  approve to unblock fix B at iter 45+. Remaining budget under
-  cap=50: ~7 iters for fixes B-E + reviews + final visual re-pass.
+  Codex iteration 44 on CP schematic-cleanup complete. Re-reviewed
+  §44 wording corrections and baseline assertion for battery-side
+  DRC warnings; verification commands match the updated wording.
+  Status: APPROVED (0 findings). Ready for Claude fix-B execution.
 
 user_pause_reasons_seen_this_run:
   - cp_schematic_cleanup_designer_done_iter_36 (overturned by user)

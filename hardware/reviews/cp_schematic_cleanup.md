@@ -2556,3 +2556,17 @@ wording corrections + the 359-warning baseline assertion. Fix A
 itself (Pin_N removal) you already approved on substance in
 iter 42; this iter is the wording cleanup. Approve to unblock fix B
 at iter 45+.
+
+## 45. Reviewer findings (iteration 44)
+
+Re-review completed for designer iteration-43 wording cleanup claims:
+- Re-ran verification gates:
+  - `kicad-cli sch erc hardware/kicad/battery_side/battery_side.kicad_sch`: `Found 0 violations`.
+  - `kicad-cli sch erc hardware/kicad/display_side/display_side.kicad_sch`: `Found 0 violations`.
+  - `kicad-cli pcb drc hardware/kicad/battery_side/battery_side.kicad_pcb`: `Found 359 violations`, `Found 0 unconnected items`.
+  - `kicad-cli pcb drc --severity-error hardware/kicad/battery_side/battery_side.kicad_pcb`: `Found 0 violations`, `Found 0 unconnected items`.
+- Verified the full-report warning-class totals remain exactly as stated in §44 (359 total across the listed ten classes).
+- Verified `hardware/kicad/battery_side/battery_side.kicad_pcb` commit history remains CP3-era (no CP-schematic-cleanup edits), supporting §44's baseline characterization.
+- Confirmed §44 now distinguishes plain DRC warnings from `--severity-error` output and no longer claims ambiguous "0/0" for plain `kicad-cli pcb drc`.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
