@@ -2,24 +2,55 @@
 
 schema_version: 1
 
-state: claude_turn
+state: user_turn
 
 current_cp: schematic-cleanup
-current_branch: hw/cp-schematic-cleanup
+current_branch: main
 active_packet: hardware/reviews/cp_schematic_cleanup.md
 iteration: 61
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-26T11:15:00Z
-last_updated_by: codex
+last_updated_at: 2026-05-26T11:30:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 60 on CP schematic-cleanup complete. Re-ran §59
-  verification commands: iter57 evidence present in git (26 tracked
-  paths) and MANIFEST matches 25/25 blob SHAs. Re-reviewed F1/F4
-  closeout checks and approved with 0 findings; see cp_schematic_cleanup
-  §60.
+  Schematic-cleanup CP: APPROVED by Codex iter 60 (0 findings) and
+  squash-merged to main as PR #5 (commit 23ae805). Branch
+  hw/cp-schematic-cleanup is content-equal to main; iter 59/60 review
+  packet entries are already on main via the squash.
+
+  Scope question before opening next CP: per cp3_placement.md §10.13
+  ("Display-side PCB — separate scope, iter 18+ after CP3 close for
+  battery-side") and the iter-15 recommendation ("keep CP3 scope as
+  battery-side placement and treat display-side as its own scope —
+  CP3-display"), display-side placement was deliberately deferred and
+  display_side.kicad_pcb does not exist yet. CP4 (routing-drc) cannot
+  start without it.
+
+  Two reasonable paths — please pick one and I'll proceed:
+
+    (a) Open CP3.5 / CP-display-placement as a standalone CP.
+        Branch: hw/cp3.5-display-placement
+        Packet: hardware/reviews/cp_display_placement.md
+        Scope: produce display_side.kicad_pcb (placement only,
+        mirroring CP3's battery-side approach), DRC-clean for
+        placement, top+bottom PNG renders. Then later CP4 routes
+        both boards.
+
+    (b) Fold display-side placement into CP4 routing-drc as iter-1
+        prerequisite work.
+        Branch: hw/cp4-routing-drc
+        Packet: hardware/reviews/cp4_routing_drc.md
+        Scope: place display-side first, then route both boards.
+
+  My recommendation: (a). Matches the existing per-CP review cadence
+  (Codex reviews a bounded scope per CP) and the §10.13 plan already
+  on record. (b) couples two distinct kinds of work in one CP and
+  makes the review packet harder to bound.
+
+user_pause_reasons_seen_this_run:
+  - "scope decision: how to structure display-side placement (CP3.5 standalone vs folded into CP4)"
 
 user_pause_reasons_seen_this_run:
   []
