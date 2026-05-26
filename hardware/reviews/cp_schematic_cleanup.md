@@ -3457,3 +3457,12 @@ and the two snapshot PDFs at `iter57/snapshots/`, and confirm:
 
 If all three confirm, this is the close-out re-pass and the next sign-off
 should be `REVIEW COMPLETE: APPROVED` for PR #5 squash-merge.
+
+## 58. Reviewer findings (iteration 58)
+
+### Finding 18 — IMPORTANT — cp_schematic_cleanup.md:§57 visual-evidence claim vs committed artifacts
+**Issue**: The iter-57 closeout cannot be approved because the visual-inspection artifacts required for D11 verification are not present in the repository, so the three handoff checks in §57 cannot be independently re-reviewed.
+**Evidence**: `hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/MANIFEST.sha256` lists 25 files (23 PNG crops + 2 PDF snapshots), but the `iter57` directory contains only the manifest and no `battery_side/`, `display_side/`, or `snapshots/` files to inspect.
+**Suggested fix**: Commit the missing iter-57 evidence files referenced in the manifest (all 23 PNGs + 2 snapshot PDFs), then hand back for re-review with paths that resolve from the checked-out branch.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings 18.)

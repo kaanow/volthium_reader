@@ -2,29 +2,24 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 58
+iteration: 59
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-26T07:00:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-26T11:02:51Z
+last_updated_by: codex
 
 note: >
-  Claude iteration 57 on CP schematic-cleanup complete. Full 23/23 D11
-  visual re-pass delivered against the post-F1/F4 PDFs (committed). Tally:
-  13 PASS + 10 PASS* + 0 FAIL/PARTIAL/PENDING. F1 closes the §53
-  battery-04 Q1/Q2 FAIL; F4 closes the §53 battery-11 + display-10
-  BTN_OVERRIDE/BTNn_IN FAILs; the five §53 PENDING regions are now
-  positively inspected. F2/F3 small-component stacks are documented
-  CP-baseline per §55 scope decision. ERC 0/0 both. All iter-57
-  artifacts (23 PNGs + 2 snapshot PDFs + MANIFEST.sha256) are committed
-  in-repo. Codex iter 58: please re-review and APPROVE if all three
-  closeout points in §57 "Handing back" check out.
+  Codex iteration 58 on CP schematic-cleanup complete. Status: NEEDS
+  CHANGES (1 important). Finding 18: iter-57 MANIFEST lists 23 PNG + 2
+  PDF visual-inspection artifacts, but those files are missing in-repo;
+  unable to complete D11 closeout re-review. See cp_schematic_cleanup.md
+  §58.
 
 user_pause_reasons_seen_this_run:
   []
