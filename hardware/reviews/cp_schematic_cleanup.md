@@ -2054,3 +2054,121 @@ Re-review completed for designer iteration-37 handoff claims:
 **Suggested fix**: Commit the exact iter-37 visual evidence bundle (the linked PNGs plus the rendered battery/display schematic PDFs used for inspection), or update the packet to point at committed paths that exist in-tree so Codex can perform the mandatory D11 cross-check.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 11.)
+
+## 40. Designer iter 38 — response to Finding 11 (DISAGREE)
+
+**RESOLVED — Finding 11**: DISAGREE. The iter-37 visual evidence
+is fully present in-tree on this branch.
+
+### Evidence the artifacts are tracked
+
+Verified at HEAD = `859c20d` (Codex's iter-37 review commit, one
+commit after my iter-37 push at `68dc4b5`):
+
+```
+$ git ls-files hardware/outputs hardware/reviews/visual_inspections | grep -E '\.(png|pdf)$' | sort
+hardware/outputs/battery_side/schematic.pdf
+hardware/outputs/display_side/schematic.pdf
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/battery_side/01_annotation_banner.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/battery_side/02_power_input_row_J1_F1_D1_TVS1.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/battery_side/03_sense_divider_R5_R6_C5.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/battery_side/04_q1q2_hardcut.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/battery_side/05_u1_buck_U1_L1_C1_C2_CBST.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/battery_side/06_u2_r78e12_reg.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/battery_side/07_u3_rs485_transceiver.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/battery_side/08_esp32_decoupling_row.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/battery_side/09_esp32_mod1.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/battery_side/10_rtc_coin_cell.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/battery_side/11_btn1_cluster.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/battery_side/12_j2_rj45.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/battery_side/13_right_edge_conns_J3_J5.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/display_side/01_annotation_banner.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/display_side/02_rj45_input_J1_F1_TVS1.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/display_side/03_u1_r78_3v3_reg.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/display_side/04_esp32_decoupling_row.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/display_side/05_esp32_mod1.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/display_side/06_c6_isolated.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/display_side/07_ffc_j2_24pin_epd.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/display_side/08_u2_rs485_transceiver.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/display_side/09_left_edge_conns_J3_J4.png
+hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/display_side/10_lower_middle_button_zone.png
+```
+
+That is 23 PNGs + 2 PDFs, exactly the artifact set §38 references.
+They were added in commit `68dc4b5` (the iter-37 commit), one
+commit before HEAD.
+
+### Likely cause of the missed artifacts
+
+Two plausible explanations:
+
+1. **Path resolution.** §38 uses Markdown image links of the form
+   `visual_inspections/cp_schematic_cleanup/iter37/<sheet>/<n>.png`.
+   Per CommonMark these resolve relative to the linking file
+   (`hardware/reviews/cp_schematic_cleanup.md`), giving the
+   in-tree path `hardware/reviews/visual_inspections/...`. If
+   Codex resolved them from repo-root they would 404. The file
+   tree is canonically at `hardware/reviews/visual_inspections/`.
+
+2. **Binary-file visibility.** If Codex's review tool listed only
+   text files or skipped binaries, the PNGs would be invisible to
+   it. The protocol in `decisions.md` D11 explicitly requires the
+   reviewer to "read the screenshots, not the audit script
+   output," so an inability to open PNGs is a D11 enforcement gap
+   in the reviewer's toolchain, not an absence of evidence.
+
+### Defensive fix this iteration
+
+To make the artifact-presence question unambiguous from
+text-only tooling, I am adding a SHA-256 manifest at
+`hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/MANIFEST.sha256`.
+It lists every PNG (relative to `hardware/reviews/`) plus the two
+source PDF hashes. Codex can grep it without reading any binary:
+
+```
+$ cd hardware/reviews
+$ shasum -a 256 -c visual_inspections/cp_schematic_cleanup/iter37/MANIFEST.sha256
+visual_inspections/cp_schematic_cleanup/iter37/battery_side/01_annotation_banner.png: OK
+... (23 OKs)
+```
+
+A green checkmark on that manifest proves every referenced PNG
+exists at the path §38 names with the bytes I committed.
+
+### Counter-suggestion to Codex
+
+For iter 39 (Codex's re-review):
+
+1. `git pull origin hw/cp-schematic-cleanup` to ensure local
+   clone is at HEAD (currently `859c20d` + my iter-38 commit).
+2. Run `shasum -a 256 -c hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/MANIFEST.sha256`
+   from inside `hardware/reviews/` — every line should print OK.
+3. **Then perform the D11 visual gate per `REVIEWER.md §4`:**
+   open `hardware/outputs/battery_side/schematic.pdf` and
+   `hardware/outputs/display_side/schematic.pdf` directly at 100 %
+   zoom and cross-check the §38 per-region findings. The PNGs are
+   evidence for the reader, not the source of truth — the source
+   of truth is the committed PDF.
+
+If the Codex toolchain genuinely cannot open PDF or PNG files at
+all, that is the gap the new D11 protocol is meant to surface and
+is worth flagging to the user as a process issue — but it does
+not invalidate iter-37's findings, which were made against the
+committed artifacts.
+
+### Audit gates (unchanged)
+
+- `kicad-cli sch erc` battery_side: 0/0
+- `kicad-cli sch erc` display_side: 0/0
+- `kicad-cli pcb drc` battery_side: 0/0
+- netlist topology vs iter 36: byte-identical
+- Only changed this iter: §40 (this section) +
+  `visual_inspections/cp_schematic_cleanup/iter37/MANIFEST.sha256`.
+
+### Handing back
+
+State → `codex_turn`, iter 39. Please pull, verify the manifest,
+and proceed with the D11 visual gate (open the PDFs at 100 %
+zoom). If the visual gate confirms §38's findings, the right next
+action is to approve the fix-plan ranking A–E in §38 so iter 40+
+can start executing the actual schematic fixes.
