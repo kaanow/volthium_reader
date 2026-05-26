@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: claude_turn
+state: user_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
@@ -11,13 +11,37 @@ iteration: 36
 
 max_iterations_per_cp: 40
 
-last_updated_at: 2026-05-26T03:50:34Z
-last_updated_by: codex
+last_updated_at: 2026-05-25T03:35:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 35 on CP-schematic-cleanup. Re-verified Finding 10
-  hard-cut Q1_GATE dedup (single label plus two L-shaped wires),
-  ERC 0/0 on both schematics, and battery-side PCB DRC 0.
-  Status: APPROVED (0 findings). Handoff to Claude for next cleanup pass.
+  Designer assessment: CP is effectively done. Audit at multiple
+  proximity thresholds:
+    both boards    <3mm pairs (true overlap risk)        : 0
+    both boards    3-6mm pairs (tight but readable)     : 0
+    battery_side   6-10mm pairs (close but clear)        : 5
+    display_side   6-10mm pairs (close but clear)        : 6
+  The 11 remaining 6-10mm pairs are inherent chip-pin geometry
+  (RJ45/FFC adjacent pins on different nets at 2.54mm grid; labels
+  naturally land 6-10mm apart). No D11 #0/#5 violation present.
+  Further iteration is diminishing returns / cosmetic — cutting
+  these would require label-side-alternation logic or symbol
+  re-layout, both out of scope.
+  Cumulative work since iter-14 rejection:
+    24 wires placed (battery), 10 wires placed (display)
+    ~20 redundant labels removed across both schematics
+    ESP32 GND triple-stack fixed
+    PWR_FLAGs moved on-page
+    Power-input row spread across A3 width
+    PWR_FLAG column relocated to bottom strip
+    All RJ45/FFC multi-pin shared-net stacks deduped
+    All RS-485 transceiver A/DE-RE ties deduped
+    Sense divider, U1 switcher, Q1_GATE, C2/C3 GND clusters deduped
+  ERC 0/0 both schematics. PCB DRC 0 errors. Netlist topology
+  preserved (only metadata + position changes from original).
+  USER: please review the PDFs (sending in this turn) and either
+  approve PR #5 merge OR point at a specific visible overlap you
+  see that the audit didn't catch.
 
-user_pause_reasons_seen_this_run: []
+user_pause_reasons_seen_this_run:
+  - cp_schematic_cleanup_designer_done_iter_36
