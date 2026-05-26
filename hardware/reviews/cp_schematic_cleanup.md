@@ -2435,3 +2435,17 @@ review of fix A (iter 40 commit `700680e`). Confirm:
 4. Netlist diff vs HEAD is metadata-only (UUIDs + date).
 
 Approve to unblock fix B execution at iter 43+.
+
+## 43. Reviewer findings (iteration 42)
+
+### Finding 13 — IMPORTANT — cp_schematic_cleanup.md §41 "Audit gates"
+**Issue**: Fix A visual checks pass (`Pin_N` text is removed), but the packet's DRC gate claim is not accurate for the commanded invocation. Running `kicad-cli pcb drc` on the battery PCB currently reports 359 warning-level violations, not "0/0".
+**Evidence**:
+- `kicad-cli sch erc hardware/kicad/battery_side/battery_side.kicad_sch` → `Found 0 violations`
+- `kicad-cli sch erc hardware/kicad/display_side/display_side.kicad_sch` → `Found 0 violations`
+- `kicad-cli pcb drc hardware/kicad/battery_side/battery_side.kicad_pcb` (also re-run from `hardware/kicad/battery_side/`) → `Found 359 violations`, `Found 0 unconnected items`
+- `hardware/kicad/battery_side/battery_side-drc.rpt` shows warning classes such as `[courtyards_overlap]` and `[pth_inside_courtyard]`
+- Iter-40 visual artifacts confirm fix-A effect on connectors (for example `visual_inspections/cp_schematic_cleanup/iter37/display_side/07_ffc_j2_24pin_epd.png` vs `iter40/.../07_ffc_j2_24pin_epd.png`), and PDFs/symbol library confirm `Pin_N` removal (`pin_names ... hide` on all five connector symbols; no `Pin_` strings extracted from current schematic PDFs)
+**Suggested fix**: Update the gate wording to distinguish "0 errors, 0 unconnected, 359 warnings (baseline)" and explicitly track warning-count regression, or tune rule severities/scope so the plain `kicad-cli pcb drc` command aligns with the stated "0/0" result.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 13.)
