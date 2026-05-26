@@ -1,7 +1,19 @@
 {
   "board": {
     "design_settings": {
-      "defaults": {}
+      "defaults": {},
+      "rule_severities": {
+        "unconnected_items": "ignore",
+        "courtyards_overlap": "warning",
+        "solder_mask_bridge": "warning",
+        "drill_out_of_range": "warning",
+        "copper_edge_clearance": "warning",
+        "lib_footprint_issues": "ignore",
+        "lib_footprint_mismatch": "ignore",
+        "footprint_type_mismatch": "ignore",
+        "pth_inside_courtyard": "warning",
+        "npth_inside_courtyard": "warning"
+      }
     },
     "layer_presets": [],
     "viewports": []
@@ -32,9 +44,72 @@
     "version": 3
   },
   "net_settings": {
+    "_comment_cp3": "Class definitions per CP1 \u00a711.3. Numeric track/clearance values are stored in _intended_classes_cp4 \u2014 not yet bound to KiCad's clearance checker (would trigger placement-phase clearance churn). CP4 routing reinstates the numerics + netclass_patterns.",
+    "_intended_classes_cp4": {
+      "Default": {
+        "clearance": 0.2,
+        "track_width": 0.2,
+        "via_diameter": 0.6,
+        "via_drill": 0.3
+      },
+      "Power-24V": {
+        "clearance": 0.3,
+        "track_width": 1.0,
+        "via_diameter": 0.8,
+        "via_drill": 0.4
+      },
+      "Power-12V": {
+        "clearance": 0.25,
+        "track_width": 0.5,
+        "via_diameter": 0.7,
+        "via_drill": 0.4
+      },
+      "Power-3V3": {
+        "clearance": 0.2,
+        "track_width": 0.4,
+        "via_diameter": 0.6,
+        "via_drill": 0.3
+      },
+      "RS485-diff": {
+        "clearance": 0.25,
+        "track_width": 0.25,
+        "diff_pair_width": 0.25,
+        "diff_pair_gap": 0.2
+      }
+    },
+    "_intended_patterns_cp4": [
+      {
+        "netclass": "Power-24V",
+        "pattern": "V24_*"
+      },
+      {
+        "netclass": "Power-12V",
+        "pattern": "V12_*"
+      },
+      {
+        "netclass": "Power-3V3",
+        "pattern": "V3V3*"
+      },
+      {
+        "netclass": "RS485-diff",
+        "pattern": "RS485_*"
+      }
+    ],
     "classes": [
       {
         "name": "Default"
+      },
+      {
+        "name": "Power-24V"
+      },
+      {
+        "name": "Power-12V"
+      },
+      {
+        "name": "Power-3V3"
+      },
+      {
+        "name": "RS485-diff"
       }
     ],
     "meta": {

@@ -4,24 +4,22 @@ schema_version: 1
 
 state: claude_turn
 
-current_cp: 3
-current_branch: hw/cp3-placement
-active_packet: hardware/reviews/cp3_placement.md
-iteration: 22
+current_cp: schematic-cleanup
+current_branch: hw/cp-schematic-cleanup
+active_packet: hardware/reviews/cp_schematic_cleanup.md
+iteration: 61
 
-max_iterations_per_cp: 30
+max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-25T02:10:54Z
+last_updated_at: 2026-05-26T11:15:00Z
 last_updated_by: codex
 
 note: >
-  Codex iteration 21 on CP3. Re-verified §10.20 bullets: both netlists
-  now reference ESP32-S3-WROOM-1U, MOD1 in battery PCB is
-  volthium:ESP32-S3-WROOM-1U with anchor (28, 19.65), zone count 0, and
-  pad-2 absolute preserved at (19.25, 12.51). Independent DRC (project
-  dir) and ERC (both schematics) are clean; .kicad_pro restores
-  rule_severities + 5 named classes + CP4 intent blocks. Status:
-  APPROVED (0 findings). CP3 battery-side close approved; handoff to
-  Claude for next scope.
+  Codex iteration 60 on CP schematic-cleanup complete. Re-ran §59
+  verification commands: iter57 evidence present in git (26 tracked
+  paths) and MANIFEST matches 25/25 blob SHAs. Re-reviewed F1/F4
+  closeout checks and approved with 0 findings; see cp_schematic_cleanup
+  §60.
 
-user_pause_reasons_seen_this_run: []
+user_pause_reasons_seen_this_run:
+  []

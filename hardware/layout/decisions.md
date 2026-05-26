@@ -193,42 +193,142 @@ this template should not inherit that defect.
 
 ### Concrete acceptance criteria
 
-A committed document passes D11 if all apply:
+A committed document passes D11 if **ALL** apply. Criteria #0 and #5
+are absolute — failing either means the document is not finished
+and may not ship. "Checklist-compliant but visually-unreadable" does
+not pass.
 
-1. **No symbol/footprint overlap.** Programmatically-placed schematic
-   symbols and PCB footprints must not share coordinates. Verifiable
-   by scripted check (`grep` for duplicate `(at x y)` positions in
-   .kicad_sch / .kicad_pcb).
-2. **Real wires within clusters.** In schematics, components that are
-   electrically adjacent and visually adjacent must be connected by
-   wires, not labels. Net labels are reserved for power rails (GND,
-   V3V3, etc.) and for cross-cluster signals that genuinely span the
-   sheet.
-3. **Functional grouping with visible signal flow.** Components that
-   form a functional block (power input chain, regulator + caps,
-   MCU + bypass, etc.) must be grouped together with a clear primary
-   flow direction (left → right or top → bottom).
-4. **Populated title block.** Every committed PDF must have a non-empty
+0. **HARD STOP: No overlapping text or symbols, no text or symbols
+   off the document.** Both designer and reviewer must open the
+   rendered PDF, look at it, and confirm: (a) no two pieces of text
+   overlap each other, (b) no text overlaps any symbol body,
+   (c) no symbol body overlaps another symbol body, (d) every piece
+   of text and every symbol fits entirely inside the sheet frame
+   (none clipped at the page edge). If any of these fails, the
+   document is not finished — fix it before any other gate is
+   considered. **No "PARTIAL" rating is acceptable on this criterion.**
+1. **No symbol/footprint coordinate collision.** Programmatically
+   placed schematic symbols and PCB footprints must not share
+   anchor coordinates. Verifiable by scripted check.
+2. **Real wires within clusters.** Components electrically adjacent
+   and visually adjacent are connected by wires, not labels. Net
+   labels are reserved for power rails and cross-cluster signals.
+3. **Functional grouping with visible signal flow.** Components
+   forming a functional block are grouped with a clear primary flow
+   direction (left → right or top → bottom).
+4. **Populated title block.** Every committed PDF has non-empty
    Title, Rev, and Date.
-5. **Legible at 100 % zoom.** Net labels, ref designators, and pin
-   numbers must not overlap each other when the PDF is viewed at
-   1:1 scale. (Subjective but the reviewer must confirm.)
-6. **Power rails on consistent edges.** Within a sheet, supply rails
-   stay near the top, GND near the bottom (or a single fixed pattern).
-   Don't scatter the same rail across the sheet.
+5. **HARD STOP: Legible at 100 % zoom.** Net labels, ref designators,
+   pin numbers, and any annotations are individually readable at 1:1
+   scale, with clear whitespace between adjacent text. No "dense
+   cluster of labels you can mentally parse if you squint" — if a
+   reader at 100 % zoom can't read every piece of text without
+   visual ambiguity, this fails. **No "PARTIAL" rating is acceptable
+   on this criterion.**
+6. **Power rails on consistent edges.** Supply rails near the top,
+   GND near the bottom (or a single fixed sheet-wide pattern). Don't
+   scatter the same rail across the sheet.
 7. **Reference designators visible on PCB renders.** Top/bottom
-   renders committed for review must show each footprint's refdes,
-   not the KiCad `REF**` placeholder.
+   renders show each footprint's refdes, not `REF**`.
 
 ### Enforcement
 
 - Each CP review packet's "Success criteria" section must include a
-  "D11: docs pass engineer-readability bar" checkbox. The reviewer
-  (Codex) cites D11 when pushing back on documentation that fails any
-  of the criteria above.
-- `DESIGNER.md` is updated to call out D11 as a deliverable, not a
-  side effect: when generating any document, treat readability as a
-  first-class requirement equal to correctness.
+  "D11: docs pass engineer-readability bar" checkbox.
+- **Both the designer and the reviewer must open and visually
+  inspect the rendered PDFs before claiming a D11 criterion passes.**
+  A grep-based audit alone is not sufficient — overlapping labels,
+  off-page text, and unreadable clusters are visual defects that
+  scripted checks can miss.
+- Codex cites D11 when pushing back on documentation that fails any
+  of the criteria above. Criteria #0 and #5 are non-negotiable.
+- `DESIGNER.md` calls out D11 as a deliverable equal to correctness.
+
+### Visual inspection protocol (mandatory before claiming #0 or #5 PASS)
+
+A scripted audit can pass while the PDF is unreadable, because
+scripts only check what they were written to check. Past project
+history (see "Documented failure" below) shows this is a real
+failure mode, not a hypothetical. To close it, every D11 sign-off
+that touches a rendered document must include:
+
+1. **Open the rendered PDF at 100 % zoom.** Not the KiCad editor,
+   not a PNG export, not a screenshot taken at "fit-to-window" —
+   the committed PDF, at 1:1, the artifact a downstream engineer
+   would actually read.
+2. **Screenshot every dense region.** A "dense region" is any IC,
+   any connector with ≥4 pins, any cluster of ≥3 components within
+   roughly 20 mm of each other, and any place a power/ground rail
+   meets ≥3 component pins. For a typical two-IC schematic this is
+   6–12 screenshots per sheet.
+3. **Embed those screenshots in the active CP review packet** under
+   a heading `## D11 visual inspection — iter <N>`. One screenshot
+   per region, captioned with the region name (e.g. "U2
+   SN65HVD3082E + RS-485 termination").
+4. **For each screenshot, write one sentence**:
+   `Read every piece of text in this region. Findings: <none> | <list>.`
+   If `<list>` is non-empty, the document does not pass D11 and the
+   iteration is not done — fix and re-render.
+5. **The reviewer reads the screenshots, not the audit script
+   output.** The reviewer may flag any text the designer claimed
+   was readable; the reviewer's read of the rendered pixels is
+   authoritative. A scripted-audit-only review is itself a D11
+   enforcement failure.
+
+A `## D11 visual inspection — iter <N>` section with screenshots is
+a **hard prerequisite** for claiming criteria #0 or #5 PASS. Without
+it, the designer has not performed the inspection and any "PASS"
+claim is invalid on its face.
+
+### What the scripted audit is good for
+
+Scripted audits remain useful as a *first-pass filter*. They cheaply
+catch symbol coordinate collisions, off-page text, duplicate
+placements, and gross label spacing problems. They are **not** a
+substitute for the visual inspection above. Treat them as
+"necessary but not sufficient": if the script flags problems, fix
+those first; once the script is clean, the visual inspection begins.
+
+### Documented failure (teaching example — do not repeat)
+
+CP-schematic-cleanup, iteration 36 (2026-05-25). The designer wrote
+a label-coordinate distance audit that measured centroid-to-centroid
+distance between net-label objects. The audit reported zero pairs
+closer than 6 mm on either schematic and the designer declared the
+CP done and asked for merge. The user opened the rendered PDF and
+immediately saw, on the display-side schematic alone:
+
+- FFC J2 pins 1–10: pin number + pin name (`Pin_N`) + net label
+  (`GND`, `3V3`, `EPD_BUSY`, …) all occupying the same X coordinate
+  — three pieces of text stacked at every used pin.
+- U2 SN65HVD3082E: net labels (`UART_RX`, `UART_TX`, `DE_RE`, `3V3`,
+  `GND`) placed directly on top of the chip's pin names (`RO`, `DI`,
+  `RE`, `VCC`, pin 5).
+- C7, R3, R4, TVS R2: net labels and component reference text
+  overlapping the device body.
+
+The audit didn't see any of this because it was written to check
+label-vs-label centroid distance — not label-vs-pin-name,
+label-vs-pin-number, or label-vs-symbol-body overlap. None of those
+checks were ever in the script. The designer treated "script clean"
+as equivalent to "criteria #0 and #5 satisfied." That equivalence is
+what this section forbids.
+
+Root cause was procedural, not technical: there was no mandatory
+visual gate, so the cheapest thing (run a script) became the only
+thing. The protocol above closes that gap by making screenshots-in-
+packet a hard requirement of the sign-off itself.
+
+### Portability for future PCB projects
+
+D11, including the visual-inspection protocol and the documented
+failure above, is intended to be **copied verbatim** into any future
+PCB project that forks this template. A fresh Claude or Codex
+instance starting a new board project should read D11 first,
+internalize the failure mode, and never claim a documentation gate
+PASS based on script output alone. The operational checklist in
+`hardware/reviews/DESIGNER.md` §0 references this protocol and must
+be carried forward together with it.
 
 ### Existing violations
 

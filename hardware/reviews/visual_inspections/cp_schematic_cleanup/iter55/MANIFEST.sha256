@@ -1,0 +1,6 @@
+# SHA-256 manifest — iter 55 (F1 + F4 code change, visual re-pass deferred)
+# PNG re-crops deferred to next iter (image API budget reset)
+
+1e340cab9dee2a47b8300a0d0e653764d694a4b25ac1ce8dbebf850a87e7eb96  visual_inspections/cp_schematic_cleanup/iter55/MANIFEST.sha256
+7884ccf72becf64b8572ac2d4c0c3379d5f017bf832c363fee71cf95c94d9764  visual_inspections/cp_schematic_cleanup/iter55/snapshots/battery_side_schematic.pdf
+da73946f6d84799ec09ba7c67800e44c05b6925e12f9c6d34f9094316ac87cc6  visual_inspections/cp_schematic_cleanup/iter55/snapshots/display_side_schematic.pdf

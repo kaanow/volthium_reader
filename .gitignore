@@ -33,3 +33,5 @@ firmware/common/volthium_lib/*.o
 .DS_Store
 .reviewer_automation/
 *.kicad_prl
+*-erc.rpt
+*-drc.rpt
