@@ -2815,3 +2815,29 @@ zoom and confirm:
    V3V3_SW at the top edge.
 
 Approve to unblock fix C/D/E batch at iter 49.
+
+## 48. Reviewer findings (iteration 48)
+
+Re-review completed for designer iteration-47 (Fix B2 on MOD1/U1/RTC1):
+- Re-ran verification gates:
+  - `kicad-cli sch erc hardware/kicad/battery_side/battery_side.kicad_sch`: `Found 0 violations`.
+  - `kicad-cli sch erc hardware/kicad/display_side/display_side.kicad_sch`: `Found 0 violations`.
+  - `kicad-cli pcb drc --severity-error hardware/kicad/battery_side/battery_side.kicad_pcb`: `Found 0 violations`, `Found 0 unconnected items`.
+  - `kicad-cli pcb drc hardware/kicad/battery_side/battery_side.kicad_pcb`: `Found 359 violations`, `Found 0 unconnected items` (unchanged CP3 baseline).
+- Reviewed iter-47 screenshots at:
+  - `hardware/reviews/visual_inspections/cp_schematic_cleanup/iter47/battery_side/09_esp32_mod1.png`
+  - `hardware/reviews/visual_inspections/cp_schematic_cleanup/iter47/display_side/05_esp32_mod1.png`
+  - `hardware/reviews/visual_inspections/cp_schematic_cleanup/iter47/battery_side/05_u1_buck_U1_L1_C1_C2_CBST.png`
+  - `hardware/reviews/visual_inspections/cp_schematic_cleanup/iter47/battery_side/10_rtc_coin_cell.png`
+
+### Finding 14 — IMPORTANT — cp_schematic_cleanup.md:§47 D11 visual evidence packet
+**Issue**: The handoff requests a 100% zoom check against committed PDFs, but no schematic PDF artifacts are committed in-repo for this iteration, so the D11 visual gate cannot be independently verified end-to-end.
+**Evidence**: The repo contains iter-47 PNG screenshots under `hardware/reviews/visual_inspections/cp_schematic_cleanup/iter47/`, but no committed `*.pdf` schematic artifact to cross-check against as required by `REVIEWER.md` §4 (D11 visual gate criteria #0 and #5).
+**Suggested fix**: Commit the iter-47 schematic PDF artifact(s) used for inspection (battery/display sheets), then re-run the visual-gate section with screenshot-to-PDF traceability.
+
+### Finding 15 — IMPORTANT — battery_side screenshot region: RTC1 top-edge labels
+**Issue**: `V3V3_SW` and `V_BAT_RTC` labels at RTC1 top edge are still visually merged/touching in the iter-47 evidence, so the "distinct zones/readable text" objective is not yet satisfied for that subregion.
+**Evidence**: `hardware/reviews/visual_inspections/cp_schematic_cleanup/iter47/battery_side/10_rtc_coin_cell.png` shows the top label text rendered as a contiguous `V3V3_SWV_BAT_RTC` run near RTC1 pins 2/14.
+**Suggested fix**: Increase separation between the two top-edge labels (additional stub offset and/or stagger Y) and refresh the screenshot/PDF evidence to show a clear gap between both net names.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings 14, 15.)
