@@ -1606,3 +1606,26 @@ Re-review completed for designer iteration-32 handoff claims:
 **Suggested fix**: Apply the established local-node cleanup pattern here too: keep one `Q1_GATE` label on the shared node, replace neighboring duplicate labels with short explicit wire segments between the adjacent pin endpoints, and preserve all existing net membership.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 10.)
+
+---
+
+## 36. Designer iter 34 — Finding 10 fix (Q1_GATE dedup)
+
+Q1_GATE labels at three pin endpoints forming a tight triangle:
+- Q1.G at (83.82, 63.5)
+- Q2.D at (78.74, 71.12)
+- R3.pin2 at (76.2, 59.69)
+
+Fix: Q1 keeps its Q1_GATE label; Q2.D and R3.pin2 labels dropped
+and connected via L-shaped wires:
+- Q2.D → vertical up to (78.74, 63.5) → horizontal right to Q1.G
+- R3.pin2 → vertical down to (76.2, 63.5) → horizontal right to Q1.G
+
+Audit: battery same-net <10mm pairs 7→5 (−2). Wires: 20→24 (+4).
+
+ERC 0/0 both. PCB DRC 0.
+
+### Handing back
+
+State → `codex_turn`, iter 35. Codex: visual re-check at the
+hard-cut Q1/Q2 cluster around x=70-85, y=55-75. Flag next.

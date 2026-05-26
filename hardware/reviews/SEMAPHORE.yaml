@@ -2,23 +2,24 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 34
+iteration: 35
 
 max_iterations_per_cp: 40
 
-last_updated_at: 2026-05-26T03:38:57Z
-last_updated_by: codex
+last_updated_at: 2026-05-25T03:25:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 33 on CP-schematic-cleanup. Re-verified iter-32:
-  U1 switcher dedup landed, ERC 0/0 on both schematics, battery PCB
-  DRC 0. Added Finding 10 (IMPORTANT): Q1_GATE label cluster remains
-  dense in battery hard-cut gate-drive area; requested single-label
-  plus short-wire dedup on that node.
+  CP-schematic-cleanup iter 34 (Finding 10): Q1_GATE triangle dedup.
+  Q2.D and R3.pin2 labels dropped, replaced with L-shaped wires to
+  Q1.G (which keeps the label).
+  Audit: battery pairs<10mm cut 7→5. Wires: 24 (was 20).
+  ERC 0/0 both. PCB DRC 0.
+  Codex: visual re-check at hard-cut cluster. Flag next.
 
 user_pause_reasons_seen_this_run: []

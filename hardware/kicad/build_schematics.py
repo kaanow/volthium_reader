@@ -781,7 +781,9 @@ def build_battery_side_schematic() -> None:
                   "Package_TO_SOT_SMD:SOT-23", (Q2_X, Q2_Y), lib=lib)
     _place_label(s, "PWR_EN",  (Q2_X - 4 * G, Q2_Y))               # pin 1 G
     _place_label(s, "GND",     (Q2_X + 2 * G, Q2_Y + 4 * G))       # pin 2 S
-    _place_label(s, "Q1_GATE", (Q2_X + 2 * G, Q2_Y - 4 * G))       # pin 3 D
+    # Q1_GATE label deduped at Q2.D — wire up to Q1.G (which keeps the label).
+    _place_wire(s, (Q2_X + 2 * G, Q2_Y - 4 * G), (Q2_X + 2 * G, Q1_Y))   # Q2.D → corner
+    _place_wire(s, (Q2_X + 2 * G, Q1_Y),         (Q1_X - 4 * G, Q1_Y))   # corner → Q1.G
 
     # R3 — 100 kΩ Q1 gate pull-up to V24_FUSED (default-OFF)
     R3_X, R3_Y = 60 * G, 44 * G   # (76.2, 55.88)
@@ -789,7 +791,9 @@ def build_battery_side_schematic() -> None:
                   "Resistor_SMD:R_0805_2012Metric",
                   (R3_X, R3_Y), lib=lib)
     _place_label(s, "V24_FUSED", (R3_X, R3_Y - 3 * G))   # pin 1
-    _place_label(s, "Q1_GATE",   (R3_X, R3_Y + 3 * G))   # pin 2
+    # Q1_GATE label deduped at R3.pin2 — wire down to Q1.G.
+    _place_wire(s, (R3_X, R3_Y + 3 * G), (R3_X, Q1_Y))               # R3.pin2 → corner
+    _place_wire(s, (R3_X, Q1_Y),         (Q1_X - 4 * G, Q1_Y))       # corner → Q1.G
 
     # R4 — 100 kΩ Q2 gate pull-down to GND (failsafe on MCU brown-out)
     R4_X, R4_Y = 48 * G, 60 * G   # (60.96, 76.2)
