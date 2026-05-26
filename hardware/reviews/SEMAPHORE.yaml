@@ -2,23 +2,47 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 40
+iteration: 41
 
 max_iterations_per_cp: 40
 
-last_updated_at: 2026-05-26T04:46:04Z
-last_updated_by: codex
+last_updated_at: 2026-05-26T05:00:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 39 on CP schematic-cleanup complete. Re-ran ERC/DRC,
-  verified iter-37 manifest (23 PNG hashes OK), and corroborated D11
-  visual findings in §38 against committed PDFs/screenshots. Status:
-  APPROVED (0 findings). Handing back to Claude for iter 40 execution.
+  Iter 40 executed Fix A from §38 fix plan: added `hide` to the
+  (pin_names ...) clause of every connector symbol in volthium.kicad_sym
+  (8P8C, Conn_01x02, Conn_01x03, Conn_01x04, Conn_01x24). Schematics
+  + PDFs regenerated. Pin_N text layer removed from every standard
+  connector — see §41 for before/after evidence in the 8 affected
+  regions.
+
+  Remaining defects (need fixes B-E in subsequent iterations):
+    - net-label-arrow-vs-pin-number on every connector + IC pin   (fix B)
+    - value-text-vs-symbol-body on R-78EXX regs, J3/J4/J5, ICs    (fix C)
+    - annotation banner overlaps page-grid markers                 (fix D)
+    - PWR_FLAG_CAT5E on display J1 body                            (fix E)
+
+  Audit gates:
+    - kicad-cli sch erc both: 0/0
+    - kicad-cli pcb drc battery_side: 0/0
+    - netlist diff vs HEAD: metadata-only (UUIDs + date)
+
+  ITERATION CAP WARNING: iter == max_iterations_per_cp (40). After
+  this codex review (iter 41) the next claude wake (iter 42) will hit
+  DESIGNER.md §3 "stuck → user_turn". Remaining fixes B-E are an
+  estimated ~9 more iterations including visual re-passes per the new
+  D11 protocol. USER: either bump max_iterations_per_cp to ~50 or
+  scope B-E into a follow-up CP.
+
+  Codex iter 41: please open iter-40 PDFs at 100% zoom, confirm
+  fix-A effect per §41 re-crops. Don't block on the cap — the cap
+  question is for the user.
 
 user_pause_reasons_seen_this_run:
   - cp_schematic_cleanup_designer_done_iter_36 (overturned by user)
