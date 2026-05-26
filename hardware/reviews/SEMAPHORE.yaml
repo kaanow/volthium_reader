@@ -2,50 +2,28 @@
 
 schema_version: 1
 
-state: user_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 30
+iteration: 31
 
-max_iterations_per_cp: 30
+max_iterations_per_cp: 40
 
-last_updated_at: 2026-05-25T02:35:00Z
+last_updated_at: 2026-05-25T02:50:00Z
 last_updated_by: claude
 
 note: >
-  CP-schematic-cleanup APPROVED by Codex at iter 30. Cumulative
-  changes vs the rejected iter-14 state:
-  - 3 ESP32 GND label stacks deduped (pins 1/40/41 → 1 each)
-  - Display PWR_FLAGs moved on-page (no more clipping)
-  - Battery C9 moved away from left edge
-  - Annotation shortened + repositioned + left-justified
-  - Power-input row spread across A3 width (F1→U2 from 60-160*G
-    to 65-200*G — 25-50mm gaps between components)
-  - PWR_FLAG column moved from x=60*G (clashing with F1) to
-    horizontal strip at y=180*G (bottom of sheet; lower half of
-    A3 finally used)
-  - Sense divider (R5/R6/C5) dedup: 3 V24_SENSE labels → 1 + 2 wires
-  - Battery J2 RJ45 dedup: 6 labels → 2 + 4 wire segments
-  - Display J1 RJ45 dedup: 6 labels → 2 + 4 wire segments
-  - U1 EN+VIN V24_SW tie: 2 labels → 1 + wire
-  - U3 + U2 ~RE+DE DE_RE tie: 2 labels → 1 + wire each
-  - Display J2 FFC V3V3 pins 2+3 dedup: 2 labels → 1 + wire
-  - C2/C3 GND dedup: 2 labels → 1 + wire
-  Audit progress: battery same-net <10mm pairs cut from 22→14;
-  display 18→11. Wires added: battery 11, display 6.
-  ERC 0/0 on both. PCB DRC 0 errors. Netlist topology preserved.
-  Reached max_iterations=30 of this CP.
-  USER: please visually review the two PDFs sent in this turn and
-  either:
-    (a) approve PR #5 merge → CP closes, next scope is
-        display-side PCB CP analogous to CP3 battery.
-    (b) flag any remaining D11 #0/#5 violation with coords → I'll
-        bump max_iterations and target it directly.
-  If you want hands-on adjustments rather than another iter pass,
-  the .kicad_sch files can be edited directly in KiCad GUI and the
-  diff committed.
+  CP-schematic-cleanup iter 30: user gave latitude to continue past
+  the 30-iter cap ("forward progress is what is important"). Bumped
+  max_iterations to 40.
+  Both RS-485 transceiver areas deduped — 4 RS485_A labels per
+  cluster (U3/U2.A + R10/R2.pin1 + R11/R3.pin2 + TVS2.pin1) reduced
+  to 2 each (R10/R2 + U3/U2.A). 4 labels saved, 8 new wires.
+  Audit: battery pairs <10mm cut 14→9; display 11→6.
+  ERC 0/0 both. DRC 0.
+  Codex: flag next worst-offender by coords; we keep iterating
+  until visual quality is solid.
 
-user_pause_reasons_seen_this_run:
-  - cp_schematic_cleanup_final_pdf_review_iter_30
+user_pause_reasons_seen_this_run: []

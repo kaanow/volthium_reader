@@ -1050,7 +1050,8 @@ def build_battery_side_schematic() -> None:
                   "Resistor_SMD:R_0805_2012Metric",
                   (R11_X, R11_Y), lib=lib)
     _place_label(s, "V3V3_SW", (R11_X, R11_Y - 3 * G))
-    _place_label(s, "RS485_A", (R11_X, R11_Y + 3 * G))
+    # RS485_A label deduped — wire down to R10.pin1 (also RS485_A);
+    # R10 keeps the label.
 
     # R12 — 680 Ω idle bias B → GND
     R12_X, R12_Y = U3_X + 12 * G, U3_Y + 8 * G   # (294.64, 73.66)
@@ -1066,8 +1067,16 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "D_TVS", "TVS2", "SMAJ12CA",
                   "Diode_SMD:D_SMA",
                   (TVS2_X, TVS2_Y), lib=lib)
-    _place_label(s, "RS485_A", (TVS2_X - 3 * G, TVS2_Y))   # pin 1
+    # TVS2.pin1 RS485_A label deduped — wire to R10.pin1.
     _place_label(s, "RS485_B", (TVS2_X + 3 * G, TVS2_Y))   # pin 2
+    # CP-cleanup iter 30: cluster the 4 RS485_A endpoints (U3.A,
+    # R10.pin1, R11.pin2, TVS2.pin1) — wire R11 and TVS2 to R10;
+    # U3.A keeps its own RS485_A label (name connects across the
+    # schematic). Two labels eliminated.
+    _place_wire(s, (R10_X, R10_Y - 3 * G), (R10_X, R11_Y + 3 * G))  # R10.pin1 → corner
+    _place_wire(s, (R10_X, R11_Y + 3 * G), (R11_X, R11_Y + 3 * G))  # corner → R11.pin2
+    _place_wire(s, (R10_X, R10_Y - 3 * G), (R10_X, TVS2_Y))         # R10.pin1 → corner
+    _place_wire(s, (R10_X, TVS2_Y),         (TVS2_X - 3 * G, TVS2_Y))  # corner → TVS2.pin1
 
     # BTN1 — Override pushbutton, SW_Push (2-pin horizontal).
     # Pin geometry: pin 1 lib (-5.08, 0) angle 0 → sch (X-5.08, Y);
@@ -1495,7 +1504,7 @@ def build_display_side_schematic() -> None:
                   "Resistor_SMD:R_0805_2012Metric",
                   (R3_X, R3_Y), lib=lib)
     _place_label(s, "V3V3",    (R3_X, R3_Y - 3 * G))
-    _place_label(s, "RS485_A", (R3_X, R3_Y + 3 * G))
+    # RS485_A label deduped — wire to R2.pin1 (same pattern as battery U3).
 
     # R4 — 680Ω idle bias B → GND
     R4_X, R4_Y = U2_X + 12 * G, U2_Y + 8 * G   # (294.64, 111.76)
@@ -1510,8 +1519,13 @@ def build_display_side_schematic() -> None:
     _place_symbol(s, "D_TVS", "TVS2", "SMAJ12CA",
                   "Diode_SMD:D_SMA",
                   (TVS2_X, TVS2_Y), lib=lib)
-    _place_label(s, "RS485_A", (TVS2_X - 3 * G, TVS2_Y))
+    # TVS2.pin1 RS485_A label deduped — wire to R2.pin1.
     _place_label(s, "RS485_B", (TVS2_X + 3 * G, TVS2_Y))
+    # Same RS485_A cluster dedup as battery-side U3 area:
+    _place_wire(s, (R2_X, R2_Y - 3 * G), (R2_X, R3_Y + 3 * G))   # R2.pin1 → corner
+    _place_wire(s, (R2_X, R3_Y + 3 * G), (R3_X, R3_Y + 3 * G))   # corner → R3.pin2
+    _place_wire(s, (R2_X, R2_Y - 3 * G), (R2_X, TVS2_Y))         # R2.pin1 → corner
+    _place_wire(s, (R2_X, TVS2_Y),         (TVS2_X - 3 * G, TVS2_Y))  # corner → TVS2.pin1
 
     # ===== Buttons: BTN1/2/3 + R5/R6/R7 (1MΩ pull-ups) + C8/C9/C10 (debounce) =====
 

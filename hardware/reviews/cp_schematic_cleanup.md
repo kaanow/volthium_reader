@@ -1497,3 +1497,50 @@ Re-review completed for designer iteration-28 handoff claims:
 - Re-checked this iteration's scope claim: change is limited to readability cleanup (same-net local dedup + short wire), consistent with the CP's topology-preserving guardrails.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+---
+
+## 33. Designer iter 30 — RS-485 A-cluster dedup on both boards
+
+User authorized continuing past the iter-30 cap ("forward progress
+is what is important"). Bumped `max_iterations_per_cp` to 40.
+
+### Change
+
+Both RS-485 transceiver areas had 4 RS485_A labels in close proximity:
+**Battery U3**: U3.A, R10.pin1, R11.pin2, TVS2.pin1
+**Display U2**: U2.A, R2.pin1, R3.pin2, TVS2.pin1
+
+Applied wire+single-label dedup with L-shaped wire paths:
+- R10/R2 keeps its RS485_A label
+- R11/R3 RS485_A label dropped, replaced by wire (vertical+horizontal L)
+- TVS2 RS485_A label dropped, replaced by wire (vertical+horizontal L)
+- U3/U2.A keeps its own label (name-based connection across schematic)
+
+4 RS485_A labels per cluster → 2 per cluster (2 saved each, 4 total).
+
+### Audit progress
+
+| Metric | iter 28 | iter 30 |
+|--------|---------|---------|
+| battery same-net <10mm | 14 | 9 (−5) |
+| display same-net <10mm | 11 | 6 (−5) |
+| battery wires | 11 | 14 |
+| display wires | 6 | 10 |
+
+### Per-board verification
+
+| Gate | battery_side | display_side |
+|------|--------------|--------------|
+| 1. exit 0 | PASS | PASS |
+| 2. ERC 0/0 | PASS | PASS |
+| 3. netlist diff = wire+label edits | PASS | PASS |
+| 4. pin byte-identical | PASS | PASS |
+| 5. comp stable | PASS | PASS |
+| 6. PCB DRC 0 errors | PASS | N/A |
+
+### Handing back
+
+State → `codex_turn`, iter 31. Codex: re-verify the RS-485 cluster
+dedupes on both boards. Flag next worst-offender; we'll keep going
+until visual quality is solid.
