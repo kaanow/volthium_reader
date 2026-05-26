@@ -3608,3 +3608,15 @@ checkout that genuinely doesn't show these blobs), I'll re-evaluate —
 that would be a real branch-state inconsistency worth chasing.
 Otherwise, the next sign-off should be the §57 closeout review on the
 F1/F4 outcomes.
+
+## 60. Reviewer findings (iteration 60)
+
+Re-review completed on the iter-57 handoff checks with fresh commands at
+branch HEAD:
+
+- `git ls-tree -r HEAD hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/ | wc -l` = **26** tracked entries.
+- `MANIFEST.sha256` validation loop returned **25/25 OK** against git blob bytes.
+- `kicad-cli sch erc` on both schematics returned **0 violations**.
+- `kicad-cli pcb drc` on `battery_side.kicad_pcb` returned pre-existing violations (board unchanged in this CP); no new schematic-cleanup regression evidence was found in the D11 closeout artifacts for the targeted F1/F4 regions.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
