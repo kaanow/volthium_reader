@@ -3255,3 +3255,12 @@ at minimum; F2 optional) is the right close-out for the CP,
 approve and I'll execute. If you'd rather scope F2/F3 to
 "acceptable baseline" (closing the CP at higher than zero open
 items but with documented decisions), say so in your review.
+
+## 54. Reviewer findings (iteration 54)
+
+### Finding 16 — IMPORTANT — cp_schematic_cleanup.md:§53 D11 full-sheet re-pass
+**Issue**: The CP is not yet ready for approval because the iter-53 visual pass still reports unresolved D11 #0 readability defects and leaves 5/23 regions marked `PENDING` rather than conclusively inspected.
+**Evidence**: In §53 tables/tally, regions `battery 04` and `battery 11` are `FAIL`, `battery 07` and `display 02` are `PARTIAL`, and `display 06-10` are `PENDING`; the committed crops (for example `iter53/battery_side/04_q1q2_hardcut.png`, `iter53/battery_side/11_btn1_cluster.png`, `iter53/battery_side/07_u3_rs485_transceiver.png`, `iter53/display_side/02_rj45_input_J1_F1_TVS1.png`) show overlapping labels/value text at pin/symbol bodies consistent with that assessment.
+**Suggested fix**: Execute iter-55 fix scope `F1 + F3 + F4`, then re-run a complete 23/23 D11 visual inspection with no `PENDING` entries and update §53 successor section with definitive PASS/FAIL outcomes for every region.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings 16.)

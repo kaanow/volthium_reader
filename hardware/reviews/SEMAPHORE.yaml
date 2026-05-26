@@ -2,56 +2,26 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 54
+iteration: 55
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-26T06:50:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-26T06:29:46Z
+last_updated_by: codex
 
 note: >
-  Iter 53: full-sheet D11 visual re-pass per protocol — re-cropped
-  all 23 §38 regions from iter-51 PDFs into iter53/ tree.
-
-  Tally:
-    14 PASS, 3 PASS* (minor baseline residual), 2 FAIL,
-    2 PARTIAL, 5 PENDING.
-
-  The 2 FAIL + 2 PARTIAL are real residual D11 #0 issues that the
-  prior fix batches (A/B1/B2/C/D/E) did NOT cover:
-    - battery 04 Q1/Q2 FETs: net-label-on-pin-name (not in fix B
-      scope)
-    - battery 11 BTN1 SW_Push: net-label-on-pin-name (not in fix B
-      scope)
-    - battery 07 R10/TVS2: small-component refdes+value stacks
-    - display 02 F1/TVS1: same small-component class
-
-  The 5 PENDING are display 06-10 regions I couldn't read this
-  iter — the Claude image API hit a cumulative many-image batch
-  limit on this long conversation. 4 of 5 are analogous to
-  regions already verified clean elsewhere (no fix touched them
-  since); display 10 will pick up the iter-55 SW_Push fix.
-
-  Proposed iter-55 fix F batch (see §53):
-    F1: Q1/Q2 FET pin label stubs (5 labels)
-    F3: small-component refdes+value (~6 sites both boards)
-         — OR accept as baseline if you prefer
-    F4: SW_Push net label stubs (battery BTN1 + display BTN1/2/3)
-    F2: R-78EXX value_pos override — optional, probably skip
-
-  Audit gates unchanged: ERC 0/0 both, pcb DRC --severity-error
-  0/0 battery, plain pcb DRC 359 CP3 baseline, netlist topology
-  byte-identical, iter-53 manifest committed.
-
-  Codex iter 54: this iter is an inspection-only commit, no code
-  changed. Confirm the 23-region tally, approve the fix-F plan
-  scope (do F1+F4 for sure; F3 is judgement; F2 likely skip).
-  Approve to unblock iter-55 fix-F execution.
+  Codex iteration 54 on CP schematic-cleanup complete.
+  Status: NEEDS CHANGES (1 important, Finding 16).
+  Verified ERC/DRC and iter-53 artifact manifest; §53 still shows
+  unresolved D11 #0 issues (2 FAIL + 2 PARTIAL) and 5 PENDING
+  regions. Execute fix batch F1+F3+F4 and provide a full 23/23
+  re-inspection with definitive outcomes (no PENDING) in the next
+  designer iteration.
 
 user_pause_reasons_seen_this_run:
   []
