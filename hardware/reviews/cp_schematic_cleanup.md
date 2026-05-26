@@ -1643,3 +1643,398 @@ Re-review completed for designer iteration-34 handoff claims:
 - Confirmed duplicate local `Q1_GATE` labels at `Q2.D` and `R3.pin2` are removed, matching Finding 10's requested pattern without ERC/DRC regression.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+## 38. Designer iter 37 — D11 visual inspection (full)
+
+Iter 36's "designer assessment: done" was overturned by the user
+after one PDF screenshot of the display side made the failure
+obvious. The procedural cause is captured in `decisions.md` D11
+"Documented failure" — a label-coordinate distance audit was
+substituted for a real visual inspection.
+
+This iteration produces the visual inspection the rule actually
+requires: every dense region on both schematics, screenshotted from
+the rendered PDF, with explicit findings.
+
+### How this was produced
+
+1. `hardware/outputs/{battery,display}_side/schematic.pdf` rendered
+   to PNG at ~363 DPI via `sips` (A3 landscape → 6000×4243 px,
+   14.286 px/mm).
+2. `_place_symbol` call positions extracted by symbolic AST eval of
+   `hardware/kicad/build_schematics.py` (positions are grid-multiplied
+   expressions like `40 * G`).
+3. Dense regions hand-curated from the placement map per D11 §"Visual
+   inspection protocol": every IC, every connector ≥4 pins, every
+   cluster of ≥3 components within ~20 mm, every power/ground rail
+   meeting ≥3 pins.
+4. Per-region crops produced with `sips --cropOffset … -c …` from
+   millimetre bounding boxes.
+5. Every PNG opened and read by the designer. Findings recorded
+   per region below as one sentence each, per D11.
+
+Scripts are at `/tmp/d11_iter37/extract_components.py` and
+`/tmp/d11_iter37/crop_regions.py` — kept ephemeral; they are not
+the audit, they only produce the inputs the audit (this section)
+runs on.
+
+### Battery side — 13 regions
+
+#### Region: 01_annotation_banner
+
+![01_annotation_banner](visual_inspections/cp_schematic_cleanup/iter37/battery_side/01_annotation_banner.png)
+
+Read every piece of text in this region. Findings: page-grid column
+markers `1` and `2` at the top of the page sit inside the letters of
+the annotation text `Convention: power rails above components; GND
+below!` — two text-vs-text overlaps. **D11 #0 fail.**
+
+#### Region: 02_power_input_row (J1 / F1 / D1 / TVS1)
+
+![02_power_input_row](visual_inspections/cp_schematic_cleanup/iter37/battery_side/02_power_input_row_J1_F1_D1_TVS1.png)
+
+Read every piece of text in this region. Findings: at J1 the net
+label `V24_RAW` overlaps pin number `1` and pin name `Pin_1`, and
+`GND` overlaps `2` and `Pin_2`; `J1`/`Conn_01x02` reference/value
+text overlap the pin labels. F1 has `V24_RAW` overlapping pin 1 area
+and `V24_AFTER_FUSE` overlapping pin 2. D1 has `V24_FUSED`
+overlapping pin number `1` and `D1`/`SS24` overlap each other.
+TVS1 has `V24_FUSED` overlapping pin 1 and `TVS1`/`SMAJ30CA` text
+stacked. **D11 #0 fail on every component in this region.**
+
+#### Region: 03_sense_divider (R5 / R6 / C5)
+
+![03_sense_divider](visual_inspections/cp_schematic_cleanup/iter37/battery_side/03_sense_divider_R5_R6_C5.png)
+
+Read every piece of text in this region. Findings: net-label-vs-
+net-label overlap was cleaned by iter 22, but R6 pin 2 `GND` arrow
+tail overlaps pin number `2`, C5 pin 2 `GND` overlaps `2`. Refdes
+and value text on R5/R6/C5 are clear. **D11 #0 partial fail (minor —
+label arrow tails on pin numbers).**
+
+#### Region: 04_q1q2_hardcut
+
+![04_q1q2_hardcut](visual_inspections/cp_schematic_cleanup/iter37/battery_side/04_q1q2_hardcut.png)
+
+Read every piece of text in this region. Findings: Q1 net labels
+overlap chip pin names — `V24_SW` on `D`, `Q1_GATE` on `G`,
+`V24_FUSED` on `S`; `AO3401A` value text overlaps `Q1` refdes
+inside the symbol body. Q2: `PWR_EN` overlaps `G`, `GND` overlaps
+`S`, `AO3400A` value stacks inside the symbol. R3 and R4 net labels
+overlap their pin numbers. **D11 #0 fail.**
+
+#### Region: 05_u1_buck (U1 / L1 / C1 / C2 / C_BST)
+
+![05_u1_buck](visual_inspections/cp_schematic_cleanup/iter37/battery_side/05_u1_buck_U1_L1_C1_C2_CBST.png)
+
+Read every piece of text in this region. Findings: U1 pin 2 `EN`
+pin name is overlapped by net label `V24_SW`; pin 5 `SW` pin name
+area contains `U1` refdes and `TPS62933FDRLR` value overlapping the
+pin label. C_BST cluster has `V24_BST` net label overlapping
+`C_BST`/`100nF` text. C2 and C3 are adjacent and their `V3V3_SW`
+and `V24_SW` labels overlap each other; their `22uF/25V` and
+`22uF/35V` value strings stack with refdes `C2`/`C3`. C1 value text
+overlaps the GND label area. **D11 #0 fail at U1 pin endpoints and
+the C2/C3 cluster; criterion #5 fail in the C2/C3 stack.**
+
+#### Region: 06_u2_r78e12_reg
+
+![06_u2_r78e12_reg](visual_inspections/cp_schematic_cleanup/iter37/battery_side/06_u2_r78e12_reg.png)
+
+Read every piece of text in this region. Findings: U2 has triple-
+stack on every pin — pin 1: `1`+`Pin_1`+`V24_SW`; pin 2:
+`2`+`Pin_2`+`GND`; pin 3: `3`+`Pin_3`+`V12_CAT5E`; `R-78E12-1.0`
+value text overlaps the Pin_2/Pin_3 area. C4 pin 1 net label arrow
+overlaps pin number `1`. **D11 #0 fail across U2.**
+
+#### Region: 07_u3_rs485_transceiver
+
+![07_u3_rs485](visual_inspections/cp_schematic_cleanup/iter37/battery_side/07_u3_rs485_transceiver.png)
+
+Read every piece of text in this region. Findings: U3 (SN65HVD3082E)
+net labels overlap chip pin names on every pin — TX/RX labels run
+into `RO`/`DI`, `DE_RE` labels run into `RE`/`DE`, `V3V3_SW` runs
+into `VCC`, GND runs into pin 5 `GND` pin name. R10/TVS2 cluster:
+`R10`+`120`+`TVS2`+`SMAJ12CA` reference and value text all stack
+on the TVS body. R11 pin 1 `V3V3_SW` sits adjacent to another
+`V3V3_SW` label at C10; R12 pin 1 `RS485_B` is adjacent to a
+duplicate `RS485_B`. **D11 #0 fail.**
+
+#### Region: 08_esp32_decoupling_row (R7 / C8 / C6 / C7)
+
+![08_esp32_decoupling_row](visual_inspections/cp_schematic_cleanup/iter37/battery_side/08_esp32_decoupling_row.png)
+
+Read every piece of text in this region. Findings: each component's
+pin 1 net label arrow tail overlaps pin number `1`; pin 2 `GND`
+arrow tail overlaps `2`. `ESP_EN` label at R7 pin 2 and `ESP_EN`
+label at C8 pin 1 are immediately adjacent (two labels for the
+same net at adjacent pins). Refdes/value text clear. **D11 #0
+partial fail on every component (label arrow tails on pin
+numbers); cluster-level redundancy worth cleaning.**
+
+#### Region: 09_esp32_mod1
+
+![09_esp32_mod1](visual_inspections/cp_schematic_cleanup/iter37/battery_side/09_esp32_mod1.png)
+
+Read every piece of text in this region. Findings: every perimeter
+pin of MOD1 has triple-stack of pin number + GPIO pin name (`IO0`,
+`IO1`, …`IO48`, `EN`, `USB_D+/-`, `TXD0`, `RXD0`) + functional net
+label (`ESP_EN`, `BTN_OVERRIDE`, `EPDxx`, `SPK_xx`, `UART_TX`,
+`UART_RX`, `USB_DM`, `USB_DP`, `I2C_SDA/SCL`, `DEx`). `MOD1` refdes
+and `ESP32-S3-WROOM-1-N16R8` value text are squeezed inside the
+symbol body and overlap the internal `PSRAM` text and adjacent pin
+labels. `3V3` net label at the top overlaps pin number and pin
+name. **D11 #0 fail on every used pin; densest failure on this
+sheet.**
+
+#### Region: 10_rtc_coin_cell
+
+![10_rtc_coin_cell](visual_inspections/cp_schematic_cleanup/iter37/battery_side/10_rtc_coin_cell.png)
+
+Read every piece of text in this region. Findings: BAT1 `V_BAT_RTC`
+net label overlaps `BAT1` refdes; `CR2032` value overlaps pin
+number `2`. R9/R8 `V3V3_SW` labels at pin 1 of each resistor are
+adjacent (label-vs-label proximity); pin 2 `I2C_SCL`/`I2C_SDA`
+overlap pin number `2`. C9: `V3V3_SW` overlaps pin `1`, `GND`
+overlaps `2`. RTC1 (DS3231M): pin 1 `V_BAT_RTC` overlaps `VBAT`
+pin name; pin 2 `V3V3_SW` overlaps `VCC`; pin 15/16 `I2C_SDA`/
+`I2C_SCL` overlap `SDA`/`SCL` pin names; multiple X no-connect
+markers overlap their pin numbers; `RTC1`/`DS3231SN#` text inside
+the symbol body. **D11 #0 fail.**
+
+#### Region: 11_btn1_cluster
+
+![11_btn1_cluster](visual_inspections/cp_schematic_cleanup/iter37/battery_side/11_btn1_cluster.png)
+
+Read every piece of text in this region. Findings: BTN1 refdes
+runs together with pin number `1` and `BTN_OVERRIDE` net label
+(rendered as illegible glyph stack); a second `BTN_OVERRIDE`
+label sits below the switch. R13: `V3V3_SW` overlaps `1`,
+`BTN_OVERRIDE` overlaps `2`. C11: `BTN_OVERRIDE` overlaps `1`,
+`GND` overlaps `2`. **D11 #0 fail; criterion #5 fail at the BTN1
+refdes area.**
+
+#### Region: 12_j2_rj45
+
+![12_j2_rj45](visual_inspections/cp_schematic_cleanup/iter37/battery_side/12_j2_rj45.png)
+
+Read every piece of text in this region. Findings: J2 RJ45 pin
+names 1-8 are clean inside the symbol body; net labels `GND`,
+`R485_B`, `R485_A`, `V12_CAT5E` sit outside the symbol with arrow
+tails touching pin numbers at the symbol edge (slight contact at
+pins 2, 4, 5, 7). `J2`/`RJ45` reference and value text are inside
+the symbol body in a clean location. **The least bad region on
+this sheet; minor D11 #0 (label-arrow-vs-pin-number) at four
+pins.**
+
+#### Region: 13_right_edge_conns (J3 USB-OTG / J5 UART-DBG)
+
+![13_right_edge_conns](visual_inspections/cp_schematic_cleanup/iter37/battery_side/13_right_edge_conns_J3_J5.png)
+
+Read every piece of text in this region. Findings: J3 has triple-
+stack on every pin — pin 1: `1`+`Pin_1`+`USB_DP`; pin 2:
+`2`+`Pin_2`+`USB_DM`; pin 3: `3`+`Pin_3`+`ESP_EN`; pin 4:
+`4`+`Pin_4`+`GND`; `J3`/`USB-OTG` value text overlaps Pin_2.
+J5 (UART-DBG) has the same pattern with `DBG_UART_TX`/
+`DBG_UART_RX`/`GND`/`ESP_EN` and `J5`/`UART-DBG` overlapping
+Pin_2. **D11 #0 fail on every pin of both connectors.**
+
+### Display side — 10 regions
+
+#### Region: 01_annotation_banner
+
+![display_01_annotation_banner](visual_inspections/cp_schematic_cleanup/iter37/display_side/01_annotation_banner.png)
+
+Read every piece of text in this region. Findings: page-grid column
+markers `1` and `2` overlap letters of the annotation text
+`Convention: power rails above components; GND below!` — same
+defect as battery 01. **D11 #0 fail.**
+
+#### Region: 02_rj45_input (J1 / F1 / TVS1)
+
+![display_02_rj45_input](visual_inspections/cp_schematic_cleanup/iter37/display_side/02_rj45_input_J1_F1_TVS1.png)
+
+Read every piece of text in this region. Findings: PWR_FLAG_CAT5E
+text fragments (`LG1`/`T5E`/`FLAG`) sit on top of the J1 RJ45
+symbol body — text-on-symbol-body. J1 net labels (`GND`, `R485_B`,
+`R485_A`, `V12_CAT5E`) at pins 7, 5, 4, 2 have arrow tails touching
+the pin numbers (mirror of battery J2). F1 polyfuse: `V12_CAT5E`
+and `V12_PROT` labels straddle the body cleanly; refdes/value
+clear. TVS1: `TVS1` refdes + `K` mark + `V12_PROT`/`GND` net labels
++ `SMAJ15A` value all crowd into pin 1 area. C1: `V12_PROT` label
+overlaps pin 1 area. **D11 #0 fail at J1 PWR_FLAG overlap and TVS1
+cluster.**
+
+#### Region: 03_u1_r78_3v3_reg
+
+![display_03_u1_r78_reg](visual_inspections/cp_schematic_cleanup/iter37/display_side/03_u1_r78_3v3_reg.png)
+
+Read every piece of text in this region. Findings: U1 (R-78E3.3-
+0.5) has triple-stack on every pin — pin 1: `1`+`Pin_1`+`V12_PROT`;
+pin 2: `2`+`Pin_2`+`GND`; pin 3: `3`+`Pin_3`+`V3V3`; `R-78E3.3-0.5`
+value text overlaps Pin_2/Pin_3 area. C1, C2 net labels overlap
+pin numbers `1` and `2`. **D11 #0 fail across U1.**
+
+#### Region: 04_esp32_decoupling_row (R1 / C5 / C3 / C4)
+
+![display_04_esp32_decoupling](visual_inspections/cp_schematic_cleanup/iter37/display_side/04_esp32_decoupling_row.png)
+
+Read every piece of text in this region. Findings: R1, C5, C3, C4
+each have pin 1 net label arrow tails overlapping pin number `1`
+and pin 2 `GND` arrows overlapping `2`. Refdes/value text are
+clear. **D11 #0 partial fail (label arrow tails on pin numbers
+across the row).**
+
+#### Region: 05_esp32_mod1
+
+![display_05_esp32_mod1](visual_inspections/cp_schematic_cleanup/iter37/display_side/05_esp32_mod1.png)
+
+Read every piece of text in this region. Findings: every perimeter
+pin of MOD1 has triple-stack of pin number + GPIO pin name + net
+label — `EPD_BUSY`, `EPD_RST`, `EPD_DC`, `EPD_CS`, `SPI_SCK`,
+`SPI_MOSI`, `BTN1/2/3`, `UART_TX`, `UART_RX`, `USB_DM`, `USB_DP`,
+`I2C_SDA/SCL`, etc., all overlap their `IOnn` pin names and pin
+numbers. `MOD1` refdes and `ESP32-S3-WROOM-1-N16R8` value text are
+squeezed inside the symbol body overlapping `PSRAM` text. X
+no-connect markers stack with pin numbers on unused pins. **D11 #0
+fail on every used pin; same pattern as battery 09 but with
+display-specific nets.**
+
+#### Region: 06_c6_isolated
+
+![display_06_c6](visual_inspections/cp_schematic_cleanup/iter37/display_side/06_c6_isolated.png)
+
+Read every piece of text in this region. Findings: `V3V3` net label
+overlaps pin number `1` and `C6`/`1uF` value text; `GND` overlaps
+pin number `2`. **D11 #0 partial fail.**
+
+#### Region: 07_ffc_j2_24pin_epd (the one the user flagged)
+
+![display_07_ffc_j2](visual_inspections/cp_schematic_cleanup/iter37/display_side/07_ffc_j2_24pin_epd.png)
+
+Read every piece of text in this region. Findings: pins 1-10 used —
+every pin has triple-stack of pin number + `Pin_N` + net label
+(`GND`/`3V3`/`EPD_BUSY`/`EPD_RST`/`EPD_DC`/`EPD_CS`/`SPI_SCK`/
+`SPI_MOSI`). Pins 11-24 unused — `X` no-connect marker overlaps
+pin number which overlaps `Pin_N`. `J2` refdes + `EPD_FFC_24`
+value text land between pins 12 and 13 overlapping both. **D11 #0
+fail on all 24 pins; the canonical example the user used to
+overturn iter 36.**
+
+#### Region: 08_u2_rs485_transceiver
+
+![display_08_u2_rs485](visual_inspections/cp_schematic_cleanup/iter37/display_side/08_u2_rs485_transceiver.png)
+
+Read every piece of text in this region. Findings: U2 (SN65HVD3082E)
+— net labels overlap chip pin names: `UART_RX` on `RO` (pin 1),
+`UART_TX` on `DI` (pin 4), `DE_RE` on `RE`/`DE` (pins 2/3), `3V3`
+on `VCC` (pin 8), `GND` on pin 5 GND. C7: `3V3` net label sits on
+top of `C7` cap; `100nF` value text adjacent. R3 pin 1 `3V3`
+overlaps with another `V3V3` label; `R3`/`680` text stack.
+R2/TVS2: `R2`/`TVS2`/`120`/`SMAJ12CA` reference and value text
+all stack on the TVS body. R4 pin 1 `RS485_B`, pin 2 `GND`
+overlapping pin numbers. **D11 #0 fail (also the canonical
+example).**
+
+#### Region: 09_left_edge_conns (J3 UART-DBG / J4 USB-OTG)
+
+![display_09_left_edge_conns](visual_inspections/cp_schematic_cleanup/iter37/display_side/09_left_edge_conns_J3_J4.png)
+
+Read every piece of text in this region. Findings: J3 every pin
+triple-stacked (`DBG_UART_TX`/`DBG_UART_RX`/`GND`/`ESP_EN` on
+`Pin_1-4` + numbers); `J3`/`UART-DBG` value text overlaps `Pin_2`.
+J4 same pattern (`USB_DP`/`USB_DM`/`GND`/`V3V3`); `J4`/`USB-OTG`
+overlaps `Pin_2`. **D11 #0 fail on every pin of both connectors.**
+
+#### Region: 10_lower_middle_button_zone
+
+![display_10_button_zone](visual_inspections/cp_schematic_cleanup/iter37/display_side/10_lower_middle_button_zone.png)
+
+Read every piece of text in this region. Findings: this crop
+extends the MOD1 view at right; left side intentionally
+overlapping with the BTN1/BTN2/BTN3 zone. BTN net labels (`BTN1`,
+`BTN2`, `BTN3`) overlap pin names `IO12`, `IO13`, `IO14`; X
+no-connect markers stack with pin numbers on the left edge of the
+MOD1 symbol. **D11 #0 fail on the button-side perimeter pins.**
+
+### Iter 37 tally
+
+| Sheet         | Regions inspected | Regions with findings | Regions clean |
+|---------------|------------------:|----------------------:|--------------:|
+| battery_side  | 13                | 13                    | 0             |
+| display_side  | 10                | 10                    | 0             |
+| **TOTAL**     | **23**            | **23**                | **0**         |
+
+D11 status by criterion (across both sheets):
+
+| Criterion | Status | Reason |
+|-----------|--------|--------|
+| #0 no text/symbol overlap | **FAIL** | Net-label-vs-pin-name and net-label-vs-pin-number overlap on every IC, every connector, and most passives |
+| #5 legible at 100% zoom   | **FAIL** | Triple-stacks at FFC J2, MOD1 perimeters, J3/J4/J5 connectors, U1/U2 regulator inputs make reading require squinting and context inference — explicitly disallowed by D11 #5 |
+
+Iter 36's "designer assessment: done" overturned. The PDFs do not
+satisfy D11 and cannot be merged as-is.
+
+### Root cause (recap)
+
+The iter-36 audit measured net-label-vs-net-label centroid
+distance. The dominant defects on both sheets are:
+
+- net-label-vs-pin-name overlap (`UART_RX` on `RO`, `V12_PROT` on
+  `Pin_1`, etc.)
+- net-label-vs-pin-number overlap (label arrow tail touching the
+  pin's small number text)
+- value-text-vs-pin-label overlap (`R-78E12-1.0`, `ESP32-S3-WROOM-
+  1-N16R8` value strings squeezed into the symbol interior)
+- PWR_FLAG-vs-symbol-body overlap (display_side J1)
+
+None of these were measured by the script. The new D11 protocol
+("Visual inspection protocol (mandatory)") closes the gap by
+requiring this section to exist as a prerequisite for any future
+#0/#5 PASS claim.
+
+### Proposed fix plan (iter 38+)
+
+This is a sketch for codex_turn review, not a commitment to a
+single approach. Pick one of:
+
+**A. Hide pin names on standard connectors.** KiCad
+`Conn_01xNN` symbols ship with `Pin_1`…`Pin_N` pin names visible.
+Setting `(pin_names hide)` on the schematic-side instance (or
+swapping to a `_Counterclockwise` variant) removes one of the three
+texts in the FFC and J3/J4/J5 stacks. Cleanest win on display 07
+and battery 13.
+
+**B. Pull net labels off the pin endpoint.** For ICs (U1/U2/U3
+regulators, RS-485 transceivers, MOD1), end the pin's net at a
+short wire stub (~2.54 mm) and place the net label on the stub
+instead of on the pin itself. Removes net-label-vs-pin-name
+overlap on every IC.
+
+**C. Move value text out of the symbol body.** For multi-pin ICs
+(MOD1, U2/U3 RS-485, R-78EXX regulators) the auto-placed `Value`
+property sits inside the body. Move it above or below the body.
+
+**D. Resolve annotation-vs-grid overlap.** Move the
+"Convention: …" annotation to a position not coincident with a
+page-grid column number.
+
+**E. Resolve PWR_FLAG-vs-symbol overlap.** Move PWR_FLAG_CAT5E off
+the J1 RJ45 body on the display side.
+
+Estimated work: A is one-line-per-connector (~10 instances total).
+B is per-pin (largest, but mechanical). C is per-IC (~6 instances).
+D and E are one-off.
+
+### Handing back
+
+State → `codex_turn`, iter 37. Codex: please open the same PDFs
+yourself at 100% zoom, sanity-check the per-region findings above,
+and either (i) corroborate this is the right read of the visual
+defects and approve the fix-plan ranking A-B-C-D-E, or (ii) flag
+any region where the finding above is wrong or missing a defect.
+
+Audit gates remain clean: kicad-cli sch erc → 0/0 on both;
+kicad-cli pcb drc → 0/0. Netlist topology byte-identical to iter
+36. Only this packet + the new `visual_inspections/` PNG tree
+changed in iter 37.
