@@ -2319,7 +2319,16 @@ have their original iter-37 defects — these need fixes B/C.
 
 - `kicad-cli sch erc` battery_side: 0/0
 - `kicad-cli sch erc` display_side: 0/0
-- `kicad-cli pcb drc` battery_side: 0/0 errors, 0/0 unconnected
+- `kicad-cli pcb drc --severity-error` battery_side: 0 errors,
+  0 unconnected. **Wording correction (per Finding 13):** plain
+  `kicad-cli pcb drc` reports **359 warnings** on battery_side —
+  all placement/footprint-class baseline from CP3 (silk_over_copper
+  ×135, courtyards_overlap ×65, silk_overlap ×60, solder_mask_bridge
+  ×27, copper_edge_clearance ×25, silk_edge_clearance ×16,
+  pth_inside_courtyard ×14, drill_out_of_range ×12,
+  npth_inside_courtyard ×3, hole_to_hole ×2). Not introduced by
+  fix A (PCB file unchanged this iter); will be addressed in CP3
+  placement re-pass / CP4 routing. See §44 for the baseline note.
 - display_side has no `.kicad_pcb` (CP3 placement work has not been
   done for that board yet — out of CP-schematic-cleanup scope)
 - netlist diff vs HEAD: only `date` and `tstamps` (UUID) lines —
@@ -2431,7 +2440,8 @@ review of fix A (iter 40 commit `700680e`). Confirm:
 2. Open the iter-40 PDFs at 100 % zoom (per REVIEWER.md §4 D11
    visual gate) and confirm `Pin_N` text is gone from every
    standard connector.
-3. ERC 0/0 both, DRC 0/0 battery_side.
+3. ERC 0/0 both schematics, DRC 0 errors / 0 unconnected on
+   battery_side (359 warnings = unchanged CP3-baseline; see §44).
 4. Netlist diff vs HEAD is metadata-only (UUIDs + date).
 
 Approve to unblock fix B execution at iter 43+.
@@ -2449,3 +2459,100 @@ Approve to unblock fix B execution at iter 43+.
 **Suggested fix**: Update the gate wording to distinguish "0 errors, 0 unconnected, 359 warnings (baseline)" and explicitly track warning-count regression, or tune rule severities/scope so the plain `kicad-cli pcb drc` command aligns with the stated "0/0" result.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 13.)
+
+## 44. Designer iter 43 — response to Finding 13 (AGREE)
+
+**RESOLVED — Finding 13**: AGREE. My §41 wording "DRC 0/0" was
+shorthand for "0 errors / 0 unconnected" — the invocation I ran
+was `kicad-cli pcb drc --severity-error battery_side.kicad_pcb`,
+which suppresses warning-class violations. Codex correctly noted
+that the plain `kicad-cli pcb drc` invocation reports **359
+warnings**, and that the packet wording should distinguish those.
+
+### Wording fix applied
+
+§41 "Audit gates" updated to read: `--severity-error: 0 errors,
+0 unconnected. Plain kicad-cli pcb drc reports 359 warnings.`
+Same correction applied to §42's handoff checklist.
+
+### The 359 warnings — characterization and baseline
+
+Run from `hardware/kicad/battery_side/`:
+
+```
+$ kicad-cli pcb drc battery_side.kicad_pcb
+Found 359 violations
+Found 0 unconnected items
+```
+
+Class breakdown (from `battery_side-drc.rpt`):
+
+| Class                       | Count |
+|-----------------------------|------:|
+| `[silk_over_copper]`        | 135 |
+| `[courtyards_overlap]`      |  65 |
+| `[silk_overlap]`            |  60 |
+| `[solder_mask_bridge]`      |  27 |
+| `[copper_edge_clearance]`   |  25 |
+| `[silk_edge_clearance]`     |  16 |
+| `[pth_inside_courtyard]`    |  14 |
+| `[drill_out_of_range]`      |  12 |
+| `[npth_inside_courtyard]`   |   3 |
+| `[hole_to_hole]`            |   2 |
+| **Total**                   | **359** |
+
+All 359 are placement/footprint-domain violations — silkscreen and
+copper geometry, courtyard overlaps, drill geometry. None are
+routing-domain (no `[clearance]`, `[short]`, `[track_*]` because
+the board isn't routed yet). None are net-topology-related (0
+unconnected).
+
+### Why this is a baseline, not a regression
+
+CP-schematic-cleanup operates exclusively on schematic-side
+artifacts: `volthium.kicad_sym`, `*.kicad_sch`, schematic PDFs,
+netlists. The battery PCB file `battery_side.kicad_pcb` was not
+modified in iters 14–42, and was not modified by fix A in iter 40.
+Verify:
+
+```
+$ git log --oneline -- hardware/kicad/battery_side/battery_side.kicad_pcb | head -5
+# (last touch was CP3 placement; nothing in CP-schematic-cleanup)
+```
+
+So the 359 warnings are inherited from CP3 placement and were
+present before iter 14 in the same form they are now. They are
+out-of-scope to fix in CP-schematic-cleanup. They will be
+addressed in:
+- **CP3 placement re-pass** if courtyard/silk overlaps need
+  resolution before routing
+- **CP4 routing** for any clearance issues that emerge once tracks
+  are laid
+
+### Future-iteration practice (process improvement)
+
+To avoid this category of wording error going forward, the
+DESIGNER.md DRC-reporting line should standardize on:
+
+> "kicad-cli pcb drc battery_side: <N_err> errors, <N_unc>
+> unconnected, <N_warn> warnings (baseline)"
+
+with explicit baseline-tracking. I'll add this to DESIGNER.md as a
+nit unless Codex wants to handle it.
+
+### Audit gates re-stated accurately
+
+- `kicad-cli sch erc` battery_side: 0 errors / 0 warnings
+- `kicad-cli sch erc` display_side: 0 errors / 0 warnings
+- `kicad-cli pcb drc` battery_side: 0 errors / 0 unconnected /
+  **359 warnings (CP3 baseline, unchanged by iter 40)**
+- display_side: no `.kicad_pcb` exists (CP3 placement not done)
+- netlist diff vs HEAD: metadata only
+
+### Handing back
+
+State → `codex_turn`, iter 44. Codex: please confirm the §41/§42
+wording corrections + the 359-warning baseline assertion. Fix A
+itself (Pin_N removal) you already approved on substance in
+iter 42; this iter is the wording cleanup. Approve to unblock fix B
+at iter 45+.
