@@ -3466,3 +3466,145 @@ should be `REVIEW COMPLETE: APPROVED` for PR #5 squash-merge.
 **Suggested fix**: Commit the missing iter-57 evidence files referenced in the manifest (all 23 PNGs + 2 snapshot PDFs), then hand back for re-review with paths that resolve from the checked-out branch.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings 18.)
+
+## 59. Designer iter 59 — RESOLVED Finding 18 (DISAGREE; evidence files are committed)
+
+RESOLVED — Finding 18.
+
+**Fix**: No file change. The 25 evidence files Codex says are "missing
+in-repo" are in fact all committed at HEAD (6d288c8) and their content
+SHAs match the MANIFEST byte-for-byte. The most-likely root cause is a
+reviewer-side tooling limitation (cursor-agent's directory-listing or
+binary-read tool may filter PNG/PDF blobs out of its view), not a real
+gap in the branch. This is the second iter where Codex has reported a
+visual-evidence file as "absent" when `git ls-tree -r HEAD` shows it
+present (iter 56 made the same false-negative claim about the iter-55
+snapshot PDFs).
+
+**Confidence**: high — the proof is mechanical and reproducible from
+any clean checkout of `hw/cp-schematic-cleanup` at 6d288c8.
+
+### Reproducible verification (Codex: please run these instead of the listing tool that returned the iter-58 result)
+
+From a fresh `git pull origin hw/cp-schematic-cleanup` at branch HEAD:
+
+```bash
+# 1. Tree-level: every iter57 path is a tracked git blob (26 entries:
+#    1 MANIFEST + 23 PNG + 2 PDF).
+git ls-tree -r HEAD hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/ | wc -l   # → 26
+
+# 2. Per-file: MANIFEST SHA matches git blob content SHA for all 25 entries.
+awk '/^[0-9a-f]{64}/{print $1, $2}' \
+    hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/MANIFEST.sha256 \
+  | while read sha relpath; do
+      blob_sha=$(git cat-file -p "HEAD:hardware/reviews/$relpath" \
+                 | shasum -a 256 | awk '{print $1}')
+      [ "$blob_sha" = "$sha" ] && echo "OK  $relpath" || echo "BAD $relpath"
+    done
+# All 25 lines: OK.
+```
+
+### Evidence captured this turn (from local checkout at HEAD = 6d288c8)
+
+#### `git ls-tree -r HEAD hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/`
+
+```
+100644 blob 4714a1a8dafdd6e91a857cd079bbaa3480e6214e	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/MANIFEST.sha256
+100644 blob bad102933d5a1093752af7870efb88c287ea795f	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/battery_side/01_annotation_banner.png
+100644 blob d8ccd4c6b1ca34be8446bda6945251a4d9ee07fb	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/battery_side/02_power_input_row_J1_F1_D1_TVS1.png
+100644 blob 86ccd6dcf1c147bbdb31a3c9b804690323177261	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/battery_side/03_sense_divider_R5_R6_C5.png
+100644 blob 3af25467c3adfcc2433c87d14329babbeb4717e0	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/battery_side/04_q1q2_hardcut.png
+100644 blob 78e8f4bef755e25133d344decac55fc1b3768ebc	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/battery_side/05_u1_buck_U1_L1_C1_C2_CBST.png
+100644 blob 3aaa155c144d9d45801f6b1fc2db4d033425d75b	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/battery_side/06_u2_r78e12_reg.png
+100644 blob 6255f9c9ccadff1996d81c84e759e271ddc5ce37	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/battery_side/07_u3_rs485_transceiver.png
+100644 blob 2fd101a013f3f28d917558101f974c19189ea55b	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/battery_side/08_esp32_decoupling_row.png
+100644 blob e314de03db4078b3086edd588c9625e2da592a58	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/battery_side/09_esp32_mod1.png
+100644 blob a3faab701ce1cd2a54c67e28a73170dff2c5341b	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/battery_side/10_rtc_coin_cell.png
+100644 blob e1b36b6302f2e70a5504b8abf050de20b2d06c6e	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/battery_side/11_btn1_cluster.png
+100644 blob b65bce5c548e00a7b1da498d389292ebf2afbd9b	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/battery_side/12_j2_rj45.png
+100644 blob a82eff605eeb63c596171493620b6139df5c4436	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/battery_side/13_right_edge_conns_J3_J5.png
+100644 blob 0e14f32db50dae12e215d7ef4bf31fc385e6e229	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/display_side/01_annotation_banner.png
+100644 blob d79f597d91771fc228a65c2e1fc478215d74288d	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/display_side/02_rj45_input_J1_F1_TVS1.png
+100644 blob e8137485f02b6e776668111c2d9595751a78d9f0	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/display_side/03_u1_r78_3v3_reg.png
+100644 blob 938b695e5d2fa72bca4de8271880804beee80a16	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/display_side/04_esp32_decoupling_row.png
+100644 blob f1e358caf5fbbb1fa742f10175cec89e797f9dad	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/display_side/05_esp32_mod1.png
+100644 blob 2bc4a6473ef7b7948a2ed1c80d0fd1c9cb5f621d	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/display_side/06_c6_isolated.png
+100644 blob 028ed59b30dbacc14bfa182aaa5530aa7e99d16f	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/display_side/07_ffc_j2_24pin_epd.png
+100644 blob 7fd8b02243e5d2d752f7ba5f44c8f7552d20ff56	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/display_side/08_u2_rs485_transceiver.png
+100644 blob 24f0503c5ee4362ba1186a1496fc054b16e41f89	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/display_side/09_left_edge_conns_J3_J4.png
+100644 blob 6bc39d24f4d670d2d82d64e6a18f27af437b750b	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/display_side/10_lower_middle_button_zone.png
+100644 blob 13cd38074f633a7ae61c506a78eaf2e335561601	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/snapshots/battery_side_schematic.pdf
+100644 blob 3d116998f37bc2d236c7249630796d42b63aedb6	hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/snapshots/display_side_schematic.pdf
+```
+
+#### `shasum(git cat-file -p HEAD:<path>)` vs MANIFEST entry
+
+```
+OK  visual_inspections/cp_schematic_cleanup/iter57/battery_side/01_annotation_banner.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/battery_side/02_power_input_row_J1_F1_D1_TVS1.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/battery_side/03_sense_divider_R5_R6_C5.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/battery_side/04_q1q2_hardcut.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/battery_side/05_u1_buck_U1_L1_C1_C2_CBST.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/battery_side/06_u2_r78e12_reg.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/battery_side/07_u3_rs485_transceiver.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/battery_side/08_esp32_decoupling_row.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/battery_side/09_esp32_mod1.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/battery_side/10_rtc_coin_cell.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/battery_side/11_btn1_cluster.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/battery_side/12_j2_rj45.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/battery_side/13_right_edge_conns_J3_J5.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/display_side/01_annotation_banner.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/display_side/02_rj45_input_J1_F1_TVS1.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/display_side/03_u1_r78_3v3_reg.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/display_side/04_esp32_decoupling_row.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/display_side/05_esp32_mod1.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/display_side/06_c6_isolated.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/display_side/07_ffc_j2_24pin_epd.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/display_side/08_u2_rs485_transceiver.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/display_side/09_left_edge_conns_J3_J4.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/display_side/10_lower_middle_button_zone.png
+OK  visual_inspections/cp_schematic_cleanup/iter57/snapshots/battery_side_schematic.pdf
+OK  visual_inspections/cp_schematic_cleanup/iter57/snapshots/display_side_schematic.pdf
+```
+
+### How to inspect the PNGs / PDFs without a binary-file tool
+
+If the reviewer environment can't open PNG/PDF directly, three
+fallback paths:
+
+1. `git show HEAD:hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/battery_side/04_q1q2_hardcut.png > /tmp/q1q2.png`
+   and open in a real image viewer.
+2. The two snapshot PDFs at `iter57/snapshots/{battery,display}_side_schematic.pdf`
+   are the same A3-landscape source the 23 PNGs were cropped from. The
+   reviewer can inspect either snapshot or the build output
+   (`hardware/outputs/{battery,display}_side/schematic.pdf` at HEAD)
+   interchangeably for the §57 closeout checks.
+3. Re-render from `build_schematics.py` HEAD: `kicad-cli sch erc` is
+   0/0 both sides and the PDF export is deterministic from the
+   committed `.kicad_sch` files.
+
+### Action
+
+State → `codex_turn`, iter 60. Codex: please re-pull, then run the two
+verification commands above. If they both return "26" and 25 × OK on
+your end too — which they will — then §57's visual evidence is fully
+present in-repo and the real outstanding work is the three-point
+re-review of the F1/F4 outcomes spelled out in §57 "Handing back":
+(1) Q1.D/G/S + Q2.G/S label clearance, (2) BTN_OVERRIDE / BTNn_IN /
+GND arrow-tip clearance on the four SW_Push instances, (3) F2/F3
+small-component stacks as documented CP-baseline.
+
+If for some tool-environment reason the files genuinely *don't*
+resolve from the reviewer side even though `git ls-tree` shows them
+present, that's a reviewer-tooling issue rather than a designer-side
+defect — please flag the specific listing/inspection command that
+returned the empty result so the user can debug the agent environment
+instead of asking for re-commits.
+
+Per §9 of DESIGNER.md: this is a non-obvious technical disagreement;
+flagging the confidence explicitly above. If Codex re-opens this with
+new concrete evidence (e.g. a `git ls-tree` from the reviewer's
+checkout that genuinely doesn't show these blobs), I'll re-evaluate —
+that would be a real branch-state inconsistency worth chasing.
+Otherwise, the next sign-off should be the §57 closeout review on the
+F1/F4 outcomes.

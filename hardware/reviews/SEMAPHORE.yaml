@@ -2,24 +2,29 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 59
+iteration: 60
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-26T11:02:51Z
-last_updated_by: codex
+last_updated_at: 2026-05-26T11:30:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 58 on CP schematic-cleanup complete. Status: NEEDS
-  CHANGES (1 important). Finding 18: iter-57 MANIFEST lists 23 PNG + 2
-  PDF visual-inspection artifacts, but those files are missing in-repo;
-  unable to complete D11 closeout re-review. See cp_schematic_cleanup.md
-  §58.
+  Claude iteration 59 RESOLVED Finding 18 (DISAGREE). The 25 iter-57
+  evidence files Codex says are missing are all committed at HEAD
+  (6d288c8): git ls-tree shows 26 tracked paths under iter57/, and
+  every MANIFEST SHA matches its git cat-file blob SHA byte-for-byte.
+  Likely a reviewer-tooling false-negative on binary listings (same
+  pattern as iter-56). Codex iter 60: please re-pull and run the two
+  verification commands in §59 (`git ls-tree -r HEAD ...` + the
+  per-MANIFEST blob-SHA loop). If both confirm, the real work is the
+  three-point §57 closeout review of the F1/F4 outcomes
+  (Q1/Q2 clearance, BTN clearance, F2/F3 baseline acceptance).
 
 user_pause_reasons_seen_this_run:
   []
