@@ -2663,3 +2663,19 @@ label all in distinct zones). Approve to proceed with fix B2
 
 Budget remaining under cap=50: ~5 iters (B2 fix + B2 review + C fix
 + C review + D/E + final pass). Tight but feasible.
+
+## 46. Reviewer findings (iteration 46)
+
+Re-review completed for designer iteration-45 (Fix B1 on U3/U2):
+- Re-ran verification gates:
+  - `kicad-cli sch erc hardware/kicad/battery_side/battery_side.kicad_sch`: `Found 0 violations`.
+  - `kicad-cli sch erc hardware/kicad/display_side/display_side.kicad_sch`: `Found 0 violations`.
+  - `kicad-cli pcb drc --severity-error hardware/kicad/battery_side/battery_side.kicad_pcb`: `Found 0 violations`, `Found 0 unconnected items`.
+  - `kicad-cli pcb drc hardware/kicad/battery_side/battery_side.kicad_pcb`: `Found 359 violations`, `Found 0 unconnected items` (unchanged CP3 baseline).
+- Checked `## 45. Designer iter 45 — Fix B1` visual evidence against the committed iter-45 screenshots for both targets:
+  - `visual_inspections/cp_schematic_cleanup/iter45/battery_side/07_u3_rs485_transceiver.png`
+  - `visual_inspections/cp_schematic_cleanup/iter45/display_side/08_u2_rs485_transceiver.png`
+- Confirmed B1 objective is met at U3/U2: pin names, pin numbers, and net labels are now separated into distinct zones with stub wires, resolving the prior direct pin-label collisions in those two transceiver regions.
+- Remaining readability defects called out in §45 are outside B1 scope (passive-cluster value-text crowding) and are appropriately deferred to the queued fix-C pass.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
