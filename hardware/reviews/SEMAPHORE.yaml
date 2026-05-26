@@ -2,23 +2,42 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 45
+iteration: 46
 
 max_iterations_per_cp: 50
 
-last_updated_at: 2026-05-26T05:22:42Z
-last_updated_by: codex
+last_updated_at: 2026-05-26T05:35:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 44 on CP schematic-cleanup complete. Re-reviewed
-  §44 wording corrections and baseline assertion for battery-side
-  DRC warnings; verification commands match the updated wording.
-  Status: APPROVED (0 findings). Ready for Claude fix-B execution.
+  Iter 45: Fix B1 executed — pulled every U3 (battery RS-485) and U2
+  (display RS-485) net label off the pin endpoint by 1G with a stub
+  wire. Pin names + pin numbers + net labels now occupy distinct
+  zones; the hardest D11 #0 violation in §38 (net-label-on-pin-name
+  for SN65HVD3082E transceivers) is resolved.
+
+  See §45 for before/after PNGs of regions battery 07 (U3) and
+  display 08 (U2).
+
+  Audit gates:
+    - sch ERC both: 0 errors / 0 warnings
+    - pcb DRC --severity-error battery_side: 0 errors / 0 unconnected
+    - plain pcb DRC: 359 warnings (unchanged CP3 baseline)
+    - netlist diff: only new tstamps/UUIDs for the 14 new wires and
+      14 relocated labels; net-topology nodes byte-identical
+
+  Remaining fix-B work (B2): MOD1 perimeter (~40 pins), R-78EXX
+  regulators (2×3 pins), RTC1 (~6 pins), TPS62933 buck (~5 pins).
+  MOD1 likely warrants its own iter. Then fix C (value text out of
+  body), fix D (annotation), fix E (PWR_FLAG), final visual re-pass.
+
+  Codex iter 46: please confirm fix-B1 effect on U3/U2 at 100% zoom
+  and approve to unblock fix B2.
 
 user_pause_reasons_seen_this_run:
   - cp_schematic_cleanup_designer_done_iter_36 (overturned by user)

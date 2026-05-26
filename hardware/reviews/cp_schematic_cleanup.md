@@ -2570,3 +2570,96 @@ Re-review completed for designer iteration-43 wording cleanup claims:
 - Confirmed §44 now distinguishes plain DRC warnings from `--severity-error` output and no longer claims ambiguous "0/0" for plain `kicad-cli pcb drc`.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+## 45. Designer iter 45 — Fix B1 (RS-485 transceiver pin labels)
+
+Codex iter 44 APPROVED the §44 wording fix. Iter 45 starts fix B from
+§38's plan, scoped to the two RS-485 transceivers — the most
+visually-loaded ICs identified in §38 ("net labels overlap chip pin
+names on every pin").
+
+### Change
+
+For both `U3` (battery side, SN65HVD3082E at 279.4, 63.5) and `U2`
+(display side, same part at 279.4, 101.6), pulled every net label off
+the pin endpoint by one grid (2.54 mm) and added a connecting stub
+wire. Pattern per pin:
+
+```
+pin endpoint (chip-side text "RO"/"DI"/"A"/"B"/etc here)
+    │
+    └── 1G stub wire (2.54 mm)
+            │
+            └── net label (now clear of pin name text)
+```
+
+All 8 pins per chip (×2 chips = 16 pins) got the treatment. Pin 5
+(GND, bottom) and pin 8 (VCC, top) had their existing direct-to-label
+placements extended by 1G; the side pins (1–4 left, 6–7 right) got
+new stubs in the same direction as their pin orientation.
+
+### Visual evidence
+
+#### Battery U3 — before / after
+
+iter 37 (before fix B):
+![iter37 u3](visual_inspections/cp_schematic_cleanup/iter37/battery_side/07_u3_rs485_transceiver.png)
+
+iter 45 (after fix B1):
+![iter45 u3](visual_inspections/cp_schematic_cleanup/iter45/battery_side/07_u3_rs485_transceiver.png)
+
+Read every piece of text in this region. Findings: pin names `RO`,
+`~RE`, `DE`, `DI`, `A`, `B`, `GND`, `VCC` are now clearly inside the
+chip body, no overlap. Pin numbers `1`–`8` visible at pin endpoints,
+no overlap with pin names. Net labels (`UART_RX_3V3`, `DE_RE`,
+`UART_TX_3V3`, `GND`, `RS485_A`, `RS485_B`, `V3V3_SW`) are visually
+separated from the chip by a 1G stub wire and read cleanly. Remaining
+defects in this region (not addressed by fix B1, tracked elsewhere):
+the R10/R11/R12/TVS2 cluster on the right still has `R10`/`120`/
+`TVS2`/`SMAJ12CA` reference/value text stacked on the TVS body (fix C
+territory). Two `RS485_A` and two `RS485_B` labels are present at the
+cluster — both intentional (one at U3 pin, one at R10) — they don't
+overlap. **D11 #0 fail at U3 itself: resolved. Remaining defects in
+this region: passive-cluster value text (fix C).**
+
+#### Display U2 — before / after
+
+iter 37 (before):
+![iter37 u2](visual_inspections/cp_schematic_cleanup/iter37/display_side/08_u2_rs485_transceiver.png)
+
+iter 45 (after fix B1):
+![iter45 u2](visual_inspections/cp_schematic_cleanup/iter45/display_side/08_u2_rs485_transceiver.png)
+
+Read every piece of text in this region. Findings: same outcome as
+battery U3. Pin names + pin numbers + net labels now each in their
+own zone. **D11 #0 fail at U2 itself: resolved. Remaining defects:
+R2/R3/R4/TVS2 cluster value text (fix C).**
+
+### Audit gates
+
+- `kicad-cli sch erc` battery_side: 0 errors / 0 warnings
+- `kicad-cli sch erc` display_side: 0 errors / 0 warnings
+- `kicad-cli pcb drc --severity-error` battery_side: 0 errors,
+  0 unconnected. Plain `kicad-cli pcb drc`: 359 warnings (unchanged
+  CP3 baseline — PCB file not modified this iter).
+- display_side: no `.kicad_pcb` (CP3 not done)
+- netlist diff vs HEAD: 14 new wire-tstamps + 14 new label-tstamps
+  for U3/U2 (the new stub wires and relocated labels are new objects
+  with fresh UUIDs); net-topology nodes byte-identical.
+
+### Scope notes
+
+Fix B1 covers only the two RS-485 transceivers. The remaining fix-B
+work (MOD1 perimeters, the R-78EXX regulators, RTC1, TPS62933 buck)
+is queued for B2 (next iter). MOD1 alone is ~40 pin endpoints and
+likely warrants its own iteration; small ICs can batch into one.
+
+### Handing back
+
+State → `codex_turn`, iter 46. Codex: open iter-45 PDFs at 100 %
+zoom, confirm fix-B1 effect on U3/U2 (pin name + pin number + net
+label all in distinct zones). Approve to proceed with fix B2
+(remaining ICs) at iter 47+.
+
+Budget remaining under cap=50: ~5 iters (B2 fix + B2 review + C fix
++ C review + D/E + final pass). Tight but feasible.

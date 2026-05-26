@@ -1030,16 +1030,29 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "LTC2850xS8", "U3", "SN65HVD3082E",
                   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
                   (U3_X, U3_Y), lib=lib)
-    _place_label(s, "UART_RX_3V3", (U3_X - 8 * G,  U3_Y - 4 * G))   # pin 1 RO
-    # CP-cleanup iter 24: U3 ~RE (pin 2) and DE (pin 3) are tied so
-    # the MCU drives both with a single DE_RE signal. Wire + 1 label.
-    _place_wire(s, (U3_X - 8 * G, U3_Y - 2 * G), (U3_X - 8 * G, U3_Y))
-    _place_label(s, "DE_RE",       (U3_X - 8 * G,  U3_Y - 2 * G))   # pin 2/3 (tied)
-    _place_label(s, "UART_TX_3V3", (U3_X - 8 * G,  U3_Y + 4 * G))   # pin 4 DI
-    _place_label(s, "GND",         (U3_X,          U3_Y + 12 * G))   # pin 5 GND
-    _place_label(s, "RS485_A",     (U3_X + 8 * G,  U3_Y - 6 * G))   # pin 6 A
-    _place_label(s, "RS485_B",     (U3_X + 8 * G,  U3_Y - 2 * G))   # pin 7 B
-    _place_label(s, "V3V3_SW",     (U3_X,          U3_Y - 12 * G))   # pin 8 VCC
+    # CP-cleanup iter 45 (fix B1): pull every U3 net label off the pin
+    # endpoint by 1G (2.54 mm) so the label arrow doesn't overlap the
+    # chip's in-body pin name text. Pattern per pin: pin endpoint → 1G
+    # stub wire → relocated net label.
+    _place_wire(s,  (U3_X -  8 * G, U3_Y - 4 * G), (U3_X - 10 * G, U3_Y - 4 * G))  # pin 1 stub
+    _place_label(s, "UART_RX_3V3", (U3_X - 10 * G, U3_Y - 4 * G))                  # pin 1 RO
+    # CP-cleanup iter 24: U3 ~RE (pin 2) and DE (pin 3) are tied so the
+    # MCU drives both with a single DE_RE signal. iter 45: extend the
+    # tied-pair pickoff 1G further out so the label sits clear of both
+    # pin names.
+    _place_wire(s,  (U3_X -  8 * G, U3_Y - 2 * G), (U3_X -  8 * G, U3_Y))           # pin 2 ↔ pin 3
+    _place_wire(s,  (U3_X -  8 * G, U3_Y - 2 * G), (U3_X - 10 * G, U3_Y - 2 * G))  # tied-pair stub
+    _place_label(s, "DE_RE",       (U3_X - 10 * G, U3_Y - 2 * G))                  # pin 2/3 (tied)
+    _place_wire(s,  (U3_X -  8 * G, U3_Y + 4 * G), (U3_X - 10 * G, U3_Y + 4 * G))  # pin 4 stub
+    _place_label(s, "UART_TX_3V3", (U3_X - 10 * G, U3_Y + 4 * G))                  # pin 4 DI
+    _place_wire(s,  (U3_X,          U3_Y + 12 * G), (U3_X,          U3_Y + 13 * G))  # pin 5 stub
+    _place_label(s, "GND",         (U3_X,          U3_Y + 13 * G))                 # pin 5 GND
+    _place_wire(s,  (U3_X +  8 * G, U3_Y - 6 * G), (U3_X + 10 * G, U3_Y - 6 * G))  # pin 6 stub
+    _place_label(s, "RS485_A",     (U3_X + 10 * G, U3_Y - 6 * G))                  # pin 6 A
+    _place_wire(s,  (U3_X +  8 * G, U3_Y - 2 * G), (U3_X + 10 * G, U3_Y - 2 * G))  # pin 7 stub
+    _place_label(s, "RS485_B",     (U3_X + 10 * G, U3_Y - 2 * G))                  # pin 7 B
+    _place_wire(s,  (U3_X,          U3_Y - 12 * G), (U3_X,          U3_Y - 13 * G))  # pin 8 stub
+    _place_label(s, "V3V3_SW",     (U3_X,          U3_Y - 13 * G))                 # pin 8 VCC
 
     # C10 — 100 nF U3 VCC decoupling
     C10_X, C10_Y = U3_X + 6 * G, U3_Y - 10 * G   # (287.02, 50.8)
@@ -1486,15 +1499,25 @@ def build_display_side_schematic() -> None:
     _place_symbol(s, "LTC2850xS8", "U2", "SN65HVD3082E",
                   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
                   (U2_X, U2_Y), lib=lib)
-    _place_label(s, "UART_RX_3V3", (U2_X - 8 * G, U2_Y - 4 * G))   # pin 1 RO
+    # CP-cleanup iter 45 (fix B1): same 1G stub-out pattern as battery
+    # U3. Pin endpoint → 1G stub → relocated net label so label arrow
+    # doesn't overlap chip pin-name text.
+    _place_wire(s,  (U2_X -  8 * G, U2_Y - 4 * G), (U2_X - 10 * G, U2_Y - 4 * G))  # pin 1 stub
+    _place_label(s, "UART_RX_3V3", (U2_X - 10 * G, U2_Y - 4 * G))                  # pin 1 RO
     # CP-cleanup iter 24: same DE_RE tie as battery-side U3.
-    _place_wire(s, (U2_X - 8 * G, U2_Y - 2 * G), (U2_X - 8 * G, U2_Y))
-    _place_label(s, "DE_RE",       (U2_X - 8 * G, U2_Y - 2 * G))   # pin 2/3 (tied)
-    _place_label(s, "UART_TX_3V3", (U2_X - 8 * G, U2_Y + 4 * G))   # pin 4 DI
-    _place_label(s, "GND",         (U2_X,         U2_Y + 12 * G))   # pin 5 GND
-    _place_label(s, "RS485_A",     (U2_X + 8 * G, U2_Y - 6 * G))   # pin 6 A
-    _place_label(s, "RS485_B",     (U2_X + 8 * G, U2_Y - 2 * G))   # pin 7 B
-    _place_label(s, "V3V3",        (U2_X,         U2_Y - 12 * G))   # pin 8 VCC
+    _place_wire(s,  (U2_X -  8 * G, U2_Y - 2 * G), (U2_X -  8 * G, U2_Y))           # pin 2 ↔ pin 3
+    _place_wire(s,  (U2_X -  8 * G, U2_Y - 2 * G), (U2_X - 10 * G, U2_Y - 2 * G))  # tied-pair stub
+    _place_label(s, "DE_RE",       (U2_X - 10 * G, U2_Y - 2 * G))                  # pin 2/3 (tied)
+    _place_wire(s,  (U2_X -  8 * G, U2_Y + 4 * G), (U2_X - 10 * G, U2_Y + 4 * G))  # pin 4 stub
+    _place_label(s, "UART_TX_3V3", (U2_X - 10 * G, U2_Y + 4 * G))                  # pin 4 DI
+    _place_wire(s,  (U2_X,          U2_Y + 12 * G), (U2_X,          U2_Y + 13 * G))  # pin 5 stub
+    _place_label(s, "GND",         (U2_X,          U2_Y + 13 * G))                 # pin 5 GND
+    _place_wire(s,  (U2_X +  8 * G, U2_Y - 6 * G), (U2_X + 10 * G, U2_Y - 6 * G))  # pin 6 stub
+    _place_label(s, "RS485_A",     (U2_X + 10 * G, U2_Y - 6 * G))                  # pin 6 A
+    _place_wire(s,  (U2_X +  8 * G, U2_Y - 2 * G), (U2_X + 10 * G, U2_Y - 2 * G))  # pin 7 stub
+    _place_label(s, "RS485_B",     (U2_X + 10 * G, U2_Y - 2 * G))                  # pin 7 B
+    _place_wire(s,  (U2_X,          U2_Y - 12 * G), (U2_X,          U2_Y - 13 * G))  # pin 8 stub
+    _place_label(s, "V3V3",        (U2_X,          U2_Y - 13 * G))                 # pin 8 VCC
 
     # C7 — 100nF U2 VCC decoupling
     C7_X, C7_Y = U2_X + 6 * G, U2_Y - 10 * G   # (286.94, 88.9)
