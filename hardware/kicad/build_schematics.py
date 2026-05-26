@@ -803,16 +803,25 @@ def build_battery_side_schematic() -> None:
     Q1_X, Q1_Y = 70 * G, 50 * G   # (88.9, 63.5)
     _place_symbol(s, "Q_PMOS_GSD", "Q1", "AO3401A",
                   "Package_TO_SOT_SMD:SOT-23", (Q1_X, Q1_Y), lib=lib)
-    _place_label(s, "Q1_GATE",   (Q1_X - 4 * G, Q1_Y))             # pin 1 G
-    _place_label(s, "V24_FUSED", (Q1_X + 2 * G, Q1_Y + 4 * G))     # pin 2 S
-    _place_label(s, "V24_SW",    (Q1_X + 2 * G, Q1_Y - 4 * G))     # pin 3 D
+    # iter 55 fix F1: pull each Q1 net label 2G off the pin endpoint
+    # with a stub wire so the label doesn't sit on the in-symbol pin
+    # name letter (G/S/D).
+    _place_wire(s,  (Q1_X - 4 * G, Q1_Y),         (Q1_X - 6 * G, Q1_Y))           # pin 1 G stub
+    _place_label(s, "Q1_GATE",   (Q1_X - 6 * G, Q1_Y))                            # pin 1 G
+    _place_wire(s,  (Q1_X + 2 * G, Q1_Y + 4 * G), (Q1_X + 2 * G, Q1_Y + 6 * G))  # pin 2 S stub (down)
+    _place_label(s, "V24_FUSED", (Q1_X + 2 * G, Q1_Y + 6 * G))                    # pin 2 S
+    _place_wire(s,  (Q1_X + 2 * G, Q1_Y - 4 * G), (Q1_X + 2 * G, Q1_Y - 6 * G))  # pin 3 D stub (up)
+    _place_label(s, "V24_SW",    (Q1_X + 2 * G, Q1_Y - 6 * G))                    # pin 3 D
 
     # Q2 — AO3400A N-MOSFET, drives Q1's gate from PWR_EN
     Q2_X, Q2_Y = 60 * G, 60 * G   # (76.2, 76.2)
     _place_symbol(s, "Q_NMOS_GSD", "Q2", "AO3400A",
                   "Package_TO_SOT_SMD:SOT-23", (Q2_X, Q2_Y), lib=lib)
-    _place_label(s, "PWR_EN",  (Q2_X - 4 * G, Q2_Y))               # pin 1 G
-    _place_label(s, "GND",     (Q2_X + 2 * G, Q2_Y + 4 * G))       # pin 2 S
+    # iter 55 fix F1: same stub-out pattern.
+    _place_wire(s,  (Q2_X - 4 * G, Q2_Y),         (Q2_X - 6 * G, Q2_Y))           # pin 1 G stub
+    _place_label(s, "PWR_EN",  (Q2_X - 6 * G, Q2_Y))                              # pin 1 G
+    _place_wire(s,  (Q2_X + 2 * G, Q2_Y + 4 * G), (Q2_X + 2 * G, Q2_Y + 6 * G))  # pin 2 S stub
+    _place_label(s, "GND",     (Q2_X + 2 * G, Q2_Y + 6 * G))                      # pin 2 S
     # Q1_GATE label deduped at Q2.D — wire up to Q1.G (which keeps the label).
     _place_wire(s, (Q2_X + 2 * G, Q2_Y - 4 * G), (Q2_X + 2 * G, Q1_Y))   # Q2.D → corner
     _place_wire(s, (Q2_X + 2 * G, Q1_Y),         (Q1_X - 4 * G, Q1_Y))   # corner → Q1.G
@@ -1169,8 +1178,12 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "SW_Push", "BTN1", "OVERRIDE",
                   "Button_Switch_THT:SW_PUSH_6mm",
                   (BTN1_X, BTN1_Y), lib=lib)
-    _place_label(s, "BTN_OVERRIDE", (BTN1_X - 4 * G, BTN1_Y))   # pin 1
-    _place_label(s, "GND",          (BTN1_X + 4 * G, BTN1_Y))   # pin 2
+    # iter 55 fix F4: stub-out pin labels on the SW_Push so net labels
+    # don't sit on the switch's in-body pin number text.
+    _place_wire(s,  (BTN1_X - 4 * G, BTN1_Y), (BTN1_X - 6 * G, BTN1_Y))   # pin 1 stub (left)
+    _place_label(s, "BTN_OVERRIDE", (BTN1_X - 6 * G, BTN1_Y))             # pin 1
+    _place_wire(s,  (BTN1_X + 4 * G, BTN1_Y), (BTN1_X + 6 * G, BTN1_Y))   # pin 2 stub (right)
+    _place_label(s, "GND",          (BTN1_X + 6 * G, BTN1_Y))             # pin 2
 
     # R13 — 1 MΩ pull-up BTN_OVERRIDE → V3V3_SW
     R13_X, R13_Y = 70 * G, 110 * G   # (88.9, 139.7)
@@ -1642,8 +1655,11 @@ def build_display_side_schematic() -> None:
         _place_symbol(s, "SW_Push", btn_ref, btn_ref,
                       "Button_Switch_SMD:SW_SPST_B3S-1000",
                       (BTN_X, BTN_Y), lib=lib)
-        _place_label(s, btn_net, (BTN_X - 4 * G, BTN_Y))   # pin 1
-        _place_label(s, "GND",   (BTN_X + 4 * G, BTN_Y))   # pin 2
+        # iter 55 fix F4: stub-out so net labels clear the pin numbers.
+        _place_wire(s,  (BTN_X - 4 * G, BTN_Y), (BTN_X - 6 * G, BTN_Y))
+        _place_label(s, btn_net, (BTN_X - 6 * G, BTN_Y))   # pin 1
+        _place_wire(s,  (BTN_X + 4 * G, BTN_Y), (BTN_X + 6 * G, BTN_Y))
+        _place_label(s, "GND",   (BTN_X + 6 * G, BTN_Y))   # pin 2
         # R — 1MΩ pull-up
         R_X = BTN_X + 8 * G
         _place_symbol(s, "R", r_ref, "1M",
