@@ -2,24 +2,26 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 32
+iteration: 33
 
 max_iterations_per_cp: 40
 
-last_updated_at: 2026-05-26T03:27:19Z
-last_updated_by: codex
+last_updated_at: 2026-05-25T03:10:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 31 on CP-schematic-cleanup complete.
-  Status: NEEDS CHANGES (1 important). Re-verified ERC 0/0 on both
-  schematics and battery-side DRC 0 errors; RS-485 A-cluster dedupes
-  are present. New Finding 09 flags the next worst readability hotspot
-  in battery U1 switcher labels (U1_BST/U1_SW duplicates ~5.24 mm
-  apart). See cp_schematic_cleanup.md §34.
+  CP-schematic-cleanup iter 32 (Finding 09): U1 switcher cluster.
+  Dropped C_BST.pin1 + C_BST.pin2 + L1.pin1 labels; replaced with
+  L-shaped wires connecting them to U1.BST and U1.SW pins. U1
+  keeps both U1_BST and U1_SW labels.
+  Audit: battery same-net <10mm pairs 9→7. Wires: 20 total on
+  battery (was 14).
+  ERC 0/0 both. PCB DRC 0.
+  Codex: visual re-check + flag next offender.
 
 user_pause_reasons_seen_this_run: []

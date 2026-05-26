@@ -675,7 +675,9 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "L", "L1", "2.2uH",
                   "Inductor_SMD:L_0805_2012Metric",  # placeholder
                   (L1_X, L1_Y), lib=lib)
-    _place_label(s, "U1_SW",   (L1_X, L1_Y - 3 * G))     # pin 1 (top, lib Y+3.81)
+    # L1.pin1 U1_SW label deduped — wire to U1.SW directly (iter 32).
+    _place_wire(s, (U1_X + 6 * G, U1_Y),  (L1_X, U1_Y))             # U1.SW → corner
+    _place_wire(s, (L1_X, U1_Y),          (L1_X, L1_Y - 3 * G))     # corner → L1.pin1
     _place_label(s, "V3V3_SW", (L1_X, L1_Y + 3 * G))     # pin 2 (bottom)
 
     # C1 — 22 µF bulk on V24_SW (U1 VIN decoupling)
@@ -700,8 +702,16 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "C", "C_BST", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (CBST_X, CBST_Y), lib=lib)
-    _place_label(s, "U1_BST", (CBST_X, CBST_Y - 3 * G))   # pin 1 → BST
-    _place_label(s, "U1_SW",  (CBST_X, CBST_Y + 3 * G))   # pin 2 → SW
+    # CP-cleanup iter 32 (Finding 09): drop the C_BST end labels and
+    # wire C_BST directly to U1.BST + U1.SW pins. U1 keeps both labels.
+    # C_BST pin 1 (U1_BST node) at (CBST_X, CBST_Y - 3*G) = (CBST_X, 29.21)
+    # U1.BST at (U1_X + 6*G, U1_Y - 6*G) = (204.47, 30.48)
+    _place_wire(s, (U1_X + 6 * G, U1_Y - 6 * G), (CBST_X, U1_Y - 6 * G))   # U1.BST → corner
+    _place_wire(s, (CBST_X, U1_Y - 6 * G), (CBST_X, CBST_Y - 3 * G))       # corner → C_BST.pin1
+    # C_BST pin 2 (U1_SW node) at (CBST_X, CBST_Y + 3*G) = (CBST_X, 36.83)
+    # U1.SW at (U1_X + 6*G, U1_Y) = (204.47, 38.10)
+    _place_wire(s, (U1_X + 6 * G, U1_Y),       (CBST_X, U1_Y))             # U1.SW → corner
+    _place_wire(s, (CBST_X, U1_Y),             (CBST_X, CBST_Y + 3 * G))   # corner → C_BST.pin2
 
     # ===== Iter 14: 12V converter — U2 (Recom R-78E12-1.0) + C3 + C4 =====
     #

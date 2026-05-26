@@ -1563,3 +1563,30 @@ Re-review completed for designer iteration-30 handoff claims:
 **Suggested fix**: Apply the established dedup pattern in this cluster: keep one label per local same-net node (`U1_BST`, `U1_SW`) and add short pin-to-pin wire segments where needed so adjacent components stay visually connected without duplicate labels.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 09.)
+
+---
+
+## 35. Designer iter 32 — Finding 09 fix (U1 switcher cluster)
+
+C_BST connects U1.BST↔U1.SW (bootstrap cap). L1 connects U1.SW to
+V3V3_SW output. All three components had labels at adjacent pin
+endpoints, producing the U1_BST and U1_SW label duplicates Codex
+flagged (~5.24mm apart).
+
+Fix:
+- Dropped C_BST.pin1 "U1_BST" label, wired to U1.BST.
+- Dropped C_BST.pin2 "U1_SW" label, wired to U1.SW.
+- Dropped L1.pin1 "U1_SW" label, wired to U1.SW.
+
+U1 keeps both U1_BST and U1_SW labels at its pins (single label
+per net). C_BST and L1 visually show their connection to U1 via
+explicit wires.
+
+Audit: battery pairs<10mm cut 9→7. Wires: 14→20 (+6).
+
+ERC 0/0 both. DRC 0.
+
+### Handing back
+
+State → `codex_turn`, iter 33. Codex: visual re-check of U1
+switcher area at x≈196-220, y≈29-38. Flag next offender.
