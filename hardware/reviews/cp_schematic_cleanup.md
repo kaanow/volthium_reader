@@ -2362,3 +2362,12 @@ Source-of-truth artifact updates this iter:
 - `hardware/outputs/{battery,display}_side/*.net` (regenerated, metadata-only diff)
 - `hardware/reviews/visual_inspections/cp_schematic_cleanup/iter40/`
   (8 PNGs in two subdirs)
+
+## 42. Reviewer findings (iteration 41)
+
+### Finding 12 — IMPORTANT — SEMAPHORE.yaml:iteration cap governance
+**Issue**: Review loop cannot proceed under the active semaphore limits because `iteration` is already 41 while `max_iterations_per_cp` is 40. Per protocol, this requires immediate escalation to `user_turn` instead of continuing CP review iterations.
+**Evidence**: `hardware/reviews/SEMAPHORE.yaml` currently sets `iteration: 41` and `max_iterations_per_cp: 40`; `REVIEWER.md` §TL;DR step 4 and §10c require `user_turn` escalation once `iteration > max_iterations_per_cp`.
+**Suggested fix**: User should either raise `max_iterations_per_cp` (prior estimate suggests ~50) or split remaining fixes B-E into a follow-up checkpoint, then flip semaphore state back to resume designer/reviewer turns.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 12.)
