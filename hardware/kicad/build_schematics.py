@@ -486,6 +486,22 @@ def _place_noconnect(sch: Schematic, pos: tuple[float, float]) -> None:
     sch.noConnects.append(nc)
 
 
+def _outward_for_angle(lib_angle: float) -> tuple[int, int]:
+    """Return outward unit vector (dx, dy) in schematic mm-multiples per
+    library pin angle.
+
+    Library angle indicates pin extension direction INTO the chip body.
+    Outward (away from chip) is the opposite direction in schematic
+    coordinates. KiCad flips Y between library and schematic, so:
+      angle 0   → lib +X into chip → sch outward (-1,  0)  left-side pin
+      angle 90  → lib +Y into chip → sch outward ( 0, +1)  bottom-side pin
+      angle 180 → lib -X into chip → sch outward (+1,  0)  right-side pin
+      angle 270 → lib -Y into chip → sch outward ( 0, -1)  top-side pin
+    """
+    a = int(round(lib_angle)) % 360
+    return {0: (-1, 0), 90: (0, 1), 180: (1, 0), 270: (0, -1)}.get(a, (0, 0))
+
+
 def _place_power_flag(sch: Schematic, net: str, pos: tuple[float, float], lib: SymbolLib) -> None:
     """Place a PWR_FLAG symbol at pos, anchoring it to a global label `net`.
 
@@ -656,19 +672,25 @@ def build_battery_side_schematic() -> None:
     #         in iter 14 when MOSFET cluster lands — they share decoupling)
     #   SS, RT → NoConnect (use internal defaults)
     # CP-cleanup iter 24: U1.VIN (pin 3) and U1.EN (pin 2) are both
-    # tied to V24_SW (always-on regulator). Replace stacked labels
-    # with a wire from pin 3 to pin 2 + one label at pin 2.
-    _place_wire(s, (U1_X - 6 * G, U1_Y - 6 * G), (U1_X - 6 * G, U1_Y - 4 * G))
-    _place_label(s, "V24_SW", (U1_X - 6 * G, U1_Y - 4 * G))      # pin 2 EN (also drives pin 3 via wire)
-    _place_label(s, "GND",       (U1_X,         U1_Y + 10 * G))  # pin 4 GND
-    _place_label(s, "U1_SW",     (U1_X + 6 * G, U1_Y))           # pin 5 SW
-    _place_label(s, "V3V3_SW",   (U1_X + 6 * G, U1_Y + 6 * G))   # pin 8 FB
+    # tied to V24_SW (always-on regulator). Wire pin 3 → pin 2 → label.
+    # iter 47 (fix B2): extend the pickoff 2G outward so the label
+    # sits clear of the chip's "EN"/"VIN" pin name text.
+    _place_wire(s, (U1_X - 6 * G, U1_Y - 6 * G), (U1_X - 6 * G, U1_Y - 4 * G))   # pin 3 ↔ pin 2
+    _place_wire(s, (U1_X - 6 * G, U1_Y - 4 * G), (U1_X - 8 * G, U1_Y - 4 * G))  # tied-pair stub
+    _place_label(s, "V24_SW",  (U1_X - 8 * G, U1_Y - 4 * G))     # pin 2 EN / pin 3 VIN
+    _place_wire(s,  (U1_X,         U1_Y + 10 * G), (U1_X,         U1_Y + 11 * G))  # pin 4 stub
+    _place_label(s, "GND",     (U1_X,         U1_Y + 11 * G))    # pin 4 GND
+    _place_wire(s,  (U1_X + 6 * G, U1_Y),         (U1_X + 8 * G, U1_Y))            # pin 5 stub
+    _place_label(s, "U1_SW",   (U1_X + 8 * G, U1_Y))             # pin 5 SW
+    _place_wire(s,  (U1_X + 6 * G, U1_Y + 6 * G), (U1_X + 8 * G, U1_Y + 6 * G))   # pin 8 stub
+    _place_label(s, "V3V3_SW", (U1_X + 8 * G, U1_Y + 6 * G))     # pin 8 FB
     _place_noconnect(s, (U1_X - 6 * G, U1_Y + 4 * G))            # pin 1 RT
     _place_noconnect(s, (U1_X - 6 * G, U1_Y + 2 * G))            # pin 7 SS
     # BST: 100 nF bootstrap cap between U1.BST (pin 6) and U1.SW (pin 5).
     # Per Codex iter-13 guidance Q-CP2-10 — required for the high-side MOSFET
     # gate drive to function on real hardware.
-    _place_label(s, "U1_BST", (U1_X + 6 * G, U1_Y - 6 * G))      # pin 6 BST → cap
+    _place_wire(s,  (U1_X + 6 * G, U1_Y - 6 * G), (U1_X + 8 * G, U1_Y - 6 * G))  # pin 6 stub
+    _place_label(s, "U1_BST",  (U1_X + 8 * G, U1_Y - 6 * G))     # pin 6 BST → cap
 
     # L1 — 2.2 µH inductor (2-pin, same geometry as R: ±3.81 from center).
     L1_X, L1_Y = U1_X + 20 * G, U1_Y   # (177.8, 38.1)
@@ -882,8 +904,8 @@ def build_battery_side_schematic() -> None:
     # definition. This avoids hardcoding pin positions (which can change
     # if KiCad updates the symbol library).
     _esp_sym = next(s for s in lib.symbols if s.entryName == "ESP32-S3-WROOM-1")
-    _esp_pin_pos = {
-        int(p.number): (p.position.X, p.position.Y)
+    _esp_pin_info = {
+        int(p.number): (p.position.X, p.position.Y, p.position.angle)
         for u in _esp_sym.units for p in u.pins
     }
 
@@ -895,9 +917,13 @@ def build_battery_side_schematic() -> None:
     # creates 3 stacked GND labels at the same coordinate — fails D11
     # #0 (overlapping text). Dedupe by endpoint: place each label once
     # per unique (x, y).
+    # CP-cleanup iter 47 (fix B2): for each labelled pin, drop a 2G
+    # stub from the pin endpoint and place the net label at the stub's
+    # outer end so the label no longer overlaps the chip's in-symbol
+    # pin name text (IO0/IO1/.../EN/USB_D±/TXD0/RXD0/etc).
     _placed = set()
     for pin_num, net in esp_pins.items():
-        lib_x, lib_y = _esp_pin_pos[pin_num]
+        lib_x, lib_y, lib_a = _esp_pin_info[pin_num]
         # KiCad Y-flip: schematic_Y = symbol_Y - lib_pin_Y
         endpoint = (MOD1_X + lib_x, MOD1_Y - lib_y)
         if endpoint in _placed:
@@ -906,7 +932,10 @@ def build_battery_side_schematic() -> None:
         if net == "NC":
             _place_noconnect(s, endpoint)
         else:
-            _place_label(s, net, endpoint)
+            dx, dy = _outward_for_angle(lib_a)
+            outer = (endpoint[0] + dx * 2 * G, endpoint[1] + dy * 2 * G)
+            _place_wire(s, endpoint, outer)
+            _place_label(s, net, outer)
 
     # ===== Iter 18: ESP support — R7 EN pull-up + C8 EN soft-start cap +
     #               C6 ESP bulk decoupling + C7 ESP HF decoupling =====
@@ -965,11 +994,22 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "DS3231M", "RTC1", "DS3231SN#",
                   "Package_SO:SOIC-16W_7.5x10.3mm_P1.27mm",
                   (RTC1_X, RTC1_Y), lib=lib)
-    _place_label(s, "V3V3_SW",  (RTC1_X - 2 * G, RTC1_Y - 8 * G))   # pin 2 VCC
-    _place_label(s, "V_BAT_RTC",(RTC1_X,         RTC1_Y - 8 * G))   # pin 14 VBAT
-    _place_label(s, "GND",      (RTC1_X,         RTC1_Y + 8 * G))   # pins 5-13 GND (shared endpoint)
-    _place_label(s, "I2C_SDA",  (RTC1_X - 10 * G, RTC1_Y - 2 * G))  # pin 15 SDA
-    _place_label(s, "I2C_SCL",  (RTC1_X - 10 * G, RTC1_Y - 4 * G))  # pin 16 SCL
+    # CP-cleanup iter 47 (fix B2): pull each RTC1 net label 2G off the
+    # pin endpoint with a stub wire so labels read clear of the chip
+    # pin name text (VCC/VBAT/GND/SDA/SCL). Pin 2 VCC and pin 14 VBAT
+    # are both top-side pins 2G apart in X — VBAT gets an L-shape stub
+    # 4G to the right so the two labels don't pile up horizontally.
+    _place_wire(s,  (RTC1_X - 2 * G, RTC1_Y -  8 * G), (RTC1_X - 2 * G, RTC1_Y - 10 * G))   # pin 2 stub
+    _place_label(s, "V3V3_SW",  (RTC1_X - 2 * G, RTC1_Y - 10 * G))                          # pin 2 VCC
+    _place_wire(s,  (RTC1_X,         RTC1_Y -  8 * G), (RTC1_X,         RTC1_Y - 10 * G))   # pin 14 up 2G
+    _place_wire(s,  (RTC1_X,         RTC1_Y - 10 * G), (RTC1_X + 4 * G, RTC1_Y - 10 * G))   # pin 14 right 4G
+    _place_label(s, "V_BAT_RTC",(RTC1_X + 4 * G, RTC1_Y - 10 * G))                          # pin 14 VBAT
+    _place_wire(s,  (RTC1_X,         RTC1_Y +  8 * G), (RTC1_X,         RTC1_Y + 10 * G))   # pin 13 stub
+    _place_label(s, "GND",      (RTC1_X,         RTC1_Y + 10 * G))                          # pins 5-13 GND
+    _place_wire(s,  (RTC1_X - 10 * G, RTC1_Y - 2 * G), (RTC1_X - 12 * G, RTC1_Y - 2 * G))  # pin 15 stub
+    _place_label(s, "I2C_SDA",  (RTC1_X - 12 * G, RTC1_Y - 2 * G))                          # pin 15 SDA
+    _place_wire(s,  (RTC1_X - 10 * G, RTC1_Y - 4 * G), (RTC1_X - 12 * G, RTC1_Y - 4 * G))  # pin 16 stub
+    _place_label(s, "I2C_SCL",  (RTC1_X - 12 * G, RTC1_Y - 4 * G))                          # pin 16 SCL
     _place_noconnect(s, (RTC1_X - 10 * G, RTC1_Y + 4 * G))          # pin 4 RST
     _place_noconnect(s, (RTC1_X + 10 * G, RTC1_Y - 4 * G))          # pin 1 32KHZ
     _place_noconnect(s, (RTC1_X + 10 * G, RTC1_Y + 2 * G))          # pin 3 INT/SQW
@@ -1375,8 +1415,8 @@ def build_display_side_schematic() -> None:
 
     # Pin position lookup from symbol definition
     _esp_sym = next(s for s in lib.symbols if s.entryName == "ESP32-S3-WROOM-1")
-    _esp_pin_pos = {
-        int(p.number): (p.position.X, p.position.Y)
+    _esp_pin_info = {
+        int(p.number): (p.position.X, p.position.Y, p.position.angle)
         for u in _esp_sym.units for p in u.pins
     }
 
@@ -1384,9 +1424,12 @@ def build_display_side_schematic() -> None:
                   "RF_Module:ESP32-S3-WROOM-1U",  # -1U variant: external U.FL antenna, no keepout zone
                   (MOD1_X, MOD1_Y), lib=lib)
     # Dedupe shared symbol pins (1/40/41 GND) — see battery-side comment.
+    # CP-cleanup iter 47 (fix B2): same 2G stub-out treatment as
+    # battery-side MOD1 so net labels read clear of the chip's
+    # in-symbol pin name text.
     _placed = set()
     for pin_num, net in esp_pins.items():
-        lib_x, lib_y = _esp_pin_pos[pin_num]
+        lib_x, lib_y, lib_a = _esp_pin_info[pin_num]
         endpoint = (MOD1_X + lib_x, MOD1_Y - lib_y)
         if endpoint in _placed:
             continue
@@ -1394,7 +1437,10 @@ def build_display_side_schematic() -> None:
         if net == "NC":
             _place_noconnect(s, endpoint)
         else:
-            _place_label(s, net, endpoint)
+            dx, dy = _outward_for_angle(lib_a)
+            outer = (endpoint[0] + dx * 2 * G, endpoint[1] + dy * 2 * G)
+            _place_wire(s, endpoint, outer)
+            _place_label(s, net, outer)
 
     # ===== ESP support: R1 EN pull-up + C5 EN soft-start + C3 bulk + C4 HF =====
     SUP_Y = MOD1_Y - 32 * G

@@ -2,25 +2,48 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 47
+iteration: 48
 
 max_iterations_per_cp: 50
 
-last_updated_at: 2026-05-26T05:34:52Z
-last_updated_by: codex
+last_updated_at: 2026-05-26T05:50:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 46 on CP schematic-cleanup. Re-reviewed designer
-  iter 45 Fix B1 (U3/U2 RS-485 transceiver pin-label separation) and
-  appended §46 with APPROVED status (0 findings). Audit gates unchanged:
-  ERC clean on both schematics; battery PCB DRC --severity-error clean;
-  plain battery DRC remains 359 CP3-baseline warnings. Proceed with
-  fix B2 scope next.
+  Iter 47: Fix B2 executed across the remaining ICs flagged in §38:
+    - MOD1 (ESP32) on both boards: ~80 pin endpoints in total, all
+      now have 2G stub + outer net label (loop-based via new
+      _outward_for_angle helper + upgraded _esp_pin_info dict).
+    - U1 buck (TPS62933) on battery: V24_SW tied pair, GND, U1_SW,
+      U1_BST, V3V3_SW all stub-out.
+    - RTC1 (DS3231M) on battery: V3V3_SW, V_BAT_RTC (L-shape so it
+      doesn't collide with V3V3_SW), GND, I2C_SDA, I2C_SCL stub-out.
+
+  Result: the §38 D11 #0 violation "net label overlaps pin name" is
+  resolved on ALL ICs called out in iter 37 (RS-485 transceivers
+  done iter 45; MOD1 + buck + RTC done iter 47).
+
+  See §47 for before/after PNGs of all 4 affected regions.
+
+  Audit gates:
+    - sch ERC both: 0 errors / 0 warnings
+    - pcb DRC --severity-error battery_side: 0/0
+    - plain pcb DRC: 359 warnings (unchanged CP3 baseline)
+    - netlist topology nodes byte-identical (only new tstamps for
+      the ~50 new wires and ~50 relocated labels)
+
+  Cap-budget: 47 of 50 used. Remaining iters: codex review (48) +
+  fix C/D/E batch (49) + final review + visual pass (50). Tight but
+  on track.
+
+  Codex iter 48: please open iter-47 PDFs at 100% zoom and confirm
+  MOD1/U1/RTC1 pin name + net label are now in distinct zones.
+  Approve to unblock the fix C/D/E batch at iter 49.
 
 user_pause_reasons_seen_this_run:
   []

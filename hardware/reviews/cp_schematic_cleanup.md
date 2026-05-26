@@ -2679,3 +2679,139 @@ Re-review completed for designer iteration-45 (Fix B1 on U3/U2):
 - Remaining readability defects called out in §45 are outside B1 scope (passive-cluster value-text crowding) and are appropriately deferred to the queued fix-C pass.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+## 47. Designer iter 47 — Fix B2 (MOD1, U1 buck, RTC1)
+
+Codex iter 46 APPROVED fix B1 on the RS-485 transceivers. Iter 47
+extends the same stub-out treatment to the remaining ICs that
+showed net-label-on-pin-name overlap in §38:
+
+- **MOD1** (ESP32-S3-WROOM-1) on both boards — largest chip,
+  ~40 used pins each
+- **U1** (TPS62933 buck) on battery
+- **RTC1** (DS3231M) on battery
+
+The R-78EXX regulators (battery U2, display U1) are `Conn_01x03`
+symbols and were already cleared by fix A.
+
+### Change
+
+1. Added module-level helper `_outward_for_angle(lib_angle) → (dx,
+   dy)` in `build_schematics.py` (mapping pin's library angle to
+   the unit outward direction in schematic coordinates).
+2. Upgraded both `_esp_pin_pos` → `_esp_pin_info` dicts to include
+   each pin's library angle.
+3. Rewrote both MOD1 placement loops to:
+   - place a 2G stub wire from the pin endpoint to the outer point
+   - place the net label at the outer point
+   - NC pins still placed at the endpoint (unchanged)
+4. Inlined the same pattern for U1 buck (V24_SW tied-pair, GND,
+   U1_SW, U1_BST, V3V3_SW) and RTC1 (V3V3_SW, V_BAT_RTC, GND,
+   I2C_SDA, I2C_SCL).
+5. Special-case for RTC1: pin 2 VCC (`V3V3_SW`) and pin 14 VBAT
+   (`V_BAT_RTC`) are both top-side pins only 2G apart in X — their
+   labels at the same Y would visually collide. Routed VBAT
+   L-shape (up 2G, right 4G) so the labels sit 6G apart.
+
+### Visual evidence
+
+#### Battery MOD1 (region 09)
+
+iter 37 (triple-stack on every perimeter pin):
+![iter37 mod1](visual_inspections/cp_schematic_cleanup/iter37/battery_side/09_esp32_mod1.png)
+
+iter 47 (after fix B2):
+![iter47 mod1](visual_inspections/cp_schematic_cleanup/iter47/battery_side/09_esp32_mod1.png)
+
+Read every piece of text in this region. Findings: pin names
+(`EN`, `IO0–IO48`, `USB_D±`, `TXD0`, `RXD0`, `3V3`, `GND`) now
+read cleanly inside the chip body. Pin numbers visible at chip
+edge. Net labels (`ESP_EN`, `V24_SENSE`, `DE_RE`, `PWR_EN`,
+`I2C_SDA`, `I2C_SCL`, `BTN_OVERRIDE`, `DBG_UART_TX`,
+`DBG_UART_RX`, `UART_TX_3V3`, `UART_RX_3V3`, `USB_DM`, `USB_DP`,
+`V3V3_SW`, `GND`) sit on stubs outside the chip. Remaining defects
+not addressed this iter: `MOD1` reference and
+`ESP32-S3-WROOM-1-N16R8` value text still inside the chip body
+overlapping `PSRAM` (**fix C** territory). **D11 #0 fail
+"net-label-on-pin-name" at MOD1: resolved.**
+
+#### Display MOD1 (region 05)
+
+iter 37:
+![iter37 display mod1](visual_inspections/cp_schematic_cleanup/iter37/display_side/05_esp32_mod1.png)
+
+iter 47:
+![iter47 display mod1](visual_inspections/cp_schematic_cleanup/iter47/display_side/05_esp32_mod1.png)
+
+Read every piece of text in this region. Findings: same outcome as
+battery MOD1 — pin names clean inside body, net labels on stubs
+outside (`ESP_EN`, `EPD_CS/DC/RST/BUSY`, `SPK_SCK/MOSI`, `BTN1/2/3`,
+`UART_TX`, `UART_RX`, `UART_TX_3V3`, `UART_RX_3V3`, `USB_DM`,
+`USB_DP`, `3V3`, `GND`). Same fix-C remainder for refdes/value.
+**D11 #0 fail at display MOD1: resolved.**
+
+#### Battery U1 buck (region 05)
+
+iter 47:
+![iter47 u1 buck](visual_inspections/cp_schematic_cleanup/iter47/battery_side/05_u1_buck_U1_L1_C1_C2_CBST.png)
+
+Read every piece of text in this region. Findings: U1 pin names
+(`VIN`, `EN`, `BST`, `SW`, `SS`, `RT`, `GND`, `FB`) clean inside
+chip body. Pin numbers visible. Net labels (`V24_SW` on the tied
+pin-2/3, `U1_BST`, `U1_SW`, `V3V3_SW`, `GND`) on stubs outside. C1
+(V24_SW), C2/C3 (V3V3_SW), L1 (V3V3_SW), C_BST clusters around U1
+still have their pre-existing label proximities (some `V3V3_SW`
+labels adjacent at C2/C3 endpoints — these are intentional
+deduplication anchors, not regressions). **D11 #0 fail at U1
+pin name area: resolved. Remaining defect at U1: `U1` refdes and
+`TPS62933FDRLR` value still inside symbol (fix C).**
+
+#### Battery RTC1 (region 10)
+
+iter 47:
+![iter47 rtc](visual_inspections/cp_schematic_cleanup/iter47/battery_side/10_rtc_coin_cell.png)
+
+Read every piece of text in this region. Findings: RTC1 pin names
+(`VCC`, `VBAT`, `SCL`, `SDA`, `RST`, `GND`, `32KHZ`, `INT/SQW`)
+clean inside body. Pin numbers visible. Net labels (`V3V3_SW`
+pin 2, `V_BAT_RTC` pin 14 — offset 4G right via L-stub so the two
+top labels don't pile up, `I2C_SCL`, `I2C_SDA`, `GND`) on stubs.
+BAT1 + C9 + R8/R9 cluster surrounding RTC1 unchanged this iter.
+Remaining defect: `RTC1` refdes + `DS3231SN#` value still inside
+symbol (fix C). **D11 #0 fail "net-label-on-pin-name" at RTC1:
+resolved.**
+
+### Audit gates
+
+- `kicad-cli sch erc` battery_side: 0 errors / 0 warnings
+- `kicad-cli sch erc` display_side: 0 errors / 0 warnings
+- `kicad-cli pcb drc --severity-error` battery_side: 0 errors,
+  0 unconnected; plain `kicad-cli pcb drc`: 359 warnings
+  (unchanged CP3 baseline — PCB file not modified this iter)
+- netlist diff vs HEAD: many new wire-tstamps + relocated label-
+  tstamps (one wire + one label per MOD1 non-NC pin × 2 boards
+  + ~10 per smaller IC); net-topology nodes byte-identical
+
+### Cap-budget status
+
+After iter 47 commit: used 47 of 50. Remaining:
+- iter 48: Codex review of fix B2
+- iter 49: fix C (value text out of IC body) + fix D (annotation
+  reposition) + fix E (PWR_FLAG on display J1) — batched, all small
+- iter 50: Codex review + final visual pass + APPROVED merge
+
+Tight but feasible. If fix C requires per-IC property
+manipulation that takes more space than expected, we may overrun
+to iter 51-52. That's within tolerable margin.
+
+### Handing back
+
+State → `codex_turn`, iter 48. Codex: open iter-47 PDFs at 100 %
+zoom and confirm:
+1. MOD1 perimeter (both boards) — pin names clean inside, net
+   labels on stubs outside.
+2. U1 buck — pin names clean inside, net labels on stubs outside.
+3. RTC1 — pin names clean inside, V_BAT_RTC routed clear of
+   V3V3_SW at the top edge.
+
+Approve to unblock fix C/D/E batch at iter 49.
