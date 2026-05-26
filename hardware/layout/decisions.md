@@ -244,6 +244,92 @@ not pass.
   of the criteria above. Criteria #0 and #5 are non-negotiable.
 - `DESIGNER.md` calls out D11 as a deliverable equal to correctness.
 
+### Visual inspection protocol (mandatory before claiming #0 or #5 PASS)
+
+A scripted audit can pass while the PDF is unreadable, because
+scripts only check what they were written to check. Past project
+history (see "Documented failure" below) shows this is a real
+failure mode, not a hypothetical. To close it, every D11 sign-off
+that touches a rendered document must include:
+
+1. **Open the rendered PDF at 100 % zoom.** Not the KiCad editor,
+   not a PNG export, not a screenshot taken at "fit-to-window" —
+   the committed PDF, at 1:1, the artifact a downstream engineer
+   would actually read.
+2. **Screenshot every dense region.** A "dense region" is any IC,
+   any connector with ≥4 pins, any cluster of ≥3 components within
+   roughly 20 mm of each other, and any place a power/ground rail
+   meets ≥3 component pins. For a typical two-IC schematic this is
+   6–12 screenshots per sheet.
+3. **Embed those screenshots in the active CP review packet** under
+   a heading `## D11 visual inspection — iter <N>`. One screenshot
+   per region, captioned with the region name (e.g. "U2
+   SN65HVD3082E + RS-485 termination").
+4. **For each screenshot, write one sentence**:
+   `Read every piece of text in this region. Findings: <none> | <list>.`
+   If `<list>` is non-empty, the document does not pass D11 and the
+   iteration is not done — fix and re-render.
+5. **The reviewer reads the screenshots, not the audit script
+   output.** The reviewer may flag any text the designer claimed
+   was readable; the reviewer's read of the rendered pixels is
+   authoritative. A scripted-audit-only review is itself a D11
+   enforcement failure.
+
+A `## D11 visual inspection — iter <N>` section with screenshots is
+a **hard prerequisite** for claiming criteria #0 or #5 PASS. Without
+it, the designer has not performed the inspection and any "PASS"
+claim is invalid on its face.
+
+### What the scripted audit is good for
+
+Scripted audits remain useful as a *first-pass filter*. They cheaply
+catch symbol coordinate collisions, off-page text, duplicate
+placements, and gross label spacing problems. They are **not** a
+substitute for the visual inspection above. Treat them as
+"necessary but not sufficient": if the script flags problems, fix
+those first; once the script is clean, the visual inspection begins.
+
+### Documented failure (teaching example — do not repeat)
+
+CP-schematic-cleanup, iteration 36 (2026-05-25). The designer wrote
+a label-coordinate distance audit that measured centroid-to-centroid
+distance between net-label objects. The audit reported zero pairs
+closer than 6 mm on either schematic and the designer declared the
+CP done and asked for merge. The user opened the rendered PDF and
+immediately saw, on the display-side schematic alone:
+
+- FFC J2 pins 1–10: pin number + pin name (`Pin_N`) + net label
+  (`GND`, `3V3`, `EPD_BUSY`, …) all occupying the same X coordinate
+  — three pieces of text stacked at every used pin.
+- U2 SN65HVD3082E: net labels (`UART_RX`, `UART_TX`, `DE_RE`, `3V3`,
+  `GND`) placed directly on top of the chip's pin names (`RO`, `DI`,
+  `RE`, `VCC`, pin 5).
+- C7, R3, R4, TVS R2: net labels and component reference text
+  overlapping the device body.
+
+The audit didn't see any of this because it was written to check
+label-vs-label centroid distance — not label-vs-pin-name,
+label-vs-pin-number, or label-vs-symbol-body overlap. None of those
+checks were ever in the script. The designer treated "script clean"
+as equivalent to "criteria #0 and #5 satisfied." That equivalence is
+what this section forbids.
+
+Root cause was procedural, not technical: there was no mandatory
+visual gate, so the cheapest thing (run a script) became the only
+thing. The protocol above closes that gap by making screenshots-in-
+packet a hard requirement of the sign-off itself.
+
+### Portability for future PCB projects
+
+D11, including the visual-inspection protocol and the documented
+failure above, is intended to be **copied verbatim** into any future
+PCB project that forks this template. A fresh Claude or Codex
+instance starting a new board project should read D11 first,
+internalize the failure mode, and never claim a documentation gate
+PASS based on script output alone. The operational checklist in
+`hardware/reviews/DESIGNER.md` §0 references this protocol and must
+be carried forward together with it.
+
 ### Existing violations
 
 The CP2-output schematic PDFs at

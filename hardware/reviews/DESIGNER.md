@@ -27,14 +27,57 @@ On every wake:
 ## 0. Documentation readability is a first-class deliverable (D11)
 
 Every PDF, schematic, render, BOM, and assembly drawing you commit
-must satisfy `decisions.md` D11 — engineer-readable bar. Read D11
-before generating any document. Treat readability as equal to
-correctness, not a side effect. Codex enforces this in review.
+must satisfy [`decisions.md` D11](../layout/decisions.md#d11--all-committed-documentation-must-be-engineer-readable) —
+engineer-readable bar. Read D11 in full before generating any
+document. Treat readability as equal to correctness, not a side
+effect. Codex enforces this in review.
 
 If a programmatic generation strategy produces machine-valid but
 human-unreadable output (overlapping symbols, label-spaghetti
 without wires, blank title blocks), surface that tradeoff in the
 review packet — don't ship it silently.
+
+### Operational checklist — before claiming D11 #0 or #5 PASS
+
+D11 explicitly requires a visual inspection (see D11 §"Visual
+inspection protocol"). A script alone is not a sign-off. On every
+iteration that touches a rendered PDF, do **all** of the following
+before flipping the semaphore to `codex_turn`:
+
+1. Render the PDF(s) and open them at **100 % zoom** in a real PDF
+   viewer (not KiCad, not a PNG preview).
+2. Identify every **dense region** on each sheet: every IC, every
+   connector with ≥4 pins, every cluster of ≥3 components within
+   ~20 mm, every power/ground rail meeting ≥3 pins. For a typical
+   two-IC sheet this is 6–12 regions.
+3. Take a 100 %-zoom screenshot of each dense region. Save them
+   under `hardware/reviews/visual_inspections/<cp_slug>/iter<N>/`
+   with descriptive filenames.
+4. In the active CP review packet, add a new section:
+   ```
+   ## D11 visual inspection — iter <N>
+   ### Region: <name>
+   ![<name>](visual_inspections/<cp_slug>/iter<N>/<file>.png)
+   Read every piece of text in this region. Findings: <none> | <list>.
+   ```
+   …one block per region.
+5. If **any** region's findings are non-empty, the document does
+   not pass D11. Fix and re-render before flipping the semaphore.
+6. **Never** claim criterion #0 or #5 PASS solely from scripted
+   audit output. That's the documented iter-36 failure (see D11
+   "Documented failure"); don't repeat it.
+
+A scripted audit is still worth running first — it's a cheap filter
+for symbol coordinate collisions, duplicate placements, and obvious
+spacing problems. Just don't confuse it with the visual gate.
+
+### Reviewer's complementary duty
+
+Codex must read the screenshots embedded in the packet, not just
+the audit script's PASS line. Codex is authorized — and required —
+to flag any text in those screenshots that the designer claimed was
+readable but isn't. A scripted-audit-only review is itself a D11
+enforcement failure.
 
 ## 1. The project in 30 seconds
 

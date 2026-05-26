@@ -128,6 +128,18 @@ For **CP2+** (KiCad-based CPs), additionally:
   files; cite any errors/warnings as findings.
 - Inspect rendered PNGs / PDF schematics referenced in the packet.
 - Cross-check against the CP1 baseline (the design intent).
+- **D11 visual gate (criteria #0 and #5).** Open the committed PDF
+  at 100 % zoom and read it yourself. Then read the `## D11 visual
+  inspection — iter <N>` section in the packet and check each
+  embedded screenshot against the rendered PDF. If that section is
+  missing, that alone is a finding — the designer hasn't met the
+  D11 sign-off requirement (see
+  [`decisions.md` D11 §"Visual inspection protocol"](../layout/decisions.md#d11--all-committed-documentation-must-be-engineer-readable)).
+  If you can read any text in the screenshots or PDF that the
+  designer claimed was readable but isn't, file it as a finding.
+  **A scripted-audit PASS in the packet, without screenshots, is
+  not a valid sign-off** — that's the documented iter-36 failure;
+  don't accept it.
 
 What to look hard at (CP1 specifically):
 - **ESP32-S3 pin map** — boot straps, ADC channel availability,
