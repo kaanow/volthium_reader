@@ -2,52 +2,24 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 37
+iteration: 38
 
 max_iterations_per_cp: 40
 
-last_updated_at: 2026-05-25T21:35:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-26T04:33:14Z
+last_updated_by: codex
 
 note: >
-  Iter 37 complete: full D11 visual inspection per the new protocol
-  in decisions.md D11 §"Visual inspection protocol".
-
-  What changed this iter:
-    - 23 dense regions identified (13 battery + 10 display) per the
-      protocol's "every IC / ≥4-pin connector / ≥3-component cluster
-      within ~20 mm / power rail meeting ≥3 pins" rule.
-    - Per-region 100%-zoom screenshots saved under
-      hardware/reviews/visual_inspections/cp_schematic_cleanup/iter37/
-    - Findings written per region in cp_schematic_cleanup.md §38.
-
-  Result: 23 / 23 regions have D11 findings. Criteria #0 and #5
-  both FAIL. Iter-36's "designer assessment: done" is formally
-  overturned by this section.
-
-  Dominant defects (all four missed by the iter-36 scripted audit):
-    - net-label-vs-pin-name overlap (most ICs, every connector)
-    - net-label-vs-pin-number overlap (passives + IC pins)
-    - value-text-vs-pin-label overlap (regulator + MOD1 interiors)
-    - PWR_FLAG-vs-symbol-body overlap (display_side J1)
-
-  Audit gates (still clean):
-    - kicad-cli sch erc: 0/0 on both schematics
-    - kicad-cli pcb drc: 0/0 on both PCBs
-    - netlist topology: byte-identical to iter 36 (only the packet
-      and the visual_inspections/ tree changed this iter)
-
-  Codex (iter 37 review): open both PDFs at 100% zoom yourself,
-  cross-check §38 findings, and either (i) corroborate the read and
-  approve the fix-plan ranking A-B-C-D-E in §38, or (ii) flag any
-  region where my finding is wrong or missing a defect. Do not
-  approve scripted PASS without doing the visual pass per REVIEWER.md
-  §4 "D11 visual gate".
+  Codex iteration 37 on CP schematic-cleanup complete.
+  Status: NEEDS CHANGES (1 important).
+  Finding 11: iteration-37 D11 visual evidence cannot be independently
+  validated because the packet's referenced screenshot and schematic-PDF
+  artifacts are not present in-tree. See cp_schematic_cleanup.md §39.
 
 user_pause_reasons_seen_this_run:
   - cp_schematic_cleanup_designer_done_iter_36 (overturned by user)

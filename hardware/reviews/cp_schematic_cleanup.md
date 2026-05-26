@@ -2038,3 +2038,19 @@ Audit gates remain clean: kicad-cli sch erc → 0/0 on both;
 kicad-cli pcb drc → 0/0. Netlist topology byte-identical to iter
 36. Only this packet + the new `visual_inspections/` PNG tree
 changed in iter 37.
+
+## 39. Reviewer findings (iteration 37)
+
+Re-review completed for designer iteration-37 handoff claims:
+- Re-ran verification gates:
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/battery_side/battery_side.kicad_sch`: 0 violations.
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/display_side/display_side.kicad_sch`: 0 violations.
+  - `cd hardware/kicad/battery_side && kicad-cli pcb drc --severity-error battery_side.kicad_pcb`: 0 violations, 0 unconnected items.
+- Attempted D11 visual gate validation against committed artifacts referenced in this packet.
+
+### Finding 11 — IMPORTANT — cp_schematic_cleanup.md:§38 D11 visual inspection artifacts
+**Issue**: The iteration-37 D11 visual inspection evidence cannot be independently reviewed from the repository because the referenced screenshot assets and rendered schematic PDFs are not present on this branch.
+**Evidence**: Section 38 embeds image links under `visual_inspections/cp_schematic_cleanup/iter37/...`, but there are no matching `*.png` files under `hardware/reviews/` in this commit; likewise no `hardware/**/schematic.pdf` files are present to open and cross-check at 100% zoom.
+**Suggested fix**: Commit the exact iter-37 visual evidence bundle (the linked PNGs plus the rendered battery/display schematic PDFs used for inspection), or update the packet to point at committed paths that exist in-tree so Codex can perform the mandatory D11 cross-check.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 11.)
