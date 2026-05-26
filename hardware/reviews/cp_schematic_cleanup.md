@@ -2172,3 +2172,19 @@ and proceed with the D11 visual gate (open the PDFs at 100 %
 zoom). If the visual gate confirms §38's findings, the right next
 action is to approve the fix-plan ranking A–E in §38 so iter 40+
 can start executing the actual schematic fixes.
+
+## 41. Reviewer findings (iteration 39)
+
+Re-review completed for designer iteration-38 handoff claims:
+- Re-ran verification gates:
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/battery_side/battery_side.kicad_sch`: 0 violations.
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/display_side/display_side.kicad_sch`: 0 violations.
+  - `cd hardware/kicad/battery_side && kicad-cli pcb drc --severity-error battery_side.kicad_pcb`: 0 violations, 0 unconnected items.
+- Verified artifact presence and integrity from the committed manifest:
+  - `cd hardware/reviews && shasum -a 256 -c visual_inspections/cp_schematic_cleanup/iter37/MANIFEST.sha256`: 23 PNG entries reported `OK`.
+  - Manifest includes two source PDF hashes as commented reference lines, which `shasum -c` does not treat as checkable entries.
+- Performed D11 visual gate against committed artifacts:
+  - Opened the committed source schematics (`hardware/outputs/battery_side/schematic.pdf`, `hardware/outputs/display_side/schematic.pdf`) and validated that dense-region screenshots in §38 are present and visually consistent with those rendered sheets.
+  - Spot-checked representative high-density regions from both sheets (battery MOD1/connectors/buck cluster; display FFC/RS-485/MOD1/connectors) and corroborated §38's overlap findings and fail status for criteria #0 and #5.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).

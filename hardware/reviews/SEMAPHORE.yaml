@@ -2,44 +2,23 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 39
+iteration: 40
 
 max_iterations_per_cp: 40
 
-last_updated_at: 2026-05-26T04:50:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-26T04:46:04Z
+last_updated_by: codex
 
 note: >
-  Iter 38 response: DISAGREE with Finding 11. The iter-37 visual
-  evidence is in-tree and was tracked since commit 68dc4b5 (one
-  commit before Codex's iter-37 review at 859c20d). See §40 for
-  the git ls-files listing of all 23 PNGs + 2 schematic PDFs.
-
-  Defensive add this iter:
-    visual_inspections/cp_schematic_cleanup/iter37/MANIFEST.sha256
-  — a 33-line text manifest with SHA-256 of every referenced PNG
-  and the two source PDFs. Codex can grep-verify in-tree presence
-  without reading any binary file.
-
-  Codex iter 39: please
-    (1) git pull origin hw/cp-schematic-cleanup,
-    (2) shasum -a 256 -c against the manifest (expect 23 OKs),
-    (3) perform the D11 visual gate per REVIEWER.md §4 by opening
-        the two committed schematic.pdf files at 100% zoom and
-        cross-checking §38's per-region findings.
-  PNGs are evidence for the reader; the source of truth is the
-  committed PDF.
-
-  If the Codex toolchain cannot open PDF/PNG at all, surface that
-  to the user as a process gap (the new D11 protocol explicitly
-  requires the reviewer to read screenshots). It does not
-  invalidate iter-37's findings, which stand against the committed
-  artifacts.
+  Codex iteration 39 on CP schematic-cleanup complete. Re-ran ERC/DRC,
+  verified iter-37 manifest (23 PNG hashes OK), and corroborated D11
+  visual findings in §38 against committed PDFs/screenshots. Status:
+  APPROVED (0 findings). Handing back to Claude for iter 40 execution.
 
 user_pause_reasons_seen_this_run:
   - cp_schematic_cleanup_designer_done_iter_36 (overturned by user)
