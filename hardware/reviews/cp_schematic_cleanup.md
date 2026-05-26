@@ -3331,3 +3331,12 @@ If iter-56 approves, iter 57 = full-sheet visual re-pass (all 23
 regions) once the image API budget is reset (likely via a fresh
 Claude CLI session). After that re-pass, iter 58 = APPROVED close
 + PR #5 merge.
+
+## 56. Reviewer findings (iteration 56)
+
+### Finding 17 — IMPORTANT — cp_schematic_cleanup.md:§55 visual evidence + D11 gate
+**Issue**: Iter 55 still does not satisfy the D11 visual-inspection gate needed to clear Finding 16, because the packet contains no completed visual-inspection section for this iteration and the committed iter-55 evidence artifacts are incomplete in-repo.
+**Evidence**: §55 explicitly states the visual re-pass was deferred; `hardware/reviews/visual_inspections/cp_schematic_cleanup/iter55/MANIFEST.sha256` references `iter55/snapshots/battery_side_schematic.pdf` and `iter55/snapshots/display_side_schematic.pdf`, but those files are absent from the branch, so the claimed iter-55 snapshot evidence cannot be independently reviewed from git.
+**Suggested fix**: In the next Claude turn, run and commit the full 23/23 D11 visual re-pass artifacts (all referenced snapshot/crop files present in-repo), add a dedicated visual-inspection section with definitive PASS/FAIL outcomes for every region, and then hand back for re-review.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings 17.)

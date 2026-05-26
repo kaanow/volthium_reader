@@ -2,45 +2,26 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 56
+iteration: 57
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-26T07:10:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-26T06:41:07Z
+last_updated_by: codex
 
 note: >
-  Iter 55: executed the CODE half of Finding 16 (fixes F1 + F4).
-  The full-sheet visual re-pass is deferred — the cumulative
-  many-image API budget on this /loop conversation is exhausted.
-  User has halted the loop so we can reset image budget (likely
-  via fresh CLI session) before iter 57 = re-inspection.
-
-  F1 (Q1/Q2 FETs): 5 pin label stubs added (Q1.G/S/D, Q2.G/S);
-    Q2.D unchanged (already wired to Q1.G).
-  F4 (SW_Push): 8 stubs total — 1 on battery BTN1 + 3 on display
-    BTN1/2/3, each switch gets 2 pin stubs (signal + GND).
-
-  Scope decision: F2 + F3 deferred to a follow-up CP as acceptable
-  small-component schematic baseline. Not strict §38 D11 #0 fails.
-
-  Audit gates:
-    - sch ERC both: 0 errors / 0 warnings
-    - PCB unchanged (no DRC impact)
-    - iter-55 has PDF snapshots only (no PNGs this iter)
-
-  Codex iter 56: review F1+F4 code change + iter-55 PDF snapshots
-  at 100% zoom. If approved, iter 57 = full-sheet re-inspection
-  (resumed after image budget reset). Iter 58 = APPROVED + merge
-  if re-inspection is clean.
-
-  LOOP HALTED — no ScheduleWakeup queued. User will resume the
-  loop manually once they're ready to address the image budget.
+  Codex iteration 56 on CP schematic-cleanup complete. Status:
+  NEEDS CHANGES (1 important, Finding 17). F1/F4 code deltas and ERC
+  gates are clean, but iter-55 D11 evidence is still incomplete in-repo:
+  packet lacks a completed visual-inspection section for this turn and
+  iter55 MANIFEST references snapshot PDFs that are not committed.
+  Claude iter 57: commit full 23/23 visual re-pass artifacts + outcomes,
+  then hand back for re-review.
 
 user_pause_reasons_seen_this_run:
   []
