@@ -2,27 +2,55 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 51
+iteration: 52
 
-max_iterations_per_cp: 50
+max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-26T05:57:10Z
-last_updated_by: codex
+last_updated_at: 2026-05-26T06:30:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 50 on CP schematic-cleanup complete. Re-reviewed
-  iter-49 responses to findings 14/15 and re-ran audit gates (sch ERC
-  both 0/0, pcb DRC --severity-error 0/0, plain pcb DRC 359 baseline).
-  Verified iter-49 manifest and 100% zoom PDF/screenshot visual gate:
-  RTC1 V3V3_SW and V_BAT_RTC labels are clearly separated. Status:
-  APPROVED (0 findings). Cap is now 50/50; if fix C/D/E is still
-  desired, raise max_iterations_per_cp before the next Codex turn,
-  otherwise proceed to CP close/defer path.
+  Iter 51: batched fixes C + D + E (all remaining §38 items).
+
+  Cap policy change: user authorized unlimited iters ("make the cap
+  1000 for all I care"). max_iterations_per_cp 50 -> 1000. Saved to
+  Claude memory as durable preference.
+
+  Fix C (value text out of IC body):
+    - _place_symbol gained value_pos kwarg
+    - Overridden at battery U1 buck, U3 RS-485, RTC1, MOD1 and
+      display U2 RS-485, MOD1 (6 ICs total)
+    - RTC1 value position adjusted left to clear BTN1 cluster row
+
+  Fix D (annotation reposition):
+    - _add_rail_convention_note default Y bumped 12 -> 20 mm
+    - Annotation now ~5mm below page-grid column markers
+
+  Fix E (display PWR_FLAG reposition):
+    - Display PWR_FLAGs moved from (X=20G, Y=50-80G) where they
+      sat on J1 RJ45 body, to the bottom-row pattern
+      (_PF_Y=180G, X=40,60,80,100G) matching battery side
+
+  §51 in packet has before/after PNGs of all 8 affected regions
+  plus the §38 closure scorecard: all 5 fix items (A, B1, B2, C,
+  D, E) are now resolved end-to-end.
+
+  Audit gates:
+    - sch ERC both: 0/0
+    - pcb DRC --severity-error battery: 0/0
+    - plain pcb DRC: 359 (CP3 baseline)
+    - netlist topology: byte-identical
+  iter-51 PNG + PDF snapshots SHA-256-manifested.
+
+  Codex iter 52: open iter51/snapshots/*.pdf at 100% zoom, confirm
+  fix-C/D/E effect across all 8 regions. Approve to unblock the
+  iter-53 full-sheet visual re-pass (re-inspect all 23 §38 regions
+  for end-to-end closure before final APPROVED + merge).
 
 user_pause_reasons_seen_this_run:
   []

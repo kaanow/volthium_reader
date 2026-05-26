@@ -2954,3 +2954,156 @@ Re-review completed for designer iteration-49 (responses to Findings 14 and 15):
 - Cap-budget status after this review: iteration 50 of 50 is consumed. If fix C/D/E is still desired, the cap must be increased before the next Codex review cycle; otherwise close this CP at the current accepted state and defer C/D/E to a follow-up CP.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+## 51. Designer iter 51 — Fix C + D + E (batched)
+
+User authorized unlimited iterations ("make the cap 1000 for all I
+care") so iter 51 batches the three remaining §38 fix items.
+
+### Cap policy change
+
+`max_iterations_per_cp: 50 → 1000` in `SEMAPHORE.yaml`. Per user
+instruction. Saved to memory as a durable preference; iteration-cap
+escalation paths are now off for this project.
+
+### Fix C — value text out of IC body
+
+Extended `_place_symbol` with optional `value_pos` kwarg
+(default behaviour unchanged). Overrode it at 6 IC placements:
+
+| IC                          | New value_pos (mm-multiple of G=1.27)   |
+|-----------------------------|-----------------------------------------|
+| Battery U1 (TPS62933)       | `(U1_X, U1_Y + 14G)` — below GND label |
+| Battery U3 (SN65HVD3082E)   | `(U3_X, U3_Y + 15G)` — below GND stub |
+| Display U2 (SN65HVD3082E)   | `(U2_X, U2_Y + 15G)` — below GND stub |
+| Battery RTC1 (DS3231M)      | `(RTC1_X - 10G, RTC1_Y + 13G)` — below-left of chip, clear of BTN1 row |
+| Battery MOD1 (ESP32-S3)     | `(MOD1_X, MOD1_Y + 26G)` — below GND stub |
+| Display MOD1 (ESP32-S3)     | `(MOD1_X, MOD1_Y + 26G)` — below GND stub |
+
+Trial run with RTC1 value at `(RTC1_X, RTC1_Y + 13G)` collided with
+the BTN1/R13/C11 row at the same Y; re-anchored 10G left to clear.
+
+### Fix D — annotation banner reposition
+
+`_add_rail_convention_note` default Y bumped 12 → 20 (mm). The
+"Convention: power rails above components; GND below." text now
+sits ~10mm below the page-grid column markers (1–8 at top edge).
+
+### Fix E — PWR_FLAG reposition (display side)
+
+Display PWR_FLAGs (V12_CAT5E, GND, V12_PROT, V3V3) were in a left
+column at X=20G, Y=50G…80G — directly on top of the J1 RJ45 body.
+Moved them to the same bottom-row pattern the battery side uses
+(_PF_Y=180G, spread horizontally at X=40,60,80,100G). J1 body now
+clean of PWR_FLAG fragments.
+
+### Visual evidence
+
+#### Battery MOD1 (region 09) — Value moved below
+
+![iter51 battery mod1](visual_inspections/cp_schematic_cleanup/iter51/battery_side/09_esp32_mod1.png)
+
+Read every piece of text in this region. Findings: chip interior
+now contains ONLY internal `PSRAM` text and pin names (clean).
+`ESP32-S3-WROOM-1-N16R8` value text sits cleanly below the chip
+body, below the GND label stub, in white space. **D11 #0/#5
+"value text inside symbol body" at MOD1: resolved.**
+
+#### Display MOD1 (region 05) — Value moved below
+
+![iter51 display mod1](visual_inspections/cp_schematic_cleanup/iter51/display_side/05_esp32_mod1.png)
+
+Read every piece of text in this region. Findings: same outcome
+as battery MOD1. Chip interior clean. **Resolved.**
+
+#### Battery U3 RS-485 (region 07) — Value moved below
+
+![iter51 u3](visual_inspections/cp_schematic_cleanup/iter51/battery_side/07_u3_rs485_transceiver.png)
+
+Read every piece of text in this region. Findings: `SN65HVD3082E`
+value text now below the GND label stub, in clear space. Chip
+interior shows clean op-amp symbols and pin names. **Resolved.**
+
+#### Display U2 RS-485 (region 08) — Value moved below
+
+![iter51 u2](visual_inspections/cp_schematic_cleanup/iter51/display_side/08_u2_rs485_transceiver.png)
+
+Read every piece of text in this region. Findings: same outcome
+as battery U3. **Resolved.**
+
+#### Battery U1 buck (region 05) — Value moved below
+
+![iter51 u1 buck](visual_inspections/cp_schematic_cleanup/iter51/battery_side/05_u1_buck_U1_L1_C1_C2_CBST.png)
+
+Read every piece of text in this region. Findings: `TPS62933FDRLR`
+value now below the GND label, in clear space below the chip
+body. Chip interior shows only `U1` reference and pin names.
+**Resolved.**
+
+#### Battery RTC1 (region 10) — Value moved below-left
+
+![iter51 rtc1](visual_inspections/cp_schematic_cleanup/iter51/battery_side/10_rtc_coin_cell.png)
+
+Read every piece of text in this region. Findings: `DS3231SN#`
+value text in the empty zone below RTC1 and to the left of the
+BTN1/R13/C11 row. Chip interior clean (only `RTC1` reference and
+pin names). **Resolved.**
+
+#### Annotation banner (both boards) — moved below page-grid
+
+![iter51 battery annotation](visual_inspections/cp_schematic_cleanup/iter51/battery_side/01_annotation_banner.png)
+
+Read every piece of text in this region. Findings: page-grid
+column markers `1`–`8` along the top frame edge are now cleanly
+separated from the annotation text by ~5mm of white space. The
+annotation `Convention: power rails above components; GND below.`
+reads cleanly with no marker overlap. **D11 #0 fail at annotation
+banner: resolved on both sheets.**
+
+#### Display J1 RJ45 (region 02) — PWR_FLAG cleared
+
+![iter51 display j1](visual_inspections/cp_schematic_cleanup/iter51/display_side/02_rj45_input_J1_F1_TVS1.png)
+
+Read every piece of text in this region. Findings: J1 RJ45 symbol
+body now CLEAN — no `LG1`/`T5E`/`FLAG` PWR_FLAG fragments
+overlapping the chip. J1/RJ45 reference+value text are inside the
+symbol in their default position. Pin numbers + net labels
+(`GND`, `R485_B`, `R485_A`, `V12_CAT5E`) read normally on the
+right side. **D11 #0 fail "PWR_FLAG on J1 body": resolved.**
+
+### Audit gates
+
+- `kicad-cli sch erc` battery_side: 0 errors / 0 warnings
+- `kicad-cli sch erc` display_side: 0 errors / 0 warnings
+- `kicad-cli pcb drc --severity-error` battery_side: 0/0
+- plain `kicad-cli pcb drc` battery_side: 359 warnings (CP3
+  baseline unchanged; PCB file not modified this iter)
+- netlist diff vs HEAD: tstamps only — net-topology nodes
+  byte-identical
+- `iter51/MANIFEST.sha256` covers PNGs + PDF snapshots
+
+### §38 closure scorecard
+
+All five fix items from §38 are now resolved:
+
+| Fix | Item                                          | Status     | Iter |
+|-----|-----------------------------------------------|------------|------|
+| A   | Hide connector pin names                      | Resolved   | 40   |
+| B1  | Net labels off RS-485 pin endpoints           | Resolved   | 45   |
+| B2  | Net labels off MOD1 + U1 buck + RTC1          | Resolved   | 47   |
+| C   | Value text out of IC bodies                   | Resolved   | 51   |
+| D   | Annotation banner reposition                  | Resolved   | 51   |
+| E   | PWR_FLAG off display J1 body                  | Resolved   | 51   |
+
+CP is at the natural close-or-final-pass decision point. After
+codex review of this iter, the next claude action should be a
+full-sheet visual re-pass per the D11 protocol — re-inspect every
+§38 dense region (23 total) at 100 % zoom and confirm closure
+end-to-end. Then APPROVED → merge.
+
+### Handing back
+
+State → `codex_turn`, iter 52. Codex: open
+`iter51/snapshots/{battery,display}_side_schematic.pdf` at 100 %
+zoom and confirm fix C + D + E effect on the 8 region crops
+above. Approve to unblock the iter-53 full-sheet visual re-pass.

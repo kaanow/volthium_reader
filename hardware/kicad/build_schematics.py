@@ -363,7 +363,7 @@ def _place_wire(sch: Schematic, start: tuple[float, float], end: tuple[float, fl
     sch.graphicalItems.append(w)
 
 
-def _add_rail_convention_note(sch: Schematic, x: float = 25.0, y: float = 12.0) -> None:
+def _add_rail_convention_note(sch: Schematic, x: float = 25.0, y: float = 20.0) -> None:
     """Add a sheet-level text annotation documenting the power-rail convention.
 
     D11 criterion #6: power rails on consistent edges. Since most power
@@ -433,8 +433,16 @@ def _place_symbol(
     *,
     lib: SymbolLib,
     angle: float = 0.0,
+    value_pos: tuple[float, float] | None = None,
 ) -> SchematicSymbol:
-    """Place a SchematicSymbol instance referencing volthium:<sym_name>."""
+    """Place a SchematicSymbol instance referencing volthium:<sym_name>.
+
+    iter 51 (fix C): added `value_pos` kwarg so multi-pin IC call sites
+    can override where the Value property text lands. Default position
+    (pos.x + 2.54, pos.y + 1.27) sits inside the chip body for large
+    ICs (MOD1, SOIC-16, SOT-23, etc.); callers pass an explicit
+    out-of-body position when that matters.
+    """
     # Ensure the symbol definition is in libSymbols
     _copy_symbol_to_schematic(lib, sym_name, sch)
     inst = SchematicSymbol()
@@ -447,13 +455,14 @@ def _place_symbol(
     inst.onBoard = True
     inst.fieldsAutoplaced = True
     inst.uuid = _uuid()
+    val_pos = value_pos if value_pos is not None else (pos[0] + 2.54, pos[1] + 1.27)
     # Properties: Reference, Value, Footprint, Datasheet (the standard 4)
     inst.properties = [
         Property(key="Reference", value=reference,
                  position=Position(X=pos[0] + 2.54, Y=pos[1] - 1.27, angle=0),
                  effects=Effects()),
         Property(key="Value", value=value,
-                 position=Position(X=pos[0] + 2.54, Y=pos[1] + 1.27, angle=0),
+                 position=Position(X=val_pos[0], Y=val_pos[1], angle=0),
                  effects=Effects()),
         Property(key="Footprint", value=footprint,
                  position=Position(X=pos[0], Y=pos[1], angle=0),
@@ -661,7 +670,8 @@ def build_battery_side_schematic() -> None:
     U1_X, U1_Y = 155 * G, 30 * G   # (196.85, 38.1)
     _place_symbol(s, "TPS62933", "U1", "TPS62933FDRLR",
                   "Package_TO_SOT_SMD:SOT-23-6",
-                  (U1_X, U1_Y), lib=lib)
+                  (U1_X, U1_Y), lib=lib,
+                  value_pos=(U1_X, U1_Y + 14 * G))  # iter 51 fix C: out of body, below GND label
     # Pin connections per CP1 §5 net list:
     #   VIN ← V24_FUSED
     #   GND ← GND
@@ -911,7 +921,8 @@ def build_battery_side_schematic() -> None:
 
     _place_symbol(s, "ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
                   "RF_Module:ESP32-S3-WROOM-1U",  # -1U variant: external U.FL antenna, no keepout zone
-                  (MOD1_X, MOD1_Y), lib=lib)
+                  (MOD1_X, MOD1_Y), lib=lib,
+                  value_pos=(MOD1_X, MOD1_Y + 26 * G))  # iter 51 fix C: out of body, below GND label stub
     # Pins 1, 40, 41 (all GND) share the same library position in the
     # ESP32-S3-WROOM-1 symbol (0, -27.94). Placing one label per pin
     # creates 3 stacked GND labels at the same coordinate — fails D11
@@ -993,7 +1004,8 @@ def build_battery_side_schematic() -> None:
     RTC1_X, RTC1_Y = 60 * G, 95 * G   # (76.2, 120.65)
     _place_symbol(s, "DS3231M", "RTC1", "DS3231SN#",
                   "Package_SO:SOIC-16W_7.5x10.3mm_P1.27mm",
-                  (RTC1_X, RTC1_Y), lib=lib)
+                  (RTC1_X, RTC1_Y), lib=lib,
+                  value_pos=(RTC1_X - 10 * G, RTC1_Y + 13 * G))  # iter 51 fix C: out of body, left of BTN1 cluster
     # CP-cleanup iter 47 (fix B2): pull each RTC1 net label 2G off the
     # pin endpoint with a stub wire so labels read clear of the chip
     # pin name text (VCC/VBAT/GND/SDA/SCL). Pin 2 VCC and pin 14 VBAT
@@ -1073,7 +1085,8 @@ def build_battery_side_schematic() -> None:
     U3_X, U3_Y = 220 * G, 50 * G   # (279.4, 63.5)
     _place_symbol(s, "LTC2850xS8", "U3", "SN65HVD3082E",
                   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
-                  (U3_X, U3_Y), lib=lib)
+                  (U3_X, U3_Y), lib=lib,
+                  value_pos=(U3_X, U3_Y + 15 * G))  # iter 51 fix C: out of body, below GND label stub
     # CP-cleanup iter 45 (fix B1): pull every U3 net label off the pin
     # endpoint by 1G (2.54 mm) so the label arrow doesn't overlap the
     # chip's in-body pin name text. Pattern per pin: pin endpoint → 1G
@@ -1426,7 +1439,8 @@ def build_display_side_schematic() -> None:
 
     _place_symbol(s, "ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
                   "RF_Module:ESP32-S3-WROOM-1U",  # -1U variant: external U.FL antenna, no keepout zone
-                  (MOD1_X, MOD1_Y), lib=lib)
+                  (MOD1_X, MOD1_Y), lib=lib,
+                  value_pos=(MOD1_X, MOD1_Y + 26 * G))  # iter 51 fix C: out of body, below GND label stub
     # Dedupe shared symbol pins (1/40/41 GND) — see battery-side comment.
     # CP-cleanup iter 47 (fix B2): same 2G stub-out treatment as
     # battery-side MOD1 so net labels read clear of the chip's
@@ -1548,7 +1562,8 @@ def build_display_side_schematic() -> None:
     U2_X, U2_Y = 220 * G, 80 * G   # (279.4, 101.6)
     _place_symbol(s, "LTC2850xS8", "U2", "SN65HVD3082E",
                   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
-                  (U2_X, U2_Y), lib=lib)
+                  (U2_X, U2_Y), lib=lib,
+                  value_pos=(U2_X, U2_Y + 15 * G))  # iter 51 fix C: out of body, below GND label stub
     # CP-cleanup iter 45 (fix B1): same 1G stub-out pattern as battery
     # U3. Pin endpoint → 1G stub → relocated net label so label arrow
     # doesn't overlap chip pin-name text.
@@ -1667,19 +1682,22 @@ def build_display_side_schematic() -> None:
     _place_label(s, "V3V3",   (J4_X - 4 * G, J4_Y + 4 * G))
 
     # ===== Power flags =====
+    # CP-schematic-cleanup iter 51 (fix E): moved PWR_FLAGs from the
+    # X=20*G column (which sat on the J1 RJ45 body at Y=50*G…80*G — see
+    # iter-37 finding for display 02) to the same bottom-row pattern
+    # the battery side uses (_PF_Y=180*G, spread horizontally). Clears
+    # the J1 body completely.
+    _PF_Y = 180 * G
     # V12_CAT5E sourced externally (from Cat5e battery side) via J1's
     # `passive` connector pins. Same pattern as V24_FUSED on battery side.
-    # CP-schematic-cleanup iter 18 D11 #0: moved x=8*G to x=20*G so
-    # PWR_FLAGs and their labels stay clear of the left page edge
-    # (8*G=10.16mm was off-page on a left-justified A3 sheet).
-    _place_power_flag(s, "V12_CAT5E", (20 * G, 50 * G), lib)
+    _place_power_flag(s, "V12_CAT5E", (40 * G,  _PF_Y), lib)
     # GND sourced externally via J1; passive pins don't drive ERC.
-    _place_power_flag(s, "GND",       (20 * G, 60 * G), lib)
+    _place_power_flag(s, "GND",       (60 * G,  _PF_Y), lib)
     # V12_PROT: post-PTC, post-TVS. F1.2 is passive, TVS1.A is passive,
     # U1.VIN (Conn_01x03) is passive. PWR_FLAG bridges.
-    _place_power_flag(s, "V12_PROT",  (20 * G, 70 * G), lib)
+    _place_power_flag(s, "V12_PROT",  (80 * G,  _PF_Y), lib)
     # V3V3: U1.VOUT is passive. MOD1.3V3 is power_input. PWR_FLAG bridges.
-    _place_power_flag(s, "V3V3",      (20 * G, 80 * G), lib)
+    _place_power_flag(s, "V3V3",      (100 * G, _PF_Y), lib)
 
     out = DISP_DIR / "display_side.kicad_sch"
     out.parent.mkdir(parents=True, exist_ok=True)
