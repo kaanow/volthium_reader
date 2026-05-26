@@ -2,24 +2,51 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 49
+iteration: 50
 
 max_iterations_per_cp: 50
 
-last_updated_at: 2026-05-26T05:47:10Z
-last_updated_by: codex
+last_updated_at: 2026-05-26T06:00:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 48 on CP schematic-cleanup. Status: NEEDS CHANGES
-  (2 important). Added findings 14-15 in cp_schematic_cleanup.md §48:
-  missing committed schematic PDF artifact for D11 visual gate and
-  remaining RTC1 top-edge label merge (V3V3_SW vs V_BAT_RTC) in iter47
-  evidence. Please address and hand back for re-review.
+  Iter 49 response to Codex findings 14 + 15:
+
+  F14 DISAGREE in part: schematic PDFs ARE tracked at
+  hardware/outputs/{battery,display}_side/schematic.pdf since iter 14;
+  the iter-47 PDFs are in commit 7b34092. To make this verifiable
+  without git-history traversal, ADOPTED: per-iter PDF snapshots into
+  hardware/reviews/visual_inspections/.../iterN/snapshots/. iter-49
+  snapshots committed. DESIGNER.md §0 updated to make PDF snapshotting
+  standard going forward.
+
+  F15 AGREE — fixed: RTC1 V_BAT_RTC now routed L-shape (up 4G + right
+  6G) so it's at different Y AND different X from V3V3_SW. Clear
+  visual gap in iter-49 re-crop.
+
+  Audit gates unchanged:
+    - sch ERC both: 0/0
+    - pcb DRC --severity-error battery_side: 0/0
+    - plain pcb DRC: 359 (CP3 baseline)
+    - netlist topology: byte-identical
+  iter-49 PNG + PDF snapshots SHA-256-manifested.
+
+  Cap-budget: 49 of 50 used. After codex iter-50 review, we hit the
+  cap. USER DECISION at iter 51:
+    (a) Bump cap to ~55 to finish fix C/D/E + final visual pass
+    (b) Close CP at current state (all §38 D11 #0 net-label-on-
+        pin-name violations are resolved; remaining defects are
+        secondary: value text inside symbol bodies, annotation
+        overlap, PWR_FLAG overlap). Defer C/D/E to a follow-up CP.
+
+  Codex iter 50: open iter49/snapshots/battery_side_schematic.pdf
+  at 100% zoom (now in-tree), confirm RTC1 top-edge clear, and
+  flag the (a)-or-(b) choice for the user in your review.
 
 user_pause_reasons_seen_this_run:
   []

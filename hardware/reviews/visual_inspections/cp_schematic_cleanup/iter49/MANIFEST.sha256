@@ -1,0 +1,9 @@
+# SHA-256 manifest — D11 visual evidence iter 49
+# Per-iter PDF snapshots introduced this iter (Finding 14 response)
+# All paths relative to hardware/reviews/
+# Verify in-tree with:
+#   cd hardware/reviews && shasum -a 256 -c visual_inspections/cp_schematic_cleanup/iter49/MANIFEST.sha256
+
+a278df35383e7d3d801c579302df0a8d1a39ea3f932fe63e3171b4a015970380  visual_inspections/cp_schematic_cleanup/iter49/battery_side/10_rtc_coin_cell.png
+3a6c74df0d1c0e97bef060b2669fa4ea7cae527c8e5fde51b5c75a38eba13d1b  visual_inspections/cp_schematic_cleanup/iter49/snapshots/battery_side_schematic.pdf
+28ab81be4810172935f817de43ed9d43137e85187043126cccfda939d745babe  visual_inspections/cp_schematic_cleanup/iter49/snapshots/display_side_schematic.pdf

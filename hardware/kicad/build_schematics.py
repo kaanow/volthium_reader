@@ -1001,9 +1001,13 @@ def build_battery_side_schematic() -> None:
     # 4G to the right so the two labels don't pile up horizontally.
     _place_wire(s,  (RTC1_X - 2 * G, RTC1_Y -  8 * G), (RTC1_X - 2 * G, RTC1_Y - 10 * G))   # pin 2 stub
     _place_label(s, "V3V3_SW",  (RTC1_X - 2 * G, RTC1_Y - 10 * G))                          # pin 2 VCC
-    _place_wire(s,  (RTC1_X,         RTC1_Y -  8 * G), (RTC1_X,         RTC1_Y - 10 * G))   # pin 14 up 2G
-    _place_wire(s,  (RTC1_X,         RTC1_Y - 10 * G), (RTC1_X + 4 * G, RTC1_Y - 10 * G))   # pin 14 right 4G
-    _place_label(s, "V_BAT_RTC",(RTC1_X + 4 * G, RTC1_Y - 10 * G))                          # pin 14 VBAT
+    # iter 49 (Finding 15): pin 14 VBAT now routed up 4G + right 6G so
+    # the V_BAT_RTC label is offset BOTH vertically and horizontally from
+    # the pin 2 V3V3_SW label — clear visual gap in iter-47 evidence the
+    # 4G horizontal offset alone wasn't enough.
+    _place_wire(s,  (RTC1_X,         RTC1_Y -  8 * G), (RTC1_X,         RTC1_Y - 12 * G))   # pin 14 up 4G
+    _place_wire(s,  (RTC1_X,         RTC1_Y - 12 * G), (RTC1_X + 6 * G, RTC1_Y - 12 * G))   # pin 14 right 6G
+    _place_label(s, "V_BAT_RTC",(RTC1_X + 6 * G, RTC1_Y - 12 * G))                          # pin 14 VBAT
     _place_wire(s,  (RTC1_X,         RTC1_Y +  8 * G), (RTC1_X,         RTC1_Y + 10 * G))   # pin 13 stub
     _place_label(s, "GND",      (RTC1_X,         RTC1_Y + 10 * G))                          # pins 5-13 GND
     _place_wire(s,  (RTC1_X - 10 * G, RTC1_Y - 2 * G), (RTC1_X - 12 * G, RTC1_Y - 2 * G))  # pin 15 stub

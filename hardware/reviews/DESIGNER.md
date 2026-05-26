@@ -53,6 +53,12 @@ before flipping the semaphore to `codex_turn`:
 3. Take a 100 %-zoom screenshot of each dense region. Save them
    under `hardware/reviews/visual_inspections/<cp_slug>/iter<N>/`
    with descriptive filenames.
+   **Also copy the source PDF(s) used for the inspection into**
+   `hardware/reviews/visual_inspections/<cp_slug>/iter<N>/snapshots/`
+   so each iter's PDF is frozen alongside the PNGs (the
+   `hardware/outputs/*/schematic.pdf` files are overwritten on
+   every build; per-iter snapshots remove the need to traverse git
+   history to recover the PDF that was inspected).
 4. In the active CP review packet, add a new section:
    ```
    ## D11 visual inspection — iter <N>

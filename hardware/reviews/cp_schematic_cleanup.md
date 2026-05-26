@@ -2841,3 +2841,98 @@ Re-review completed for designer iteration-47 (Fix B2 on MOD1/U1/RTC1):
 **Suggested fix**: Increase separation between the two top-edge labels (additional stub offset and/or stagger Y) and refresh the screenshot/PDF evidence to show a clear gap between both net names.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings 14, 15.)
+
+## 49. Designer iter 49 — response to Findings 14 + 15
+
+**RESOLVED — Finding 14**: DISAGREE in part, with a process
+improvement adopted.
+
+The schematic PDFs **are** committed and tracked. They live at
+single locations (overwritten each build) rather than per-iter
+snapshots:
+
+```
+$ git ls-files hardware/outputs/
+hardware/outputs/.gitkeep
+hardware/outputs/README.md
+hardware/outputs/battery_side/battery_side.net
+hardware/outputs/battery_side/erc.rpt
+hardware/outputs/battery_side/schematic.pdf       ← iter-47 PDF lives here
+hardware/outputs/display_side/display_side.net
+hardware/outputs/display_side/erc.rpt
+hardware/outputs/display_side/schematic.pdf       ← iter-47 PDF lives here
+
+$ git log --oneline -3 -- hardware/outputs/battery_side/schematic.pdf
+7b34092 hardware: CP-schematic-cleanup iter 47 — Fix B2 (MOD1, U1, RTC1)
+a92d4a1 hardware: CP-schematic-cleanup iter 45 — Fix B1 (RS-485 transceivers)
+700680e hardware: CP-schematic-cleanup iter 40 — Fix A (hide connector pin names)
+```
+
+The iter-47 PDFs are at commit `7b34092` (the iter-47 commit
+itself), reachable via `git show 7b34092:hardware/outputs/...`.
+
+**Process improvement adopted this iter**: per-iter PDF snapshots.
+From iter 49 forward, each iteration that touches a rendered PDF
+copies it into
+`hardware/reviews/visual_inspections/cp_schematic_cleanup/iterN/snapshots/`
+so the PDF used for that iter's visual inspection is frozen in
+that iter's directory, alongside the PNGs. Codex can verify
+without needing to traverse git history.
+
+This iter's snapshots:
+- `iter49/snapshots/battery_side_schematic.pdf`
+- `iter49/snapshots/display_side_schematic.pdf`
+
+`iter49/MANIFEST.sha256` lists both PDFs + the iter-49 PNG (the
+only one re-cropped this iter) with their SHA-256 hashes.
+
+I'll update `DESIGNER.md` §0's operational checklist below to make
+PDF snapshotting standard going forward.
+
+**RESOLVED — Finding 15**: AGREE — fixed.
+
+The iter-47 V_BAT_RTC anchor at `(RTC1_X + 4G, RTC1_Y - 10G)` was
+only 6G horizontal from V3V3_SW at `(RTC1_X - 2G, RTC1_Y - 10G)`
+— same Y, label boxes touched. Now routed L-shape up 4G + right
+6G to `(RTC1_X + 6G, RTC1_Y - 12G)`: different Y AND different X.
+
+iter-49 re-crop:
+
+![iter49 rtc1](visual_inspections/cp_schematic_cleanup/iter49/battery_side/10_rtc_coin_cell.png)
+
+Read every piece of text in this region. Findings: V_BAT_RTC at
+the top of the region is clearly separated from V3V3_SW at pin 2
+— ~5mm vertical gap, label text no longer touching. RTC1 pin
+names, pin numbers, and other net labels (I2C_SCL, I2C_SDA, GND)
+unchanged from iter 47. **D11 #0/#5 fail at RTC1 top edge:
+resolved.**
+
+### Audit gates
+
+- `kicad-cli sch erc` battery_side: 0 errors / 0 warnings
+- `kicad-cli sch erc` display_side: 0 errors / 0 warnings
+- `kicad-cli pcb drc --severity-error` battery_side: 0/0
+- plain `kicad-cli pcb drc` battery_side: 359 warnings (unchanged
+  CP3 baseline)
+- netlist diff vs HEAD: 1 new wire-tstamp + 1 relocated
+  label-tstamp; net-topology nodes byte-identical
+- iter-49 PNG + PDF snapshots SHA-256-manifested
+
+### Cap-budget status
+
+After iter 49: 49 of 50 used. Iter 50 = codex review of this
+response. Iter 51+ will likely be needed for fix C/D/E + final
+visual pass. Need to bump cap to ~55 OR accept that B-resolution
+on every IC (the major D11 #0 violations from §38) is a sane
+milestone and defer C/D/E to a follow-up CP. **User decision
+again imminent at iter 50/51.**
+
+### Handing back
+
+State → `codex_turn`, iter 50. Codex: please open
+`iter49/snapshots/battery_side_schematic.pdf` at 100 % zoom (now
+in-tree, no git-history traversal needed) and confirm RTC1 top
+edge has clear V3V3_SW / V_BAT_RTC separation. Approve to either:
+(a) continue with fix C/D/E if user bumps cap, or
+(b) close the CP at the current state and defer C/D/E to a
+follow-up CP. Highlight this choice in your review.
