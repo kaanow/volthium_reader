@@ -2,51 +2,27 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 50
+iteration: 51
 
 max_iterations_per_cp: 50
 
-last_updated_at: 2026-05-26T06:00:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-26T05:57:10Z
+last_updated_by: codex
 
 note: >
-  Iter 49 response to Codex findings 14 + 15:
-
-  F14 DISAGREE in part: schematic PDFs ARE tracked at
-  hardware/outputs/{battery,display}_side/schematic.pdf since iter 14;
-  the iter-47 PDFs are in commit 7b34092. To make this verifiable
-  without git-history traversal, ADOPTED: per-iter PDF snapshots into
-  hardware/reviews/visual_inspections/.../iterN/snapshots/. iter-49
-  snapshots committed. DESIGNER.md §0 updated to make PDF snapshotting
-  standard going forward.
-
-  F15 AGREE — fixed: RTC1 V_BAT_RTC now routed L-shape (up 4G + right
-  6G) so it's at different Y AND different X from V3V3_SW. Clear
-  visual gap in iter-49 re-crop.
-
-  Audit gates unchanged:
-    - sch ERC both: 0/0
-    - pcb DRC --severity-error battery_side: 0/0
-    - plain pcb DRC: 359 (CP3 baseline)
-    - netlist topology: byte-identical
-  iter-49 PNG + PDF snapshots SHA-256-manifested.
-
-  Cap-budget: 49 of 50 used. After codex iter-50 review, we hit the
-  cap. USER DECISION at iter 51:
-    (a) Bump cap to ~55 to finish fix C/D/E + final visual pass
-    (b) Close CP at current state (all §38 D11 #0 net-label-on-
-        pin-name violations are resolved; remaining defects are
-        secondary: value text inside symbol bodies, annotation
-        overlap, PWR_FLAG overlap). Defer C/D/E to a follow-up CP.
-
-  Codex iter 50: open iter49/snapshots/battery_side_schematic.pdf
-  at 100% zoom (now in-tree), confirm RTC1 top-edge clear, and
-  flag the (a)-or-(b) choice for the user in your review.
+  Codex iteration 50 on CP schematic-cleanup complete. Re-reviewed
+  iter-49 responses to findings 14/15 and re-ran audit gates (sch ERC
+  both 0/0, pcb DRC --severity-error 0/0, plain pcb DRC 359 baseline).
+  Verified iter-49 manifest and 100% zoom PDF/screenshot visual gate:
+  RTC1 V3V3_SW and V_BAT_RTC labels are clearly separated. Status:
+  APPROVED (0 findings). Cap is now 50/50; if fix C/D/E is still
+  desired, raise max_iterations_per_cp before the next Codex turn,
+  otherwise proceed to CP close/defer path.
 
 user_pause_reasons_seen_this_run:
   []

@@ -2936,3 +2936,21 @@ edge has clear V3V3_SW / V_BAT_RTC separation. Approve to either:
 (a) continue with fix C/D/E if user bumps cap, or
 (b) close the CP at the current state and defer C/D/E to a
 follow-up CP. Highlight this choice in your review.
+
+---
+
+## 50. Reviewer findings (iteration 50)
+
+No new findings.
+
+Re-review completed for designer iteration-49 (responses to Findings 14 and 15):
+- Re-ran verification gates:
+  - `kicad-cli sch erc hardware/kicad/battery_side/battery_side.kicad_sch`: `Found 0 violations`.
+  - `kicad-cli sch erc hardware/kicad/display_side/display_side.kicad_sch`: `Found 0 violations`.
+  - `kicad-cli pcb drc --severity-error hardware/kicad/battery_side/battery_side.kicad_pcb`: `Found 0 violations`, `Found 0 unconnected items`.
+  - plain `kicad-cli pcb drc hardware/kicad/battery_side/battery_side.kicad_pcb`: `Found 359 violations`, `Found 0 unconnected items` (unchanged CP3 baseline).
+- Verified iter-49 evidence bundle integrity via `shasum -a 256 -c hardware/reviews/visual_inspections/cp_schematic_cleanup/iter49/MANIFEST.sha256`; all listed artifacts validate `OK`.
+- D11 visual gate check at 100% zoom on `iter49/snapshots/battery_side_schematic.pdf` and the paired crop `iter49/battery_side/10_rtc_coin_cell.png` confirms RTC1 top-edge labels are now visually separated: `V3V3_SW` at pin 2 and `V_BAT_RTC` above pin 14 no longer touch/merge.
+- Cap-budget status after this review: iteration 50 of 50 is consumed. If fix C/D/E is still desired, the cap must be increased before the next Codex review cycle; otherwise close this CP at the current accepted state and defer C/D/E to a follow-up CP.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
