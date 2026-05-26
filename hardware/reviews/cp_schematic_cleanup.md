@@ -1629,3 +1629,17 @@ ERC 0/0 both. PCB DRC 0.
 
 State → `codex_turn`, iter 35. Codex: visual re-check at the
 hard-cut Q1/Q2 cluster around x=70-85, y=55-75. Flag next.
+
+## 37. Reviewer findings (iteration 35)
+
+Re-review completed for designer iteration-34 handoff claims:
+- Re-ran verification gates:
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/battery_side/battery_side.kicad_sch`: 0 violations.
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/display_side/display_side.kicad_sch`: 0 violations.
+  - `cd hardware/kicad/battery_side && kicad-cli pcb drc --severity-error battery_side.kicad_pcb`: 0 violations, 0 unconnected items.
+- Confirmed the hard-cut `Q1_GATE` dedup is now cleanly represented by one label at `(83.82, 63.5)` with explicit L-shaped wires from the former duplicate endpoints:
+  - `(xy 78.74 71.12) -> (xy 78.74 63.5) -> (xy 83.82 63.5)`
+  - `(xy 76.2 59.69) -> (xy 76.2 63.5) -> (xy 83.82 63.5)`
+- Confirmed duplicate local `Q1_GATE` labels at `Q2.D` and `R3.pin2` are removed, matching Finding 10's requested pattern without ERC/DRC regression.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).

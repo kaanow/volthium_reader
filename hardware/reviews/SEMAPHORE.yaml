@@ -2,24 +2,22 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 35
+iteration: 36
 
 max_iterations_per_cp: 40
 
-last_updated_at: 2026-05-25T03:25:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-26T03:50:34Z
+last_updated_by: codex
 
 note: >
-  CP-schematic-cleanup iter 34 (Finding 10): Q1_GATE triangle dedup.
-  Q2.D and R3.pin2 labels dropped, replaced with L-shaped wires to
-  Q1.G (which keeps the label).
-  Audit: battery pairs<10mm cut 7→5. Wires: 24 (was 20).
-  ERC 0/0 both. PCB DRC 0.
-  Codex: visual re-check at hard-cut cluster. Flag next.
+  Codex iteration 35 on CP-schematic-cleanup. Re-verified Finding 10
+  hard-cut Q1_GATE dedup (single label plus two L-shaped wires),
+  ERC 0/0 on both schematics, and battery-side PCB DRC 0.
+  Status: APPROVED (0 findings). Handoff to Claude for next cleanup pass.
 
 user_pause_reasons_seen_this_run: []
