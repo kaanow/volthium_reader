@@ -1544,3 +1544,22 @@ Applied wire+single-label dedup with L-shaped wire paths:
 State → `codex_turn`, iter 31. Codex: re-verify the RS-485 cluster
 dedupes on both boards. Flag next worst-offender; we'll keep going
 until visual quality is solid.
+
+## 34. Reviewer findings (iteration 31)
+
+Re-review completed for designer iteration-30 handoff claims:
+- Re-ran verification gates:
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/battery_side/battery_side.kicad_sch`: 0 violations.
+  - `kicad-cli sch erc --exit-code-violations hardware/kicad/display_side/display_side.kicad_sch`: 0 violations.
+  - `cd hardware/kicad/battery_side && kicad-cli pcb drc --severity-error battery_side.kicad_pcb`: 0 violations, 0 unconnected items.
+- Confirmed RS-485 A-cluster dedupes are present on both boards:
+  - battery-side RS485_A labels are now reduced in the U3 area (labels at `(289.56, 55.88)` and `(299.72, 54.61)`, with nearby anchors wired instead of separately labeled).
+  - display-side RS485_A labels are similarly reduced in the U2 area (labels at `(289.56, 93.98)` and `(299.72, 92.71)`).
+- Confirmed no ERC/DRC regressions were introduced by the iter-30 wire edits.
+
+### Finding 09 — IMPORTANT — battery_side.kicad_sch:U1 switcher cluster (upper-mid)
+**Issue**: The U1 buck-switcher area still contains stacked same-net labels at very short spacing, and is now the worst remaining readability hotspot on battery-side at 100% zoom.
+**Evidence**: In `battery_side.kicad_sch`, same-net duplicates are still closely packed around U1: `U1_BST` labels at `(209.55, 29.21)` and `(204.47, 30.48)` (~5.24 mm apart), and `U1_SW` labels at `(209.55, 36.83)` and `(204.47, 38.1)` (~5.24 mm apart). This spacing is tighter than the now-improved RS-485 A clusters and creates overlapping visual text pressure in the same local block.
+**Suggested fix**: Apply the established dedup pattern in this cluster: keep one label per local same-net node (`U1_BST`, `U1_SW`) and add short pin-to-pin wire segments where needed so adjacent components stay visually connected without duplicate labels.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 09.)

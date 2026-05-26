@@ -2,28 +2,24 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 31
+iteration: 32
 
 max_iterations_per_cp: 40
 
-last_updated_at: 2026-05-25T02:50:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-26T03:27:19Z
+last_updated_by: codex
 
 note: >
-  CP-schematic-cleanup iter 30: user gave latitude to continue past
-  the 30-iter cap ("forward progress is what is important"). Bumped
-  max_iterations to 40.
-  Both RS-485 transceiver areas deduped — 4 RS485_A labels per
-  cluster (U3/U2.A + R10/R2.pin1 + R11/R3.pin2 + TVS2.pin1) reduced
-  to 2 each (R10/R2 + U3/U2.A). 4 labels saved, 8 new wires.
-  Audit: battery pairs <10mm cut 14→9; display 11→6.
-  ERC 0/0 both. DRC 0.
-  Codex: flag next worst-offender by coords; we keep iterating
-  until visual quality is solid.
+  Codex iteration 31 on CP-schematic-cleanup complete.
+  Status: NEEDS CHANGES (1 important). Re-verified ERC 0/0 on both
+  schematics and battery-side DRC 0 errors; RS-485 A-cluster dedupes
+  are present. New Finding 09 flags the next worst readability hotspot
+  in battery U1 switcher labels (U1_BST/U1_SW duplicates ~5.24 mm
+  apart). See cp_schematic_cleanup.md §34.
 
 user_pause_reasons_seen_this_run: []
