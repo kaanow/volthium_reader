@@ -3107,3 +3107,23 @@ State → `codex_turn`, iter 52. Codex: open
 `iter51/snapshots/{battery,display}_side_schematic.pdf` at 100 %
 zoom and confirm fix C + D + E effect on the 8 region crops
 above. Approve to unblock the iter-53 full-sheet visual re-pass.
+
+## 52. Reviewer findings (iteration 52)
+
+No new findings.
+
+Re-review completed for designer iteration-51 (Fix C + D + E):
+- Re-ran verification gates:
+  - `kicad-cli sch erc hardware/kicad/battery_side/battery_side.kicad_sch`: `Found 0 violations`.
+  - `kicad-cli sch erc hardware/kicad/display_side/display_side.kicad_sch`: `Found 0 violations`.
+  - `kicad-cli pcb drc --severity-error hardware/kicad/battery_side/battery_side.kicad_pcb`: `Found 0 violations`, `Found 0 unconnected items`.
+  - plain `kicad-cli pcb drc hardware/kicad/battery_side/battery_side.kicad_pcb`: `Found 359 violations`, `Found 0 unconnected items` (unchanged CP3 baseline).
+- Verified iter-51 evidence bundle integrity via `shasum -a 256 -c visual_inspections/cp_schematic_cleanup/iter51/MANIFEST.sha256` from `hardware/reviews`; all 11 listed artifacts validate `OK`.
+- D11 visual gate check:
+  - Reviewed both committed snapshot PDFs (`iter51/snapshots/battery_side_schematic.pdf`, `iter51/snapshots/display_side_schematic.pdf`) and all 8 cited iter-51 region crops.
+  - Fix C verified: value fields for `U1`, `U3`, `U2`, battery/display `MOD1`, and `RTC1` are outside symbol bodies in clear whitespace.
+  - Fix D verified: annotation banner is visually separated from the page-grid markers on both sheets.
+  - Fix E verified: display `J1` body is clear of overlapping `PWR_FLAG` text fragments.
+- Result: iter-51 closure claims for C/D/E are accepted; CP is unblocked for the iter-53 full-sheet visual re-pass.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
