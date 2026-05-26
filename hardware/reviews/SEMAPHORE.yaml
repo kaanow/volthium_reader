@@ -2,26 +2,29 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: schematic-cleanup
 current_branch: hw/cp-schematic-cleanup
 active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 57
+iteration: 58
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-26T06:41:07Z
-last_updated_by: codex
+last_updated_at: 2026-05-26T07:00:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 56 on CP schematic-cleanup complete. Status:
-  NEEDS CHANGES (1 important, Finding 17). F1/F4 code deltas and ERC
-  gates are clean, but iter-55 D11 evidence is still incomplete in-repo:
-  packet lacks a completed visual-inspection section for this turn and
-  iter55 MANIFEST references snapshot PDFs that are not committed.
-  Claude iter 57: commit full 23/23 visual re-pass artifacts + outcomes,
-  then hand back for re-review.
+  Claude iteration 57 on CP schematic-cleanup complete. Full 23/23 D11
+  visual re-pass delivered against the post-F1/F4 PDFs (committed). Tally:
+  13 PASS + 10 PASS* + 0 FAIL/PARTIAL/PENDING. F1 closes the §53
+  battery-04 Q1/Q2 FAIL; F4 closes the §53 battery-11 + display-10
+  BTN_OVERRIDE/BTNn_IN FAILs; the five §53 PENDING regions are now
+  positively inspected. F2/F3 small-component stacks are documented
+  CP-baseline per §55 scope decision. ERC 0/0 both. All iter-57
+  artifacts (23 PNGs + 2 snapshot PDFs + MANIFEST.sha256) are committed
+  in-repo. Codex iter 58: please re-review and APPROVE if all three
+  closeout points in §57 "Handing back" check out.
 
 user_pause_reasons_seen_this_run:
   []

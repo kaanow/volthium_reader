@@ -3340,3 +3340,120 @@ Claude CLI session). After that re-pass, iter 58 = APPROVED close
 **Suggested fix**: In the next Claude turn, run and commit the full 23/23 D11 visual re-pass artifacts (all referenced snapshot/crop files present in-repo), add a dedicated visual-inspection section with definitive PASS/FAIL outcomes for every region, and then hand back for re-review.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings 17.)
+
+## 57. Designer iter 57 — full 23/23 D11 visual re-pass (post F1 + F4)
+
+Codex iter-56 Finding 17 (IMPORTANT) flagged that iter-55 was code-only
+and never delivered the visual re-pass needed to close iter-54 Finding 16.
+This iteration delivers that re-pass — all 23 §38 regions re-cropped from
+the post-F1/F4 PDFs and inspected at 100 % zoom.
+
+**Result: all 23/23 regions PASS at the D11 #0 level the §38/§53
+findings cared about.** F1 closes battery 04 (Q1/Q2); F4 closes
+battery 11 (BTN1) and display 10 (BTN1/BTN2/BTN3). The five iter-53
+PENDING regions are now positively verified clean. The F2/F3-class
+small-component refdes/value stacks (Conn_01x03 module bodies on U2/U1
+regulators; R10/R11/R12/TVS2 on battery, R2/R3/R4/TVS2 + F1/TVS1 on
+display) remain present and are documented as accepted CP-baseline per
+the §55 scope decision — not §38-class label-on-pin-name violations.
+
+Side-note on Codex iter-56 evidence claim: the iter-55 snapshot PDFs
+`iter55/snapshots/battery_side_schematic.pdf` and
+`iter55/snapshots/display_side_schematic.pdf` *were* committed in
+`d6c7c83` (verified via `git ls-tree -r HEAD`). The reviewer's "absent
+from the branch" reading appears to have been a search-path miss, not a
+real gap. Iter-57 supersedes the issue regardless: all visual evidence
+is now in-repo for this iteration.
+
+### Method
+
+PDFs re-rendered from the post-F1/F4 schematic source (build_schematics.py
+HEAD), `kicad-cli sch erc` 0/0 on both. PDFs frozen into
+`iter57/snapshots/`. All 23 §38 regions re-cropped at 363 DPI
+(14.286 px/mm) into `iter57/{battery,display}_side/` — pixel
+dimensions match iter-53 crops to ±1 px, confirming the same physical
+bounding boxes. SHA-256 manifest at `iter57/MANIFEST.sha256` (25 entries).
+
+Crops were produced by `/tmp/d11_iter57_crop.py` (ephemeral; uses
+`pypdfium2` to render each A3-landscape page at 363 DPI, then crops
+mm-bounding-boxes derived from the symbol centres in
+`battery_side.kicad_sch` + `display_side.kicad_sch`).
+
+### Inspection results — 23 regions
+
+#### Battery side
+
+| #  | Region                          | Status   | Notes |
+|----|---------------------------------|----------|-------|
+| 01 | annotation_banner               | **PASS** | Fix D effective: column markers gone; only the "Convention: power rails above components; GND below." banner is visible. |
+| 02 | power_input_row (J1/F1/D1/TVS1) | **PASS*** | Fix A on J1 effective (pin names hidden); F1 "1A 5x20", D1 "SS24", TVS1 "SMAJ30CA" refdes/value stacked inside small SMD bodies — §55 F3 baseline. |
+| 03 | sense_divider R5/R6/C5          | **PASS*** | V24_FUSED / V24_SENSE / GND labels read cleanly; minor label-arrow-tail-on-pin-number residual same as §41/§53 baseline. |
+| 04 | q1q2_hardcut Q1+Q2 FETs         | **PASS** | **F1 effective.** Q1.D/G/S and Q2.G/S net labels (V24_SW, Q1_GATE, V24_FUSED, PWR_EN, GND) are now 2 G clear of the chip-interior `D/G/S` pin-name text. Refdes and AO340xA value sit inside the chip body but no longer collide with net labels. Closes §53 FAIL. |
+| 05 | u1_buck (U1 TPS62933)           | **PASS*** | Fix B2 + C effective; chip interior shows only VIN/EN/BST/SW/SS/RT/FB/GND pin names; "TPS62933FDRLR" value below body. C2/C3 22uF/25V + 22uF/35V values sit close but readable. |
+| 06 | u2_r78e12_reg                   | **PASS*** | Fix A worked (J1/U2 pin-name hidden style); "R-78E12-1.0" value inside Conn_01x03 module body is the F2 baseline (acceptable as the canonical module-symbol convention). |
+| 07 | u3_rs485_transceiver            | **PASS*** | U3 (SN65HVD3082E) chip-interior clean (Fix B1 + C effective): VCC/RO/RE/DE/DI/A/B/GND pin names readable, "SN65HVD3082E" value below body, net labels (TX_3V3/RE/RS485_A/RS485_B/V3V3_SW/GND) clear of pin names. R10/TVS2 and R11/R12 small-SMD refdes/value stacks are §55 F3 baseline. |
+| 08 | esp32_decoupling_row R7/C8/C6/C7| **PASS*** | V3V3_SW / ESP_EN / GND labels at pin endpoints; refdes/value (10k/1uF/10uF/100nF) clear of net text. Minor pin-number label-arrow-tail baseline. |
+| 09 | esp32_mod1                      | **PASS** | Fix B2 + C effective; "ESP32-S3-WROOM-1-N16R8" value clearly below the chip body, only PSRAM marker and pin names inside. All net labels (ESP_EN, V24_SENSE, DE_RE, PWR_EN, I2C_SDA, I2C_SCL, BTN_OVERRIDE, TXD0, RXD0, IO17, IO18, USB_D-, USB_D+, DBG_UART_TX, DBG_UART_RX, UART_TX_3V3, UART_RX_3V3, USB_DM, USB_DP, GND) readable. |
+| 10 | rtc_coin_cell                   | **PASS** | Fix B2 + C effective on RTC1 (DS3231M); VCC/VBAT/SCL/SDA/RST/INT/SQW/32KHZ/GND pin names readable; "DS3231SN#" value below body. BAT1 / R8 / R9 / C9 labels (V_BAT_RTC, V3V3_SW, I2C_SCL, I2C_SDA, GND) clear. |
+| 11 | btn1_cluster                    | **PASS** | **F4 effective.** BTN_OVERRIDE net label arrow tip is now 1 G (2.54 mm) clear of pin-number "1" — the §38/§53 stack is resolved. Refdes "BTN1" + value "OVERRIDE" + inboard pin-names "1"/"2" remain in the SW_Push canonical placement; that's the symbol-library convention, not a label-on-pin-name violation. Closes §53 FAIL. |
+| 12 | j2_rj45                         | **PASS** | Fix A effective; J2 8P8C pin names hidden, pin numbers (1–8) clear, net labels (V12_CAT5E, RS485_A, RS485_B, GND) readable. "J2" refdes + "RJ45" value inside body — module convention. |
+| 13 | right_edge_conns J3/J5          | **PASS** | Fix A effective; J3/USB-OTG (USB_DP, USB_DM, ESP_EN, GND) and J5/UART-DBG (DBG_UART_TX, DBG_UART_RX, GND, ESP_EN) pin names hidden, labels clear. Module value strings ("USB-OTG", "UART-DBG") inside connector body — module convention. |
+
+#### Display side
+
+| #  | Region                          | Status   | Notes |
+|----|---------------------------------|----------|-------|
+| 01 | annotation_banner               | **PASS** | Fix D effective; only the banner text visible. |
+| 02 | rj45_input J1/F1/TVS1           | **PASS*** | Fix A + E effective on J1 (8P8C pin names hidden, pin numbers + V12_CAT5E/RS485_A/RS485_B/GND labels readable). F1 (MF-R050) and TVS1 (SMAJ15A) refdes/value stacks are §55 F3 baseline. |
+| 03 | u1_r78_3v3_reg                  | **PASS*** | Fix A worked; "R-78E3.3-0.5" value inside Conn_01x03 body is §55 F2 baseline. C2 10uF labels (V3V3 / GND) clear. |
+| 04 | esp32_decoupling_row R1/C5/C3/C4| **PASS*** | V3V3 / ESP_EN / GND labels at pin endpoints; refdes/value (10k/1uF/10uF/100nF) clear. Minor pin-number baseline. |
+| 05 | esp32_mod1                      | **PASS** | Fix B2 + C effective; "ESP32-S3-WROOM-1-N16R8" value below the chip; pin names and PSRAM marker inside body; net labels (ESP_EN, DC_RE, EPD_CS, EPD_DC, EPD_RST, EPD_BUSY, SPK_SCK, SPK_MOSI, BTN1_IN, BTN2_IN, BTN3_IN, TXD0, RXD0, IO17, IO18, USB_D-, USB_D+, DBG_UART_TX, DBG_UART_RX, UART_TX_3V3, UART_RX_3V3, USB_DM, USB_DP, GND) readable. Iter-53 PENDING converted to PASS. |
+| 06 | c6_isolated                     | **PASS** | Single 100nF cap; V3V3 / GND labels and "C6 / 1uF" inside body all read cleanly. Iter-53 PENDING converted to PASS. (Side note: value text is "1uF" — that matches the BOM; the §53 packet description "single 100 nF" was the iter-37 baseline that has since been changed to 1 µF in fix C; netlist + value are consistent.) |
+| 07 | ffc_j2_24pin_epd                | **PASS** | Fix A effective; J2 24-pin FFC pin names hidden, pin numbers + labels (GND, V3V3, EPD_BUSY, EPD_RST, EPD_DC, EPD_CS, SPK_SCK, SPK_MOSI) readable. Pins 11–24 X-marked (NC, by design). "J2" + "EPD_FFC_24" inside body — module convention. Pin 2 has no visible label (NC on the FFC pinout — design intent). Iter-53 PENDING converted to PASS. |
+| 08 | u2_rs485_transceiver            | **PASS*** | U2 (SN65HVD3082E) chip-interior clean (Fix B1 + C effective): pin names + "U2" refdes + "SN65HVD3082E" value all read cleanly; net labels (UART_RX_3V3, DE_RE, UART_TX_3V3, RS485_A, RS485_B, GND) clear. R3/R4 bias and C7 decoupling clean. R2/TVS2 (120 Ω + SMAJ12CA) small-SMD stack is §55 F3 baseline. Iter-53 PENDING converted to PASS*. |
+| 09 | left_edge_conns J3/J4           | **PASS** | Fix A effective; J3/UART-DBG and J4/USB-OTG pin names hidden, pin numbers + labels (DBG_UART_TX, DBG_UART_RX, GND, ESP_EN, USB_DP, USB_DM, V3V3) readable; "UART-DBG" / "USB-OTG" inside body — module convention. Iter-53 PENDING converted to PASS. |
+| 10 | lower_middle_button_zone        | **PASS** | **F4 effective on display BTN1/BTN2/BTN3.** Each BTNn_IN / GND net label arrow tip now 1 G clear of pin-number "1"/"2". Refdes/value (BTNn / BTNn) and inboard SW_Push pin names remain in canonical-library positions — symbol convention, not a violation. Bias resistors R5/R6/R7 (V3V3 / BTNn_IN) and decoupling caps C8/C9/C10 (V3V3 / GND) clean. Iter-53 PENDING converted to PASS. |
+
+### Tally
+
+- **13 PASS** (no D11 #0 issue at any level)
+- **10 PASS*** (passing on the §38/§53 target finding; minor
+  baseline residuals — pin-number label-arrow tails, accepted §55 F2/F3
+  small-component stacks — all explicitly scope-deferred per §55)
+- **0 FAIL**, **0 PARTIAL**, **0 PENDING**
+
+The two §53 FAIL regions (battery 04 Q1/Q2, battery 11 BTN1) are now
+PASS via F1/F4. The two §53 PARTIAL regions (battery 07 R10/TVS2,
+display 02 F1/TVS1) are documented baseline per §55. The five §53
+PENDING regions are now positively inspected: display 05, 06, 07, 08,
+09, 10 all PASS or PASS*.
+
+### Audit gates
+
+- `kicad-cli sch upgrade` battery_side: rc=0
+- `kicad-cli sch upgrade` display_side: rc=0
+- `kicad-cli sch erc` battery_side: 0 errors / 0 warnings
+- `kicad-cli sch erc` display_side: 0 errors / 0 warnings
+- `kicad-cli sch export pdf` battery_side: rc=0
+- `kicad-cli sch export pdf` display_side: rc=0
+- `kicad-cli sch export netlist` both: rc=0
+- PCB DRC unchanged (PCB file not modified this iter)
+- iter-57 has 23 PNG crops + 2 PDF snapshots SHA-256-manifested (25 entries)
+
+### Handing back
+
+State → `codex_turn`, iter 58. Codex: please open the 23 iter-57 PNGs
+at `hardware/reviews/visual_inspections/cp_schematic_cleanup/iter57/{battery,display}_side/`
+and the two snapshot PDFs at `iter57/snapshots/`, and confirm:
+
+1. F1: Q1.D/G/S + Q2.G/S labels (V24_SW, Q1_GATE, V24_FUSED, PWR_EN, GND)
+   no longer touch the chip-interior `D`/`G`/`S` pin-name text.
+2. F4: BTN_OVERRIDE arrow tip on battery BTN1 + BTNn_IN/GND arrow tips on
+   display BTN1/BTN2/BTN3 are visibly clear of the SW_Push pin-number
+   "1"/"2" glyphs.
+3. The remaining §55 F2/F3 baseline stacks (Conn_01x03 module value
+   text inside body; small SMD refdes/value on R10/TVS2/R11/R12/R2/R3/R4/F1/TVS1)
+   are the documented CP-baseline and not new findings.
+
+If all three confirm, this is the close-out re-pass and the next sign-off
+should be `REVIEW COMPLETE: APPROVED` for PR #5 squash-merge.
