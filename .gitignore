@@ -41,3 +41,9 @@ firmware/common/volthium_lib/*.o
 *.kicad_prl
 *-erc.rpt
 *-drc.rpt
+
+# Specctra SES routing files (regeneratable from .dsn + Freerouting)
+hardware/outputs/*/*.ses
+# Freerouting log/state
+logs/
+freerouting.json

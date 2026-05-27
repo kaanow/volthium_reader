@@ -27,6 +27,13 @@ REPO = Path(__file__).resolve().parents[2]
 PROJ_FP = REPO / "hardware/kicad/libraries/volthium.pretty"
 SMOKE = REPO / "hardware/kicad/_smoke"
 
+# Module-level flag set by main() — when True, build_battery_side() /
+# build_display_side() run the Freerouting pipeline at the end. Default
+# False so a plain `python build_pcbs.py --battery` regenerates the
+# placement-only board (fast) without spending several minutes on
+# routing. Pass `--autoroute` to enable.
+AUTOROUTE = False
+
 # Host KiCad footprint roots, tried in order. Only used when
 # --rebuild-footprints is passed.
 HOST_FP_ROOTS = [
@@ -595,6 +602,103 @@ def _fill_zones(pcb_path: Path) -> None:
         print(f"  fill_zones: ok")
 
 
+def _autoroute(pcb_path: Path, board_name: str, *, freerouting_jar: Path = None,
+               java_bin: str = None, timeout_s: int = 900) -> bool:
+    """Export DSN → run Freerouting → import SES → fill zones → save.
+
+    Reproducible routing pipeline. Returns True on success, False otherwise.
+
+    The build host needs:
+    - KiCad 10 (for pcbnew.ExportSpecctraDSN / ImportSpecctraSES)
+    - OpenJDK 21+ (Freerouting v1.9.0 was built with JDK 17 but runs on 21)
+    - Freerouting v1.9.0 JAR at hardware/tools/freerouting-1.9.0.jar
+      (NOT v2.x — v2 hangs on save after multi-threaded optimization,
+      reproducibly. v1.9.0's single-threaded optimizer exits cleanly.)
+
+    Skipped quietly if any dependency is missing — the function returns
+    False and the caller proceeds with an unrouted .kicad_pcb.
+    """
+    import subprocess
+
+    if freerouting_jar is None:
+        freerouting_jar = REPO / "hardware/tools/freerouting-1.9.0.jar"
+    if java_bin is None:
+        java_bin = "/opt/homebrew/opt/openjdk@21/bin/java"
+
+    kicad_py = (
+        "/Applications/KiCad/KiCad.app/Contents/Frameworks/"
+        "Python.framework/Versions/3.9/bin/python3.9"
+    )
+
+    if not Path(kicad_py).exists():
+        print(f"  autoroute: skipped (kicad python not found)")
+        return False
+    if not freerouting_jar.exists():
+        print(f"  autoroute: skipped (freerouting jar not at {freerouting_jar})")
+        return False
+    if not Path(java_bin).exists():
+        print(f"  autoroute: skipped (java not at {java_bin})")
+        return False
+
+    outputs_dir = REPO / "hardware/outputs" / board_name
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+    dsn_path = outputs_dir / f"{board_name}.dsn"
+    ses_path = outputs_dir / f"{board_name}.ses"
+
+    # 1. Export DSN via pcbnew Python.
+    script = (
+        "import wx; wx.App(); import pcbnew; "
+        f"b = pcbnew.LoadBoard({str(pcb_path)!r}); "
+        f"pcbnew.ExportSpecctraDSN(b, {str(dsn_path)!r})"
+    )
+    result = subprocess.run([kicad_py, "-c", script], capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"  autoroute: DSN export FAIL: {result.stderr[-300:]}")
+        return False
+    if not dsn_path.exists():
+        print(f"  autoroute: DSN export produced no file")
+        return False
+    print(f"  autoroute: DSN exported ({dsn_path.stat().st_size} bytes)")
+
+    # 2. Run Freerouting v1.9.0. Stdin redirected from /dev/null so the
+    # process doesn't block waiting for keyboard input; v1.9.0 saves the
+    # SES file and exits naturally on its own.
+    if ses_path.exists():
+        ses_path.unlink()
+    print(f"  autoroute: running Freerouting (up to {timeout_s}s)...")
+    try:
+        result = subprocess.run(
+            [java_bin, "-jar", str(freerouting_jar),
+             "-de", str(dsn_path), "-do", str(ses_path)],
+            stdin=subprocess.DEVNULL,
+            capture_output=True, text=True,
+            timeout=timeout_s,
+        )
+    except subprocess.TimeoutExpired:
+        print(f"  autoroute: TIMEOUT after {timeout_s}s")
+        return False
+    if not ses_path.exists():
+        print(f"  autoroute: SES not produced; freerouting stderr tail:\n{result.stderr[-500:]}")
+        return False
+    print(f"  autoroute: SES produced ({ses_path.stat().st_size} bytes)")
+
+    # 3. Import SES + fill zones + save via pcbnew Python.
+    script = (
+        "import wx; wx.App(); import pcbnew; "
+        f"b = pcbnew.LoadBoard({str(pcb_path)!r}); "
+        f"ok = pcbnew.ImportSpecctraSES(b, {str(ses_path)!r}); "
+        "print(f'ImportSpecctraSES={ok} tracks=' + str(len(list(b.GetTracks())))); "
+        "pcbnew.ZONE_FILLER(b).Fill(b.Zones()); "
+        f"pcbnew.SaveBoard({str(pcb_path)!r}, b)"
+    )
+    result = subprocess.run([kicad_py, "-c", script], capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"  autoroute: SES import FAIL: {result.stderr[-300:]}")
+        return False
+    print(f"  autoroute: SES import ok ({result.stdout.strip().splitlines()[-1] if result.stdout.strip() else 'no msg'})")
+    return True
+
+
 def resolve_footprint_optional(fp_name: str):
     """Like resolve_footprint but returns None instead of raising."""
     p = PROJ_FP / f"{fp_name}.kicad_mod"
@@ -844,6 +948,8 @@ def build_display_side() -> None:
     print(f"  nets: {len(b.nets)}")
     print(f"  zones: {len(b.zones or [])}")
     _fill_zones(out)
+    if AUTOROUTE:
+        _autoroute(out, "display_side")
 
 
 def build_battery_side() -> None:
@@ -885,6 +991,8 @@ def build_battery_side() -> None:
     print(f"  nets: {len(b.nets)}")
     print(f"  zones: {len(b.zones or [])}")
     _fill_zones(out)
+    if AUTOROUTE:
+        _autoroute(out, "battery_side")
 
 
 def main() -> int:
@@ -915,7 +1023,17 @@ def main() -> int:
         action="store_true",
         help="Build all PCBs (smoke + battery + display).",
     )
+    ap.add_argument(
+        "--autoroute",
+        action="store_true",
+        help="After building each board, export DSN, run Freerouting v1.9.0, "
+        "import SES, fill zones. Adds several minutes per board. Requires "
+        "hardware/tools/freerouting-1.9.0.jar and OpenJDK 21+.",
+    )
     args = ap.parse_args()
+
+    global AUTOROUTE
+    AUTOROUTE = args.autoroute
 
     if args.rebuild_footprints:
         rebuild_footprint_cache()
