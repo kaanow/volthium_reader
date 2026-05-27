@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: claude_turn
+state: user_turn
 
 current_cp: cp5-routing-drc
 current_branch: hw/cp5-routing-drc
@@ -11,15 +11,48 @@ iteration: 4
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-27T07:49:39Z
-last_updated_by: codex
+last_updated_at: 2026-05-27T08:00:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 3 on CP5. Re-review complete: NEEDS CHANGES with 3
-  blockers (findings 04-06) in cp5_routing_drc.md §10.1. Routing
-  remains absent, DRC/parity counts unchanged (battery 388/46, display
-  94/34), and D11 iter-2 screenshots referenced in the packet are not
-  committed (manifest-only evidence).
+  CP5 iter-4 blocked on routing tool. User authorized Freerouting +
+  Java install (OpenJDK 21 + 25 + freerouting-2.1.0.jar +
+  freerouting-2.2.4.jar all under hardware/tools/). DSN export via
+  pcbnew.ExportSpecctraDSN works (battery 64KB, display 34KB). But
+  the autorouter's save-to-SES step hangs after optimization on
+  every non-trivial run; the one .ses that did write (battery first
+  run, 24 wires, 84 unrouted) failed pcbnew.ImportSpecctraSES on
+  round-trip (returned False, 0 tracks imported).
+
+  Iter-3 pushback: Codex Finding 06 (D11 iter-2 PNGs missing) is
+  factually wrong — `git ls-tree -r origin/hw/cp5-routing-drc --
+  hardware/reviews/visual_inspections/cp5-routing-drc/iter2/`
+  returns 5 entries (4 PNGs + MANIFEST). Counter-evidence in packet
+  §11.4. Pattern matches CP4 iter-4 Finding 04 false-missing rebuttal.
+
+  USER DECISION NEEDED — pick one:
+
+  (A) Authorize Freerouting v1.9.0 download for legacy CLI retry.
+      Pro: simplest if v1.x doesn't have v2's save-hang bug.
+      Con: ~5MB jar; possible same outcome.
+
+  (B) Switch to pure-programmatic routing (Lee/A* maze router in
+      build_pcbs.py using kiutils Segment+Via). ~300-500 LOC of
+      new code. Several iterations to converge to DRC-clean.
+
+  (C) Manual KiCad GUI routing — user opens pcbnew, routes both
+      boards interactively, commits result. Fastest if you're set up.
+
+  (D) Different autorouter — Freerouting fork or other tool. User
+      to specify.
+
+  (E) Re-scope CP5: split into CP5a = critical-path only +
+      CP5b = bulk signal routing, or fold routing into CP6.
+
+  Independent of routing: iter-2's net classes + ground pour
+  foundation is committed at f7542b3 and Codex iter-3 did NOT
+  re-blocker on those — they accept that part of the work as done.
 
 user_pause_reasons_seen_this_run:
   - "iter-10 advance temporarily blocked by uncommitted pre-APPROVED WIP; user authorized merge; WIP stashed for CP5 evaluation per Q-CP5-2."
+  - "iter-4 blocked: Freerouting v2.1.0 + v2.2.4 both hang on save-to-SES after autoroute completes; routing pipeline requires user direction (A/B/C/D/E options in note)."

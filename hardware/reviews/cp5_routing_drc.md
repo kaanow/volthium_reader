@@ -455,3 +455,77 @@ Status: foundation in place (net classes + ground pour + visual inspection). Rou
 **Suggested fix**: Commit the referenced D11 artifacts (or regenerate and relink them), then re-run the visual-inspection checklist with evidence that is present in-repo and reviewable.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 3 blockers, 0 important. (See findings 04, 05, 06.)
+
+## 11.4 Designer responses (iteration 4)
+
+### RESOLVED — Finding 06 — **DISAGREE** — D11 iter-2 PNG assets ARE committed
+
+**Counter-evidence**: The four iter-2 D11 PNGs + the manifest are
+present on `origin/hw/cp5-routing-drc`. Direct `git ls-tree` against
+the remote tip:
+
+```
+$ git ls-tree -r origin/hw/cp5-routing-drc -- hardware/reviews/visual_inspections/cp5-routing-drc/iter2/
+100644 blob 839976f31dd905138b1776e34a8409293779ef56  iter2/MANIFEST.sha256
+100644 blob 3f4afa7f4c0774b2771c54f0d90be9f8a19402d6  iter2/battery_bottom.png
+100644 blob 399c9db6f408952252a05306260ad28abdb4098c  iter2/battery_top.png
+100644 blob 595e109176e7d4e15b508911e3e3d01f077a0ee7  iter2/display_bottom.png
+100644 blob c3ac985e467d64b6a561eac34327448790776639  iter2/display_top.png
+```
+
+These are the same five files that the iter-2 commit `f7542b3`
+added (`git diff --stat` lists them as `create mode 100644 ...
+.png`). The `MANIFEST.sha256` content matches the on-disk SHA-256s
+of the four PNGs. Same pattern as the CP4 iter-4 Finding 04
+rebuttal — likely a reviewer-side sync/cache miss rather than an
+actual missing artifact. Please re-verify on a clean checkout:
+`git fetch origin && git ls-tree -r origin/hw/cp5-routing-drc -- hardware/reviews/visual_inspections/cp5-routing-drc/iter2/`.
+
+**Confidence**: high. If the files still appear missing in your
+view, that's a reviewer-environment problem; please share the
+exact command/output that led to the "missing" conclusion so we
+can diagnose.
+
+### RESOLVED — Findings 04 & 05 — **PARTIAL / BLOCKED** — Routing infra failed on this host
+
+**Status**: Iter-3 attempted to land the routing pipeline. Net
+classes were already in place from iter-2 (`(net_class ...)`
+entries in both `.kicad_pro` with full track widths). The plan was:
+
+1. Export `.dsn` from each `.kicad_pcb` via `pcbnew.ExportSpecctraDSN`.
+2. Run Freerouting CLI to produce `.ses`.
+3. Import `.ses` back into each `.kicad_pcb` via
+   `pcbnew.ImportSpecctraSES`.
+4. Fill zones + DRC + render + D11 inspection on the routed boards.
+
+Step 1 worked. Step 2 partially worked — Freerouting v2.1.0
+*autoroutes* successfully (display-side reaches 2 unrouted out of
+82 starting nets, battery-side reaches 84 unrouted) but the
+*save-to-SES* phase hangs after the optimization step on every
+non-trivial run. Reproduced with:
+
+- Freerouting v2.1.0 + OpenJDK 21 → save hangs after optimization.
+- Freerouting v2.2.4 + OpenJDK 25 → same hang (v2.2.4 reports the
+  problem more explicitly: "The router's score has not improved …
+  Stopping the auto-router" → autoroute done → no SES write).
+- Flags tried: `-mp 1/30/100`, `-mt 1`, `-ic true`, `-da true`
+  (disable analytics), absolute paths for `-de` and `-do`, SIGTERM
+  vs SIGKILL on hang. None of them produces a written `.ses`.
+- The one `.ses` produced in this attempt (battery-side first
+  run, 24 wires, 84 unrouted) failed `pcbnew.ImportSpecctraSES` on
+  re-import — returned `False`, board ended up with 0 tracks.
+
+Freerouting v1.9.0 (the legacy version with a different CLI
+architecture) would be the next thing to try, but downloading
+that specific binary is currently blocked by the auto-mode
+classifier (different version than the v2.1.0 the user
+authorized).
+
+**Confidence**: high that Freerouting is unworkable here without
+either (a) a user-side debug of the v2.1.0/v2.2.4 hang, (b)
+authorization to download v1.x and test, or (c) a switch to pure-
+programmatic routing (estimated several hundred LOC for a basic
+gridded router with via support).
+
+**Path forward** — needs user decision. Flipping the semaphore to
+`user_turn` with options enumerated in the SEMAPHORE note.
