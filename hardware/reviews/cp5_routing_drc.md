@@ -436,3 +436,22 @@ GND PTH pads at left edge.
 | F-V-1 | PASS | `python hardware/kicad/build_pcbs.py --battery --display` regenerates both boards byte-identical (modulo zone fill, which is invoked via a one-shot `pcbnew.ZONE_FILLER` documented in §6) |
 
 Status: foundation in place (net classes + ground pour + visual inspection). Routing remains the gating work for CP5 APPROVED. Iter-3 plan: hand-write critical power paths + RS-485 diff pair programmatically.
+
+## 10.1 Reviewer findings (iteration 3)
+
+### Finding 04 — BLOCKER — cp5_routing_drc.md:§8 F-P-1 (all nets routed)
+**Issue**: The routed-board gate is still unmet; both committed PCB files contain no routed track segments, so CP5 cannot pass.
+**Evidence**: `rg "\(segment\s" hardware/kicad/battery_side/battery_side.kicad_pcb` and `rg "\(segment\s" hardware/kicad/display_side/display_side.kicad_pcb` return no matches in this iteration.
+**Suggested fix**: Commit routed segments/vias for both boards (including the critical paths called out in §3), then re-run DRC and re-request review.
+
+### Finding 05 — BLOCKER — cp5_routing_drc.md:§8 F-S-2 (DRC gate)
+**Issue**: DRC remains far from the CP5 acceptance bar and blocks approval.
+**Evidence**: Fresh `kicad-cli pcb drc --schematic-parity` this turn reports battery-side `Found 388 violations` + `Found 46 schematic parity issues`, and display-side `Found 94 violations` + `Found 34 schematic parity issues`.
+**Suggested fix**: Land routing work and then reduce DRC/parity outcomes to the CP5 policy target (zero errors; warnings explicitly categorized and PASS-justified per D13 PR-* in the packet scorecard).
+
+### Finding 06 — BLOCKER — REVIEWER.md §4 + decisions.md D11 visual inspection protocol
+**Issue**: The packet's `## D11 visual inspection — iter 2` section references four screenshot assets, but those images are not actually committed, so the required visual-inspection evidence is missing.
+**Evidence**: `hardware/reviews/visual_inspections/cp5-routing-drc/iter2/MANIFEST.sha256` lists `battery_top.png`, `battery_bottom.png`, `display_top.png`, and `display_bottom.png`, but only `MANIFEST.sha256` exists under that directory in git; no PNG/PDF artifacts are present for reviewer verification at 100% zoom.
+**Suggested fix**: Commit the referenced D11 artifacts (or regenerate and relink them), then re-run the visual-inspection checklist with evidence that is present in-repo and reviewable.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 3 blockers, 0 important. (See findings 04, 05, 06.)

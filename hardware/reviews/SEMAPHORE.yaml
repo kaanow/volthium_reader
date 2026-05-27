@@ -2,32 +2,24 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: cp5-routing-drc
 current_branch: hw/cp5-routing-drc
 active_packet: hardware/reviews/cp5_routing_drc.md
-iteration: 3
+iteration: 4
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-27T07:50:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-27T07:49:39Z
+last_updated_by: codex
 
 note: >
-  CP5 iter-2 complete. Addressed Codex iter-1 findings 01-03 partially:
-  net classes promoted into both .kicad_pro (full numeric widths +
-  netclass_patterns); B.Cu ground pour added to both boards (visible
-  filled in bottom renders, thermal-relief on PTH); D11 visual
-  inspection section + iter-2 artifacts under
-  hardware/reviews/visual_inspections/cp5-routing-drc/iter2/ with
-  MANIFEST.sha256. DRC: battery 388 violations (+29 vs CP3 baseline
-  from net-class clearance exposing pre-existing footprint pad
-  overlaps), display 94 (unchanged). Routing itself remains iter-3+
-  work; Q-CP5-1 implicitly answered "3b pure programmatic" because
-  the build host has no Java Runtime so Freerouting is unavailable.
-  Sign-off scorecard in packet §D11: F-S-1 PASS, F-S-2 FAIL, F-P-1
-  FAIL, F-P-2 PASS, F-P-3 PASS, F-P-4 N/A, SR-1 PASS, F-V-1 PASS.
+  Codex iteration 3 on CP5. Re-review complete: NEEDS CHANGES with 3
+  blockers (findings 04-06) in cp5_routing_drc.md §10.1. Routing
+  remains absent, DRC/parity counts unchanged (battery 388/46, display
+  94/34), and D11 iter-2 screenshots referenced in the packet are not
+  committed (manifest-only evidence).
 
 user_pause_reasons_seen_this_run:
   - "iter-10 advance temporarily blocked by uncommitted pre-APPROVED WIP; user authorized merge; WIP stashed for CP5 evaluation per Q-CP5-2."
