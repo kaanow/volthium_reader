@@ -386,6 +386,63 @@ def _add_edge_cuts(b, w, h):
     ])
 
 
+_F_TO_B_LAYER = {
+    "F.Cu": "B.Cu", "F.Mask": "B.Mask", "F.Paste": "B.Paste",
+    "F.SilkS": "B.SilkS", "F.Fab": "B.Fab", "F.Adhes": "B.Adhes",
+    "F.CrtYd": "B.CrtYd",
+}
+
+
+def _flip_layer(layer_name: str) -> str:
+    """Return the back-side equivalent for a front-side layer name; same name
+    for other layers (Edge.Cuts, etc.)."""
+    return _F_TO_B_LAYER.get(layer_name, layer_name)
+
+
+def _flip_footprint_to_back(fp) -> None:
+    """In-place: swap every F.* layer reference inside a footprint to B.*,
+    and set `mirror` on any text being moved to a B.* layer so it reads
+    correctly when viewed from the back.
+
+    KiCad's "flip footprint" GUI command does all of this. kiutils'
+    Footprint.layer setter only changes the footprint's own layer
+    property and does NOT cascade into pads, graphics, or properties —
+    so a B.Cu-placed footprint loaded by kiutils ends up with F.Cu pads
+    and F.SilkS refdes (not mirrored), breaking the layer assignment we
+    intended and tripping DRC `nonmirrored_text_on_back_layer`.
+    """
+    from kiutils.items.common import Justify, Effects
+    # Pads
+    for pad in (fp.pads or []):
+        pad.layers = [_flip_layer(l) for l in (pad.layers or [])]
+    # All graphic items (FpText, FpLine, FpCircle, FpArc, FpPoly, etc.)
+    for gi in (fp.graphicItems or []):
+        if hasattr(gi, "layer") and gi.layer:
+            new_layer = _flip_layer(gi.layer)
+            # Mirror text that moved to a back layer.
+            if (new_layer.startswith("B.") and gi.layer.startswith("F.")
+                    and hasattr(gi, "effects") and gi.effects is not None):
+                if gi.effects.justify is None:
+                    gi.effects.justify = Justify(mirror=True)
+                else:
+                    gi.effects.justify.mirror = True
+            gi.layer = new_layer
+    # Properties (Reference, Value, Datasheet, Description, …) — these
+    # also carry a (layer …) field that controls where the corresponding
+    # silk/Fab text actually shows up on the manufactured board.
+    # kiutils 1.4+ stores them in fp.properties as a list of Property
+    # dataclasses with `.layer`; older or newer versions may store as a
+    # dict-of-strings (value only, no layer). Guard against both.
+    try:
+        props = fp.properties
+        if isinstance(props, list):
+            for p in props:
+                if hasattr(p, "layer") and p.layer:
+                    p.layer = _flip_layer(p.layer)
+    except AttributeError:
+        pass
+
+
 def _place_footprint(b, ref, comp_meta, placement, nets_by_name, refdes_offset=None):
     """Load a footprint from cache, set instance properties, tie pads to nets.
 
@@ -410,6 +467,19 @@ def _place_footprint(b, ref, comp_meta, placement, nets_by_name, refdes_offset=N
     x, y, rot, layer = placement
     fp.position = Position(X=x, Y=y, angle=rot)
     fp.layer = layer
+
+    # When placing on B.Cu, kiutils-loaded footprints retain F.* layer
+    # references for pads and silk — setting fp.layer alone does NOT
+    # flip them. KiCad's GUI "flip footprint" operation swaps every
+    # F.* layer to B.* (and vice versa) on the footprint's children.
+    # CP3 generated boards without this flip, silently leaving "B.Cu"
+    # passives physically on F.Cu — visible as DRC `shorting_items`
+    # errors where pads of B.Cu-intended caps/resistors overlap MOD1
+    # ESP32 pads on F.Cu. CP5 iter-6 fixes that here for any future
+    # regeneration; the already-committed `.kicad_pcb` files were
+    # similarly mis-flipped at CP3 and would need rebuild to repair.
+    if layer == "B.Cu":
+        _flip_footprint_to_back(fp)
 
     # KiCad 10 stores Reference/Value as footprint properties; silkscreen
     # text references them via ${REFERENCE} / ${VALUE} substitution.
@@ -519,7 +589,14 @@ def _add_ground_zone(b, w, h, gnd_net_code: int, layer: str = "B.Cu",
             yes=True,
             thermalGap=0.5,
             thermalBridgeWidth=0.5,
-            islandRemovalMode=1,
+            # mode 2 = "remove islands smaller than islandAreaMin (mm²)".
+            # 10 mm² strips the dozens of tiny pour fragments that
+            # autorouting creates without removing legitimate
+            # functional ground islands (the smallest legitimate
+            # island around a routed via is well under 10 mm²; this
+            # value is calibrated for the autorouted boards' fragment
+            # distribution and may need tuning if routing changes).
+            islandRemovalMode=2,
             islandAreaMin=10,
         ),
         polygons=[ZonePolygon(coordinates=[

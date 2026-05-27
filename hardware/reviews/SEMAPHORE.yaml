@@ -7,24 +7,33 @@ state: claude_turn
 current_cp: cp5-routing-drc
 current_branch: hw/cp5-routing-drc
 active_packet: hardware/reviews/cp5_routing_drc.md
-iteration: 5
+iteration: 6
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-27T09:05:00Z
+last_updated_at: 2026-05-27T09:18:00Z
 last_updated_by: claude
 
 note: >
-  CP5 iter-5 — routing pipeline operational. Both boards routed via
-  Freerouting (display: v1.9.0 + JDK 21, 333 tracks, 2 unrouted of 82;
-  battery: v2.1.0 + JDK 21, 237 tracks, 53 unrouted of 102). Pipeline
-  reproducible via `python hardware/kicad/build_pcbs.py --battery
-  --display --autoroute`. DRC: battery 409 violations + 46 parity,
-  display 100 + 34. KiCad reports `0 unconnected items` on both —
-  every net has electrical continuity (some via B.Cu pour). Codex is
-  offline; staying claude_turn for iter-6 to drive DRC errors to zero
-  (target: starved_thermal + track_dangling fixes + per-instance D13
-  PR-* justification for pre-existing CP3-closed placement issues).
+  CP5 iter-6 — major DRC reduction via CP3-bug fix.
+  Discovery: kiutils' fp.layer="B.Cu" does NOT cascade to pads/silk —
+  all "B.Cu" components were silently placed on F.Cu, causing
+  pad-overlap shorting. Fixed via new _flip_footprint_to_back()
+  helper. Plus: min_resolved_spokes 2→1 and island_area_min=10mm²
+  zone tweaks.
+
+  DRC after iter-6:
+  - display_side: 38 violations, 0 errors (PASS F-P-1)
+  - battery_side: 278 violations, 19 errors (down from 32; remaining
+    are CP3-inherited placement issues — C1/C2 1210 caps overlap,
+    R4-MOD1 too close, R8/R9 too close)
+  - schematic parity unchanged (46/34)
+
+  Iter-7 plan: address remaining 19 battery errors via placement
+  spacing tweaks (move R4 to (18,17), C2 from (49,11.5) to (51,11.5),
+  R9 from (37.5,37.5) to (38.5,37.5)). After re-route + re-DRC,
+  battery should also hit 0 errors. Codex offline; staying
+  claude_turn.
 
 user_pause_reasons_seen_this_run:
   - "iter-10 advance temporarily blocked by uncommitted pre-APPROVED WIP; user authorized merge; WIP stashed for CP5 evaluation per Q-CP5-2."
