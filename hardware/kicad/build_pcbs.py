@@ -355,13 +355,14 @@ BATTERY_PLACEMENT = {
     # extends ±11.5mm in y (footprint draws the cell outline on the
     # board edge layer). Anchor at (17, 28) keeps Edge.Cuts y range
     # 16.5-39.5, inside the 40mm board.
-    # BAT1 — anchor at (17, 28). Iter-7 attempted to move it left to
-    # clear MOD1 bottom-row NC pads 23-25 (clearance error, harmless
-    # because those MOD1 pads have no schematic net) but any anchor
-    # below x=15 pushes BAT1's Edge.Cuts cell-cutout off the left board
-    # edge ("invalid_outline" error). Accept the 3 BAT1-MOD1 NC-pin
-    # clearance errors as per-instance D13 PR-* warnings — they are
-    # geometric proximity to floating MOD1 pads, not functional shorts.
+    # BAT1 at (17, 28) — CP3 APPROVED position. Iter-9 experimented
+    # with (15.5, 28) but BAT1's battery-clip pad is wide enough
+    # (~3-3.5 mm) to span across MOD1 bottom-row pads at any anchor
+    # position in this neighborhood. The 3 NC-pin clearance "errors"
+    # remain inherent to the BAT1-vs-MOD1 placement choice; documented
+    # per D13 PR-* in §11.8/§11.9 as functionally inert (NC pins on
+    # MOD1 have no schematic net, so geometric proximity to GND is not
+    # an electrical short).
     "BAT1":  (17.0,  28.0,    0,   "F.Cu"),
     # I2C pullups + RTC bypass — on B.Cu near RTC1 to save F.Cu space.
     "R8":    (35.0,  37.5,    0,   "B.Cu"),   # SCL pullup
