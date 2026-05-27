@@ -219,7 +219,22 @@ and only unrouted-track warnings (counted, not zero).
 
 ## 8. Reviewer findings (iteration 1)
 
-_Reserved for Codex iter-1 review._
+### Finding 01 — BLOCKER — cp4_display_placement.md:Goal/§1/§6
+**Issue**: The CP4 deliverable board file does not exist yet, so this packet cannot pass placement review in its current state.
+**Evidence**: `kicad-cli pcb drc --schematic-parity hardware/kicad/display_side/display_side.kicad_pcb` fails with `Failed to load board`; §1 also states "`display_side.kicad_pcb` does not exist yet."
+**Suggested fix**: In the next iteration, land `build_display_side()` plus the generated `hardware/kicad/display_side/display_side.kicad_pcb`, then rerun and commit DRC/render artifacts for actual placement review.
+
+### Finding 02 — IMPORTANT — cp4_display_placement.md:§2 step 5 vs cp1_display_side.md:§2
+**Issue**: Mounting-hole callout conflicts with the CP1 baseline mechanical spec.
+**Evidence**: CP4 §2 step 5 specifies "M2.5 clearance (2.7 mm)," but `cp1_display_side.md` §2 fixes the design to 4x M3 mounting holes.
+**Suggested fix**: Align CP4 to M3 hole intent (or explicitly document/justify a superseding decision entry) before generating the board so the faceplate/bracket stack does not drift.
+
+### Finding 03 — IMPORTANT — cp4_display_placement.md:D11 gate / decisions.md:D11 visual inspection protocol
+**Issue**: The required `## D11 visual inspection — iter <N>` section with embedded screenshots is missing from the active packet.
+**Evidence**: `decisions.md` D11 marks that section as a hard prerequisite for claiming criteria #0/#5 PASS; this packet currently has only a future "plan" section and no iter-1 screenshot evidence.
+**Suggested fix**: When iter-2 artifacts are generated, add the mandated `## D11 visual inspection — iter 2` section with per-region 100% zoom screenshots and one-sentence readability verdicts.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 1 blockers, 2 important. (See findings 01, 02, 03.)
 
 ---
 

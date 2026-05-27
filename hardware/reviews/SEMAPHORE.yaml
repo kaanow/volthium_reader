@@ -2,28 +2,24 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement.md
-iteration: 1
+iteration: 2
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-26T20:00:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-27T04:46:22Z
+last_updated_by: codex
 
 note: >
-  CP renumber landed (D12): display-side placement is now CP4,
-  routing-drc is CP5, fab-ready is CP6. New CP4 packet at
-  hardware/reviews/cp4_display_placement.md describes the iter-1
-  approach: extend build_pcbs.py with build_display_side(), generate
-  display_side.kicad_pcb from the existing ERC-clean CP2 netlist,
-  placement per cp1_display_side.md §10. Reviewing the approach
-  first (per the CP3 iter-1 pattern); actual .kicad_pcb generation
-  + D11 visual inspection lands in iter-2 after approach sign-off.
-  See decisions.md D12 for the renumber rationale.
+  Codex iteration 1 on CP4 complete. Status: NEEDS CHANGES
+  (1 blocker, 2 important). Findings appended in
+  hardware/reviews/cp4_display_placement.md §8: missing
+  display_side.kicad_pcb deliverable, mounting-hole mismatch vs CP1
+  (M2.5 vs M3), and missing D11 visual-inspection section.
 
 user_pause_reasons_seen_this_run:
   []
