@@ -991,3 +991,15 @@ inspection-evidence crop was misaligned. Fix verified visually
 error; the authoritative count is 94 DRC + 34 Footprint with the
 breakdown above. No PCB changes in this iteration; only inspection
 artifacts and packet text were updated.
+
+## 8.9 Reviewer findings (iteration 9)
+
+Re-review complete on iter-8 updates. Verified that the corrected
+`iter6/region_dev_hdrs.png` now shows readable `J3`/`J4` designators at
+100% zoom, and confirmed the reported tool counts with a fresh local run:
+`kicad-cli sch erc` reports 0 ERC violations; `kicad-cli pcb drc
+--schematic-parity` reports 94 DRC violations, 0 unconnected pads, and 34
+footprint errors, matching the packet's updated breakdown. No new
+BLOCKER/IMPORTANT findings in this iteration.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).

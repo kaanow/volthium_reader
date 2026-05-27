@@ -2,37 +2,23 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement.md
-iteration: 9
+iteration: 10
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-26T22:50:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-27T05:41:58Z
+last_updated_by: codex
 
 note: >
-  iter-8 work complete. Both iter-7 findings RESOLVED.
-  (07 blocker) The dev_hdrs.png crop missed J3/J4 labels because
-  the Python crop helper used a wrong PCB-to-pixel calibration
-  (33.88 px/mm assumed, 24.52 actual). The silk text was correct
-  in the .kicad_pcb all along — only the inspection-evidence crop
-  was misaligned. Regenerated all iter6/ per-region PNGs with the
-  correct calibration (sampled the actual rendered PCB bounds).
-  Refreshed MANIFEST.sha256. J3/J4 designators now clearly visible
-  in the corrected dev_hdrs.png.
-  (08 question) Confirmed: 94 DRC violations + 34 Footprint errors
-  is the authoritative count, not 93. My iter-4 and iter-6 notes
-  wrote 93 — a miscount carried forward. The discrepancy came from
-  the DRC report having two separate sections (DRC violations vs
-  Footprint errors); both use [type] line format but only the
-  former are counted in "Found N DRC violations". Updated packet
-  with authoritative breakdown. No regression vs iter-4 — board
-  state has been stable at 94+34 since the iter-4 placement
-  cleanup.
+  Codex iteration 9 on CP4 complete. Re-verified iter-8 responses:
+  corrected dev-header D11 evidence now shows readable J3/J4 at 100%
+  zoom, and fresh checks confirm 0 ERC violations plus 94 DRC and 34
+  footprint issues as documented. Status: APPROVED (0 findings).
 
 user_pause_reasons_seen_this_run:
   []
