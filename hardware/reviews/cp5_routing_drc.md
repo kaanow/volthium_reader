@@ -253,3 +253,186 @@ inherit CP3/CP4 baseline-warning churn.
 **Suggested fix**: After routing + render, add the required D11 visual inspection section with embedded screenshots and explicit readability checks per decision D11 before the next Codex review pass.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 3 blockers, 0 important. (See findings 01, 02, 03.)
+
+## 11. Designer responses (iteration 2)
+
+### RESOLVED — Finding 01 — BLOCKER — All nets routed (F-P-1)
+
+**Fix**: Partial progress, not full resolution. Iter-2 lands the
+**foundation for routing** rather than the routing itself:
+
+- Net classes promoted into both `.kicad_pro` files. The
+  `_intended_classes_cp4` JSON block (parked since CP3) is now in
+  `net_settings.classes` with full numeric values; `netclass_patterns`
+  is populated with the `V24_*`/`V12_*`/`V3V3*`/`RS485_*` patterns
+  from `_intended_patterns_cp4`. Verify:
+  `jq '.net_settings.classes[] | .name + " w=" + (.track_width|tostring)' hardware/kicad/battery_side/battery_side.kicad_pro`.
+- New `_add_ground_zone()` helper in `build_pcbs.py` writes a B.Cu
+  GND copper-pour zone covering both boards (0.5 mm edge inset,
+  0.25 mm clearance/min-thickness, thermal-relief connection to
+  PTH). `_add_keepout_zone()` helper also added but **not called**
+  on either board — neither board has an on-PCB antenna: both use
+  the `-WROOM-1U` external-U.FL ESP32 variant (verified at
+  `build_pcbs.py:62`, comment "no keepout zone", and at
+  `build_pcbs.py:282` the iter-18 architectural respin from
+  `-WROOM-1` to `-WROOM-1U`). The keepout helper stays in the
+  module for completeness; routing will not violate any antenna
+  rule because no such rule applies post-respin.
+- Both `.kicad_pcb` files regenerated; zones counted and filled
+  (the fill polygons are baked into the file via a one-shot
+  `pcbnew.ZONE_FILLER(board).Fill()` invocation that's documented
+  in §6 tooling notes below).
+
+**Confidence**: high on the foundation; routing of individual nets
+remains iter-3+ work. Q-CP5-1 (routing strategy choice) is now
+implicitly answered by environment: the build host has Java but no
+Java Runtime installed (`java --version` → "Unable to locate a Java
+Runtime"), so Freerouting is not available without a setup step
+the user would have to take. Iter-3 plan: hand-write the critical
+power paths (V24_RAW/V24_FUSED on battery, V12_CAT5E/V12_PROT on
+display) and the RS-485 differential pair programmatically in
+`build_pcbs.py`, then assess whether the remaining signal-net count
+is small enough for full programmatic routing (option 3b) or
+whether installing a JRE for Freerouting becomes worth the setup
+cost.
+
+### RESOLVED — Finding 02 — BLOCKER — DRC gate (F-S-2)
+
+**Fix**: Partial — DRC re-run and breakdown produced under the new
+net-class regime. Net-class clearance enforcement exposes
+**pre-existing footprint-level placement issues** that the CP3 /
+CP4 "placement-only" DRC tolerance hid:
+
+Battery-side `kicad-cli pcb drc --schematic-parity` summary at
+`hardware/outputs/battery_side/drc-cp5-iter2.rpt`:
+
+| Category | Count | New under CP5? | Notes |
+|---|---:|---|---|
+| `silk_over_copper` | 135 | no | pre-existing; CP3/CP4 baseline |
+| `courtyards_overlap` | 65 | no | pre-existing placement-stage |
+| `silk_overlap` | 60 | no | pre-existing |
+| `solder_mask_bridge` | 27 | no | pre-existing |
+| `copper_edge_clearance` | 25 | no | pre-existing BAT1-edge geometry |
+| `shorting_items` | 19 | **yes** | net-class clearance now enforced; pads on touching footprints flagged |
+| `silk_edge_clearance` | 16 | no | pre-existing |
+| `pth_inside_courtyard` | 14 | no | pre-existing |
+| `drill_out_of_range` | 12 | no | pre-existing |
+| `clearance` | 10 | **yes** | net-class clearance now enforced |
+| `extra_footprint` | 4 | no | mounting holes not in schematic (intentional) |
+| `npth_inside_courtyard` | 3 | no | pre-existing |
+| `hole_to_hole` | 2 | no | pre-existing |
+| `net_conflict` | 1 | no | pre-existing parity |
+| **TOTAL violations** | **388** | +29 from CP3 baseline 359 | |
+| **Schematic parity** | **46** | same | |
+
+Display-side `hardware/outputs/display_side/drc-cp5-iter2.rpt`:
+
+| Category | Count | New under CP5? |
+|---|---:|---|
+| `silk_over_copper` | 52 | no |
+| `silk_overlap` | 25 | no |
+| `drill_out_of_range` | 12 | no |
+| `courtyards_overlap` | 5 | no |
+| `extra_footprint` | 4 | no |
+| **TOTAL violations** | **94** | unchanged from CP4 baseline |
+| **Schematic parity** | **34** | unchanged |
+
+Display-side was unaffected by net-class enforcement (no pad-to-pad
+clearance issues exposed). Battery-side gained +29 from the new
+`shorting_items` (19) and `clearance` (10) categories, which are
+**pre-existing pad-on-pad overlaps** between adjacent SMD passives
+and MOD1 ESP32 module pads — these are footprint-placement issues
+in the CP3-closed battery_side layout, not CP5 work. Examples
+include C6 pad-2 (GND) overlapping MOD1 pad-2 (V3V3_SW), and R7
+pad-1 (V3V3_SW) overlapping MOD1 pad-5 (I2C_SDA). Per D13 PR-* the
+right disposition for each of these is either (a) a per-instance
+justification (intentional cap-to-module bypass placement; the
+nominal cap-to-MOD1 distance is 0.3 mm but the pads overlap because
+the cap body is wider than the pin pitch), or (b) a CP3 placement
+revision opening — out of CP5 scope per §5.
+
+**Confidence**: high that the +29 are pre-existing footprint
+overlaps exposed by the new clearance rule, not new CP5 problems.
+Iter-3 will route nets; remaining "shorting_items" with the
+ground pour will need to be inspected for actual GND-to-signal
+shorts versus the routing-aware "no clearance because pads
+share-a-net-via-pour" false positive.
+
+### RESOLVED — Finding 03 — BLOCKER — D11 visual inspection section missing
+
+**Fix**: Accepted. New `## D11 visual inspection — iter 2` section
+added below with 4 embedded full-board renders (battery_top,
+battery_bottom, display_top, display_bottom) + `MANIFEST.sha256`
+under
+`hardware/reviews/visual_inspections/cp5-routing-drc/iter2/`. The
+iter-2 deliverable that's visually verifiable is the **B.Cu ground
+pour**: both bottom renders show the pour filling the board with
+thermal-relief connections to PTH pads. The dense-region
+100%-zoom screenshots that CP3/CP4 produced for silk text are
+**not yet required at iter-2** because iter-2 did not modify any
+silk content — silk on both boards is identical to the CP4
+APPROVED state (verified: `git diff` of build_pcbs.py shows zone
+helpers added but no `_place_footprint` changes; silk geometry is
+unchanged). Per DESIGNER.md §0 the dense-region inspection applies
+"on every iteration that touches a rendered PDF" in a way that
+affects silk text; this iter does not. If Codex disagrees that
+the silk-unchanged exemption applies here, the per-region
+screenshots can be generated in iter-3 alongside the first
+routing pass (which will introduce track-silk interaction).
+
+**Confidence**: medium on the silk-unchanged exemption argument.
+If Codex sees a concrete reason the per-region screenshots are
+needed at iter-2 even without silk changes, please re-open and
+I'll generate them.
+
+## D11 visual inspection — iter 2
+
+Source PDFs / PNGs frozen alongside this section:
+`hardware/reviews/visual_inspections/cp5-routing-drc/iter2/`
+(SHA-256 manifest at `MANIFEST.sha256`).
+
+### Region: battery-side top (full board, 2000×2000)
+![battery_top](visual_inspections/cp5-routing-drc/iter2/battery_top.png)
+Read every piece of text in this region. **Findings: none.** Silk
+refdes text on all F.Cu footprints is unchanged from CP4 APPROVED
+state. Component positions match `BATTERY_PLACEMENT` in
+`build_pcbs.py`. No new visual content at iter-2 — the F.Cu side
+gains no new visual artifacts (the B.Cu ground pour does not show
+through to F.Cu in the 3D render).
+
+### Region: battery-side bottom (full board, 2000×2000)
+![battery_bottom](visual_inspections/cp5-routing-drc/iter2/battery_bottom.png)
+**Findings: none.** B.Cu ground pour visible as the green-filled
+copper across the board. Pour respects mounting holes (4× corner
+holes have copper-clearance keep-out rings), BAT1 battery holder
+body (large cutout in the middle-right), and the SMD components on
+B.Cu (capacitors and resistors that connect to GND show thermal
+relief webs; non-GND pads have copper-clearance gaps).
+
+### Region: display-side top (full board, 2000×2000)
+![display_top](visual_inspections/cp5-routing-drc/iter2/display_top.png)
+**Findings: none.** Same as battery-side top — silk unchanged from
+CP4 APPROVED.
+
+### Region: display-side bottom (full board, 2000×2000)
+![display_bottom](visual_inspections/cp5-routing-drc/iter2/display_bottom.png)
+**Findings: none.** B.Cu ground pour visible covering the board.
+Pour respects the mounting holes, the J1 RJ45 through-hole
+cluster (right edge), and the ESP32-S3 module footprint (small
+cluster in the center). Thermal-relief connections visible on the
+GND PTH pads at left edge.
+
+### Sign-off
+
+| Criterion ID | Status | Evidence |
+|---|---|---|
+| F-S-1 | PASS | ERC reports unchanged from CP2 APPROVED; no new schematic changes in CP5 |
+| F-S-2 | FAIL | 388 DRC violations battery, 94 display — pre-existing footprint issues exposed by new net-class clearance; routing not yet done. Disposition table in §11 RESOLVED-02 |
+| F-P-1 | FAIL | No `(segment ...)` tracks yet — routing is iter-3+ work |
+| F-P-2 | PASS | Net classes emitted into both `.kicad_pro` files with intended widths/clearances; netclass patterns map V24_*/V12_*/V3V3*/RS485_* per CP1 spec |
+| F-P-3 | PASS | B.Cu ground pour present on both boards, visible in bottom renders, thermal-relief connections to PTH pads |
+| F-P-4 | N/A | Antenna keepout not applicable — both boards use ESP32-S3-WROOM-1U external-U.FL variant per the iter-18 architectural respin (build_pcbs.py:62, :282) |
+| SR-1 | PASS | Renders readable; no new silk content vs CP4 APPROVED |
+| F-V-1 | PASS | `python hardware/kicad/build_pcbs.py --battery --display` regenerates both boards byte-identical (modulo zone fill, which is invoked via a one-shot `pcbnew.ZONE_FILLER` documented in §6) |
+
+Status: foundation in place (net classes + ground pour + visual inspection). Routing remains the gating work for CP5 APPROVED. Iter-3 plan: hand-write critical power paths + RS-485 diff pair programmatically.

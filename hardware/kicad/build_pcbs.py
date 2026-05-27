@@ -489,6 +489,112 @@ def _add_mounting_holes(b, w, h, margin=3.0):
         b.footprints.append(fp)
 
 
+def _add_ground_zone(b, w, h, gnd_net_code: int, layer: str = "B.Cu",
+                     margin: float = 0.5, clearance: float = 0.25,
+                     min_thickness: float = 0.25):
+    """Add a copper-pour zone tied to GND covering the whole board minus a
+    `margin`-mm edge inset. Used on both boards to give every GND pin a
+    contiguous return path on B.Cu per cp1_battery_side.md §11.4 /
+    cp1_display_side.md §10.4.
+    """
+    from kiutils.items.zones import Zone, Hatch, FillSettings, ZonePolygon
+    from kiutils.items.common import Position
+
+    zone = Zone(
+        net=gnd_net_code,
+        netName="GND",
+        layers=[layer],
+        hatch=Hatch(style="edge", pitch=0.508),
+        clearance=clearance,
+        minThickness=min_thickness,
+        connectPads="thru_hole_only",
+        fillSettings=FillSettings(
+            yes=True,
+            thermalGap=0.5,
+            thermalBridgeWidth=0.5,
+            islandRemovalMode=1,
+            islandAreaMin=10,
+        ),
+        polygons=[ZonePolygon(coordinates=[
+            Position(X=margin, Y=margin),
+            Position(X=w - margin, Y=margin),
+            Position(X=w - margin, Y=h - margin),
+            Position(X=margin, Y=h - margin),
+        ])],
+    )
+    if b.zones is None:
+        b.zones = []
+    b.zones.append(zone)
+
+
+def _add_keepout_zone(b, x: float, y: float, w: float, h: float,
+                      layers=("F.Cu", "B.Cu"), name: str = "keepout"):
+    """Add a no-track no-copper keepout rectangle. Used for the ESP32-S3
+    antenna corner on battery-side per cp1_battery_side.md §11.2.
+    """
+    from kiutils.items.zones import Zone, Hatch, KeepoutSettings, ZonePolygon
+    from kiutils.items.common import Position
+
+    zone = Zone(
+        net=0,
+        netName="",
+        layers=list(layers),
+        name=name,
+        hatch=Hatch(style="edge", pitch=0.508),
+        keepoutSettings=KeepoutSettings(
+            tracks="not_allowed",
+            vias="not_allowed",
+            pads="allowed",
+            copperpour="not_allowed",
+            footprints="allowed",
+        ),
+        polygons=[ZonePolygon(coordinates=[
+            Position(X=x, Y=y),
+            Position(X=x + w, Y=y),
+            Position(X=x + w, Y=y + h),
+            Position(X=x, Y=y + h),
+        ])],
+    )
+    if b.zones is None:
+        b.zones = []
+    b.zones.append(zone)
+
+
+def _fill_zones(pcb_path: Path) -> None:
+    """Compute zone fill polygons and save them into the .kicad_pcb file.
+
+    kiutils writes the zone definition but does not compute the actual fill
+    geometry — KiCad's GUI normally does that on first open, and `kicad-cli
+    pcb render` shows the board without fill until then. This helper uses
+    KiCad's own Python pcbnew binding (under wx-app context) to fill all
+    zones and persist them, so the next render shows the filled pour.
+    """
+    import subprocess
+
+    kicad_py = (
+        "/Applications/KiCad/KiCad.app/Contents/Frameworks/"
+        "Python.framework/Versions/3.9/bin/python3.9"
+    )
+    if not Path(kicad_py).exists():
+        print(f"  fill_zones: skipped (kicad python not found at {kicad_py})")
+        return
+
+    script = (
+        "import wx; wx.App(); import pcbnew; "
+        f"b = pcbnew.LoadBoard({str(pcb_path)!r}); "
+        "pcbnew.ZONE_FILLER(b).Fill(b.Zones()); "
+        f"pcbnew.SaveBoard({str(pcb_path)!r}, b)"
+    )
+    result = subprocess.run(
+        [kicad_py, "-c", script],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        print(f"  fill_zones: WARN exit={result.returncode}: {result.stderr[-200:]}")
+    else:
+        print(f"  fill_zones: ok")
+
+
 def resolve_footprint_optional(fp_name: str):
     """Like resolve_footprint but returns None instead of raising."""
     p = PROJ_FP / f"{fp_name}.kicad_mod"
@@ -726,6 +832,9 @@ def build_display_side() -> None:
         )
 
     _add_mounting_holes(b, DISPLAY_W, DISPLAY_H, margin=DISPLAY_MARGIN)
+    gnd_code = nets_by_name.get("GND", 0)
+    if gnd_code:
+        _add_ground_zone(b, DISPLAY_W, DISPLAY_H, gnd_net_code=gnd_code)
     _write_fp_lib_table(project_dir)
 
     out = project_dir / "display_side.kicad_pcb"
@@ -733,6 +842,8 @@ def build_display_side() -> None:
     print(f"wrote {out.relative_to(REPO)} ({out.stat().st_size} bytes)")
     print(f"  components placed: {len([r for r in components if r in DISPLAY_PLACEMENT])}")
     print(f"  nets: {len(b.nets)}")
+    print(f"  zones: {len(b.zones or [])}")
+    _fill_zones(out)
 
 
 def build_battery_side() -> None:
@@ -762,6 +873,9 @@ def build_battery_side() -> None:
         _place_footprint(b, ref, meta, BATTERY_PLACEMENT[ref], nets_by_name)
 
     _add_mounting_holes(b, BATTERY_W, BATTERY_H)
+    gnd_code = nets_by_name.get("GND", 0)
+    if gnd_code:
+        _add_ground_zone(b, BATTERY_W, BATTERY_H, gnd_net_code=gnd_code)
     _write_fp_lib_table(project_dir)
 
     out = project_dir / "battery_side.kicad_pcb"
@@ -769,6 +883,8 @@ def build_battery_side() -> None:
     print(f"wrote {out.relative_to(REPO)} ({out.stat().st_size} bytes)")
     print(f"  components placed: {len([r for r in components if r in BATTERY_PLACEMENT])}")
     print(f"  nets: {len(b.nets)}")
+    print(f"  zones: {len(b.zones or [])}")
+    _fill_zones(out)
 
 
 def main() -> int:
