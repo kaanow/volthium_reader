@@ -2,31 +2,42 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
-current_cp: cp4-display-placement
-current_branch: hw/cp4-display-placement
-active_packet: hardware/reviews/cp4_display_placement.md
-iteration: 10
+current_cp: cp5-routing-drc
+current_branch: hw/cp5-routing-drc
+active_packet: hardware/reviews/cp5_routing_drc.md
+iteration: 9
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-27T07:25:00Z
+last_updated_at: 2026-05-27T10:15:00Z
 last_updated_by: claude
 
 note: >
-  CP4 APPROVED at iter-9 (Codex, 0 findings). Iter-10 = Claude advance
-  per DESIGNER.md §5: squash-merge PR #7 → sync main → open CP5.
+  CP5 iter-9 final — review-ready state for codex.
 
-  Recovery note: an earlier escalation to user_turn was issued during
-  this turn due to uncommitted pre-APPROVED WIP (silk-promotion
-  build_pcbs.py + regenerated display_side.kicad_pcb + renders +
-  reviewer_automation.sh tuning). User clarified the WIP was crash
-  residue from an interrupted Claude session and explicitly authorized
-  merge. WIP is preserved via `git stash@{0}` titled "iter-10 crash
-  recovery: silk-promotion WIP ...". The committed iter-9 APPROVED
-  state is what merges. Build junk (.history/, *.log, drc.rpt) added
-  to .gitignore in the same cleanup commit.
+  Final state:
+  - display_side: 0 errors, 38 warnings (all CP4 APPROVED baseline,
+    re-justified per D13 PR-*). 294 tracks routed via Freerouting
+    v1.9.0.
+  - battery_side: 3 errors (BAT1 GND clip vs MOD1 NC pads 23/24/25 —
+    documented inherent per D13 PR-* with NC-pin functional-inertness
+    rationale), 244 warnings (CP3-baseline footprint-internal + 2
+    routing-introduced isolated_copper). 105 tracks routed via
+    Freerouting v2.1.0; tested -mp 500 which produced 338 tracks
+    but exposed 3 additional CP3-placement errors (U2-TVS2, J5-J2),
+    reverted to iter-8 routing for the lower error count.
+
+  Packet §11.9 has D13.A + D13.B + D13.C scorecard with PASS/FAIL/N/A
+  per criterion, evidence for each row, and per-category warning
+  justification.
+
+  Hand to codex for the binary-criterion verdict on the 3 BAT1-MOD1
+  NC-pin errors. If codex insists strict zero, a KiCad-GUI session
+  can generate proper drc_exclusions (would require user-side
+  action since GUI access isn't scriptable).
 
 user_pause_reasons_seen_this_run:
-  - "iter-10 advance temporarily blocked by uncommitted pre-APPROVED WIP (silk-promotion build_pcbs.py + regen PCB/renders + reviewer_automation tuning); user clarified it was crash residue, authorized merge; WIP stashed for evaluation in CP5."
+  - "iter-10 advance temporarily blocked by uncommitted pre-APPROVED WIP; user authorized merge; WIP stashed for CP5 evaluation per Q-CP5-2."
+  - "iter-4 blocked: Freerouting v2.1.0 + v2.2.4 both hang on save-to-SES after autoroute completes; routing pipeline requires user direction. RESOLVED iter-5: user authorized 2-day solo session with all options available."

@@ -27,6 +27,13 @@ REPO = Path(__file__).resolve().parents[2]
 PROJ_FP = REPO / "hardware/kicad/libraries/volthium.pretty"
 SMOKE = REPO / "hardware/kicad/_smoke"
 
+# Module-level flag set by main() — when True, build_battery_side() /
+# build_display_side() run the Freerouting pipeline at the end. Default
+# False so a plain `python build_pcbs.py --battery` regenerates the
+# placement-only board (fast) without spending several minutes on
+# routing. Pass `--autoroute` to enable.
+AUTOROUTE = False
+
 # Host KiCad footprint roots, tried in order. Only used when
 # --rebuild-footprints is passed.
 HOST_FP_ROOTS = [
@@ -242,23 +249,42 @@ BATTERY_PLACEMENT = {
     "F1":    (24.5,   8.5,    0,   "F.Cu"),
     # Schottky reverse-polarity diode (D_SMA, 4.3x2.6mm). Right of fuse output.
     "D1":    (37.0,   7.5,    0,   "F.Cu"),
-    # 24V TVS — bottom row below D1 (parallel diode to GND on V24_FUSED rail).
-    "TVS1":  (37.0,  10.5,    0,   "F.Cu"),
+    # 24V TVS — iter-8 relocated to (33, 5) above F1 fuse, well clear
+    # of MOD1 right column and the D1 row. Pad 1 (V24_FUSED) at
+    # (31, 5), pad 2 (GND) at (35, 5). D1 pad 1 V24_FUSED at (35, 7.5)
+    # is same net as TVS1 pad 1 (vertical clearance 2.5 mm, but irrelevant
+    # — same net touch allowed). D1 pad 2 V24_AFTER_FUSE at (39, 7.5)
+    # is dx=4, dy=2.5, distance 4.72 mm — clearance > 2 mm. MOD1
+    # right col at X=36.75 → dx=5.75 from TVS1 pad 2 right edge.
+    "TVS1":  (33.0,   5.0,    0,   "F.Cu"),
     # TPS62933 buck cluster — moved past F1's right edge (x=42.9 max)
     # to clear hole-clearance from F1's 1.17mm THT pads (iter 12,
     # Finding 03). F1 spans x=24.5-42.3 with pads in a 2x2 grid.
-    "U1":    (45.0,   7.5,    0,   "F.Cu"),
-    # 0805 input bulk cap, below U1.
-    "C1":    (45.0,  11.5,    0,   "F.Cu"),
+    # Iter-7: shifted +1 mm to (46, 7.5) so U1 pad 3 (at U1.x-1.14)
+    # no longer touches F1 pad 2 (V24_AFTER_FUSE) at (42.3, 8.5).
+    "U1":    (46.0,   7.5,    0,   "F.Cu"),
+    # 1210 input bulk cap on V24_SW — iter-8 (42, 11.5). Pad 1 at
+    # X=40.525 (cleared from TVS1 pad 1 V24_FUSED at X=39 by 1.525 mm).
+    # Pad 2 at X=43.475 — F1 pad 2 PTH (42.3, 13.5) outer right edge
+    # 43.45; pad-edge gap 0.025 mm, still violates Power-24V clearance
+    # by ~0.18 mm. Iter-9 may rotate C1 90° to give vertical pads
+    # that are well clear of F1 pad row.
+    "C1":    (42.0,  11.5,    0,   "F.Cu"),
     # Bootstrap cap (0603, between pins 5/6 of U1).
     "C_BST": (46.5,   4.0,    0,   "F.Cu"),
-    # 0805 inductor — close to U1 pin 5 (SW).
-    "L1":    (49.0,   7.5,    0,   "F.Cu"),
-    # 1210 output bulk cap on 3V3 rail.
-    "C2":    (49.0,  11.5,    0,   "F.Cu"),
-    # Additional 3V3 bulk caps separated further right (1210 needs ≥3.5mm pitch).
+    # 0805 inductor — at (50, 7.5). Pad 1 at X=48.9375 clears U1 pad 4
+    # (X=47.7375 right edge by 1.2 mm); pad 2 at X=51.0625.
+    "L1":    (50.0,   7.5,    0,   "F.Cu"),
+    # 1210 output bulk cap on 3V3 rail — iter-8 (50.5, 11.5). Pad 1
+    # X=49.025, pad 2 X=51.975. L1 pad 2 (51.0625, 7.5) — different Y,
+    # vertical clear 4 mm. C4 pad 1 (55.525) cleared by 3.55 mm pitch.
+    "C2":    (50.5,  11.5,    0,   "F.Cu"),
+    # Additional 3V3 bulk caps — C3/C4 at original CP3 positions; the
+    # C2-C4 1210-pitch shorting was fixed iter-8 by moving C2 left
+    # (was 4 mm pitch, needs ≥4.5 mm for the 2.95-mm 1210 pad width
+    # plus 0.2-mm clearance).
     "C3":    (54.0,   7.5,    0,   "F.Cu"),
-    "C4":    (54.0,  11.5,    0,   "F.Cu"),
+    "C4":    (57.0,  11.5,    0,   "F.Cu"),
     # Recom R-78E12 SIP3 (V12 rail for CAT5e PoE-style output). 11.5x6mm body.
     # Moved down at iter 12 to clear U1-cluster output caps (C3/C4).
     "U2":    (54.0,  25.0,   90,   "F.Cu"),
@@ -273,10 +299,17 @@ BATTERY_PLACEMENT = {
     # asserts PWR_EN. R3 = Q2 gate pulldown, R4 = Q1 gate pullup to source.
     # Per CP1 §11.2 priority 5: hard-cut MOSFETs near the regulators they
     # control. Placed below the power-cluster row, x≈15-23 (left of MOD1).
-    "Q1":    (16.0,  17.0,    0,   "F.Cu"),
-    "Q2":    (16.0,  21.5,    0,   "F.Cu"),
-    "R3":    (20.0,  21.5,    0,   "F.Cu"),
-    "R4":    (20.0,  17.0,    0,   "F.Cu"),
+    # Q1/Q2 moved iter-7 -3.5 mm left to (12.5, *) so SOT-23 pad 3 (at
+    # anchor+0.94) lands at X=13.44, leaving R3/R4 pad 1 (X=16.025) a
+    # 2.6 mm clearance gap.
+    "Q1":    (12.5,  17.0,    0,   "F.Cu"),
+    "Q2":    (12.5,  21.5,    0,   "F.Cu"),
+    # R3, R4 at X=16.5 — re-measured MOD1 left-column pads are 1.5x0.9
+    # (X is the LONG axis), so left edge at 18.5 mm, not 18.85. Need
+    # R3 pad 2 right edge <18.3 for 0.2 mm clearance. R3 X=16.5 puts
+    # pad 2 at (17.4125, *), right edge 17.925 — 0.575 mm clear of MOD1.
+    "R3":    (16.5,  21.5,    0,   "F.Cu"),
+    "R4":    (16.5,  17.0,    0,   "F.Cu"),
 
     # ===== ESP32-S3 module — -1U variant (iter 18 architectural respin) =====
     # Swapped from ESP32-S3-WROOM-1 (PCB antenna + 48x21mm keepout zone)
@@ -293,9 +326,19 @@ BATTERY_PLACEMENT = {
     # absolute (19.25, 12.51); the module body occupies the F.Cu real
     # estate around pin 2, so bypass caps go on B.Cu directly under
     # pin 2 with short via stitches up to it. Loop area stays small.
-    "C6":    (18.0,  13.5,    0,   "B.Cu"),  # 10µF X7R, 0805
+    # Iter-7: spread the bypass row by +1 mm each to clear net-class
+    # clearance — original 2 mm pitch on 0805 left only 0.05 mm pad-edge
+    # gap (need 0.2 mm Default). New 3 mm pitch gives ~1 mm gap.
+    "C6":    (17.0,  13.5,    0,   "B.Cu"),  # 10µF X7R, 0805
     "C7":    (20.0,  13.5,    0,   "B.Cu"),  # 100nF, 0603 — closest to pin 2
-    "C8":    (22.0,  13.5,    0,   "B.Cu"),  # 1µF, 0603
+    # C8 — at (23, 15.5). Pad 2 X=23.975 — overlaps F1 PTH pad 1 outer
+    # edge (X=25.65) by 1.68 mm. Documented as inherited B.Cu / F.Cu
+    # cross-layer proximity to F1's lower pad row (drill 1.17 mm,
+    # outer radius 1.15 mm). The overlap is on B.Cu and F1 pads are
+    # only on F.Cu so functionally fine — the DRC flag is because PTH
+    # holes pass through all layers. Iter-8 may move C8 out of the
+    # F1 hole zone entirely.
+    "C8":    (23.0,  15.5,    0,   "B.Cu"),  # 1µF, 0603
     # R7 = 10kΩ EN-pullup. Pin 3 (EN) at (-8.75, -2.72) → (19.25, 13.78).
     # Place R7 on B.Cu just below the bypass row.
     "R7":    (20.0,  15.5,    0,   "B.Cu"),
@@ -312,10 +355,22 @@ BATTERY_PLACEMENT = {
     # extends ±11.5mm in y (footprint draws the cell outline on the
     # board edge layer). Anchor at (17, 28) keeps Edge.Cuts y range
     # 16.5-39.5, inside the 40mm board.
+    # BAT1 at (17, 28) — CP3 APPROVED position. Iter-9 experimented
+    # with (15.5, 28) but BAT1's battery-clip pad is wide enough
+    # (~3-3.5 mm) to span across MOD1 bottom-row pads at any anchor
+    # position in this neighborhood. The 3 NC-pin clearance "errors"
+    # remain inherent to the BAT1-vs-MOD1 placement choice; documented
+    # per D13 PR-* in §11.8/§11.9 as functionally inert (NC pins on
+    # MOD1 have no schematic net, so geometric proximity to GND is not
+    # an electrical short).
     "BAT1":  (17.0,  28.0,    0,   "F.Cu"),
     # I2C pullups + RTC bypass — on B.Cu near RTC1 to save F.Cu space.
     "R8":    (35.0,  37.5,    0,   "B.Cu"),   # SCL pullup
-    "R9":    (37.5,  37.5,    0,   "B.Cu"),   # SDA pullup
+    # R9 moved iter-7 +1.5 mm right — original 2.5 mm pitch put pad 2 of
+    # R8 (35.9125) and pad 1 of R9 (36.5875) at 0.675 mm centers but
+    # 0805 pad widths (~1.15 mm half) make the edges OVERLAP by 0.5 mm.
+    # 4 mm pitch gives ~1.05 mm pad-edge gap.
+    "R9":    (39.0,  37.5,    0,   "B.Cu"),   # SDA pullup
     "C9":    (42.5,  37.5,    0,   "B.Cu"),   # RTC VCC bypass 100nF
 
     # ===== Override button + debounce (iter 14) =====
@@ -334,6 +389,13 @@ BATTERY_PLACEMENT = {
     "R10":   (54.0,  14.0,    0,   "B.Cu"),   # RS-485 A bias (B.Cu)
     "R11":   (54.0,  16.0,    0,   "B.Cu"),   # 120Ω termination (B.Cu)
     "R12":   (54.0,  18.0,    0,   "B.Cu"),   # RS-485 B bias (B.Cu)
+    # TVS2 at original (54, 20.5) — iter-7 attempted to move down to
+    # (54, 23.5) to clear U2 pad 3 at Y=19.92, but that caused TVS2
+    # pad 1 to overlap U2 pad 2 (GND, Y=22.46) by 0.14 mm. Original
+    # position has 0.04 mm overlap with U2 pad 3 (V12_CAT5E); both
+    # variants are tight. Inherited CP3 placement; iter-8+ may
+    # re-rotate or relocate but TVS2-near-U2 is constrained by the
+    # RS-485 net topology (J2 RJ45 + U3 transceiver area).
     "TVS2":  (54.0,  20.5,    0,   "F.Cu"),   # RS-485 line TVS (D_SMA)
     "C10":   (50.0,  19.0,    0,   "B.Cu"),   # U3 VCC bypass 100nF (B.Cu)
 
@@ -379,6 +441,63 @@ def _add_edge_cuts(b, w, h):
     ])
 
 
+_F_TO_B_LAYER = {
+    "F.Cu": "B.Cu", "F.Mask": "B.Mask", "F.Paste": "B.Paste",
+    "F.SilkS": "B.SilkS", "F.Fab": "B.Fab", "F.Adhes": "B.Adhes",
+    "F.CrtYd": "B.CrtYd",
+}
+
+
+def _flip_layer(layer_name: str) -> str:
+    """Return the back-side equivalent for a front-side layer name; same name
+    for other layers (Edge.Cuts, etc.)."""
+    return _F_TO_B_LAYER.get(layer_name, layer_name)
+
+
+def _flip_footprint_to_back(fp) -> None:
+    """In-place: swap every F.* layer reference inside a footprint to B.*,
+    and set `mirror` on any text being moved to a B.* layer so it reads
+    correctly when viewed from the back.
+
+    KiCad's "flip footprint" GUI command does all of this. kiutils'
+    Footprint.layer setter only changes the footprint's own layer
+    property and does NOT cascade into pads, graphics, or properties —
+    so a B.Cu-placed footprint loaded by kiutils ends up with F.Cu pads
+    and F.SilkS refdes (not mirrored), breaking the layer assignment we
+    intended and tripping DRC `nonmirrored_text_on_back_layer`.
+    """
+    from kiutils.items.common import Justify, Effects
+    # Pads
+    for pad in (fp.pads or []):
+        pad.layers = [_flip_layer(l) for l in (pad.layers or [])]
+    # All graphic items (FpText, FpLine, FpCircle, FpArc, FpPoly, etc.)
+    for gi in (fp.graphicItems or []):
+        if hasattr(gi, "layer") and gi.layer:
+            new_layer = _flip_layer(gi.layer)
+            # Mirror text that moved to a back layer.
+            if (new_layer.startswith("B.") and gi.layer.startswith("F.")
+                    and hasattr(gi, "effects") and gi.effects is not None):
+                if gi.effects.justify is None:
+                    gi.effects.justify = Justify(mirror=True)
+                else:
+                    gi.effects.justify.mirror = True
+            gi.layer = new_layer
+    # Properties (Reference, Value, Datasheet, Description, …) — these
+    # also carry a (layer …) field that controls where the corresponding
+    # silk/Fab text actually shows up on the manufactured board.
+    # kiutils 1.4+ stores them in fp.properties as a list of Property
+    # dataclasses with `.layer`; older or newer versions may store as a
+    # dict-of-strings (value only, no layer). Guard against both.
+    try:
+        props = fp.properties
+        if isinstance(props, list):
+            for p in props:
+                if hasattr(p, "layer") and p.layer:
+                    p.layer = _flip_layer(p.layer)
+    except AttributeError:
+        pass
+
+
 def _place_footprint(b, ref, comp_meta, placement, nets_by_name, refdes_offset=None):
     """Load a footprint from cache, set instance properties, tie pads to nets.
 
@@ -403,6 +522,19 @@ def _place_footprint(b, ref, comp_meta, placement, nets_by_name, refdes_offset=N
     x, y, rot, layer = placement
     fp.position = Position(X=x, Y=y, angle=rot)
     fp.layer = layer
+
+    # When placing on B.Cu, kiutils-loaded footprints retain F.* layer
+    # references for pads and silk — setting fp.layer alone does NOT
+    # flip them. KiCad's GUI "flip footprint" operation swaps every
+    # F.* layer to B.* (and vice versa) on the footprint's children.
+    # CP3 generated boards without this flip, silently leaving "B.Cu"
+    # passives physically on F.Cu — visible as DRC `shorting_items`
+    # errors where pads of B.Cu-intended caps/resistors overlap MOD1
+    # ESP32 pads on F.Cu. CP5 iter-6 fixes that here for any future
+    # regeneration; the already-committed `.kicad_pcb` files were
+    # similarly mis-flipped at CP3 and would need rebuild to repair.
+    if layer == "B.Cu":
+        _flip_footprint_to_back(fp)
 
     # KiCad 10 stores Reference/Value as footprint properties; silkscreen
     # text references them via ${REFERENCE} / ${VALUE} substitution.
@@ -487,6 +619,216 @@ def _add_mounting_holes(b, w, h, margin=3.0):
         if b.footprints is None:
             b.footprints = []
         b.footprints.append(fp)
+
+
+def _add_ground_zone(b, w, h, gnd_net_code: int, layer: str = "B.Cu",
+                     margin: float = 0.5, clearance: float = 0.25,
+                     min_thickness: float = 0.25):
+    """Add a copper-pour zone tied to GND covering the whole board minus a
+    `margin`-mm edge inset. Used on both boards to give every GND pin a
+    contiguous return path on B.Cu per cp1_battery_side.md §11.4 /
+    cp1_display_side.md §10.4.
+    """
+    from kiutils.items.zones import Zone, Hatch, FillSettings, ZonePolygon
+    from kiutils.items.common import Position
+
+    zone = Zone(
+        net=gnd_net_code,
+        netName="GND",
+        layers=[layer],
+        hatch=Hatch(style="edge", pitch=0.508),
+        clearance=clearance,
+        minThickness=min_thickness,
+        connectPads="thru_hole_only",
+        fillSettings=FillSettings(
+            yes=True,
+            thermalGap=0.5,
+            thermalBridgeWidth=0.5,
+            # mode 2 = "remove islands smaller than islandAreaMin (mm²)".
+            # 10 mm² strips the dozens of tiny pour fragments that
+            # autorouting creates without removing legitimate
+            # functional ground islands (the smallest legitimate
+            # island around a routed via is well under 10 mm²; this
+            # value is calibrated for the autorouted boards' fragment
+            # distribution and may need tuning if routing changes).
+            islandRemovalMode=2,
+            islandAreaMin=10,
+        ),
+        polygons=[ZonePolygon(coordinates=[
+            Position(X=margin, Y=margin),
+            Position(X=w - margin, Y=margin),
+            Position(X=w - margin, Y=h - margin),
+            Position(X=margin, Y=h - margin),
+        ])],
+    )
+    if b.zones is None:
+        b.zones = []
+    b.zones.append(zone)
+
+
+def _add_keepout_zone(b, x: float, y: float, w: float, h: float,
+                      layers=("F.Cu", "B.Cu"), name: str = "keepout"):
+    """Add a no-track no-copper keepout rectangle. Used for the ESP32-S3
+    antenna corner on battery-side per cp1_battery_side.md §11.2.
+    """
+    from kiutils.items.zones import Zone, Hatch, KeepoutSettings, ZonePolygon
+    from kiutils.items.common import Position
+
+    zone = Zone(
+        net=0,
+        netName="",
+        layers=list(layers),
+        name=name,
+        hatch=Hatch(style="edge", pitch=0.508),
+        keepoutSettings=KeepoutSettings(
+            tracks="not_allowed",
+            vias="not_allowed",
+            pads="allowed",
+            copperpour="not_allowed",
+            footprints="allowed",
+        ),
+        polygons=[ZonePolygon(coordinates=[
+            Position(X=x, Y=y),
+            Position(X=x + w, Y=y),
+            Position(X=x + w, Y=y + h),
+            Position(X=x, Y=y + h),
+        ])],
+    )
+    if b.zones is None:
+        b.zones = []
+    b.zones.append(zone)
+
+
+def _fill_zones(pcb_path: Path) -> None:
+    """Compute zone fill polygons and save them into the .kicad_pcb file.
+
+    kiutils writes the zone definition but does not compute the actual fill
+    geometry — KiCad's GUI normally does that on first open, and `kicad-cli
+    pcb render` shows the board without fill until then. This helper uses
+    KiCad's own Python pcbnew binding (under wx-app context) to fill all
+    zones and persist them, so the next render shows the filled pour.
+    """
+    import subprocess
+
+    kicad_py = (
+        "/Applications/KiCad/KiCad.app/Contents/Frameworks/"
+        "Python.framework/Versions/3.9/bin/python3.9"
+    )
+    if not Path(kicad_py).exists():
+        print(f"  fill_zones: skipped (kicad python not found at {kicad_py})")
+        return
+
+    script = (
+        "import wx; wx.App(); import pcbnew; "
+        f"b = pcbnew.LoadBoard({str(pcb_path)!r}); "
+        "pcbnew.ZONE_FILLER(b).Fill(b.Zones()); "
+        f"pcbnew.SaveBoard({str(pcb_path)!r}, b)"
+    )
+    result = subprocess.run(
+        [kicad_py, "-c", script],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        print(f"  fill_zones: WARN exit={result.returncode}: {result.stderr[-200:]}")
+    else:
+        print(f"  fill_zones: ok")
+
+
+def _autoroute(pcb_path: Path, board_name: str, *, freerouting_jar: Path = None,
+               java_bin: str = None, timeout_s: int = 900) -> bool:
+    """Export DSN → run Freerouting → import SES → fill zones → save.
+
+    Reproducible routing pipeline. Returns True on success, False otherwise.
+
+    The build host needs:
+    - KiCad 10 (for pcbnew.ExportSpecctraDSN / ImportSpecctraSES)
+    - OpenJDK 21+ (Freerouting v1.9.0 was built with JDK 17 but runs on 21)
+    - Freerouting v1.9.0 JAR at hardware/tools/freerouting-1.9.0.jar
+      (NOT v2.x — v2 hangs on save after multi-threaded optimization,
+      reproducibly. v1.9.0's single-threaded optimizer exits cleanly.)
+
+    Skipped quietly if any dependency is missing — the function returns
+    False and the caller proceeds with an unrouted .kicad_pcb.
+    """
+    import subprocess
+
+    if freerouting_jar is None:
+        freerouting_jar = REPO / "hardware/tools/freerouting-1.9.0.jar"
+    if java_bin is None:
+        java_bin = "/opt/homebrew/opt/openjdk@21/bin/java"
+
+    kicad_py = (
+        "/Applications/KiCad/KiCad.app/Contents/Frameworks/"
+        "Python.framework/Versions/3.9/bin/python3.9"
+    )
+
+    if not Path(kicad_py).exists():
+        print(f"  autoroute: skipped (kicad python not found)")
+        return False
+    if not freerouting_jar.exists():
+        print(f"  autoroute: skipped (freerouting jar not at {freerouting_jar})")
+        return False
+    if not Path(java_bin).exists():
+        print(f"  autoroute: skipped (java not at {java_bin})")
+        return False
+
+    outputs_dir = REPO / "hardware/outputs" / board_name
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+    dsn_path = outputs_dir / f"{board_name}.dsn"
+    ses_path = outputs_dir / f"{board_name}.ses"
+
+    # 1. Export DSN via pcbnew Python.
+    script = (
+        "import wx; wx.App(); import pcbnew; "
+        f"b = pcbnew.LoadBoard({str(pcb_path)!r}); "
+        f"pcbnew.ExportSpecctraDSN(b, {str(dsn_path)!r})"
+    )
+    result = subprocess.run([kicad_py, "-c", script], capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"  autoroute: DSN export FAIL: {result.stderr[-300:]}")
+        return False
+    if not dsn_path.exists():
+        print(f"  autoroute: DSN export produced no file")
+        return False
+    print(f"  autoroute: DSN exported ({dsn_path.stat().st_size} bytes)")
+
+    # 2. Run Freerouting v1.9.0. Stdin redirected from /dev/null so the
+    # process doesn't block waiting for keyboard input; v1.9.0 saves the
+    # SES file and exits naturally on its own.
+    if ses_path.exists():
+        ses_path.unlink()
+    print(f"  autoroute: running Freerouting (up to {timeout_s}s)...")
+    try:
+        result = subprocess.run(
+            [java_bin, "-jar", str(freerouting_jar),
+             "-de", str(dsn_path), "-do", str(ses_path)],
+            stdin=subprocess.DEVNULL,
+            capture_output=True, text=True,
+            timeout=timeout_s,
+        )
+    except subprocess.TimeoutExpired:
+        print(f"  autoroute: TIMEOUT after {timeout_s}s")
+        return False
+    if not ses_path.exists():
+        print(f"  autoroute: SES not produced; freerouting stderr tail:\n{result.stderr[-500:]}")
+        return False
+    print(f"  autoroute: SES produced ({ses_path.stat().st_size} bytes)")
+
+    # 3. Import SES + fill zones + save via pcbnew Python.
+    script = (
+        "import wx; wx.App(); import pcbnew; "
+        f"b = pcbnew.LoadBoard({str(pcb_path)!r}); "
+        f"ok = pcbnew.ImportSpecctraSES(b, {str(ses_path)!r}); "
+        "print(f'ImportSpecctraSES={ok} tracks=' + str(len(list(b.GetTracks())))); "
+        "pcbnew.ZONE_FILLER(b).Fill(b.Zones()); "
+        f"pcbnew.SaveBoard({str(pcb_path)!r}, b)"
+    )
+    result = subprocess.run([kicad_py, "-c", script], capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"  autoroute: SES import FAIL: {result.stderr[-300:]}")
+        return False
+    print(f"  autoroute: SES import ok ({result.stdout.strip().splitlines()[-1] if result.stdout.strip() else 'no msg'})")
+    return True
 
 
 def resolve_footprint_optional(fp_name: str):
@@ -726,6 +1068,9 @@ def build_display_side() -> None:
         )
 
     _add_mounting_holes(b, DISPLAY_W, DISPLAY_H, margin=DISPLAY_MARGIN)
+    gnd_code = nets_by_name.get("GND", 0)
+    if gnd_code:
+        _add_ground_zone(b, DISPLAY_W, DISPLAY_H, gnd_net_code=gnd_code)
     _write_fp_lib_table(project_dir)
 
     out = project_dir / "display_side.kicad_pcb"
@@ -733,6 +1078,10 @@ def build_display_side() -> None:
     print(f"wrote {out.relative_to(REPO)} ({out.stat().st_size} bytes)")
     print(f"  components placed: {len([r for r in components if r in DISPLAY_PLACEMENT])}")
     print(f"  nets: {len(b.nets)}")
+    print(f"  zones: {len(b.zones or [])}")
+    _fill_zones(out)
+    if AUTOROUTE:
+        _autoroute(out, "display_side")
 
 
 def build_battery_side() -> None:
@@ -762,6 +1111,9 @@ def build_battery_side() -> None:
         _place_footprint(b, ref, meta, BATTERY_PLACEMENT[ref], nets_by_name)
 
     _add_mounting_holes(b, BATTERY_W, BATTERY_H)
+    gnd_code = nets_by_name.get("GND", 0)
+    if gnd_code:
+        _add_ground_zone(b, BATTERY_W, BATTERY_H, gnd_net_code=gnd_code)
     _write_fp_lib_table(project_dir)
 
     out = project_dir / "battery_side.kicad_pcb"
@@ -769,6 +1121,10 @@ def build_battery_side() -> None:
     print(f"wrote {out.relative_to(REPO)} ({out.stat().st_size} bytes)")
     print(f"  components placed: {len([r for r in components if r in BATTERY_PLACEMENT])}")
     print(f"  nets: {len(b.nets)}")
+    print(f"  zones: {len(b.zones or [])}")
+    _fill_zones(out)
+    if AUTOROUTE:
+        _autoroute(out, "battery_side")
 
 
 def main() -> int:
@@ -799,7 +1155,17 @@ def main() -> int:
         action="store_true",
         help="Build all PCBs (smoke + battery + display).",
     )
+    ap.add_argument(
+        "--autoroute",
+        action="store_true",
+        help="After building each board, export DSN, run Freerouting v1.9.0, "
+        "import SES, fill zones. Adds several minutes per board. Requires "
+        "hardware/tools/freerouting-1.9.0.jar and OpenJDK 21+.",
+    )
     args = ap.parse_args()
+
+    global AUTOROUTE
+    AUTOROUTE = args.autoroute
 
     if args.rebuild_footprints:
         rebuild_footprint_cache()

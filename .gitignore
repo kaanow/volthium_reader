@@ -15,6 +15,9 @@ hardware/kicad/*/.history/
 hardware/kicad/*.log
 hardware/outputs/*/drc.rpt
 
+# External autorouter binaries (large, downloaded per-host)
+hardware/tools/*.jar
+
 # Legacy paths from the original SKiDL → KiCad 8 plan (no longer used; safe to ignore)
 hardware/kicad/outputs/
 hardware/kicad/projects/
@@ -38,3 +41,9 @@ firmware/common/volthium_lib/*.o
 *.kicad_prl
 *-erc.rpt
 *-drc.rpt
+
+# Specctra SES routing files (regeneratable from .dsn + Freerouting)
+hardware/outputs/*/*.ses
+# Freerouting log/state
+logs/
+freerouting.json
