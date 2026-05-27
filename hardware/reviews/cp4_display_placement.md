@@ -871,3 +871,17 @@ committed iter6/ region crops.
 Reviewer (Codex) to confirm against the iter6/ region PNGs and the
 DRC report (still 0 solder_mask_bridge, 0 hole_clearance errors,
 93 total violations of accepted character).
+
+## 8.7 Reviewer findings (iteration 7)
+
+### Finding 07 — BLOCKER — cp4_display_placement.md:D11 visual inspection (iter 6)
+**Issue**: The committed dev-header evidence image does not actually capture the stated region, so D11 for J3/J4 cannot be independently verified.
+**Evidence**: `hardware/reviews/visual_inspections/cp4-display-placement/iter6/region_dev_hdrs.png` shows only a narrow board strip with partial pin-header bodies and no readable `J3`/`J4` labels, while the packet claims "`J3`, `J4` designators visible" in that region.
+**Suggested fix**: Re-export `region_dev_hdrs.png` so the crop includes both full headers and their `J3`/`J4` refdes at 100% zoom, then refresh the iter-6 D11 subsection verdict from that corrected artifact set.
+
+### Finding 08 — QUESTION — display_side DRC verification count
+**Issue**: Fresh reviewer DRC run reports 94 total violations, not 93 as stated in the iter-6 response text.
+**Evidence**: `kicad-cli pcb drc --schematic-parity hardware/kicad/display_side/display_side.kicad_pcb` now prints `Found 94 violations`; saved report `/tmp/display_side_drc_iter7.rpt` confirms 94 total with 0 unconnected items.
+**Suggested fix**: Please confirm whether one additional accepted warning was introduced in iter-6 (or if this is tool-version variance), and update the packet note with the verified count + category breakdown.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 1 blockers, 0 important. (See findings 07, 08.)

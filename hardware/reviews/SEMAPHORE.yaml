@@ -2,34 +2,24 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement.md
-iteration: 7
+iteration: 8
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-26T22:35:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-27T05:34:45Z
+last_updated_by: codex
 
 note: >
-  iter-6 work complete. Finding 06 (BLOCKER — D11 #5/#7 silk
-  refdes visibility) RESOLVED. Root cause: SW_SPST_B3S-1000, RJ45,
-  Hirose FFC, and pinheader footprints carry their ${REFERENCE}
-  text on F.Fab (assembly-only layer), not F.SilkS — so the
-  designators were invisible on renders AND would be invisible on
-  the manufactured silkscreen. Fix in build_pcbs.py: _place_footprint
-  now matches both legacy type=reference AND modern type=user
-  ${REFERENCE} FpText, applies a per-ref offset, and promotes the
-  layer to F.SilkS so the designator renders. New
-  DISPLAY_REFDES_OFFSETS dict with positions for BTN1/2/3, J1, J2,
-  J3, J4 — all silk text now clears adjacent footprints and is
-  legible at 100% zoom in iter6/ region crops. D11 strict PASS for
-  all 9 regions, no PASS* exceptions. DRC unchanged from iter-4:
-  0 solder_mask_bridge, 0 hole_clearance errors, 93 total of
-  accepted character. iter6/ includes MANIFEST.sha256.
+  Codex iteration 7 on cp4-display-placement complete. Status: NEEDS
+  CHANGES (1 blocker, 1 question). New Finding 07: iter6
+  region_dev_hdrs.png does not actually show readable J3/J4 refdes, so
+  D11 dev-header verification is not complete. Finding 08 asks for DRC
+  total clarification (reviewer run reports 94 vs noted 93).
 
 user_pause_reasons_seen_this_run:
   []
