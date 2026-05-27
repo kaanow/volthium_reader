@@ -142,7 +142,7 @@ must fit within typical interior dimensions:
 Faceplate is 3D-printed (custom) to user-supplied dimensions; default
 target is a standard double-gang outline (~115 × 117 mm). Cutouts for
 display window + button caps designed against the PCB STEP file we
-export at CP5.
+export at CP6 (was CP5 pre-D12; see [D12](#d12--cp-renumber-display-side-placement-inserted-as-cp4)).
 
 ## D9 — Battery-side power input = on-board screw terminal + 5×20 mm fuse
 
@@ -180,7 +180,8 @@ generic IP65 project box (e.g. Hammond 1591ATBU or similar) and mount with
 **Applies to**: all PDFs, schematics, board renders, BOMs, and assembly
 drawings committed to this repo from this point forward. Existing CP2
 schematic PDFs are out of scope for immediate fix (see "Existing
-violations" below) but must satisfy this rule before CP4 begins.
+violations" below) but must satisfy this rule before the routing-drc
+checkpoint begins (CP5 post-D12; was CP4 at the time this was written).
 
 ### Motivation
 
@@ -336,10 +337,95 @@ The CP2-output schematic PDFs at
 `hardware/outputs/{battery,display}_side/schematic.pdf` currently
 fail criteria #1, #2, #3, #4, and #5. Fix planned as a separate
 checkpoint (working name: "CP-schematic-cleanup") landed
-**before CP4 starts**, on a branch off main that does not perturb
-the CP3 placement work. Acceptance: ERC must stay 0/0 and netlist
-topology must be byte-identical to current CP2 outputs (modulo
-metadata strings).
+**before the routing-drc checkpoint starts** (CP5 post-D12; was CP4
+at the time this was written), on a branch off main that did not
+perturb the CP3 placement work. Acceptance: ERC must stay 0/0 and
+netlist topology must be byte-identical to current CP2 outputs
+(modulo metadata strings).
+
+## D12 — CP renumber: display-side placement inserted as CP4
+
+**Date**: 2026-05-26
+**Status**: committed
+**Applies to**: project checkpoint roadmap from this date forward.
+
+### Change
+
+Original roadmap (D1–D11 era):
+
+| CP | Phase                  |
+|----|------------------------|
+| 1  | Design baseline        |
+| 2  | Schematic capture      |
+| 3  | Placement (both boards)|
+| 4  | Routing + DRC          |
+| 5  | Fab-ready              |
+
+CP3 in practice closed with battery-side placement only — display-side
+was explicitly deferred at CP3 iter 18+ ("Display-side PCB — separate
+scope (iter 18+ after CP3 close for battery-side)"). The CP-schematic-
+cleanup side checkpoint then landed between CP3-battery-side and
+routing-drc, leaving display-side placement as an undone prerequisite
+for routing.
+
+New roadmap:
+
+| CP | Phase                       |
+|----|-----------------------------|
+| 1  | Design baseline             |
+| 2  | Schematic capture           |
+| 3  | Placement (battery-side)    |
+| 4  | Placement (display-side) ←  new |
+| 5  | Routing + DRC (was CP4)     |
+| 6  | Fab-ready (was CP5)         |
+
+The CP-schematic-cleanup side checkpoint between CP3 and CP5 remains
+historically — it ran before this renumber and is already
+closed/merged.
+
+### Rationale
+
+Three options were considered:
+
+- **(A) CP3.5 standalone.** Single-concern packet preserved, but
+  leaves a non-linear "3.5" wart in the project's permanent artifact
+  trail.
+- **(B) Fold display placement into the routing CP.** Preserves
+  linear numbering but creates a mixed-concern packet (placement
+  quality + routing quality evaluated in the same iteration), and
+  breaks the single-concern pattern every prior CP followed.
+- **(C) Renumber: display placement = CP4, routing = CP5, fab =
+  CP6.** One-time doc-update cost in exchange for linear numbering
+  AND single-concern packets, preserved across the project lifetime.
+
+Option C chosen. Pursuit-of-excellence call: clean numbering and
+clean concern boundaries are project-quality investments that
+compound across every future reference (commits, PRs, BOM
+revisions, any future PCB project that uses this as a template).
+
+### Mechanics
+
+- `hardware/reviews/DESIGNER.md` §2 table updated to six checkpoints;
+  §5 advancement logic (`current_cp == 6` triggers fab-order gate);
+  §5 branch-slug table; §6 per-CP work descriptions; §8a header.
+- `hardware/layout/decisions.md` §145 (PCB STEP export), §183 (D11
+  routing-drc precondition), §338–344 (CP-schematic-cleanup history)
+  updated to reflect new numbering, with explicit "was CPN pre-D12"
+  annotations where the prior number is historically informative.
+- Existing CP-numbered branches and PRs (`hw/cp3-placement`,
+  `hw/cp-schematic-cleanup`) are not renamed — their numbers reflect
+  the roadmap at the time they were opened and are part of the
+  historical record.
+- New CP4 (display-side placement) opens on
+  `hw/cp4-display-placement` with packet at
+  `hardware/reviews/cp4_display_placement.md`.
+
+### Out-of-scope for the renumber itself
+
+The actual display-side placement design work (board outline,
+footprint placement, DRC, renders) is the substantive content of
+CP4, handled iteratively per the standard CP cycle. This decision
+entry only documents the roadmap restructure.
 
 ---
 

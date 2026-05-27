@@ -93,15 +93,18 @@ first design, JLCPCB qty 5 bare PCBs, hand-soldered. Background:
 [`docs/hardware/`](../../docs/hardware/),
 [`../layout/decisions.md`](../layout/decisions.md).
 
-## 2. The five checkpoints (your perspective)
+## 2. The six checkpoints (your perspective)
 
 | CP | Phase | What you produce |
 |----|-------|------------------|
 | 1  | Design baseline | Per-board layout docs, BOM, decisions log |
 | 2  | Schematic capture | KiCad 10 `.kicad_sch`, ERC clean, PDF + netlist export |
-| 3  | Placement | KiCad 10 `.kicad_pcb` with all footprints placed, rendered PNGs |
-| 4  | Routing + DRC | Fully-routed `.kicad_pcb`, DRC zero errors, copper pours |
-| 5  | Fab-ready | Gerbers, drill, position, BOM CSV, fab checklist, PCB STEP for the user's faceplate work |
+| 3  | Placement (battery-side) | `battery_side.kicad_pcb` with all footprints placed, rendered PNGs |
+| 4  | Placement (display-side) | `display_side.kicad_pcb` with all footprints placed, rendered PNGs |
+| 5  | Routing + DRC | Fully-routed `.kicad_pcb` files, DRC zero errors, copper pours |
+| 6  | Fab-ready | Gerbers, drill, position, BOM CSV, fab checklist, PCB STEP for the user's faceplate work |
+
+CP4 was inserted between CP3 and routing-drc per [`decisions.md` D12](../layout/decisions.md#d12--cp-renumber-display-side-placement-inserted-as-cp4) — display-side placement deserves its own single-concern packet, not a fold-in to the routing CP. See D12 for rationale.
 
 One feature-branch per CP: `hw/cpN-<slug>`. One PR per CP. Squash-merge
 to `main` when Codex APPROVES.
@@ -172,15 +175,15 @@ the current CP:
    ```bash
    git checkout main && git pull origin main
    ```
-4. **If current_cp == 5** (fab-ready APPROVED):
+4. **If current_cp == 6** (fab-ready APPROVED):
    - Set SEMAPHORE state to `user_turn` with note
-     "CP5 APPROVED. Renders and Gerbers in `hardware/outputs/`. User:
+     "CP6 APPROVED. Renders and Gerbers in `hardware/outputs/`. User:
      review the final render, then place the JLCPCB order. After
      order placed, flip state to `done` (or back to `claude_turn` if
      you want me to assemble shipping/handoff docs)."
    - Commit + push semaphore on a new branch (or to main, your call).
    - Done for this turn.
-5. **Else** (CP1–4 APPROVED): open the next CP.
+5. **Else** (CP1–5 APPROVED): open the next CP.
    - Create branch: `git checkout -b hw/cp<N+1>-<slug>`
    - Do the next CP's initial work (see §6).
    - Open a PR with `gh pr create ...`
@@ -197,8 +200,9 @@ The slug per CP:
 | 1  | cp1-design-baseline          |
 | 2  | cp2-schematic-capture        |
 | 3  | cp3-placement                |
-| 4  | cp4-routing-drc              |
-| 5  | cp5-fab-ready                |
+| 4  | cp4-display-placement        |
+| 5  | cp5-routing-drc              |
+| 6  | cp6-fab-ready                |
 
 ## 6. Doing initial CP work (when starting a fresh CP)
 
@@ -208,13 +212,17 @@ Each CP's work is:
   nets per the CP1 baseline. Run `kicad-cli sch erc`. Export PDF.
   Generate netlist. Build the CP2 review packet
   (`cp2_schematic_capture.md`) following the same shape as CP1's.
-- **CP3**: Place footprints in the `.kicad_pcb`. No routing yet.
-  Render top + bottom PNGs. Build `cp3_placement.md`.
-- **CP4**: Route, do copper pours, run DRC. Render. Build
-  `cp4_routing_drc.md`.
-- **CP5**: Export Gerbers, drill, position file, BOM CSV. Export
+- **CP3**: Place battery-side footprints in `battery_side.kicad_pcb`.
+  No routing yet. Render top + bottom PNGs. Build `cp3_placement.md`.
+- **CP4**: Place display-side footprints in `display_side.kicad_pcb`.
+  No routing yet. Render top + bottom PNGs. Build
+  `cp4_display_placement.md`. Same placement-strategy and DRC-clean
+  bar as CP3, applied to the second board.
+- **CP5**: Route both boards, do copper pours, run DRC. Render. Build
+  `cp5_routing_drc.md`.
+- **CP6**: Export Gerbers, drill, position file, BOM CSV. Export
   PCB STEP file (user needs this for the faceplate). Build
-  `cp5_fab_ready.md` with a pre-fab checklist.
+  `cp6_fab_ready.md` with a pre-fab checklist.
 
 When done, hand back to Codex via `state: codex_turn`.
 
@@ -253,7 +261,7 @@ You ARE NOT allowed to:
 - Force-push to `main`.
 - Modify Codex's review-packet §8 findings (you respond in §9).
 - Skip Codex's sign-off — never set `state: claude_turn → done`
-  without an APPROVED CP5 packet.
+  without an APPROVED CP6 packet.
 - Place the actual fab order. That's the user-only "spend money"
   step.
 
@@ -263,10 +271,10 @@ The user has explicitly delegated full autonomy. **Default to driving
 forward** in consensus with Codex rather than pausing. Only escalate
 (set `state: user_turn`) in these three cases:
 
-### 8a. Mandatory: CP5 APPROVED → before fab order
+### 8a. Mandatory: CP6 APPROVED → before fab order
 
 This is the only spend-money step in the project. After Codex
-APPROVES the CP5 fab-ready packet, set `state: user_turn` with a note
+APPROVES the CP6 fab-ready packet, set `state: user_turn` with a note
 that the renders + Gerbers are in `hardware/outputs/` and the user
 should review before placing the JLCPCB order.
 
@@ -293,7 +301,7 @@ set `state: user_turn` with a "stuck" note. Don't try one more pass.
 
 - A foundational design pivot (display swap, MCU swap, fab swap) if
   Codex agrees with you. Just do it, document a new entry in
-  `decisions.md`, move on. The user will see it at CP5.
+  `decisions.md`, move on. The user will see it at CP6.
 - BOM cost going up by a reasonable amount. You're not the budget
   gatekeeper unless we're talking 2× the current $154 ballpark.
 - Codex finding something you uncovered yourself. Just fix it.
