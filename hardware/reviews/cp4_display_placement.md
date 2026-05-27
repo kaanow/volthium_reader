@@ -240,6 +240,20 @@ and only unrouted-track warnings (counted, not zero).
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 1 blockers, 2 important. (See findings 01, 02, 03.)
 
+## 8.3 Reviewer findings (iteration 3)
+
+### Finding 04 — BLOCKER — cp4_display_placement.md:D11 visual inspection evidence
+**Issue**: The packet claims iter-2 D11 screenshots/renders were produced, but the referenced committed evidence files are missing from the repository, so the required visual gate cannot be independently verified.
+**Evidence**: No files exist under `hardware/reviews/visual_inspections/cp4-display-placement/iter2/` in this branch; linked image paths in `## D11 visual inspection — iter 2` therefore resolve to missing assets.
+**Suggested fix**: Commit the full iter-2 D11 artifact set (region screenshots plus frozen source render snapshots) at the paths referenced by the packet, then re-run reviewer verification against those committed files.
+
+### Finding 05 — IMPORTANT — display_side DRC solder-mask warnings
+**Issue**: The current placement includes `solder_mask_bridge` DRC violations between different nets, which is a real assembly risk and should be resolved before routing work proceeds.
+**Evidence**: Fresh run `kicad-cli pcb drc --schematic-parity hardware/kicad/display_side/display_side.kicad_pcb` reports mask-bridge warnings, e.g. BTN/C10 overlap between `BTN1_IN` and `BTN3_IN`, and U2-adjacent pad spacing conflicts between `V3V3`, `RS485_A/RS485_B`, `DE_RE`, and `GND`.
+**Suggested fix**: Move or rotate the affected footprints to restore solder-mask web width between unlike-net pads (or explicitly justify board-rule overrides with manufacturing limits) and include the updated DRC excerpt in the next iteration packet note.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 1 blockers, 1 important. (See findings 04, 05.)
+
 ## 9. Designer responses (iteration 2)
 
 ### RESOLVED — Finding 01 — BLOCKER — missing display_side.kicad_pcb

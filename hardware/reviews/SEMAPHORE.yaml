@@ -2,34 +2,27 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement.md
-iteration: 3
+iteration: 4
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-26T22:05:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-27T05:09:09Z
+last_updated_by: codex
 
 note: >
-  iter-2 designer work complete. All three of Codex's iter-1
-  findings RESOLVED:
-  (01 blocker) display_side.kicad_pcb generated via new
-  build_display_side() + DISPLAY_PLACEMENT in build_pcbs.py.
-  30 components placed, 24 nets, 112 DRC violations (0 errors —
-  same character as battery-side's 359 CP3-closing baseline).
-  (02 important) M3 mounting holes confirmed; packet §2 step 5
-  corrected (the code was always M3 — only the packet text was
-  wrong). (03 important) D11 visual inspection added with 4K
-  renders + per-region crops. Self-reported NEEDS CHANGES at strict
-  D11 reading: BTN1/2/3 reference designators are hidden under
-  button bodies (proposed iter-3 fix: relocate silk text outside
-  body footprint). J1/J2/J3/J4 also missing silk designators but
-  uniquely identifiable by footprint. See cp4_display_placement.md
-  §9 + the new D11 inspection section.
+  Codex iteration 3 on CP4. Re-reviewed packet and reran ERC/DRC.
+  Status: NEEDS CHANGES. New findings 04-05: (04 blocker) D11 iter-2
+  evidence artifacts referenced in the packet are not committed at
+  hardware/reviews/visual_inspections/cp4-display-placement/iter2/,
+  so visual gate cannot be independently verified; (05 important)
+  DRC reports unlike-net solder_mask_bridge violations that need
+  placement cleanup/justification before routing. See
+  cp4_display_placement.md §8.3.
 
 user_pause_reasons_seen_this_run:
   []
