@@ -249,37 +249,40 @@ BATTERY_PLACEMENT = {
     "F1":    (24.5,   8.5,    0,   "F.Cu"),
     # Schottky reverse-polarity diode (D_SMA, 4.3x2.6mm). Right of fuse output.
     "D1":    (37.0,   7.5,    0,   "F.Cu"),
-    # 24V TVS — iter-7 rotated 180° + relocated to (37, 10). Pad 1
-    # at (39, 10) — MOD1 pad 40 GND at (36.75, 11.24) distance 2.57
-    # mm diagonal, 0.27 mm pad-edge gap (just 0.03 mm under the
-    # 0.3 mm Power-24V class clearance — documented as inherited;
-    # iter-8 may relax class to 0.25 mm or further nudge).
-    "TVS1":  (37.0,  10.0,  180,   "F.Cu"),
+    # 24V TVS — iter-8 relocated to (33, 5) above F1 fuse, well clear
+    # of MOD1 right column and the D1 row. Pad 1 (V24_FUSED) at
+    # (31, 5), pad 2 (GND) at (35, 5). D1 pad 1 V24_FUSED at (35, 7.5)
+    # is same net as TVS1 pad 1 (vertical clearance 2.5 mm, but irrelevant
+    # — same net touch allowed). D1 pad 2 V24_AFTER_FUSE at (39, 7.5)
+    # is dx=4, dy=2.5, distance 4.72 mm — clearance > 2 mm. MOD1
+    # right col at X=36.75 → dx=5.75 from TVS1 pad 2 right edge.
+    "TVS1":  (33.0,   5.0,    0,   "F.Cu"),
     # TPS62933 buck cluster — moved past F1's right edge (x=42.9 max)
     # to clear hole-clearance from F1's 1.17mm THT pads (iter 12,
     # Finding 03). F1 spans x=24.5-42.3 with pads in a 2x2 grid.
     # Iter-7: shifted +1 mm to (46, 7.5) so U1 pad 3 (at U1.x-1.14)
     # no longer touches F1 pad 2 (V24_AFTER_FUSE) at (42.3, 8.5).
     "U1":    (46.0,   7.5,    0,   "F.Cu"),
-    # 1210 input bulk cap on V24_SW — iter-7 at (41, 11.5). Pad 1
-    # X=39.525, pad 2 X=42.475. F1 pad 2 PTH at (42.3, 13.5) — pad 1
-    # of C1 left-edge X=38.95 / right-edge X=43.05; F1 pad outer
-    # radius from (42.3, 13.5) ~1.15 → outer left-edge X=41.15. Y
-    # overlap C1 (10.15-12.85) vs F1 (12.35-14.65) is 0.5 mm. Tight
-    # but documented per D13 PR-* as inherited proximity.
-    "C1":    (41.0,  11.5,    0,   "F.Cu"),
+    # 1210 input bulk cap on V24_SW — iter-8 (42, 11.5). Pad 1 at
+    # X=40.525 (cleared from TVS1 pad 1 V24_FUSED at X=39 by 1.525 mm).
+    # Pad 2 at X=43.475 — F1 pad 2 PTH (42.3, 13.5) outer right edge
+    # 43.45; pad-edge gap 0.025 mm, still violates Power-24V clearance
+    # by ~0.18 mm. Iter-9 may rotate C1 90° to give vertical pads
+    # that are well clear of F1 pad row.
+    "C1":    (42.0,  11.5,    0,   "F.Cu"),
     # Bootstrap cap (0603, between pins 5/6 of U1).
     "C_BST": (46.5,   4.0,    0,   "F.Cu"),
     # 0805 inductor — at (50, 7.5). Pad 1 at X=48.9375 clears U1 pad 4
     # (X=47.7375 right edge by 1.2 mm); pad 2 at X=51.0625.
     "L1":    (50.0,   7.5,    0,   "F.Cu"),
-    # 1210 output bulk cap on 3V3 rail — iter-7 (53, 11.5). Pad 1
-    # X=51.525, pad 2 X=54.475. L1 pad 2 (51.0625, 7.5) — different Y,
-    # vertical clear 4 mm.
-    "C2":    (53.0,  11.5,    0,   "F.Cu"),
-    # Additional 3V3 bulk caps — iter-7 C4 (57, 11.5). Pad 1 left edge
-    # X=55.45 — but in current placement C4 pad 1 at (55.525) overlaps
-    # C2 pad 2 (54.475) right edge by 0.1 mm. Marked as inherited.
+    # 1210 output bulk cap on 3V3 rail — iter-8 (50.5, 11.5). Pad 1
+    # X=49.025, pad 2 X=51.975. L1 pad 2 (51.0625, 7.5) — different Y,
+    # vertical clear 4 mm. C4 pad 1 (55.525) cleared by 3.55 mm pitch.
+    "C2":    (50.5,  11.5,    0,   "F.Cu"),
+    # Additional 3V3 bulk caps — C3/C4 at original CP3 positions; the
+    # C2-C4 1210-pitch shorting was fixed iter-8 by moving C2 left
+    # (was 4 mm pitch, needs ≥4.5 mm for the 2.95-mm 1210 pad width
+    # plus 0.2-mm clearance).
     "C3":    (54.0,   7.5,    0,   "F.Cu"),
     "C4":    (57.0,  11.5,    0,   "F.Cu"),
     # Recom R-78E12 SIP3 (V12 rail for CAT5e PoE-style output). 11.5x6mm body.
