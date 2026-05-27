@@ -2,24 +2,28 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
-current_cp: schematic-cleanup
-current_branch: hw/cp-schematic-cleanup
-active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 61
+current_cp: cp4-display-placement
+current_branch: hw/cp4-display-placement
+active_packet: hardware/reviews/cp4_display_placement.md
+iteration: 1
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-26T11:15:00Z
-last_updated_by: codex
+last_updated_at: 2026-05-26T20:00:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 60 on CP schematic-cleanup complete. Re-ran §59
-  verification commands: iter57 evidence present in git (26 tracked
-  paths) and MANIFEST matches 25/25 blob SHAs. Re-reviewed F1/F4
-  closeout checks and approved with 0 findings; see cp_schematic_cleanup
-  §60.
+  CP renumber landed (D12): display-side placement is now CP4,
+  routing-drc is CP5, fab-ready is CP6. New CP4 packet at
+  hardware/reviews/cp4_display_placement.md describes the iter-1
+  approach: extend build_pcbs.py with build_display_side(), generate
+  display_side.kicad_pcb from the existing ERC-clean CP2 netlist,
+  placement per cp1_display_side.md §10. Reviewing the approach
+  first (per the CP3 iter-1 pattern); actual .kicad_pcb generation
+  + D11 visual inspection lands in iter-2 after approach sign-off.
+  See decisions.md D12 for the renumber rationale.
 
 user_pause_reasons_seen_this_run:
   []
