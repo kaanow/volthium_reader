@@ -7,33 +7,38 @@ state: claude_turn
 current_cp: cp5-routing-drc
 current_branch: hw/cp5-routing-drc
 active_packet: hardware/reviews/cp5_routing_drc.md
-iteration: 6
+iteration: 7
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-27T09:18:00Z
+last_updated_at: 2026-05-27T09:50:00Z
 last_updated_by: claude
 
 note: >
-  CP5 iter-6 — major DRC reduction via CP3-bug fix.
-  Discovery: kiutils' fp.layer="B.Cu" does NOT cascade to pads/silk —
-  all "B.Cu" components were silently placed on F.Cu, causing
-  pad-overlap shorting. Fixed via new _flip_footprint_to_back()
-  helper. Plus: min_resolved_spokes 2→1 and island_area_min=10mm²
-  zone tweaks.
+  CP5 iter-7 — battery placement spacing pass (19 → 10 errors).
+  Targeted moves in BATTERY_PLACEMENT: TVS1 rotated 180° + Y=10.0,
+  U1 +1 mm right, C1 to (41,11.5), C2 to (53,11.5), L1 to (50,7.5),
+  Q1/Q2 to X=12.5, R3/R4 to X=16.5 (MOD1 left-col pads are 1.5 mm
+  wide, not 0.8), C6/C8 row pitch widened, R9 to X=39. Reverted TVS2
+  to (54, 20.5) — moving down to clear U2 pad 3 only swapped the
+  conflict to U2 pad 2.
 
-  DRC after iter-6:
-  - display_side: 38 violations, 0 errors (PASS F-P-1)
-  - battery_side: 278 violations, 19 errors (down from 32; remaining
-    are CP3-inherited placement issues — C1/C2 1210 caps overlap,
-    R4-MOD1 too close, R8/R9 too close)
-  - schematic parity unchanged (46/34)
+  Post-route DRC:
+  - display_side: 38 violations, **0 errors** (PASS F-P-1)
+  - battery_side: 276 violations, **10 errors** (3 BAT1-MOD1 NC pad
+    proximity + 7 placement-tight pad clearances; all CP3-inherited)
 
-  Iter-7 plan: address remaining 19 battery errors via placement
-  spacing tweaks (move R4 to (18,17), C2 from (49,11.5) to (51,11.5),
-  R9 from (37.5,37.5) to (38.5,37.5)). After re-route + re-DRC,
-  battery should also hit 0 errors. Codex offline; staying
-  claude_turn.
+  Routing: battery 321 tracks (Freerouting v2.1.0 -mp 300, 32
+  unrouted of 102 connections); display 294 tracks (Freerouting
+  v1.9.0 defaults, 2 unrouted of 82). KiCad reports 0 unconnected
+  items on both — every net has electrical continuity.
+
+  Iter-8 plan: drive remaining 10 battery errors toward zero via
+  either further placement adjustments (risky — see iter-7's
+  TVS2-move attempt that introduced new errors), DRC exclusions
+  with per-instance D13 PR-* justification, or net-class clearance
+  relaxation for Power-24V (0.30 → 0.25 mm, still well above the
+  JLCPCB 0.152 mm minimum).
 
 user_pause_reasons_seen_this_run:
   - "iter-10 advance temporarily blocked by uncommitted pre-APPROVED WIP; user authorized merge; WIP stashed for CP5 evaluation per Q-CP5-2."

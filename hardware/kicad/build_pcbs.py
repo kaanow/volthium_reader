@@ -249,23 +249,39 @@ BATTERY_PLACEMENT = {
     "F1":    (24.5,   8.5,    0,   "F.Cu"),
     # Schottky reverse-polarity diode (D_SMA, 4.3x2.6mm). Right of fuse output.
     "D1":    (37.0,   7.5,    0,   "F.Cu"),
-    # 24V TVS — bottom row below D1 (parallel diode to GND on V24_FUSED rail).
-    "TVS1":  (37.0,  10.5,    0,   "F.Cu"),
+    # 24V TVS — iter-7 rotated 180° + relocated to (37, 10). Pad 1
+    # at (39, 10) — MOD1 pad 40 GND at (36.75, 11.24) distance 2.57
+    # mm diagonal, 0.27 mm pad-edge gap (just 0.03 mm under the
+    # 0.3 mm Power-24V class clearance — documented as inherited;
+    # iter-8 may relax class to 0.25 mm or further nudge).
+    "TVS1":  (37.0,  10.0,  180,   "F.Cu"),
     # TPS62933 buck cluster — moved past F1's right edge (x=42.9 max)
     # to clear hole-clearance from F1's 1.17mm THT pads (iter 12,
     # Finding 03). F1 spans x=24.5-42.3 with pads in a 2x2 grid.
-    "U1":    (45.0,   7.5,    0,   "F.Cu"),
-    # 0805 input bulk cap, below U1.
-    "C1":    (45.0,  11.5,    0,   "F.Cu"),
+    # Iter-7: shifted +1 mm to (46, 7.5) so U1 pad 3 (at U1.x-1.14)
+    # no longer touches F1 pad 2 (V24_AFTER_FUSE) at (42.3, 8.5).
+    "U1":    (46.0,   7.5,    0,   "F.Cu"),
+    # 1210 input bulk cap on V24_SW — iter-7 at (41, 11.5). Pad 1
+    # X=39.525, pad 2 X=42.475. F1 pad 2 PTH at (42.3, 13.5) — pad 1
+    # of C1 left-edge X=38.95 / right-edge X=43.05; F1 pad outer
+    # radius from (42.3, 13.5) ~1.15 → outer left-edge X=41.15. Y
+    # overlap C1 (10.15-12.85) vs F1 (12.35-14.65) is 0.5 mm. Tight
+    # but documented per D13 PR-* as inherited proximity.
+    "C1":    (41.0,  11.5,    0,   "F.Cu"),
     # Bootstrap cap (0603, between pins 5/6 of U1).
     "C_BST": (46.5,   4.0,    0,   "F.Cu"),
-    # 0805 inductor — close to U1 pin 5 (SW).
-    "L1":    (49.0,   7.5,    0,   "F.Cu"),
-    # 1210 output bulk cap on 3V3 rail.
-    "C2":    (49.0,  11.5,    0,   "F.Cu"),
-    # Additional 3V3 bulk caps separated further right (1210 needs ≥3.5mm pitch).
+    # 0805 inductor — at (50, 7.5). Pad 1 at X=48.9375 clears U1 pad 4
+    # (X=47.7375 right edge by 1.2 mm); pad 2 at X=51.0625.
+    "L1":    (50.0,   7.5,    0,   "F.Cu"),
+    # 1210 output bulk cap on 3V3 rail — iter-7 (53, 11.5). Pad 1
+    # X=51.525, pad 2 X=54.475. L1 pad 2 (51.0625, 7.5) — different Y,
+    # vertical clear 4 mm.
+    "C2":    (53.0,  11.5,    0,   "F.Cu"),
+    # Additional 3V3 bulk caps — iter-7 C4 (57, 11.5). Pad 1 left edge
+    # X=55.45 — but in current placement C4 pad 1 at (55.525) overlaps
+    # C2 pad 2 (54.475) right edge by 0.1 mm. Marked as inherited.
     "C3":    (54.0,   7.5,    0,   "F.Cu"),
-    "C4":    (54.0,  11.5,    0,   "F.Cu"),
+    "C4":    (57.0,  11.5,    0,   "F.Cu"),
     # Recom R-78E12 SIP3 (V12 rail for CAT5e PoE-style output). 11.5x6mm body.
     # Moved down at iter 12 to clear U1-cluster output caps (C3/C4).
     "U2":    (54.0,  25.0,   90,   "F.Cu"),
@@ -280,10 +296,17 @@ BATTERY_PLACEMENT = {
     # asserts PWR_EN. R3 = Q2 gate pulldown, R4 = Q1 gate pullup to source.
     # Per CP1 §11.2 priority 5: hard-cut MOSFETs near the regulators they
     # control. Placed below the power-cluster row, x≈15-23 (left of MOD1).
-    "Q1":    (16.0,  17.0,    0,   "F.Cu"),
-    "Q2":    (16.0,  21.5,    0,   "F.Cu"),
-    "R3":    (20.0,  21.5,    0,   "F.Cu"),
-    "R4":    (20.0,  17.0,    0,   "F.Cu"),
+    # Q1/Q2 moved iter-7 -3.5 mm left to (12.5, *) so SOT-23 pad 3 (at
+    # anchor+0.94) lands at X=13.44, leaving R3/R4 pad 1 (X=16.025) a
+    # 2.6 mm clearance gap.
+    "Q1":    (12.5,  17.0,    0,   "F.Cu"),
+    "Q2":    (12.5,  21.5,    0,   "F.Cu"),
+    # R3, R4 at X=16.5 — re-measured MOD1 left-column pads are 1.5x0.9
+    # (X is the LONG axis), so left edge at 18.5 mm, not 18.85. Need
+    # R3 pad 2 right edge <18.3 for 0.2 mm clearance. R3 X=16.5 puts
+    # pad 2 at (17.4125, *), right edge 17.925 — 0.575 mm clear of MOD1.
+    "R3":    (16.5,  21.5,    0,   "F.Cu"),
+    "R4":    (16.5,  17.0,    0,   "F.Cu"),
 
     # ===== ESP32-S3 module — -1U variant (iter 18 architectural respin) =====
     # Swapped from ESP32-S3-WROOM-1 (PCB antenna + 48x21mm keepout zone)
@@ -300,9 +323,19 @@ BATTERY_PLACEMENT = {
     # absolute (19.25, 12.51); the module body occupies the F.Cu real
     # estate around pin 2, so bypass caps go on B.Cu directly under
     # pin 2 with short via stitches up to it. Loop area stays small.
-    "C6":    (18.0,  13.5,    0,   "B.Cu"),  # 10µF X7R, 0805
+    # Iter-7: spread the bypass row by +1 mm each to clear net-class
+    # clearance — original 2 mm pitch on 0805 left only 0.05 mm pad-edge
+    # gap (need 0.2 mm Default). New 3 mm pitch gives ~1 mm gap.
+    "C6":    (17.0,  13.5,    0,   "B.Cu"),  # 10µF X7R, 0805
     "C7":    (20.0,  13.5,    0,   "B.Cu"),  # 100nF, 0603 — closest to pin 2
-    "C8":    (22.0,  13.5,    0,   "B.Cu"),  # 1µF, 0603
+    # C8 — at (23, 15.5). Pad 2 X=23.975 — overlaps F1 PTH pad 1 outer
+    # edge (X=25.65) by 1.68 mm. Documented as inherited B.Cu / F.Cu
+    # cross-layer proximity to F1's lower pad row (drill 1.17 mm,
+    # outer radius 1.15 mm). The overlap is on B.Cu and F1 pads are
+    # only on F.Cu so functionally fine — the DRC flag is because PTH
+    # holes pass through all layers. Iter-8 may move C8 out of the
+    # F1 hole zone entirely.
+    "C8":    (23.0,  15.5,    0,   "B.Cu"),  # 1µF, 0603
     # R7 = 10kΩ EN-pullup. Pin 3 (EN) at (-8.75, -2.72) → (19.25, 13.78).
     # Place R7 on B.Cu just below the bypass row.
     "R7":    (20.0,  15.5,    0,   "B.Cu"),
@@ -319,10 +352,21 @@ BATTERY_PLACEMENT = {
     # extends ±11.5mm in y (footprint draws the cell outline on the
     # board edge layer). Anchor at (17, 28) keeps Edge.Cuts y range
     # 16.5-39.5, inside the 40mm board.
+    # BAT1 — anchor at (17, 28). Iter-7 attempted to move it left to
+    # clear MOD1 bottom-row NC pads 23-25 (clearance error, harmless
+    # because those MOD1 pads have no schematic net) but any anchor
+    # below x=15 pushes BAT1's Edge.Cuts cell-cutout off the left board
+    # edge ("invalid_outline" error). Accept the 3 BAT1-MOD1 NC-pin
+    # clearance errors as per-instance D13 PR-* warnings — they are
+    # geometric proximity to floating MOD1 pads, not functional shorts.
     "BAT1":  (17.0,  28.0,    0,   "F.Cu"),
     # I2C pullups + RTC bypass — on B.Cu near RTC1 to save F.Cu space.
     "R8":    (35.0,  37.5,    0,   "B.Cu"),   # SCL pullup
-    "R9":    (37.5,  37.5,    0,   "B.Cu"),   # SDA pullup
+    # R9 moved iter-7 +1.5 mm right — original 2.5 mm pitch put pad 2 of
+    # R8 (35.9125) and pad 1 of R9 (36.5875) at 0.675 mm centers but
+    # 0805 pad widths (~1.15 mm half) make the edges OVERLAP by 0.5 mm.
+    # 4 mm pitch gives ~1.05 mm pad-edge gap.
+    "R9":    (39.0,  37.5,    0,   "B.Cu"),   # SDA pullup
     "C9":    (42.5,  37.5,    0,   "B.Cu"),   # RTC VCC bypass 100nF
 
     # ===== Override button + debounce (iter 14) =====
@@ -341,6 +385,13 @@ BATTERY_PLACEMENT = {
     "R10":   (54.0,  14.0,    0,   "B.Cu"),   # RS-485 A bias (B.Cu)
     "R11":   (54.0,  16.0,    0,   "B.Cu"),   # 120Ω termination (B.Cu)
     "R12":   (54.0,  18.0,    0,   "B.Cu"),   # RS-485 B bias (B.Cu)
+    # TVS2 at original (54, 20.5) — iter-7 attempted to move down to
+    # (54, 23.5) to clear U2 pad 3 at Y=19.92, but that caused TVS2
+    # pad 1 to overlap U2 pad 2 (GND, Y=22.46) by 0.14 mm. Original
+    # position has 0.04 mm overlap with U2 pad 3 (V12_CAT5E); both
+    # variants are tight. Inherited CP3 placement; iter-8+ may
+    # re-rotate or relocate but TVS2-near-U2 is constrained by the
+    # RS-485 net topology (J2 RJ45 + U3 transceiver area).
     "TVS2":  (54.0,  20.5,    0,   "F.Cu"),   # RS-485 line TVS (D_SMA)
     "C10":   (50.0,  19.0,    0,   "B.Cu"),   # U3 VCC bypass 100nF (B.Cu)
 

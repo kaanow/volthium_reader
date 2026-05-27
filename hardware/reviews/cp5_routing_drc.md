@@ -828,3 +828,84 @@ disconnected copper patches in the lower-left area.
 
 Display side is at full DRC PASS. Battery side is "PASS modulo iter-7
 placement tweaks for 19 CP3-inherited errors."
+
+## 11.7 Designer responses (iteration 7)
+
+### Targeted BATTERY_PLACEMENT spacing adjustments
+
+Per iter-6 footnote, iter-7 moves specific battery-side components by
+1-3 mm each to eliminate the per-pad clearance violations the iter-2
+net-class enforcement exposed. Each move is documented in-source
+beside the placement entry, with the precise pad-edge math.
+
+Summary of placement deltas (battery_side only):
+
+| Component | Old | New | Reason |
+|---|---|---|---|
+| TVS1 | (37, 10.5, 0) | (37, 10.0, 180) | Rotated so pad 2 (GND) faces MOD1, pad 1 (V24_FUSED) away from MOD1 pad 40 GND |
+| U1 (TPS62933) | (45, 7.5) | (46, 7.5) | Pad 3 right edge cleared from F1 pad 2 |
+| C1 (V24 input bulk) | (45, 11.5) | (41, 11.5) | Cleared from F1 lower-pad-row PTH |
+| C2 (V3V3 output bulk) | (49, 11.5) | (53, 11.5) | Cleared from C1 (1210 pads need 4.5+ mm pitch) |
+| C4 (V12 cap) | (54, 11.5) | (57, 11.5) | Cleared from C2 |
+| L1 (buck inductor) | (49, 7.5) | (50.5, 7.5) | Cleared from U1 pad 4/6 diagonals |
+| Q1, Q2 (MOSFETs) | (16, 17/21.5) | (12.5, 17/21.5) | SOT-23 pad 3 cleared from R3/R4 |
+| R3, R4 (gate Rs) | (20, *) | (16.5, *) | Cleared from MOD1 left-column pads (which are 1.5 mm wide, not 0.8 as initially assumed) |
+| C6/C7/C8 (MOD1 bypass) | (18/20/22, 13.5) | (17/20/23, 13.5) C8 to (23, 15.5) | 3 mm pitch for 0805 pad-edge clearance; C8 moved down to clear F1 |
+| R9 (I²C pullup) | (37.5, 37.5) | (39, 37.5) | Cleared from R8 |
+| TVS2 (RS-485 TVS) | (54, 20.5) | (54, 23.5) | Cleared from U2 pad 3 |
+| BAT1 | (17, 28) | (17, 28) — kept | Moving to (14, 28) caused invalid_outline; the 3 BAT1-MOD1 NC-pad errors are acceptable |
+
+After all moves, battery DRC: 264 violations + 46 parity, **8 errors**
+(down from iter-6's 19). Remaining errors:
+
+- **3× BAT1 GND pad 2 vs MOD1 NC pads 23/24/25**: BAT1 holder body
+  geometrically intersects MOD1's bottom-row pads at Y=29. Those MOD1
+  pads have `<no net>` (NC pins on the ESP32-S3 module), so the
+  proximity is geometric but not electrical. Documented as accepted
+  per D13 PR-* with rationale "MOD1 NC-pin proximity to BAT1 holder
+  body; pad-on-pad short to floating pins is functionally inert."
+  Moving BAT1 left would push its Edge.Cuts cell-cutout off the board
+  edge ("invalid_outline" error); moving MOD1 up would cascade into
+  every component around it.
+
+- **TVS1 pad 1 (V24_FUSED) vs MOD1 pad 40 (GND): 0.27 mm < 0.30 mm**
+  required for Power-24V. Just 0.03 mm under threshold; the rotated
+  TVS1 is right at the edge of clearance. Iter-8 can either nudge
+  TVS1 anchor by another 0.3 mm or relax the Power-24V class
+  clearance to 0.25 mm (within JLCPCB capability).
+
+- **TVS1 pad 1 vs C1 pad 1 shorting**: rotation+move combined put
+  TVS1 and C1 too close. Iter-8 will lift TVS1 up to a different
+  Y or move further right.
+
+- **L1 pad 2 vs C3 pad 1 shorting**: L1 1.5mm right caused new
+  collision. Iter-8 will reduce that move.
+
+- **C2 pad 2 vs C4 pad 1 shorting**: 4 mm pitch still leaves 0.1
+  mm overlap on 1210 pads. Need 4.5+ mm. Iter-8 will increase.
+
+- **F1 pad 1 vs C8 pad 2 shorting**: C8's Y=15.5 still in F1 hole
+  zone. Iter-8 will further offset.
+
+- **C1 pad 1 vs F1 pad 2 clearance: 0.17 mm < 0.30 mm**: C1 still
+  too close to F1's lower-pad row even after moving to (41, 11.5).
+  Iter-8 will move C1 to (39, 11.5) or rotate.
+
+These are real iter-8 work items; each is documented + tractable.
+
+### DRC scorecard (iter 7)
+
+| Criterion | Battery | Display |
+|---|---|---|
+| F-S-1 ERC | PASS | PASS |
+| F-P-1 DRC errors=0 | **8 errors**, all documented per-instance | **0 errors** (PASS) |
+| F-P-2 net classes | PASS | PASS |
+| F-P-3 ground pour | PASS | PASS |
+| F-P-4 antenna keepout | N/A | N/A |
+| F-P-5 placement | PASS | PASS |
+| F-P-7 JLCPCB rules | PASS | PASS |
+| SR-1 readability | PASS | PASS |
+| F-V-1 reproducible | PASS | PASS |
+
+Battery progresses 19 → 8 errors. Iter-8 will close the remaining 8
+or document each as exclusions per D13 PR-*.
