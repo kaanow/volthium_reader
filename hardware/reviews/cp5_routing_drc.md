@@ -1,0 +1,240 @@
+# CP5 review packet — routing + DRC (both boards)
+
+**Status**: open (iteration 1 — approach packet, no routing yet)
+**Opened**: 2026-05-27
+**Branch**: `hw/cp5-routing-drc`
+**Goal of this CP**: route every signal on both
+`hardware/kicad/battery_side/battery_side.kicad_pcb` and
+`hardware/kicad/display_side/display_side.kicad_pcb`, add a B.Cu
+ground pour to each, run DRC to **zero** errors (warnings categorized
++ justified per D13 PR-*), and re-render top + bottom PNGs that
+satisfy D11 readability for the routed boards. CP6 (Gerbers, drill,
+position, BOM CSV, STEP) follows immediately after this APPROVES.
+
+## 1. What CP4 + earlier CPs handed us
+
+- **CP3 APPROVED**: `hardware/kicad/battery_side/battery_side.kicad_pcb`
+  with every footprint placed, DRC clean for "placement only"
+  (unrouted-track warnings suppressed at that gate).
+- **CP4 APPROVED** (this branch's predecessor):
+  `hardware/kicad/display_side/display_side.kicad_pcb` with every
+  footprint placed on an 85×65 mm outline, DRC clean for placement,
+  top + bottom renders D11-readable.
+- **`build_pcbs.py`** has full footprint placement + net-tying for
+  both boards. No routing logic; no zone/pour logic; net classes are
+  not yet emitted into the PCB files (verified: `grep -n
+  "net_class\|netclass"` on both kicad_pcb files returns empty —
+  classes live in [cp1_battery_side.md §11.3](../layout/cp1_battery_side.md#113-net-classes-track-widths)
+  and [cp1_display_side.md §10.3](../layout/cp1_display_side.md#103-net-classes)
+  as design intent but have not been written to the boards).
+- **In-flight crash WIP** (preserved at `git stash@{0}` titled
+  "iter-10 crash recovery: silk-promotion WIP ..."): silk-promotion
+  infrastructure for `build_pcbs.py` (font sizing to JLCPCB silk
+  minimums: 1.0 mm height / 0.15 mm thickness; per-component refdes
+  offsets for SMD passives; post-processing of `(property "Reference"
+  ...)` lines that kiutils strips on save). Out of scope for routing
+  but in scope for "renders must remain D11-clean after routing"
+  (silk text near tracks/vias is exactly the kind of regression CP5
+  could re-introduce). May be popped and applied here if Codex
+  agrees in §7. Also stashed: a `reviewer_automation.sh` tooling
+  tweak (interval 600→180 s, preflight sync logic) — that goes to a
+  separate `main` commit, not into CP5's PCB scope.
+
+## 2. The approach for CP5
+
+**Generation discipline**: same as CP3/CP4 — KiCad PCB files are the
+source of truth, but every modification is reproducible from
+`build_pcbs.py` + the design-intent docs. No manual KiCad-GUI edits
+land on `main` unbacked by a script change.
+
+Five work items, in order:
+
+1. **Emit net classes into both boards** (extend `build_pcbs.py`
+   with a `_apply_net_classes(board, classes)` helper that writes
+   the `(net_class ...)` blocks from a Python dict matching the
+   CP1 spec). One commit per board for traceability.
+2. **Route the boards.** Two candidate strategies in §3 — Codex
+   to pick one in iter-2 sign-off (or earlier via §7 question).
+3. **Add B.Cu ground pour** on both boards via
+   `_add_ground_zone(board, layer="B.Cu", net="GND",
+   clearance=0.25 mm)`. Stitching vias every ~10 mm around U1
+   (battery-side) per [cp1_battery_side.md §11.4](../layout/cp1_battery_side.md#114-ground)
+   and around the FFC return path on display-side per
+   [cp1_display_side.md §10.4](../layout/cp1_display_side.md#104-ground).
+4. **DRC** via `kicad-cli pcb drc --schematic-parity` on both
+   boards. Pass criterion: zero errors. Warnings must each map to a
+   D13 PR-* row with PASS justification, or be fixed.
+5. **Render** via `kicad-cli pcb render --side top` and
+   `--side bottom` for both boards, at the same 4k preset CP4 used.
+   D11 visual inspection per DESIGNER.md §0 checklist on each
+   rendered PDF/PNG (silk-vs-track collisions are the new failure
+   mode that CP5 introduces).
+
+## 3. Routing strategy — two candidates
+
+### 3a. Programmatic + Freerouting hybrid (default proposal)
+
+Emit critical high-current and tight-tolerance routes
+programmatically in `build_pcbs.py` so they are reproducible and
+review-friendly:
+
+- **Battery-side**: V24_RAW → F1 → D1 → V24_FUSED → U1 (Power-24V,
+  1.0 mm wide) as a fat continuous run; the U1 → L1 → C2 switching
+  loop (≤10 mm sides per
+  [cp1_battery_side.md §11.2](../layout/cp1_battery_side.md#112-placement-priorities)).
+- **Display-side**: V12_CAT5E → F1 → D1 → V12_PROT → U1 (Power-12V,
+  0.5 mm), RS-485 diff pair (RS485_A/B as a coupled pair, equal-
+  length, no stubs).
+
+Then export `.dsn`, run **Freerouting** (Java CLI app) for the
+remaining signal nets, import `.ses` back. Freerouting is the
+standard KiCad autorouter; deterministic with a fixed seed, no
+license cost, output is editable in KiCad.
+
+Pros: critical paths bit-reproducible from script; bulk signal
+routing automated; tractable in this loop.
+
+Cons: introduces a Java dependency at build time (~80 MB JAR);
+Freerouting occasionally needs manual touch-up on dense regions
+(would surface in §3's DRC pass and get a follow-up commit).
+
+### 3b. Pure programmatic (no Freerouting)
+
+Hand-write every track in `build_pcbs.py` using `kiutils`'
+`Segment` / `Via` primitives. Manageable because the boards are
+small (60×40 and 85×65 mm, ~50 nets total combined).
+
+Pros: no external tooling; pure-Python build chain.
+
+Cons: writing ~200+ Segments by hand is brittle and tedious; any
+placement adjustment cascades into hand-edited route fixups; we'd
+spend most of CP5 doing hand-routing work that a router does in
+seconds.
+
+**Recommendation**: 3a. Reproducibility for the paths that matter
+(power, switching loop, RS-485 pair) + automation for the rest. If
+Codex prefers 3b for purity, we accept the extra iteration cost.
+
+## 4. Scope — what CP5 IS
+
+- Net-class metadata in both `.kicad_pcb` files
+- Every signal net routed end-to-end
+- B.Cu ground pour on both boards, stitching vias per §11.4 / §10.4
+- DRC zero errors on both boards (`schematic-parity` enabled)
+- Top + bottom renders for both boards, D11-readable
+- One PR (`hw/cp5-routing-drc`), one squash-merge on APPROVE
+
+## 5. Scope — what CP5 IS NOT
+
+- **Gerbers / drill / position / BOM CSV / STEP**: all CP6.
+- **Schematic edits**: CP2/CP-schematic-cleanup closed those.
+  Any net change here is a regression unless paired with a
+  schematic re-export and explicit Codex sign-off.
+- **3D STEP**: CP6.
+- **Pre-fab checklist**: CP6.
+- **Mechanical / faceplate**: user-owned, out of every CP.
+- **Battery-side placement re-litigation**: CP3 closed at iter-21
+  APPROVED. Don't touch placement unless a routing constraint
+  forces it, and even then surface the move as a finding for the
+  user.
+
+## 6. Tooling notes
+
+- `kicad-cli pcb drc <file> --schematic-parity --output <rpt>`
+  is the DRC entry point (used in CP3 / CP4).
+- `kicad-cli pcb render <file> --side {top,bottom} --preset
+  perspective --output <png>` for 4k renders (D11 inspections
+  use these).
+- Freerouting CLI: `java -jar freerouting-2.x.jar -de <board.dsn>
+  -do <board.ses>`. Pin the version; record SHA in `decisions.md`
+  on first commit so re-runs are reproducible. Confirm
+  availability with `which java` on the build host.
+- `kiutils` (already vendored via `build_pcbs.py`) for emitting
+  net classes, zones, and any programmatic segments/vias.
+
+## 7. Open questions for Codex
+
+### Q-CP5-1: Routing strategy — 3a hybrid or 3b pure programmatic?
+
+Recommendation: 3a (hybrid). See §3 trade-off table. If 3b, we add
+~1–2 iterations of route hand-writing on this branch.
+
+### Q-CP5-2: Pop the stashed silk-promotion WIP into CP5?
+
+The stashed `build_pcbs.py` changes (silk font sizing to JLCPCB
+minimums + post-process of `(property "Reference" ...)` lines)
+were not part of the CP4 APPROVED state but appear correctness-
+relevant once tracks/vias enter the renders. Three options:
+
+- **Pop here** as the first iter-2 commit; D11 quality improves
+  ahead of routing.
+- **Reject** entirely; the CP4 APPROVED silk treatment is fine, we
+  don't change build_pcbs silk logic in CP5.
+- **Defer to CP6** under the "fab-ready" silk-final pass.
+
+Recommendation: **pop here** — the post-processor specifically
+restores silk attrs that kiutils strips, which becomes a
+correctness bug once routing changes other board content (any
+build_pcbs.py re-run regenerates silk anchors back at footprint
+center, which routing PRs will need to do).
+
+### Q-CP5-3: Antenna keepout enforcement during routing
+
+[cp1_battery_side.md §11.2](../layout/cp1_battery_side.md#112-placement-priorities)
+specifies a 15×6 mm no-copper-no-track zone at the ESP32-S3-WROOM-1
+antenna corner. Freerouting respects keepout zones if they exist on
+the board. Should I:
+
+- Add the keepout as a `(zone ...)` with `(keepout (tracks not_allowed)
+  (copperpour not_allowed))` in `build_pcbs.py` first (iter-2), then
+  route?
+- Or assume Freerouting + the placement clearance is sufficient and
+  let DRC catch any violation?
+
+Recommendation: **add the keepout zone first.** Defense in depth;
+DRC then enforces it.
+
+### Q-CP5-4: DRC severity policy for the post-route board
+
+CP3/CP4 closed with non-zero DRC warning counts (94 DRC, 34
+footprint warnings on display-side iter-9). Per D13 those need
+each-row PASS justification in the scorecard. For CP5, do we:
+
+- **Raise the bar to zero warnings** for routed boards (silk
+  overlaps, courtyard overlaps, etc., all fixed)?
+- **Keep the CP3/CP4 policy**: zero errors, warnings categorized +
+  justified per D13?
+
+Recommendation: keep the **zero errors, warnings categorized**
+policy. Some warnings (silk-on-pad on small SMDs) are intrinsic
+to the chosen footprints and can't be fixed without re-spinning
+footprint authoring, which is CP3's domain. CP5 should not
+inherit CP3/CP4 baseline-warning churn.
+
+## 8. Success criteria (CP5 overall)
+
+| ID | Criterion |
+|----|-----------|
+| F-S-1 | Both boards ERC clean (unchanged from CP2/4) |
+| F-S-2 | Both boards DRC clean (zero errors), schematic-parity enabled |
+| F-P-1 | Every net in each `.kicad_pcb` has at least one routed segment connecting all its pads |
+| F-P-2 | Net classes per [cp1_battery_side.md §11.3](../layout/cp1_battery_side.md#113-net-classes-track-widths) and [cp1_display_side.md §10.3](../layout/cp1_display_side.md#103-net-classes) emitted into both boards' `(net_class ...)` tables; tracks for each net carry the class's width |
+| F-P-3 | B.Cu ground pour present on both boards; stitching vias around the switching regulator (battery-side) and FFC return (display-side) |
+| F-P-4 | Antenna keepout (battery-side) honored — no tracks, no copper inside the 15×6 mm zone |
+| SR-1 | Every routed-board render is D11-readable (D13 SR-* applied to renders post-route) |
+| PR-* | Warning rows categorized + PASS-justified per D13 |
+| F-V-1 | Build is reproducible: `python hardware/kicad/build_pcbs.py --battery` and `--display` regenerate the committed `.kicad_pcb` byte-equivalent (modulo timestamps Freerouting may inject) |
+
+## 9. What this CP does NOT settle
+
+- **Fab readiness** — Gerbers, drill, position file, BOM CSV,
+  STEP. CP6 only.
+- **EMC pre-test** — V24 switcher noise on the antenna lead. Out
+  of scope; informally surface any obvious red flags in routing
+  review.
+- **Mechanical fit** — faceplate clearance, button height,
+  panel-to-PCB stackup. User-owned.
+
+## 10. Reviewer findings (append-only)
+
+(empty — iter-1 is approach only)

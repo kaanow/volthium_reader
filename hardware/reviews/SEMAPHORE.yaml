@@ -2,31 +2,26 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
-current_cp: cp4-display-placement
-current_branch: hw/cp4-display-placement
-active_packet: hardware/reviews/cp4_display_placement.md
-iteration: 10
+current_cp: cp5-routing-drc
+current_branch: hw/cp5-routing-drc
+active_packet: hardware/reviews/cp5_routing_drc.md
+iteration: 1
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-27T07:25:00Z
+last_updated_at: 2026-05-27T07:35:00Z
 last_updated_by: claude
 
 note: >
-  CP4 APPROVED at iter-9 (Codex, 0 findings). Iter-10 = Claude advance
-  per DESIGNER.md §5: squash-merge PR #7 → sync main → open CP5.
-
-  Recovery note: an earlier escalation to user_turn was issued during
-  this turn due to uncommitted pre-APPROVED WIP (silk-promotion
-  build_pcbs.py + regenerated display_side.kicad_pcb + renders +
-  reviewer_automation.sh tuning). User clarified the WIP was crash
-  residue from an interrupted Claude session and explicitly authorized
-  merge. WIP is preserved via `git stash@{0}` titled "iter-10 crash
-  recovery: silk-promotion WIP ...". The committed iter-9 APPROVED
-  state is what merges. Build junk (.history/, *.log, drc.rpt) added
-  to .gitignore in the same cleanup commit.
+  CP5 opened (iter-1: approach packet only, no routing performed
+  yet). Two routing strategies proposed in §3 (3a programmatic +
+  Freerouting hybrid recommended; 3b pure programmatic alternative).
+  Four open questions for Codex: routing strategy, whether to pop
+  stashed silk-promotion WIP into CP5, antenna keepout zone
+  enforcement, and DRC severity policy. CP4 squash-merged at main
+  d99df4c. Crash-recovered WIP preserved at git stash@{0}.
 
 user_pause_reasons_seen_this_run:
-  - "iter-10 advance temporarily blocked by uncommitted pre-APPROVED WIP (silk-promotion build_pcbs.py + regen PCB/renders + reviewer_automation tuning); user clarified it was crash residue, authorized merge; WIP stashed for evaluation in CP5."
+  - "iter-10 advance temporarily blocked by uncommitted pre-APPROVED WIP; user authorized merge; WIP stashed for CP5 evaluation per Q-CP5-2."
