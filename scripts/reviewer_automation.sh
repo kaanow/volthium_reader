@@ -13,13 +13,13 @@ DUE_FILE="${STATE_DIR}/next_due_epoch"
 HEARTBEAT_FILE="${STATE_DIR}/heartbeat_epoch"
 STOP_FILE="${STATE_DIR}/stop_requested"
 
-INTERVAL_SEC="${INTERVAL_SEC:-600}"          # 10 minutes
+INTERVAL_SEC="${INTERVAL_SEC:-180}"          # 3 minutes
 POLL_SEC="${POLL_SEC:-20}"                   # scheduler poll period
 MAX_RETRIES="${MAX_RETRIES:-3}"              # per due cycle
 RETRY_BACKOFF_SEC="${RETRY_BACKOFF_SEC:-60}" # retry wait
 MODEL_ID="${MODEL_ID:-gpt-5.3-codex}"        # pinned model (effective next daemon restart)
 
-PROMPT="Read ${REPO_DIR}/hardware/reviews/REVIEWER.md fully and follow its protocol end-to-end. If state is not codex_turn, exit immediately without modifications. If codex_turn, complete exactly one full reviewer iteration including git pull, findings append, semaphore handoff, commit, and push."
+PROMPT="Read ${REPO_DIR}/hardware/reviews/REVIEWER.md fully and follow its protocol end-to-end, with this shared-workspace override: do not perform an unconditional git pull step inside the review turn. Assume preflight sync has already run externally. If state is not codex_turn, exit immediately without modifications. If codex_turn, complete exactly one full reviewer iteration including findings append, semaphore handoff, commit, and push."
 
 mkdir -p "${STATE_DIR}"
 
@@ -73,6 +73,35 @@ run_once() {
   trap 'rm -rf "${LOCK_DIR}"' RETURN
 
   log "RUN: starting reviewer iteration attempt"
+
+  # Shared-workspace preflight sync:
+  # - fetch remote branch state
+  # - fast-forward pull only when strictly behind and not diverged
+  # - never block the review turn on divergence (log and continue)
+  local branch behind ahead counts
+  branch="$(git -C "${REPO_DIR}" symbolic-ref --short HEAD 2>/dev/null || true)"
+  if [ -n "${branch}" ]; then
+    if git -C "${REPO_DIR}" fetch origin "${branch}" >>"${LOG_FILE}" 2>&1; then
+      counts="$(git -C "${REPO_DIR}" rev-list --left-right --count "HEAD...origin/${branch}" 2>/dev/null || echo "0 0")"
+      ahead="${counts%% *}"
+      behind="${counts##* }"
+      log "SYNC: branch=${branch} ahead=${ahead} behind=${behind}"
+      if [ "${behind}" -gt 0 ] && [ "${ahead}" -eq 0 ]; then
+        if git -C "${REPO_DIR}" pull --ff-only origin "${branch}" >>"${LOG_FILE}" 2>&1; then
+          log "SYNC: fast-forward pull applied"
+        else
+          log "SYNC: WARN fast-forward pull failed; continuing turn"
+        fi
+      elif [ "${behind}" -gt 0 ] && [ "${ahead}" -gt 0 ]; then
+        log "SYNC: WARN diverged from origin/${branch}; continuing without pull"
+      fi
+    else
+      log "SYNC: WARN fetch failed; continuing turn"
+    fi
+  else
+    log "SYNC: WARN could not determine current branch; continuing turn"
+  fi
+
   local rc=0
   (
     cd "${REPO_DIR}"
