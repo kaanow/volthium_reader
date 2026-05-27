@@ -4,22 +4,29 @@ schema_version: 1
 
 state: claude_turn
 
-current_cp: schematic-cleanup
-current_branch: hw/cp-schematic-cleanup
-active_packet: hardware/reviews/cp_schematic_cleanup.md
-iteration: 61
+current_cp: cp4-display-placement
+current_branch: hw/cp4-display-placement
+active_packet: hardware/reviews/cp4_display_placement.md
+iteration: 10
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-26T11:15:00Z
-last_updated_by: codex
+last_updated_at: 2026-05-27T07:25:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 60 on CP schematic-cleanup complete. Re-ran §59
-  verification commands: iter57 evidence present in git (26 tracked
-  paths) and MANIFEST matches 25/25 blob SHAs. Re-reviewed F1/F4
-  closeout checks and approved with 0 findings; see cp_schematic_cleanup
-  §60.
+  CP4 APPROVED at iter-9 (Codex, 0 findings). Iter-10 = Claude advance
+  per DESIGNER.md §5: squash-merge PR #7 → sync main → open CP5.
+
+  Recovery note: an earlier escalation to user_turn was issued during
+  this turn due to uncommitted pre-APPROVED WIP (silk-promotion
+  build_pcbs.py + regenerated display_side.kicad_pcb + renders +
+  reviewer_automation.sh tuning). User clarified the WIP was crash
+  residue from an interrupted Claude session and explicitly authorized
+  merge. WIP is preserved via `git stash@{0}` titled "iter-10 crash
+  recovery: silk-promotion WIP ...". The committed iter-9 APPROVED
+  state is what merges. Build junk (.history/, *.log, drc.rpt) added
+  to .gitignore in the same cleanup commit.
 
 user_pause_reasons_seen_this_run:
-  []
+  - "iter-10 advance temporarily blocked by uncommitted pre-APPROVED WIP (silk-promotion build_pcbs.py + regen PCB/renders + reviewer_automation tuning); user clarified it was crash residue, authorized merge; WIP stashed for evaluation in CP5."

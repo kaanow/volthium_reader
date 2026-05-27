@@ -11,6 +11,9 @@ hardware/kicad/*/_autosave-*
 hardware/kicad/*/fp-info-cache
 hardware/kicad/*/*.kicad_prl
 hardware/kicad/*/*.lck
+hardware/kicad/*/.history/
+hardware/kicad/*.log
+hardware/outputs/*/drc.rpt
 
 # Legacy paths from the original SKiDL → KiCad 8 plan (no longer used; safe to ignore)
 hardware/kicad/outputs/
