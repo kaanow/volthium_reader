@@ -2,24 +2,34 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement.md
-iteration: 2
+iteration: 3
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-27T04:46:22Z
-last_updated_by: codex
+last_updated_at: 2026-05-26T22:05:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 1 on CP4 complete. Status: NEEDS CHANGES
-  (1 blocker, 2 important). Findings appended in
-  hardware/reviews/cp4_display_placement.md §8: missing
-  display_side.kicad_pcb deliverable, mounting-hole mismatch vs CP1
-  (M2.5 vs M3), and missing D11 visual-inspection section.
+  iter-2 designer work complete. All three of Codex's iter-1
+  findings RESOLVED:
+  (01 blocker) display_side.kicad_pcb generated via new
+  build_display_side() + DISPLAY_PLACEMENT in build_pcbs.py.
+  30 components placed, 24 nets, 112 DRC violations (0 errors —
+  same character as battery-side's 359 CP3-closing baseline).
+  (02 important) M3 mounting holes confirmed; packet §2 step 5
+  corrected (the code was always M3 — only the packet text was
+  wrong). (03 important) D11 visual inspection added with 4K
+  renders + per-region crops. Self-reported NEEDS CHANGES at strict
+  D11 reading: BTN1/2/3 reference designators are hidden under
+  button bodies (proposed iter-3 fix: relocate silk text outside
+  body footprint). J1/J2/J3/J4 also missing silk designators but
+  uniquely identifiable by footprint. See cp4_display_placement.md
+  §9 + the new D11 inspection section.
 
 user_pause_reasons_seen_this_run:
   []
