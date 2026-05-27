@@ -379,8 +379,14 @@ def _add_edge_cuts(b, w, h):
     ])
 
 
-def _place_footprint(b, ref, comp_meta, placement, nets_by_name):
-    """Load a footprint from cache, set instance properties, tie pads to nets."""
+def _place_footprint(b, ref, comp_meta, placement, nets_by_name, refdes_offset=None):
+    """Load a footprint from cache, set instance properties, tie pads to nets.
+
+    refdes_offset: optional (dx_mm, dy_mm) tuple. When set, relocates the
+    silkscreen reference designator FpText to that position relative to
+    the footprint anchor. Used to move refdes outside body silk where the
+    footprint's auto-placed text sits under the component body (D11 #5).
+    """
     from kiutils.footprint import Footprint
     from kiutils.items.common import Position, Net
     from kiutils.items.fpitems import FpText
@@ -405,14 +411,36 @@ def _place_footprint(b, ref, comp_meta, placement, nets_by_name):
     fp.properties["Reference"] = ref
     fp.properties["Value"] = comp_meta["value"]
 
-    # Legacy KiCad 6/7 footprints still use typed FpText; keep both paths
-    # in sync so older library files behave too.
+    # Reference + Value text handling — covers both KiCad 6/7 (typed
+    # FpText: type="reference") and KiCad 8/10 (untyped user-mode
+    # FpText with text "${REFERENCE}", typically on F.Fab not F.SilkS
+    # because the modern convention puts assembly-only text on Fab).
+    #
+    # When refdes_offset is provided we also force the silk position
+    # AND promote the layer to F.SilkS so the text actually appears
+    # on the manufactured board (D11 #5 — engineer-readable silk).
+    silk_layer = "B.SilkS" if layer == "B.Cu" else "F.SilkS"
     for txt in (fp.graphicItems or []):
-        if isinstance(txt, FpText):
-            if txt.type == "reference":
-                txt.text = ref
-            elif txt.type == "value":
-                txt.text = comp_meta["value"]
+        if not isinstance(txt, FpText):
+            continue
+        is_reference = (
+            txt.type == "reference"
+            or (txt.type == "user" and txt.text == "${REFERENCE}")
+        )
+        is_value = (
+            txt.type == "value"
+            or (txt.type == "user" and txt.text == "${VALUE}")
+        )
+        if is_reference:
+            txt.text = ref
+            if refdes_offset is not None:
+                dx, dy = refdes_offset
+                txt.position = Position(X=dx, Y=dy, angle=0)
+                # Promote to silkscreen so the designator renders on
+                # the printed board, not just the F.Fab assembly layer.
+                txt.layer = silk_layer
+        elif is_value:
+            txt.text = comp_meta["value"]
 
     # Assign pads to nets
     pin_to_net = comp_meta["pins"]
@@ -631,6 +659,43 @@ DISPLAY_PLACEMENT = {
 }
 
 
+# Per-ref silkscreen-reference-text offsets for display-side. Each entry
+# overrides the footprint's auto-placed `Reference` FpText, moving it to
+# (anchor + offset) so the silk designator is visible at 100% zoom (D11
+# criterion #5). Only components whose auto-placed silk falls inside the
+# body footprint (where it's covered at assembly time) need an override.
+#
+# Offset is in footprint-local coordinates: (dx_mm, dy_mm). For a
+# footprint at rotation 0, +X is right and +Y is down (KiCad convention).
+DISPLAY_REFDES_OFFSETS = {
+    # BTN1/2/3: silk text auto-placed at body center (under the tactile
+    # switch cap). Above the body collides with the R+C pullup/debounce
+    # silk at Y=50 (R5/R6/R7 + C8/C9/C10 are on B.Cu but their silk
+    # shows through). Move to the RIGHT of each body instead:
+    # offset (+5, 0) puts text at anchor + 5mm in +X. BTN1 (24,55) →
+    # text at (29, 55), well clear of BTN2 (body starts X=39). BTN3
+    # (60, 55) → text at (65, 55), clear of J4 at X=72.
+    "BTN1":  ( 5.0,   0.0),
+    "BTN2":  ( 5.0,   0.0),
+    "BTN3":  ( 5.0,   0.0),
+    # J1 RJ45 (anchor (10, 32), rot 90). Auto-placed silk is inside the
+    # 14x16mm body. Move text 5mm to the right in footprint-local
+    # coords; with rot 90 that puts the text below the body in absolute
+    # board coords (away from the J1 body to the +Y side, visible
+    # between J1 and U1).
+    "J1":    ( 0.0,  10.0),
+    # J2 FFC (anchor (42.5, 8), rot 0). Body 16.8x4.5mm. Move text 5mm
+    # below the body (absolute Y=13) — interior of board, between J2
+    # and MOD1, clear of mounting hole at (4,4)/(81,4).
+    "J2":    ( 0.0,   5.0),
+    # J3, J4 pinheaders (1x4 vertical). Body 2.54x10.16. Move text 4mm
+    # to the left of the body (absolute X=68) — interior of board,
+    # between dev headers and MOD1.
+    "J3":    (-4.0,   0.0),
+    "J4":    (-4.0,   0.0),
+}
+
+
 def build_display_side() -> None:
     """Build hardware/kicad/display_side/display_side.kicad_pcb from CP2 netlist."""
     from kiutils.board import Board
@@ -655,7 +720,10 @@ def build_display_side() -> None:
         if ref not in DISPLAY_PLACEMENT:
             print(f"  WARNING: no placement for {ref}, skipping")
             continue
-        _place_footprint(b, ref, meta, DISPLAY_PLACEMENT[ref], nets_by_name)
+        _place_footprint(
+            b, ref, meta, DISPLAY_PLACEMENT[ref], nets_by_name,
+            refdes_offset=DISPLAY_REFDES_OFFSETS.get(ref),
+        )
 
     _add_mounting_holes(b, DISPLAY_W, DISPLAY_H, margin=DISPLAY_MARGIN)
     _write_fp_lib_table(project_dir)
