@@ -85,6 +85,27 @@ to flag any text in those screenshots that the designer claimed was
 readable but isn't. A scripted-audit-only review is itself a D11
 enforcement failure.
 
+### D13 — Binary per-criterion scorecard required at sign-off
+
+D11 sets the principle; [`decisions.md` D13](../layout/decisions.md#d13--explicit-acceptance-criteria-operationalizing-d11) enumerates the
+specific criteria (F-S-\*, SR-\*, F-P-\*, PR-\*) that must be evaluated
+in every review packet. Before flipping the semaphore to `codex_turn`,
+every packet must include a scorecard table at the SIGN-OFF section:
+
+| Criterion ID | Status (PASS or FAIL) | Evidence / justification |
+|--------------|------------------------|---------------------------|
+| F-S-1        | PASS                   | ERC clean: 0 errors, 0 warnings; see hardware/outputs/.../erc.rpt |
+| SR-1         | PASS                   | Five functional blocks visible in screenshot: ... |
+| PR-3         | PASS                   | silk_overlap count = N, per-instance justified below |
+| ...          | ...                    | ... |
+
+**Binary only.** No PARTIAL, no PASS\*, no PASS-with-caveat. Each row
+is either PASS or FAIL. APPROVED requires every applicable row PASS.
+
+The applicable criteria per CP phase are listed in D13's "Enforcement"
+section. When in doubt, include the row and explicitly mark it FAIL
+with the missing-evidence reason — better than omitting it.
+
 ## 1. The project in 30 seconds
 
 Same as REVIEWER.md §1. Two PCBs (battery-side + display-side), power-
