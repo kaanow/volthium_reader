@@ -427,6 +427,210 @@ footprint placement, DRC, renders) is the substantive content of
 CP4, handled iteratively per the standard CP cycle. This decision
 entry only documents the roadmap restructure.
 
+## D13 — Explicit acceptance criteria operationalizing D11
+
+**Date**: 2026-05-26
+**Status**: committed
+**Applies to**: every review packet from the date this decision merges
+forward. Existing closed checkpoints may be re-audited against these
+criteria if the user or a downstream reviewer identifies a likely
+defect; see "Re-audit obligations" below.
+
+### Motivation
+
+D11 set the right principle and the right hard-stops (#0 no overlapping
+text/symbols, #5 legible at 100 % zoom). In practice, those criteria
+were APPROVED on documents that visibly violate them. A user audit on
+2026-05-26 walked the display-side schematic PDF and the CP4 PCB
+renders against an explicit checklist: the schematic had overlapping
+labels around the MCU pin region and the BTN cluster; the PCB had
+`silk_over_copper` (52) and `silk_overlap` (25) DRC warnings that
+prior CPs dismissed as "footprint-internal noise."
+
+The fix is not to weaken or strengthen D11 but to operationalize it:
+enumerate the specific criteria that count as PASS, treat each as
+binary (no PARTIAL / no PASS\*), require an explicit per-criterion
+scorecard in every review packet, and put **functional correctness as
+the prerequisite** that must pass before any readability claim is
+even evaluated.
+
+### Scope and order of evaluation
+
+Every CP review packet is judged in this order:
+
+1. **D13.A — Functional correctness gates.** If any applicable gate
+   fails, the packet is REJECTED. Readability is not evaluated.
+2. **D13.B — Schematic readability** (when the packet touches a
+   schematic or schematic-derived artifact).
+3. **D13.C — PCB readability** (when the packet touches a board or
+   board-derived artifact).
+
+Each criterion is binary: PASS or FAIL. **PARTIAL, PASS\*, or
+"PASS with caveat" are forbidden.** A criterion is either met or it
+isn't.
+
+### D13.A — Functional correctness gates (must pass first)
+
+These are not new requirements — they restate the existing functional
+expectations as an explicit gate so the readability evaluation can
+assume functional correctness.
+
+**Schematic gates:**
+
+| ID    | Criterion |
+|-------|-----------|
+| F-S-1 | ERC: 0 errors. Every ERC warning is categorized and per-instance justified in the packet. |
+| F-S-2 | Every IC pin connected per the relevant `cp1_*.md` design spec, or explicitly marked NC. |
+| F-S-3 | `PWR_FLAG` on every power net (V3V3, GND, V12_*, etc.). |
+| F-S-4 | No floating nodes / no unconnected wire ends. |
+| F-S-5 | BOM is 1:1 with schematic refs and values. Every ref in the committed schematic has a BOM row; every BOM row has a schematic ref. |
+| F-S-6 | Net names are meaningful. No `Net-(X1-Pad1)` autogen names in the committed netlist. |
+
+**PCB gates:**
+
+| ID    | Criterion |
+|-------|-----------|
+| F-P-1 | DRC errors = 0. Warnings categorized + each category justified. `silk_over_copper` and `silk_overlap` warnings are **not** "noise" — they are evaluated under D13.C, not waived here. |
+| F-P-2 | PCB net topology matches the ERC-clean schematic exactly. 0 unconnected pads. Schematic-parity issues limited to the documented `volthium:` vs `Lib:` libId-prefix mismatch (from the project-local footprint cache pattern); any other parity issue is a fail. |
+| F-P-3 | Every footprint matches the BOM part number's package and pinout. No SOT-23 footprint for a SOT-23-5 part, etc. |
+| F-P-4 | Board outline and mounting holes match the relevant `cp1_*.md` mechanical spec. |
+| F-P-5 | Every component from the netlist is placed (0 missing-placement warnings). |
+| F-P-6 | Polarized components (diodes, electrolytic caps, TVS, MOSFETs) have correct orientation, verifiable by the silk pin-1 / cathode / polarity mark. |
+| F-P-7 | JLCPCB fab rules met per [D2](#d2--fab-choice--jlcpcb-qty-5-of-each-bare-pcb): 0.152 mm trace/space, 0.3 mm drill, 0.13 mm annular ring, 0.3 mm edge clearance, 0.2 mm hole-to-trace. |
+
+### D13.B — Schematic readability criteria (binary)
+
+Apply when the packet touches a schematic or its rendered PDF.
+
+**Layout and flow:**
+
+| ID    | Criterion |
+|-------|-----------|
+| SR-1  | Functional blocks visually separated. Power input, regulator, MCU + decoupling, peripheral interfaces, user IO each occupy a distinct region of the sheet with clear whitespace between them. Reviewer can name each block when shown the rendered PDF. |
+| SR-2  | Signal flow consistent: left → right OR top → bottom, declared once per sheet (e.g. in a top-of-sheet comment), followed throughout. |
+| SR-3  | Power rails on consistent edges (top or one fixed side); GND on the opposite or one fixed side. No same-rail scatter across the sheet. |
+| SR-4  | No densely packed cluster: no more than 6 distinct labels (refs + values + net names, combined) within any 20 × 20 mm region of the sheet. |
+
+**Identification:**
+
+| ID    | Criterion |
+|-------|-----------|
+| SR-5  | Every component has a visible refdes (R1, U2, …) and a visible value (10k, ESP32-S3-WROOM-1U, …). Both legible at 100 % zoom. |
+| SR-6  | Refdes and value do not overlap each other, do not overlap pins, do not overlap the component body, do not overlap any wire. |
+
+**Nets:**
+
+| ID    | Criterion |
+|-------|-----------|
+| SR-7  | Net labels appear only at wire ENDS, not mid-wire and not on a component body. |
+| SR-8  | Power nets use `PWR_FLAG` symbols; bare text-labels for power are forbidden. |
+| SR-9  | Bus / repeated bundles use bus syntax, not parallel net-label spaghetti. |
+| SR-10 | Wire stubs at IC pins are long enough that the net label is at least 2 mm clear of the IC body silk. |
+
+**Pin and IC clarity:**
+
+| ID    | Criterion |
+|-------|-----------|
+| SR-11 | IC pin numbers visible and not occluded by net labels or other text. |
+| SR-12 | IC pin names (functional, e.g. `MOSI`, `TX`, `EN`) visible near the wire stub leaving the pin. |
+
+**Typography:**
+
+| ID    | Criterion |
+|-------|-----------|
+| SR-13 | The smallest text on the sheet is legible at 100 % PDF zoom in a real PDF viewer (Preview / Acrobat), without squinting. Net labels ≥ 1.0 mm in schematic units (≈ 10 pt rendered). |
+| SR-14 | No overlapping text anywhere on the sheet (subsumes D11 #0; applies to every label, ref, value, and pin name). |
+
+**Polarity, safety, metadata:**
+
+| ID    | Criterion |
+|-------|-----------|
+| SR-15 | Polarity indicators on every electrolytic cap, every diode, every TVS, every MOSFET (S/D distinguished by silk or schematic-symbol convention). |
+| SR-16 | DNI / DNP marks where applicable; test points labeled. |
+| SR-17 | Title, Sheet, Rev, Date populated. Multi-sheet: sheet number visible. |
+
+### D13.C — PCB readability criteria (binary)
+
+Apply when the packet touches a board or its rendered top/bottom PNG.
+
+**Silk text (subsumes D11 #7):**
+
+| ID    | Criterion |
+|-------|-----------|
+| PR-1  | Every component has a refdes on the appropriate silk layer (F.SilkS for F.Cu components, B.SilkS for B.Cu components). Verified visible in the committed render. |
+| PR-2  | No refdes sits under its own component body where assembly will cover it. The text must be visible after the part is soldered down. |
+| PR-3  | No silk text overlaps another component's body or pads. DRC `silk_overlap` = 0, OR each remaining warning is documented per-instance as a footprint-internal artifact that does not impact the readability of any refdes. |
+| PR-4  | No silk printed on bare copper. DRC `silk_over_copper` = 0, OR each remaining warning is documented per-instance as a footprint-internal artifact AND the clipped portion is not the refdes. |
+| PR-5  | Pin-1 / polarity indicators visible on every polarized footprint (silk dot, arrow, or cathode mark). |
+| PR-6  | All silk text reads in a consistent orientation (bottom-up or left-to-right). No upside-down text. |
+
+**Placement:**
+
+| ID    | Criterion |
+|-------|-----------|
+| PR-7  | Components grouped by function. Power-input → regulator → IC chains visually compact. |
+| PR-8  | Decoupling caps placed within 3 mm of their driven IC pin (pad-edge to pad-edge). |
+| PR-9  | Mechanical constraints (mounting holes, board outline, connector edges, tall-component layer) honored per the relevant `cp1_*.md`. |
+| PR-10 | Differential pairs (RS-485, USB) placed close together so they can be routed as pairs at the routing checkpoint. |
+
+**DFM and reliability:**
+
+| ID    | Criterion |
+|-------|-----------|
+| PR-11 | DRC `solder_mask_bridge` = 0 (assembly-risk hard fail). |
+| PR-12 | Footprint matches the BOM part number's package and pin pitch (also covered by F-P-3; restated here because mismatches show up as silk/placement defects too). |
+| PR-13 | Debug headers placed per the design (UART debug, USB-OTG, SWD/JTAG if applicable). |
+
+### Enforcement — packet scorecard
+
+Every CP review packet from this decision onward must include, at
+the SIGN-OFF section, an explicit table with one row per applicable
+F-*, SR-*, PR-* criterion. Columns:
+
+- **Criterion ID** (e.g. F-S-1, SR-7, PR-3)
+- **Status** (PASS or FAIL, no other values)
+- **Evidence / justification** (one sentence; for FAIL, what specifically failed; for any PR-3 / PR-4 PASS that has a non-zero raw DRC count, the per-instance justification)
+
+The reviewer (Codex) verifies each row independently. APPROVED requires
+**every applicable row = PASS**. Any FAIL → NEEDS CHANGES.
+
+CPs select the criteria that apply to their phase:
+
+- Schematic CPs (CP2, CP-schematic-cleanup, any schematic touch):
+  F-S-\* + SR-\*.
+- Placement CPs (CP3, the display-side placement CP, any placement
+  touch): F-P-\* + PR-1..PR-9 + PR-11..PR-12. PR-10 deferred to the
+  routing CP if at placement-only. PR-13 evaluated at placement
+  (location only) and again at routing (connection).
+- Routing CPs: F-P-\* + PR-\* (full set including PR-10).
+- Fab-ready CPs: F-P-\* + PR-\* + Gerber-specific gates added when
+  written.
+
+### Re-audit obligations
+
+D13's criteria apply to:
+
+1. All new CP packets from this decision's merge date forward.
+2. The CP currently in flight when this decision merges
+   (display-side placement): the packet must be amended with an
+   explicit D13.A/B/C scorecard before any merge to main, regardless
+   of any prior APPROVED verdict reached under the pre-D13
+   (permissive) standard.
+3. CP-schematic-cleanup (closed; the schematic PDFs failed the user
+   audit): re-audit required. The schematic is reopened on a side
+   checkpoint of the form `CP-schematic-cleanup-2` if downstream
+   work depends on schematic readability per D13.B.
+4. CP3 (battery-side placement, closed): re-audit deferred. If the
+   routing-drc CP encounters a placement-readability blocker per
+   D13.C, CP3 reopens on a side checkpoint.
+
+### Out of scope for this decision
+
+D13 does not introduce new electrical requirements, new BOM parts,
+or new fab-process targets. It enumerates the acceptance bar for
+review packets — the bar that D11 declared in principle but did not
+enumerate concretely enough to prevent permissive APPROVED verdicts.
+
 ---
 
 ## Open decisions (not yet committed)
