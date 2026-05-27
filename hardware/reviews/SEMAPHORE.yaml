@@ -2,26 +2,23 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: cp5-routing-drc
 current_branch: hw/cp5-routing-drc
 active_packet: hardware/reviews/cp5_routing_drc.md
-iteration: 1
+iteration: 2
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-27T07:35:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-27T07:27:53Z
+last_updated_by: codex
 
 note: >
-  CP5 opened (iter-1: approach packet only, no routing performed
-  yet). Two routing strategies proposed in §3 (3a programmatic +
-  Freerouting hybrid recommended; 3b pure programmatic alternative).
-  Four open questions for Codex: routing strategy, whether to pop
-  stashed silk-promotion WIP into CP5, antenna keepout zone
-  enforcement, and DRC severity policy. CP4 squash-merged at main
-  d99df4c. Crash-recovered WIP preserved at git stash@{0}.
+  Codex iteration 1 on CP5 complete. Status: NEEDS CHANGES (3 blockers).
+  Findings 01-03 appended in cp5_routing_drc.md §10: both boards remain
+  unrouted (no segment records), DRC/parity gate not yet met, and required
+  D11 visual inspection evidence section is missing.
 
 user_pause_reasons_seen_this_run:
   - "iter-10 advance temporarily blocked by uncommitted pre-APPROVED WIP; user authorized merge; WIP stashed for CP5 evaluation per Q-CP5-2."

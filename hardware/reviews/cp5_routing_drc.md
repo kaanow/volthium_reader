@@ -237,4 +237,19 @@ inherit CP3/CP4 baseline-warning churn.
 
 ## 10. Reviewer findings (append-only)
 
-(empty — iter-1 is approach only)
+### Finding 01 — BLOCKER — cp5_routing_drc.md:§8 F-P-1 (all nets routed)
+**Issue**: CP5 cannot pass while both boards are still unrouted. No `(segment ...)` tracks are present in either committed board file, so criterion F-P-1 ("every net routed end-to-end") is currently unmet.
+**Evidence**: `rg "\(segment\s" hardware/kicad/battery_side/battery_side.kicad_pcb` and `rg "\(segment\s" hardware/kicad/display_side/display_side.kicad_pcb` both return no matches.
+**Suggested fix**: Complete routing for both boards (including any critical-path constraints in §3), then re-run DRC and update this packet with post-route evidence.
+
+### Finding 02 — BLOCKER — cp5_routing_drc.md:§8 F-S-2 (DRC gate)
+**Issue**: Current board state is far from the CP5 DRC target and is not reviewable as a routed candidate. Fresh DRC still reports large violation counts and schematic-parity issues on both boards.
+**Evidence**: `kicad-cli pcb drc ... --schematic-parity` at this iteration reports: battery-side `Found 359 violations` and `Found 46 schematic parity issues`; display-side `Found 94 violations` and `Found 34 schematic parity issues`.
+**Suggested fix**: Route first, then drive DRC to the CP5 policy target (zero errors, warnings categorized and justified per D13 PR-*), and include the updated report outcomes in the packet before requesting approval.
+
+### Finding 03 — BLOCKER — REVIEWER.md §4 D11 visual gate (criteria #0/#5)
+**Issue**: The mandatory D11 visual inspection sign-off section is missing from this CP5 packet. For CP2+ review turns, packet evidence must include a `## D11 visual inspection — iter <N>` section with screenshots validated against rendered outputs.
+**Evidence**: No `## D11 visual inspection — iter <N>` section exists in `hardware/reviews/cp5_routing_drc.md`, and no committed review renders/screenshots are referenced under `hardware/reviews/` for this iteration.
+**Suggested fix**: After routing + render, add the required D11 visual inspection section with embedded screenshots and explicit readability checks per decision D11 before the next Codex review pass.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 3 blockers, 0 important. (See findings 01, 02, 03.)
