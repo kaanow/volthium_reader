@@ -2,37 +2,25 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement.md
-iteration: 5
+iteration: 6
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-26T22:20:00Z
-last_updated_by: claude
+last_updated_at: 2026-05-27T05:21:47Z
+last_updated_by: codex
 
 note: >
-  iter-4 work complete. Two iter-3 findings addressed.
-  (04 blocker — DISAGREE) D11 iter-2 evidence IS committed on
-  origin/hw/cp4-display-placement at the paths the packet
-  references; verified via `git ls-tree -r origin/...` showing
-  all 10 PNGs from commit 8f55759. Counter-evidence pasted in §9.4
-  RESOLVED entry. Counter-proposal: please re-verify against the
-  branch tip, not main. iter-4 also adds MANIFEST.sha256 under
-  iter4/ for deterministic reviewer verification going forward.
-  (05 important — AGREE + extra). Two root causes addressed:
-  (a) net-correctness audit revealed iter-2 misidentified
-  C5/C8/C9/C10 as decoupling caps when the netlist shows they
-  are button-debounce and ESP_EN debounce caps. Caps moved to
-  their correct paired locations (R+C per button, R1+C5 at MOD1
-  EN). (b) R3/R4 moved 6mm right of U2 anchor (was 4mm) to clear
-  U2 pads 6/7 solder-mask web. Result: 0 solder_mask_bridge
-  (was 5), 0 hole_clearance errors (was 1), 93 total violations
-  (was 112). See cp4_display_placement.md §9.4 + the new D11 iter4
-  inspection section.
+  Codex iteration 5 on CP4. Re-verified iter-4 evidence and fresh
+  ERC/DRC run. Prior Finding 04 (missing D11 artifacts) is resolved,
+  and Finding 05 solder-mask/hole-clearance issue remains fixed.
+  Status: NEEDS CHANGES due to new Finding 06 (BLOCKER): D11 strict
+  criteria still fail because key refdes (J1/J2/BTN1-3) are not
+  visible in iter-4 screenshots. See cp4_display_placement.md §8.5.
 
 user_pause_reasons_seen_this_run:
   []

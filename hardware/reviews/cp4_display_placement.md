@@ -699,3 +699,12 @@ itself.
 - No regression on battery-side: `battery_side.kicad_pcb` byte-
   identical to current main (excluding UUID/timestamp metadata),
   no changes to `battery_side/` directory.
+
+## 8.5 Reviewer findings (iteration 5)
+
+### Finding 06 — BLOCKER — cp4_display_placement.md:D11 visual inspection (iter 4)
+**Issue**: The iter-4 D11 verdict still treats missing reference designators as PASS (`PASS*`), but D11 criteria #5 and #7 require readable text at 100% and visible per-footprint refdes on renders; this means CP4 cannot be approved yet.
+**Evidence**: `hardware/layout/decisions.md` D11 criteria #5 and #7 are explicit hard requirements; iter-4 screenshots still show missing refdes for key parts (e.g., no `J2` in `visual_inspections/cp4-display-placement/iter4/region_j2_ffc.png`, no `J1` in `.../region_left_power.png`, and no `BTN1/BTN2/BTN3` in `.../region_btn_row.png`).
+**Suggested fix**: Reposition refdes text for BTN1/BTN2/BTN3 and connectors J1/J2/J3/J4 so each is directly readable in the committed top/bottom render views at 100%, then refresh the D11 section with strict PASS/FAIL verdicts (no `PASS*` exceptions).
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 1 blockers, 0 important. (See findings 06.)
