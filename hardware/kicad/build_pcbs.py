@@ -552,18 +552,22 @@ DISPLAY_PLACEMENT = {
     "U1":    (12.0,  52.0,    0,   "B.Cu"),
 
     # ===== RS-485 column (between J1 and MOD1) =====
-    # U2 SN65HVD3082E SOIC-8 (3.9x4.9mm). Anchor at (28, 18).
+    # U2 SN65HVD3082E SOIC-8 (3.9x4.9mm body, pads on 1.27mm pitch
+    # extending X±2.45 from anchor, Y±1.27 for the inner pin row).
+    # Anchor at (28, 18) puts pad row 1 (pins 1-4) at Y≈16.4 and pad
+    # row 2 (pins 5-8) at Y≈19.6.
     "U2":    (28.0,  18.0,    0,   "F.Cu"),
     # TVS2 SMAJ12CA bidirectional — RS-485 line protection. Between
     # U2 and J1 receptacle.
     "TVS2":  (22.0,  25.0,    0,   "F.Cu"),
-    # R2 = 120Ω RS-485 termination across A/B lines. B.Cu under U2.
-    "R2":    (28.0,  22.0,    0,   "B.Cu"),
-    # R3, R4 = 680Ω fail-safe bias (V3V3-A and B-GND). B.Cu near U2.
-    "R3":    (32.0,  18.0,    0,   "B.Cu"),
-    "R4":    (32.0,  22.0,    0,   "B.Cu"),
-    # C7 = U2 VCC bypass 100nF, on B.Cu near U2 VCC pin.
-    "C7":    (24.0,  18.0,    0,   "B.Cu"),
+    # R2 = 120Ω RS-485 termination across A/B lines. B.Cu, below U2.
+    "R2":    (28.0,  22.5,    0,   "B.Cu"),
+    # R3 = 680Ω V3V3-A fail-safe bias. B.Cu, 6mm right of U2 anchor
+    # (was 4mm in iter-2, which put R3 pad inside the solder-mask
+    # web of U2 pads 6/7 — Finding 05).
+    "R3":    (34.0,  17.0,    0,   "B.Cu"),
+    # R4 = 680Ω B-GND fail-safe bias. B.Cu, 6mm right of U2 anchor.
+    "R4":    (34.0,  19.0,    0,   "B.Cu"),
 
     # ===== ESP32-S3-WROOM-1U module (cp1 §10.2 priority 3) =====
     # Body ~25.5×18mm (-1U variant). Anchor at (50, 30) puts the body
@@ -572,21 +576,27 @@ DISPLAY_PLACEMENT = {
     "MOD1":  (50.0,  30.0,    0,   "F.Cu"),
     # R1 = 10kΩ ESP32 EN pullup. B.Cu, in the strip below MOD1.
     "R1":    (33.0,  42.0,    0,   "B.Cu"),
-    # Decoupling row on B.Cu just below MOD1 body (MOD1 body extents
-    # Y=21-39 at anchor (50,30); 3mm clearance to Y=42 row). Spaced
-    # 4mm apart to comfortably clear courtyards. Order along X
-    # mirrors module pin geometry: 0805 bulk + 0402 close-in + 0603
-    # bypass.
+    # MOD1 V3V3 decoupling row on B.Cu, below MOD1 body (MOD1 body
+    # extents Y=21-39 at anchor (50,30); 3mm clearance to Y=42 row).
+    # Spaced 4mm apart to clear courtyards.
+    #
+    # Net-correctness audit (iter 4 fix): C8/C9/C10 are NOT MOD1
+    # decoupling — they are BTN1/BTN2/BTN3 debounce caps per the
+    # netlist (each connects BTN<N>_IN to GND). C5 is the ESP_EN
+    # debounce cap, not a bulk V3V3 bypass. C2/C3/C4/C6/C7 are the
+    # actual MOD1 V3V3 bypass caps. Iter-2 misidentified these. The
+    # decoupling row below now holds only the real V3V3 bypass caps;
+    # C5 sits next to MOD1 EN pin; C8/C9/C10 are paired with their
+    # respective buttons.
     "C2":    (37.0,  42.0,    0,   "B.Cu"),   # 10µF 0805 V3V3 bulk
     "C3":    (41.0,  42.0,    0,   "B.Cu"),   # 10µF 0805 V3V3 bulk
     "C4":    (45.0,  42.0,    0,   "B.Cu"),   # 100nF 0402 close-in
-    "C5":    (49.0,  42.0,    0,   "B.Cu"),   # 1µF 0603 bulk
-    "C6":    (53.0,  42.0,    0,   "B.Cu"),   # 1µF 0603 bulk
-    "C8":    (57.0,  42.0,    0,   "B.Cu"),   # 100nF 0603 IO bypass
-    "C9":    (61.0,  42.0,    0,   "B.Cu"),   # 100nF 0603 IO bypass
-    # C10 = U1 R-78E3.3 V3V3-out bypass — separate, near U1's V3V3
-    # output pad (U1 pad 3 at X=17.08, Y=52 in absolute coords).
-    "C10":   (22.0,  52.0,    0,   "B.Cu"),
+    "C6":    (49.0,  42.0,    0,   "B.Cu"),   # 1µF 0603 V3V3 bulk
+    "C7":    (53.0,  42.0,    0,   "B.Cu"),   # 100nF 0603 V3V3 bypass
+    # C5 = ESP_EN debounce cap (100nF + R1 10kΩ pullup form the
+    # power-on EN debounce). B.Cu next to R1 EN-pullup so the cap
+    # sits between MOD1 EN pin and GND with R1 as the pullup branch.
+    "C5":    (33.0,  39.5,    0,   "B.Cu"),
 
     # ===== Bottom-edge button row (cp1 §10.2 priority 2) =====
     # BTN1/2/3 at X=24/42/60 per §10.2 reconciled spec. Y=55 chosen to
@@ -596,11 +606,19 @@ DISPLAY_PLACEMENT = {
     "BTN1":  (24.0,  55.0,    0,   "F.Cu"),
     "BTN2":  (42.0,  55.0,    0,   "F.Cu"),
     "BTN3":  (60.0,  55.0,    0,   "F.Cu"),
-    # R5, R6, R7 = 1MΩ button pullups, on B.Cu directly above each
-    # BTN (toward MOD1 column).
-    "R5":    (24.0,  50.0,    0,   "B.Cu"),
-    "R6":    (42.0,  50.0,    0,   "B.Cu"),
-    "R7":    (60.0,  50.0,    0,   "B.Cu"),
+    # R5/R6/R7 = 1MΩ button pullups, on B.Cu above each BTN. Each
+    # pullup paired with the button's debounce cap (C8/C9/C10 — these
+    # are 100nF caps on BTN<N>_IN to GND per the netlist; iter-2
+    # misplaced them on the MOD1 decoupling row).
+    "R5":    (22.0,  50.0,    0,   "B.Cu"),
+    "R6":    (40.0,  50.0,    0,   "B.Cu"),
+    "R7":    (58.0,  50.0,    0,   "B.Cu"),
+    # C8/C9/C10 = button debounce caps (100nF each). B.Cu paired with
+    # the pullup, 2mm to the right of each pullup so R + C form a
+    # tidy unit above the corresponding button.
+    "C8":    (26.0,  50.0,    0,   "B.Cu"),
+    "C9":    (44.0,  50.0,    0,   "B.Cu"),
+    "C10":   (62.0,  50.0,    0,   "B.Cu"),
 
     # ===== Dev headers (right edge) =====
     # J3 UART debug (1x4 pinheader), J4 USB-OTG (1x4 pinheader).
