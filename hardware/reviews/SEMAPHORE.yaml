@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: user_turn
+state: claude_turn
 
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
@@ -11,57 +11,22 @@ iteration: 10
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-27T07:18:00Z
+last_updated_at: 2026-05-27T07:25:00Z
 last_updated_by: claude
 
 note: >
-  CP4 PR #7 is APPROVED by Codex (iter-9, 0 findings). Per DESIGNER.md
-  §5 the next Claude action is squash-merge → sync main → open CP5.
-  BLOCKER: the working tree has uncommitted WIP that predates iter-9
-  and is NOT part of the approved state. Decision needed before I
-  proceed with the merge.
+  CP4 APPROVED at iter-9 (Codex, 0 findings). Iter-10 = Claude advance
+  per DESIGNER.md §5: squash-merge PR #7 → sync main → open CP5.
 
-  Uncommitted modified files (mtimes ~2026-05-27 00:08 local):
-    - hardware/kicad/build_pcbs.py  (+~260 LOC)
-        Adds promote_refdes_to_silk flag, font-size promotion to
-        1.0mm/0.15mm (JLCPCB silk minimums), per-component
-        DISPLAY_REFDES_OFFSETS for every SMD passive, and a new
-        _postprocess_property_refdes() that rewrites
-        (property "Reference" ...) lines after kiutils save to
-        restore position/layer/effects KiCad needs for silk render.
-    - hardware/kicad/display_side/display_side.kicad_pcb  (~378 lines)
-        Regenerated output of the new build_pcbs.py.
-    - hardware/outputs/display_side/{top,bottom}.png
-        Re-renders of the regenerated PCB.
-    - scripts/reviewer_automation.sh
-        Interval 600→180s, adds shared-workspace preflight sync,
-        prompt edited to drop unconditional git pull in review turn.
-  Untracked: hardware/kicad/battery_side.log,
-             hardware/kicad/display_side/.history/  (KiCad backups),
-             hardware/outputs/battery_side/drc.rpt.
-
-  Three options:
-    A) Commit the build_pcbs.py + regenerated PCB/renders as iter-10
-       improvements; flip state to codex_turn for re-review. This
-       INVALIDATES the current APPROVED — the silk-promotion changes
-       affect the rendered PCB and should be re-checked against D11
-       criteria. reviewer_automation.sh would be committed
-       separately on main (it's tooling, not a CP4 artifact).
-    B) Stash the WIP, merge PR #7 as-is, then re-apply the
-       build_pcbs.py + reviewer_automation.sh changes on the CP5
-       branch (where silk-on-route concerns are more directly in
-       scope). Risk: regenerated PCB may need re-rendering after
-       CP5 routing work anyway, so re-apply is mostly clean.
-    C) Discard the WIP (`git checkout -- <files>`). Risk: loses the
-       silk-promotion infrastructure if it was deliberate work.
-
-  Recommendation: B (stash + carry to CP5). The silk-text font sizing
-  and refdes-offset table are useful for CP5+ work where silk-vs-route
-  conflicts matter, and merging the APPROVED CP4 state preserves the
-  consensus reached with Codex. But this is a user-only call.
-
-  Untracked battery_side.log and .history/ should be gitignored
-  rather than tracked.
+  Recovery note: an earlier escalation to user_turn was issued during
+  this turn due to uncommitted pre-APPROVED WIP (silk-promotion
+  build_pcbs.py + regenerated display_side.kicad_pcb + renders +
+  reviewer_automation.sh tuning). User clarified the WIP was crash
+  residue from an interrupted Claude session and explicitly authorized
+  merge. WIP is preserved via `git stash@{0}` titled "iter-10 crash
+  recovery: silk-promotion WIP ...". The committed iter-9 APPROVED
+  state is what merges. Build junk (.history/, *.log, drc.rpt) added
+  to .gitignore in the same cleanup commit.
 
 user_pause_reasons_seen_this_run:
-  - "iter-10 advance blocked by uncommitted pre-APPROVED WIP (silk-promotion build_pcbs.py + regenerated display_side.kicad_pcb + reviewer_automation.sh tuning); user must choose commit-as-iter-10 / stash-and-carry / discard."
+  - "iter-10 advance temporarily blocked by uncommitted pre-APPROVED WIP (silk-promotion build_pcbs.py + regen PCB/renders + reviewer_automation tuning); user clarified it was crash residue, authorized merge; WIP stashed for evaluation in CP5."
