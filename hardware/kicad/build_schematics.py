@@ -573,7 +573,7 @@ def build_battery_side_schematic() -> None:
     # J1 — 2-pin terminal block (Phoenix MSTB-2,5/2-G-5,08). Pins at:
     #   pin 1 (V24_RAW): symbol-relative (-5.08, 0) → endpoint (X-5.08, Y)
     #   pin 2 (GND):     symbol-relative (-5.08, -2.54) → endpoint (X-5.08, Y-2.54)
-    J1_X, J1_Y = 40 * G, 30 * G   # (50.8, 38.1)
+    J1_X, J1_Y = 28 * G, 30 * G   # power-input chain, top row
     _place_symbol(s, "Conn_01x02", "J1", "Conn_01x02",
                   "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal",
                   (J1_X, J1_Y), lib=lib)
@@ -587,7 +587,7 @@ def build_battery_side_schematic() -> None:
     # F1 — 5×20 mm cartridge fuse holder, 2-pin vertical (like R).
     # Spread iter 20: power row stretched across the page width to give
     # each component's V24_* labels clear horizontal space (D11 #5).
-    F1_X, F1_Y = 65 * G, 30 * G   # (82.55, 38.1)
+    F1_X, F1_Y = 54 * G, 30 * G
     _place_symbol(s, "Fuse", "F1", "1A 5x20",
                   "Fuse:Fuseholder_Clip-5x20mm_Bel_FC-203-22_Lateral_P17.80x5.00mm_D1.17mm_Horizontal",
                   (F1_X, F1_Y), lib=lib)
@@ -597,7 +597,7 @@ def build_battery_side_schematic() -> None:
     # D1 — SS24 Schottky reverse-polarity diode (Device:D generic, Value
     # overridden to BOM MPN). Horizontal: pin 1 (K) on left, pin 2 (A) on
     # right; pins at ±3.81 = ±3*G from center.
-    D1_X, D1_Y = 95 * G, 30 * G   # (120.65, 38.1)
+    D1_X, D1_Y = 80 * G, 30 * G
     _place_symbol(s, "D", "D1", "SS24",
                   "Diode_SMD:D_SMA",
                   (D1_X, D1_Y), lib=lib)
@@ -606,7 +606,7 @@ def build_battery_side_schematic() -> None:
 
     # TVS1 — SMAJ30CA bidirectional 24V TVS (Device:D_TVS generic, Value
     # overridden). Pins same geometry as D.
-    TVS1_X, TVS1_Y = 120 * G, 30 * G   # (152.4, 38.1)
+    TVS1_X, TVS1_Y = 104 * G, 30 * G
     _place_symbol(s, "D_TVS", "TVS1", "SMAJ30CA",
                   "Diode_SMD:D_SMA",
                   (TVS1_X, TVS1_Y), lib=lib)
@@ -622,7 +622,7 @@ def build_battery_side_schematic() -> None:
     # preserved by the single remaining label.
 
     # R5 — 1 MΩ, top of sense divider
-    R5_X, R5_Y = 80 * G, 40 * G   # (101.6, 50.8)
+    R5_X, R5_Y = 74 * G, 64 * G   # sense divider; R6/C5 derive
     _place_symbol(s, "R", "R5", "1M",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R5_X, R5_Y), lib=lib)
@@ -667,7 +667,7 @@ def build_battery_side_schematic() -> None:
     #   pin 6 BST ( 7.62,  7.62) passive → sch (X+7.62, Y-7.62)
     #   pin 7 SS  (-7.62, -2.54) passive → sch (X-7.62, Y+2.54)
     #   pin 8 FB  ( 7.62, -7.62) input   → sch (X+7.62, Y+7.62)
-    U1_X, U1_Y = 155 * G, 30 * G   # (196.85, 38.1)
+    U1_X, U1_Y = 150 * G, 72 * G   # buck cluster; L1/C1/C2/C_BST derive
     _place_symbol(s, "TPS62933", "U1", "TPS62933FDRLR",
                   "Package_TO_SOT_SMD:SOT-23-6",
                   (U1_X, U1_Y), lib=lib,
@@ -756,7 +756,7 @@ def build_battery_side_schematic() -> None:
     #   pin 2 lib (-5.08,  0)    → schematic (X-5.08, Y)
     #   pin 3 lib (-5.08, -2.54) → schematic (X-5.08, Y+2.54)  [BOTTOM pin]
     # Mapping (per Recom datasheet): pin 1 = VIN, pin 2 = GND, pin 3 = VOUT.
-    U2_X, U2_Y = 200 * G, 30 * G   # (254.0, 38.1)
+    U2_X, U2_Y = 214 * G, 72 * G   # V12 cluster level w/ buck; C3/C4 derive
     _place_symbol(s, "Conn_01x03", "U2", "R-78E12-1.0",
                   "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT",
                   (U2_X, U2_Y), lib=lib)
@@ -800,7 +800,7 @@ def build_battery_side_schematic() -> None:
     # cleanly when Q1 is OFF — the whole point of the hard-cut.
 
     # Q1 — AO3401A P-MOSFET, hard-cut load switch
-    Q1_X, Q1_Y = 70 * G, 50 * G   # (88.9, 63.5)
+    Q1_X, Q1_Y = 52 * G, 72 * G   # hard-cut switch (rigid-translated cluster, ERC-clean geometry)
     _place_symbol(s, "Q_PMOS_GSD", "Q1", "AO3401A",
                   "Package_TO_SOT_SMD:SOT-23", (Q1_X, Q1_Y), lib=lib)
     # iter 55 fix F1: pull each Q1 net label 2G off the pin endpoint
@@ -814,7 +814,7 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "V24_SW",    (Q1_X + 2 * G, Q1_Y - 6 * G))                    # pin 3 D
 
     # Q2 — AO3400A N-MOSFET, drives Q1's gate from PWR_EN
-    Q2_X, Q2_Y = 60 * G, 60 * G   # (76.2, 76.2)
+    Q2_X, Q2_Y = 42 * G, 82 * G   # Q1 + (-10,+10)
     _place_symbol(s, "Q_NMOS_GSD", "Q2", "AO3400A",
                   "Package_TO_SOT_SMD:SOT-23", (Q2_X, Q2_Y), lib=lib)
     # iter 55 fix F1: same stub-out pattern.
@@ -827,7 +827,7 @@ def build_battery_side_schematic() -> None:
     _place_wire(s, (Q2_X + 2 * G, Q1_Y),         (Q1_X - 4 * G, Q1_Y))   # corner → Q1.G
 
     # R3 — 100 kΩ Q1 gate pull-up to V24_FUSED (default-OFF)
-    R3_X, R3_Y = 60 * G, 44 * G   # (76.2, 55.88)
+    R3_X, R3_Y = 42 * G, 66 * G   # Q1 + (-10,-6)
     _place_symbol(s, "R", "R3", "100k",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R3_X, R3_Y), lib=lib)
@@ -837,7 +837,7 @@ def build_battery_side_schematic() -> None:
     _place_wire(s, (R3_X, Q1_Y),         (Q1_X - 4 * G, Q1_Y))       # corner → Q1.G
 
     # R4 — 100 kΩ Q2 gate pull-down to GND (failsafe on MCU brown-out)
-    R4_X, R4_Y = 48 * G, 60 * G   # (60.96, 76.2)
+    R4_X, R4_Y = 30 * G, 82 * G   # Q1 + (-22,+10)
     _place_symbol(s, "R", "R4", "100k",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R4_X, R4_Y), lib=lib)
@@ -859,7 +859,7 @@ def build_battery_side_schematic() -> None:
     # iter 6, criterion #3): keeps MOD1's ~30×56mm body from
     # overlapping the regulator row above it, and gives left-side
     # space for the bypass + RTC clusters that hang off MOD1's pins.
-    MOD1_X, MOD1_Y = 180 * G, 110 * G   # (228.6, 139.7)
+    MOD1_X, MOD1_Y = 150 * G, 150 * G   # MCU center-bottom, own region
 
     # Pin number → (net_name or "NC"). NC pins get a NoConnect marker.
     # Per CP1 §6 ESP32-S3 pin assignment table (battery-side).
@@ -931,7 +931,7 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
                   "RF_Module:ESP32-S3-WROOM-1U",  # -1U variant: external U.FL antenna, no keepout zone
                   (MOD1_X, MOD1_Y), lib=lib,
-                  value_pos=(MOD1_X, MOD1_Y + 26 * G))  # iter 51 fix C: out of body, below GND label stub
+                  value_pos=(MOD1_X, MOD1_Y + 30 * G))  # value below body
     # Pins 1, 40, 41 (all GND) share the same library position in the
     # ESP32-S3-WROOM-1 symbol (0, -27.94). Placing one label per pin
     # creates 3 stacked GND labels at the same coordinate — fails D11
@@ -955,7 +955,10 @@ def build_battery_side_schematic() -> None:
             dx, dy = _outward_for_angle(lib_a)
             outer = (endpoint[0] + dx * 2 * G, endpoint[1] + dy * 2 * G)
             _place_wire(s, endpoint, outer)
-            _place_label(s, net, outer)
+            # Orient the label so its text reads AWAY from the symbol body
+            # (left-side pins must extend left, not back over the pin name).
+            lbl_angle = {(-1, 0): 180, (1, 0): 0, (0, -1): 90, (0, 1): 270}.get((dx, dy), 0)
+            _place_label(s, net, outer, angle=lbl_angle)
 
     # ===== Iter 18: ESP support — R7 EN pull-up + C8 EN soft-start cap +
     #               C6 ESP bulk decoupling + C7 ESP HF decoupling =====
@@ -963,7 +966,7 @@ def build_battery_side_schematic() -> None:
     # Place ESP support caps + R7 to the LEFT of MOD1 (free area above the
     # existing power cluster). Y at MOD1_Y - 30*G so the support cluster
     # is above ESP horizontally.
-    SUP_Y = MOD1_Y - 30 * G
+    SUP_Y = MOD1_Y - 38 * G   # ESP support row above MCU
 
     # R7 — 10 kΩ pull-up from ESP_EN to V3V3_SW. Vertical (R pins ±3*G).
     R7_X, R7_Y = MOD1_X - 24 * G, SUP_Y
@@ -1010,7 +1013,7 @@ def build_battery_side_schematic() -> None:
     #   pin 1  32KHZ (oc)   lib ( 12.7, 5.08),  180  → sch (X+12.7, Y-5.08)
     #   pin 3  INT/SQW (oc) lib ( 12.7,-2.54),  180  → sch (X+12.7, Y+2.54)
     #   pins 5-12 GND all map to (X, Y+10.16) — same endpoint as pin 13
-    RTC1_X, RTC1_Y = 60 * G, 95 * G   # (76.2, 120.65)
+    RTC1_X, RTC1_Y = 60 * G, 150 * G   # RTC cluster left of MCU
     _place_symbol(s, "DS3231M", "RTC1", "DS3231SN#",
                   "Package_SO:SOIC-16W_7.5x10.3mm_P1.27mm",
                   (RTC1_X, RTC1_Y), lib=lib,
@@ -1042,7 +1045,7 @@ def build_battery_side_schematic() -> None:
     # BAT1 — CR2032 holder, 2-pin (+, -)
     #   pin 1 + lib (0,  5.08), 270 → sch (X, Y-5.08)
     #   pin 2 - lib (0, -2.54),  90 → sch (X, Y+2.54)
-    BAT1_X, BAT1_Y = 40 * G, 85 * G   # (50.8, 107.95)
+    BAT1_X, BAT1_Y = 30 * G, 140 * G
     _place_symbol(s, "Battery_Cell", "BAT1", "CR2032",
                   "Battery:BatteryHolder_Keystone_1057_1x2032",
                   (BAT1_X, BAT1_Y), lib=lib)
@@ -1055,7 +1058,7 @@ def build_battery_side_schematic() -> None:
     # RTC1.SCL's endpoint, forcing GND and I2C_SCL onto the same net.
     # Moved from x=16*G (20.32mm — barely inside left edge) to x=22*G
     # so labels at this anchor stay clear of the page boundary.
-    C9_X, C9_Y = 22 * G, 95 * G   # (27.94, 120.65)
+    C9_X, C9_Y = 30 * G, 170 * G
     _place_symbol(s, "C", "C9", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (C9_X, C9_Y), lib=lib)
@@ -1063,13 +1066,13 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "GND",     (C9_X, C9_Y + 3 * G))
 
     # R8/R9 — I²C pull-ups (SDA/SCL → V3V3_SW)
-    R8_X, R8_Y = 36 * G, 90 * G   # (45.72, 114.3)
+    R8_X, R8_Y = 48 * G, 128 * G
     _place_symbol(s, "R", "R8", "4.7k",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R8_X, R8_Y), lib=lib)
     _place_label(s, "V3V3_SW", (R8_X, R8_Y - 3 * G))
     _place_label(s, "I2C_SDA", (R8_X, R8_Y + 3 * G))
-    R9_X, R9_Y = 30 * G, 90 * G   # (38.1, 114.3)
+    R9_X, R9_Y = 42 * G, 128 * G
     # D11 #2 demo: horizontal wire linking R8/R9 V3V3_SW endpoints visually.
     # Both endpoints already have V3V3_SW labels; the wire is decorative
     # reinforcement that these I2C pullups share the same rail. ERC
@@ -1091,7 +1094,7 @@ def build_battery_side_schematic() -> None:
     #   pin 6 A      lib (10.16,  7.62),  180  → sch (X+10.16, Y-7.62)
     #   pin 7 B      lib (10.16,  2.54),  180  → sch (X+10.16, Y-2.54)
     #   pin 8 VCC    lib (0,      15.24), 270  → sch (X,       Y-15.24)
-    U3_X, U3_Y = 220 * G, 50 * G   # (279.4, 63.5)
+    U3_X, U3_Y = 280 * G, 60 * G   # RS485 far right; cluster derives
     _place_symbol(s, "LTC2850xS8", "U3", "SN65HVD3082E",
                   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
                   (U3_X, U3_Y), lib=lib,
@@ -1174,7 +1177,7 @@ def build_battery_side_schematic() -> None:
     # BTN1 — Override pushbutton, SW_Push (2-pin horizontal).
     # Pin geometry: pin 1 lib (-5.08, 0) angle 0 → sch (X-5.08, Y);
     #               pin 2 lib (5.08, 0)  angle 180 → sch (X+5.08, Y).
-    BTN1_X, BTN1_Y = 60 * G, 110 * G   # (76.2, 139.7)
+    BTN1_X, BTN1_Y = 45 * G, 192 * G   # override button, bottom-left
     _place_symbol(s, "SW_Push", "BTN1", "OVERRIDE",
                   "Button_Switch_THT:SW_PUSH_6mm",
                   (BTN1_X, BTN1_Y), lib=lib)
@@ -1186,7 +1189,7 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "GND",          (BTN1_X + 6 * G, BTN1_Y))             # pin 2
 
     # R13 — 1 MΩ pull-up BTN_OVERRIDE → V3V3_SW
-    R13_X, R13_Y = 70 * G, 110 * G   # (88.9, 139.7)
+    R13_X, R13_Y = 62 * G, 192 * G
     _place_symbol(s, "R", "R13", "1M",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R13_X, R13_Y), lib=lib)
@@ -1194,7 +1197,7 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "BTN_OVERRIDE", (R13_X, R13_Y + 3 * G))
 
     # C11 — 100 nF button debounce
-    C11_X, C11_Y = 80 * G, 110 * G   # (101.6, 139.7)
+    C11_X, C11_Y = 78 * G, 192 * G
     _place_symbol(s, "C", "C11", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (C11_X, C11_Y), lib=lib)
@@ -1213,7 +1216,7 @@ def build_battery_side_schematic() -> None:
     #   pin 8 brown         → GND
     # 8P8C pin lib coords: all at X=+10.16, Y from -7.62 (pin 1) to
     # +10.16 (pin 8) in 2.54mm steps → sch (X+10.16, Y - lib_Y).
-    J2_X, J2_Y = 240 * G, 90 * G   # (304.8, 114.3)
+    J2_X, J2_Y = 225 * G, 135 * G   # connectors right of MCU, clear of title block
     _place_symbol(s, "8P8C", "J2", "RJ45",
                   "Connector_RJ:RJ45_Amphenol_RJHSE5380",
                   (J2_X, J2_Y), lib=lib)
@@ -1243,7 +1246,7 @@ def build_battery_side_schematic() -> None:
     # Conn_01x04 pin lib: pin 1 (-5.08, 2.54), pin 2 (-5.08, 0),
     # pin 3 (-5.08, -2.54), pin 4 (-5.08, -5.08).
     # Sch endpoints: (X-5.08, Y - lib_Y).
-    J3_X, J3_Y = 270 * G, 110 * G   # (342.9, 139.7)
+    J3_X, J3_Y = 225 * G, 165 * G
     _place_symbol(s, "Conn_01x04", "J3", "USB-OTG",
                   "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
                   (J3_X, J3_Y), lib=lib)
@@ -1254,7 +1257,7 @@ def build_battery_side_schematic() -> None:
 
     # J5 — 4-pin UART debug header (TX/RX/GND/RESET#).
     # Reset (ESP_EN) reuses J3.3; J5 just exposes UART RX/TX + GND + EN.
-    J5_X, J5_Y = 270 * G, 120 * G   # (342.9, 152.4)
+    J5_X, J5_Y = 225 * G, 182 * G
     _place_symbol(s, "Conn_01x04", "J5", "UART-DBG",
                   "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
                   (J5_X, J5_Y), lib=lib)
@@ -1276,12 +1279,12 @@ def build_battery_side_schematic() -> None:
     # horizontal strip at y=180*G=228.6mm (bottom of the A3 sheet,
     # well below all other components). Spaced 20*G=25.4mm apart so
     # adjacent flag labels have plenty of horizontal breathing room.
-    _PF_Y = 180 * G
+    _PF_Y = 206 * G   # power-flag strip along the bottom
     _place_power_flag(s, "V24_FUSED", (40 * G,  _PF_Y), lib)
-    _place_power_flag(s, "GND",       (60 * G,  _PF_Y), lib)
-    _place_power_flag(s, "V24_SW",    (80 * G,  _PF_Y), lib)
-    _place_power_flag(s, "V3V3_SW",   (100 * G, _PF_Y), lib)
-    _place_power_flag(s, "V_BAT_RTC", (120 * G, _PF_Y), lib)
+    _place_power_flag(s, "GND",       (70 * G,  _PF_Y), lib)
+    _place_power_flag(s, "V24_SW",    (100 * G, _PF_Y), lib)
+    _place_power_flag(s, "V3V3_SW",   (130 * G, _PF_Y), lib)
+    _place_power_flag(s, "V_BAT_RTC", (160 * G, _PF_Y), lib)
     # PWR_EN is now driven by MOD1.IO4 (bidirectional). MOD1 landed in
     # iter 18, so the synthetic PWR_EN PWR_FLAG is no longer needed —
     # dropped.
@@ -1471,7 +1474,10 @@ def build_display_side_schematic() -> None:
             dx, dy = _outward_for_angle(lib_a)
             outer = (endpoint[0] + dx * 2 * G, endpoint[1] + dy * 2 * G)
             _place_wire(s, endpoint, outer)
-            _place_label(s, net, outer)
+            # Orient the label so its text reads AWAY from the symbol body
+            # (left-side pins must extend left, not back over the pin name).
+            lbl_angle = {(-1, 0): 180, (1, 0): 0, (0, -1): 90, (0, 1): 270}.get((dx, dy), 0)
+            _place_label(s, net, outer, angle=lbl_angle)
 
     # ===== ESP support: R1 EN pull-up + C5 EN soft-start + C3 bulk + C4 HF =====
     SUP_Y = MOD1_Y - 32 * G
