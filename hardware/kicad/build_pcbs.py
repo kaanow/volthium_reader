@@ -230,193 +230,138 @@ def parse_netlist(netlist_path: Path):
 # Battery-side placement — CP3 iter 6.
 # ---------------------------------------------------------------------------
 
-# Board outline (mm). 60x40 per CP1 §2. Origin (0,0) at top-left.
-BATTERY_W, BATTERY_H = 60.0, 40.0
+# Board outline (mm). Origin (0,0) at top-left.
+# CP5 re-floorplan: D10 lifts the battery-side form-factor limit, so the
+# board was enlarged from the cramped 60x40 (which forced sub-0.2mm pad
+# clearances, ~88 silk-over-copper, ~28 courtyard overlaps and the BAT1->
+# MOD1 GPIO short) to 95x75 — ~3x the area. Components are spread into
+# functional zones with >=0.4mm courtyard gaps; BAT1's wide CR2032 clips
+# now sit a full band below MOD1 so they cannot bridge MOD1's GPIO pads.
+BATTERY_W, BATTERY_H = 95.0, 75.0
 
-# Per-component placement on the battery-side board.
-# Iter 6 scope: power-input cluster placed with intent. All other
-# components parked off-board (x>=70) until iters 8/10 refine them.
-#
-# Each entry: ref -> (x_mm, y_mm, rotation_deg, layer)
-# layer in {"F.Cu", "B.Cu"}.
+# Per-component placement on the battery-side board (CP5 re-floorplan).
+# Each entry: ref -> (x_mm, y_mm, rotation_deg, layer), layer in {F.Cu,B.Cu}.
+# Zones (top->bottom, signal flow left->right):
+#   - top band: 24V input + protection (J1 -> F1 -> D1 / TVS1)
+#   - upper-mid: hard-cut MOSFETs (Q1/Q2) + 3V3 buck U1 cluster + 12V U2
+#   - center: MOD1 (ESP32-S3) with bypass caps on B.Cu beneath it
+#   - right: RTC1, RS-485 (U3/TVS2/bias), RJ45 J2, dev headers J3/J5
+#   - bottom: CR2032 BAT1 (its own band, clear of MOD1) + override button
+# Verified courtyard-overlap-free with >=0.4mm gaps before generation.
 BATTERY_PLACEMENT = {
-    # ===== Power-input cluster (iter 6 — placed with intent) =====
-    # Input terminal block on the left edge, 5.08mm 2-pin Phoenix horizontal.
-    # Body ~12.8x9.5mm so center near (8.5, 9.0) keeps body within 3-15mm.
-    "J1":    ( 9.0,   8.5,    0,   "F.Cu"),
-    # Cartridge fuse holder. Pads at 17.8mm pitch, body ~21mm wide, ~6mm tall.
-    # Center at (24.5, 8.5) → pads at ~15.6 and ~33.4.
-    "F1":    (24.5,   8.5,    0,   "F.Cu"),
-    # Schottky reverse-polarity diode (D_SMA, 4.3x2.6mm). Right of fuse output.
-    "D1":    (37.0,   7.5,    0,   "F.Cu"),
-    # 24V TVS — iter-8 relocated to (33, 5) above F1 fuse, well clear
-    # of MOD1 right column and the D1 row. Pad 1 (V24_FUSED) at
-    # (31, 5), pad 2 (GND) at (35, 5). D1 pad 1 V24_FUSED at (35, 7.5)
-    # is same net as TVS1 pad 1 (vertical clearance 2.5 mm, but irrelevant
-    # — same net touch allowed). D1 pad 2 V24_AFTER_FUSE at (39, 7.5)
-    # is dx=4, dy=2.5, distance 4.72 mm — clearance > 2 mm. MOD1
-    # right col at X=36.75 → dx=5.75 from TVS1 pad 2 right edge.
-    "TVS1":  (33.0,   5.0,    0,   "F.Cu"),
-    # TPS62933 buck cluster — moved past F1's right edge (x=42.9 max)
-    # to clear hole-clearance from F1's 1.17mm THT pads (iter 12,
-    # Finding 03). F1 spans x=24.5-42.3 with pads in a 2x2 grid.
-    # Iter-7: shifted +1 mm to (46, 7.5) so U1 pad 3 (at U1.x-1.14)
-    # no longer touches F1 pad 2 (V24_AFTER_FUSE) at (42.3, 8.5).
-    "U1":    (46.0,   7.5,    0,   "F.Cu"),
-    # 1210 input bulk cap on V24_SW — iter-8 (42, 11.5). Pad 1 at
-    # X=40.525 (cleared from TVS1 pad 1 V24_FUSED at X=39 by 1.525 mm).
-    # Pad 2 at X=43.475 — F1 pad 2 PTH (42.3, 13.5) outer right edge
-    # 43.45; pad-edge gap 0.025 mm, still violates Power-24V clearance
-    # by ~0.18 mm. Iter-9 may rotate C1 90° to give vertical pads
-    # that are well clear of F1 pad row.
-    "C1":    (42.0,  11.5,    0,   "F.Cu"),
-    # Bootstrap cap (0603, between pins 5/6 of U1).
-    "C_BST": (46.5,   4.0,    0,   "F.Cu"),
-    # 0805 inductor — at (50, 7.5). Pad 1 at X=48.9375 clears U1 pad 4
-    # (X=47.7375 right edge by 1.2 mm); pad 2 at X=51.0625.
-    "L1":    (50.0,   7.5,    0,   "F.Cu"),
-    # 1210 output bulk cap on 3V3 rail — iter-8 (50.5, 11.5). Pad 1
-    # X=49.025, pad 2 X=51.975. L1 pad 2 (51.0625, 7.5) — different Y,
-    # vertical clear 4 mm. C4 pad 1 (55.525) cleared by 3.55 mm pitch.
-    "C2":    (50.5,  11.5,    0,   "F.Cu"),
-    # Additional 3V3 bulk caps — C3/C4 at original CP3 positions; the
-    # C2-C4 1210-pitch shorting was fixed iter-8 by moving C2 left
-    # (was 4 mm pitch, needs ≥4.5 mm for the 2.95-mm 1210 pad width
-    # plus 0.2-mm clearance).
-    "C3":    (54.0,   7.5,    0,   "F.Cu"),
-    "C4":    (57.0,  11.5,    0,   "F.Cu"),
-    # Recom R-78E12 SIP3 (V12 rail for CAT5e PoE-style output). 11.5x6mm body.
-    # Moved down at iter 12 to clear U1-cluster output caps (C3/C4).
-    "U2":    (54.0,  25.0,   90,   "F.Cu"),
-    # Sense divider on bottom layer per CP1 §11.2 (5,6 + 0603 cap).
-    "R5":    (10.0,  16.0,    0,   "B.Cu"),
-    "R6":    (10.0,  18.5,    0,   "B.Cu"),
-    "C5":    (10.0,  21.0,    0,   "B.Cu"),
+    # ---- 24V input + reverse-polarity / TVS protection ----
+    "J1":    (15.0, 13.0,   0, "F.Cu"),   # Phoenix 2-pin terminal block
+    "F1":    (28.0, 12.0,   0, "F.Cu"),   # 5x20mm cartridge fuse
+    "D1":    (54.0, 12.0,   0, "F.Cu"),   # SS24 reverse-polarity diode
+    "TVS1":  (54.0, 18.0,   0, "F.Cu"),   # SMAJ30CA 24V clamp
 
-    # ===== Hard-cut MOSFET pair + gate net (iter 10) =====
-    # Q1 = AO3401A P-MOSFET (high-side, SOT-23 G/S/D), V24 load switch.
-    # Q2 = AO3400A N-MOSFET, gate driver pulling Q1 gate low when ESP
-    # asserts PWR_EN. R3 = Q2 gate pulldown, R4 = Q1 gate pullup to source.
-    # Per CP1 §11.2 priority 5: hard-cut MOSFETs near the regulators they
-    # control. Placed below the power-cluster row, x≈15-23 (left of MOD1).
-    # Q1/Q2 moved iter-7 -3.5 mm left to (12.5, *) so SOT-23 pad 3 (at
-    # anchor+0.94) lands at X=13.44, leaving R3/R4 pad 1 (X=16.025) a
-    # 2.6 mm clearance gap.
-    "Q1":    (12.5,  17.0,    0,   "F.Cu"),
-    "Q2":    (12.5,  21.5,    0,   "F.Cu"),
-    # R3, R4 at X=16.5 — re-measured MOD1 left-column pads are 1.5x0.9
-    # (X is the LONG axis), so left edge at 18.5 mm, not 18.85. Need
-    # R3 pad 2 right edge <18.3 for 0.2 mm clearance. R3 X=16.5 puts
-    # pad 2 at (17.4125, *), right edge 17.925 — 0.575 mm clear of MOD1.
-    "R3":    (16.5,  21.5,    0,   "F.Cu"),
-    "R4":    (16.5,  17.0,    0,   "F.Cu"),
+    # ---- Hard-cut load switch ----
+    "Q1":    (14.0, 27.0,   0, "F.Cu"),   # AO3401A P-FET
+    "Q2":    (14.0, 32.0,   0, "F.Cu"),   # AO3400A N-FET gate driver
+    "R4":    (20.0, 27.0,   0, "F.Cu"),   # Q1 gate pull-up
+    "R3":    (20.0, 32.0,   0, "F.Cu"),   # Q2 gate pull-down
 
-    # ===== ESP32-S3 module — -1U variant (iter 18 architectural respin) =====
-    # Swapped from ESP32-S3-WROOM-1 (PCB antenna + 48x21mm keepout zone)
-    # to ESP32-S3-WROOM-1U (external U.FL antenna, no keepout). Same
-    # pinout, but the -1U footprint anchor is offset by +3.15mm in y
-    # relative to its pad bbox center vs the -1 footprint. Anchor was
-    # (28, 16.5) → now (28, 19.65) so pin positions stay at the same
-    # absolute board coords as before the swap, preserving the bypass
-    # row + RTC + hard-cut placements that depend on pin 2/3/4 location.
-    "MOD1":  (28.0,  19.65,   0,   "F.Cu"),
+    # ---- 3V3 buck (TPS62933) cluster ----
+    "U1":    (30.0, 27.0,   0, "F.Cu"),
+    "C_BST": (30.0, 22.0,   0, "F.Cu"),   # bootstrap cap
+    "L1":    (36.0, 27.0,   0, "F.Cu"),   # 2.2uH
+    "C1":    (30.0, 33.0,   0, "F.Cu"),   # V24_SW input bulk
+    "C2":    (41.0, 27.0,   0, "F.Cu"),   # 3V3 output bulk
+    "C3":    (41.0, 33.0,   0, "F.Cu"),
+    "C4":    (47.0, 33.0,   0, "F.Cu"),
 
-    # ===== MCU bypass caps + EN pullup (iter 10) =====
-    # 10uF + 100nF + 1uF in parallel close to pin 2 (3V3). Pin 2 at
-    # absolute (19.25, 12.51); the module body occupies the F.Cu real
-    # estate around pin 2, so bypass caps go on B.Cu directly under
-    # pin 2 with short via stitches up to it. Loop area stays small.
-    # Iter-7: spread the bypass row by +1 mm each to clear net-class
-    # clearance — original 2 mm pitch on 0805 left only 0.05 mm pad-edge
-    # gap (need 0.2 mm Default). New 3 mm pitch gives ~1 mm gap.
-    "C6":    (17.0,  13.5,    0,   "B.Cu"),  # 10µF X7R, 0805
-    "C7":    (20.0,  13.5,    0,   "B.Cu"),  # 100nF, 0603 — closest to pin 2
-    # C8 — at (23, 15.5). Pad 2 X=23.975 — overlaps F1 PTH pad 1 outer
-    # edge (X=25.65) by 1.68 mm. Documented as inherited B.Cu / F.Cu
-    # cross-layer proximity to F1's lower pad row (drill 1.17 mm,
-    # outer radius 1.15 mm). The overlap is on B.Cu and F1 pads are
-    # only on F.Cu so functionally fine — the DRC flag is because PTH
-    # holes pass through all layers. Iter-8 may move C8 out of the
-    # F1 hole zone entirely.
-    "C8":    (23.0,  15.5,    0,   "B.Cu"),  # 1µF, 0603
-    # R7 = 10kΩ EN-pullup. Pin 3 (EN) at (-8.75, -2.72) → (19.25, 13.78).
-    # Place R7 on B.Cu just below the bypass row.
-    "R7":    (20.0,  15.5,    0,   "B.Cu"),
+    # ---- 12V Recom converter ----
+    "U2":    (60.0, 30.0,   0, "F.Cu"),   # R-78E12-1.0 SIP3
 
-    # ===== RTC + CR2032 backup cell (iter 14) =====
-    # Per CP1 §11.2: RTC1 near MOD1, away from L1. MOD1 occupies
-    # y=3.75-29.25, so place RTC cluster in the strip y=30-37.
-    # RTC1 = DS3231M, SOIC-16W (10.3x7.5mm). Anchor at x=30 keeps the
-    # right edge (x=35.15) clear of J2's shield pad at x=39.43
-    # (Finding 05). Anchor at y=35 keeps the top edge (y=31.25) clear
-    # of MOD1's bottom pad row (y=29.0) — was overlapping at y=33.5.
-    "RTC1":  (30.0,  35.0,    0,   "F.Cu"),
-    # Keystone_1057 CR2032 holder. Pads at ±15.15mm in x; Edge.Cuts
-    # extends ±11.5mm in y (footprint draws the cell outline on the
-    # board edge layer). Anchor at (17, 28) keeps Edge.Cuts y range
-    # 16.5-39.5, inside the 40mm board.
-    # BAT1 at (17, 28) — CP3 APPROVED position. Iter-9 experimented
-    # with (15.5, 28) but BAT1's battery-clip pad is wide enough
-    # (~3-3.5 mm) to span across MOD1 bottom-row pads at any anchor
-    # position in this neighborhood. The 3 NC-pin clearance "errors"
-    # remain inherent to the BAT1-vs-MOD1 placement choice; documented
-    # per D13 PR-* in §11.8/§11.9 as functionally inert (NC pins on
-    # MOD1 have no schematic net, so geometric proximity to GND is not
-    # an electrical short).
-    "BAT1":  (17.0,  28.0,    0,   "F.Cu"),
-    # I2C pullups + RTC bypass — on B.Cu near RTC1 to save F.Cu space.
-    "R8":    (35.0,  37.5,    0,   "B.Cu"),   # SCL pullup
-    # R9 moved iter-7 +1.5 mm right — original 2.5 mm pitch put pad 2 of
-    # R8 (35.9125) and pad 1 of R9 (36.5875) at 0.675 mm centers but
-    # 0805 pad widths (~1.15 mm half) make the edges OVERLAP by 0.5 mm.
-    # 4 mm pitch gives ~1.05 mm pad-edge gap.
-    "R9":    (39.0,  37.5,    0,   "B.Cu"),   # SDA pullup
-    "C9":    (42.5,  37.5,    0,   "B.Cu"),   # RTC VCC bypass 100nF
+    # ---- 24V sense divider (B.Cu) ----
+    "R5":    (64.0, 12.0,   0, "B.Cu"),
+    "R6":    (64.0, 15.0,   0, "B.Cu"),
+    "C5":    (64.0, 18.0,   0, "B.Cu"),
 
-    # ===== Override button + debounce (iter 14) =====
-    # BTN1 = SW_PUSH_6mm THT, 6.5x4.5mm body. Place left of BAT1 in
-    # the leftmost column. BAT1 anchor at (17, 28), pad 1 at (1.85, 28).
-    # BTN1 below BAT1's pad-1 column.
-    "BTN1":  ( 8.0,  37.0,    0,   "F.Cu"),
-    "R13":   (12.0,  37.0,    0,   "B.Cu"),   # 1M pullup, B.Cu
-    "C11":   (12.0,  35.5,    0,   "B.Cu"),   # debounce cap, B.Cu
+    # ---- MCU module + bypass (caps on B.Cu under the module) ----
+    "MOD1":  (30.0, 48.0,   0, "F.Cu"),   # ESP32-S3-WROOM-1U
+    "C6":    (25.0, 43.0,   0, "B.Cu"),   # 10uF
+    "C7":    (29.0, 43.0,   0, "B.Cu"),   # 100nF
+    "C8":    (33.0, 43.0,   0, "B.Cu"),   # 1uF
+    # R7 sits right of the bypass row, clear of MOD1's central PTH thermal
+    # via array (pad 41 GND, ~x27-30 / y46-49) which a B.Cu part cannot overlap.
+    "R7":    (37.0, 43.0,   0, "B.Cu"),   # EN pull-up
 
-    # ===== RS-485 transceiver + protection (iter 14) =====
-    # U3 = SN65HVD3082E SOIC-8 (3.9x4.9mm). Per CP1 §11.2 priority 4:
-    # near board edge with shield drain to J2 RJ45. Place top-right
-    # area below the U1 cluster.
-    "U3":    (50.0,  16.0,    0,   "F.Cu"),
-    "R10":   (54.0,  14.0,    0,   "B.Cu"),   # RS-485 A bias (B.Cu)
-    "R11":   (54.0,  16.0,    0,   "B.Cu"),   # 120Ω termination (B.Cu)
-    "R12":   (54.0,  18.0,    0,   "B.Cu"),   # RS-485 B bias (B.Cu)
-    # TVS2 at original (54, 20.5) — iter-7 attempted to move down to
-    # (54, 23.5) to clear U2 pad 3 at Y=19.92, but that caused TVS2
-    # pad 1 to overlap U2 pad 2 (GND, Y=22.46) by 0.14 mm. Original
-    # position has 0.04 mm overlap with U2 pad 3 (V12_CAT5E); both
-    # variants are tight. Inherited CP3 placement; iter-8+ may
-    # re-rotate or relocate but TVS2-near-U2 is constrained by the
-    # RS-485 net topology (J2 RJ45 + U3 transceiver area).
-    "TVS2":  (54.0,  20.5,    0,   "F.Cu"),   # RS-485 line TVS (D_SMA)
-    "C10":   (50.0,  19.0,    0,   "B.Cu"),   # U3 VCC bypass 100nF (B.Cu)
+    # ---- RTC + CR2032 backup cell ----
+    "RTC1":  (58.0, 48.0,   0, "F.Cu"),   # DS3231M SOIC-16W
+    "R8":    (54.0, 57.0,   0, "B.Cu"),   # I2C pull-up
+    "R9":    (58.0, 57.0,   0, "B.Cu"),   # I2C pull-up
+    "C9":    (62.0, 57.0,   0, "B.Cu"),   # RTC VCC bypass
+    # BAT1 (Keystone 1057, 34mm-wide clips) gets its own bottom band a full
+    # 4mm below MOD1 so its GND clips cannot bridge MOD1's GPIO pads
+    # (the D14 short on the old 60x40 layout).
+    "BAT1":  (48.0, 67.0,   0, "F.Cu"),
 
-    # ===== Misc decoupling (iter 14) — all on B.Cu =====
-    # Additional bypass for U2 (V12 rail) and digital section.
-    "C12":   (51.0,  29.5,    0,   "B.Cu"),   # near U2 input
-    "C13":   (53.0,  29.5,    0,   "B.Cu"),   # near U2 output
-    "C14":   (50.0,  31.5,    0,   "B.Cu"),   # general 3V3 bypass
+    # ---- Override button + debounce ----
+    "BTN1":  (10.0, 60.0,   0, "F.Cu"),
+    "R13":   (22.0, 62.0,   0, "B.Cu"),
+    "C11":   (22.0, 65.0,   0, "B.Cu"),
 
-    # ===== RJ45 + dev headers (iter 14) =====
-    # J2 = RJ45 Amphenol RJHSE5380 (~14x16mm body, 12 pads x∈[-4.57,
-    # +11.69], y∈[-2.54, +1.78] from anchor). Anchor at (44, 33) puts
-    # pads x=39.43-55.69, y=30.46-34.78. Body occupies that footprint
-    # area; the receptacle face exits the board (south). Conflict
-    # with nothing on F.Cu — BTN cluster is now left, RTC1 above,
-    # decoupling/R8-9/C9 all moved to B.Cu.
-    "J2":    (44.0,  33.0,    0,   "F.Cu"),
-    # Dev headers J3 (UART debug) + J5 (USB OTG). Place rot 0° (pads
-    # vertical) on right edge below sense divider.
-    "J3":    (57.0,  10.5,    0,   "F.Cu"),
-    "J5":    (57.0,  33.0,    0,   "F.Cu"),
+    # ---- RS-485 transceiver + line protection ----
+    "U3":    (78.0, 45.0,   0, "F.Cu"),   # SN65HVD3082E
+    "TVS2":  (78.0, 51.0,   0, "F.Cu"),   # SMAJ12CA differential clamp
+    "R10":   (73.0, 52.0,   0, "B.Cu"),   # A bias
+    "R11":   (77.0, 52.0,   0, "B.Cu"),   # 120R termination
+    "R12":   (81.0, 52.0,   0, "B.Cu"),   # B bias
+    "C10":   (84.0, 45.0,   0, "B.Cu"),   # U3 VCC bypass
+
+    # ---- RJ45 (Cat5e) + dev headers (right edge) ----
+    "J2":    (78.0, 18.0,   0, "F.Cu"),   # Amphenol RJHSE5380
+    "J3":    (88.0, 36.0,   0, "F.Cu"),   # UART debug
+    "J5":    (88.0, 56.0,   0, "F.Cu"),   # USB-OTG
+}
+
+# Silkscreen reference-designator offsets (dx, dy mm from anchor). Auto-placed
+# refdes text otherwise lands on each part's own body outline / pads
+# (silk_over_copper, silk_overlap). These push each refdes into the cardinal
+# direction with the most free space, computed against the courtyard floorplan.
+BATTERY_REFDES_OFFSETS = {
+    "BAT1":  ( 0.00,  5.55),
+    "BTN1":  (-3.40,  2.25),
+    "C1":    ( 4.20,  0.00),
+    "C10":   ( 0.00,  1.63),
+    "C11":   ( 0.00,  1.63),
+    "C2":    ( 4.20,  0.00),
+    "C3":    (-4.20,  0.00),
+    "C4":    ( 4.20,  0.00),
+    "C5":    ( 0.00,  1.63),
+    "C6":    ( 0.00, -2.48),
+    "C7":    ( 0.00, -1.96),
+    "C8":    ( 0.00, -2.23),
+    "C9":    ( 3.38,  0.00),
+    "C_BST": ( 3.38,  0.00),
+    "D1":    ( 0.00, -2.65),
+    "F1":    ( 8.90, -2.25),
+    "J1":    (-4.94, -0.30),
+    "J2":    ( 3.56, -9.40),
+    "J3":    ( 0.00, -2.67),
+    "J5":    ( 0.00, 10.29),
+    "L1":    ( 0.00, -1.75),
+    "MOD1":  (11.65,  0.22),
+    "Q1":    ( 0.00, -2.60),
+    "Q2":    ( 0.00,  2.60),
+    "R10":   (-3.58,  0.00),
+    "R11":   ( 0.00,  1.85),
+    "R12":   ( 3.58,  0.00),
+    "R13":   ( 3.58,  0.00),
+    "R3":    ( 3.58,  0.00),
+    "R4":    ( 3.58,  0.00),
+    "R5":    ( 0.00, -1.85),
+    "R6":    ( 3.58,  0.00),
+    "R7":    ( 0.00, -2.45),
+    "R8":    (-3.58,  0.00),
+    "R9":    ( 0.00, -1.85),
+    "RTC1":  ( 0.00, -6.30),
+    "TVS1":  ( 0.00,  2.65),
+    "TVS2":  ( 0.00,  2.65),
+    "U1":    (-3.95,  0.00),
+    "U2":    ( 2.48,  3.15),
+    "U3":    ( 0.00, -3.60),
 }
 
 
@@ -535,6 +480,18 @@ def _place_footprint(b, ref, comp_meta, placement, nets_by_name, refdes_offset=N
     # similarly mis-flipped at CP3 and would need rebuild to repair.
     if layer == "B.Cu":
         _flip_footprint_to_back(fp)
+
+    # Relocate any footprint-drawn Edge.Cuts geometry to F.Fab. The board
+    # outline is the single rectangle drawn by _add_edge_cuts(); a component
+    # that ships mechanical outline on Edge.Cuts (BAT1 Keystone_1057 draws
+    # the coin-cell body there) would otherwise be interpreted by KiCad as a
+    # board cutout — self-intersecting the outline (invalid_outline) and
+    # tripping copper/silk edge-clearance on nearby parts. The Keystone 1057
+    # is a surface-mount retainer that sits on top of the board, so no cutout
+    # is wanted; keep the outline as F.Fab documentation instead.
+    for gi in (fp.graphicItems or []):
+        if getattr(gi, "layer", None) == "Edge.Cuts":
+            gi.layer = "F.Fab"
 
     # KiCad 10 stores Reference/Value as footprint properties; silkscreen
     # text references them via ${REFERENCE} / ${VALUE} substitution.
@@ -732,6 +689,59 @@ def _fill_zones(pcb_path: Path) -> None:
         print(f"  fill_zones: WARN exit={result.returncode}: {result.stderr[-200:]}")
     else:
         print(f"  fill_zones: ok")
+
+
+def _apply_refdes_offsets(pcb_path: Path, offsets: dict) -> None:
+    """Reposition each footprint's silkscreen reference designator via pcbnew.
+
+    kiutils represents footprint properties as a plain dict of strings, so it
+    drops the Reference property's (at)/(layer)/(effects) on write — every
+    refdes lands at the footprint origin (0,0), printing on top of the part
+    body and pads (silk_over_copper / silk_overlap). pcbnew handles the board
+    and back-layer transforms correctly, so we set the absolute board position
+    (anchor + offset), force the correct silk layer, and give the text a
+    fab-legal size/thickness here as a post-process.
+    """
+    import subprocess, json, tempfile
+
+    kicad_py = (
+        "/Applications/KiCad/KiCad.app/Contents/Frameworks/"
+        "Python.framework/Versions/3.9/bin/python3.9"
+    )
+    if not Path(kicad_py).exists():
+        print("  refdes: skipped (kicad python not found)")
+        return
+
+    off_json = Path(tempfile.gettempdir()) / "refdes_offsets.json"
+    off_json.write_text(json.dumps(offsets))
+
+    script = f"""
+import json, pcbnew
+offs = json.load(open({str(off_json)!r}))
+b = pcbnew.LoadBoard({str(pcb_path)!r})
+for fp in b.GetFootprints():
+    ref = fp.GetReference()
+    if ref.startswith("H") and ref[1:].isdigit():
+        fp.Reference().SetVisible(False)  # mounting-hole refdes prints on its own hole
+        continue
+    if ref not in offs:
+        continue
+    dx, dy = offs[ref]
+    a = fp.GetPosition()
+    t = fp.Reference()
+    t.SetPosition(pcbnew.VECTOR2I(a.x + pcbnew.FromMM(dx), a.y + pcbnew.FromMM(dy)))
+    t.SetLayer(pcbnew.B_SilkS if fp.IsFlipped() else pcbnew.F_SilkS)
+    t.SetMirrored(fp.IsFlipped())
+    t.SetVisible(True)
+    t.SetTextSize(pcbnew.VECTOR2I(pcbnew.FromMM(1.0), pcbnew.FromMM(1.0)))
+    t.SetTextThickness(pcbnew.FromMM(0.15))
+pcbnew.SaveBoard({str(pcb_path)!r}, b)
+"""
+    result = subprocess.run([kicad_py, "-c", script], capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"  refdes: WARN exit={result.returncode}: {result.stderr[-200:]}")
+    else:
+        print(f"  refdes: repositioned {len(offsets)} designators")
 
 
 def _autoroute(pcb_path: Path, board_name: str, *, freerouting_jar: Path = None,
@@ -1079,9 +1089,14 @@ def build_display_side() -> None:
     print(f"  components placed: {len([r for r in components if r in DISPLAY_PLACEMENT])}")
     print(f"  nets: {len(b.nets)}")
     print(f"  zones: {len(b.zones or [])}")
+    # Preserve the human-maintained .kicad_pro (pcbnew SaveBoard rewrites it).
+    pro = project_dir / "display_side.kicad_pro"
+    pro_snapshot = pro.read_bytes() if pro.exists() else None
     _fill_zones(out)
     if AUTOROUTE:
         _autoroute(out, "display_side")
+    if pro_snapshot is not None:
+        pro.write_bytes(pro_snapshot)
 
 
 def build_battery_side() -> None:
@@ -1122,9 +1137,18 @@ def build_battery_side() -> None:
     print(f"  components placed: {len([r for r in components if r in BATTERY_PLACEMENT])}")
     print(f"  nets: {len(b.nets)}")
     print(f"  zones: {len(b.zones or [])}")
+    # pcbnew's SaveBoard (in the steps below) rewrites the sibling .kicad_pro
+    # design_settings, clobbering the human-maintained net classes and DRC
+    # severity overrides. Snapshot and restore it so the build never mutates
+    # that file.
+    pro = project_dir / "battery_side.kicad_pro"
+    pro_snapshot = pro.read_bytes() if pro.exists() else None
     _fill_zones(out)
+    _apply_refdes_offsets(out, BATTERY_REFDES_OFFSETS)
     if AUTOROUTE:
         _autoroute(out, "battery_side")
+    if pro_snapshot is not None:
+        pro.write_bytes(pro_snapshot)
 
 
 def main() -> int:

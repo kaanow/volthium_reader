@@ -719,6 +719,53 @@ the routed file; verify pin function before "NC") are recorded in
 
 ---
 
+## D15 — Battery-side PCB enlarged to 95×75 and re-floorplanned
+
+Operationalizing **D10** (battery-side form factor unconstrained), the
+battery board was enlarged from the cramped **60×40** to **95×75 mm**
+(~3× the area) and fully re-floorplanned. The 60×40 layout had forced
+sub-0.2 mm pad clearances, ~88 silk-over-copper, ~28 courtyard overlaps,
+and the **D14** BAT1→MOD1 GPIO short — none independently nudge-fixable.
+
+Floorplan: functional zones, signal flow left→right — 24 V input +
+protection across the top (J1→F1→D1/TVS1), hard-cut MOSFETs + the 3V3
+buck (U1) cluster + 12 V Recom (U2) in the upper-mid band, MOD1 (ESP32)
+center with bypass caps on B.Cu beneath it, RTC1 / RS-485 / RJ45 / dev
+headers down the right, and the CR2032 **BAT1 in its own bottom band a
+full 4 mm below MOD1** so its 34 mm-wide clips cannot bridge MOD1's GPIO
+pads. Verified courtyard-overlap-free (0, was ~28) before generation
+with an offline floorplan checker, then **0 error-severity DRC**.
+
+Resolved along the way:
+- **BAT1 Edge.Cuts → F.Fab.** The `Keystone_1057` footprint draws the
+  coin-cell body outline on `Edge.Cuts`; KiCad reads that as a board
+  cutout, self-intersecting the rectangular outline (`invalid_outline`)
+  and tripping copper/silk edge-clearance on neighbours. The 1057 is a
+  surface-mount retainer that sits *on top* of the board — no cutout is
+  wanted — so the build relocates any component Edge.Cuts geometry to
+  `F.Fab` documentation. This fixes the corruption **without** the BOM
+  swap of D-OPEN-5 (now optional, not required for DRC correctness).
+- **Refdes positioning.** kiutils stores footprint properties as a plain
+  string dict and drops the Reference `(at)`/`(layer)`, so every refdes
+  was written at the part origin (silk-over-copper / silk-overlap). A
+  pcbnew post-process sets each designator's absolute board position
+  (anchor + a clearance-maximizing offset), correct silk layer + mirror,
+  and a fab-legal size/thickness. Mounting-hole (`H*`) refdes are hidden.
+- **MOD1 thermal vias.** The stock `ESP32-S3-WROOM-1U` pad 41 (GND) is a
+  PTH thermal pad with a 12-via 0.2 mm array. These trip
+  `drill_out_of_range` against the 0.3 mm default rule; kept as accepted
+  **warnings** (0.2 mm is within JLCPCB/PCBWay capability and the module
+  vendor specifies them) per the D13 warning-justification convention. A
+  B.Cu part cannot overlap that array, so R7 was placed clear of it.
+- **Build no longer mutates `.kicad_pro`.** pcbnew `SaveBoard` rewrites
+  the sibling project's `design_settings`, clobbering the hand-maintained
+  net classes / DRC severities; the build now snapshots and restores it.
+
+State: placement complete and DRC-clean; the board is **unrouted** (92
+ratsnest connections) — routing is the next step.
+
+---
+
 ## Open decisions (not yet committed)
 
 - **D-OPEN-1: ESP32-S3 module specifics.** Existing BOM says
