@@ -633,6 +633,92 @@ enumerate concretely enough to prevent permissive APPROVED verdicts.
 
 ---
 
+## D14 — Battery-side BAT1↔MOD1 clearance was a real GPIO short, not an inert NC overlap
+
+### Finding
+
+Through CP5 iter-9 the battery board carried 3 `[clearance]` DRC
+errors, documented in the packet as "functionally inert" because the
+involved MOD1 pads 23/24/25 were believed to be no-connect. They are
+not. In `RF_Module.kicad_sym`, ESP32-S3-WROOM-1 pads 22–26 are
+**IO14 / IO21 / IO47 / IO48 / IO45** — general-purpose IO that this
+design leaves unused (hence `<no net>` in the netlist). BAT1's GND
+spring-clip copper (pad 2, bbox x30.65–33.86, y26.18–29.81) overlapped
+pads 23/24/25 (y28.25–29.75) at **0.000 mm** — a physical short of
+GPIO21/47/48 to GND on the finished board. `<no net>` means "unused in
+this schematic," not "not bonded to silicon." The inert-NC rationale
+was false and must not be reused.
+
+### Constraints discovered
+
+- **BAT1 (Keystone_1057) is immovable by translation.** The footprint
+  draws the round CR2032 profile on Edge.Cuts, which KiCad treats as a
+  ~11.6 mm-radius milled cutout about the anchor. Left → cutout off the
+  board edge; down → off the bottom edge; right → the cutout swallows
+  MOD1's pads. Confirmed empirically (invalid-outline / new errors).
+- **MOD1 is boxed on all four sides** — Q1/R3/R4 immediately left, J2
+  immediately right, F1 fuse above, RTC1 immediately below. A 2 mm
+  downward shift collides MOD1's bottom pads with RTC1's top pads
+  (8 new errors). MOD1 cannot move either.
+
+### Fix path investigated — and why it's bundled into the re-floorplan
+
+The minimal placement fix is verified: raising BAT1's anchor 1.8 mm,
+(17, 28) → (17, 26.2), drops the GND clip's bottom edge to y28.01,
+clearing MOD1's bottom GPIO row (top edge y28.25) by 0.24 mm — over the
+0.20 mm Default rule. Placement-only DRC with that move: **0 errors**
+(total violations 242 → 232; silk improved, +4 inherent cutout-edge
+warnings).
+
+But the board could not be brought to a clean **routed** state by
+point-fixes — the cramped 60×40 board hits a wall:
+- With BAT1 raised, the autorouter (v2.1.0) routes 105–89 tracks but
+  bridges U2 pad 3 (V12_CAT5E) onto TVS2's RS-485 pads — a 12 V↔RS-485
+  short — because TVS2 sits 2 mm off U2's pad on the packed right edge.
+- Relocating TVS2 clear of U2 (tried (44, 23)) makes the RS-485 zone
+  unroutable: Freerouting v2.1.0 churns past a 900 s timeout and never
+  emits an SES, at any optimizer-pass count.
+- Freerouting **v1.9.0** (the build's default) is unusable here at all
+  — its route optimizer throws a `NullPointerException`
+  (`FloatPoint.rotate`, p_point==null) and pops a modal dialog that
+  never saves. v2.1.0 routes the *original* placement but is flaky on
+  perturbed geometry.
+
+Conclusion: the GPIO short, the U2↔TVS2 short, and the ~88 silk /
+~28 courtyard warnings the user flagged are all symptoms of the same
+over-packed board. They are **not** independently fixable by nudging
+(every nudge relocates a conflict or breaks routing — the same lesson
+the schematic re-floorplan taught). The board is **unconstrained per
+D10**, so the correct fix is to enlarge it and re-floorplan with
+generous spacing — and/or swap BAT1 to a non-cutout B.Cu SMD holder
+(D-OPEN-5). The committed PCB is therefore left at the prior routed
+state; the BAT1/TVS2 fixes are folded into that re-floorplan task so
+the board is fixed and cleanly routed in one coherent pass, not left
+in a half-routed/2-error intermediate.
+
+### Recommended follow-up (BOM/mechanical — needs owner sign-off)
+
+The Keystone_1057 cutout footprint is the source of ~25 inherent
+`copper_edge_clearance` warnings: its clips sit at the milled cutout
+edge amid dense copper, and the cutout cannot be placed clear of MOD1
+on a 60×40 board. A genuinely clean battery side would replace it with
+a **non-cutout SMD coin holder (e.g. Keystone 3000 / 3034) mounted on
+B.Cu, opposite MOD1** — eliminating the cutout, its edge warnings, and
+any F.Cu pad conflict in one move. This is deferred here because it is
+a BOM change (new Keystone PN, procurement) plus a mechanical/enclosure
+decision (holder on the board bottom) that the hardware owner must
+approve — out of scope for a DRC-correctness iteration. Tracked as
+D-OPEN-5 below.
+
+### Lesson encoded elsewhere
+
+The process failure (justifying a real defect on an unverified premise)
+and the tooling path (regenerate DRC from the board; kiutils can't read
+the routed file; verify pin function before "NC") are recorded in
+`hardware/reviews/DESIGNER.md` §12.
+
+---
+
 ## Open decisions (not yet committed)
 
 - **D-OPEN-1: ESP32-S3 module specifics.** Existing BOM says
@@ -655,3 +741,13 @@ enumerate concretely enough to prevent permissive APPROVED verdicts.
   - Resolve at CP1.
 - **D-OPEN-4: Fab-house-specific design rule choice.** Confirm JLCPCB
   vs PCBWay vs OSHPark at CP1 (default JLCPCB; user input welcome).
+- **D-OPEN-5: Battery-side coin-cell holder — cutout vs SMD (see D14).**
+  Current part `BatteryHolder_Keystone_1057_1x2032` requires a milled
+  board cutout that cannot be placed clear of MOD1 on the 60×40 board,
+  generating ~25 inherent `copper_edge_clearance` warnings. Candidate
+  replacement: a non-cutout SMD holder (Keystone 3000 / 3034) on B.Cu
+  opposite MOD1. Decision needs the hardware owner: (a) BOM/procurement
+  for the new PN, (b) enclosure clearance for a bottom-mounted holder,
+  (c) whether ~25 cosmetic edge warnings justify the change vs the
+  iter-10 geometry that already clears all DRC *errors*. Resolve before
+  CP6 fab export, or accept the warnings explicitly in the CP6 packet.
