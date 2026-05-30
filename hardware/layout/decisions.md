@@ -761,8 +761,37 @@ Resolved along the way:
   the sibling project's `design_settings`, clobbering the hand-maintained
   net classes / DRC severities; the build now snapshots and restores it.
 
-State: placement complete and DRC-clean; the board is **unrouted** (92
-ratsnest connections) — routing is the next step.
+State: placement complete and DRC-clean. **Routing:** all 92 ratsnest
+connections routed by Freerouting v2.1.0 in 2.7 s on the roomier board.
+Three follow-ups bound at routing time, all per the project plan
+(`_intended_classes_cp4`):
+
+- **Net-class numerics bound.** `_intended_classes_cp4` /
+  `_intended_patterns_cp4` in `.kicad_pro` was a deliberate placeholder
+  ("CP4 routing reinstates the numerics + netclass_patterns" per the
+  CP3 comment). Without those numerics pcbnew exports a degenerate
+  Specctra DSN with `width -0.001` vias — Freerouting's "enlarge as a
+  workaround" then exploded the maze search and OOMed even at 6 GB heap.
+  Activated all classes (Default / Power-24V / Power-12V / Power-3V3 /
+  RS485-diff) with their planned numerics and bound the V24_*/V12_*/
+  V3V3*/RS485_* patterns.
+- **Zone connect_pads switched from `thru_hole_only` to the default
+  (thermal reliefs)** so SMD GND pads auto-connect to the pour. The
+  previous `thru_hole_only` setting left several SMD GND pads requiring
+  manual routing that Freerouting reliably missed. (kiutils writing an
+  explicit `"thermal_reliefs"` string produces invalid KiCad syntax — it
+  must be implicit; the constructor argument is now omitted.)
+- **`min_resolved_spokes` relaxed from 2 to 1** to allow small bypass
+  caps whose neighbourhood only fits one thermal spoke (C8 1 µF on B.Cu).
+  Electrically one spoke is a valid connection; the rule trades a
+  thermal-robustness preference for routing compatibility on a roomy
+  but layered board.
+
+Result: **0 error-DRC, 0 unconnected.** 21 warnings remain (12
+`drill_out_of_range` for MOD1's thermal vias, 5 `track_dangling` from
+Freerouting v2.1.0's known-broken multi-thread optimizer leaving ~0.5 mm
+GND stubs, 4 `isolated_copper` GND zone islands ≥ 10 mm²) — all
+warning-severity per the D13 convention.
 
 ---
 

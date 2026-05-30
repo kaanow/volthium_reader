@@ -596,7 +596,11 @@ def _add_ground_zone(b, w, h, gnd_net_code: int, layer: str = "B.Cu",
         hatch=Hatch(style="edge", pitch=0.508),
         clearance=clearance,
         minThickness=min_thickness,
-        connectPads="thru_hole_only",
+        # Default (thermal reliefs) connect_pads so SMD GND pads also
+        # auto-connect to the pour. Was "thru_hole_only", which left ~5 SMD
+        # GND pads requiring manual routing that freerouting reliably missed.
+        # NOTE: kiutils-written "thermal_reliefs" string is invalid KiCad
+        # syntax (it's the default — must be implicit). Omit connectPads.
         fillSettings=FillSettings(
             yes=True,
             thermalGap=0.5,
