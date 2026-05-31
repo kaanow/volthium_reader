@@ -13,6 +13,9 @@
         "footprint_type_mismatch": "ignore",
         "pth_inside_courtyard": "warning",
         "npth_inside_courtyard": "warning"
+      },
+      "rules": {
+        "min_resolved_spokes": 1
       }
     },
     "layer_presets": [],
@@ -44,7 +47,7 @@
     "version": 3
   },
   "net_settings": {
-    "_comment_cp3": "Class definitions per CP1 \u00a711.3. Numeric track/clearance values are stored in _intended_classes_cp4 \u2014 not yet bound to KiCad's clearance checker (would trigger placement-phase clearance churn). CP4 routing reinstates the numerics + netclass_patterns.",
+    "_comment_cp3": "Class numerics + patterns bound at CP5 routing (was placeholder per CP3 plan).",
     "_intended_classes_cp4": {
       "Default": {
         "clearance": 0.2,
@@ -97,19 +100,39 @@
     ],
     "classes": [
       {
-        "name": "Default"
+        "name": "Default",
+        "clearance": 0.2,
+        "track_width": 0.2,
+        "via_diameter": 0.6,
+        "via_drill": 0.3
       },
       {
-        "name": "Power-24V"
+        "name": "Power-24V",
+        "clearance": 0.3,
+        "track_width": 1.0,
+        "via_diameter": 0.8,
+        "via_drill": 0.4
       },
       {
-        "name": "Power-12V"
+        "name": "Power-12V",
+        "clearance": 0.2,
+        "track_width": 0.5,
+        "via_diameter": 0.7,
+        "via_drill": 0.4
       },
       {
-        "name": "Power-3V3"
+        "name": "Power-3V3",
+        "clearance": 0.2,
+        "track_width": 0.4,
+        "via_diameter": 0.6,
+        "via_drill": 0.3
       },
       {
-        "name": "RS485-diff"
+        "name": "RS485-diff",
+        "clearance": 0.25,
+        "track_width": 0.25,
+        "diff_pair_width": 0.25,
+        "diff_pair_gap": 0.2
       }
     ],
     "meta": {
@@ -117,7 +140,24 @@
     },
     "net_colors": null,
     "netclass_assignments": null,
-    "netclass_patterns": []
+    "netclass_patterns": [
+      {
+        "netclass": "Power-24V",
+        "pattern": "V24_*"
+      },
+      {
+        "netclass": "Power-12V",
+        "pattern": "V12_*"
+      },
+      {
+        "netclass": "Power-3V3",
+        "pattern": "V3V3*"
+      },
+      {
+        "netclass": "RS485-diff",
+        "pattern": "RS485_*"
+      }
+    ]
   },
   "pcbnew": {
     "last_paths": {},

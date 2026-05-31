@@ -899,119 +899,47 @@ DISPLAY_MARGIN = 4.0  # mounting-hole inset from corners
 #     the F.Cu real estate is occupied by the IC body (mirrors CP3's
 #     battery-side MOD1 bypass strategy).
 DISPLAY_PLACEMENT = {
-    # ===== EPD FFC connector on top edge (cp1 §10.2 priority 1) =====
-    # Hirose FH12-24S-0.5SH 24-pin 0.5mm pitch horizontal FFC. Body
-    # ~16.8x4.5mm. Anchor at (42.5, 8) centers the connector on X and
-    # gives 4mm clearance from the top edge. Contacts face -Y (into the
-    # board); ribbon enters from +Y above (toward the e-paper panel).
-    "J2":    (42.5,   8.0,    0,   "F.Cu"),
+    # ---- Top band: EPD FFC, V12 input fuse/clamp, UART dev header ----
+    "J2":    (42.5,  9.0,    0,   "F.Cu"),   # Hirose EPD FFC, top-center
+    "F1":    (10.0,  9.0,    0,   "F.Cu"),   # axial fuse on V12_CAT5E (clear of J1 NPTH at y~11)
+    "TVS1":  (28.0, 13.0,    0,   "F.Cu"),   # V12 clamp after F1
+    "J3":    (75.0, 14.0,    0,   "F.Cu"),   # UART debug header
 
-    # ===== Left-edge power-input column (cp1 §10.2 priority 5) =====
-    # J1 RJ45 Amphenol RJHSE5380 on the LEFT short edge. Rotated 90°
-    # so the receptacle face exits toward -X (the wall where the
-    # in-wall Cat5e arrives). Body ~14x16mm; anchor at (10, 32) with
-    # rot=90 keeps the connector body left of MOD1.
-    "J1":    (10.0,  32.0,   90,   "F.Cu"),
-    # F1 axial PTC (10.16mm pad pitch, horizontal). Between top edge
-    # and J1 RJ45. Anchor at (18, 14) horizontal so pads sit at X=13
-    # and X=23. Y=14 keeps F1 clear of J1's body (J1 at (10,32,90)
-    # rotated body Y=25-39, X=2-18) and gives 3mm courtyard gap to
-    # U2 at X=28.
-    "F1":    (18.0,  14.0,    0,   "F.Cu"),
-    # TVS1 SMAJ15A — 15V unidirectional clamp on V12 line. D_SMA body
-    # 4.3x2.6mm, pads at anchor X±2.15. Placed above U1 in the
-    # left-column V12 path.
-    "TVS1":  ( 8.0,  44.0,    0,   "F.Cu"),
-    # C1 22µF/25V 1210 V12 bulk cap. Body 3.2x2.5mm, pads at anchor
-    # X±1.5. Placed between TVS1 and U1 in the V12 column.
-    "C1":    ( 8.0,  48.0,    0,   "F.Cu"),
-    # U1 R-78E3.3 SIP3 — on B.Cu per §10.2 priority 4 (tall, lives on
-    # back of board, body points into open double-gang space).
-    # Converter_DCDC_RECOM_R-78E-0.5_THT footprint: SIP3, 5.08mm pad
-    # pitch (pads at X-5.08, X, X+5.08 from anchor). Anchor at
-    # (12, 52, 0, B.Cu) places pads at X=6.92/12/17.08, Y=52 — below
-    # the V12 column (TVS1 Y=44, C1 Y=48) with 4mm pad-to-pad clearance,
-    # and above the BTN row at Y=55 (horizontal clear: U1 right pad
-    # X=17.08 vs BTN1 anchor X=24).
-    "U1":    (12.0,  52.0,    0,   "B.Cu"),
+    # ---- Left column: RJ45 + V12 bulk + 3V3 Recom (rot 90, B.Cu) ----
+    "J1":    (10.0, 30.0,   90,   "F.Cu"),   # Cat5e RJ45 (KiCad rot 90 CW body y=16.7-36.2)
+    "C1":    (15.0, 39.0,    0,   "F.Cu"),   # V12 bulk between J1 and U1
+    "U1":    (15.0, 50.0,   90,   "B.Cu"),   # R-78E3.3 SIP3 (rot 90 horizontal)
 
-    # ===== RS-485 column (between J1 and MOD1) =====
-    # U2 SN65HVD3082E SOIC-8 (3.9x4.9mm body, pads on 1.27mm pitch
-    # extending X±2.45 from anchor, Y±1.27 for the inner pin row).
-    # Anchor at (28, 18) puts pad row 1 (pins 1-4) at Y≈16.4 and pad
-    # row 2 (pins 5-8) at Y≈19.6.
-    "U2":    (28.0,  18.0,    0,   "F.Cu"),
-    # TVS2 SMAJ12CA bidirectional — RS-485 line protection. Between
-    # U2 and J1 receptacle.
-    "TVS2":  (22.0,  25.0,    0,   "F.Cu"),
-    # R2 = 120Ω RS-485 termination across A/B lines. B.Cu, below U2.
-    "R2":    (28.0,  22.5,    0,   "B.Cu"),
-    # R3 = 680Ω V3V3-A fail-safe bias. B.Cu, 6mm right of U2 anchor
-    # (was 4mm in iter-2, which put R3 pad inside the solder-mask
-    # web of U2 pads 6/7 — Finding 05).
-    "R3":    (34.0,  17.0,    0,   "B.Cu"),
-    # R4 = 680Ω B-GND fail-safe bias. B.Cu, 6mm right of U2 anchor.
-    "R4":    (34.0,  19.0,    0,   "B.Cu"),
+    # ---- RS-485 transceiver + protection between J1 and MOD1 ----
+    "U2":    (40.0, 22.0,    0,   "F.Cu"),   # SN65HVD3082E
+    "TVS2":  (40.0, 17.0,    0,   "F.Cu"),   # SMAJ12CA differential clamp
+    "R2":    (45.0, 18.0,    0,   "B.Cu"),   # 120R termination
+    "R3":    (45.0, 22.0,    0,   "B.Cu"),   # 680R A bias
+    "R4":    (45.0, 26.0,    0,   "B.Cu"),   # 680R B bias
 
-    # ===== ESP32-S3-WROOM-1U module (cp1 §10.2 priority 3) =====
-    # Body ~25.5×18mm (-1U variant). Anchor at (50, 30) puts the body
-    # roughly X=37-63, Y=20-40. U.FL pad on +X short edge → pigtail
-    # exits toward the right edge of the board (toward box back wall).
-    "MOD1":  (50.0,  30.0,    0,   "F.Cu"),
-    # R1 = 10kΩ ESP32 EN pullup. B.Cu, in the strip below MOD1.
-    "R1":    (33.0,  42.0,    0,   "B.Cu"),
-    # MOD1 V3V3 decoupling row on B.Cu, below MOD1 body (MOD1 body
-    # extents Y=21-39 at anchor (50,30); 3mm clearance to Y=42 row).
-    # Spaced 4mm apart to clear courtyards.
-    #
-    # Net-correctness audit (iter 4 fix): C8/C9/C10 are NOT MOD1
-    # decoupling — they are BTN1/BTN2/BTN3 debounce caps per the
-    # netlist (each connects BTN<N>_IN to GND). C5 is the ESP_EN
-    # debounce cap, not a bulk V3V3 bypass. C2/C3/C4/C6/C7 are the
-    # actual MOD1 V3V3 bypass caps. Iter-2 misidentified these. The
-    # decoupling row below now holds only the real V3V3 bypass caps;
-    # C5 sits next to MOD1 EN pin; C8/C9/C10 are paired with their
-    # respective buttons.
-    "C2":    (37.0,  42.0,    0,   "B.Cu"),   # 10µF 0805 V3V3 bulk
-    "C3":    (41.0,  42.0,    0,   "B.Cu"),   # 10µF 0805 V3V3 bulk
-    "C4":    (45.0,  42.0,    0,   "B.Cu"),   # 100nF 0402 close-in
-    "C6":    (49.0,  42.0,    0,   "B.Cu"),   # 1µF 0603 V3V3 bulk
-    "C7":    (53.0,  42.0,    0,   "B.Cu"),   # 100nF 0603 V3V3 bypass
-    # C5 = ESP_EN debounce cap (100nF + R1 10kΩ pullup form the
-    # power-on EN debounce). B.Cu next to R1 EN-pullup so the cap
-    # sits between MOD1 EN pin and GND with R1 as the pullup branch.
-    "C5":    (33.0,  39.5,    0,   "B.Cu"),
+    # ---- MCU + bypass on B.Cu below MOD1 (clear of pad-41 thermal vias) ----
+    "MOD1":  (60.0, 30.0,    0,   "F.Cu"),   # ESP32-S3-WROOM-1U
+    "R1":    (50.0, 44.0,    0,   "B.Cu"),   # EN pull-up
+    "C2":    (54.0, 44.0,    0,   "B.Cu"),   # 10uF V3V3 bulk
+    "C3":    (58.0, 44.0,    0,   "B.Cu"),   # 10uF V3V3 bulk
+    "C4":    (62.0, 44.0,    0,   "B.Cu"),   # 100nF close-in
+    "C5":    (66.0, 44.0,    0,   "B.Cu"),   # ESP_EN debounce 100nF
+    "C6":    (50.0, 47.0,    0,   "B.Cu"),   # 1uF V3V3 bulk
+    "C7":    (54.0, 47.0,    0,   "B.Cu"),   # 100nF V3V3 HF
 
-    # ===== Bottom-edge button row (cp1 §10.2 priority 2) =====
-    # BTN1/2/3 at X=24/42/60 per §10.2 reconciled spec. Y=55 chosen to
-    # give 4mm clearance from the bottom mounting-hole row at Y=61
-    # (M3 footprint spans ~Y=59.4-62.6, button body B3S-1000 ~6x6mm
-    # → button bottom edge at Y=58, clear by 1.4mm).
-    "BTN1":  (24.0,  55.0,    0,   "F.Cu"),
-    "BTN2":  (42.0,  55.0,    0,   "F.Cu"),
-    "BTN3":  (60.0,  55.0,    0,   "F.Cu"),
-    # R5/R6/R7 = 1MΩ button pullups, on B.Cu above each BTN. Each
-    # pullup paired with the button's debounce cap (C8/C9/C10 — these
-    # are 100nF caps on BTN<N>_IN to GND per the netlist; iter-2
-    # misplaced them on the MOD1 decoupling row).
-    "R5":    (22.0,  50.0,    0,   "B.Cu"),
-    "R6":    (40.0,  50.0,    0,   "B.Cu"),
-    "R7":    (58.0,  50.0,    0,   "B.Cu"),
-    # C8/C9/C10 = button debounce caps (100nF each). B.Cu paired with
-    # the pullup, 2mm to the right of each pullup so R + C form a
-    # tidy unit above the corresponding button.
-    "C8":    (26.0,  50.0,    0,   "B.Cu"),
-    "C9":    (44.0,  50.0,    0,   "B.Cu"),
-    "C10":   (62.0,  50.0,    0,   "B.Cu"),
+    # ---- Bottom: 3 buttons + pull-ups + debounce caps ----
+    "BTN1":  (28.0, 58.0,    0,   "F.Cu"),
+    "BTN2":  (46.0, 58.0,    0,   "F.Cu"),
+    "BTN3":  (64.0, 58.0,    0,   "F.Cu"),
+    "R5":    (26.0, 52.0,    0,   "B.Cu"),   # BTN1 pull-up
+    "R6":    (44.0, 52.0,    0,   "B.Cu"),   # BTN2 pull-up
+    "R7":    (62.0, 52.0,    0,   "B.Cu"),   # BTN3 pull-up
+    "C8":    (30.0, 52.0,    0,   "B.Cu"),   # BTN1 debounce
+    "C9":    (48.0, 52.0,    0,   "B.Cu"),   # BTN2 debounce
+    "C10":   (66.0, 52.0,    0,   "B.Cu"),   # BTN3 debounce
 
-    # ===== Dev headers (right edge) =====
-    # J3 UART debug (1x4 pinheader), J4 USB-OTG (1x4 pinheader).
-    # Right edge below MOD1. Each 1x4 vertical pinheader body spans
-    # ±5.1mm in Y at rot 0; place J3 at Y=12 and J4 at Y=42 to give
-    # ~30mm clearance — keeps J4 clear of the bottom mounting hole
-    # at (81, 61).
-    "J3":    (72.0,  12.0,    0,   "F.Cu"),
-    "J4":    (72.0,  42.0,    0,   "F.Cu"),
+    # ---- Right edge: USB-OTG dev header ----
+    "J4":    (75.0, 38.0,    0,   "F.Cu"),
 }
 
 
@@ -1024,31 +952,36 @@ DISPLAY_PLACEMENT = {
 # Offset is in footprint-local coordinates: (dx_mm, dy_mm). For a
 # footprint at rotation 0, +X is right and +Y is down (KiCad convention).
 DISPLAY_REFDES_OFFSETS = {
-    # BTN1/2/3: silk text auto-placed at body center (under the tactile
-    # switch cap). Above the body collides with the R+C pullup/debounce
-    # silk at Y=50 (R5/R6/R7 + C8/C9/C10 are on B.Cu but their silk
-    # shows through). Move to the RIGHT of each body instead:
-    # offset (+5, 0) puts text at anchor + 5mm in +X. BTN1 (24,55) →
-    # text at (29, 55), well clear of BTN2 (body starts X=39). BTN3
-    # (60, 55) → text at (65, 55), clear of J4 at X=72.
-    "BTN1":  ( 5.0,   0.0),
-    "BTN2":  ( 5.0,   0.0),
-    "BTN3":  ( 5.0,   0.0),
-    # J1 RJ45 (anchor (10, 32), rot 90). Auto-placed silk is inside the
-    # 14x16mm body. Move text 5mm to the right in footprint-local
-    # coords; with rot 90 that puts the text below the body in absolute
-    # board coords (away from the J1 body to the +Y side, visible
-    # between J1 and U1).
-    "J1":    ( 0.0,  10.0),
-    # J2 FFC (anchor (42.5, 8), rot 0). Body 16.8x4.5mm. Move text 5mm
-    # below the body (absolute Y=13) — interior of board, between J2
-    # and MOD1, clear of mounting hole at (4,4)/(81,4).
-    "J2":    ( 0.0,   5.0),
-    # J3, J4 pinheaders (1x4 vertical). Body 2.54x10.16. Move text 4mm
-    # to the left of the body (absolute X=68) — interior of board,
-    # between dev headers and MOD1.
-    "J3":    (-4.0,   0.0),
-    "J4":    (-4.0,   0.0),
+    "BTN1":  ( 0.00,  4.60),
+    "BTN2":  ( 0.00,  4.60),
+    "BTN3":  ( 0.00,  4.60),
+    "C1":    ( 4.20,  0.00),
+    "C10":   ( 3.38,  0.00),
+    "C2":    ( 0.00, -1.88),
+    "C3":    ( 0.00, -1.88),
+    "C4":    ( 0.00, -1.36),
+    "C5":    ( 3.38,  0.00),
+    "C6":    (-3.38,  0.00),
+    "C7":    ( 3.38,  0.00),
+    "C8":    ( 3.38,  0.00),
+    "C9":    ( 3.38,  0.00),
+    "F1":    ( 5.08, -2.40),
+    "J1":    (10.15, -3.56),
+    "J2":    ( 0.00, -3.90),
+    "J3":    ( 0.00, -2.67),
+    "J4":    ( 3.67,  3.81),
+    "MOD1":  ( 0.00,-10.75),
+    "R1":    (-3.58,  0.00),
+    "R2":    ( 3.58,  0.00),
+    "R3":    ( 3.58,  0.00),
+    "R4":    ( 0.00,  1.85),
+    "R5":    (-3.58,  0.00),
+    "R6":    (-3.58,  0.00),
+    "R7":    (-3.58,  0.00),
+    "TVS1":  ( 0.00,  2.65),
+    "TVS2":  (-5.40,  0.00),
+    "U1":    (-2.25,  4.47),
+    "U2":    (-5.60,  0.00),
 }
 
 
@@ -1078,7 +1011,6 @@ def build_display_side() -> None:
             continue
         _place_footprint(
             b, ref, meta, DISPLAY_PLACEMENT[ref], nets_by_name,
-            refdes_offset=DISPLAY_REFDES_OFFSETS.get(ref),
         )
 
     _add_mounting_holes(b, DISPLAY_W, DISPLAY_H, margin=DISPLAY_MARGIN)
@@ -1097,6 +1029,7 @@ def build_display_side() -> None:
     pro = project_dir / "display_side.kicad_pro"
     pro_snapshot = pro.read_bytes() if pro.exists() else None
     _fill_zones(out)
+    _apply_refdes_offsets(out, DISPLAY_REFDES_OFFSETS)
     if AUTOROUTE:
         _autoroute(out, "display_side")
     if pro_snapshot is not None:
