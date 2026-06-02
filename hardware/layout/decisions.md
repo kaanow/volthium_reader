@@ -827,3 +827,14 @@ warning-severity per the D13 convention.
   (c) whether ~25 cosmetic edge warnings justify the change vs the
   iter-10 geometry that already clears all DRC *errors*. Resolve before
   CP6 fab export, or accept the warnings explicitly in the CP6 packet.
+- **D-OPEN-6: BOM supplier part numbers require validation.** The
+  `DigiKey` and `Mouser` columns in `docs/hardware/bom.md` have not
+  been verified against the distributors' live catalogs. Spot-checks
+  (e.g. the LCD1 entry) have already returned fabricated / non-existent
+  part numbers, and the rest are presumed equally suspect until proven
+  otherwise. Every row needs to be re-derived from the authoritative
+  `Part` column before any procurement happens. A header banner now
+  warns against ordering directly from the file; this open decision
+  tracks closing the loop with verified PNs (and a methodology — most
+  likely a scripted lookup against the DigiKey / Mouser search APIs
+  rather than hand-typed entries). Block CP6 fab export on this.
