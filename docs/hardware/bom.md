@@ -1,5 +1,17 @@
 # Bill of Materials
 
+> **⚠️ SUPPLIER PART NUMBERS UNVALIDATED — DO NOT ORDER AGAINST THIS FILE.**
+>
+> The `DigiKey` and `Mouser` columns throughout this document have not
+> been verified against the distributors' live catalogs. Spot-checks
+> have already turned up wrong/non-existent part numbers, and the rest
+> are presumed to be the same quality until proven otherwise. Treat the
+> manufacturer part name (the `Part` column) as the only authoritative
+> identifier and re-derive the distributor part numbers yourself before
+> placing any order.
+>
+> Validation is tracked as **D-OPEN-6** in `hardware/layout/decisions.md`.
+
 Two columns where reasonable: "Proto" (build on a breadboard / dev board
 for early bring-up) and "PCB" (custom board for permanent install). The
 PCB column assumes Digi-Key / Mouser ordering and SMT parts where it
@@ -7,7 +19,8 @@ makes sense; through-hole stays for anything you'd realistically replace
 in the field.
 
 Prices are May 2026 (US, single quantity). Some prices ranged because
-DigiKey/Mouser drift week-to-week.
+DigiKey/Mouser drift week-to-week — **and** because, as noted above,
+some prices may not be tied to a real part number at all yet.
 
 ## Battery-side board
 

@@ -397,3 +397,76 @@ Or for advancement:
 Or for user-pause:
 
 > "Pausing for user — <reason>. SEMAPHORE state: user_turn."
+
+## 12. Hard-won operational lessons (read before any DRC/placement work)
+
+These are mistakes that already cost an iteration. Don't repeat them.
+
+### 12a. DRC ground truth = regenerate from the committed board
+
+**Never trust `hardware/outputs/*/drc.rpt` or the SEMAPHORE `note`'s
+error count.** `drc.rpt` is gitignored and is whatever a past run left
+behind — it can be from an earlier iteration with stale geometry (we
+were briefly misled by a 359-violation report that predated the flip
+fix). The SEMAPHORE summary is a human-written claim, not a measurement.
+
+On every turn that reasons about DRC, regenerate it:
+
+```bash
+# errors only (this is the number that gates the CP):
+kicad-cli pcb drc --severity-error --exit-code-violations \
+  -o /tmp/x.rpt hardware/kicad/<board>/<board>.kicad_pcb
+# full picture incl. warnings, categorised:
+kicad-cli pcb drc --all-track-errors -o /tmp/xf.rpt <board>.kicad_pcb
+grep -oE '^\[[a-z_]+\]' /tmp/xf.rpt | sort | uniq -c
+```
+
+The board's severity config downgrades most categories to *warning*;
+only the categories left at *error* gate the CP. Know which is which
+before claiming "N errors."
+
+### 12b. kiutils cannot read the post-route board — edit placement, regenerate, reroute
+
+`kiutils` (used by `build_pcbs.py`) parses the KiCad-10 board only well
+enough to *write* a fresh one (`Board.create_new()`); it throws
+`IndexError` trying to *read* a board that pcbnew/Freerouting saved
+(KiCad-10 `(net ...)` syntax it doesn't model). So there is **no
+surgical kiutils edit of a routed `.kicad_pcb`.** To change anything
+geometric:
+
+1. Edit the `BATTERY_PLACEMENT` / `DISPLAY_PLACEMENT` constants in
+   `build_pcbs.py`.
+2. Regenerate placement-only (fast, no routing):
+   `.venv/bin/python hardware/kicad/build_pcbs.py --battery`
+3. Validate placement with `kicad-cli pcb drc` *before* routing.
+4. Only once placement DRC is clean, route:
+   `... build_pcbs.py --battery --autoroute` (several minutes).
+
+This placement→DRC→reroute loop is the supported path. Trying to hand-
+edit the routed file will fail or corrupt it.
+
+### 12c. Read real pad geometry with pcbnew, not kiutils
+
+For authoritative pad/courtyard/edge geometry on a routed board, use
+KiCad's bundled python (it has `pcbnew`):
+`/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/3.9/bin/python3.9`.
+`pad.GetBoundingBox()` gives the true copper extent (a "1×1 mm" THT
+clip can have a 3×3.6 mm copper bbox — that is what DRC clears against).
+
+### 12d. Verify a pin's *function* before calling a clearance "inert"
+
+iter-9 documented 3 battery-side clearance errors as "functionally
+inert NC pins." They were not NC: MOD1 pads 22–26 are
+IO14/IO21/IO47/IO48/IO45 — real ESP32-S3 GPIOs that this design simply
+leaves unused, so they read `<no net>`. A 0.000 mm overlap of BAT1's
+GND clip onto them was a real GPIO-to-GND short, not a cosmetic flag.
+Before writing "inert/NC" in a justification, confirm the pin function
+in the symbol (`RF_Module.kicad_sym`) or datasheet. `<no net>` ≠ NC.
+
+### 12e. A scorecard row justified on a false premise is worse than a FAIL
+
+D13 demands binary PASS/FAIL with evidence. iter-9 marked the battery
+clearance errors PASS-justified on the (wrong) NC premise. That is the
+exact failure mode D11/D13 exist to prevent: process used to launder a
+real defect. When a justification rests on a claim you have not
+verified, mark it FAIL and verify — don't write the rationale.

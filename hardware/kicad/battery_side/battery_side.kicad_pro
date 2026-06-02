@@ -13,6 +13,9 @@
         "footprint_type_mismatch": "ignore",
         "pth_inside_courtyard": "warning",
         "npth_inside_courtyard": "warning"
+      },
+      "rules": {
+        "min_resolved_spokes": 1
       }
     },
     "layer_presets": [],
