@@ -191,6 +191,35 @@ Picking (a) means the JLCPCB BOM line for `C_BST` reads
 folded into the 100 nF group. Functionally identical; cosmetically a
 minor BOM oddity.
 
+### Q-CP6-4: MOD1 schematic `Value` text says `-1`, footprint is `-1U`
+
+Caught during self-check after writing this packet. The
+ESP32-S3-WROOM-1U module's PCB footprint
+(`STOCK_FOOTPRINTS[…] = ("RF_Module", "ESP32-S3-WROOM-1U")` in
+`build_pcbs.py`) is the U.FL-antenna variant — correct, the iter-18
+architectural respin recorded this. The schematic symbol's `Value`
+text however still reads `ESP32-S3-WROOM-1-N16R8` (no `U`), inherited
+from the pre-respin schematic. This shows up in:
+
+- `hardware/outputs/{battery,display}_side/fab/<board>-pos.csv` —
+  `MOD1 … "ESP32-S3-WROOM-1-N16R8" … "ESP32-S3-WROOM-1U" …` (value
+  vs package mismatch).
+- `hardware/outputs/{battery,display}_side/fab/<board>-bom.csv` —
+  same value text.
+- The corrected `docs/hardware/bom.md` already calls out `-1U` as
+  the binding part.
+
+JLCPCB picks parts by package + supplier PN, not by free-text value,
+so the actual fabbed board uses the right footprint regardless. The
+inconsistency is purely a documentation issue — anyone reading the
+exported BOM in isolation would order the wrong variant. Options:
+
+- (a) Defer alongside Q-CP6-2 and fix both in a post-first-fab
+      schematic cleanup pass.
+- (b) Update the schematic symbol value to `ESP32-S3-WROOM-1U-N16R8`
+      now, regenerate the schematic + netlist + position + BOM CSV,
+      and reopen CP5's F-V-1 (build reproducibility) verification.
+
 ### Q-CP6-3: STEP "MOD1 placeholder" question
 
 The ESP32-S3-WROOM-1U doesn't ship with an official Espressif STEP
