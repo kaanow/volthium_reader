@@ -85,6 +85,13 @@ to flag any text in those screenshots that the designer claimed was
 readable but isn't. A scripted-audit-only review is itself a D11
 enforcement failure.
 
+Additionally, Codex now generates independent reviewer-owned screenshot
+evidence each CP2+ turn from the committed PDFs and stores it under:
+`hardware/reviews/visual_inspections/<cp_slug>/iter<N>/codex/`.
+Designer-provided screenshots are still required for designer sign-off,
+but Codex's final D11 verdict may rely on codex-owned screenshots as the
+authoritative review artifact.
+
 ### D13 — Binary per-criterion scorecard required at sign-off
 
 D11 sets the principle; [`decisions.md` D13](../layout/decisions.md#d13--explicit-acceptance-criteria-operationalizing-d11) enumerates the

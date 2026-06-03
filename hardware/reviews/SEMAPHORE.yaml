@@ -2,55 +2,28 @@
 
 schema_version: 1
 
-state: user_turn
+state: claude_turn
 
 current_cp: cp5-routing-drc
-current_branch: hw/cp5-routing-drc
+current_branch: hw/cp5-codex-review-iter11
 active_packet: hardware/reviews/cp5_routing_drc.md
-iteration: 10
+iteration: 14
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-28T23:05:00Z
-last_updated_by: claude
+last_updated_at: 2026-06-03T14:13:18Z
+last_updated_by: codex
 
 note: >
-  User took direct control mid-CP5 (out of the codex loop) with two
-  directives: (1) the iter-9 "3 inert NC-pin errors" were a poor product
-  not to be handed off, and (2) the schematics AND PCBs are too cramped —
-  "put stuff further apart; there is more to layout than not overlapping
-  keepouts." Work this session (committed on hw/cp5-routing-drc):
-
-  DONE — schematic readability (commit d7c52de):
-  - Both sheets holistically re-floorplanned across the full A3: every
-    functional block in its own region (was all crammed top-left with the
-    bottom 60% empty and labels piled on values/pin-names). Per-pin labels
-    now oriented outward. ERC 0/0 both. Verified with an SVG text-overlap
-    audit (net-vs-net collisions eliminated).
-
-  DONE — finding (commit 5553e66, decisions D14 + D-OPEN-5):
-  - The 3 battery errors are a REAL short, not inert: MOD1 pads 23/24/25
-    are IO21/47/48 (live GPIOs, unused) — BAT1's GND clip shorts them to
-    ground. iter-9's "NC" rationale was false (DESIGNER.md §12 records why
-    and the tooling lessons).
-
-  REMAINING — PCB spacing re-floorplan (the user's core ask; task #24):
-  - The 60x40 battery board is over-packed (~88 silk_over_copper + ~28
-    courtyards_overlap + the GPIO short + a U2/TVS2 routing short). These
-    are NOT independently nudge-fixable — every point-fix relocates a
-    conflict or makes the RS-485 zone unroutable (Freerouting v2.1.0 times
-    out; v1.9.0's optimizer NPEs). The board is unconstrained per D10.
-  - DECISION FOR USER: (a) enlarge the battery board + re-floorplan with
-    generous spacing — I can do this autonomously (D10), or (b) also swap
-    BAT1 Keystone_1057 (cutout) → non-cutout B.Cu SMD holder (D-OPEN-5),
-    which removes ~25 cutout-edge warnings and the GPIO short at the
-    source but is a BOM + mechanical/enclosure change needing your sign-off.
-  - Display PCB stays 85x65 (D8); its spacing/silk pass is also remaining.
-  - PCB left at the prior routed state — no broken/half-routed board
-    committed.
-
-  Resume by telling me (a) vs (b) for the battery board, or "enlarge and
-  go" to proceed autonomously with (a).
+  Codex iteration 14 on CP5 complete. Status: APPROVED (0 findings).
+  Iter-13 updates accepted:
+  - D2 drill-rule exception now explicitly resolves Finding 09
+    (self-authored geometry stays at 0.3 mm min drill; vendor thermal-via
+    array exception documented for ESP32-S3-WROOM-1U).
+  - Designer-side D11 schematic evidence present in iter13.
+  Codex also generated independent reviewer evidence for this pass at
+  hardware/reviews/visual_inspections/cp5-routing-drc/iter14/codex/.
+  CP5 packet updated with reviewer section 10.4 and APPROVED sign-off.
 
 user_pause_reasons_seen_this_run:
-  - "User-directed quality pass: schematics re-floorplanned for readability (done); PCB re-floorplan (enlarge/holder-swap) pending user decision on approach."
+  - "Iter-12 review NEEDS CHANGES (Finding 09, 1 important); iter-13 response committed and handed back to codex."

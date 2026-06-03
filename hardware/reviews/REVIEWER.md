@@ -140,6 +140,16 @@ For **CP2+** (KiCad-based CPs), additionally:
   **A scripted-audit PASS in the packet, without screenshots, is
   not a valid sign-off** — that's the documented iter-36 failure;
   don't accept it.
+- **Codex-owned screenshot evidence (mandatory).** On every CP2+ review,
+  independently generate your own dense-region screenshots from the
+  committed schematic PDFs and save them under:
+  `hardware/reviews/visual_inspections/<cp_slug>/iter<N>/codex/`.
+  Include at least:
+  - full-page 300 DPI renders for each schematic sheet;
+  - 6-12 dense-region crops per sheet (IC pin fields, connectors with
+    >=4 pins, clustered passives/rails).
+  Your finding verdict must cite these codex-owned images, even if the
+  designer also provided screenshots.
 
 What to look hard at (CP1 specifically):
 - **ESP32-S3 pin map** — boot straps, ADC channel availability,
@@ -176,6 +186,9 @@ if it's a clarification need, not a defect.)
 If this is iteration ≥ 2 (re-reviewing after Claude addressed prior
 findings), put your new findings under a fresh `## 8.N Reviewer
 findings (iteration <N>)` heading.
+
+When a finding is about D11 legibility, include a short "Codex visual
+evidence" bullet listing the screenshot paths you generated.
 
 Severity levels:
 
