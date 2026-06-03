@@ -1446,3 +1446,23 @@ R5-R7 + C8-C10 button pull-ups + debounce along the bottom.
 PASS-with-caveat. Reviewer requested.
 
 → Ready for codex review.
+
+## 10.2 Reviewer findings (iteration 11)
+
+### Finding 07 — BLOCKER — decisions.md D11 visual inspection protocol (schematic evidence missing)
+**Issue**: The iter-11 packet claims schematic readability PASS, but the required D11 visual-inspection evidence for schematics is not present in the packet/artifact set. D11 requires dense-region screenshots from the rendered PDF and per-region findings text before #0/#5 can be claimed PASS.
+**Evidence**:
+- `hardware/layout/decisions.md` D11 visual-inspection protocol requires screenshotting every dense region and embedding them in the active packet (`### Visual inspection protocol`, items 2-4).
+- Iter-11 visual-inspection assets under `hardware/reviews/visual_inspections/cp5-routing-drc/iter11/` contain only PCB top/bottom render PNGs + manifest (no schematic-region screenshots).
+- Iter-11 packet section `## D11 visual inspection — iter 11` lists only board-render regions (`battery-side top/bottom`, `display-side top/bottom`), while the scorecard marks `SR-1 — SR-17` as PASS.
+**Suggested fix**: Add a schematic-specific D11 visual-inspection subsection for iter-11 with dense-region screenshots from both committed schematic PDFs at 100% zoom (IC pin fields, connector pin blocks, clustered passives/power rails), each followed by `Read every piece of text... Findings: ...`, then re-state SR-* verdicts.
+
+### Finding 08 — IMPORTANT — D2 vs F-P-7 drill-rule inconsistency needs explicit decision alignment
+**Issue**: The packet marks `F-P-7` PASS while accepting 0.2 mm drill warnings from the MOD1 thermal-via array, but D2 currently states minimum drill 0.3 mm as the project target rule. This is a policy mismatch in the acceptance basis.
+**Evidence**:
+- `hardware/layout/decisions.md` D2 lists `Min drill: 0.3 mm`.
+- Fresh DRC still reports `drill_out_of_range ... min hole 0.3000 mm; actual 0.2000 mm` on both boards (MOD1 pad 41 thermal array).
+- Iter-11 scorecard row `F-P-7` currently passes with "Min drill 0.2 mm ... within JLCPCB capability."
+**Suggested fix**: Either (a) update decisions/rules explicitly to accept 0.2 mm for this footprint class (with rationale), or (b) keep D2 strict and resolve the violation path; avoid dual standards in CP acceptance.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 1 blocker, 1 important. (See findings 07, 08.)

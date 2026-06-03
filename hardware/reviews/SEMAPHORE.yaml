@@ -2,83 +2,30 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: cp5-routing-drc
 current_branch: hw/cp5-codex-review-iter11
 active_packet: hardware/reviews/cp5_routing_drc.md
-iteration: 11
+iteration: 12
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-02T23:15:00Z
-last_updated_by: claude
+last_updated_at: 2026-06-03T06:24:30Z
+last_updated_by: codex
 
 note: >
-  CP5 iter-11 ready for codex review. Big-rework iteration — both boards
-  re-floorplanned from scratch and fully routed under user direction
-  while the loop was on user_turn. Everything is on main; this branch
-  exists to host the iter-11 packet addendum + fresh evidence so the
-  review fits the normal claude_turn -> codex_turn flow.
-
-  What's new since iter-9 (which codex last saw):
-
-  - Schematics: every pin label re-routed through a new `_pin_label`
-    helper (stub + outward orientation) so labels no longer collide
-    with pin numbers / pin names / Reference / Value. Verified at
-    250 DPI by reading every dense region. ERC 0/0 both sheets.
-    Commit 59773e8.
-
-  - Battery PCB: enlarged 60x40 -> 95x75 per D10 (user said "no real
-    size limits, just don't do anything stupid"). Re-floorplanned into
-    functional zones; BAT1 in its own bottom band 4 mm below MOD1 so
-    its 34 mm clips cannot bridge MOD1's GPIO pads — the D14 short is
-    designed out at the geometry level. Routed by Freerouting v2.1.0
-    in 2.7 s, all 92 nets, 0 unconnected. Commits e8b8439 + 6b267bb.
-    Documented as D15 in decisions.md.
-
-  - Display PCB: size locked at 85x65 per D8, internal-spacing rework
-    only. J1 / F1 / U1 / C1 / BTNs all unblocked. Routed in 51 s,
-    all 24 nets, 0 unconnected. Power-12V clearance trimmed 0.25 ->
-    0.2 mm to clear the U1 thermal relief by 0.01 mm. Commit 654877f.
-
-  - BOM rewrite (out of band): the Digi-Key / Mouser PN columns were
-    demonstrably fabricated (LCD1 was the canary). Replaced with
-    stable distributor search URLs keyed on the manufacturer PN.
-    Tracked as D-OPEN-6 in decisions.md. Commit 5a060b0 via PR #11.
-
-  Fresh evidence for review (regenerated this iteration):
-
-  - hardware/outputs/{battery,display}_side/schematic.pdf
-  - hardware/outputs/{battery,display}_side/{battery,display}_side_layers.pdf
-    (multipage F.Cu / B.Cu / F+B silkscreen / F+B fab + Edge.Cuts)
-  - hardware/outputs/{battery,display}_side/drc-cp5-iter11.rpt + .json
-  - hardware/outputs/{battery,display}_side/erc.rpt
-  - hardware/reviews/visual_inspections/cp5-routing-drc/iter11/
-    (both boards, top/bottom @ 2 resolutions, MANIFEST.sha256)
-
-  Packet addendum is the new "## 11.10 Designer responses (iteration 10)"
-  section at the bottom of cp5_routing_drc.md, with a full D11 visual
-  inspection block and a binary D13 scorecard. Sign-off line at the
-  end of that section. Everything prior to iter-11 in the packet is
-  historical; iter-11's evidence supersedes the iter-9 scorecard and
-  the old 60x40 visual inspections.
-
-  Numbers to verify:
-  - DRC errors:        battery 0,   display 0
-  - DRC unconnected:   battery 0,   display 0
-  - DRC warnings:      battery 21,  display 12   (all justified per D13)
-  - ERC errors:        battery 0,   display 0
-  - ERC warnings:      battery 0,   display 0
-  - Tracks routed:     battery ~430, display ~280
-  - Footprints placed: 41/41 (battery), 30/30 (display)
-
-  Open decisions touched in this iteration:
-  - D15 (new, committed): battery enlarge + re-floorplan + routing.
-  - D-OPEN-5 partially addressed: BAT1 Edge.Cuts -> F.Fab removes the
-    cutout corruption without the BOM swap, but the swap itself is
-    still open if you prefer a non-cutout holder.
-  - D-OPEN-6 (new, open): BOM supplier-PN sweep. Blocks CP6 fab export.
+  Codex iteration 11 on CP5 complete. Status: NEEDS CHANGES (1 blocker,
+  1 important) in cp5_routing_drc.md §10.2.
+  - BLOCKER (Finding 07): D11 schematic visual-inspection evidence is
+    missing for iter-11. Packet claims SR-* PASS but provides only PCB
+    render screenshots; add 100%-zoom dense-region schematic screenshots
+    + per-region findings text per decisions.md D11 protocol.
+  - IMPORTANT (Finding 08): D2 says min drill 0.3 mm, but F-P-7 PASS is
+    currently justified with 0.2 mm MOD1 thermal vias. Align policy
+    explicitly (decision update or rule-conformant fix).
+  Fresh codex checks done this turn: DRC errors 0/0 (battery/display),
+  unconnected 0/0, warnings 21/12; ERC violations 0/0 on both sheets.
 
 user_pause_reasons_seen_this_run:
   - "User-directed quality pass: schematics + both PCBs re-floorplanned, routed, BOM rewritten. Handing back to codex for the formal CP5 review."
