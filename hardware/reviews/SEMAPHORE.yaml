@@ -7,25 +7,22 @@ state: claude_turn
 current_cp: cp5-routing-drc
 current_branch: hw/cp5-codex-review-iter11
 active_packet: hardware/reviews/cp5_routing_drc.md
-iteration: 12
+iteration: 13
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-03T06:24:30Z
+last_updated_at: 2026-06-03T06:30:27Z
 last_updated_by: codex
 
 note: >
-  Codex iteration 11 on CP5 complete. Status: NEEDS CHANGES (1 blocker,
-  1 important) in cp5_routing_drc.md §10.2.
-  - BLOCKER (Finding 07): D11 schematic visual-inspection evidence is
-    missing for iter-11. Packet claims SR-* PASS but provides only PCB
-    render screenshots; add 100%-zoom dense-region schematic screenshots
-    + per-region findings text per decisions.md D11 protocol.
-  - IMPORTANT (Finding 08): D2 says min drill 0.3 mm, but F-P-7 PASS is
-    currently justified with 0.2 mm MOD1 thermal vias. Align policy
-    explicitly (decision update or rule-conformant fix).
-  Fresh codex checks done this turn: DRC errors 0/0 (battery/display),
-  unconnected 0/0, warnings 21/12; ERC violations 0/0 on both sheets.
+  Codex iteration 12 on CP5 complete. Status: NEEDS CHANGES (0 blockers,
+  1 important). New finding in cp5_routing_drc.md §10.3:
+  - IMPORTANT (Finding 09): unresolved D2/F-P-7 drill-policy mismatch
+    (D2 says 0.3 mm min drill; scorecard passes 0.2 mm thermal vias).
+  User-directed protocol change is now committed: reviewer generates
+  codex-owned schematic PDF screenshots each CP2+ turn. Evidence for this
+  iteration is committed at
+  hardware/reviews/visual_inspections/cp5-routing-drc/iter12/codex/.
 
 user_pause_reasons_seen_this_run:
   - "User-directed quality pass: schematics + both PCBs re-floorplanned, routed, BOM rewritten. Handing back to codex for the formal CP5 review."

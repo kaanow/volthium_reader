@@ -1466,3 +1466,16 @@ PASS-with-caveat. Reviewer requested.
 **Suggested fix**: Either (a) update decisions/rules explicitly to accept 0.2 mm for this footprint class (with rationale), or (b) keep D2 strict and resolve the violation path; avoid dual standards in CP acceptance.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 1 blocker, 1 important. (See findings 07, 08.)
+
+## 10.3 Reviewer findings (iteration 12)
+
+### Finding 09 — IMPORTANT — decisions.md D2 vs CP5 F-P-7 acceptance basis
+**Issue**: The drill-policy mismatch remains unresolved. CP5 scorecard still treats `F-P-7` as PASS with 0.2 mm thermal vias, while D2 still states a 0.3 mm minimum drill target. This leaves the CP pass condition ambiguous for downstream review/fab handoff.
+**Evidence**:
+- `hardware/layout/decisions.md` D2: "Min drill: 0.3 mm".
+- Fresh DRC reports still include `drill_out_of_range ... min hole 0.3000 mm; actual 0.2000 mm` for MOD1 thermal-via array.
+- CP5 iter-11 scorecard row `F-P-7` passes with "Min drill 0.2 mm ... within JLCPCB capability."
+- **Codex visual evidence** (independent reviewer screenshots generated this turn): `hardware/reviews/visual_inspections/cp5-routing-drc/iter12/codex/` (full-page 300 DPI + dense-region crops + PDF snapshots + manifest).
+**Suggested fix**: Resolve the contract in one place before CP5 approval: either update decision/rule language to explicitly allow 0.2 mm for approved footprint classes, or enforce the existing 0.3 mm policy and remove the exception.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 09.)
