@@ -2,55 +2,83 @@
 
 schema_version: 1
 
-state: user_turn
+state: codex_turn
 
 current_cp: cp5-routing-drc
-current_branch: hw/cp5-routing-drc
+current_branch: hw/cp5-codex-review-iter11
 active_packet: hardware/reviews/cp5_routing_drc.md
-iteration: 10
+iteration: 11
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-05-28T23:05:00Z
+last_updated_at: 2026-06-02T23:15:00Z
 last_updated_by: claude
 
 note: >
-  User took direct control mid-CP5 (out of the codex loop) with two
-  directives: (1) the iter-9 "3 inert NC-pin errors" were a poor product
-  not to be handed off, and (2) the schematics AND PCBs are too cramped —
-  "put stuff further apart; there is more to layout than not overlapping
-  keepouts." Work this session (committed on hw/cp5-routing-drc):
+  CP5 iter-11 ready for codex review. Big-rework iteration — both boards
+  re-floorplanned from scratch and fully routed under user direction
+  while the loop was on user_turn. Everything is on main; this branch
+  exists to host the iter-11 packet addendum + fresh evidence so the
+  review fits the normal claude_turn -> codex_turn flow.
 
-  DONE — schematic readability (commit d7c52de):
-  - Both sheets holistically re-floorplanned across the full A3: every
-    functional block in its own region (was all crammed top-left with the
-    bottom 60% empty and labels piled on values/pin-names). Per-pin labels
-    now oriented outward. ERC 0/0 both. Verified with an SVG text-overlap
-    audit (net-vs-net collisions eliminated).
+  What's new since iter-9 (which codex last saw):
 
-  DONE — finding (commit 5553e66, decisions D14 + D-OPEN-5):
-  - The 3 battery errors are a REAL short, not inert: MOD1 pads 23/24/25
-    are IO21/47/48 (live GPIOs, unused) — BAT1's GND clip shorts them to
-    ground. iter-9's "NC" rationale was false (DESIGNER.md §12 records why
-    and the tooling lessons).
+  - Schematics: every pin label re-routed through a new `_pin_label`
+    helper (stub + outward orientation) so labels no longer collide
+    with pin numbers / pin names / Reference / Value. Verified at
+    250 DPI by reading every dense region. ERC 0/0 both sheets.
+    Commit 59773e8.
 
-  REMAINING — PCB spacing re-floorplan (the user's core ask; task #24):
-  - The 60x40 battery board is over-packed (~88 silk_over_copper + ~28
-    courtyards_overlap + the GPIO short + a U2/TVS2 routing short). These
-    are NOT independently nudge-fixable — every point-fix relocates a
-    conflict or makes the RS-485 zone unroutable (Freerouting v2.1.0 times
-    out; v1.9.0's optimizer NPEs). The board is unconstrained per D10.
-  - DECISION FOR USER: (a) enlarge the battery board + re-floorplan with
-    generous spacing — I can do this autonomously (D10), or (b) also swap
-    BAT1 Keystone_1057 (cutout) → non-cutout B.Cu SMD holder (D-OPEN-5),
-    which removes ~25 cutout-edge warnings and the GPIO short at the
-    source but is a BOM + mechanical/enclosure change needing your sign-off.
-  - Display PCB stays 85x65 (D8); its spacing/silk pass is also remaining.
-  - PCB left at the prior routed state — no broken/half-routed board
-    committed.
+  - Battery PCB: enlarged 60x40 -> 95x75 per D10 (user said "no real
+    size limits, just don't do anything stupid"). Re-floorplanned into
+    functional zones; BAT1 in its own bottom band 4 mm below MOD1 so
+    its 34 mm clips cannot bridge MOD1's GPIO pads — the D14 short is
+    designed out at the geometry level. Routed by Freerouting v2.1.0
+    in 2.7 s, all 92 nets, 0 unconnected. Commits e8b8439 + 6b267bb.
+    Documented as D15 in decisions.md.
 
-  Resume by telling me (a) vs (b) for the battery board, or "enlarge and
-  go" to proceed autonomously with (a).
+  - Display PCB: size locked at 85x65 per D8, internal-spacing rework
+    only. J1 / F1 / U1 / C1 / BTNs all unblocked. Routed in 51 s,
+    all 24 nets, 0 unconnected. Power-12V clearance trimmed 0.25 ->
+    0.2 mm to clear the U1 thermal relief by 0.01 mm. Commit 654877f.
+
+  - BOM rewrite (out of band): the Digi-Key / Mouser PN columns were
+    demonstrably fabricated (LCD1 was the canary). Replaced with
+    stable distributor search URLs keyed on the manufacturer PN.
+    Tracked as D-OPEN-6 in decisions.md. Commit 5a060b0 via PR #11.
+
+  Fresh evidence for review (regenerated this iteration):
+
+  - hardware/outputs/{battery,display}_side/schematic.pdf
+  - hardware/outputs/{battery,display}_side/{battery,display}_side_layers.pdf
+    (multipage F.Cu / B.Cu / F+B silkscreen / F+B fab + Edge.Cuts)
+  - hardware/outputs/{battery,display}_side/drc-cp5-iter11.rpt + .json
+  - hardware/outputs/{battery,display}_side/erc.rpt
+  - hardware/reviews/visual_inspections/cp5-routing-drc/iter11/
+    (both boards, top/bottom @ 2 resolutions, MANIFEST.sha256)
+
+  Packet addendum is the new "## 11.10 Designer responses (iteration 10)"
+  section at the bottom of cp5_routing_drc.md, with a full D11 visual
+  inspection block and a binary D13 scorecard. Sign-off line at the
+  end of that section. Everything prior to iter-11 in the packet is
+  historical; iter-11's evidence supersedes the iter-9 scorecard and
+  the old 60x40 visual inspections.
+
+  Numbers to verify:
+  - DRC errors:        battery 0,   display 0
+  - DRC unconnected:   battery 0,   display 0
+  - DRC warnings:      battery 21,  display 12   (all justified per D13)
+  - ERC errors:        battery 0,   display 0
+  - ERC warnings:      battery 0,   display 0
+  - Tracks routed:     battery ~430, display ~280
+  - Footprints placed: 41/41 (battery), 30/30 (display)
+
+  Open decisions touched in this iteration:
+  - D15 (new, committed): battery enlarge + re-floorplan + routing.
+  - D-OPEN-5 partially addressed: BAT1 Edge.Cuts -> F.Fab removes the
+    cutout corruption without the BOM swap, but the swap itself is
+    still open if you prefer a non-cutout holder.
+  - D-OPEN-6 (new, open): BOM supplier-PN sweep. Blocks CP6 fab export.
 
 user_pause_reasons_seen_this_run:
-  - "User-directed quality pass: schematics re-floorplanned for readability (done); PCB re-floorplan (enlarge/holder-swap) pending user decision on approach."
+  - "User-directed quality pass: schematics + both PCBs re-floorplanned, routed, BOM rewritten. Handing back to codex for the formal CP5 review."
