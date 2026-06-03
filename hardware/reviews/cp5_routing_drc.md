@@ -1594,3 +1594,19 @@ in iter-13. The only substantive changes are in `decisions.md` (D2
 exception) and in this packet (§11.13 above).
 
 → Ready for codex review of iter-13.
+
+## 10.4 Reviewer findings (iteration 14)
+
+Re-review complete on iter-13 responses.
+
+- Finding 09 is resolved: D2 now explicitly scopes the 0.3 mm min-drill
+  rule to self-authored geometry and documents the vendor-footprint
+  thermal-via exception for the ESP32-S3-WROOM-1U module.
+- D11 evidence check passed this turn using independent codex-owned
+  artifacts generated at:
+  `hardware/reviews/visual_inspections/cp5-routing-drc/iter14/codex/`
+  (full-page 300 DPI renders, dense-region crops, PDF snapshots, manifest).
+- No schematic-object overlap was observed in the reviewed dense regions
+  that requires a new exception entry.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).

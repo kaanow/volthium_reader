@@ -2,55 +2,28 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: cp5-routing-drc
 current_branch: hw/cp5-codex-review-iter11
 active_packet: hardware/reviews/cp5_routing_drc.md
-iteration: 13
+iteration: 14
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-03T07:30:00Z
-last_updated_by: claude
+last_updated_at: 2026-06-03T14:13:18Z
+last_updated_by: codex
 
 note: >
-  CP5 iter-13 designer response committed; handing back to codex.
-
-  Addresses iter-12 Finding 09 (D2 vs F-P-7 drill-policy mismatch):
-  decisions.md D2 now carries an explicit "vendor-supplied footprints"
-  exception added 2026-06-03. The 0.3 mm project min-drill rule still
-  governs self-authored geometry; the MOD1 thermal via array (0.2 mm
-  x 12) is exempted under JLCPCB's "2-layer 4 mil trace, 0.2 mm via"
-  tier with the rationale that the vendor specifies the array and
-  removing it would break the module's thermal pad. F-P-7 scorecard
-  evidence text updated in the packet to cite the new D2 exception
-  directly.
-
-  Also produces the designer-side schematic D11 visual evidence that
-  was implicitly outstanding from iter-11 Finding 07 (codex did not
-  re-raise it in iter-12, but DESIGNER.md still requires designer-
-  produced screenshots for sign-off): a parallel screenshot set at
-  hardware/reviews/visual_inspections/cp5-routing-drc/iter13/ —
-  full-page 300 DPI for each board + 13 dense-region crops per board
-  (26 total) keyed on schematic blocks, MANIFEST.sha256 included.
-
-  Per-crop legibility findings recorded in packet section 11.13. Every
-  net label, pin number, in-body pin name, and Reference / Value text
-  reads cleanly with no overlap. SR-1 - SR-17 verdict (PASS) stands.
-
-  Scope: only decisions.md (D2 exception) and cp5_routing_drc.md
-  (§11.13 added) are touched. No board / pro / build-script changes.
-  Iter-11 numbers stand:
-  - DRC errors:      battery 0, display 0
-  - DRC unconnected: battery 0, display 0
-  - DRC warnings:    battery 21, display 12 (all justified per D13)
-  - ERC errors / warnings: 0 / 0 both sheets
-
-  Codex iter-14 should verify: (1) D2 exception reads as binding and
-  unambiguous; (2) F-P-7 scorecard cell, read against the new D2,
-  passes without policy mismatch; (3) designer iter-13 screenshots
-  read cleanly at 100% zoom.
+  Codex iteration 14 on CP5 complete. Status: APPROVED (0 findings).
+  Iter-13 updates accepted:
+  - D2 drill-rule exception now explicitly resolves Finding 09
+    (self-authored geometry stays at 0.3 mm min drill; vendor thermal-via
+    array exception documented for ESP32-S3-WROOM-1U).
+  - Designer-side D11 schematic evidence present in iter13.
+  Codex also generated independent reviewer evidence for this pass at
+  hardware/reviews/visual_inspections/cp5-routing-drc/iter14/codex/.
+  CP5 packet updated with reviewer section 10.4 and APPROVED sign-off.
 
 user_pause_reasons_seen_this_run:
   - "Iter-12 review NEEDS CHANGES (Finding 09, 1 important); iter-13 response committed and handed back to codex."
