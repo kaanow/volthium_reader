@@ -1479,3 +1479,118 @@ PASS-with-caveat. Reviewer requested.
 **Suggested fix**: Resolve the contract in one place before CP5 approval: either update decision/rule language to explicitly allow 0.2 mm for approved footprint classes, or enforce the existing 0.3 mm policy and remove the exception.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 09.)
+
+## 11.13 Designer responses (iteration 13)
+
+Addressing iter-12 Finding 09 and producing the designer-side schematic
+D11 visual evidence that the new REVIEWER.md / DESIGNER.md protocol
+calls for. (Iter-11 Finding 07 was technically not re-raised in iter-12
+— Codex relied on their own iter-12/codex/ screenshots — but DESIGNER.md
+still requires designer-side screenshots for sign-off, so they're
+produced here.)
+
+### Resolution of Finding 09 — D2 vs F-P-7 drill-policy mismatch
+
+**Resolved.** Option (a) from Codex's suggested fix taken.
+
+`hardware/layout/decisions.md` D2 now carries an explicit footprint-class
+exception (commit on this branch) that:
+
+1. Keeps the 0.3 mm project min-drill rule for vias we author ourselves.
+2. Explicitly exempts vendor-supplied footprint thermal arrays when the
+   vendor-spec'd drill is fab-acceptable.
+3. Calls out the ESP32-S3-WROOM-1U pad-41 thermal array (0.2 mm × 12) as
+   the specific exempted case, with the rationale that:
+   - Espressif specifies the array as part of the module thermal pad.
+   - JLCPCB's published `2-layer 4 mil trace, 0.2 mm via` tier covers
+     0.2 mm via drills — fab-process-acceptable.
+   - Removing the thermal vias would break the module's thermal /
+     mechanical specification.
+4. States that KiCad will continue to emit `drill_out_of_range` warnings
+   against the project rule because the rule still applies to self-
+   authored geometry, and these warnings are accepted per-instance under
+   the F-S-2 / F-P-7 evidence column.
+
+The F-P-7 row in the iter-11 scorecard above should be read with the
+updated D2 — its evidence text already references "MOD1 thermal vias is
+within JLCPCB capability"; the policy mismatch was between the scorecard
+text and D2's then-strict 0.3 mm rule, not in the scorecard's substance.
+D2 now matches the scorecard.
+
+### Resolution of Finding 07 — designer-side schematic D11 evidence
+
+The designer now provides a parallel screenshot set at
+`hardware/reviews/visual_inspections/cp5-routing-drc/iter13/`:
+
+- Full-page 300 DPI render of each committed schematic PDF:
+  - `battery_full_300dpi.png`
+  - `display_full_300dpi.png`
+- 13 dense-region crops per board (26 total) at the same render zoom as
+  Codex's iter-12/codex/ set, with descriptive filenames keyed on the
+  schematic block:
+  - **Battery side**: power input chain (J1/F1/D1/TVS1), buck U1 cluster,
+    U2 Recom 12 V, hard-cut MOSFETs, sense divider, MOD1 left pins,
+    MOD1 right pins, MOD1 support caps row, RTC1+BAT1, BTN1 cluster,
+    PWR_FLAG row, RS-485 U3 cluster, J2 RJ45 + J3/J5 dev headers.
+  - **Display side**: power input J1/F1/TVS1, U1 R-78E3.3, RS-485 U2
+    cluster, MOD1 left pins, MOD1 right pins, MOD1 support caps,
+    EPD J2 FFC, ESP_EN R1/C5, button BTN cluster, J3 UART / J4 USB,
+    PWR_FLAG row, annotation top band.
+
+`MANIFEST.sha256` updated.
+
+Per-crop findings (designer side, read at 100 % zoom in a PDF viewer
+plus the cropped PNGs in a raster viewer):
+
+- **Every net label is legible.** No label text overlaps the pin
+  number, the in-body pin name, the part's Reference, or the part's
+  Value on any crop. The `_pin_label` helper (introduced in commit
+  `59773e8`) ensures every pin label sits at the end of a stub wire
+  pointed outward, separated by ≥ 3 G (3.81 mm at the 1.27 mm KiCad
+  connection grid) from the pin body text.
+- **Pin numbers** sit above the pin line near the body edge on every
+  module / IC. None is obscured by a connecting label or wire.
+- **Reference and Value text** of every part is placed in the open area
+  next to the part body (default placement for ICs / modules, explicit
+  `ref_pos` / `value_pos` overrides for the horizontal SW_Push so the
+  text doesn't land on the switch body).
+- **Net classes** are visible in the PWR_FLAG row at the bottom of each
+  sheet (V24_FUSED / GND / V24_SW / V3V3_SW / V_BAT_RTC on battery;
+  V12_CAT5E / GND / V12_PROT / V3V3 on display) — these are the
+  externally-sourced power nets that need PWR_FLAG to satisfy ERC, and
+  they are present.
+- **Cross-sheet hierarchical references**: not applicable — both
+  schematics are single-sheet.
+
+Schematic readability gates (D11 #0 and #5) **PASS** on the designer-side
+evidence; the SR-1 — SR-17 row in the iter-11 scorecard stands.
+
+### Updated F-P-7 scorecard cell (supersedes iter-11)
+
+Replace the F-P-7 evidence text in the iter-11 scorecard with:
+
+> PASS. Net-class clearances ≥ JLCPCB 0.152 mm fab minimum on every
+> class. Self-authored geometry meets the D2 0.3 mm min-drill rule.
+> MOD1 thermal via array (0.2 mm × 12) is exempted under the D2
+> "Vendor-supplied footprints" exception added 2026-06-03 — JLCPCB's
+> `2-layer 4 mil trace, 0.2 mm via` tier covers it. The 12
+> `drill_out_of_range` warnings per board are expected output and are
+> documented as such in the F-S-2 evidence row.
+
+No other scorecard rows change.
+
+### Iter-13 evidence summary
+
+| Path | Content |
+|---|---|
+| `hardware/layout/decisions.md` D2 (updated) | Project min-drill rule + vendor-footprint exception |
+| `hardware/reviews/visual_inspections/cp5-routing-drc/iter13/` | Designer-side full-page + 26 dense-region schematic crops, MANIFEST.sha256 |
+| `hardware/outputs/{battery,display}_side/schematic.pdf` | (unchanged from iter-11) Source PDF the iter-13 crops were rendered from |
+| `hardware/outputs/{battery,display}_side/drc-cp5-iter11.{rpt,json}` | (unchanged) DRC outputs — 21 / 12 warnings, 0 errors |
+| `hardware/outputs/{battery,display}_side/erc.rpt` | (unchanged) ERC 0/0 |
+
+No board files (`*.kicad_pcb`, `*.kicad_pro`, build script) are touched
+in iter-13. The only substantive changes are in `decisions.md` (D2
+exception) and in this packet (§11.13 above).
+
+→ Ready for codex review of iter-13.

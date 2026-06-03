@@ -35,10 +35,28 @@ spares (handy for prototype rework).
 - HASL or ENIG (HASL default; cheaper)
 - Green soldermask, white silkscreen
 - Min trace/space: 6 mil (0.152 mm)
-- Min drill: 0.3 mm
+- Min drill: 0.3 mm (project rule for our own routing — see exception below)
 - Min annular ring: 0.13 mm
 - Edge clearance: 0.3 mm
 - Hole-to-trace: 0.2 mm
+
+**Exception (added 2026-06-03 in response to CP5 iter-12 Finding 09):**
+*Vendor-supplied footprints* — specifically the thermal-via array inside
+a manufacturer-published module footprint — are exempt from the project
+0.3 mm min-drill rule when the vendor specifies a smaller drill and the
+fab process supports it. Concretely: the
+`ESP32-S3-WROOM-1U` Espressif footprint includes a 12-via 0.2 mm array
+under pad 41 (GND thermal pad), required by the module's thermal spec.
+JLCPCB's published minimum **via** drill is 0.2 mm (their "2-layer 4 mil
+trace, 0.2 mm via" tier), so these vias are fab-acceptable. The 0.3 mm
+rule applies only to vias we author ourselves; vendor-module thermal
+arrays are accepted as-shipped.
+
+KiCad will emit `drill_out_of_range` warnings for the 0.2 mm vias because
+the project DRC's `min_through_hole_diameter` rule stays at 0.3 mm for
+self-authored geometry. Those warnings are documented per-instance in
+the active CP packet's D13 scorecard under the F-S-2 / F-P-7 evidence
+column and accepted as expected vendor-footprint output.
 
 PCB-only ($25–35 incl. DHL); no PCBA service. PCBA setup for qty 1 isn't
 economical (~$200/board).
@@ -208,6 +226,17 @@ not pass.
    (none clipped at the page edge). If any of these fails, the
    document is not finished — fix it before any other gate is
    considered. **No "PARTIAL" rating is acceptable on this criterion.**
+0a. **HARD STOP: No schematic-object overlap, full stop, unless an
+   explicit defensible exception is documented.** "Schematic object"
+   includes symbol bodies, wires, labels, refdes/value text, pin names,
+   pin numbers, junctions, and graphical annotations. Default rule is
+   zero overlap of any object with any other object. The only allowed
+   exception path is:
+   - overlap is intentional and functionally required,
+   - a concrete rationale is written in the active CP packet, and
+   - readability at 100 % zoom remains unambiguous.
+   If any overlap is present without that written justification, D11
+   fails.
 1. **No symbol/footprint coordinate collision.** Programmatically
    placed schematic symbols and PCB footprints must not share
    anchor coordinates. Verifiable by scripted check.
@@ -540,6 +569,7 @@ Apply when the packet touches a schematic or its rendered PDF.
 |-------|-----------|
 | SR-13 | The smallest text on the sheet is legible at 100 % PDF zoom in a real PDF viewer (Preview / Acrobat), without squinting. Net labels ≥ 1.0 mm in schematic units (≈ 10 pt rendered). |
 | SR-14 | No overlapping text anywhere on the sheet (subsumes D11 #0; applies to every label, ref, value, and pin name). |
+| SR-14a | No overlap among **any** schematic objects (text, symbols, wires, pin metadata, junctions, graphics). Any intentional overlap must be explicitly justified in the active review packet with a defensible rationale and confirmed legible at 100 % zoom. |
 
 **Polarity, safety, metadata:**
 
