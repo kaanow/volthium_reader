@@ -69,6 +69,10 @@ before flipping the semaphore to `codex_turn`:
    …one block per region.
 5. If **any** region's findings are non-empty, the document does
    not pass D11. Fix and re-render before flipping the semaphore.
+   Overlap of any schematic objects (text, symbols, wires, labels,
+   pin metadata, junctions, annotations) is a fail unless you include
+   an explicit, defensible exception in the packet and the region
+   remains unambiguously readable at 100 % zoom.
 6. **Never** claim criterion #0 or #5 PASS solely from scripted
    audit output. That's the documented iter-36 failure (see D11
    "Documented failure"); don't repeat it.
@@ -91,6 +95,8 @@ evidence each CP2+ turn from the committed PDFs and stores it under:
 Designer-provided screenshots are still required for designer sign-off,
 but Codex's final D11 verdict may rely on codex-owned screenshots as the
 authoritative review artifact.
+Codex's standard tooling entrypoint is:
+`.venv/bin/python hardware/reviews/tools/schematic_visual_audit.py --cp-slug <cp_slug> --iter <N> --strict`
 
 ### D13 — Binary per-criterion scorecard required at sign-off
 

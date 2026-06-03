@@ -140,6 +140,11 @@ For **CP2+** (KiCad-based CPs), additionally:
   **A scripted-audit PASS in the packet, without screenshots, is
   not a valid sign-off** — that's the documented iter-36 failure;
   don't accept it.
+- **Overlap policy (strict).** Treat overlap of any schematic objects
+  as a failure by default: text, symbol bodies, wires, pin names,
+  pin numbers, labels, junctions, or annotations. Accept overlap only
+  when the packet contains a concrete, defensible written exception and
+  the overlapped region is still clearly readable at 100 % zoom.
 - **Codex-owned screenshot evidence (mandatory).** On every CP2+ review,
   independently generate your own dense-region screenshots from the
   committed schematic PDFs and save them under:
@@ -150,6 +155,8 @@ For **CP2+** (KiCad-based CPs), additionally:
     >=4 pins, clustered passives/rails).
   Your finding verdict must cite these codex-owned images, even if the
   designer also provided screenshots.
+  Preferred command:
+  `.venv/bin/python hardware/reviews/tools/schematic_visual_audit.py --cp-slug <cp_slug> --iter <N> --strict`
 
 What to look hard at (CP1 specifically):
 - **ESP32-S3 pin map** — boot straps, ADC channel availability,
