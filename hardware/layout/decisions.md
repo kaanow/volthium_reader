@@ -857,14 +857,27 @@ warning-severity per the D13 convention.
   (c) whether ~25 cosmetic edge warnings justify the change vs the
   iter-10 geometry that already clears all DRC *errors*. Resolve before
   CP6 fab export, or accept the warnings explicitly in the CP6 packet.
-- **D-OPEN-6: BOM supplier part numbers require validation.** The
-  `DigiKey` and `Mouser` columns in `docs/hardware/bom.md` have not
-  been verified against the distributors' live catalogs. Spot-checks
-  (e.g. the LCD1 entry) have already returned fabricated / non-existent
-  part numbers, and the rest are presumed equally suspect until proven
-  otherwise. Every row needs to be re-derived from the authoritative
-  `Part` column before any procurement happens. A header banner now
-  warns against ordering directly from the file; this open decision
-  tracks closing the loop with verified PNs (and a methodology — most
-  likely a scripted lookup against the DigiKey / Mouser search APIs
-  rather than hand-typed entries). Block CP6 fab export on this.
+- ~~**D-OPEN-6: BOM supplier part numbers require validation.**~~
+  **RESOLVED 2026-06-03 (CP6 iter-3).** The `DigiKey` and `Mouser`
+  columns in `docs/hardware/bom.md` were originally hand-typed and
+  spot-checks turned up fabricated PNs (LCD1 was the canary). The
+  verified-PN sweep was completed at CP6 iter-3: every active-device
+  row plus the high-value connectors and the enclosure was clicked
+  through against the live Digi-Key catalog and the row's distributor
+  link replaced with the direct product-detail page (numeric Digi-Key
+  product ID) where verified. Two manufacturer corrections caught in
+  the process: (a) display-side F1 manufacturer was "Bel Fuse",
+  actually **Bourns**; (b) battery-side EN1 enclosure was listed as
+  "Hammond 1556B2GY" — that PN does not exist in Hammond's catalog
+  (no 1556 series). EN1 now references the real Hammond 1554 IP66
+  family with both candidate sizes linked; final size pick is the
+  one remaining user-side decision before order. Generic-spec rows
+  (resistors / capacitors / inductors meeting a value-and-package
+  spec) keep search URLs because the `Part` column names one
+  compatible example, not a binding choice. Methodology used:
+  WebSearch + spot-verify against the live product-detail page, not
+  a scripted API lookup (Digi-Key's API requires an OAuth client
+  credential the project doesn't carry). For future BOM additions,
+  the same per-row click-through is the protocol; the header banner
+  in `bom.md` documents this. **CP6 fab export is no longer blocked
+  on this decision.**

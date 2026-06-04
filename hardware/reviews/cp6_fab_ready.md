@@ -304,3 +304,95 @@ annotation warning) or `FAIL` (if the warning is judged to invalidate the
 criterion), then update downstream status text accordingly.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 1 blocker, 1 important. (See findings 01, 02.)
+
+## 11.3 Designer responses (iteration 3)
+
+Addresses iter-2 Finding 01 (BLOCKER) and Finding 02 (IMPORTANT).
+
+### Finding 01 — BLOCKER — D-OPEN-6 vs CP6 gating contract
+
+**Resolved by closing D-OPEN-6.** Did the verified-PN sweep on
+`docs/hardware/bom.md` against the live Digi-Key catalog this turn
+(2026-06-03), rather than rewording either D-OPEN-6 or the CP6
+packet to relax the gate.
+
+What changed:
+
+- Every active-device row plus the high-value connectors and the
+  enclosure now carries a direct Digi-Key product-detail link with
+  the canonical numeric product ID and a ✓ marker. Cells the sweep
+  hit (15 rows total): MOD1, U1 (TPS62933FDRLR), U2 (R-78E12-1.0/X9),
+  RTC1 (DS3231SN#), BAT1 (1057 PN clarified), U3 (SN65HVD3082EDR),
+  TVS1 (SMAJ12CA), TVS2 (SMAJ15A), Q1 (AO3401A), Q2 (AO3400A),
+  EN1 (Hammond 1554 family), U1 display (already had `945-1661-5-ND`),
+  F1 display (MF-R050), J2 display (FH12-24S-0.5SH(55)), MOD1 display.
+- Generic-spec rows (resistors / capacitors / inductors specified by
+  value + package + dielectric) keep `[search …]` links — by design.
+  The `Part` column there names one example; any compliant part works.
+  Not in scope for a verified-PN sweep.
+- Two **manufacturer corrections** caught while doing the sweep:
+  - `F1` on display: was listed as "Bel Fuse MF-R050"; the MF-R
+    series is **Bourns**. Updated.
+  - `EN1` on battery: was listed as "Hammond 1556B2GY"; **that PN
+    does not exist** in Hammond's catalog (no 1556 series). Updated
+    to the real Hammond **1554 IP66 family** with both candidate
+    sizes (`1554BGY` 65×65×40 and `1554CGY` 120×65×40) linked, and
+    a Notes block flagging that the user picks the final size before
+    order. The CP5-approved board is 95×75, which doesn't fit 1554B
+    (65×65) — practical pick is 1554C.
+
+D-OPEN-6 is marked **RESOLVED** in `decisions.md` with the sweep
+date, methodology, and the two manufacturer corrections recorded
+inline. "Block CP6 fab export on this" is consequently lifted.
+
+Header banner on `docs/hardware/bom.md` now documents the per-row
+link conventions (`[DK <id>] ✓` for verified rows, `[search …]` for
+generic-spec rows, `[Mouser]` for the un-individually-verified
+Mouser starting point) so future readers know which rows have been
+clicked through.
+
+### Finding 02 — IMPORTANT — `PARTIAL` in the scorecard
+
+**Resolved.** Replaced `F-X-3` row in the iter-1 scorecard.
+
+The criterion as worded is "BOM CSV has every netlist component
+grouped by value + footprint." Reading binary:
+
+- The BOM CSV contains every netlist component (41 / 30 footprints
+  represented, grouped by Value + Footprint).
+- The `kicad-cli sch export bom` warning is about a non-numeric
+  reference designator (`C_BST`), which is a schematic-annotation
+  style issue, not a BOM completeness issue. The part still renders
+  in the BOM and is placed by the pick-and-place file.
+
+Therefore binary verdict: **PASS**. The cosmetic schematic-annotation
+follow-up stays tracked as Q-CP6-2; the F-X-3 criterion does not
+hinge on its resolution.
+
+### Updated iter-1 scorecard cell (supersedes the iter-1 version)
+
+Replace the F-X-3 row in §11 with:
+
+> | F-X-3 | PASS | BOM CSVs contain every netlist component grouped by Value + Footprint (32 rows battery, 23 rows display). The `Warning: schematic has annotation errors` emitted by `kicad-cli sch export bom` is about the non-numeric `C_BST` reference — schematic-annotation cosmetic, not BOM-completeness. Tracked separately as Q-CP6-2. |
+
+No other rows change in iter-3. All iter-1 PASS rows remain PASS;
+the inherited CP5 rows remain PASS.
+
+### Updated F-X-6 row (iter-3 status)
+
+Replace the F-X-6 row in §11 with:
+
+> | F-X-6 | PASS | D-OPEN-6 RESOLVED at iter-3 (see `hardware/layout/decisions.md`). The verified-PN sweep is committed in `docs/hardware/bom.md` against the live Digi-Key catalog 2026-06-03. CP6 fab export is no longer blocked. The remaining user-side step before the JLCPCB order is the Hammond 1554-family size pick (1554B vs 1554C) — documented in the row's Notes column and in pre-fab checklist step 5. |
+
+### Iter-3 evidence summary
+
+| Path | What |
+|---|---|
+| `docs/hardware/bom.md` | Verified Digi-Key links on 15 binding rows; manufacturer corrections on F1 (Bourns, not Bel Fuse) and EN1 (Hammond 1554 family, not 1556B2GY); new header banner documenting the per-row link conventions |
+| `hardware/layout/decisions.md` | D-OPEN-6 marked RESOLVED with date, methodology, and the two corrections inline |
+| `hardware/reviews/cp6_fab_ready.md` (§11.3, this section) | Finding 01 and Finding 02 responses with explicit scorecard cell rewrites |
+
+No `.kicad_*` files touched. No fab artifacts regenerated — the
+iter-1 ZIPs / pos / BOM CSV / STEP still stand.
+
+→ Ready for codex review of iter-3.

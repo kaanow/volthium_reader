@@ -2,29 +2,63 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: cp6-fab-ready
 current_branch: hw/cp6-fab-ready
 active_packet: hardware/reviews/cp6_fab_ready.md
-iteration: 2
+iteration: 3
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-04T03:15:38Z
-last_updated_by: codex
+last_updated_at: 2026-06-04T05:00:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 2 on CP6 complete. Status: NEEDS CHANGES (1 blocker,
-  1 important) in cp6_fab_ready.md §10.1.
-  - BLOCKER (Finding 01): policy mismatch between D-OPEN-6
-    ("Block CP6 fab export on this") and CP6 packet text that treats
-    PN verification as non-gating for CP6 sign-off.
-  - IMPORTANT (Finding 02): scorecard uses PARTIAL on F-X-3 even though
-    D13 requires binary PASS/FAIL only.
-  Artifacts themselves were spot-verified present (gerber ZIPs, pos,
-  bom, step), but CP6 cannot be approved until policy and scorecard
-  contract alignment are fixed.
+  CP6 iter-3 designer response committed; handing back to codex.
+
+  Addresses iter-2 Finding 01 (BLOCKER — D-OPEN-6 vs CP6 gating
+  contract) by closing D-OPEN-6 rather than rewording it. Did the
+  verified-PN sweep on docs/hardware/bom.md against the live
+  Digi-Key catalog: 15 binding rows now carry direct product-detail
+  links with the canonical numeric Digi-Key product ID and a ✓
+  marker. Methodology recorded in decisions.md alongside D-OPEN-6's
+  RESOLVED status.
+
+  Two manufacturer corrections caught while sweeping:
+  - F1 (display): "Bel Fuse MF-R050" -> Bourns (MF-R is a Bourns
+    series).
+  - EN1 (battery): "Hammond 1556B2GY" -> the 1556 series does not
+    exist in Hammond's catalog. Updated to the real Hammond 1554
+    IP66 family with both candidate sizes (1554BGY and 1554CGY)
+    linked; user picks the final size before order (the CP5-approved
+    95x75 board fits 1554C).
+
+  Addresses Finding 02 (IMPORTANT — PARTIAL in scorecard) by re-
+  reading the F-X-3 criterion binary: BOM CSVs contain every
+  netlist component grouped by Value + Footprint, the C_BST
+  warning is a separate annotation-cosmetic issue (still tracked
+  as Q-CP6-2). F-X-3 verdict updated PARTIAL -> PASS with the
+  rationale recorded inline in §11.3.
+
+  Scope of this iteration: docs/hardware/bom.md, decisions.md (D-OPEN-6
+  RESOLVED), cp6_fab_ready.md §11.3 (Findings 01 + 02 responses, new
+  F-X-3 and F-X-6 cell text). No .kicad_* files touched, no fab
+  artifacts regenerated — iter-1 ZIPs / pos / BOM CSV / STEP still
+  stand.
+
+  Numbers unchanged from iter-1:
+  - Both boards: 0 error-DRC, 0 unconnected, ERC 0/0
+  - Battery: 21 warnings (12 thermal-via, 5 dangling, 4 islands)
+  - Display: 12 warnings (12 thermal-via)
+  - Tracks routed: ~430 / ~280
+  - Footprints placed: 41/41 / 30/30
+
+  Codex iter-4 should verify: (1) the verified-PN sweep is real —
+  click the DK links on a few rows and confirm the manufacturer
+  PN matches; (2) the manufacturer corrections on F1 and EN1 read
+  as defensible; (3) F-X-3 PASS verdict under D13's binary rule
+  (BOM completeness is met; annotation warning is a separate issue).
 
 user_pause_reasons_seen_this_run:
-  - "CP5 APPROVED → CP6 opened with fab artifacts produced; handed to codex for iter-2 review."
+  - "CP6 iter-2 NEEDS CHANGES (1 blocker + 1 important) → iter-3 closes the loop by completing D-OPEN-6 and making the scorecard binary."
