@@ -2,63 +2,30 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: cp6-fab-ready
 current_branch: hw/cp6-fab-ready
 active_packet: hardware/reviews/cp6_fab_ready.md
-iteration: 3
+iteration: 4
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-04T05:00:00Z
-last_updated_by: claude
+last_updated_at: 2026-06-04T07:22:58Z
+last_updated_by: codex
 
 note: >
-  CP6 iter-3 designer response committed; handing back to codex.
-
-  Addresses iter-2 Finding 01 (BLOCKER — D-OPEN-6 vs CP6 gating
-  contract) by closing D-OPEN-6 rather than rewording it. Did the
-  verified-PN sweep on docs/hardware/bom.md against the live
-  Digi-Key catalog: 15 binding rows now carry direct product-detail
-  links with the canonical numeric Digi-Key product ID and a ✓
-  marker. Methodology recorded in decisions.md alongside D-OPEN-6's
-  RESOLVED status.
-
-  Two manufacturer corrections caught while sweeping:
-  - F1 (display): "Bel Fuse MF-R050" -> Bourns (MF-R is a Bourns
-    series).
-  - EN1 (battery): "Hammond 1556B2GY" -> the 1556 series does not
-    exist in Hammond's catalog. Updated to the real Hammond 1554
-    IP66 family with both candidate sizes (1554BGY and 1554CGY)
-    linked; user picks the final size before order (the CP5-approved
-    95x75 board fits 1554C).
-
-  Addresses Finding 02 (IMPORTANT — PARTIAL in scorecard) by re-
-  reading the F-X-3 criterion binary: BOM CSVs contain every
-  netlist component grouped by Value + Footprint, the C_BST
-  warning is a separate annotation-cosmetic issue (still tracked
-  as Q-CP6-2). F-X-3 verdict updated PARTIAL -> PASS with the
-  rationale recorded inline in §11.3.
-
-  Scope of this iteration: docs/hardware/bom.md, decisions.md (D-OPEN-6
-  RESOLVED), cp6_fab_ready.md §11.3 (Findings 01 + 02 responses, new
-  F-X-3 and F-X-6 cell text). No .kicad_* files touched, no fab
-  artifacts regenerated — iter-1 ZIPs / pos / BOM CSV / STEP still
-  stand.
-
-  Numbers unchanged from iter-1:
-  - Both boards: 0 error-DRC, 0 unconnected, ERC 0/0
-  - Battery: 21 warnings (12 thermal-via, 5 dangling, 4 islands)
-  - Display: 12 warnings (12 thermal-via)
-  - Tracks routed: ~430 / ~280
-  - Footprints placed: 41/41 / 30/30
-
-  Codex iter-4 should verify: (1) the verified-PN sweep is real —
-  click the DK links on a few rows and confirm the manufacturer
-  PN matches; (2) the manufacturer corrections on F1 and EN1 read
-  as defensible; (3) F-X-3 PASS verdict under D13's binary rule
-  (BOM completeness is met; annotation warning is a separate issue).
+  Codex iteration 4 on CP6 complete. Status: APPROVED (0 findings).
+  Iter-3 responses accepted:
+  - D-OPEN-6 closure is documented and consistent (verified-PN sweep
+    recorded in decisions.md; BOM rows updated with direct Digi-Key IDs
+    and conventions banner).
+  - Manufacturer corrections are defensible: display F1 now Bourns
+    (MF-R series) and battery EN1 now Hammond 1554 family (replacing
+    non-existent 1556 PN).
+  - F-X-3 binary PASS rationale is acceptable under D13 (annotation
+    warning treated separately from BOM completeness).
+  CP6 review packet updated with reviewer section 10.2 APPROVED sign-off.
 
 user_pause_reasons_seen_this_run:
   - "CP6 iter-2 NEEDS CHANGES (1 blocker + 1 important) → iter-3 closes the loop by completing D-OPEN-6 and making the scorecard binary."

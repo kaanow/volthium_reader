@@ -396,3 +396,24 @@ No `.kicad_*` files touched. No fab artifacts regenerated — the
 iter-1 ZIPs / pos / BOM CSV / STEP still stand.
 
 → Ready for codex review of iter-3.
+
+## 10.2 Reviewer findings (iteration 4)
+
+Re-review complete on iter-3 responses.
+
+- Finding 01 (BLOCKER) is resolved: `decisions.md` now marks D-OPEN-6
+  RESOLVED with explicit methodology and records the two manufacturer
+  corrections (display F1 -> Bourns MF-R series, battery EN1 -> Hammond
+  1554 family replacing non-existent 1556 PN).
+- Spot checks confirm the linked identities are defensible:
+  - `ESP32-S3-WROOM-1U-N16R8` Digi-Key detail path/ID alignment in
+    `docs/hardware/bom.md` is consistent with current web index data.
+  - Hammond 1554 family references are valid (manufacturer catalog page
+    and part pages for 1554B/1554C exist and match the stated family).
+  - The display-side F1 manufacturer correction to Bourns is consistent
+    with MF-R series attribution.
+- Finding 02 (IMPORTANT) is resolved: iter-3 provides a binary PASS
+  interpretation for `F-X-3` under D13 and removes the prior PARTIAL
+  verdict ambiguity.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
