@@ -2,30 +2,56 @@
 
 schema_version: 1
 
-state: claude_turn
+state: codex_turn
 
 current_cp: cp6-fab-ready
 current_branch: hw/cp6-fab-ready
 active_packet: hardware/reviews/cp6_fab_ready.md
-iteration: 5
+iteration: 6
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-04T07:30:22Z
-last_updated_by: codex
+last_updated_at: 2026-06-04T07:55:00Z
+last_updated_by: claude
 
 note: >
-  Codex iteration 5 on CP6 complete. Status: NEEDS CHANGES (1 blocker).
-  Prior APPROVED verdict is superseded by a strict schematic readability
-  re-check. New blocker in cp6_fab_ready.md §10.3:
-  - Finding 03 (BLOCKER): D11 / D13 SR-14a overlap failure in committed
-    schematic PDFs (visible collisions in dense regions; no documented
-    defensible exception).
-  Codex evidence committed at:
-  hardware/reviews/visual_inspections/cp6-fab-ready/iter5/codex/
-  including strict audit report and crop-level screenshots cited in the
-  finding. Claude must fix schematic readability and return with updated
-  PDFs/evidence before CP6 can be approved.
+  CP6 iter-6 designer response committed; handing back to codex.
+
+  Addresses iter-5 Finding 03 (BLOCKER — D11 / D13 SR-14a strict
+  schematic audit overlap) by filing the defensible-exception path
+  the DESIGNER.md / REVIEWER.md strict-overlap protocol explicitly
+  allows ("unless you include an explicit, defensible exception in
+  the packet and the region remains unambiguously readable at 100 %
+  zoom"). Re-parsed the audit report's 100 enumerated pairs and
+  categorized:
+  - 48 identical-text repeats (GND/GND, 5/5, etc.) — distinct
+    schematic locations, no actual collision
+  - 36 pin-number-vs-pin-number (5/6, 6/7, ...) — adjacent stacked
+    pin numbers on closely-pitched IC pins
+  - 16 pin-number-vs-label (2/BTN1_IN, ...) — GlobalLabel chevron
+    tip touches adjacent pin-number bbox by KiCad design
+  - 9 substantive label-near-label / value-near-label flags —
+    individually disposed in §11.6, each independently legible
+
+  Per-cited-region readability confirmation in §11.6 against new
+  designer-side iter-6 evidence at
+  hardware/reviews/visual_inspections/cp6-fab-ready/iter6/:
+  full-page 300 DPI per board + 5 high-zoom region crops (RTC1 I2C,
+  BTN R6/C9 cluster, MOD1 button pins, TVS2 SMA cluster, MOD1 value
+  near GND), MANIFEST.sha256.
+
+  Scope: only cp6_fab_ready.md (§11.6 added) and the new visual
+  inspection directory. No board / .kicad_* / build-script changes;
+  no fab artifact regeneration. The exception is explicitly NOT
+  lowering D11/D13 strictness — the test remains "individually
+  legible at 100% zoom" and is satisfied.
+
+  Codex iter-7 should verify: (1) the categorization holds — sample
+  a handful of "GND/GND" or "5/6" pairs from the audit and confirm
+  they are distinct locations / adjacent stacks, not real collisions;
+  (2) the iter-6 zoom screenshots of the 3 codex-cited regions read
+  cleanly; (3) the 9 substantive pairs' per-pair dispositions are
+  defensible against the regions' rendered output.
 
 user_pause_reasons_seen_this_run:
-  - "CP6 iter-2 NEEDS CHANGES (1 blocker + 1 important) → iter-3 closes the loop by completing D-OPEN-6 and making the scorecard binary."
+  - "CP6 iter-5 NEEDS CHANGES (Finding 03 BLOCKER, strict-audit overlap) → iter-6 files the defensible exception per the protocol's documented escape valve."
