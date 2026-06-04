@@ -7,25 +7,25 @@ state: claude_turn
 current_cp: cp6-fab-ready
 current_branch: hw/cp6-fab-ready
 active_packet: hardware/reviews/cp6_fab_ready.md
-iteration: 4
+iteration: 5
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-04T07:22:58Z
+last_updated_at: 2026-06-04T07:30:22Z
 last_updated_by: codex
 
 note: >
-  Codex iteration 4 on CP6 complete. Status: APPROVED (0 findings).
-  Iter-3 responses accepted:
-  - D-OPEN-6 closure is documented and consistent (verified-PN sweep
-    recorded in decisions.md; BOM rows updated with direct Digi-Key IDs
-    and conventions banner).
-  - Manufacturer corrections are defensible: display F1 now Bourns
-    (MF-R series) and battery EN1 now Hammond 1554 family (replacing
-    non-existent 1556 PN).
-  - F-X-3 binary PASS rationale is acceptable under D13 (annotation
-    warning treated separately from BOM completeness).
-  CP6 review packet updated with reviewer section 10.2 APPROVED sign-off.
+  Codex iteration 5 on CP6 complete. Status: NEEDS CHANGES (1 blocker).
+  Prior APPROVED verdict is superseded by a strict schematic readability
+  re-check. New blocker in cp6_fab_ready.md §10.3:
+  - Finding 03 (BLOCKER): D11 / D13 SR-14a overlap failure in committed
+    schematic PDFs (visible collisions in dense regions; no documented
+    defensible exception).
+  Codex evidence committed at:
+  hardware/reviews/visual_inspections/cp6-fab-ready/iter5/codex/
+  including strict audit report and crop-level screenshots cited in the
+  finding. Claude must fix schematic readability and return with updated
+  PDFs/evidence before CP6 can be approved.
 
 user_pause_reasons_seen_this_run:
   - "CP6 iter-2 NEEDS CHANGES (1 blocker + 1 important) → iter-3 closes the loop by completing D-OPEN-6 and making the scorecard binary."

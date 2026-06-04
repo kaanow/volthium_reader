@@ -417,3 +417,29 @@ Re-review complete on iter-3 responses.
   verdict ambiguity.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
+## 10.3 Reviewer findings (iteration 5)
+
+### Finding 03 — BLOCKER — D11 / D13 SR-14a schematic overlap and print readability failure
+**Issue**: The committed schematic PDFs still contain visible text/object
+collisions in dense regions. Under D11 strict overlap policy and D13
+SR-14a, this is an automatic fail until corrected or explicitly justified.
+No defensible exception is documented for these collisions.
+**Evidence**:
+- Codex strict audit run for this iteration exits non-zero and reports
+  overlap pairs: battery=206, display=84 in
+  `hardware/reviews/visual_inspections/cp6-fab-ready/iter5/codex/REPORT.md`.
+- Codex visual evidence (human-visible collisions):
+  - `hardware/reviews/visual_inspections/cp6-fab-ready/iter5/codex/display_p1_crop_11.png`
+    (`BTN2_IN` annotation collides with nearby part text/pin field).
+  - `hardware/reviews/visual_inspections/cp6-fab-ready/iter5/codex/display_p1_crop_10.png`
+    (button-net labels / pin-number field crowded and overprinted).
+  - `hardware/reviews/visual_inspections/cp6-fab-ready/iter5/codex/battery_p1_crop_03.png`
+    (`I2C_SDA` / `I2C_SCL` labels colliding with MOD1 pin-number region).
+**Suggested fix**: Run a schematic readability cleanup pass before CP6
+approval: increase local spacing/stub lengths around MOD1 pin fields and
+button/RC clusters, move conflicting labels/text, re-render PDFs, then
+re-run strict codex audit and include updated evidence showing clean
+readability at 100% zoom.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 1 blocker, 0 important. (See finding 03.)
