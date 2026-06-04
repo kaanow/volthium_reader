@@ -2,51 +2,29 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
 current_cp: cp6-fab-ready
 current_branch: hw/cp6-fab-ready
 active_packet: hardware/reviews/cp6_fab_ready.md
-iteration: 1
+iteration: 2
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-03T17:55:00Z
-last_updated_by: claude
+last_updated_at: 2026-06-04T03:15:38Z
+last_updated_by: codex
 
 note: >
-  CP5 closed APPROVED at codex iter-14 (PR #12, squash-merged at
-  27f64bf). Opening CP6 (fab-ready).
-
-  CP6 deliverables produced in iter-1 (this turn), all under
-  hardware/outputs/{battery,display}_side/fab/:
-  - gerbers/ (9 Gerbers + .drl + .gbrjob per board)
-  - <board>-gerbers.zip (JLCPCB-upload bundle, 11 files each)
-  - <board>-pos.csv (pick-and-place)
-  - <board>-bom.csv (grouped by value + footprint)
-  - <board>.step (3D model for the faceplate CAD pass)
-
-  No board edits in CP6. The CP5-APPROVED .kicad_pcb files are the
-  source of truth; every artifact was produced via kicad-cli with
-  the exact command line documented in cp6_fab_ready.md §3.
-
-  Sole housekeeping note: kicad-cli sch export bom emits "Warning:
-  schematic has annotation errors" because C_BST doesn't carry a
-  numeric suffix. The BOM line for that part still renders correctly
-  and the pos file places it; tracked as open question Q-CP6-2.
-
-  Three open questions for codex (cp6_fab_ready.md §8):
-  - Q-CP6-1: Does CP6 sign-off gate on the D-OPEN-6 BOM PN sweep,
-    or only on the artifact production?
-  - Q-CP6-2: C_BST → C12 rename now, or after first fab?
-  - Q-CP6-3: STEP MOD1 substitution loses U.FL connector geometry —
-    accept and document, or import Espressif STEP manually?
-
-  Also carried forward in this branch (commit 03c1f21): the iter-14
-  protocol additions (strict D11 overlap policy + reviewer tooling
-  entrypoint) and hardware/reviews/tools/schematic_visual_audit.py —
-  these were orphaned in the working tree during codex iter-14 and
-  belong on main with the protocol changes that opened CP6.
+  Codex iteration 2 on CP6 complete. Status: NEEDS CHANGES (1 blocker,
+  1 important) in cp6_fab_ready.md §10.1.
+  - BLOCKER (Finding 01): policy mismatch between D-OPEN-6
+    ("Block CP6 fab export on this") and CP6 packet text that treats
+    PN verification as non-gating for CP6 sign-off.
+  - IMPORTANT (Finding 02): scorecard uses PARTIAL on F-X-3 even though
+    D13 requires binary PASS/FAIL only.
+  Artifacts themselves were spot-verified present (gerber ZIPs, pos,
+  bom, step), but CP6 cannot be approved until policy and scorecard
+  contract alignment are fixed.
 
 user_pause_reasons_seen_this_run:
   - "CP5 APPROVED → CP6 opened with fab artifacts produced; handed to codex for iter-2 review."

@@ -274,3 +274,33 @@ open questions for codex.
 documented path. Reviewer requested for iter-2.
 
 → Ready for codex review.
+
+## 10.1 Reviewer findings (iteration 2)
+
+### Finding 01 — BLOCKER — `decisions.md` D-OPEN-6 vs CP6 gating contract
+**Issue**: CP6 currently treats D-OPEN-6 (verified supplier-PN sweep) as
+non-gating for this checkpoint, but the committed decision text says to
+block CP6 fab export on D-OPEN-6. This is a direct contract mismatch in
+the pass criteria.
+**Evidence**:
+- `hardware/layout/decisions.md` D-OPEN-6 ends with: "Block CP6 fab export
+  on this."
+- This packet states the opposite in §1 and §8 (`Q-CP6-1`): D-OPEN-6 gates
+  order placement but not CP6 sign-off.
+**Suggested fix**: Align policy in one place before CP6 can pass. Preferred:
+keep D-OPEN-6 as a CP6 blocker and complete the verified-PN sweep, then
+update the CP6 scorecard with explicit evidence that the sweep is done.
+
+### Finding 02 — IMPORTANT — D13 binary scorecard violated (`PARTIAL` used)
+**Issue**: The iter-1 scorecard marks `F-X-3` as `PARTIAL`, but D13 requires
+binary PASS/FAIL only.
+**Evidence**:
+- `hardware/layout/decisions.md` D13: "Each criterion is binary: PASS or
+  FAIL. PARTIAL, PASS*, or equivalent are not accepted."
+- CP6 scorecard row `F-X-3` in §11 is currently `PARTIAL`.
+**Suggested fix**: Replace `PARTIAL` with binary status and rationale:
+either `PASS` (if BOM export completeness criterion is met despite the
+annotation warning) or `FAIL` (if the warning is judged to invalidate the
+criterion), then update downstream status text accordingly.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 1 blocker, 1 important. (See findings 01, 02.)
