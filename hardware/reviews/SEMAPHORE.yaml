@@ -11,7 +11,7 @@ iteration: 8
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-04T20:30:00Z
+last_updated_at: 2026-06-04T22:00:00Z
 last_updated_by: claude
 
 note: >
@@ -45,26 +45,61 @@ note: >
      loop on display side) converted to `_place_power_port`.
   5. ERC: 0 errors / 0 warnings on both boards.
 
-  Remaining iter-8 work (next commits):
-  - #39 add wires between cluster-internal pins (replace label-
-    matching with actual schematic wires for I2C pull-ups → RTC,
-    bypass caps → MCU VCC pins, button + R + C debounce cluster,
-    RS-485 termination network, etc.).
-  - #40 fix stacked-pin issues at the lib-symbol level (DS3231M
-    9 GND pins consolidated; ESP32-S3 GND pins separated) so pin
-    numbers can come back without re-introducing stack overlaps.
-  - #41 drive strict audit count to 0 — current 76 pairs is mid-
-    transition (down from iter-6 baseline of 290 but the SAME-TEXT
-    stroke-font artifacts and power-port-vs-chip-pin touches still
-    need cleanup).
-  - #42 functional-block visual grouping pass — make each
-    sub-circuit read as a tight cluster rather than scattered
-    components.
+  Additional commits in this iter-8 push (95051af, 0098522):
+  - BTN1 (battery) + BTN1/2/3 (display) debounce clusters
+    restructured to "single trunk wire connects BTN → R → C, R
+    above trunk pulls to V3V3, C below trunk debounces to GND".
+    Reader sees the topology in one glance instead of mentally
+    splicing three "BTN_OVERRIDE" / "BTN<N>_IN" labels.
+  - Q1 / Q2 MOSFET gate stubs extended from 2 G → 4 G so the
+    GlobalLabel chevron tip clears the in-symbol G/D/S pin-name
+    text.
+  - L1 inductor Value text relocated 2 G right of default so it
+    no longer touches pin 2 number bbox.
+  - Documentation propagation commit (9bc46f9): DESIGNER.md §0
+    now leads with the D16 verbatim goal + a "Schematic-readiness
+    checklist (D16 acceptance bar)" listing the five operational
+    items (real cluster wires, stock power-port symbols, visible
+    pin numbers with lib-level stack fixes, functional-block
+    grouping with signal flow, zero on the strict overlap audit);
+    REVIEWER.md §4 updated with the matching reviewer-side D16
+    policy; decisions.md "Portability for future PCB projects"
+    expanded so a fresh Claude/Codex instance forking this
+    template inherits both D11 and D16 verbatim.
 
-  Visual evidence after this commit: render battery_side /
-  display_side schematic.pdf in grayscale; GND triangles now
-  render as the standard ground glyph at every GND pin instead
-  of the flag-shaped GlobalLabel.
+  Audit progression in iter-8:
+    iter-7 close:        50 pairs (28 + 22)
+    after GND-port pass: 76 pairs (45 + 31) — port placements
+                         introduce some chip-pin neighbourhoods
+                         that still need trimming + the GND/GND
+                         clusters that previously dominated are
+                         gone, exposing SAME-TEXT KiCad stroke-
+                         font artifacts that were always there.
+    after BTN cluster:   73 pairs (42 + 31)
+  Of the 73 residuals, ~31 are SAME-TEXT identical-bbox stroke-
+  font artifacts (PyMuPDF surfaces them as two spans; pdftotext
+  sees one) — these need a KiCad-side font fix or audit-tool
+  acknowledgement, neither of which iter-8 has shipped yet.
+
+  Remaining iter-8 work (not yet committed; estimate multi-iter):
+  - #39 cluster-wire pattern still to apply to: I2C pull-ups +
+    RTC + battery cluster, buck regulator (U1) + L1 + C1/C2 +
+    C_BST cluster, 12 V Recom (U2) + C3/C4, ESP32 + bypass caps,
+    RS-485 transceiver + termination network. Battery + display
+    button clusters are the only ones currently using the trunk
+    pattern.
+  - #40 lib-level stacked-pin fix on DS3231M (9 GND pins at one
+    lib coord) and ESP32-S3 (pins 1/40/41). Without this, pin
+    numbers stay hidden on those chips — losing one of the
+    schematic's primary uses (cross-reference to footprint).
+  - #41 drive strict audit to 0 — depends on SAME-TEXT artifact
+    resolution. Investigated `fields_autoplaced=False` (no effect)
+    and TTF font face (not tried). Real text/text overlaps still
+    standing: R10/RS485_A, R12/120/RS485_B, MOD1/V3V3_SW, SS24/
+    V24_AFTER_FUSE, D1/V24_AFTER_FUSE, C_BST/U1_BST, 100k/PWR_EN,
+    RS485_B/SMAJ12CA, 2/V24_SW — about 9 remaining real touches.
+  - #42 functional-block grouping audit pass against the
+    rendered PDFs.
   CP6 iter-7 designer response committed; handing back to codex.
 
   iter-6 filed a defensible exception against codex iter-5
