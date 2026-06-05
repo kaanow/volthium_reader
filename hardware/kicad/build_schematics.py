@@ -1430,38 +1430,35 @@ def build_battery_side_schematic() -> None:
     # (X+5.08, Y). Net mapping: pin 1 → BTN_OVERRIDE (trunk-going-
     # right), pin 2 → GND (port to the right). Trunk runs right from
     # BTN1.pin1 anchor + 2G clearance to R13.pin2 and on to C11.pin1.
+    # BTN1 override pushbutton cluster: SW_Push horizontal, R13 1MΩ
+    # pull-up vertical to its right, C11 100nF debounce vertical further
+    # right. Per-pin labels (BTN_OVERRIDE on each side of the net) carry
+    # the connection; in-cluster wire restructuring deferred (ERC
+    # tractability — the trunk-through-SW_Push-body topology trips
+    # `wire_dangling`, requires lib-symbol body geometry inspection).
     BTN1_X, BTN1_Y = 45 * G, 192 * G   # override button, bottom-left
-    R13_X, R13_Y = 62 * G, 189 * G     # vertical R13 — pin 2 (bottom) sits ON the trunk at Y=192G
-    C11_X, C11_Y = 78 * G, 195 * G     # vertical C11 — pin 1 (top) sits ON the trunk at Y=192G
-    TRUNK_Y = BTN1_Y                   # = 192G
-
     _place_symbol(s, "SW_Push", "BTN1", "OVERRIDE",
                   "Button_Switch_THT:SW_PUSH_6mm",
                   (BTN1_X, BTN1_Y), lib=lib,
                   ref_pos=(BTN1_X - 2 * G, BTN1_Y - 5 * G),
                   value_pos=(BTN1_X - 2 * G, BTN1_Y + 5 * G))
+    _place_wire(s,  (BTN1_X - 4 * G, BTN1_Y), (BTN1_X - 6 * G, BTN1_Y))
+    _place_label(s, "BTN_OVERRIDE", (BTN1_X - 6 * G, BTN1_Y), angle=180)
+    _place_power_port(s, "GND", (BTN1_X + 4 * G, BTN1_Y), 'R', stub=2 * G, lib=lib)
+
+    R13_X, R13_Y = 62 * G, 192 * G
     _place_symbol(s, "R", "R13", "1M",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R13_X, R13_Y), lib=lib)
+    _pin_label(s, "V3V3_SW",      (R13_X, R13_Y - 3 * G), 'U')
+    _pin_label(s, "BTN_OVERRIDE", (R13_X, R13_Y + 3 * G), 'D')
+
+    C11_X, C11_Y = 78 * G, 192 * G
     _place_symbol(s, "C", "C11", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (C11_X, C11_Y), lib=lib)
-
-    # Trunk wire: BTN1.pin 1 (left) → R13.pin 2 → C11.pin 1.
-    _place_wire(s, (BTN1_X - 4 * G, BTN1_Y), (R13_X, TRUNK_Y))   # BTN1.pin1 → R13.pin2
-    _place_wire(s, (R13_X, TRUNK_Y),         (C11_X, TRUNK_Y))   # R13.pin2 → C11.pin1
-    # Single BTN_OVERRIDE GlobalLabel anchored above the trunk between BTN1
-    # and R13, oriented to read upward so the trunk wire stays visually
-    # clean. Carries the net out of the cluster to MOD1.IO7.
-    _place_wire(s, (BTN1_X + 2 * G, TRUNK_Y), (BTN1_X + 2 * G, TRUNK_Y - 4 * G))
-    _place_label(s, "BTN_OVERRIDE",            (BTN1_X + 2 * G, TRUNK_Y - 4 * G), angle=90)
-
-    # BTN1 pin 2 (right) → GND power port.
-    _place_power_port(s, "GND", (BTN1_X + 4 * G, BTN1_Y), 'R', stub=2 * G, lib=lib)
-    # R13 pin 1 (top) → V3V3_SW power label.
-    _pin_label(s, "V3V3_SW", (R13_X, R13_Y - 3 * G), 'U')
-    # C11 pin 2 (bottom) → GND power port.
-    _place_power_port(s, "GND", (C11_X, C11_Y + 3 * G), 'D', stub=3 * G, lib=lib)
+    _pin_label(s, "BTN_OVERRIDE", (C11_X, C11_Y - 3 * G), 'U')
+    _pin_label(s, "GND",          (C11_X, C11_Y + 3 * G), 'D')
 
     # J2 — RJ45 (8P8C parent). Cat5e to display side. T568B pinout
     # per docs/hardware/cat5e_pinout.md:
@@ -1917,11 +1914,9 @@ def build_display_side_schematic() -> None:
     _place_wire(s, (R2_X, TVS2_Y),         (TVS2_X - 3 * G, TVS2_Y))  # corner → TVS2.pin1
 
     # ===== Buttons: BTN1/2/3 + R5/R6/R7 (1MΩ pull-ups) + C8/C9/C10 (debounce) =====
-    # D16: same trunk pattern as battery BTN1 — single horizontal
-    # BTN<N>_IN trunk per cluster connects BTN pin 1 (left) → R pin 2
-    # (bottom) → C pin 1 (top). R sits above trunk pulling BTN<N>_IN up
-    # to V3V3, C sits below trunk debouncing BTN<N>_IN to GND. One label
-    # per cluster on a short vertical stub carries the signal to MOD1.
+    # Per-pin labels (BTN<N>_IN on each side of the net). In-cluster
+    # wire restructure deferred — same trunk-through-SW_Push-body ERC
+    # issue as battery BTN1.
     for i, (btn_ref, r_ref, c_ref, btn_net) in enumerate([
         ("BTN1", "R5", "C8",  "BTN1_IN"),
         ("BTN2", "R6", "C9",  "BTN2_IN"),
@@ -1929,35 +1924,26 @@ def build_display_side_schematic() -> None:
     ]):
         BTN_X = (200 + i * 30) * G
         BTN_Y = 150 * G
-        R_X = BTN_X + 8 * G
-        R_Y = BTN_Y - 3 * G    # vertical R — pin 2 (bottom) lands on the trunk at Y=BTN_Y
-        C_X = BTN_X + 16 * G
-        C_Y = BTN_Y + 3 * G    # vertical C — pin 1 (top) lands on the trunk at Y=BTN_Y
-        TRUNK_Y = BTN_Y
-
         _place_symbol(s, "SW_Push", btn_ref, btn_ref,
                       "Button_Switch_SMD:SW_SPST_B3S-1000",
                       (BTN_X, BTN_Y), lib=lib,
                       ref_pos=(BTN_X - 2 * G, BTN_Y - 5 * G),
                       value_pos=(BTN_X - 2 * G, BTN_Y + 5 * G))
+        _place_wire(s,  (BTN_X - 4 * G, BTN_Y), (BTN_X - 6 * G, BTN_Y))
+        _place_label(s, btn_net, (BTN_X - 6 * G, BTN_Y), angle=180)
+        _place_power_port(s, "GND", (BTN_X + 4 * G, BTN_Y), 'R', stub=2 * G, lib=lib)
+        R_X = BTN_X + 8 * G
         _place_symbol(s, "R", r_ref, "1M",
                       "Resistor_SMD:R_0805_2012Metric",
-                      (R_X, R_Y), lib=lib)
+                      (R_X, BTN_Y), lib=lib)
+        _pin_label(s, "V3V3",  (R_X, BTN_Y - 3 * G), 'U')
+        _pin_label(s, btn_net, (R_X, BTN_Y + 3 * G), 'D')
+        C_X = BTN_X + 16 * G
         _place_symbol(s, "C", c_ref, "100nF",
                       "Capacitor_SMD:C_0603_1608Metric",
-                      (C_X, C_Y), lib=lib)
-
-        # Trunk: BTN.pin1 (left) → R.pin2 (bottom) → C.pin1 (top).
-        _place_wire(s, (BTN_X - 4 * G, BTN_Y), (R_X, TRUNK_Y))
-        _place_wire(s, (R_X, TRUNK_Y),         (C_X, TRUNK_Y))
-        # BTN<N>_IN label on a short vertical stub above the trunk.
-        _place_wire(s, (BTN_X + 2 * G, TRUNK_Y), (BTN_X + 2 * G, TRUNK_Y - 4 * G))
-        _place_label(s, btn_net,                  (BTN_X + 2 * G, TRUNK_Y - 4 * G), angle=90)
-
-        # BTN pin 2 → GND port. R pin 1 (top) → V3V3 label. C pin 2 (bottom) → GND port.
-        _place_power_port(s, "GND", (BTN_X + 4 * G, BTN_Y), 'R', stub=2 * G, lib=lib)
-        _pin_label(s, "V3V3", (R_X, R_Y - 3 * G), 'U')
-        _place_power_port(s, "GND", (C_X, C_Y + 3 * G), 'D', stub=3 * G, lib=lib)
+                      (C_X, BTN_Y), lib=lib)
+        _pin_label(s, btn_net, (C_X, BTN_Y - 3 * G), 'U')
+        _pin_label(s, "GND",   (C_X, BTN_Y + 3 * G), 'D')
 
     # ===== Dev headers: J3 (UART debug) + J4 (USB-OTG) =====
 
@@ -2040,8 +2026,39 @@ def post_process(board_dir: Path, board_name: str, out_dir: Path) -> None:
                     print(f"    {line}")
 
     pdf = out_dir / "schematic.pdf"
-    rc, _, err = run_kicad_cli("sch", "export", "pdf", "-o", str(pdf), str(sch))
+    # D16: --exclude-pdf-property-popups / --exclude-pdf-hierarchical-
+    # links / --exclude-pdf-metadata strip the PDF accessibility / link
+    # overlays. The property-popups overlay normally double-emits every
+    # Reference / Value / pin-name string, which would surface as
+    # SAME-TEXT identical-bbox pairs in the strict audit. None of those
+    # overlays are useful in committed fab-ready PDFs.
+    rc, _, err = run_kicad_cli("sch", "export", "pdf",
+                               "--exclude-pdf-property-popups",
+                               "--exclude-pdf-hierarchical-links",
+                               "--exclude-pdf-metadata",
+                               "-o", str(pdf), str(sch))
     print(f"  [pdf] rc={rc} → {pdf}")
+
+    # D16 follow-on: even with the three --exclude-pdf-* flags above,
+    # KiCad's PDF content stream still emits ~30 Reference / Value /
+    # pin-name strings twice as byte-identical `q … Tj … Q` blocks at
+    # identical positions. PyMuPDF (and therefore
+    # schematic_visual_audit.py) sees each duplicate as a SAME-TEXT
+    # identical-bbox overlap pair, even though the text is pixel-
+    # perfect overlapping and the human reads it once. Run the
+    # `dedupe_pdf_text` post-processor in place to strip the
+    # duplicates from the content stream. Visual rendering is
+    # unaffected (<0.1 % pixel delta from anti-aliasing on the over-
+    # drawn strokes); PyMuPDF then sees each text span once and the
+    # strict audit drops by ~30 pairs per sheet.
+    import subprocess
+    rc_dedupe = subprocess.run(
+        [sys.executable,
+         str(Path(__file__).parent / "dedupe_pdf_text.py"),
+         str(pdf)],
+        capture_output=True, text=True
+    )
+    print(f"  [dedupe] {rc_dedupe.stdout.strip()}")
 
     net = out_dir / f"{board_name}.net"
     rc, _, err = run_kicad_cli("sch", "export", "netlist", "-o", str(net), "--format", "kicadsexpr", str(sch))

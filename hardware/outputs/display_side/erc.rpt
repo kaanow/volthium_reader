@@ -1,48 +1,9 @@
-ERC report (2026-06-04T22:07:14, Encoding UTF8)
+ERC report (2026-06-05T00:01:08, Encoding UTF8)
 Report includes: Errors, Warnings
 
 ***** Sheet /
-[wire_dangling]: Wires not connected to anything
-    ; error
-    @(264.16 mm, 190.50 mm): Horizontal Wire, length 10.16 mm
-    @(248.92 mm, 190.50 mm): Horizontal Wire, length 15.24 mm
-[wire_dangling]: Wires not connected to anything
-    ; error
-    @(287.02 mm, 190.50 mm): Horizontal Wire, length 15.24 mm
-    @(302.26 mm, 190.50 mm): Horizontal Wire, length 10.16 mm
-[wire_dangling]: Wires not connected to anything
-    ; error
-    @(325.12 mm, 190.50 mm): Horizontal Wire, length 15.24 mm
-    @(340.36 mm, 190.50 mm): Horizontal Wire, length 10.16 mm
-[isolated_pin_label]: Label connected to only one pin
-    ; warning
-    @(157.48 mm, 139.70 mm): Global Label 'BTN1_IN'
-[isolated_pin_label]: Label connected to only one pin
-    ; warning
-    @(157.48 mm, 142.24 mm): Global Label 'BTN2_IN'
-[isolated_pin_label]: Label connected to only one pin
-    ; warning
-    @(157.48 mm, 144.78 mm): Global Label 'BTN3_IN'
-[isolated_pin_label]: Label connected to only one pin
-    ; warning
-    @(256.54 mm, 185.42 mm): Global Label 'BTN1_IN'
-[unconnected_wire_endpoint]: Unconnected wire endpoint
-    ; warning
-    @(256.54 mm, 190.50 mm): Vertical Wire, length 5.08 mm
-[isolated_pin_label]: Label connected to only one pin
-    ; warning
-    @(294.64 mm, 185.42 mm): Global Label 'BTN2_IN'
-[unconnected_wire_endpoint]: Unconnected wire endpoint
-    ; warning
-    @(294.64 mm, 190.50 mm): Vertical Wire, length 5.08 mm
-[isolated_pin_label]: Label connected to only one pin
-    ; warning
-    @(332.74 mm, 185.42 mm): Global Label 'BTN3_IN'
-[unconnected_wire_endpoint]: Unconnected wire endpoint
-    ; warning
-    @(332.74 mm, 190.50 mm): Vertical Wire, length 5.08 mm
 
- ** ERC messages: 12  Errors 3  Warnings 9
+ ** ERC messages: 0  Errors 0  Warnings 0
 
  ** Ignored checks:
     - Global label only appears once in the schematic
