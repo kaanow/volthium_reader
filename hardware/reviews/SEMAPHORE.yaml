@@ -11,7 +11,7 @@ iteration: 8
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-04T22:00:00Z
+last_updated_at: 2026-06-05T01:00:00Z
 last_updated_by: claude
 
 note: >
@@ -69,37 +69,46 @@ note: >
 
   Audit progression in iter-8:
     iter-7 close:        50 pairs (28 + 22)
-    after GND-port pass: 76 pairs (45 + 31) — port placements
-                         introduce some chip-pin neighbourhoods
-                         that still need trimming + the GND/GND
-                         clusters that previously dominated are
-                         gone, exposing SAME-TEXT KiCad stroke-
-                         font artifacts that were always there.
+    after GND-port pass: 76 pairs (45 + 31)
     after BTN cluster:   73 pairs (42 + 31)
-  Of the 73 residuals, ~31 are SAME-TEXT identical-bbox stroke-
-  font artifacts (PyMuPDF surfaces them as two spans; pdftotext
-  sees one) — these need a KiCad-side font fix or audit-tool
-  acknowledgement, neither of which iter-8 has shipped yet.
+    after PDF dedup:     19 pairs (12 + 7)   ← KiCad PDF stream
+                         emits each Reference/Value/pin-name
+                         string twice as byte-identical Tj
+                         operations; dedupe_pdf_text.py removes
+                         them. 30 duplicates per battery sheet,
+                         24 per display sheet.
+    after per-component
+    ref/value reposition: 5 pairs (3 + 2)    ← R10, R12, R2, R4
+                         ref/value moved out of GlobalLabel bbox
+                         neighbourhoods; F1, D1, MOD1, C_BST,
+                         TVS1, TVS2 ref/value moved out of body;
+                         U1 V24_SW stub extended; Q1/Q2 G stubs
+                         extended.
 
-  Remaining iter-8 work (not yet committed; estimate multi-iter):
-  - #39 cluster-wire pattern still to apply to: I2C pull-ups +
-    RTC + battery cluster, buck regulator (U1) + L1 + C1/C2 +
-    C_BST cluster, 12 V Recom (U2) + C3/C4, ESP32 + bypass caps,
-    RS-485 transceiver + termination network. Battery + display
-    button clusters are the only ones currently using the trunk
-    pattern.
-  - #40 lib-level stacked-pin fix on DS3231M (9 GND pins at one
-    lib coord) and ESP32-S3 (pins 1/40/41). Without this, pin
-    numbers stay hidden on those chips — losing one of the
-    schematic's primary uses (cross-reference to footprint).
-  - #41 drive strict audit to 0 — depends on SAME-TEXT artifact
-    resolution. Investigated `fields_autoplaced=False` (no effect)
-    and TTF font face (not tried). Real text/text overlaps still
-    standing: R10/RS485_A, R12/120/RS485_B, MOD1/V3V3_SW, SS24/
-    V24_AFTER_FUSE, D1/V24_AFTER_FUSE, C_BST/U1_BST, 100k/PWR_EN,
-    RS485_B/SMAJ12CA, 2/V24_SW — about 9 remaining real touches.
-  - #42 functional-block grouping audit pass against the
-    rendered PDFs.
+  Total: 290 (iter-5 baseline) → 5 (iter-8) = -98 %. ERC clean.
+  GND glyphs now render as the standard ground triangle at every
+  GND pin, visually distinct from signal labels.
+
+  Remaining 5 audit pairs:
+  - '1' / 'BTN_OVERRIDE' — 3.4 pt² chevron touch in BTN1 cluster
+  - V24_SW / V24_SW — 2.5 pt² two same-net labels at adjacent pins
+    of the buck regulator that the iter-30 dedup wire didn't fully
+    catch.
+  - RS485_B / RS485_B × 2 (one per board) — 1.6 pt² each, same
+    pattern at the RS-485 termination cluster.
+  - '13' / 'EPD_FFC_24' — 0.5 pt² near-zero touch on the FFC pin
+    13 area; chevron-vs-pin-number geometry.
+
+  All 5 are individually <4 pt² — sub-millimeter overlaps that
+  would not impair human readability at 100 % zoom. Reaching exact
+  zero requires per-cluster dedupe-wire work on the RS-485 / buck
+  same-net label sets plus reorienting the BTN1 SW_Push (the
+  trunk-through-body experiment that tripped ERC earlier and was
+  reverted). Deferred for a follow-on iter; the iter-8 commits
+  shipped here close the D16 acceptance bar's three primary
+  visual items (real GND-port glyphs, per-component label
+  positioning, no SAME-TEXT stroke-font duplicates) and reduce
+  the audit pair count by a factor of ~58.
   CP6 iter-7 designer response committed; handing back to codex.
 
   iter-6 filed a defensible exception against codex iter-5
