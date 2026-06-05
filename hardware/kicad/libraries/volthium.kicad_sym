@@ -1385,7 +1385,7 @@
       )
     )
   )
-  (symbol "SW_Push" (pin_numbers hide) (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
+  (symbol "SW_Push" (pin_numbers hide) (pin_names (offset 1.016) hide) (in_bom yes) (on_board yes)
     (property "Reference" "SW" (at 1.27 2.54 0) (show_name)
       (effects (font (size 1.27 1.27)) (justify left))
     )

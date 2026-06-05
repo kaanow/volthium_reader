@@ -195,6 +195,12 @@ def build_library() -> None:
         # Battery_Cell has pin names +/-; the symbol shape already shows
         # polarity (long terminal = +, short = -).
         "Battery_Cell",
+        # SW_Push: lib symbol has pin NAMES = "1" / "2" (same characters
+        # as the pin numbers). Hiding pin numbers leaves the pin names
+        # still visible and indistinguishable from numbers; reader sees
+        # "1" and "2" on the body anyway. Hide names so the body just
+        # shows the button glyph with no annotations.
+        "SW_Push",
     }
     _hide_pin_numbers_on = {
         # PWR_FLAG is single-pin marker; "1" overlaps the Value text.
@@ -958,7 +964,10 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "C", "C1", "22uF/25V",
                   "Capacitor_SMD:C_1210_3225Metric",
                   (C1_X, C1_Y), lib=lib)
-    _pin_label(s, "V24_SW", (C1_X, C1_Y - 3 * G), 'U')   # pin 1
+    # D16: V24_SW label deduped — wire C1.pin1 up + over to the U1 V24_SW
+    # pickoff at (U1_X - 12G, U1_Y - 4G) where U1 keeps the single label.
+    _place_wire(s, (C1_X, C1_Y - 3 * G), (C1_X, U1_Y - 4 * G))
+    _place_wire(s, (C1_X, U1_Y - 4 * G), (U1_X - 12 * G, U1_Y - 4 * G))
     _pin_label(s, "GND",    (C1_X, C1_Y + 3 * G), 'D')   # pin 2
 
     # C2 — 22 µF bulk on V3V3_SW (U1 VOUT decoupling)
@@ -1389,7 +1398,9 @@ def build_battery_side_schematic() -> None:
                   ref_pos=(R10_X + 6 * G, R10_Y - 1.27),   # D16: ref far right, clear of RS485_A label bbox
                   value_pos=(R10_X + 6 * G, R10_Y + 1.27)) # D16: value far right, clear of RS485_B label bbox
     _pin_label(s, "RS485_A", (R10_X, R10_Y - 3 * G), 'U')   # pin 1
-    _pin_label(s, "RS485_B", (R10_X, R10_Y + 3 * G), 'D')   # pin 2
+    # D16: R10.pin2 RS485_B label deduped — wire-out to R12.pin1
+    # placed below; corner at the trunk Y. Wire emitted after R12
+    # is positioned (see RS485_B trunk block below).
 
     # R11 — 680 Ω idle bias A → V3V3_SW
     R11_X, R11_Y = U3_X + 12 * G, U3_Y - 12 * G   # (294.64, 47.62)
@@ -1409,6 +1420,10 @@ def build_battery_side_schematic() -> None:
                   value_pos=(R12_X + 6 * G, R12_Y + 1.27)) # D16: value far right
     _pin_label(s, "RS485_B", (R12_X, R12_Y - 3 * G), 'U')
     _pin_label(s, "GND",     (R12_X, R12_Y + 3 * G), 'D')
+    # D16: RS485_B trunk — wire R10.pin2 down + over to R12.pin1
+    # (both RS485_B). R12.pin1 keeps the single label.
+    _place_wire(s, (R10_X, R10_Y + 3 * G), (R10_X, R12_Y - 3 * G))
+    _place_wire(s, (R10_X, R12_Y - 3 * G), (R12_X, R12_Y - 3 * G))
 
     # TVS2 — SMAJ12CA differential clamp across A/B. Device:D_TVS with
     # Value override. Horizontal (pins ±3.81 X from center).
@@ -1809,7 +1824,9 @@ def build_display_side_schematic() -> None:
     J2_X, J2_Y = 200 * G, 70 * G   # (254.0, 88.9)
     _place_symbol(s, "Conn_01x24", "J2", "EPD_FFC_24",
                   "Connector_FFC-FPC:Hirose_FH12-24S-0.5SH_1x24-1MP_P0.50mm_Horizontal",
-                  (J2_X, J2_Y), lib=lib)
+                  (J2_X, J2_Y), lib=lib,
+                  ref_pos=(J2_X, J2_Y - 4 * G),    # D16: ref above body, clear of pin labels
+                  value_pos=(J2_X, J2_Y + 33 * G)) # D16: value below 24-pin stack
     # CP-cleanup iter 26 (Finding 08): pins 2/3 share V3V3 (adjacent on
     # the FFC). Dedupe with a wire + single label so the 24-pin stack
     # at x=248.92 has one fewer redundant label. Pins 1/4 also share
@@ -1900,7 +1917,8 @@ def build_display_side_schematic() -> None:
                   ref_pos=(R2_X + 6 * G, R2_Y - 1.27),   # D16: ref far right, clear of RS485_A label bbox
                   value_pos=(R2_X + 6 * G, R2_Y + 1.27)) # D16: value far right
     _pin_label(s, "RS485_A", (R2_X, R2_Y - 3 * G), 'U')
-    _pin_label(s, "RS485_B", (R2_X, R2_Y + 3 * G), 'D')
+    # D16: R2.pin2 RS485_B label deduped — wire emitted after R4
+    # is placed below (same pattern as battery U3 R10→R12).
 
     # R3 — 680Ω idle bias A → V3V3
     R3_X, R3_Y = U2_X + 12 * G, U2_Y - 12 * G   # (294.64, 85.72)
@@ -1917,6 +1935,9 @@ def build_display_side_schematic() -> None:
                   (R4_X, R4_Y), lib=lib)
     _pin_label(s, "RS485_B", (R4_X, R4_Y - 3 * G), 'U')
     _pin_label(s, "GND",     (R4_X, R4_Y + 3 * G), 'D')
+    # D16: RS485_B trunk — wire R2.pin2 → R4.pin1 (both RS485_B).
+    _place_wire(s, (R2_X, R2_Y + 3 * G), (R2_X, R4_Y - 3 * G))
+    _place_wire(s, (R2_X, R4_Y - 3 * G), (R4_X, R4_Y - 3 * G))
 
     # TVS2 — SMAJ12CA differential clamp across A/B
     TVS2_X, TVS2_Y = U2_X + 24 * G, U2_Y - 4 * G   # right of R2 (8G gap) so values don't collide; same row keeps A-dedup wire clear of R2.pin2
