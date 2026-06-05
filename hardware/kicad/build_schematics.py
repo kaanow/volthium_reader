@@ -838,7 +838,9 @@ def build_battery_side_schematic() -> None:
     D1_X, D1_Y = 80 * G, 30 * G
     _place_symbol(s, "D", "D1", "SS24",
                   "Diode_SMD:D_SMA",
-                  (D1_X, D1_Y), lib=lib)
+                  (D1_X, D1_Y), lib=lib,
+                  ref_pos=(D1_X, D1_Y - 3 * G),   # D16: ref above body, clear of V24_AFTER_FUSE label area
+                  value_pos=(D1_X, D1_Y + 3 * G)) # D16: value below body
     _pin_label(s, "V24_FUSED",      (D1_X - 3 * G, D1_Y), 'L')     # pin 1 (K)
     _pin_label(s, "V24_AFTER_FUSE", (D1_X + 3 * G, D1_Y), 'R')     # pin 2 (A)
 
@@ -924,8 +926,8 @@ def build_battery_side_schematic() -> None:
     # iter 47 (fix B2): extend the pickoff 2G outward so the label
     # sits clear of the chip's "EN"/"VIN" pin name text.
     _place_wire(s, (U1_X - 6 * G, U1_Y - 6 * G), (U1_X - 6 * G, U1_Y - 4 * G))   # pin 3 ↔ pin 2
-    _place_wire(s, (U1_X - 6 * G, U1_Y - 4 * G), (U1_X - 8 * G, U1_Y - 4 * G))  # tied-pair stub
-    _place_label(s, "V24_SW",  (U1_X - 8 * G, U1_Y - 4 * G), angle=180)   # pin 2 EN / pin 3 VIN (left → reads left)
+    _place_wire(s, (U1_X - 6 * G, U1_Y - 4 * G), (U1_X - 12 * G, U1_Y - 4 * G))  # D16: 6G stub so the V24_SW chevron clears pin 2 number "2"
+    _place_label(s, "V24_SW",  (U1_X - 12 * G, U1_Y - 4 * G), angle=180)
     # D16: route U1 pin 4 GND through the stock power port.
     _place_power_port(s, "GND", (U1_X, U1_Y + 10 * G), 'D', stub=1 * G, lib=lib)
     _place_wire(s,  (U1_X + 6 * G, U1_Y),         (U1_X + 8 * G, U1_Y))            # pin 5 stub
@@ -972,7 +974,9 @@ def build_battery_side_schematic() -> None:
     CBST_X, CBST_Y = U1_X + 10 * G, U1_Y - 4 * G   # (165.1, 33.02)
     _place_symbol(s, "C", "C_BST", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
-                  (CBST_X, CBST_Y), lib=lib)
+                  (CBST_X, CBST_Y), lib=lib,
+                  ref_pos=(CBST_X + 3 * G, CBST_Y - 1.27),    # D16: ref right, clear of U1_BST label
+                  value_pos=(CBST_X + 3 * G, CBST_Y + 1.27))
     # CP-cleanup iter 32 (Finding 09): drop the C_BST end labels and
     # wire C_BST directly to U1.BST + U1.SW pins. U1 keeps both labels.
     # C_BST pin 1 (U1_BST node) at (CBST_X, CBST_Y - 3*G) = (CBST_X, 29.21)
@@ -1080,7 +1084,9 @@ def build_battery_side_schematic() -> None:
     R4_X, R4_Y = 30 * G, 82 * G   # Q1 + (-22,+10)
     _place_symbol(s, "R", "R4", "100k",
                   "Resistor_SMD:R_0805_2012Metric",
-                  (R4_X, R4_Y), lib=lib)
+                  (R4_X, R4_Y), lib=lib,
+                  ref_pos=(R4_X - 4 * G, R4_Y - 1.27),    # D16: ref left, opposite from PWR_EN labels which extend left from Q2/R4
+                  value_pos=(R4_X - 4 * G, R4_Y + 1.27))
     _pin_label(s, "PWR_EN", (R4_X, R4_Y - 3 * G), 'U')   # pin 1
     _pin_label(s, "GND",    (R4_X, R4_Y + 3 * G), 'D')   # pin 2
 
@@ -1171,7 +1177,7 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
                   "RF_Module:ESP32-S3-WROOM-1U",  # -1U variant: external U.FL antenna, no keepout zone
                   (MOD1_X, MOD1_Y), lib=lib,
-                  ref_pos=(MOD1_X, MOD1_Y - 24 * G),    # CP6 iter-7: above body, clear of in-symbol "PSRAM" text
+                  ref_pos=(MOD1_X + 16 * G, MOD1_Y - 24 * G),  # D16: above-right, clear of V3V3_SW top label
                   value_pos=(MOD1_X, MOD1_Y + 30 * G))  # value below body
     # Pins 1, 40, 41 (all GND) share the same library position in the
     # ESP32-S3-WROOM-1 symbol (0, -27.94). Placing one label per pin
@@ -1379,7 +1385,9 @@ def build_battery_side_schematic() -> None:
     R10_X, R10_Y = U3_X + 16 * G, U3_Y - 4 * G   # (299.72, 58.42)
     _place_symbol(s, "R", "R10", "120",
                   "Resistor_SMD:R_0805_2012Metric",
-                  (R10_X, R10_Y), lib=lib)
+                  (R10_X, R10_Y), lib=lib,
+                  ref_pos=(R10_X + 6 * G, R10_Y - 1.27),   # D16: ref far right, clear of RS485_A label bbox
+                  value_pos=(R10_X + 6 * G, R10_Y + 1.27)) # D16: value far right, clear of RS485_B label bbox
     _pin_label(s, "RS485_A", (R10_X, R10_Y - 3 * G), 'U')   # pin 1
     _pin_label(s, "RS485_B", (R10_X, R10_Y + 3 * G), 'D')   # pin 2
 
@@ -1396,7 +1404,9 @@ def build_battery_side_schematic() -> None:
     R12_X, R12_Y = U3_X + 12 * G, U3_Y + 8 * G   # (294.64, 73.66)
     _place_symbol(s, "R", "R12", "680",
                   "Resistor_SMD:R_0805_2012Metric",
-                  (R12_X, R12_Y), lib=lib)
+                  (R12_X, R12_Y), lib=lib,
+                  ref_pos=(R12_X + 6 * G, R12_Y - 1.27),   # D16: ref far right
+                  value_pos=(R12_X + 6 * G, R12_Y + 1.27)) # D16: value far right
     _pin_label(s, "RS485_B", (R12_X, R12_Y - 3 * G), 'U')
     _pin_label(s, "GND",     (R12_X, R12_Y + 3 * G), 'D')
 
@@ -1405,7 +1415,9 @@ def build_battery_side_schematic() -> None:
     TVS2_X, TVS2_Y = U3_X + 24 * G, U3_Y - 4 * G   # right of R10 (8G gap) so values don't collide; same row keeps A-dedup wire clear of R10.pin2
     _place_symbol(s, "D_TVS", "TVS2", "SMAJ12CA",
                   "Diode_SMD:D_SMA",
-                  (TVS2_X, TVS2_Y), lib=lib)
+                  (TVS2_X, TVS2_Y), lib=lib,
+                  ref_pos=(TVS2_X, TVS2_Y - 3 * G),    # D16: ref above, clear of RS485_B label
+                  value_pos=(TVS2_X, TVS2_Y + 3 * G))
     # TVS2.pin1 RS485_A label deduped — wire to R10.pin1.
     _pin_label(s, "RS485_B", (TVS2_X + 3 * G, TVS2_Y), 'R')   # pin 2
     # CP-cleanup iter 30: cluster the 4 RS485_A endpoints (U3.A,
@@ -1602,7 +1614,9 @@ def build_display_side_schematic() -> None:
     F1_X, F1_Y = 55 * G, 50 * G   # (69.85, 63.5)
     _place_symbol(s, "Polyfuse", "F1", "MF-R050",
                   "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal",
-                  (F1_X, F1_Y), lib=lib)
+                  (F1_X, F1_Y), lib=lib,
+                  ref_pos=(F1_X - 4 * G, F1_Y - 1.27),    # D16: ref left, opposite from V12_PROT labels (which go right of F1.pin2)
+                  value_pos=(F1_X - 4 * G, F1_Y + 1.27))
     # Polyfuse pin geometry mirrors Fuse/R (lib Y ±3.81 → sch Y ∓3.81).
     _pin_label(s, "V12_CAT5E", (F1_X, F1_Y - 3 * G), 'U')   # pin 1
     _pin_label(s, "V12_PROT",  (F1_X, F1_Y + 3 * G), 'D')   # pin 2
@@ -1611,7 +1625,9 @@ def build_display_side_schematic() -> None:
     TVS1_X, TVS1_Y = 70 * G, 50 * G   # (88.9, 63.5)
     _place_symbol(s, "D", "TVS1", "SMAJ15A",
                   "Diode_SMD:D_SMA",
-                  (TVS1_X, TVS1_Y), lib=lib)
+                  (TVS1_X, TVS1_Y), lib=lib,
+                  ref_pos=(TVS1_X, TVS1_Y - 3 * G),    # D16: ref above body, clear of V12_PROT label
+                  value_pos=(TVS1_X, TVS1_Y + 3 * G))
     _pin_label(s, "GND",      (TVS1_X - 3 * G, TVS1_Y), 'L')   # pin 1 K
     _pin_label(s, "V12_PROT", (TVS1_X + 3 * G, TVS1_Y), 'R')   # pin 2 A
 
@@ -1880,7 +1896,9 @@ def build_display_side_schematic() -> None:
     R2_X, R2_Y = U2_X + 16 * G, U2_Y - 4 * G   # (299.72, 96.52)
     _place_symbol(s, "R", "R2", "120",
                   "Resistor_SMD:R_0805_2012Metric",
-                  (R2_X, R2_Y), lib=lib)
+                  (R2_X, R2_Y), lib=lib,
+                  ref_pos=(R2_X + 6 * G, R2_Y - 1.27),   # D16: ref far right, clear of RS485_A label bbox
+                  value_pos=(R2_X + 6 * G, R2_Y + 1.27)) # D16: value far right
     _pin_label(s, "RS485_A", (R2_X, R2_Y - 3 * G), 'U')
     _pin_label(s, "RS485_B", (R2_X, R2_Y + 3 * G), 'D')
 
@@ -1904,7 +1922,9 @@ def build_display_side_schematic() -> None:
     TVS2_X, TVS2_Y = U2_X + 24 * G, U2_Y - 4 * G   # right of R2 (8G gap) so values don't collide; same row keeps A-dedup wire clear of R2.pin2
     _place_symbol(s, "D_TVS", "TVS2", "SMAJ12CA",
                   "Diode_SMD:D_SMA",
-                  (TVS2_X, TVS2_Y), lib=lib)
+                  (TVS2_X, TVS2_Y), lib=lib,
+                  ref_pos=(TVS2_X, TVS2_Y - 3 * G),    # D16: ref above, clear of RS485_B label
+                  value_pos=(TVS2_X, TVS2_Y + 3 * G))
     # TVS2.pin1 RS485_A label deduped — wire to R2.pin1.
     _pin_label(s, "RS485_B", (TVS2_X + 3 * G, TVS2_Y), 'R')
     # Same RS485_A cluster dedup as battery-side U3 area:
