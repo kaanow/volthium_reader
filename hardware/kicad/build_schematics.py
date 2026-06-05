@@ -1244,7 +1244,7 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "R", "R7", "10k",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R7_X, R7_Y), lib=lib)
-    _pin_label(s, "V3V3_SW", (R7_X, R7_Y - 3 * G), 'U')   # pin 1 top
+    _pin_label(s, "V3V3_SW", (R7_X, R7_Y - 3 * G), 'U')   # pin 1 top (V3V3_SW — single label for whole top-row trunk)
     _pin_label(s, "ESP_EN",  (R7_X, R7_Y + 3 * G), 'D')   # pin 2 bottom
 
     # C8 — 1 µF EN soft-start cap. EN to GND.
@@ -1260,7 +1260,6 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "C", "C6", "10uF",
                   "Capacitor_SMD:C_0805_2012Metric",
                   (C6_X, C6_Y), lib=lib)
-    _pin_label(s, "V3V3_SW", (C6_X, C6_Y - 3 * G), 'U')
     _pin_label(s, "GND",     (C6_X, C6_Y + 3 * G), 'D')
 
     # C7 — 100 nF ESP HF decoupling
@@ -1268,7 +1267,17 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "C", "C7", "100nF",
                   "Capacitor_SMD:C_0402_1005Metric",
                   (C7_X, C7_Y), lib=lib)
-    _pin_label(s, "V3V3_SW", (C7_X, C7_Y - 3 * G), 'U')
+    # D16: V3V3_SW horizontal trunk along the ESP support row, segmented
+    # at each tap point so KiCad's ERC sees explicit endpoint coincidence.
+    _TRUNK_Y = R7_Y - 5 * G
+    # Up-stubs from each pin1 endpoint to the trunk Y:
+    _place_wire(s, (R7_X, R7_Y - 3 * G), (R7_X, _TRUNK_Y))   # R7.pin1 → trunk
+    _place_wire(s, (C6_X, C6_Y - 3 * G), (C6_X, _TRUNK_Y))   # C6.pin1 → trunk
+    _place_wire(s, (C7_X, C7_Y - 3 * G), (C7_X, _TRUNK_Y))   # C7.pin1 → trunk
+    # Horizontal trunk in two segments (R7→C6, C6→C7) so the C6 tap
+    # creates an explicit T-junction endpoint coincidence.
+    _place_wire(s, (R7_X, _TRUNK_Y), (C6_X, _TRUNK_Y))
+    _place_wire(s, (C6_X, _TRUNK_Y), (C7_X, _TRUNK_Y))
     _pin_label(s, "GND",     (C7_X, C7_Y + 3 * G), 'D')
 
     # ===== Iter 20: RTC + RS-485 + button + connectors + dev headers =====
@@ -1344,15 +1353,12 @@ def build_battery_side_schematic() -> None:
     _pin_label(s, "V3V3_SW", (R8_X, R8_Y - 3 * G), 'U')
     _pin_label(s, "I2C_SDA", (R8_X, R8_Y + 3 * G), 'D')
     R9_X, R9_Y = 42 * G, 128 * G
-    # D11 #2 demo: horizontal wire linking R8/R9 V3V3_SW endpoints visually.
-    # Both endpoints already have V3V3_SW labels; the wire is decorative
-    # reinforcement that these I2C pullups share the same rail. ERC
-    # topology unchanged (labels are the topological source-of-truth).
+    # D16: V3V3_SW deduped — R8.pin1 keeps the single label and
+    # the horizontal wire carries V3V3_SW to R9.pin1.
     _place_wire(s, (R9_X, R9_Y - 3 * G), (R8_X, R8_Y - 3 * G))
     _place_symbol(s, "R", "R9", "4.7k",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R9_X, R9_Y), lib=lib)
-    _pin_label(s, "V3V3_SW", (R9_X, R9_Y - 3 * G), 'U')
     _pin_label(s, "I2C_SCL", (R9_X, R9_Y + 3 * G), 'D')
 
     # U3 — RS-485 transceiver (LTC2850xS8 stand-in for SN65HVD3082E).
