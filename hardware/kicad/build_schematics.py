@@ -988,7 +988,9 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "C", "C2", "22uF/25V",
                   "Capacitor_SMD:C_1210_3225Metric",
                   (C2_X, C2_Y), lib=lib)
-    _pin_label(s, "V3V3_SW", (C2_X, C2_Y - 3 * G), 'U')
+    # D16: V3V3_SW label deduped — wire C2.pin1 up + over to L1.pin2 (also V3V3_SW).
+    _place_wire(s, (C2_X, C2_Y - 3 * G), (C2_X, L1_Y + 3 * G))
+    _place_wire(s, (C2_X, L1_Y + 3 * G), (L1_X, L1_Y + 3 * G))
     # No GND label here — see the C2↔C3 GND wire after C3 placement.
 
     # C_BST — 100 nF bootstrap cap between U1.BST and U1.SW. Required for
