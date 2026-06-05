@@ -202,6 +202,28 @@ def build_library() -> None:
         # shows the button glyph with no annotations.
         "SW_Push",
     }
+    # D16 / #40: hide duplicate stacked-power pins on the lib symbol so
+    # only one pin renders at each library coordinate. The hidden pins
+    # remain in the netlist (KiCad emits them for the footprint pad map)
+    # but their pin number text no longer stacks on top of the visible
+    # pin's number. Lets us re-enable pin numbers on the chips.
+    _hide_stacked_power_pins_on = {
+        # DS3231M: pins 5..13 all GND at lib (0, -10.16). Keep pin 5
+        # visible; hide 6..13 so only "5" renders.
+        "DS3231M": {"6", "7", "8", "9", "10", "11", "12", "13"},
+        # ESP32-S3-WROOM-1: pins 1, 40, 41 all GND at lib (0, -27.94).
+        # Keep pin 1 visible; hide 40 + 41.
+        "ESP32-S3-WROOM-1": {"40", "41"},
+    }
+    for sym in out_lib.symbols:
+        hide_nums = _hide_stacked_power_pins_on.get(sym.entryName)
+        if not hide_nums:
+            continue
+        for u in sym.units:
+            for p in u.pins:
+                if p.number in hide_nums:
+                    p.hide = True
+
     _hide_pin_numbers_on = {
         # PWR_FLAG is single-pin marker; "1" overlaps the Value text.
         "PWR_FLAG",
@@ -225,15 +247,6 @@ def build_library() -> None:
         # exclusion), but pin numbers 1/2/3 overlap the GlobalLabel
         # chevron tips on the gate/drain/source pins.
         "Q_PMOS_GSD", "Q_NMOS_GSD",
-        # ESP32-S3-WROOM-1: pins 1 / 40 / 41 share lib coord (0,-27.94),
-        # so the numbers stack visibly. Net labels at each pin endpoint
-        # carry the wiring; the pin numbers add no value once they're
-        # piled on top of each other.
-        "ESP32-S3-WROOM-1",
-        # DS3231M: pins 5..13 are all GND and share lib coord (0,-10.16);
-        # KiCad renders nine pin numbers on top of each other. The single
-        # GND label at the bottom of the chip already documents the net.
-        "DS3231M",
     }
     for sym in out_lib.symbols:
         if sym.entryName in _hide_pin_names_on:
@@ -1209,7 +1222,7 @@ def build_battery_side_schematic() -> None:
             _place_noconnect(s, endpoint)
         else:
             dx, dy = _outward_for_angle(lib_a)
-            outer = (endpoint[0] + dx * 4 * G, endpoint[1] + dy * 4 * G)
+            outer = (endpoint[0] + dx * 6 * G, endpoint[1] + dy * 6 * G)  # D16: 6G stub so chevron tip clears the newly-visible MOD1 pin number
             _place_wire(s, endpoint, outer)
             # Orient the label so its text reads AWAY from the symbol body
             # (left-side pins must extend left, not back over the pin name).
@@ -1290,10 +1303,10 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "V_BAT_RTC",(RTC1_X + 6 * G, RTC1_Y - 12 * G), angle=90)                 # pin 14 VBAT (top → up)
     # D16: RTC1 pins 5..13 GND → stock power port.
     _place_power_port(s, "GND", (RTC1_X, RTC1_Y + 8 * G), 'D', stub=2 * G, lib=lib)
-    _place_wire(s,  (RTC1_X - 10 * G, RTC1_Y - 2 * G), (RTC1_X - 12 * G, RTC1_Y - 2 * G))  # pin 15 stub
-    _place_label(s, "I2C_SDA",  (RTC1_X - 12 * G, RTC1_Y - 2 * G), angle=180)               # pin 15 SDA (left → left)
-    _place_wire(s,  (RTC1_X - 10 * G, RTC1_Y - 4 * G), (RTC1_X - 12 * G, RTC1_Y - 4 * G))  # pin 16 stub
-    _place_label(s, "I2C_SCL",  (RTC1_X - 12 * G, RTC1_Y - 4 * G), angle=180)               # pin 16 SCL (left → left)
+    _place_wire(s,  (RTC1_X - 10 * G, RTC1_Y - 2 * G), (RTC1_X - 14 * G, RTC1_Y - 2 * G))  # D16: 4G stub so chevron clears pin 15 number
+    _place_label(s, "I2C_SDA",  (RTC1_X - 14 * G, RTC1_Y - 2 * G), angle=180)
+    _place_wire(s,  (RTC1_X - 10 * G, RTC1_Y - 4 * G), (RTC1_X - 14 * G, RTC1_Y - 4 * G))  # D16: 4G stub
+    _place_label(s, "I2C_SCL",  (RTC1_X - 14 * G, RTC1_Y - 4 * G), angle=180)
     _place_noconnect(s, (RTC1_X - 10 * G, RTC1_Y + 4 * G))          # pin 4 RST
     _place_noconnect(s, (RTC1_X + 10 * G, RTC1_Y - 4 * G))          # pin 1 32KHZ
     _place_noconnect(s, (RTC1_X + 10 * G, RTC1_Y + 2 * G))          # pin 3 INT/SQW
@@ -1765,7 +1778,7 @@ def build_display_side_schematic() -> None:
             _place_noconnect(s, endpoint)
         else:
             dx, dy = _outward_for_angle(lib_a)
-            outer = (endpoint[0] + dx * 4 * G, endpoint[1] + dy * 4 * G)
+            outer = (endpoint[0] + dx * 6 * G, endpoint[1] + dy * 6 * G)  # D16: 6G stub so chevron tip clears the newly-visible MOD1 pin number
             _place_wire(s, endpoint, outer)
             # Orient the label so its text reads AWAY from the symbol body
             # (left-side pins must extend left, not back over the pin name).
