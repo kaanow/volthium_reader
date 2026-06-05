@@ -199,6 +199,11 @@ def build_library() -> None:
     _hide_pin_numbers_on = {
         # PWR_FLAG is single-pin marker; "1" overlaps the Value text.
         "PWR_FLAG",
+        # D16: stock power-port symbols (+3V3, +12V, +24V, GND) have a
+        # single pin numbered "1" that the strict audit picks up as a
+        # SAME-TEXT stroke-font duplicate at every placement. The glyph
+        # is self-evident; the "1" adds nothing.
+        "GND", "+3V3", "+12V", "+24V",
         # 2- and 3-pin discretes: pin numbers are redundant (polarity
         # is shown by the symbol shape — diode triangle, cap line,
         # etc.) and they pile onto the Value text every time. Hiding
@@ -594,8 +599,22 @@ def _place_label(sch: Schematic, text: str, pos: tuple[float, float], *, angle: 
     sch.globalLabels.append(lbl)
 
 
+def _set_active_lib(lib: SymbolLib) -> None:
+    """Set the library every `_pin_label` invocation in this run uses to
+    resolve stock power-port symbol names. Called once per schematic
+    build so call sites don't have to thread `lib=` through every
+    `_pin_label` invocation.
+    """
+    global _ACTIVE_LIB
+    _ACTIVE_LIB = lib
+
+
+_ACTIVE_LIB: SymbolLib | None = None
+
+
 def _pin_label(sch: Schematic, net: str, endpoint: tuple[float, float],
-               outdir: str, *, stub: float = 3 * 1.27, angle: float | None = None) -> None:
+               outdir: str, *, stub: float = 3 * 1.27, angle: float | None = None,
+               lib: SymbolLib | None = None) -> None:
     """Connect a net label to a pin endpoint via a stub wire, placing the
     label out in clear space so its text never lands on pin numbers, pin
     names, or the part's own Reference/Value text.
@@ -609,7 +628,18 @@ def _pin_label(sch: Schematic, net: str, endpoint: tuple[float, float],
     This is the single chokepoint for "label a pin" — every 2-pin passive,
     connector, and flag should route through here rather than dropping a bare
     label on the endpoint (which is what made earlier sheets unreadable).
+
+    D16 / CP6 iter-8: for nets that map to a stock KiCad power port symbol
+    (GND, +3V3, +12V, +24V), route through `_place_power_port` instead of
+    dropping a GlobalLabel. The standard power-port glyphs (downward
+    triangle for GND, upward arrow for supplies) are visually distinct from
+    signal-label flags and from each other, which is what makes "this pin
+    goes to GND" readable at a glance.
     """
+    _lib = lib if lib is not None else _ACTIVE_LIB
+    if net in _STOCK_POWER_PORTS and _lib is not None:
+        _place_power_port(sch, net, endpoint, outdir, stub=stub, lib=_lib)
+        return
     dirs = {'L': (-1, 0), 'R': (1, 0), 'U': (0, -1), 'D': (0, 1)}
     dx, dy = dirs[outdir]
     far = (endpoint[0] + dx * stub, endpoint[1] + dy * stub)
@@ -617,6 +647,76 @@ def _pin_label(sch: Schematic, net: str, endpoint: tuple[float, float],
     if angle is None:
         angle = {'L': 180, 'R': 0, 'U': 90, 'D': 270}[outdir]
     _place_label(sch, net, far, angle=angle)
+
+
+# D16 / CP6 iter-8: nets that have a stock KiCad power port glyph in our
+# `volthium` library. _pin_label routes these to _place_power_port so the
+# rendered schematic shows the standard ground-triangle / supply-arrow
+# instead of an indistinguishable flag-shaped GlobalLabel.
+_STOCK_POWER_PORTS = {"GND", "+3V3", "+12V", "+24V"}
+
+
+def _place_power_port(sch: Schematic, net: str, endpoint: tuple[float, float],
+                      outdir: str, *, stub: float, lib: SymbolLib) -> None:
+    """Place a stock KiCad power port symbol at the outer end of a stub.
+
+    The power port symbol has a single pin labelled with the net name.
+    KiCad ERC treats this as a power-net connection automatically — no
+    separate GlobalLabel needed. The visible glyph (ground triangle for
+    GND, upward arrow for supplies) is the standard schematic notation
+    a reader recognizes instantly.
+
+    Pin geometry for the stock symbols (lib coords): pin 1 is at (0, 0)
+    for all of them, with pin angle 90 (extends downward in lib =
+    upward in schematic after Y-flip) for the supply symbols and
+    angle 270 for GND (extends upward in lib = downward in schematic).
+    The symbol body sits ABOVE the pin for supplies, BELOW for GND.
+
+    We orient the symbol so its pin lands at the outer end of the stub,
+    pointing back toward the endpoint:
+      outdir 'D' (pin faces down → port goes below): angle 0
+      outdir 'U' (pin faces up   → port goes above): angle 180
+      outdir 'L' (pin faces left → port goes left):  angle 90
+      outdir 'R' (pin faces right→ port goes right): angle 270
+    """
+    dirs = {'L': (-1, 0), 'R': (1, 0), 'U': (0, -1), 'D': (0, 1)}
+    dx, dy = dirs[outdir]
+    far = (endpoint[0] + dx * stub, endpoint[1] + dy * stub)
+    _place_wire(sch, endpoint, far)
+
+    _copy_symbol_to_schematic(lib, net, sch)
+    inst = SchematicSymbol()
+    inst.libraryNickname = "volthium"
+    inst.entryName = net
+    inst.position = Position(X=far[0], Y=far[1],
+                             angle={'D': 0, 'U': 180, 'L': 90, 'R': 270}[outdir])
+    inst.unit = 1
+    inst.inBom = False
+    inst.onBoard = False
+    inst.fieldsAutoplaced = True
+    inst.uuid = _uuid()
+    # Power port instance properties: Reference="#PWR" auto-annotation
+    # placeholder (KiCad fills it in on save); Value=net name (hidden,
+    # since the symbol glyph already conveys which rail).
+    ref_hide = Effects()
+    ref_hide.hide = True
+    val_hide = Effects()
+    val_hide.hide = True
+    inst.properties = [
+        Property(key="Reference", value="#PWR",
+                 position=Position(X=far[0], Y=far[1], angle=0),
+                 effects=ref_hide),
+        Property(key="Value", value=net,
+                 position=Position(X=far[0], Y=far[1], angle=0),
+                 effects=val_hide),
+        Property(key="Footprint", value="",
+                 position=Position(X=far[0], Y=far[1], angle=0),
+                 effects=Effects(hide=True)),
+        Property(key="Datasheet", value="",
+                 position=Position(X=far[0], Y=far[1], angle=0),
+                 effects=Effects(hide=True)),
+    ]
+    sch.schematicSymbols.append(inst)
 
 
 def _place_noconnect(sch: Schematic, pos: tuple[float, float]) -> None:
@@ -698,6 +798,7 @@ def build_battery_side_schematic() -> None:
     _set_title_block(s, "Volthium reader — battery side")
     _add_rail_convention_note(s)
     lib = _load_project_lib()
+    _set_active_lib(lib)
 
     # KiCad connection grid is 1.27 mm. All positions are expressed as n×G
     # so endpoints land on the grid (resistor pins are at ±3*G from center,
@@ -825,8 +926,8 @@ def build_battery_side_schematic() -> None:
     _place_wire(s, (U1_X - 6 * G, U1_Y - 6 * G), (U1_X - 6 * G, U1_Y - 4 * G))   # pin 3 ↔ pin 2
     _place_wire(s, (U1_X - 6 * G, U1_Y - 4 * G), (U1_X - 8 * G, U1_Y - 4 * G))  # tied-pair stub
     _place_label(s, "V24_SW",  (U1_X - 8 * G, U1_Y - 4 * G), angle=180)   # pin 2 EN / pin 3 VIN (left → reads left)
-    _place_wire(s,  (U1_X,         U1_Y + 10 * G), (U1_X,         U1_Y + 11 * G))  # pin 4 stub
-    _place_label(s, "GND",     (U1_X,         U1_Y + 11 * G), angle=270)  # pin 4 GND (bottom → reads down)
+    # D16: route U1 pin 4 GND through the stock power port.
+    _place_power_port(s, "GND", (U1_X, U1_Y + 10 * G), 'D', stub=1 * G, lib=lib)
     _place_wire(s,  (U1_X + 6 * G, U1_Y),         (U1_X + 8 * G, U1_Y))            # pin 5 stub
     _place_label(s, "U1_SW",   (U1_X + 8 * G, U1_Y))             # pin 5 SW
     _place_wire(s,  (U1_X + 6 * G, U1_Y + 6 * G), (U1_X + 8 * G, U1_Y + 6 * G))   # pin 8 stub
@@ -958,8 +1059,8 @@ def build_battery_side_schematic() -> None:
     # iter 55 fix F1: same stub-out pattern.
     _place_wire(s,  (Q2_X - 4 * G, Q2_Y),         (Q2_X - 6 * G, Q2_Y))           # pin 1 G stub
     _place_label(s, "PWR_EN",  (Q2_X - 6 * G, Q2_Y), angle=180)                   # pin 1 G (left → reads left)
-    _place_wire(s,  (Q2_X + 2 * G, Q2_Y + 4 * G), (Q2_X + 2 * G, Q2_Y + 6 * G))  # pin 2 S stub
-    _place_label(s, "GND",     (Q2_X + 2 * G, Q2_Y + 6 * G))                      # pin 2 S
+    # D16: Q2 pin 2 S → GND via stock power port.
+    _place_power_port(s, "GND", (Q2_X + 2 * G, Q2_Y + 4 * G), 'D', stub=2 * G, lib=lib)
     # Q1_GATE label deduped at Q2.D — wire up to Q1.G (which keeps the label).
     _place_wire(s, (Q2_X + 2 * G, Q2_Y - 4 * G), (Q2_X + 2 * G, Q1_Y))   # Q2.D → corner
     _place_wire(s, (Q2_X + 2 * G, Q1_Y),         (Q1_X - 4 * G, Q1_Y))   # corner → Q1.G
@@ -1171,8 +1272,8 @@ def build_battery_side_schematic() -> None:
     _place_wire(s,  (RTC1_X,         RTC1_Y -  8 * G), (RTC1_X,         RTC1_Y - 12 * G))   # pin 14 up 4G
     _place_wire(s,  (RTC1_X,         RTC1_Y - 12 * G), (RTC1_X + 6 * G, RTC1_Y - 12 * G))   # pin 14 right 6G
     _place_label(s, "V_BAT_RTC",(RTC1_X + 6 * G, RTC1_Y - 12 * G), angle=90)                 # pin 14 VBAT (top → up)
-    _place_wire(s,  (RTC1_X,         RTC1_Y +  8 * G), (RTC1_X,         RTC1_Y + 10 * G))   # pin 13 stub
-    _place_label(s, "GND",      (RTC1_X,         RTC1_Y + 10 * G), angle=270)               # pins 5-13 GND (bottom → down)
+    # D16: RTC1 pins 5..13 GND → stock power port.
+    _place_power_port(s, "GND", (RTC1_X, RTC1_Y + 8 * G), 'D', stub=2 * G, lib=lib)
     _place_wire(s,  (RTC1_X - 10 * G, RTC1_Y - 2 * G), (RTC1_X - 12 * G, RTC1_Y - 2 * G))  # pin 15 stub
     _place_label(s, "I2C_SDA",  (RTC1_X - 12 * G, RTC1_Y - 2 * G), angle=180)               # pin 15 SDA (left → left)
     _place_wire(s,  (RTC1_X - 10 * G, RTC1_Y - 4 * G), (RTC1_X - 12 * G, RTC1_Y - 4 * G))  # pin 16 stub
@@ -1255,8 +1356,8 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "DE_RE",       (U3_X - 8 * G - _STUB_H, U3_Y - 2 * G), angle=180)         # pin 2/3 (tied, left)
     _place_wire(s,  (U3_X -  8 * G, U3_Y + 4 * G), (U3_X -  8 * G - _STUB_H, U3_Y + 4 * G))  # pin 4 stub
     _place_label(s, "UART_TX_3V3", (U3_X - 8 * G - _STUB_H, U3_Y + 4 * G), angle=180)         # pin 4 DI (left)
-    _place_wire(s,  (U3_X,          U3_Y + 12 * G), (U3_X,          U3_Y + 12 * G + _STUB_V)) # pin 5 stub
-    _place_label(s, "GND",         (U3_X,          U3_Y + 12 * G + _STUB_V), angle=270)       # pin 5 GND (bottom → down)
+    # D16: U3 pin 5 GND → stock power port.
+    _place_power_port(s, "GND", (U3_X, U3_Y + 12 * G), 'D', stub=_STUB_V, lib=lib)
     _place_wire(s,  (U3_X +  8 * G, U3_Y - 6 * G), (U3_X +  8 * G + _STUB_H, U3_Y - 6 * G))  # pin 6 stub
     _place_label(s, "RS485_A",     (U3_X + 8 * G + _STUB_H, U3_Y - 6 * G))                    # pin 6 A
     _place_wire(s,  (U3_X +  8 * G, U3_Y - 2 * G), (U3_X +  8 * G + _STUB_H, U3_Y - 2 * G))  # pin 7 stub
@@ -1328,8 +1429,8 @@ def build_battery_side_schematic() -> None:
     # don't sit on the switch's in-body pin number text.
     _place_wire(s,  (BTN1_X - 4 * G, BTN1_Y), (BTN1_X - 6 * G, BTN1_Y))   # pin 1 stub (left)
     _place_label(s, "BTN_OVERRIDE", (BTN1_X - 6 * G, BTN1_Y), angle=180)  # pin 1 (left)
-    _place_wire(s,  (BTN1_X + 4 * G, BTN1_Y), (BTN1_X + 6 * G, BTN1_Y))   # pin 2 stub (right)
-    _place_label(s, "GND",          (BTN1_X + 6 * G, BTN1_Y))             # pin 2
+    # D16: BTN1 pin 2 → GND via stock power port.
+    _place_power_port(s, "GND", (BTN1_X + 4 * G, BTN1_Y), 'R', stub=2 * G, lib=lib)
 
     # R13 — 1 MΩ pull-up BTN_OVERRIDE → V3V3_SW
     R13_X, R13_Y = 62 * G, 192 * G
@@ -1456,6 +1557,7 @@ def build_display_side_schematic() -> None:
     _set_title_block(s, "Volthium reader — display side")
     _add_rail_convention_note(s)
     lib = _load_project_lib()
+    _set_active_lib(lib)
     G = 1.27
 
     # ===== Power input: J1 RJ45 → F1 PTC → TVS1 → C1 input bulk =====
@@ -1745,8 +1847,8 @@ def build_display_side_schematic() -> None:
     _place_label(s, "DE_RE",       (U2_X - 8 * G - _STUB_H, U2_Y - 2 * G), angle=180)         # pin 2/3 (tied, left)
     _place_wire(s,  (U2_X -  8 * G, U2_Y + 4 * G), (U2_X -  8 * G - _STUB_H, U2_Y + 4 * G))  # pin 4 stub
     _place_label(s, "UART_TX_3V3", (U2_X - 8 * G - _STUB_H, U2_Y + 4 * G), angle=180)         # pin 4 DI (left)
-    _place_wire(s,  (U2_X,          U2_Y + 12 * G), (U2_X,          U2_Y + 12 * G + _STUB_V)) # pin 5 stub
-    _place_label(s, "GND",         (U2_X,          U2_Y + 12 * G + _STUB_V), angle=270)       # pin 5 GND (bottom → down)
+    # D16: U2 pin 5 GND → stock power port.
+    _place_power_port(s, "GND", (U2_X, U2_Y + 12 * G), 'D', stub=_STUB_V, lib=lib)
     _place_wire(s,  (U2_X +  8 * G, U2_Y - 6 * G), (U2_X +  8 * G + _STUB_H, U2_Y - 6 * G))  # pin 6 stub
     _place_label(s, "RS485_A",     (U2_X + 8 * G + _STUB_H, U2_Y - 6 * G))                    # pin 6 A
     _place_wire(s,  (U2_X +  8 * G, U2_Y - 2 * G), (U2_X +  8 * G + _STUB_H, U2_Y - 2 * G))  # pin 7 stub
@@ -1817,8 +1919,8 @@ def build_display_side_schematic() -> None:
         # iter 55 fix F4: stub-out so net labels clear the pin numbers.
         _place_wire(s,  (BTN_X - 4 * G, BTN_Y), (BTN_X - 6 * G, BTN_Y))
         _place_label(s, btn_net, (BTN_X - 6 * G, BTN_Y), angle=180)   # pin 1 (left)
-        _place_wire(s,  (BTN_X + 4 * G, BTN_Y), (BTN_X + 6 * G, BTN_Y))
-        _place_label(s, "GND",   (BTN_X + 6 * G, BTN_Y))   # pin 2 (right)
+        # D16: BTN pin 2 → GND via stock power port (right side).
+        _place_power_port(s, "GND", (BTN_X + 4 * G, BTN_Y), 'R', stub=2 * G, lib=lib)
         # R — 1MΩ pull-up
         R_X = BTN_X + 8 * G
         _place_symbol(s, "R", r_ref, "1M",
