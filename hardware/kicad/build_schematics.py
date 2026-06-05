@@ -1407,8 +1407,11 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "C", "C10", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (C10_X, C10_Y), lib=lib)
-    _pin_label(s, "V3V3_SW", (C10_X, C10_Y - 3 * G), 'U')
-    _pin_label(s, "GND",     (C10_X, C10_Y + 3 * G), 'D')
+    # D16: V3V3_SW deduped — wire C10.pin1 left + down to U3 pin 8
+    # endpoint (also V3V3_SW). U3 keeps the single label.
+    _place_wire(s, (C10_X, C10_Y - 3 * G), (U3_X, C10_Y - 3 * G))
+    _place_wire(s, (U3_X, C10_Y - 3 * G), (U3_X, U3_Y - 12 * G))
+    _place_power_port(s, "GND", (C10_X, C10_Y + 3 * G), 'D', stub=2 * G, lib=lib)
 
     # R10 — 120 Ω RS-485 termination (A ↔ B). Horizontal so both pins
     # land on the A/B nets without rotating the symbol.
@@ -1802,7 +1805,7 @@ def build_display_side_schematic() -> None:
     _place_symbol(s, "R", "R1", "10k",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R1_X, R1_Y), lib=lib)
-    _pin_label(s, "V3V3",   (R1_X, R1_Y - 3 * G), 'U')
+    _pin_label(s, "V3V3",   (R1_X, R1_Y - 3 * G), 'U')   # single V3V3 trunk label
     _pin_label(s, "ESP_EN", (R1_X, R1_Y + 3 * G), 'D')
     # C5 — 1µF EN soft-start
     C5_X, C5_Y = MOD1_X - 16 * G, SUP_Y
@@ -1816,15 +1819,20 @@ def build_display_side_schematic() -> None:
     _place_symbol(s, "C", "C3", "10uF",
                   "Capacitor_SMD:C_0805_2012Metric",
                   (C3_X, C3_Y), lib=lib)
-    _pin_label(s, "V3V3", (C3_X, C3_Y - 3 * G), 'U')
     _pin_label(s, "GND",  (C3_X, C3_Y + 3 * G), 'D')
     # C4 — 100nF ESP HF decoupling
     C4_X, C4_Y = MOD1_X, SUP_Y
     _place_symbol(s, "C", "C4", "100nF",
                   "Capacitor_SMD:C_0402_1005Metric",
                   (C4_X, C4_Y), lib=lib)
-    _pin_label(s, "V3V3", (C4_X, C4_Y - 3 * G), 'U')
     _pin_label(s, "GND",  (C4_X, C4_Y + 3 * G), 'D')
+    # D16: V3V3 trunk along the ESP support row 2 G above the pin1 row.
+    _TRUNK_Y = R1_Y - 5 * G
+    _place_wire(s, (R1_X, R1_Y - 3 * G), (R1_X, _TRUNK_Y))
+    _place_wire(s, (C3_X, C3_Y - 3 * G), (C3_X, _TRUNK_Y))
+    _place_wire(s, (C4_X, C4_Y - 3 * G), (C4_X, _TRUNK_Y))
+    _place_wire(s, (R1_X, _TRUNK_Y), (C3_X, _TRUNK_Y))
+    _place_wire(s, (C3_X, _TRUNK_Y), (C4_X, _TRUNK_Y))
 
     # ===== E-paper FFC: J2 Hirose FH12-24S + C6 panel VCC bulk =====
     #
@@ -1927,8 +1935,10 @@ def build_display_side_schematic() -> None:
     _place_symbol(s, "C", "C7", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (C7_X, C7_Y), lib=lib)
-    _pin_label(s, "V3V3", (C7_X, C7_Y - 3 * G), 'U')
-    _pin_label(s, "GND",  (C7_X, C7_Y + 3 * G), 'D')
+    # D16: V3V3 deduped — wire C7.pin1 left + down to U2 pin 8 endpoint.
+    _place_wire(s, (C7_X, C7_Y - 3 * G), (U2_X, C7_Y - 3 * G))
+    _place_wire(s, (U2_X, C7_Y - 3 * G), (U2_X, U2_Y - 12 * G))
+    _place_power_port(s, "GND", (C7_X, C7_Y + 3 * G), 'D', stub=2 * G, lib=lib)
 
     # R2 — 120Ω termination (A ↔ B), bus terminus
     R2_X, R2_Y = U2_X + 16 * G, U2_Y - 4 * G   # (299.72, 96.52)
