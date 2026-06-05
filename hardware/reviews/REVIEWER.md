@@ -140,11 +140,28 @@ For **CP2+** (KiCad-based CPs), additionally:
   **A scripted-audit PASS in the packet, without screenshots, is
   not a valid sign-off** — that's the documented iter-36 failure;
   don't accept it.
-- **Overlap policy (strict).** Treat overlap of any schematic objects
-  as a failure by default: text, symbol bodies, wires, pin names,
-  pin numbers, labels, junctions, or annotations. Accept overlap only
-  when the packet contains a concrete, defensible written exception and
-  the overlapped region is still clearly readable at 100 % zoom.
+- **Overlap policy (strict, D16).** Treat overlap of any schematic
+  objects as a failure: text, symbol bodies, wires, pin names, pin
+  numbers, labels, GlobalLabel chevrons, junctions, or annotations.
+  Per [`decisions.md` D16](../layout/decisions.md#d16--schematic-goal-is-a-human-can-read-it-and-understand-the-design)
+  the **previous "defensible exception" path is revoked** — there
+  is no path under which an overlap-present schematic passes. Any
+  overlap is a finding; the designer must revise and re-render.
+- **D16 schematic-readability goal.** Top-level acceptance criterion
+  for any schematic-touching CP:
+  > A human can read this schematic and understand the design.
+  Operational items (must all hold before passing):
+  - Real interconnect wires inside every functional cluster (not
+    GlobalLabel-name-matching).
+  - Stock KiCad power-port symbols (ground triangle, supply arrow)
+    for power rails — not flag labels.
+  - Pin numbers visible on every IC. If a lib symbol stacks power
+    pins at one coord, fix the lib (consolidate via `(alternates)`
+    or relocate), don't hide pin numbers on the instance.
+  - Functional sub-circuits read as visual clusters with a clear
+    primary signal-flow direction.
+  - Strict overlap audit exits 0.
+  Cite each item separately if the designer misses any.
 - **Codex-owned screenshot evidence (mandatory).** On every CP2+ review,
   independently generate your own dense-region screenshots from the
   committed schematic PDFs and save them under:

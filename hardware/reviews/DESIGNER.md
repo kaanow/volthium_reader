@@ -24,18 +24,78 @@ On every wake:
    cycle (unless they invoked `/loop`, in which case
    `ScheduleWakeup` is fine).
 
-## 0. Documentation readability is a first-class deliverable (D11)
+## 0. Documentation readability is a first-class deliverable (D11 / D16)
 
 Every PDF, schematic, render, BOM, and assembly drawing you commit
 must satisfy [`decisions.md` D11](../layout/decisions.md#d11--all-committed-documentation-must-be-engineer-readable) —
-engineer-readable bar. Read D11 in full before generating any
-document. Treat readability as equal to correctness, not a side
-effect. Codex enforces this in review.
+engineer-readable bar — and the top-level
+[`decisions.md` D16](../layout/decisions.md#d16--schematic-goal-is-a-human-can-read-it-and-understand-the-design)
+goal:
+
+> **A human can read this schematic and understand the design.**
+
+Read D11 *and* D16 in full before generating any document. Treat
+readability as equal to correctness, not a side effect. Codex
+enforces this in review. D16 revokes the previous "defensible
+exception" carve-out for overlaps: **any** overlapping text, symbol,
+label box, chevron, pin name, pin number, junction, wire, or
+graphical annotation is to be revised until it is not present. No
+exception path.
 
 If a programmatic generation strategy produces machine-valid but
 human-unreadable output (overlapping symbols, label-spaghetti
-without wires, blank title blocks), surface that tradeoff in the
-review packet — don't ship it silently.
+without wires, blank title blocks), it does not pass — fix the
+generator, do not ship and document a residual.
+
+### Schematic-readiness checklist (D16 acceptance bar)
+
+Before flipping the semaphore to `codex_turn` on any iteration that
+touches a schematic, all of the following must hold. These are the
+operational items behind the D16 goal; future PCB projects forking
+this template inherit them.
+
+1. **Real interconnect wires within every functional cluster.** Two
+   components in the same sub-circuit (a cap and the IC pin it
+   decouples; an I²C pull-up and the bus it pulls up; a
+   bootstrap cap and the regulator's BST/SW pins; a button and its
+   pull-up and debounce cap) are connected by wires drawn on the
+   schematic, not by sharing a `GlobalLabel` net name. `GlobalLabel`
+   is reserved for power rails (when not handled by a power-port
+   symbol — see #2) and for genuine cross-cluster signals.
+2. **Stock KiCad power-port symbols for power rails.** GND uses the
+   ground-triangle glyph; supply rails use the upward-arrow glyph
+   keyed to the rail name (`+3V3`, `+12V`, `+24V`, or a project
+   power-port symbol for named intermediate rails). A reader sees
+   "this pin goes to GND" via the standard ground symbol, not by
+   reading the text inside a flag-shaped label.
+3. **Pin numbers visible on every IC.** If the library symbol has
+   multiple power pins sharing one library coordinate (e.g. ESP32
+   GND pins 1/40/41, or DS3231M GND pins 5..13), fix it at the lib
+   level — either consolidate the bundle via `(alternates)` or
+   relocate the duplicates — so pin numbers can render without
+   stacking on top of each other. Hiding pin numbers on the
+   instance is a last resort and forfeits one of the schematic's
+   primary uses (cross-reference to the footprint).
+4. **Functional-block visual grouping with primary signal flow.**
+   Each sub-circuit (power input + protection, regulator, MCU,
+   RTC, RS-485, buttons, dev headers, …) lays out as a tight
+   cluster with members within a few grid units of each other and
+   clear whitespace separating it from neighbouring clusters.
+   Signal flow inside the cluster runs left-to-right or
+   top-to-bottom; supplies enter from the top edge of the cluster,
+   GND exits from the bottom.
+5. **Zero on the strict overlap audit.**
+   `.venv/bin/python hardware/reviews/tools/schematic_visual_audit.py --strict`
+   must exit 0 on every committed schematic PDF before the iter is
+   considered ready. SAME-TEXT identical-bbox pairs that originate
+   from KiCad's PDF stroke-font rendering still count — fix the
+   font, the property layout, or the generator until they do not
+   appear. **There is no "documented residual" path.**
+
+A scripted audit is still worth running first — it's a cheap filter
+for symbol coordinate collisions, duplicate placements, and obvious
+spacing problems. The visual gate below is on top of that, not
+instead of it.
 
 ### Operational checklist — before claiming D11 #0 or #5 PASS
 

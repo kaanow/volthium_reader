@@ -361,14 +361,29 @@ packet a hard requirement of the sign-off itself.
 
 ### Portability for future PCB projects
 
-D11, including the visual-inspection protocol and the documented
-failure above, is intended to be **copied verbatim** into any future
-PCB project that forks this template. A fresh Claude or Codex
-instance starting a new board project should read D11 first,
-internalize the failure mode, and never claim a documentation gate
-PASS based on script output alone. The operational checklist in
-`hardware/reviews/DESIGNER.md` §0 references this protocol and must
-be carried forward together with it.
+D11 *and* D16 (top-level goal + zero-exception overlap rule), the
+visual-inspection protocol, the documented iter-36 failure, and the
+D16 schematic-readiness checklist in `hardware/reviews/DESIGNER.md`
+§0 are intended to be **copied verbatim** into any future PCB
+project that forks this template. A fresh Claude or Codex instance
+starting a new board project should:
+
+1. Read D11 + D16 first and internalize both the goal and the hard
+   zero-overlap rule.
+2. Read the documented iter-36 failure (D11 §"Documented failure")
+   and the D16 trigger context to understand why the "defensible
+   exception" path was retired.
+3. Read the D16 schematic-readiness checklist in DESIGNER.md §0
+   and treat each item as a deliverable equal to ERC clean / DRC
+   clean.
+4. Never claim a documentation or schematic gate PASS based on
+   script output alone, and never request a "residual" exception
+   under D16.
+
+The operational checklist (`hardware/reviews/DESIGNER.md` §0) and
+the reviewer counterpart (`hardware/reviews/REVIEWER.md` §4 overlap
+policy + D16 schematic-readability goal) must be carried forward
+together with D11 + D16.
 
 ### Existing violations
 
