@@ -1917,39 +1917,47 @@ def build_display_side_schematic() -> None:
     _place_wire(s, (R2_X, TVS2_Y),         (TVS2_X - 3 * G, TVS2_Y))  # corner → TVS2.pin1
 
     # ===== Buttons: BTN1/2/3 + R5/R6/R7 (1MΩ pull-ups) + C8/C9/C10 (debounce) =====
-
-    # Place 3 button clusters horizontally, evenly spaced.
+    # D16: same trunk pattern as battery BTN1 — single horizontal
+    # BTN<N>_IN trunk per cluster connects BTN pin 1 (left) → R pin 2
+    # (bottom) → C pin 1 (top). R sits above trunk pulling BTN<N>_IN up
+    # to V3V3, C sits below trunk debouncing BTN<N>_IN to GND. One label
+    # per cluster on a short vertical stub carries the signal to MOD1.
     for i, (btn_ref, r_ref, c_ref, btn_net) in enumerate([
         ("BTN1", "R5", "C8",  "BTN1_IN"),
         ("BTN2", "R6", "C9",  "BTN2_IN"),
         ("BTN3", "R7", "C10", "BTN3_IN"),
     ]):
-        BTN_X = (200 + i * 30) * G   # 254, 292.1, 330.2
-        BTN_Y = 150 * G              # 190.5
+        BTN_X = (200 + i * 30) * G
+        BTN_Y = 150 * G
+        R_X = BTN_X + 8 * G
+        R_Y = BTN_Y - 3 * G    # vertical R — pin 2 (bottom) lands on the trunk at Y=BTN_Y
+        C_X = BTN_X + 16 * G
+        C_Y = BTN_Y + 3 * G    # vertical C — pin 1 (top) lands on the trunk at Y=BTN_Y
+        TRUNK_Y = BTN_Y
+
         _place_symbol(s, "SW_Push", btn_ref, btn_ref,
                       "Button_Switch_SMD:SW_SPST_B3S-1000",
                       (BTN_X, BTN_Y), lib=lib,
-                      ref_pos=(BTN_X - 2 * G, BTN_Y - 5 * G),    # ref above switch
-                      value_pos=(BTN_X - 2 * G, BTN_Y + 5 * G))  # value below switch
-        # iter 55 fix F4: stub-out so net labels clear the pin numbers.
-        _place_wire(s,  (BTN_X - 4 * G, BTN_Y), (BTN_X - 6 * G, BTN_Y))
-        _place_label(s, btn_net, (BTN_X - 6 * G, BTN_Y), angle=180)   # pin 1 (left)
-        # D16: BTN pin 2 → GND via stock power port (right side).
-        _place_power_port(s, "GND", (BTN_X + 4 * G, BTN_Y), 'R', stub=2 * G, lib=lib)
-        # R — 1MΩ pull-up
-        R_X = BTN_X + 8 * G
+                      ref_pos=(BTN_X - 2 * G, BTN_Y - 5 * G),
+                      value_pos=(BTN_X - 2 * G, BTN_Y + 5 * G))
         _place_symbol(s, "R", r_ref, "1M",
                       "Resistor_SMD:R_0805_2012Metric",
-                      (R_X, BTN_Y), lib=lib)
-        _pin_label(s, "V3V3",  (R_X, BTN_Y - 3 * G), 'U')
-        _pin_label(s, btn_net, (R_X, BTN_Y + 3 * G), 'D')
-        # C — 100nF debounce
-        C_X = BTN_X + 16 * G
+                      (R_X, R_Y), lib=lib)
         _place_symbol(s, "C", c_ref, "100nF",
                       "Capacitor_SMD:C_0603_1608Metric",
-                      (C_X, BTN_Y), lib=lib)
-        _pin_label(s, btn_net, (C_X, BTN_Y - 3 * G), 'U')
-        _pin_label(s, "GND",   (C_X, BTN_Y + 3 * G), 'D')
+                      (C_X, C_Y), lib=lib)
+
+        # Trunk: BTN.pin1 (left) → R.pin2 (bottom) → C.pin1 (top).
+        _place_wire(s, (BTN_X - 4 * G, BTN_Y), (R_X, TRUNK_Y))
+        _place_wire(s, (R_X, TRUNK_Y),         (C_X, TRUNK_Y))
+        # BTN<N>_IN label on a short vertical stub above the trunk.
+        _place_wire(s, (BTN_X + 2 * G, TRUNK_Y), (BTN_X + 2 * G, TRUNK_Y - 4 * G))
+        _place_label(s, btn_net,                  (BTN_X + 2 * G, TRUNK_Y - 4 * G), angle=90)
+
+        # BTN pin 2 → GND port. R pin 1 (top) → V3V3 label. C pin 2 (bottom) → GND port.
+        _place_power_port(s, "GND", (BTN_X + 4 * G, BTN_Y), 'R', stub=2 * G, lib=lib)
+        _pin_label(s, "V3V3", (R_X, R_Y - 3 * G), 'U')
+        _place_power_port(s, "GND", (C_X, C_Y + 3 * G), 'D', stub=3 * G, lib=lib)
 
     # ===== Dev headers: J3 (UART debug) + J4 (USB-OTG) =====
 
