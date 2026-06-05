@@ -944,7 +944,8 @@ def build_battery_side_schematic() -> None:
     L1_X, L1_Y = U1_X + 20 * G, U1_Y   # (177.8, 38.1)
     _place_symbol(s, "L", "L1", "2.2uH",
                   "Inductor_SMD:L_0805_2012Metric",  # placeholder
-                  (L1_X, L1_Y), lib=lib)
+                  (L1_X, L1_Y), lib=lib,
+                  value_pos=(L1_X + 4 * G, L1_Y + 1.27))  # D16: clear of pin 2 number
     # L1.pin1 U1_SW label deduped — wire to U1.SW directly (iter 32).
     _place_wire(s, (U1_X + 6 * G, U1_Y),  (L1_X, U1_Y))             # U1.SW → corner
     _place_wire(s, (L1_X, U1_Y),          (L1_X, L1_Y - 3 * G))     # corner → L1.pin1
@@ -1045,8 +1046,8 @@ def build_battery_side_schematic() -> None:
     # iter 55 fix F1: pull each Q1 net label 2G off the pin endpoint
     # with a stub wire so the label doesn't sit on the in-symbol pin
     # name letter (G/S/D).
-    _place_wire(s,  (Q1_X - 4 * G, Q1_Y),         (Q1_X - 6 * G, Q1_Y))           # pin 1 G stub
-    _place_label(s, "Q1_GATE",   (Q1_X - 6 * G, Q1_Y), angle=180)                 # pin 1 G (left → reads left)
+    _place_wire(s,  (Q1_X - 4 * G, Q1_Y),         (Q1_X - 8 * G, Q1_Y))           # D16: 4G stub clears the "G" pin name
+    _place_label(s, "Q1_GATE",   (Q1_X - 8 * G, Q1_Y), angle=180)                 # pin 1 G (left → reads left)
     _place_wire(s,  (Q1_X + 2 * G, Q1_Y + 4 * G), (Q1_X + 2 * G, Q1_Y + 6 * G))  # pin 2 S stub (down)
     _place_label(s, "V24_FUSED", (Q1_X + 2 * G, Q1_Y + 6 * G))                    # pin 2 S
     _place_wire(s,  (Q1_X + 2 * G, Q1_Y - 4 * G), (Q1_X + 2 * G, Q1_Y - 6 * G))  # pin 3 D stub (up)
@@ -1057,8 +1058,8 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "Q_NMOS_GSD", "Q2", "AO3400A",
                   "Package_TO_SOT_SMD:SOT-23", (Q2_X, Q2_Y), lib=lib)
     # iter 55 fix F1: same stub-out pattern.
-    _place_wire(s,  (Q2_X - 4 * G, Q2_Y),         (Q2_X - 6 * G, Q2_Y))           # pin 1 G stub
-    _place_label(s, "PWR_EN",  (Q2_X - 6 * G, Q2_Y), angle=180)                   # pin 1 G (left → reads left)
+    _place_wire(s,  (Q2_X - 4 * G, Q2_Y),         (Q2_X - 8 * G, Q2_Y))           # D16: 4G stub clears the "G" pin name
+    _place_label(s, "PWR_EN",  (Q2_X - 8 * G, Q2_Y), angle=180)                   # pin 1 G (left → reads left)
     # D16: Q2 pin 2 S → GND via stock power port.
     _place_power_port(s, "GND", (Q2_X + 2 * G, Q2_Y + 4 * G), 'D', stub=2 * G, lib=lib)
     # Q1_GATE label deduped at Q2.D — wire up to Q1.G (which keeps the label).
@@ -1416,37 +1417,51 @@ def build_battery_side_schematic() -> None:
     _place_wire(s, (R10_X, R10_Y - 3 * G), (R10_X, TVS2_Y))         # R10.pin1 → corner
     _place_wire(s, (R10_X, TVS2_Y),         (TVS2_X - 3 * G, TVS2_Y))  # corner → TVS2.pin1
 
-    # BTN1 — Override pushbutton, SW_Push (2-pin horizontal).
-    # Pin geometry: pin 1 lib (-5.08, 0) angle 0 → sch (X-5.08, Y);
-    #               pin 2 lib (5.08, 0)  angle 180 → sch (X+5.08, Y).
+    # D16: BTN1 + R13 + C11 debounce cluster — single horizontal
+    # BTN_OVERRIDE trunk at Y=192G connects BTN1 pin 1 (left) to
+    # R13.pin 2 (bottom) to C11.pin 1 (top). R13 sits above the
+    # trunk pulling BTN_OVERRIDE up to V3V3_SW; C11 sits below the
+    # trunk debouncing BTN_OVERRIDE to GND. One BTN_OVERRIDE
+    # GlobalLabel on the trunk carries the net to MOD1. The label-
+    # at-each-pin pattern used through iter-7 forced the reader to
+    # mentally splice three separate "BTN_OVERRIDE" labels.
+    #
+    # BTN1 SW_Push pin geometry: pin 1 left (X-5.08, Y), pin 2 right
+    # (X+5.08, Y). Net mapping: pin 1 → BTN_OVERRIDE (trunk-going-
+    # right), pin 2 → GND (port to the right). Trunk runs right from
+    # BTN1.pin1 anchor + 2G clearance to R13.pin2 and on to C11.pin1.
     BTN1_X, BTN1_Y = 45 * G, 192 * G   # override button, bottom-left
+    R13_X, R13_Y = 62 * G, 189 * G     # vertical R13 — pin 2 (bottom) sits ON the trunk at Y=192G
+    C11_X, C11_Y = 78 * G, 195 * G     # vertical C11 — pin 1 (top) sits ON the trunk at Y=192G
+    TRUNK_Y = BTN1_Y                   # = 192G
+
     _place_symbol(s, "SW_Push", "BTN1", "OVERRIDE",
                   "Button_Switch_THT:SW_PUSH_6mm",
                   (BTN1_X, BTN1_Y), lib=lib,
-                  ref_pos=(BTN1_X - 2 * G, BTN1_Y - 5 * G),    # ref above switch
-                  value_pos=(BTN1_X - 2 * G, BTN1_Y + 5 * G))  # value below switch
-    # iter 55 fix F4: stub-out pin labels on the SW_Push so net labels
-    # don't sit on the switch's in-body pin number text.
-    _place_wire(s,  (BTN1_X - 4 * G, BTN1_Y), (BTN1_X - 6 * G, BTN1_Y))   # pin 1 stub (left)
-    _place_label(s, "BTN_OVERRIDE", (BTN1_X - 6 * G, BTN1_Y), angle=180)  # pin 1 (left)
-    # D16: BTN1 pin 2 → GND via stock power port.
-    _place_power_port(s, "GND", (BTN1_X + 4 * G, BTN1_Y), 'R', stub=2 * G, lib=lib)
-
-    # R13 — 1 MΩ pull-up BTN_OVERRIDE → V3V3_SW
-    R13_X, R13_Y = 62 * G, 192 * G
+                  ref_pos=(BTN1_X - 2 * G, BTN1_Y - 5 * G),
+                  value_pos=(BTN1_X - 2 * G, BTN1_Y + 5 * G))
     _place_symbol(s, "R", "R13", "1M",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R13_X, R13_Y), lib=lib)
-    _pin_label(s, "V3V3_SW",      (R13_X, R13_Y - 3 * G), 'U')
-    _pin_label(s, "BTN_OVERRIDE", (R13_X, R13_Y + 3 * G), 'D')
-
-    # C11 — 100 nF button debounce
-    C11_X, C11_Y = 78 * G, 192 * G
     _place_symbol(s, "C", "C11", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (C11_X, C11_Y), lib=lib)
-    _pin_label(s, "BTN_OVERRIDE", (C11_X, C11_Y - 3 * G), 'U')
-    _pin_label(s, "GND",          (C11_X, C11_Y + 3 * G), 'D')
+
+    # Trunk wire: BTN1.pin 1 (left) → R13.pin 2 → C11.pin 1.
+    _place_wire(s, (BTN1_X - 4 * G, BTN1_Y), (R13_X, TRUNK_Y))   # BTN1.pin1 → R13.pin2
+    _place_wire(s, (R13_X, TRUNK_Y),         (C11_X, TRUNK_Y))   # R13.pin2 → C11.pin1
+    # Single BTN_OVERRIDE GlobalLabel anchored above the trunk between BTN1
+    # and R13, oriented to read upward so the trunk wire stays visually
+    # clean. Carries the net out of the cluster to MOD1.IO7.
+    _place_wire(s, (BTN1_X + 2 * G, TRUNK_Y), (BTN1_X + 2 * G, TRUNK_Y - 4 * G))
+    _place_label(s, "BTN_OVERRIDE",            (BTN1_X + 2 * G, TRUNK_Y - 4 * G), angle=90)
+
+    # BTN1 pin 2 (right) → GND power port.
+    _place_power_port(s, "GND", (BTN1_X + 4 * G, BTN1_Y), 'R', stub=2 * G, lib=lib)
+    # R13 pin 1 (top) → V3V3_SW power label.
+    _pin_label(s, "V3V3_SW", (R13_X, R13_Y - 3 * G), 'U')
+    # C11 pin 2 (bottom) → GND power port.
+    _place_power_port(s, "GND", (C11_X, C11_Y + 3 * G), 'D', stub=3 * G, lib=lib)
 
     # J2 — RJ45 (8P8C parent). Cat5e to display side. T568B pinout
     # per docs/hardware/cat5e_pinout.md:
