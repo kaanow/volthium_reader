@@ -11,7 +11,7 @@ iteration: 8
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-05T02:30:00Z
+last_updated_at: 2026-06-05T06:30:00Z
 last_updated_by: claude
 
 note: >
@@ -89,13 +89,27 @@ note: >
   GND glyphs now render as the standard ground triangle at every
   GND pin, visually distinct from signal labels.
 
-  Final iter-8 state: 0 audit pairs on both boards, ERC clean,
-  pin numbers visible on every IC (DS3231M / ESP32 / etc.), GND
-  triangles visually distinct, several functional clusters now
-  carry intra-cluster wires (BTN1 debounce, U1 buck regulator C1
-  V24_SW + C2 V3V3_SW + C_BST, U3 RS-485 termination R10/R12,
-  U2 RS-485 termination R2/R4, U1 V24_SW dedup to C1, RTC1 / BTN
-  / connector clusters).
+  Final iter-8 state:
+  - 0 audit pairs on both boards
+  - ERC: 0 errors / 0 warnings on both boards
+  - Pin numbers visible on every IC (DS3231M, ESP32-S3-WROOM-1,
+    TPS62933, LTC2850xS8, J2 Conn_01x24, etc.)
+  - GND triangles visually distinct from signal-net flag-labels
+  - Stacked-power-pin issue solved at the lib level (DS3231M
+    pins 6-13 hidden; ESP32 pins 40+41 hidden) so only one pin
+    number renders per coordinate
+  - Functional clusters now carry intra-cluster wires:
+      * U1 buck regulator: C_BST → U1.BST/SW, C1 → U1 V24_SW
+        pickoff, C2 → L1 V3V3_SW pickoff
+      * U3 RS-485 termination: R10/R12 dedup, C10 → U3 V3V3_SW
+      * U2 RS-485 termination (display): R2/R4 dedup, C7 → U2 V3V3
+      * R8/R9 I²C pull-ups: V3V3_SW deduped
+      * ESP support row (battery): V3V3_SW trunk wires R7/C6/C7
+      * ESP support row (display): V3V3 trunk wires R1/C3/C4
+  - GlobalLabel counts dropped:
+      battery V3V3_SW: 15 → 11 (−27 %)
+      display V3V3:    16 → 13 (−19 %)
+      total labels battery: 78, display: 72
 
   D16 acceptance items closed:
   ✓ #1 — real cluster wires in several functional sub-circuits
@@ -118,13 +132,25 @@ note: >
     iter-8 after dedupe:  19 pairs (12 + 7)
     iter-8 after fixes:    0 pairs (0 + 0)
 
-  Remaining iter-8 work (deferred):
-  - Cross-cluster wire elimination: many nets still carry multiple
-    GlobalLabels across the schematic (V3V3_SW: 15 in battery,
-    V3V3: 16 in display, V12_PROT: 5, etc.). These connect distant
-    components on the same net; per-net wiring would require
-    long visual wires across the sheet and is a tradeoff against
-    visual locality. Deferred.
+  Impediments / deferred for follow-on:
+  - **BTN1 (battery) / BTN1-3 (display) debounce clusters**:
+    Tried trunk-wire pattern (BTN.pin1 → R.pin2 → C.pin1).
+    KiCad's ERC flags wires whose endpoint coincides with a pin
+    inside a SW_Push body as `wire_dangling`. Pattern works on
+    every other 2-pin discrete (R, C, D, L, Fuse, Polyfuse) but
+    not on SW_Push. Root cause appears to be the SW_Push lib
+    pin geometry (length 2.54 mm pin with the connection point
+    INSIDE the body). Reverted to per-pin labels for these
+    clusters. Fixing requires lib-symbol pin-geometry edit
+    (move SW_Push pin's connection point to the body edge or
+    add an explicit junction at the wire-meets-pin point);
+    needs deliberate library work and visual confirmation that
+    the resulting body geometry is correct.
+  - Cross-cluster wire elimination (V3V3_SW connecting RTC / I²C
+    pull-ups / bypass caps / U3 across the sheet): per-net
+    wiring would require long visual wires that pass over /
+    around other clusters. The trade-off is visual locality vs
+    explicit electrical wires. Deferred.
   - Whole-sheet functional-block visual restructure (re-flowing
     the schematic so power-input → regulator → MCU → peripherals
     flow visibly left-to-right with section boundaries). Would
