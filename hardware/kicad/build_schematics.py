@@ -716,12 +716,13 @@ def _place_power_port(sch: Schematic, net: str, endpoint: tuple[float, float],
     angle 270 for GND (extends upward in lib = downward in schematic).
     The symbol body sits ABOVE the pin for supplies, BELOW for GND.
 
-    We orient the symbol so its pin lands at the outer end of the stub,
-    pointing back toward the endpoint:
-      outdir 'D' (pin faces down → port goes below): angle 0
-      outdir 'U' (pin faces up   → port goes above): angle 180
-      outdir 'L' (pin faces left → port goes left):  angle 90
-      outdir 'R' (pin faces right→ port goes right): angle 270
+    We orient the symbol so the triangle apex points in the wire's exit
+    direction — the symbol then reads as "this net flows OUT to ground
+    in this direction," matching the visual flow of the wire:
+      outdir 'D' (wire exits down):  angle 0   — apex points down (default)
+      outdir 'U' (wire exits up):    angle 180 — apex points up
+      outdir 'R' (wire exits right): angle 90  — apex points right
+      outdir 'L' (wire exits left):  angle 270 — apex points left
     """
     dirs = {'L': (-1, 0), 'R': (1, 0), 'U': (0, -1), 'D': (0, 1)}
     dx, dy = dirs[outdir]
@@ -733,7 +734,7 @@ def _place_power_port(sch: Schematic, net: str, endpoint: tuple[float, float],
     inst.libraryNickname = "volthium"
     inst.entryName = net
     inst.position = Position(X=far[0], Y=far[1],
-                             angle={'D': 0, 'U': 180, 'L': 90, 'R': 270}[outdir])
+                             angle={'D': 0, 'U': 180, 'R': 90, 'L': 270}[outdir])
     inst.unit = 1
     inst.inBom = False
     inst.onBoard = False
@@ -1097,7 +1098,9 @@ def build_battery_side_schematic() -> None:
     # Q1 — AO3401A P-MOSFET, hard-cut load switch
     Q1_X, Q1_Y = 52 * G, 72 * G   # hard-cut switch (rigid-translated cluster, ERC-clean geometry)
     _place_symbol(s, "Q_PMOS_GSD", "Q1", "AO3401A",
-                  "Package_TO_SOT_SMD:SOT-23", (Q1_X, Q1_Y), lib=lib)
+                  "Package_TO_SOT_SMD:SOT-23", (Q1_X, Q1_Y), lib=lib,
+                  ref_pos=(Q1_X + 5 * G, Q1_Y - 3 * G),    # iter-9b: ref upper-right, clear of in-body G/D/S pin names
+                  value_pos=(Q1_X + 5 * G, Q1_Y + 3 * G))  # iter-9b: value lower-right
     # iter 55 fix F1: pull each Q1 net label 2G off the pin endpoint
     # with a stub wire so the label doesn't sit on the in-symbol pin
     # name letter (G/S/D).
@@ -1111,7 +1114,9 @@ def build_battery_side_schematic() -> None:
     # Q2 — AO3400A N-MOSFET, drives Q1's gate from PWR_EN
     Q2_X, Q2_Y = 42 * G, 82 * G   # Q1 + (-10,+10)
     _place_symbol(s, "Q_NMOS_GSD", "Q2", "AO3400A",
-                  "Package_TO_SOT_SMD:SOT-23", (Q2_X, Q2_Y), lib=lib)
+                  "Package_TO_SOT_SMD:SOT-23", (Q2_X, Q2_Y), lib=lib,
+                  ref_pos=(Q2_X + 5 * G, Q2_Y - 3 * G),    # iter-9b: ref upper-right, clear of in-body G/D/S pin names
+                  value_pos=(Q2_X + 5 * G, Q2_Y + 3 * G))  # iter-9b: value lower-right
     # iter 55 fix F1: same stub-out pattern.
     _place_wire(s,  (Q2_X - 4 * G, Q2_Y),         (Q2_X - 8 * G, Q2_Y))           # D16: 4G stub clears the "G" pin name
     _place_label(s, "PWR_EN",  (Q2_X - 8 * G, Q2_Y), justify_h="right")            # pin 1 G (outdir=L)
@@ -1483,7 +1488,7 @@ def build_battery_side_schematic() -> None:
 
     # TVS2 — SMAJ12CA differential clamp across A/B. Device:D_TVS with
     # Value override. Horizontal (pins ±3.81 X from center).
-    TVS2_X, TVS2_Y = U3_X + 24 * G, U3_Y - 4 * G   # right of R10 (8G gap) so values don't collide; same row keeps A-dedup wire clear of R10.pin2
+    TVS2_X, TVS2_Y = U3_X + 32 * G, U3_Y - 4 * G   # iter-9c: pushed +8G further right so the RS485_B label on TVS2.pin2 doesn't visually crowd R10's RS485_B vertical-trunk label
     _place_symbol(s, "D_TVS", "TVS2", "SMAJ12CA",
                   "Diode_SMD:D_SMA",
                   (TVS2_X, TVS2_Y), lib=lib,
@@ -1726,7 +1731,9 @@ def build_display_side_schematic() -> None:
     _pin_label(s, "V3V3",     (U1_X - 4 * G, U1_Y + 2 * G), 'L')   # pin 3 VOUT
 
     # C2 — 10µF output bulk on V3V3
-    C2_X, C2_Y = 95 * G, 60 * G   # (120.65, 76.2)
+    # iter-9b: shifted to right of U1 so C2's vertical V3V3 label body
+    # doesn't extend up into U1's pin-3 V3V3 label.
+    C2_X, C2_Y = 105 * G, 60 * G
     _place_symbol(s, "C", "C2", "10uF",
                   "Capacitor_SMD:C_0805_2012Metric",
                   (C2_X, C2_Y), lib=lib)
@@ -2008,7 +2015,7 @@ def build_display_side_schematic() -> None:
     _place_wire(s, (R2_X, R4_Y - 3 * G), (R4_X, R4_Y - 3 * G))
 
     # TVS2 — SMAJ12CA differential clamp across A/B
-    TVS2_X, TVS2_Y = U2_X + 24 * G, U2_Y - 4 * G   # right of R2 (8G gap) so values don't collide; same row keeps A-dedup wire clear of R2.pin2
+    TVS2_X, TVS2_Y = U2_X + 32 * G, U2_Y - 4 * G   # iter-9c: pushed +8G further right so the RS485_B label on TVS2.pin2 doesn't visually crowd R2's RS485_B vertical-trunk label
     _place_symbol(s, "D_TVS", "TVS2", "SMAJ12CA",
                   "Diode_SMD:D_SMA",
                   (TVS2_X, TVS2_Y), lib=lib,
