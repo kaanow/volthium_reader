@@ -50,7 +50,7 @@ from kiutils.items.schitems import (
     GlobalLabel,
     NoConnect,
 )
-from kiutils.items.common import Position, Property, Effects
+from kiutils.items.common import Position, Property, Effects, Justify
 
 # -------------------------------------------------------------------- paths
 REPO = Path(__file__).resolve().parents[2]
@@ -606,15 +606,35 @@ def _place_symbol(
     return inst
 
 
-def _place_label(sch: Schematic, text: str, pos: tuple[float, float], *, angle: float = 0.0) -> None:
-    """Place a GlobalLabel at the given absolute schematic coordinates."""
+def _place_label(sch: Schematic, text: str, pos: tuple[float, float],
+                 *, angle: float = 0.0, shape: str = "input",
+                 justify_h: str | None = None) -> None:
+    """Place a GlobalLabel at the given absolute schematic coordinates.
+
+    The chevron tip of the flag must be on the side where the connecting
+    wire enters — otherwise the wire is drawn from the pin THROUGH the
+    entire flag body to the chevron tip on the far side ("strikes
+    through" the flag, which is hard to read).
+
+    KiCad normalizes `(at … angle)` to 0 or 90 only on `sch upgrade`, so
+    angle alone cannot flip a flag. Instead, control chevron direction
+    with `(effects (justify left|right))`, while keeping `shape=input`
+    throughout. At angle=0, `justify_h="right"` flips the chevron to
+    the right (text aligns to body's left); `justify_h="left"` is the
+    default chevron-on-left. At angle=90, the same rule rotates with
+    the label (justify=left → chevron-down, justify=right → chevron-up).
+    """
     lbl = GlobalLabel()
     lbl.text = text
-    lbl.shape = "input"
+    lbl.shape = shape
     lbl.position = Position(X=pos[0], Y=pos[1], angle=angle)
     lbl.fieldsAutoplaced = True
     lbl.uuid = _uuid()
     lbl.effects = Effects()
+    if justify_h is not None:
+        j = Justify()
+        j.horizontally = justify_h
+        lbl.effects.justify = j
     sch.globalLabels.append(lbl)
 
 
@@ -663,9 +683,14 @@ def _pin_label(sch: Schematic, net: str, endpoint: tuple[float, float],
     dx, dy = dirs[outdir]
     far = (endpoint[0] + dx * stub, endpoint[1] + dy * stub)
     _place_wire(sch, endpoint, far)
+    # Pick the GlobalLabel `(at … angle)` and `(effects (justify …))`
+    # so the chevron tip faces the wire and the text reads cleanly
+    # inside the body. See feedback_schematic_chevron_direction memory
+    # for the empirical sweep that produced this mapping.
     if angle is None:
-        angle = {'L': 180, 'R': 0, 'U': 90, 'D': 270}[outdir]
-    _place_label(sch, net, far, angle=angle)
+        angle = {'L': 0, 'R': 0, 'U': 90, 'D': 90}[outdir]
+    justify_h = {'L': 'right', 'R': 'left', 'U': 'left', 'D': 'right'}[outdir]
+    _place_label(sch, net, far, angle=angle, justify_h=justify_h)
 
 
 # D16 / CP6 iter-8: nets that have a stock KiCad power port glyph in our
@@ -799,7 +824,9 @@ def _place_power_flag(sch: Schematic, net: str, pos: tuple[float, float], lib: S
     # property text (to the right) — so the net name reads in open space.
     below = (pos[0], pos[1] + 4 * 1.27)
     _place_wire(sch, pos, below)
-    _place_label(sch, net, below, angle=0)
+    # Wire enters the label from above → use the U/D vertical mapping
+    # (angle=90, justify_h="right") so chevron tip lands on the wire side.
+    _place_label(sch, net, below, angle=90, justify_h="right")
 
 
 def build_battery_side_schematic() -> None:
@@ -865,7 +892,7 @@ def build_battery_side_schematic() -> None:
 
     # TVS1 — SMAJ30CA bidirectional 24V TVS (Device:D_TVS generic, Value
     # overridden). Pins same geometry as D.
-    TVS1_X, TVS1_Y = 104 * G, 30 * G
+    TVS1_X, TVS1_Y = 124 * G, 30 * G  # iter-9: pulled +20G so V24_FUSED flag body doesn't collide with V24_AFTER_FUSE flag body
     _place_symbol(s, "D_TVS", "TVS1", "SMAJ30CA",
                   "Diode_SMD:D_SMA",
                   (TVS1_X, TVS1_Y), lib=lib)
@@ -946,20 +973,20 @@ def build_battery_side_schematic() -> None:
     # sits clear of the chip's "EN"/"VIN" pin name text.
     _place_wire(s, (U1_X - 6 * G, U1_Y - 6 * G), (U1_X - 6 * G, U1_Y - 4 * G))   # pin 3 ↔ pin 2
     _place_wire(s, (U1_X - 6 * G, U1_Y - 4 * G), (U1_X - 12 * G, U1_Y - 4 * G))  # D16: 6G stub so the V24_SW chevron clears pin 2 number "2"
-    _place_label(s, "V24_SW",  (U1_X - 12 * G, U1_Y - 4 * G), angle=180)
+    _place_label(s, "V24_SW",  (U1_X - 12 * G, U1_Y - 4 * G), justify_h="right")
     # D16: route U1 pin 4 GND through the stock power port.
     _place_power_port(s, "GND", (U1_X, U1_Y + 10 * G), 'D', stub=1 * G, lib=lib)
     _place_wire(s,  (U1_X + 6 * G, U1_Y),         (U1_X + 8 * G, U1_Y))            # pin 5 stub
-    _place_label(s, "U1_SW",   (U1_X + 8 * G, U1_Y))             # pin 5 SW
+    _place_label(s, "U1_SW",   (U1_X + 8 * G, U1_Y), justify_h="left")             # pin 5 SW
     _place_wire(s,  (U1_X + 6 * G, U1_Y + 6 * G), (U1_X + 8 * G, U1_Y + 6 * G))   # pin 8 stub
-    _place_label(s, "V3V3_SW", (U1_X + 8 * G, U1_Y + 6 * G))     # pin 8 FB
+    _place_label(s, "V3V3_SW", (U1_X + 8 * G, U1_Y + 6 * G), justify_h="left")     # pin 8 FB
     _place_noconnect(s, (U1_X - 6 * G, U1_Y + 4 * G))            # pin 1 RT
     _place_noconnect(s, (U1_X - 6 * G, U1_Y + 2 * G))            # pin 7 SS
     # BST: 100 nF bootstrap cap between U1.BST (pin 6) and U1.SW (pin 5).
     # Per Codex iter-13 guidance Q-CP2-10 — required for the high-side MOSFET
     # gate drive to function on real hardware.
     _place_wire(s,  (U1_X + 6 * G, U1_Y - 6 * G), (U1_X + 8 * G, U1_Y - 6 * G))  # pin 6 stub
-    _place_label(s, "U1_BST",  (U1_X + 8 * G, U1_Y - 6 * G))     # pin 6 BST → cap
+    _place_label(s, "U1_BST",  (U1_X + 8 * G, U1_Y - 6 * G), justify_h="left")     # pin 6 BST → cap
 
     # L1 — 2.2 µH inductor (2-pin, same geometry as R: ±3.81 from center).
     L1_X, L1_Y = U1_X + 20 * G, U1_Y   # (177.8, 38.1)
@@ -999,8 +1026,8 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "C", "C_BST", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (CBST_X, CBST_Y), lib=lib,
-                  ref_pos=(CBST_X + 3 * G, CBST_Y - 1.27),    # D16: ref right, clear of U1_BST label
-                  value_pos=(CBST_X + 3 * G, CBST_Y + 1.27))
+                  ref_pos=(CBST_X + 6 * G, CBST_Y - 1.27),    # iter-9: ref further right, clear of widened U1_BST flag body
+                  value_pos=(CBST_X + 6 * G, CBST_Y + 1.27))
     # CP-cleanup iter 32 (Finding 09): drop the C_BST end labels and
     # wire C_BST directly to U1.BST + U1.SW pins. U1 keeps both labels.
     # C_BST pin 1 (U1_BST node) at (CBST_X, CBST_Y - 3*G) = (CBST_X, 29.21)
@@ -1033,7 +1060,7 @@ def build_battery_side_schematic() -> None:
     _pin_label(s, "V12_CAT5E",  (U2_X - 4 * G, U2_Y + 2 * G), 'L')   # pin 3 VOUT (bot)
 
     # C3 — 22 µF bulk on V24_SW (U2 VIN decoupling)
-    C3_X, C3_Y = U2_X - 14 * G, U2_Y + 4 * G   # (185.42, 43.18)
+    C3_X, C3_Y = U2_X - 22 * G, U2_Y + 4 * G   # iter-9: shifted -8G so the C3 ref clears U2's V12_CAT5E flag body extending left
     _place_symbol(s, "C", "C3", "22uF/35V",
                   "Capacitor_SMD:C_1210_3225Metric",
                   (C3_X, C3_Y), lib=lib)
@@ -1075,11 +1102,11 @@ def build_battery_side_schematic() -> None:
     # with a stub wire so the label doesn't sit on the in-symbol pin
     # name letter (G/S/D).
     _place_wire(s,  (Q1_X - 4 * G, Q1_Y),         (Q1_X - 8 * G, Q1_Y))           # D16: 4G stub clears the "G" pin name
-    _place_label(s, "Q1_GATE",   (Q1_X - 8 * G, Q1_Y), angle=180)                 # pin 1 G (left → reads left)
+    _place_label(s, "Q1_GATE",   (Q1_X - 8 * G, Q1_Y), justify_h="right")          # pin 1 G (outdir=L)
     _place_wire(s,  (Q1_X + 2 * G, Q1_Y + 4 * G), (Q1_X + 2 * G, Q1_Y + 6 * G))  # pin 2 S stub (down)
-    _place_label(s, "V24_FUSED", (Q1_X + 2 * G, Q1_Y + 6 * G))                    # pin 2 S
+    _place_label(s, "V24_FUSED", (Q1_X + 2 * G, Q1_Y + 6 * G), angle=90, justify_h="right")  # pin 2 S (outdir=D)
     _place_wire(s,  (Q1_X + 2 * G, Q1_Y - 4 * G), (Q1_X + 2 * G, Q1_Y - 6 * G))  # pin 3 D stub (up)
-    _place_label(s, "V24_SW",    (Q1_X + 2 * G, Q1_Y - 6 * G))                    # pin 3 D
+    _place_label(s, "V24_SW",    (Q1_X + 2 * G, Q1_Y - 6 * G), angle=90, justify_h="left")  # pin 3 D (outdir=U)
 
     # Q2 — AO3400A N-MOSFET, drives Q1's gate from PWR_EN
     Q2_X, Q2_Y = 42 * G, 82 * G   # Q1 + (-10,+10)
@@ -1087,7 +1114,7 @@ def build_battery_side_schematic() -> None:
                   "Package_TO_SOT_SMD:SOT-23", (Q2_X, Q2_Y), lib=lib)
     # iter 55 fix F1: same stub-out pattern.
     _place_wire(s,  (Q2_X - 4 * G, Q2_Y),         (Q2_X - 8 * G, Q2_Y))           # D16: 4G stub clears the "G" pin name
-    _place_label(s, "PWR_EN",  (Q2_X - 8 * G, Q2_Y), angle=180)                   # pin 1 G (left → reads left)
+    _place_label(s, "PWR_EN",  (Q2_X - 8 * G, Q2_Y), justify_h="right")            # pin 1 G (outdir=L)
     # D16: Q2 pin 2 S → GND via stock power port.
     _place_power_port(s, "GND", (Q2_X + 2 * G, Q2_Y + 4 * G), 'D', stub=2 * G, lib=lib)
     # Q1_GATE label deduped at Q2.D — wire up to Q1.G (which keeps the label).
@@ -1224,12 +1251,17 @@ def build_battery_side_schematic() -> None:
             _place_noconnect(s, endpoint)
         else:
             dx, dy = _outward_for_angle(lib_a)
-            outer = (endpoint[0] + dx * 6 * G, endpoint[1] + dy * 6 * G)  # D16: 6G stub so chevron tip clears the newly-visible MOD1 pin number
+            outer = (endpoint[0] + dx * 12 * G, endpoint[1] + dy * 8 * G)  # D16: 6G stub so chevron tip clears the newly-visible MOD1 pin number
             _place_wire(s, endpoint, outer)
-            # Orient the label so its text reads AWAY from the symbol body
-            # (left-side pins must extend left, not back over the pin name).
-            lbl_angle = {(-1, 0): 180, (1, 0): 0, (0, -1): 90, (0, 1): 270}.get((dx, dy), 0)
-            _place_label(s, net, outer, angle=lbl_angle)
+            # Orient flag so chevron tip sits on the wire side and the
+            # text reads cleanly inside the body. (dx,dy) is the pin's
+            # outward direction; the wire enters the label from the
+            # OPPOSITE side. Map to (angle, justify_h) per the empirical
+            # sweep documented in the chevron-direction memory.
+            lbl_angle = {(-1, 0): 0, (1, 0): 0, (0, -1): 90, (0, 1): 90}[(dx, dy)]
+            lbl_justify = {(-1, 0): "right", (1, 0): "left",
+                           (0, -1): "left", (0, 1): "right"}[(dx, dy)]
+            _place_label(s, net, outer, angle=lbl_angle, justify_h=lbl_justify)
 
     # ===== Iter 18: ESP support — R7 EN pull-up + C8 EN soft-start cap +
     #               C6 ESP bulk decoupling + C7 ESP HF decoupling =====
@@ -1304,20 +1336,20 @@ def build_battery_side_schematic() -> None:
     # are both top-side pins 2G apart in X — VBAT gets an L-shape stub
     # 4G to the right so the two labels don't pile up horizontally.
     _place_wire(s,  (RTC1_X - 2 * G, RTC1_Y -  8 * G), (RTC1_X - 2 * G, RTC1_Y - 10 * G))   # pin 2 stub
-    _place_label(s, "V3V3_SW",  (RTC1_X - 2 * G, RTC1_Y - 10 * G), angle=90)                 # pin 2 VCC (top → up)
+    _place_label(s, "V3V3_SW",  (RTC1_X - 2 * G, RTC1_Y - 10 * G), angle=90, justify_h="left")  # pin 2 VCC (outdir=U)
     # iter 49 (Finding 15): pin 14 VBAT now routed up 4G + right 6G so
     # the V_BAT_RTC label is offset BOTH vertically and horizontally from
     # the pin 2 V3V3_SW label — clear visual gap in iter-47 evidence the
     # 4G horizontal offset alone wasn't enough.
     _place_wire(s,  (RTC1_X,         RTC1_Y -  8 * G), (RTC1_X,         RTC1_Y - 12 * G))   # pin 14 up 4G
     _place_wire(s,  (RTC1_X,         RTC1_Y - 12 * G), (RTC1_X + 6 * G, RTC1_Y - 12 * G))   # pin 14 right 6G
-    _place_label(s, "V_BAT_RTC",(RTC1_X + 6 * G, RTC1_Y - 12 * G), angle=90)                 # pin 14 VBAT (top → up)
+    _place_label(s, "V_BAT_RTC",(RTC1_X + 6 * G, RTC1_Y - 12 * G), angle=90, justify_h="left")  # pin 14 VBAT (outdir=U)
     # D16: RTC1 pins 5..13 GND → stock power port.
     _place_power_port(s, "GND", (RTC1_X, RTC1_Y + 8 * G), 'D', stub=2 * G, lib=lib)
     _place_wire(s,  (RTC1_X - 10 * G, RTC1_Y - 2 * G), (RTC1_X - 14 * G, RTC1_Y - 2 * G))  # D16: 4G stub so chevron clears pin 15 number
-    _place_label(s, "I2C_SDA",  (RTC1_X - 14 * G, RTC1_Y - 2 * G), angle=180)
+    _place_label(s, "I2C_SDA",  (RTC1_X - 14 * G, RTC1_Y - 2 * G), justify_h="right")  # outdir=L
     _place_wire(s,  (RTC1_X - 10 * G, RTC1_Y - 4 * G), (RTC1_X - 14 * G, RTC1_Y - 4 * G))  # D16: 4G stub
-    _place_label(s, "I2C_SCL",  (RTC1_X - 14 * G, RTC1_Y - 4 * G), angle=180)
+    _place_label(s, "I2C_SCL",  (RTC1_X - 14 * G, RTC1_Y - 4 * G), justify_h="right")  # outdir=L
     _place_noconnect(s, (RTC1_X - 10 * G, RTC1_Y + 4 * G))          # pin 4 RST
     _place_noconnect(s, (RTC1_X + 10 * G, RTC1_Y - 4 * G))          # pin 1 32KHZ
     _place_noconnect(s, (RTC1_X + 10 * G, RTC1_Y + 2 * G))          # pin 3 INT/SQW
@@ -1385,22 +1417,22 @@ def build_battery_side_schematic() -> None:
     _STUB_H = 8 * G   # horizontal stub for left/right pins — enough that even the longest label (UART_RX_3V3, ~28 pt = ~10 mm) clears the pin number bbox
     _STUB_V = 4 * G   # vertical stub for top/bottom pins
     _place_wire(s,  (U3_X -  8 * G, U3_Y - 4 * G), (U3_X -  8 * G - _STUB_H, U3_Y - 4 * G))  # pin 1 stub
-    _place_label(s, "UART_RX_3V3", (U3_X - 8 * G - _STUB_H, U3_Y - 4 * G), angle=180)         # pin 1 RO (left)
+    _place_label(s, "UART_RX_3V3", (U3_X - 8 * G - _STUB_H, U3_Y - 4 * G), justify_h="right")  # pin 1 RO (outdir=L)
     # CP-cleanup iter 24: U3 ~RE (pin 2) and DE (pin 3) are tied so the
     # MCU drives both with a single DE_RE signal.
     _place_wire(s,  (U3_X -  8 * G, U3_Y - 2 * G), (U3_X -  8 * G, U3_Y))                     # pin 2 ↔ pin 3
     _place_wire(s,  (U3_X -  8 * G, U3_Y - 2 * G), (U3_X -  8 * G - _STUB_H, U3_Y - 2 * G))  # tied-pair stub
-    _place_label(s, "DE_RE",       (U3_X - 8 * G - _STUB_H, U3_Y - 2 * G), angle=180)         # pin 2/3 (tied, left)
+    _place_label(s, "DE_RE",       (U3_X - 8 * G - _STUB_H, U3_Y - 2 * G), justify_h="right")  # pin 2/3 (tied, outdir=L)
     _place_wire(s,  (U3_X -  8 * G, U3_Y + 4 * G), (U3_X -  8 * G - _STUB_H, U3_Y + 4 * G))  # pin 4 stub
-    _place_label(s, "UART_TX_3V3", (U3_X - 8 * G - _STUB_H, U3_Y + 4 * G), angle=180)         # pin 4 DI (left)
+    _place_label(s, "UART_TX_3V3", (U3_X - 8 * G - _STUB_H, U3_Y + 4 * G), justify_h="right")  # pin 4 DI (outdir=L)
     # D16: U3 pin 5 GND → stock power port.
     _place_power_port(s, "GND", (U3_X, U3_Y + 12 * G), 'D', stub=_STUB_V, lib=lib)
     _place_wire(s,  (U3_X +  8 * G, U3_Y - 6 * G), (U3_X +  8 * G + _STUB_H, U3_Y - 6 * G))  # pin 6 stub
-    _place_label(s, "RS485_A",     (U3_X + 8 * G + _STUB_H, U3_Y - 6 * G))                    # pin 6 A
+    _place_label(s, "RS485_A",     (U3_X + 8 * G + _STUB_H, U3_Y - 6 * G), justify_h="left")  # pin 6 A (outdir=R)
     _place_wire(s,  (U3_X +  8 * G, U3_Y - 2 * G), (U3_X +  8 * G + _STUB_H, U3_Y - 2 * G))  # pin 7 stub
-    _place_label(s, "RS485_B",     (U3_X + 8 * G + _STUB_H, U3_Y - 2 * G))                    # pin 7 B
+    _place_label(s, "RS485_B",     (U3_X + 8 * G + _STUB_H, U3_Y - 2 * G), justify_h="left")  # pin 7 B (outdir=R)
     _place_wire(s,  (U3_X,          U3_Y - 12 * G), (U3_X,          U3_Y - 12 * G - _STUB_V)) # pin 8 stub
-    _place_label(s, "V3V3_SW",     (U3_X,          U3_Y - 12 * G - _STUB_V), angle=90)        # pin 8 VCC (top → up)
+    _place_label(s, "V3V3_SW",     (U3_X,          U3_Y - 12 * G - _STUB_V), angle=90, justify_h="left")  # pin 8 VCC (outdir=U)
 
     # C10 — 100 nF U3 VCC decoupling
     C10_X, C10_Y = U3_X + 6 * G, U3_Y - 10 * G   # (287.02, 50.8)
@@ -1419,8 +1451,8 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "R", "R10", "120",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R10_X, R10_Y), lib=lib,
-                  ref_pos=(R10_X + 6 * G, R10_Y - 1.27),   # D16: ref far right, clear of RS485_A label bbox
-                  value_pos=(R10_X + 6 * G, R10_Y + 1.27)) # D16: value far right, clear of RS485_B label bbox
+                  ref_pos=(R10_X + 12 * G, R10_Y - 1.27),   # iter-9: ref further right, clear of widened RS485_A flag body
+                  value_pos=(R10_X + 12 * G, R10_Y + 1.27)) # iter-9: value further right, clear of widened RS485_B flag body
     _pin_label(s, "RS485_A", (R10_X, R10_Y - 3 * G), 'U')   # pin 1
     # D16: R10.pin2 RS485_B label deduped — wire-out to R12.pin1
     # placed below; corner at the trunk Y. Wire emitted after R12
@@ -1455,8 +1487,8 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "D_TVS", "TVS2", "SMAJ12CA",
                   "Diode_SMD:D_SMA",
                   (TVS2_X, TVS2_Y), lib=lib,
-                  ref_pos=(TVS2_X, TVS2_Y - 3 * G),    # D16: ref above, clear of RS485_B label
-                  value_pos=(TVS2_X, TVS2_Y + 3 * G))
+                  ref_pos=(TVS2_X + 4 * G, TVS2_Y - 3 * G),    # iter-9b: ref upper-right of body, clear of widened RS485_A/B flag bodies
+                  value_pos=(TVS2_X + 4 * G, TVS2_Y + 3 * G))  # iter-9b: value lower-right of body
     # TVS2.pin1 RS485_A label deduped — wire to R10.pin1.
     _pin_label(s, "RS485_B", (TVS2_X + 3 * G, TVS2_Y), 'R')   # pin 2
     # CP-cleanup iter 30: cluster the 4 RS485_A endpoints (U3.A,
@@ -1494,7 +1526,7 @@ def build_battery_side_schematic() -> None:
                   ref_pos=(BTN1_X - 2 * G, BTN1_Y - 5 * G),
                   value_pos=(BTN1_X - 2 * G, BTN1_Y + 5 * G))
     _place_wire(s,  (BTN1_X - 4 * G, BTN1_Y), (BTN1_X - 6 * G, BTN1_Y))
-    _place_label(s, "BTN_OVERRIDE", (BTN1_X - 6 * G, BTN1_Y), angle=180)
+    _place_label(s, "BTN_OVERRIDE", (BTN1_X - 6 * G, BTN1_Y), justify_h="right")  # outdir=L
     _place_power_port(s, "GND", (BTN1_X + 4 * G, BTN1_Y), 'R', stub=2 * G, lib=lib)
 
     R13_X, R13_Y = 62 * G, 192 * G
@@ -1684,7 +1716,7 @@ def build_display_side_schematic() -> None:
     # pin 1 lib (-5.08, +2.54) → sch (X-5.08, Y-2.54) — VIN
     # pin 2 lib (-5.08, 0)     → sch (X-5.08, Y)        — GND
     # pin 3 lib (-5.08, -2.54) → sch (X-5.08, Y+2.54)   — VOUT
-    U1_X, U1_Y = 85 * G, 50 * G   # (107.95, 63.5)
+    U1_X, U1_Y = 95 * G, 50 * G   # iter-9: pulled +10G so V12_PROT label bodies clear U1 pin-number area
     _place_symbol(s, "Conn_01x03", "U1", "R-78E3.3-0.5",
                   "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT",
                   (U1_X, U1_Y), lib=lib,
@@ -1789,12 +1821,17 @@ def build_display_side_schematic() -> None:
             _place_noconnect(s, endpoint)
         else:
             dx, dy = _outward_for_angle(lib_a)
-            outer = (endpoint[0] + dx * 6 * G, endpoint[1] + dy * 6 * G)  # D16: 6G stub so chevron tip clears the newly-visible MOD1 pin number
+            outer = (endpoint[0] + dx * 12 * G, endpoint[1] + dy * 8 * G)  # D16: 6G stub so chevron tip clears the newly-visible MOD1 pin number
             _place_wire(s, endpoint, outer)
-            # Orient the label so its text reads AWAY from the symbol body
-            # (left-side pins must extend left, not back over the pin name).
-            lbl_angle = {(-1, 0): 180, (1, 0): 0, (0, -1): 90, (0, 1): 270}.get((dx, dy), 0)
-            _place_label(s, net, outer, angle=lbl_angle)
+            # Orient flag so chevron tip sits on the wire side and the
+            # text reads cleanly inside the body. (dx,dy) is the pin's
+            # outward direction; the wire enters the label from the
+            # OPPOSITE side. Map to (angle, justify_h) per the empirical
+            # sweep documented in the chevron-direction memory.
+            lbl_angle = {(-1, 0): 0, (1, 0): 0, (0, -1): 90, (0, 1): 90}[(dx, dy)]
+            lbl_justify = {(-1, 0): "right", (1, 0): "left",
+                           (0, -1): "left", (0, 1): "right"}[(dx, dy)]
+            _place_label(s, net, outer, angle=lbl_angle, justify_h=lbl_justify)
 
     # ===== ESP support: R1 EN pull-up + C5 EN soft-start + C3 bulk + C4 HF =====
     # SUP_Y kept ≥38G above MOD1 so the caps' downward GND stubs clear MOD1's
@@ -1904,7 +1941,7 @@ def build_display_side_schematic() -> None:
     # populated for ERC simplicity (CP1 D-OPEN-8 default says "don't
     # populate by default" but ERC-wise we still place them since the
     # bias defines the idle state of the differential pair).
-    U2_X, U2_Y = 220 * G, 80 * G   # (279.4, 101.6)
+    U2_X, U2_Y = 232 * G, 80 * G   # iter-9: pulled +12G so UART_*_3V3 label bodies clear J2's pin-15/16/19/20 numbers
     _place_symbol(s, "LTC2850xS8", "U2", "SN65HVD3082E",
                   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
                   (U2_X, U2_Y), lib=lib,
@@ -1915,20 +1952,20 @@ def build_display_side_schematic() -> None:
     _STUB_H = 8 * G
     _STUB_V = 4 * G
     _place_wire(s,  (U2_X -  8 * G, U2_Y - 4 * G), (U2_X -  8 * G - _STUB_H, U2_Y - 4 * G))  # pin 1 stub
-    _place_label(s, "UART_RX_3V3", (U2_X - 8 * G - _STUB_H, U2_Y - 4 * G), angle=180)         # pin 1 RO (left)
+    _place_label(s, "UART_RX_3V3", (U2_X - 8 * G - _STUB_H, U2_Y - 4 * G), justify_h="right")  # pin 1 RO (outdir=L)
     _place_wire(s,  (U2_X -  8 * G, U2_Y - 2 * G), (U2_X -  8 * G, U2_Y))                     # pin 2 ↔ pin 3
     _place_wire(s,  (U2_X -  8 * G, U2_Y - 2 * G), (U2_X -  8 * G - _STUB_H, U2_Y - 2 * G))  # tied-pair stub
-    _place_label(s, "DE_RE",       (U2_X - 8 * G - _STUB_H, U2_Y - 2 * G), angle=180)         # pin 2/3 (tied, left)
+    _place_label(s, "DE_RE",       (U2_X - 8 * G - _STUB_H, U2_Y - 2 * G), justify_h="right")  # pin 2/3 (tied, outdir=L)
     _place_wire(s,  (U2_X -  8 * G, U2_Y + 4 * G), (U2_X -  8 * G - _STUB_H, U2_Y + 4 * G))  # pin 4 stub
-    _place_label(s, "UART_TX_3V3", (U2_X - 8 * G - _STUB_H, U2_Y + 4 * G), angle=180)         # pin 4 DI (left)
+    _place_label(s, "UART_TX_3V3", (U2_X - 8 * G - _STUB_H, U2_Y + 4 * G), justify_h="right")  # pin 4 DI (outdir=L)
     # D16: U2 pin 5 GND → stock power port.
     _place_power_port(s, "GND", (U2_X, U2_Y + 12 * G), 'D', stub=_STUB_V, lib=lib)
     _place_wire(s,  (U2_X +  8 * G, U2_Y - 6 * G), (U2_X +  8 * G + _STUB_H, U2_Y - 6 * G))  # pin 6 stub
-    _place_label(s, "RS485_A",     (U2_X + 8 * G + _STUB_H, U2_Y - 6 * G))                    # pin 6 A
+    _place_label(s, "RS485_A",     (U2_X + 8 * G + _STUB_H, U2_Y - 6 * G), justify_h="left")  # pin 6 A (outdir=R)
     _place_wire(s,  (U2_X +  8 * G, U2_Y - 2 * G), (U2_X +  8 * G + _STUB_H, U2_Y - 2 * G))  # pin 7 stub
-    _place_label(s, "RS485_B",     (U2_X + 8 * G + _STUB_H, U2_Y - 2 * G))                    # pin 7 B
+    _place_label(s, "RS485_B",     (U2_X + 8 * G + _STUB_H, U2_Y - 2 * G), justify_h="left")  # pin 7 B (outdir=R)
     _place_wire(s,  (U2_X,          U2_Y - 12 * G), (U2_X,          U2_Y - 12 * G - _STUB_V)) # pin 8 stub
-    _place_label(s, "V3V3",        (U2_X,          U2_Y - 12 * G - _STUB_V), angle=90)        # pin 8 VCC (top → up)
+    _place_label(s, "V3V3",        (U2_X,          U2_Y - 12 * G - _STUB_V), angle=90, justify_h="left")  # pin 8 VCC (outdir=U)
 
     # C7 — 100nF U2 VCC decoupling
     C7_X, C7_Y = U2_X + 6 * G, U2_Y - 10 * G   # (286.94, 88.9)
@@ -1945,8 +1982,8 @@ def build_display_side_schematic() -> None:
     _place_symbol(s, "R", "R2", "120",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R2_X, R2_Y), lib=lib,
-                  ref_pos=(R2_X + 6 * G, R2_Y - 1.27),   # D16: ref far right, clear of RS485_A label bbox
-                  value_pos=(R2_X + 6 * G, R2_Y + 1.27)) # D16: value far right
+                  ref_pos=(R2_X + 12 * G, R2_Y - 1.27),   # iter-9: ref further right, clear of widened RS485_A flag body
+                  value_pos=(R2_X + 12 * G, R2_Y + 1.27)) # iter-9: value further right, clear of widened RS485_B flag body
     _pin_label(s, "RS485_A", (R2_X, R2_Y - 3 * G), 'U')
     # D16: R2.pin2 RS485_B label deduped — wire emitted after R4
     # is placed below (same pattern as battery U3 R10→R12).
@@ -1975,8 +2012,8 @@ def build_display_side_schematic() -> None:
     _place_symbol(s, "D_TVS", "TVS2", "SMAJ12CA",
                   "Diode_SMD:D_SMA",
                   (TVS2_X, TVS2_Y), lib=lib,
-                  ref_pos=(TVS2_X, TVS2_Y - 3 * G),    # D16: ref above, clear of RS485_B label
-                  value_pos=(TVS2_X, TVS2_Y + 3 * G))
+                  ref_pos=(TVS2_X + 4 * G, TVS2_Y - 3 * G),    # iter-9b: ref upper-right of body, clear of widened RS485_A/B flag bodies
+                  value_pos=(TVS2_X + 4 * G, TVS2_Y + 3 * G))  # iter-9b: value lower-right of body
     # TVS2.pin1 RS485_A label deduped — wire to R2.pin1.
     _pin_label(s, "RS485_B", (TVS2_X + 3 * G, TVS2_Y), 'R')
     # Same RS485_A cluster dedup as battery-side U3 area:
@@ -2002,7 +2039,7 @@ def build_display_side_schematic() -> None:
                       ref_pos=(BTN_X - 2 * G, BTN_Y - 5 * G),
                       value_pos=(BTN_X - 2 * G, BTN_Y + 5 * G))
         _place_wire(s,  (BTN_X - 4 * G, BTN_Y), (BTN_X - 6 * G, BTN_Y))
-        _place_label(s, btn_net, (BTN_X - 6 * G, BTN_Y), angle=180)
+        _place_label(s, btn_net, (BTN_X - 6 * G, BTN_Y), justify_h="right")  # outdir=L
         _place_power_port(s, "GND", (BTN_X + 4 * G, BTN_Y), 'R', stub=2 * G, lib=lib)
         R_X = BTN_X + 8 * G
         _place_symbol(s, "R", r_ref, "1M",
@@ -2013,7 +2050,9 @@ def build_display_side_schematic() -> None:
         C_X = BTN_X + 16 * G
         _place_symbol(s, "C", c_ref, "100nF",
                       "Capacitor_SMD:C_0603_1608Metric",
-                      (C_X, BTN_Y), lib=lib)
+                      (C_X, BTN_Y), lib=lib,
+                      ref_pos=(C_X - 1.27, BTN_Y - 3 * G),    # iter-9b: ref above-left of body, clear of next BTN_IN flag body (which sits to the right)
+                      value_pos=(C_X - 1.27, BTN_Y + 5 * G))  # iter-9b: value below, far from R "1M" text
         _pin_label(s, btn_net, (C_X, BTN_Y - 3 * G), 'U')
         _pin_label(s, "GND",   (C_X, BTN_Y + 3 * G), 'D')
 
