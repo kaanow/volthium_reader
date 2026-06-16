@@ -62,6 +62,61 @@ class Box:
             return 0.0
         return ix * iy
 
+    def shrunk(self, m: float) -> "Box":
+        return Box(self.x0 + m, self.y0 + m, self.x1 - m, self.y1 - m)
+
+
+def _seg_clip_len(p0, p1, box: "Box") -> float:
+    """Length of the segment p0→p1 that lies inside `box` (Liang–Barsky).
+
+    Used for wire-through-element detection: a wire that merely terminates
+    at an element edge (a pin connection) clips to ~0 length; a wire that
+    runs THROUGH an element clips to a meaningful length.
+    """
+    x0, y0 = p0
+    x1, y1 = p1
+    dx, dy = x1 - x0, y1 - y0
+    t0, t1 = 0.0, 1.0
+    for p, q in ((-dx, x0 - box.x0), (dx, box.x1 - x0),
+                 (-dy, y0 - box.y0), (dy, box.y1 - y0)):
+        if abs(p) < 1e-12:
+            if q < 0:
+                return 0.0          # parallel and outside this edge
+            continue
+        r = q / p
+        if p < 0:
+            if r > t1:
+                return 0.0
+            if r > t0:
+                t0 = r
+        else:
+            if r < t0:
+                return 0.0
+            if r < t1:
+                t1 = r
+    if t1 <= t0:
+        return 0.0
+    seg_len = (dx * dx + dy * dy) ** 0.5
+    return (t1 - t0) * seg_len
+
+
+def _seg_intersect(a0, a1, b0, b1):
+    """Return (x, y) where segments a0a1 and b0b1 cross, else None.
+
+    Endpoints touching count as an intersection (used to classify
+    junction taps vs free crossings downstream).
+    """
+    (x1, y1), (x2, y2) = a0, a1
+    (x3, y3), (x4, y4) = b0, b1
+    d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3)
+    if abs(d) < 1e-12:
+        return None                 # parallel / colinear
+    t = ((x3 - x1) * (y4 - y3) - (y3 - y1) * (x4 - x3)) / d
+    u = ((x3 - x1) * (y2 - y1) - (y3 - y1) * (x2 - x1)) / d
+    if -1e-9 <= t <= 1 + 1e-9 and -1e-9 <= u <= 1 + 1e-9:
+        return (x1 + t * (x2 - x1), y1 + t * (y2 - y1))
+    return None
+
 
 def _label_box(text: str, x: float, y: float, angle: float,
                justify: str | None) -> Box:
@@ -91,6 +146,26 @@ def _label_box(text: str, x: float, y: float, angle: float,
             return Box(x - half_t, y - length, x + half_t, y + CHEVRON)
         else:                           # chevron up → body extends down
             return Box(x - half_t, y - CHEVRON, x + half_t, y + length)
+
+
+def _label_core_box(text: str, x: float, y: float, angle: float,
+                    justify: str | None) -> Box:
+    """The flag's TEXT-BODY box, excluding the ~2.5 mm connection zone at
+    the chevron tip. A wire reaching the chevron tip is a normal
+    connection; only a wire crossing this core is a 'strike-through'.
+    """
+    length = len(text) * CHAR_W + CHEVRON + PAD
+    half_t = TEXT_H / 2 + 0.25
+    cz = 2.5    # connection-zone depth excluded from the chevron side
+    a = int(round(angle)) % 360
+    if a in (0, 180):
+        if justify == "right":          # chevron right; body left
+            return Box(x - length, y - half_t, x - cz, y + half_t)
+        return Box(x + cz, y - half_t, x + length, y + half_t)
+    else:                               # vertical
+        if justify == "left":           # chevron down; body up
+            return Box(x - half_t, y - length, x + half_t, y - cz)
+        return Box(x - half_t, y + cz, x + half_t, y + length)
 
 
 def _lib_body_extent(sym) -> tuple[float, float] | None:
@@ -156,18 +231,35 @@ def audit(sch_path: Path) -> int:
         if name in extents:
             bodies.append((ref, _instance_body_box(inst, extents[name]), c))
         for p in inst.properties:
+            # Skip hidden text and the conventionally-hidden pseudo-refs
+            # of power-port / power-flag symbols (#PWR*, #FLG*), which
+            # never render and whose Value duplicates the net glyph.
             if p.key in ("Reference", "Value") and p.value and not (
-                    p.effects and p.effects.hide):
+                    p.effects and p.effects.hide) and not ref.startswith("#"):
                 texts.append((f"{ref}.{p.key}={p.value}",
                               _text_box(p.value, p.position.X, p.position.Y)))
 
     labels = []
+    label_cores = []
     for lbl in s.globalLabels:
         j = (lbl.effects.justify.horizontally
              if lbl.effects and lbl.effects.justify else None)
         box = _label_box(lbl.text, lbl.position.X, lbl.position.Y,
                          lbl.position.angle or 0, j)
         labels.append((lbl.text, box, lbl.position))
+        label_cores.append(_label_core_box(lbl.text, lbl.position.X,
+                                            lbl.position.Y,
+                                            lbl.position.angle or 0, j))
+
+    # Wire segments (each Connection of type "wire" is a polyline).
+    segments: list[tuple[tuple[float, float], tuple[float, float]]] = []
+    for g in (s.graphicalItems or []):
+        if type(g).__name__ == "Connection" and getattr(g, "type", None) == "wire":
+            pts = [(p.X, p.Y) for p in g.points]
+            for a, b in zip(pts, pts[1:]):
+                if a != b:
+                    segments.append((a, b))
+    junctions = [(jn.position.X, jn.position.Y) for jn in (s.junctions or [])]
 
     # Thresholds (mm²). A label flag tip naturally sits one pin-pitch
     # (2.54 mm) from the power-port glyph on the *adjacent* pin of the
@@ -223,7 +315,96 @@ def audit(sch_path: Path) -> int:
                 findings.append((a, f"flag∩flag : {t_i!r} ∩ {t_k!r} "
                                     f"= {a:.1f} mm²  (at {p_i.X:.1f},{p_i.Y:.1f})"))
 
+    # (5) wire ∩ element — a wire that runs THROUGH a body / flag / text.
+    #     A wire that merely *terminates* at an element (a pin connection,
+    #     or a wire ending at its own net flag) is fine; only a genuine
+    #     pass-through is a finding. A pass-through has BOTH endpoints
+    #     outside the element and a long interior clip.
+    MIN_WIRE_THRU = 1.3   # mm of wire inside the element to count as "through"
+
+    def _outside(pt, box):
+        return not (box.x0 - 0.3 <= pt[0] <= box.x1 + 0.3 and
+                    box.y0 - 0.3 <= pt[1] <= box.y1 + 0.3)
+
+    def _end_in_interior(box):
+        inner = box.shrunk(1.0)
+        return (
+            (inner.x0 <= s0[0] <= inner.x1 and inner.y0 <= s0[1] <= inner.y1) or
+            (inner.x0 <= s1[0] <= inner.x1 and inner.y0 <= s1[1] <= inner.y1))
+
+    for s0, s1 in segments:
+        for ref, bbox, _c in bodies:
+            # Power ports / power-flags (#…) are terminal glyphs: a wire
+            # always legitimately ENDS at them, so only a true pass-through
+            # (both endpoints outside, long interior clip) is a finding.
+            # Real component bodies (R/C/L/IC) additionally flag a wire
+            # that ENDS in their interior — a stub routed into the body
+            # instead of stopping at a pin on the edge (e.g. the R2 case).
+            clip = _seg_clip_len(s0, s1, bbox.shrunk(0.6))
+            if clip < MIN_WIRE_THRU:
+                continue
+            passthru = _outside(s0, bbox) and _outside(s1, bbox)
+            terminal = ref.startswith("#")
+            if passthru or (not terminal and _end_in_interior(bbox)):
+                findings.append((5.0, f"wire∩body : wire through/into {ref} body "
+                                      f"(seg {s0[0]:.1f},{s0[1]:.1f}→{s1[0]:.1f},{s1[1]:.1f})"))
+        for (text, lbox, pos), core in zip(labels, label_cores):
+            # Check the flag's TEXT CORE (chevron/connection zone excluded)
+            # so a wire reaching the chevron tip — a normal connection —
+            # is not mistaken for a body strike-through.
+            if _seg_clip_len(s0, s1, core) >= MIN_WIRE_THRU:
+                findings.append((5.0, f"wire∩flag : wire through {text!r} flag body "
+                                      f"(at {pos.X:.1f},{pos.Y:.1f})"))
+        for tref, tbox in texts:
+            if _outside(s0, tbox) and _outside(s1, tbox) and \
+                    _seg_clip_len(s0, s1, tbox.shrunk(0.2)) >= MIN_WIRE_THRU:
+                findings.append((5.0, f"wire∩text : wire through {tref}"))
+
+    # (6) wire ∩ wire crossings — count free interior×interior crossings
+    #     (guideline c: minimise these). T-taps (one wire's endpoint on
+    #     another's interior) are electrical connections; KiCad renders a
+    #     junction dot at them automatically, so they need no audit here
+    #     — the dot-vs-no-dot distinction is enforced by KiCad's renderer.
+    def _is_endpoint(pt, seg):
+        return (abs(pt[0] - seg[0][0]) < 0.05 and abs(pt[1] - seg[0][1]) < 0.05) or \
+               (abs(pt[0] - seg[1][0]) < 0.05 and abs(pt[1] - seg[1][1]) < 0.05)
+
+    crossings = 0
+    for i in range(len(segments)):
+        for k in range(i + 1, len(segments)):
+            pt = _seg_intersect(*segments[i], *segments[k])
+            if pt is None:
+                continue
+            ep_i = _is_endpoint(pt, segments[i])
+            ep_k = _is_endpoint(pt, segments[k])
+            if not ep_i and not ep_k:
+                crossings += 1      # interior×interior free crossing
+
+    # (7) ADVISORY: two GlobalLabels carrying the SAME net name that sit
+    #     close together should usually be replaced by a wire (guideline
+    #     a) — flags are for genuinely far-apart connections.
+    PROX = 20.0   # mm — "near" threshold
+    advisories = []
+    for i in range(len(labels)):
+        t_i, _b_i, p_i = labels[i]
+        for k in range(i + 1, len(labels)):
+            t_k, _b_k, p_k = labels[k]
+            if t_i != t_k:
+                continue
+            d = ((p_i.X - p_k.X) ** 2 + (p_i.Y - p_k.Y) ** 2) ** 0.5
+            if d <= PROX:
+                advisories.append((d, f"same-net labels {t_i!r} only "
+                                      f"{d:.1f} mm apart "
+                                      f"(({p_i.X:.0f},{p_i.Y:.0f})/"
+                                      f"({p_k.X:.0f},{p_k.Y:.0f})) — "
+                                      f"consider wiring instead of two flags"))
+
     findings.sort(reverse=True)
+    if crossings:
+        print(f"  [advisory] {crossings} free wire crossing(s) "
+              f"(no junction; minimise these per guideline c)")
+    for _, line in sorted(advisories):
+        print(f"  [advisory] {line}")
     print(f"=== {sch_path.name}: {len(findings)} geometry findings ===")
     for _, line in findings:
         print("  " + line)

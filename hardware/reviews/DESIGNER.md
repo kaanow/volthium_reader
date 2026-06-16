@@ -62,6 +62,26 @@ this template inherit them.
    schematic, not by sharing a `GlobalLabel` net name. `GlobalLabel`
    is reserved for power rails (when not handled by a power-port
    symbol — see #2) and for genuine cross-cluster signals.
+   Three corollaries (the "wiring-discipline" guidelines):
+   - **(a) Wire nearby same-net labels instead of using two flags.**
+     If two `GlobalLabel`s carry the SAME net name and sit close
+     together (the geometry audit's same-net advisory flags pairs
+     within ~20 mm), connect them with a wire and drop one flag —
+     UNLESS the connecting wire would itself cross a symbol or
+     another wire (prefer a wire only when the wire is not worse).
+     Flags are for genuinely far-apart connections.
+   - **(b) Datasheet-mandated parts belong IN the IC's block, wired
+     directly.** Decoupling/bypass caps, bias resistors, bootstrap
+     caps, etc. that a datasheet ties to an IC are placed next to
+     that IC and connected by wires (not label-name matching), so
+     the sheet reads as logical blocks whose members are wired
+     together and whose blocks are separated by whitespace.
+   - **(c) Minimise wire crossings; keep crossings ≠ connections.**
+     A connection carries a junction dot (KiCad renders it
+     automatically where wires electrically join); a crossing has
+     none. Route to avoid crossings where reasonable; the geometry
+     audit reports the free-crossing count as an advisory to drive
+     this down.
 2. **Stock KiCad power-port symbols for power rails.** GND uses the
    ground-triangle glyph; supply rails use the upward-arrow glyph
    keyed to the rail name (`+3V3`, `+12V`, `+24V`, or a project
@@ -99,7 +119,16 @@ this template inherit them.
      (`hardware/reviews/tools/label_body_audit.py`): every *graphics*
      pair the text audit cannot see — `GlobalLabel` flag ∩ component
      body, **body ∩ body** (e.g. a power-port ground-triangle glyph
-     landing on a resistor body), flag ∩ flag, and flag ∩ ref/value.
+     landing on a resistor body), flag ∩ flag, flag ∩ ref/value, and
+     the **wire classes**: a wire running through/into a component
+     body, a wire crossing a flag's text core (a "strike-through" —
+     the connection-zone at the chevron tip is excluded so a normal
+     pin connection doesn't false-trigger), and a wire through ref/
+     value text. It also reports advisories: same-net label pairs
+     that should be wired (guideline a) and the free wire-crossing
+     count (guideline c).
+   Net lines are drawn at a wider stroke (`WIRE_WIDTH`, 10 mil) than
+   KiCad's faint 6 mil default so they read clearly.
    Text-vs-text alone is NOT sufficient: a flag body or a power-port
    glyph can sit squarely on a component symbol with zero text overlap.
    That blind spot shipped twice (iter-9 chevron regressions, iter-11

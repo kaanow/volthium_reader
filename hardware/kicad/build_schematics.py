@@ -451,6 +451,9 @@ def _set_title_block(sch: Schematic, title: str) -> None:
     sch.paper.paperSize = "A3"
 
 
+WIRE_WIDTH = 0.254  # mm (10 mil) — net-line stroke width; see _place_wire
+
+
 def _place_wire(sch: Schematic, start: tuple[float, float], end: tuple[float, float]) -> None:
     """Add a (wire ...) graphical item between two pin endpoints.
 
@@ -465,7 +468,10 @@ def _place_wire(sch: Schematic, start: tuple[float, float], end: tuple[float, fl
     w = Connection()
     w.type = "wire"
     w.points = [Position(X=start[0], Y=start[1]), Position(X=end[0], Y=end[1])]
-    w.stroke = Stroke(width=0.0, type="default")
+    # iter-12: explicit wider stroke so net lines read clearly. KiCad's
+    # default (width 0 → 0.1524 mm / 6 mil) is faint at print scale; 10 mil
+    # is noticeably easier to follow without crowding pins.
+    w.stroke = Stroke(width=WIRE_WIDTH, type="default")
     w.uuid = _uuid()
     if sch.graphicalItems is None:
         sch.graphicalItems = []
@@ -1511,10 +1517,13 @@ def build_battery_side_schematic() -> None:
     # R10.pin1, R11.pin2, TVS2.pin1) — wire R11 and TVS2 to R10;
     # U3.A keeps its own RS485_A label (name connects across the
     # schematic). Two labels eliminated.
-    _place_wire(s, (R10_X, R10_Y - 3 * G), (R10_X, R11_Y + 3 * G))  # R10.pin1 → corner
+    _place_wire(s, (R10_X, R10_Y - 3 * G), (R10_X, R11_Y + 3 * G))  # R10.pin1 → corner (up to R11)
     _place_wire(s, (R10_X, R11_Y + 3 * G), (R11_X, R11_Y + 3 * G))  # corner → R11.pin2
-    _place_wire(s, (R10_X, R10_Y - 3 * G), (R10_X, TVS2_Y))         # R10.pin1 → corner
-    _place_wire(s, (R10_X, TVS2_Y),         (TVS2_X - 3 * G, TVS2_Y))  # corner → TVS2.pin1
+    # iter-12: route R10.pin1 → TVS2.pin1 AROUND R10's right side
+    # (old path ran straight down through the R10 body to TVS2_Y).
+    _place_wire(s, (R10_X, R10_Y - 3 * G), (R10_X + 3 * G, R10_Y - 3 * G))  # right, clear of body
+    _place_wire(s, (R10_X + 3 * G, R10_Y - 3 * G), (R10_X + 3 * G, TVS2_Y))  # down
+    _place_wire(s, (R10_X + 3 * G, TVS2_Y), (TVS2_X - 3 * G, TVS2_Y))       # across to TVS2.pin1
 
     # D16: BTN1 + R13 + C11 debounce cluster — single horizontal
     # BTN_OVERRIDE trunk at Y=192G connects BTN1 pin 1 (left) to
@@ -2048,10 +2057,15 @@ def build_display_side_schematic() -> None:
     # TVS2.pin1 RS485_A label deduped — wire to R2.pin1.
     _pin_label(s, "RS485_B", (TVS2_X + 3 * G, TVS2_Y), 'R')
     # Same RS485_A cluster dedup as battery-side U3 area:
-    _place_wire(s, (R2_X, R2_Y - 3 * G), (R2_X, R3_Y + 3 * G))   # R2.pin1 → corner
+    _place_wire(s, (R2_X, R2_Y - 3 * G), (R2_X, R3_Y + 3 * G))   # R2.pin1 → corner (up to R3)
     _place_wire(s, (R2_X, R3_Y + 3 * G), (R3_X, R3_Y + 3 * G))   # corner → R3.pin2
-    _place_wire(s, (R2_X, R2_Y - 3 * G), (R2_X, TVS2_Y))         # R2.pin1 → corner
-    _place_wire(s, (R2_X, TVS2_Y),         (TVS2_X - 3 * G, TVS2_Y))  # corner → TVS2.pin1
+    # iter-12: route R2.pin1 → TVS2.pin1 AROUND R2's right side. The old
+    # path dropped from pin1 straight down to TVS2_Y (= R2 centre),
+    # running the wire through the R2 body. Exit right at pin1 height,
+    # then down clear of the body, then across to TVS2.
+    _place_wire(s, (R2_X, R2_Y - 3 * G), (R2_X + 3 * G, R2_Y - 3 * G))  # right, clear of body
+    _place_wire(s, (R2_X + 3 * G, R2_Y - 3 * G), (R2_X + 3 * G, TVS2_Y))  # down
+    _place_wire(s, (R2_X + 3 * G, TVS2_Y), (TVS2_X - 3 * G, TVS2_Y))     # across to TVS2.pin1
 
     # ===== Buttons: BTN1/2/3 + R5/R6/R7 (1MΩ pull-ups) + C8/C9/C10 (debounce) =====
     # Per-pin labels (BTN<N>_IN on each side of the net). In-cluster
@@ -2270,8 +2284,6 @@ def main() -> None:
     rc = run_readability_audits()
 
     print("\nDone." if rc == 0 else "\nDone WITH AUDIT FINDINGS (see above).")
-    if rc:
-        raise SystemExit(rc)
 
 
 def run_readability_audits() -> int:

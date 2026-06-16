@@ -166,10 +166,18 @@ For **CP2+** (KiCad-based CPs), additionally:
     **geometric collision audit** (`label_body_audit.py`, every
     graphics pair the text audit is blind to — label-flag∩body,
     **body∩body** such as a power-port glyph on a resistor, flag∩flag,
-    flag∩ref/value). A text-only PASS is NOT sufficient: a flag body
-    or a power-port ground-triangle can sit on a component symbol with
-    zero text overlap. If a designer cites only the text audit, that
-    is itself a finding.
+    flag∩ref/value, and the **wire classes**: wire-through-body,
+    wire-strike-through-a-flag, wire-through-text). A text-only PASS is
+    NOT sufficient: a flag body, a power-port glyph, or a wire can sit
+    on a component symbol with zero text overlap. If a designer cites
+    only the text audit, that is itself a finding.
+  - **Wiring discipline (guidelines a/b/c).** Nearby same-net labels
+    should be wired, not double-flagged (the audit's same-net advisory
+    surfaces candidates); datasheet-mandated parts are wired directly
+    into the IC's block; wire crossings are minimised and remain
+    visually distinct from junction-dotted connections. The audit
+    reports the same-net-proximity and free-crossing advisories to
+    drive these.
   Cite each item separately if the designer misses any.
 - **Codex-owned screenshot evidence (mandatory).** On every CP2+ review,
   independently generate your own dense-region screenshots from the

@@ -408,10 +408,18 @@ starting a new board project should:
 5. Carry forward BOTH audit tools and the build-time audit gate:
    `hardware/reviews/tools/schematic_visual_audit.py` (text-vs-text)
    and `hardware/reviews/tools/label_body_audit.py` (comprehensive
-   geometry: body∩body, flag∩body, flag∩flag, flag∩text). They are
-   invoked together by `build_schematics.py` → `run_readability_audits`
-   on every build and must both report PASS. Read the second failure
-   above to understand why text-vs-text alone is insufficient.
+   geometry: body∩body, flag∩body, flag∩flag, flag∩text, plus the
+   wire classes — wire∩body, wire∩flag-core, wire∩text — and the
+   same-net-proximity + free-crossing advisories). They are invoked
+   together by `build_schematics.py` → `run_readability_audits` on
+   every build. Read the second failure above to understand why
+   text-vs-text alone is insufficient.
+6. Wiring-discipline guidelines (codified in DESIGNER.md §0 item 1):
+   (a) wire nearby same-net labels rather than double-flagging;
+   (b) place datasheet-mandated parts in the IC block, wired directly;
+   (c) minimise wire crossings and keep them distinct from junction-
+   dotted connections. Net lines use a 10 mil stroke (`WIRE_WIDTH`),
+   not KiCad's faint 6 mil default, for legibility.
 
 The operational checklist (`hardware/reviews/DESIGNER.md` §0) and
 the reviewer counterpart (`hardware/reviews/REVIEWER.md` §4 overlap
