@@ -160,7 +160,16 @@ For **CP2+** (KiCad-based CPs), additionally:
     or relocate), don't hide pin numbers on the instance.
   - Functional sub-circuits read as visual clusters with a clear
     primary signal-flow direction.
-  - Strict overlap audit exits 0.
+  - BOTH readability audits exit 0 (the `build_schematics.py` audit
+    gate must report PASS): the **strict text-overlap audit**
+    (`schematic_visual_audit.py`, every text-vs-text pair) AND the
+    **geometric collision audit** (`label_body_audit.py`, every
+    graphics pair the text audit is blind to — label-flag∩body,
+    **body∩body** such as a power-port glyph on a resistor, flag∩flag,
+    flag∩ref/value). A text-only PASS is NOT sufficient: a flag body
+    or a power-port ground-triangle can sit on a component symbol with
+    zero text overlap. If a designer cites only the text audit, that
+    is itself a finding.
   Cite each item separately if the designer misses any.
 - **Codex-owned screenshot evidence (mandatory).** On every CP2+ review,
   independently generate your own dense-region screenshots from the

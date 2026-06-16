@@ -74,7 +74,12 @@ def _label_box(text: str, x: float, y: float, angle: float,
     justify=right → chevron-up (body down).
     """
     length = len(text) * CHAR_W + CHEVRON + PAD
-    half_t = TEXT_H / 2 + PAD
+    # Thickness (perpendicular to the text) is just the cap height plus a
+    # thin border. It must stay < the 2.54 mm pin pitch so that adjacent
+    # connector/IC pin labels (stacked one pitch apart, which render with
+    # a clear gap — verified on the J3/J4 dev headers) do NOT register as
+    # a flag∩flag overlap. PAD only pads the text-direction length.
+    half_t = TEXT_H / 2 + 0.25   # full thickness ≈ 2.05 mm < 2.54 pitch
     a = int(round(angle)) % 360
     if a in (0, 180):
         if justify == "right":          # chevron right → body extends left
@@ -142,13 +147,14 @@ def audit(sch_path: Path) -> int:
 
     s = Schematic.from_file(str(sch_path))
 
-    bodies: list[tuple[str, Box]] = []
+    bodies: list[tuple[str, Box, tuple[float, float]]] = []
     texts: list[tuple[str, Box]] = []
     for inst in s.schematicSymbols:
         name = inst.entryName
         ref = next((p.value for p in inst.properties if p.key == "Reference"), "?")
+        c = (inst.position.X, inst.position.Y)
         if name in extents:
-            bodies.append((ref, _instance_body_box(inst, extents[name])))
+            bodies.append((ref, _instance_body_box(inst, extents[name]), c))
         for p in inst.properties:
             if p.key in ("Reference", "Value") and p.value and not (
                     p.effects and p.effects.hide):
@@ -170,28 +176,55 @@ def audit(sch_path: Path) -> int:
     # ports so those adjacent-pin grazes drop out while a real flag-on-
     # glyph stack (≫ the original 9 mm² V3V3-on-GND case) still fires.
     # Component bodies (R/C/IC) and ref/value text use a tighter floor.
-    MIN_BODY = 2.0
-    MIN_PWR = 4.0
-    MIN_TEXT = 2.0
+    # body∩body uses the lowest floor: NO two component glyphs should
+    # share ink — they connect through pins/wires, never overlapping
+    # bodies — so even a small overlap is a real bug.
+    MIN_BODY = 2.0       # label-flag ∩ component body
+    MIN_PWR = 4.0        # label-flag ∩ power-port glyph (adjacent-pin grazes ~1.7)
+    MIN_TEXT = 2.0       # label-flag ∩ ref/value text
+    MIN_BB = 0.5         # body ∩ body (any shared ink is wrong)
+    MIN_FF = 2.0         # flag ∩ flag
 
     findings = []
+
+    # (1) label flag ∩ component / power-port body
+    # (2) label flag ∩ ref/value text
     for text, lbox, pos in labels:
-        for ref, bbox in bodies:
+        for ref, bbox, _c in bodies:
             a = lbox.inter(bbox)
             floor = MIN_PWR if ref == "#PWR" else MIN_BODY
             if a >= floor:
-                findings.append((a, f"label {text!r} flag ∩ body {ref} "
-                                    f"= {a:.1f} mm²  (label at "
-                                    f"{pos.X:.1f},{pos.Y:.1f})"))
+                findings.append((a, f"flag∩body : label {text!r} ∩ body {ref} "
+                                    f"= {a:.1f} mm²  (at {pos.X:.1f},{pos.Y:.1f})"))
         for tref, tbox in texts:
             a = lbox.inter(tbox)
             if a >= MIN_TEXT:
-                findings.append((a, f"label {text!r} flag ∩ text {tref} "
-                                    f"= {a:.1f} mm²  (label at "
-                                    f"{pos.X:.1f},{pos.Y:.1f})"))
+                findings.append((a, f"flag∩text : label {text!r} ∩ {tref} "
+                                    f"= {a:.1f} mm²  (at {pos.X:.1f},{pos.Y:.1f})"))
+
+    # (3) body ∩ body  — NEW: catches a power-port glyph or any symbol
+    #     overlapping another symbol's body (e.g. GND port on a resistor).
+    for i in range(len(bodies)):
+        ref_i, box_i, c_i = bodies[i]
+        for k in range(i + 1, len(bodies)):
+            ref_k, box_k, c_k = bodies[k]
+            a = box_i.inter(box_k)
+            if a >= MIN_BB:
+                findings.append((a, f"body∩body : {ref_i} ∩ {ref_k} "
+                                    f"= {a:.1f} mm²  (near {c_i[0]:.1f},{c_i[1]:.1f})"))
+
+    # (4) flag ∩ flag  — NEW: two label flags whose bodies overlap.
+    for i in range(len(labels)):
+        t_i, box_i, p_i = labels[i]
+        for k in range(i + 1, len(labels)):
+            t_k, box_k, p_k = labels[k]
+            a = box_i.inter(box_k)
+            if a >= MIN_FF:
+                findings.append((a, f"flag∩flag : {t_i!r} ∩ {t_k!r} "
+                                    f"= {a:.1f} mm²  (at {p_i.X:.1f},{p_i.Y:.1f})"))
 
     findings.sort(reverse=True)
-    print(f"=== {sch_path.name}: {len(findings)} label-on-component findings ===")
+    print(f"=== {sch_path.name}: {len(findings)} geometry findings ===")
     for _, line in findings:
         print("  " + line)
     return len(findings)
@@ -204,7 +237,8 @@ def main() -> int:
     total = 0
     for p in args.schematic:
         total += audit(p)
-    return 0
+    # Non-zero exit on any finding so callers (build, CI) can gate on it.
+    return 1 if total else 0
 
 
 if __name__ == "__main__":

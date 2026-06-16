@@ -1447,16 +1447,19 @@ def build_battery_side_schematic() -> None:
     _place_wire(s,  (U3_X,          U3_Y - 12 * G), (U3_X,          U3_Y - 12 * G - _STUB_V)) # pin 8 stub
     _place_label(s, "V3V3_SW",     (U3_X,          U3_Y - 12 * G - _STUB_V), angle=90, justify_h="left")  # pin 8 VCC (outdir=U)
 
-    # C10 — 100 nF U3 VCC decoupling
-    C10_X, C10_Y = U3_X + 6 * G, U3_Y - 10 * G   # (287.02, 50.8)
+    # C10 — 100 nF U3 VCC decoupling.
+    # iter-11: lifted above the tall chip body, GND port pointing up
+    # (same fix as display C7) — the corner placement put the cap's
+    # bottom pin + GND port inside the chip outline (body∩body).
+    C10_X, C10_Y = U3_X + 6 * G, U3_Y - 16 * G
     _place_symbol(s, "C", "C10", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (C10_X, C10_Y), lib=lib)
-    # D16: V3V3_SW deduped — wire C10.pin1 left + down to U3 pin 8
-    # endpoint (also V3V3_SW). U3 keeps the single label.
-    _place_wire(s, (C10_X, C10_Y - 3 * G), (U3_X, C10_Y - 3 * G))
-    _place_wire(s, (U3_X, C10_Y - 3 * G), (U3_X, U3_Y - 12 * G))
-    _place_power_port(s, "GND", (C10_X, C10_Y + 3 * G), 'D', stub=2 * G, lib=lib)
+    # bottom pin → V3V3_SW / pin 8 (wire left then down to the pin-8 node)
+    _place_wire(s, (C10_X, C10_Y + 3 * G), (U3_X, C10_Y + 3 * G))
+    _place_wire(s, (U3_X, C10_Y + 3 * G), (U3_X, U3_Y - 12 * G))
+    # top pin → GND port pointing up, clear of the chip body
+    _place_power_port(s, "GND", (C10_X, C10_Y - 3 * G), 'U', stub=2 * G, lib=lib)
 
     # R10 — 120 Ω RS-485 termination (A ↔ B). Horizontal so both pins
     # land on the A/B nets without rotating the symbol.
@@ -1987,15 +1990,20 @@ def build_display_side_schematic() -> None:
     _place_wire(s,  (U2_X,          U2_Y - 12 * G), (U2_X,          U2_Y - 12 * G - _STUB_V)) # pin 8 stub
     _place_label(s, "V3V3",        (U2_X,          U2_Y - 12 * G - _STUB_V), angle=90, justify_h="left")  # pin 8 VCC (outdir=U)
 
-    # C7 — 100nF U2 VCC decoupling
-    C7_X, C7_Y = U2_X + 6 * G, U2_Y - 10 * G   # (286.94, 88.9)
+    # C7 — 100nF U2 VCC decoupling.
+    # iter-11: lifted fully above the (tall) chip body and flipped so the
+    # GND port points UP, away from the chip. The old placement at the
+    # top-right corner put the cap's bottom pin + GND port inside the
+    # chip body outline (body∩body). Bottom pin taps V3V3/pin-8 downward.
+    C7_X, C7_Y = U2_X + 6 * G, U2_Y - 16 * G
     _place_symbol(s, "C", "C7", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (C7_X, C7_Y), lib=lib)
-    # D16: V3V3 deduped — wire C7.pin1 left + down to U2 pin 8 endpoint.
-    _place_wire(s, (C7_X, C7_Y - 3 * G), (U2_X, C7_Y - 3 * G))
-    _place_wire(s, (U2_X, C7_Y - 3 * G), (U2_X, U2_Y - 12 * G))
-    _place_power_port(s, "GND", (C7_X, C7_Y + 3 * G), 'D', stub=2 * G, lib=lib)
+    # bottom pin → V3V3 / pin 8 (wire left then down to the pin-8 node)
+    _place_wire(s, (C7_X, C7_Y + 3 * G), (U2_X, C7_Y + 3 * G))
+    _place_wire(s, (U2_X, C7_Y + 3 * G), (U2_X, U2_Y - 12 * G))
+    # top pin → GND port pointing up, clear of the chip body
+    _place_power_port(s, "GND", (C7_X, C7_Y - 3 * G), 'U', stub=2 * G, lib=lib)
 
     # R2 — 120Ω termination (A ↔ B), bus terminus
     # iter-10: pushed to +24G so the termination resistor body no longer
@@ -2063,7 +2071,10 @@ def build_display_side_schematic() -> None:
                       value_pos=(BTN_X - 2 * G, BTN_Y + 5 * G))
         _place_wire(s,  (BTN_X - 4 * G, BTN_Y), (BTN_X - 6 * G, BTN_Y))
         _place_label(s, btn_net, (BTN_X - 6 * G, BTN_Y), justify_h="right")  # outdir=L
-        _place_power_port(s, "GND", (BTN_X + 4 * G, BTN_Y), 'R', stub=2 * G, lib=lib)
+        # iter-11: route the switch GND DOWN (apex-down port below the
+        # switch) instead of right — the old apex-right port poked into
+        # the pull-up R body to its right (body∩body).
+        _place_power_port(s, "GND", (BTN_X + 4 * G, BTN_Y), 'D', stub=4 * G, lib=lib)
         R_X = BTN_X + 8 * G
         _place_symbol(s, "R", r_ref, "1M",
                       "Resistor_SMD:R_0805_2012Metric",
@@ -2255,7 +2266,66 @@ def main() -> None:
     print("--- display_side ---")
     post_process(DISP_DIR, "display_side", OUT_DISP)
 
-    print("\nDone.")
+    print("\n=== Readability audits (gate) ===")
+    rc = run_readability_audits()
+
+    print("\nDone." if rc == 0 else "\nDone WITH AUDIT FINDINGS (see above).")
+    if rc:
+        raise SystemExit(rc)
+
+
+def run_readability_audits() -> int:
+    """Run BOTH readability audits on both boards and report a combined
+    PASS/FAIL. Returns the number of total findings (0 = clean).
+
+    Two complementary audits — between them they cover every overlap
+    class (D16 readability gate):
+      • strict text-overlap audit  → every text-vs-text bbox pair
+        (pin numbers, refs, values, label text).
+      • geometric collision audit  → every graphics pair the text audit
+        is blind to: label-flag∩body, body∩body (e.g. a power-port glyph
+        on a resistor), flag∩flag, flag∩ref/value.
+    Running them here means every regeneration self-checks; a fix that
+    introduces a new overlap fails the build immediately.
+    """
+    import importlib.util
+
+    tools = REPO / "hardware/reviews/tools"
+
+    def _load(mod_name: str):
+        spec = importlib.util.spec_from_file_location(
+            mod_name, tools / f"{mod_name}.py")
+        m = importlib.util.module_from_spec(spec)
+        # Register before exec so dataclass annotation resolution
+        # (which looks up cls.__module__ in sys.modules) succeeds.
+        sys.modules[mod_name] = m
+        spec.loader.exec_module(m)
+        return m
+
+    import fitz
+    sva = _load("schematic_visual_audit")
+    lba = _load("label_body_audit")
+
+    total = 0
+    boards = [
+        ("battery_side", BATT_DIR / "battery_side.kicad_sch",
+         OUT_BATT / "schematic.pdf"),
+        ("display_side", DISP_DIR / "display_side.kicad_sch",
+         OUT_DISP / "schematic.pdf"),
+    ]
+    for name, sch, pdf in boards:
+        doc = fitz.open(pdf)
+        words = [w for i, pg in enumerate(doc)
+                 for w in sva.words_from_page(pg, i)]
+        n_text = len(sva.detect_text_overlaps(words))
+        n_geom = lba.audit(sch)   # prints its own findings
+        total += n_text + n_geom
+        status = "PASS" if (n_text + n_geom) == 0 else "FAIL"
+        print(f"  [{status}] {name}: {n_text} text-overlap pairs, "
+              f"{n_geom} geometry findings")
+    print(f"  Audit gate: {'PASS' if total == 0 else 'FAIL'} "
+          f"({total} total findings)")
+    return total
 
 
 if __name__ == "__main__":

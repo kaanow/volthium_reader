@@ -84,18 +84,41 @@ this template inherit them.
    Signal flow inside the cluster runs left-to-right or
    top-to-bottom; supplies enter from the top edge of the cluster,
    GND exits from the bottom.
-5. **Zero on the strict overlap audit.**
-   `.venv/bin/python hardware/reviews/tools/schematic_visual_audit.py --strict`
-   must exit 0 on every committed schematic PDF before the iter is
-   considered ready. SAME-TEXT identical-bbox pairs that originate
-   from KiCad's PDF stroke-font rendering still count — fix the
-   font, the property layout, or the generator until they do not
-   appear. **There is no "documented residual" path.**
+5. **Zero on BOTH readability audits.** Two complementary audits run
+   automatically at the end of every `build_schematics.py` run (the
+   "audit gate") and must both report PASS — the build raises a
+   non-zero exit otherwise. They are complementary because each is
+   blind to what the other catches:
+   - **Strict text-overlap audit**
+     (`hardware/reviews/tools/schematic_visual_audit.py --strict`):
+     every text-vs-text bbox pair (pin numbers, refs, values, label
+     text). SAME-TEXT identical-bbox pairs from KiCad's PDF stroke-font
+     rendering still count — fix the font, layout, or generator. **No
+     "documented residual" path.**
+   - **Geometric collision audit**
+     (`hardware/reviews/tools/label_body_audit.py`): every *graphics*
+     pair the text audit cannot see — `GlobalLabel` flag ∩ component
+     body, **body ∩ body** (e.g. a power-port ground-triangle glyph
+     landing on a resistor body), flag ∩ flag, and flag ∩ ref/value.
+   Text-vs-text alone is NOT sufficient: a flag body or a power-port
+   glyph can sit squarely on a component symbol with zero text overlap.
+   That blind spot shipped twice (iter-9 chevron regressions, iter-11
+   GND-port-on-resistor) before the geometric audit existed — never
+   judge readability from the text audit alone.
 
 A scripted audit is still worth running first — it's a cheap filter
 for symbol coordinate collisions, duplicate placements, and obvious
 spacing problems. The visual gate below is on top of that, not
-instead of it.
+instead of it. **And inspect visually at high DPI per-region**
+(PyMuPDF `Matrix(12–14)` clipped to one grid cell), never from a
+full-page render — text is illegible at full-page scale, so a
+full-page image cannot confirm or deny readability. When showing the
+user, send high-DPI region crops, not a shrunk full page.
+
+When a fix introduces a *new* overlap (common — moving a label clears
+one collision and creates another), the audit gate catches it on the
+next build. Loop: edit → rebuild → read the gate → fix the new
+findings → rebuild, until the gate reports PASS with 0 findings.
 
 ### Operational checklist — before claiming D11 #0 or #5 PASS
 

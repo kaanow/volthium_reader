@@ -359,6 +359,32 @@ visual gate, so the cheapest thing (run a script) became the only
 thing. The protocol above closes that gap by making screenshots-in-
 packet a hard requirement of the sign-off itself.
 
+### Second failure (teaching example — the audit's own blind spot)
+
+CP6, iter-9 → iter-11 (2026-06-14 → 06-16). After the iter-36 lesson,
+a real overlap audit existed, but it only checked *some* element-pair
+classes: text-vs-text (`schematic_visual_audit.py`) and, later,
+label-flag-vs-body (`label_body_audit.py`). Both reported 0 — yet the
+user opened the renders and saw a GND power-port ground-triangle glyph
+sitting on top of resistors R5/R6/R7, and decoupling caps grazing the
+RS-485 chip body. The audits were blind to it because nothing checked
+**symbol body vs symbol body**: two components connect through pins and
+wires, never through overlapping bodies, so a glyph-on-glyph overlap is
+always wrong — but it was simply never a checked pair type.
+
+The deeper lesson: **piecemeal pair-type checks always leave a blind
+spot.** The systemic fix is one audit that enumerates *every* element
+(symbol bodies incl. power-port glyphs, label flags, ref/value text)
+and checks *all* cross-type pairs — body∩body, flag∩body, flag∩flag,
+flag∩text — not a hand-picked subset. That comprehensive audit
+(`label_body_audit.py`) plus the text audit are wired into
+`build_schematics.py` as an **audit gate** that runs on every
+regeneration and exits non-zero on any finding, so a fix that creates a
+new overlap fails the build immediately (the "loop": edit → rebuild →
+read gate → fix → rebuild until PASS). A second corollary: never judge
+readability from a full-page render — text is illegible at that scale;
+inspect per-region at high DPI (`Matrix(12–14)`).
+
 ### Portability for future PCB projects
 
 D11 *and* D16 (top-level goal + zero-exception overlap rule), the
@@ -379,6 +405,13 @@ starting a new board project should:
 4. Never claim a documentation or schematic gate PASS based on
    script output alone, and never request a "residual" exception
    under D16.
+5. Carry forward BOTH audit tools and the build-time audit gate:
+   `hardware/reviews/tools/schematic_visual_audit.py` (text-vs-text)
+   and `hardware/reviews/tools/label_body_audit.py` (comprehensive
+   geometry: body∩body, flag∩body, flag∩flag, flag∩text). They are
+   invoked together by `build_schematics.py` → `run_readability_audits`
+   on every build and must both report PASS. Read the second failure
+   above to understand why text-vs-text alone is insufficient.
 
 The operational checklist (`hardware/reviews/DESIGNER.md` §0) and
 the reviewer counterpart (`hardware/reviews/REVIEWER.md` §4 overlap
