@@ -1137,11 +1137,14 @@ def build_battery_side_schematic() -> None:
     _place_wire(s, (R3_X, Q1_Y),         (Q1_X - 4 * G, Q1_Y))       # corner → Q1.G
 
     # R4 — 100 kΩ Q2 gate pull-down to GND (failsafe on MCU brown-out)
-    R4_X, R4_Y = 30 * G, 82 * G   # Q1 + (-22,+10)
+    # iter-10: moved to 24G (was 30G) so the resistor body clears Q2's
+    # gate PWR_EN label, whose body extends left from Q2.G across this
+    # column. R4 ↔ Q2.G connect by net name (both PWR_EN), no wire.
+    R4_X, R4_Y = 24 * G, 82 * G
     _place_symbol(s, "R", "R4", "100k",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R4_X, R4_Y), lib=lib,
-                  ref_pos=(R4_X - 4 * G, R4_Y - 1.27),    # D16: ref left, opposite from PWR_EN labels which extend left from Q2/R4
+                  ref_pos=(R4_X - 4 * G, R4_Y - 1.27),    # ref left, clear of the PWR_EN label column to the right
                   value_pos=(R4_X - 4 * G, R4_Y + 1.27))
     _pin_label(s, "PWR_EN", (R4_X, R4_Y - 3 * G), 'U')   # pin 1
     _pin_label(s, "GND",    (R4_X, R4_Y + 3 * G), 'D')   # pin 2
@@ -1234,7 +1237,7 @@ def build_battery_side_schematic() -> None:
                   "RF_Module:ESP32-S3-WROOM-1U",  # -1U variant: external U.FL antenna, no keepout zone
                   (MOD1_X, MOD1_Y), lib=lib,
                   ref_pos=(MOD1_X + 16 * G, MOD1_Y - 24 * G),  # D16: above-right, clear of V3V3_SW top label
-                  value_pos=(MOD1_X, MOD1_Y + 30 * G))  # value below body
+                  value_pos=(MOD1_X, MOD1_Y + 36 * G))  # iter-10: +36G clears the bottom-pin GND flag
     # Pins 1, 40, 41 (all GND) share the same library position in the
     # ESP32-S3-WROOM-1 symbol (0, -27.94). Placing one label per pin
     # creates 3 stacked GND labels at the same coordinate — fails D11
@@ -1275,9 +1278,14 @@ def build_battery_side_schematic() -> None:
     # existing power cluster). Y at MOD1_Y - 30*G so the support cluster
     # is above ESP horizontally.
     SUP_Y = MOD1_Y - 38 * G   # ESP support row above MCU
+    # iter-10: shift the whole support row 4 G left of its old origin so
+    # no support cap sits in MOD1's centre top-pin column (MOD1 V3V3_SW
+    # pin emits a vertical flag upward at x=MOD1_X; C7 used to sit there
+    # and collided with that flag body + C7's own value text).
+    _SUP_DX = -4 * G
 
     # R7 — 10 kΩ pull-up from ESP_EN to V3V3_SW. Vertical (R pins ±3*G).
-    R7_X, R7_Y = MOD1_X - 24 * G, SUP_Y
+    R7_X, R7_Y = MOD1_X - 24 * G + _SUP_DX, SUP_Y
     _place_symbol(s, "R", "R7", "10k",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R7_X, R7_Y), lib=lib)
@@ -1285,7 +1293,7 @@ def build_battery_side_schematic() -> None:
     _pin_label(s, "ESP_EN",  (R7_X, R7_Y + 3 * G), 'D')   # pin 2 bottom
 
     # C8 — 1 µF EN soft-start cap. EN to GND.
-    C8_X, C8_Y = MOD1_X - 16 * G, SUP_Y
+    C8_X, C8_Y = MOD1_X - 16 * G + _SUP_DX, SUP_Y
     _place_symbol(s, "C", "C8", "1uF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (C8_X, C8_Y), lib=lib)
@@ -1293,14 +1301,14 @@ def build_battery_side_schematic() -> None:
     _pin_label(s, "GND",    (C8_X, C8_Y + 3 * G), 'D')
 
     # C6 — 10 µF ESP bulk on V3V3_SW
-    C6_X, C6_Y = MOD1_X - 8 * G, SUP_Y
+    C6_X, C6_Y = MOD1_X - 8 * G + _SUP_DX, SUP_Y
     _place_symbol(s, "C", "C6", "10uF",
                   "Capacitor_SMD:C_0805_2012Metric",
                   (C6_X, C6_Y), lib=lib)
     _pin_label(s, "GND",     (C6_X, C6_Y + 3 * G), 'D')
 
     # C7 — 100 nF ESP HF decoupling
-    C7_X, C7_Y = MOD1_X, SUP_Y
+    C7_X, C7_Y = MOD1_X + _SUP_DX, SUP_Y
     _place_symbol(s, "C", "C7", "100nF",
                   "Capacitor_SMD:C_0402_1005Metric",
                   (C7_X, C7_Y), lib=lib)
@@ -1452,7 +1460,7 @@ def build_battery_side_schematic() -> None:
 
     # R10 — 120 Ω RS-485 termination (A ↔ B). Horizontal so both pins
     # land on the A/B nets without rotating the symbol.
-    R10_X, R10_Y = U3_X + 16 * G, U3_Y - 4 * G   # (299.72, 58.42)
+    R10_X, R10_Y = U3_X + 24 * G, U3_Y - 4 * G   # iter-10: +24G so the termination resistor body no longer sits in U3's pin-6/7 RS485_A/B horizontal label column (was +16G)
     _place_symbol(s, "R", "R10", "120",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R10_X, R10_Y), lib=lib,
@@ -1812,7 +1820,7 @@ def build_display_side_schematic() -> None:
                   "RF_Module:ESP32-S3-WROOM-1U",  # -1U variant: external U.FL antenna, no keepout zone
                   (MOD1_X, MOD1_Y), lib=lib,
                   ref_pos=(MOD1_X, MOD1_Y - 24 * G),    # CP6 iter-7: above body, clear of in-symbol "PSRAM" text
-                  value_pos=(MOD1_X, MOD1_Y + 30 * G))  # CP6 iter-7: below GND label stub at Y+26G
+                  value_pos=(MOD1_X, MOD1_Y + 36 * G))  # iter-10: pushed to +36G so the long value string clears the bottom-pin GND flag (which sat at +30G)
     # Dedupe shared symbol pins (1/40/41 GND) — see battery-side comment.
     # CP-cleanup iter 47 (fix B2): same 2G stub-out treatment as
     # battery-side MOD1 so net labels read clear of the chip's
@@ -1844,28 +1852,33 @@ def build_display_side_schematic() -> None:
     # SUP_Y kept ≥38G above MOD1 so the caps' downward GND stubs clear MOD1's
     # top-pin label stubs (4G) — at 32G they collided, shorting GND↔V3V3.
     SUP_Y = MOD1_Y - 40 * G
+    # iter-10: whole support row shifted 4 G left of its old origin so
+    # no support cap sits in MOD1's centre top-pin column (MOD1 pin 2
+    # V3V3 emits a vertical flag upward at x=MOD1_X; C4 used to sit
+    # there and its GND port collided with that flag body).
+    _SUP_DX = -4 * G
     # R1 — 10kΩ EN pull-up
-    R1_X, R1_Y = MOD1_X - 24 * G, SUP_Y
+    R1_X, R1_Y = MOD1_X - 24 * G + _SUP_DX, SUP_Y
     _place_symbol(s, "R", "R1", "10k",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R1_X, R1_Y), lib=lib)
     _pin_label(s, "V3V3",   (R1_X, R1_Y - 3 * G), 'U')   # single V3V3 trunk label
     _pin_label(s, "ESP_EN", (R1_X, R1_Y + 3 * G), 'D')
     # C5 — 1µF EN soft-start
-    C5_X, C5_Y = MOD1_X - 16 * G, SUP_Y
+    C5_X, C5_Y = MOD1_X - 16 * G + _SUP_DX, SUP_Y
     _place_symbol(s, "C", "C5", "1uF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (C5_X, C5_Y), lib=lib)
     _pin_label(s, "ESP_EN", (C5_X, C5_Y - 3 * G), 'U')
     _pin_label(s, "GND",    (C5_X, C5_Y + 3 * G), 'D')
     # C3 — 10µF ESP bulk
-    C3_X, C3_Y = MOD1_X - 8 * G, SUP_Y
+    C3_X, C3_Y = MOD1_X - 8 * G + _SUP_DX, SUP_Y
     _place_symbol(s, "C", "C3", "10uF",
                   "Capacitor_SMD:C_0805_2012Metric",
                   (C3_X, C3_Y), lib=lib)
     _pin_label(s, "GND",  (C3_X, C3_Y + 3 * G), 'D')
     # C4 — 100nF ESP HF decoupling
-    C4_X, C4_Y = MOD1_X, SUP_Y
+    C4_X, C4_Y = MOD1_X + _SUP_DX, SUP_Y
     _place_symbol(s, "C", "C4", "100nF",
                   "Capacitor_SMD:C_0402_1005Metric",
                   (C4_X, C4_Y), lib=lib)
@@ -1985,7 +1998,10 @@ def build_display_side_schematic() -> None:
     _place_power_port(s, "GND", (C7_X, C7_Y + 3 * G), 'D', stub=2 * G, lib=lib)
 
     # R2 — 120Ω termination (A ↔ B), bus terminus
-    R2_X, R2_Y = U2_X + 16 * G, U2_Y - 4 * G   # (299.72, 96.52)
+    # iter-10: pushed to +24G so the termination resistor body no longer
+    # sits in U2's pin-6/7 RS485_A/B horizontal label column (was +16G,
+    # the same x as those labels).
+    R2_X, R2_Y = U2_X + 24 * G, U2_Y - 4 * G
     _place_symbol(s, "R", "R2", "120",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R2_X, R2_Y), lib=lib,
@@ -2038,7 +2054,7 @@ def build_display_side_schematic() -> None:
         ("BTN2", "R6", "C9",  "BTN2_IN"),
         ("BTN3", "R7", "C10", "BTN3_IN"),
     ]):
-        BTN_X = (200 + i * 30) * G
+        BTN_X = (200 + i * 34) * G   # iter-10: 34G pitch (was 30G) so each cluster's debounce cap clears the next cluster's BTN_IN flag body
         BTN_Y = 150 * G
         _place_symbol(s, "SW_Push", btn_ref, btn_ref,
                       "Button_Switch_SMD:SW_SPST_B3S-1000",

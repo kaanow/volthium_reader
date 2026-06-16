@@ -2,7 +2,7 @@
 	(version "E")
 	(design
 		(source "/Users/pivot/Documents/repo/volthium_reader/hardware/kicad/display_side/display_side.kicad_sch")
-		(date "2026-06-14T22:47:43")
+		(date "2026-06-16T06:51:13")
 		(tool "Eeschema 10.0.3")
 		(sheet
 			(number "1")
@@ -89,7 +89,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "fd62375d-4122-4152-9216-daf7059d574e")
+			(tstamps "3f4adf43-2796-41f8-b76d-b13a8078aefa")
 			(units
 				(unit
 					(name "A")
@@ -139,7 +139,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "9d725e6b-e52c-4630-b8ec-54b64ff71aa8")
+			(tstamps "ebcf4baa-ddf5-4beb-9e4a-3801b5ccdd98")
 			(units
 				(unit
 					(name "A")
@@ -189,7 +189,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "bb53a5bd-a042-4477-b656-4bfc44f37f86")
+			(tstamps "d7c67a88-d7ba-40ad-92fd-b55be7dd553b")
 			(units
 				(unit
 					(name "A")
@@ -243,7 +243,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "2711ec2d-cc54-4d30-836d-8c5bf92e1e73")
+			(tstamps "072aa456-b34e-4137-80b3-7eb31e537247")
 			(units
 				(unit
 					(name "A")
@@ -297,7 +297,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "fc19fe2e-0a2c-4e8c-8ec2-db297ff46c9c")
+			(tstamps "f4bd4c00-254d-496a-8961-f7ee89bd2a96")
 			(units
 				(unit
 					(name "A")
@@ -351,7 +351,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "34da6ac5-d932-43f6-b00c-89f845a1654f")
+			(tstamps "3d5fdc36-692c-4f87-95f3-a51f51172a1d")
 			(units
 				(unit
 					(name "A")
@@ -405,7 +405,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "497d848b-0051-42b5-840a-a72ad759217f")
+			(tstamps "e42821a3-97e6-4bdf-b5af-fead025c9dc2")
 			(units
 				(unit
 					(name "A")
@@ -459,7 +459,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "34f80aa3-2052-41eb-802a-551e1e1b0323")
+			(tstamps "e7f8ade1-940a-4a00-b548-746468938bfd")
 			(units
 				(unit
 					(name "A")
@@ -513,7 +513,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "1ebb478c-d5ae-4ed7-99a3-9e68ed6936ff")
+			(tstamps "56939b0a-a8a2-4e22-b3c7-357e1f444569")
 			(units
 				(unit
 					(name "A")
@@ -567,7 +567,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "7b29ab98-407c-40f1-928d-0382a3fb497a")
+			(tstamps "ab2ce4a4-cdbe-4b73-809e-0cab7a5d3bfa")
 			(units
 				(unit
 					(name "A")
@@ -621,7 +621,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "323e74ba-a662-4562-9e9c-787882f029ec")
+			(tstamps "507d49e7-4cdf-4004-bbae-509932e3047d")
 			(units
 				(unit
 					(name "A")
@@ -675,7 +675,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "ec4d1dca-fa89-4c96-b701-9db6cae214b1")
+			(tstamps "c6938923-d116-4acd-b8ab-27bd25348245")
 			(units
 				(unit
 					(name "A")
@@ -729,7 +729,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "53bd742b-ae6c-435c-9998-bc1f55dfd5d8")
+			(tstamps "9ca4a2f9-5615-4aee-be17-cf5e66603980")
 			(units
 				(unit
 					(name "A")
@@ -783,7 +783,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "2321dbfa-b769-493e-833f-ae683ec79256")
+			(tstamps "096c14ef-e4e5-477b-81ef-bb4aa5680c6c")
 			(units
 				(unit
 					(name "A")
@@ -837,7 +837,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "79d38b91-383b-49d0-bb1c-ef7216701794")
+			(tstamps "76da3b32-54cb-494a-a195-0088ee3f2917")
 			(units
 				(unit
 					(name "A")
@@ -909,7 +909,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "d08679b2-99d1-44a2-97b6-5bc21b7fd444")
+			(tstamps "bf082329-1f9c-458e-bcb6-0b5f277e0481")
 			(units
 				(unit
 					(name "A")
@@ -1029,7 +1029,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "8d6cf36d-69a9-41cc-9cb5-59a85cca89a3")
+			(tstamps "37bee79b-a10f-4f4c-83a1-6aee75c0b35c")
 			(units
 				(unit
 					(name "A")
@@ -1089,7 +1089,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "121a07f1-e9d2-4760-9bba-62d6a3a1691e")
+			(tstamps "894e1a99-9aa0-4fef-b1c4-f1ea1642d374")
 			(units
 				(unit
 					(name "A")
@@ -1149,7 +1149,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "d49ef38d-acd6-4c05-b314-973f8464502d")
+			(tstamps "dd94af5b-6191-4652-aa2c-4851e70d77ae")
 			(units
 				(unit
 					(name "A")
@@ -1320,7 +1320,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "70ff6062-b424-4f8b-9f59-f7d4edfc2405")
+			(tstamps "efb654c3-301e-4c88-a9ca-f8ef4e356267")
 			(units
 				(unit
 					(name "A")
@@ -1374,7 +1374,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "113642b3-3041-43ff-a74c-32c85dcfd2bf")
+			(tstamps "b1e5f2a9-fc34-4695-8d70-a0b8ed085a2a")
 			(units
 				(unit
 					(name "A")
@@ -1428,7 +1428,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "12285ee5-2d4d-47fb-a664-7f6b0793ca03")
+			(tstamps "00494ff1-d6fb-4328-8f6d-28f4c1480044")
 			(units
 				(unit
 					(name "A")
@@ -1482,7 +1482,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "e66023e3-4cd0-4784-aad2-235e24876c6b")
+			(tstamps "09b896bb-35cd-4ab4-9bc4-b7a290ebb47b")
 			(units
 				(unit
 					(name "A")
@@ -1536,7 +1536,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "61edeb31-f0e6-4243-a335-8d7bb2caf9ce")
+			(tstamps "d3b50cf8-cfe0-44cb-a49b-2406b6356c58")
 			(units
 				(unit
 					(name "A")
@@ -1590,7 +1590,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "dbf6a23b-bf42-4977-ab0d-2489b3bc2b75")
+			(tstamps "5f122a4d-220c-4f0e-b038-1cfa529c5eff")
 			(units
 				(unit
 					(name "A")
@@ -1644,7 +1644,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "9052021d-1b8c-41a6-8aae-cd2001e78d1e")
+			(tstamps "5c31c6cd-5dd5-4ec0-9267-90208846ca0d")
 			(units
 				(unit
 					(name "A")
@@ -1698,7 +1698,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "4167a854-2ee8-4441-9196-b1a10bf3b8ea")
+			(tstamps "81a008bd-bd33-494f-bac3-85f849cd9e86")
 			(units
 				(unit
 					(name "A")
@@ -1752,7 +1752,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "7bfc67a8-e05f-42b7-bdc1-8b707a6cc777")
+			(tstamps "b1a2e053-a495-4dce-accf-a81c4694ab05")
 			(units
 				(unit
 					(name "A")
@@ -1806,7 +1806,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "c8399712-7387-44cf-94b8-74e870e45468")
+			(tstamps "7f6f3574-e8cf-40cc-be5a-00890217e568")
 			(units
 				(unit
 					(name "A")
@@ -1863,7 +1863,7 @@
 				(names "/")
 				(tstamps "/")
 			)
-			(tstamps "2e1f079e-2c34-481d-8402-943a38bc18e6")
+			(tstamps "13cabf3f-91ec-475c-b759-70829d3c4c4e")
 			(units
 				(unit
 					(name "A")
