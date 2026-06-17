@@ -72,7 +72,7 @@ U1 [Recom R-78E3.3-0.5, 12 V → 3.3 V, 0.5 A] ← stocked module, no inductor B
 3V3 ──┬─── ESP32-S3 (MOD1)
       ├─── e-paper VCC (LCD1 via FFC J2)
       ├─── SN65HVD3082E (U2) VCC
-      └─── RS-485 bias (R10/R11 optional — see §4.5)
+      └─── RS-485 bias (R3/R4 ~390 Ω — the bus's only bias; see §4.5)
 ```
 
 No 24 V on this board. No RTC chip (time syncs from RS-485 frames). No
@@ -142,15 +142,19 @@ datasheet.
 |-----|--------------------------------------------|----------------|-----|-----------|
 | U2  | SN65HVD3082E                                | SOIC-8         | 1   | Same as battery-side U3 |
 | R2  | 120 Ω 1 % termination, A ↔ B              | 0805           | 1   | This end is always the bus terminus → populated by default |
-| R3  | 680 Ω idle bias: A → V3V3                  | 0805           | 1   | Optional — battery-side already biases the bus. **Power-first**: leave footprints, don't populate by default on hand-assembly. Reviewer to confirm |
-| R4  | 680 Ω idle bias: B → GND                   | 0805           | 1   | (paired with R3, optional) |
+| R3  | ~390 Ω idle bias: A → V3V3                 | 0805           | 1   | **POPULATED — the bus's ONLY fail-safe bias (D19/DR-4).** ~390 Ω gives 236 mV idle across the two 120 Ω terminators (> 200 mV) |
+| R4  | ~390 Ω idle bias: B → GND                  | 0805           | 1   | (paired with R3) |
 | TVS2 | SMAJ12CA bidirectional                    | SMA            | 1   | RS-485 surge clamp |
 | C7  | 100 nF X7R (U2 VCC decoupling)             | 0603           | 1   | |
 
-**Power-first note**: depopulating R3/R4 (idle bias at this end) saves
-~2.3 mA continuous on V3V3 → ~7.6 mW. The battery-side's bias is
-sufficient to define the idle state for the whole bus. Footprints stay
-so a future build can populate them if the bus topology changes.
+**Power-first note (D19/DR-4)**: the bus's idle bias lives **here, on the
+display end** — *not* on the battery side. The battery 3V3 rail is now
+always-on, so battery-side bias (~2.3 mA) would draw continuously and blow
+the ~1 mW hard-cut budget. On the display side, the bias is sourced from
+the display 3V3, which is **shed with the display** when the battery opens
+Q1 at low SOC — so it costs nothing in the state that matters. Resized
+680 → ~390 Ω so a single bias point clears 200 mV idle across both
+terminators.
 
 ### 4.6 User input (3 tactile buttons, software-defined labels)
 
@@ -249,7 +253,7 @@ between frames):
 | Panel refresh        | ~25 mA × 7 s every 30 s = 5.8 mA avg | |
 | Subtotal             | ~8.8 mA at 3.3 V = 29 mW | ~36 mW at V12 = ~3 mA |
 
-This is the typical state. At the 24 V pack end (R-78E12 80 % eff) →
+This is the typical state. At the 24 V pack end (U2 R-78HB12, 80 % eff) →
 ~45 mW, in line with the existing power budget.
 
 State B — Idle (no frames coming in for > 5 minutes, ESP deeper sleep):
@@ -270,8 +274,8 @@ there): **board is off**. No draw.
 ## 8. RS-485 interface
 
 - Bus terminus → R2 populated.
-- Idle bias (R3, R4) **footprints provided but unpopulated by default**;
-  see §4.5.
+- Idle bias (R3, R4, ~390 Ω) **populated — this is the bus's only
+  fail-safe bias** (D19/DR-4; battery side carries none). See §4.5.
 - Shield drain wire from J1 is **NC** at this end. Single-point bond at
   battery side. (See [`cat5e_pinout.md`](../../docs/hardware/cat5e_pinout.md).)
 
@@ -350,7 +354,7 @@ minimum).
 | ID            | Question | Default if no reviewer input |
 |---------------|----------|------------------------------|
 | **D-OPEN-1**  | ESP32-S3-WROOM-1-N16R8 vs -N8? | N16R8 (consistent with battery side) |
-| **D-OPEN-8**  | Populate R3/R4 idle-bias on display side or leave footprints unpopulated? | **Unpopulated by default** — battery-side bias is sufficient |
+| ~~**D-OPEN-8**~~ | Populate R3/R4 idle-bias on display side? | **RESOLVED (D19/DR-4): populate at ~390 Ω** — this is the bus's *only* bias (battery side carries none, to keep its always-on rail at zero static draw) |
 | **D-OPEN-9**  | RS-485 receiver power-gate (N-FET on U2 VCC) for further idle-current reduction? | **No** — adds complexity for ~1 mA savings; defer to v2 |
 | **D-OPEN-10** | Button hardware-debounce RC values? CP1 specs 1 MΩ + 100 nF (RC = 100 ms). Some prefer 10 kΩ + 100 nF (RC = 1 ms, faster response). | **100 ms** — human buttons; the RC delay is invisible. 1 MΩ keeps Iq trivially low even if any GPIO ever inverts polarity at fab |
 | **D-OPEN-11** | Where does the panel mount mechanically? (a) on the PCB front via M2 standoffs, (b) on the 3D-printed bracket separately from the PCB, (c) glued to the faceplate? | **(b) — on the 3D-printed bracket**, panel sits between PCB and faceplate. User redesigns the bracket if (a) or (c) is preferred |
@@ -382,7 +386,7 @@ minimum).
 | Board outline                    | ~85 × 60 mm                              | 85 × 65 mm — slightly bigger thanks to double-gang  |
 | Button function                  | Hardcoded (Refresh / Next-screen / Release-BLE) | **Software-defined**, with on-screen labels rendered next to each button |
 | Debug LED                        | LED1 + R_led                            | **Removed** per D4                          |
-| Idle bias on RS-485              | R11/R12 populated (~2.3 mA)              | Footprints provided, unpopulated by default per D5 |
+| Idle bias on RS-485              | Battery-side R11/R12 (~2.3 mA, always-on leak under D19) | **Moved here, populated at ~390 Ω** — the bus's only bias; shed with the display at low SOC (D19/DR-4) |
 | Mounting                         | Single-gang low-voltage bracket          | Custom 3D-printed bracket (drops into double-gang box and secures PCB) |
 | Faceplate                        | Blank single-gang plate, cut for window  | Custom 3D-printed plate (user designs against PCB STEP from CP5) |
 

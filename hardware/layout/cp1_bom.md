@@ -65,27 +65,29 @@ Grand total **~$145** for one complete monitor (including extras).
 | J1  | Phoenix MSTB 2,5/2-G-5,08 pluggable terminal block (2-pin male header + female plug) | THT 5.08 mm | 1 | **277-1271-ND** + 277-1272-ND (plug) | 651-1755736 + 651-1755503 | $3.50 | **NEW** — replaces ring-terminal + external fuse |
 | F1  | 5×20 mm cartridge fuse holder (PCB clip, ×2) | THT clip | 2 | **F1465-ND** | 530-31MJ005H | $0.70 ea | **NEW** — replaces ATO fuse holder. Holds the 1 A cartridge |
 | F1_ELEM | 1 A 5×20 mm fast-blow ceramic cartridge fuse | TH 5×20 mm | 1 | **F2380-ND** | 504-0034.1519 | $0.95 | **NEW** — fuse element. Ceramic = safer in high-energy DC fault than glass |
-| D1  | SS24-E3/61T Schottky 40 V/2 A | SMA | 1 | (unchanged) SS24FACT-ND | 583-SS24 | $0.30 | (unchanged) |
-| TVS1 | SMAJ30CA bidirectional TVS (Vrwm 30 V) | SMA | 1 | **SMAJ30CADICT-ND** | 78-SMAJ30CA-E3/61 | $0.40 | **NEW** — 24 V input transient suppressor. Renamed from prior TVS3 in SKiDL; Vrwm bumped 15→30 V to sit safely above the 28 V max charge voltage |
+| D1  | SS26 Schottky 60 V/2 A | SMA | 1 | _verify_ SS26FACT-ND | 583-SS26 | $0.30 | **Δ (D19/DR-3): SS24 (40 V) → SS26 (60 V)** to out-rate the ~53 V clamp |
+| TVS1 | SMAJ33CA bidirectional TVS (Vrwm 33 V) | SMA | 1 | _verify_ SMAJ33CADICT-ND | 78-SMAJ33CA | $0.40 | **Δ (D19/DR-2): SMAJ30CA → SMAJ33CA** — 33 V clears the ~29 V full-charge bus with margin |
 
 ### Power conversion
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| U1  | TPS62933FDRLR (24 V→3.3 V, fixed, sync buck) | SOT-563 | 1 | (unchanged) 296-50428-1-ND | 595-TPS62933FDRLR | $1.20 | (unchanged) |
-| L1  | Murata DFE201610E-2R2M= 2.2 µH 3 A SMD inductor | 2.0×1.6 mm | 1 | (unchanged) 587-3327-1-ND | 875-DFE201610E-2R2M=P2 | $0.50 | (unchanged) |
-| C1, C2 | 22 µF / 25 V X7R ceramic | 1210 | 2 | (unchanged) 1276-2920-1-ND | 187-GRM32ER61E226KE15L | $0.40 ea | (unchanged) |
-| U2  | Recom R-78E12-1.0 buck (24 V→12 V, 1 A) | SIP3 THT | 1 | (unchanged) 945-R-78E12-1.0 | 919-R-78E12-1.0 | $7.00 | (unchanged) |
-| C3, C4 | 22 µF / 35 V X7R ceramic | 1210 | 2 | (unchanged) 1276-2885-1-ND | 187-GRM32ER7YA226KA12L | $0.50 ea | (unchanged) |
+| U1  | LM5165DRCR (24 V→3.3 V, fixed via FB→VOUT, **always-on** µA-Iq buck) | VSON-10 | 1 | _verify_ LM5165DRCR | 595-LM5165DRCR | $2.50 | **Δ (D19/DR-4): TPS62933 → LM5165** — 3–65 V in (survives the ~53 V clamp) **and** ~10.5 µA Iq (always-on rail stays sub-mW). A brick can't be both |
+| L1  | 10–47 µH ≥0.3 A shielded SMD inductor (per LM5165 datasheet) | SMD | 1 | _verify_ | _verify_ | $0.50 | **Δ: LM5165 inductor** (low-Iq COT favors larger L than the old 2.2 µH) |
+| C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210 | 2 | _verify_ | _verify_ | $0.50 ea | **Δ: C1 →100 V** (LM5165 input on V24_FUSED, behind the ~53 V clamp) |
+| U2  | Recom R-78HB12-0.5 buck (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1 | _verify_ 945-R-78HB12-0.5 | 919-R-78HB12-0.5 | $8.00 | **Δ (D19/DR-3): R-78E12 (34 V) → R-78HB12 (72 V)** to survive the clamp. Switched (behind Q1) |
+| C3, C4 | C3 22 µF / **100 V**, C4 22 µF / 25 V X7R | 1210 | 2 | _verify_ | _verify_ | $0.55 ea | **Δ: C3 →100 V** (U2 input on V24_SW, behind the clamp) |
 
 ### Hard-cut load switch
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| Q1  | AO3401A P-MOSFET (Vds 30 V, 4 A) | SOT-23 | 1 | (unchanged) AO3401ADICT-ND | 833-AO3401A | $0.40 | (unchanged) |
-| Q2  | AO3400A N-MOSFET | SOT-23 | 1 | (unchanged) AO3400ADICT-ND | 833-AO3400A | $0.40 | (unchanged) |
-| R3  | 100 kΩ 0805 1 % (Q1 gate pull-up to V24_FUSED) | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805100KFKEA | $0.10 | **Δ: 10 kΩ → 100 kΩ** (10× idle current reduction) |
-| R4  | 100 kΩ 0805 1 % (Q2 gate pull-down to GND) | 0805 | 1 | (same as R3) | (same) | $0.10 | (unchanged value, just renumbered) |
+| Q1  | ZXMP6A13F P-MOSFET (Vds −60 V, 1.1 A) | SOT-23 | 1 | _verify_ ZXMP6A13F | 522-ZXMP6A13F | $0.40 | **Δ (D19/DR-4): AO3401A (30 V) → ZXMP6A13F (60 V)** to survive the ~53 V clamp when open |
+| Q2  | 2N7002 N-MOSFET (Vds 60 V) | SOT-23 | 1 | _verify_ 2N7002 | 512-2N7002 | $0.10 | **Δ (D19/DR-4): AO3400A (30 V) → 2N7002 (60 V)** — drain follows the V24 rail when Q1 is off |
+| DZ1 | BZX84C12 12 V Zener (Q1 gate–source clamp) | SOT-23 | 1 | _verify_ BZX84C12 | 512-BZX84C12LT1G | $0.10 | **NEW (D19/DR-4)** — holds Q1 Vgs ≤ 12 V (was driven to −29 V) |
+| Rg  | ~1 kΩ 0805 1 % (series gate, Q2 drain → Q1 gate) | 0805 | 1 | _verify_ | _verify_ | $0.10 | **NEW (D19/DR-4)** — works with DZ1 to clamp the gate |
+| R3  | 100 kΩ 0805 1 % (Q1 gate pull-up to V24_FUSED) | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805100KFKEA | $0.10 | Default-OFF load switch |
+| R4  | 100 kΩ 0805 1 % (Q2 gate pull-down to GND) | 0805 | 1 | (same as R3) | (same) | $0.10 | Brown-out failsafe-off |
 
 ### 24 V sense (always-on)
 
@@ -115,7 +117,7 @@ Grand total **~$145** for one complete monitor (including extras).
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | U3  | SN65HVD3082EDR | SOIC-8 | 1 | (unchanged) 296-21908-1-ND | 595-SN65HVD3082EDR | $1.20 | (unchanged) |
 | R10 | 120 Ω 0805 1 % term resistor | 0805 | 1 | RMCF0805FT120RCT-ND | 71-CRCW0805120RFKEA | $0.10 | (unchanged) |
-| R11, R12 | 680 Ω 0805 1 % idle bias | 0805 | 2 | RMCF0805FT680RCT-ND | 71-CRCW0805680RFKEA | $0.10 ea | (unchanged) |
+| — | _(no idle bias on the battery side — D19/DR-4)_ | — | 0 | — | — | — | **Δ: removed battery-side bias.** The always-on rail would otherwise leak ~2.3 mA continuously; bias is now display-end only |
 | TVS2 | SMAJ12CA bidirectional TVS | SMA | 1 | (unchanged) SMAJ12CADICT-ND | 78-SMAJ12CA-E3/61 | $0.30 | Δ: renumbered from TVS1 in prior schematic |
 | C10 | 100 nF X7R | 0603 | 1 | (unchanged) | | $0.05 | U3 decoupling |
 
@@ -199,7 +201,7 @@ Grand total **~$145** for one complete monitor (including extras).
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | U2  | SN65HVD3082EDR | SOIC-8 | 1 | (unchanged) | | $1.20 | (unchanged) |
 | R2  | 120 Ω 0805 1 % | 0805 | 1 | (same as battery R10) | | $0.10 | Bus terminus |
-| R3, R4 | 680 Ω 0805 1 % idle bias | 0805 | 2 | (same as battery R11/R12) | | $0.10 ea | **CP1: footprints provided, depopulated by default** (see D-OPEN-8) |
+| R3, R4 | ~390 Ω 0805 1 % idle bias (A→3V3, B→GND) | 0805 | 2 | _verify_ | | $0.10 ea | **POPULATED — the bus's only fail-safe bias (D19/DR-4).** ~390 Ω gives 236 mV idle across the two 120 Ω terminators (> 200 mV). Sourced from display 3V3 (shed with the display at low SOC) |
 | TVS2 | SMAJ12CA bidirectional | SMA | 1 | (unchanged) | | $0.30 | |
 | C7  | 100 nF X7R | 0603 | 1 | (unchanged) | | $0.05 | U2 decoupling |
 
@@ -286,17 +288,25 @@ so the extras are not wasted.
 **Added** (battery side):
 - Phoenix MSTB pluggable terminal block + plug
 - 5×20 mm cartridge fuse + 2× PCB-mount fuse clips
-- TVS1 = SMAJ30CA on V24_FUSED
+- TVS1 = SMAJ33CA on V24_FUSED (D19/DR-2)
+- Q1 gate-source Zener clamp DZ1 (BZX84C12) + series gate Rg (D19/DR-4)
 - ESP EN cap (C8) + pull-up (R7)
 - Dev/debug headers J3 (USB-OTG), J4 (term-lift), J5 (UART)
+- **Removed** battery-side RS-485 idle bias (now display-end only, D19/DR-4)
 
 **Added** (display side):
 - Panel VCC bulk cap (C6)
 - ESP EN cap + pull-up
 - Dev/debug headers J3 (UART), J4 (USB-OTG), J5 (term-lift)
 
-**Changed values** (both sides):
-- Q1 gate pull-up: 10 kΩ → 100 kΩ (battery side, 10× lower idle current)
+**Changed parts/values** (D19 power re-architecture, both sides):
+- U1 (3V3): TPS62933 → **LM5165** (always-on, µA-Iq, 65 V) — DR-4
+- U2 (12V): R-78E12 → **R-78HB12** (72 V) — DR-3
+- Q1/Q2: AO3401A/AO3400A (30 V) → **ZXMP6A13F/2N7002** (60 V) — DR-4
+- D1: SS24 (40 V) → **SS26** (60 V) — DR-3
+- Input bulk C1/C3 → **100 V** (behind the ~53 V clamp)
+- RS-485 bias → **display-end only, ~390 Ω** (battery rail draws 0) — DR-4
+- Q1 gate pull-up: 10 kΩ → 100 kΩ (10× lower idle current)
 - 24 V sense divider: 100 kΩ/11 kΩ → 1 MΩ/110 kΩ (10× lower idle current)
 - BTN pull-ups: 10 kΩ → 1 MΩ (both sides — Iq reduction)
 
@@ -304,7 +314,10 @@ so the extras are not wasted.
 
 - **D-OPEN-1** ESP module variant — would standardizing on -N8 save
   $1.50 per board and reduce ESP power slightly? Reviewer to weigh.
-- **D-OPEN-8** Display-side bias resistors populated or not?
+- ~~**D-OPEN-8** Display-side bias resistors populated or not?~~
+  **RESOLVED (D19/DR-4):** populated at ~390 Ω — they are the bus's *only*
+  fail-safe bias (battery-side bias removed to keep the always-on rail at
+  zero static draw).
 - **D-OPEN-13** Panel-mount switch BTN1 on battery side — does the
   RP3502MA-series exist in stock with sealed cap (IP67) options? Confirm
   during ordering.

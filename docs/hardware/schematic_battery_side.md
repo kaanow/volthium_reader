@@ -1,5 +1,16 @@
 # Battery-side board — schematic (netlist form)
 
+> ⚠ **SUPERSEDED for the power architecture (decisions.md D18/D19).** This
+> is the *original* pre-CP1 net intent. Its power tree (TPS62933 on the
+> switched rail, R-78E12, AO340x load switch, both-end RS-485 bias) was
+> re-architected in **D19** to fix the bootstrap/clamp/Vgs defects
+> (DESIGN_REVIEW_ITEMS DR-3/DR-4). For the **authoritative** battery power
+> tree, regulators, load switch, and bias, see:
+> [`../../hardware/layout/cp1_battery_side.md`](../../hardware/layout/cp1_battery_side.md)
+> §3–§4, [`block_diagrams.md`](block_diagrams.md), and [`bom.md`](bom.md).
+> The GPIO/comms/sensing intent below is still valid; the **power-tree and
+> Hard-cut sections are historical**.
+
 This is structured to drop into KiCad as a schematic: each component is
 listed with its reference designator and pin connections, organized by
 net. See `bom.md` for part numbers; see `block_diagrams.md` for the
