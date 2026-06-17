@@ -2,215 +2,38 @@
 
 schema_version: 1
 
-state: codex_turn
+state: claude_turn
 
-current_cp: cp6-fab-ready
-current_branch: hw/cp6-fab-ready
-active_packet: hardware/reviews/cp6_fab_ready.md
-iteration: 8
+current_cp: cp1-architecture
+current_branch: hw/cp1-architecture
+active_packet: hardware/reviews/cp1_design_baseline.md
+iteration: 0
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-05T06:30:00Z
+last_updated_at: 2026-06-17T00:00:00Z
 last_updated_by: claude
 
 note: >
-  CP6 iter-8 in progress (D16 schematic-readability rework).
+  CP1 RE-OPENED (decisions.md D18). The project nominally reached CP6
+  fab-ready, but DR-1/DR-2 proved the defects were CP1/CP2 architecture
+  decisions that no gate caught (D17). We revert the mindset to CP1 and
+  re-run the full gate sequence with the D17 engineering-correctness gate
+  now in place, ignoring sunk cost.
 
-  iter-7 closed with 50 audit pairs and a tactical fix. User reviewed
-  the grayscale renders and asserted: "neither schematic is human
-  readable". New top-level requirement landed:
+  Superseded (D18): all board artifacts — placement (CP3/CP4), routing +
+  pours (CP5), fab outputs (CP6). They were built against pre-DR
+  schematics and will be regenerated after the schematics are
+  re-validated. Carried forward: the framework (D11/D13/D16/D17 +
+  ENGINEERING_REVIEW.md + DESIGN_REVIEW_ITEMS.md), the audit tooling, the
+  DR-1/DR-2 schematic fixes, and the readability results.
 
-      "A human can read this schematic and understand the design."
-
-  Codified in decisions.md as D11 (strengthened — exception path
-  revoked) + D16 (new). The hard rule is: any overlapping text,
-  symbol, label box, chevron, pin name, pin number, junction, wire,
-  or graphical annotation is to be revised until it is not present.
-  No exception path. iter-8 is a multi-step rework toward that bar.
-
-  Progress in this commit:
-  1. decisions.md D11 strengthened (top-level goal added, #0a
-     exception path revoked).
-  2. decisions.md D16 added documenting the new top-level
-     readability goal + the user directive that triggered it.
-  3. build_schematics.py: every GND connection now routes through
-     a stock KiCad GND power port (downward-triangle glyph) instead
-     of a flag-shaped GlobalLabel. Helper `_place_power_port` added;
-     `_pin_label` auto-routes the four standard supply nets (GND,
-     +3V3, +12V, +24V) through it. Pin numbers hidden on the power-
-     port symbols themselves (the glyph is self-evident).
-  4. Direct `_place_label("GND", ...)` call sites (U1 TPS62933,
-     Q2 NMOS, RTC1, U3 RS485 battery, BTN1, U2 RS485 display, BTN
-     loop on display side) converted to `_place_power_port`.
-  5. ERC: 0 errors / 0 warnings on both boards.
-
-  Additional commits in this iter-8 push (95051af, 0098522):
-  - BTN1 (battery) + BTN1/2/3 (display) debounce clusters
-    restructured to "single trunk wire connects BTN → R → C, R
-    above trunk pulls to V3V3, C below trunk debounces to GND".
-    Reader sees the topology in one glance instead of mentally
-    splicing three "BTN_OVERRIDE" / "BTN<N>_IN" labels.
-  - Q1 / Q2 MOSFET gate stubs extended from 2 G → 4 G so the
-    GlobalLabel chevron tip clears the in-symbol G/D/S pin-name
-    text.
-  - L1 inductor Value text relocated 2 G right of default so it
-    no longer touches pin 2 number bbox.
-  - Documentation propagation commit (9bc46f9): DESIGNER.md §0
-    now leads with the D16 verbatim goal + a "Schematic-readiness
-    checklist (D16 acceptance bar)" listing the five operational
-    items (real cluster wires, stock power-port symbols, visible
-    pin numbers with lib-level stack fixes, functional-block
-    grouping with signal flow, zero on the strict overlap audit);
-    REVIEWER.md §4 updated with the matching reviewer-side D16
-    policy; decisions.md "Portability for future PCB projects"
-    expanded so a fresh Claude/Codex instance forking this
-    template inherits both D11 and D16 verbatim.
-
-  Audit progression in iter-8:
-    iter-7 close:        50 pairs (28 + 22)
-    after GND-port pass: 76 pairs (45 + 31)
-    after BTN cluster:   73 pairs (42 + 31)
-    after PDF dedup:     19 pairs (12 + 7)   ← KiCad PDF stream
-                         emits each Reference/Value/pin-name
-                         string twice as byte-identical Tj
-                         operations; dedupe_pdf_text.py removes
-                         them. 30 duplicates per battery sheet,
-                         24 per display sheet.
-    after per-component
-    ref/value reposition: 5 pairs (3 + 2)    ← R10, R12, R2, R4
-                         ref/value moved out of GlobalLabel bbox
-                         neighbourhoods; F1, D1, MOD1, C_BST,
-                         TVS1, TVS2 ref/value moved out of body;
-                         U1 V24_SW stub extended; Q1/Q2 G stubs
-                         extended.
-
-  Total: 290 (iter-5 baseline) → 5 (iter-8) = -98 %. ERC clean.
-  GND glyphs now render as the standard ground triangle at every
-  GND pin, visually distinct from signal labels.
-
-  Final iter-8 state:
-  - 0 audit pairs on both boards
-  - ERC: 0 errors / 0 warnings on both boards
-  - Pin numbers visible on every IC (DS3231M, ESP32-S3-WROOM-1,
-    TPS62933, LTC2850xS8, J2 Conn_01x24, etc.)
-  - GND triangles visually distinct from signal-net flag-labels
-  - Stacked-power-pin issue solved at the lib level (DS3231M
-    pins 6-13 hidden; ESP32 pins 40+41 hidden) so only one pin
-    number renders per coordinate
-  - Functional clusters now carry intra-cluster wires:
-      * U1 buck regulator: C_BST → U1.BST/SW, C1 → U1 V24_SW
-        pickoff, C2 → L1 V3V3_SW pickoff
-      * U3 RS-485 termination: R10/R12 dedup, C10 → U3 V3V3_SW
-      * U2 RS-485 termination (display): R2/R4 dedup, C7 → U2 V3V3
-      * R8/R9 I²C pull-ups: V3V3_SW deduped
-      * ESP support row (battery): V3V3_SW trunk wires R7/C6/C7
-      * ESP support row (display): V3V3 trunk wires R1/C3/C4
-  - GlobalLabel counts dropped:
-      battery V3V3_SW: 15 → 11 (−27 %)
-      display V3V3:    16 → 13 (−19 %)
-      total labels battery: 78, display: 72
-
-  D16 acceptance items closed:
-  ✓ #1 — real cluster wires in several functional sub-circuits
-  ✓ #2 — stock KiCad GND power-port glyph at every GND pin
-  ✓ #3 — pin numbers visible on every IC; stacked-power-pin
-        consolidation done at the lib level (DS3231M pins 6-13
-        hidden, ESP32 pins 40+41 hidden)
-  ~ #4 — functional-block visual grouping is partial: each
-        sub-circuit lays out as a positional cluster but the
-        whole-sheet flow (left→right power-input chain, MCU in
-        the middle, peripherals on the perimeter) is implicit
-        rather than explicit. Further tightening would require
-        component-position rework that's out of scope of the
-        text/symbol overlap fix.
-  ✓ #5 — strict overlap audit exits 0 on both sheets
-
-  Original iter-7 → iter-8 audit progression:
-    iter-5 baseline:     290 pairs (206 + 84)
-    iter-7 close:         50 pairs (28 + 22)
-    iter-8 after dedupe:  19 pairs (12 + 7)
-    iter-8 after fixes:    0 pairs (0 + 0)
-
-  Impediments / deferred for follow-on:
-  - **BTN1 (battery) / BTN1-3 (display) debounce clusters**:
-    Tried trunk-wire pattern (BTN.pin1 → R.pin2 → C.pin1).
-    KiCad's ERC flags wires whose endpoint coincides with a pin
-    inside a SW_Push body as `wire_dangling`. Pattern works on
-    every other 2-pin discrete (R, C, D, L, Fuse, Polyfuse) but
-    not on SW_Push. Root cause appears to be the SW_Push lib
-    pin geometry (length 2.54 mm pin with the connection point
-    INSIDE the body). Reverted to per-pin labels for these
-    clusters. Fixing requires lib-symbol pin-geometry edit
-    (move SW_Push pin's connection point to the body edge or
-    add an explicit junction at the wire-meets-pin point);
-    needs deliberate library work and visual confirmation that
-    the resulting body geometry is correct.
-  - Cross-cluster wire elimination (V3V3_SW connecting RTC / I²C
-    pull-ups / bypass caps / U3 across the sheet): per-net
-    wiring would require long visual wires that pass over /
-    around other clusters. The trade-off is visual locality vs
-    explicit electrical wires. Deferred.
-  - Whole-sheet functional-block visual restructure (re-flowing
-    the schematic so power-input → regulator → MCU → peripherals
-    flow visibly left-to-right with section boundaries). Would
-    require substantial component-position rework and risks
-    breaking the audit-zero state achieved here. Deferred.
-
-  Ready for codex review of iter-8.
-  CP6 iter-7 designer response committed; handing back to codex.
-
-  iter-6 filed a defensible exception against codex iter-5
-  Finding 03 (BLOCKER — D11 / D13 SR-14a strict schematic-overlap
-  audit). User pivoted: "I agree with claude that there are lots of
-  overlaps. assume they are not false positives." iter-7 reverses
-  the exception strategy and structurally fixes the overlaps at
-  the source in hardware/kicad/build_schematics.py.
-
-  Result: 290 audit pairs → 50 pairs (-83 %). Battery 206 → 28,
-  display 84 → 22.
-
-  Categories addressed:
-  1. (pin_names hide) on multi-pin ICs + connectors — eliminates
-     stacked GND/GND pin-name clusters on DS3231M, ESP32, and pin-
-     name-vs-label duplicates on LTC2850xS8/TPS62933/connectors.
-  2. Hide Reference + Value on the embedded libSymbol template —
-     stops template text from being rendered on top of the
-     instance text at the same coordinate.
-  3. (pin_numbers hide) on 2/3-pin discretes + power flag +
-     button + stacked-power-pin chips — eliminates pin-number-vs-
-     Value-text overlaps on caps/resistors/diodes and pin-number-
-     stack pairs on multi-GND chips.
-  4. Hide pin names on D, D_TVS, LED, Battery_Cell — the symbol
-     shape conveys polarity, so A/K/+/- names just clutter.
-  5. Wider stubs (8 G horizontal / 4 G vertical) on RS485 chip
-     pins and 8 G on 1×4 dev headers — GlobalLabel chevron tips
-     now sit a full grid step clear of pin-number bboxes.
-  6. value_pos / ref_pos overrides on F1 (fuse), U1/U2 Recom
-     converters, U3 RS485, MOD1 ESP32 — moves Reference / Value
-     text out of pin-number / label bbox neighborhoods.
-
-  Residual 50 pairs split as:
-  - ~26 KiCad stroke-font PDF artifacts (identical text at the
-    exact same bbox; rendered once visually, surfaced as two PyMuPDF
-    spans by KiCad's PDF exporter behavior).
-  - ~24 small chevron-tip / label-cluster touches (intersection
-    areas 0.1-7 pt², all individually legible at 100 % zoom).
-
-  Codex iter-8 should verify: (1) the audit count drop is real on
-  a fresh PDF render; (2) the structural fixes haven't broken net
-  topology — ERC still 0 errors / 0 warnings, netlist diff is
-  empty; (3) the remaining 50 pairs are correctly classified into
-  the two categories above (stroke-font artifact OR small
-  chevron-touch).
-
-  See §11.7 in cp6_fab_ready.md for the iter-7 break-down. iter-8
-  progress lives in the SEMAPHORE note above plus the in-progress
-  decisions.md D16; a dedicated §11.8 will be added once #39-#42
-  are far enough along to score against D11.
-
-user_pause_reasons_seen_this_run:
-  - "CP6 iter-5 NEEDS CHANGES (Finding 03 BLOCKER, strict-audit overlap) → iter-6 files the defensible exception per the protocol's documented escape valve."
-  - "User reversed iter-6 stance: treat all overlaps as real, fix at source. iter-7 in progress."
-  - "iter-7 structural fix complete — 290 → 50 audit pairs (-83 %), handed back to codex."
-  - "User reviewed iter-7 grayscale renders: neither schematic is human-readable. New goal codified as D11 strengthened + D16. iter-8 rework in progress."
+  Claude's CP1 task: run the clean-sheet architecture engineering review
+  per hardware/reviews/ENGINEERING_REVIEW.md across all domains (power
+  input, regulation, comms, MCU, sensing, connectors). Re-derive each
+  block from first principles, measure the existing design against it as
+  a CANDIDATE (not a baseline), fix clear errors, log judgment calls in
+  DESIGN_REVIEW_ITEMS.md, and produce the CP1 packet
+  (cp1_design_baseline.md). Reach genuine excellence before any codex
+  handoff — codex is a second set of eyes for what was missed, not a
+  crutch.
