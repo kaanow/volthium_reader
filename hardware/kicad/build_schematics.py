@@ -1839,9 +1839,14 @@ def build_display_side_schematic() -> None:
     # (a real segment endpoint — needed so the V12_PROT PWR_FLAG ties in).
     _place_wire(s, (x_f, _RAIL_Y), (x_f, _RAIL_Y + 3 * G))
     _place_label(s, "V12_PROT", (x_f, _RAIL_Y + 3 * G), angle=90, justify_h="right")
-    # TVS1 — SMAJ15A clamp, vertical: A (pin2) on rail, K (pin1) → GND.
+    # TVS1 — SMAJ15A surge clamp, vertical, CATHODE (pin1 K) → rail,
+    # ANODE (pin2 A) → GND (angle 270). A unidirectional TVS clamps
+    # positive transients only in this orientation; SMAJ15A is sized for
+    # it (Vrwm 15 V > 12 V rail; Vclamp ~24 V < R-78E3.3 VIN max ~32 V).
+    # (DR-1: was angle 90 = anode→rail, which only crowbars reverse
+    # polarity and gives no surge protection.)
     _place_symbol(s, "D", "TVS1", "SMAJ15A", "Diode_SMD:D_SMA",
-                  (x_t, _RAIL_Y + 3 * G), lib=lib, angle=90, autoplace_fields=False,
+                  (x_t, _RAIL_Y + 3 * G), lib=lib, angle=270, autoplace_fields=False,
                   ref_pos=(x_t + 2 * G, _RAIL_Y + 1.5 * G),
                   value_pos=(x_t + 2 * G, _RAIL_Y + 4.5 * G))
     _place_power_port(s, "GND", (x_t, _RAIL_Y + 6 * G), 'D', stub=2 * G, lib=lib)
