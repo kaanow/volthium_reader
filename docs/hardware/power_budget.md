@@ -8,10 +8,15 @@ pack.
 
 ## Battery-side draw, per state
 
-Conversion efficiency assumptions:
+Conversion efficiency assumptions (per decisions.md D19):
 
-- TPS62933 (24 V → 3.3 V), 50–80 % at 5–80 mA load.
-- R-78E12 (24 V → 12 V), 80 % over the relevant range.
+- **U1 LM5165** (24 V → 3.3 V, *always-on*), ~10.5 µA Iq; 70–85 % at
+  5–80 mA load. The microamp quiescent is the point — the always-on rail
+  costs almost nothing at idle, which is what makes the low-SOC trickle
+  ~1 mW.
+- **U2 R-78HB12** (24 V → 12 V, *switched*, display feed), ~80 % over the
+  relevant range. Behind the Q1 load switch, so it draws **zero** when
+  the display is shed at < 10 % SOC.
 
 ### State 1 — Normal (> 25 % SOC, persistent BLE)
 
@@ -50,21 +55,27 @@ load. Way under the budget.
 | Display side         | still receiving 12 V; ESP32 + e-paper light-sleep ≈ ~5 mA at 24 V conv. |
 | **Total**            | **~5.4 mA at 24 V ≈ 0.13 W**      |
 
-### State 4 — Hard cut (< 10 %)
+### State 4 — Hard cut (< 10 % SOC)
 
-P-MOSFET Q1 is OFF. Only the 24 V sense divider (R5/R6 = 111 kΩ to GND)
-and the DS3231 backup battery stay alive.
+Q1 is OFF — the 12 V/display feed (U2) is shed, so the entire display
+side is dark. The **ESP stays powered** on the always-on rail (U1) and
+deep-sleeps, waking briefly to read the sense divider and re-engage Q1
+when the pack recovers. No full power-down, no separate supervisor IC
+(D19 / DR-4: a fully-unpowered MCU couldn't wake itself).
 
-| Subsystem            | Draw                              |
-|----------------------|-----------------------------------|
-| R5/R6 divider        | 24 V / 111 kΩ = **216 µA**         |
-| DS3231 (on CR2032)   | 0 from pack — runs off backup     |
-| Everything else      | 0                                  |
-| **Total from pack**  | **~5 mW**                          |
+| Subsystem               | Draw (referred to 24 V pack)      |
+|-------------------------|-----------------------------------|
+| U1 LM5165 Iq            | ~10.5 µA → **~0.25 mW**            |
+| ESP32-S3 deep-sleep     | ~10 µA @ 3.3 V → **~0.2 mW**       |
+| 24 V sense divider (1 MΩ/110 k) | 24 V / 1.11 MΩ ≈ 22 µA → **~0.52 mW** |
+| DS3231 (on CR2032)      | 0 from pack — runs off backup     |
+| Display side (U2 shed)  | 0                                 |
+| **Total from pack**     | **~1 mW**                          |
 
-At 5 mW the pack would take **~2 years** to lose 1 % SOC from this load
-alone. The cabin will have its own non-monitor parasitics that dominate
-by orders of magnitude.
+At ~1 mW the pack would take **~10 years** to lose 1 % SOC from this load
+alone — self-discharge and the cabin's own parasitics dominate by orders
+of magnitude. (A literal full cut + hardware supervisor could reach
+~0.7 mW, but D19 judged the extra part not worth the marginal saving.)
 
 ## Display-side draw
 
@@ -80,8 +91,8 @@ end (before tracing back to the 24 V pack):
 | E-paper static          | 0              | 0          | The whole point of e-paper |
 | **Display-side average**| —              | **~3–5 mA at 12 V ≈ 50 mW** | |
 
-At the **24 V pack** end, with 80 % conversion through R-78E12, that
-becomes ~63 mW.
+At the **24 V pack** end, with 80 % conversion through U2 (R-78HB12),
+that becomes ~63 mW.
 
 ## Wire loss
 
@@ -106,7 +117,7 @@ Assuming a fully charged 200 Ah pack with no other loads:
 | Normal (state 1)                   | 1.1 W      | ~340 days           |
 | Low (state 2)                      | 0.31 W     | ~1,200 days         |
 | Deep sleep (state 3)               | 0.13 W     | ~2,800 days         |
-| Hard cut (state 4)                 | 5 mW       | ~200 years (limited by self-discharge first) |
+| Hard cut (state 4)                 | ~1 mW      | decades (self-discharge dominates first) |
 
 These are upper bounds — in reality the inverter idle is dozens of watts,
 the cabin's fridge is ~5 A intermittent, etc. The monitor is rounding

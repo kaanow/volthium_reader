@@ -41,6 +41,9 @@ antenna pointing toward the +X edge, with no copper / no traces in a
 
 ## 3. Power architecture
 
+Per decisions.md **D19** (CP1 re-architecture). The MCU lives on an
+**always-on µA-Iq rail**; the load switch sheds **only the display feed**.
+
 ```
 24V pack tap
     │
@@ -51,48 +54,45 @@ J1 [2-pin Phoenix MSTB-G-5.08, screw-clamp pluggable]    ← user lands ring lug
 F1 [5×20 mm cartridge, 1 A fast-blow, in clip]           ← field-replaceable
     │
     ▼
-D1 [SS24 Schottky, A→K]                                  ← reverse-polarity protect
+D1 [SS26 Schottky 60V, A→K]                              ← reverse-polarity protect
     │
-    ├─[V24_FUSED]─────────────────────────────┬─────────────┐
-    │                                          │             │
-    │                                          ▼             ▼
-    ▼                                       Q1/Q2          R5/R6 divider
-TVS1 [SMAJ30CA, V24_FUSED ↔ GND]             P/N-MOSFET     →V24_SENSE
-                                              load switch   (always alive,
-                                                            survives hard-cut)
-                                              │
-                                              ▼ V24_SW (everything below
-                                              │  collapses when Q1 off)
-                                              │
-                          ┌───────────────────┼───────────────────┐
-                          │                                       │
-                          ▼                                       ▼
-                  U1 [TPS62933, 24V→3V3 buck]           U2 [Recom R-78E12, 24V→12V]
-                          │                                       │
-                          ▼                                       ▼
-                       V3V3_SW                                 V12_CAT5E
-                          │                                       │
-       ┌────────┬─────────┼─────────┬──────────┐                  ▼
-       │        │         │         │          │             J2 RJ45
-       ▼        ▼         ▼         ▼          ▼             pins 1/2/3
-   ESP32-S3   DS3231    SN65...   bias       100 nF
-   (MOD1)    (RTC1)    (U3)     R3/R4      decoupling
+    ├─[V24_FUSED]──────────────┬───────────────┬───────────────────┐
+    │                          │               │                   │
+    ▼                          ▼               ▼                   ▼
+TVS1 [SMAJ33CA,           U1 [LM5165         R5/R6 divider      Q1/Q2 load switch
+ V24_FUSED↔GND,           µA-Iq buck,        →V24_SENSE         (60V P/N-FET, gate-
+ ~53V clamp]              24V→3V3]           (always alive)     clamped) — SWITCHED
+                              │                                      │
+                       ALWAYS-ON 3V3                                 ▼ V24_SW
+                              │                              U2 [R-78HB12 24V→12V]
+       ┌────────┬────────┬───┴─────┬──────────┐                     │
+       ▼        ▼        ▼         ▼          ▼                     ▼ V12_CAT5E
+   ESP32-S3   DS3231   SN65...    bias     decoupling           J2 RJ45 → display
+   (MOD1)    (RTC1)    (U3)    R10 term  (no bias here — display-end only)
 
-Always-alive (off V24_FUSED, never via Q1):
+Always-on (off V24_FUSED, never via Q1):
+    U1 LM5165 → 3V3 → ESP32-S3 + DS3231 VCC + RS-485 + sense divider
     R5/R6 sense divider → V24_SENSE → ESP GPIO1 (ADC1_CH0)
     DS3231 V_BAT pin    → CR2032 holder (BAT1)
+Switched (Q1, MCU-controlled): U2 → 12V → Cat5e → the entire display side
 ```
 
-**Three power domains**, in increasing severity of shutdown:
+**Two power domains** (D19):
 
 | Domain         | What it powers                                          | Killed by                |
 |----------------|---------------------------------------------------------|---------------------------|
-| Switched 3V3   | ESP32-S3, RS-485, RTC VCC (DS3231 keeps time on CR2032 anyway), bias resistors | Q1 OFF (PWR_EN low or Hi-Z) |
-| Switched 12V   | Cat5e output (display side)                             | Q1 OFF (PWR_EN low or Hi-Z) |
-| Always-on 24V  | Sense divider (R5/R6), CR2032 to DS3231 V_BAT          | Never                     |
+| Always-on 3V3  | ESP32-S3, DS3231 VCC, RS-485 xceiver, bias, sense divider | Never (MCU deep-sleeps at low SOC) |
+| Switched 12V   | U2 → Cat5e → the **entire display side**                | Q1 OFF (ESP opens it at < 10 % SOC) |
 
-In hard-cut (SOC < 10 %), only the sense divider draws — ~22 µA off the
-24 V pack. The DS3231 runs off its CR2032, ~3 µA off the coin cell.
+The MCU is **always powered** — it cannot sit behind the load switch: it
+must stay alive to drive Q1 and to wake on voltage recovery, and a
+downstream MCU can't gate its own supply (nor boot if it starts unpowered).
+At < 10 % SOC the ESP deep-sleeps (~µA), periodically reads V24_SENSE, and
+sheds the display by opening Q1; RS-485 is disabled via DE/RE (not
+power-switched). All-in trickle at hard-cut ≈ **~1 mW** (U1 Iq ~10.5 µA +
+sense divider ~22 µA + ESP deep-sleep). DS3231 runs off its CR2032 (~3 µA
+off the coin cell). This replaces the pre-D19 design where the MCU sat on
+the switched rail and could not boot — see DESIGN_REVIEW_ITEMS DR-3/DR-4.
 
 ## 4. Component list
 
@@ -102,30 +102,32 @@ In hard-cut (SOC < 10 %), only the sense divider draws — ~22 µA off the
 |-----|-------------------------------------|----------------|-----|-----------|
 | J1  | Phoenix MSTB-2,5/ 2-G-5,08 pluggable terminal block (2-pin, 5.08 mm pitch) | THT 5.08 mm | 1 | Field-replaceable wiring; pluggable means user can disconnect the board from the pack without unscrewing wires |
 | F1  | 5×20 mm fuse + 2× PCB-mount clips (1 A fast-blow, e.g. Bel Fuse 5MF 1-R) | THT clip      | 1 | Cartridge fuses are universally stocked; pops out for replacement |
-| D1  | SS24 Schottky (40 V, 2 A, low Vf)   | SMA           | 1 | Reverse-polarity protection; Vf ~0.4 V at 50 mA, ~20 mW dissipation |
-| TVS1 | SMAJ30CA bidirectional TVS (Vrwm 30 V) | SMA       | 1 | Clamps 24 V transients (BMS / charge controller switching); 30 V Vrwm sits above the 28 V max charge voltage |
+| D1  | SS26 Schottky (60 V, 2 A, low Vf)   | SMA           | 1 | Reverse-polarity protection; 60 V out-rates the ~53 V clamp (D19/DR-3). Vf ~0.4 V, ~20 mW dissipation |
+| TVS1 | SMAJ33CA bidirectional TVS (Vrwm 33 V) | SMA       | 1 | Clamps 24 V transients; 33 V Vrwm clears the ~29 V full-charge bus with margin (D19/DR-2). Clamps ~53 V — every part on V24_FUSED/V24_SW is rated ≥60 V to suit |
 
 **Change from existing BOM**: removed `1 A ATO fast-blow fuse + holder` +
 `ring terminals`. Added cartridge fuse + clip + Phoenix terminal block.
-Added TVS1 on 24 V input (existing schematic doc didn't have one — SKiDL
-file did call it TVS3; consolidated naming).
+TVS1 on the 24 V input is **SMAJ33CA** (D19/DR-2); D1 is a **60 V** SS26
+so the protected rail out-rates the clamp (D19/DR-3).
 
 ### 4.2 Power conversion
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| U1  | TPS62933FDRLR (24 V→3.3 V sync buck, fixed 3.3 V) | SOT-563 (6-pin) | 1 | Iq 22 µA, wide input range; the fixed-voltage variant skips the FB divider |
-| L1  | 2.2 µH ≥1.5 A SMD inductor (e.g. Murata DFE201610E-2R2M) | 2.0×1.6 mm | 1 | TI ref design for TPS62933 at 3.3 V/0.5 A out |
-| C1, C2 | 22 µF / 25 V X7R                 | 1210          | 2   | TPS62933 VIN/VOUT bulk |
-| U2  | Recom R-78E12-1.0 (24 V→12 V, 1 A) | SIP3 THT      | 1   | Stocked module, no inductor BOM, 80–90 % eff at this load. Drives the Cat5e |
-| C3, C4 | 22 µF / 35 V X7R                 | 1210          | 2   | R-78E12 input + output bulk (35 V rating for the 24 V input side) |
+| U1  | LM5165DRCR (24 V→3.3 V sync buck, **always-on**, fixed 3.3 V via FB→VOUT) | VSON-10 | 1 | **~10.5 µA Iq**, 3–65 V in (65 V out-rates the ~53 V clamp), 150 mA. The only part that is both µA-Iq *and* surge-tolerant — a brick can't be both (D19/DR-4) |
+| L1  | 10–47 µH ≥0.3 A shielded SMD inductor | per datasheet | 1 | LM5165 buck inductor; low-Iq COT mode favors a larger L than a fast buck |
+| C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210      | 2   | LM5165 input (C1 on V24_FUSED, behind the ~53 V clamp → 100 V) / output (C2, 3.3 V) |
+| U2  | Recom R-78HB12-0.5 (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1   | **Switched** (behind Q1) — drives the Cat5e/display. 72 V in tolerates the ~53 V clamp (D19/DR-3). Was R-78E12 (34 V, under-rated) |
+| C3, C4 | C3 22 µF / **100 V**, C4 22 µF / 25 V X7R | 1210      | 2   | U2 input (C3 on V24_SW, behind the clamp → 100 V) / 12 V output (C4) |
 
 ### 4.3 Hard-cut load switch
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| Q1  | AO3401A (P-MOSFET, Vds 30 V, Id 4 A, RDS(on) ~70 mΩ @ Vgs −4.5 V) | SOT-23 | 1 | Cheap, low RDS(on) at the 3.3 V gate drive we have |
-| Q2  | AO3400A (N-MOSFET, drives Q1 gate)  | SOT-23        | 1   | 3.3 V-compatible, ubiquitous |
+| Q1  | ZXMP6A13F (P-MOSFET, Vds −60 V, 1.1 A, SOT-23) | SOT-23 | 1 | Load switch for the 12 V/display feed. **60 V** Vds survives the ~53 V clamp when open (D19/DR-4); AO3401A (30 V) did not |
+| Q2  | 2N7002 (N-MOSFET, Vds 60 V, drives Q1 gate) | SOT-23 | 1 | **60 V** because its drain follows the V24 rail (up to the clamp) when Q1 is off (D19/DR-4); AO3400A (30 V) did not |
+| DZ1 | BZX84C12 (12 V Zener, Q1 gate–source clamp) | SOT-23 | 1 | Holds Q1 Vgs ≤ 12 V regardless of bus voltage — without it, turning Q1 on drove Vgs to −29 V (D19/DR-4) |
+| Rg  | ~1 kΩ series gate (Q2 drain → Q1 gate) | 0805    | 1   | Limits gate transient current; works with DZ1 |
 | R3  | 100 kΩ pull-up: Q1 gate → V24_FUSED | 0805          | 1   | Default-OFF behavior — pack-safe on MCU lockup |
 | R4  | 100 kΩ pull-down: Q2 gate → GND     | 0805          | 1   | Defines Q2 state when MCU GPIO floats (boot / brown-out) |
 
@@ -181,36 +183,38 @@ pack-voltage range (24.0 V → 28.0 V in 0.2 V steps) and verify error
 | C6  | 10 µF X7R (ESP bulk, near 3V3 pin)  | 0805          | 1   | Per Espressif WROOM-1 reference design |
 | C7  | 100 nF X7R (ESP decoupling, ≤3 mm from 3V3 pin) | 0402 | 1 | Per Espressif reference; 0402 because it has to be **very** close (0603 OK if no 0402 stocked) |
 | C8  | 1 µF X7R (EN pin filter)            | 0603          | 1   | Soft-start; Espressif notes 470 nF–1 µF on EN |
-| R7  | 10 kΩ EN pull-up                    | 0805          | 1   | EN to V3V3_SW |
+| R7  | 10 kΩ EN pull-up                    | 0805          | 1   | EN to V3V3 |
 | RTC1 | DS3231SN# (TCXO-locked I²C RTC)     | SOIC-16W      | 1   | ±2 ppm, immune to crystal aging; CR2032-backed |
 | BAT1 | CR2032 holder (Keystone 1066)       | THT            | 1   | Battery-side requires a backup RTC for log timestamping; CR2032 lasts ~6 years at the DS3231's ~3 µA backup draw |
 | C9  | 100 nF X7R (RTC decoupling)         | 0603          | 1   | DS3231 datasheet recommends 100 nF on V_CC |
-| R8, R9 | 4.7 kΩ I²C pull-ups (to V3V3_SW) | 0805 ×2       | 2   | Standard I²C bias; 4.7 kΩ sits in the 1–10 kΩ window for 100/400 kHz I²C |
+| R8, R9 | 4.7 kΩ I²C pull-ups (to V3V3) | 0805 ×2       | 2   | Standard I²C bias; 4.7 kΩ sits in the 1–10 kΩ window for 100/400 kHz I²C |
 
 ### 4.6 RS-485 interface
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| U3  | SN65HVD3082E (3.3 V, half-duplex, ESD)  | SOIC-8     | 1   | 30 µA Iq, slew-rate-limited (low EMI). Stocked everywhere. **D-OPEN-2** flagged; alternatives include MAX3485 (higher Iq) and ISL3170E (lower Iq ~50 µA but harder to source). Recommend keeping SN65HVD3082E |
-| R10 | 120 Ω 1 % termination, A↔B          | 0805          | 1   | This end is one terminus; populate by default (display side is the other terminus, also populated; lift via jumper if topology changes) |
-| R11 | 680 Ω idle bias: A → V3V3_SW         | 0805          | 1   | Defines idle differential voltage (~0.2 V) so receiver sees a valid state |
-| R12 | 680 Ω idle bias: B → GND            | 0805          | 1   | (paired with R11) |
+| U3  | SN65HVD3082E (3.3 V, half-duplex, ESD)  | SOIC-8     | 1   | 30 µA Iq, slew-rate-limited (low EMI). On the **always-on** rail; the ESP shuts it to ~µA via DE/RE when idle. **D-OPEN-2** flagged; alternatives MAX3485 (higher Iq), ISL3170E (lower Iq). Recommend keeping SN65HVD3082E |
+| R10 | 120 Ω 1 % termination, A↔B          | 0805          | 1   | This end is one terminus; populate by default (display side is the other terminus, also populated) |
 | TVS2 | SMAJ12CA bidirectional (A↔B)         | SMA           | 1   | Differential surge clamp on the RS-485 wires |
 | C10 | 100 nF X7R (U3 decoupling)           | 0603          | 1   | |
 
-**Power-first note**: idle bias draws ~2.3 mA continuously, dropping
-V3V3_SW current measurably. In State 3 (deep sleep) and State 4 (hard
-cut), this bias goes away naturally because V3V3_SW collapses with Q1
-OFF. The State 2 case (LOW SOC, BLE polling slow) still has bias on; we
-accept this in CP1 but flag a future optimization: gate the bias rail
-through an N-FET driven by an ESP GPIO so we can shed it in State 2.
+**Power-first note (D19/DR-4)**: the bus idle-bias resistors are **on the
+display end only** (resized to ~390 Ω there — see cp1_display_side.md), not
+here. The reason: the battery 3V3 rail is now *always-on*, so a ~2.3 mA
+battery-side bias would draw continuously and blow the ~1 mW hard-cut
+budget (~8×). Putting bias on the display end means it is sourced from the
+display's 3V3 — which is shed with the display at low SOC — so the
+battery always-on rail carries **zero** RS-485 static draw. The battery
+keeps only the terminator (R10, no static draw) and the transceiver (U3,
+~µA in DE/RE shutdown). Idle bias is present whenever the display is
+powered (i.e. whenever the link is actually used).
 
 ### 4.7 User input & visible status
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
 | BTN1 | Panel-mount pushbutton, NO, momentary, SPST (e.g. E-Switch RP3502MA series) | Panel-mount (off-PCB lead) | 1 | Hardware-override for the load switch; mounts through the enclosure lid |
-| R13 | 1 MΩ pull-up: BTN signal → V3V3_SW   | 0805          | 1   | High-value pull-up minimizes Iq while ESP GPIO7 is in RTC-wake state. ESP32-S3 GPIO leakage is ~50 nA → divider error is negligible |
+| R13 | 1 MΩ pull-up: BTN signal → V3V3   | 0805          | 1   | High-value pull-up minimizes Iq while ESP GPIO7 is in RTC-wake state. ESP32-S3 GPIO leakage is ~50 nA → divider error is negligible |
 | C11 | 100 nF X7R debounce                 | 0603          | 1   | RC = 100 ms — slow but the user is pressing a physical button, not racing |
 
 **Change from existing BOM/SKiDL**: removed `LED1 + R_led` (debug LED).
@@ -234,7 +238,7 @@ could add an LED on a GPIO that the firmware pulses (e.g. 50 ms ON every
 
 Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 (decoupling + debounce + sense filter), 10–12 resistors mostly 0805,
-1× 0805 (R6, R10, R11, R12, R3, R4) and 0603 (RTC pull-ups, EN, button).
+1× 0805 (R3, R4, R5, R6, R10, Rg) and 0603 (RTC pull-ups, EN, button).
 
 ## 5. Net list
 
@@ -242,18 +246,18 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 |--------------|-------------|-----------------------|-----------------------------------------------|-------|
 | V24_RAW      | 24–28 V     | J1 pin 1             | F1                                            | Pack tap, unfused |
 | V24_FUSED    | 24–28 V     | D1 cathode           | Q1 source, R5 top (sense divider), R3 (Q1 gate pull-up), TVS1, BAT1+ via diode-OR | Always-alive 24 V rail (post-fuse, post-reverse). Only loads are the load-switch input, the sense divider, the gate pull-up, and the TVS clamp — minimal idle draw |
-| V24_SW       | 24–28 V     | Q1 drain             | TPS62933 VIN (U1), R-78E12 VIN (U2)            | Switched 24 V rail downstream of the P-FET load switch. Collapses to ~0 V when PWR_EN is LOW or Hi-Z (deep-sleep, hard-cut, or MCU boot/brown-out). Carries the full 24 V monitor load |
-| V3V3_SW      | 3.3 V       | TPS62933 VOUT        | ESP3V3, RTC VCC, U3 VCC, R8/R9, R11, R13, C6/C7/C8 | Switched 3.3 V; survives only while U1 is enabled |
-| V12_CAT5E    | 12 V        | R-78E12 VOUT         | J2 RJ45 pins 1/2/3                            | Powers display side over Cat5e |
+| V24_SW       | 24–28 V     | Q1 drain             | R-78HB12 VIN (U2) only                         | Switched 24 V branch downstream of the load switch. Feeds **only** U2 (12 V/display). Collapses when PWR_EN is LOW/Hi-Z — sheds the display, **not** the MCU |
+| V3V3         | 3.3 V       | LM5165 VOUT (U1)     | ESP3V3, RTC VCC, U3 VCC, R8/R9, R13, C6/C7/C8 | **Always-on** 3.3 V (D19). Powers the MCU in every state; never gated. No RS-485 bias here (display-end only) |
+| V12_CAT5E    | 12 V        | R-78HB12 VOUT (U2)   | J2 RJ45 pins 1/2/3                            | Powers display side over Cat5e; off when Q1 sheds it |
 | GND          | 0 V         | (chassis)            | every IC GND, J2 pins 6/7/8, chassis stud near J2 | Single-point shield-drain bond at J2 |
 | V24_SENSE    | 0–3 V       | R5/R6 midpoint       | ESP IO1 (ADC1_CH0)                            | Always-alive; 1/11.0909 divider |
-| I2C_SDA      | 3.3 V LV    | ESP IO5 ↔ RTC SDA    | R8                                            | Pull-up R8 to V3V3_SW |
-| I2C_SCL      | 3.3 V LV    | ESP IO6 ↔ RTC SCL    | R9                                            | Pull-up R9 to V3V3_SW |
+| I2C_SDA      | 3.3 V LV    | ESP IO5 ↔ RTC SDA    | R8                                            | Pull-up R8 to V3V3 |
+| I2C_SCL      | 3.3 V LV    | ESP IO6 ↔ RTC SCL    | R9                                            | Pull-up R9 to V3V3 |
 | UART_TX_3V3  | 3.3 V LV    | ESP IO17             | U3 D pin                                       | UART1 TX → RS-485 driver input |
 | UART_RX_3V3  | 3.3 V LV    | U3 R pin             | ESP IO18                                       | UART1 RX ← RS-485 receiver output |
 | DE_RE        | 3.3 V LV    | ESP IO2              | U3 DE & RE pins (tied)                         | Active-HIGH = transmit; LOW = receive |
-| RS485_A      | 0–5 V diff  | U3 A pin             | J2 pin 4 (blue), R10, R11, TVS2                | Differential pair |
-| RS485_B      | 0–5 V diff  | U3 B pin             | J2 pin 5 (white-blue), R10, R12, TVS2          | (paired with A) |
+| RS485_A      | 0–5 V diff  | U3 A pin             | J2 pin 4 (blue), R10, TVS2                     | Differential pair (bias is display-end only) |
+| RS485_B      | 0–5 V diff  | U3 B pin             | J2 pin 5 (white-blue), R10, TVS2               | (paired with A) |
 | PWR_EN       | 3.3 V LV    | ESP IO4              | Q2 gate, R4 pull-down to GND                  | **Active-HIGH**: HIGH = rails ON; LOW or Hi-Z = rails OFF. Canonical truth table in §8 |
 | BTN_OVERRIDE | 3.3 V LV    | BTN1 + R13           | ESP IO7 (RTC-wake capable)                    | Active-LOW; pulled HIGH by 1 MΩ |
 | EPSN_BAT     | 3.0 V       | CR2032 +             | RTC1 V_BAT                                    | RTC backup |
@@ -287,73 +291,68 @@ extra LED, etc.) via J3.
 
 ## 7. Power budget per state
 
-Computed for **CP1 part choices**: 1 MΩ/110 kΩ sense divider, no debug
-LED, 100 kΩ Q1 gate pull-up, P-FET load switch in the 24 V path
-(§8), V12 policy split between deep-sleep (alive) and hard-cut (off) —
-see [§13 D-OPEN-7a/7b](#13-open-decisions-for-reviewer).
+Computed for **D19 part choices**: U1 LM5165 always-on µA-Iq buck,
+1 MΩ/110 kΩ sense divider, no debug LED, P-FET load switch on the
+**switched display-feed branch only** (§8), V12 policy split between
+deep-sleep (alive) and hard-cut (off) — see [§13 D-OPEN-7a/7b](#13-open-decisions-for-reviewer).
 
 | State | SOC band | Subsystem draws (at 24 V end) | Pack draw | Notes |
 |-------|----------|--------------------------------|-----------|-------|
-| 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 ~0.5 mA + RTC <100 µA + bias ~1.5 mA + display side ~5 mA + sense 22 µA = 45 mA × 24 V | **~1.08 W** | Unchanged from existing power_budget.md ±2 % |
-| 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + bias still on ~1.5 mA + display unchanged + sense 22 µA | **~0.30 W** | Same as existing |
-| 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + DS3231 ~150 µA + 100 kΩ pull-ups leakage ~10 µA + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Same as existing |
-| 4 — Hard cut | < 10 % | Sense divider 22 µA + 100 kΩ Q1 gate pull-up 240 µA + Q2 100 kΩ pull-down ~30 µA + DS3231 on CR2032 (0 from pack) | **~7 mW** | Slightly worse than existing's "5 mW" because of the gate pull-up; could be improved to ~4 mW by raising R3 to 1 MΩ. Reviewer to consider |
+| 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 ~0.5 mA + RTC <100 µA + bias ~1.5 mA + display side ~5 mA + sense 22 µA = 45 mA × 24 V | **~1.08 W** | ±2 % vs power_budget.md |
+| 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + bias still on ~1.5 mA + display unchanged + sense 22 µA | **~0.30 W** | — |
+| 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + DS3231 ~150 µA + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Display still up (Q1 ON) |
+| 4 — Hard cut | < 10 % | U1 LM5165 Iq ~10.5 µA + ESP deep-sleep ~10 µA + sense divider 22 µA + DS3231 on CR2032 (0 from pack); display shed (Q1 OFF) | **~1 mW** | MCU stays alive on the always-on rail and re-engages on recovery (D19). R3 gate pull-up draws ~0 here — Q1 is OFF, so gate sits at source |
 
-State 4 budget: at 7 mW, ~2 years to lose 1 % SOC from monitor alone.
-Acceptable.
+State 4 budget: at ~1 mW, decades to lose 1 % SOC from the monitor alone —
+self-discharge dominates. A literal full cut + supervisor could reach
+~0.7 mW; D19 judged the extra part not worth it.
 
-## 8. Hard-cut MOSFET behavior
+## 8. Load switch (display-feed shed) behavior
 
-**Topology**: P-FET high-side load switch in the 24 V path
-([D-OPEN-5 resolved](#13-open-decisions-for-reviewer) → original P-FET).
-Q1 (AO3401A P-MOSFET) passes V24_FUSED → V24_SW, gated by Q2
-(AO3400A N-MOSFET) which is driven by ESP GPIO4 (`PWR_EN`, active-HIGH).
+**Topology** (D19/DR-4): a P-FET high-side load switch on the **switched
+branch only** — it gates U2 (the 12 V/display feed), **not** the MCU. The
+MCU rail (U1 LM5165) is always-on and never behind Q1. Q1 (ZXMP6A13F,
+60 V P-FET) passes V24_FUSED → V24_SW; Q2 (2N7002, 60 V N-FET) drives Q1's
+gate from ESP GPIO4 (`PWR_EN`, active-HIGH); DZ1 (12 V Zener) + Rg clamp
+Q1's gate-source voltage.
 
 ```
-V24_FUSED ──┬───────────────────┬─────── always-alive (TVS1, R5/R6, R3)
-            │                    │
-            │  R3 [100 kΩ]      │
-            │  ↓                 │
-            └─►●──── Q1 gate ◄──┐│
-            │                    ││ Q1 SOURCE → V24_FUSED
-            ●─── Q1 source     ││ Q1 DRAIN  → V24_SW
-            │                    ││ Q1 GATE   → tied to Q2 drain + R3 pull-up
-            ▼                    ▼▼
-         Q1 [P-FET AO3401A] ──── V24_SW ──► U1, U2
+V24_FUSED ──┬──── ALWAYS-ON: U1 (LM5165 → 3V3 MCU rail), TVS1, R5/R6, R3
+            │
+            │  R3 [100 kΩ gate pull-up → source]   DZ1 [12V] clamps Vgs
+            ▼
+         Q1 [P-FET 60V] ──── V24_SW ──► U2 (R-78HB12 → 12V → Cat5e → display)
               │
-              gate ◄── Q2 [N-FET AO3400A] drain
-                              source ── GND
-                              gate    ◄── PWR_EN (ESP IO4) + R4 [100 kΩ pulldown]
+              gate ◄── Rg [~1k] ◄── Q2 [N-FET 60V] drain
+                                        source ── GND
+                                        gate   ◄── PWR_EN (ESP IO4) + R4 [100 kΩ pulldown]
 ```
 
-**State table:**
+**State table** (Q1 gates the display feed only — the MCU stays up regardless):
 
-| PWR_EN (ESP IO4)   | Q2  | Q1 gate          | Q1   | V24_SW  | Notes                          |
-|--------------------|-----|------------------|------|---------|--------------------------------|
-| LOW                | OFF | pulled HIGH by R3| OFF  | 0 V     | Default on MCU boot / reset — rails are OFF (safe) |
-| HIGH (3.3 V)       | ON  | pulled LOW by Q2 | ON   | V24_FUSED | Normal operation — firmware drives HIGH after boot to enable rails |
-| Hi-Z (MCU brown-out / GPIO reset to input) | R4 pulls Q2 gate to GND → Q2 OFF | pulled HIGH by R3 | OFF | 0 V | Failsafe — any MCU fault collapses the downstream rails |
+| PWR_EN (ESP IO4) | Q2 | Q1 | Display feed | Notes |
+|------------------|----|----|--------------|-------|
+| LOW (reset/boot default) | OFF | OFF | OFF | Display off at boot; the MCU is *already running* on its always-on rail and drives PWR_EN HIGH when it wants the display up |
+| HIGH (3.3 V)     | ON  | ON  | ON  | Normal — display powered |
+| Hi-Z (brown-out) | R4 pulls Q2 OFF | OFF | OFF | Failsafe — display feed drops; the MCU rides through on its own rail |
 
-**Why this topology**:
-- **Default-OFF behavior** matches the pack-safety objective: on any
-  power-on or MCU fault, the rails default to OFF. The firmware must
-  affirmatively drive PWR_EN HIGH to bring them up.
-- The AO3401A passes ~50 mA × V24 with RDS(on) ~70 mΩ at Vgs = -3.3 V →
-  ~3.5 mW dissipation, trivial for a SOT-23.
-- Brown-out recovery is automatic: if V_DD dips below the ESP32-S3
-  brown-out threshold and GPIO4 goes Hi-Z, R4 pulls Q2 OFF, R3 pulls Q1
-  OFF, downstream rails collapse, the ESP eventually re-boots, ULP
-  takes over, voltage recovers, and firmware re-engages.
+**Why this topology** (D19/DR-4):
+- The MCU is **always-on**, so it boots unconditionally and is never gated
+  by Q1. (A downstream MCU could neither boot from cold nor gate its own
+  supply — the core pre-D19 defect.)
+- Q1 sheds only the sheddable load (U2 → 12 V → display). At < 10 % SOC the
+  ESP opens Q1 to drop the display, then stays awake in deep-sleep to
+  monitor recovery and re-engage — it is its own supervisor.
+- **Vgs is clamped** by DZ1 to ≤ 12 V; without it, pulling Q1's gate toward
+  GND drove Vgs to −V24 ≈ −29 V (vs the FET's ±12 V) — a latent gate-oxide
+  failure in the old design.
+- 60 V Q1/Q2 survive the ~53 V clamp; the old 30 V AO340x parts did not.
 
-**V12 (Cat5e) behavior**:
-- V12 is generated by U2 (R-78E12) on V24_SW. So V12 follows V24_SW
-  exactly — when Q1 is OFF, V12 is also OFF.
-- **State 3 (deep-sleep, 10–15 % SOC)**: Q1 stays ON (V24_SW alive),
-  V12 stays alive, display side sees frames at a slower cadence and
-  can show the "LOW PACK" banner. See [D-OPEN-7a](#13-open-decisions-for-reviewer).
-- **State 4 (hard-cut, <10 % SOC)**: Q1 OFF → V24_SW collapses → V12
-  collapses → display side is dark. The State 4 budget (≤5 mW pack
-  draw) requires this. See [D-OPEN-7b](#13-open-decisions-for-reviewer).
+**V12 (Cat5e/display) policy**:
+- **State 3 (deep-sleep, 10–15 % SOC)**: Q1 ON — display up at a slower
+  frame cadence, can show a "LOW PACK" banner. See D-OPEN-7a.
+- **State 4 (hard-cut, < 10 % SOC)**: Q1 OFF → display dark. The MCU stays
+  alive (~µA) on U1 and re-engages on recovery. See D-OPEN-7b.
 
 This matches the documented State 4 budget in
 [`power_budget.md`](../../docs/hardware/power_budget.md) §State 4.
@@ -361,24 +360,25 @@ This matches the documented State 4 budget in
 ## 9. RS-485 interface
 
 Unchanged from the existing design (see §4.6 above and the cross-ref).
-This board is **one terminus of the RS-485 bus**, so R10 is populated.
-Idle bias (R11/R12) is populated here; the display side's bias is
-optional (see CP1 display-side §4.6).
+This board is **one terminus of the RS-485 bus**, so R10 (120 Ω) is
+populated. **Idle bias is NOT here** — it lives on the display end only
+(~390 Ω), so the always-on battery rail carries no RS-485 static draw
+(D19/DR-4; see CP1 display-side §4.6).
 
 ## 10. Decoupling strategy
 
 | Cap   | Value  | Net      | Placement (within mm of pin) | Function       |
 |-------|--------|----------|------------------------------|----------------|
-| C1    | 22 µF  | V24_FUSED | TPS62933 VIN < 2 mm         | Bulk input     |
-| C2    | 22 µF  | V3V3_SW  | TPS62933 VOUT < 2 mm         | Bulk output    |
-| C3    | 22 µF  | V24_FUSED | R-78E12 VIN < 5 mm           | R-78E12 bulk in (the module already has internal caps, this is overflow) |
-| C4    | 22 µF  | V12_CAT5E | R-78E12 VOUT < 5 mm          | Bulk output to Cat5e |
+| C1    | 22 µF/100 V | V24_FUSED | LM5165 VIN < 2 mm       | Bulk input (behind ~53 V clamp → 100 V) |
+| C2    | 22 µF/25 V  | V3V3  | LM5165 VOUT < 2 mm          | Bulk output (3.3 V) |
+| C3    | 22 µF/100 V | V24_SW | R-78HB12 (U2) VIN < 5 mm    | U2 input bulk (behind clamp → 100 V) |
+| C4    | 22 µF/25 V  | V12_CAT5E | R-78HB12 (U2) VOUT < 5 mm | Bulk output to Cat5e |
 | C5    | 100 nF | V24_SENSE | ADC1_CH0 < 3 mm            | Sense filter   |
-| C6    | 10 µF  | V3V3_SW  | ESP 3V3 pin < 2 mm           | ESP module bulk |
-| C7    | 100 nF | V3V3_SW  | ESP 3V3 pin < 2 mm (0402 if poss.) | ESP HF decoupling |
+| C6    | 10 µF  | V3V3  | ESP 3V3 pin < 2 mm           | ESP module bulk |
+| C7    | 100 nF | V3V3  | ESP 3V3 pin < 2 mm (0402 if poss.) | ESP HF decoupling |
 | C8    | 1 µF   | EN net   | ESP EN < 5 mm                | Soft-start    |
-| C9    | 100 nF | V3V3_SW  | DS3231 VCC < 2 mm            | RTC decoupling |
-| C10   | 100 nF | V3V3_SW  | SN65HVD3082 VCC < 2 mm       | RS-485 decoupling |
+| C9    | 100 nF | V3V3  | DS3231 VCC < 2 mm            | RTC decoupling |
+| C10   | 100 nF | V3V3  | SN65HVD3082 VCC < 2 mm       | RS-485 decoupling |
 | C11   | 100 nF | BTN_OVERRIDE | -                       | Button RC debounce |
 
 ## 11. Layout strategy
@@ -414,7 +414,7 @@ optional (see CP1 display-side §4.6).
 |-------------|----------|-----------|--------------------------------------------|
 | Power-24V   | 1.0 mm   | 0.3 mm    | V24_RAW, V24_FUSED                         |
 | Power-12V   | 0.5 mm   | 0.25 mm   | V12_CAT5E                                  |
-| Power-3V3   | 0.4 mm   | 0.2 mm    | V3V3_SW                                    |
+| Power-3V3   | 0.4 mm   | 0.2 mm    | V3V3                                    |
 | Default sig | 0.2 mm   | 0.20 mm   | UART, I²C, SPI (none here), BTN, sense     |
 | RS485-diff  | 0.25 mm  | 0.2 mm    | RS485_A, RS485_B (route as pair, equal-length, no stubs) |
 
@@ -460,8 +460,11 @@ margin.
 1. **DS3231 SOIC-16W footprint not in stock libraries on some KiCad
    distributions** — verify at CP2; create custom footprint if needed
    (low effort).
-2. **R-78E12 SIP3 module footprint** — Recom provides KiCad libraries
-   at recom-power.com/design-tools; pulling those is part of CP2.
+2. **R-78HB12 SIP3 + LM5165 VSON-10 footprints** — Recom provides KiCad
+   libraries at recom-power.com/design-tools; the LM5165 VSON-10 is in
+   TI's library. Pulling/verifying these is part of CP2. **Candidate MPNs
+   (LM5165DRCR, R-78HB12-0.5, ZXMP6A13F) need a final availability check
+   before BOM lock** (D-OPEN-6).
 3. **ESP32-S3-WROOM-1 antenna keepout violations** are easy to make
    by accident. CP3 layout review must verify visually.
 4. **5×20 mm fuse clip footprint** — common (Keystone 3517 etc.) but
@@ -469,19 +472,23 @@ margin.
 5. **JLCPCB Cat5e termination header part** — the SKiDL specifies
    Hammond-style; JLC stocks many compatible variants. Confirm SKU
    at CP5.
-6. **Hard-cut behavior in brown-out** — if V_DD dips while PWR_EN is
-   driven HIGH (rails on) and the MCU resets, the GPIO drops to LOW
-   or Hi-Z. R4 keeps Q2 gate at GND → Q2 OFF → R3 pulls Q1 gate HIGH
-   → Q1 OFF → rails collapse → MCU reboots cleanly with rails off,
-   firmware re-asserts PWR_EN HIGH after re-init. **Verify in
-   simulation at CP2.**
+6. **Brown-out behavior** (D19) — if the MCU resets, PWR_EN drops
+   LOW/Hi-Z → R4 holds Q2 OFF → R3 pulls Q1 OFF → the **display feed**
+   drops. The MCU itself is on the always-on rail, so it rides through /
+   reboots cleanly and re-asserts PWR_EN after re-init. The MCU's own
+   supply is never gated. **Verify at CP2.**
 
 ## 15. What changed vs. the existing `docs/hardware/` baseline
 
 | Section                          | Old                                       | CP1                                          |
 |----------------------------------|-------------------------------------------|----------------------------------------------|
 | 24 V input                       | Ring lugs + external ATO fuse holder     | Phoenix terminal block + on-board 5×20 mm cartridge fuse |
-| 24 V TVS                         | Not specified                              | TVS1 = SMAJ30CA across V24_FUSED ↔ GND       |
+| 24 V TVS                         | Not specified                              | TVS1 = SMAJ33CA across V24_FUSED ↔ GND (D19/DR-2) |
+| 3.3 V regulator + domain         | TPS62933 on the *switched* rail (MCU died at hard-cut → couldn't boot) | LM5165 µA-Iq buck on the **always-on** rail; MCU always powered (D19/DR-4) |
+| 12 V regulator                   | R-78E12 (34 V — under-rated behind the ~53 V clamp) | R-78HB12 (72 V), switched behind Q1 (D19/DR-3) |
+| Load switch FETs                 | AO3401A/AO3400A (30 V), no Vgs clamp       | 60 V ZXMP6A13F/2N7002 + 12 V Vgs Zener clamp (D19/DR-4) |
+| Reverse-polarity diode           | SS24 (40 V)                                | SS26 (60 V) — out-rates the clamp (D19/DR-3) |
+| RS-485 idle bias                 | Both ends (battery bias always-on → ~8 mW leak) | Display end only, ~390 Ω (battery rail draws 0; D19/DR-4) |
 | Sense divider                    | 100 kΩ / 11 kΩ (220 µA idle)              | 1 MΩ / 110 kΩ (22 µA idle) — **10× power saving** |
 | Q1 gate pull-up                  | 10 kΩ (2.4 mA idle)                        | 100 kΩ (240 µA idle) — 10× power saving      |
 | Debug LED                        | LED1 + R_led (always available, GPIO-controlled) | **Removed** per D4                       |
