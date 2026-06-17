@@ -570,6 +570,7 @@ def _place_symbol(
     angle: float = 0.0,
     value_pos: tuple[float, float] | None = None,
     ref_pos: tuple[float, float] | None = None,
+    autoplace_fields: bool = True,
 ) -> SchematicSymbol:
     """Place a SchematicSymbol instance referencing volthium:<sym_name>.
 
@@ -589,17 +590,26 @@ def _place_symbol(
     inst.unit = 1
     inst.inBom = True
     inst.onBoard = True
-    inst.fieldsAutoplaced = True
+    # Autoplace lets KiCad tidy field positions, but for ROTATED symbols
+    # it re-stacks ref+value next to the rotated body (ignoring explicit
+    # positions) and they collide. Callers placing rotated parts with
+    # hand-tuned ref/value pass autoplace_fields=False.
+    inst.fieldsAutoplaced = autoplace_fields
     inst.uuid = _uuid()
     val_pos = value_pos if value_pos is not None else (pos[0] + 2.54, pos[1] + 1.27)
     rf_pos = ref_pos if ref_pos is not None else (pos[0] + 2.54, pos[1] - 1.27)
+    # KiCad composes a field's render angle with the symbol's rotation, so
+    # on a 90°-rotated symbol a field with angle 0 renders VERTICAL. To
+    # keep ref/value horizontal on a rotated part, counter-rotate the
+    # field text by -angle.
+    fld_a = (-angle) % 360
     # Properties: Reference, Value, Footprint, Datasheet (the standard 4)
     inst.properties = [
         Property(key="Reference", value=reference,
-                 position=Position(X=rf_pos[0], Y=rf_pos[1], angle=0),
+                 position=Position(X=rf_pos[0], Y=rf_pos[1], angle=fld_a),
                  effects=Effects()),
         Property(key="Value", value=value,
-                 position=Position(X=val_pos[0], Y=val_pos[1], angle=0),
+                 position=Position(X=val_pos[0], Y=val_pos[1], angle=fld_a),
                  effects=Effects()),
         Property(key="Footprint", value=footprint,
                  position=Position(X=pos[0], Y=pos[1], angle=0),
@@ -836,6 +846,83 @@ def _place_power_flag(sch: Schematic, net: str, pos: tuple[float, float], lib: S
     _place_label(sch, net, below, angle=90, justify_h="right")
 
 
+def _place_rs485_term_block(
+    s: Schematic, lib: SymbolLib, *,
+    u_x: float, u_y: float, vcc_net: str,
+    term_ref: str, biasA_ref: str, biasB_ref: str, tvs_ref: str,
+) -> None:
+    """Wire the RS-485 bus-termination network as a clean two-rail block.
+
+    Guidelines a/b: the transceiver's datasheet parts (120 Ω termination,
+    two 680 Ω idle-bias resistors, SMAJ12CA TVS) are placed in the chip's
+    block and connected by WIRES, not by repeating RS485_A/RS485_B flags
+    on each part. The A and B differential lines become two horizontal
+    rails 6 G apart; the vertical parts bridge or tap them; a single
+    RS485_A / RS485_B label at each rail's right end carries the net
+    cross-sheet to the connector.
+
+        pin6 (A) ─┬───────┬───────[biasA]──────► RS485_A
+                [term]  [TVS]        │ up→VCC
+        pin7 (B) ─┴───────┴───────[biasB]──────► RS485_B
+                                    │ down→GND
+
+    `u_x,u_y` is the transceiver centre; chip pin-6 (A) tips at
+    (u_x+8G, u_y-6G) and pin-7 (B) at (u_x+8G, u_y-2G).
+    """
+    G = 1.27
+    x0 = u_x + 8 * G            # chip pin-6/7 connection tips
+    A_y = u_y - 6 * G           # A rail (pin-6 level)
+    B_y = u_y                   # B rail (= A_y + 6 G, fits a vertical R/TVS)
+    x_term = u_x + 14 * G
+    x_tvs = u_x + 20 * G
+    x_bias = u_x + 27 * G
+    x_end = u_x + 33 * G
+
+    # pin 7 (B) jogs down 2 G from its pin level to the B rail.
+    _place_wire(s, (x0, u_y - 2 * G), (x0, B_y))
+    # The two differential rails, drawn as SEGMENTS between consecutive
+    # tap points (chip pin, term, TVS, bias, label) so every tap is a
+    # shared wire endpoint — KiCad only auto-connects (and auto-junctions)
+    # a pin to a wire at a shared endpoint, not at a mid-span crossing.
+    for y in (A_y, B_y):
+        prev = x0
+        for x in (x_term, x_tvs, x_bias, x_end):
+            _place_wire(s, (prev, y), (x, y))
+            prev = x
+
+    # 120 Ω termination — vertical R bridging A (pin1 top) to B (pin2 bot).
+    _place_symbol(s, "R", term_ref, "120",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (x_term, A_y + 3 * G), lib=lib,
+                  ref_pos=(x_term + 2.5 * G, A_y + 3 * G - 1.27),
+                  value_pos=(x_term + 2.5 * G, A_y + 3 * G + 1.27))
+    # SMAJ12CA TVS — vertical (angle 90) bridging A/B; value left of body
+    # (it is the widest text and would otherwise reach the bias column).
+    _place_symbol(s, "D_TVS", tvs_ref, "SMAJ12CA",
+                  "Diode_SMD:D_SMA",
+                  (x_tvs, A_y + 3 * G), lib=lib, angle=90,
+                  autoplace_fields=False,
+                  ref_pos=(x_tvs, A_y - 2 * G),     # above the A rail
+                  value_pos=(x_tvs, B_y + 2 * G))   # below the B rail
+    # Idle-bias A: 680 Ω up from the A rail to VCC.
+    _place_symbol(s, "R", biasA_ref, "680",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (x_bias, A_y - 3 * G), lib=lib,
+                  ref_pos=(x_bias + 2.5 * G, A_y - 3 * G - 1.27),
+                  value_pos=(x_bias + 2.5 * G, A_y - 3 * G + 1.27))
+    _pin_label(s, vcc_net, (x_bias, A_y - 6 * G), 'U')
+    # Idle-bias B: 680 Ω down from the B rail to GND.
+    _place_symbol(s, "R", biasB_ref, "680",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (x_bias, B_y + 3 * G), lib=lib,
+                  ref_pos=(x_bias + 2.5 * G, B_y + 3 * G - 1.27),
+                  value_pos=(x_bias + 2.5 * G, B_y + 3 * G + 1.27))
+    _place_power_port(s, "GND", (x_bias, B_y + 6 * G), 'D', stub=2 * G, lib=lib)
+    # One label per rail, cross-sheet to the connector (outdir R).
+    _place_label(s, "RS485_A", (x_end, A_y), justify_h="left")
+    _place_label(s, "RS485_B", (x_end, B_y), justify_h="left")
+
+
 def build_battery_side_schematic() -> None:
     """Generate battery-side schematic — symbol-instancing harness proof (CP2 iter 8).
 
@@ -983,8 +1070,12 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "V24_SW",  (U1_X - 12 * G, U1_Y - 4 * G), justify_h="right")
     # D16: route U1 pin 4 GND through the stock power port.
     _place_power_port(s, "GND", (U1_X, U1_Y + 10 * G), 'D', stub=1 * G, lib=lib)
-    _place_wire(s,  (U1_X + 6 * G, U1_Y),         (U1_X + 8 * G, U1_Y))            # pin 5 stub
-    _place_label(s, "U1_SW",   (U1_X + 8 * G, U1_Y), justify_h="left")             # pin 5 SW
+    # iter-13 (guideline b): U1.SW is an internal buck node (U1 pin5 ↔ L1
+    # ↔ C_BST). Route the pin-5 connection DOWN off the SW→L1 line and put
+    # the U1_SW name on that vertical stub, so the horizontal SW→L1 wire
+    # no longer strikes through the label body.
+    _place_wire(s,  (U1_X + 6 * G, U1_Y),         (U1_X + 6 * G, U1_Y + 2 * G))    # pin 5 down-stub
+    _place_label(s, "U1_SW",   (U1_X + 6 * G, U1_Y + 2 * G), angle=90, justify_h="right")  # SW (outdir D)
     _place_wire(s,  (U1_X + 6 * G, U1_Y + 6 * G), (U1_X + 8 * G, U1_Y + 6 * G))   # pin 8 stub
     _place_label(s, "V3V3_SW", (U1_X + 8 * G, U1_Y + 6 * G), justify_h="left")     # pin 8 FB
     _place_noconnect(s, (U1_X - 6 * G, U1_Y + 4 * G))            # pin 1 RT
@@ -1446,10 +1537,8 @@ def build_battery_side_schematic() -> None:
     _place_label(s, "UART_TX_3V3", (U3_X - 8 * G - _STUB_H, U3_Y + 4 * G), justify_h="right")  # pin 4 DI (outdir=L)
     # D16: U3 pin 5 GND → stock power port.
     _place_power_port(s, "GND", (U3_X, U3_Y + 12 * G), 'D', stub=_STUB_V, lib=lib)
-    _place_wire(s,  (U3_X +  8 * G, U3_Y - 6 * G), (U3_X +  8 * G + _STUB_H, U3_Y - 6 * G))  # pin 6 stub
-    _place_label(s, "RS485_A",     (U3_X + 8 * G + _STUB_H, U3_Y - 6 * G), justify_h="left")  # pin 6 A (outdir=R)
-    _place_wire(s,  (U3_X +  8 * G, U3_Y - 2 * G), (U3_X +  8 * G + _STUB_H, U3_Y - 2 * G))  # pin 7 stub
-    _place_label(s, "RS485_B",     (U3_X + 8 * G + _STUB_H, U3_Y - 2 * G), justify_h="left")  # pin 7 B (outdir=R)
+    # Pins 6 (A) / 7 (B) + termination network: two-rail block below
+    # (iter-13 reflow). pin 8 (VCC) handled here.
     _place_wire(s,  (U3_X,          U3_Y - 12 * G), (U3_X,          U3_Y - 12 * G - _STUB_V)) # pin 8 stub
     _place_label(s, "V3V3_SW",     (U3_X,          U3_Y - 12 * G - _STUB_V), angle=90, justify_h="left")  # pin 8 VCC (outdir=U)
 
@@ -1467,63 +1556,14 @@ def build_battery_side_schematic() -> None:
     # top pin → GND port pointing up, clear of the chip body
     _place_power_port(s, "GND", (C10_X, C10_Y - 3 * G), 'U', stub=2 * G, lib=lib)
 
-    # R10 — 120 Ω RS-485 termination (A ↔ B). Horizontal so both pins
-    # land on the A/B nets without rotating the symbol.
-    R10_X, R10_Y = U3_X + 24 * G, U3_Y - 4 * G   # iter-10: +24G so the termination resistor body no longer sits in U3's pin-6/7 RS485_A/B horizontal label column (was +16G)
-    _place_symbol(s, "R", "R10", "120",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R10_X, R10_Y), lib=lib,
-                  ref_pos=(R10_X + 12 * G, R10_Y - 1.27),   # iter-9: ref further right, clear of widened RS485_A flag body
-                  value_pos=(R10_X + 12 * G, R10_Y + 1.27)) # iter-9: value further right, clear of widened RS485_B flag body
-    _pin_label(s, "RS485_A", (R10_X, R10_Y - 3 * G), 'U')   # pin 1
-    # D16: R10.pin2 RS485_B label deduped — wire-out to R12.pin1
-    # placed below; corner at the trunk Y. Wire emitted after R12
-    # is positioned (see RS485_B trunk block below).
-
-    # R11 — 680 Ω idle bias A → V3V3_SW
-    R11_X, R11_Y = U3_X + 12 * G, U3_Y - 12 * G   # (294.64, 47.62)
-    _place_symbol(s, "R", "R11", "680",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R11_X, R11_Y), lib=lib)
-    _pin_label(s, "V3V3_SW", (R11_X, R11_Y - 3 * G), 'U')
-    # RS485_A label deduped — wire down to R10.pin1 (also RS485_A);
-    # R10 keeps the label.
-
-    # R12 — 680 Ω idle bias B → GND
-    R12_X, R12_Y = U3_X + 12 * G, U3_Y + 8 * G   # (294.64, 73.66)
-    _place_symbol(s, "R", "R12", "680",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R12_X, R12_Y), lib=lib,
-                  ref_pos=(R12_X + 6 * G, R12_Y - 1.27),   # D16: ref far right
-                  value_pos=(R12_X + 6 * G, R12_Y + 1.27)) # D16: value far right
-    _pin_label(s, "RS485_B", (R12_X, R12_Y - 3 * G), 'U')
-    _pin_label(s, "GND",     (R12_X, R12_Y + 3 * G), 'D')
-    # D16: RS485_B trunk — wire R10.pin2 down + over to R12.pin1
-    # (both RS485_B). R12.pin1 keeps the single label.
-    _place_wire(s, (R10_X, R10_Y + 3 * G), (R10_X, R12_Y - 3 * G))
-    _place_wire(s, (R10_X, R12_Y - 3 * G), (R12_X, R12_Y - 3 * G))
-
-    # TVS2 — SMAJ12CA differential clamp across A/B. Device:D_TVS with
-    # Value override. Horizontal (pins ±3.81 X from center).
-    TVS2_X, TVS2_Y = U3_X + 32 * G, U3_Y - 4 * G   # iter-9c: pushed +8G further right so the RS485_B label on TVS2.pin2 doesn't visually crowd R10's RS485_B vertical-trunk label
-    _place_symbol(s, "D_TVS", "TVS2", "SMAJ12CA",
-                  "Diode_SMD:D_SMA",
-                  (TVS2_X, TVS2_Y), lib=lib,
-                  ref_pos=(TVS2_X + 4 * G, TVS2_Y - 3 * G),    # iter-9b: ref upper-right of body, clear of widened RS485_A/B flag bodies
-                  value_pos=(TVS2_X + 4 * G, TVS2_Y + 3 * G))  # iter-9b: value lower-right of body
-    # TVS2.pin1 RS485_A label deduped — wire to R10.pin1.
-    _pin_label(s, "RS485_B", (TVS2_X + 3 * G, TVS2_Y), 'R')   # pin 2
-    # CP-cleanup iter 30: cluster the 4 RS485_A endpoints (U3.A,
-    # R10.pin1, R11.pin2, TVS2.pin1) — wire R11 and TVS2 to R10;
-    # U3.A keeps its own RS485_A label (name connects across the
-    # schematic). Two labels eliminated.
-    _place_wire(s, (R10_X, R10_Y - 3 * G), (R10_X, R11_Y + 3 * G))  # R10.pin1 → corner (up to R11)
-    _place_wire(s, (R10_X, R11_Y + 3 * G), (R11_X, R11_Y + 3 * G))  # corner → R11.pin2
-    # iter-12: route R10.pin1 → TVS2.pin1 AROUND R10's right side
-    # (old path ran straight down through the R10 body to TVS2_Y).
-    _place_wire(s, (R10_X, R10_Y - 3 * G), (R10_X + 3 * G, R10_Y - 3 * G))  # right, clear of body
-    _place_wire(s, (R10_X + 3 * G, R10_Y - 3 * G), (R10_X + 3 * G, TVS2_Y))  # down
-    _place_wire(s, (R10_X + 3 * G, TVS2_Y), (TVS2_X - 3 * G, TVS2_Y))       # across to TVS2.pin1
+    # iter-13 reflow (guidelines a/b): RS-485 termination network as a
+    # clean two-rail wired block (same helper as display U2). R10 (120
+    # term), R11/R12 (680 bias), TVS2 (SMAJ12CA) wired to the A/B rails;
+    # one RS485_A/RS485_B label per rail. Replaces the per-part flag
+    # forest + the R10-body / pin-7-flag wire overlaps.
+    _place_rs485_term_block(s, lib, u_x=U3_X, u_y=U3_Y, vcc_net="V3V3_SW",
+                            term_ref="R10", biasA_ref="R11", biasB_ref="R12",
+                            tvs_ref="TVS2")
 
     # D16: BTN1 + R13 + C11 debounce cluster — single horizontal
     # BTN_OVERRIDE trunk at Y=192G connects BTN1 pin 1 (left) to
@@ -1992,10 +2032,8 @@ def build_display_side_schematic() -> None:
     _place_label(s, "UART_TX_3V3", (U2_X - 8 * G - _STUB_H, U2_Y + 4 * G), justify_h="right")  # pin 4 DI (outdir=L)
     # D16: U2 pin 5 GND → stock power port.
     _place_power_port(s, "GND", (U2_X, U2_Y + 12 * G), 'D', stub=_STUB_V, lib=lib)
-    _place_wire(s,  (U2_X +  8 * G, U2_Y - 6 * G), (U2_X +  8 * G + _STUB_H, U2_Y - 6 * G))  # pin 6 stub
-    _place_label(s, "RS485_A",     (U2_X + 8 * G + _STUB_H, U2_Y - 6 * G), justify_h="left")  # pin 6 A (outdir=R)
-    _place_wire(s,  (U2_X +  8 * G, U2_Y - 2 * G), (U2_X +  8 * G + _STUB_H, U2_Y - 2 * G))  # pin 7 stub
-    _place_label(s, "RS485_B",     (U2_X + 8 * G + _STUB_H, U2_Y - 2 * G), justify_h="left")  # pin 7 B (outdir=R)
+    # Pins 6 (A) / 7 (B) + the termination network: see the two-rail block
+    # below (iter-13 reflow). pin 8 (VCC) handled here.
     _place_wire(s,  (U2_X,          U2_Y - 12 * G), (U2_X,          U2_Y - 12 * G - _STUB_V)) # pin 8 stub
     _place_label(s, "V3V3",        (U2_X,          U2_Y - 12 * G - _STUB_V), angle=90, justify_h="left")  # pin 8 VCC (outdir=U)
 
@@ -2014,58 +2052,15 @@ def build_display_side_schematic() -> None:
     # top pin → GND port pointing up, clear of the chip body
     _place_power_port(s, "GND", (C7_X, C7_Y - 3 * G), 'U', stub=2 * G, lib=lib)
 
-    # R2 — 120Ω termination (A ↔ B), bus terminus
-    # iter-10: pushed to +24G so the termination resistor body no longer
-    # sits in U2's pin-6/7 RS485_A/B horizontal label column (was +16G,
-    # the same x as those labels).
-    R2_X, R2_Y = U2_X + 24 * G, U2_Y - 4 * G
-    _place_symbol(s, "R", "R2", "120",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R2_X, R2_Y), lib=lib,
-                  ref_pos=(R2_X + 12 * G, R2_Y - 1.27),   # iter-9: ref further right, clear of widened RS485_A flag body
-                  value_pos=(R2_X + 12 * G, R2_Y + 1.27)) # iter-9: value further right, clear of widened RS485_B flag body
-    _pin_label(s, "RS485_A", (R2_X, R2_Y - 3 * G), 'U')
-    # D16: R2.pin2 RS485_B label deduped — wire emitted after R4
-    # is placed below (same pattern as battery U3 R10→R12).
-
-    # R3 — 680Ω idle bias A → V3V3
-    R3_X, R3_Y = U2_X + 12 * G, U2_Y - 12 * G   # (294.64, 85.72)
-    _place_symbol(s, "R", "R3", "680",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R3_X, R3_Y), lib=lib)
-    _pin_label(s, "V3V3",    (R3_X, R3_Y - 3 * G), 'U')
-    # RS485_A label deduped — wire to R2.pin1 (same pattern as battery U3).
-
-    # R4 — 680Ω idle bias B → GND
-    R4_X, R4_Y = U2_X + 12 * G, U2_Y + 8 * G   # (294.64, 111.76)
-    _place_symbol(s, "R", "R4", "680",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R4_X, R4_Y), lib=lib)
-    _pin_label(s, "RS485_B", (R4_X, R4_Y - 3 * G), 'U')
-    _pin_label(s, "GND",     (R4_X, R4_Y + 3 * G), 'D')
-    # D16: RS485_B trunk — wire R2.pin2 → R4.pin1 (both RS485_B).
-    _place_wire(s, (R2_X, R2_Y + 3 * G), (R2_X, R4_Y - 3 * G))
-    _place_wire(s, (R2_X, R4_Y - 3 * G), (R4_X, R4_Y - 3 * G))
-
-    # TVS2 — SMAJ12CA differential clamp across A/B
-    TVS2_X, TVS2_Y = U2_X + 32 * G, U2_Y - 4 * G   # iter-9c: pushed +8G further right so the RS485_B label on TVS2.pin2 doesn't visually crowd R2's RS485_B vertical-trunk label
-    _place_symbol(s, "D_TVS", "TVS2", "SMAJ12CA",
-                  "Diode_SMD:D_SMA",
-                  (TVS2_X, TVS2_Y), lib=lib,
-                  ref_pos=(TVS2_X + 4 * G, TVS2_Y - 3 * G),    # iter-9b: ref upper-right of body, clear of widened RS485_A/B flag bodies
-                  value_pos=(TVS2_X + 4 * G, TVS2_Y + 3 * G))  # iter-9b: value lower-right of body
-    # TVS2.pin1 RS485_A label deduped — wire to R2.pin1.
-    _pin_label(s, "RS485_B", (TVS2_X + 3 * G, TVS2_Y), 'R')
-    # Same RS485_A cluster dedup as battery-side U3 area:
-    _place_wire(s, (R2_X, R2_Y - 3 * G), (R2_X, R3_Y + 3 * G))   # R2.pin1 → corner (up to R3)
-    _place_wire(s, (R2_X, R3_Y + 3 * G), (R3_X, R3_Y + 3 * G))   # corner → R3.pin2
-    # iter-12: route R2.pin1 → TVS2.pin1 AROUND R2's right side. The old
-    # path dropped from pin1 straight down to TVS2_Y (= R2 centre),
-    # running the wire through the R2 body. Exit right at pin1 height,
-    # then down clear of the body, then across to TVS2.
-    _place_wire(s, (R2_X, R2_Y - 3 * G), (R2_X + 3 * G, R2_Y - 3 * G))  # right, clear of body
-    _place_wire(s, (R2_X + 3 * G, R2_Y - 3 * G), (R2_X + 3 * G, TVS2_Y))  # down
-    _place_wire(s, (R2_X + 3 * G, TVS2_Y), (TVS2_X - 3 * G, TVS2_Y))     # across to TVS2.pin1
+    # iter-13 reflow (guidelines a/b): RS-485 termination network drawn as
+    # a clean two-rail wired block — R2 (120 term), R3/R4 (680 bias),
+    # TVS2 (SMAJ12CA) all wired to the A/B rails; one RS485_A/RS485_B
+    # label per rail to the connector. Replaces the old per-part flag
+    # forest (which produced the pin-7-wire-through-R4-flag strike-through
+    # and the same-net flag advisories).
+    _place_rs485_term_block(s, lib, u_x=U2_X, u_y=U2_Y, vcc_net="V3V3",
+                            term_ref="R2", biasA_ref="R3", biasB_ref="R4",
+                            tvs_ref="TVS2")
 
     # ===== Buttons: BTN1/2/3 + R5/R6/R7 (1MΩ pull-ups) + C8/C9/C10 (debounce) =====
     # Per-pin labels (BTN<N>_IN on each side of the net). In-cluster
@@ -2284,6 +2279,11 @@ def main() -> None:
     rc = run_readability_audits()
 
     print("\nDone." if rc == 0 else "\nDone WITH AUDIT FINDINGS (see above).")
+    # Both boards are at zero overlaps; enforce it so any future
+    # regression fails the build. (Advisories are informational and do
+    # not count toward rc.)
+    if rc:
+        raise SystemExit(rc)
 
 
 def run_readability_audits() -> int:
