@@ -975,6 +975,42 @@ def _place_btn_debounce(
     _place_label(s, btn_net, (x - 3 * G, y), justify_h="right")
 
 
+def _place_en_filter(
+    s: Schematic, lib: SymbolLib, *,
+    x: float, y: float, r_ref: str, c_ref: str, en_net: str, vcc_net: str,
+    r_val: str = "10k", c_val: str = "1uF",
+) -> None:
+    """MCU EN pull-up + soft-start drawn as one wired filter block.
+
+    A vertical R (VCC→node) over a C (node→GND) with the EN node carrying
+    a single `en_net` label to the MCU — the same idiom as the debounce
+    block minus the switch. Keeping it as its own block (rather than
+    interleaving the soft-start C among the V3V3 bulk caps) means the
+    V3V3 bulk trunk no longer has to cross the EN cap's stub.
+
+            VCC
+             │
+            [R]  pull-up
+             │
+      en_net ●
+             │
+            [C]  soft-start
+             │
+            GND
+    """
+    G = 1.27
+    _place_symbol(s, "R", r_ref, r_val,
+                  "Resistor_SMD:R_0805_2012Metric", (x, y - 4 * G), lib=lib)
+    _place_wire(s, (x, y - 1 * G), (x, y))
+    _pin_label(s, vcc_net, (x, y - 7 * G), 'U')
+    _place_symbol(s, "C", c_ref, c_val,
+                  "Capacitor_SMD:C_0603_1608Metric", (x, y + 4 * G), lib=lib)
+    _place_wire(s, (x, y + 1 * G), (x, y))
+    _place_power_port(s, "GND", (x, y + 7 * G), 'D', stub=2 * G, lib=lib)
+    _place_wire(s, (x, y), (x - 3 * G, y))
+    _place_label(s, en_net, (x - 3 * G, y), justify_h="right")
+
+
 def build_battery_side_schematic() -> None:
     """Generate battery-side schematic — symbol-instancing harness proof (CP2 iter 8).
 
@@ -1431,48 +1467,26 @@ def build_battery_side_schematic() -> None:
     # no support cap sits in MOD1's centre top-pin column (MOD1 V3V3_SW
     # pin emits a vertical flag upward at x=MOD1_X; C7 used to sit there
     # and collided with that flag body + C7's own value text).
-    _SUP_DX = -4 * G
-
-    # R7 — 10 kΩ pull-up from ESP_EN to V3V3_SW. Vertical (R pins ±3*G).
-    R7_X, R7_Y = MOD1_X - 24 * G + _SUP_DX, SUP_Y
-    _place_symbol(s, "R", "R7", "10k",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R7_X, R7_Y), lib=lib)
-    _pin_label(s, "V3V3_SW", (R7_X, R7_Y - 3 * G), 'U')   # pin 1 top (V3V3_SW — single label for whole top-row trunk)
-    _pin_label(s, "ESP_EN",  (R7_X, R7_Y + 3 * G), 'D')   # pin 2 bottom
-
-    # C8 — 1 µF EN soft-start cap. EN to GND.
-    C8_X, C8_Y = MOD1_X - 16 * G + _SUP_DX, SUP_Y
-    _place_symbol(s, "C", "C8", "1uF",
-                  "Capacitor_SMD:C_0603_1608Metric",
-                  (C8_X, C8_Y), lib=lib)
-    _pin_label(s, "ESP_EN", (C8_X, C8_Y - 3 * G), 'U')
-    _pin_label(s, "GND",    (C8_X, C8_Y + 3 * G), 'D')
-
-    # C6 — 10 µF ESP bulk on V3V3_SW
-    C6_X, C6_Y = MOD1_X - 8 * G + _SUP_DX, SUP_Y
+    # iter-15: EN pull-up + soft-start as their own wired filter block
+    # (R7/C8) so the V3V3_SW bulk trunk (C6/C7) no longer crosses the EN
+    # cap's stub.
+    _place_en_filter(s, lib, x=MOD1_X - 26 * G, y=SUP_Y,
+                     r_ref="R7", c_ref="C8", en_net="ESP_EN", vcc_net="V3V3_SW")
+    # C6 (10 µF bulk) + C7 (100 nF HF) on a short V3V3_SW trunk.
+    C6_X, C6_Y = MOD1_X - 12 * G, SUP_Y
     _place_symbol(s, "C", "C6", "10uF",
-                  "Capacitor_SMD:C_0805_2012Metric",
-                  (C6_X, C6_Y), lib=lib)
-    _pin_label(s, "GND",     (C6_X, C6_Y + 3 * G), 'D')
-
-    # C7 — 100 nF ESP HF decoupling
-    C7_X, C7_Y = MOD1_X + _SUP_DX, SUP_Y
+                  "Capacitor_SMD:C_0805_2012Metric", (C6_X, C6_Y), lib=lib)
+    _pin_label(s, "GND",  (C6_X, C6_Y + 3 * G), 'D')
+    C7_X, C7_Y = MOD1_X - 4 * G, SUP_Y
     _place_symbol(s, "C", "C7", "100nF",
-                  "Capacitor_SMD:C_0402_1005Metric",
-                  (C7_X, C7_Y), lib=lib)
-    # D16: V3V3_SW horizontal trunk along the ESP support row, segmented
-    # at each tap point so KiCad's ERC sees explicit endpoint coincidence.
-    _TRUNK_Y = R7_Y - 5 * G
-    # Up-stubs from each pin1 endpoint to the trunk Y:
-    _place_wire(s, (R7_X, R7_Y - 3 * G), (R7_X, _TRUNK_Y))   # R7.pin1 → trunk
-    _place_wire(s, (C6_X, C6_Y - 3 * G), (C6_X, _TRUNK_Y))   # C6.pin1 → trunk
-    _place_wire(s, (C7_X, C7_Y - 3 * G), (C7_X, _TRUNK_Y))   # C7.pin1 → trunk
-    # Horizontal trunk in two segments (R7→C6, C6→C7) so the C6 tap
-    # creates an explicit T-junction endpoint coincidence.
-    _place_wire(s, (R7_X, _TRUNK_Y), (C6_X, _TRUNK_Y))
+                  "Capacitor_SMD:C_0402_1005Metric", (C7_X, C7_Y), lib=lib)
+    _pin_label(s, "GND",  (C7_X, C7_Y + 3 * G), 'D')
+    _TRUNK_Y = SUP_Y - 5 * G
+    _place_wire(s, (C6_X, C6_Y - 3 * G), (C6_X, _TRUNK_Y))
+    _place_wire(s, (C7_X, C7_Y - 3 * G), (C7_X, _TRUNK_Y))
     _place_wire(s, (C6_X, _TRUNK_Y), (C7_X, _TRUNK_Y))
-    _pin_label(s, "GND",     (C7_X, C7_Y + 3 * G), 'D')
+    _place_wire(s, (C6_X, _TRUNK_Y), (C6_X, _TRUNK_Y - 3 * G))   # label up-tap
+    _place_label(s, "V3V3_SW", (C6_X, _TRUNK_Y - 3 * G), angle=90, justify_h="left")
 
     # ===== Iter 20: RTC + RS-485 + button + connectors + dev headers =====
     # Last sub-iter on the battery-side schematic. Completes the design.
@@ -1854,9 +1868,9 @@ def build_display_side_schematic() -> None:
     _pin_label(s, "V3V3",     (U1_X - 4 * G, U1_Y + 2 * G), 'L')   # pin 3 VOUT
 
     # C2 — 10µF output bulk on V3V3
-    # iter-9b: shifted to right of U1 so C2's vertical V3V3 label body
-    # doesn't extend up into U1's pin-3 V3V3 label.
-    C2_X, C2_Y = 105 * G, 60 * G
+    # iter-15: dropped to y=68G (out of the support-row band at y=60G) so
+    # the ESP-EN filter block's ESP_EN label no longer reaches into C2.
+    C2_X, C2_Y = 105 * G, 68 * G
     _place_symbol(s, "C", "C2", "10uF",
                   "Capacitor_SMD:C_0805_2012Metric",
                   (C2_X, C2_Y), lib=lib)
@@ -1967,44 +1981,27 @@ def build_display_side_schematic() -> None:
     # SUP_Y kept ≥38G above MOD1 so the caps' downward GND stubs clear MOD1's
     # top-pin label stubs (4G) — at 32G they collided, shorting GND↔V3V3.
     SUP_Y = MOD1_Y - 40 * G
-    # iter-10: whole support row shifted 4 G left of its old origin so
-    # no support cap sits in MOD1's centre top-pin column (MOD1 pin 2
-    # V3V3 emits a vertical flag upward at x=MOD1_X; C4 used to sit
-    # there and its GND port collided with that flag body).
-    _SUP_DX = -4 * G
-    # R1 — 10kΩ EN pull-up
-    R1_X, R1_Y = MOD1_X - 24 * G + _SUP_DX, SUP_Y
-    _place_symbol(s, "R", "R1", "10k",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R1_X, R1_Y), lib=lib)
-    _pin_label(s, "V3V3",   (R1_X, R1_Y - 3 * G), 'U')   # single V3V3 trunk label
-    _pin_label(s, "ESP_EN", (R1_X, R1_Y + 3 * G), 'D')
-    # C5 — 1µF EN soft-start
-    C5_X, C5_Y = MOD1_X - 16 * G + _SUP_DX, SUP_Y
-    _place_symbol(s, "C", "C5", "1uF",
-                  "Capacitor_SMD:C_0603_1608Metric",
-                  (C5_X, C5_Y), lib=lib)
-    _pin_label(s, "ESP_EN", (C5_X, C5_Y - 3 * G), 'U')
-    _pin_label(s, "GND",    (C5_X, C5_Y + 3 * G), 'D')
-    # C3 — 10µF ESP bulk
-    C3_X, C3_Y = MOD1_X - 8 * G + _SUP_DX, SUP_Y
+    # iter-15: EN pull-up + soft-start as their own wired filter block
+    # (R1/C5), so the V3V3 bulk trunk (C3/C4) no longer crosses the EN
+    # cap's stub. Bulk caps tap a short V3V3 trunk to the right.
+    _place_en_filter(s, lib, x=MOD1_X - 21 * G, y=SUP_Y,
+                     r_ref="R1", c_ref="C5", en_net="ESP_EN", vcc_net="V3V3")
+    # C3 (10 µF bulk) + C4 (100 nF HF) on a short V3V3 trunk.
+    C3_X, C3_Y = MOD1_X - 11 * G, SUP_Y
     _place_symbol(s, "C", "C3", "10uF",
-                  "Capacitor_SMD:C_0805_2012Metric",
-                  (C3_X, C3_Y), lib=lib)
+                  "Capacitor_SMD:C_0805_2012Metric", (C3_X, C3_Y), lib=lib)
     _pin_label(s, "GND",  (C3_X, C3_Y + 3 * G), 'D')
-    # C4 — 100nF ESP HF decoupling
-    C4_X, C4_Y = MOD1_X + _SUP_DX, SUP_Y
+    C4_X, C4_Y = MOD1_X - 4 * G, SUP_Y
     _place_symbol(s, "C", "C4", "100nF",
-                  "Capacitor_SMD:C_0402_1005Metric",
-                  (C4_X, C4_Y), lib=lib)
+                  "Capacitor_SMD:C_0402_1005Metric", (C4_X, C4_Y), lib=lib)
     _pin_label(s, "GND",  (C4_X, C4_Y + 3 * G), 'D')
-    # D16: V3V3 trunk along the ESP support row 2 G above the pin1 row.
-    _TRUNK_Y = R1_Y - 5 * G
-    _place_wire(s, (R1_X, R1_Y - 3 * G), (R1_X, _TRUNK_Y))
+    # V3V3 trunk along the bulk caps' top, with one V3V3 label (up-tap).
+    _TRUNK_Y = SUP_Y - 5 * G
     _place_wire(s, (C3_X, C3_Y - 3 * G), (C3_X, _TRUNK_Y))
     _place_wire(s, (C4_X, C4_Y - 3 * G), (C4_X, _TRUNK_Y))
-    _place_wire(s, (R1_X, _TRUNK_Y), (C3_X, _TRUNK_Y))
     _place_wire(s, (C3_X, _TRUNK_Y), (C4_X, _TRUNK_Y))
+    _place_wire(s, (C3_X, _TRUNK_Y), (C3_X, _TRUNK_Y - 3 * G))   # label up-tap
+    _place_label(s, "V3V3", (C3_X, _TRUNK_Y - 3 * G), angle=90, justify_h="left")
 
     # ===== E-paper FFC: J2 Hirose FH12-24S + C6 panel VCC bulk =====
     #
