@@ -72,8 +72,7 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| U1  | LM5165DRCR (24 V→3.3 V, adjustable → 3.3 V via FB divider, **always-on** µA-Iq buck) | VSON-10 | 1 | LM5165DRCR (DK 5994584, **in stock, Active 2026-06-17**) | 595-LM5165DRCR | $3.61 | **Δ (D19/DR-4): TPS62933 → LM5165** — 3–65 V in (survives the ~53 V clamp) **and** ~10.5 µA Iq (always-on rail stays sub-mW). A brick can't be both |
-| Rfb1, Rfb2 | FB divider ~169 k / 100 k 1 % | 0805 ×2 | 2 | _verify_ | | $0.10 ea | **NEW** — sets LM5165 Vout to 3.3 V (1.223 V ref); ~12 µA |
+| U1  | LM5165**Y**DRCR (24 V→3.3 V, **fixed 3.3 V**, **always-on** µA-Iq buck) | VSON-10 | 1 | LM5165YDRCR (DK 5994588, **in stock, Active 2026-06-17**) | 595-LM5165YDRCR | $3.61 | **Δ (D19/DR-4): TPS62933 → LM5165Y** — 3–65 V in (survives the ~53 V clamp) **and** ~10.5 µA Iq. Fixed-3.3 V variant → no FB divider |
 | L1  | 10–47 µH ≥0.3 A shielded SMD inductor (per LM5165 datasheet) | SMD | 1 | _verify_ | _verify_ | $0.50 | **Δ: LM5165 inductor** (low-Iq COT favors larger L than the old 2.2 µH) |
 | C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210 | 2 | _verify_ | _verify_ | $0.50 ea | **Δ: C1 →100 V** (LM5165 input on V24_FUSED, behind the ~53 V clamp) |
 | U2  | Recom R-78HB12-0.5 buck (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1 | R-78HB12-0.5 (DK 2256237, **in stock, Active 2026-06-17**) | 919-R-78HB12-0.5 | $8.00 | **Δ (D19/DR-3): R-78E12 (34 V) → R-78HB12 (72 V)** to survive the clamp. Switched (behind Q1) |

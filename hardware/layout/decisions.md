@@ -1134,11 +1134,13 @@ coordination defects together.
   **both** ≥60 V (to survive the ~53 V TVS clamp) **and** µA-Iq (so the
   low-SOC trickle is sub-mW). The R-78HB brick (DR-2) is ≥60 V but idles
   at mA → tens of mW always-on, which violates power-first ([[D5]]). So
-  U1 becomes a **wide-Vin, µA-Iq buck IC** — candidate **TI LM5165**
-  (3–65 V, ~9 µA Iq, 150 mA; needs inductor + FB divider + I/O caps).
-  65 V gives ~12 V margin over the clamp. *This intentionally reverses
-  the DR-2 brick choice for U1 only* — DR-2's goal (surge survival) is
-  still met, and µA-Iq is regained.
+  U1 becomes a **wide-Vin, µA-Iq buck IC** — **TI LM5165YDRCR**
+  (3–65 V, ~10.5 µA Iq, 150 mA, **fixed 3.3 V** — FB→VOUT, no divider;
+  needs inductor + I/O caps; in stock @ DigiKey, Active). 65 V gives
+  ~12 V margin over the clamp. *This intentionally reverses the DR-2
+  brick choice for U1 only* — DR-2's goal (surge survival) is still met,
+  and µA-Iq is regained. (Use the fixed-output "Y" variant, not the
+  adjustable DRCR — same package, no FB-divider scaffolding.)
 - **Hard-cut behavior (Option 1 "done right", user call 2026-06-17).**
   The ESP stays powered always; at <10 % SOC it deep-sleeps in ULP,
   periodically reads V24_SENSE, and **sheds the display** by opening Q1
@@ -1176,6 +1178,6 @@ verify availability/exact variant before BOM lock (no fabricated PNs,
 **Why this is the excellent answer.** It boots reliably (MCU never gates
 its own supply), holds the power-first budget at hard-cut (~1 mW), needs
 no supervisor IC, and makes the protection chain genuinely protective.
-The cost is U1 returns to a discrete buck (inductor + FB divider) — a
-fair price for µA-Iq always-on, and the only way to satisfy power-first
-and surge-survival simultaneously on a 29 V bus.
+The cost is U1 returns to a discrete buck (inductor + I/O caps) — a fair
+price for µA-Iq always-on, and the only way to satisfy power-first and
+surge-survival simultaneously on a 29 V bus.

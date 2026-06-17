@@ -114,8 +114,7 @@ so the protected rail out-rates the clamp (D19/DR-3).
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| U1  | LM5165DRCR (24 V→3.3 V sync buck, **always-on**, adjustable → 3.3 V via FB divider) | VSON-10 | 1 | **~10.5 µA Iq**, 3–65 V in (65 V out-rates the ~53 V clamp), 150 mA. Only part that is both µA-Iq *and* surge-tolerant — a brick can't be both (D19/DR-4). In stock @ DigiKey, Active (2026-06-17) |
-| Rfb1, Rfb2 | FB divider ~169 k / 100 k 1 % (sets 3.3 V from 1.223 V ref) | 0805 ×2 | 2 | LM5165 is the adjustable variant; FB divider sets Vout. ~12 µA divider current (trivial on always-on rail) |
+| U1  | LM5165**Y**DRCR (24 V→3.3 V sync buck, **always-on**, **fixed 3.3 V** — FB→VOUT, no divider) | VSON-10 | 1 | **~10.5 µA Iq**, 3–65 V in (65 V out-rates the ~53 V clamp), 150 mA. Only part that is both µA-Iq *and* surge-tolerant — a brick can't be both (D19/DR-4). The "Y" = fixed-3.3 V variant (same package as the adjustable DRCR), in stock @ DigiKey, Active (2026-06-17). No FB divider needed |
 | L1  | 10–47 µH ≥0.3 A shielded SMD inductor | per datasheet | 1 | LM5165 buck inductor; low-Iq COT mode favors a larger L than a fast buck |
 | C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210      | 2   | LM5165 input (C1 on V24_FUSED, behind the ~53 V clamp → 100 V) / output (C2, 3.3 V) |
 | U2  | Recom R-78HB12-0.5 (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1   | **Switched** (behind Q1) — drives the Cat5e/display. 72 V in tolerates the ~53 V clamp (D19/DR-3). Was R-78E12 (34 V, under-rated) |
@@ -464,7 +463,7 @@ margin.
 2. **R-78HB12 SIP3 + LM5165 VSON-10 footprints** — Recom provides KiCad
    libraries at recom-power.com/design-tools; the LM5165 VSON-10 is in
    TI's library. Pulling/verifying these is part of CP2. **Candidate MPNs
-   (LM5165DRCR, R-78HB12-0.5, ZXMP6A13F) need a final availability check
+   (LM5165YDRCR, R-78HB12-0.5, ZXMP6A13F) need a final availability check
    before BOM lock** (D-OPEN-6).
 3. **ESP32-S3-WROOM-1 antenna keepout violations** are easy to make
    by accident. CP3 layout review must verify visually.
