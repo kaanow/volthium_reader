@@ -1072,10 +1072,13 @@ def build_battery_side_schematic() -> None:
     _pin_label(s, "V24_FUSED",      (D1_X - 3 * G, D1_Y), 'L')     # pin 1 (K)
     _pin_label(s, "V24_AFTER_FUSE", (D1_X + 3 * G, D1_Y), 'R')     # pin 2 (A)
 
-    # TVS1 — SMAJ30CA bidirectional 24V TVS (Device:D_TVS generic, Value
-    # overridden). Pins same geometry as D.
+    # TVS1 — SMAJ33CA bidirectional TVS on V24_FUSED (iter-17): 33 V
+    # stand-off gives clean margin over a 24 V LiFePO4 bus at full charge
+    # (~29 V) — 30 V was only ~1 V above and could leak/clamp in normal
+    # operation. Clamps ~53 V; tolerated by the 72 V R-78HB buck (DR-2).
+    # Bidirectional + the series SS24 (D1) covers reverse polarity.
     TVS1_X, TVS1_Y = 124 * G, 30 * G  # iter-9: pulled +20G so V24_FUSED flag body doesn't collide with V24_AFTER_FUSE flag body
-    _place_symbol(s, "D_TVS", "TVS1", "SMAJ30CA",
+    _place_symbol(s, "D_TVS", "TVS1", "SMAJ33CA",
                   "Diode_SMD:D_SMA",
                   (TVS1_X, TVS1_Y), lib=lib)
     _pin_label(s, "V24_FUSED", (TVS1_X - 3 * G, TVS1_Y), 'L')      # pin 1
@@ -1123,107 +1126,37 @@ def build_battery_side_schematic() -> None:
     _place_wire(s, (R5_X, R5_Y + 3 * G), (R6_X, R6_Y - 3 * G))  # R5↓ → R6↑
     _place_wire(s, (R6_X, R6_Y - 3 * G), (C5_X, C5_Y - 3 * G))  # R6↑ → C5↑
 
-    # ===== Iter 12: 3V3 converter — U1 (TPS62933F) + L1 + bulk caps =====
-
-    # U1 — TPS62933 buck regulator, 8-pin SOT-563. Pin geometry (lib coords;
-    # schematic Y-flip applies):
-    #   pin 1 RT  (-7.62, -5.08) passive → sch (X-7.62, Y+5.08)
-    #   pin 2 EN  (-7.62,  5.08) input   → sch (X-7.62, Y-5.08)
-    #   pin 3 VIN (-7.62,  7.62) power_in→ sch (X-7.62, Y-7.62)
-    #   pin 4 GND ( 0,   -12.7)  power_in→ sch (X,      Y+12.7) — bottom of body
-    #   pin 5 SW  ( 7.62,  0)    output  → sch (X+7.62, Y)
-    #   pin 6 BST ( 7.62,  7.62) passive → sch (X+7.62, Y-7.62)
-    #   pin 7 SS  (-7.62, -2.54) passive → sch (X-7.62, Y+2.54)
-    #   pin 8 FB  ( 7.62, -7.62) input   → sch (X+7.62, Y+7.62)
-    U1_X, U1_Y = 150 * G, 72 * G   # buck cluster; L1/C1/C2/C_BST derive
-    _place_symbol(s, "TPS62933", "U1", "TPS62933FDRLR",
-                  "Package_TO_SOT_SMD:SOT-23-6",
+    # ===== 3V3 converter — U1 Recom R-78HB3.3-0.5 (9–72 V wide input) =====
+    # iter-17 (DR-2): replaced the discrete TPS62933 buck (30 V VIN max)
+    # with a wide-input R-78HB module. TVS1 clamps to ~53 V on a surge — a
+    # 30 V buck would be destroyed before the TVS protects it; the R-78HB's
+    # 72 V rating tolerates the clamp with margin. Bonus: drops L1 + the
+    # bootstrap cap, and makes all three rails (this 3V3, U2's 12 V, the
+    # display 3V3) the same Recom R-78 module family. SIP3, Conn_01x03
+    # geometry: pin 1 VIN, pin 2 GND, pin 3 VOUT — all on the left.
+    U1_X, U1_Y = 150 * G, 72 * G
+    _place_symbol(s, "Conn_01x03", "U1", "R-78HB3.3-0.5",
+                  "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT",
                   (U1_X, U1_Y), lib=lib,
-                  value_pos=(U1_X, U1_Y + 14 * G))  # iter 51 fix C: out of body, below GND label
-    # Pin connections per CP1 §5 net list:
-    #   VIN ← V24_FUSED
-    #   GND ← GND
-    #   EN  ← V24_FUSED (always-on; firmware kills U1 via the Q1 path)
-    #   SW  → U1_SW (internal to U1+L1)
-    #   FB  ← V3V3_SW (fixed-3.3 variant pin is tied to VOUT)
-    #   BST → 100nF bootstrap cap (placeholder NoConnect for now; cap added
-    #         in iter 14 when MOSFET cluster lands — they share decoupling)
-    #   SS, RT → NoConnect (use internal defaults)
-    # CP-cleanup iter 24: U1.VIN (pin 3) and U1.EN (pin 2) are both
-    # tied to V24_SW (always-on regulator). Wire pin 3 → pin 2 → label.
-    # iter 47 (fix B2): extend the pickoff 2G outward so the label
-    # sits clear of the chip's "EN"/"VIN" pin name text.
-    _place_wire(s, (U1_X - 6 * G, U1_Y - 6 * G), (U1_X - 6 * G, U1_Y - 4 * G))   # pin 3 ↔ pin 2
-    _place_wire(s, (U1_X - 6 * G, U1_Y - 4 * G), (U1_X - 12 * G, U1_Y - 4 * G))  # D16: 6G stub so the V24_SW chevron clears pin 2 number "2"
-    _place_label(s, "V24_SW",  (U1_X - 12 * G, U1_Y - 4 * G), justify_h="right")
-    # D16: route U1 pin 4 GND through the stock power port.
-    _place_power_port(s, "GND", (U1_X, U1_Y + 10 * G), 'D', stub=1 * G, lib=lib)
-    # iter-13 (guideline b): U1.SW is an internal buck node (U1 pin5 ↔ L1
-    # ↔ C_BST). Route the pin-5 connection DOWN off the SW→L1 line and put
-    # the U1_SW name on that vertical stub, so the horizontal SW→L1 wire
-    # no longer strikes through the label body.
-    _place_wire(s,  (U1_X + 6 * G, U1_Y),         (U1_X + 6 * G, U1_Y + 2 * G))    # pin 5 down-stub
-    _place_label(s, "U1_SW",   (U1_X + 6 * G, U1_Y + 2 * G), angle=90, justify_h="right")  # SW (outdir D)
-    _place_wire(s,  (U1_X + 6 * G, U1_Y + 6 * G), (U1_X + 8 * G, U1_Y + 6 * G))   # pin 8 stub
-    _place_label(s, "V3V3_SW", (U1_X + 8 * G, U1_Y + 6 * G), justify_h="left")     # pin 8 FB
-    _place_noconnect(s, (U1_X - 6 * G, U1_Y + 4 * G))            # pin 1 RT
-    _place_noconnect(s, (U1_X - 6 * G, U1_Y + 2 * G))            # pin 7 SS
-    # BST: 100 nF bootstrap cap between U1.BST (pin 6) and U1.SW (pin 5).
-    # Per Codex iter-13 guidance Q-CP2-10 — required for the high-side MOSFET
-    # gate drive to function on real hardware.
-    _place_wire(s,  (U1_X + 6 * G, U1_Y - 6 * G), (U1_X + 8 * G, U1_Y - 6 * G))  # pin 6 stub
-    _place_label(s, "U1_BST",  (U1_X + 8 * G, U1_Y - 6 * G), justify_h="left")     # pin 6 BST → cap
+                  value_pos=(U1_X, U1_Y + 6 * G))  # out of body, clear of pin 3 number
+    _pin_label(s, "V24_SW",  (U1_X - 4 * G, U1_Y - 2 * G), 'L')   # pin 1 VIN
+    _pin_label(s, "GND",     (U1_X - 4 * G, U1_Y),         'L')   # pin 2 GND
+    _pin_label(s, "V3V3_SW", (U1_X - 4 * G, U1_Y + 2 * G), 'L')   # pin 3 VOUT
 
-    # L1 — 2.2 µH inductor (2-pin, same geometry as R: ±3.81 from center).
-    L1_X, L1_Y = U1_X + 20 * G, U1_Y   # (177.8, 38.1)
-    _place_symbol(s, "L", "L1", "2.2uH",
-                  "Inductor_SMD:L_0805_2012Metric",  # placeholder
-                  (L1_X, L1_Y), lib=lib,
-                  value_pos=(L1_X + 4 * G, L1_Y + 1.27))  # D16: clear of pin 2 number
-    # L1.pin1 U1_SW label deduped — wire to U1.SW directly (iter 32).
-    _place_wire(s, (U1_X + 6 * G, U1_Y),  (L1_X, U1_Y))             # U1.SW → corner
-    _place_wire(s, (L1_X, U1_Y),          (L1_X, L1_Y - 3 * G))     # corner → L1.pin1
-    _pin_label(s, "V3V3_SW", (L1_X, L1_Y + 3 * G), 'D')     # pin 2 (bottom)
+    # C1 — 22 µF input bulk on V24_SW. 100 V: V24_SW sits behind the TVS
+    # and can see its ~53 V clamp, so the input cap must out-rate it.
+    C1_X, C1_Y = U1_X + 8 * G, U1_Y
+    _place_symbol(s, "C", "C1", "22uF/100V",
+                  "Capacitor_SMD:C_1210_3225Metric", (C1_X, C1_Y), lib=lib)
+    _pin_label(s, "V24_SW", (C1_X, C1_Y - 3 * G), 'U')
+    _pin_label(s, "GND",    (C1_X, C1_Y + 3 * G), 'D')
 
-    # C1 — 22 µF bulk on V24_SW (U1 VIN decoupling)
-    C1_X, C1_Y = U1_X - 14 * G, U1_Y + 4 * G   # (134.62, 43.18)
-    _place_symbol(s, "C", "C1", "22uF/25V",
-                  "Capacitor_SMD:C_1210_3225Metric",
-                  (C1_X, C1_Y), lib=lib)
-    # D16: V24_SW label deduped — wire C1.pin1 up + over to the U1 V24_SW
-    # pickoff at (U1_X - 12G, U1_Y - 4G) where U1 keeps the single label.
-    _place_wire(s, (C1_X, C1_Y - 3 * G), (C1_X, U1_Y - 4 * G))
-    _place_wire(s, (C1_X, U1_Y - 4 * G), (U1_X - 12 * G, U1_Y - 4 * G))
-    _pin_label(s, "GND",    (C1_X, C1_Y + 3 * G), 'D')   # pin 2
-
-    # C2 — 22 µF bulk on V3V3_SW (U1 VOUT decoupling)
-    C2_X, C2_Y = L1_X + 8 * G, L1_Y + 4 * G   # (188.4, 43.18)
+    # C2 — 22 µF output bulk on V3V3_SW (3.3 V → 25 V part is ample).
+    C2_X, C2_Y = U1_X + 16 * G, U1_Y
     _place_symbol(s, "C", "C2", "22uF/25V",
-                  "Capacitor_SMD:C_1210_3225Metric",
-                  (C2_X, C2_Y), lib=lib)
-    # D16: V3V3_SW label deduped — wire C2.pin1 up + over to L1.pin2 (also V3V3_SW).
-    _place_wire(s, (C2_X, C2_Y - 3 * G), (C2_X, L1_Y + 3 * G))
-    _place_wire(s, (C2_X, L1_Y + 3 * G), (L1_X, L1_Y + 3 * G))
-    # No GND label here — see the C2↔C3 GND wire after C3 placement.
-
-    # C_BST — 100 nF bootstrap cap between U1.BST and U1.SW. Required for
-    # TPS62933 high-side MOSFET gate drive. Per Codex iter-13 Q-CP2-10.
-    CBST_X, CBST_Y = U1_X + 10 * G, U1_Y - 4 * G   # (165.1, 33.02)
-    _place_symbol(s, "C", "C_BST", "100nF",
-                  "Capacitor_SMD:C_0603_1608Metric",
-                  (CBST_X, CBST_Y), lib=lib,
-                  ref_pos=(CBST_X + 6 * G, CBST_Y - 1.27),    # iter-9: ref further right, clear of widened U1_BST flag body
-                  value_pos=(CBST_X + 6 * G, CBST_Y + 1.27))
-    # CP-cleanup iter 32 (Finding 09): drop the C_BST end labels and
-    # wire C_BST directly to U1.BST + U1.SW pins. U1 keeps both labels.
-    # C_BST pin 1 (U1_BST node) at (CBST_X, CBST_Y - 3*G) = (CBST_X, 29.21)
-    # U1.BST at (U1_X + 6*G, U1_Y - 6*G) = (204.47, 30.48)
-    _place_wire(s, (U1_X + 6 * G, U1_Y - 6 * G), (CBST_X, U1_Y - 6 * G))   # U1.BST → corner
-    _place_wire(s, (CBST_X, U1_Y - 6 * G), (CBST_X, CBST_Y - 3 * G))       # corner → C_BST.pin1
-    # C_BST pin 2 (U1_SW node) at (CBST_X, CBST_Y + 3*G) = (CBST_X, 36.83)
-    # U1.SW at (U1_X + 6*G, U1_Y) = (204.47, 38.10)
-    _place_wire(s, (U1_X + 6 * G, U1_Y),       (CBST_X, U1_Y))             # U1.SW → corner
-    _place_wire(s, (CBST_X, U1_Y),             (CBST_X, CBST_Y + 3 * G))   # corner → C_BST.pin2
+                  "Capacitor_SMD:C_0805_2012Metric", (C2_X, C2_Y), lib=lib)
+    _pin_label(s, "V3V3_SW", (C2_X, C2_Y - 3 * G), 'U')
+    _pin_label(s, "GND",     (C2_X, C2_Y + 3 * G), 'D')
 
     # ===== Iter 14: 12V converter — U2 (Recom R-78E12-1.0) + C3 + C4 =====
     #
@@ -1245,18 +1178,15 @@ def build_battery_side_schematic() -> None:
     _pin_label(s, "GND",        (U2_X - 4 * G, U2_Y),         'L')   # pin 2 GND (mid)
     _pin_label(s, "V12_CAT5E",  (U2_X - 4 * G, U2_Y + 2 * G), 'L')   # pin 3 VOUT (bot)
 
-    # C3 — 22 µF bulk on V24_SW (U2 VIN decoupling)
+    # C3 — 22 µF bulk on V24_SW (U2 VIN decoupling). 100 V: V24_SW sits
+    # behind the TVS (it can see the ~53 V clamp) — a 35 V part was
+    # under-rated and could fail short on a surge (iter-17).
     C3_X, C3_Y = U2_X - 22 * G, U2_Y + 4 * G   # iter-9: shifted -8G so the C3 ref clears U2's V12_CAT5E flag body extending left
-    _place_symbol(s, "C", "C3", "22uF/35V",
+    _place_symbol(s, "C", "C3", "22uF/100V",
                   "Capacitor_SMD:C_1210_3225Metric",
                   (C3_X, C3_Y), lib=lib)
     _pin_label(s, "V24_SW", (C3_X, C3_Y - 3 * G), 'U')
     _pin_label(s, "GND",    (C3_X, C3_Y + 3 * G), 'D')
-
-    # CP-cleanup iter 28: C2 (V3V3 bulk) and C3 (V12 bulk) both have
-    # GND at the bottom pin, only 3.81mm apart at y=46.99. Wire them;
-    # C3 keeps the GND label, C2's was dropped above.
-    _place_wire(s, (C2_X, C2_Y + 3 * G), (C3_X, C3_Y + 3 * G))
 
     # C4 — 22 µF bulk on V12_CAT5E (U2 VOUT decoupling)
     C4_X, C4_Y = U2_X + 8 * G, U2_Y + 4 * G   # (213.36, 43.18)

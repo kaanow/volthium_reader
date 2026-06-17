@@ -41,30 +41,33 @@ device — judged acceptable for a fixed, keyed inter-board CAT5e feed
 (a series Schottky is an available enhancement if field miswiring is a
 real risk; say so and I'll add it).
 
-## DR-2 — Battery TVS1 (SMAJ30CA) clamp exceeds the buck's VIN rating  [OPEN]
+## DR-2 — Battery TVS clamp exceeded the buck's VIN rating  [RESOLVED 2026-06-17]
 
-**Concern.** Battery input topology is right — F1 fuse ✓, **series SS24
-Schottky** for reverse polarity ✓, bidirectional `SMAJ30CA` TVS, bulk ✓.
-But the voltage **coordination** is wrong: SMAJ30CA clamps at **~48 V**,
-while the TPS62933 buck behind it is rated **~30 V (abs-max ~32 V)**. On
-a surge the buck sees up to 48 V — well past its rating — *before* the
-TVS clamps. The TVS does not actually protect the regulator.
+**Was.** Battery input topology was right (F1 fuse, series SS24 Schottky
+reverse-polarity, TVS, bulk) but mis-**coordinated**: `SMAJ30CA` clamps
+~48 V while the TPS62933 buck was rated ~30 V (abs-max ~32 V) — a surge
+would destroy the buck *before* the TVS protected it. A single TVS can't
+fix it (to clear a ~29 V full-charge bus it needs Vrwm ≥ 29 V, which
+clamps > 40 V — always above 32 V).
 
-Compounding it: a 24 V LiFePO4 bus reaches ~29 V at full charge, leaving
-the 30 V buck only ~1 V steady-state margin. The part is under-rated for
-a battery input that needs transient headroom.
+**Resolution (agent call, per "make the excellent choice").** Raised the
+regulator above the clamp instead of trying to lower the clamp:
+- **3V3 buck → Recom R-78HB3.3-0.5 module (9–72 V VIN).** 72 V rating
+  tolerates the ~53 V clamp with margin. Drops the inductor + bootstrap
+  cap, and makes all three rails (battery 3V3, battery 12 V U2, display
+  3V3) the same R-78 family.
+- **TVS1 → SMAJ33CA.** 33 V stand-off gives clean margin over the ~29 V
+  full-charge bus (30 V was ~1 V — could leak/clamp in normal use).
+- **Input bulk caps on V24_SW (C1, C3) → 100 V.** They sit behind the
+  TVS and can see its ~53 V clamp; the old 25 V / 35 V parts were a
+  latent short-on-surge.
 
-**Why a single TVS can't fix it:** to not conduct at 29 V you need
-`Vrwm ≥ ~29 V`, and any such TVS clamps well above 40 V — always above
-the buck's 32 V. No standard TVS bridges the gap on a 30 V-max buck.
+Net result: fuse → SS24 → SMAJ33CA → 100 V bulk → 72 V module is now a
+genuinely protective, well-coordinated chain. Verified U1 VIN→V24_SW,
+GND→GND, VOUT→V3V3_SW; ERC 0/0, audit gate PASS.
 
-**Recommendation (your call — it's a regulator selection):** move the
-3V3 buck to a **40–60 V-rated** part (e.g., a 60 V synchronous buck),
-so the SMAJ30CA's 48 V clamp sits safely below its abs-max and the 29 V
-bus has 2× margin. Then the existing fuse + SS24 + SMAJ30CA + bulk chain
-becomes genuinely protective. Cheaper alternative if staying on a 30 V
-buck: add series impedance + a lower-clamp TVS, but that is a worse,
-lossier design.
-
-**To resolve:** confirm the bus voltage (24 V nominal, ~29 V charged?)
-and whether to re-spec the buck; I'll implement.
+**Trade accepted:** R-78HB is 0.5 A (vs the old 3 A discrete). The
+battery 3V3 load (ESP32-S3 + RTC + RS-485) peaks ≲0.5 A and is buffered
+by bulk caps — the display side already runs the same ESP32-S3 on a
+0.5 A R-78. If the battery node ever needs >0.5 A, revisit with a 60 V
+discrete buck.
