@@ -1078,3 +1078,37 @@ designer instance runs the CP1/CP2 engineering review from the start —
 so a 72 V-rated module and a correctly-oriented, correctly-sized,
 properly-derated protection chain are chosen *up front*, and DR-1/DR-2
 never occur. The framework's job is to front-load every hard-won lesson.
+
+## D18 — CP1 re-open; board artifacts superseded
+
+**Date**: 2026-06-17
+
+**Decision.** The checkpoint sequence is **re-opened at CP1**. The
+project nominally reached "CP6 fab-ready," but DR-1/DR-2 proved the
+errors were CP1/CP2 (architecture/schematic) decisions that no gate
+caught (see D17). Rather than patch downstream, we revert the *mindset*
+to CP1 and re-run the full gate sequence with the D17 engineering review
+now in place — ignoring sunk cost.
+
+**What is superseded.** All **board artifacts** — battery/display
+placement (CP3/CP4), routing + pours (CP5), and fab outputs
+(gerbers/drill/pos/BOM-CSV/STEP, CP6) — are SUPERSEDED. They were
+generated against the pre-DR schematics and are internally inconsistent
+with the corrected design. They remain in-tree as history but must not
+be treated as current; they will be regenerated after the schematics are
+re-validated.
+
+**What carries forward (not sunk cost).** The framework (D11/D13/D16/D17,
+`ENGINEERING_REVIEW.md`, `DESIGN_REVIEW_ITEMS.md`), the audit tooling, the
+DR-1/DR-2 schematic corrections, and the readability results. The redo
+starts ahead precisely because the *learnings and tooling* are kept while
+the *flawed downstream artifacts* are discarded — that asymmetry is the
+framework's payoff.
+
+**How CP1 runs this time.** Clean-sheet: the architecture is re-derived
+from first principles per domain (power input, regulation, comms, MCU,
+sensing, connectors) per `ENGINEERING_REVIEW.md`, and the existing design
+is measured against that derivation as a *candidate*, not assumed as the
+baseline. Findings are logged in `DESIGN_REVIEW_ITEMS.md`; clear errors
+are fixed before any codex handoff (excellence is produced, not added in
+review).
