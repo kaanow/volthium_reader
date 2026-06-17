@@ -24,18 +24,146 @@ On every wake:
    cycle (unless they invoked `/loop`, in which case
    `ScheduleWakeup` is fine).
 
-## 0. Documentation readability is a first-class deliverable (D11)
+## 0a. Engineering correctness is a gate (D17)
+
+Before readability, the circuit has to be *right*. Run the
+**engineering design review** (`ENGINEERING_REVIEW.md`) as a required
+gate at **CP1 (architecture)** and **CP2 (schematic)** — it is on equal
+footing with ERC and the readability/geometry audits, and a schematic
+does **not** pass CP2 on ERC + readability alone (D17). For every net /
+block: derive the clean-sheet-correct circuit, then measure the design
+against it — part-class fit, **coordination** (protective parts must
+bracket what they protect, e.g. TVS clamp < downstream abs-max),
+derating, polarity, worst-case margin. Fix clear errors; log judgment
+calls and human-decision items in `DESIGN_REVIEW_ITEMS.md`. ERC-clean +
+DRC-clean + readable is necessary, not sufficient — it proves the
+schematic is legal and legible, not that it is the right circuit (the
+CP6 DR-1/DR-2 lesson).
+
+## 0. Documentation readability is a first-class deliverable (D11 / D16)
 
 Every PDF, schematic, render, BOM, and assembly drawing you commit
 must satisfy [`decisions.md` D11](../layout/decisions.md#d11--all-committed-documentation-must-be-engineer-readable) —
-engineer-readable bar. Read D11 in full before generating any
-document. Treat readability as equal to correctness, not a side
-effect. Codex enforces this in review.
+engineer-readable bar — and the top-level
+[`decisions.md` D16](../layout/decisions.md#d16--schematic-goal-is-a-human-can-read-it-and-understand-the-design)
+goal:
+
+> **A human can read this schematic and understand the design.**
+
+Read D11 *and* D16 in full before generating any document. Treat
+readability as equal to correctness, not a side effect. Codex
+enforces this in review. D16 revokes the previous "defensible
+exception" carve-out for overlaps: **any** overlapping text, symbol,
+label box, chevron, pin name, pin number, junction, wire, or
+graphical annotation is to be revised until it is not present. No
+exception path.
 
 If a programmatic generation strategy produces machine-valid but
 human-unreadable output (overlapping symbols, label-spaghetti
-without wires, blank title blocks), surface that tradeoff in the
-review packet — don't ship it silently.
+without wires, blank title blocks), it does not pass — fix the
+generator, do not ship and document a residual.
+
+### Schematic-readiness checklist (D16 acceptance bar)
+
+Before flipping the semaphore to `codex_turn` on any iteration that
+touches a schematic, all of the following must hold. These are the
+operational items behind the D16 goal; future PCB projects forking
+this template inherit them.
+
+1. **Real interconnect wires within every functional cluster.** Two
+   components in the same sub-circuit (a cap and the IC pin it
+   decouples; an I²C pull-up and the bus it pulls up; a
+   bootstrap cap and the regulator's BST/SW pins; a button and its
+   pull-up and debounce cap) are connected by wires drawn on the
+   schematic, not by sharing a `GlobalLabel` net name. `GlobalLabel`
+   is reserved for power rails (when not handled by a power-port
+   symbol — see #2) and for genuine cross-cluster signals.
+   Three corollaries (the "wiring-discipline" guidelines):
+   - **(a) Wire nearby same-net labels instead of using two flags.**
+     If two `GlobalLabel`s carry the SAME net name and sit close
+     together (the geometry audit's same-net advisory flags pairs
+     within ~20 mm), connect them with a wire and drop one flag —
+     UNLESS the connecting wire would itself cross a symbol or
+     another wire (prefer a wire only when the wire is not worse).
+     Flags are for genuinely far-apart connections.
+   - **(b) Datasheet-mandated parts belong IN the IC's block, wired
+     directly.** Decoupling/bypass caps, bias resistors, bootstrap
+     caps, etc. that a datasheet ties to an IC are placed next to
+     that IC and connected by wires (not label-name matching), so
+     the sheet reads as logical blocks whose members are wired
+     together and whose blocks are separated by whitespace.
+   - **(c) Minimise wire crossings; keep crossings ≠ connections.**
+     A connection carries a junction dot (KiCad renders it
+     automatically where wires electrically join); a crossing has
+     none. Route to avoid crossings where reasonable; the geometry
+     audit reports the free-crossing count as an advisory to drive
+     this down.
+2. **Stock KiCad power-port symbols for power rails.** GND uses the
+   ground-triangle glyph; supply rails use the upward-arrow glyph
+   keyed to the rail name (`+3V3`, `+12V`, `+24V`, or a project
+   power-port symbol for named intermediate rails). A reader sees
+   "this pin goes to GND" via the standard ground symbol, not by
+   reading the text inside a flag-shaped label.
+3. **Pin numbers visible on every IC.** If the library symbol has
+   multiple power pins sharing one library coordinate (e.g. ESP32
+   GND pins 1/40/41, or DS3231M GND pins 5..13), fix it at the lib
+   level — either consolidate the bundle via `(alternates)` or
+   relocate the duplicates — so pin numbers can render without
+   stacking on top of each other. Hiding pin numbers on the
+   instance is a last resort and forfeits one of the schematic's
+   primary uses (cross-reference to the footprint).
+4. **Functional-block visual grouping with primary signal flow.**
+   Each sub-circuit (power input + protection, regulator, MCU,
+   RTC, RS-485, buttons, dev headers, …) lays out as a tight
+   cluster with members within a few grid units of each other and
+   clear whitespace separating it from neighbouring clusters.
+   Signal flow inside the cluster runs left-to-right or
+   top-to-bottom; supplies enter from the top edge of the cluster,
+   GND exits from the bottom.
+5. **Zero on BOTH readability audits.** Two complementary audits run
+   automatically at the end of every `build_schematics.py` run (the
+   "audit gate") and must both report PASS — the build raises a
+   non-zero exit otherwise. They are complementary because each is
+   blind to what the other catches:
+   - **Strict text-overlap audit**
+     (`hardware/reviews/tools/schematic_visual_audit.py --strict`):
+     every text-vs-text bbox pair (pin numbers, refs, values, label
+     text). SAME-TEXT identical-bbox pairs from KiCad's PDF stroke-font
+     rendering still count — fix the font, layout, or generator. **No
+     "documented residual" path.**
+   - **Geometric collision audit**
+     (`hardware/reviews/tools/label_body_audit.py`): every *graphics*
+     pair the text audit cannot see — `GlobalLabel` flag ∩ component
+     body, **body ∩ body** (e.g. a power-port ground-triangle glyph
+     landing on a resistor body), flag ∩ flag, flag ∩ ref/value, and
+     the **wire classes**: a wire running through/into a component
+     body, a wire crossing a flag's text core (a "strike-through" —
+     the connection-zone at the chevron tip is excluded so a normal
+     pin connection doesn't false-trigger), and a wire through ref/
+     value text. It also reports advisories: same-net label pairs
+     that should be wired (guideline a) and the free wire-crossing
+     count (guideline c).
+   Net lines are drawn at a wider stroke (`WIRE_WIDTH`, 10 mil) than
+   KiCad's faint 6 mil default so they read clearly.
+   Text-vs-text alone is NOT sufficient: a flag body or a power-port
+   glyph can sit squarely on a component symbol with zero text overlap.
+   That blind spot shipped twice (iter-9 chevron regressions, iter-11
+   GND-port-on-resistor) before the geometric audit existed — never
+   judge readability from the text audit alone.
+
+A scripted audit is still worth running first — it's a cheap filter
+for symbol coordinate collisions, duplicate placements, and obvious
+spacing problems. The visual gate below is on top of that, not
+instead of it. **And inspect visually at high DPI per-region**
+(PyMuPDF `Matrix(12–14)` clipped to one grid cell), never from a
+full-page render — text is illegible at full-page scale, so a
+full-page image cannot confirm or deny readability. When showing the
+user, send high-DPI region crops, not a shrunk full page.
+
+When a fix introduces a *new* overlap (common — moving a label clears
+one collision and creates another), the audit gate catches it on the
+next build. Loop: edit → rebuild → read the gate → fix the new
+findings → rebuild, until the gate reports PASS with 0 findings.
 
 ### Operational checklist — before claiming D11 #0 or #5 PASS
 
@@ -69,6 +197,10 @@ before flipping the semaphore to `codex_turn`:
    …one block per region.
 5. If **any** region's findings are non-empty, the document does
    not pass D11. Fix and re-render before flipping the semaphore.
+   Overlap of any schematic objects (text, symbols, wires, labels,
+   pin metadata, junctions, annotations) is a fail unless you include
+   an explicit, defensible exception in the packet and the region
+   remains unambiguously readable at 100 % zoom.
 6. **Never** claim criterion #0 or #5 PASS solely from scripted
    audit output. That's the documented iter-36 failure (see D11
    "Documented failure"); don't repeat it.
@@ -91,6 +223,8 @@ evidence each CP2+ turn from the committed PDFs and stores it under:
 Designer-provided screenshots are still required for designer sign-off,
 but Codex's final D11 verdict may rely on codex-owned screenshots as the
 authoritative review artifact.
+Codex's standard tooling entrypoint is:
+`.venv/bin/python hardware/reviews/tools/schematic_visual_audit.py --cp-slug <cp_slug> --iter <N> --strict`
 
 ### D13 — Binary per-criterion scorecard required at sign-off
 

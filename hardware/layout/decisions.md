@@ -193,13 +193,23 @@ generic IP65 project box (e.g. Hammond 1591ATBU or similar) and mount with
 
 ## D11 — All committed documentation must be engineer-readable
 
-**Date**: 2026-05-24
+**Date**: 2026-05-24 (initial); strengthened 2026-06-04 (user directive,
+see D16).
 **Status**: committed
 **Applies to**: all PDFs, schematics, board renders, BOMs, and assembly
 drawings committed to this repo from this point forward. Existing CP2
 schematic PDFs are out of scope for immediate fix (see "Existing
 violations" below) but must satisfy this rule before the routing-drc
 checkpoint begins (CP5 post-D12; was CP4 at the time this was written).
+
+### Goal (top-level)
+
+**A human can read this schematic and understand the design.**
+
+Every other criterion below exists to operationalize that goal. If
+those criteria are individually green but the schematic still fails
+this test, the criteria are insufficient and the document does not
+pass D11.
 
 ### Motivation
 
@@ -226,17 +236,17 @@ not pass.
    (none clipped at the page edge). If any of these fails, the
    document is not finished — fix it before any other gate is
    considered. **No "PARTIAL" rating is acceptable on this criterion.**
-0a. **HARD STOP: No schematic-object overlap, full stop, unless an
-   explicit defensible exception is documented.** "Schematic object"
-   includes symbol bodies, wires, labels, refdes/value text, pin names,
-   pin numbers, junctions, and graphical annotations. Default rule is
-   zero overlap of any object with any other object. The only allowed
-   exception path is:
-   - overlap is intentional and functionally required,
-   - a concrete rationale is written in the active CP packet, and
-   - readability at 100 % zoom remains unambiguous.
-   If any overlap is present without that written justification, D11
-   fails.
+0a. **HARD STOP: No schematic-object overlap. Full stop. No
+   exception path.** "Schematic object" includes symbol bodies, wires,
+   labels (text *and* the GlobalLabel chevron / box), refdes/value
+   text, pin names, pin numbers, junctions, and graphical annotations.
+   Any overlap of any object with any other object — including
+   identical-text duplicates and chevron-tip touches — makes the
+   schematic harder to read and is to be revised until it is not
+   present. The "explicit defensible exception" path that previous
+   iterations of this decision allowed is **revoked** per the
+   user directive on 2026-06-04 (see D16). A schematic that has any
+   overlap, regardless of size or stated rationale, does not pass D11.
 1. **No symbol/footprint coordinate collision.** Programmatically
    placed schematic symbols and PCB footprints must not share
    anchor coordinates. Verifiable by scripted check.
@@ -349,16 +359,72 @@ visual gate, so the cheapest thing (run a script) became the only
 thing. The protocol above closes that gap by making screenshots-in-
 packet a hard requirement of the sign-off itself.
 
+### Second failure (teaching example — the audit's own blind spot)
+
+CP6, iter-9 → iter-11 (2026-06-14 → 06-16). After the iter-36 lesson,
+a real overlap audit existed, but it only checked *some* element-pair
+classes: text-vs-text (`schematic_visual_audit.py`) and, later,
+label-flag-vs-body (`label_body_audit.py`). Both reported 0 — yet the
+user opened the renders and saw a GND power-port ground-triangle glyph
+sitting on top of resistors R5/R6/R7, and decoupling caps grazing the
+RS-485 chip body. The audits were blind to it because nothing checked
+**symbol body vs symbol body**: two components connect through pins and
+wires, never through overlapping bodies, so a glyph-on-glyph overlap is
+always wrong — but it was simply never a checked pair type.
+
+The deeper lesson: **piecemeal pair-type checks always leave a blind
+spot.** The systemic fix is one audit that enumerates *every* element
+(symbol bodies incl. power-port glyphs, label flags, ref/value text)
+and checks *all* cross-type pairs — body∩body, flag∩body, flag∩flag,
+flag∩text — not a hand-picked subset. That comprehensive audit
+(`label_body_audit.py`) plus the text audit are wired into
+`build_schematics.py` as an **audit gate** that runs on every
+regeneration and exits non-zero on any finding, so a fix that creates a
+new overlap fails the build immediately (the "loop": edit → rebuild →
+read gate → fix → rebuild until PASS). A second corollary: never judge
+readability from a full-page render — text is illegible at that scale;
+inspect per-region at high DPI (`Matrix(12–14)`).
+
 ### Portability for future PCB projects
 
-D11, including the visual-inspection protocol and the documented
-failure above, is intended to be **copied verbatim** into any future
-PCB project that forks this template. A fresh Claude or Codex
-instance starting a new board project should read D11 first,
-internalize the failure mode, and never claim a documentation gate
-PASS based on script output alone. The operational checklist in
-`hardware/reviews/DESIGNER.md` §0 references this protocol and must
-be carried forward together with it.
+D11 *and* D16 (top-level goal + zero-exception overlap rule), the
+visual-inspection protocol, the documented iter-36 failure, and the
+D16 schematic-readiness checklist in `hardware/reviews/DESIGNER.md`
+§0 are intended to be **copied verbatim** into any future PCB
+project that forks this template. A fresh Claude or Codex instance
+starting a new board project should:
+
+1. Read D11 + D16 first and internalize both the goal and the hard
+   zero-overlap rule.
+2. Read the documented iter-36 failure (D11 §"Documented failure")
+   and the D16 trigger context to understand why the "defensible
+   exception" path was retired.
+3. Read the D16 schematic-readiness checklist in DESIGNER.md §0
+   and treat each item as a deliverable equal to ERC clean / DRC
+   clean.
+4. Never claim a documentation or schematic gate PASS based on
+   script output alone, and never request a "residual" exception
+   under D16.
+5. Carry forward BOTH audit tools and the build-time audit gate:
+   `hardware/reviews/tools/schematic_visual_audit.py` (text-vs-text)
+   and `hardware/reviews/tools/label_body_audit.py` (comprehensive
+   geometry: body∩body, flag∩body, flag∩flag, flag∩text, plus the
+   wire classes — wire∩body, wire∩flag-core, wire∩text — and the
+   same-net-proximity + free-crossing advisories). They are invoked
+   together by `build_schematics.py` → `run_readability_audits` on
+   every build. Read the second failure above to understand why
+   text-vs-text alone is insufficient.
+6. Wiring-discipline guidelines (codified in DESIGNER.md §0 item 1):
+   (a) wire nearby same-net labels rather than double-flagging;
+   (b) place datasheet-mandated parts in the IC block, wired directly;
+   (c) minimise wire crossings and keep them distinct from junction-
+   dotted connections. Net lines use a 10 mil stroke (`WIRE_WIDTH`),
+   not KiCad's faint 6 mil default, for legibility.
+
+The operational checklist (`hardware/reviews/DESIGNER.md` §0) and
+the reviewer counterpart (`hardware/reviews/REVIEWER.md` §4 overlap
+policy + D16 schematic-readability goal) must be carried forward
+together with D11 + D16.
 
 ### Existing violations
 
@@ -857,14 +923,158 @@ warning-severity per the D13 convention.
   (c) whether ~25 cosmetic edge warnings justify the change vs the
   iter-10 geometry that already clears all DRC *errors*. Resolve before
   CP6 fab export, or accept the warnings explicitly in the CP6 packet.
-- **D-OPEN-6: BOM supplier part numbers require validation.** The
-  `DigiKey` and `Mouser` columns in `docs/hardware/bom.md` have not
-  been verified against the distributors' live catalogs. Spot-checks
-  (e.g. the LCD1 entry) have already returned fabricated / non-existent
-  part numbers, and the rest are presumed equally suspect until proven
-  otherwise. Every row needs to be re-derived from the authoritative
-  `Part` column before any procurement happens. A header banner now
-  warns against ordering directly from the file; this open decision
-  tracks closing the loop with verified PNs (and a methodology — most
-  likely a scripted lookup against the DigiKey / Mouser search APIs
-  rather than hand-typed entries). Block CP6 fab export on this.
+- ~~**D-OPEN-6: BOM supplier part numbers require validation.**~~
+  **RESOLVED 2026-06-03 (CP6 iter-3).** The `DigiKey` and `Mouser`
+  columns in `docs/hardware/bom.md` were originally hand-typed and
+  spot-checks turned up fabricated PNs (LCD1 was the canary). The
+  verified-PN sweep was completed at CP6 iter-3: every active-device
+  row plus the high-value connectors and the enclosure was clicked
+  through against the live Digi-Key catalog and the row's distributor
+  link replaced with the direct product-detail page (numeric Digi-Key
+  product ID) where verified. Two manufacturer corrections caught in
+  the process: (a) display-side F1 manufacturer was "Bel Fuse",
+  actually **Bourns**; (b) battery-side EN1 enclosure was listed as
+  "Hammond 1556B2GY" — that PN does not exist in Hammond's catalog
+  (no 1556 series). EN1 now references the real Hammond 1554 IP66
+  family with both candidate sizes linked; final size pick is the
+  one remaining user-side decision before order. Generic-spec rows
+  (resistors / capacitors / inductors meeting a value-and-package
+  spec) keep search URLs because the `Part` column names one
+  compatible example, not a binding choice. Methodology used:
+  WebSearch + spot-verify against the live product-detail page, not
+  a scripted API lookup (Digi-Key's API requires an OAuth client
+  credential the project doesn't carry). For future BOM additions,
+  the same per-row click-through is the protocol; the header banner
+  in `bom.md` documents this. **CP6 fab export is no longer blocked
+  on this decision.**
+
+## D16 — Schematic goal is "a human can read it and understand the design"
+
+**Date**: 2026-06-04
+**Status**: committed
+**Applies to**: both `hardware/outputs/{battery,display}_side/schematic.pdf`
+and any future schematic generated by `hardware/kicad/build_schematics.py`.
+
+### Goal
+
+> A human can read this schematic and understand the design.
+
+This is the top-level acceptance criterion that supersedes the
+checklist-style D11 sub-criteria. Every D11 criterion exists to
+operationalize this goal; if a schematic passes the sub-criteria but
+fails this goal, the sub-criteria are insufficient and the document
+does not pass D11.
+
+### Hard rule on overlaps
+
+Any overlapping text, symbol body, net label box, chevron, pin name,
+pin number, junction, wire, or graphical annotation makes the
+schematic harder to read and is to be revised until the issue is not
+present. **No exception path.** This revokes the "explicit
+defensible exception" carve-out previously allowed under D11 #0a.
+
+### Trigger
+
+User directive on 2026-06-04, after evaluating the iter-7 grayscale
+renders of both schematics:
+
+> I assert neither schematic is human readable. […] I like the way
+> you've stated that goal. put it in the project requirements. a
+> human can read this and understand the design. I'd add that any
+> overlapping text, symbol, net label box, makes the schematic hard
+> to read and is to be revised until the issue is not present.
+
+Context: iter-7 had driven the strict text-overlap audit from 290 →
+50 pairs at the source by hiding redundant pin names / pin numbers,
+widening label stubs, and relocating Value / Reference text. The 50
+residual pairs were a mix of KiCad stroke-font PDF artifacts and
+small chevron-vs-pin-number touches — under the old D11 #0a path
+those would have qualified for the "defensible exception" route.
+That route is now closed.
+
+### Concrete implications for the schematic generator
+
+Driving toward the D16 goal (not just zero text-overlap) requires
+work beyond what iter-7 did:
+
+1. **Real interconnect wires between functionally-adjacent
+   components.** GlobalLabels are reserved for power rails and
+   genuine cross-cluster signals. Two components in the same
+   functional block (e.g. the C_BST bootstrap cap and the buck
+   regulator's BST + SW pins; the I2C pull-ups and the RTC's SDA /
+   SCL pins) must be connected by wires, not by net-label name
+   matching.
+2. **Distinct power-port symbols** (KiCad's stock `+3V3`, `+12V`,
+   `+24V`, `GND`) for power rails, replacing GlobalLabel flags for
+   every power-rail connection. A reader should *see* "this pin
+   goes to GND" via the standard ground triangle, not by reading the
+   word `GND` inside a flag.
+3. **Functional-block visual grouping.** Each sub-circuit (power
+   input + protection, buck regulator + boot cap + inductor + output
+   bulk, 12 V converter + decoupling, ESP32 + bypass, RTC + battery
+   + I2C pull-ups, button + debounce, RS-485 transceiver +
+   termination + bias, dev headers) is placed as a visual cluster
+   with its members within a few grid units of each other and clear
+   whitespace separating it from neighbouring clusters.
+4. **Pin numbers retained on every IC.** Power-stack pin-number
+   collisions are fixed at the lib-symbol level (e.g. consolidating
+   the DS3231M's 9 GND pins into a single multi-number `(alternates)`
+   block, or relocating ESP32-S3-WROOM-1's 1 / 40 / 41 GND pins) so
+   the schematic can show pin numbers without rendering them on top
+   of each other.
+5. **Zero overlap on the strict audit.** With #0a's exception path
+   revoked, `hardware/reviews/tools/schematic_visual_audit.py --strict`
+   must exit 0 on both committed PDFs before any CP that depends on
+   them is allowed to ship.
+
+These five items are the work of CP6 iter-8 onward.
+
+### Cost acknowledgement
+
+This is a substantial rework of the schematic generator — likely
+multi-iteration. The previous "labels-everywhere, defensible-
+exception on residuals" pattern was tactically convenient and let
+CP2 through CP6 land machine-valid artifacts; the user judgement is
+that the resulting schematics are not actually readable, and the
+fix is worth the rework cost. CP6 fab artifacts remain valid (the
+.kicad_pcb files are not affected by schematic readability work),
+but the committed schematic PDFs do not satisfy D16 and must be
+regenerated before CP6 can be considered shipped.
+
+## D17 — Engineering correctness is a gate, not an assumption
+
+**Date**: 2026-06-17
+
+**Decision.** A first-principles **engineering design review** is a
+required gate at **CP1 (architecture)** and **CP2 (schematic)**, on equal
+footing with ERC and the readability/geometry audits. ERC-clean +
+DRC-clean + readable is *necessary but not sufficient*: it proves the
+schematic is legal and legible, not that it is the **right circuit**. The
+method and per-domain checklist live in
+`hardware/reviews/ENGINEERING_REVIEW.md`; concerns and human-decision
+items are logged in `hardware/reviews/DESIGN_REVIEW_ITEMS.md`.
+
+**Why.** We reached "CP6 fab-ready" with two real input-protection
+defects — DR-1 (display TVS reversed → no surge clamp) and DR-2 (battery
+TVS clamps 48 V into a 30 V-max buck) — that were *CP1/CP2 decisions*.
+Every automated gate was green the whole way; nothing reviewed
+engineering correctness, so the errors propagated five checkpoints. This
+is the third failure-mode in the lineage after iter-36 (script-clean ≠
+readable) and iter-11 (text-audit-clean ≠ overlap-free): each was fixed
+by adding the gate that was missing. ERC/DRC/readable was the last green
+light hiding wrong engineering.
+
+**How it changes the flow.** CP1 reviews voltage domains, topology,
+part-class selection, protection strategy, and power/thermal budget
+before any schematic detail. CP2 reviews every part's rating vs. its real
+operating conditions (coordination, derating, polarity) before placement.
+The designer runs the checklist and records it; the reviewer re-derives
+it independently. A schematic does not pass CP2 on ERC + readability
+alone.
+
+**Carry-forward.** D17 + `ENGINEERING_REVIEW.md` + `DESIGN_REVIEW_ITEMS.md`
+are copied into any future board project alongside D11/D16. A fresh
+designer instance runs the CP1/CP2 engineering review from the start —
+so a 72 V-rated module and a correctly-oriented, correctly-sized,
+properly-derated protection chain are chosen *up front*, and DR-1/DR-2
+never occur. The framework's job is to front-load every hard-won lesson.

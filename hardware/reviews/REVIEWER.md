@@ -140,6 +140,56 @@ For **CP2+** (KiCad-based CPs), additionally:
   **A scripted-audit PASS in the packet, without screenshots, is
   not a valid sign-off** — that's the documented iter-36 failure;
   don't accept it.
+- **Overlap policy (strict, D16).** Treat overlap of any schematic
+  objects as a failure: text, symbol bodies, wires, pin names, pin
+  numbers, labels, GlobalLabel chevrons, junctions, or annotations.
+  Per [`decisions.md` D16](../layout/decisions.md#d16--schematic-goal-is-a-human-can-read-it-and-understand-the-design)
+  the **previous "defensible exception" path is revoked** — there
+  is no path under which an overlap-present schematic passes. Any
+  overlap is a finding; the designer must revise and re-render.
+- **Engineering correctness (D17) — re-derive it, don't trust it.** At
+  CP1 and CP2 the circuit must be *right*, not just legal and legible.
+  Independently run `ENGINEERING_REVIEW.md` against the design: for each
+  block, derive the clean-sheet-correct topology and measure the design
+  against it — part-class fit, **coordination** (protective parts bracket
+  what they protect; TVS clamp < downstream abs-max; standoff > Vmax),
+  derating (caps behind a clamp rated > clamp), polarity, worst-case
+  margin. ERC + readability passing is **not** an engineering-correctness
+  sign-off — that equivalence is exactly what let DR-1/DR-2 reach CP6. A
+  designer's engineering "PASS" is not evidence; re-derive. New concerns
+  go to `DESIGN_REVIEW_ITEMS.md`.
+- **D16 schematic-readability goal.** Top-level acceptance criterion
+  for any schematic-touching CP:
+  > A human can read this schematic and understand the design.
+  Operational items (must all hold before passing):
+  - Real interconnect wires inside every functional cluster (not
+    GlobalLabel-name-matching).
+  - Stock KiCad power-port symbols (ground triangle, supply arrow)
+    for power rails — not flag labels.
+  - Pin numbers visible on every IC. If a lib symbol stacks power
+    pins at one coord, fix the lib (consolidate via `(alternates)`
+    or relocate), don't hide pin numbers on the instance.
+  - Functional sub-circuits read as visual clusters with a clear
+    primary signal-flow direction.
+  - BOTH readability audits exit 0 (the `build_schematics.py` audit
+    gate must report PASS): the **strict text-overlap audit**
+    (`schematic_visual_audit.py`, every text-vs-text pair) AND the
+    **geometric collision audit** (`label_body_audit.py`, every
+    graphics pair the text audit is blind to — label-flag∩body,
+    **body∩body** such as a power-port glyph on a resistor, flag∩flag,
+    flag∩ref/value, and the **wire classes**: wire-through-body,
+    wire-strike-through-a-flag, wire-through-text). A text-only PASS is
+    NOT sufficient: a flag body, a power-port glyph, or a wire can sit
+    on a component symbol with zero text overlap. If a designer cites
+    only the text audit, that is itself a finding.
+  - **Wiring discipline (guidelines a/b/c).** Nearby same-net labels
+    should be wired, not double-flagged (the audit's same-net advisory
+    surfaces candidates); datasheet-mandated parts are wired directly
+    into the IC's block; wire crossings are minimised and remain
+    visually distinct from junction-dotted connections. The audit
+    reports the same-net-proximity and free-crossing advisories to
+    drive these.
+  Cite each item separately if the designer misses any.
 - **Codex-owned screenshot evidence (mandatory).** On every CP2+ review,
   independently generate your own dense-region screenshots from the
   committed schematic PDFs and save them under:
@@ -150,6 +200,8 @@ For **CP2+** (KiCad-based CPs), additionally:
     >=4 pins, clustered passives/rails).
   Your finding verdict must cite these codex-owned images, even if the
   designer also provided screenshots.
+  Preferred command:
+  `.venv/bin/python hardware/reviews/tools/schematic_visual_audit.py --cp-slug <cp_slug> --iter <N> --strict`
 
 What to look hard at (CP1 specifically):
 - **ESP32-S3 pin map** — boot straps, ADC channel availability,
