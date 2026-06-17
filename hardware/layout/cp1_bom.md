@@ -72,17 +72,18 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| U1  | LM5165DRCR (24 V→3.3 V, fixed via FB→VOUT, **always-on** µA-Iq buck) | VSON-10 | 1 | _verify_ LM5165DRCR | 595-LM5165DRCR | $2.50 | **Δ (D19/DR-4): TPS62933 → LM5165** — 3–65 V in (survives the ~53 V clamp) **and** ~10.5 µA Iq (always-on rail stays sub-mW). A brick can't be both |
+| U1  | LM5165DRCR (24 V→3.3 V, adjustable → 3.3 V via FB divider, **always-on** µA-Iq buck) | VSON-10 | 1 | LM5165DRCR (DK 5994584, **in stock, Active 2026-06-17**) | 595-LM5165DRCR | $3.61 | **Δ (D19/DR-4): TPS62933 → LM5165** — 3–65 V in (survives the ~53 V clamp) **and** ~10.5 µA Iq (always-on rail stays sub-mW). A brick can't be both |
+| Rfb1, Rfb2 | FB divider ~169 k / 100 k 1 % | 0805 ×2 | 2 | _verify_ | | $0.10 ea | **NEW** — sets LM5165 Vout to 3.3 V (1.223 V ref); ~12 µA |
 | L1  | 10–47 µH ≥0.3 A shielded SMD inductor (per LM5165 datasheet) | SMD | 1 | _verify_ | _verify_ | $0.50 | **Δ: LM5165 inductor** (low-Iq COT favors larger L than the old 2.2 µH) |
 | C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210 | 2 | _verify_ | _verify_ | $0.50 ea | **Δ: C1 →100 V** (LM5165 input on V24_FUSED, behind the ~53 V clamp) |
-| U2  | Recom R-78HB12-0.5 buck (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1 | _verify_ 945-R-78HB12-0.5 | 919-R-78HB12-0.5 | $8.00 | **Δ (D19/DR-3): R-78E12 (34 V) → R-78HB12 (72 V)** to survive the clamp. Switched (behind Q1) |
+| U2  | Recom R-78HB12-0.5 buck (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1 | R-78HB12-0.5 (DK 2256237, **in stock, Active 2026-06-17**) | 919-R-78HB12-0.5 | $8.00 | **Δ (D19/DR-3): R-78E12 (34 V) → R-78HB12 (72 V)** to survive the clamp. Switched (behind Q1) |
 | C3, C4 | C3 22 µF / **100 V**, C4 22 µF / 25 V X7R | 1210 | 2 | _verify_ | _verify_ | $0.55 ea | **Δ: C3 →100 V** (U2 input on V24_SW, behind the clamp) |
 
 ### Hard-cut load switch
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| Q1  | ZXMP6A13F P-MOSFET (Vds −60 V, 1.1 A) | SOT-23 | 1 | _verify_ ZXMP6A13F | 522-ZXMP6A13F | $0.40 | **Δ (D19/DR-4): AO3401A (30 V) → ZXMP6A13F (60 V)** to survive the ~53 V clamp when open |
+| Q1  | ZXMP6A13F P-MOSFET (Vds −60 V, 0.9 A) | SOT-23 | 1 | ZXMP6A13FTA (DK 560639, **in stock, Active 2026-06-17**) | 522-ZXMP6A13F | $0.40 | **Δ (D19/DR-4): AO3401A (30 V) → ZXMP6A13F (60 V)** to survive the ~53 V clamp when open (~0.3 A load) |
 | Q2  | 2N7002 N-MOSFET (Vds 60 V) | SOT-23 | 1 | _verify_ 2N7002 | 512-2N7002 | $0.10 | **Δ (D19/DR-4): AO3400A (30 V) → 2N7002 (60 V)** — drain follows the V24 rail when Q1 is off |
 | DZ1 | BZX84C12 12 V Zener (Q1 gate–source clamp) | SOT-23 | 1 | _verify_ BZX84C12 | 512-BZX84C12LT1G | $0.10 | **NEW (D19/DR-4)** — holds Q1 Vgs ≤ 12 V (was driven to −29 V) |
 | Rg  | ~1 kΩ 0805 1 % (series gate, Q2 drain → Q1 gate) | 0805 | 1 | _verify_ | _verify_ | $0.10 | **NEW (D19/DR-4)** — works with DZ1 to clamp the gate |
