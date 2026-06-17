@@ -370,6 +370,7 @@ def audit(sch_path: Path) -> int:
                (abs(pt[0] - seg[1][0]) < 0.05 and abs(pt[1] - seg[1][1]) < 0.05)
 
     crossings = 0
+    crossing_pts = []
     for i in range(len(segments)):
         for k in range(i + 1, len(segments)):
             pt = _seg_intersect(*segments[i], *segments[k])
@@ -379,6 +380,7 @@ def audit(sch_path: Path) -> int:
             ep_k = _is_endpoint(pt, segments[k])
             if not ep_i and not ep_k:
                 crossings += 1      # interior×interior free crossing
+                crossing_pts.append(pt)
 
     # (7) ADVISORY: two GlobalLabels carrying the SAME net name that sit
     #     close together should usually be replaced by a wire (guideline
@@ -401,7 +403,8 @@ def audit(sch_path: Path) -> int:
 
     findings.sort(reverse=True)
     if crossings:
-        print(f"  [advisory] {crossings} free wire crossing(s) "
+        locs = ", ".join(f"({p[0]:.0f},{p[1]:.0f})" for p in crossing_pts)
+        print(f"  [advisory] {crossings} free wire crossing(s) at {locs} "
               f"(no junction; minimise these per guideline c)")
     for _, line in sorted(advisories):
         print(f"  [advisory] {line}")
