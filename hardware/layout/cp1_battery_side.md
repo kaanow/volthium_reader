@@ -114,7 +114,8 @@ so the protected rail out-rates the clamp (D19/DR-3).
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| U1  | LM5165DRCR (24 V→3.3 V sync buck, **always-on**, fixed 3.3 V via FB→VOUT) | VSON-10 | 1 | **~10.5 µA Iq**, 3–65 V in (65 V out-rates the ~53 V clamp), 150 mA. The only part that is both µA-Iq *and* surge-tolerant — a brick can't be both (D19/DR-4) |
+| U1  | LM5165DRCR (24 V→3.3 V sync buck, **always-on**, adjustable → 3.3 V via FB divider) | VSON-10 | 1 | **~10.5 µA Iq**, 3–65 V in (65 V out-rates the ~53 V clamp), 150 mA. Only part that is both µA-Iq *and* surge-tolerant — a brick can't be both (D19/DR-4). In stock @ DigiKey, Active (2026-06-17) |
+| Rfb1, Rfb2 | FB divider ~169 k / 100 k 1 % (sets 3.3 V from 1.223 V ref) | 0805 ×2 | 2 | LM5165 is the adjustable variant; FB divider sets Vout. ~12 µA divider current (trivial on always-on rail) |
 | L1  | 10–47 µH ≥0.3 A shielded SMD inductor | per datasheet | 1 | LM5165 buck inductor; low-Iq COT mode favors a larger L than a fast buck |
 | C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210      | 2   | LM5165 input (C1 on V24_FUSED, behind the ~53 V clamp → 100 V) / output (C2, 3.3 V) |
 | U2  | Recom R-78HB12-0.5 (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1   | **Switched** (behind Q1) — drives the Cat5e/display. 72 V in tolerates the ~53 V clamp (D19/DR-3). Was R-78E12 (34 V, under-rated) |
@@ -124,7 +125,7 @@ so the protected rail out-rates the clamp (D19/DR-3).
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| Q1  | ZXMP6A13F (P-MOSFET, Vds −60 V, 1.1 A, SOT-23) | SOT-23 | 1 | Load switch for the 12 V/display feed. **60 V** Vds survives the ~53 V clamp when open (D19/DR-4); AO3401A (30 V) did not |
+| Q1  | ZXMP6A13F (P-MOSFET, Vds −60 V, 0.9 A, SOT-23) | SOT-23 | 1 | Load switch for the 12 V/display feed (~0.3 A). **60 V** Vds survives the ~53 V clamp when open (D19/DR-4); AO3401A (30 V) did not. In stock @ DigiKey, Active (2026-06-17) |
 | Q2  | 2N7002 (N-MOSFET, Vds 60 V, drives Q1 gate) | SOT-23 | 1 | **60 V** because its drain follows the V24 rail (up to the clamp) when Q1 is off (D19/DR-4); AO3400A (30 V) did not |
 | DZ1 | BZX84C12 (12 V Zener, Q1 gate–source clamp) | SOT-23 | 1 | Holds Q1 Vgs ≤ 12 V regardless of bus voltage — without it, turning Q1 on drove Vgs to −29 V (D19/DR-4) |
 | Rg  | ~1 kΩ series gate (Q2 drain → Q1 gate) | 0805    | 1   | Limits gate transient current; works with DZ1 |

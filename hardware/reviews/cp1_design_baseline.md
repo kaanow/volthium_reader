@@ -41,12 +41,16 @@ reads V24_SENSE, and sheds the display via Q1. It is its own supervisor —
 no separate supervisor IC. All-in trickle ≈ **~1 mW** (U1 Iq ~10.5 µA +
 sense divider ~22 µA).
 
-**Verified parts (web-checked 2026-06-17; final availability at BOM-lock
-per D-OPEN-6):**
-- **U1 LM5165DRCR** — 3–65 V in, **10.5 µA Iq**, 150 mA, fixed 3.3 V (FB→VOUT). Both surge-tolerant and µA-Iq (a brick can't be both).
-- **U2 R-78HB12-0.5** — 17–72 V in, 12 V/0.5 A.
-- **Q1 ZXMP6A13F** — −60 V, 1.1 A, SOT-23 (clean 3-pin; the ZXMP6A17 is only SOT-23-6/SOT-223).
-- **D1 SS26** (60 V), **Q2 2N7002** (60 V), **DZ1 BZX84C12** (12 V Zener) — jellybeans.
+**Verified parts (specs + DigiKey stock/lifecycle checked 2026-06-17;
+final confirmation still at BOM-lock per D-OPEN-6):**
+- **U1 LM5165DRCR** — 3–65 V in, **10.5 µA Iq**, 150 mA. In stock @ DigiKey (≈4.6 k), Active. Both surge-tolerant and µA-Iq (a brick can't be both). *Caught by the stock check:* it's the **adjustable** variant (1.223 V ref) → 3.3 V needs a 2-resistor FB divider (~169 k/100 k), not "fixed via FB→VOUT" as first written.
+- **U2 R-78HB12-0.5** — 17–72 V in, 12 V/0.5 A. In stock @ DigiKey, Active.
+- **Q1 ZXMP6A13F** — −60 V, **0.9 A**, SOT-23-3 (clean 3-pin; the ZXMP6A17 is only SOT-23-6/SOT-223). In stock @ DigiKey, Active. 0.9 A ≫ the ~0.3 A display feed.
+- **D1 SS26** (60 V), **Q2 2N7002** (60 V), **DZ1 BZX84C12** (12 V Zener), FB-divider resistors — ubiquitous jellybeans.
+
+Availability was checked *at selection time* (not deferred to BOM-lock) per
+the principle now in ENGINEERING_REVIEW.md step 3 — it immediately caught
+the LM5165 adjustable-vs-fixed error above, before CP2 builds around it.
 
 **Domains that cleared** with only minor notes: comms (term/bias now
 coordinated; dual→single bias point), MCU (decoupling, EN RC soft-start,

@@ -29,6 +29,15 @@ human-decision items go to `DESIGN_REVIEW_ITEMS.md`.
    circuit for this block. *Name it*, then measure the design against it
    — don't rationalise what's there.
 3. **Part selection.** Does each part's class and rating suit its role?
+   **Sanity-check availability + lifecycle the moment you pick a part** —
+   a quick distributor stock + Active-vs-NRND/obsolete check, *not* only at
+   BOM-lock. A chosen part that turns out unavailable or end-of-life
+   cascades into footprint, symbol, and layout rework, so catch it while
+   the choice is still cheap to change. BOM-lock remains the final
+   verification; this is up-front insurance. Confirm the exact orderable
+   variant matches the spec you assumed (e.g. fixed- vs adjustable-output,
+   package, current grade) — the variant that's *in stock* may differ from
+   the one you had in mind.
 4. **Coordination (the rule most often missed).** Protective parts must
    *bracket* what they protect: TVS clamp < downstream abs-max; standoff
    > max operating; fuse rating < trace/connector limit; gate drive
