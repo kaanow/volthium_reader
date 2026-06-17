@@ -1040,3 +1040,41 @@ fix is worth the rework cost. CP6 fab artifacts remain valid (the
 .kicad_pcb files are not affected by schematic readability work),
 but the committed schematic PDFs do not satisfy D16 and must be
 regenerated before CP6 can be considered shipped.
+
+## D17 — Engineering correctness is a gate, not an assumption
+
+**Date**: 2026-06-17
+
+**Decision.** A first-principles **engineering design review** is a
+required gate at **CP1 (architecture)** and **CP2 (schematic)**, on equal
+footing with ERC and the readability/geometry audits. ERC-clean +
+DRC-clean + readable is *necessary but not sufficient*: it proves the
+schematic is legal and legible, not that it is the **right circuit**. The
+method and per-domain checklist live in
+`hardware/reviews/ENGINEERING_REVIEW.md`; concerns and human-decision
+items are logged in `hardware/reviews/DESIGN_REVIEW_ITEMS.md`.
+
+**Why.** We reached "CP6 fab-ready" with two real input-protection
+defects — DR-1 (display TVS reversed → no surge clamp) and DR-2 (battery
+TVS clamps 48 V into a 30 V-max buck) — that were *CP1/CP2 decisions*.
+Every automated gate was green the whole way; nothing reviewed
+engineering correctness, so the errors propagated five checkpoints. This
+is the third failure-mode in the lineage after iter-36 (script-clean ≠
+readable) and iter-11 (text-audit-clean ≠ overlap-free): each was fixed
+by adding the gate that was missing. ERC/DRC/readable was the last green
+light hiding wrong engineering.
+
+**How it changes the flow.** CP1 reviews voltage domains, topology,
+part-class selection, protection strategy, and power/thermal budget
+before any schematic detail. CP2 reviews every part's rating vs. its real
+operating conditions (coordination, derating, polarity) before placement.
+The designer runs the checklist and records it; the reviewer re-derives
+it independently. A schematic does not pass CP2 on ERC + readability
+alone.
+
+**Carry-forward.** D17 + `ENGINEERING_REVIEW.md` + `DESIGN_REVIEW_ITEMS.md`
+are copied into any future board project alongside D11/D16. A fresh
+designer instance runs the CP1/CP2 engineering review from the start —
+so a 72 V-rated module and a correctly-oriented, correctly-sized,
+properly-derated protection chain are chosen *up front*, and DR-1/DR-2
+never occur. The framework's job is to front-load every hard-won lesson.

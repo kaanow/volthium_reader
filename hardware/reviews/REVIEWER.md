@@ -147,6 +147,17 @@ For **CP2+** (KiCad-based CPs), additionally:
   the **previous "defensible exception" path is revoked** — there
   is no path under which an overlap-present schematic passes. Any
   overlap is a finding; the designer must revise and re-render.
+- **Engineering correctness (D17) — re-derive it, don't trust it.** At
+  CP1 and CP2 the circuit must be *right*, not just legal and legible.
+  Independently run `ENGINEERING_REVIEW.md` against the design: for each
+  block, derive the clean-sheet-correct topology and measure the design
+  against it — part-class fit, **coordination** (protective parts bracket
+  what they protect; TVS clamp < downstream abs-max; standoff > Vmax),
+  derating (caps behind a clamp rated > clamp), polarity, worst-case
+  margin. ERC + readability passing is **not** an engineering-correctness
+  sign-off — that equivalence is exactly what let DR-1/DR-2 reach CP6. A
+  designer's engineering "PASS" is not evidence; re-derive. New concerns
+  go to `DESIGN_REVIEW_ITEMS.md`.
 - **D16 schematic-readability goal.** Top-level acceptance criterion
   for any schematic-touching CP:
   > A human can read this schematic and understand the design.

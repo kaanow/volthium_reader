@@ -24,6 +24,22 @@ On every wake:
    cycle (unless they invoked `/loop`, in which case
    `ScheduleWakeup` is fine).
 
+## 0a. Engineering correctness is a gate (D17)
+
+Before readability, the circuit has to be *right*. Run the
+**engineering design review** (`ENGINEERING_REVIEW.md`) as a required
+gate at **CP1 (architecture)** and **CP2 (schematic)** — it is on equal
+footing with ERC and the readability/geometry audits, and a schematic
+does **not** pass CP2 on ERC + readability alone (D17). For every net /
+block: derive the clean-sheet-correct circuit, then measure the design
+against it — part-class fit, **coordination** (protective parts must
+bracket what they protect, e.g. TVS clamp < downstream abs-max),
+derating, polarity, worst-case margin. Fix clear errors; log judgment
+calls and human-decision items in `DESIGN_REVIEW_ITEMS.md`. ERC-clean +
+DRC-clean + readable is necessary, not sufficient — it proves the
+schematic is legal and legible, not that it is the right circuit (the
+CP6 DR-1/DR-2 lesson).
+
 ## 0. Documentation readability is a first-class deliverable (D11 / D16)
 
 Every PDF, schematic, render, BOM, and assembly drawing you commit
