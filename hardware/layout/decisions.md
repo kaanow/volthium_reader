@@ -1112,3 +1112,60 @@ is measured against that derivation as a *candidate*, not assumed as the
 baseline. Findings are logged in `DESIGN_REVIEW_ITEMS.md`; clear errors
 are fixed before any codex handoff (excellence is produced, not added in
 review).
+
+## D19 — Battery-side power-domain re-architecture (always-on µA housekeeping + switched display feed)
+
+**Date**: 2026-06-17
+
+**Decision.** Re-architect the battery-side power tree to fix DR-3/DR-4.
+The MCU and its supply move to an **always-on** rail; the load switch
+sheds only the display feed; every part on the protected rail out-rates
+the surge clamp. Resolves the bootstrap, gate-overstress, and clamp-
+coordination defects together.
+
+**Power tree (battery side):**
+
+    J1 → F1 → D1(60V Schottky) → V24_FUSED {TVS1 SMAJ33CA ~53V clamp, R5/R6 sense}
+       ├─ ALWAYS-ON:  U1 wide-Vin µA-Iq buck → 3V3 (ESP32 + RTC + sense)
+       └─ Q1 (60V P-FET load switch) → V24_SW → U2 (R-78HB12, 72V) → 12V → Cat5e → display
+
+- **Always-on rail (U1).** Carries the ESP in *all* states — active
+  (~75 mA BLE) at high SOC, deep-sleep (~µA) at low SOC. It must be
+  **both** ≥60 V (to survive the ~53 V TVS clamp) **and** µA-Iq (so the
+  low-SOC trickle is sub-mW). The R-78HB brick (DR-2) is ≥60 V but idles
+  at mA → tens of mW always-on, which violates power-first ([[D5]]). So
+  U1 becomes a **wide-Vin, µA-Iq buck IC** — candidate **TI LM5165**
+  (3–65 V, ~9 µA Iq, 150 mA; needs inductor + FB divider + I/O caps).
+  65 V gives ~12 V margin over the clamp. *This intentionally reverses
+  the DR-2 brick choice for U1 only* — DR-2's goal (surge survival) is
+  still met, and µA-Iq is regained.
+- **Hard-cut behavior (Option 1 "done right", user call 2026-06-17).**
+  The ESP stays powered always; at <10 % SOC it deep-sleeps in ULP,
+  periodically reads V24_SENSE, and **sheds the display** by opening Q1
+  (which kills U2 → 12 V → the entire display board, since the display is
+  powered only from the battery side over Cat5e). It re-engages on
+  voltage recovery. The ESP is its own supervisor — **no separate
+  voltage-supervisor IC.** All-in low-SOC trickle ≈ U1 Iq (~0.5 mW) +
+  sense divider (~0.5 mW) ≈ **~1 mW**. (Full-cut + supervisor would reach
+  ~0.7 mW but adds a part and "smart" failure modes — not worth it.)
+- **Load switch (Q1) done right.** Q1 = **60 V P-FET** (candidate
+  Diodes ZXMP6A17, −60 V SOT-23) so its Vds survives the ~53 V clamp when
+  open. Add a **gate-source Zener clamp (~12 V) + series gate resistor**
+  so Vgs stays in range regardless of bus voltage (AO3401A's ±12 V was
+  driven to −29 V). The gate-driver N-FET also sees the high rail, so
+  Q2 = **60 V N-FET** (2N7002). Q1 now switches only U2/the display feed.
+- **Surge coordination (DR-3).** U2 → **Recom R-78HB12** (9–72 V in,
+  ~0.3 A; display needs ≲0.15 A). D1 → **60 V Schottky** (SS26/SK56).
+  With U1 (65 V), Q1 (60 V), U2 (72 V), D1 (60 V) the whole protected
+  rail out-rates the SMAJ33CA's ~53 V clamp — completing DR-2's logic.
+
+**Part-sourcing note.** LM5165, R-78HB12, ZXMP6A17 are candidate MPNs;
+verify availability/exact variant before BOM lock (no fabricated PNs,
+[[D-OPEN-6]]). 2N7002 and a 12 V Zener (BZX84C12-class) are jellybeans.
+
+**Why this is the excellent answer.** It boots reliably (MCU never gates
+its own supply), holds the power-first budget at hard-cut (~1 mW), needs
+no supervisor IC, and makes the protection chain genuinely protective.
+The cost is U1 returns to a discrete buck (inductor + FB divider) — a
+fair price for µA-Iq always-on, and the only way to satisfy power-first
+and surge-survival simultaneously on a 29 V bus.
