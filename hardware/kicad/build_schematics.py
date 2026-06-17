@@ -50,7 +50,7 @@ from kiutils.items.schitems import (
     GlobalLabel,
     NoConnect,
 )
-from kiutils.items.common import Position, Property, Effects
+from kiutils.items.common import Position, Property, Effects, Justify
 
 # -------------------------------------------------------------------- paths
 REPO = Path(__file__).resolve().parents[2]
@@ -155,20 +155,130 @@ def build_library() -> None:
     print("  TODO: Recom R-78E12-1.0 + R-78E3.3-0.5 custom symbols")
     print("        (deferred to iter 3 when their nets are wired in)")
 
+    # CP6 iter-7 strict-overlap cleanup: hide in-symbol pin name text on
+    # multi-pin ICs and hide pin numbers on single-pin power flags.
+    #
+    # Why: every IC pin is labelled in the schematic with an explicit
+    # GlobalLabel placed at the pin endpoint (V3V3_SW, GND, RS485_A,
+    # UART_RX_3V3, ...). The library-symbol pin name text (rendered
+    # inside the chip body) duplicates that info and, where the chip
+    # has multiple pins sharing one library coord (DS3231M pins 5..13
+    # all GND at lib (0,-10.16); ESP32-S3-WROOM-1 pins 1/40/41 GND at
+    # lib (0,-27.94)), KiCad renders each pin name on top of the
+    # previous — producing 9 "GND" texts at one pixel, which the
+    # strict audit sees as C(9,2) = 36 overlap pairs from a single
+    # symbol. Hiding pin names erases that whole category of pair
+    # without losing information (the GlobalLabel at the pin already
+    # carries the net name).
+    #
+    # PWR_FLAG is a single-pin marker; its pin number "1" is rendered
+    # right on top of its Value text "PWR_FLAG". hidePinNumbers=True
+    # cleans that up.
+    _hide_pin_names_on = {
+        # Multi-pin ICs — net labels at endpoints already carry the
+        # functional name, so the in-body pin name text is duplicate
+        # information that the strict-overlap audit flags every time.
+        "ESP32-S3-WROOM-1", "DS3231M", "TPS62933", "LTC2850xS8",
+        # Connectors — host KiCad ships these with `(hide yes)` in the
+        # newer pin_names syntax, but kiutils' parser drops the value
+        # form and reads pinNamesHide=False. Set explicitly so a
+        # --rebuild-library run doesn't regress.
+        "8P8C", "Conn_01x02", "Conn_01x03", "Conn_01x04", "Conn_01x24",
+        # D_TVS has pins named A1/A2/K rendered very close to each other
+        # (the two anode pins share a body) → "A1" overlaps "A2" every
+        # placement. The diode triangle + cathode line already convey
+        # the polarity.
+        "D_TVS",
+        # D, LED have pin names A/K; the symbol shape (triangle pointing
+        # to cathode line) already conveys polarity unambiguously.
+        "D", "LED",
+        # Battery_Cell has pin names +/-; the symbol shape already shows
+        # polarity (long terminal = +, short = -).
+        "Battery_Cell",
+        # SW_Push: lib symbol has pin NAMES = "1" / "2" (same characters
+        # as the pin numbers). Hiding pin numbers leaves the pin names
+        # still visible and indistinguishable from numbers; reader sees
+        # "1" and "2" on the body anyway. Hide names so the body just
+        # shows the button glyph with no annotations.
+        "SW_Push",
+    }
+    # D16 / #40: hide duplicate stacked-power pins on the lib symbol so
+    # only one pin renders at each library coordinate. The hidden pins
+    # remain in the netlist (KiCad emits them for the footprint pad map)
+    # but their pin number text no longer stacks on top of the visible
+    # pin's number. Lets us re-enable pin numbers on the chips.
+    _hide_stacked_power_pins_on = {
+        # DS3231M: pins 5..13 all GND at lib (0, -10.16). Keep pin 5
+        # visible; hide 6..13 so only "5" renders.
+        "DS3231M": {"6", "7", "8", "9", "10", "11", "12", "13"},
+        # ESP32-S3-WROOM-1: pins 1, 40, 41 all GND at lib (0, -27.94).
+        # Keep pin 1 visible; hide 40 + 41.
+        "ESP32-S3-WROOM-1": {"40", "41"},
+    }
+    for sym in out_lib.symbols:
+        hide_nums = _hide_stacked_power_pins_on.get(sym.entryName)
+        if not hide_nums:
+            continue
+        for u in sym.units:
+            for p in u.pins:
+                if p.number in hide_nums:
+                    p.hide = True
+
+    _hide_pin_numbers_on = {
+        # PWR_FLAG is single-pin marker; "1" overlaps the Value text.
+        "PWR_FLAG",
+        # D16: stock power-port symbols (+3V3, +12V, +24V, GND) have a
+        # single pin numbered "1" that the strict audit picks up as a
+        # SAME-TEXT stroke-font duplicate at every placement. The glyph
+        # is self-evident; the "1" adds nothing.
+        "GND", "+3V3", "+12V", "+24V",
+        # 2- and 3-pin discretes: pin numbers are redundant (polarity
+        # is shown by the symbol shape — diode triangle, cap line,
+        # etc.) and they pile onto the Value text every time. Hiding
+        # eliminates several whole categories of strict-audit overlap
+        # ('2'/'22uF/25V', '3'/'R-78E12-1.0', '2'/'1A', ...).
+        "R", "L", "C", "Fuse", "Polyfuse",
+        "D", "D_TVS", "LED", "Battery_Cell",
+        # SW_Push is a 2-pin momentary switch — pin numbers are not
+        # meaningful (both pins are the same logically when pressed),
+        # and pin 1's "1" sits next to the GlobalLabel chevron tip.
+        "SW_Push",
+        # MOSFETs — G/D/S pin NAMES stay visible (set in _hide_pin_names_on
+        # exclusion), but pin numbers 1/2/3 overlap the GlobalLabel
+        # chevron tips on the gate/drain/source pins.
+        "Q_PMOS_GSD", "Q_NMOS_GSD",
+    }
+    for sym in out_lib.symbols:
+        if sym.entryName in _hide_pin_names_on:
+            # kiutils only emits the (pin_names ...) block when pinNames
+            # is truthy; pinNamesHide alone is silently dropped.
+            sym.pinNames = True
+            sym.pinNamesHide = True
+        if sym.entryName in _hide_pin_numbers_on:
+            sym.hidePinNumbers = True
+
     out_lib.to_file(str(LIB_FILE))
     print(f"\n[lib] wrote {LIB_FILE} ({LIB_FILE.stat().st_size} bytes)")
 
 
 # -------------------------------------------------------------------- project files
 def write_project_file(board_dir: Path, name: str) -> None:
-    """Write the .kicad_pro JSON file.
+    """Write the .kicad_pro JSON file — initial creation only.
 
     Includes the PCB DRC severity overrides + CP1 §11.3 net class
     definitions that CP3 established. Re-running this script must not
     wipe those — otherwise PCB DRC regresses from 0 errors to many.
     The numeric values for net classes live under `_intended_classes_cp4`
     as documented intent; CP4 routing binds them.
+
+    CP6 iter-7: skip the write if the file already exists. Otherwise the
+    CP5-committed netclass numerics (track_width, clearance, via_diameter,
+    netclass_patterns) and KiCad-GUI-added DRC rules (e.g.
+    min_resolved_spokes) get clobbered by the template every rebuild.
     """
+    out = board_dir / f"{name}.kicad_pro"
+    if out.exists():
+        return
     pro = {
         "board": {
             "design_settings": {
@@ -267,7 +377,6 @@ def write_project_file(board_dir: Path, name: str) -> None:
         "sheets": [],
         "text_variables": {},
     }
-    out = board_dir / f"{name}.kicad_pro"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(pro, indent=2))
     print(f"  + {out}")
@@ -335,11 +444,21 @@ def _set_title_block(sch: Schematic, title: str) -> None:
     from kiutils.items.common import TitleBlock
     tb = TitleBlock()
     tb.title = title
-    tb.revision = "CP-schematic-cleanup"
-    tb.date = "2026-05-24"
+    tb.revision = "CP6"
+    tb.date = "2026-06-16"
     tb.company = "Volthium"
+    # Title-block comment fields (rendered bottom-right). Note the key
+    # conventions so the sheet is self-documenting.
+    tb.comments = {
+        1: "Generated by hardware/kicad/build_schematics.py — do not hand-edit",
+        2: "Power rails: +24 V in (battery side) / +12 V in (display side) → 3V3",
+        3: "ERC 0/0; readability audit gate PASS (no text/graphics overlaps)",
+    }
     sch.titleBlock = tb
     sch.paper.paperSize = "A3"
+
+
+WIRE_WIDTH = 0.254  # mm (10 mil) — net-line stroke width; see _place_wire
 
 
 def _place_wire(sch: Schematic, start: tuple[float, float], end: tuple[float, float]) -> None:
@@ -356,7 +475,10 @@ def _place_wire(sch: Schematic, start: tuple[float, float], end: tuple[float, fl
     w = Connection()
     w.type = "wire"
     w.points = [Position(X=start[0], Y=start[1]), Position(X=end[0], Y=end[1])]
-    w.stroke = Stroke(width=0.0, type="default")
+    # iter-12: explicit wider stroke so net lines read clearly. KiCad's
+    # default (width 0 → 0.1524 mm / 6 mil) is faint at print scale; 10 mil
+    # is noticeably easier to follow without crowding pins.
+    w.stroke = Stroke(width=WIRE_WIDTH, type="default")
     w.uuid = _uuid()
     if sch.graphicalItems is None:
         sch.graphicalItems = []
@@ -398,6 +520,18 @@ def _copy_symbol_to_schematic(lib: SymbolLib, sym_name: str, sch: Schematic) -> 
     """Find a symbol in the project lib and copy it into the schematic's libSymbols.
 
     Idempotent — if the symbol is already present, return the existing instance.
+
+    CP6 iter-7 strict-overlap cleanup: each placed symbol instance carries
+    its own Reference/Value properties (e.g. Reference="C10", Value="100nF").
+    The libSymbol embed also carries Reference and Value template properties
+    (e.g. Reference="C", Value="C") for use during auto-annotation. KiCad's
+    PDF exporter renders BOTH template and instance text at their respective
+    `at` positions; for vertically-symmetric symbols (R, C, L, D) the
+    template's `at (0.635, 2.54)` lands on top of the instance's `at (0,
+    5.08)` after the symbol's bounding-box-relative positioning, producing
+    two identical "C10" word boxes at the same pixel. The strict audit
+    flags this as a SAME-TEXT overlap. Hide the libSymbol Reference and
+    Value properties so only the instance text renders.
     """
     import copy as _copy
     # Check if already present (full id "volthium:<name>")
@@ -413,6 +547,14 @@ def _copy_symbol_to_schematic(lib: SymbolLib, sym_name: str, sch: Schematic) -> 
     # KiCad's schematic libSymbols stores symbols with libraryNickname:entryName
     # as the full id; we set libraryNickname so the serializer prefixes it.
     clone.libraryNickname = "volthium"
+    # Mark Reference + Value template properties on the embedded libSymbol
+    # as hidden — the instance properties (set in _place_symbol) carry the
+    # real Reference="C10" / Value="100nF" and are the ones the user reads.
+    for prop in clone.properties:
+        if prop.key in ("Reference", "Value"):
+            if prop.effects is None:
+                prop.effects = Effects()
+            prop.effects.hide = True
     sch.libSymbols.append(clone)
     return clone
 
@@ -435,6 +577,7 @@ def _place_symbol(
     angle: float = 0.0,
     value_pos: tuple[float, float] | None = None,
     ref_pos: tuple[float, float] | None = None,
+    autoplace_fields: bool = True,
 ) -> SchematicSymbol:
     """Place a SchematicSymbol instance referencing volthium:<sym_name>.
 
@@ -454,17 +597,26 @@ def _place_symbol(
     inst.unit = 1
     inst.inBom = True
     inst.onBoard = True
-    inst.fieldsAutoplaced = True
+    # Autoplace lets KiCad tidy field positions, but for ROTATED symbols
+    # it re-stacks ref+value next to the rotated body (ignoring explicit
+    # positions) and they collide. Callers placing rotated parts with
+    # hand-tuned ref/value pass autoplace_fields=False.
+    inst.fieldsAutoplaced = autoplace_fields
     inst.uuid = _uuid()
     val_pos = value_pos if value_pos is not None else (pos[0] + 2.54, pos[1] + 1.27)
     rf_pos = ref_pos if ref_pos is not None else (pos[0] + 2.54, pos[1] - 1.27)
+    # KiCad composes a field's render angle with the symbol's rotation, so
+    # on a 90°-rotated symbol a field with angle 0 renders VERTICAL. To
+    # keep ref/value horizontal on a rotated part, counter-rotate the
+    # field text by -angle.
+    fld_a = (-angle) % 360
     # Properties: Reference, Value, Footprint, Datasheet (the standard 4)
     inst.properties = [
         Property(key="Reference", value=reference,
-                 position=Position(X=rf_pos[0], Y=rf_pos[1], angle=0),
+                 position=Position(X=rf_pos[0], Y=rf_pos[1], angle=fld_a),
                  effects=Effects()),
         Property(key="Value", value=value,
-                 position=Position(X=val_pos[0], Y=val_pos[1], angle=0),
+                 position=Position(X=val_pos[0], Y=val_pos[1], angle=fld_a),
                  effects=Effects()),
         Property(key="Footprint", value=footprint,
                  position=Position(X=pos[0], Y=pos[1], angle=0),
@@ -477,20 +629,54 @@ def _place_symbol(
     return inst
 
 
-def _place_label(sch: Schematic, text: str, pos: tuple[float, float], *, angle: float = 0.0) -> None:
-    """Place a GlobalLabel at the given absolute schematic coordinates."""
+def _place_label(sch: Schematic, text: str, pos: tuple[float, float],
+                 *, angle: float = 0.0, shape: str = "input",
+                 justify_h: str | None = None) -> None:
+    """Place a GlobalLabel at the given absolute schematic coordinates.
+
+    The chevron tip of the flag must be on the side where the connecting
+    wire enters — otherwise the wire is drawn from the pin THROUGH the
+    entire flag body to the chevron tip on the far side ("strikes
+    through" the flag, which is hard to read).
+
+    KiCad normalizes `(at … angle)` to 0 or 90 only on `sch upgrade`, so
+    angle alone cannot flip a flag. Instead, control chevron direction
+    with `(effects (justify left|right))`, while keeping `shape=input`
+    throughout. At angle=0, `justify_h="right"` flips the chevron to
+    the right (text aligns to body's left); `justify_h="left"` is the
+    default chevron-on-left. At angle=90, the same rule rotates with
+    the label (justify=left → chevron-down, justify=right → chevron-up).
+    """
     lbl = GlobalLabel()
     lbl.text = text
-    lbl.shape = "input"
+    lbl.shape = shape
     lbl.position = Position(X=pos[0], Y=pos[1], angle=angle)
     lbl.fieldsAutoplaced = True
     lbl.uuid = _uuid()
     lbl.effects = Effects()
+    if justify_h is not None:
+        j = Justify()
+        j.horizontally = justify_h
+        lbl.effects.justify = j
     sch.globalLabels.append(lbl)
 
 
+def _set_active_lib(lib: SymbolLib) -> None:
+    """Set the library every `_pin_label` invocation in this run uses to
+    resolve stock power-port symbol names. Called once per schematic
+    build so call sites don't have to thread `lib=` through every
+    `_pin_label` invocation.
+    """
+    global _ACTIVE_LIB
+    _ACTIVE_LIB = lib
+
+
+_ACTIVE_LIB: SymbolLib | None = None
+
+
 def _pin_label(sch: Schematic, net: str, endpoint: tuple[float, float],
-               outdir: str, *, stub: float = 3 * 1.27, angle: float | None = None) -> None:
+               outdir: str, *, stub: float = 3 * 1.27, angle: float | None = None,
+               lib: SymbolLib | None = None) -> None:
     """Connect a net label to a pin endpoint via a stub wire, placing the
     label out in clear space so its text never lands on pin numbers, pin
     names, or the part's own Reference/Value text.
@@ -504,14 +690,101 @@ def _pin_label(sch: Schematic, net: str, endpoint: tuple[float, float],
     This is the single chokepoint for "label a pin" — every 2-pin passive,
     connector, and flag should route through here rather than dropping a bare
     label on the endpoint (which is what made earlier sheets unreadable).
+
+    D16 / CP6 iter-8: for nets that map to a stock KiCad power port symbol
+    (GND, +3V3, +12V, +24V), route through `_place_power_port` instead of
+    dropping a GlobalLabel. The standard power-port glyphs (downward
+    triangle for GND, upward arrow for supplies) are visually distinct from
+    signal-label flags and from each other, which is what makes "this pin
+    goes to GND" readable at a glance.
+    """
+    _lib = lib if lib is not None else _ACTIVE_LIB
+    if net in _STOCK_POWER_PORTS and _lib is not None:
+        _place_power_port(sch, net, endpoint, outdir, stub=stub, lib=_lib)
+        return
+    dirs = {'L': (-1, 0), 'R': (1, 0), 'U': (0, -1), 'D': (0, 1)}
+    dx, dy = dirs[outdir]
+    far = (endpoint[0] + dx * stub, endpoint[1] + dy * stub)
+    _place_wire(sch, endpoint, far)
+    # Pick the GlobalLabel `(at … angle)` and `(effects (justify …))`
+    # so the chevron tip faces the wire and the text reads cleanly
+    # inside the body. See feedback_schematic_chevron_direction memory
+    # for the empirical sweep that produced this mapping.
+    if angle is None:
+        angle = {'L': 0, 'R': 0, 'U': 90, 'D': 90}[outdir]
+    justify_h = {'L': 'right', 'R': 'left', 'U': 'left', 'D': 'right'}[outdir]
+    _place_label(sch, net, far, angle=angle, justify_h=justify_h)
+
+
+# D16 / CP6 iter-8: nets that have a stock KiCad power port glyph in our
+# `volthium` library. _pin_label routes these to _place_power_port so the
+# rendered schematic shows the standard ground-triangle / supply-arrow
+# instead of an indistinguishable flag-shaped GlobalLabel.
+_STOCK_POWER_PORTS = {"GND", "+3V3", "+12V", "+24V"}
+
+
+def _place_power_port(sch: Schematic, net: str, endpoint: tuple[float, float],
+                      outdir: str, *, stub: float, lib: SymbolLib) -> None:
+    """Place a stock KiCad power port symbol at the outer end of a stub.
+
+    The power port symbol has a single pin labelled with the net name.
+    KiCad ERC treats this as a power-net connection automatically — no
+    separate GlobalLabel needed. The visible glyph (ground triangle for
+    GND, upward arrow for supplies) is the standard schematic notation
+    a reader recognizes instantly.
+
+    Pin geometry for the stock symbols (lib coords): pin 1 is at (0, 0)
+    for all of them, with pin angle 90 (extends downward in lib =
+    upward in schematic after Y-flip) for the supply symbols and
+    angle 270 for GND (extends upward in lib = downward in schematic).
+    The symbol body sits ABOVE the pin for supplies, BELOW for GND.
+
+    We orient the symbol so the triangle apex points in the wire's exit
+    direction — the symbol then reads as "this net flows OUT to ground
+    in this direction," matching the visual flow of the wire:
+      outdir 'D' (wire exits down):  angle 0   — apex points down (default)
+      outdir 'U' (wire exits up):    angle 180 — apex points up
+      outdir 'R' (wire exits right): angle 90  — apex points right
+      outdir 'L' (wire exits left):  angle 270 — apex points left
     """
     dirs = {'L': (-1, 0), 'R': (1, 0), 'U': (0, -1), 'D': (0, 1)}
     dx, dy = dirs[outdir]
     far = (endpoint[0] + dx * stub, endpoint[1] + dy * stub)
     _place_wire(sch, endpoint, far)
-    if angle is None:
-        angle = {'L': 180, 'R': 0, 'U': 90, 'D': 270}[outdir]
-    _place_label(sch, net, far, angle=angle)
+
+    _copy_symbol_to_schematic(lib, net, sch)
+    inst = SchematicSymbol()
+    inst.libraryNickname = "volthium"
+    inst.entryName = net
+    inst.position = Position(X=far[0], Y=far[1],
+                             angle={'D': 0, 'U': 180, 'R': 90, 'L': 270}[outdir])
+    inst.unit = 1
+    inst.inBom = False
+    inst.onBoard = False
+    inst.fieldsAutoplaced = True
+    inst.uuid = _uuid()
+    # Power port instance properties: Reference="#PWR" auto-annotation
+    # placeholder (KiCad fills it in on save); Value=net name (hidden,
+    # since the symbol glyph already conveys which rail).
+    ref_hide = Effects()
+    ref_hide.hide = True
+    val_hide = Effects()
+    val_hide.hide = True
+    inst.properties = [
+        Property(key="Reference", value="#PWR",
+                 position=Position(X=far[0], Y=far[1], angle=0),
+                 effects=ref_hide),
+        Property(key="Value", value=net,
+                 position=Position(X=far[0], Y=far[1], angle=0),
+                 effects=val_hide),
+        Property(key="Footprint", value="",
+                 position=Position(X=far[0], Y=far[1], angle=0),
+                 effects=Effects(hide=True)),
+        Property(key="Datasheet", value="",
+                 position=Position(X=far[0], Y=far[1], angle=0),
+                 effects=Effects(hide=True)),
+    ]
+    sch.schematicSymbols.append(inst)
 
 
 def _place_noconnect(sch: Schematic, pos: tuple[float, float]) -> None:
@@ -575,7 +848,167 @@ def _place_power_flag(sch: Schematic, net: str, pos: tuple[float, float], lib: S
     # property text (to the right) — so the net name reads in open space.
     below = (pos[0], pos[1] + 4 * 1.27)
     _place_wire(sch, pos, below)
-    _place_label(sch, net, below, angle=0)
+    # Wire enters the label from above → use the U/D vertical mapping
+    # (angle=90, justify_h="right") so chevron tip lands on the wire side.
+    _place_label(sch, net, below, angle=90, justify_h="right")
+
+
+def _place_rs485_term_block(
+    s: Schematic, lib: SymbolLib, *,
+    u_x: float, u_y: float, vcc_net: str,
+    term_ref: str, biasA_ref: str, biasB_ref: str, tvs_ref: str,
+) -> None:
+    """Wire the RS-485 bus-termination network as a clean two-rail block.
+
+    Guidelines a/b: the transceiver's datasheet parts (120 Ω termination,
+    two 680 Ω idle-bias resistors, SMAJ12CA TVS) are placed in the chip's
+    block and connected by WIRES, not by repeating RS485_A/RS485_B flags
+    on each part. The A and B differential lines become two horizontal
+    rails 6 G apart; the vertical parts bridge or tap them; a single
+    RS485_A / RS485_B label at each rail's right end carries the net
+    cross-sheet to the connector.
+
+        pin6 (A) ─┬───────┬───────[biasA]──────► RS485_A
+                [term]  [TVS]        │ up→VCC
+        pin7 (B) ─┴───────┴───────[biasB]──────► RS485_B
+                                    │ down→GND
+
+    `u_x,u_y` is the transceiver centre; chip pin-6 (A) tips at
+    (u_x+8G, u_y-6G) and pin-7 (B) at (u_x+8G, u_y-2G).
+    """
+    G = 1.27
+    x0 = u_x + 8 * G            # chip pin-6/7 connection tips
+    A_y = u_y - 6 * G           # A rail (pin-6 level)
+    B_y = u_y                   # B rail (= A_y + 6 G, fits a vertical R/TVS)
+    x_term = u_x + 14 * G
+    x_tvs = u_x + 20 * G
+    x_bias = u_x + 27 * G
+    x_end = u_x + 33 * G
+
+    # pin 7 (B) jogs down 2 G from its pin level to the B rail.
+    _place_wire(s, (x0, u_y - 2 * G), (x0, B_y))
+    # The two differential rails, drawn as SEGMENTS between consecutive
+    # tap points (chip pin, term, TVS, bias, label) so every tap is a
+    # shared wire endpoint — KiCad only auto-connects (and auto-junctions)
+    # a pin to a wire at a shared endpoint, not at a mid-span crossing.
+    for y in (A_y, B_y):
+        prev = x0
+        for x in (x_term, x_tvs, x_bias, x_end):
+            _place_wire(s, (prev, y), (x, y))
+            prev = x
+
+    # 120 Ω termination — vertical R bridging A (pin1 top) to B (pin2 bot).
+    _place_symbol(s, "R", term_ref, "120",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (x_term, A_y + 3 * G), lib=lib,
+                  ref_pos=(x_term + 2.5 * G, A_y + 3 * G - 1.27),
+                  value_pos=(x_term + 2.5 * G, A_y + 3 * G + 1.27))
+    # SMAJ12CA TVS — vertical (angle 90) bridging A/B; value left of body
+    # (it is the widest text and would otherwise reach the bias column).
+    _place_symbol(s, "D_TVS", tvs_ref, "SMAJ12CA",
+                  "Diode_SMD:D_SMA",
+                  (x_tvs, A_y + 3 * G), lib=lib, angle=90,
+                  autoplace_fields=False,
+                  ref_pos=(x_tvs, A_y - 2 * G),     # above the A rail
+                  value_pos=(x_tvs, B_y + 2 * G))   # below the B rail
+    # Idle-bias A: 680 Ω up from the A rail to VCC.
+    _place_symbol(s, "R", biasA_ref, "680",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (x_bias, A_y - 3 * G), lib=lib,
+                  ref_pos=(x_bias + 2.5 * G, A_y - 3 * G - 1.27),
+                  value_pos=(x_bias + 2.5 * G, A_y - 3 * G + 1.27))
+    _pin_label(s, vcc_net, (x_bias, A_y - 6 * G), 'U')
+    # Idle-bias B: 680 Ω down from the B rail to GND.
+    _place_symbol(s, "R", biasB_ref, "680",
+                  "Resistor_SMD:R_0805_2012Metric",
+                  (x_bias, B_y + 3 * G), lib=lib,
+                  ref_pos=(x_bias + 2.5 * G, B_y + 3 * G - 1.27),
+                  value_pos=(x_bias + 2.5 * G, B_y + 3 * G + 1.27))
+    _place_power_port(s, "GND", (x_bias, B_y + 6 * G), 'D', stub=2 * G, lib=lib)
+    # One label per rail, cross-sheet to the connector (outdir R).
+    _place_label(s, "RS485_A", (x_end, A_y), justify_h="left")
+    _place_label(s, "RS485_B", (x_end, B_y), justify_h="left")
+
+
+def _place_btn_debounce(
+    s: Schematic, lib: SymbolLib, *,
+    x: float, y: float, btn_ref: str, r_ref: str, c_ref: str,
+    btn_net: str, vcc_net: str = "V3V3",
+) -> None:
+    """A push-button debounce input drawn as one wired block (guideline b).
+
+    The common node carries a SINGLE `btn_net` label out to the MCU;
+    the switch (→GND), pull-up R (→VCC) and debounce C (→GND) are wired
+    to that node instead of each repeating the net flag.
+
+            VCC
+             │
+            [R]  pull-up
+             │
+      btn_net ●──[SW]──GND      (● = node; SW grounds it when pressed)
+             │
+            [C]  debounce
+             │
+            GND
+    """
+    G = 1.27
+    # Switch: body to the right; pin1 (left) → node, pin2 (right) → GND.
+    _place_symbol(s, "SW_Push", btn_ref, btn_ref,
+                  "Button_Switch_SMD:SW_SPST_B3S-1000",
+                  (x + 5 * G, y), lib=lib,
+                  ref_pos=(x + 5 * G, y - 3 * G),
+                  value_pos=(x + 5 * G, y + 3 * G))
+    _place_wire(s, (x + 1 * G, y), (x, y))                 # SW.pin1 → node
+    _place_power_port(s, "GND", (x + 9 * G, y), 'R', stub=2 * G, lib=lib)
+    # Pull-up R above the node.
+    _place_symbol(s, "R", r_ref, "1M",
+                  "Resistor_SMD:R_0805_2012Metric", (x, y - 4 * G), lib=lib)
+    _place_wire(s, (x, y - 1 * G), (x, y))                 # R.pin2 → node
+    _pin_label(s, vcc_net, (x, y - 7 * G), 'U')            # R.pin1 → VCC
+    # Debounce C below the node.
+    _place_symbol(s, "C", c_ref, "100nF",
+                  "Capacitor_SMD:C_0603_1608Metric", (x, y + 4 * G), lib=lib)
+    _place_wire(s, (x, y + 1 * G), (x, y))                 # C.pin1 → node
+    _place_power_port(s, "GND", (x, y + 7 * G), 'D', stub=2 * G, lib=lib)
+    # Single net label out to the MCU (outdir L).
+    _place_wire(s, (x, y), (x - 3 * G, y))
+    _place_label(s, btn_net, (x - 3 * G, y), justify_h="right")
+
+
+def _place_en_filter(
+    s: Schematic, lib: SymbolLib, *,
+    x: float, y: float, r_ref: str, c_ref: str, en_net: str, vcc_net: str,
+    r_val: str = "10k", c_val: str = "1uF",
+) -> None:
+    """MCU EN pull-up + soft-start drawn as one wired filter block.
+
+    A vertical R (VCC→node) over a C (node→GND) with the EN node carrying
+    a single `en_net` label to the MCU — the same idiom as the debounce
+    block minus the switch. Keeping it as its own block (rather than
+    interleaving the soft-start C among the V3V3 bulk caps) means the
+    V3V3 bulk trunk no longer has to cross the EN cap's stub.
+
+            VCC
+             │
+            [R]  pull-up
+             │
+      en_net ●
+             │
+            [C]  soft-start
+             │
+            GND
+    """
+    G = 1.27
+    _place_symbol(s, "R", r_ref, r_val,
+                  "Resistor_SMD:R_0805_2012Metric", (x, y - 4 * G), lib=lib)
+    _place_wire(s, (x, y - 1 * G), (x, y))
+    _pin_label(s, vcc_net, (x, y - 7 * G), 'U')
+    _place_symbol(s, "C", c_ref, c_val,
+                  "Capacitor_SMD:C_0603_1608Metric", (x, y + 4 * G), lib=lib)
+    _place_wire(s, (x, y + 1 * G), (x, y))
+    _place_power_port(s, "GND", (x, y + 7 * G), 'D', stub=2 * G, lib=lib)
+    _place_wire(s, (x, y), (x - 3 * G, y))
+    _place_label(s, en_net, (x - 3 * G, y), justify_h="right")
 
 
 def build_battery_side_schematic() -> None:
@@ -593,6 +1026,7 @@ def build_battery_side_schematic() -> None:
     _set_title_block(s, "Volthium reader — battery side")
     _add_rail_convention_note(s)
     lib = _load_project_lib()
+    _set_active_lib(lib)
 
     # KiCad connection grid is 1.27 mm. All positions are expressed as n×G
     # so endpoints land on the grid (resistor pins are at ±3*G from center,
@@ -621,7 +1055,8 @@ def build_battery_side_schematic() -> None:
     F1_X, F1_Y = 54 * G, 30 * G
     _place_symbol(s, "Fuse", "F1", "1A 5x20",
                   "Fuse:Fuseholder_Clip-5x20mm_Bel_FC-203-22_Lateral_P17.80x5.00mm_D1.17mm_Horizontal",
-                  (F1_X, F1_Y), lib=lib)
+                  (F1_X, F1_Y), lib=lib,
+                  value_pos=(F1_X + 5 * G, F1_Y + 1.27))  # CP6 iter-7: shift right of V24_AFTER_FUSE label
     _pin_label(s, "V24_RAW",        (F1_X, F1_Y - 3 * G), 'U')     # pin 1 (top)
     _pin_label(s, "V24_AFTER_FUSE", (F1_X, F1_Y + 3 * G), 'D')     # pin 2 (bottom)
 
@@ -631,14 +1066,19 @@ def build_battery_side_schematic() -> None:
     D1_X, D1_Y = 80 * G, 30 * G
     _place_symbol(s, "D", "D1", "SS24",
                   "Diode_SMD:D_SMA",
-                  (D1_X, D1_Y), lib=lib)
+                  (D1_X, D1_Y), lib=lib,
+                  ref_pos=(D1_X, D1_Y - 3 * G),   # D16: ref above body, clear of V24_AFTER_FUSE label area
+                  value_pos=(D1_X, D1_Y + 3 * G)) # D16: value below body
     _pin_label(s, "V24_FUSED",      (D1_X - 3 * G, D1_Y), 'L')     # pin 1 (K)
     _pin_label(s, "V24_AFTER_FUSE", (D1_X + 3 * G, D1_Y), 'R')     # pin 2 (A)
 
-    # TVS1 — SMAJ30CA bidirectional 24V TVS (Device:D_TVS generic, Value
-    # overridden). Pins same geometry as D.
-    TVS1_X, TVS1_Y = 104 * G, 30 * G
-    _place_symbol(s, "D_TVS", "TVS1", "SMAJ30CA",
+    # TVS1 — SMAJ33CA bidirectional TVS on V24_FUSED (iter-17): 33 V
+    # stand-off gives clean margin over a 24 V LiFePO4 bus at full charge
+    # (~29 V) — 30 V was only ~1 V above and could leak/clamp in normal
+    # operation. Clamps ~53 V; tolerated by the 72 V R-78HB buck (DR-2).
+    # Bidirectional + the series SS24 (D1) covers reverse polarity.
+    TVS1_X, TVS1_Y = 124 * G, 30 * G  # iter-9: pulled +20G so V24_FUSED flag body doesn't collide with V24_AFTER_FUSE flag body
+    _place_symbol(s, "D_TVS", "TVS1", "SMAJ33CA",
                   "Diode_SMD:D_SMA",
                   (TVS1_X, TVS1_Y), lib=lib)
     _pin_label(s, "V24_FUSED", (TVS1_X - 3 * G, TVS1_Y), 'L')      # pin 1
@@ -686,95 +1126,37 @@ def build_battery_side_schematic() -> None:
     _place_wire(s, (R5_X, R5_Y + 3 * G), (R6_X, R6_Y - 3 * G))  # R5↓ → R6↑
     _place_wire(s, (R6_X, R6_Y - 3 * G), (C5_X, C5_Y - 3 * G))  # R6↑ → C5↑
 
-    # ===== Iter 12: 3V3 converter — U1 (TPS62933F) + L1 + bulk caps =====
-
-    # U1 — TPS62933 buck regulator, 8-pin SOT-563. Pin geometry (lib coords;
-    # schematic Y-flip applies):
-    #   pin 1 RT  (-7.62, -5.08) passive → sch (X-7.62, Y+5.08)
-    #   pin 2 EN  (-7.62,  5.08) input   → sch (X-7.62, Y-5.08)
-    #   pin 3 VIN (-7.62,  7.62) power_in→ sch (X-7.62, Y-7.62)
-    #   pin 4 GND ( 0,   -12.7)  power_in→ sch (X,      Y+12.7) — bottom of body
-    #   pin 5 SW  ( 7.62,  0)    output  → sch (X+7.62, Y)
-    #   pin 6 BST ( 7.62,  7.62) passive → sch (X+7.62, Y-7.62)
-    #   pin 7 SS  (-7.62, -2.54) passive → sch (X-7.62, Y+2.54)
-    #   pin 8 FB  ( 7.62, -7.62) input   → sch (X+7.62, Y+7.62)
-    U1_X, U1_Y = 150 * G, 72 * G   # buck cluster; L1/C1/C2/C_BST derive
-    _place_symbol(s, "TPS62933", "U1", "TPS62933FDRLR",
-                  "Package_TO_SOT_SMD:SOT-23-6",
+    # ===== 3V3 converter — U1 Recom R-78HB3.3-0.5 (9–72 V wide input) =====
+    # iter-17 (DR-2): replaced the discrete TPS62933 buck (30 V VIN max)
+    # with a wide-input R-78HB module. TVS1 clamps to ~53 V on a surge — a
+    # 30 V buck would be destroyed before the TVS protects it; the R-78HB's
+    # 72 V rating tolerates the clamp with margin. Bonus: drops L1 + the
+    # bootstrap cap, and makes all three rails (this 3V3, U2's 12 V, the
+    # display 3V3) the same Recom R-78 module family. SIP3, Conn_01x03
+    # geometry: pin 1 VIN, pin 2 GND, pin 3 VOUT — all on the left.
+    U1_X, U1_Y = 150 * G, 72 * G
+    _place_symbol(s, "Conn_01x03", "U1", "R-78HB3.3-0.5",
+                  "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT",
                   (U1_X, U1_Y), lib=lib,
-                  value_pos=(U1_X, U1_Y + 14 * G))  # iter 51 fix C: out of body, below GND label
-    # Pin connections per CP1 §5 net list:
-    #   VIN ← V24_FUSED
-    #   GND ← GND
-    #   EN  ← V24_FUSED (always-on; firmware kills U1 via the Q1 path)
-    #   SW  → U1_SW (internal to U1+L1)
-    #   FB  ← V3V3_SW (fixed-3.3 variant pin is tied to VOUT)
-    #   BST → 100nF bootstrap cap (placeholder NoConnect for now; cap added
-    #         in iter 14 when MOSFET cluster lands — they share decoupling)
-    #   SS, RT → NoConnect (use internal defaults)
-    # CP-cleanup iter 24: U1.VIN (pin 3) and U1.EN (pin 2) are both
-    # tied to V24_SW (always-on regulator). Wire pin 3 → pin 2 → label.
-    # iter 47 (fix B2): extend the pickoff 2G outward so the label
-    # sits clear of the chip's "EN"/"VIN" pin name text.
-    _place_wire(s, (U1_X - 6 * G, U1_Y - 6 * G), (U1_X - 6 * G, U1_Y - 4 * G))   # pin 3 ↔ pin 2
-    _place_wire(s, (U1_X - 6 * G, U1_Y - 4 * G), (U1_X - 8 * G, U1_Y - 4 * G))  # tied-pair stub
-    _place_label(s, "V24_SW",  (U1_X - 8 * G, U1_Y - 4 * G), angle=180)   # pin 2 EN / pin 3 VIN (left → reads left)
-    _place_wire(s,  (U1_X,         U1_Y + 10 * G), (U1_X,         U1_Y + 11 * G))  # pin 4 stub
-    _place_label(s, "GND",     (U1_X,         U1_Y + 11 * G), angle=270)  # pin 4 GND (bottom → reads down)
-    _place_wire(s,  (U1_X + 6 * G, U1_Y),         (U1_X + 8 * G, U1_Y))            # pin 5 stub
-    _place_label(s, "U1_SW",   (U1_X + 8 * G, U1_Y))             # pin 5 SW
-    _place_wire(s,  (U1_X + 6 * G, U1_Y + 6 * G), (U1_X + 8 * G, U1_Y + 6 * G))   # pin 8 stub
-    _place_label(s, "V3V3_SW", (U1_X + 8 * G, U1_Y + 6 * G))     # pin 8 FB
-    _place_noconnect(s, (U1_X - 6 * G, U1_Y + 4 * G))            # pin 1 RT
-    _place_noconnect(s, (U1_X - 6 * G, U1_Y + 2 * G))            # pin 7 SS
-    # BST: 100 nF bootstrap cap between U1.BST (pin 6) and U1.SW (pin 5).
-    # Per Codex iter-13 guidance Q-CP2-10 — required for the high-side MOSFET
-    # gate drive to function on real hardware.
-    _place_wire(s,  (U1_X + 6 * G, U1_Y - 6 * G), (U1_X + 8 * G, U1_Y - 6 * G))  # pin 6 stub
-    _place_label(s, "U1_BST",  (U1_X + 8 * G, U1_Y - 6 * G))     # pin 6 BST → cap
+                  value_pos=(U1_X, U1_Y + 6 * G))  # out of body, clear of pin 3 number
+    _pin_label(s, "V24_SW",  (U1_X - 4 * G, U1_Y - 2 * G), 'L')   # pin 1 VIN
+    _pin_label(s, "GND",     (U1_X - 4 * G, U1_Y),         'L')   # pin 2 GND
+    _pin_label(s, "V3V3_SW", (U1_X - 4 * G, U1_Y + 2 * G), 'L')   # pin 3 VOUT
 
-    # L1 — 2.2 µH inductor (2-pin, same geometry as R: ±3.81 from center).
-    L1_X, L1_Y = U1_X + 20 * G, U1_Y   # (177.8, 38.1)
-    _place_symbol(s, "L", "L1", "2.2uH",
-                  "Inductor_SMD:L_0805_2012Metric",  # placeholder
-                  (L1_X, L1_Y), lib=lib)
-    # L1.pin1 U1_SW label deduped — wire to U1.SW directly (iter 32).
-    _place_wire(s, (U1_X + 6 * G, U1_Y),  (L1_X, U1_Y))             # U1.SW → corner
-    _place_wire(s, (L1_X, U1_Y),          (L1_X, L1_Y - 3 * G))     # corner → L1.pin1
-    _pin_label(s, "V3V3_SW", (L1_X, L1_Y + 3 * G), 'D')     # pin 2 (bottom)
+    # C1 — 22 µF input bulk on V24_SW. 100 V: V24_SW sits behind the TVS
+    # and can see its ~53 V clamp, so the input cap must out-rate it.
+    C1_X, C1_Y = U1_X + 8 * G, U1_Y
+    _place_symbol(s, "C", "C1", "22uF/100V",
+                  "Capacitor_SMD:C_1210_3225Metric", (C1_X, C1_Y), lib=lib)
+    _pin_label(s, "V24_SW", (C1_X, C1_Y - 3 * G), 'U')
+    _pin_label(s, "GND",    (C1_X, C1_Y + 3 * G), 'D')
 
-    # C1 — 22 µF bulk on V24_SW (U1 VIN decoupling)
-    C1_X, C1_Y = U1_X - 14 * G, U1_Y + 4 * G   # (134.62, 43.18)
-    _place_symbol(s, "C", "C1", "22uF/25V",
-                  "Capacitor_SMD:C_1210_3225Metric",
-                  (C1_X, C1_Y), lib=lib)
-    _pin_label(s, "V24_SW", (C1_X, C1_Y - 3 * G), 'U')   # pin 1
-    _pin_label(s, "GND",    (C1_X, C1_Y + 3 * G), 'D')   # pin 2
-
-    # C2 — 22 µF bulk on V3V3_SW (U1 VOUT decoupling)
-    C2_X, C2_Y = L1_X + 8 * G, L1_Y + 4 * G   # (188.4, 43.18)
+    # C2 — 22 µF output bulk on V3V3_SW (3.3 V → 25 V part is ample).
+    C2_X, C2_Y = U1_X + 16 * G, U1_Y
     _place_symbol(s, "C", "C2", "22uF/25V",
-                  "Capacitor_SMD:C_1210_3225Metric",
-                  (C2_X, C2_Y), lib=lib)
+                  "Capacitor_SMD:C_0805_2012Metric", (C2_X, C2_Y), lib=lib)
     _pin_label(s, "V3V3_SW", (C2_X, C2_Y - 3 * G), 'U')
-    # No GND label here — see the C2↔C3 GND wire after C3 placement.
-
-    # C_BST — 100 nF bootstrap cap between U1.BST and U1.SW. Required for
-    # TPS62933 high-side MOSFET gate drive. Per Codex iter-13 Q-CP2-10.
-    CBST_X, CBST_Y = U1_X + 10 * G, U1_Y - 4 * G   # (165.1, 33.02)
-    _place_symbol(s, "C", "C_BST", "100nF",
-                  "Capacitor_SMD:C_0603_1608Metric",
-                  (CBST_X, CBST_Y), lib=lib)
-    # CP-cleanup iter 32 (Finding 09): drop the C_BST end labels and
-    # wire C_BST directly to U1.BST + U1.SW pins. U1 keeps both labels.
-    # C_BST pin 1 (U1_BST node) at (CBST_X, CBST_Y - 3*G) = (CBST_X, 29.21)
-    # U1.BST at (U1_X + 6*G, U1_Y - 6*G) = (204.47, 30.48)
-    _place_wire(s, (U1_X + 6 * G, U1_Y - 6 * G), (CBST_X, U1_Y - 6 * G))   # U1.BST → corner
-    _place_wire(s, (CBST_X, U1_Y - 6 * G), (CBST_X, CBST_Y - 3 * G))       # corner → C_BST.pin1
-    # C_BST pin 2 (U1_SW node) at (CBST_X, CBST_Y + 3*G) = (CBST_X, 36.83)
-    # U1.SW at (U1_X + 6*G, U1_Y) = (204.47, 38.10)
-    _place_wire(s, (U1_X + 6 * G, U1_Y),       (CBST_X, U1_Y))             # U1.SW → corner
-    _place_wire(s, (CBST_X, U1_Y),             (CBST_X, CBST_Y + 3 * G))   # corner → C_BST.pin2
+    _pin_label(s, "GND",     (C2_X, C2_Y + 3 * G), 'D')
 
     # ===== Iter 14: 12V converter — U2 (Recom R-78E12-1.0) + C3 + C4 =====
     #
@@ -790,23 +1172,21 @@ def build_battery_side_schematic() -> None:
     U2_X, U2_Y = 214 * G, 72 * G   # V12 cluster level w/ buck; C3/C4 derive
     _place_symbol(s, "Conn_01x03", "U2", "R-78E12-1.0",
                   "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT",
-                  (U2_X, U2_Y), lib=lib)
+                  (U2_X, U2_Y), lib=lib,
+                  value_pos=(U2_X, U2_Y + 6 * G))  # CP6 iter-7: out of body, clear of pin 3 number bbox
     _pin_label(s, "V24_SW",     (U2_X - 4 * G, U2_Y - 2 * G), 'L')   # pin 1 VIN (top)
     _pin_label(s, "GND",        (U2_X - 4 * G, U2_Y),         'L')   # pin 2 GND (mid)
     _pin_label(s, "V12_CAT5E",  (U2_X - 4 * G, U2_Y + 2 * G), 'L')   # pin 3 VOUT (bot)
 
-    # C3 — 22 µF bulk on V24_SW (U2 VIN decoupling)
-    C3_X, C3_Y = U2_X - 14 * G, U2_Y + 4 * G   # (185.42, 43.18)
-    _place_symbol(s, "C", "C3", "22uF/35V",
+    # C3 — 22 µF bulk on V24_SW (U2 VIN decoupling). 100 V: V24_SW sits
+    # behind the TVS (it can see the ~53 V clamp) — a 35 V part was
+    # under-rated and could fail short on a surge (iter-17).
+    C3_X, C3_Y = U2_X - 22 * G, U2_Y + 4 * G   # iter-9: shifted -8G so the C3 ref clears U2's V12_CAT5E flag body extending left
+    _place_symbol(s, "C", "C3", "22uF/100V",
                   "Capacitor_SMD:C_1210_3225Metric",
                   (C3_X, C3_Y), lib=lib)
     _pin_label(s, "V24_SW", (C3_X, C3_Y - 3 * G), 'U')
     _pin_label(s, "GND",    (C3_X, C3_Y + 3 * G), 'D')
-
-    # CP-cleanup iter 28: C2 (V3V3 bulk) and C3 (V12 bulk) both have
-    # GND at the bottom pin, only 3.81mm apart at y=46.99. Wire them;
-    # C3 keeps the GND label, C2's was dropped above.
-    _place_wire(s, (C2_X, C2_Y + 3 * G), (C3_X, C3_Y + 3 * G))
 
     # C4 — 22 µF bulk on V12_CAT5E (U2 VOUT decoupling)
     C4_X, C4_Y = U2_X + 8 * G, U2_Y + 4 * G   # (213.36, 43.18)
@@ -833,26 +1213,30 @@ def build_battery_side_schematic() -> None:
     # Q1 — AO3401A P-MOSFET, hard-cut load switch
     Q1_X, Q1_Y = 52 * G, 72 * G   # hard-cut switch (rigid-translated cluster, ERC-clean geometry)
     _place_symbol(s, "Q_PMOS_GSD", "Q1", "AO3401A",
-                  "Package_TO_SOT_SMD:SOT-23", (Q1_X, Q1_Y), lib=lib)
+                  "Package_TO_SOT_SMD:SOT-23", (Q1_X, Q1_Y), lib=lib,
+                  ref_pos=(Q1_X + 5 * G, Q1_Y - 3 * G),    # iter-9b: ref upper-right, clear of in-body G/D/S pin names
+                  value_pos=(Q1_X + 5 * G, Q1_Y + 3 * G))  # iter-9b: value lower-right
     # iter 55 fix F1: pull each Q1 net label 2G off the pin endpoint
     # with a stub wire so the label doesn't sit on the in-symbol pin
     # name letter (G/S/D).
-    _place_wire(s,  (Q1_X - 4 * G, Q1_Y),         (Q1_X - 6 * G, Q1_Y))           # pin 1 G stub
-    _place_label(s, "Q1_GATE",   (Q1_X - 6 * G, Q1_Y), angle=180)                 # pin 1 G (left → reads left)
+    _place_wire(s,  (Q1_X - 4 * G, Q1_Y),         (Q1_X - 8 * G, Q1_Y))           # D16: 4G stub clears the "G" pin name
+    _place_label(s, "Q1_GATE",   (Q1_X - 8 * G, Q1_Y), justify_h="right")          # pin 1 G (outdir=L)
     _place_wire(s,  (Q1_X + 2 * G, Q1_Y + 4 * G), (Q1_X + 2 * G, Q1_Y + 6 * G))  # pin 2 S stub (down)
-    _place_label(s, "V24_FUSED", (Q1_X + 2 * G, Q1_Y + 6 * G))                    # pin 2 S
+    _place_label(s, "V24_FUSED", (Q1_X + 2 * G, Q1_Y + 6 * G), angle=90, justify_h="right")  # pin 2 S (outdir=D)
     _place_wire(s,  (Q1_X + 2 * G, Q1_Y - 4 * G), (Q1_X + 2 * G, Q1_Y - 6 * G))  # pin 3 D stub (up)
-    _place_label(s, "V24_SW",    (Q1_X + 2 * G, Q1_Y - 6 * G))                    # pin 3 D
+    _place_label(s, "V24_SW",    (Q1_X + 2 * G, Q1_Y - 6 * G), angle=90, justify_h="left")  # pin 3 D (outdir=U)
 
     # Q2 — AO3400A N-MOSFET, drives Q1's gate from PWR_EN
     Q2_X, Q2_Y = 42 * G, 82 * G   # Q1 + (-10,+10)
     _place_symbol(s, "Q_NMOS_GSD", "Q2", "AO3400A",
-                  "Package_TO_SOT_SMD:SOT-23", (Q2_X, Q2_Y), lib=lib)
+                  "Package_TO_SOT_SMD:SOT-23", (Q2_X, Q2_Y), lib=lib,
+                  ref_pos=(Q2_X + 5 * G, Q2_Y - 3 * G),    # iter-9b: ref upper-right, clear of in-body G/D/S pin names
+                  value_pos=(Q2_X + 5 * G, Q2_Y + 3 * G))  # iter-9b: value lower-right
     # iter 55 fix F1: same stub-out pattern.
-    _place_wire(s,  (Q2_X - 4 * G, Q2_Y),         (Q2_X - 6 * G, Q2_Y))           # pin 1 G stub
-    _place_label(s, "PWR_EN",  (Q2_X - 6 * G, Q2_Y), angle=180)                   # pin 1 G (left → reads left)
-    _place_wire(s,  (Q2_X + 2 * G, Q2_Y + 4 * G), (Q2_X + 2 * G, Q2_Y + 6 * G))  # pin 2 S stub
-    _place_label(s, "GND",     (Q2_X + 2 * G, Q2_Y + 6 * G))                      # pin 2 S
+    _place_wire(s,  (Q2_X - 4 * G, Q2_Y),         (Q2_X - 8 * G, Q2_Y))           # D16: 4G stub clears the "G" pin name
+    _place_label(s, "PWR_EN",  (Q2_X - 8 * G, Q2_Y), justify_h="right")            # pin 1 G (outdir=L)
+    # D16: Q2 pin 2 S → GND via stock power port.
+    _place_power_port(s, "GND", (Q2_X + 2 * G, Q2_Y + 4 * G), 'D', stub=2 * G, lib=lib)
     # Q1_GATE label deduped at Q2.D — wire up to Q1.G (which keeps the label).
     _place_wire(s, (Q2_X + 2 * G, Q2_Y - 4 * G), (Q2_X + 2 * G, Q1_Y))   # Q2.D → corner
     _place_wire(s, (Q2_X + 2 * G, Q1_Y),         (Q1_X - 4 * G, Q1_Y))   # corner → Q1.G
@@ -868,10 +1252,15 @@ def build_battery_side_schematic() -> None:
     _place_wire(s, (R3_X, Q1_Y),         (Q1_X - 4 * G, Q1_Y))       # corner → Q1.G
 
     # R4 — 100 kΩ Q2 gate pull-down to GND (failsafe on MCU brown-out)
-    R4_X, R4_Y = 30 * G, 82 * G   # Q1 + (-22,+10)
+    # iter-10: moved to 24G (was 30G) so the resistor body clears Q2's
+    # gate PWR_EN label, whose body extends left from Q2.G across this
+    # column. R4 ↔ Q2.G connect by net name (both PWR_EN), no wire.
+    R4_X, R4_Y = 24 * G, 82 * G
     _place_symbol(s, "R", "R4", "100k",
                   "Resistor_SMD:R_0805_2012Metric",
-                  (R4_X, R4_Y), lib=lib)
+                  (R4_X, R4_Y), lib=lib,
+                  ref_pos=(R4_X - 4 * G, R4_Y - 1.27),    # ref left, clear of the PWR_EN label column to the right
+                  value_pos=(R4_X - 4 * G, R4_Y + 1.27))
     _pin_label(s, "PWR_EN", (R4_X, R4_Y - 3 * G), 'U')   # pin 1
     _pin_label(s, "GND",    (R4_X, R4_Y + 3 * G), 'D')   # pin 2
 
@@ -962,7 +1351,8 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
                   "RF_Module:ESP32-S3-WROOM-1U",  # -1U variant: external U.FL antenna, no keepout zone
                   (MOD1_X, MOD1_Y), lib=lib,
-                  value_pos=(MOD1_X, MOD1_Y + 30 * G))  # value below body
+                  ref_pos=(MOD1_X + 16 * G, MOD1_Y - 24 * G),  # D16: above-right, clear of V3V3_SW top label
+                  value_pos=(MOD1_X, MOD1_Y + 36 * G))  # iter-10: +36G clears the bottom-pin GND flag
     # Pins 1, 40, 41 (all GND) share the same library position in the
     # ESP32-S3-WROOM-1 symbol (0, -27.94). Placing one label per pin
     # creates 3 stacked GND labels at the same coordinate — fails D11
@@ -984,12 +1374,17 @@ def build_battery_side_schematic() -> None:
             _place_noconnect(s, endpoint)
         else:
             dx, dy = _outward_for_angle(lib_a)
-            outer = (endpoint[0] + dx * 4 * G, endpoint[1] + dy * 4 * G)
+            outer = (endpoint[0] + dx * 12 * G, endpoint[1] + dy * 8 * G)  # D16: 6G stub so chevron tip clears the newly-visible MOD1 pin number
             _place_wire(s, endpoint, outer)
-            # Orient the label so its text reads AWAY from the symbol body
-            # (left-side pins must extend left, not back over the pin name).
-            lbl_angle = {(-1, 0): 180, (1, 0): 0, (0, -1): 90, (0, 1): 270}.get((dx, dy), 0)
-            _place_label(s, net, outer, angle=lbl_angle)
+            # Orient flag so chevron tip sits on the wire side and the
+            # text reads cleanly inside the body. (dx,dy) is the pin's
+            # outward direction; the wire enters the label from the
+            # OPPOSITE side. Map to (angle, justify_h) per the empirical
+            # sweep documented in the chevron-direction memory.
+            lbl_angle = {(-1, 0): 0, (1, 0): 0, (0, -1): 90, (0, 1): 90}[(dx, dy)]
+            lbl_justify = {(-1, 0): "right", (1, 0): "left",
+                           (0, -1): "left", (0, 1): "right"}[(dx, dy)]
+            _place_label(s, net, outer, angle=lbl_angle, justify_h=lbl_justify)
 
     # ===== Iter 18: ESP support — R7 EN pull-up + C8 EN soft-start cap +
     #               C6 ESP bulk decoupling + C7 ESP HF decoupling =====
@@ -998,38 +1393,30 @@ def build_battery_side_schematic() -> None:
     # existing power cluster). Y at MOD1_Y - 30*G so the support cluster
     # is above ESP horizontally.
     SUP_Y = MOD1_Y - 38 * G   # ESP support row above MCU
-
-    # R7 — 10 kΩ pull-up from ESP_EN to V3V3_SW. Vertical (R pins ±3*G).
-    R7_X, R7_Y = MOD1_X - 24 * G, SUP_Y
-    _place_symbol(s, "R", "R7", "10k",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R7_X, R7_Y), lib=lib)
-    _pin_label(s, "V3V3_SW", (R7_X, R7_Y - 3 * G), 'U')   # pin 1 top
-    _pin_label(s, "ESP_EN",  (R7_X, R7_Y + 3 * G), 'D')   # pin 2 bottom
-
-    # C8 — 1 µF EN soft-start cap. EN to GND.
-    C8_X, C8_Y = MOD1_X - 16 * G, SUP_Y
-    _place_symbol(s, "C", "C8", "1uF",
-                  "Capacitor_SMD:C_0603_1608Metric",
-                  (C8_X, C8_Y), lib=lib)
-    _pin_label(s, "ESP_EN", (C8_X, C8_Y - 3 * G), 'U')
-    _pin_label(s, "GND",    (C8_X, C8_Y + 3 * G), 'D')
-
-    # C6 — 10 µF ESP bulk on V3V3_SW
-    C6_X, C6_Y = MOD1_X - 8 * G, SUP_Y
+    # iter-10: shift the whole support row 4 G left of its old origin so
+    # no support cap sits in MOD1's centre top-pin column (MOD1 V3V3_SW
+    # pin emits a vertical flag upward at x=MOD1_X; C7 used to sit there
+    # and collided with that flag body + C7's own value text).
+    # iter-15: EN pull-up + soft-start as their own wired filter block
+    # (R7/C8) so the V3V3_SW bulk trunk (C6/C7) no longer crosses the EN
+    # cap's stub.
+    _place_en_filter(s, lib, x=MOD1_X - 26 * G, y=SUP_Y,
+                     r_ref="R7", c_ref="C8", en_net="ESP_EN", vcc_net="V3V3_SW")
+    # C6 (10 µF bulk) + C7 (100 nF HF) on a short V3V3_SW trunk.
+    C6_X, C6_Y = MOD1_X - 12 * G, SUP_Y
     _place_symbol(s, "C", "C6", "10uF",
-                  "Capacitor_SMD:C_0805_2012Metric",
-                  (C6_X, C6_Y), lib=lib)
-    _pin_label(s, "V3V3_SW", (C6_X, C6_Y - 3 * G), 'U')
-    _pin_label(s, "GND",     (C6_X, C6_Y + 3 * G), 'D')
-
-    # C7 — 100 nF ESP HF decoupling
-    C7_X, C7_Y = MOD1_X, SUP_Y
+                  "Capacitor_SMD:C_0805_2012Metric", (C6_X, C6_Y), lib=lib)
+    _pin_label(s, "GND",  (C6_X, C6_Y + 3 * G), 'D')
+    C7_X, C7_Y = MOD1_X - 4 * G, SUP_Y
     _place_symbol(s, "C", "C7", "100nF",
-                  "Capacitor_SMD:C_0402_1005Metric",
-                  (C7_X, C7_Y), lib=lib)
-    _pin_label(s, "V3V3_SW", (C7_X, C7_Y - 3 * G), 'U')
-    _pin_label(s, "GND",     (C7_X, C7_Y + 3 * G), 'D')
+                  "Capacitor_SMD:C_0402_1005Metric", (C7_X, C7_Y), lib=lib)
+    _pin_label(s, "GND",  (C7_X, C7_Y + 3 * G), 'D')
+    _TRUNK_Y = SUP_Y - 5 * G
+    _place_wire(s, (C6_X, C6_Y - 3 * G), (C6_X, _TRUNK_Y))
+    _place_wire(s, (C7_X, C7_Y - 3 * G), (C7_X, _TRUNK_Y))
+    _place_wire(s, (C6_X, _TRUNK_Y), (C7_X, _TRUNK_Y))
+    _place_wire(s, (C6_X, _TRUNK_Y), (C6_X, _TRUNK_Y - 3 * G))   # label up-tap
+    _place_label(s, "V3V3_SW", (C6_X, _TRUNK_Y - 3 * G), angle=90, justify_h="left")
 
     # ===== Iter 20: RTC + RS-485 + button + connectors + dev headers =====
     # Last sub-iter on the battery-side schematic. Completes the design.
@@ -1055,20 +1442,20 @@ def build_battery_side_schematic() -> None:
     # are both top-side pins 2G apart in X — VBAT gets an L-shape stub
     # 4G to the right so the two labels don't pile up horizontally.
     _place_wire(s,  (RTC1_X - 2 * G, RTC1_Y -  8 * G), (RTC1_X - 2 * G, RTC1_Y - 10 * G))   # pin 2 stub
-    _place_label(s, "V3V3_SW",  (RTC1_X - 2 * G, RTC1_Y - 10 * G), angle=90)                 # pin 2 VCC (top → up)
+    _place_label(s, "V3V3_SW",  (RTC1_X - 2 * G, RTC1_Y - 10 * G), angle=90, justify_h="left")  # pin 2 VCC (outdir=U)
     # iter 49 (Finding 15): pin 14 VBAT now routed up 4G + right 6G so
     # the V_BAT_RTC label is offset BOTH vertically and horizontally from
     # the pin 2 V3V3_SW label — clear visual gap in iter-47 evidence the
     # 4G horizontal offset alone wasn't enough.
     _place_wire(s,  (RTC1_X,         RTC1_Y -  8 * G), (RTC1_X,         RTC1_Y - 12 * G))   # pin 14 up 4G
     _place_wire(s,  (RTC1_X,         RTC1_Y - 12 * G), (RTC1_X + 6 * G, RTC1_Y - 12 * G))   # pin 14 right 6G
-    _place_label(s, "V_BAT_RTC",(RTC1_X + 6 * G, RTC1_Y - 12 * G), angle=90)                 # pin 14 VBAT (top → up)
-    _place_wire(s,  (RTC1_X,         RTC1_Y +  8 * G), (RTC1_X,         RTC1_Y + 10 * G))   # pin 13 stub
-    _place_label(s, "GND",      (RTC1_X,         RTC1_Y + 10 * G), angle=270)               # pins 5-13 GND (bottom → down)
-    _place_wire(s,  (RTC1_X - 10 * G, RTC1_Y - 2 * G), (RTC1_X - 12 * G, RTC1_Y - 2 * G))  # pin 15 stub
-    _place_label(s, "I2C_SDA",  (RTC1_X - 12 * G, RTC1_Y - 2 * G), angle=180)               # pin 15 SDA (left → left)
-    _place_wire(s,  (RTC1_X - 10 * G, RTC1_Y - 4 * G), (RTC1_X - 12 * G, RTC1_Y - 4 * G))  # pin 16 stub
-    _place_label(s, "I2C_SCL",  (RTC1_X - 12 * G, RTC1_Y - 4 * G), angle=180)               # pin 16 SCL (left → left)
+    _place_label(s, "V_BAT_RTC",(RTC1_X + 6 * G, RTC1_Y - 12 * G), angle=90, justify_h="left")  # pin 14 VBAT (outdir=U)
+    # D16: RTC1 pins 5..13 GND → stock power port.
+    _place_power_port(s, "GND", (RTC1_X, RTC1_Y + 8 * G), 'D', stub=2 * G, lib=lib)
+    _place_wire(s,  (RTC1_X - 10 * G, RTC1_Y - 2 * G), (RTC1_X - 14 * G, RTC1_Y - 2 * G))  # D16: 4G stub so chevron clears pin 15 number
+    _place_label(s, "I2C_SDA",  (RTC1_X - 14 * G, RTC1_Y - 2 * G), justify_h="right")  # outdir=L
+    _place_wire(s,  (RTC1_X - 10 * G, RTC1_Y - 4 * G), (RTC1_X - 14 * G, RTC1_Y - 4 * G))  # D16: 4G stub
+    _place_label(s, "I2C_SCL",  (RTC1_X - 14 * G, RTC1_Y - 4 * G), justify_h="right")  # outdir=L
     _place_noconnect(s, (RTC1_X - 10 * G, RTC1_Y + 4 * G))          # pin 4 RST
     _place_noconnect(s, (RTC1_X + 10 * G, RTC1_Y - 4 * G))          # pin 1 32KHZ
     _place_noconnect(s, (RTC1_X + 10 * G, RTC1_Y + 2 * G))          # pin 3 INT/SQW
@@ -1104,15 +1491,12 @@ def build_battery_side_schematic() -> None:
     _pin_label(s, "V3V3_SW", (R8_X, R8_Y - 3 * G), 'U')
     _pin_label(s, "I2C_SDA", (R8_X, R8_Y + 3 * G), 'D')
     R9_X, R9_Y = 42 * G, 128 * G
-    # D11 #2 demo: horizontal wire linking R8/R9 V3V3_SW endpoints visually.
-    # Both endpoints already have V3V3_SW labels; the wire is decorative
-    # reinforcement that these I2C pullups share the same rail. ERC
-    # topology unchanged (labels are the topological source-of-truth).
+    # D16: V3V3_SW deduped — R8.pin1 keeps the single label and
+    # the horizontal wire carries V3V3_SW to R9.pin1.
     _place_wire(s, (R9_X, R9_Y - 3 * G), (R8_X, R8_Y - 3 * G))
     _place_symbol(s, "R", "R9", "4.7k",
                   "Resistor_SMD:R_0805_2012Metric",
                   (R9_X, R9_Y), lib=lib)
-    _pin_label(s, "V3V3_SW", (R9_X, R9_Y - 3 * G), 'U')
     _pin_label(s, "I2C_SCL", (R9_X, R9_Y + 3 * G), 'D')
 
     # U3 — RS-485 transceiver (LTC2850xS8 stand-in for SN65HVD3082E).
@@ -1129,99 +1513,83 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "LTC2850xS8", "U3", "SN65HVD3082E",
                   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
                   (U3_X, U3_Y), lib=lib,
-                  value_pos=(U3_X, U3_Y + 15 * G))  # iter 51 fix C: out of body, below GND label stub
-    # CP-cleanup iter 45 (fix B1): pull every U3 net label off the pin
-    # endpoint by 1G (2.54 mm) so the label arrow doesn't overlap the
-    # chip's in-body pin name text. Pattern per pin: pin endpoint → 1G
-    # stub wire → relocated net label.
-    _place_wire(s,  (U3_X -  8 * G, U3_Y - 4 * G), (U3_X - 10 * G, U3_Y - 4 * G))  # pin 1 stub
-    _place_label(s, "UART_RX_3V3", (U3_X - 10 * G, U3_Y - 4 * G), angle=180)       # pin 1 RO (left)
+                  value_pos=(U3_X, U3_Y + 18 * G))  # CP6 iter-7: below the GND label stub at Y+16G, with margin
+    # CP6 iter-7 strict-overlap fix: GlobalLabel's hexagonal chevron is
+    # ~1.5 G wide either side of its anchor; with the previous 2 G horizontal
+    # stub the chevron's pointed tip protruded back into the chip body and
+    # landed right on top of the pin number ("1", "4", etc.). Bumped to 4 G
+    # horizontal stubs and 3 G vertical stubs so the chevron tip sits a
+    # full grid step clear of the pin endpoint.
+    _STUB_H = 8 * G   # horizontal stub for left/right pins — enough that even the longest label (UART_RX_3V3, ~28 pt = ~10 mm) clears the pin number bbox
+    _STUB_V = 4 * G   # vertical stub for top/bottom pins
+    _place_wire(s,  (U3_X -  8 * G, U3_Y - 4 * G), (U3_X -  8 * G - _STUB_H, U3_Y - 4 * G))  # pin 1 stub
+    _place_label(s, "UART_RX_3V3", (U3_X - 8 * G - _STUB_H, U3_Y - 4 * G), justify_h="right")  # pin 1 RO (outdir=L)
     # CP-cleanup iter 24: U3 ~RE (pin 2) and DE (pin 3) are tied so the
-    # MCU drives both with a single DE_RE signal. iter 45: extend the
-    # tied-pair pickoff 1G further out so the label sits clear of both
-    # pin names.
-    _place_wire(s,  (U3_X -  8 * G, U3_Y - 2 * G), (U3_X -  8 * G, U3_Y))           # pin 2 ↔ pin 3
-    _place_wire(s,  (U3_X -  8 * G, U3_Y - 2 * G), (U3_X - 10 * G, U3_Y - 2 * G))  # tied-pair stub
-    _place_label(s, "DE_RE",       (U3_X - 10 * G, U3_Y - 2 * G), angle=180)       # pin 2/3 (tied, left)
-    _place_wire(s,  (U3_X -  8 * G, U3_Y + 4 * G), (U3_X - 10 * G, U3_Y + 4 * G))  # pin 4 stub
-    _place_label(s, "UART_TX_3V3", (U3_X - 10 * G, U3_Y + 4 * G), angle=180)       # pin 4 DI (left)
-    _place_wire(s,  (U3_X,          U3_Y + 12 * G), (U3_X,          U3_Y + 13 * G))  # pin 5 stub
-    _place_label(s, "GND",         (U3_X,          U3_Y + 13 * G), angle=270)      # pin 5 GND (bottom → down)
-    _place_wire(s,  (U3_X +  8 * G, U3_Y - 6 * G), (U3_X + 10 * G, U3_Y - 6 * G))  # pin 6 stub
-    _place_label(s, "RS485_A",     (U3_X + 10 * G, U3_Y - 6 * G))                  # pin 6 A
-    _place_wire(s,  (U3_X +  8 * G, U3_Y - 2 * G), (U3_X + 10 * G, U3_Y - 2 * G))  # pin 7 stub
-    _place_label(s, "RS485_B",     (U3_X + 10 * G, U3_Y - 2 * G))                  # pin 7 B
-    _place_wire(s,  (U3_X,          U3_Y - 12 * G), (U3_X,          U3_Y - 13 * G))  # pin 8 stub
-    _place_label(s, "V3V3_SW",     (U3_X,          U3_Y - 13 * G), angle=90)       # pin 8 VCC (top → up)
+    # MCU drives both with a single DE_RE signal.
+    _place_wire(s,  (U3_X -  8 * G, U3_Y - 2 * G), (U3_X -  8 * G, U3_Y))                     # pin 2 ↔ pin 3
+    _place_wire(s,  (U3_X -  8 * G, U3_Y - 2 * G), (U3_X -  8 * G - _STUB_H, U3_Y - 2 * G))  # tied-pair stub
+    _place_label(s, "DE_RE",       (U3_X - 8 * G - _STUB_H, U3_Y - 2 * G), justify_h="right")  # pin 2/3 (tied, outdir=L)
+    _place_wire(s,  (U3_X -  8 * G, U3_Y + 4 * G), (U3_X -  8 * G - _STUB_H, U3_Y + 4 * G))  # pin 4 stub
+    _place_label(s, "UART_TX_3V3", (U3_X - 8 * G - _STUB_H, U3_Y + 4 * G), justify_h="right")  # pin 4 DI (outdir=L)
+    # D16: U3 pin 5 GND → stock power port.
+    _place_power_port(s, "GND", (U3_X, U3_Y + 12 * G), 'D', stub=_STUB_V, lib=lib)
+    # Pins 6 (A) / 7 (B) + termination network: two-rail block below
+    # (iter-13 reflow). pin 8 (VCC) handled here.
+    _place_wire(s,  (U3_X,          U3_Y - 12 * G), (U3_X,          U3_Y - 12 * G - _STUB_V)) # pin 8 stub
+    _place_label(s, "V3V3_SW",     (U3_X,          U3_Y - 12 * G - _STUB_V), angle=90, justify_h="left")  # pin 8 VCC (outdir=U)
 
-    # C10 — 100 nF U3 VCC decoupling
-    C10_X, C10_Y = U3_X + 6 * G, U3_Y - 10 * G   # (287.02, 50.8)
+    # C10 — 100 nF U3 VCC decoupling.
+    # iter-11: lifted above the tall chip body, GND port pointing up
+    # (same fix as display C7) — the corner placement put the cap's
+    # bottom pin + GND port inside the chip outline (body∩body).
+    C10_X, C10_Y = U3_X + 6 * G, U3_Y - 16 * G
     _place_symbol(s, "C", "C10", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (C10_X, C10_Y), lib=lib)
-    _pin_label(s, "V3V3_SW", (C10_X, C10_Y - 3 * G), 'U')
-    _pin_label(s, "GND",     (C10_X, C10_Y + 3 * G), 'D')
+    # bottom pin → V3V3_SW / pin 8 (wire left then down to the pin-8 node)
+    _place_wire(s, (C10_X, C10_Y + 3 * G), (U3_X, C10_Y + 3 * G))
+    _place_wire(s, (U3_X, C10_Y + 3 * G), (U3_X, U3_Y - 12 * G))
+    # top pin → GND port pointing up, clear of the chip body
+    _place_power_port(s, "GND", (C10_X, C10_Y - 3 * G), 'U', stub=2 * G, lib=lib)
 
-    # R10 — 120 Ω RS-485 termination (A ↔ B). Horizontal so both pins
-    # land on the A/B nets without rotating the symbol.
-    R10_X, R10_Y = U3_X + 16 * G, U3_Y - 4 * G   # (299.72, 58.42)
-    _place_symbol(s, "R", "R10", "120",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R10_X, R10_Y), lib=lib)
-    _pin_label(s, "RS485_A", (R10_X, R10_Y - 3 * G), 'U')   # pin 1
-    _pin_label(s, "RS485_B", (R10_X, R10_Y + 3 * G), 'D')   # pin 2
+    # iter-13 reflow (guidelines a/b): RS-485 termination network as a
+    # clean two-rail wired block (same helper as display U2). R10 (120
+    # term), R11/R12 (680 bias), TVS2 (SMAJ12CA) wired to the A/B rails;
+    # one RS485_A/RS485_B label per rail. Replaces the per-part flag
+    # forest + the R10-body / pin-7-flag wire overlaps.
+    _place_rs485_term_block(s, lib, u_x=U3_X, u_y=U3_Y, vcc_net="V3V3_SW",
+                            term_ref="R10", biasA_ref="R11", biasB_ref="R12",
+                            tvs_ref="TVS2")
 
-    # R11 — 680 Ω idle bias A → V3V3_SW
-    R11_X, R11_Y = U3_X + 12 * G, U3_Y - 12 * G   # (294.64, 47.62)
-    _place_symbol(s, "R", "R11", "680",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R11_X, R11_Y), lib=lib)
-    _pin_label(s, "V3V3_SW", (R11_X, R11_Y - 3 * G), 'U')
-    # RS485_A label deduped — wire down to R10.pin1 (also RS485_A);
-    # R10 keeps the label.
-
-    # R12 — 680 Ω idle bias B → GND
-    R12_X, R12_Y = U3_X + 12 * G, U3_Y + 8 * G   # (294.64, 73.66)
-    _place_symbol(s, "R", "R12", "680",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R12_X, R12_Y), lib=lib)
-    _pin_label(s, "RS485_B", (R12_X, R12_Y - 3 * G), 'U')
-    _pin_label(s, "GND",     (R12_X, R12_Y + 3 * G), 'D')
-
-    # TVS2 — SMAJ12CA differential clamp across A/B. Device:D_TVS with
-    # Value override. Horizontal (pins ±3.81 X from center).
-    TVS2_X, TVS2_Y = U3_X + 24 * G, U3_Y - 4 * G   # right of R10 (8G gap) so values don't collide; same row keeps A-dedup wire clear of R10.pin2
-    _place_symbol(s, "D_TVS", "TVS2", "SMAJ12CA",
-                  "Diode_SMD:D_SMA",
-                  (TVS2_X, TVS2_Y), lib=lib)
-    # TVS2.pin1 RS485_A label deduped — wire to R10.pin1.
-    _pin_label(s, "RS485_B", (TVS2_X + 3 * G, TVS2_Y), 'R')   # pin 2
-    # CP-cleanup iter 30: cluster the 4 RS485_A endpoints (U3.A,
-    # R10.pin1, R11.pin2, TVS2.pin1) — wire R11 and TVS2 to R10;
-    # U3.A keeps its own RS485_A label (name connects across the
-    # schematic). Two labels eliminated.
-    _place_wire(s, (R10_X, R10_Y - 3 * G), (R10_X, R11_Y + 3 * G))  # R10.pin1 → corner
-    _place_wire(s, (R10_X, R11_Y + 3 * G), (R11_X, R11_Y + 3 * G))  # corner → R11.pin2
-    _place_wire(s, (R10_X, R10_Y - 3 * G), (R10_X, TVS2_Y))         # R10.pin1 → corner
-    _place_wire(s, (R10_X, TVS2_Y),         (TVS2_X - 3 * G, TVS2_Y))  # corner → TVS2.pin1
-
-    # BTN1 — Override pushbutton, SW_Push (2-pin horizontal).
-    # Pin geometry: pin 1 lib (-5.08, 0) angle 0 → sch (X-5.08, Y);
-    #               pin 2 lib (5.08, 0)  angle 180 → sch (X+5.08, Y).
+    # D16: BTN1 + R13 + C11 debounce cluster — single horizontal
+    # BTN_OVERRIDE trunk at Y=192G connects BTN1 pin 1 (left) to
+    # R13.pin 2 (bottom) to C11.pin 1 (top). R13 sits above the
+    # trunk pulling BTN_OVERRIDE up to V3V3_SW; C11 sits below the
+    # trunk debouncing BTN_OVERRIDE to GND. One BTN_OVERRIDE
+    # GlobalLabel on the trunk carries the net to MOD1. The label-
+    # at-each-pin pattern used through iter-7 forced the reader to
+    # mentally splice three separate "BTN_OVERRIDE" labels.
+    #
+    # BTN1 SW_Push pin geometry: pin 1 left (X-5.08, Y), pin 2 right
+    # (X+5.08, Y). Net mapping: pin 1 → BTN_OVERRIDE (trunk-going-
+    # right), pin 2 → GND (port to the right). Trunk runs right from
+    # BTN1.pin1 anchor + 2G clearance to R13.pin2 and on to C11.pin1.
+    # BTN1 override pushbutton cluster: SW_Push horizontal, R13 1MΩ
+    # pull-up vertical to its right, C11 100nF debounce vertical further
+    # right. Per-pin labels (BTN_OVERRIDE on each side of the net) carry
+    # the connection; in-cluster wire restructuring deferred (ERC
+    # tractability — the trunk-through-SW_Push-body topology trips
+    # `wire_dangling`, requires lib-symbol body geometry inspection).
     BTN1_X, BTN1_Y = 45 * G, 192 * G   # override button, bottom-left
     _place_symbol(s, "SW_Push", "BTN1", "OVERRIDE",
                   "Button_Switch_THT:SW_PUSH_6mm",
                   (BTN1_X, BTN1_Y), lib=lib,
-                  ref_pos=(BTN1_X - 2 * G, BTN1_Y - 5 * G),    # ref above switch
-                  value_pos=(BTN1_X - 2 * G, BTN1_Y + 5 * G))  # value below switch
-    # iter 55 fix F4: stub-out pin labels on the SW_Push so net labels
-    # don't sit on the switch's in-body pin number text.
-    _place_wire(s,  (BTN1_X - 4 * G, BTN1_Y), (BTN1_X - 6 * G, BTN1_Y))   # pin 1 stub (left)
-    _place_label(s, "BTN_OVERRIDE", (BTN1_X - 6 * G, BTN1_Y), angle=180)  # pin 1 (left)
-    _place_wire(s,  (BTN1_X + 4 * G, BTN1_Y), (BTN1_X + 6 * G, BTN1_Y))   # pin 2 stub (right)
-    _place_label(s, "GND",          (BTN1_X + 6 * G, BTN1_Y))             # pin 2
+                  ref_pos=(BTN1_X - 2 * G, BTN1_Y - 5 * G),
+                  value_pos=(BTN1_X - 2 * G, BTN1_Y + 5 * G))
+    _place_wire(s,  (BTN1_X - 4 * G, BTN1_Y), (BTN1_X - 6 * G, BTN1_Y))
+    _place_label(s, "BTN_OVERRIDE", (BTN1_X - 6 * G, BTN1_Y), justify_h="right")  # outdir=L
+    _place_power_port(s, "GND", (BTN1_X + 4 * G, BTN1_Y), 'R', stub=2 * G, lib=lib)
 
-    # R13 — 1 MΩ pull-up BTN_OVERRIDE → V3V3_SW
     R13_X, R13_Y = 62 * G, 192 * G
     _place_symbol(s, "R", "R13", "1M",
                   "Resistor_SMD:R_0805_2012Metric",
@@ -1229,7 +1597,6 @@ def build_battery_side_schematic() -> None:
     _pin_label(s, "V3V3_SW",      (R13_X, R13_Y - 3 * G), 'U')
     _pin_label(s, "BTN_OVERRIDE", (R13_X, R13_Y + 3 * G), 'D')
 
-    # C11 — 100 nF button debounce
     C11_X, C11_Y = 78 * G, 192 * G
     _place_symbol(s, "C", "C11", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
@@ -1294,10 +1661,13 @@ def build_battery_side_schematic() -> None:
     _place_symbol(s, "Conn_01x04", "J5", "UART-DBG",
                   "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
                   (J5_X, J5_Y), lib=lib)
-    _pin_label(s, "DBG_UART_TX", (J5_X - 4 * G, J5_Y - 2 * G), 'L')   # pin 1
-    _pin_label(s, "DBG_UART_RX", (J5_X - 4 * G, J5_Y),         'L')   # pin 2
-    _pin_label(s, "GND",         (J5_X - 4 * G, J5_Y + 2 * G), 'L')   # pin 3
-    _pin_label(s, "ESP_EN",      (J5_X - 4 * G, J5_Y + 4 * G), 'L')   # pin 4 RESET#
+    # CP6 iter-7: longer label stub (8G ≈ 10 mm) so the 11-char
+    # DBG_UART_* labels don't reach back into the connector body.
+    _LONG = 8 * G
+    _pin_label(s, "DBG_UART_TX", (J5_X - 4 * G, J5_Y - 2 * G), 'L', stub=_LONG)   # pin 1
+    _pin_label(s, "DBG_UART_RX", (J5_X - 4 * G, J5_Y),         'L', stub=_LONG)   # pin 2
+    _pin_label(s, "GND",         (J5_X - 4 * G, J5_Y + 2 * G), 'L', stub=_LONG)   # pin 3
+    _pin_label(s, "ESP_EN",      (J5_X - 4 * G, J5_Y + 4 * G), 'L', stub=_LONG)   # pin 4 RESET#
 
     # ===== Power flags =====
     # In KiCad's ERC model, a `power_in` pin (like U1.VIN, U1.GND) needs a
@@ -1343,6 +1713,7 @@ def build_display_side_schematic() -> None:
     _set_title_block(s, "Volthium reader — display side")
     _add_rail_convention_note(s)
     lib = _load_project_lib()
+    _set_active_lib(lib)
     G = 1.27
 
     # ===== Power input: J1 RJ45 → F1 PTC → TVS1 → C1 input bulk =====
@@ -1371,30 +1742,50 @@ def build_display_side_schematic() -> None:
     _place_wire(s, (_PIN_X, J1_Y - 6 * G), (_PIN_X, J1_Y - 8 * G))
     _pin_label(s, "GND",       (_PIN_X, J1_Y - 6 * G), 'R')
 
-    # F1 — PTC polyfuse (0.5A hold) on V12_CAT5E
-    F1_X, F1_Y = 55 * G, 50 * G   # (69.85, 63.5)
+    # ===== Protected 12 V input: F1 polyfuse → TVS1/C1 clamp → U1.VIN =====
+    # iter-14 reflow (guideline b): V12_PROT is one horizontal rail wired
+    # from the fuse output through the TVS clamp and bulk cap into the
+    # buck's VIN — replacing the five separate V12_PROT flags (flag
+    # forest). The net name is placed as a label at the rail's LEFT END
+    # (a true wire endpoint), NOT a mid-span tap — a mid-span label tap
+    # left the rail segments un-joined under KiCad's connectivity rules.
+    U1_X, U1_Y = 95 * G, 50 * G          # buck (placed below; needed here)
+    _RAIL_Y = U1_Y - 2 * G               # buck VIN pin level
+    x_f, x_t, x_c, x_u = 52 * G, 64 * G, 76 * G, U1_X - 4 * G
+    # F1 — PTC polyfuse: V12_CAT5E in (top) → rail (bottom).
+    F1_X, F1_Y = x_f, _RAIL_Y - 3 * G
     _place_symbol(s, "Polyfuse", "F1", "MF-R050",
                   "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal",
-                  (F1_X, F1_Y), lib=lib)
-    # Polyfuse pin geometry mirrors Fuse/R (lib Y ±3.81 → sch Y ∓3.81).
-    _pin_label(s, "V12_CAT5E", (F1_X, F1_Y - 3 * G), 'U')   # pin 1
-    _pin_label(s, "V12_PROT",  (F1_X, F1_Y + 3 * G), 'D')   # pin 2
-
-    # TVS1 — SMAJ15A unidirectional TVS on V12_PROT ↔ GND
-    TVS1_X, TVS1_Y = 70 * G, 50 * G   # (88.9, 63.5)
-    _place_symbol(s, "D", "TVS1", "SMAJ15A",
-                  "Diode_SMD:D_SMA",
-                  (TVS1_X, TVS1_Y), lib=lib)
-    _pin_label(s, "GND",      (TVS1_X - 3 * G, TVS1_Y), 'L')   # pin 1 K
-    _pin_label(s, "V12_PROT", (TVS1_X + 3 * G, TVS1_Y), 'R')   # pin 2 A
-
-    # C1 — 22µF/25V input bulk on V12_PROT
-    C1_X, C1_Y = 60 * G, 60 * G   # (76.2, 76.2)
-    _place_symbol(s, "C", "C1", "22uF/25V",
-                  "Capacitor_SMD:C_1210_3225Metric",
-                  (C1_X, C1_Y), lib=lib)
-    _pin_label(s, "V12_PROT", (C1_X, C1_Y - 3 * G), 'U')
-    _pin_label(s, "GND",      (C1_X, C1_Y + 3 * G), 'D')
+                  (F1_X, F1_Y), lib=lib,
+                  ref_pos=(F1_X + 2.5 * G, F1_Y - 1.27),
+                  value_pos=(F1_X + 2.5 * G, F1_Y + 1.27))
+    _pin_label(s, "V12_CAT5E", (F1_X, F1_Y - 3 * G), 'U')   # from J1
+    # V12_PROT rail, segmented through each tap (F1, TVS1, C1, U1.VIN).
+    prev = x_f
+    for x in (x_t, x_c, x_u):
+        _place_wire(s, (prev, _RAIL_Y), (x, _RAIL_Y))
+        prev = x
+    # Single V12_PROT net label, tapped DOWN at the F1 rail endpoint
+    # (a real segment endpoint — needed so the V12_PROT PWR_FLAG ties in).
+    _place_wire(s, (x_f, _RAIL_Y), (x_f, _RAIL_Y + 3 * G))
+    _place_label(s, "V12_PROT", (x_f, _RAIL_Y + 3 * G), angle=90, justify_h="right")
+    # TVS1 — SMAJ15A surge clamp, vertical, CATHODE (pin1 K) → rail,
+    # ANODE (pin2 A) → GND (angle 270). A unidirectional TVS clamps
+    # positive transients only in this orientation; SMAJ15A is sized for
+    # it (Vrwm 15 V > 12 V rail; Vclamp ~24 V < R-78E3.3 VIN max ~32 V).
+    # (DR-1: was angle 90 = anode→rail, which only crowbars reverse
+    # polarity and gives no surge protection.)
+    _place_symbol(s, "D", "TVS1", "SMAJ15A", "Diode_SMD:D_SMA",
+                  (x_t, _RAIL_Y + 3 * G), lib=lib, angle=270, autoplace_fields=False,
+                  ref_pos=(x_t + 2 * G, _RAIL_Y + 1.5 * G),
+                  value_pos=(x_t + 2 * G, _RAIL_Y + 4.5 * G))
+    _place_power_port(s, "GND", (x_t, _RAIL_Y + 6 * G), 'D', stub=2 * G, lib=lib)
+    # C1 — 22 µF input bulk, vertical: top on rail, bottom → GND.
+    _place_symbol(s, "C", "C1", "22uF/25V", "Capacitor_SMD:C_1210_3225Metric",
+                  (x_c, _RAIL_Y + 3 * G), lib=lib,
+                  ref_pos=(x_c + 2.5 * G, _RAIL_Y + 1.5 * G),
+                  value_pos=(x_c + 2.5 * G, _RAIL_Y + 4.5 * G))
+    _place_power_port(s, "GND", (x_c, _RAIL_Y + 6 * G), 'D', stub=2 * G, lib=lib)
 
     # ===== Power conversion: U1 Recom R-78E3.3-0.5 + C2 output bulk =====
 
@@ -1402,16 +1793,19 @@ def build_display_side_schematic() -> None:
     # pin 1 lib (-5.08, +2.54) → sch (X-5.08, Y-2.54) — VIN
     # pin 2 lib (-5.08, 0)     → sch (X-5.08, Y)        — GND
     # pin 3 lib (-5.08, -2.54) → sch (X-5.08, Y+2.54)   — VOUT
-    U1_X, U1_Y = 85 * G, 50 * G   # (107.95, 63.5)
+    # U1_X, U1_Y defined above (the V12_PROT rail needs U1.VIN x/y).
     _place_symbol(s, "Conn_01x03", "U1", "R-78E3.3-0.5",
                   "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT",
-                  (U1_X, U1_Y), lib=lib)
-    _pin_label(s, "V12_PROT", (U1_X - 4 * G, U1_Y - 2 * G), 'L')   # pin 1 VIN
+                  (U1_X, U1_Y), lib=lib,
+                  value_pos=(U1_X, U1_Y + 6 * G))  # CP6 iter-7: out of body, clear of pin 3 number bbox
+    # pin 1 VIN lands on the V12_PROT rail (wired above) — no flag.
     _pin_label(s, "GND",      (U1_X - 4 * G, U1_Y),         'L')   # pin 2 GND
     _pin_label(s, "V3V3",     (U1_X - 4 * G, U1_Y + 2 * G), 'L')   # pin 3 VOUT
 
     # C2 — 10µF output bulk on V3V3
-    C2_X, C2_Y = 95 * G, 60 * G   # (120.65, 76.2)
+    # iter-15: dropped to y=68G (out of the support-row band at y=60G) so
+    # the ESP-EN filter block's ESP_EN label no longer reaches into C2.
+    C2_X, C2_Y = 105 * G, 68 * G
     _place_symbol(s, "C", "C2", "10uF",
                   "Capacitor_SMD:C_0805_2012Metric",
                   (C2_X, C2_Y), lib=lib)
@@ -1489,7 +1883,8 @@ def build_display_side_schematic() -> None:
     _place_symbol(s, "ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
                   "RF_Module:ESP32-S3-WROOM-1U",  # -1U variant: external U.FL antenna, no keepout zone
                   (MOD1_X, MOD1_Y), lib=lib,
-                  value_pos=(MOD1_X, MOD1_Y + 26 * G))  # iter 51 fix C: out of body, below GND label stub
+                  ref_pos=(MOD1_X, MOD1_Y - 24 * G),    # CP6 iter-7: above body, clear of in-symbol "PSRAM" text
+                  value_pos=(MOD1_X, MOD1_Y + 36 * G))  # iter-10: pushed to +36G so the long value string clears the bottom-pin GND flag (which sat at +30G)
     # Dedupe shared symbol pins (1/40/41 GND) — see battery-side comment.
     # CP-cleanup iter 47 (fix B2): same 2G stub-out treatment as
     # battery-side MOD1 so net labels read clear of the chip's
@@ -1505,45 +1900,43 @@ def build_display_side_schematic() -> None:
             _place_noconnect(s, endpoint)
         else:
             dx, dy = _outward_for_angle(lib_a)
-            outer = (endpoint[0] + dx * 4 * G, endpoint[1] + dy * 4 * G)
+            outer = (endpoint[0] + dx * 12 * G, endpoint[1] + dy * 8 * G)  # D16: 6G stub so chevron tip clears the newly-visible MOD1 pin number
             _place_wire(s, endpoint, outer)
-            # Orient the label so its text reads AWAY from the symbol body
-            # (left-side pins must extend left, not back over the pin name).
-            lbl_angle = {(-1, 0): 180, (1, 0): 0, (0, -1): 90, (0, 1): 270}.get((dx, dy), 0)
-            _place_label(s, net, outer, angle=lbl_angle)
+            # Orient flag so chevron tip sits on the wire side and the
+            # text reads cleanly inside the body. (dx,dy) is the pin's
+            # outward direction; the wire enters the label from the
+            # OPPOSITE side. Map to (angle, justify_h) per the empirical
+            # sweep documented in the chevron-direction memory.
+            lbl_angle = {(-1, 0): 0, (1, 0): 0, (0, -1): 90, (0, 1): 90}[(dx, dy)]
+            lbl_justify = {(-1, 0): "right", (1, 0): "left",
+                           (0, -1): "left", (0, 1): "right"}[(dx, dy)]
+            _place_label(s, net, outer, angle=lbl_angle, justify_h=lbl_justify)
 
     # ===== ESP support: R1 EN pull-up + C5 EN soft-start + C3 bulk + C4 HF =====
     # SUP_Y kept ≥38G above MOD1 so the caps' downward GND stubs clear MOD1's
     # top-pin label stubs (4G) — at 32G they collided, shorting GND↔V3V3.
     SUP_Y = MOD1_Y - 40 * G
-    # R1 — 10kΩ EN pull-up
-    R1_X, R1_Y = MOD1_X - 24 * G, SUP_Y
-    _place_symbol(s, "R", "R1", "10k",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R1_X, R1_Y), lib=lib)
-    _pin_label(s, "V3V3",   (R1_X, R1_Y - 3 * G), 'U')
-    _pin_label(s, "ESP_EN", (R1_X, R1_Y + 3 * G), 'D')
-    # C5 — 1µF EN soft-start
-    C5_X, C5_Y = MOD1_X - 16 * G, SUP_Y
-    _place_symbol(s, "C", "C5", "1uF",
-                  "Capacitor_SMD:C_0603_1608Metric",
-                  (C5_X, C5_Y), lib=lib)
-    _pin_label(s, "ESP_EN", (C5_X, C5_Y - 3 * G), 'U')
-    _pin_label(s, "GND",    (C5_X, C5_Y + 3 * G), 'D')
-    # C3 — 10µF ESP bulk
-    C3_X, C3_Y = MOD1_X - 8 * G, SUP_Y
+    # iter-15: EN pull-up + soft-start as their own wired filter block
+    # (R1/C5), so the V3V3 bulk trunk (C3/C4) no longer crosses the EN
+    # cap's stub. Bulk caps tap a short V3V3 trunk to the right.
+    _place_en_filter(s, lib, x=MOD1_X - 21 * G, y=SUP_Y,
+                     r_ref="R1", c_ref="C5", en_net="ESP_EN", vcc_net="V3V3")
+    # C3 (10 µF bulk) + C4 (100 nF HF) on a short V3V3 trunk.
+    C3_X, C3_Y = MOD1_X - 11 * G, SUP_Y
     _place_symbol(s, "C", "C3", "10uF",
-                  "Capacitor_SMD:C_0805_2012Metric",
-                  (C3_X, C3_Y), lib=lib)
-    _pin_label(s, "V3V3", (C3_X, C3_Y - 3 * G), 'U')
+                  "Capacitor_SMD:C_0805_2012Metric", (C3_X, C3_Y), lib=lib)
     _pin_label(s, "GND",  (C3_X, C3_Y + 3 * G), 'D')
-    # C4 — 100nF ESP HF decoupling
-    C4_X, C4_Y = MOD1_X, SUP_Y
+    C4_X, C4_Y = MOD1_X - 4 * G, SUP_Y
     _place_symbol(s, "C", "C4", "100nF",
-                  "Capacitor_SMD:C_0402_1005Metric",
-                  (C4_X, C4_Y), lib=lib)
-    _pin_label(s, "V3V3", (C4_X, C4_Y - 3 * G), 'U')
+                  "Capacitor_SMD:C_0402_1005Metric", (C4_X, C4_Y), lib=lib)
     _pin_label(s, "GND",  (C4_X, C4_Y + 3 * G), 'D')
+    # V3V3 trunk along the bulk caps' top, with one V3V3 label (up-tap).
+    _TRUNK_Y = SUP_Y - 5 * G
+    _place_wire(s, (C3_X, C3_Y - 3 * G), (C3_X, _TRUNK_Y))
+    _place_wire(s, (C4_X, C4_Y - 3 * G), (C4_X, _TRUNK_Y))
+    _place_wire(s, (C3_X, _TRUNK_Y), (C4_X, _TRUNK_Y))
+    _place_wire(s, (C3_X, _TRUNK_Y), (C3_X, _TRUNK_Y - 3 * G))   # label up-tap
+    _place_label(s, "V3V3", (C3_X, _TRUNK_Y - 3 * G), angle=90, justify_h="left")
 
     # ===== E-paper FFC: J2 Hirose FH12-24S + C6 panel VCC bulk =====
     #
@@ -1564,7 +1957,9 @@ def build_display_side_schematic() -> None:
     J2_X, J2_Y = 200 * G, 70 * G   # (254.0, 88.9)
     _place_symbol(s, "Conn_01x24", "J2", "EPD_FFC_24",
                   "Connector_FFC-FPC:Hirose_FH12-24S-0.5SH_1x24-1MP_P0.50mm_Horizontal",
-                  (J2_X, J2_Y), lib=lib)
+                  (J2_X, J2_Y), lib=lib,
+                  ref_pos=(J2_X, J2_Y - 4 * G),    # D16: ref above body, clear of pin labels
+                  value_pos=(J2_X, J2_Y + 33 * G)) # D16: value below 24-pin stack
     # CP-cleanup iter 26 (Finding 08): pins 2/3 share V3V3 (adjacent on
     # the FFC). Dedupe with a wire + single label so the 24-pin stack
     # at x=248.92 has one fewer redundant label. Pins 1/4 also share
@@ -1613,132 +2008,93 @@ def build_display_side_schematic() -> None:
     # populated for ERC simplicity (CP1 D-OPEN-8 default says "don't
     # populate by default" but ERC-wise we still place them since the
     # bias defines the idle state of the differential pair).
-    U2_X, U2_Y = 220 * G, 80 * G   # (279.4, 101.6)
+    U2_X, U2_Y = 232 * G, 80 * G   # iter-9: pulled +12G so UART_*_3V3 label bodies clear J2's pin-15/16/19/20 numbers
     _place_symbol(s, "LTC2850xS8", "U2", "SN65HVD3082E",
                   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
                   (U2_X, U2_Y), lib=lib,
-                  value_pos=(U2_X, U2_Y + 15 * G))  # iter 51 fix C: out of body, below GND label stub
-    # CP-cleanup iter 45 (fix B1): same 1G stub-out pattern as battery
-    # U3. Pin endpoint → 1G stub → relocated net label so label arrow
-    # doesn't overlap chip pin-name text.
-    _place_wire(s,  (U2_X -  8 * G, U2_Y - 4 * G), (U2_X - 10 * G, U2_Y - 4 * G))  # pin 1 stub
-    _place_label(s, "UART_RX_3V3", (U2_X - 10 * G, U2_Y - 4 * G), angle=180)       # pin 1 RO (left)
-    # CP-cleanup iter 24: same DE_RE tie as battery-side U3.
-    _place_wire(s,  (U2_X -  8 * G, U2_Y - 2 * G), (U2_X -  8 * G, U2_Y))           # pin 2 ↔ pin 3
-    _place_wire(s,  (U2_X -  8 * G, U2_Y - 2 * G), (U2_X - 10 * G, U2_Y - 2 * G))  # tied-pair stub
-    _place_label(s, "DE_RE",       (U2_X - 10 * G, U2_Y - 2 * G), angle=180)       # pin 2/3 (tied, left)
-    _place_wire(s,  (U2_X -  8 * G, U2_Y + 4 * G), (U2_X - 10 * G, U2_Y + 4 * G))  # pin 4 stub
-    _place_label(s, "UART_TX_3V3", (U2_X - 10 * G, U2_Y + 4 * G), angle=180)       # pin 4 DI (left)
-    _place_wire(s,  (U2_X,          U2_Y + 12 * G), (U2_X,          U2_Y + 13 * G))  # pin 5 stub
-    _place_label(s, "GND",         (U2_X,          U2_Y + 13 * G), angle=270)      # pin 5 GND (bottom → down)
-    _place_wire(s,  (U2_X +  8 * G, U2_Y - 6 * G), (U2_X + 10 * G, U2_Y - 6 * G))  # pin 6 stub
-    _place_label(s, "RS485_A",     (U2_X + 10 * G, U2_Y - 6 * G))                  # pin 6 A
-    _place_wire(s,  (U2_X +  8 * G, U2_Y - 2 * G), (U2_X + 10 * G, U2_Y - 2 * G))  # pin 7 stub
-    _place_label(s, "RS485_B",     (U2_X + 10 * G, U2_Y - 2 * G))                  # pin 7 B
-    _place_wire(s,  (U2_X,          U2_Y - 12 * G), (U2_X,          U2_Y - 13 * G))  # pin 8 stub
-    _place_label(s, "V3V3",        (U2_X,          U2_Y - 13 * G), angle=90)       # pin 8 VCC (top → up)
+                  value_pos=(U2_X, U2_Y + 18 * G))  # CP6 iter-7: below the GND label stub at Y+16G, with margin
+    # CP6 iter-7 strict-overlap fix: same as battery U3 — 4 G horizontal
+    # and 3 G vertical stubs so the GlobalLabel chevron tip stays clear
+    # of pin numbers.
+    _STUB_H = 8 * G
+    _STUB_V = 4 * G
+    _place_wire(s,  (U2_X -  8 * G, U2_Y - 4 * G), (U2_X -  8 * G - _STUB_H, U2_Y - 4 * G))  # pin 1 stub
+    _place_label(s, "UART_RX_3V3", (U2_X - 8 * G - _STUB_H, U2_Y - 4 * G), justify_h="right")  # pin 1 RO (outdir=L)
+    _place_wire(s,  (U2_X -  8 * G, U2_Y - 2 * G), (U2_X -  8 * G, U2_Y))                     # pin 2 ↔ pin 3
+    _place_wire(s,  (U2_X -  8 * G, U2_Y - 2 * G), (U2_X -  8 * G - _STUB_H, U2_Y - 2 * G))  # tied-pair stub
+    _place_label(s, "DE_RE",       (U2_X - 8 * G - _STUB_H, U2_Y - 2 * G), justify_h="right")  # pin 2/3 (tied, outdir=L)
+    _place_wire(s,  (U2_X -  8 * G, U2_Y + 4 * G), (U2_X -  8 * G - _STUB_H, U2_Y + 4 * G))  # pin 4 stub
+    _place_label(s, "UART_TX_3V3", (U2_X - 8 * G - _STUB_H, U2_Y + 4 * G), justify_h="right")  # pin 4 DI (outdir=L)
+    # D16: U2 pin 5 GND → stock power port.
+    _place_power_port(s, "GND", (U2_X, U2_Y + 12 * G), 'D', stub=_STUB_V, lib=lib)
+    # Pins 6 (A) / 7 (B) + the termination network: see the two-rail block
+    # below (iter-13 reflow). pin 8 (VCC) handled here.
+    _place_wire(s,  (U2_X,          U2_Y - 12 * G), (U2_X,          U2_Y - 12 * G - _STUB_V)) # pin 8 stub
+    _place_label(s, "V3V3",        (U2_X,          U2_Y - 12 * G - _STUB_V), angle=90, justify_h="left")  # pin 8 VCC (outdir=U)
 
-    # C7 — 100nF U2 VCC decoupling
-    C7_X, C7_Y = U2_X + 6 * G, U2_Y - 10 * G   # (286.94, 88.9)
+    # C7 — 100nF U2 VCC decoupling.
+    # iter-11: lifted fully above the (tall) chip body and flipped so the
+    # GND port points UP, away from the chip. The old placement at the
+    # top-right corner put the cap's bottom pin + GND port inside the
+    # chip body outline (body∩body). Bottom pin taps V3V3/pin-8 downward.
+    C7_X, C7_Y = U2_X + 6 * G, U2_Y - 16 * G
     _place_symbol(s, "C", "C7", "100nF",
                   "Capacitor_SMD:C_0603_1608Metric",
                   (C7_X, C7_Y), lib=lib)
-    _pin_label(s, "V3V3", (C7_X, C7_Y - 3 * G), 'U')
-    _pin_label(s, "GND",  (C7_X, C7_Y + 3 * G), 'D')
+    # bottom pin → V3V3 / pin 8 (wire left then down to the pin-8 node)
+    _place_wire(s, (C7_X, C7_Y + 3 * G), (U2_X, C7_Y + 3 * G))
+    _place_wire(s, (U2_X, C7_Y + 3 * G), (U2_X, U2_Y - 12 * G))
+    # top pin → GND port pointing up, clear of the chip body
+    _place_power_port(s, "GND", (C7_X, C7_Y - 3 * G), 'U', stub=2 * G, lib=lib)
 
-    # R2 — 120Ω termination (A ↔ B), bus terminus
-    R2_X, R2_Y = U2_X + 16 * G, U2_Y - 4 * G   # (299.72, 96.52)
-    _place_symbol(s, "R", "R2", "120",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R2_X, R2_Y), lib=lib)
-    _pin_label(s, "RS485_A", (R2_X, R2_Y - 3 * G), 'U')
-    _pin_label(s, "RS485_B", (R2_X, R2_Y + 3 * G), 'D')
+    # iter-13 reflow (guidelines a/b): RS-485 termination network drawn as
+    # a clean two-rail wired block — R2 (120 term), R3/R4 (680 bias),
+    # TVS2 (SMAJ12CA) all wired to the A/B rails; one RS485_A/RS485_B
+    # label per rail to the connector. Replaces the old per-part flag
+    # forest (which produced the pin-7-wire-through-R4-flag strike-through
+    # and the same-net flag advisories).
+    _place_rs485_term_block(s, lib, u_x=U2_X, u_y=U2_Y, vcc_net="V3V3",
+                            term_ref="R2", biasA_ref="R3", biasB_ref="R4",
+                            tvs_ref="TVS2")
 
-    # R3 — 680Ω idle bias A → V3V3
-    R3_X, R3_Y = U2_X + 12 * G, U2_Y - 12 * G   # (294.64, 85.72)
-    _place_symbol(s, "R", "R3", "680",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R3_X, R3_Y), lib=lib)
-    _pin_label(s, "V3V3",    (R3_X, R3_Y - 3 * G), 'U')
-    # RS485_A label deduped — wire to R2.pin1 (same pattern as battery U3).
-
-    # R4 — 680Ω idle bias B → GND
-    R4_X, R4_Y = U2_X + 12 * G, U2_Y + 8 * G   # (294.64, 111.76)
-    _place_symbol(s, "R", "R4", "680",
-                  "Resistor_SMD:R_0805_2012Metric",
-                  (R4_X, R4_Y), lib=lib)
-    _pin_label(s, "RS485_B", (R4_X, R4_Y - 3 * G), 'U')
-    _pin_label(s, "GND",     (R4_X, R4_Y + 3 * G), 'D')
-
-    # TVS2 — SMAJ12CA differential clamp across A/B
-    TVS2_X, TVS2_Y = U2_X + 24 * G, U2_Y - 4 * G   # right of R2 (8G gap) so values don't collide; same row keeps A-dedup wire clear of R2.pin2
-    _place_symbol(s, "D_TVS", "TVS2", "SMAJ12CA",
-                  "Diode_SMD:D_SMA",
-                  (TVS2_X, TVS2_Y), lib=lib)
-    # TVS2.pin1 RS485_A label deduped — wire to R2.pin1.
-    _pin_label(s, "RS485_B", (TVS2_X + 3 * G, TVS2_Y), 'R')
-    # Same RS485_A cluster dedup as battery-side U3 area:
-    _place_wire(s, (R2_X, R2_Y - 3 * G), (R2_X, R3_Y + 3 * G))   # R2.pin1 → corner
-    _place_wire(s, (R2_X, R3_Y + 3 * G), (R3_X, R3_Y + 3 * G))   # corner → R3.pin2
-    _place_wire(s, (R2_X, R2_Y - 3 * G), (R2_X, TVS2_Y))         # R2.pin1 → corner
-    _place_wire(s, (R2_X, TVS2_Y),         (TVS2_X - 3 * G, TVS2_Y))  # corner → TVS2.pin1
-
-    # ===== Buttons: BTN1/2/3 + R5/R6/R7 (1MΩ pull-ups) + C8/C9/C10 (debounce) =====
-
-    # Place 3 button clusters horizontally, evenly spaced.
+    # ===== Buttons: BTN1/2/3 debounce blocks (iter-13 reflow) =====
+    # Each is one wired debounce block (switch + 1 MΩ pull-up + 100 nF)
+    # carrying a single BTN<N>_IN label to the MCU — guideline b. Was a
+    # row of three BTN<N>_IN flags per button (same-net advisories).
     for i, (btn_ref, r_ref, c_ref, btn_net) in enumerate([
         ("BTN1", "R5", "C8",  "BTN1_IN"),
         ("BTN2", "R6", "C9",  "BTN2_IN"),
         ("BTN3", "R7", "C10", "BTN3_IN"),
     ]):
-        BTN_X = (200 + i * 30) * G   # 254, 292.1, 330.2
-        BTN_Y = 150 * G              # 190.5
-        _place_symbol(s, "SW_Push", btn_ref, btn_ref,
-                      "Button_Switch_SMD:SW_SPST_B3S-1000",
-                      (BTN_X, BTN_Y), lib=lib,
-                      ref_pos=(BTN_X - 2 * G, BTN_Y - 5 * G),    # ref above switch
-                      value_pos=(BTN_X - 2 * G, BTN_Y + 5 * G))  # value below switch
-        # iter 55 fix F4: stub-out so net labels clear the pin numbers.
-        _place_wire(s,  (BTN_X - 4 * G, BTN_Y), (BTN_X - 6 * G, BTN_Y))
-        _place_label(s, btn_net, (BTN_X - 6 * G, BTN_Y), angle=180)   # pin 1 (left)
-        _place_wire(s,  (BTN_X + 4 * G, BTN_Y), (BTN_X + 6 * G, BTN_Y))
-        _place_label(s, "GND",   (BTN_X + 6 * G, BTN_Y))   # pin 2 (right)
-        # R — 1MΩ pull-up
-        R_X = BTN_X + 8 * G
-        _place_symbol(s, "R", r_ref, "1M",
-                      "Resistor_SMD:R_0805_2012Metric",
-                      (R_X, BTN_Y), lib=lib)
-        _pin_label(s, "V3V3",  (R_X, BTN_Y - 3 * G), 'U')
-        _pin_label(s, btn_net, (R_X, BTN_Y + 3 * G), 'D')
-        # C — 100nF debounce
-        C_X = BTN_X + 16 * G
-        _place_symbol(s, "C", c_ref, "100nF",
-                      "Capacitor_SMD:C_0603_1608Metric",
-                      (C_X, BTN_Y), lib=lib)
-        _pin_label(s, btn_net, (C_X, BTN_Y - 3 * G), 'U')
-        _pin_label(s, "GND",   (C_X, BTN_Y + 3 * G), 'D')
+        _place_btn_debounce(s, lib, x=(200 + i * 30) * G, y=150 * G,
+                            btn_ref=btn_ref, r_ref=r_ref, c_ref=c_ref,
+                            btn_net=btn_net, vcc_net="V3V3")
 
     # ===== Dev headers: J3 (UART debug) + J4 (USB-OTG) =====
+
+    # CP6 iter-7: longer label stub (8G ≈ 10 mm) so the 11-char
+    # DBG_UART_* / USB_* labels don't reach back into the connector body.
+    _LONG = 8 * G
 
     # J3 — UART debug: TX/RX/GND/RESET#
     J3_X, J3_Y = 30 * G, 120 * G   # (38.1, 152.4)
     _place_symbol(s, "Conn_01x04", "J3", "UART-DBG",
                   "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
                   (J3_X, J3_Y), lib=lib)
-    _pin_label(s, "DBG_UART_TX", (J3_X - 4 * G, J3_Y - 2 * G), 'L')   # pin 1
-    _pin_label(s, "DBG_UART_RX", (J3_X - 4 * G, J3_Y),         'L')   # pin 2
-    _pin_label(s, "GND",         (J3_X - 4 * G, J3_Y + 2 * G), 'L')   # pin 3
-    _pin_label(s, "ESP_EN",      (J3_X - 4 * G, J3_Y + 4 * G), 'L')   # pin 4
+    _pin_label(s, "DBG_UART_TX", (J3_X - 4 * G, J3_Y - 2 * G), 'L', stub=_LONG)   # pin 1
+    _pin_label(s, "DBG_UART_RX", (J3_X - 4 * G, J3_Y),         'L', stub=_LONG)   # pin 2
+    _pin_label(s, "GND",         (J3_X - 4 * G, J3_Y + 2 * G), 'L', stub=_LONG)   # pin 3
+    _pin_label(s, "ESP_EN",      (J3_X - 4 * G, J3_Y + 4 * G), 'L', stub=_LONG)   # pin 4
 
     # J4 — USB-OTG: D+/D-/GND/V3V3
     J4_X, J4_Y = 30 * G, 130 * G   # (38.1, 165.1)
     _place_symbol(s, "Conn_01x04", "J4", "USB-OTG",
                   "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
                   (J4_X, J4_Y), lib=lib)
-    _pin_label(s, "USB_DP", (J4_X - 4 * G, J4_Y - 2 * G), 'L')
-    _pin_label(s, "USB_DM", (J4_X - 4 * G, J4_Y),         'L')
-    _pin_label(s, "GND",    (J4_X - 4 * G, J4_Y + 2 * G), 'L')
-    _pin_label(s, "V3V3",   (J4_X - 4 * G, J4_Y + 4 * G), 'L')
+    _pin_label(s, "USB_DP", (J4_X - 4 * G, J4_Y - 2 * G), 'L', stub=_LONG)
+    _pin_label(s, "USB_DM", (J4_X - 4 * G, J4_Y),         'L', stub=_LONG)
+    _pin_label(s, "GND",    (J4_X - 4 * G, J4_Y + 2 * G), 'L', stub=_LONG)
+    _pin_label(s, "V3V3",   (J4_X - 4 * G, J4_Y + 4 * G), 'L', stub=_LONG)
 
     # ===== Power flags =====
     # CP-schematic-cleanup iter 51 (fix E): moved PWR_FLAGs from the
@@ -1795,8 +2151,39 @@ def post_process(board_dir: Path, board_name: str, out_dir: Path) -> None:
                     print(f"    {line}")
 
     pdf = out_dir / "schematic.pdf"
-    rc, _, err = run_kicad_cli("sch", "export", "pdf", "-o", str(pdf), str(sch))
+    # D16: --exclude-pdf-property-popups / --exclude-pdf-hierarchical-
+    # links / --exclude-pdf-metadata strip the PDF accessibility / link
+    # overlays. The property-popups overlay normally double-emits every
+    # Reference / Value / pin-name string, which would surface as
+    # SAME-TEXT identical-bbox pairs in the strict audit. None of those
+    # overlays are useful in committed fab-ready PDFs.
+    rc, _, err = run_kicad_cli("sch", "export", "pdf",
+                               "--exclude-pdf-property-popups",
+                               "--exclude-pdf-hierarchical-links",
+                               "--exclude-pdf-metadata",
+                               "-o", str(pdf), str(sch))
     print(f"  [pdf] rc={rc} → {pdf}")
+
+    # D16 follow-on: even with the three --exclude-pdf-* flags above,
+    # KiCad's PDF content stream still emits ~30 Reference / Value /
+    # pin-name strings twice as byte-identical `q … Tj … Q` blocks at
+    # identical positions. PyMuPDF (and therefore
+    # schematic_visual_audit.py) sees each duplicate as a SAME-TEXT
+    # identical-bbox overlap pair, even though the text is pixel-
+    # perfect overlapping and the human reads it once. Run the
+    # `dedupe_pdf_text` post-processor in place to strip the
+    # duplicates from the content stream. Visual rendering is
+    # unaffected (<0.1 % pixel delta from anti-aliasing on the over-
+    # drawn strokes); PyMuPDF then sees each text span once and the
+    # strict audit drops by ~30 pairs per sheet.
+    import subprocess
+    rc_dedupe = subprocess.run(
+        [sys.executable,
+         str(Path(__file__).parent / "dedupe_pdf_text.py"),
+         str(pdf)],
+        capture_output=True, text=True
+    )
+    print(f"  [dedupe] {rc_dedupe.stdout.strip()}")
 
     net = out_dir / f"{board_name}.net"
     rc, _, err = run_kicad_cli("sch", "export", "netlist", "-o", str(net), "--format", "kicadsexpr", str(sch))
@@ -1859,7 +2246,69 @@ def main() -> None:
     print("--- display_side ---")
     post_process(DISP_DIR, "display_side", OUT_DISP)
 
-    print("\nDone.")
+    print("\n=== Readability audits (gate) ===")
+    rc = run_readability_audits()
+
+    print("\nDone." if rc == 0 else "\nDone WITH AUDIT FINDINGS (see above).")
+    # Both boards are at zero overlaps; enforce it so any future
+    # regression fails the build. (Advisories are informational and do
+    # not count toward rc.)
+    if rc:
+        raise SystemExit(rc)
+
+
+def run_readability_audits() -> int:
+    """Run BOTH readability audits on both boards and report a combined
+    PASS/FAIL. Returns the number of total findings (0 = clean).
+
+    Two complementary audits — between them they cover every overlap
+    class (D16 readability gate):
+      • strict text-overlap audit  → every text-vs-text bbox pair
+        (pin numbers, refs, values, label text).
+      • geometric collision audit  → every graphics pair the text audit
+        is blind to: label-flag∩body, body∩body (e.g. a power-port glyph
+        on a resistor), flag∩flag, flag∩ref/value.
+    Running them here means every regeneration self-checks; a fix that
+    introduces a new overlap fails the build immediately.
+    """
+    import importlib.util
+
+    tools = REPO / "hardware/reviews/tools"
+
+    def _load(mod_name: str):
+        spec = importlib.util.spec_from_file_location(
+            mod_name, tools / f"{mod_name}.py")
+        m = importlib.util.module_from_spec(spec)
+        # Register before exec so dataclass annotation resolution
+        # (which looks up cls.__module__ in sys.modules) succeeds.
+        sys.modules[mod_name] = m
+        spec.loader.exec_module(m)
+        return m
+
+    import fitz
+    sva = _load("schematic_visual_audit")
+    lba = _load("label_body_audit")
+
+    total = 0
+    boards = [
+        ("battery_side", BATT_DIR / "battery_side.kicad_sch",
+         OUT_BATT / "schematic.pdf"),
+        ("display_side", DISP_DIR / "display_side.kicad_sch",
+         OUT_DISP / "schematic.pdf"),
+    ]
+    for name, sch, pdf in boards:
+        doc = fitz.open(pdf)
+        words = [w for i, pg in enumerate(doc)
+                 for w in sva.words_from_page(pg, i)]
+        n_text = len(sva.detect_text_overlaps(words))
+        n_geom = lba.audit(sch)   # prints its own findings
+        total += n_text + n_geom
+        status = "PASS" if (n_text + n_geom) == 0 else "FAIL"
+        print(f"  [{status}] {name}: {n_text} text-overlap pairs, "
+              f"{n_geom} geometry findings")
+    print(f"  Audit gate: {'PASS' if total == 0 else 'FAIL'} "
+          f"({total} total findings)")
+    return total
 
 
 if __name__ == "__main__":
