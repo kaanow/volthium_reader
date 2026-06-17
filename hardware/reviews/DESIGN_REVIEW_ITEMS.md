@@ -71,3 +71,101 @@ battery 3V3 load (ESP32-S3 + RTC + RS-485) peaks ≲0.5 A and is buffered
 by bulk caps — the display side already runs the same ESP32-S3 on a
 0.5 A R-78. If the battery node ever needs >0.5 A, revisit with a 60 V
 discrete buck.
+
+---
+
+# CP1 re-open findings (clean-sheet engineering review, decisions.md D18)
+
+The items below were found re-deriving the battery-side power architecture
+from first principles per `ENGINEERING_REVIEW.md`. They are CP1/CP2-class
+defects that every automated gate (ERC/DRC/readability) passed — the
+reason for the D18 re-open.
+
+## DR-3 — Surge clamp coordination only half-fixed (U2 12 V buck + load FET still exposed)  [OPEN]
+
+DR-2 raised U1 (3V3) above the ~53 V SMAJ33CA clamp but left the other
+parts on the same protected rail exposed. The 24 V chain is:
+
+    J1 → F1 → D1(SS24) → V24_FUSED {TVS1 clamps ~53 V, R5 sense} → Q1 → V24_SW {C1/C3 100V, U1 72V, U2}
+
+- **U2 = Recom R-78E12-1.0** on V24_SW. R-78E input abs-max is ~32–34 V.
+  A surge the TVS clamps to ~53 V destroys U2 — identical failure mode to
+  DR-2, just on the 12 V Cat5e-feed regulator instead of the 3V3 one.
+- **D1 = SS24** (40 V) is the series reverse-polarity element; it conducts
+  forward during a positive surge so its reverse rating isn't the issue,
+  but a 60 V Schottky (SS26/SK56) is the consistent choice if the rail
+  is rated to the clamp.
+
+**Recommended resolution (complete the DR-2 philosophy — raise every part
+on the protected rail above the clamp):** U2 → **Recom R-78HB12** family
+(9–72 V in); D1 → 60 V Schottky. Then the whole V24_FUSED/V24_SW rail is
+≥60 V and the SMAJ33CA's ~53 V clamp actually protects everything.
+*Sourcing note:* confirm R-78HB12 output-current variant (Cat5e feed
+needs only ~0.1–0.15 A) and a real 60 V Schottky PN before committing
+(no fabricated PNs, per BOM D-OPEN-6).
+
+## DR-4 — Hard-cut load switch: MCU on the switched rail (cannot boot) + Vgs overstress + no wake path  [OPEN]
+
+The battery-side power-domain split as implemented does not match the
+architecture intent (block_diagrams.md: "always-on = ESP ULP + RTC;
+hard-cut kills everything except the sense divider") and has three
+coupled defects:
+
+1. **Bootstrap / cannot power up (critical).** U1 (3V3 MCU regulator)
+   VIN is on **V24_SW** — the hard-cut rail downstream of Q1. Q1 is a
+   default-OFF high-side P-FET (R3 pulls its gate to source; R4 holds
+   PWR_EN low at power-on, failsafe-off on brown-out). So at power-on
+   V24_SW is dead → U1 makes no 3V3 → the ESP never runs → it can never
+   drive PWR_EN to close Q1. The board latches off. (Symmetrically, a
+   downstream MCU can't cut its *own* supply: if it did, it would lose
+   power and Q1 would revert, oscillating.) The MCU + its regulator must
+   live on the **always-on** rail; only sheddable loads belong behind Q1.
+
+2. **Gate-source overstress.** Q1 = AO3401A (Vgs ±12 V). When Q2 turns
+   Q1 on it pulls Q1's gate to GND with no clamp/divider, so
+   Vgs = −V24_FUSED ≈ **−29 V** normally (−53 V on surge) — gate-oxide
+   destruction the instant Q1 is commanded on. A high-side P-FET switch
+   on a 24 V rail needs a **gate-source Zener clamp (~10–12 V) + series
+   gate resistor**, sizing Vgs into the safe range regardless of bus
+   voltage.
+
+3. **No wake-from-hard-cut.** If the intent is to fully unpower the ESP
+   at <10 % SOC (power_budget.md state 4), nothing re-enables Q1 on
+   voltage recovery — the ESP is off and there is no hardware voltage
+   supervisor/comparator in the BOM. A fully-cut MCU can't wake itself.
+
+**Recommended resolution (re-architect the power domains):**
+- Move **U1 (3V3) + the MCU/RTC/sense** to the **always-on** rail
+  (V24_FUSED, post reverse-polarity + TVS). The ESP self-manages: in
+  normal use it runs; at low SOC it deep-sleeps in ULP (~50 µA) and
+  periodically reads V24_SENSE, **shedding the heavy/peripheral loads**
+  (U2 12 V → Cat5e, RS-485 driver, display feed) via Q1.
+- Keep **Q1 switching only the sheddable loads** (U2/12 V + peripherals),
+  not the MCU. Add the Vgs clamp from #2. This removes the bootstrap and
+  wake problems entirely and matches the always-on/hard-cut intent.
+- Net low-SOC draw becomes ESP-deep-sleep (~50 µA @ 3V3 ≈ sub-mW at the
+  pack) + sense divider — still far under budget, no supervisor part
+  needed.
+
+**Open design-intent question for the user:** at <10 % SOC, is
+ESP-deep-sleep-always-on (simple, recommended, ~sub-mW) acceptable, or is
+a literal full cut of the ESP required (needs an added hardware voltage
+supervisor to re-engage)? This determines whether DR-4 is a rail-reassign
++ gate-clamp fix or also adds a supervisor.
+
+## DR-5 — Baseline documentation contradicts the schematic  [OPEN — fix on resolution of DR-3/DR-4]
+
+The CP1 "design baseline" docs describe the *pre-DR* design and are now
+wrong in load-bearing ways — a baseline that contradicts the design is
+worse than none:
+- `docs/hardware/bom.md`: U1 still TPS62933 + L1 + 2.2 µH; caps 25 V/35 V;
+  TVS refdes/parts pre-DR-2; sense divider "100 k/11 k".
+- `docs/hardware/power_budget.md`: TPS62933/R-78E efficiency table; sense
+  divider "111 kΩ → 216 µA" (actual is 1 M/110 k ≈ 22 µA).
+- `docs/hardware/block_diagrams.md`: TPS62933 buck, old domain split.
+- `hardware/outputs/.../fab/*-bom.csv`: stale CP6 export (TPS62933,
+  SMAJ30CA, 25 V caps) — superseded per D18, regenerate after fixes.
+
+**Resolution:** reconcile all baseline docs to the schematic *after*
+DR-3/DR-4 land (so they're rewritten once against the final topology, not
+twice).
