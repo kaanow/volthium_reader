@@ -43,14 +43,16 @@ sense divider ~22 µA).
 
 **Verified parts (specs + DigiKey stock/lifecycle checked 2026-06-17;
 final confirmation still at BOM-lock per D-OPEN-6):**
-- **U1 LM5165DRCR** — 3–65 V in, **10.5 µA Iq**, 150 mA. In stock @ DigiKey (≈4.6 k), Active. Both surge-tolerant and µA-Iq (a brick can't be both). *Caught by the stock check:* it's the **adjustable** variant (1.223 V ref) → 3.3 V needs a 2-resistor FB divider (~169 k/100 k), not "fixed via FB→VOUT" as first written.
+- **U1 LM5165YDRCR** — 3–65 V in, **10.5 µA Iq**, 150 mA, **fixed 3.3 V** (FB→VOUT, no divider). In stock @ DigiKey, Active. Both surge-tolerant and µA-Iq (a brick can't be both). *The stock check first flagged that the adjustable DRCR I'd picked would need an FB divider — resolved by switching to the fixed-3.3 V "Y" variant (same package), not by adding the divider.*
 - **U2 R-78HB12-0.5** — 17–72 V in, 12 V/0.5 A. In stock @ DigiKey, Active.
 - **Q1 ZXMP6A13F** — −60 V, **0.9 A**, SOT-23-3 (clean 3-pin; the ZXMP6A17 is only SOT-23-6/SOT-223). In stock @ DigiKey, Active. 0.9 A ≫ the ~0.3 A display feed.
 - **D1 SS26** (60 V), **Q2 2N7002** (60 V), **DZ1 BZX84C12** (12 V Zener), FB-divider resistors — ubiquitous jellybeans.
 
 Availability was checked *at selection time* (not deferred to BOM-lock) per
-the principle now in ENGINEERING_REVIEW.md step 3 — it immediately caught
-the LM5165 adjustable-vs-fixed error above, before CP2 builds around it.
+the principle now in ENGINEERING_REVIEW.md step 3 — and the right response
+to the adjustable-vs-fixed mismatch was to **pick the fixed-output variant**
+(LM5165YDRCR), not to bolt an FB divider onto the adjustable one. Replace
+the misfit part; don't patch around it.
 
 **Domains that cleared** with only minor notes: comms (term/bias now
 coordinated; dual→single bias point), MCU (decoupling, EN RC soft-start,
