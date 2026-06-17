@@ -1798,34 +1798,45 @@ def build_display_side_schematic() -> None:
     _place_wire(s, (_PIN_X, J1_Y - 6 * G), (_PIN_X, J1_Y - 8 * G))
     _pin_label(s, "GND",       (_PIN_X, J1_Y - 6 * G), 'R')
 
-    # F1 — PTC polyfuse (0.5A hold) on V12_CAT5E
-    F1_X, F1_Y = 55 * G, 50 * G   # (69.85, 63.5)
+    # ===== Protected 12 V input: F1 polyfuse → TVS1/C1 clamp → U1.VIN =====
+    # iter-14 reflow (guideline b): V12_PROT is one horizontal rail wired
+    # from the fuse output through the TVS clamp and bulk cap into the
+    # buck's VIN — replacing the five separate V12_PROT flags (flag
+    # forest). The net name is placed as a label at the rail's LEFT END
+    # (a true wire endpoint), NOT a mid-span tap — a mid-span label tap
+    # left the rail segments un-joined under KiCad's connectivity rules.
+    U1_X, U1_Y = 95 * G, 50 * G          # buck (placed below; needed here)
+    _RAIL_Y = U1_Y - 2 * G               # buck VIN pin level
+    x_f, x_t, x_c, x_u = 52 * G, 64 * G, 76 * G, U1_X - 4 * G
+    # F1 — PTC polyfuse: V12_CAT5E in (top) → rail (bottom).
+    F1_X, F1_Y = x_f, _RAIL_Y - 3 * G
     _place_symbol(s, "Polyfuse", "F1", "MF-R050",
                   "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal",
                   (F1_X, F1_Y), lib=lib,
-                  ref_pos=(F1_X - 4 * G, F1_Y - 1.27),    # D16: ref left, opposite from V12_PROT labels (which go right of F1.pin2)
-                  value_pos=(F1_X - 4 * G, F1_Y + 1.27))
-    # Polyfuse pin geometry mirrors Fuse/R (lib Y ±3.81 → sch Y ∓3.81).
-    _pin_label(s, "V12_CAT5E", (F1_X, F1_Y - 3 * G), 'U')   # pin 1
-    _pin_label(s, "V12_PROT",  (F1_X, F1_Y + 3 * G), 'D')   # pin 2
-
-    # TVS1 — SMAJ15A unidirectional TVS on V12_PROT ↔ GND
-    TVS1_X, TVS1_Y = 70 * G, 50 * G   # (88.9, 63.5)
-    _place_symbol(s, "D", "TVS1", "SMAJ15A",
-                  "Diode_SMD:D_SMA",
-                  (TVS1_X, TVS1_Y), lib=lib,
-                  ref_pos=(TVS1_X, TVS1_Y - 3 * G),    # D16: ref above body, clear of V12_PROT label
-                  value_pos=(TVS1_X, TVS1_Y + 3 * G))
-    _pin_label(s, "GND",      (TVS1_X - 3 * G, TVS1_Y), 'L')   # pin 1 K
-    _pin_label(s, "V12_PROT", (TVS1_X + 3 * G, TVS1_Y), 'R')   # pin 2 A
-
-    # C1 — 22µF/25V input bulk on V12_PROT
-    C1_X, C1_Y = 60 * G, 60 * G   # (76.2, 76.2)
-    _place_symbol(s, "C", "C1", "22uF/25V",
-                  "Capacitor_SMD:C_1210_3225Metric",
-                  (C1_X, C1_Y), lib=lib)
-    _pin_label(s, "V12_PROT", (C1_X, C1_Y - 3 * G), 'U')
-    _pin_label(s, "GND",      (C1_X, C1_Y + 3 * G), 'D')
+                  ref_pos=(F1_X + 2.5 * G, F1_Y - 1.27),
+                  value_pos=(F1_X + 2.5 * G, F1_Y + 1.27))
+    _pin_label(s, "V12_CAT5E", (F1_X, F1_Y - 3 * G), 'U')   # from J1
+    # V12_PROT rail, segmented through each tap (F1, TVS1, C1, U1.VIN).
+    prev = x_f
+    for x in (x_t, x_c, x_u):
+        _place_wire(s, (prev, _RAIL_Y), (x, _RAIL_Y))
+        prev = x
+    # Single V12_PROT net label, tapped DOWN at the F1 rail endpoint
+    # (a real segment endpoint — needed so the V12_PROT PWR_FLAG ties in).
+    _place_wire(s, (x_f, _RAIL_Y), (x_f, _RAIL_Y + 3 * G))
+    _place_label(s, "V12_PROT", (x_f, _RAIL_Y + 3 * G), angle=90, justify_h="right")
+    # TVS1 — SMAJ15A clamp, vertical: A (pin2) on rail, K (pin1) → GND.
+    _place_symbol(s, "D", "TVS1", "SMAJ15A", "Diode_SMD:D_SMA",
+                  (x_t, _RAIL_Y + 3 * G), lib=lib, angle=90, autoplace_fields=False,
+                  ref_pos=(x_t + 2 * G, _RAIL_Y + 1.5 * G),
+                  value_pos=(x_t + 2 * G, _RAIL_Y + 4.5 * G))
+    _place_power_port(s, "GND", (x_t, _RAIL_Y + 6 * G), 'D', stub=2 * G, lib=lib)
+    # C1 — 22 µF input bulk, vertical: top on rail, bottom → GND.
+    _place_symbol(s, "C", "C1", "22uF/25V", "Capacitor_SMD:C_1210_3225Metric",
+                  (x_c, _RAIL_Y + 3 * G), lib=lib,
+                  ref_pos=(x_c + 2.5 * G, _RAIL_Y + 1.5 * G),
+                  value_pos=(x_c + 2.5 * G, _RAIL_Y + 4.5 * G))
+    _place_power_port(s, "GND", (x_c, _RAIL_Y + 6 * G), 'D', stub=2 * G, lib=lib)
 
     # ===== Power conversion: U1 Recom R-78E3.3-0.5 + C2 output bulk =====
 
@@ -1833,12 +1844,12 @@ def build_display_side_schematic() -> None:
     # pin 1 lib (-5.08, +2.54) → sch (X-5.08, Y-2.54) — VIN
     # pin 2 lib (-5.08, 0)     → sch (X-5.08, Y)        — GND
     # pin 3 lib (-5.08, -2.54) → sch (X-5.08, Y+2.54)   — VOUT
-    U1_X, U1_Y = 95 * G, 50 * G   # iter-9: pulled +10G so V12_PROT label bodies clear U1 pin-number area
+    # U1_X, U1_Y defined above (the V12_PROT rail needs U1.VIN x/y).
     _place_symbol(s, "Conn_01x03", "U1", "R-78E3.3-0.5",
                   "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT",
                   (U1_X, U1_Y), lib=lib,
                   value_pos=(U1_X, U1_Y + 6 * G))  # CP6 iter-7: out of body, clear of pin 3 number bbox
-    _pin_label(s, "V12_PROT", (U1_X - 4 * G, U1_Y - 2 * G), 'L')   # pin 1 VIN
+    # pin 1 VIN lands on the V12_PROT rail (wired above) — no flag.
     _pin_label(s, "GND",      (U1_X - 4 * G, U1_Y),         'L')   # pin 2 GND
     _pin_label(s, "V3V3",     (U1_X - 4 * G, U1_Y + 2 * G), 'L')   # pin 3 VOUT
 
