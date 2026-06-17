@@ -923,6 +923,51 @@ def _place_rs485_term_block(
     _place_label(s, "RS485_B", (x_end, B_y), justify_h="left")
 
 
+def _place_btn_debounce(
+    s: Schematic, lib: SymbolLib, *,
+    x: float, y: float, btn_ref: str, r_ref: str, c_ref: str,
+    btn_net: str, vcc_net: str = "V3V3",
+) -> None:
+    """A push-button debounce input drawn as one wired block (guideline b).
+
+    The common node carries a SINGLE `btn_net` label out to the MCU;
+    the switch (→GND), pull-up R (→VCC) and debounce C (→GND) are wired
+    to that node instead of each repeating the net flag.
+
+            VCC
+             │
+            [R]  pull-up
+             │
+      btn_net ●──[SW]──GND      (● = node; SW grounds it when pressed)
+             │
+            [C]  debounce
+             │
+            GND
+    """
+    G = 1.27
+    # Switch: body to the right; pin1 (left) → node, pin2 (right) → GND.
+    _place_symbol(s, "SW_Push", btn_ref, btn_ref,
+                  "Button_Switch_SMD:SW_SPST_B3S-1000",
+                  (x + 5 * G, y), lib=lib,
+                  ref_pos=(x + 5 * G, y - 3 * G),
+                  value_pos=(x + 5 * G, y + 3 * G))
+    _place_wire(s, (x + 1 * G, y), (x, y))                 # SW.pin1 → node
+    _place_power_port(s, "GND", (x + 9 * G, y), 'R', stub=2 * G, lib=lib)
+    # Pull-up R above the node.
+    _place_symbol(s, "R", r_ref, "1M",
+                  "Resistor_SMD:R_0805_2012Metric", (x, y - 4 * G), lib=lib)
+    _place_wire(s, (x, y - 1 * G), (x, y))                 # R.pin2 → node
+    _pin_label(s, vcc_net, (x, y - 7 * G), 'U')            # R.pin1 → VCC
+    # Debounce C below the node.
+    _place_symbol(s, "C", c_ref, "100nF",
+                  "Capacitor_SMD:C_0603_1608Metric", (x, y + 4 * G), lib=lib)
+    _place_wire(s, (x, y + 1 * G), (x, y))                 # C.pin1 → node
+    _place_power_port(s, "GND", (x, y + 7 * G), 'D', stub=2 * G, lib=lib)
+    # Single net label out to the MCU (outdir L).
+    _place_wire(s, (x, y), (x - 3 * G, y))
+    _place_label(s, btn_net, (x - 3 * G, y), justify_h="right")
+
+
 def build_battery_side_schematic() -> None:
     """Generate battery-side schematic — symbol-instancing harness proof (CP2 iter 8).
 
@@ -2062,42 +2107,18 @@ def build_display_side_schematic() -> None:
                             term_ref="R2", biasA_ref="R3", biasB_ref="R4",
                             tvs_ref="TVS2")
 
-    # ===== Buttons: BTN1/2/3 + R5/R6/R7 (1MΩ pull-ups) + C8/C9/C10 (debounce) =====
-    # Per-pin labels (BTN<N>_IN on each side of the net). In-cluster
-    # wire restructure deferred — same trunk-through-SW_Push-body ERC
-    # issue as battery BTN1.
+    # ===== Buttons: BTN1/2/3 debounce blocks (iter-13 reflow) =====
+    # Each is one wired debounce block (switch + 1 MΩ pull-up + 100 nF)
+    # carrying a single BTN<N>_IN label to the MCU — guideline b. Was a
+    # row of three BTN<N>_IN flags per button (same-net advisories).
     for i, (btn_ref, r_ref, c_ref, btn_net) in enumerate([
         ("BTN1", "R5", "C8",  "BTN1_IN"),
         ("BTN2", "R6", "C9",  "BTN2_IN"),
         ("BTN3", "R7", "C10", "BTN3_IN"),
     ]):
-        BTN_X = (200 + i * 34) * G   # iter-10: 34G pitch (was 30G) so each cluster's debounce cap clears the next cluster's BTN_IN flag body
-        BTN_Y = 150 * G
-        _place_symbol(s, "SW_Push", btn_ref, btn_ref,
-                      "Button_Switch_SMD:SW_SPST_B3S-1000",
-                      (BTN_X, BTN_Y), lib=lib,
-                      ref_pos=(BTN_X - 2 * G, BTN_Y - 5 * G),
-                      value_pos=(BTN_X - 2 * G, BTN_Y + 5 * G))
-        _place_wire(s,  (BTN_X - 4 * G, BTN_Y), (BTN_X - 6 * G, BTN_Y))
-        _place_label(s, btn_net, (BTN_X - 6 * G, BTN_Y), justify_h="right")  # outdir=L
-        # iter-11: route the switch GND DOWN (apex-down port below the
-        # switch) instead of right — the old apex-right port poked into
-        # the pull-up R body to its right (body∩body).
-        _place_power_port(s, "GND", (BTN_X + 4 * G, BTN_Y), 'D', stub=4 * G, lib=lib)
-        R_X = BTN_X + 8 * G
-        _place_symbol(s, "R", r_ref, "1M",
-                      "Resistor_SMD:R_0805_2012Metric",
-                      (R_X, BTN_Y), lib=lib)
-        _pin_label(s, "V3V3",  (R_X, BTN_Y - 3 * G), 'U')
-        _pin_label(s, btn_net, (R_X, BTN_Y + 3 * G), 'D')
-        C_X = BTN_X + 16 * G
-        _place_symbol(s, "C", c_ref, "100nF",
-                      "Capacitor_SMD:C_0603_1608Metric",
-                      (C_X, BTN_Y), lib=lib,
-                      ref_pos=(C_X - 1.27, BTN_Y - 3 * G),    # iter-9b: ref above-left of body, clear of next BTN_IN flag body (which sits to the right)
-                      value_pos=(C_X - 1.27, BTN_Y + 5 * G))  # iter-9b: value below, far from R "1M" text
-        _pin_label(s, btn_net, (C_X, BTN_Y - 3 * G), 'U')
-        _pin_label(s, "GND",   (C_X, BTN_Y + 3 * G), 'D')
+        _place_btn_debounce(s, lib, x=(200 + i * 30) * G, y=150 * G,
+                            btn_ref=btn_ref, r_ref=r_ref, c_ref=c_ref,
+                            btn_net=btn_net, vcc_net="V3V3")
 
     # ===== Dev headers: J3 (UART debug) + J4 (USB-OTG) =====
 
