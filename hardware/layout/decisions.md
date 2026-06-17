@@ -1154,10 +1154,20 @@ coordination defects together.
   so Vgs stays in range regardless of bus voltage (AO3401A's ±12 V was
   driven to −29 V). The gate-driver N-FET also sees the high rail, so
   Q2 = **60 V N-FET** (2N7002). Q1 now switches only U2/the display feed.
-- **Surge coordination (DR-3).** U2 → **Recom R-78HB12** (9–72 V in,
-  ~0.3 A; display needs ≲0.15 A). D1 → **60 V Schottky** (SS26/SK56).
-  With U1 (65 V), Q1 (60 V), U2 (72 V), D1 (60 V) the whole protected
-  rail out-rates the SMAJ33CA's ~53 V clamp — completing DR-2's logic.
+- **Surge coordination (DR-3).** U2 → **Recom R-78HB12-0.5** (17–72 V in,
+  0.5 A). D1 → **60 V Schottky** (SS26/SK56). With U1 (65 V), Q1 (60 V),
+  U2 (72 V), D1 (60 V) the whole protected rail out-rates the SMAJ33CA's
+  ~53 V clamp — completing DR-2's logic.
+- **RS-485 idle bias moves to the display end only** (consequence of the
+  always-on rail). With the battery 3V3 now always-on, a battery-side
+  idle bias (~2.3 mA through 680 Ω) would draw *continuously* and blow
+  the ~1 mW hard-cut budget by ~8×. So the bus's fail-safe bias lives on
+  the **display** end (resized to ~390 Ω for >200 mV idle across the two
+  120 Ω terminators) — sourced from the display 3V3, which is shed with
+  the display at low SOC. The battery keeps only the terminator (no static
+  draw) and the transceiver (~µA in DE/RE shutdown), so the always-on rail
+  carries **zero** RS-485 static draw. Verified candidate values:
+  3.3 V·60/(390+60+390) = 236 mV idle (> 200 mV fail-safe).
 
 **Part-sourcing note.** LM5165, R-78HB12, ZXMP6A17 are candidate MPNs;
 verify availability/exact variant before BOM lock (no fabricated PNs,

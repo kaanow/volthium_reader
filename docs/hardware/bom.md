@@ -43,19 +43,30 @@ distributor PN behind a search URL may change.
 
 ## Battery-side board
 
+> **Battery-side power chain reflects decisions.md D19** (CP1 re-architecture,
+> 2026-06-17). The MCU is on an always-on µA-Iq rail (U1 LM5165); the load
+> switch (Q1) sheds only the 12 V/display feed (U2). Parts changed from the
+> pre-D19 design: U1 (TPS62933→LM5165), U2 (R-78E12→R-78HB12), Q1
+> (AO3401A→ZXMP6A13F), Q2 (AO3400A→2N7002), D1 (SS24→SS26), input bulk caps
+> →100 V, sense divider →1 M/110 k, plus a new gate-clamp Zener (DZ1).
+> **Reference designators here track the pre-regen schematic and are
+> finalized when the CP2 schematic is regenerated against D19** (DR-5); the
+> *parts* are the binding CP1 baseline.
+
 ### Always-on / power
 
 | Ref       | Part                                                  | Pkg     | Qty | Proto / PCB | DigiKey | Mouser | Price  | Notes |
 |-----------|-------------------------------------------------------|---------|-----|-------------|---------|--------|--------|-------|
 | MOD1      | **Espressif ESP32-S3-WROOM-1U-N16R8** (16 MB flash, 8 MB PSRAM) | SMD     | 1   | both        | [DK 16162641](https://www.digikey.com/en/products/detail/espressif-systems/ESP32-S3-WROOM-1U-N16R8/16162641) ✓ | [Mouser](https://www.mouser.com/c/?q=ESP32-S3-WROOM-1U-N16R8) | $6     | PCB footprint is **-1U** (external U.FL antenna) per `STOCK_FOOTPRINTS` in `build_pcbs.py`. Use the dev kit for proto: search "ESP32-S3-DevKitC-1U-N16R8". |
-| U1        | **TI TPS62933FDRLR** 3 A sync buck (24 V → 3.3 V)     | SOT-563 | 1   | PCB         | [DK 16669312](https://www.digikey.com/en/products/detail/texas-instruments/TPS62933FDRLR/16669312) ✓ | [Mouser](https://www.mouser.com/c/?q=TPS62933FDRLR) | $1.20 | 22 µA quiescent. EN pin lets the MOSFET kill the rail. |
-|           | *or, for proto:* Pololu D24V5F3 module                | TH      | 1   | Proto       | [Pololu 2842](https://www.pololu.com/product/2842) | —      | $7     | If you'd rather not solder a TPS62933 |
-| U2        | **Recom R-78E12-1.0/X9** SIP3 buck (24 V → 12 V, 1 A) | SIP3    | 1   | both        | [DK 13401697](https://www.digikey.com/en/products/detail/recom-power/R-78E12-1-0-X9/13401697) ✓ | [Mouser](https://www.mouser.com/c/?q=R-78E12-1.0/X9) | $7     | Powers the Cat5e link. `/X9` is the RoHS-compliant variant. |
-| C1, C2    | 22 µF / 25 V X5R/X7R ceramic                          | 1210    | 2   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=22uF+25V+1210+X7R) | [search](https://www.mouser.com/c/?q=22uF%2025V%201210%20X7R) | $0.40  | Input/output bulk on TPS62933. Any compliant Murata GRM32 / TDK CGA6 / Samsung CL32 works. |
-| C3, C4    | 22 µF / 35 V X5R/X7R ceramic                          | 1210    | 2   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=22uF+35V+1210+X7R) | [search](https://www.mouser.com/c/?q=22uF%2035V%201210%20X7R) | $0.50  | Input bulk on R-78E12 (24 V rail). |
-| L1        | 2.2 µH ≥3 A inductor                                  | 4×4 SMD | 1   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=2.2uH+inductor+3A+shielded) | [search](https://www.mouser.com/c/?q=2.2uH%20inductor%203A%20shielded) | $0.50  | TPS62933 inductor (see TI ref design 14-PN range). |
+| U1        | **TI LM5165DRCR** ultra-low-Iq sync buck (24 → 3.3 V, **always-on**) | VSON-10 | 1   | PCB         | [search LM5165DRCR](https://www.digikey.com/en/products/result?keywords=LM5165DRCR) | [Mouser](https://www.mouser.com/c/?q=LM5165DRCR) | $2.50 | 3–65 V in, **~10.5 µA Iq**, 150 mA. Always-on MCU rail (D19/DR-4); 65 V out-rates the ~53 V clamp. Fixed 3.3 V: tie FB→VOUT (no divider). Needs L1 + I/O caps. |
+|           | *or, for proto:* Pololu D24V5F3 module                | TH      | 1   | Proto       | [Pololu 2842](https://www.pololu.com/product/2842) | —      | $7     | Convenient 3.3 V buck for bring-up (does not match the low-Iq budget) |
+| U2        | **Recom R-78HB12-0.5** SIP3 buck (24 → 12 V, 0.5 A, 17–72 V in) | SIP3    | 1   | both        | [search R-78HB12-0.5](https://www.digikey.com/en/products/result?keywords=R-78HB12-0.5) | [Mouser](https://www.mouser.com/c/?q=R-78HB12-0.5) | $8     | Cat5e/display feed, **switched** (behind Q1). 72 V in tolerates the ~53 V TVS clamp (D19/DR-3). Was R-78E12 (34 V) — under-rated. |
+| C1, C2    | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R ceramic     | 1210    | 2   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=22uF+100V+1210+X7R) | [search](https://www.mouser.com/c/?q=22uF%20100V%201210%20X7R) | $0.80  | LM5165 input (C1, on V24_FUSED behind the ~53 V clamp → 100 V) / output (C2, 3.3 V). |
+| C3, C4    | C3 22 µF / **100 V**, C4 22 µF / 25 V X7R ceramic     | 1210    | 2   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=22uF+100V+1210+X7R) | [search](https://www.mouser.com/c/?q=22uF%20100V%201210%20X7R) | $0.90  | U2 (R-78HB12) input (C3, on V24_SW behind the clamp → 100 V) / 12 V output (C4). |
+| L1        | 10–47 µH ≥0.3 A shielded inductor (per LM5165 datasheet) | SMD     | 1   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=22uH+inductor+shielded+0.5A) | [search](https://www.mouser.com/c/?q=22uH%20inductor%20shielded) | $0.50  | LM5165 buck inductor; low-Iq COT mode favors a larger L than a fast buck. |
 | F1        | 1 A fast-blow 5×20 mm fuse + holder                   | TH      | 1   | both        | [search](https://www.digikey.com/en/products/result?keywords=5x20mm+fuse+holder+1A+fast) | [search](https://www.mouser.com/c/?q=5x20mm%20fuse%20holder%201A%20fast) | $3     | On the 24 V tap. |
-| D1        | **Vishay SS24** 40 V / 2 A Schottky                   | SMA     | 1   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=SS24+Schottky+SMA) | [search](https://www.mouser.com/c/?q=SS24%20Schottky%20SMA) | $0.30  | Reverse-polarity inline on 24 V input. |
+| TVS1      | **Littelfuse SMAJ33CA** bidirectional TVS (33 V Vrwm) | SMA     | 1   | PCB         | [search SMAJ33CA](https://www.digikey.com/en/products/result?keywords=SMAJ33CA) | [search](https://www.mouser.com/c/?q=SMAJ33CA) | $0.30  | Surge clamp on V24_FUSED (~53 V clamp). 33 V clears the ~29 V full-charge bus (D19/DR-2). |
+| D1        | **Vishay SS26** 60 V / 2 A Schottky                   | SMA     | 1   | PCB         | [search SS26](https://www.digikey.com/en/products/result?keywords=SS26+Schottky+SMA) | [search](https://www.mouser.com/c/?q=SS26%20Schottky%20SMA) | $0.30  | Series reverse-polarity on 24 V input. 60 V (was SS24/40 V) to out-rate the ~53 V clamp (D19/DR-3). |
 
 ### MCU support
 
@@ -73,17 +84,18 @@ distributor PN behind a search URL may change.
 | U3        | **TI SN65HVD3082EDR** half-duplex, 3.3 V        | SOIC-8  | 1   | both        | [DK 1574525](https://www.digikey.com/en/products/detail/texas-instruments/SN65HVD3082EDR/1574525) ✓ | [Mouser](https://www.mouser.com/c/?q=SN65HVD3082EDR) | $1.20  | ESD-protected, slew-rate-limited. |
 | R1        | 120 Ω 1 % RS-485 termination (e.g. Vishay CRCW0805120RFKEA) | 0805    | 1   | both        | [search CRCW0805120RFKEA](https://www.digikey.com/en/products/result?keywords=CRCW0805120RFKEA) | [Mouser](https://www.mouser.com/c/?q=CRCW0805120RFKEA) | $0.10  | Bus terminator. Generic spec — any compliant 0805 120 Ω 1 % works. |
 | R2, R3    | 680 Ω 1 % bias (e.g. Vishay CRCW0805680RFKEA)   | 0805    | 2   | PCB         | [search CRCW0805680RFKEA](https://www.digikey.com/en/products/result?keywords=CRCW0805680RFKEA) | [Mouser](https://www.mouser.com/c/?q=CRCW0805680RFKEA) | $0.10  | Idle-state bias to A/B. |
-| TVS1      | **Littelfuse SMAJ12CA** bidirectional TVS       | SMA     | 1   | PCB         | [DK 762271](https://www.digikey.com/en/products/detail/littelfuse-inc/SMAJ12CA/762271) ✓ | [Mouser](https://www.mouser.com/c/?q=SMAJ12CA) | $0.30  | Surge protection on A/B. |
-| TVS2      | **Littelfuse SMAJ15A** unidirectional TVS       | SMA     | 1   | PCB         | [DK 762276](https://www.digikey.com/en/products/detail/littelfuse-inc/SMAJ15A/762276) ✓ | [Mouser](https://www.mouser.com/c/?q=SMAJ15A) | $0.30  | On the 12 V Cat5e feed. |
+| TVS (A/B) | **Littelfuse SMAJ12CA** bidirectional TVS       | SMA     | 1   | PCB         | [DK 762271](https://www.digikey.com/en/products/detail/littelfuse-inc/SMAJ12CA/762271) ✓ | [Mouser](https://www.mouser.com/c/?q=SMAJ12CA) | $0.30  | Surge/ESD on the RS-485 A/B pair (schematic refdes TVS2). |
+| —         | *(24 V input surge TVS is SMAJ33CA — see the power table above. The 12 V Cat5e feed is surge-clamped at the **display** end, where it arrives over 5 m of cable — see display-side TVS1.)* | — | — | — | — | — | No separate SMAJ15A on the battery side. |
 
 ### Hard-cut, override, sensing
 
 | Ref       | Part                                            | Pkg     | Qty | Proto / PCB | DigiKey | Mouser | Price  | Notes |
 |-----------|-------------------------------------------------|---------|-----|-------------|---------|--------|--------|-------|
-| Q1        | **Alpha & Omega AO3401A** P-MOSFET (Vds 30 V, 4 A) | SOT-23  | 1   | PCB         | [DK 1855773](https://www.digikey.com/en/products/detail/alpha-omega-semiconductor-inc/AO3401A/1855773) ✓ | [Mouser](https://www.mouser.com/c/?q=AO3401A) | $0.40  | Load switch — gate driven by ESP32 GPIO via Q2. |
-| Q2        | **Alpha & Omega AO3400A** N-MOSFET              | SOT-23  | 1   | PCB         | [DK 1855942](https://www.digikey.com/en/products/detail/alpha-omega-semiconductor-inc/AO3400A/1855942) ✓ (legacy PN `785-1000-1-ND`) | [Mouser](https://www.mouser.com/c/?q=AO3400A) | $0.40  | Drives Q1's gate from 3.3 V. |
-| R4        | 10 kΩ 1 % pull-up (Q1 gate)                     | 0603    | 1   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=CRCW060310K0FKEA) | [search](https://www.mouser.com/c/?q=CRCW060310K0FKEA) | $0.05  |  |
-| R5, R6    | 100 kΩ / 11 kΩ — 24 V → 3.3 V divider           | 0603 ×2 | 2   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=CRCW0603+100k+11k+1%25) | [search](https://www.mouser.com/c/?q=CRCW0603%20100k%2011k%201%25) | $0.10  | 24 V sense on ADC1_CH0 (GPIO1). Top of divider stays alive in deep sleep. |
+| Q1        | **Diodes ZXMP6A13F** P-MOSFET (Vds −60 V, 1.1 A) | SOT-23  | 1   | PCB         | [search ZXMP6A13F](https://www.digikey.com/en/products/result?keywords=ZXMP6A13F) | [Mouser](https://www.mouser.com/c/?q=ZXMP6A13F) | $0.40  | Load switch for the 12 V/display feed. 60 V out-rates the ~53 V clamp (D19/DR-4). Was AO3401A (30 V — under-rated). |
+| Q2        | **2N7002** N-MOSFET (Vds 60 V)                  | SOT-23  | 1   | PCB         | [search 2N7002](https://www.digikey.com/en/products/result?keywords=2N7002) | [Mouser](https://www.mouser.com/c/?q=2N7002) | $0.10  | Drives Q1's gate from 3.3 V. 60 V because its drain follows the V24 rail (D19/DR-4). Was AO3400A (30 V). |
+| DZ1       | **BZX84C12** 12 V Zener (Q1 gate–source clamp)  | SOT-23  | 1   | PCB         | [search BZX84C12](https://www.digikey.com/en/products/result?keywords=BZX84C12) | [Mouser](https://www.mouser.com/c/?q=BZX84C12) | $0.10  | Holds Q1 Vgs ≤ 12 V regardless of bus voltage (D19/DR-4). New part. |
+| R3, R4    | 100 kΩ 1 % — Q1 gate pull-up (R3, gate→source) + PWR_EN pull-down (R4) | 0805 ×2 | 2 | PCB | [search](https://www.digikey.com/en/products/result?keywords=100k+0805+1%25) | [search](https://www.mouser.com/c/?q=100k%200805%201%25) | $0.10  | Default-OFF load switch + brown-out failsafe-off. A ~1 kΩ series gate resistor (Rg) sits between Q2 drain and Q1 gate (works with DZ1). |
+| R5, R6    | 1 MΩ / 110 kΩ — 24 V → ~3.3 V sense divider     | 0805 ×2 | 2   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=1M+110k+0805+1%25) | [search](https://www.mouser.com/c/?q=1M%20110k%200805%201%25) | $0.10  | 24 V sense on ADC1_CH0 (GPIO1). High-impedance (≈22 µA) for power-first; C5 (100 nF) holds charge during the ADC sample. Always-on. |
 | BTN1      | Panel-mount override pushbutton (e.g. E-Switch EG1218) | TH      | 1   | both        | [search](https://www.digikey.com/en/products/result?keywords=EG1218) | [search](https://www.mouser.com/c/?q=EG1218) | $2     | On battery-side enclosure; jumps ULP to wake state. |
 | C8        | 100 nF debounce                                 | 0603    | 1   | PCB         | (as C5) | (as C5) | $0.05  |  |
 
@@ -164,10 +176,15 @@ ENIG slightly more).
 
 ## Substitutions worth noting
 
-- **Buck regulator family**: anything with ~20 µA Iq and ≥3 V minimum input
-  works. The TPS62933 was chosen because the family is broadly stocked and
-  the EN pin gives us the hard-cut control we want. Alternatives: TPS62A01,
-  MP2451, AP63203.
+- **Always-on buck (U1)**: must be **both** ≥60 V input (to survive the
+  ~53 V TVS clamp on V24_FUSED) **and** µA-class Iq (so the always-on rail
+  costs ~nothing at low SOC). The LM5165 (3–65 V, 10.5 µA Iq) hits both;
+  that combination is rare. Alternatives: LM5166, MAX17552 (60 V, ~28 µA).
+  A plain brick (R-78 family) is *not* suitable here — bricks idle at
+  milliamps, which would make the always-on trickle tens of mW (D19/DR-4).
+- **Switched 12 V buck (U2)**: a wide-input (≥60 V) module to survive the
+  clamp; R-78HB12 chosen for stock + footprint continuity with the
+  display's R-78E3.3. Iq doesn't matter here — it's off at low SOC.
 - **RS-485 transceiver**: any 3.3 V half-duplex, slew-rate-limited part is
   fine. MAX3485 is the obvious other choice; slightly higher current draw.
 - **E-paper**: if 4.2" tri-color goes out of stock, the same Waveshare 4.2"
