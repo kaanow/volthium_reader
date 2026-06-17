@@ -81,7 +81,7 @@ from first principles per `ENGINEERING_REVIEW.md`. They are CP1/CP2-class
 defects that every automated gate (ERC/DRC/readability) passed — the
 reason for the D18 re-open.
 
-## DR-3 — Surge clamp coordination only half-fixed (U2 12 V buck + load FET still exposed)  [OPEN]
+## DR-3 — Surge clamp coordination only half-fixed (U2 12 V buck + load FET still exposed)  [RESOLVED 2026-06-17 — see D19, impl pending CP2]
 
 DR-2 raised U1 (3V3) above the ~53 V SMAJ33CA clamp but left the other
 parts on the same protected rail exposed. The 24 V chain is:
@@ -104,7 +104,15 @@ on the protected rail above the clamp):** U2 → **Recom R-78HB12** family
 needs only ~0.1–0.15 A) and a real 60 V Schottky PN before committing
 (no fabricated PNs, per BOM D-OPEN-6).
 
-## DR-4 — Hard-cut load switch: MCU on the switched rail (cannot boot) + Vgs overstress + no wake path  [OPEN]
+## DR-4 — Hard-cut load switch: MCU on the switched rail (cannot boot) + Vgs overstress + no wake path  [RESOLVED 2026-06-17 — see D19, impl pending CP2]
+
+**Resolution (user call: "Option 1 done right", see D19).** MCU + U1 move
+to an always-on, wide-Vin **µA-Iq** buck (LM5165-class, ≥60 V); Q1 sheds
+only U2/the display feed; Q1 gets a Vgs Zener clamp + series gate
+resistor and becomes a 60 V P-FET (Q2 → 60 V N-FET). ESP self-supervises
+in deep-sleep (~1 mW all-in at hard-cut) — no separate supervisor IC.
+Implementation is CP2 schematic work.
+
 
 The battery-side power-domain split as implemented does not match the
 architecture intent (block_diagrams.md: "always-on = ESP ULP + RTC;
