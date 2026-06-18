@@ -15,10 +15,11 @@ Conventions:
 
 ## ⚠ SKU verification status
 
-The SKU columns below were written based on the prior pass's `docs/hardware/bom.md`
-plus Claude's working knowledge. **They have NOT been live-checked against
-DigiKey/Mouser at CP1.** Codex's CP1 review (Finding 03, 2026-05-23) flagged
-that several DigiKey SKUs appear stale relative to currently-orderable entries:
+The **D19 power-chain active parts (U1 LM5165YDRCR, U2 R-78HB12-0.5,
+Q1 ZXMP6A13F) WERE DigiKey stock/lifecycle-checked 2026-06-17** — all in
+stock, Active. The remaining SKU columns were written from the prior
+pass + working knowledge and are **not yet live-checked**. Codex's CP1
+review (Finding 03, 2026-05-23) flagged several that appear stale:
 
 | Part                          | CP1 SKU (this doc)         | Codex's spotted alternate (verify) |
 |-------------------------------|----------------------------|------------------------------------|

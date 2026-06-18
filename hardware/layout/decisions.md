@@ -1150,9 +1150,10 @@ coordination defects together.
   voltage-supervisor IC.** All-in low-SOC trickle ≈ U1 Iq (~0.5 mW) +
   sense divider (~0.5 mW) ≈ **~1 mW**. (Full-cut + supervisor would reach
   ~0.7 mW but adds a part and "smart" failure modes — not worth it.)
-- **Load switch (Q1) done right.** Q1 = **60 V P-FET** (candidate
-  Diodes ZXMP6A17, −60 V SOT-23) so its Vds survives the ~53 V clamp when
-  open. Add a **gate-source Zener clamp (~12 V) + series gate resistor**
+- **Load switch (Q1) done right.** Q1 = **Diodes ZXMP6A13F** (−60 V,
+  0.9 A, SOT-23-3) so its Vds survives the ~53 V clamp when open. (The
+  ZXMP6A17 is only SOT-23-6/SOT-223; the A13F is the clean 3-pin part.)
+  Add a **gate-source Zener clamp (~12 V) + series gate resistor**
   so Vgs stays in range regardless of bus voltage (AO3401A's ±12 V was
   driven to −29 V). The gate-driver N-FET also sees the high rail, so
   Q2 = **60 V N-FET** (2N7002). Q1 now switches only U2/the display feed.
@@ -1171,9 +1172,10 @@ coordination defects together.
   carries **zero** RS-485 static draw. Verified candidate values:
   3.3 V·60/(390+60+390) = 236 mV idle (> 200 mV fail-safe).
 
-**Part-sourcing note.** LM5165, R-78HB12, ZXMP6A17 are candidate MPNs;
-verify availability/exact variant before BOM lock (no fabricated PNs,
-[[D-OPEN-6]]). 2N7002 and a 12 V Zener (BZX84C12-class) are jellybeans.
+**Part-sourcing note.** LM5165YDRCR, R-78HB12-0.5, ZXMP6A13F were
+DigiKey stock/lifecycle-checked 2026-06-17 (all in stock, Active); final
+confirmation at BOM-lock ([[D-OPEN-6]]). 2N7002, SS26, and a 12 V Zener
+(BZX84C12) are jellybeans.
 
 **Why this is the excellent answer.** It boots reliably (MCU never gates
 its own supply), holds the power-first budget at hard-cut (~1 mW), needs
