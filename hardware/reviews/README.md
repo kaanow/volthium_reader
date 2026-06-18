@@ -6,11 +6,20 @@ docs, and post findings as comments / commits / PR suggestions.
 
 | File                            | Phase                | Status     |
 |---------------------------------|----------------------|------------|
-| `cp1_design_baseline.md`         | Design baseline      | pending    |
-| `cp2_schematic_capture.md`       | Schematic capture    | not started |
-| `cp3_placement.md`               | Footprint placement  | not started |
-| `cp4_routing_drc.md`             | Routing + DRC        | not started |
-| `cp5_fab_ready.md`               | Fab-ready package    | not started |
+| `cp1_design_baseline.md`         | Design baseline      | **in review (re-opened, D18/D19)** |
+| `cp2_schematic_capture.md`       | Schematic capture    | not started (next) |
+| `cp3_placement.md`               | Footprint placement (battery) | not started |
+| `cp4_display_placement.md`       | Footprint placement (display) | not started |
+| `cp5_routing_drc.md`             | Routing + DRC        | not started |
+| `cp6_fab_ready.md`               | Fab-ready package    | not started |
+
+> **Note (2026-06-18):** CP1 was re-opened (decisions.md **D18**) after the
+> engineering-correctness gate (D17) found CP1/CP2 architecture defects that
+> had ridden to "CP6 fab-ready". The **prior CP2–CP6 review packets** (and
+> the CP6 visual-inspection crops) describe board work built on the
+> pre-D19 schematics and are **superseded** — they now live in
+> [`archive/`](archive/) for history. New CP2+ packets will be written
+> fresh against the corrected D19 design.
 
 ## What a review packet contains
 
