@@ -1,5 +1,13 @@
 # Display-side board — schematic (netlist form)
 
+> ⚠ **SUPERSEDED for power/RS-485 specifics (decisions.md D18/D19).** This
+> is the *original* pre-CP1 net intent. The RS-485 idle bias is now the
+> **bus's only fail-safe bias** (~390 Ω, display-end), and TVS1 orientation
+> was corrected (DR-1). For the **authoritative** display baseline see
+> [`../../hardware/layout/cp1_display_side.md`](../../hardware/layout/cp1_display_side.md)
+> and [`block_diagrams.md`](block_diagrams.md). The GPIO/comms intent below
+> is still valid; power/bias details are historical.
+
 Simpler than the battery-side: no 24 V rail, no MOSFET load-switch, no
 RTC chip. Most of the BoM is the e-paper FFC and the connector.
 
