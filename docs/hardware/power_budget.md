@@ -10,7 +10,7 @@ pack.
 
 Conversion efficiency assumptions (per decisions.md D19):
 
-- **U1 LM5165** (24 V → 3.3 V, *always-on*), ~10.5 µA Iq; 70–85 % at
+- **U1 LM5166** (24 V → 3.3 V, *always-on*), ~14 µA Iq; 70–85 % at
   5–80 mA load. The microamp quiescent is the point — the always-on rail
   costs almost nothing at idle, which keeps the low-SOC trickle ~1 mW
   (the RV-3028-C7 RTC adds only 45 nA — D23).
@@ -23,12 +23,12 @@ Conversion efficiency assumptions (per decisions.md D19):
 | Subsystem               | 3.3 V load        | 24 V draw (with conversion) | Note |
 |-------------------------|-------------------|----------------------------|------|
 | ESP32-S3 active (BLE)   | ~75 mA avg        | ~38 mA   ≈ 0.92 W           | BLE central holding 2 links + UART |
-| RS-485 transceiver idle | ~1 mA             | ~0.5 mA                     | Driver disabled, receiver listening |
-| DS3231                  | ~150 µA           | ~0.1 mA                     |  |
-| Bias resistors R2/R3    | ~3 mA on 3V3      | ~1.5 mA                     |  |
-| **Battery-side subtotal**| —                | **~40 mA at 24 V ≈ 0.96 W** | |
+| RS-485 transceiver idle | ~1 mA             | ~0.5 mA                     | Driver disabled, receiver listening (idle bias is display-end only, DR-4b — no battery-side bias draw) |
+| RV-3028-C7 RTC          | 45 nA             | negligible                  | (was DS3231 ~150 µA — DR-8) |
+| **Battery-side subtotal**| —                | **~38 mA at 24 V ≈ 0.9 W**  | |
 | Display-side via Cat5e  | (see below)       | +~5 mA at 24 V ≈ 0.12 W     |  |
-| **Whole-system total**  |                   | **~45 mA at 24 V ≈ 1.1 W**  |  |
+| **Whole-system total (avg)** |              | **~43 mA at 24 V ≈ 1.0 W**  |  |
+| WiFi log push (D25)     | ~150–250 mA for a ~2–6 s session, a few ×/hour | small added *average* | duty-cycled; logs buffered in flash between pushes (LM5166 500 mA feeds it) |
 
 Per day: 1.1 W × 24 h = 26 Wh ≈ 1.1 Ah / day off the 24 V pack.
 At 200 Ah usable per battery (400 Ah pack × ~85 % usable to 10 %),
@@ -41,7 +41,7 @@ load. Way under the budget.
 |----------------------|----------------------------------|
 | ESP32-S3             | ~15 mA avg (mostly light-sleep, wakes for ~1 s once/min for BLE) |
 | RS-485               | ~1 mA                            |
-| DS3231               | ~150 µA                          |
+| RV-3028-C7 RTC       | 45 nA (negligible)               |
 | Display side         | unchanged (~5 mA at 24 V)        |
 | **Total**            | **~13 mA at 24 V ≈ 0.31 W**       |
 
@@ -50,7 +50,7 @@ load. Way under the budget.
 | Subsystem            | Avg draw                         |
 |----------------------|----------------------------------|
 | ESP32-S3 ULP+RTC     | ~50 µA (RTC slow-clock + ULP wake every 10 min) |
-| DS3231               | ~150 µA                          |
+| RV-3028-C7 RTC       | 45 nA (negligible)               |
 | Q1/Q2 path off       | ~10 µA (pull-up leakage)         |
 | Display side         | still receiving 12 V; ESP32 + e-paper light-sleep ≈ ~5 mA at 24 V conv. |
 | **Total**            | **~5.4 mA at 24 V ≈ 0.13 W**      |
@@ -65,7 +65,7 @@ when the pack recovers. No full power-down, no separate supervisor IC
 
 | Subsystem               | Draw (referred to 24 V pack)      |
 |-------------------------|-----------------------------------|
-| U1 LM5165 Iq            | ~10.5 µA → **~0.25 mW**            |
+| U1 LM5166 Iq            | ~14 µA → **~0.34 mW**            |
 | ESP32-S3 deep-sleep     | ~10 µA @ 3.3 V → **~0.2 mW**       |
 | 24 V sense divider (1.2 MΩ/100 k) | 24 V / 1.3 MΩ ≈ 18.5 µA → **~0.44 mW** |
 | RV-3028-C7 RTC (always-on) | 45 nA → **negligible** (D23/DR-8; was DS3231 ~0.5 mW) |

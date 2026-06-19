@@ -23,7 +23,7 @@ Conventions:
 
 ## ⚠ SKU verification status
 
-The **D19 power-chain active parts (U1 LM5165YDRCR, U2 R-78HB12-0.5,
+The **D19/D25 power-chain active parts (U1 LM5166, U2 R-78HB12-0.5,
 Q1 ZXMP6A13F) WERE DigiKey stock/lifecycle-checked 2026-06-17** — all in
 stock, Active. The remaining SKU columns were written from the prior
 pass + working knowledge and are **not yet live-checked**. An earlier CP1
@@ -31,7 +31,7 @@ review (Finding 03) flagged several that appear stale:
 
 | Part                          | CP1 SKU (this doc)         | Spotted alternate (verify) |
 |-------------------------------|----------------------------|------------------------------------|
-| DS3231SN# RTC                 | `DS3231SN#-ND`             | `DS3231SN#T&RCT-ND` (~6,609; reel vs cut-tape) |
+| ~~DS3231SN# RTC~~ → RV-3028-C7 | (DS3231 dropped, D23) | RV-3028-C7 — in stock, verified 2026-06-18 |
 | SN65HVD3082EDR transceiver    | `296-21908-1-ND`           | `296-31719-1-ND` (~11,546) |
 
 **Action**: At **CP5 procurement**, before clicking ORDER:
@@ -80,9 +80,9 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| U1  | LM5165**Y**DRCR (24 V→3.3 V, **fixed 3.3 V**, **always-on** µA-Iq buck) | VSON-10 | 1 | LM5165YDRCR (DK 5994588, **in stock, Active 2026-06-17**) | 595-LM5165YDRCR | $3.61 | **Δ (D19/DR-4): TPS62933 → LM5165Y** — 3–65 V in (survives the ~53 V clamp) **and** ~10.5 µA Iq. Fixed-3.3 V variant → no FB divider |
-| L1  | 10–47 µH ≥0.3 A shielded SMD inductor (per LM5165 datasheet) | SMD | 1 | _verify_ | _verify_ | $0.50 | **Δ: LM5165 inductor** (low-Iq COT favors larger L than the old 2.2 µH) |
-| C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210 | 2 | _verify_ | _verify_ | $0.50 ea | **Δ: C1 →100 V** (LM5165 input on V24_FUSED, behind the ~53 V clamp) |
+| U1  | LM5166 (24 V→3.3 V, **always-on** µA-Iq buck, **500 mA**) | VSON-10 | 1 | LM5166DRCR (adjustable) confirmed @ DigiKey 2026-06-18 | 595-LM5166DRCR | $4 | **Δ (D25): LM5165→LM5166** — 500 mA feeds a WiFi session; ~14 µA Iq keeps hard-cut ~1 mW. Use the **fixed-3.3 V variant if orderable (no divider), else adjustable + a high-impedance FB divider** (~6 µA). Confirm fixed PN at BOM-lock |
+| L1  | 10–47 µH ≥0.3 A shielded SMD inductor (per LM5166 datasheet) | SMD | 1 | _verify_ | _verify_ | $0.50 | **Δ: LM5166 inductor** (low-Iq COT favors larger L than the old 2.2 µH) |
+| C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210 | 2 | _verify_ | _verify_ | $0.50 ea | **Δ: C1 →100 V** (LM5166 input on V24_FUSED, behind the ~53 V clamp) |
 | U2  | Recom R-78HB12-0.5 buck (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1 | R-78HB12-0.5 (DK 2256237, **in stock, Active 2026-06-17**) | 919-R-78HB12-0.5 | $8.00 | **Δ (D19/DR-3): R-78E12 (34 V) → R-78HB12 (72 V)** to survive the clamp. Switched (behind Q1) |
 | C3, C4 | C3 22 µF / **100 V**, C4 22 µF / 25 V X7R | 1210 | 2 | _verify_ | _verify_ | $0.55 ea | **Δ: C3 →100 V** (U2 input on V24_SW, behind the clamp) |
 
@@ -114,8 +114,9 @@ Grand total **~$145** for one complete monitor (including extras).
 | C7  | 100 nF X7R | 0402 | 1 | 311-1086-1-ND | 81-GRM155R71H104KE14D | $0.05 | **Δ: 0603 → 0402** for ESP HF decoupling close-in (or 0603 if 0402 hard to hand-place) |
 | C8  | 1 µF X7R | 0603 | 1 | 311-1361-1-ND | 81-GRM188R71H105KA93D | $0.10 | **NEW** — ESP EN soft-start cap |
 | R7  | 10 kΩ 0805 | 0805 | 1 | RMCF0805FT10K0CT-ND | 71-CRCW080510K0FKEA | $0.05 | **NEW** — ESP EN pull-up |
-| RTC1 | DS3231SN# I²C RTC, TCXO-locked | SOIC-16W | 1 | (unchanged) DS3231SN#-ND | 700-DS3231SN | $7.00 | (unchanged) |
-| BAT1 | CR2032 holder (Keystone 1066) | THT | 1 | (unchanged) BK-885-ND | 534-1066 | $0.80 | (unchanged) |
+| RTC1 | **Micro Crystal RV-3028-C7** I²C RTC (45 nA) | 4-pin SMD 3.2×1.5 | 1 | RV-3028-C7 (in stock @ DigiKey 2026-06-18) | 727-RV-3028-C7 | $2.00 | **Δ (D23/DR-8): DS3231 → RV-3028-C7** — 45 nA vs ~0.2 mA; ±1 ppm; integrated crystal + backup switchover/trickle charger |
+| C-bk | Small backup cap (~10 mF–0.1 F) on RV-3028 VBACKUP | SMD | 1 | _verify_ | _verify_ | $0.50 | **Δ (D23): replaces CR2032 + holder** — trickle-charged, rides a full disconnect; no coin, no D14 short risk |
+| U-ESD | USB ESD array (USBLC6-2SC6) | SOT-23-6 | 1 | _verify_ USBLC6-2 | 511-USBLC6-2SC6 | $0.30 | **NEW**: ESD clamp on the external USB-C D+/D−/VBUS (D22) |
 | C9  | 100 nF X7R | 0603 | 1 | (unchanged) 311-1141-1-ND | (as C5) | $0.05 | RTC decoupling |
 | R8, R9 | 4.7 kΩ 0805 1 % I²C pull-ups | 0805 | 2 | RMCF0805FT4K70CT-ND | 71-CRCW08054K70FKEA | $0.05 ea | I²C bus pull-ups |
 
@@ -142,7 +143,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | J2  | Amphenol RJHSE-538X-MOD RJ45 keystone, shielded | THT shielded | 1 | (unchanged) 207-RJ45-T568B-ND | — | $4.00 | (unchanged) |
-| J3  | 4-pin 2.54 mm header, USB-OTG dev breakout | THT | 1 | S1011EC-04-ND | 200-TSW10406TS | $0.30 | NEW — dev only |
+| J3  | **USB-C receptacle** (native ESP32-S3 USB) | SMD | 1 | _verify_ | | $0.50 | **Δ (D22): was a USB-OTG pin header** — now a board-edge maintenance port (flash/console/JTAG), accessible without opening. ESD-protected by U-ESD |
 | J4  | 2-pin 2.54 mm header, RS-485 term lift jumper | THT | 1 | S1011EC-02-ND | 200-TSW10206TS | $0.20 | NEW |
 | J5  | 4-pin 2.54 mm header, debug UART | THT | 1 | (same as J3) | (same) | $0.30 | NEW — dev only |
 
@@ -150,7 +151,7 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-------------|------------|-------|-------|
-| EN1 | Hammond 1591ATBU plastic enclosure 62×35×17 mm | 1 | HM5189-ND | 546-1591ATBU | $5.00 | Δ: 1556B2GY → 1591ATBU (smaller, cheaper, easier to stock) |
+| EN1 | **User-3D-printed plastic enclosure, IP5x** (indoors) | 1 | — printed | — | (filament) | **Δ (D20): no commercial box** — wall-mount above the batteries (air gap), sized to the CP3 board outline, with a USB-C port + dust cap |
 | —   | M3 standoffs + screws (4 sets, 5 mm board-to-base spacing) | 1 set | 36-9774-ND | — | $2.50 | |
 | —   | 24 V hookup wire to pack, 30 cm of 18 AWG | 1 | — | — | $1.00 | User-supplied if they have it |
 
@@ -299,7 +300,7 @@ so the extras are not wasted.
 - TVS1 = SMAJ33CA on V24_FUSED (D19/DR-2)
 - Q1 gate-source Zener clamp DZ1 (BZX84C12) + series gate Rg (D19/DR-4)
 - ESP EN cap (C8) + pull-up (R7)
-- Dev/debug headers J3 (USB-OTG), J4 (term-lift), J5 (UART)
+- Maintenance: J3 = **USB-C** (native USB, D22) + USB ESD array; J5 (UART) for bring-up
 - **Removed** battery-side RS-485 idle bias (now display-end only, D19/DR-4)
 
 **Added** (display side):
@@ -308,7 +309,7 @@ so the extras are not wasted.
 - Dev/debug headers J3 (UART), J4 (USB-OTG), J5 (term-lift)
 
 **Changed parts/values** (D19 power re-architecture, both sides):
-- U1 (3V3): TPS62933 → **LM5165** (always-on, µA-Iq, 65 V) — DR-4
+- U1 (3V3): TPS62933 → **LM5166** (always-on, µA-Iq, 65 V) — DR-4
 - U2 (12V): R-78E12 → **R-78HB12** (72 V) — DR-3
 - Q1/Q2: AO3401A/AO3400A (30 V) → **ZXMP6A13F/2N7002** (60 V) — DR-4
 - D1: SS24 (40 V) → **SS26** (60 V) — DR-3

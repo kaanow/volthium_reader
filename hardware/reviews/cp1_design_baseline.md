@@ -69,6 +69,19 @@ on internal defaults — fine for flash boot), connectors (Phoenix + RJ45
 ratings ample). The remaining open items are human-decision, not defects:
 the ESP module variant (-N16R8 vs -N8) and final BOM-lock SKU checks.
 
+**Design-discussion decisions (D20–D25, + DR-8), 2026-06-18.** A working
+session added/changed, all captured in [`decisions.md`](../layout/decisions.md)
+and reflected in the per-board docs + BOM: **D20** enclosure → user-3D-printed
+plastic IP5x, board outline deferred to placement; **D21** battery antenna →
+WROOM-1 `-1` PCB antenna (batteries verified ABS-plastic — no metal-detune
+concern); **D22** maintenance port → board-edge USB-C on native USB (+ a USB
+ESD array); **D23** RTC → RV-3028-C7 (45 nA) + small trickle-charged backup
+cap, replacing the DS3231 (**DR-8**: the DS3231 was a ~0.5 mW always-on load
+the budget had missed); **D24** e-paper tri-color retained, cold limit
+(0–40 °C) accepted; **D25** battery-side duty-cycled **WiFi** log-push, with
+**U1 LM5165→LM5166** (500 mA, same µA-Iq family) to feed a WiFi session
+(a cap can't bridge a multi-second connect/upload). Hard-cut stays ~1 mW.
+
 **Acceptance for this pass.** Architecture re-derived and corrected
 (D19); all baseline docs reconciled; candidate parts verified. The CP2
 schematic implementation (the D19 power tree in `build_schematics.py` +
