@@ -218,8 +218,8 @@ What to look hard at (CP1 specifically):
 Skip:
 - `docs/STATUS.md`, autonomous-loop notes — firmware-side, irrelevant.
 - `scripts/`, `volthium/`, `firmware/`, `tests/` — also irrelevant.
-- Original SKiDL Python in `hardware/kicad/*.py` — preserved as
-  reference only; the CP1 docs supersede it where they disagree.
+- Superseded SKiDL/KiCad-8 toolchain in `hardware/kicad/archive/` —
+  historical only; the CP1 docs + the kiutils generators supersede it.
 
 ## 5. Findings format
 
