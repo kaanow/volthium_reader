@@ -307,7 +307,7 @@ so the extras are not wasted.
 **Added** (display side):
 - Panel VCC bulk cap (C6)
 - ESP EN cap + pull-up
-- Dev/debug headers J3 (UART), J4 (USB-OTG), J5 (term-lift)
+- Display maintenance: J-USB = **USB-C** (native USB, D27) + USB ESD; J3 (UART) + J5 (term-lift) internal for bring-up
 
 **Changed parts/values** (D19 power re-architecture, both sides):
 - U1 (3V3): TPS62933 → **LM5166** (always-on, µA-Iq, 65 V) — DR-4

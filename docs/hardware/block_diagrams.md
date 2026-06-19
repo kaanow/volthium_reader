@@ -28,7 +28,7 @@
                      │         │    │
                   ┌──▼─────────▼────▼──────┐
                   │  DISPLAY-SIDE BOARD    │
-                  │  (single-gang wall     │
+                  │  (double-gang wall     │
                   │   mount in kitchen)    │
                   └──────────┬─────────────┘
                              │
