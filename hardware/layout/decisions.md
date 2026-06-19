@@ -13,14 +13,19 @@ The repository's existing SKiDL Python (`hardware/kicad/{battery,display}_side.p
 targets KiCad 7/8 symbol/footprint libraries. KiCad 10's S-expression format
 has evolved, and `skidl==2.2.3` does not target it cleanly.
 
-**Decision**: `.kicad_pro` / `.kicad_sch` / `.kicad_pcb` are the source of
-truth. The SKiDL files are preserved as design-intent reference for
-reviewers but are not regenerated from.
+**Decision**: KiCad 10 is the target; SKiDL is dropped.
 
 **Reason**: avoids spending time wrestling SKiDL into KiCad 10 compatibility
 on a project where the design is already specified at schematic-net level
-in `docs/hardware/`. Direct authoring via `kiutils` + KiCad GUI is the
-shortest path.
+in `docs/hardware/`.
+
+**Update (2026-06-18):** the project went fully **programmatic** — the
+generators `hardware/kicad/build_schematics.py` (+ `build_pcbs.py`) are
+the source of truth; the `.kicad_sch` / `.kicad_pcb` are build artifacts
+(the `.kicad_pro` is human-maintained and preserved across regen). The old
+SKiDL files (`battery_side.py` / `display_side.py` / `run.sh` / `HANDOFF.md`)
+were **archived** under `hardware/kicad/archive/` during the D18 cleanup —
+they target KiCad 8 and are not part of the build.
 
 ## D2 — Fab choice = JLCPCB, qty 5 of each (bare PCB)
 

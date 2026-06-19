@@ -54,10 +54,11 @@ them. The `.app` launcher is the supported way to (re)start everything.)
 
 ## Design progress
 
-Hardware design pass complete with a SKiDL → KiCad handoff package
-ready for a different machine to pick up. See
-[`hardware/kicad/HANDOFF.md`](../hardware/kicad/HANDOFF.md) and the
-docs trees:
+Hardware is built programmatically on KiCad 10 (kiutils + `kicad-cli`);
+see [`hardware/kicad/README.md`](../hardware/kicad/README.md) for the
+build flow. CP1 was re-opened (decisions.md D18/D19) to fix CP1/CP2
+architecture defects; the old SKiDL/KiCad-8 toolchain is archived under
+`hardware/kicad/archive/`. Docs trees:
 
 - **`hardware/README.md`** — index
 - **`hardware/block_diagrams.md`** — system + per-board diagrams

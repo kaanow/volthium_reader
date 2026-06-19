@@ -63,4 +63,4 @@ hardware/
 
 - [`decisions.md`](decisions.md) — the single source of "what did we commit to and why"
 - [`../../docs/hardware/`](../../docs/hardware/) — engineering specification
-- [`../kicad/HANDOFF.md`](../kicad/HANDOFF.md) — original SKiDL → KiCad 8 plan (historical)
+- [`../kicad/README.md`](../kicad/README.md) — current build flow (kiutils / KiCad 10). The original SKiDL → KiCad 8 plan is archived at [`../kicad/archive/`](../kicad/archive/)

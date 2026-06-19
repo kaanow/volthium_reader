@@ -22,10 +22,8 @@ hardware/tools/*.jar
 hardware/kicad/outputs/
 hardware/kicad/projects/
 
-# SKiDL leftover artifacts
+# KiCad-CLI / build leftover artifacts
 *.erc
-/skidl_REPL.log
-/test_smoke.log
 
 # Claude Code state
 .claude/
