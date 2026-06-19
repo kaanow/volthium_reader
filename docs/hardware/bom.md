@@ -128,7 +128,7 @@ distributor PN behind a search URL may change.
 | Ref       | Part                                            | Pkg     | Qty | Proto / PCB | DigiKey | Mouser | Price  | Notes |
 |-----------|-------------------------------------------------|---------|-----|-------------|---------|--------|--------|-------|
 | U1        | **Recom R-78E3.3-0.5** SIP3 buck (12 V → 3.3 V, 0.5 A) | SIP3    | 1   | both        | [945-1661-5-ND](https://www.digikey.com/en/products/detail/recom-power/R-78E3.3-0.5/3593412) | [search](https://www.mouser.com/c/?q=R-78E3.3-0.5) | $5     | 80 % eff. at 200 mA. Digi-Key PN verified. |
-| F1        | **Bourns MF-R050** PTC resettable fuse, 0.5 A hold | TH      | 1   | both        | [DK 259965](https://www.digikey.com/en/products/detail/bourns-inc/MF-R050/259965) ✓ | [Mouser](https://www.mouser.com/c/?q=MF-R050) | $1     | On the 12 V Cat5e feed. (Earlier BOM said "Bel Fuse"; the MF-R series is **Bourns**.) |
+| F1        | **Bourns MF-R025** PTC resettable fuse, **~0.25 A hold** (DR-11) | TH      | 1   | both        | [search MF-R025](https://www.digikey.com/en/products/result?keywords=MF-R025) | [Mouser](https://www.mouser.com/c/?q=MF-R025) | $1     | On the 12 V Cat5e feed. **Δ (DR-11): 0.5 A → ~0.25 A** — matches the ~40–150 mA display load and trips below the battery-side U2 ~0.5 A foldback (the 0.5 A part was too loose for real cable protection). |
 | TVS1      | SMAJ15A on 12 V input                           | SMA     | 1   | PCB         | (as battery TVS2) | (as battery TVS2) | $0.30  |  |
 | C1        | 22 µF / 25 V X7R                                | 1210    | 1   | PCB         | (as battery C1) | (as battery C1) | $0.20  | Input bulk |
 | C2        | 10 µF X7R                                       | 0805    | 1   | PCB         | (as battery C7) | (as battery C7) | $0.10  | 3.3 V output bulk |
@@ -137,7 +137,9 @@ distributor PN behind a search URL may change.
 
 | Ref       | Part                                            | Pkg     | Qty | Proto / PCB | DigiKey | Mouser | Price  | Notes |
 |-----------|-------------------------------------------------|---------|-----|-------------|---------|--------|--------|-------|
-| MOD1      | **Espressif ESP32-S3-WROOM-1-N16R8** (display side)  | SMD     | 1   | both        | [search](https://www.digikey.com/en/products/result?keywords=ESP32-S3-WROOM-1-N16R8) | [Mouser](https://www.mouser.com/c/?q=ESP32-S3-WROOM-1-N16R8) | $6     | Battery side is `-1` (PCB antenna, D21). Display-side antenna is **TBD** — RS-485 is wired; if the display needs no BLE/WiFi the variant is moot. Common firmware base. |
+| MOD1      | **Espressif ESP32-S3-WROOM-1-N16R8** (`-1`, display side) | SMD     | 1   | both        | [search](https://www.digikey.com/en/products/result?keywords=ESP32-S3-WROOM-1-N16R8) | [Mouser](https://www.mouser.com/c/?q=ESP32-S3-WROOM-1-N16R8) | $6     | **D26: radio unused** — RS-485 is the only link; kept for firmware/footprint commonality, RF disabled, **antenna keepout dropped**. Common firmware base. |
+| J-USB     | **USB-C receptacle** (native ESP32-S3 USB, bottom edge) | SMD | 1 | PCB | [search USB-C receptacle](https://www.digikey.com/en/products/result?keywords=USB-C+receptacle+16pin) | [Mouser](https://www.mouser.com/c/?q=USB-C%20receptacle) | $0.60 | **D27:** maintenance port — reachable without wall removal (discreet bottom slot). |
+| U-ESD     | **USB ESD array** (USBLC6-2SC6)                 | SOT-23-6 | 1   | PCB         | [search USBLC6-2](https://www.digikey.com/en/products/result?keywords=USBLC6-2) | [Mouser](https://www.mouser.com/c/?q=USBLC6-2) | $0.30  | ESD clamp on the USB-C D+/D−/VBUS (D27). Jellybean. |
 | R1        | 10 kΩ ESP32 EN pull-up                          | 0805    | 1   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=10k+0805+1%25) | [search](https://www.mouser.com/c/?q=10k%200805%201%25) | $0.05  |  |
 | C3        | 10 µF X7R MOD1 V3V3 bulk                        | 0805    | 1   | PCB         | (as C2) | (as C2) | $0.10  | Close to the ESP32 module 3V3 pin |
 | C4        | 100 nF X7R MOD1 V3V3 HF                         | 0402    | 1   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=100nF+0402+X7R+16V) | [search](https://www.mouser.com/c/?q=100nF%200402%20X7R%2016V) | $0.05  | The 0402 close-in cap — smaller package fits inside MOD1's pad row |
@@ -165,11 +167,9 @@ distributor PN behind a search URL may change.
 
 | Ref       | Part                                            | Qty | DigiKey | Mouser | Price | Notes |
 |-----------|-------------------------------------------------|-----|---------|--------|-------|-------|
-| BTN1–3    | 6×6×4.3 mm tactile switch (e.g. E-Switch TL3300 series) | 3   | [search](https://www.digikey.com/en/products/result?keywords=TL3300+tactile+switch) | [search](https://www.mouser.com/c/?q=TL3300%20tactile%20switch) | $0.50 | Refresh / next-screen / release-BLE |
-| J1        | RJ45 keystone jack (same as battery J1)         | 1   | (as battery J1) | (as battery J1) | $4    |  |
-| —         | Single-gang low-voltage mounting bracket        | 1   | (HW store) |     | $4    |  |
-| —         | Blank single-gang wall plate (cut for panel + buttons) | 1 | (HW store) |  | $3    |  |
-| —         | M2 mounting hardware for the e-paper            |     |         |     | $2    |  |
+| BTN1–3    | 6×6 mm tactile switch, **tall actuator / printed cap extension** (e.g. E-Switch TL3300) | 3   | [search](https://www.digikey.com/en/products/result?keywords=TL3300+tactile+switch) | [search](https://www.mouser.com/c/?q=TL3300%20tactile%20switch) | $0.50 | Software-defined (on-screen labels, D7). Cap height spans the PCB→faceplate gap (DR-10). |
+| J1        | **Right-angle / low-profile RJ45** jack (T568B, shielded) | 1   | [search RJ45 right angle shielded](https://www.digikey.com/en/products/result?keywords=RJ45+right+angle+shielded) | (Mouser) | $4    | **Δ (DR-10):** right-angle so it doesn't eat the shallow-box depth; in-wall Cat5e enters from the side/bottom. |
+| —         | **3D-printed bracket + faceplate** (user-printed, D8/D20/D27) — **double-gang** | 1   | (printed) |     | (filament) | Replaces the single-gang plate (stale). E-paper module mounts to the faceplate back; main PCB to the bracket; designed against the PCB STEP. |
 
 ### Display-side subtotal (PCB version): **~$55** in components, ~$65 with the mounting bits.
 

@@ -54,6 +54,41 @@ PCB outline target: **85 × 65 mm**. Mounting:
 The user designs the faceplate against a STEP file of the PCB +
 mechanical envelope, exported at CP5.
 
+### 2.1 Assembly & depth stack (D27 — aggressive mechanical pass)
+
+The double-gang box is **shallow (~45 mm usable depth)**, which is the
+binding mechanical constraint. The stack, front → back:
+
+```
+faceplate (~3 mm) → e-paper MODULE (glass + driver PCB, ~4 mm)
+   → gap/standoffs → main PCB (1.6 mm + part heights) → bracket → box floor
+```
+
+Hard constraints this imposes (CP3 must honor; a depth tally is produced then):
+
+- **Tall THT parts eat the budget.** A vertical RJ45 (~13–21 mm) and the
+  R-78E3.3 SIP (~11 mm) would blow the depth. → **right-angle / low-profile
+  RJ45** (also lets the in-wall Cat5e enter from the side/bottom cleanly);
+  orient/seat the R-78 for minimum height. Keep tall parts off the
+  module-facing side.
+- **The e-paper module doesn't fit *inside* the box.** Its outline
+  (~90–103 mm — **verify the exact module dims**) meets/exceeds the ~95 mm
+  box interior. → **mount the module to the back of the oversized custom
+  faceplate** (~115×117 mm), with the main PCB in the box behind it; the
+  8-pin SPI cable (DR-7) runs between, with slack + a strain-relief anchor.
+- **Button-cap height spans the PCB→faceplate gap** (set by the module +
+  standoff stack) — so it can only be fixed once the depth stack is. → spec
+  tall-actuator tactiles or printed cap extensions sized to the final gap.
+- **Service port:** a **bottom-edge USB-C** (D27) exits a discreet slot in
+  the bottom of the faceplate/box — reachable without wall removal,
+  invisible head-on.
+- **No antenna keepout** (D26): the display radio is unused (RS-485 link),
+  so the WROOM antenna region carries no keepout — frees the layout.
+
+**Deliverable:** the **PCB STEP** (with the e-paper-module envelope +
+connector/button/USB-C positions) is the contract the user designs the
+bracket + faceplate against.
+
 ## 3. Power architecture
 
 ```
@@ -85,8 +120,8 @@ bistable display; the ESP32-S3 self-manages its sleep states).
 
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
-| J1  | RJ45 keystone jack (T568B), shielded       | THT shielded   | 1   | Same part as battery-side J2; shield drain NOT bonded at this end (single-point bond at battery side per [`cat5e_pinout.md`](../../docs/hardware/cat5e_pinout.md)) |
-| F1  | PTC polyfuse, 0.5 A hold / 1 A trip (e.g. Bel Fuse 0ZCG0050FF2C) | THT radial   | 1 | Resettable; protects against cable shorts |
+| J1  | **Right-angle / low-profile RJ45** jack (T568B), shielded | THT shielded   | 1   | **Right-angle (DR-10):** a vertical jack (~13–21 mm) blows the shallow-box depth budget; right-angle keeps height down and lets the in-wall Cat5e enter from the side/bottom. Shield drain NOT bonded here (single-point bond at battery side, [`cat5e_pinout.md`](../../docs/hardware/cat5e_pinout.md)). |
+| F1  | PTC polyfuse, **~0.25 A hold** (DR-11) | THT radial   | 1 | Resettable cable protection. 0.25 A covers the ~40 mA load + ~150 mA refresh/inrush peaks, and trips well below the battery-side U2's ~0.5 A foldback → real cable + upstream protection (was 0.5 A — too loose). |
 | TVS1 | SMAJ15A unidirectional TVS (Vrwm 15 V)    | SMA            | 1   | Clamps V12 transients (cable inrush, regulator turn-on) |
 | C1  | 22 µF / 25 V X7R (V12 input bulk)          | 1210           | 1   | U1 input bulk; smooths cable inductive ringing |
 
@@ -101,7 +136,9 @@ bistable display; the ESP32-S3 self-manages its sleep states).
 
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
-| MOD1 | ESP32-S3-WROOM-1-N16R8                    | SMD module     | 1   | Matches battery-side; common firmware base. (Same D-OPEN-1 question: -N8 vs -N16R8 — defer to reviewer) |
+| MOD1 | ESP32-S3-WROOM-1-N16R8 (`-1`)             | SMD module     | 1   | Matches battery-side (firmware + footprint commonality). **Radio unused** — RS-485 is the only link, so disable RF in firmware and **drop the antenna keepout** (D26). (D-OPEN-1: -N8 vs -N16R8 — defer.) |
+| J-USB | **USB-C receptacle** on native ESP32-S3 USB (bottom edge) | SMD | 1 | **D27:** maintenance port (flash/console/JTAG) reachable without wall removal; discreet bottom slot. |
+| U-ESD | USB ESD array (USBLC6-2)                   | SOT-23-6       | 1   | ESD clamp on the USB-C D+/D−/VBUS (D27). |
 | C3  | 10 µF X7R (ESP bulk, ≤ 2 mm from 3V3 pin)  | 0805           | 1   | |
 | C4  | 100 nF X7R (ESP HF decoupling, 0402 if possible) | 0402 | 1 | |
 | C5  | 1 µF X7R (EN soft-start)                    | 0603           | 1   | |
@@ -186,7 +223,7 @@ refresh for live updates, etc.
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
 | J3  | 4-pin 2.54 mm header (UART debug: TX/RX/GND/RESET#) | THT | 1 | FTDI for ESP-IDF console |
-| J4  | 4-pin 2.54 mm header (USB-OTG breakout: D+/D−/VBUS/GND) | THT | 1 | Firmware flash for bring-up |
+| J4  | _(removed — superseded by the USB-C maintenance port, D27)_ | — | 0 | Native USB now exits J-USB (USB-C); keep one UART header (below) for bench bring-up. |
 | J5  | 2-pin 2.54 mm jumper (RS-485 term lift, R2 bypass) | THT | 1 | Same as battery-side |
 
 ## 5. Net list
@@ -235,7 +272,7 @@ expansion pad on J3 or J4.
 | GPIO15 | (expansion) | brought to J3, unused   | -                            |
 | GPIO17 | UART1 TX  | to SN65HVD3082E D pin    | Hi-Z in deep sleep           |
 | GPIO18 | UART1 RX  | from SN65HVD3082E R pin   | Hi-Z in deep sleep; **RS-485 RX wakes the ESP** (configure as RTC-capable wake) |
-| GPIO19/20 | USB DM/DP | USB-OTG (J4 dev header) | Hi-Z; not on bus when unused |
+| GPIO19/20 | USB DM/DP | native USB → USB-C port (J-USB), ESD-clamped | maintenance port (D27) |
 
 ## 7. Power budget (per [`power_budget.md`](../../docs/hardware/power_budget.md))
 
@@ -307,17 +344,20 @@ ground pour).
    24.5 mm / 42.5 mm / 60.5 mm. Slightly off the rules I stated above —
    reconciling: **use 24, 42, 60 mm to match a 3 mm offset from the
    left mounting hole.**
-3. **ESP32-S3 antenna pointing toward the box back wall** (away from
-   the e-paper panel — the panel has a metal-foil back layer that
-   reflects RF and might detune the antenna).
-4. **U1 (R-78E3.3) tall** — SIP3 footprint sticks up ~9 mm. Place on
-   the **back** of the PCB (B.Cu side) so it points into the empty
-   double-gang box space, not into the e-paper panel.
-5. **RS-485 + RJ45 on a short edge**, accessible from the back of the
-   box (where the in-wall Cat5e arrives). Either short edge works
-   mechanically; preference is the LEFT edge (X = 0) so the cable
-   doesn't push the box too far forward.
-6. **Buttons exit the PCB toward the faceplate side**; their height
+3. **No antenna placement constraint (D26):** the radio is unused
+   (RS-485 link), so there's no antenna keepout/orientation to honor —
+   freed layout. (No PCB-antenna-vs-panel-foil concern.)
+4. **Watch the depth stack (DR-10).** Keep tall parts low and off the
+   module-facing side: the **R-78E3.3 SIP (~9–11 mm)** and the RJ45 are the
+   offenders. Place the R-78 flat/on the back pointing into the box;
+   confirm the full faceplate→module→PCB→bracket→floor tally fits the
+   ~45 mm box at CP3.
+5. **Right-angle / low-profile RJ45 on a short edge** (DR-10), so the
+   in-wall Cat5e enters from the side/bottom and the jack doesn't consume
+   depth. Preference: LEFT edge so the cable doesn't push the box forward.
+6. **USB-C maintenance port on the bottom edge** (D27) — exits a discreet
+   bottom slot in the faceplate/box; reachable without wall removal.
+7. **Buttons exit the PCB toward the faceplate side**; their height
    plus PCB to faceplate distance must clear the box's interior front
    ribs. Tactile switch is 4.3 mm tall; PCB + standoff stack adds ~5 mm;
    total ~10 mm from PCB back to button cap top. Faceplate sits ~12 mm
@@ -354,7 +394,7 @@ minimum).
 | ~~**D-OPEN-8**~~ | Populate R3/R4 idle-bias on display side? | **RESOLVED (D19/DR-4): populate at ~390 Ω** — this is the bus's *only* bias (battery side carries none, to keep its always-on rail at zero static draw) |
 | **D-OPEN-9**  | RS-485 receiver power-gate (N-FET on U2 VCC) for further idle-current reduction? | **No** — adds complexity for ~1 mA savings; defer to v2 |
 | **D-OPEN-10** | Button hardware-debounce RC values? CP1 specs 1 MΩ + 100 nF (RC = 100 ms). Some prefer 10 kΩ + 100 nF (RC = 1 ms, faster response). | **100 ms** — human buttons; the RC delay is invisible. 1 MΩ keeps Iq trivially low even if any GPIO ever inverts polarity at fab |
-| **D-OPEN-11** | Where does the panel mount mechanically? (a) on the PCB front via M2 standoffs, (b) on the 3D-printed bracket separately from the PCB, (c) glued to the faceplate? | **(b) — on the 3D-printed bracket**, panel sits between PCB and faceplate. User redesigns the bracket if (a) or (c) is preferred |
+| ~~**D-OPEN-11**~~ | Panel mount? | **RESOLVED (D27/DR-10):** the e-paper **module mounts to the back of the oversized custom faceplate** (the ~90–103 mm module doesn't fit inside the ~95 mm box); the main PCB sits in the box behind, 8-pin cable between. |
 | **D-OPEN-12** | Faceplate dimensions — 115 × 117 mm to match standard double-gang, or larger? | **115 × 117 mm** matches user's reference; can override at CP5 |
 
 ## 13. Risk register
