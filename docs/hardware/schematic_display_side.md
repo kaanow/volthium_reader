@@ -1,12 +1,20 @@
 # Display-side board — schematic (netlist form)
 
-> ⚠ **SUPERSEDED for power/RS-485 specifics (decisions.md D18/D19).** This
-> is the *original* pre-CP1 net intent. The RS-485 idle bias is now the
-> **bus's only fail-safe bias** (~390 Ω, display-end), and TVS1 orientation
-> was corrected (DR-1). For the **authoritative** display baseline see
-> [`../../hardware/layout/cp1_display_side.md`](../../hardware/layout/cp1_display_side.md)
-> and [`block_diagrams.md`](block_diagrams.md). The GPIO/comms intent below
-> is still valid; power/bias details are historical.
+> ⚠ **SUPERSEDED — historical pre-CP1 net intent (decisions.md D18–D27).**
+> This entire document predates the CP1 re-architecture and is retained only
+> for historical reference and as a starting point for the GPIO pin map.
+> **Do not treat any part number, connector, or enclosure here as current.**
+> Re-architected since: the e-paper interface (bare-panel 24-pin Hirose
+> FH12-24S FFC → 8-pin Waveshare 4.2" Module (B) header — DR-7), the dev port
+> (USB-OTG header → native USB-C, board-edge + pop-faceplate — D27), the
+> enclosure (single-gang → recessed **double-gang** box with a custom
+> 3D-printed faceplate the e-paper module mounts to — D27/DR-10), RS-485 bias
+> (now the bus's only fail-safe bias, ~390 Ω display-end; TVS1 corrected —
+> DR-1), and field update (OTA over RS-485 — D27). Even the GPIO *assignments*
+> below should be re-verified, not trusted. **Authoritative:**
+> [`../../hardware/layout/cp1_display_side.md`](../../hardware/layout/cp1_display_side.md),
+> [`../../hardware/layout/decisions.md`](../../hardware/layout/decisions.md),
+> [`block_diagrams.md`](block_diagrams.md).
 
 Simpler than the battery-side: no 24 V rail, no MOSFET load-switch, no
 RTC chip. Most of the BoM is the e-paper FFC and the connector.

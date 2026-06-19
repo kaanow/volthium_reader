@@ -1,5 +1,11 @@
 # Pre-install bench test
 
+> ⚠ **STALE / FROZEN — pre-CP1 (decisions.md D18).** The design was re-opened
+> at CP1; no fab'd boards exist, and the parts/nets referenced here are
+> superseded (e.g. the 3.3 V buck is now an always-on **LM5166**, not the
+> switched TPS62933 — D19). This procedure will be regenerated once the
+> design is re-validated and fab'd. Do not follow it as written.
+
 Run this with both PCBs in hand, **before** you take them to the
 cabin. Catches assembly defects without involving the cabin's batteries.
 

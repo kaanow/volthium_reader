@@ -1,12 +1,19 @@
 # Production system design — Volthium pack monitor for The Barge Inn
 
-> Status: **draft v1** — top-level architecture. Detailed hardware design
-> in [`hardware/`](hardware/README.md), firmware in [`firmware/architecture.md`](firmware/architecture.md).
+> Status: **draft v1** — top-level architecture/vision. Detailed hardware
+> design in [`hardware/`](hardware/README.md), firmware in [`firmware/architecture.md`](firmware/architecture.md).
 >
-> The hardware folder has block diagrams, full Digi-Key/Mouser BoM,
-> schematic-level netlists for both boards (GPIO maps included), a power
-> budget that quantifies every state, and the Cat5e pinout. Ready to
-> enter into KiCad.
+> ⚠ **Parts, RTC, enclosure, and dev-port specifics below are pre-CP1 and
+> superseded (decisions.md D18–D27).** This doc captures the system vision
+> and rationale, but its component-level details are stale: the RTC
+> (DS3231 → RV-3028-C7 + backup cap, D23), the enclosures (COTS Hammond/
+> single-gang → custom 3D-printed IP5x boxes; display in a recessed
+> double-gang, D20/D27), the dev port (USB-OTG → native USB-C, D22/D27),
+> and the power tree (D19). For the **authoritative BOM and parts**, see
+> [`hardware/layout/decisions.md`](../hardware/layout/decisions.md),
+> [`hardware/layout/cp1_battery_side.md`](../hardware/layout/cp1_battery_side.md),
+> [`hardware/layout/cp1_display_side.md`](../hardware/layout/cp1_display_side.md),
+> and [`hardware/bom.md`](hardware/bom.md).
 
 ## Goal
 

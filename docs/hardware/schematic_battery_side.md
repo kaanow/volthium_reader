@@ -1,15 +1,20 @@
 # Battery-side board — schematic (netlist form)
 
-> ⚠ **SUPERSEDED for the power architecture (decisions.md D18/D19).** This
-> is the *original* pre-CP1 net intent. Its power tree (TPS62933 on the
-> switched rail, R-78E12, AO340x load switch, both-end RS-485 bias) was
-> re-architected in **D19** to fix the bootstrap/clamp/Vgs defects
-> (DESIGN_REVIEW_ITEMS DR-3/DR-4). For the **authoritative** battery power
-> tree, regulators, load switch, and bias, see:
-> [`../../hardware/layout/cp1_battery_side.md`](../../hardware/layout/cp1_battery_side.md)
-> §3–§4, [`block_diagrams.md`](block_diagrams.md), and [`bom.md`](bom.md).
-> The GPIO/comms/sensing intent below is still valid; the **power-tree and
-> Hard-cut sections are historical**.
+> ⚠ **SUPERSEDED — historical pre-CP1 net intent (decisions.md D18–D27).**
+> This entire document predates the CP1 re-architecture and is retained only
+> for historical reference and as a starting point for the GPIO pin map.
+> **Do not treat any part number, component value, connector, or enclosure
+> here as current.** Re-architected since: the power tree (TPS62933→LM5166 on
+> the *always-on* rail; R-78E12→R-78HB12; AO340x→ZXMP6A13F/2N7002 + Vgs
+> clamp; SS24→SS26; both-end→display-only RS-485 bias — D19/DR-3/DR-4), the
+> RTC (DS3231+CR2032 → RV-3028-C7 + backup cap — D23), the sense divider
+> (100k/11k → 1.2 MΩ/100 kΩ — DR-6), the dev port (USB-OTG header → native
+> USB-C — D22), and the enclosure (3D-printed IP5x, outline deferred — D20).
+> Even the GPIO *assignments* below should be re-verified, not trusted.
+> **Authoritative:**
+> [`../../hardware/layout/cp1_battery_side.md`](../../hardware/layout/cp1_battery_side.md),
+> [`../../hardware/layout/decisions.md`](../../hardware/layout/decisions.md),
+> [`block_diagrams.md`](block_diagrams.md), [`bom.md`](bom.md).
 
 This is structured to drop into KiCad as a schematic: each component is
 listed with its reference designator and pin connections, organized by

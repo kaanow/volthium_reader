@@ -49,7 +49,7 @@ firmware/
 | `tx_task`       | 4        | every 30 s (state 1) / 60 s (state 2) | Builds WireFrame from latest BLE samples, emits RS-485 frame |
 | `power_task`    | 6        | every 5 s + on SOC threshold crossings | Implements the 4-tier state machine; commands MOSFET; manages light/deep sleep |
 | `adc_task`      | 3        | every 2 s                     | Reads 24V sense; provides voltage-based SOC fallback when BLE is down |
-| `cli_task`      | 2        | USB serial available          | Optional debug shell over USB-OTG |
+| `cli_task`      | 2        | USB serial available          | Optional debug shell over native USB-C (D22) |
 
 Inter-task communication: FreeRTOS queues with the latest `BMSSample`,
 `PackReading`, and `Estimate` structs. Queue depth of 1 (mailbox style)

@@ -1,8 +1,13 @@
 # Cabin install — runbook
 
-This is the procedure for installing the production monitor at The
-Barge Inn. Written for the user (or a helper) to follow step by step
-with a kit of tested PCBs and the in-wall Cat5e already pulled.
+> ⚠ **STALE / FROZEN — pre-CP1 (decisions.md D18).** The hardware design was
+> re-opened at CP1; no fab'd boards exist yet, and the enclosures, e-paper
+> interface, and dev port below are all superseded: enclosures are now custom
+> 3D-printed (battery IP5x box, D20; display in a recessed **double-gang** box
+> with a 3D-printed faceplate, D27 — **not** Hammond/single-gang), the e-paper
+> is an **8-pin Waveshare 4.2" Module (B)** (no loose FFC ribbon, DR-7), and
+> the dev port is native **USB-C** (D22/D27). This runbook will be regenerated
+> after the design is re-validated and fab'd. Do not follow it as written.
 
 > Pre-install assumption: PCB fab is complete and both boards have been
 > bench-tested using `docs/install/bench_test.md` *before* you bring
