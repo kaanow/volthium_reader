@@ -1195,3 +1195,73 @@ no supervisor IC, and makes the protection chain genuinely protective.
 The cost is U1 returns to a discrete buck (inductor + I/O caps) — a fair
 price for µA-Iq always-on, and the only way to satisfy power-first and
 surge-survival simultaneously on a 29 V bus.
+
+## D20 — Enclosure = user 3D-printed plastic (IP5x, indoors); board outline deferred
+
+**Date**: 2026-06-18
+
+**Decision.** The battery-side enclosure is a **user-3D-printed plastic
+box**, **IP5x** (dust, not water — indoors), mounted on the wall a short
+distance *above* the two batteries with **air between**. **The board
+outline is an output of placement (CP3), not a pre-set number** — "as
+small as comfortable, never artificially large."
+
+**Supersedes** D15's 95×75 mm size and the earlier Hammond 1554/1591 /
+IP65–66 enclosure specs (those are dropped). D15's *floorplan zoning*
+intent still stands; the size is un-committed.
+
+## D21 — Battery-side antenna = ESP32-S3-WROOM-1 (PCB antenna, `-1`)
+
+**Date**: 2026-06-18
+
+**Decision.** Use the **`-1`** module (onboard PCB antenna), **not `-1U`**
+(external U.FL). **Why:** the plastic (RF-transparent) box and the air gap
+above the metal pack remove the reasons for an external antenna, and BLE
+range to the BMS is only ~1–3 m. Drops the U.FL connector, pigtail,
+external antenna, and an enclosure penetration. **Cost:** the 15×6 mm PCB-
+antenna keepout returns (no copper/traces, board-edge placement, antenna
+edge facing *away* from the pack). *(Display-side antenna is a separate
+question — the display may not need RF at all; TBD.)*
+
+## D22 — External maintenance port = USB-C on native ESP32-S3 USB
+
+**Date**: 2026-06-18
+
+**Decision.** A board-edge **USB-C** connector wired to the ESP32-S3's
+**native USB** (GPIO19/20) gives flash + serial console + JTAG over one
+port — no external programmer, accessible **without opening** the box
+(through an enclosure port with an IP5x dust cap). Replaces the internal
+USB-OTG pin header. (Matches `production_design.md`'s "USB-C port behind
+the lid for occasional updates.")
+
+## D23 — RTC = RV-3028-C7 (ultra-low-power), backup = small trickle-charged cap
+
+**Date**: 2026-06-18
+
+**Decision.** Replace the **DS3231** with the **Micro Crystal RV-3028-C7**
+— a 45 nA, ±1 ppm (RT), I²C RTC with the crystal integrated and a built-in
+backup switchover + trickle charger. Back it with a **small cap on
+VBACKUP** (the RTC trickle-charges it); no coin cell, no bulky supercap.
+
+**Why.** The DS3231's ~0.1–0.2 mA (TCXO) was the *dominant* always-on
+load — ~0.5 mW, ⅓ of the hard-cut budget (DR-8). The RV-3028-C7 draws
+**45 nA** (~3000× less), so the RTC becomes negligible and hard-cut returns
+to **~1 mW**. Accuracy ±1–3 ppm ≈ the DS3231's ±2 ppm (fine for
+timestamps; the DS3231's full-temp compensation isn't needed). At 45 nA a
+small cap rides a service disconnect for weeks, so the coin-vs-supercap
+question (the original D23) collapses — and the part is far smaller
+(3.2×1.5 mm vs SOIC-16W), −40…+85 °C. **Supersedes the DS3231 choice**;
+resolves DR-8.
+
+## D24 — E-paper = tri-color (B) retained; cold limit accepted
+
+**Date**: 2026-06-18
+
+**Decision.** Keep the **4.2" tri-color (B)** panel (D6). Its environmental
+limits are now explicit and **accepted as a known risk**: operating
+**0–40 °C** (color-biases near 0 °C, 6 h recovery at 25 °C after cold),
+storage **< 30 °C / ≤ 6 months**, and **no rated long-term cold storage**
+(lowest published cold figure is −25 °C *transport*, ≤ 10 days). Mono does
+**not** help — same 0 °C floor; the only true fix is a specialty low-temp
+e-paper (different vendor/cost), declined. If it fails cold, that's a
+learning. (These limits are inherent to this e-paper class, color or not.)
