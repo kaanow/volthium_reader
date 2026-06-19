@@ -65,6 +65,20 @@ decision superseded, or a keepout for a PCB-antenna variant when the BOM
 lists the external-antenna part) is itself a finding — internal drift is
 as real a defect as a wrong value.
 
+> **Run the sweep mechanically, not opportunistically.** Do not rely on
+> *noticing* stale references as you happen to read files — that misses
+> whole un-audited doc areas (install guides, the system-vision doc, status
+> files, firmware docs, original-intent netlist docs). After any decision
+> that supersedes a part/value/enclosure/connector, build an alternation of
+> the **superseded tokens** (old PNs, old enclosures, old net names, old
+> dimensions) and `grep -rniE` it across the **whole repo** (quote the
+> `--include='*.md'` globs so zsh doesn't expand them; exclude `/archive/`).
+> Classify every hit: (a) intentional `was→now` history — leave; (b) a
+> not-yet-rewritten generator/output that a later CP owns — note, don't fix;
+> (c) a live contradiction in a current doc — fix now. Report a clean bill
+> or the exhaustive remaining list. Opportunistic discovery is the failure
+> mode; the mechanical sweep is the gate.
+
 - **Power input:** over-current (fuse/PTC); reverse polarity (series
   diode/ideal-diode, or crowbar); surge TVS (cathode→rail for a +rail,
   standoff > Vmax-charge, **clamp < downstream abs-max**); bulk caps

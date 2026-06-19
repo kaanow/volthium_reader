@@ -161,7 +161,7 @@ a literal full cut of the ESP required (needs an added hardware voltage
 supervisor to re-engage)? This determines whether DR-4 is a rail-reassign
 + gate-clamp fix or also adds a supervisor.
 
-## DR-5 — Baseline documentation contradicts the schematic  [OPEN — fix on resolution of DR-3/DR-4]
+## DR-5 — Baseline documentation contradicts the schematic  [RESOLVED 2026-06-18 — all baseline docs reconciled to D19]
 
 The CP1 "design baseline" docs describe the *pre-DR* design and are now
 wrong in load-bearing ways — a baseline that contradicts the design is

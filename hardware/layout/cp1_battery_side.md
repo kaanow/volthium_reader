@@ -505,9 +505,9 @@ margin.
 | Q1 gate pull-up                  | 10 kΩ (2.4 mA idle)                        | 100 kΩ (240 µA idle) — 10× power saving      |
 | Debug LED                        | LED1 + R_led (always available, GPIO-controlled) | **Removed** per D4                       |
 | RS-485 numbering                 | TVS1 (RS-485), TVS2 (12 V), TVS3 (24 V) confused | TVS1 (24 V), TVS2 (RS-485) — display side has its own TVS3/TVS4 |
-| Mounting holes                   | Not specified                              | 4× M3 corner @ (3, 3), (57, 3), (3, 37), (57, 37) |
+| Mounting holes                   | Not specified                              | 4× M3 corner standoffs to the 3D-printed enclosure; exact coordinates set at CP3 placement once the outline is fixed (D20) |
 | Dev headers                      | Not in original BOM                        | J3 (USB-C breakout), J4 (term-lift jumper), J5 (UART debug) added for bring-up |
-| Mechanical board outline         | "60 × 38 mm" (Hammond 1556B2GY)            | 60 × 40 mm (Hammond 1591ATBU) — slightly larger, easier procurement |
+| Mechanical board outline         | "60 × 38 mm" (Hammond 1556B2GY)            | **Deferred** (D20): no fixed outline at CP1; routed-area dictates size, then a custom 3D-printed IP5x enclosure is designed against the PCB STEP. No COTS box. |
 
 ## 16. What's NOT in CP1 (defers to later checkpoints)
 
