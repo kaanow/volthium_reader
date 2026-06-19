@@ -4,8 +4,9 @@
 **Board codename**: `volthium-bms-link`
 **Mounts**: on the wall above the two batteries (air gap), user-3D-printed IP5x plastic box; board outline TBD at placement (D20)
 **Function**: BLE-central to the two BMS modules, fuses readings into a
-PackReading, ships RS-485 frames to the display side over Cat5e, plus runs
-the 4-tier SOC self-shutdown that protects the pack.
+PackReading, ships RS-485 frames to the display side over Cat5e, runs the
+4-tier SOC self-shutdown that protects the pack, and pushes logs over
+**WiFi** (duty-cycled) to the Starlink-connected server (D25).
 
 ## 1. Scope of this document
 
@@ -40,9 +41,11 @@ indoors), wall-mounted a short distance *above* the two batteries with
 **air between** (no metal pressed against the board).
 
 **Antenna (D21):** the `-1` module's PCB antenna sits at a board edge with
-its 15×6 mm keepout (no copper/traces), oriented so the antenna edge faces
-**away from the battery pack** — the plastic box + air gap keep a PCB
-antenna viable (BLE range to the BMS is only ~1–3 m).
+its 15×6 mm keepout (no copper/traces) at a board edge. **No special
+orientation needed** — the Volthium batteries are ABS-plastic cased (no
+metal pack), and the plastic box is RF-transparent. The same antenna serves
+**BLE** (to the BMS, ~1–3 m) **and WiFi** (to the nearby Starlink router) —
+D21/D25.
 
 ## 3. Power architecture
 
@@ -64,7 +67,7 @@ D1 [SS26 Schottky 60V, A→K]                              ← reverse-polarity 
     ├─[V24_FUSED]──────────────┬───────────────┬───────────────────┐
     │                          │               │                   │
     ▼                          ▼               ▼                   ▼
-TVS1 [SMAJ33CA,           U1 [LM5165         R5/R6 divider      Q1/Q2 load switch
+TVS1 [SMAJ33CA,           U1 [LM5166         R5/R6 divider      Q1/Q2 load switch
  V24_FUSED↔GND,           µA-Iq buck,        →V24_SENSE         (60V P/N-FET, gate-
  ~53V clamp]              24V→3V3]           (always alive)     clamped) — SWITCHED
                               │                                      │
@@ -76,7 +79,7 @@ TVS1 [SMAJ33CA,           U1 [LM5165         R5/R6 divider      Q1/Q2 load switc
    (MOD1)    (RTC1)    (U3)    R10 term  (no bias here — display-end only)
 
 Always-on (off V24_FUSED, never via Q1):
-    U1 LM5165 → 3V3 → ESP32-S3 + RV-3028 VCC + RS-485 + sense divider
+    U1 LM5166 → 3V3 → ESP32-S3 + RV-3028 VCC + RS-485 + sense divider
     R5/R6 sense divider → V24_SENSE → ESP GPIO1 (ADC1_CH0)
     RV-3028 VBACKUP     → small backup cap (C-bk), trickle-charged by RTC
 Switched (Q1, MCU-controlled): U2 → 12V → Cat5e → the entire display side
@@ -94,7 +97,7 @@ must stay alive to drive Q1 and to wake on voltage recovery, and a
 downstream MCU can't gate its own supply (nor boot if it starts unpowered).
 At < 10 % SOC the ESP deep-sleeps (~µA), periodically reads V24_SENSE, and
 sheds the display by opening Q1; RS-485 is disabled via DE/RE (not
-power-switched). All-in trickle at hard-cut ≈ **~1 mW** (U1 Iq ~10.5 µA +
+power-switched). All-in trickle at hard-cut ≈ **~1 mW** (U1 Iq ~14 µA +
 sense divider ~19 µA + ESP deep-sleep). The **RV-3028-C7 RTC adds only
 ~45 nA** — negligible (D23 swapped out the power-hungry DS3231; see DR-8).
 This replaces the pre-D19 design where the MCU sat on the switched rail and
@@ -120,9 +123,9 @@ so the protected rail out-rates the clamp (D19/DR-3).
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| U1  | LM5165**Y**DRCR (24 V→3.3 V sync buck, **always-on**, **fixed 3.3 V** — FB→VOUT, no divider) | VSON-10 | 1 | **~10.5 µA Iq**, 3–65 V in (65 V out-rates the ~53 V clamp), 150 mA. Only part that is both µA-Iq *and* surge-tolerant — a brick can't be both (D19/DR-4). The "Y" = fixed-3.3 V variant (same package as the adjustable DRCR), in stock @ DigiKey, Active (2026-06-17). No FB divider needed |
-| L1  | 10–47 µH ≥0.3 A shielded SMD inductor | per datasheet | 1 | LM5165 buck inductor; low-Iq COT mode favors a larger L than a fast buck |
-| C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210      | 2   | LM5165 input (C1 on V24_FUSED, behind the ~53 V clamp → 100 V) / output (C2, 3.3 V) |
+| U1  | **LM5166** (24 V→3.3 V sync buck, **always-on**, fixed-3.3 V variant — FB→VOUT, no divider) | VSON-10 | 1 | **~14 µA Iq**, 3–65 V in (65 V out-rates the ~53 V clamp), **500 mA** — enough to power a **WiFi session** (D25); a brick can't be both µA-Iq *and* surge-tolerant (D19/DR-4). 500 mA sibling of the LM5165 (which couldn't feed WiFi). *Confirm exact fixed-3.3 V orderable PN + stock at BOM-lock.* No FB divider |
+| L1  | 10–47 µH ≥0.3 A shielded SMD inductor | per datasheet | 1 | LM5166 buck inductor; low-Iq COT mode favors a larger L than a fast buck |
+| C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210      | 2   | LM5166 input (C1 on V24_FUSED, behind the ~53 V clamp → 100 V) / output (C2, 3.3 V) |
 | U2  | Recom R-78HB12-0.5 (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1   | **Switched** (behind Q1) — drives the Cat5e/display. 72 V in tolerates the ~53 V clamp (D19/DR-3). Was R-78E12 (34 V, under-rated) |
 | C3, C4 | C3 22 µF / **100 V**, C4 22 µF / 25 V X7R | 1210      | 2   | U2 input (C3 on V24_SW, behind the clamp → 100 V) / 12 V output (C4) |
 
@@ -256,7 +259,7 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | V24_RAW      | 24–28 V     | J1 pin 1             | F1                                            | Pack tap, unfused |
 | V24_FUSED    | 24–28 V     | D1 cathode           | Q1 source, R5 top (sense divider), R3 (Q1 gate pull-up), TVS1 | Always-alive 24 V rail (post-fuse, post-reverse). Only loads are the load-switch input, the sense divider, the gate pull-up, and the TVS clamp — minimal idle draw |
 | V24_SW       | 24–28 V     | Q1 drain             | R-78HB12 VIN (U2) only                         | Switched 24 V branch downstream of the load switch. Feeds **only** U2 (12 V/display). Collapses when PWR_EN is LOW/Hi-Z — sheds the display, **not** the MCU |
-| V3V3         | 3.3 V       | LM5165 VOUT (U1)     | ESP3V3, RTC VCC, U3 VCC, R8/R9, R13, C6/C7/C8 | **Always-on** 3.3 V (D19). Powers the MCU in every state; never gated. No RS-485 bias here (display-end only) |
+| V3V3         | 3.3 V       | LM5166 VOUT (U1)     | ESP3V3, RTC VCC, U3 VCC, R8/R9, R13, C6/C7/C8 | **Always-on** 3.3 V (D19). Powers the MCU in every state; never gated. No RS-485 bias here (display-end only) |
 | V12_CAT5E    | 12 V        | R-78HB12 VOUT (U2)   | J2 RJ45 pins 1/2/3                            | Powers display side over Cat5e; off when Q1 sheds it |
 | GND          | 0 V         | (chassis)            | every IC GND, J2 pins 6/7/8, chassis stud near J2 | Single-point shield-drain bond at J2 |
 | V24_SENSE    | 0–2.3 V     | R5/R6 midpoint       | ESP IO1 (ADC1_CH0)                            | Always-alive; 1.2 M/100 k divider → ~2.25 V at full charge (DR-6) |
@@ -300,7 +303,7 @@ extra LED, etc.) via J3.
 
 ## 7. Power budget per state
 
-Computed for **D19 part choices**: U1 LM5165 always-on µA-Iq buck,
+Computed for **D19 part choices**: U1 LM5166 always-on µA-Iq buck,
 1.2 MΩ/100 kΩ sense divider, no debug LED, P-FET load switch on the
 **switched display-feed branch only** (§8), V12 policy split between
 deep-sleep (alive) and hard-cut (off) — see [§13 D-OPEN-7a/7b](#13-open-decisions-for-reviewer).
@@ -310,7 +313,7 @@ deep-sleep (alive) and hard-cut (off) — see [§13 D-OPEN-7a/7b](#13-open-decis
 | 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 ~0.5 mA + RTC <100 µA + bias ~1.5 mA + display side ~5 mA + sense 22 µA = 45 mA × 24 V | **~1.08 W** | ±2 % vs power_budget.md |
 | 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + bias still on ~1.5 mA + display unchanged + sense 22 µA | **~0.30 W** | — |
 | 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + RV-3028 ~150 µA + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Display still up (Q1 ON) |
-| 4 — Hard cut | < 10 % | U1 LM5165 Iq ~10.5 µA + ESP deep-sleep ~10 µA + sense divider ~19 µA + **RV-3028-C7 RTC ~45 nA (negligible)**; display shed (Q1 OFF) | **~1 mW** | RTC swapped RV-3028→RV-3028-C7 to kill the ~0.5 mW always-on draw (D23/DR-8). MCU re-engages on recovery (D19) |
+| 4 — Hard cut | < 10 % | U1 LM5166 Iq ~14 µA + ESP deep-sleep ~10 µA + sense divider ~19 µA + **RV-3028-C7 RTC ~45 nA (negligible)**; display shed (Q1 OFF) | **~1 mW** | RTC swapped DS3231→RV-3028-C7 to kill the ~0.5 mW always-on draw (D23/DR-8). MCU re-engages on recovery (D19) |
 
 State 4 budget: at ~1 mW, decades to lose 1 % SOC from the monitor alone —
 self-discharge dominates. A literal full cut + supervisor could reach
@@ -320,13 +323,13 @@ self-discharge dominates. A literal full cut + supervisor could reach
 
 **Topology** (D19/DR-4): a P-FET high-side load switch on the **switched
 branch only** — it gates U2 (the 12 V/display feed), **not** the MCU. The
-MCU rail (U1 LM5165) is always-on and never behind Q1. Q1 (ZXMP6A13F,
+MCU rail (U1 LM5166) is always-on and never behind Q1. Q1 (ZXMP6A13F,
 60 V P-FET) passes V24_FUSED → V24_SW; Q2 (2N7002, 60 V N-FET) drives Q1's
 gate from ESP GPIO4 (`PWR_EN`, active-HIGH); DZ1 (12 V Zener) + Rg clamp
 Q1's gate-source voltage.
 
 ```
-V24_FUSED ──┬──── ALWAYS-ON: U1 (LM5165 → 3V3 MCU rail), TVS1, R5/R6, R3
+V24_FUSED ──┬──── ALWAYS-ON: U1 (LM5166 → 3V3 MCU rail), TVS1, R5/R6, R3
             │
             │  R3 [100 kΩ gate pull-up → source]   DZ1 [12V] clamps Vgs
             ▼
@@ -378,8 +381,8 @@ populated. **Idle bias is NOT here** — it lives on the display end only
 
 | Cap   | Value  | Net      | Placement (within mm of pin) | Function       |
 |-------|--------|----------|------------------------------|----------------|
-| C1    | 22 µF/100 V | V24_FUSED | LM5165 VIN < 2 mm       | Bulk input (behind ~53 V clamp → 100 V) |
-| C2    | 22 µF/25 V  | V3V3  | LM5165 VOUT < 2 mm          | Bulk output (3.3 V) |
+| C1    | 22 µF/100 V | V24_FUSED | LM5166 VIN < 2 mm       | Bulk input (behind ~53 V clamp → 100 V) |
+| C2    | 22 µF/25 V  | V3V3  | LM5166 VOUT < 2 mm          | Bulk output (3.3 V) |
 | C3    | 22 µF/100 V | V24_SW | R-78HB12 (U2) VIN < 5 mm    | U2 input bulk (behind clamp → 100 V) |
 | C4    | 22 µF/25 V  | V12_CAT5E | R-78HB12 (U2) VOUT < 5 mm | Bulk output to Cat5e |
 | C5    | 100 nF | V24_SENSE | ADC1_CH0 < 3 mm            | Sense filter   |
@@ -413,7 +416,7 @@ populated. **Idle bias is NOT here** — it lives on the display end only
 5. **Hard-cut MOSFETs near the regulators they control**, on the V24
    side; do not run a long V24 trace.
 6. **RTC near MCU**: minimize I²C trace length; the RV-3028 has an
-   integrated crystal — keep it away from the LM5165 switching node (L1).
+   integrated crystal — keep it away from the LM5166 switching node (L1).
 7. **High-current paths fat**: V24_RAW → F1 → D1 → V24_FUSED → U1/U2 in
    a continuous copper run; design rule applies in §11.3.
 
@@ -469,10 +472,10 @@ margin.
 1. **RV-3028 SOIC-16W footprint not in stock libraries on some KiCad
    distributions** — verify at CP2; create custom footprint if needed
    (low effort).
-2. **R-78HB12 SIP3 + LM5165 VSON-10 footprints** — Recom provides KiCad
-   libraries at recom-power.com/design-tools; the LM5165 VSON-10 is in
+2. **R-78HB12 SIP3 + LM5166 VSON-10 footprints** — Recom provides KiCad
+   libraries at recom-power.com/design-tools; the LM5166 VSON-10 is in
    TI's library. Pulling/verifying these is part of CP2. **Candidate MPNs
-   (LM5165YDRCR, R-78HB12-0.5, ZXMP6A13F) need a final availability check
+   (LM5166 fixed-3.3 V, R-78HB12-0.5, ZXMP6A13F, RV-3028-C7) need a final availability check
    before BOM lock** (D-OPEN-6).
 3. **ESP32-S3-WROOM-1 antenna keepout violations** are easy to make
    by accident. CP3 layout review must verify visually.
@@ -493,7 +496,7 @@ margin.
 |----------------------------------|-------------------------------------------|----------------------------------------------|
 | 24 V input                       | Ring lugs + external ATO fuse holder     | Phoenix terminal block + on-board 5×20 mm cartridge fuse |
 | 24 V TVS                         | Not specified                              | TVS1 = SMAJ33CA across V24_FUSED ↔ GND (D19/DR-2) |
-| 3.3 V regulator + domain         | TPS62933 on the *switched* rail (MCU died at hard-cut → couldn't boot) | LM5165 µA-Iq buck on the **always-on** rail; MCU always powered (D19/DR-4) |
+| 3.3 V regulator + domain         | TPS62933 on the *switched* rail (MCU died at hard-cut → couldn't boot) | LM5166 µA-Iq buck on the **always-on** rail; MCU always powered (D19/DR-4) |
 | 12 V regulator                   | R-78E12 (34 V — under-rated behind the ~53 V clamp) | R-78HB12 (72 V), switched behind Q1 (D19/DR-3) |
 | Load switch FETs                 | AO3401A/AO3400A (30 V), no Vgs clamp       | 60 V ZXMP6A13F/2N7002 + 12 V Vgs Zener clamp (D19/DR-4) |
 | Reverse-polarity diode           | SS24 (40 V)                                | SS26 (60 V) — out-rates the clamp (D19/DR-3) |
