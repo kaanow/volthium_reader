@@ -79,9 +79,13 @@ Hard constraints this imposes (CP3 must honor; a depth tally is produced then):
 - **Button-cap height spans the PCB→faceplate gap** (set by the module +
   standoff stack) — so it can only be fixed once the depth stack is. → spec
   tall-actuator tactiles or printed cap extensions sized to the final gap.
-- **Service port:** a **bottom-edge USB-C** (D27) exits a discreet slot in
-  the bottom of the faceplate/box — reachable without wall removal,
-  invisible head-on.
+- **Service port (D27, geometry corrected):** the box is recessed in the
+  wall, so a "bottom" port isn't accessible — only the faceplate front is
+  exposed. Routine firmware is **OTA over RS-485** (battery side pulls it
+  via WiFi), so the display's USB is **bench/recovery only**: a board-edge
+  **USB-C** reached by **popping the faceplate** (detaches without wall
+  removal) — **no front cutout**. The faceplate is specified as a
+  snap/magnetic pop-off for exactly this.
 - **No antenna keepout** (D26): the display radio is unused (RS-485 link),
   so the WROOM antenna region carries no keepout — frees the layout.
 
@@ -137,7 +141,7 @@ bistable display; the ESP32-S3 self-manages its sleep states).
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
 | MOD1 | ESP32-S3-WROOM-1-N16R8 (`-1`)             | SMD module     | 1   | Matches battery-side (firmware + footprint commonality). **Radio unused** — RS-485 is the only link, so disable RF in firmware and **drop the antenna keepout** (D26). (D-OPEN-1: -N8 vs -N16R8 — defer.) |
-| J-USB | **USB-C receptacle** on native ESP32-S3 USB (bottom edge) | SMD | 1 | **D27:** maintenance port (flash/console/JTAG) reachable without wall removal; discreet bottom slot. |
+| J-USB | **USB-C receptacle** on native ESP32-S3 USB (board edge) | SMD | 1 | **D27:** bench/recovery port — reached by popping the faceplate (no front cutout). Routine firmware is OTA over RS-485, so it's rarely used. |
 | U-ESD | USB ESD array (USBLC6-2)                   | SOT-23-6       | 1   | ESD clamp on the USB-C D+/D−/VBUS (D27). |
 | C3  | 10 µF X7R (ESP bulk, ≤ 2 mm from 3V3 pin)  | 0805           | 1   | |
 | C4  | 100 nF X7R (ESP HF decoupling, 0402 if possible) | 0402 | 1 | |
@@ -355,8 +359,9 @@ ground pour).
 5. **Right-angle / low-profile RJ45 on a short edge** (DR-10), so the
    in-wall Cat5e enters from the side/bottom and the jack doesn't consume
    depth. Preference: LEFT edge so the cable doesn't push the box forward.
-6. **USB-C maintenance port on the bottom edge** (D27) — exits a discreet
-   bottom slot in the faceplate/box; reachable without wall removal.
+6. **USB-C bench/recovery port at a board edge** (D27) — reached by
+   popping the faceplate (no front cutout); routine updates are OTA over
+   RS-485, so it's rarely used.
 7. **Buttons exit the PCB toward the faceplate side**; their height
    plus PCB to faceplate distance must clear the box's interior front
    ribs. Tactile switch is 4.3 mm tall; PCB + standoff stack adds ~5 mm;

@@ -257,11 +257,14 @@ The display lives in a double-gang wall box behind a faceplate, yet only
 has internal dev pin headers — reflashing means pulling it out of the
 wall. Same gap D22 fixed on the battery side.
 
-**Resolution (D27).** Add a board **bottom-edge USB-C** on the native
-ESP32-S3 USB (flash/console/JTAG) exiting a discreet slot in the bottom of
-the faceplate/box — reachable without wall removal, invisible head-on. Add
-a **USB ESD array** (USBLC6-2) on D+/D−/VBUS. Keep one internal UART header
-for bench bring-up.
+**Resolution (D27) — geometry corrected.** The box is recessed in the wall,
+so only the faceplate *front* is exposed — a bottom-edge port doesn't work.
+Instead: routine firmware is **OTA over RS-485** (battery side pulls it via
+WiFi and propagates to the display), so the display's physical USB is a
+**bench/recovery port only**. Make it a board-edge **USB-C** (native USB)
+reached by **popping the faceplate** (detaches from the front without wall
+removal) — **no front-face cutout**. + **USB ESD array** (USBLC6-2); keep
+an internal UART header for bench.
 
 ## DR-10 — Display mechanical: shallow box, module-vs-box fit, tall THT parts, button/cap stack  [RESOLVED 2026-06-18 — D27, PCB-side contract]
 

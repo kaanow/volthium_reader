@@ -226,7 +226,7 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| J-USB | **USB-C receptacle** (native ESP32-S3 USB, bottom edge) | SMD | 1 | _verify_ | | $0.60 | **Δ (D27): maintenance port** — flash/console/JTAG without wall removal; replaces the USB-OTG pin header |
+| J-USB | **USB-C receptacle** (native ESP32-S3 USB, board edge) | SMD | 1 | _verify_ | | $0.60 | **Δ (D27): bench/recovery port** — reached by popping the faceplate (no front cutout); routine updates OTA over RS-485. Replaces the USB-OTG pin header |
 | U-ESD | USB ESD array (USBLC6-2) | SOT-23-6 | 1 | _verify_ USBLC6-2 | 511-USBLC6-2SC6 | $0.30 | **NEW (D27):** ESD clamp on USB-C D+/D−/VBUS |
 | J3  | 4-pin 2.54 mm header (UART debug) | THT | 1 | (same as battery-side J5) | | $0.30 | Internal bench bring-up only |
 | J5  | 2-pin 2.54 mm jumper (term lift) | THT | 1 | (same as battery-side J4) | | $0.20 | |

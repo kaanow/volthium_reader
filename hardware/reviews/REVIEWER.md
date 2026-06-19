@@ -74,18 +74,19 @@ Full background:
 [`docs/site/loon_lake.md`](../../docs/site/loon_lake.md),
 [`docs/hardware/`](../../docs/hardware/).
 
-## 2. The five checkpoints
+## 2. The six checkpoints
 
 You'll review one CP at a time. The current one is in
-`SEMAPHORE.yaml::current_cp`.
+`SEMAPHORE.yaml::current_cp`. (Six CPs per [`decisions.md` D12](../layout/decisions.md#d12--cp-renumber-display-side-placement-inserted-as-cp4) — display placement was split out as CP4.)
 
-| CP | Phase                  | What you evaluate                                            |
-|----|------------------------|---------------------------------------------------------------|
-| 1  | **Design baseline**    | Markdown specs only. No KiCad files yet                       |
-| 2  | **Schematic capture**  | `.kicad_sch` + ERC report + schematic PDF + netlist           |
-| 3  | **Placement**          | `.kicad_pcb` with footprints placed, top/bottom PNG renders   |
-| 4  | **Routing + DRC**      | Fully-routed `.kicad_pcb`, DRC report, copper pours done      |
-| 5  | **Fab-ready**          | Gerbers, drill, position file, BOM CSV, fab checklist         |
+| CP | Phase                       | What you evaluate                                            |
+|----|-----------------------------|---------------------------------------------------------------|
+| 1  | **Design baseline**         | Markdown specs only. No KiCad files yet                       |
+| 2  | **Schematic capture**       | `.kicad_sch` + ERC report + schematic PDF + netlist           |
+| 3  | **Placement (battery)**     | `battery_side.kicad_pcb` footprints placed, top/bottom renders |
+| 4  | **Placement (display)**     | `display_side.kicad_pcb` footprints placed, renders            |
+| 5  | **Routing + DRC**           | Fully-routed `.kicad_pcb`, DRC report, copper pours done      |
+| 6  | **Fab-ready**               | Gerbers, drill, position file, BOM CSV, fab checklist, STEP   |
 
 ## 3. Your role
 
@@ -96,11 +97,14 @@ will reject your finding if your reasoning is wrong**, but it'll do so
 transparently in a `RESOLVED` entry under each finding. Iterate until
 consensus.
 
-Bring outside knowledge:
-- Datasheets (ESP32-S3, TPS62933, DS3231, SN65HVD3082E, Recom R-78E,
-  Waveshare 4.2" e-Paper B v2, etc.)
+Bring outside knowledge (use the **current** part set — D19–D27):
+- Datasheets: ESP32-S3-WROOM-1, **LM5166** (always-on µA-Iq buck),
+  **RV-3028-C7** (RTC), **R-78HB12** / **R-78E3.3** (Recom), **ZXMP6A13F /
+  2N7002** (load switch), **SS26**, **SMAJ33CA/SMAJ15A/SMAJ12CA**,
+  **SN65HVD3082E**, **USBLC6-2** (USB ESD), Waveshare 4.2" e-Paper (B).
 - ESP32-S3 quirks (boot straps, ADC1 vs ADC2/WiFi conflict, RTC-GPIO
-  capability per pin, USB-OTG pin reservation, brown-out behavior)
+  capability per pin, **native USB on GPIO19/20**, brown-out behavior,
+  WiFi TX current vs the supply).
 - KiCad 10 file format / behavior (CP2+)
 - JLCPCB design rules + part stock (CP5)
 - General EE conventions (decoupling close to pin, ground pour stitch
@@ -158,6 +162,19 @@ For **CP2+** (KiCad-based CPs), additionally:
   sign-off — that equivalence is exactly what let DR-1/DR-2 reach CP6. A
   designer's engineering "PASS" is not evidence; re-derive. New concerns
   go to `DESIGN_REVIEW_ITEMS.md`.
+  - **Domain-complete + spec-consistent (the latest gate).** Cover *every*
+    domain, not just electrical: **mechanical/enclosure fit, RF/antenna
+    environment, thermal, and serviceability/access**. And cross-check each
+    doc against the **decisions log** and the actual parts — a spec that
+    contradicts a later decision or the chosen part is itself a finding
+    (this is the CP1-reopen drift lesson, failure-mode #4 in
+    `ENGINEERING_REVIEW.md`).
+  - **Re-derive the current decision set, don't assume it.** This CP1 was
+    re-opened (D18) and carries **D19–D27** + **DR-1…DR-11**. Independently
+    check the load-bearing ones — the power-domain re-architecture (D19),
+    the always-on µA-Iq supply + WiFi headroom (D25), the RTC budget (DR-8),
+    the surge coordination (DR-3), the display mechanical/depth (DR-10).
+    Don't take "RESOLVED" on faith.
 - **D16 schematic-readability goal.** Top-level acceptance criterion
   for any schematic-touching CP:
   > A human can read this schematic and understand the design.
