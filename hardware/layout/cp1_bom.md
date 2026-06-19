@@ -174,8 +174,8 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| J1  | Amphenol RJHSE-538X-MOD RJ45 keystone, shielded | THT shielded | 1 | (unchanged) | | $4.00 | Same as battery-side J2 |
-| F1  | Bel Fuse 0ZCG0050FF2C PTC polyfuse 0.5 A hold | THT radial | 1 | F1283CT-ND | 650-MF-R050-2 | $1.00 | (unchanged) |
+| J1  | **Right-angle / low-profile RJ45**, shielded | THT shielded | 1 | _verify_ | | $4.00 | **Δ (DR-10): right-angle** — fits the shallow box, Cat5e enters side/bottom |
+| F1  | PTC polyfuse, **~0.25 A hold** (e.g. Bourns MF-R025) | THT radial | 1 | _verify_ MF-R025 | 652-MF-R025 | $1.00 | **Δ (DR-11): 0.5 A → ~0.25 A** — matches the ~40–150 mA load, trips below U2 foldback |
 | TVS1 | SMAJ15A unidirectional TVS | SMA | 1 | SMAJ15ADICT-ND | 78-SMAJ15A-E3/61 | $0.30 | (unchanged) |
 | C1  | 22 µF / 25 V X7R | 1210 | 1 | (unchanged) | | $0.20 | V12 input bulk |
 
@@ -190,7 +190,7 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| MOD1 | ESP32-S3-WROOM-1-N16R8 | SMD module | 1 | (unchanged) | | $6.00 | Same as battery-side; common BOM line |
+| MOD1 | ESP32-S3-WROOM-1-N16R8 (`-1`) | SMD module | 1 | (unchanged) | | $6.00 | **D26: radio unused** (RS-485 link) — kept for commonality, RF disabled, antenna keepout dropped |
 | C3  | 10 µF X7R | 0805 | 1 | (same as battery-side C6) | | $0.10 | ESP bulk |
 | C4  | 100 nF X7R | 0402 or 0603 | 1 | (same as battery-side C7) | | $0.05 | ESP HF |
 | C5  | 1 µF X7R | 0603 | 1 | (same as battery-side C8) | | $0.10 | ESP EN soft-start |
@@ -226,8 +226,9 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| J3  | 4-pin 2.54 mm header (UART debug) | THT | 1 | (same as battery-side J5) | | $0.30 | |
-| J4  | 4-pin 2.54 mm header (USB-OTG breakout) | THT | 1 | (same as battery-side J3) | | $0.30 | |
+| J-USB | **USB-C receptacle** (native ESP32-S3 USB, bottom edge) | SMD | 1 | _verify_ | | $0.60 | **Δ (D27): maintenance port** — flash/console/JTAG without wall removal; replaces the USB-OTG pin header |
+| U-ESD | USB ESD array (USBLC6-2) | SOT-23-6 | 1 | _verify_ USBLC6-2 | 511-USBLC6-2SC6 | $0.30 | **NEW (D27):** ESD clamp on USB-C D+/D−/VBUS |
+| J3  | 4-pin 2.54 mm header (UART debug) | THT | 1 | (same as battery-side J5) | | $0.30 | Internal bench bring-up only |
 | J5  | 2-pin 2.54 mm jumper (term lift) | THT | 1 | (same as battery-side J4) | | $0.20 | |
 
 ### Mounting / enclosure
@@ -238,7 +239,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | —   | 3D-printed PCB bracket | 1 | — | — | $0.50 (PLA) | User-printed from STEP at CP5 |
 | —   | 3D-printed faceplate | 1 | — | — | $1.00 (PLA) | User-printed; user-designed against PCB STEP |
 | —   | M3 standoffs + screws | 1 set | — | — | $2.50 | PCB to bracket |
-| —   | M2 mounting hardware for e-paper | 1 | — | — | $2.00 | Panel to bracket |
+| —   | M2 mounting hardware for e-paper module | 1 | — | — | $2.00 | **Module mounts to the faceplate back** (D27/DR-10) — the ~90–103 mm module doesn't fit inside the ~95 mm box; main PCB sits behind, 8-pin cable between |
 | —   | Tactile button cap extensions (3D-printed, optional, ~5 mm tall) | 3 | — | — | $0.10 (PLA) | If standard caps don't reach the faceplate |
 
 ### Display-side subtotal

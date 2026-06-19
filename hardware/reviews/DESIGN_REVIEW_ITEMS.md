@@ -240,3 +240,60 @@ load is *eliminated*, hard-cut returns to **~1 mW**, and accuracy (±1–3 ppm)
 is comparable. The user's prompt ("there must be an ultra-low-power RTC")
 caught that the DS3231 is a power-hungry RTC by class (its TCXO is the
 cost). Budget reverted to ~1 mW across power_budget.md + cp1_battery_side.
+
+---
+
+# Display-side clean-sheet review (domain-complete, 2026-06-18)
+
+Same first-principles pass as the battery side, now with the hardened
+mechanical/RF/serviceability domains. Electrical cleared with minor notes
+(DR-1 TVS already fixed; R-78E3.3 coordination sound; RS-485 term + sole
+display-end bias coordinated; decoupling/EN fine). The substantive finds
+are mechanical + serviceability.
+
+## DR-9 — Display has no service access (wall-mounted, internal headers only)  [RESOLVED 2026-06-18 — D27]
+
+The display lives in a double-gang wall box behind a faceplate, yet only
+has internal dev pin headers — reflashing means pulling it out of the
+wall. Same gap D22 fixed on the battery side.
+
+**Resolution (D27).** Add a board **bottom-edge USB-C** on the native
+ESP32-S3 USB (flash/console/JTAG) exiting a discreet slot in the bottom of
+the faceplate/box — reachable without wall removal, invisible head-on. Add
+a **USB ESD array** (USBLC6-2) on D+/D−/VBUS. Keep one internal UART header
+for bench bring-up.
+
+## DR-10 — Display mechanical: shallow box, module-vs-box fit, tall THT parts, button/cap stack  [RESOLVED 2026-06-18 — D27, PCB-side contract]
+
+Aggressive mechanical pass on the double-gang assembly surfaced several
+coupled constraints that CP3 placement must honor:
+
+1. **Depth budget is tight.** A double-gang old-work box is shallow
+   (~45 mm usable). The stack is faceplate → e-paper module → main PCB →
+   bracket → box floor. **Tall THT parts eat the budget**: a vertical RJ45
+   (~13–21 mm) and the R-78E3.3 SIP (~11 mm). → use a **right-angle /
+   low-profile RJ45** (also routes the in-wall Cat5e cleanly), and budget
+   the R-78 orientation; produce an explicit depth-stack tally at CP3.
+2. **The e-paper module likely won't fit *inside* the box.** The Waveshare
+   4.2" Module (B) outline (~90–103 mm — *verify exact*) meets/exceeds the
+   double-gang interior (~95 mm). → **mount the module to the back of the
+   oversized custom faceplate** (~115×117 mm), with the main PCB in the box
+   behind it and the 8-pin cable (DR-7) between — slack + strain relief.
+3. **Button-cap geometry** spans the PCB→faceplate gap (set by the module
+   + standoff stack), so it can't be fixed until the depth stack is. → spec
+   tall-actuator tactiles or printed cap extensions, sized to the final gap.
+4. **STEP export is the contract.** The bracket + faceplate are user-3D-
+   printed, so the deliverable is a **PCB STEP** (with the e-paper-module
+   envelope + connector/button/USB-C positions) the user designs against.
+
+These are CP1 *constraints* (captured in cp1_display_side §2/§10) + a CP3
+placement obligation; the user's print is out of scope.
+
+## DR-11 — Display PTC over-sized for the load  [RESOLVED 2026-06-18]
+
+F1 (MF-R050, 0.5 A hold / ~1 A trip) is loose against the actual display
+load (~40 mA steady, ~150 mA refresh peaks). And it barely coordinates
+with the battery-side U2 (R-78HB12, ~0.5 A foldback) — a display short
+would more likely fold U2 back than trip the PTC. **Resolution:** tighten
+to a **~0.25 A-hold PTC** (covers refresh/inrush, trips well below U2's
+limit → real cable + upstream protection). Agent call.

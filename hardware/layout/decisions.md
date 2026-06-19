@@ -1296,3 +1296,39 @@ session, while its ~14 µA idle keeps **hard-cut at ~1 mW** (vs the LM5165's
 more supply/budget). Uses the ESP32-S3's built-in radio + the `-1` PCB
 antenna (shared with BLE, D21) — **no new RF parts**. A bulk cap on 3V3
 still helps the sub-ms TX peaks. **Supersedes the LM5165 choice in D19.**
+
+## D26 — Display-side MCU: keep the WROOM, radio unused, antenna keepout dropped
+
+**Date**: 2026-06-18
+
+**Decision.** The display-side ESP32-S3 uses **no radio** — its only link
+is the wired RS-485 to the battery side. Keep the **ESP32-S3-WROOM-1
+(`-1`)** anyway for **firmware + footprint commonality** with the battery
+board, but **disable the radio in firmware** and **drop the 15×6 mm
+antenna keepout** on the display PCB (no RF → no keepout → freer layout).
+No separate config radio (config is via the 3 buttons + on-screen labels).
+
+## D27 — Display serviceability + mechanical contract
+
+**Date**: 2026-06-18
+
+**Decision (DR-9/DR-10).** The display is wall-mounted, so:
+- **Service:** a board **bottom-edge USB-C** on the native ESP32-S3 USB
+  (flash/console/JTAG) exits a discreet slot in the bottom of the
+  faceplate/box — reachable without removing it from the wall, invisible
+  head-on. Add a **USB ESD array** (USBLC6-2) on D+/D−/VBUS. One internal
+  UART header kept for bench bring-up. (Mirrors the battery-side D22.)
+- **Enclosure stack (shallow double-gang box, ~45 mm usable depth):** the
+  e-paper **module mounts to the back of the oversized custom faceplate**
+  (~115×117 mm — the module ~90–103 mm doesn't fit *inside* the ~95 mm box),
+  the main PCB sits in the box behind it, 8-pin cable between (slack +
+  strain relief). Use a **right-angle / low-profile RJ45** so it doesn't
+  consume the scarce depth and routes the in-wall Cat5e cleanly. Button
+  caps span the PCB→faceplate gap (tall-actuator tactiles or printed cap
+  extensions, sized once the depth stack is fixed at CP3).
+- **Deliverable:** a **PCB STEP** (with the e-paper-module envelope +
+  connector/button/USB-C positions) is exported for the user to design the
+  bracket + faceplate against. The print itself is the user's.
+
+(PTC also tightened to ~0.25 A hold — DR-11 — to match the ~40–150 mA load
+and coordinate with the battery-side U2 foldback.)
