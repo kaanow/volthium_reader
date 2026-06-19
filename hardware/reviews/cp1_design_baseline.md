@@ -82,6 +82,18 @@ the budget had missed); **D24** e-paper tri-color retained, cold limit
 **U1 LM5165→LM5166** (500 mA, same µA-Iq family) to feed a WiFi session
 (a cap can't bridge a multi-second connect/upload). Hard-cut stays ~1 mW.
 
+**Display-side clean-sheet review (D26/D27 + DR-9/10/11), 2026-06-18.** The
+display board got the same domain-complete pass, now exercising mechanical/
+serviceability: **D26** radio unused (RS-485 link) → keep the WROOM-1 for
+commonality, RF disabled, antenna keepout dropped; **D27 / DR-9** add a
+bottom-edge USB-C maintenance port (+ USB ESD) since it's wall-mounted;
+**DR-10** (mechanical) the shallow double-gang box drives a right-angle
+RJ45, the e-paper module mounting to the oversized custom faceplate (it
+won't fit inside the box), a depth-stack budget, and the PCB-STEP-as-
+contract; **DR-11** PTC tightened 0.5 A → ~0.25 A. Electrical otherwise
+clean. (Also caught + fixed a stale single-gang-plate BOM row — the
+display is double-gang.)
+
 **Acceptance for this pass.** Architecture re-derived and corrected
 (D19); all baseline docs reconciled; candidate parts verified. The CP2
 schematic implementation (the D19 power tree in `build_schematics.py` +
