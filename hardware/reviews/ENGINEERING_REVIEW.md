@@ -52,6 +52,19 @@ human-decision items go to `DESIGN_REVIEW_ITEMS.md`.
 
 ## Per-domain checklist
 
+**Domain-complete.** Cover *every* domain below, every pass. A deep dive
+in one domain (e.g. electrical correctness) does not substitute for the
+others — the most common miss is a thorough power review that never looks
+at mechanical/RF/thermal/serviceability. Run the whole list even when one
+area is consuming your attention.
+
+**Spec-consistent.** Cross-check each CP doc against the **decisions log**
+and the chosen *parts*. A spec that contradicts a later decision or the
+actual part (e.g. a board-size or antenna-keepout line that a newer
+decision superseded, or a keepout for a PCB-antenna variant when the BOM
+lists the external-antenna part) is itself a finding — internal drift is
+as real a defect as a wrong value.
+
 - **Power input:** over-current (fuse/PTC); reverse polarity (series
   diode/ideal-diode, or crowbar); surge TVS (cathode→rail for a +rail,
   standoff > Vmax-charge, **clamp < downstream abs-max**); bulk caps
@@ -68,6 +81,17 @@ human-decision items go to `DESIGN_REVIEW_ITEMS.md`.
   protection & clamp; source loading / burden.
 - **Connectors:** pinout, keying, per-pin current & voltage rating,
   mating-cable assumptions.
+- **Physical / mechanical integration:** enclosure (type, material, IP
+  rating) and how it interacts with the board — *plastic vs metal drives
+  the antenna choice*; **RF environment** (antenna keepout matches the
+  *actual* module variant; proximity to metal/batteries that detunes a PCB
+  antenna); **thermal** dissipation paths for regulators/FETs; **mounting**
+  (holes, standoffs, what it bolts to); **serviceability/access** — can
+  you program/debug/replace-fuse/mate-connectors *without disassembly*
+  where that's required; connector edge-placement, orientation, and
+  cable-reach. **Board outline is an output of placement** — don't fix a
+  size before parts are placed unless a real constraint demands it; "as
+  small as comfortable, never artificially large."
 
 ## Lineage — why this gate exists
 
@@ -82,6 +106,18 @@ by adding the missing gate:
    protection was mis-oriented (DR-1) and mis-coordinated (DR-2) →
    **this engineering-correctness gate.** These were CP1/CP2 decisions
    that nothing reviewed for *correctness*, only for legality and looks.
+4. **CP1 re-open** — a rigorous *electrical* pass (DR-3…DR-7) declared CP1
+   "excellent" while the **mechanical** spec sat stale: the §2 envelope
+   still listed the old board size, the wrong enclosure, and an antenna
+   keepout for the wrong module variant. A deep dive in one domain masked
+   a whole un-reviewed domain → the **domain-complete + spec-consistent**
+   rules above.
 
 The pattern: every gate converts a hard, late-caught lesson into
 front-loaded discipline so the *next* project gets it right from CP1.
+
+**This applies at every CP, not just CP1.** Mechanical/physical
+constraints set at CP1 must be *re-verified* downstream — placement (CP3/4)
+honors the keepouts/access/thermal zones, routing (CP5) doesn't violate
+them, and fab (CP6) confirms enclosure fit. A constraint is only "met"
+when the latest artifact still satisfies it.
