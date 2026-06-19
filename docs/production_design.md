@@ -7,6 +7,10 @@
 > schematic-level netlists for both boards (GPIO maps included), a power
 > budget that quantifies every state, and the Cat5e pinout. Ready to
 > enter into KiCad.
+>
+> For the cloud / remote-viewing side (Railway ingest, wire protocol, and
+> the repo-wide UTC `Z` timestamp convention that the ESP32 firmware must
+> follow when emitting telemetry), see [`cloud_architecture.md`](cloud_architecture.md).
 
 ## Goal
 

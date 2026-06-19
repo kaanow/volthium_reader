@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Barge Inn — Volthium 24 V Pack</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0e1116; --panel: #161b22; --ink: #e6edf3; --dim: #8b949e;
+    --grn: #3fb950; --ylw: #d29922; --red: #f85149; --blu: #58a6ff;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+         background: var(--bg); color: var(--ink); margin: 0; padding: 24px; }
+  h1 { font-size: 14px; font-weight: 600; color: var(--dim); margin: 0 0 18px;
+       letter-spacing: .12em; text-transform: uppercase; }
+  .stale-banner {
+    background: rgba(248,81,73,.10); border-left: 3px solid var(--red);
+    color: var(--red); padding: 8px 14px; margin: 0 0 16px;
+    border-radius: 4px; font-size: 13px; font-weight: 500;
+    display: none; gap: 10px; align-items: baseline;
+    font-variant-numeric: tabular-nums;
+  }
+  .stale-banner.shown { display: flex; }
+  .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 18px;
+          max-width: 980px; }
+  .panel { background: var(--panel); border-radius: 10px; padding: 22px; }
+  .state-badge {
+    display: inline-block; font-size: 13px; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 9px;
+    background: rgba(139,148,158,.16); color: var(--dim);
+  }
+  .state-badge.state-charging    { background: rgba(63,185,80,.16);  color: var(--grn); }
+  .state-badge.state-discharging { background: rgba(210,153,34,.16); color: var(--ylw); }
+  .state-badge.state-idle        { background: rgba(139,148,158,.16); color: var(--dim); }
+  .state-badge.state-full        { background: rgba(63,185,80,.24);  color: var(--grn); letter-spacing: .2em; }
+  .state-badge.state-unknown     { background: rgba(248,81,73,.16);  color: var(--red); }
+  .headline-pair { display: flex; gap: 28px; flex-wrap: wrap; margin: 10px 0 14px; }
+  .headline-pair .cell { flex: 1 1 130px; min-width: 130px; }
+  .headline-pair .cell .h { font-size: 64px; font-weight: 700; line-height: 1;
+                            font-variant-numeric: tabular-nums; }
+  .headline-pair .cell .h .u { font-size: 28px; color: var(--dim); margin-left: 4px; }
+  .headline-pair .cell .h-sub { color: var(--dim); font-size: 12px;
+                                 text-transform: uppercase; letter-spacing: .1em;
+                                 margin-top: 4px; }
+  .soc-bar { background: #21262d; height: 18px; border-radius: 9px;
+             overflow: hidden; margin: 14px 0; }
+  .soc-bar > div { height: 100%;
+                   background: linear-gradient(90deg, var(--blu), var(--grn));
+                   transition: width .4s; }
+  .row { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 16px; }
+  .stat { min-width: 90px; }
+  .stat .label { color: var(--dim); font-size: 12px; text-transform: uppercase;
+                 letter-spacing: .1em; margin-bottom: 6px; }
+  .stat .v { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stat .u { color: var(--dim); font-size: 13px; margin-left: 4px; }
+  .label { color: var(--dim); font-size: 12px; text-transform: uppercase;
+           letter-spacing: .1em; margin-bottom: 6px; }
+  .spark { width: 100%; height: 80px; }
+  .footer { color: var(--dim); font-size: 11px; margin-top: 14px;
+            font-variant-numeric: tabular-nums; }
+  table.batt { width: 100%; border-collapse: collapse; margin-top: 8px;
+               font-variant-numeric: tabular-nums; font-size: 13px; }
+  table.batt td, table.batt th { padding: 6px 4px; text-align: right; }
+  table.batt th { color: var(--dim); font-weight: 500; font-size: 12px; }
+  table.batt td:first-child, table.batt th:first-child { text-align: left; }
+  .source-pill { font-size: 11px; color: var(--dim); margin-left: 12px;
+                 padding: 2px 8px; background: #21262d; border-radius: 8px;
+                 font-family: ui-monospace, monospace; }
+  .problem-pill { font-size: 10px; padding: 2px 6px; border-radius: 6px;
+                  font-family: ui-monospace, monospace;
+                  background: rgba(248,81,73,.12); color: var(--red); }
+  .problem-pill.ok { background: rgba(63,185,80,.12); color: var(--grn); }
+  @media (max-width: 700px) {
+    .grid { grid-template-columns: 1fr; }
+    .headline-pair .cell .h { font-size: 44px; }
+  }
+</style>
+</head>
+<body>
+  <h1>
+    The Barge Inn — Volthium 24 V Pack
+    <span id="source-pill" class="source-pill" hidden></span>
+  </h1>
+  <div id="stale-banner" class="stale-banner">
+    <span>⚠</span>
+    <span id="stale-text">data is stale</span>
+  </div>
+  <div class="grid">
+    <div class="panel">
+      <span id="state-value" class="state-badge">…</span>
+      <div class="headline-pair">
+        <div class="cell">
+          <div class="h" id="soc-headline">—<span class="u">%</span></div>
+          <div class="h-sub">state of charge</div>
+        </div>
+        <div class="cell">
+          <div class="h" id="time-value">—</div>
+          <div class="h-sub">time to <span id="target">—</span></div>
+        </div>
+      </div>
+      <div class="soc-bar"><div id="soc-fill" style="width: 0%"></div></div>
+      <div class="row">
+        <div class="stat">
+          <div class="label">pack V</div>
+          <div class="v"><span id="pv">—</span><span class="u">V</span></div>
+        </div>
+        <div class="stat">
+          <div class="label">pack I</div>
+          <div class="v"><span id="pi">—</span><span class="u">A</span></div>
+        </div>
+        <div class="stat">
+          <div class="label">pack P</div>
+          <div class="v"><span id="pp">—</span><span class="u">W</span></div>
+        </div>
+      </div>
+      <div class="label" style="margin-top:18px">pack power (W) — last 2 h</div>
+      <svg id="spark-p" class="spark" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
+      <div class="label">SOC (%) — last 2 h</div>
+      <svg id="spark-soc" class="spark" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
+      <div class="footer"><span id="updated">—</span></div>
+    </div>
+    <div class="panel">
+      <div class="label">per battery</div>
+      <table class="batt">
+        <thead>
+          <tr><th>id</th><th>SOC</th><th>V</th><th>A</th><th>T</th><th>ΔmV</th><th>prob</th></tr>
+        </thead>
+        <tbody>
+          <tr id="rowA"><td>A</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr id="rowB"><td>B</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        </tbody>
+      </table>
+      <div class="label" style="margin-top:18px">cell voltages</div>
+      <table class="batt">
+        <thead>
+          <tr><th>cell</th><th>A1</th><th>A2</th><th>A3</th><th>A4</th><th>B1</th><th>B2</th><th>B3</th><th>B4</th></tr>
+        </thead>
+        <tbody>
+          <tr id="cellRow"><td>V</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+const STALE_THRESHOLD_S = 60;
+const setText = (id, v) => document.getElementById(id).textContent = v;
+const fixed = (v, p) => v == null ? "—" : (+v).toFixed(p);
+
+const fmtMin = m => {
+  if (m == null || m < 0) return "—";
+  if (m < 60) return Math.round(m) + " min";
+  const h = Math.floor(m / 60), mm = Math.round(m % 60);
+  if (h < 48) return h + "h " + String(mm).padStart(2, "0") + "m";
+  const d = Math.floor(h / 24); return d + "d " + (h % 24) + "h";
+};
+
+const fmtAge = (s) => {
+  if (s < 90) return Math.floor(s) + " s";
+  if (s < 60 * 90) return Math.floor(s / 60) + " min";
+  if (s < 24 * 3600) return (s / 3600).toFixed(1) + " h";
+  return (s / 86400).toFixed(1) + " d";
+};
+
+function updateStale(latestTs) {
+  const banner = document.getElementById("stale-banner");
+  if (!latestTs) { banner.classList.remove("shown"); return; }
+  const ageS = (Date.now() - Date.parse(latestTs)) / 1000;
+  if (ageS <= STALE_THRESHOLD_S) {
+    banner.classList.remove("shown");
+  } else {
+    setText("stale-text", `data is stale — last sample ${fmtAge(ageS)} ago`);
+    banner.classList.add("shown");
+  }
+}
+
+function spark(id, values, includeZero, color) {
+  const svg = document.getElementById(id);
+  if (values.length < 2) { svg.innerHTML = ""; return; }
+  const W = 600, H = 80, PAD = 4;
+  let lo = Math.min(...values), hi = Math.max(...values);
+  if (includeZero) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+  const pad = (hi - lo) * 0.05 || 1;
+  lo -= pad; hi += pad;
+  const range = hi - lo || 1;
+  const zeroY = H - PAD - ((0 - lo) / range) * (H - 2 * PAD);
+  const pts = values.map((p, i) => {
+    const x = PAD + (i / (values.length - 1)) * (W - 2 * PAD);
+    const y = H - PAD - ((p - lo) / range) * (H - 2 * PAD);
+    return x.toFixed(1) + "," + y.toFixed(1);
+  }).join(" ");
+  const zeroLine = (includeZero && lo <= 0 && hi >= 0)
+    ? `<line x1="0" y1="${zeroY}" x2="${W}" y2="${zeroY}" stroke="#30363d" stroke-width="1"/>`
+    : "";
+  svg.innerHTML = zeroLine +
+    `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/>`;
+}
+
+const labelOf = (name, fallback) => {
+  if (name && name.includes("-")) {
+    const tail = name.split("-").pop();
+    if (tail && tail.length >= 2) return tail.slice(-2);
+  }
+  return fallback;
+};
+
+async function tick() {
+  try {
+    const r = await fetch("/api/readings?limit=720");
+    if (!r.ok) throw new Error("fetch failed: " + r.status);
+    const j = await r.json();
+    const rows = j.readings || [];
+    if (!rows.length) {
+      setText("state-value", "no data yet");
+      updateStale(null);
+      return;
+    }
+    const x = rows[rows.length - 1];
+
+    // Source pill — shows which device we're currently displaying.
+    if (x.source_id) {
+      const pill = document.getElementById("source-pill");
+      pill.textContent = x.source_id;
+      pill.hidden = false;
+    }
+
+    updateStale(x.ts);
+
+    const stateEl = document.getElementById("state-value");
+    stateEl.textContent = (x.state || "—").toUpperCase();
+    stateEl.className = "state-badge state-" + (x.state || "unknown");
+
+    if (x.state === "charging") {
+      setText("target", "full (95%)");
+      setText("time-value", fmtMin(x.minutes_remaining));
+    } else if (x.state === "discharging") {
+      setText("target", "10%");
+      setText("time-value", fmtMin(x.minutes_remaining));
+    } else if (x.state === "full") {
+      setText("target", "—");
+      document.getElementById("time-value").innerHTML = "FULL";
+    } else {
+      setText("target", "—");
+      setText("time-value", "—");
+    }
+
+    const socAvg = (x.soc_a != null && x.soc_b != null)
+      ? (Number(x.soc_a) + Number(x.soc_b)) / 2 : null;
+    if (socAvg != null) {
+      document.getElementById("soc-headline").innerHTML =
+        `${Math.round(socAvg)}<span class="u">%</span>`;
+      document.getElementById("soc-fill").style.width = socAvg + "%";
+    } else {
+      document.getElementById("soc-headline").innerHTML = `—<span class="u">%</span>`;
+    }
+
+    setText("pv", fixed(x.pack_v, 2));
+    setText("pi", x.pack_i == null
+        ? "—"
+        : (x.pack_i > 0 ? "+" : "") + Number(x.pack_i).toFixed(2));
+    setText("pp", x.pack_p == null ? "—" : Math.round(x.pack_p));
+
+    const rA = document.getElementById("rowA").children;
+    const rB = document.getElementById("rowB").children;
+    rA[0].textContent = labelOf(x.name_a, "A");
+    rA[1].textContent = x.soc_a != null ? Math.round(x.soc_a) + "%" : "—";
+    rA[2].textContent = fixed(x.v_a, 2);
+    rA[3].textContent = x.i_a == null
+        ? "—"
+        : (x.i_a > 0 ? "+" : "") + Number(x.i_a).toFixed(2);
+    rA[4].textContent = x.t_a == null ? "—" : Math.round(x.t_a) + "°";
+    rA[5].textContent = x.delta_v_a == null
+        ? "—"
+        : Math.round(Number(x.delta_v_a) * 1000);
+    const pa = x.problem_code_a;
+    rA[6].innerHTML = pa == null
+        ? "—"
+        : `<span class="problem-pill ${pa == 0 ? "ok" : ""}">${pa}</span>`;
+    rB[0].textContent = labelOf(x.name_b, "B");
+    rB[1].textContent = x.soc_b != null ? Math.round(x.soc_b) + "%" : "—";
+    rB[2].textContent = fixed(x.v_b, 2);
+    rB[3].textContent = x.i_b == null
+        ? "—"
+        : (x.i_b > 0 ? "+" : "") + Number(x.i_b).toFixed(2);
+    rB[4].textContent = x.t_b == null ? "—" : Math.round(x.t_b) + "°";
+    rB[5].textContent = x.delta_v_b == null
+        ? "—"
+        : Math.round(Number(x.delta_v_b) * 1000);
+    const pb = x.problem_code_b;
+    rB[6].innerHTML = pb == null
+        ? "—"
+        : `<span class="problem-pill ${pb == 0 ? "ok" : ""}">${pb}</span>`;
+
+    // Cell voltages — single row, 8 columns (A1..A4, B1..B4).
+    const cells = document.getElementById("cellRow").children;
+    const ca = x.cell_voltages_a || [];
+    const cb = x.cell_voltages_b || [];
+    for (let i = 0; i < 4; i++) {
+      cells[1 + i].textContent = ca[i] != null ? Number(ca[i]).toFixed(3) : "—";
+      cells[5 + i].textContent = cb[i] != null ? Number(cb[i]).toFixed(3) : "—";
+    }
+
+    const ps = rows.map(r => r.pack_p == null ? 0 : Number(r.pack_p));
+    spark("spark-p", ps, true,
+          ps[ps.length - 1] >= 0 ? "var(--grn)" : "var(--ylw)");
+    const socs = rows
+      .map(r => (r.soc_a != null && r.soc_b != null)
+          ? (Number(r.soc_a) + Number(r.soc_b)) / 2 : null)
+      .filter(v => v != null);
+    spark("spark-soc", socs, false, "var(--blu)");
+
+    setText("updated", new Date().toLocaleTimeString() + " · " + rows.length + " samples");
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+tick();
+setInterval(tick, 5000);
+</script>
+</body>
+</html>

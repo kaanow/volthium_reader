@@ -5,6 +5,9 @@ __pycache__/
 # pack.log etc.) so each autonomous-loop push keeps the cabin's data
 # trail in the repo. Drop a specific path below if a sub-file should
 # stay local-only.
+data/*.cloud_state         # cloud uploader offset state — machine-local
+data/*.cloud_state.tmp
+data/uploader.log
 # KiCad workspace artifacts (regenerable; not source)
 hardware/kicad/*/*-backups/
 hardware/kicad/*/_autosave-*

@@ -1,0 +1,21 @@
+# Keep the image lean. Reader-side artifacts and dev caches don't belong
+# in the cloud server image.
+.venv
+__pycache__
+*.pyc
+data
+docs
+firmware
+hardware
+scripts
+tests
+volthium
+.git
+.gitignore
+README.md
+Makefile
+pack.env
+requirements*.txt
+"Launch Volthium Monitor.command"
+"Volthium Monitor.app"
+"Stop Volthium Monitor.app"

@@ -161,6 +161,8 @@ dashboard is read-only off the CSV, so both can run forever.
 - `Volthium Monitor.app/` — double-clickable launcher
 - `Launch Volthium Monitor.command` — Terminal-friendly launcher with QR code
 - `docs/production_design.md` — architecture for the cabin-side hardware
+- `docs/cloud_architecture.md` — Railway telemetry design + repo-wide timestamp convention (ISO-8601 UTC `Z` on the wire; read this before adding any code that emits or consumes timestamps over the network)
+- `cloud/` — FastAPI ingest server + Pi-side CSV uploader + browser dashboard, deployable to Railway. See `docs/cloud_architecture.md` § "Railway deploy steps".
 - `data/pack.csv`, `data/pack.log` — captured data (gitignored)
 
 ## Known limits / open questions

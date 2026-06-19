@@ -1,0 +1,6 @@
+# Pi-side uploader deps. Layered on top of the main reader env (requirements.txt
+# at repo root). httpx for HTTP/2-capable async requests; pydantic only needed
+# if the uploader ever wants to share the wire models for client-side
+# validation — leave it commented out unless we add that.
+httpx>=0.27
+# pydantic>=2.7   # uncomment if cloud/shared models are imported here
