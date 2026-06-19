@@ -66,16 +66,17 @@ an **always-on** rail that powers the MCU in every state, and a
         │ (always-on)                                      │ (switched)
         ▼                                                  ▼
   ┌──────────────────┐                          Q1 P-FET load switch (60 V)
-  │ U1 LM5165 buck   │── 3.3 V always-on ─┐     gate-clamped, ESP-controlled
+  │ U1 LM5166 buck   │── 3.3 V always-on ─┐     gate-clamped, ESP-controlled
   │ 24 → 3.3 V        │                    │            │
-  │ (Iq ~10.5 µA)    │                    │            ▼  V24_SW
+  │ (Iq ~14 µA)    │                    │            ▼  V24_SW
   └──────────────────┘                    │     ┌──────────────────┐
                                           │     │ U2 R-78HB12 buck │── +12 V to Cat5e
             ┌───────────────┐             │     │ 24 → 12 V (72 V)  │     → display side
             │ ESP32-S3      │◄────────────┘     └──────────────────┘
-            │ WROOM-1 N16R8 │   ◄── DS3231 RTC (I²C, CR2032-backed)
-            │  ULP + BLE 5  │   ◄── 24 V ADC sense (1.2 MΩ/100 k divider, ~19 µA)
-            │  GPIO bank    │   ◄── override button (RTC-wake GPIO)
+            │ WROOM-1 N16R8 │   ◄── RV-3028-C7 RTC (I²C, cap-backed)
+            │ ULP+BLE+WiFi  │   ◄── 24 V ADC sense (1.2 MΩ/100 k divider, ~19 µA)
+            │  GPIO bank    │   ──► WiFi log-push to Starlink server (duty-cycled, D25)
+            │               │   ◄── override button (RTC-wake GPIO)
             └──┬────────────┘   ──► drives Q1: sheds the 12 V/display feed
                │                       when SOC < 10 % (ESP stays alive,
                ▼                       deep-sleeps, re-engages on recovery)
@@ -90,7 +91,7 @@ an **always-on** rail that powers the MCU in every state, and a
 
 Two power domains worth keeping clear in your head:
 
-1. **Always-on** (U1 LM5165, ~10.5 µA Iq): ESP32-S3 + DS3231 + the 24 V
+1. **Always-on** (U1 LM5166, ~14 µA Iq): ESP32-S3 + RV-3028-C7 RTC + the 24 V
    sense divider. The MCU is *never* unpowered — at low SOC it deep-sleeps
    (~µA) and periodically reads the sense divider. All-in trickle at
    hard-cut ≈ ~1 mW (U1 Iq + divider). The MCU is its own supervisor;
