@@ -49,12 +49,15 @@ distributor PN behind a search URL may change.
 
 ## Battery-side board
 
-> **Battery-side power chain reflects decisions.md D19** (CP1 re-architecture,
-> 2026-06-17). The MCU is on an always-on µA-Iq rail (U1 LM5165); the load
-> switch (Q1) sheds only the 12 V/display feed (U2). Parts changed from the
-> pre-D19 design: U1 (TPS62933→LM5165), U2 (R-78E12→R-78HB12), Q1
-> (AO3401A→ZXMP6A13F), Q2 (AO3400A→2N7002), D1 (SS24→SS26), input bulk caps
-> →100 V, sense divider →1.2 M/100 k (DR-6), plus a new gate-clamp Zener (DZ1).
+> **Battery-side reflects decisions.md D19–D25** (CP1 re-architecture +
+> design-discussion calls, 2026-06). The MCU is on an always-on µA-Iq rail
+> (U1 LM5166); the load switch (Q1) sheds only the 12 V/display feed (U2).
+> Parts changed from the pre-D19 design: U1 (TPS62933→LM5165→**LM5166** 500 mA,
+> for WiFi — D25), U2 (R-78E12→R-78HB12), Q1 (AO3401A→ZXMP6A13F), Q2
+> (AO3400A→2N7002), D1 (SS24→SS26), input bulk caps →100 V, sense divider
+> →1.2 M/100 k (DR-6), gate-clamp Zener (DZ1), **RTC DS3231→RV-3028-C7 +
+> backup cap** (D23/DR-8), **MOD1 −1U→−1 PCB antenna** (D21), **USB-OTG
+> header→USB-C** (D22), **enclosure→3D-printed IP5x** (D20).
 > **Reference designators here track the pre-regen schematic and are
 > finalized when the CP2 schematic is regenerated against D19** (DR-5); the
 > *parts* are the binding CP1 baseline.
@@ -63,13 +66,13 @@ distributor PN behind a search URL may change.
 
 | Ref       | Part                                                  | Pkg     | Qty | Proto / PCB | DigiKey | Mouser | Price  | Notes |
 |-----------|-------------------------------------------------------|---------|-----|-------------|---------|--------|--------|-------|
-| MOD1      | **Espressif ESP32-S3-WROOM-1U-N16R8** (16 MB flash, 8 MB PSRAM) | SMD     | 1   | both        | [DK 16162641](https://www.digikey.com/en/products/detail/espressif-systems/ESP32-S3-WROOM-1U-N16R8/16162641) ✓ | [Mouser](https://www.mouser.com/c/?q=ESP32-S3-WROOM-1U-N16R8) | $6     | PCB footprint is **-1U** (external U.FL antenna) per `STOCK_FOOTPRINTS` in `build_pcbs.py`. Use the dev kit for proto: search "ESP32-S3-DevKitC-1U-N16R8". |
-| U1        | **TI LM5165YDRCR** ultra-low-Iq sync buck (24 → 3.3 V **fixed**, **always-on**) | VSON-10 | 1   | PCB         | [search LM5165YDRCR](https://www.digikey.com/en/products/result?keywords=LM5165YDRCR) | [Mouser](https://www.mouser.com/c/?q=LM5165YDRCR) | $3.61 | 3–65 V in, **~10.5 µA Iq**, 150 mA. Always-on MCU rail (D19/DR-4); 65 V out-rates the ~53 V clamp. **"Y" = fixed 3.3 V** (FB→VOUT) → no divider. Needs L1 + I/O caps. **In stock @ DigiKey, Active (checked 2026-06-17).** |
+| MOD1      | **Espressif ESP32-S3-WROOM-1-N16R8** (16 MB flash, 8 MB PSRAM) | SMD     | 1   | both        | [search ESP32-S3-WROOM-1-N16R8](https://www.digikey.com/en/products/result?keywords=ESP32-S3-WROOM-1-N16R8) | [Mouser](https://www.mouser.com/c/?q=ESP32-S3-WROOM-1-N16R8) | $6     | **`-1` (PCB antenna)** per D21 — plastic batteries + plastic box → no need for the external `-1U`. Needs the 15×6 mm antenna keepout. Serves BLE + WiFi (D25). |
+| U1        | **TI LM5166** (fixed-3.3 V variant) ultra-low-Iq sync buck (24 → 3.3 V, **always-on**) | VSON-10 | 1   | PCB         | [search LM5166](https://www.digikey.com/en/products/result?keywords=LM5166) | [Mouser](https://www.mouser.com/c/?q=LM5166) | $4 | 3–65 V in, **~14 µA Iq**, **500 mA** — feeds a duty-cycled WiFi session (D25); 65 V out-rates the ~53 V clamp (D19/DR-4). 500 mA sibling of the LM5165 (which couldn't feed WiFi). Fixed 3.3 V (FB→VOUT) → no divider. **Confirm exact fixed-3.3 V PN + stock at BOM-lock.** |
 |           | *or, for proto:* Pololu D24V5F3 module                | TH      | 1   | Proto       | [Pololu 2842](https://www.pololu.com/product/2842) | —      | $7     | Convenient 3.3 V buck for bring-up (does not match the low-Iq budget) |
 | U2        | **Recom R-78HB12-0.5** SIP3 buck (24 → 12 V, 0.5 A, 17–72 V in) | SIP3    | 1   | both        | [search R-78HB12-0.5](https://www.digikey.com/en/products/result?keywords=R-78HB12-0.5) | [Mouser](https://www.mouser.com/c/?q=R-78HB12-0.5) | $8     | Cat5e/display feed, **switched** (behind Q1). 72 V in tolerates the ~53 V TVS clamp (D19/DR-3). Was R-78E12 (34 V) — under-rated. |
-| C1, C2    | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R ceramic     | 1210    | 2   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=22uF+100V+1210+X7R) | [search](https://www.mouser.com/c/?q=22uF%20100V%201210%20X7R) | $0.80  | LM5165 input (C1, on V24_FUSED behind the ~53 V clamp → 100 V) / output (C2, 3.3 V). |
+| C1, C2    | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R ceramic     | 1210    | 2   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=22uF+100V+1210+X7R) | [search](https://www.mouser.com/c/?q=22uF%20100V%201210%20X7R) | $0.80  | LM5166 input (C1, on V24_FUSED behind the ~53 V clamp → 100 V) / output (C2, 3.3 V). A bulk cap on 3V3 also buffers WiFi TX peaks (D25). |
 | C3, C4    | C3 22 µF / **100 V**, C4 22 µF / 25 V X7R ceramic     | 1210    | 2   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=22uF+100V+1210+X7R) | [search](https://www.mouser.com/c/?q=22uF%20100V%201210%20X7R) | $0.90  | U2 (R-78HB12) input (C3, on V24_SW behind the clamp → 100 V) / 12 V output (C4). |
-| L1        | 10–47 µH ≥0.3 A shielded inductor (per LM5165 datasheet) | SMD     | 1   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=22uH+inductor+shielded+0.5A) | [search](https://www.mouser.com/c/?q=22uH%20inductor%20shielded) | $0.50  | LM5165 buck inductor; low-Iq COT mode favors a larger L than a fast buck. |
+| L1        | inductor per LM5166 datasheet (≥0.6 A for 500 mA out) | SMD     | 1   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=22uH+inductor+shielded) | [search](https://www.mouser.com/c/?q=22uH%20inductor%20shielded) | $0.50  | LM5166 buck inductor (sized for 500 mA / WiFi). |
 | F1        | 1 A fast-blow 5×20 mm fuse + holder                   | TH      | 1   | both        | [search](https://www.digikey.com/en/products/result?keywords=5x20mm+fuse+holder+1A+fast) | [search](https://www.mouser.com/c/?q=5x20mm%20fuse%20holder%201A%20fast) | $3     | On the 24 V tap. |
 | TVS1      | **Littelfuse SMAJ33CA** bidirectional TVS (33 V Vrwm) | SMA     | 1   | PCB         | [search SMAJ33CA](https://www.digikey.com/en/products/result?keywords=SMAJ33CA) | [search](https://www.mouser.com/c/?q=SMAJ33CA) | $0.30  | Surge clamp on V24_FUSED (~53 V clamp). 33 V clears the ~29 V full-charge bus (D19/DR-2). |
 | D1        | **Vishay SS26** 60 V / 2 A Schottky                   | SMA     | 1   | PCB         | [search SS26](https://www.digikey.com/en/products/result?keywords=SS26+Schottky+SMA) | [search](https://www.mouser.com/c/?q=SS26%20Schottky%20SMA) | $0.30  | Series reverse-polarity on 24 V input. 60 V (was SS24/40 V) to out-rate the ~53 V clamp (D19/DR-3). |
@@ -78,8 +81,8 @@ distributor PN behind a search URL may change.
 
 | Ref       | Part                                            | Pkg     | Qty | Proto / PCB | DigiKey | Mouser | Price  | Notes |
 |-----------|-------------------------------------------------|---------|-----|-------------|---------|--------|--------|-------|
-| RTC1      | **Analog Devices DS3231SN#** I²C RTC            | SO-16W  | 1   | PCB         | [DK 1197576](https://www.digikey.com/en/products/detail/analog-devices-inc-maxim-integrated/DS3231SN/1197576) ✓ | [Mouser](https://www.mouser.com/c/?q=DS3231SN%23) | $7     | Onboard TCXO, ±2 ppm. Battery backed. `#` suffix = industrial-temp grade. Tape-and-reel variant is `DS3231SN#T&R` (DK 1197577). |
-| BAT1      | **Keystone 1057** through-hole CR2032 holder (PCB) | THT     | 1   | PCB         | [DK 36-1057-ND](https://www.digikey.com/en/products/result?keywords=Keystone+1057) | [Mouser](https://www.mouser.com/c/?q=Keystone%201057) | $0.80  | DS3231 backup. The PCB footprint targets the Keystone 1057. **D-OPEN-5** in `decisions.md` tracks the open question of swapping to a non-cutout SMD alternative (Keystone 3000 / 3034) — not closed yet. The earlier BOM said "SMD" + cited Keystone 1066; both wrong — 1066 is also THT, and the current PCB targets 1057 specifically. |
+| RTC1      | **Micro Crystal RV-3028-C7** I²C RTC            | 4-pin SMD 3.2×1.5 | 1 | PCB         | [search RV-3028-C7](https://www.digikey.com/en/products/result?keywords=RV-3028-C7) | [Mouser](https://www.mouser.com/c/?q=RV-3028-C7) | $2     | **D23:** 45 nA ultra-low-power, ±1 ppm RT / ±3 ppm, integrated crystal, built-in backup switchover + trickle charger. Replaces the DS3231 (~0.2 mA TCXO was the dominant idle load — DR-8). −40…+85 °C. |
+| C-bk      | Small backup cap (~10 mF–0.1 F) on RV-3028 VBACKUP | SMD  | 1   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=0.1F+supercap) | [Mouser](https://www.mouser.com/c/?q=0.1F%20supercap) | $0.50  | **D23:** trickle-charged by the RTC; rides a full pack disconnect (45 nA → weeks). Replaces the CR2032 + Keystone holder — no coin, no D14 short risk. |
 | C5, C6    | 100 nF X7R                                      | 0603    | 2   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=100nF+0603+X7R+25V) | [search](https://www.mouser.com/c/?q=100nF%200603%20X7R%2025V) | $0.05  | RTC + ESP decoupling. |
 | C7        | 10 µF X7R                                       | 0805    | 1   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=10uF+0805+X7R+16V) | [search](https://www.mouser.com/c/?q=10uF%200805%20X7R%2016V) | $0.10  | ESP32 bulk. |
 
@@ -111,7 +114,7 @@ distributor PN behind a search URL may change.
 |-----------|-------------------------------------------------|-----|---------|--------|-------|-------|
 | J1        | **Amphenol RJHSE5380** RJ45 jack (Cat5e, T568B) | 1   | [search](https://www.digikey.com/en/products/result?keywords=RJHSE5380) | [search](https://www.mouser.com/c/?q=RJHSE5380) | $4    | Patch from this to in-wall Cat5e, or hardwire. This is the footprint the PCB targets. |
 | J2        | 2-pin terminal block 5.08 mm pitch (24 V)       | 1   | [search](https://www.digikey.com/en/products/result?keywords=Phoenix+MKDS+5.08+2+pin) | [search](https://www.mouser.com/c/?q=Phoenix%20MKDS%205.08%202%20pin) | $1    | Ring-terminal lugs land here from the battery. PCB uses Phoenix MKDS-1,5-2 family. |
-| EN1       | **Hammond 1554-series IP66 enclosure** — TBD on exact PN | 1   | [Hammond 1554 series](https://www.hammfg.com/electronics/small-case/plastic/1554) ; [DK 1554BGY 65×65×40](https://www.digikey.com/product-detail/en/1554BGY/HM918-ND/1090730) ; [DK 1554CGY 120×65×40](https://www.digikey.com/en/products/detail/hammond-manufacturing/1554CGY/655303) | [Mouser](https://www.mouser.com/c/?q=Hammond%201554) | $8–14 | Earlier BOM said `Hammond 1556B2GY` — **that PN does not exist in Hammond's catalog** (1556 isn't a series). The intended ~80×60×40 mm IP65 grey ABS box lives in the 1554 family; closest standard sizes are 1554B (65×65×40) and 1554C (120×65×40). Pick the size that fits the assembled PCB (95×75 board → 1554C is the realistic fit, even though it overshoots the original 80mm target). User to confirm before order. |
+| EN1       | **User-3D-printed plastic enclosure**, IP5x (indoors) | 1   | — (printed) | — | — | (filament) | **D20:** wall-mount above the batteries with an air gap; sized to the final board outline (set at CP3). Has a board-edge port for the USB-C maintenance connector (dust cap). No commercial box / no IP65–66. |
 | —         | M3 standoffs + screws                           |     | (any)   | (any)  | $2    |  |
 | —         | Cat5e patch cable, 30 cm                        | 1   | (any)   | (any)  | $3    | Inside the enclosure |
 
@@ -133,7 +136,7 @@ distributor PN behind a search URL may change.
 
 | Ref       | Part                                            | Pkg     | Qty | Proto / PCB | DigiKey | Mouser | Price  | Notes |
 |-----------|-------------------------------------------------|---------|-----|-------------|---------|--------|--------|-------|
-| MOD1      | **Espressif ESP32-S3-WROOM-1U-N16R8**           | SMD     | 1   | both        | [DK 16162641](https://www.digikey.com/en/products/detail/espressif-systems/ESP32-S3-WROOM-1U-N16R8/16162641) ✓ | [Mouser](https://www.mouser.com/c/?q=ESP32-S3-WROOM-1U-N16R8) | $6     | **Both boards** use the -1U variant (external U.FL antenna) — the PCB footprint matches on both sides. Earlier BOM said battery uses -1, display uses -1U; that was a documentation error. Common firmware base. |
+| MOD1      | **Espressif ESP32-S3-WROOM-1-N16R8** (display side)  | SMD     | 1   | both        | [search](https://www.digikey.com/en/products/result?keywords=ESP32-S3-WROOM-1-N16R8) | [Mouser](https://www.mouser.com/c/?q=ESP32-S3-WROOM-1-N16R8) | $6     | Battery side is `-1` (PCB antenna, D21). Display-side antenna is **TBD** — RS-485 is wired; if the display needs no BLE/WiFi the variant is moot. Common firmware base. |
 | R1        | 10 kΩ ESP32 EN pull-up                          | 0805    | 1   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=10k+0805+1%25) | [search](https://www.mouser.com/c/?q=10k%200805%201%25) | $0.05  |  |
 | C3        | 10 µF X7R MOD1 V3V3 bulk                        | 0805    | 1   | PCB         | (as C2) | (as C2) | $0.10  | Close to the ESP32 module 3V3 pin |
 | C4        | 100 nF X7R MOD1 V3V3 HF                         | 0402    | 1   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=100nF+0402+X7R+16V) | [search](https://www.mouser.com/c/?q=100nF%200402%20X7R%2016V) | $0.05  | The 0402 close-in cap — smaller package fits inside MOD1's pad row |
@@ -184,7 +187,7 @@ ENIG slightly more).
 
 - **Always-on buck (U1)**: must be **both** ≥60 V input (to survive the
   ~53 V TVS clamp on V24_FUSED) **and** µA-class Iq (so the always-on rail
-  costs ~nothing at low SOC). The LM5165 (3–65 V, 10.5 µA Iq) hits both;
+  costs ~nothing at low SOC). The LM5166 (3–65 V, ~14 µA Iq, 500 mA) hits both;
   that combination is rare. Alternatives: LM5166, MAX17552 (60 V, ~28 µA).
   A plain brick (R-78 family) is *not* suitable here — bricks idle at
   milliamps, which would make the always-on trickle tens of mW (D19/DR-4).

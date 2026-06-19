@@ -1219,9 +1219,15 @@ intent still stands; the size is un-committed.
 above the metal pack remove the reasons for an external antenna, and BLE
 range to the BMS is only ~1–3 m. Drops the U.FL connector, pigtail,
 external antenna, and an enclosure penetration. **Cost:** the 15×6 mm PCB-
-antenna keepout returns (no copper/traces, board-edge placement, antenna
-edge facing *away* from the pack). *(Display-side antenna is a separate
-question — the display may not need RF at all; TBD.)*
+antenna keepout returns (no copper/traces, board-edge placement).
+*(Display-side antenna is a separate question — the display may not need RF
+at all; TBD.)*
+
+**Update (2026-06-18):** the "metal pack" caveat is **dropped** — the
+Volthium 12V 200Ah batteries are **ABS-plastic** cased (verified), so there
+is no large metal mass to detune the antenna and no special "face away from
+metal" orientation is needed. The same `-1` PCB antenna also serves **WiFi**
+(2.4 GHz, shared with BLE) per D25 — no new RF parts.
 
 ## D22 — External maintenance port = USB-C on native ESP32-S3 USB
 
@@ -1265,3 +1271,28 @@ storage **< 30 °C / ≤ 6 months**, and **no rated long-term cold storage**
 **not** help — same 0 °C floor; the only true fix is a specialty low-temp
 e-paper (different vendor/cost), declined. If it fails cold, that's a
 learning. (These limits are inherent to this e-paper class, color or not.)
+
+## D25 — Battery-side WiFi log push; U1 → LM5166 (500 mA) to feed it
+
+**Date**: 2026-06-18
+
+**Decision.** The **battery-side** ESP32-S3 gains a **duty-cycled WiFi
+log-push** role (the Starlink router is near the batteries; ABS-plastic
+cells + plastic box → a clean 2.4 GHz hop, and the battery board is the
+data *source*). To power a WiFi session, **swap U1 from LM5165 (150 mA) →
+LM5166 (500 mA)** — same TI 3–65 V ultra-low-IQ family (~14 µA at 24 V),
+fixed 3.3 V, same package.
+
+**Why the supply swap (not a cap).** A WiFi connect → DHCP → TLS-auth →
+upload sequence runs **~2–6 s** at a **sustained ~150–250 mA** (peaks
+~300–500 mA) — not a millisecond spike. Bridging a multi-second deficit
+off the 150 mA LM5165 would need ~1+ **farad** (a supercap); a bulk cap
+only covers sub-ms TX peaks. The LM5166's 500 mA actually sources the
+session, while its ~14 µA idle keeps **hard-cut at ~1 mW** (vs the LM5165's
+10.5 µA — negligible difference).
+
+**Scope.** WiFi is **duty-cycled**: connect, dump logs buffered in the
+16 MB flash, disconnect. Continuous/live WiFi is out of scope (would need
+more supply/budget). Uses the ESP32-S3's built-in radio + the `-1` PCB
+antenna (shared with BLE, D21) — **no new RF parts**. A bulk cap on 3V3
+still helps the sub-ms TX peaks. **Supersedes the LM5165 choice in D19.**
