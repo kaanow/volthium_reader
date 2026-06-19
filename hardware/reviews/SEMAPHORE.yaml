@@ -2,38 +2,40 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 0
+iteration: 1
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-17T00:00:00Z
+last_updated_at: 2026-06-19T00:00:00Z
 last_updated_by: claude
 
 note: >
-  CP1 RE-OPENED (decisions.md D18). The project nominally reached CP6
-  fab-ready, but DR-1/DR-2 proved the defects were CP1/CP2 architecture
-  decisions that no gate caught (D17). We revert the mindset to CP1 and
-  re-run the full gate sequence with the D17 engineering-correctness gate
-  now in place, ignoring sunk cost.
+  CP1 ARCHITECTURE — first handoff to the reviewer (iteration 1). The full
+  clean-sheet engineering review (ENGINEERING_REVIEW.md / D17) has been run
+  across all domains on BOTH boards, plus mechanical/thermal/serviceability
+  (domain-complete). Findings landed as decisions D18–D27 and DR-1..DR-11
+  (all RESOLVED in DESIGN_REVIEW_ITEMS.md). Baseline docs, both BOMs, block
+  diagrams, and power budget are reconciled to that architecture, and a
+  mechanical superseded-token sweep over the whole repo is clean (stale
+  refs in install/, production_design, STATUS, firmware, and the
+  original-intent netlist docs all fixed or bannered).
 
-  Superseded (D18): all board artifacts — placement (CP3/CP4), routing +
-  pours (CP5), fab outputs (CP6). They were built against pre-DR
-  schematics and will be regenerated after the schematics are
-  re-validated. Carried forward: the framework (D11/D13/D16/D17 +
-  ENGINEERING_REVIEW.md + DESIGN_REVIEW_ITEMS.md), the audit tooling, the
-  DR-1/DR-2 schematic fixes, and the readability results.
+  Reviewer: please DON'T take RESOLVED on faith — re-derive D19 (always-on
+  µA-Iq buck + Q1 hard-cut of only the 12V/display feed; ≥60V rail parts vs
+  the ~53V SMAJ33CA clamp), D23 (RV-3028-C7 + backup cap), DR-6 (1.2M/100k
+  sense divider lands in the ESP ADC linear band), DR-7 (8-pin Waveshare
+  e-paper module, not the bare 24-pin FFC), and the display mechanical stack
+  (DR-10/D27: recessed double-gang box, module-to-faceplate, right-angle
+  RJ45, board-edge USB-C + pop-faceplate, OTA-over-RS485). Active packet:
+  cp1_design_baseline.md. NOTE: board artifacts (CP3–CP6) remain superseded
+  per D18 and the generators (build_*.py) are intentionally still pre-D19 —
+  that is CP2 work, not a CP1 finding.
 
-  Claude's CP1 task: run the clean-sheet architecture engineering review
-  per hardware/reviews/ENGINEERING_REVIEW.md across all domains (power
-  input, regulation, comms, MCU, sensing, connectors). Re-derive each
-  block from first principles, measure the existing design against it as
-  a CANDIDATE (not a baseline), fix clear errors, log judgment calls in
-  DESIGN_REVIEW_ITEMS.md, and produce the CP1 packet
-  (cp1_design_baseline.md). Reach genuine excellence before any agent-reviewer
-  handoff — agent-reviewer is a second set of eyes for what was missed, not a
-  crutch.
+  Authoritative entry points: hardware/layout/decisions.md,
+  hardware/layout/cp1_{battery,display}_side.md, hardware/layout/cp1_bom.md,
+  hardware/reviews/DESIGN_REVIEW_ITEMS.md. Reviewer instructions: REVIEWER.md.
