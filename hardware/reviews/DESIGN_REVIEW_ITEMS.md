@@ -223,3 +223,20 @@ This drops the FH12-24S FFC, the 16 NC pins, and the entire missing-booster
 risk, and closes the old "verify the FFC pinout before fab" open item.
 *CP2 note:* match the physical pin order on J2 to the module's silk at
 assembly; source = Waveshare 4.2inch e-Paper Module (B) wiki.
+
+## DR-8 — DS3231 is a ~0.5 mW always-on load the hard-cut budget missed  [RESOLVED 2026-06-18 — budget corrected]
+
+The "~1 mW hard-cut" figure assumed the DS3231 runs off its backup cell
+(0 from pack) at low SOC — which was true *pre-D19*, when the 3V3 rail
+died at hard-cut. Under D19 **V3V3 is always-on**, so the DS3231 runs off
+V3V3 continuously and draws its active **~0.1–0.2 mA (~0.5 mW)** from the
+pack even at hard-cut — ~⅓ of the budget, and the dominant term after the
+sense divider. (The D23 supercap backup only carries the RTC through a
+*full pack disconnect*, not at hard-cut.)
+
+**Resolution (D23).** Rather than accept the penalty, **swapped the RTC to
+the Micro Crystal RV-3028-C7 (45 nA)** — ~3000× lower draw. The ~0.5 mW
+load is *eliminated*, hard-cut returns to **~1 mW**, and accuracy (±1–3 ppm)
+is comparable. The user's prompt ("there must be an ultra-low-power RTC")
+caught that the DS3231 is a power-hungry RTC by class (its TCXO is the
+cost). Budget reverted to ~1 mW across power_budget.md + cp1_battery_side.

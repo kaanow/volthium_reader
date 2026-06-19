@@ -12,8 +12,8 @@ Conversion efficiency assumptions (per decisions.md D19):
 
 - **U1 LM5165** (24 V → 3.3 V, *always-on*), ~10.5 µA Iq; 70–85 % at
   5–80 mA load. The microamp quiescent is the point — the always-on rail
-  costs almost nothing at idle, which is what makes the low-SOC trickle
-  ~1 mW.
+  costs almost nothing at idle, which keeps the low-SOC trickle ~1 mW
+  (the RV-3028-C7 RTC adds only 45 nA — D23).
 - **U2 R-78HB12** (24 V → 12 V, *switched*, display feed), ~80 % over the
   relevant range. Behind the Q1 load switch, so it draws **zero** when
   the display is shed at < 10 % SOC.
@@ -68,7 +68,7 @@ when the pack recovers. No full power-down, no separate supervisor IC
 | U1 LM5165 Iq            | ~10.5 µA → **~0.25 mW**            |
 | ESP32-S3 deep-sleep     | ~10 µA @ 3.3 V → **~0.2 mW**       |
 | 24 V sense divider (1.2 MΩ/100 k) | 24 V / 1.3 MΩ ≈ 18.5 µA → **~0.44 mW** |
-| DS3231 (on CR2032)      | 0 from pack — runs off backup     |
+| RV-3028-C7 RTC (always-on) | 45 nA → **negligible** (D23/DR-8; was DS3231 ~0.5 mW) |
 | Display side (U2 shed)  | 0                                 |
 | **Total from pack**     | **~1 mW**                          |
 

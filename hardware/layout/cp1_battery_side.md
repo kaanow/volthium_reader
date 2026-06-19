@@ -2,7 +2,7 @@
 
 **Status**: draft, ready for review
 **Board codename**: `volthium-bms-link`
-**Mounts**: near the two batteries, IP65 project box, ~60×40 mm PCB
+**Mounts**: on the wall above the two batteries (air gap), user-3D-printed IP5x plastic box; board outline TBD at placement (D20)
 **Function**: BLE-central to the two BMS modules, fuses readings into a
 PackReading, ships RS-485 frames to the display side over Cat5e, plus runs
 the 4-tier SOC self-shutdown that protects the pack.
@@ -28,16 +28,21 @@ Where this CP1 doc disagrees with the cross-references, **CP1 wins**.
 
 | Dimension      | Target               | Constraint source                           |
 |----------------|----------------------|---------------------------------------------|
-| Board outline  | **60 × 40 mm**       | Fits Hammond 1591ATBU IP65 box (62×35×17 mm interior) with margin |
+| Board outline  | **TBD — derived at CP3 placement** | Form factor unconstrained (D10/D20): "as small as comfortable, never artificially large." No pre-set size |
 | Thickness      | 1.6 mm               | JLCPCB default, lowest cost                 |
-| Layers         | 2 (top + bottom)     | Trace counts low; 2L is sufficient          |
-| Mounting holes | 4× M3 corner, 3.2 mm | Standoffs to box bottom                     |
-| Antenna keepout | 15×6 mm at ESP corner | Required for ESP32-S3-WROOM-1 (datasheet §3.1) |
+| Layers         | 2 (top + bottom; **double-sided assembly OK**) | Trace counts low; 2L sufficient |
+| Mounting holes | 4× M3 corner, 3.2 mm | To 3D-printed standoffs/bracket; coords set with the outline at CP3 |
+| Antenna keepout | 15×6 mm at the PCB-antenna edge | ESP32-S3-WROOM-1 (**`-1`, PCB antenna** — D21) |
+| Maintenance port | board-edge USB-C | Native ESP32-S3 USB, accessible without opening (D22) |
 
-The board is rectangular with mounting holes at (3, 3), (57, 3), (3, 37),
-(57, 37). The ESP32-S3-WROOM-1 module is placed with its onboard PCB
-antenna pointing toward the +X edge, with no copper / no traces in a
-15×6 mm rectangular keepout extending into the board from that edge.
+**Enclosure (D20):** user-3D-printed **plastic** box, **IP5x** (dust,
+indoors), wall-mounted a short distance *above* the two batteries with
+**air between** (no metal pressed against the board).
+
+**Antenna (D21):** the `-1` module's PCB antenna sits at a board edge with
+its 15×6 mm keepout (no copper/traces), oriented so the antenna edge faces
+**away from the battery pack** — the plastic box + air gap keep a PCB
+antenna viable (BLE range to the BMS is only ~1–3 m).
 
 ## 3. Power architecture
 
@@ -67,13 +72,13 @@ TVS1 [SMAJ33CA,           U1 [LM5165         R5/R6 divider      Q1/Q2 load switc
                               │                              U2 [R-78HB12 24V→12V]
        ┌────────┬────────┬───┴─────┬──────────┐                     │
        ▼        ▼        ▼         ▼          ▼                     ▼ V12_CAT5E
-   ESP32-S3   DS3231   SN65...    bias     decoupling           J2 RJ45 → display
+   ESP32-S3   RV-3028   SN65...    bias     decoupling           J2 RJ45 → display
    (MOD1)    (RTC1)    (U3)    R10 term  (no bias here — display-end only)
 
 Always-on (off V24_FUSED, never via Q1):
-    U1 LM5165 → 3V3 → ESP32-S3 + DS3231 VCC + RS-485 + sense divider
+    U1 LM5165 → 3V3 → ESP32-S3 + RV-3028 VCC + RS-485 + sense divider
     R5/R6 sense divider → V24_SENSE → ESP GPIO1 (ADC1_CH0)
-    DS3231 V_BAT pin    → CR2032 holder (BAT1)
+    RV-3028 VBACKUP     → small backup cap (C-bk), trickle-charged by RTC
 Switched (Q1, MCU-controlled): U2 → 12V → Cat5e → the entire display side
 ```
 
@@ -81,7 +86,7 @@ Switched (Q1, MCU-controlled): U2 → 12V → Cat5e → the entire display side
 
 | Domain         | What it powers                                          | Killed by                |
 |----------------|---------------------------------------------------------|---------------------------|
-| Always-on 3V3  | ESP32-S3, DS3231 VCC, RS-485 xceiver, bias, sense divider | Never (MCU deep-sleeps at low SOC) |
+| Always-on 3V3  | ESP32-S3, RV-3028 VCC, RS-485 xceiver, bias, sense divider | Never (MCU deep-sleeps at low SOC) |
 | Switched 12V   | U2 → Cat5e → the **entire display side**                | Q1 OFF (ESP opens it at < 10 % SOC) |
 
 The MCU is **always powered** — it cannot sit behind the load switch: it
@@ -90,9 +95,10 @@ downstream MCU can't gate its own supply (nor boot if it starts unpowered).
 At < 10 % SOC the ESP deep-sleeps (~µA), periodically reads V24_SENSE, and
 sheds the display by opening Q1; RS-485 is disabled via DE/RE (not
 power-switched). All-in trickle at hard-cut ≈ **~1 mW** (U1 Iq ~10.5 µA +
-sense divider ~19 µA + ESP deep-sleep). DS3231 runs off its CR2032 (~3 µA
-off the coin cell). This replaces the pre-D19 design where the MCU sat on
-the switched rail and could not boot — see DESIGN_REVIEW_ITEMS DR-3/DR-4.
+sense divider ~19 µA + ESP deep-sleep). The **RV-3028-C7 RTC adds only
+~45 nA** — negligible (D23 swapped out the power-hungry DS3231; see DR-8).
+This replaces the pre-D19 design where the MCU sat on the switched rail and
+could not boot — see DESIGN_REVIEW_ITEMS DR-3/DR-4.
 
 ## 4. Component list
 
@@ -187,9 +193,9 @@ exceeds 1 %, drop divider impedance (e.g. 470 kΩ/39 kΩ) or buffer.
 | C7  | 100 nF X7R (ESP decoupling, ≤3 mm from 3V3 pin) | 0402 | 1 | Per Espressif reference; 0402 because it has to be **very** close (0603 OK if no 0402 stocked) |
 | C8  | 1 µF X7R (EN pin filter)            | 0603          | 1   | Soft-start; Espressif notes 470 nF–1 µF on EN |
 | R7  | 10 kΩ EN pull-up                    | 0805          | 1   | EN to V3V3 |
-| RTC1 | DS3231SN# (TCXO-locked I²C RTC)     | SOIC-16W      | 1   | ±2 ppm, immune to crystal aging; CR2032-backed |
-| BAT1 | CR2032 holder (Keystone 1066)       | THT            | 1   | Battery-side requires a backup RTC for log timestamping; CR2032 lasts ~6 years at the DS3231's ~3 µA backup draw |
-| C9  | 100 nF X7R (RTC decoupling)         | 0603          | 1   | DS3231 datasheet recommends 100 nF on V_CC |
+| RTC1 | **Micro Crystal RV-3028-C7** (45 nA ultra-low-power I²C RTC, integrated 32.768 kHz crystal) | 4-pin SMD 3.2×1.5 mm | 1 | **D23:** ±1 ppm RT / ±3 ppm range; built-in backup switchover + trickle charger. **45 nA** → the RTC is no longer a meaningful load (was RV-3028 ~0.2 mA / ~0.5 mW; DR-8). −40…+85 °C |
+| C-bk | Small backup cap (~10 mF–0.1 F) on RV-3028 VBACKUP | SMD | 1 | Trickle-charged by the RTC; rides a full pack disconnect (45 nA → weeks). No coin cell, no bulky supercap, no D14 short risk |
+| C9  | 100 nF X7R (RTC decoupling)         | 0603          | 1   | RV-3028 datasheet recommends 100 nF on V_CC |
 | R8, R9 | 4.7 kΩ I²C pull-ups (to V3V3) | 0805 ×2       | 2   | Standard I²C bias; 4.7 kΩ sits in the 1–10 kΩ window for 100/400 kHz I²C |
 
 ### 4.6 RS-485 interface
@@ -222,7 +228,7 @@ powered (i.e. whenever the link is actually used).
 
 **Change from existing BOM/SKiDL**: removed `LED1 + R_led` (debug LED).
 Per [D4](decisions.md#d4), no idle indicator LEDs. The ESP32-S3 has a
-USB-OTG connector for dev builds; that's the debug path, not a board LED.
+USB-C connector for dev builds; that's the debug path, not a board LED.
 
 If a "thing is alive" indicator is wanted, a future hardware revision
 could add an LED on a GPIO that the firmware pulses (e.g. 50 ms ON every
@@ -233,7 +239,7 @@ could add an LED on a GPIO that the firmware pulses (e.g. 50 ms ON every
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
 | J2  | RJ45 modular jack with integrated PoE-style hood (e.g. Amphenol RJHSE-538X) | THT shielded | 1 | T568B straight-through pinout (see [`cat5e_pinout.md`](../../docs/hardware/cat5e_pinout.md)); shield drain to chassis ground at this end |
-| J3  | 4-pin 2.54 mm pin header, **dev-only USB-OTG breakout** (TX/RX/EN/IO0) | THT | 1 | Used to flash firmware before final close-up; can be omitted in production but leaves us option for in-field reflash |
+| J3  | **USB-C receptacle** on native ESP32-S3 USB (D+/D−, VBUS, GND, CC) | SMD | 1 | **D22:** board-edge maintenance port — flash + console + JTAG over native USB, accessible without opening (IP5x dust cap). Replaces the old dev-only pin header |
 | J4  | 2-pin 2.54 mm jumper (RS-485 term lift) | THT | 1 | Allows R10 to be lifted via removable jumper if the board ever sits mid-bus instead of at the terminus |
 | J5  | 4-pin 2.54 mm pin header, **debug UART** (TX/RX/GND/RESET#) | THT | 1 | FTDI cable lands here; ESP-IDF console at 115200 8N1 |
 
@@ -248,7 +254,7 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | Net          | Voltage     | Source                | Sinks                                         | Notes |
 |--------------|-------------|-----------------------|-----------------------------------------------|-------|
 | V24_RAW      | 24–28 V     | J1 pin 1             | F1                                            | Pack tap, unfused |
-| V24_FUSED    | 24–28 V     | D1 cathode           | Q1 source, R5 top (sense divider), R3 (Q1 gate pull-up), TVS1, BAT1+ via diode-OR | Always-alive 24 V rail (post-fuse, post-reverse). Only loads are the load-switch input, the sense divider, the gate pull-up, and the TVS clamp — minimal idle draw |
+| V24_FUSED    | 24–28 V     | D1 cathode           | Q1 source, R5 top (sense divider), R3 (Q1 gate pull-up), TVS1 | Always-alive 24 V rail (post-fuse, post-reverse). Only loads are the load-switch input, the sense divider, the gate pull-up, and the TVS clamp — minimal idle draw |
 | V24_SW       | 24–28 V     | Q1 drain             | R-78HB12 VIN (U2) only                         | Switched 24 V branch downstream of the load switch. Feeds **only** U2 (12 V/display). Collapses when PWR_EN is LOW/Hi-Z — sheds the display, **not** the MCU |
 | V3V3         | 3.3 V       | LM5165 VOUT (U1)     | ESP3V3, RTC VCC, U3 VCC, R8/R9, R13, C6/C7/C8 | **Always-on** 3.3 V (D19). Powers the MCU in every state; never gated. No RS-485 bias here (display-end only) |
 | V12_CAT5E    | 12 V        | R-78HB12 VOUT (U2)   | J2 RJ45 pins 1/2/3                            | Powers display side over Cat5e; off when Q1 sheds it |
@@ -263,7 +269,7 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | RS485_B      | 0–5 V diff  | U3 B pin             | J2 pin 5 (white-blue), R10, TVS2               | (paired with A) |
 | PWR_EN       | 3.3 V LV    | ESP IO4              | Q2 gate, R4 pull-down to GND                  | **Active-HIGH**: HIGH = rails ON; LOW or Hi-Z = rails OFF. Canonical truth table in §8 |
 | BTN_OVERRIDE | 3.3 V LV    | BTN1 + R13           | ESP IO7 (RTC-wake capable)                    | Active-LOW; pulled HIGH by 1 MΩ |
-| EPSN_BAT     | 3.0 V       | CR2032 +             | RTC1 V_BAT                                    | RTC backup |
+| RTC_BACKUP   | ~3.0 V      | C-bk (backup cap)    | RTC1 VBACKUP                                  | RTC ride-through (trickle-charged by RV-3028) |
 | RESET#       | 3.3 V LV    | ESP EN pin / J5 pin 4 | -                                            | Pulled HIGH via R7 + C8 (RC soft-start) |
 
 ## 6. ESP32-S3 pin assignment
@@ -279,13 +285,13 @@ GPIO15 becomes an expansion pad on J3.
 | GPIO2   | output    | RS-485 DE/RE              | Hi-Z in deep sleep           |
 | GPIO3   | (strap)   | USB-JTAG select; leave NC | -                            |
 | GPIO4   | output    | **PWR_EN** (active-HIGH rail enable) | Latches via RTC-GPIO; default state at reset is LOW (rails OFF — safe). Firmware drives HIGH after boot to bring rails up |
-| GPIO5   | I²C SDA   | DS3231                    | Hi-Z; OK because RTC is on CR2032 backup |
-| GPIO6   | I²C SCL   | DS3231                    | "                            |
+| GPIO5   | I²C SDA   | RV-3028                    | Hi-Z; OK because RTC is on its backup cap |
+| GPIO6   | I²C SCL   | RV-3028                    | "                            |
 | GPIO7   | input, RTC | **BTN_OVERRIDE** (deep-sleep wake) | RTC-GPIO wake source     |
 | GPIO15  | (expansion) | brought to J3, not used   | -                            |
 | GPIO17  | UART1 TX  | to SN65HVD3082 D pin      | Hi-Z in deep sleep           |
 | GPIO18  | UART1 RX  | from SN65HVD3082 R pin    | Hi-Z in deep sleep           |
-| GPIO19/20 | USB DM/DP | USB-OTG (J3 dev header)  | Hi-Z; not connected to bus when not in use |
+| GPIO19/20 | USB DM/DP | USB-C (J3 dev header)  | Hi-Z; not connected to bus when not in use |
 | GPIO45  | (strap)   | VDD_SPI strap; leave NC   | -                            |
 | GPIO46  | (strap)   | Boot-mode strap; leave NC | -                            |
 
@@ -303,8 +309,8 @@ deep-sleep (alive) and hard-cut (off) — see [§13 D-OPEN-7a/7b](#13-open-decis
 |-------|----------|--------------------------------|-----------|-------|
 | 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 ~0.5 mA + RTC <100 µA + bias ~1.5 mA + display side ~5 mA + sense 22 µA = 45 mA × 24 V | **~1.08 W** | ±2 % vs power_budget.md |
 | 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + bias still on ~1.5 mA + display unchanged + sense 22 µA | **~0.30 W** | — |
-| 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + DS3231 ~150 µA + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Display still up (Q1 ON) |
-| 4 — Hard cut | < 10 % | U1 LM5165 Iq ~10.5 µA + ESP deep-sleep ~10 µA + sense divider ~19 µA + DS3231 on CR2032 (0 from pack); display shed (Q1 OFF) | **~1 mW** | MCU stays alive on the always-on rail and re-engages on recovery (D19). R3 gate pull-up draws ~0 here — Q1 is OFF, so gate sits at source |
+| 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + RV-3028 ~150 µA + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Display still up (Q1 ON) |
+| 4 — Hard cut | < 10 % | U1 LM5165 Iq ~10.5 µA + ESP deep-sleep ~10 µA + sense divider ~19 µA + **RV-3028-C7 RTC ~45 nA (negligible)**; display shed (Q1 OFF) | **~1 mW** | RTC swapped RV-3028→RV-3028-C7 to kill the ~0.5 mW always-on draw (D23/DR-8). MCU re-engages on recovery (D19) |
 
 State 4 budget: at ~1 mW, decades to lose 1 % SOC from the monitor alone —
 self-discharge dominates. A literal full cut + supervisor could reach
@@ -380,7 +386,7 @@ populated. **Idle bias is NOT here** — it lives on the display end only
 | C6    | 10 µF  | V3V3  | ESP 3V3 pin < 2 mm           | ESP module bulk |
 | C7    | 100 nF | V3V3  | ESP 3V3 pin < 2 mm (0402 if poss.) | ESP HF decoupling |
 | C8    | 1 µF   | EN net   | ESP EN < 5 mm                | Soft-start    |
-| C9    | 100 nF | V3V3  | DS3231 VCC < 2 mm            | RTC decoupling |
+| C9    | 100 nF | V3V3  | RV-3028 VCC < 2 mm            | RTC decoupling |
 | C10   | 100 nF | V3V3  | SN65HVD3082 VCC < 2 mm       | RS-485 decoupling |
 | C11   | 100 nF | BTN_OVERRIDE | -                       | Button RC debounce |
 
@@ -406,8 +412,8 @@ populated. **Idle bias is NOT here** — it lives on the display end only
    pour from U3's GND pin to the J2 shell.
 5. **Hard-cut MOSFETs near the regulators they control**, on the V24
    side; do not run a long V24 trace.
-6. **RTC near MCU**: minimize I²C trace length; the DS3231's TCXO is
-   sensitive to switching noise, keep it away from L1.
+6. **RTC near MCU**: minimize I²C trace length; the RV-3028 has an
+   integrated crystal — keep it away from the LM5165 switching node (L1).
 7. **High-current paths fat**: V24_RAW → F1 → D1 → V24_FUSED → U1/U2 in
    a continuous copper run; design rule applies in §11.3.
 
@@ -460,7 +466,7 @@ margin.
 
 ## 14. Risk register
 
-1. **DS3231 SOIC-16W footprint not in stock libraries on some KiCad
+1. **RV-3028 SOIC-16W footprint not in stock libraries on some KiCad
    distributions** — verify at CP2; create custom footprint if needed
    (low effort).
 2. **R-78HB12 SIP3 + LM5165 VSON-10 footprints** — Recom provides KiCad
@@ -497,7 +503,7 @@ margin.
 | Debug LED                        | LED1 + R_led (always available, GPIO-controlled) | **Removed** per D4                       |
 | RS-485 numbering                 | TVS1 (RS-485), TVS2 (12 V), TVS3 (24 V) confused | TVS1 (24 V), TVS2 (RS-485) — display side has its own TVS3/TVS4 |
 | Mounting holes                   | Not specified                              | 4× M3 corner @ (3, 3), (57, 3), (3, 37), (57, 37) |
-| Dev headers                      | Not in original BOM                        | J3 (USB-OTG breakout), J4 (term-lift jumper), J5 (UART debug) added for bring-up |
+| Dev headers                      | Not in original BOM                        | J3 (USB-C breakout), J4 (term-lift jumper), J5 (UART debug) added for bring-up |
 | Mechanical board outline         | "60 × 38 mm" (Hammond 1556B2GY)            | 60 × 40 mm (Hammond 1591ATBU) — slightly larger, easier procurement |
 
 ## 16. What's NOT in CP1 (defers to later checkpoints)
