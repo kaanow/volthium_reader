@@ -1313,22 +1313,35 @@ No separate config radio (config is via the 3 buttons + on-screen labels).
 **Date**: 2026-06-18
 
 **Decision (DR-9/DR-10).** The display is wall-mounted, so:
-- **Service:** a board **bottom-edge USB-C** on the native ESP32-S3 USB
-  (flash/console/JTAG) exits a discreet slot in the bottom of the
-  faceplate/box — reachable without removing it from the wall, invisible
-  head-on. Add a **USB ESD array** (USBLC6-2) on D+/D−/VBUS. One internal
-  UART header kept for bench bring-up. (Mirrors the battery-side D22.)
+
+- **Service — corrected (the box is recessed in the wall, so only the
+  faceplate *front* is exposed; a "bottom-edge" port doesn't work).**
+  Routine firmware comes **OTA over RS-485** — the battery side pulls the
+  image (WiFi/Starlink, D25) and propagates it to the display over the bus
+  (per `production_design.md`). So the display's physical USB is a
+  **bench/recovery port only**, used rarely → a board-edge **USB-C** (native
+  ESP32-S3 USB) reached by **popping the faceplate** (the faceplate detaches
+  from the front without disturbing the in-wall box — no full wall removal).
+  **No front-face cutout** (keeps the kitchen face clean). + a **USB ESD
+  array** (USBLC6-2) on D+/D−/VBUS; keep one internal UART header for bench.
+  *(If zero-disassembly recovery is ever wanted, the alternative is a
+  discreet front-face USB-C cutout — declined for aesthetics.)*
+
 - **Enclosure stack (shallow double-gang box, ~45 mm usable depth):** the
   e-paper **module mounts to the back of the oversized custom faceplate**
   (~115×117 mm — the module ~90–103 mm doesn't fit *inside* the ~95 mm box),
   the main PCB sits in the box behind it, 8-pin cable between (slack +
-  strain relief). Use a **right-angle / low-profile RJ45** so it doesn't
-  consume the scarce depth and routes the in-wall Cat5e cleanly. Button
-  caps span the PCB→faceplate gap (tall-actuator tactiles or printed cap
-  extensions, sized once the depth stack is fixed at CP3).
-- **Deliverable:** a **PCB STEP** (with the e-paper-module envelope +
-  connector/button/USB-C positions) is exported for the user to design the
-  bracket + faceplate against. The print itself is the user's.
+  strain relief). **Right-angle / low-profile RJ45** so it doesn't consume
+  the scarce depth and routes the in-wall Cat5e cleanly. Button caps span
+  the PCB→faceplate gap.
 
-(PTC also tightened to ~0.25 A hold — DR-11 — to match the ~40–150 mA load
-and coordinate with the battery-side U2 foldback.)
+- **The 3D-printed parts are fully specifiable — so we spec them, not punt
+  them.** The bracket + faceplate are ours to define: faceplate is a
+  **snap/magnetic pop-off** (no through-screws) carrying the module mounting
+  bosses + a recessed grip; bracket holds the main PCB and interfaces the
+  box's 84 mm screws; the depth stack + button-cap extension lengths are
+  dimensioned from the PCB STEP. The **PCB STEP** (module envelope +
+  connector/button/USB-C positions) is the master; the print geometry is
+  derived from it and specified in the CP-layout docs, not left open.
+
+(PTC also tightened to ~0.25 A hold — DR-11.)
