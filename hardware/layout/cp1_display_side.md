@@ -70,7 +70,7 @@ U1 [Recom R-78E3.3-0.5, 12 V → 3.3 V, 0.5 A] ← stocked module, no inductor B
     │
     ▼
 3V3 ──┬─── ESP32-S3 (MOD1)
-      ├─── e-paper VCC (LCD1 via FFC J2)
+      ├─── e-paper VCC (LCD1 module via 8-pin J2)
       ├─── SN65HVD3082E (U2) VCC
       └─── RS-485 bias (R3/R4 ~390 Ω — the bus's only bias; see §4.5)
 ```
@@ -111,30 +111,27 @@ bistable display; the ESP32-S3 self-manages its sleep states).
 
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
-| LCD1 | Waveshare 4.2" e-Paper Module (B) v2 (panel only — we don't use the HAT) | bare panel | 1 | Bistable display; B&W partial refresh ~500–700 ms, color full refresh ~7 s. See [`decisions.md#d6`](decisions.md#d6-display-42-tri-color-bwr-e-paper). The driver IC is on the panel's own PCB tail, we connect via FFC |
-| J2  | Hirose FH12-24S-0.5SH(55) FFC connector, 24-pin 0.5 mm pitch, top-contact | SMT | 1 | Mating to the panel's flex ribbon |
-| C6  | 1 µF X7R (panel VCC bulk; some panels need this) | 0603 | 1   | Per Waveshare schematic; reduces VCC dip during refresh |
+| LCD1 | **Waveshare 4.2inch e-Paper Module (B)** — module **with onboard driver PCB + 8-pin SPI header** | module | 1 | Bistable B/W/R; B&W partial refresh ~500–700 ms, color full refresh ~7 s. See [`decisions.md#d6`](decisions.md#d6-display-42-tri-color-bwr-e-paper). The driver + booster live on the module; we provide only 3.3 V + SPI (DR-7) |
+| J2  | **8-pin 2.54 mm header** (e-paper SPI) | THT 1×8 | 1 | Mates the module's 8-pin cable. **Δ (DR-7): was a 24-pin Hirose FH12-24S FFC** — that's the connector for the *bare* `WFT0420CZ15` panel, which needs an on-board booster network (VGH/VGL/VDH/VDL/VCOM) the board doesn't carry. The module hides all of that behind 8 pins |
+| C6  | 1 µF X7R (panel VCC bulk) | 0603 | 1   | Reduces V3V3 dip during refresh |
 
-The FFC pinout (J2 pins) is panel-specific. The original SKiDL has a
-placeholder mapping with notes that it MUST be verified against the
-panel datasheet before fab. **CP1 commits to verifying this at CP2**;
-the verified mapping will land in `hardware/layout/cp2_fcc_pinout.md`.
+**J2 8-pin pinout** (canonical Waveshare e-paper interface — match the
+physical pin order to the module's silk at assembly):
 
-Tentative ESP↔panel signals (from the Waveshare 4.2" B v2 reference):
+| J2 pin | Signal | Net | ESP GPIO | Direction |
+|--------|--------|-----|----------|-----------|
+| 1 | VCC  | V3V3      | —      | 3.3 V |
+| 2 | GND  | GND       | —      | — |
+| 3 | DIN  | SPI_MOSI  | GPIO10 | out |
+| 4 | CLK  | SPI_SCK   | GPIO9  | out |
+| 5 | CS   | EPD_CS    | GPIO5  | out |
+| 6 | DC   | EPD_DC    | GPIO6  | out |
+| 7 | RST  | EPD_RST   | GPIO7  | out |
+| 8 | BUSY | EPD_BUSY  | GPIO8  | in |
 
-| Signal | ESP GPIO | Direction |
-|--------|----------|-----------|
-| BUSY   | GPIO8    | input     |
-| RST    | GPIO7    | output    |
-| DC     | GPIO6    | output    |
-| CS     | GPIO5    | output    |
-| CLK    | GPIO9    | output    |
-| DIN    | GPIO10   | output    |
-| VCC    | V3V3      | -         |
-| GND    | GND       | -         |
-
-SPI clock target: 4 MHz (conservative); 10 MHz achievable per panel
-datasheet.
+SPI clock target: 4 MHz (conservative); 10 MHz achievable per the module
+datasheet. *(This closes the old "verify the FFC pinout at CP2" open item —
+there's no FFC; the module exposes the fixed 8-signal SPI bus above.)*
 
 ### 4.5 RS-485 interface
 
@@ -205,12 +202,12 @@ refresh for live updates, etc.
 | DE_RE        | 3.3 V       | ESP IO2               | U2 DE & RE pins (tied)                         | Active-HIGH = transmit |
 | RS485_A      | 0–5 V diff  | U2 A pin              | J1 pin 4, R2, R3 (opt), TVS2                   | Differential pair |
 | RS485_B      | 0–5 V diff  | U2 B pin              | J1 pin 5, R2, R4 (opt), TVS2                   | (paired with A) |
-| EPD_CS       | 3.3 V       | ESP IO5               | J2 (FFC CS pin)                                | SPI chip select |
-| EPD_DC       | 3.3 V       | ESP IO6               | J2 (FFC DC pin)                                | Data/command |
-| EPD_RST      | 3.3 V       | ESP IO7               | J2 (FFC RST pin)                                | Hardware reset, active-low |
-| EPD_BUSY     | 3.3 V       | J2 (FFC BUSY pin)     | ESP IO8                                        | Panel ready-to-receive flag |
-| SPI_SCK      | 3.3 V       | ESP IO9               | J2 (FFC CLK pin)                                | SPI clock |
-| SPI_MOSI     | 3.3 V       | ESP IO10              | J2 (FFC DIN pin)                                | SPI data out (write-only) |
+| EPD_CS       | 3.3 V       | ESP IO5               | J2 (CS pin)                                | SPI chip select |
+| EPD_DC       | 3.3 V       | ESP IO6               | J2 (DC pin)                                | Data/command |
+| EPD_RST      | 3.3 V       | ESP IO7               | J2 (RST pin)                                | Hardware reset, active-low |
+| EPD_BUSY     | 3.3 V       | J2 (BUSY pin)     | ESP IO8                                        | Panel ready-to-receive flag |
+| SPI_SCK      | 3.3 V       | ESP IO9               | J2 (CLK pin)                                | SPI clock |
+| SPI_MOSI     | 3.3 V       | ESP IO10              | J2 (DIN pin)                                | SPI data out (write-only) |
 | BTN1_IN      | 3.3 V LV    | BTN1 + R5             | ESP IO12                                       | Active-LOW |
 | BTN2_IN      | 3.3 V LV    | BTN2 + R6             | ESP IO13                                       | Active-LOW |
 | BTN3_IN      | 3.3 V LV    | BTN3 + R7             | ESP IO14                                       | Active-LOW |
@@ -301,9 +298,9 @@ ground pour).
 
 ### 10.2 Placement priorities
 
-1. **J2 FFC on the long edge** (top of board, the side closest to the
-   e-paper panel above the buttons in the faceplate). The panel ribbon
-   bends only 90° from panel back to PCB front.
+1. **J2 (8-pin header) on the long edge** (top of board, closest to the
+   e-paper module above the buttons in the faceplate), so the module's
+   8-pin cable run to the board is short.
 2. **Buttons BTN1/2/3 on the bottom edge**, in a row, 18 mm centers,
    centered laterally on the PCB. So at X = (PCB_width − 2×18 mm) / 2 =
    (85 − 36) / 2 = 24.5 mm to first button center → buttons at
@@ -340,7 +337,7 @@ ground pour).
 
 ### 10.4 Ground
 
-B.Cu continuous ground pour. Stitching vias every 10 mm. The FFC J2's
+B.Cu continuous ground pour. Stitching vias every 10 mm. The J2 header's
 GND pins all tie to the pour directly; no thermal relief on those (they
 carry the return current for SPI signal edges).
 
@@ -362,12 +359,10 @@ minimum).
 
 ## 13. Risk register
 
-1. **FFC connector pinout verification** — the SKiDL placeholder mapping
-   for J2 must be replaced with verified panel datasheet mapping before
-   CP2. The Hirose FH12-24S has a fixed pin-1 indication, but the
-   panel's flex tail can be flipped — verify by tracing the panel's own
-   PCB tail on the actual unit at hand or against the Waveshare 4.2"
-   B v2 schematic from manufacturer.
+1. ~~**FFC connector pinout verification**~~ — **RESOLVED (DR-7):** there
+   is no FFC. J2 is an 8-pin 2.54 mm header to the Waveshare Module (B)'s
+   fixed SPI interface (§4.4). Residual: match the physical pin order on J2
+   to the module's silk/cable at assembly.
 2. **Tactile button cap height** — 4.3 mm switch + standoffs leaves
    ~10 mm from PCB back to cap top, while the faceplate sits ~12 mm
    ahead. Need cap extensions in the 3D print. Compute exactly at CP3
@@ -392,7 +387,7 @@ minimum).
 
 ## 15. What's NOT in CP1
 
-- Verified FFC pin mapping for the panel (CP2)
+- Final J2 8-pin pin-order match to the e-paper module silk (CP2)
 - Schematic capture in KiCad (CP2)
 - Footprint placement (CP3)
 - Routing (CP4)

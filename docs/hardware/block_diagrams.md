@@ -74,7 +74,7 @@ an **always-on** rail that powers the MCU in every state, and a
             ┌───────────────┐             │     │ 24 → 12 V (72 V)  │     → display side
             │ ESP32-S3      │◄────────────┘     └──────────────────┘
             │ WROOM-1 N16R8 │   ◄── DS3231 RTC (I²C, CR2032-backed)
-            │  ULP + BLE 5  │   ◄── 24 V ADC sense (1 MΩ/110 k divider, ~22 µA)
+            │  ULP + BLE 5  │   ◄── 24 V ADC sense (1.2 MΩ/100 k divider, ~19 µA)
             │  GPIO bank    │   ◄── override button (RTC-wake GPIO)
             └──┬────────────┘   ──► drives Q1: sheds the 12 V/display feed
                │                       when SOC < 10 % (ESP stays alive,

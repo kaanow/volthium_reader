@@ -31,7 +31,7 @@ cathode→GND** ✗ — a unidirectional TVS forward across the rail gives no
 positive-surge clamp (only a reverse-polarity crowbar). The part is
 correctly *sized* for surge (Vrwm 15 V > 12 V; Vclamp ~24 V < R-78E3.3
 VIN max ~32 V), which proves surge intent — so the orientation, not the
-part, was the error. Codex passed it CP1–CP6; Claude raised it.
+part, was the error. agent-reviewer passed it CP1–CP6; Claude raised it.
 
 **Resolution (agent call):** the clean-sheet analysis removed the
 ambiguity, so flipped TVS1 to **cathode→rail** (angle 270). Now
@@ -176,4 +176,50 @@ worse than none:
 
 **Resolution:** reconcile all baseline docs to the schematic *after*
 DR-3/DR-4 land (so they're rewritten once against the final topology, not
-twice).
+twice). **DONE** — all baseline docs reconciled to D19.
+
+---
+
+# Pre-handoff excellence pass (2026-06-18)
+
+Found while raising CP1 to a genuinely-excellent bar before review
+(display-side clean-sheet + a second look at the sensing path).
+
+## DR-6 — 24 V sense divider lands in the ESP ADC's nonlinear top region  [RESOLVED 2026-06-18]
+
+The 1 MΩ/110 kΩ divider maps the bus to `Vbus·110/1110`, so at full
+charge (~29.2 V) the ADC pin sees **~2.9 V**. The ESP32-S3 ADC at 12 dB
+attenuation is only linear to ~2.45 V and compresses above that — so the
+*least* accurate readings would be at full charge, and SOC math leans on
+exactly that region.
+
+**Resolution.** Re-ratio to **R5 = 1.2 MΩ / R6 = 100 kΩ** (`·100/1300`):
+full charge → **~2.25 V** (inside the linear band), 20 V → 1.54 V. Draw
+~18–23 µA (≈ unchanged, still power-first). **Surge is inherently safe:**
+the TVS clamps V24_FUSED to ~53 V; the 1.2 MΩ top resistor limits the
+ADC-pin fault current to (53−3.6)/1.2 MΩ ≈ **41 µA**, which the ESP's
+internal ADC clamp diodes sink — no extra clamp part needed. C5 (100 nF)
+still filters. (Agent call — clean ratio fix, no added parts.)
+
+## DR-7 — E-paper interface: wrong connector + missing panel-driver support  [RESOLVED 2026-06-18 — see also a CP2 note]
+
+The display drives a standard **8-pin SPI** e-paper (the schematic wires
+exactly CS/DC/RST/BUSY/SCK/MOSI + VCC/GND, and the firmware matches), and
+the BOM's *intent* is the **Waveshare 4.2" e-Paper Module (B)** — which
+carries its own driver PCB and exposes an 8-pin header. But **J2 is a
+24-pin 0.5 mm FFC (Hirose FH12-24S)** — the connector for the *bare*
+`WFT0420CZ15` panel, with pins 11–24 marked "NC". A bare e-paper panel
+needs an on-board booster network (VGH/VGL/VDH/VDL/VCOM charge-pump caps +
+boost diode) on those very pins; the schematic has none. So as drawn it
+fits neither part: it can't drive a bare panel (no booster), and it's the
+wrong connector for the module.
+
+**Resolution (agent call — use the module, the simplest robust choice for
+a hand-soldered cabin product).** Commit to the **Waveshare 4.2" e-Paper
+Module (B)** and change **J2 → an 8-pin 2.54 mm header** matching its
+interface: **VCC, GND, DIN (MOSI), CLK (SCK), CS, DC, RST, BUSY** (the
+canonical Waveshare e-paper pinout; the module includes the mating cable).
+This drops the FH12-24S FFC, the 16 NC pins, and the entire missing-booster
+risk, and closes the old "verify the FFC pinout before fab" open item.
+*CP2 note:* match the physical pin order on J2 to the module's silk at
+assembly; source = Waveshare 4.2inch e-Paper Module (B) wiki.

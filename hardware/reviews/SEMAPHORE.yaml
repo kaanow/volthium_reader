@@ -34,6 +34,6 @@ note: >
   block from first principles, measure the existing design against it as
   a CANDIDATE (not a baseline), fix clear errors, log judgment calls in
   DESIGN_REVIEW_ITEMS.md, and produce the CP1 packet
-  (cp1_design_baseline.md). Reach genuine excellence before any codex
-  handoff — codex is a second set of eyes for what was missed, not a
+  (cp1_design_baseline.md). Reach genuine excellence before any agent-reviewer
+  handoff — agent-reviewer is a second set of eyes for what was missed, not a
   crutch.

@@ -1,5 +1,11 @@
 # Bill of Materials
 
+> This is the **procurement / shopping** view (distributor methodology +
+> substitution notes). For the **complete per-reference-designator
+> engineering BOM**, see [`hardware/layout/cp1_bom.md`](../../hardware/layout/cp1_bom.md).
+> Both are reconciled to D19/DR-6/DR-7; a single merged BOM lands at CP2
+> when the schematic regen sets final reference designators.
+
 > **How to read the distributor columns:**
 >
 > - `[DK <id>](...)` ✓ — verified against the live Digi-Key catalog
@@ -48,7 +54,7 @@ distributor PN behind a search URL may change.
 > switch (Q1) sheds only the 12 V/display feed (U2). Parts changed from the
 > pre-D19 design: U1 (TPS62933→LM5165), U2 (R-78E12→R-78HB12), Q1
 > (AO3401A→ZXMP6A13F), Q2 (AO3400A→2N7002), D1 (SS24→SS26), input bulk caps
-> →100 V, sense divider →1 M/110 k, plus a new gate-clamp Zener (DZ1).
+> →100 V, sense divider →1.2 M/100 k (DR-6), plus a new gate-clamp Zener (DZ1).
 > **Reference designators here track the pre-regen schematic and are
 > finalized when the CP2 schematic is regenerated against D19** (DR-5); the
 > *parts* are the binding CP1 baseline.
@@ -95,7 +101,7 @@ distributor PN behind a search URL may change.
 | Q2        | **2N7002** N-MOSFET (Vds 60 V)                  | SOT-23  | 1   | PCB         | [search 2N7002](https://www.digikey.com/en/products/result?keywords=2N7002) | [Mouser](https://www.mouser.com/c/?q=2N7002) | $0.10  | Drives Q1's gate from 3.3 V. 60 V because its drain follows the V24 rail (D19/DR-4). Was AO3400A (30 V). |
 | DZ1       | **BZX84C12** 12 V Zener (Q1 gate–source clamp)  | SOT-23  | 1   | PCB         | [search BZX84C12](https://www.digikey.com/en/products/result?keywords=BZX84C12) | [Mouser](https://www.mouser.com/c/?q=BZX84C12) | $0.10  | Holds Q1 Vgs ≤ 12 V regardless of bus voltage (D19/DR-4). New part. |
 | R3, R4    | 100 kΩ 1 % — Q1 gate pull-up (R3, gate→source) + PWR_EN pull-down (R4) | 0805 ×2 | 2 | PCB | [search](https://www.digikey.com/en/products/result?keywords=100k+0805+1%25) | [search](https://www.mouser.com/c/?q=100k%200805%201%25) | $0.10  | Default-OFF load switch + brown-out failsafe-off. A ~1 kΩ series gate resistor (Rg) sits between Q2 drain and Q1 gate (works with DZ1). |
-| R5, R6    | 1 MΩ / 110 kΩ — 24 V → ~3.3 V sense divider     | 0805 ×2 | 2   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=1M+110k+0805+1%25) | [search](https://www.mouser.com/c/?q=1M%20110k%200805%201%25) | $0.10  | 24 V sense on ADC1_CH0 (GPIO1). High-impedance (≈22 µA) for power-first; C5 (100 nF) holds charge during the ADC sample. Always-on. |
+| R5, R6    | 1.2 MΩ / 100 kΩ — 24 V → ~2.25 V sense divider  | 0805 ×2 | 2   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=1.2M+100k+0805+1%25) | [search](https://www.mouser.com/c/?q=1.2M%20100k%200805%201%25) | $0.10  | 24 V sense on ADC1_CH0 (GPIO1). Full charge (29.2 V) → **2.25 V**, inside the ESP ADC linear band (DR-6). High-impedance (~19 µA) for power-first; the 1.2 MΩ top also current-limits a ~53 V surge to ~41 µA. C5 (100 nF) tank. Always-on. |
 | BTN1      | Panel-mount override pushbutton (e.g. E-Switch EG1218) | TH      | 1   | both        | [search](https://www.digikey.com/en/products/result?keywords=EG1218) | [search](https://www.mouser.com/c/?q=EG1218) | $2     | On battery-side enclosure; jumps ULP to wake state. |
 | C8        | 100 nF debounce                                 | 0603    | 1   | PCB         | (as C5) | (as C5) | $0.05  |  |
 
@@ -139,8 +145,8 @@ distributor PN behind a search URL may change.
 
 | Ref       | Part                                                | Pkg        | Qty | Proto / PCB | DigiKey | Mouser | Price  | Notes |
 |-----------|-----------------------------------------------------|------------|-----|-------------|---------|--------|--------|-------|
-| LCD1      | **Waveshare 4.2" tri-color e-Paper (B) V2** module (`WFT0420CZ15`) + driver HAT | bare panel | 1   | both        | [search](https://www.digikey.com/en/products/result?keywords=Waveshare+4.2+e-Paper+B+V2) | [search](https://www.mouser.com/c/?q=Waveshare%204.2%20e-Paper%20B%20V2) | $35    | Black / red / white, 400×300, SPI. **Primary source:** [waveshare.com/4.2inch-e-paper-module-b.htm](https://www.waveshare.com/4.2inch-e-paper-module-b.htm) — distributors carry it inconsistently; direct-from-Waveshare or Amazon may be more reliable. |
-| J2        | **Hirose FH12-24S-0.5SH(55)** 24-pin 0.5 mm FFC, top-contact, RoHS variant | SMT        | 1   | PCB         | [DK 1110322](https://www.digikey.com/en/products/detail/hirose-electric-co-ltd/FH12-24S-0-5SH-55/1110322) ✓ (legacy PN `HFJ124CT-ND`) | [Mouser](https://www.mouser.com/c/?q=FH12-24S-0.5SH%2855%29) | $1     | Mates the panel ribbon. The `(55)` suffix is the RoHS-compliant variant — explicit suffix is what the PCB footprint expects. |
+| LCD1      | **Waveshare 4.2inch e-Paper Module (B)** — tri-color B/W/R, 400×300, **onboard driver PCB + 8-pin SPI** header | module | 1   | both        | [search](https://www.digikey.com/en/products/result?keywords=Waveshare+4.2+e-Paper+B+V2) | [search](https://www.mouser.com/c/?q=Waveshare%204.2%20e-Paper%20B%20V2) | $35    | Connects to **J2 (8-pin)** via its included cable: VCC/GND/DIN/CLK/CS/DC/RST/BUSY (DR-7). **Primary source:** [waveshare.com/4.2inch-e-paper-module-b.htm](https://www.waveshare.com/4.2inch-e-paper-module-b.htm). **Not** the bare `WFT0420CZ15` panel — that's a raw 24-pin-FPC display needing an on-board booster network. |
+| J2        | **8-pin 2.54 mm header** (e-paper SPI: VCC/GND/DIN/CLK/CS/DC/RST/BUSY) | THT 1×8 | 1   | PCB         | [search 1x8 2.54mm header](https://www.digikey.com/en/products/result?keywords=1x8+header+2.54mm) | [Mouser](https://www.mouser.com/c/?q=1x8%20header%202.54mm) | $0.30  | Mates the Module (B) 8-pin cable. **Δ (DR-7): was a 24-pin Hirose FH12-24S FFC** — that's the *bare-panel* connector and would need a booster network we don't carry. Match physical pin order to the module silk at assembly. |
 
 ### RS-485
 

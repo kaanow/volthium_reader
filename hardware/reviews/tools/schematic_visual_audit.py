@@ -8,7 +8,7 @@ This tool creates a reviewer-ready evidence pack:
 4) SHA-256 manifest for all generated artifacts.
 
 Default output path matches the project review convention:
-  hardware/reviews/visual_inspections/<cp_slug>/iter<iter>/codex/
+  hardware/reviews/visual_inspections/<cp_slug>/iter<iter>/reviewer/
 """
 
 from __future__ import annotations
@@ -226,7 +226,7 @@ def write_report(
         "Manual visual review is still required for symbol/wire/text readability."
     )
     lines.append(
-        "- Use the generated crops as the codex-owned evidence set in the active CP packet."
+        "- Use the generated crops as the reviewer-owned evidence set in the active CP packet."
     )
     report.write_text("\n".join(lines) + "\n")
     return report
@@ -234,7 +234,7 @@ def write_report(
 
 def main() -> int:
     args = parse_args()
-    cp_dir = args.out_root / args.cp_slug / f"iter{args.iter}" / "codex"
+    cp_dir = args.out_root / args.cp_slug / f"iter{args.iter}" / "reviewer"
     cp_dir.mkdir(parents=True, exist_ok=True)
     snapshot_dir = cp_dir / "snapshots"
     snapshot_dir.mkdir(parents=True, exist_ok=True)
