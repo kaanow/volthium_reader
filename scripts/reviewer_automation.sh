@@ -19,7 +19,7 @@ MAX_RETRIES="${MAX_RETRIES:-3}"              # per due cycle
 RETRY_BACKOFF_SEC="${RETRY_BACKOFF_SEC:-60}" # retry wait
 MODEL_ID="${MODEL_ID:-gpt-5.3-codex}"        # pinned model (effective next daemon restart)
 
-PROMPT="Read ${REPO_DIR}/hardware/reviews/REVIEWER.md fully and follow its protocol end-to-end, with this shared-workspace override: do not perform an unconditional git pull step inside the review turn. Assume preflight sync has already run externally. If state is not codex_turn, exit immediately without modifications. If codex_turn, complete exactly one full reviewer iteration including findings append, semaphore handoff, commit, and push."
+PROMPT="Read ${REPO_DIR}/hardware/reviews/REVIEWER.md fully and follow its protocol end-to-end, with this shared-workspace override: do not perform an unconditional git pull step inside the review turn. Assume preflight sync has already run externally. If state is not reviewer_turn, exit immediately without modifications. If reviewer_turn, complete exactly one full reviewer iteration including findings append, semaphore handoff, commit, and push."
 
 mkdir -p "${STATE_DIR}"
 

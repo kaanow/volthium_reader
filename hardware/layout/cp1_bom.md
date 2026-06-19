@@ -1,9 +1,17 @@
 # CP1 — Bill of materials (consolidated)
 
-**Status**: draft, ready for review
-**Scope**: every part across both boards, with vendor SKUs, quantities,
-and rationale. **This file supersedes [`docs/hardware/bom.md`](../../docs/hardware/bom.md)
-where they disagree.**
+**Status**: CP1 snapshot (reconciled to D19)
+**Scope**: the **complete** part list — every reference designator across
+both boards, with vendor SKUs, quantities, and rationale. This is the
+authoritative *engineering* BOM for CP1;
+[`docs/hardware/bom.md`](../../docs/hardware/bom.md) is the curated
+*procurement / shopping* view (distributor methodology + substitution
+notes). Both are reconciled to D19.
+
+> **Reference designators here track the pre-regen schematic and are
+> finalized when the CP2 schematic regenerates.** A single fully-merged
+> BOM (one refdes scheme, one file) is deferred to CP2 — unifying refdes
+> now would just be redone then.
 
 Conventions:
 - Prices = single-quantity from DigiKey US, May 2026, USD. Mouser as backup.
@@ -18,20 +26,19 @@ Conventions:
 The **D19 power-chain active parts (U1 LM5165YDRCR, U2 R-78HB12-0.5,
 Q1 ZXMP6A13F) WERE DigiKey stock/lifecycle-checked 2026-06-17** — all in
 stock, Active. The remaining SKU columns were written from the prior
-pass + working knowledge and are **not yet live-checked**. Codex's CP1
-review (Finding 03, 2026-05-23) flagged several that appear stale:
+pass + working knowledge and are **not yet live-checked**. An earlier CP1
+review (Finding 03) flagged several that appear stale:
 
-| Part                          | CP1 SKU (this doc)         | Codex's spotted alternate (verify) |
+| Part                          | CP1 SKU (this doc)         | Spotted alternate (verify) |
 |-------------------------------|----------------------------|------------------------------------|
-| Hirose FH12-24S-0.5SH(55) FFC | `670-2719-1-ND`            | `HFJ124CT-ND` (~7,533 in stock; please re-verify — `HFJ` prefix is unusual for this Hirose part) |
 | DS3231SN# RTC                 | `DS3231SN#-ND`             | `DS3231SN#T&RCT-ND` (~6,609; reel vs cut-tape) |
 | SN65HVD3082EDR transceiver    | `296-21908-1-ND`           | `296-31719-1-ND` (~11,546) |
 
 **Action**: At **CP5 procurement**, before clicking ORDER:
 1. Visit DigiKey for each line, search the manufacturer part number, and
    capture the current SKU + stock count.
-2. If the CP1 SKU here is EOL or out-of-stock, swap to the Codex-flagged
-   alternate (or another current SKU for the same MPN).
+2. If the CP1 SKU here is EOL or out-of-stock, swap to a current SKU for
+   the same MPN.
 3. Stamp the BOM table with `last verified: YYYY-MM-DD` per line.
 
 CP1 doesn't gate on SKU correctness — design rules and topology don't
@@ -94,8 +101,8 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| R5  | 1 MΩ 0805 1 % (top of divider) | 0805 | 1 | **RMCF0805FT1M00CT-ND** | 71-CRCW08051M00FKEA | $0.10 | **Δ: 100 kΩ → 1 MΩ** (10× idle current reduction; this is the biggest single power optimization) |
-| R6  | 110 kΩ 0805 1 % (bottom of divider) | 0805 | 1 | RMCF0805FT110KCT-ND | 71-CRCW0805110KFKEA | $0.10 | **Δ: 11 kΩ → 110 kΩ** (same ratio, scaled with R5) |
+| R5  | 1.2 MΩ 0805 1 % (top of divider) | 0805 | 1 | RMCF0805FT1M20CT-ND | 71-CRCW08051M20FKEA | $0.10 | **Δ (DR-6): 1 MΩ → 1.2 MΩ** — full charge → 2.25 V, inside the ESP ADC linear band; also current-limits a surge to ~41 µA |
+| R6  | 100 kΩ 0805 1 % (bottom of divider) | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805100KFKEA | $0.10 | **Δ (DR-6): 110 kΩ → 100 kΩ** (sets the ratio with R5) |
 | C5  | 100 nF X7R | 0603 | 1 | (unchanged) 311-1141-1-ND | 81-GRM188R71H104KA93D | $0.05 | (unchanged) — ADC filter |
 
 ### MCU & support
@@ -127,7 +134,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | BTN1 | E-Switch RP3502MABLK panel-mount SPST NO momentary | Panel-mount | 1 | EG4527-ND | 612-RP3502MABLK | $3.00 | (Δ: was EG1218; RP3502MA-series stocks better) |
-| R13 | 1 MΩ 0805 1 % | 0805 | 1 | (same as R5) | (same) | $0.10 | (Δ: was 10 kΩ → 1 MΩ for lower Iq) |
+| R13 | 1 MΩ 0805 1 % | 0805 | 1 | RMCF0805FT1M00CT-ND | 71-CRCW08051M00FKEA | $0.10 | BTN pull-up (Δ: was 10 kΩ → 1 MΩ for lower Iq) |
 | C11 | 100 nF X7R | 0603 | 1 | (unchanged) | | $0.05 | Button debounce |
 
 ### Connectivity
@@ -192,8 +199,8 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| LCD1 | Waveshare 4.2" e-Paper Module (B) v2, tri-color (B+W+R) | bare panel + ribbon | 1 | 1738-1135-ND | 992-19094 | $35.00 | (unchanged display, but we no longer use the HAT — only the panel) |
-| J2  | Hirose FH12-24S-0.5SH(55) FFC connector | SMT top-contact | 1 | 670-2719-1-ND | 798-FH12-24S-0.5SH(55) | $1.00 | (unchanged) |
+| LCD1 | Waveshare 4.2inch e-Paper **Module (B)** — tri-color (B/W/R), onboard driver + 8-pin SPI | module | 1 | 1738-1135-ND | 992-19094 | $35.00 | **Δ (DR-7): use the module (8-pin SPI), not a bare panel.** Driver + booster on the module |
+| J2  | **8-pin 2.54 mm header** (e-paper SPI: VCC/GND/DIN/CLK/CS/DC/RST/BUSY) | THT 1×8 | 1 | _verify_ 1x8 2.54mm | _verify_ | $0.30 | **Δ (DR-7): was a 24-pin Hirose FH12-24S FFC** (the bare-panel connector). Match pin order to module silk at assembly |
 | C6  | 1 µF X7R panel VCC bulk | 0603 | 1 | (same as C5) | | $0.10 | NEW — reduces VCC dip during refresh |
 
 ### RS-485
@@ -211,7 +218,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | BTN1, BTN2, BTN3 | C&K PTS525 6×6×4.3 mm tactile SMT | SMT | 3 | 450-1641-ND | 642-TL3300AF260QG | $0.50 ea | (unchanged) |
-| R5, R6, R7 | 1 MΩ 0805 1 % BTN pull-ups | 0805 | 3 | (same as R5 on battery side) | | $0.10 ea | **Δ: 10 kΩ → 1 MΩ** |
+| R5, R6, R7 | 1 MΩ 0805 1 % BTN pull-ups | 0805 | 3 | RMCF0805FT1M00CT-ND | 71-CRCW08051M00FKEA | $0.10 ea | **Δ: 10 kΩ → 1 MΩ** (display BTN pull-ups; 1 MΩ, distinct from battery R5 = 1.2 MΩ) |
 | C8, C9, C10 | 100 nF X7R debounce caps | 0603 | 3 | (unchanged) | | $0.05 ea | |
 
 ### Dev headers
@@ -308,7 +315,8 @@ so the extras are not wasted.
 - Input bulk C1/C3 → **100 V** (behind the ~53 V clamp)
 - RS-485 bias → **display-end only, ~390 Ω** (battery rail draws 0) — DR-4
 - Q1 gate pull-up: 10 kΩ → 100 kΩ (10× lower idle current)
-- 24 V sense divider: 100 kΩ/11 kΩ → 1 MΩ/110 kΩ (10× lower idle current)
+- 24 V sense divider: 100 kΩ/11 kΩ → 1.2 MΩ/100 kΩ (10× lower idle current; full charge in ADC linear band — DR-6)
+- E-paper: 8-pin Waveshare Module (B), J2 → 8-pin header (was 24-pin FFC) — DR-7
 - BTN pull-ups: 10 kΩ → 1 MΩ (both sides — Iq reduction)
 
 ## Open questions surfaced by this BOM

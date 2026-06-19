@@ -90,7 +90,7 @@ downstream MCU can't gate its own supply (nor boot if it starts unpowered).
 At < 10 % SOC the ESP deep-sleeps (~µA), periodically reads V24_SENSE, and
 sheds the display by opening Q1; RS-485 is disabled via DE/RE (not
 power-switched). All-in trickle at hard-cut ≈ **~1 mW** (U1 Iq ~10.5 µA +
-sense divider ~22 µA + ESP deep-sleep). DS3231 runs off its CR2032 (~3 µA
+sense divider ~19 µA + ESP deep-sleep). DS3231 runs off its CR2032 (~3 µA
 off the coin cell). This replaces the pre-D19 design where the MCU sat on
 the switched rail and could not boot — see DESIGN_REVIEW_ITEMS DR-3/DR-4.
 
@@ -141,39 +141,42 @@ capacitance is ~330 pF; even at 100 kΩ the RC turn-OFF time is
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| R5  | 1 MΩ 1 % (top of divider)            | 0805          | 1   | Iq = 24 V / (1 MΩ + 110 kΩ) ≈ 21.6 µA. Was 100 kΩ → 220 µA; 10× reduction |
-| R6  | 110 kΩ 1 % (bottom of divider)       | 0805          | 1   | 24 V × 110 k / 1.11 M = 2.378 V → safely under 3.3 V ADC FSR |
-| C5  | 100 nF X7R (sense filter)            | 0603          | 1   | Anti-aliasing on the ADC; with 1 MΩ source impedance, RC = 100 ms — too slow for fast transients but ideal for SOC monitoring |
+| R5  | 1.2 MΩ 1 % (top of divider)          | 0805          | 1   | Iq ≈ 24 V / 1.3 MΩ ≈ 18.5 µA (~22 µA at 29 V full charge). Was 100 kΩ → 220 µA |
+| R6  | 100 kΩ 1 % (bottom of divider)       | 0805          | 1   | Ratio 100 k / 1.3 M: full charge 29.2 V → **2.25 V**, nominal 24 V → 1.85 V — inside the ESP ADC's linear band (DR-6) |
+| C5  | 100 nF X7R (sense filter)            | 0603          | 1   | Anti-aliasing on the ADC; with ~1 MΩ source impedance, RC ≈ 100 ms — too slow for fast transients but ideal for SOC monitoring |
 
 **Power-first commentary**: increasing the divider impedance from
-100 kΩ/11 kΩ to 1 MΩ/110 kΩ trades 220 µA for 22 µA on the
+100 kΩ/11 kΩ to 1.2 MΩ/100 kΩ trades 220 µA for ~19 µA on the
 permanently-alive path. **This is the single biggest power optimization
 in the design.**
 
-**ADC accuracy caveat — addressed at CP2 validation, not at design time**.
-Espressif's
-[ESP32-S3 Hardware Design Guidelines (ADC section)](https://docs.espressif.com/projects/esp-hardware-design-guidelines/en/latest/esp32s3/schematic-checklist.html)
-recommend a 100 nF cap on every ADC input (C5 here does that) but do
-not provide an explicit high-source-impedance accuracy guarantee. With
-our values:
+**ADC range (DR-6)**: the ratio is set so **full charge (~29.2 V) maps to
+~2.25 V** — inside the ESP32-S3 ADC's linear region. The ADC compresses
+above ~2.45 V at 12 dB attenuation, so the earlier 1 MΩ/110 kΩ ratio (full
+charge → ~2.9 V) would have been *least* accurate exactly at the top of
+the pack, where SOC math leans hardest. **Surge is inherently safe**: the
+TVS clamps V24_FUSED to ~53 V, and the 1.2 MΩ top resistor limits the
+ADC-pin fault current to (53 − 3.6)/1.2 MΩ ≈ 41 µA, which the ESP's
+internal ADC clamp diodes sink — no extra clamp part needed.
 
-- Divider Thevenin source: 1 MΩ ‖ 110 kΩ ≈ 99 kΩ
+**ADC accuracy**: Espressif's
+[ESP32-S3 Hardware Design Guidelines (ADC section)](https://docs.espressif.com/projects/esp-hardware-design-guidelines/en/latest/esp32s3/schematic-checklist.html)
+recommend a 100 nF cap on every ADC input (C5 here does that). On source
+impedance:
+
+- Divider Thevenin source: 1.2 MΩ ‖ 100 kΩ ≈ 92 kΩ
 - Tank cap C5 = 100 nF on the ADC node
-- Time constant to refill C5 from V24_FUSED through the divider: ~10 ms
-- ADC S/H cap (~10 pF) draws from C5, not directly from the divider —
-  so the per-sample SAR settling is dominated by C5's ESR (mΩ), not by
-  the divider impedance
+- ADC S/H cap (~10 pF) draws from C5, not directly from the divider — so
+  per-sample SAR settling is dominated by C5, not the divider impedance
 
 For SOC monitoring at ≤1 Hz sample cadence, the tank cap is fully
 settled between samples and ADC reads should match a DMM within
-calibration tolerance. For transient detection (load surges, inrush
-during charging), this divider is too slow — but transient detection
-happens via the BMS-reported `pack_i` over BLE, not via this ADC.
+calibration tolerance. Transient detection (load surges, inrush during
+charging) is via the BMS-reported `pack_i` over BLE, not this ADC.
 
-**CP2 validation TODO**: measure ADC reading vs DMM across the
-pack-voltage range (24.0 V → 28.0 V in 0.2 V steps) and verify error
-≤ 1 % across the range. If error exceeds 1 %, either drop divider to
-220 kΩ/24 kΩ (98 µA idle, RC ~2 ms) or buffer with an op-amp.
+**CP2 validation TODO**: measure ADC reading vs DMM across the full
+pack-voltage range (20.0 V → 29.2 V) and verify error ≤ 1 %. If error
+exceeds 1 %, drop divider impedance (e.g. 470 kΩ/39 kΩ) or buffer.
 
 ### 4.5 MCU & support
 
@@ -250,7 +253,7 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | V3V3         | 3.3 V       | LM5165 VOUT (U1)     | ESP3V3, RTC VCC, U3 VCC, R8/R9, R13, C6/C7/C8 | **Always-on** 3.3 V (D19). Powers the MCU in every state; never gated. No RS-485 bias here (display-end only) |
 | V12_CAT5E    | 12 V        | R-78HB12 VOUT (U2)   | J2 RJ45 pins 1/2/3                            | Powers display side over Cat5e; off when Q1 sheds it |
 | GND          | 0 V         | (chassis)            | every IC GND, J2 pins 6/7/8, chassis stud near J2 | Single-point shield-drain bond at J2 |
-| V24_SENSE    | 0–3 V       | R5/R6 midpoint       | ESP IO1 (ADC1_CH0)                            | Always-alive; 1/11.0909 divider |
+| V24_SENSE    | 0–2.3 V     | R5/R6 midpoint       | ESP IO1 (ADC1_CH0)                            | Always-alive; 1.2 M/100 k divider → ~2.25 V at full charge (DR-6) |
 | I2C_SDA      | 3.3 V LV    | ESP IO5 ↔ RTC SDA    | R8                                            | Pull-up R8 to V3V3 |
 | I2C_SCL      | 3.3 V LV    | ESP IO6 ↔ RTC SCL    | R9                                            | Pull-up R9 to V3V3 |
 | UART_TX_3V3  | 3.3 V LV    | ESP IO17             | U3 D pin                                       | UART1 TX → RS-485 driver input |
@@ -292,7 +295,7 @@ extra LED, etc.) via J3.
 ## 7. Power budget per state
 
 Computed for **D19 part choices**: U1 LM5165 always-on µA-Iq buck,
-1 MΩ/110 kΩ sense divider, no debug LED, P-FET load switch on the
+1.2 MΩ/100 kΩ sense divider, no debug LED, P-FET load switch on the
 **switched display-feed branch only** (§8), V12 policy split between
 deep-sleep (alive) and hard-cut (off) — see [§13 D-OPEN-7a/7b](#13-open-decisions-for-reviewer).
 
@@ -301,7 +304,7 @@ deep-sleep (alive) and hard-cut (off) — see [§13 D-OPEN-7a/7b](#13-open-decis
 | 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 ~0.5 mA + RTC <100 µA + bias ~1.5 mA + display side ~5 mA + sense 22 µA = 45 mA × 24 V | **~1.08 W** | ±2 % vs power_budget.md |
 | 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + bias still on ~1.5 mA + display unchanged + sense 22 µA | **~0.30 W** | — |
 | 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + DS3231 ~150 µA + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Display still up (Q1 ON) |
-| 4 — Hard cut | < 10 % | U1 LM5165 Iq ~10.5 µA + ESP deep-sleep ~10 µA + sense divider 22 µA + DS3231 on CR2032 (0 from pack); display shed (Q1 OFF) | **~1 mW** | MCU stays alive on the always-on rail and re-engages on recovery (D19). R3 gate pull-up draws ~0 here — Q1 is OFF, so gate sits at source |
+| 4 — Hard cut | < 10 % | U1 LM5165 Iq ~10.5 µA + ESP deep-sleep ~10 µA + sense divider ~19 µA + DS3231 on CR2032 (0 from pack); display shed (Q1 OFF) | **~1 mW** | MCU stays alive on the always-on rail and re-engages on recovery (D19). R3 gate pull-up draws ~0 here — Q1 is OFF, so gate sits at source |
 
 State 4 budget: at ~1 mW, decades to lose 1 % SOC from the monitor alone —
 self-discharge dominates. A literal full cut + supervisor could reach
@@ -450,7 +453,7 @@ margin.
 | **D-OPEN-1**  | ESP32-S3-WROOM-1-N16R8 vs -N8 (no PSRAM)? | N16R8 — keep existing BOM choice; minor $1.50 difference doesn't move the needle |
 | **D-OPEN-2**  | SN65HVD3082E vs lower-Iq alternative (ISL3175E)? | SN65HVD3082E — stocked, proven |
 | **D-OPEN-3**  | Internal ESP32 ADC vs external supervisor IC (TPS3839) for ULP voltage monitoring? | **Internal ADC** — saves $1.50 + footprint; ULP draws ~10 µA which dominates over the regulator Iq anyway |
-| ~~D-OPEN-5~~  | ~~Hard-cut topology~~ — **RESOLVED 2026-05-23 (post-CP1 Codex Finding 01)**: original P-FET in the 24 V path. Topology described in §8. No EN-pin alternative |
+| ~~D-OPEN-5~~  | ~~Hard-cut topology~~ — **RESOLVED 2026-05-23 (post-CP1 agent-reviewer Finding 01)**: original P-FET in the 24 V path. Topology described in §8. No EN-pin alternative |
 | **D-OPEN-6**  | Q1 gate pull-up value — 10 kΩ (~2.4 mA) vs 100 kΩ (~240 µA) vs 1 MΩ (~24 µA)? | **100 kΩ** — balance of fast turn-OFF (RC ~33 µs) and low idle current |
 | **D-OPEN-7a** | **Deep-sleep V12 policy** — should the 12 V Cat5e rail be kept alive in State 3 (10–15 % SOC, deep-sleep)? | **Yes** — Q1 stays ON in deep-sleep; display side sees slow-cadence frames and can show "LOW PACK" banner. Cost: ~5 mA × 24 V continuous via V24_SW |
 | **D-OPEN-7b** | **Hard-cut V12 policy** — should the 12 V Cat5e rail die in State 4 (<10 % SOC, hard-cut)? | **Yes (forced OFF)** — Q1 OFF kills V24_SW which kills V12. Required to preserve the State 4 ≤5 mW pack-draw target. Display side goes dark; ESP NVS preserves its last-rendered screen for the next State-1 recovery |
@@ -489,7 +492,7 @@ margin.
 | Load switch FETs                 | AO3401A/AO3400A (30 V), no Vgs clamp       | 60 V ZXMP6A13F/2N7002 + 12 V Vgs Zener clamp (D19/DR-4) |
 | Reverse-polarity diode           | SS24 (40 V)                                | SS26 (60 V) — out-rates the clamp (D19/DR-3) |
 | RS-485 idle bias                 | Both ends (battery bias always-on → ~8 mW leak) | Display end only, ~390 Ω (battery rail draws 0; D19/DR-4) |
-| Sense divider                    | 100 kΩ / 11 kΩ (220 µA idle)              | 1 MΩ / 110 kΩ (22 µA idle) — **10× power saving** |
+| Sense divider                    | 100 kΩ / 11 kΩ (220 µA idle)              | 1.2 MΩ / 100 kΩ (~19 µA idle; full charge → 2.25 V, in ADC linear band — DR-6) |
 | Q1 gate pull-up                  | 10 kΩ (2.4 mA idle)                        | 100 kΩ (240 µA idle) — 10× power saving      |
 | Debug LED                        | LED1 + R_led (always available, GPIO-controlled) | **Removed** per D4                       |
 | RS-485 numbering                 | TVS1 (RS-485), TVS2 (12 V), TVS3 (24 V) confused | TVS1 (24 V), TVS2 (RS-485) — display side has its own TVS3/TVS4 |

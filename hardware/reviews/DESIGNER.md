@@ -5,8 +5,8 @@ pass. This file is the entry point. **Read it fully before touching
 anything else, every time you're triggered.**
 
 The system runs on a semaphore at [`SEMAPHORE.yaml`](SEMAPHORE.yaml) —
-you and Codex (the reviewer) take turns. The user manages timed
-triggers (Cursor for Codex; `/loop` or manual prompts for you).
+you and agent-reviewer (the reviewer) take turns. The user manages timed
+triggers (Cursor for agent-reviewer; `/loop` or manual prompts for you).
 
 ## TL;DR
 
@@ -15,8 +15,8 @@ On every wake:
 1. `git pull origin <current_branch>` (read from SEMAPHORE.yaml).
 2. Read [`SEMAPHORE.yaml`](SEMAPHORE.yaml).
 3. Branch based on `state`:
-   - `claude_turn` → do work (§4); push; flip state to `codex_turn`.
-   - `codex_turn` → not your turn; exit cheap.
+   - `claude_turn` → do work (§4); push; flip state to `reviewer_turn`.
+   - `reviewer_turn` → not your turn; exit cheap.
    - `user_turn` → not your turn; exit cheap.
    - `done` → project complete; nothing to do.
 4. Tell the user one sentence about what you did and what's next.
@@ -51,7 +51,7 @@ goal:
 > **A human can read this schematic and understand the design.**
 
 Read D11 *and* D16 in full before generating any document. Treat
-readability as equal to correctness, not a side effect. Codex
+readability as equal to correctness, not a side effect. agent-reviewer
 enforces this in review. D16 revokes the previous "defensible
 exception" carve-out for overlaps: **any** overlapping text, symbol,
 label box, chevron, pin name, pin number, junction, wire, or
@@ -65,7 +65,7 @@ generator, do not ship and document a residual.
 
 ### Schematic-readiness checklist (D16 acceptance bar)
 
-Before flipping the semaphore to `codex_turn` on any iteration that
+Before flipping the semaphore to `reviewer_turn` on any iteration that
 touches a schematic, all of the following must hold. These are the
 operational items behind the D16 goal; future PCB projects forking
 this template inherit them.
@@ -170,7 +170,7 @@ findings → rebuild, until the gate reports PASS with 0 findings.
 D11 explicitly requires a visual inspection (see D11 §"Visual
 inspection protocol"). A script alone is not a sign-off. On every
 iteration that touches a rendered PDF, do **all** of the following
-before flipping the semaphore to `codex_turn`:
+before flipping the semaphore to `reviewer_turn`:
 
 1. Render the PDF(s) and open them at **100 % zoom** in a real PDF
    viewer (not KiCad, not a PNG preview).
@@ -211,26 +211,26 @@ spacing problems. Just don't confuse it with the visual gate.
 
 ### Reviewer's complementary duty
 
-Codex must read the screenshots embedded in the packet, not just
-the audit script's PASS line. Codex is authorized — and required —
+agent-reviewer must read the screenshots embedded in the packet, not just
+the audit script's PASS line. agent-reviewer is authorized — and required —
 to flag any text in those screenshots that the designer claimed was
 readable but isn't. A scripted-audit-only review is itself a D11
 enforcement failure.
 
-Additionally, Codex now generates independent reviewer-owned screenshot
+Additionally, agent-reviewer now generates independent reviewer-owned screenshot
 evidence each CP2+ turn from the committed PDFs and stores it under:
-`hardware/reviews/visual_inspections/<cp_slug>/iter<N>/codex/`.
+`hardware/reviews/visual_inspections/<cp_slug>/iter<N>/reviewer/`.
 Designer-provided screenshots are still required for designer sign-off,
-but Codex's final D11 verdict may rely on codex-owned screenshots as the
+but agent-reviewer's final D11 verdict may rely on reviewer-owned screenshots as the
 authoritative review artifact.
-Codex's standard tooling entrypoint is:
+agent-reviewer's standard tooling entrypoint is:
 `.venv/bin/python hardware/reviews/tools/schematic_visual_audit.py --cp-slug <cp_slug> --iter <N> --strict`
 
 ### D13 — Binary per-criterion scorecard required at sign-off
 
 D11 sets the principle; [`decisions.md` D13](../layout/decisions.md#d13--explicit-acceptance-criteria-operationalizing-d11) enumerates the
 specific criteria (F-S-\*, SR-\*, F-P-\*, PR-\*) that must be evaluated
-in every review packet. Before flipping the semaphore to `codex_turn`,
+in every review packet. Before flipping the semaphore to `reviewer_turn`,
 every packet must include a scorecard table at the SIGN-OFF section:
 
 | Criterion ID | Status (PASS or FAIL) | Evidence / justification |
@@ -269,7 +269,7 @@ first design, JLCPCB qty 5 bare PCBs, hand-soldered. Background:
 CP4 was inserted between CP3 and routing-drc per [`decisions.md` D12](../layout/decisions.md#d12--cp-renumber-display-side-placement-inserted-as-cp4) — display-side placement deserves its own single-concern packet, not a fold-in to the routing CP. See D12 for rationale.
 
 One feature-branch per CP: `hw/cpN-<slug>`. One PR per CP. Squash-merge
-to `main` when Codex APPROVES.
+to `main` when agent-reviewer APPROVES.
 
 ## 3. Decision tree on wake
 
@@ -292,7 +292,7 @@ read SEMAPHORE.yaml
 │   └─ no sign-off line yet (first turn on a CP)?
 │       → §6: do initial CP work (when a new CP is starting)
 │
-├─ state == codex_turn?
+├─ state == reviewer_turn?
 │   → print "Not Claude's turn"; exit
 │
 ├─ state == user_turn?
@@ -310,7 +310,7 @@ For each finding in the latest §8.N (or §8) of the active packet:
    - **Agree** → make the change in the relevant file (cp*.md,
      decisions.md, BOM, KiCad files, etc.).
    - **Disagree** → in the RESOLVED entry, give a concrete reason and
-     a counter-proposal. Codex either accepts (next iteration) or
+     a counter-proposal. agent-reviewer either accepts (next iteration) or
      escalates.
    - **Defer** → if it's a CP-out-of-scope concern, document it as a
      CP<N> task in the relevant doc + RESOLVED entry.
@@ -318,14 +318,14 @@ For each finding in the latest §8.N (or §8) of the active packet:
 2. Append a `RESOLVED — Finding NN` entry to a new `## 9.M Claude's
    responses (iteration <M>)` section in the review packet.
 
-3. Update SEMAPHORE.yaml: `state: codex_turn`, increment `iteration`,
+3. Update SEMAPHORE.yaml: `state: reviewer_turn`, increment `iteration`,
    `last_updated_by: claude`, write a `note` summarizing what you did.
 
 4. Stage + commit + push (§7).
 
 ## 5. Acting on APPROVED — advance to next CP
 
-When Codex's latest sign-off says `REVIEW COMPLETE: APPROVED` for
+When agent-reviewer's latest sign-off says `REVIEW COMPLETE: APPROVED` for
 the current CP:
 
 1. Confirm `gh pr view <branch>` is open and ready.
@@ -351,7 +351,7 @@ the current CP:
    - Open a PR with `gh pr create ...`
    - Update SEMAPHORE: `current_cp: <N+1>`, `current_branch: hw/cp<N+1>-...`,
      `active_packet: hardware/reviews/cp<N+1>_*.md`, `iteration: 1`,
-     `state: codex_turn`, write `note`.
+     `state: reviewer_turn`, write `note`.
    - Commit + push the new branch.
    - Stop.
 
@@ -386,7 +386,7 @@ Each CP's work is:
   PCB STEP file (user needs this for the faceplate). Build
   `cp6_fab_ready.md` with a pre-fab checklist.
 
-When done, hand back to Codex via `state: codex_turn`.
+When done, hand back to agent-reviewer via `state: reviewer_turn`.
 
 ## 7. Commit + push protocol
 
@@ -413,7 +413,7 @@ gh pr create --base main --head hw/cp<N>-<slug> --title "..." --body "..."
 ```
 
 You ARE allowed to:
-- Merge PRs after Codex APPROVED.
+- Merge PRs after agent-reviewer APPROVED.
 - Open new PRs for the next CP.
 - Modify any file under `hardware/`, `docs/hardware/`, `docs/`, or the
   KiCad project tree.
@@ -421,8 +421,8 @@ You ARE allowed to:
 
 You ARE NOT allowed to:
 - Force-push to `main`.
-- Modify Codex's review-packet §8 findings (you respond in §9).
-- Skip Codex's sign-off — never set `state: claude_turn → done`
+- Modify agent-reviewer's review-packet §8 findings (you respond in §9).
+- Skip agent-reviewer's sign-off — never set `state: claude_turn → done`
   without an APPROVED CP6 packet.
 - Place the actual fab order. That's the user-only "spend money"
   step.
@@ -430,26 +430,26 @@ You ARE NOT allowed to:
 ## 8. Escalation to user (be sparing)
 
 The user has explicitly delegated full autonomy. **Default to driving
-forward** in consensus with Codex rather than pausing. Only escalate
+forward** in consensus with agent-reviewer rather than pausing. Only escalate
 (set `state: user_turn`) in these three cases:
 
 ### 8a. Mandatory: CP6 APPROVED → before fab order
 
-This is the only spend-money step in the project. After Codex
+This is the only spend-money step in the project. After agent-reviewer
 APPROVES the CP6 fab-ready packet, set `state: user_turn` with a note
 that the renders + Gerbers are in `hardware/outputs/` and the user
 should review before placing the JLCPCB order.
 
 ### 8b. Consensus failure
 
-If Codex re-opens the same finding **two iterations in a row** after
+If agent-reviewer re-opens the same finding **two iterations in a row** after
 you RESOLVED it (you proposed counter A, they re-opened; you proposed
 counter B, they re-opened again) — that's a real disagreement worth
 a tiebreaker. Set `state: user_turn` with a clear `note`:
 
 ```yaml
 note: >
-  Disagreement with Codex on <topic>. My position: <X>. Codex's
+  Disagreement with agent-reviewer on <topic>. My position: <X>. agent-reviewer's
   position: <Y>. Resolution requires user input. See cp<N>_*.md
   §8.M / §9.M for the full thread.
 ```
@@ -462,14 +462,14 @@ set `state: user_turn` with a "stuck" note. Don't try one more pass.
 ### What does NOT warrant escalation
 
 - A foundational design pivot (display swap, MCU swap, fab swap) if
-  Codex agrees with you. Just do it, document a new entry in
+  agent-reviewer agrees with you. Just do it, document a new entry in
   `decisions.md`, move on. The user will see it at CP6.
 - BOM cost going up by a reasonable amount. You're not the budget
   gatekeeper unless we're talking 2× the current $154 ballpark.
-- Codex finding something you uncovered yourself. Just fix it.
+- agent-reviewer finding something you uncovered yourself. Just fix it.
 
-When in doubt, **propose the path to Codex as part of your work and
-let them push back if it's wrong**. Codex IS the consensus check.
+When in doubt, **propose the path to agent-reviewer as part of your work and
+let them push back if it's wrong**. agent-reviewer IS the consensus check.
 
 ## 9. When you're uncertain
 
@@ -479,10 +479,10 @@ uncertainty in your RESOLVED entry**. Write:
 
 > RESOLVED — Finding NN
 > **Fix**: <what I changed>.
-> **Confidence**: medium — I'm <X confident> but if Codex sees a
+> **Confidence**: medium — I'm <X confident> but if agent-reviewer sees a
 > concrete reason this is wrong, please re-open and I'll re-evaluate.
 
-That gives Codex permission to push back with concrete evidence. If
+That gives agent-reviewer permission to push back with concrete evidence. If
 they don't, you proceed. If they do with valid reasoning, you adjust
 and the cycle continues. **The honest "confidence" field is what
 makes the loop converge instead of bouncing.**
@@ -505,7 +505,7 @@ use `ScheduleWakeup` at the end of each turn to self-pace.
 
 > Check `/Users/pivot/Documents/repo/volthium_reader/hardware/reviews/SEMAPHORE.yaml`.
 > If `state` is `claude_turn`, follow `hardware/reviews/DESIGNER.md` and do the
-> next Claude action. If `state` is `codex_turn` or `user_turn`, exit cheaply.
+> next Claude action. If `state` is `reviewer_turn` or `user_turn`, exit cheaply.
 > If `state` is `done`, stop the loop entirely. Schedule the next wake in
 > 20 minutes.
 
@@ -517,7 +517,7 @@ ScheduleWakeup(delaySeconds=1200,
                reason="autonomous CP loop")
 ```
 
-20 minutes is offset from Codex's 15-minute Cursor interval — keeps us
+20 minutes is offset from agent-reviewer's 15-minute Cursor interval — keeps us
 out of phase, reduces collisions. If the project's pace warrants it,
 you can tune the wake delay (e.g. shorter while a CP is being
 iterated rapidly, longer during long-running KiCad operations).
@@ -527,13 +527,13 @@ iterated rapidly, longer during long-running KiCad operations).
 After committing + pushing, **stop** (or `ScheduleWakeup` in
 autonomous mode). Tell the user one sentence:
 
-> "Claude iteration N on CP<X> complete; handed to Codex.
-> <Short summary>. Next: Codex re-review on its next trigger."
+> "Claude iteration N on CP<X> complete; handed to agent-reviewer.
+> <Short summary>. Next: agent-reviewer re-review on its next trigger."
 
 Or for advancement:
 
 > "CP<X> APPROVED + merged. Opened CP<X+1> at <PR URL>. Handed to
-> Codex for review."
+> agent-reviewer for review."
 
 Or for user-pause:
 

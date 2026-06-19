@@ -136,6 +136,13 @@ Considered:
 Refresh policy makes button presses feel responsive while preserving red
 for alerts and keeping idle current at zero (e-paper is bistable).
 
+**Update (2026-06-18, DR-7):** use the **Waveshare 4.2inch e-Paper Module
+(B)** — the version *with* the onboard driver/booster PCB and an 8-pin SPI
+header — **not** the bare `WFT0420CZ15` panel. The board connects via an
+8-pin 2.54 mm header (J2): VCC/GND/DIN/CLK/CS/DC/RST/BUSY. (The earlier
+design used a 24-pin bare-panel FFC and lacked the booster network a raw
+panel needs — see DESIGN_REVIEW_ITEMS DR-7.)
+
 ## D7 — User input = 3 tactile buttons on PCB bottom edge
 
 **Date**: 2026-05-23
@@ -285,7 +292,7 @@ not pass.
   A grep-based audit alone is not sufficient — overlapping labels,
   off-page text, and unreadable clusters are visual defects that
   scripted checks can miss.
-- Codex cites D11 when pushing back on documentation that fails any
+- agent-reviewer cites D11 when pushing back on documentation that fails any
   of the criteria above. Criteria #0 and #5 are non-negotiable.
 - `DESIGNER.md` calls out D11 as a deliverable equal to correctness.
 
@@ -396,7 +403,7 @@ D11 *and* D16 (top-level goal + zero-exception overlap rule), the
 visual-inspection protocol, the documented iter-36 failure, and the
 D16 schematic-readiness checklist in `hardware/reviews/DESIGNER.md`
 §0 are intended to be **copied verbatim** into any future PCB
-project that forks this template. A fresh Claude or Codex instance
+project that forks this template. A fresh Claude or agent-reviewer instance
 starting a new board project should:
 
 1. Read D11 + D16 first and internalize both the goal and the hard
@@ -692,7 +699,7 @@ F-*, SR-*, PR-* criterion. Columns:
 - **Status** (PASS or FAIL, no other values)
 - **Evidence / justification** (one sentence; for FAIL, what specifically failed; for any PR-3 / PR-4 PASS that has a non-zero raw DRC count, the per-instance justification)
 
-The reviewer (Codex) verifies each row independently. APPROVED requires
+The reviewer (agent-reviewer) verifies each row independently. APPROVED requires
 **every applicable row = PASS**. Any FAIL → NEEDS CHANGES.
 
 CPs select the criteria that apply to their phase:
@@ -1115,7 +1122,7 @@ from first principles per domain (power input, regulation, comms, MCU,
 sensing, connectors) per `ENGINEERING_REVIEW.md`, and the existing design
 is measured against that derivation as a *candidate*, not assumed as the
 baseline. Findings are logged in `DESIGN_REVIEW_ITEMS.md`; clear errors
-are fixed before any codex handoff (excellence is produced, not added in
+are fixed before any agent-reviewer handoff (excellence is produced, not added in
 review).
 
 ## D19 — Battery-side power-domain re-architecture (always-on µA housekeeping + switched display feed)

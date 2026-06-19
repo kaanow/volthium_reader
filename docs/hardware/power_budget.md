@@ -67,7 +67,7 @@ when the pack recovers. No full power-down, no separate supervisor IC
 |-------------------------|-----------------------------------|
 | U1 LM5165 Iq            | ~10.5 µA → **~0.25 mW**            |
 | ESP32-S3 deep-sleep     | ~10 µA @ 3.3 V → **~0.2 mW**       |
-| 24 V sense divider (1 MΩ/110 k) | 24 V / 1.11 MΩ ≈ 22 µA → **~0.52 mW** |
+| 24 V sense divider (1.2 MΩ/100 k) | 24 V / 1.3 MΩ ≈ 18.5 µA → **~0.44 mW** |
 | DS3231 (on CR2032)      | 0 from pack — runs off backup     |
 | Display side (U2 shed)  | 0                                 |
 | **Total from pack**     | **~1 mW**                          |
