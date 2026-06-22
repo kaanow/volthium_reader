@@ -59,7 +59,7 @@ Per decisions.md **D19** (CP1 re-architecture). The MCU lives on an
 J1 [2-pin Phoenix MSTB-G-5.08, screw-clamp pluggable]    ← user lands ring lugs here
     │
     ▼
-F1 [5×20 mm cartridge, 1 A fast-blow, in clip]           ← field-replaceable
+F1 [5×20 mm cartridge, 1 A time-lag (T), in clip]        ← field-replaceable
     │
     ▼
 D1 [SS26 Schottky 60V, A→K]                              ← reverse-polarity protect
@@ -148,7 +148,7 @@ protects the gate **and** guarantees turn-on.
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
 | J1  | Phoenix MSTB-2,5/ 2-G-5,08 pluggable terminal block (2-pin, 5.08 mm pitch) | THT 5.08 mm | 1 | Field-replaceable wiring; pluggable means user can disconnect the board from the pack without unscrewing wires |
-| F1  | 5×20 mm fuse + 2× PCB-mount clips (1 A fast-blow, e.g. Bel Fuse 5MF 1-R) | THT clip      | 1 | Cartridge fuses are universally stocked; pops out for replacement |
+| F1  | 5×20 mm fuse + 2× PCB-mount clips (**1 A time-lag "T"**, e.g. Littelfuse 0215001.MXP) | THT clip      | 1 | Cartridge fuses are universally stocked; pops out for replacement. **Time-lag, not fast-blow (DR-12):** tolerates the µs-scale ~22 µF ceramic inrush (I²t ≈ 0.06–0.13 A²s) without nuisance-tripping, while still clearing the ~45 mA steady load and a hard short |
 | D1  | SS26 Schottky (60 V, 2 A, low Vf)   | SMA           | 1 | Reverse-polarity protection; 60 V out-rates the ~53 V clamp (D19/DR-3). Vf ~0.4 V, ~20 mW dissipation |
 | TVS1 | SMAJ33CA bidirectional TVS (Vrwm 33 V) | SMA       | 1 | Clamps 24 V transients; 33 V Vrwm clears the ~29 V full-charge bus with margin (D19/DR-2). Clamps ~53 V — every part on V24_FUSED/V24_SW is rated ≥60 V to suit |
 
@@ -166,6 +166,7 @@ so the protected rail out-rates the clamp (D19/DR-3).
 | C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210      | 2   | LM5166 input (C1 on V24_FUSED, behind the ~53 V clamp → 100 V) / output (C2, 3.3 V) |
 | U2  | Recom R-78HB12-0.5 (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1   | **Switched** (behind Q1) — drives the Cat5e/display. 72 V in tolerates the ~53 V clamp (D19/DR-3). Was R-78E12 (34 V, under-rated) |
 | C3, C4 | C3 22 µF / **100 V**, C4 22 µF / 25 V X7R | 1210      | 2   | U2 input (C3 on V24_SW, behind the clamp → 100 V) / 12 V output (C4) |
+| TVS3 | SMAJ15A unidirectional TVS, V12_CAT5E ↔ GND (at J2) | SMA | 1 | **DR-15:** clamps surges induced on the long in-wall Cat5e **12 V power pair** at the **battery** end — matches the display-end SMAJ15A so both ends of the exposed pair are protected (standard for long DC runs). Standoff 15 V > 12 V; zero static draw (conducts only on a transient). U2's 72 V VIN and the always-on rail are upstream/unaffected |
 
 **Regulator thermals (worst case, no heatsink).** Both converters are
 switchers, so dissipation is conversion loss — and both run far below rated
@@ -291,7 +292,7 @@ exceeds 1 %, drop divider impedance (e.g. 470 kΩ/39 kΩ) or buffer.
 | C10 | 100 nF X7R (U3 decoupling)           | 0603          | 1   | |
 
 **Power-first note (D19/DR-4)**: the bus idle-bias resistors are **on the
-display end only** (resized to ~390 Ω there — see cp1_display_side.md), not
+display end only** (resized to ~330 Ω there — see cp1_display_side.md), not
 here. The reason: the battery 3V3 rail is now *always-on*, so a ~2.3 mA
 battery-side bias would draw continuously and blow the ~1 mW hard-cut
 budget (~8×). Putting bias on the display end means it is sourced from the
@@ -340,7 +341,7 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | V24_FUSED    | 24–28 V     | D1 cathode           | Q1 source, R5 top (sense divider), R3 (Q1 gate pull-up), TVS1 | Always-alive 24 V rail (post-fuse, post-reverse). Only loads are the load-switch input, the sense divider, the gate pull-up, and the TVS clamp — minimal idle draw |
 | V24_SW       | 24–28 V     | Q1 drain             | R-78HB12 VIN (U2) only                         | Switched 24 V branch downstream of the load switch. Feeds **only** U2 (12 V/display). Collapses when PWR_EN is LOW/Hi-Z — sheds the display, **not** the MCU |
 | V3V3         | 3.3 V       | LM5166 VOUT (U1)     | ESP3V3, RTC VCC, U3 VCC, R8/R9, R13, C6/C7/C8 | **Always-on** 3.3 V (D19). Powers the MCU in every state; never gated. No RS-485 bias here (display-end only) |
-| V12_CAT5E    | 12 V        | R-78HB12 VOUT (U2)   | J2 RJ45 pins 1/2/3                            | Powers display side over Cat5e; off when Q1 sheds it |
+| V12_CAT5E    | 12 V        | R-78HB12 VOUT (U2)   | J2 RJ45 pins 1/2/3, C4, **TVS3**              | Powers display side over Cat5e; off when Q1 sheds it. TVS3 clamps cable surges at this end (DR-15) |
 | GND          | 0 V         | (chassis)            | every IC GND, J2 pins 6/7/8, chassis stud near J2 | Single-point shield-drain bond at J2 |
 | V24_SENSE    | 0–2.3 V     | R5/R6 midpoint       | ESP IO1 (ADC1_CH0)                            | Always-alive; 1.2 M/100 k divider → ~2.25 V at full charge (DR-6) |
 | I2C_SDA      | 3.3 V LV    | ESP IO5 ↔ RTC SDA    | R8                                            | Pull-up R8 to V3V3 |
@@ -454,7 +455,7 @@ This matches the documented State 4 budget in
 Unchanged from the existing design (see §4.6 above and the cross-ref).
 This board is **one terminus of the RS-485 bus**, so R10 (120 Ω) is
 populated. **Idle bias is NOT here** — it lives on the display end only
-(~390 Ω), so the always-on battery rail carries no RS-485 static draw
+(~330 Ω), so the always-on battery rail carries no RS-485 static draw
 (D19/DR-4; see CP1 display-side §4.6).
 
 ## 10. Decoupling strategy
@@ -580,7 +581,7 @@ margin.
 | 12 V regulator                   | R-78E12 (34 V — under-rated behind the ~53 V clamp) | R-78HB12 (72 V), switched behind Q1 (D19/DR-3) |
 | Load switch FETs                 | AO3401A/AO3400A (30 V), no Vgs clamp       | 60 V ZXMP6A13F/2N7002 + 12 V Vgs Zener clamp (D19/DR-4) |
 | Reverse-polarity diode           | SS24 (40 V)                                | SS26 (60 V) — out-rates the clamp (D19/DR-3) |
-| RS-485 idle bias                 | Both ends (battery bias always-on → ~8 mW leak) | Display end only, ~390 Ω (battery rail draws 0; D19/DR-4) |
+| RS-485 idle bias                 | Both ends (battery bias always-on → ~8 mW leak) | Display end only, ~330 Ω (battery rail draws 0; D19/DR-4) |
 | Sense divider                    | 100 kΩ / 11 kΩ (220 µA idle)              | 1.2 MΩ / 100 kΩ (~19 µA idle; full charge → 2.25 V, in ADC linear band — DR-6) |
 | Q1 gate pull-up                  | 10 kΩ (2.4 mA idle)                        | 100 kΩ (240 µA idle) — 10× power saving      |
 | Debug LED                        | LED1 + R_led (always available, GPIO-controlled) | **Removed** per D4                       |

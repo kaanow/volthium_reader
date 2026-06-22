@@ -310,7 +310,7 @@ principle that errors are cheapest to catch at CP1. Each item below is the
 *designer's* analysis with a proposed resolution; the iter-3 reviewer brief
 (packet §10) asks for independent verification. Several need a **user call**.
 
-## DR-12 — Input fuse vs ceramic inrush (F1 1 A fast-blow + low-ESR bulk)  [OPEN — analysis done; fuse-type call]
+## DR-12 — Input fuse vs ceramic inrush (F1 1 A fast-blow + low-ESR bulk)  [RESOLVED 2026-06-22 — F1 → 1 A time-lag "T" (user-approved)]
 
 **Issue.** F1 (1 A fast-blow, 5×20 mm) sees inrush charging low-ESR ceramic
 bulk on each power event: ~22 µF (C1, LM5166 input on V24_FUSED) at
@@ -325,7 +325,7 @@ holder) — tolerates µs-scale inrush, still protects the ~45 mA steady load
 and a hard short. **Confidence: medium** — depends on the exact fuse I²t and
 real loop R; reviewer to verify against the chosen fuse's datasheet I²t.
 
-## DR-13 — RS-485 fail-safe bias margin is thin (236 mV, dual-termination)  [OPEN — analysis done; value call]
+## DR-13 — RS-485 fail-safe bias margin is thin (236 mV, dual-termination)  [RESOLVED 2026-06-22 — Rb 390→330 Ω, ~275 mV (user-approved); reviewer to confirm vs datasheet threshold]
 
 **Derivation.** Both ends terminated (120 Ω each → 60 Ω across A–B) + a
 single display-end fail-safe bias (Rb = 390 Ω up/down): idle differential =
@@ -347,7 +347,7 @@ current. **No change required**; logged so any TVS sub keeps VC < 28 V (a
 13 V-standoff part would add margin — optional). Evidence: Littelfuse SMAJ
 datasheet; Recom R-78E-0.5 (6–28 V).
 
-## DR-15 — Cat5e 12 V power pair: TVS only at the display end  [OPEN — analysis done; add-part call]
+## DR-15 — Cat5e 12 V power pair: TVS only at the display end  [RESOLVED 2026-06-22 — added battery-side SMAJ15A (TVS3) (user-approved)]
 
 **Issue.** The in-wall 12 V/GND pair (several metres, surge-exposed) has a
 TVS (SMAJ15A) at the **display** end only. The **battery** end — U2 output

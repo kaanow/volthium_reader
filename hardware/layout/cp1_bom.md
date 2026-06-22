@@ -72,9 +72,10 @@ Grand total **~$145** for one complete monitor (including extras).
 |-----|------|-----|-----|-------------|------------|-------|--------------------------|
 | J1  | Phoenix MSTB 2,5/2-G-5,08 pluggable terminal block (2-pin male header + female plug) | THT 5.08 mm | 1 | **277-1271-ND** + 277-1272-ND (plug) | 651-1755736 + 651-1755503 | $3.50 | **NEW** — replaces ring-terminal + external fuse |
 | F1  | 5×20 mm cartridge fuse holder (PCB clip, ×2) | THT clip | 2 | **F1465-ND** | 530-31MJ005H | $0.70 ea | **NEW** — replaces ATO fuse holder. Holds the 1 A cartridge |
-| F1_ELEM | 1 A 5×20 mm fast-blow ceramic cartridge fuse | TH 5×20 mm | 1 | **F2380-ND** | 504-0034.1519 | $0.95 | **NEW** — fuse element. Ceramic = safer in high-energy DC fault than glass |
+| F1_ELEM | 1 A 5×20 mm **time-lag (T)** ceramic cartridge fuse | TH 5×20 mm | 1 | _verify_ | _verify_ | $0.95 | **NEW** — fuse element. **Time-lag (DR-12)**: rides the ~22 µF ceramic inrush; ceramic body = safer in a high-energy DC fault than glass |
 | D1  | SS26 Schottky 60 V/2 A | SMA | 1 | _verify_ SS26FACT-ND | 583-SS26 | $0.30 | **Δ (D19/DR-3): SS24 (40 V) → SS26 (60 V)** to out-rate the ~53 V clamp |
 | TVS1 | SMAJ33CA bidirectional TVS (Vrwm 33 V) | SMA | 1 | _verify_ SMAJ33CADICT-ND | 78-SMAJ33CA | $0.40 | **Δ (D19/DR-2): SMAJ30CA → SMAJ33CA** — 33 V clears the ~29 V full-charge bus with margin |
+| TVS3 | SMAJ15A unidirectional TVS, V12_CAT5E↔GND | SMA | 1 | SMAJ15ADICT-ND | 78-SMAJ15A-E3/61 | $0.30 | **NEW (DR-15):** clamps cable surges on the 12 V Cat5e pair at the **battery** end (matches the display-end SMAJ15A → both ends protected). Zero static draw |
 
 ### Power conversion
 
@@ -210,7 +211,7 @@ Grand total **~$145** for one complete monitor (including extras).
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | U2  | SN65HVD3082EDR | SOIC-8 | 1 | (unchanged) | | $1.20 | (unchanged) |
 | R2  | 120 Ω 0805 1 % | 0805 | 1 | (same as battery R10) | | $0.10 | Bus terminus |
-| R3, R4 | ~390 Ω 0805 1 % idle bias (A→3V3, B→GND) | 0805 | 2 | _verify_ | | $0.10 ea | **POPULATED — the bus's only fail-safe bias (D19/DR-4).** ~390 Ω gives 236 mV idle across the two 120 Ω terminators (> 200 mV). Sourced from display 3V3 (shed with the display at low SOC) |
+| R3, R4 | ~330 Ω 0805 1 % idle bias (A→3V3, B→GND) | 0805 | 2 | _verify_ | | $0.10 ea | **POPULATED — the bus's only fail-safe bias (D19/DR-4).** ~330 Ω gives **~275 mV** idle across the two 120 Ω terminators (~38 % over the 200 mV floor; DR-13, was 390 Ω/236 mV). Sourced from display 3V3 (shed with the display at low SOC) |
 | TVS2 | SMAJ12CA bidirectional | SMA | 1 | (unchanged) | | $0.30 | |
 | C7  | 100 nF X7R | 0603 | 1 | (unchanged) | | $0.05 | U2 decoupling |
 
@@ -315,7 +316,7 @@ so the extras are not wasted.
 - Q1/Q2: AO3401A/AO3400A (30 V) → **ZXMP6A13F/2N7002** (60 V) — DR-4
 - D1: SS24 (40 V) → **SS26** (60 V) — DR-3
 - Input bulk C1/C3 → **100 V** (behind the ~53 V clamp)
-- RS-485 bias → **display-end only, ~390 Ω** (battery rail draws 0) — DR-4
+- RS-485 bias → **display-end only, ~330 Ω** (battery rail draws 0) — DR-4
 - Q1 gate pull-up: 10 kΩ → 100 kΩ (10× lower idle current)
 - 24 V sense divider: 100 kΩ/11 kΩ → 1.2 MΩ/100 kΩ (10× lower idle current; full charge in ADC linear band — DR-6)
 - E-paper: 8-pin Waveshare Module (B), J2 → 8-pin header (was 24-pin FFC) — DR-7
@@ -326,7 +327,7 @@ so the extras are not wasted.
 - **D-OPEN-1** ESP module variant — would standardizing on -N8 save
   $1.50 per board and reduce ESP power slightly? Reviewer to weigh.
 - ~~**D-OPEN-8** Display-side bias resistors populated or not?~~
-  **RESOLVED (D19/DR-4):** populated at ~390 Ω — they are the bus's *only*
+  **RESOLVED (D19/DR-4):** populated at ~330 Ω — they are the bus's *only*
   fail-safe bias (battery-side bias removed to keep the always-on rail at
   zero static draw).
 - **D-OPEN-13** Panel-mount switch BTN1 on battery side — does the
