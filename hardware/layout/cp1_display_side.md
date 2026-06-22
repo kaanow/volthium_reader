@@ -44,7 +44,7 @@ PCB outline target: **85 × 65 mm**. Mounting:
 **Faceplate (3D-printed, user-supplied)**: ~115 × 117 mm overall
 (matches standard double-gang plate footprint). Cutouts:
 
-- 84.8 × 63.2 mm rectangular window for e-paper active area, centered
+- 84.8 × 63.6 mm rectangular window for e-paper active area (Waveshare 4.2" (B) verified active area), centered
   vertically with ~5 mm offset toward the top edge to leave room for
   the button labels
 - 3× 6 mm round cutouts along the bottom edge, on 18 mm centers, for
@@ -72,8 +72,8 @@ Hard constraints this imposes (CP3 must honor; a depth tally is produced then):
   orient/seat the R-78 for minimum height. Keep tall parts off the
   module-facing side.
 - **The e-paper module doesn't fit *inside* the box.** Its outline
-  (~90–103 mm — **verify the exact module dims**) meets/exceeds the ~95 mm
-  box interior. → **mount the module to the back of the oversized custom
+  (**91 × 77 mm**, Waveshare 4.2" (B) verified) meets/exceeds the ~95 mm
+  box interior on the long axis. → **mount the module to the back of the oversized custom
   faceplate** (~115×117 mm), with the main PCB in the box behind it; the
   8-pin SPI cable (DR-7) runs between, with slack + a strain-relief anchor.
 - **Button-cap height spans the PCB→faceplate gap** (set by the module +
@@ -88,6 +88,28 @@ Hard constraints this imposes (CP3 must honor; a depth tally is produced then):
   snap/magnetic pop-off for exactly this.
 - **No antenna keepout** (D26): the display radio is unused (RS-485 link),
   so the WROOM antenna region carries no keepout — frees the layout.
+
+**Depth tally (computed now, not deferred — confirm exact part dims at CP3):**
+
+| Element, front → back into the ~45 mm usable box        | Depth   |
+|---------------------------------------------------------|---------|
+| e-paper module (panel 1.2 mm + driver PCB + connector)  | ~5 mm   |
+| module-back → PCB-front standoff gap (clears 8-pin cable + button throw) | ~8 mm |
+| main PCB                                                 | 1.6 mm  |
+| tallest back-side part: R-78E3.3 SIP (oriented low) **or** low-profile right-angle RJ45 | ~11 mm |
+| bracket standoff + clearance to box floor               | ~5 mm   |
+| **Total**                                               | **~30–31 mm** |
+
+Against ~45 mm usable → **~14 mm margin**. The binding parts are the
+R-78E3.3 SIP (~11 mm vertical) and the RJ45; both are addressable — a
+**low-profile right-angle RJ45 protrudes only ~4.4 mm above the PCB** (e.g.
+SUYIN 100362-series, 9.6 mm overall), and the R-78 is oriented for minimum
+height. Even with a standard ~13 mm right-angle RJ45 the total stays
+~33 mm. Module outline is **91 × 77 mm** (Waveshare 4.2" (B), active area
+84.8 × 63.6 mm), so it exceeds the ~95 mm box interior only on the long
+axis — but it mounts to the faceplate regardless (D-OPEN-11). The earlier
+~21 mm vertical-RJ45 worry is exactly what the right-angle choice removes.
+This confirms the fit; CP3 re-checks against the chosen-part datasheets.
 
 **Deliverable:** the **PCB STEP** (with the e-paper-module envelope +
 connector/button/USB-C positions) is the contract the user designs the
