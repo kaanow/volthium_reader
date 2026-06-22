@@ -15,26 +15,26 @@ last_updated_at: 2026-06-19T00:00:00Z
 last_updated_by: claude
 
 note: >
-  CP1 ARCHITECTURE — first handoff to the reviewer (iteration 1). The full
-  clean-sheet engineering review (ENGINEERING_REVIEW.md / D17) has been run
-  across all domains on BOTH boards, plus mechanical/thermal/serviceability
-  (domain-complete). Findings landed as decisions D18–D27 and DR-1..DR-11
-  (all RESOLVED in DESIGN_REVIEW_ITEMS.md). Baseline docs, both BOMs, block
-  diagrams, and power budget are reconciled to that architecture, and a
-  mechanical superseded-token sweep over the whole repo is clean (stale
-  refs in install/, production_design, STATUS, firmware, and the
-  original-intent netlist docs all fixed or bannered).
+  CP1 ARCHITECTURE — handoff to the reviewer (iteration 1). THIS ROUND IS A
+  SINGLE THOROUGH PASS, not an automated loop: do one deep review, write
+  findings into a new §8 of cp1_design_baseline.md, then hand back to the
+  USER (state: user_turn) — do NOT flip to claude_turn. A human reads your
+  pass before the designer responds.
 
-  Reviewer: please DON'T take RESOLVED on faith — re-derive D19 (always-on
-  µA-Iq buck + Q1 hard-cut of only the 12V/display feed; ≥60V rail parts vs
-  the ~53V SMAJ33CA clamp), D23 (RV-3028-C7 + backup cap), DR-6 (1.2M/100k
-  sense divider lands in the ESP ADC linear band), DR-7 (8-pin Waveshare
-  e-paper module, not the bare 24-pin FFC), and the display mechanical stack
-  (DR-10/D27: recessed double-gang box, module-to-faceplate, right-angle
-  RJ45, board-edge USB-C + pop-faceplate, OTA-over-RS485). Active packet:
-  cp1_design_baseline.md. NOTE: board artifacts (CP3–CP6) remain superseded
-  per D18 and the generators (build_*.py) are intentionally still pre-D19 —
-  that is CP2 work, not a CP1 finding.
+  Read cp1_design_baseline.md §5 first — it is the designer's prioritized
+  request for this review (independent re-derivation of the D19 power-tree
+  protection coordination; part reality/variant + LM5166 fixed-vs-adjustable;
+  the domain the designer may have skipped, esp. regulator thermals and the
+  display depth stack; the DR-6 sense-divider/ADC source-impedance subtlety;
+  D18–D27 / DR-1..DR-11 internal consistency). Re-derive; don't trust the
+  RESOLVED tags. Skip readability/D11/D13 (no schematic yet — CP2) and the
+  staleness re-audit (a clean mechanical sweep was just run).
+
+  Context: the full clean-sheet engineering review (ENGINEERING_REVIEW.md /
+  D17) was run across all domains on both boards; findings landed as D18–D27
+  and DR-1..DR-11 (all RESOLVED). Board artifacts (CP3–CP6) remain superseded
+  per D18; the generators (build_*.py) are intentionally still pre-D19 — CP2
+  work, not a CP1 finding.
 
   Authoritative entry points: hardware/layout/decisions.md,
   hardware/layout/cp1_{battery,display}_side.md, hardware/layout/cp1_bom.md,

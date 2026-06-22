@@ -128,6 +128,74 @@ ERC + readability audits) is the next checkpoint, **not** part of CP1.
 
 KiCad schematic capture + ERC + readability audits (CP2); placement (CP3/CP4); routing + DRC (CP5); fab (CP6). Final distributor-SKU verification at BOM-lock (D-OPEN-6).
 
+## 5. Designer's request to the reviewer — single thorough pass
+
+> **Scope note:** §2–§3 above were written at the D18/D19 re-open and name
+> only those decisions. The actual CP1 scope is **D18–D27** and
+> **DR-1…DR-11** (all DR currently RESOLVED). Treat this §5 as the priority
+> steer; re-derive, don't trust the RESOLVED tags.
+
+**Process this round.** Make **one** pass, as deep as you can — we're
+deliberately slowing the automation down. When done, write findings into a
+new §8 here and hand back to the **user** (`state: user_turn`), *not* to me.
+A human reads your pass before I respond; no auto ping-pong this round.
+
+**1 — The thing I most want: independently re-derive the power-tree
+protection coordination (D19).** Don't audit my conclusion — redo the
+arithmetic from the part datasheets. The defect that reached CP6 last round
+(DR-1/DR-2) was exactly this class: ERC-clean and readable, but a protective
+part out-rated by what it protects. I re-architected it, but I'm the same
+eyes that missed it the first time, so a from-scratch derivation by a second
+agent is the highest-value check here.
+Take the worst-case voltage V24_FUSED reaches when the **SMAJ33CA** conducts
+at the surge current a 1 A-fused 24 V input can deliver (use the TVS
+clamp-V-vs-current curve, not the nominal standoff), and confirm **every**
+part on that node survives with margin: D1 **SS26** (60 V), Q1 **ZXMP6A13F**
+(Vds −60 V), Q2 **2N7002** (60 V), U1 **LM5166** VIN abs-max, U2 **R-78HB12**
+(72 V), and the bulk caps (rated ≥ clamp?). Then the gate-clamp path:
+**BZX84C12** holding Q1 |Vgs| inside rating across the **full** bus range
+(cold-charge ~29 V up through the clamp), not just nominal. Flag any thin
+margin or any place my assumed clamp voltage isn't supported by the curve at
+the real fault current.
+
+**2 — Are the parts real and the right variant?** Independently confirm
+(datasheet + a quick stock/lifecycle check) each active part exists in the
+named package/variant and isn't NRND/obsolete: LM5166 — and **resolve the
+open question**: is a fixed-3.3 V variant actually orderable, or are we
+committed to adjustable + FB divider? — RV-3028-C7, ZXMP6A13F, R-78HB12-0.5,
+the right-angle RJ45, and the 8-pin Waveshare 4.2" Module (B). Last round I
+carried a phantom Hammond PN to CP6; a second sourcing pass catches that
+early.
+
+**3 — Find the domain I skipped.** Don't just confirm my
+electrical/mechanical/thermal/serviceability bullets — actively hunt for the
+domain or failure mode I missed. Two I'd specifically value:
+- **Thermal:** both regulators at worst case, no heatsink — LM5166 (24→3.3 V)
+  and R-78HB12 (24→12 V into the display load) — against package θJA. Either
+  marginal?
+- **Display mechanical depth:** does the real stack (e-paper module +
+  right-angle RJ45 + PCB + standoffs) fit the shallow recessed double-gang
+  box (~45 mm)? I asserted the fit; I never dimensioned it.
+
+**4 — The sense/ADC subtlety (DR-6).** Re-derive 1.2 MΩ/100 kΩ: 29.2 V →
+2.25 V. Confirm that lands in the ESP32-S3 ADC's actual usable linear band,
+**and** that a 1.2 MΩ source impedance is acceptable for the S3's
+sample-and-hold (high divider impedance can cause settling/gain error unless
+buffered or the sample window is widened). That second part is what I'm least
+sure of.
+
+**5 — Internal consistency.** D18–D27 and DR-1…DR-11 — do any two contradict,
+and does the BOM match the decisions?
+
+**Please skip:** readability / D11 / D13 schematic-geometry audits (no
+schematic yet — that's CP2), and re-auditing staleness (I just ran a clean
+mechanical sweep; only flag a *new* contradiction).
+
+**Form of findings.** For anything you'd block on, give the concrete number
+or calculation — the datasheet value, the computed margin — not just the
+concern, so a human can act in one pass without a clarification round. Tag
+each finding **blocker / should-fix / nit**.
+
 ---
 
 *The original May-2026 CP1 packet (its "what changed" enumeration, open-decision tables, and the agent-reviewer Finding 01–05 review) is preserved in git history. It was superseded by the D18/D19 re-open: its headline blocker — the hard-cut topology inconsistency — is exactly what D19 resolves.*
