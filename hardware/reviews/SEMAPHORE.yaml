@@ -11,15 +11,21 @@ iteration: 2
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-18T12:00:00Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-06-21T23:30:00Z
+last_updated_by: claude
 
 note: >
-  agent-reviewer iteration 1 on CP1 — single thorough pass complete (per §5).
-  Handed to USER for human read before designer responds (not claude_turn).
-  Status: NEEDS CHANGES — 1 blocker (LM5166XDRCR is the 5 V fixed variant;
-  3.3 V fixed is LM5166YDRCR), 3 important (module envelope 103×78.5 mm,
-  WiFi 500 mA headroom, RS-485 bias doc drift). See cp1_design_baseline.md
-  §8 for full re-derivation table + 8 findings.
+  CLAUDE addressed all 8 reviewer findings (responses in cp1_design_baseline.md
+  §9). State held at user_turn for the USER's morning read — the reviewer
+  won't re-trigger this round, so no hand-back to reviewer_turn.
+  Blocker fixed: LM5166XDRCR (5 V) → LM5166YDRCR (3.3 V) everywhere
+  (decisions D25, both BOMs, cp1_battery_side §4.2, packet §0). Importants:
+  module driver-board dims corrected to 103.0×78.5 mm; WiFi 500 mA headroom
+  resolved via a WiFi/RS-485 mutual-exclusion firmware policy (§4.2); RS-485
+  bias wording de-drifted (§3/§7). Nits 05/06 fixed; 07 ack; 08 (YDRCR live
+  stock) deferred to BOM-lock with YDRCT/adjustable fallback recorded.
+  USER decisions open: (1) accept the Finding-03 firmware-policy approach or
+  prefer a higher-current buck; (2) clearance to start CP2. Until then CP2
+  is HELD per user instruction.
 
 user_pause_reasons_seen_this_run: []

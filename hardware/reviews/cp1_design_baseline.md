@@ -44,7 +44,7 @@ sense divider ~19 µA).
 
 **Verified parts (specs + DigiKey stock/lifecycle checked 2026-06-17;
 final confirmation still at BOM-lock per D-OPEN-6):**
-- **U1 LM5165YDRCR** — 3–65 V in, **10.5 µA Iq**, 150 mA, **fixed 3.3 V** (FB→VOUT, no divider). In stock @ DigiKey, Active. Both surge-tolerant and µA-Iq (a brick can't be both). *The stock check first flagged that the adjustable DRCR I'd picked would need an FB divider — resolved by switching to the fixed-3.3 V "Y" variant (same package), not by adding the divider.*
+- **U1 LM5166YDRCR** — 3–65 V in, **~14 µA Iq**, **500 mA**, **fixed 3.3 V** (FB→VOUT, no divider). TI Active (confirm distributor stock at BOM-lock — see Finding 01/08). Both surge-tolerant and µA-Iq (a brick can't be both). 500 mA (vs the LM5165's 150 mA) feeds a duty-cycled WiFi push (D25). **Suffix: `Y` = 3.3 V, `X` = 5 V — order YDRCR** (reviewer Finding 01; the pre-D25 LM5165 entry here correctly used "Y", the X slip was in the D25 LM5166 swap).
 - **U2 R-78HB12-0.5** — 17–72 V in, 12 V/0.5 A. In stock @ DigiKey, Active.
 - **Q1 ZXMP6A13F** — −60 V, **0.9 A**, SOT-23-3 (clean 3-pin; the ZXMP6A17 is only SOT-23-6/SOT-223). In stock @ DigiKey, Active. 0.9 A ≫ the ~0.3 A display feed.
 - **D1 SS26** (60 V), **Q2 2N7002** (60 V), **DZ1 BZX84C12** (12 V Zener) — ubiquitous jellybeans.
@@ -365,3 +365,53 @@ divider is the documented fallback — but do **not** substitute `LM5166XDRCR`
 ---
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 1 blocker, 3 important. (See findings 01, 02, 03, 04.)
+
+---
+
+## 9. Claude's responses (iteration 2, 2026-06-21)
+
+All eight findings addressed this turn (the user pulled the brakes on
+auto-looping; reviewer won't re-trigger, so this hands to **user_turn** for a
+morning read, not back to the reviewer). Confidence high on 01/02/04/05/06;
+medium on 03 (a firmware-policy resolution worth a human eye).
+
+- **RESOLVED — Finding 01 (BLOCKER).** Correct. `LM5166Y` = 3.3 V,
+  `LM5166X` = 5 V; ordering X would force ~5 V onto the ESP rail
+  (destructive). Independently re-confirmed (TI LM5166 datasheet §6.5; the
+  YDRCR = 3.3 V product page). Changed **`LM5166XDRCR` → `LM5166YDRCR`** in
+  `decisions.md` D25, `cp1_battery_side.md` §4.2, `cp1_bom.md`,
+  `docs/hardware/bom.md`, and §0 here. Added the suffix-trap warning + the
+  "never XDRCR" guard at each site. Great catch — this is exactly the value
+  of an independent re-derivation.
+- **RESOLVED — Finding 02 (IMPORTANT).** Correct. Split the dims in
+  `cp1_display_side.md` §2.1: **driver board 103.0 × 78.5 mm** (binding for
+  the faceplate mount), screen/panel 91 × 77 mm, active 84.8 × 63.6 mm.
+  Instruction added to lay mounting bosses/cable-exit/M2 holes against
+  103 × 78.5. Still fits the 115 × 117 mm faceplate. Depth tally unchanged.
+- **RESOLVED — Finding 03 (IMPORTANT).** **Confidence: medium.** Added an
+  explicit headroom analysis + firmware policy in `cp1_battery_side.md` §4.2:
+  WiFi push and RS-485 transmit are **mutually exclusive** (U3 held in
+  driver-disable during the session), so the simultaneous peak is
+  ESP-dominated and within 500 mA; only sub-ms TX peaks exceed it and C2
+  buffers them; brief current-limit foldback on a duty-cycled session is
+  benign. CP2 scopes the combined peak to confirm. **User: if you'd rather
+  not lean on a firmware policy here, the alternative is a higher-current
+  buck — flag it and I'll re-select.**
+- **RESOLVED — Finding 04 (IMPORTANT).** Correct. Removed "bias" from the §3
+  always-on domain table (now "RS-485 xceiver + R10 term; no idle bias —
+  display-end only, DR-4b"); §7 State 1/2 rows relabeled to "display-end
+  RS-485 bias (via Cat5e, shed at hard-cut)". No battery-side idle-bias
+  implication remains.
+- **RESOLVED — Finding 05 (NIT).** §3 ASCII relabeled the U3-branch column
+  from "bias" to "R10 term Ω" + "(no idle bias here — display-end only)".
+- **RESOLVED — Finding 06 (NIT).** §0 verified-parts bullet updated
+  LM5165YDRCR → **LM5166YDRCR** (500 mA, ~14 µA Iq).
+- **ACK — Finding 07 (NIT).** No change needed; the ≥60 V substitution rule
+  is already in §3.1, and the "75 V parts = optional insurance" note is too.
+- **DEFERRED to BOM-lock — Finding 08 (QUESTION).** Recorded the YDRCR
+  stock caveat (out-of-stock on TI.com 2026-06-21) at every U1 site, with
+  the YDRCT / adjustable-plus-divider fallback and the "never XDRCR" guard.
+  Live distributor stock to be confirmed at BOM-lock (D-OPEN-6).
+
+**State:** → `user_turn` for the morning review. Open for a human call:
+Finding 03's firmware-policy approach, and clearance to start CP2.

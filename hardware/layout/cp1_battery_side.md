@@ -75,8 +75,8 @@ TVS1 [SMAJ33CA,           U1 [LM5166         R5/R6 divider      Q1/Q2 load switc
                               │                              U2 [R-78HB12 24V→12V]
        ┌────────┬────────┬───┴─────┬──────────┐                     │
        ▼        ▼        ▼         ▼          ▼                     ▼ V12_CAT5E
-   ESP32-S3   RV-3028   SN65...    bias     decoupling           J2 RJ45 → display
-   (MOD1)    (RTC1)    (U3)    R10 term  (no bias here — display-end only)
+   ESP32-S3   RV-3028   SN65...    R10      decoupling           J2 RJ45 → display
+   (MOD1)    (RTC1)    (U3)    term Ω   (no idle bias here — display-end only)
 
 Always-on (off V24_FUSED, never via Q1):
     U1 LM5166 → 3V3 → ESP32-S3 + RV-3028 VCC + RS-485 + sense divider
@@ -89,7 +89,7 @@ Switched (Q1, MCU-controlled): U2 → 12V → Cat5e → the entire display side
 
 | Domain         | What it powers                                          | Killed by                |
 |----------------|---------------------------------------------------------|---------------------------|
-| Always-on 3V3  | ESP32-S3, RV-3028 VCC, RS-485 xceiver, bias, sense divider | Never (MCU deep-sleeps at low SOC) |
+| Always-on 3V3  | ESP32-S3, RV-3028 VCC, RS-485 xceiver (+ R10 term; **no idle bias — display-end only, DR-4b**), sense divider | Never (MCU deep-sleeps at low SOC) |
 | Switched 12V   | U2 → Cat5e → the **entire display side**                | Q1 OFF (ESP opens it at < 10 % SOC) |
 
 The MCU is **always powered** — it cannot sit behind the load switch: it
@@ -161,7 +161,7 @@ so the protected rail out-rates the clamp (D19/DR-3).
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| U1  | **LM5166XDRCR** (24 V→3.3 V sync buck, **always-on**, **fixed-3.3 V** variant — FB→VOUT, no divider) | VSON-10 | 1 | **~14 µA Iq**, 3–65 V in (65 V out-rates the 53.3 V clamp, §3.1), **500 mA** — enough to power a **WiFi session** (D25); a brick can't be both µA-Iq *and* surge-tolerant (D19/DR-4). Fixed-3.3 V `LM5166XDRCR` confirmed orderable (TI, VSON-10, stocked @ Mouser — 2026-06-21); no FB divider. Confirm stock + price at BOM-lock |
+| U1  | **LM5166YDRCR** (24 V→3.3 V sync buck, **always-on**, **fixed-3.3 V** variant — FB→VOUT, no divider) | VSON-10 | 1 | **~14 µA Iq**, 3–65 V in (65 V out-rates the 53.3 V clamp, §3.1), **500 mA** — enough to power a **WiFi session** (D25); a brick can't be both µA-Iq *and* surge-tolerant (D19/DR-4). **Suffix trap (reviewer Finding 01): `LM5166Y` = 3.3 V, `LM5166X` = 5 V** — order **Y**DRCR; the X variant would force the ESP rail to ~5 V (destructive). FB→VOUT, no divider. TI Active; **confirm live stock at BOM-lock** (TI.com showed YDRCR out-of-stock on 2026-06-21 — fallback `LM5166YDRCT` cut-tape, else adjustable `LM5166DRCR` + high-Z divider; never XDRCR) |
 | L1  | 10–47 µH ≥0.3 A shielded SMD inductor | per datasheet | 1 | LM5166 buck inductor; low-Iq COT mode favors a larger L than a fast buck |
 | C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210      | 2   | LM5166 input (C1 on V24_FUSED, behind the ~53 V clamp → 100 V) / output (C2, 3.3 V) |
 | U2  | Recom R-78HB12-0.5 (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1   | **Switched** (behind Q1) — drives the Cat5e/display. 72 V in tolerates the ~53 V clamp (D19/DR-3). Was R-78E12 (34 V, under-rated) |
@@ -186,6 +186,28 @@ load:
 
 Neither regulator needs heatsinking; the always-on rail's thermal is
 dominated by the brief WiFi burst (~7 °C).
+
+**U1 500 mA headroom vs WiFi peak (reviewer Finding 03).** The 3V3 rail is
+sized so the **worst-case simultaneous peak stays ≤ 500 mA**:
+
+- ESP32-S3 WiFi: ~150–250 mA sustained during a push, with sub-ms TX peaks
+  to ~350–500 mA.
+- U3 SN65HVD3082E: ~0.4–1 mA idle/receive; only the *driver actively
+  transmitting into a terminated bus* approaches tens of mA.
+- RV-3028 ~45 nA, sense ~22 µA — negligible.
+
+**Firmware policy (D25):** the WiFi push and RS-485 transmit are **mutually
+exclusive** — during the ~2–6 s WiFi session the firmware holds U3 in
+**driver-disable / receive-idle** (DE low), so the transceiver is never
+sourcing bus-drive current while WiFi peaks. Net simultaneous load is then
+**ESP-dominated and within the 500 mA rating**; the only excursions above it
+are **sub-millisecond** TX peaks, which **C2 (22 µF)** buffers (size per the
+LM5166 datasheet at CP2). Even if a peak briefly hits the LM5166 current
+limit, foldback on a duty-cycled, seconds-long session is benign (the rail
+sags momentarily, not a fault). **CP2 action:** scope the combined peak and
+confirm ≤ 500 mA with the policy active; if margin < 10 %, document the
+foldback explicitly. The 530 mA "driver-active + WiFi-peak" case is
+**designed out by the mutual-exclusion policy**, not left implicit.
 
 ### 4.3 Hard-cut load switch
 
@@ -368,8 +390,8 @@ deep-sleep (alive) and hard-cut (off) — see [§13 D-OPEN-7a/7b](#13-open-decis
 
 | State | SOC band | Subsystem draws (at 24 V end) | Pack draw | Notes |
 |-------|----------|--------------------------------|-----------|-------|
-| 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 ~0.5 mA + RTC <100 µA + bias ~1.5 mA + display side ~5 mA + sense 22 µA = 45 mA × 24 V | **~1.08 W** | ±2 % vs power_budget.md |
-| 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + bias still on ~1.5 mA + display unchanged + sense 22 µA | **~0.30 W** | — |
+| 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 ~0.5 mA + RTC <100 µA + **display-end** RS-485 bias (via Cat5e) ~1.5 mA + rest of display side ~5 mA + sense 22 µA = 45 mA × 24 V | **~1.08 W** | ±2 % vs power_budget.md. **No battery-side idle bias (DR-4b)** — the ~1.5 mA is sourced at the display end and shed with the display at hard-cut |
+| 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + **display-end** RS-485 bias (via Cat5e, shed at hard-cut) ~1.5 mA + display unchanged + sense 22 µA | **~0.30 W** | — |
 | 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + RV-3028 ~150 µA + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Display still up (Q1 ON) |
 | 4 — Hard cut | < 10 % | U1 LM5166 Iq ~14 µA + ESP deep-sleep ~10 µA + sense divider ~19 µA + **RV-3028-C7 RTC ~45 nA (negligible)**; display shed (Q1 OFF) | **~1 mW** | RTC swapped DS3231→RV-3028-C7 to kill the ~0.5 mW always-on draw (D23/DR-8). MCU re-engages on recovery (D19) |
 
