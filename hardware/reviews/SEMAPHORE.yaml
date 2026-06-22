@@ -2,40 +2,24 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: user_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 1
+iteration: 2
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-19T00:00:00Z
-last_updated_by: claude
+last_updated_at: 2026-06-18T12:00:00Z
+last_updated_by: agent-reviewer
 
 note: >
-  CP1 ARCHITECTURE — handoff to the reviewer (iteration 1). THIS ROUND IS A
-  SINGLE THOROUGH PASS, not an automated loop: do one deep review, write
-  findings into a new §8 of cp1_design_baseline.md, then hand back to the
-  USER (state: user_turn) — do NOT flip to claude_turn. A human reads your
-  pass before the designer responds.
+  agent-reviewer iteration 1 on CP1 — single thorough pass complete (per §5).
+  Handed to USER for human read before designer responds (not claude_turn).
+  Status: NEEDS CHANGES — 1 blocker (LM5166XDRCR is the 5 V fixed variant;
+  3.3 V fixed is LM5166YDRCR), 3 important (module envelope 103×78.5 mm,
+  WiFi 500 mA headroom, RS-485 bias doc drift). See cp1_design_baseline.md
+  §8 for full re-derivation table + 8 findings.
 
-  Read cp1_design_baseline.md §5 first — it is the designer's prioritized
-  request for this review (independent re-derivation of the D19 power-tree
-  protection coordination; part reality/variant + LM5166 fixed-vs-adjustable;
-  the domain the designer may have skipped, esp. regulator thermals and the
-  display depth stack; the DR-6 sense-divider/ADC source-impedance subtlety;
-  D18–D27 / DR-1..DR-11 internal consistency). Re-derive; don't trust the
-  RESOLVED tags. Skip readability/D11/D13 (no schematic yet — CP2) and the
-  staleness re-audit (a clean mechanical sweep was just run).
-
-  Context: the full clean-sheet engineering review (ENGINEERING_REVIEW.md /
-  D17) was run across all domains on both boards; findings landed as D18–D27
-  and DR-1..DR-11 (all RESOLVED). Board artifacts (CP3–CP6) remain superseded
-  per D18; the generators (build_*.py) are intentionally still pre-D19 — CP2
-  work, not a CP1 finding.
-
-  Authoritative entry points: hardware/layout/decisions.md,
-  hardware/layout/cp1_{battery,display}_side.md, hardware/layout/cp1_bom.md,
-  hardware/reviews/DESIGN_REVIEW_ITEMS.md. Reviewer instructions: REVIEWER.md.
+user_pause_reasons_seen_this_run: []

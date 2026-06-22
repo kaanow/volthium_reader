@@ -196,3 +196,172 @@ each finding **blocker / should-fix / nit**.
 ---
 
 *The original May-2026 CP1 packet (its "what changed" enumeration, open-decision tables, and the agent-reviewer Finding 01–05 review) is preserved in git history. It was superseded by the D18/D19 re-open: its headline blocker — the hard-cut topology inconsistency — is exactly what D19 resolves.*
+
+---
+
+## 8. Reviewer findings (iteration 1)
+
+**Scope:** Single thorough pass per §5. Re-derived D19 protection coordination,
+part PNs, regulator thermals, display depth stack, DR-6 sense/ADC settling,
+and D18–D27 / DR-1…DR-11 cross-doc consistency. Skipped D11/readability (CP2)
+and staleness re-audit per §5.
+
+### Re-derivation summary (§5 checklist)
+
+| # | Topic | Verdict | Notes |
+|---|-------|---------|-------|
+| 1 | Power-tree protection (D19) | **PASS** | VC = 53.3 V @ IPP 7.5 A reproduced; 60 V floor = +6.7 V (**12.6 %**); gate clamp 12 V vs Vgs max 20 V = **40 %** margin. 13 % on abs-max for a 1 A-fused tap at IPP ≪ 7.5 A is acceptable — see Finding 07. |
+| 2 | Part reality / LM5166 variant | **FAIL** | Fixed-3.3 V PN is wrong everywhere — see **Finding 01 (blocker)**. |
+| 3 | Regulator thermals (§4.2) | **PASS** | Loss and ΔT reproduced; θJA is **49.1 °C/W** (not 50) → ΔT ≈ **7.4 °C** at 0.15 W WiFi burst. R-78HB12 at ~1 % load negligible. |
+| 4 | Display depth stack (§2.1) | **PASS (math) / FAIL (module envelope)** | 5+8+1.6+11+5 = **30.6 mm** vs ~45 mm → **~14 mm** margin holds. Module **outline** dimension is wrong — see **Finding 02**. |
+| 5 | Sense / ADC (DR-6) | **PASS** | 29.2 V → 2.25 V; charge-sharing ΔV ≈ **0.2 mV** per sample; RC = 9.2 ms fine at ≤1 Hz. CP2 DMM validation TODO is the right gate. |
+| 6 | Internal consistency | **FAIL** | LM5166 PN (Finding 01), module dims (Finding 02), RS-485 bias wording (Finding 04). |
+
+---
+
+### Finding 01 — BLOCKER — LM5166 fixed-output part number (`LM5166XDRCR` vs `LM5166YDRCR`)
+
+**Issue:** Every baseline doc commits to **`LM5166XDRCR`** as the fixed **3.3 V**
+buck (D25, `cp1_battery_side.md` §4.2, `cp1_bom.md`, `bom.md`, `decisions.md`
+D25). Per the TI LM5166 datasheet (Rev. B), the suffix letter encodes the
+fixed output: **`LM5166X` = 5.0 V fixed**, **`LM5166Y` = 3.3 V fixed**.
+`LM5166XDRCR` is the 5 V variant (orderable table marks it **5166X**); the
+3.3 V fixed part is **`LM5166YDRCR`** (or `LM5166YDRCT` for cut tape).
+
+**Evidence:** TI LM5166 datasheet — "VVOUT5 … LM5166X 4.9 5.0 5.1 V";
+"VVOUT3.3 … LM5166Y 3.23 3.3 3.37 V"; orderable table lists `LM5166XDRCR`
+as **5166X** and `LM5166YDRCR` as **5166Y**
+([LM5166 datasheet](https://www.ti.com/lit/gpn/lm5166), §6.5 / Electrical
+Characteristics). D25 text explicitly equates `LM5166X` with 3.3 V — inverted.
+
+**Suggested fix:** Replace **`LM5166XDRCR` → `LM5166YDRCR`** (fixed 3.3 V) in
+`decisions.md` D25, `cp1_battery_side.md`, `cp1_bom.md`, `docs/hardware/bom.md`,
+and this packet §0. Re-run the Mouser/DigiKey stock check against **YDRCR**.
+Schematic/CP2: FB→VOUT strap per the Y-variant fixed-output pinout. Ordering
+the X variant would regulate the ESP rail to **~5 V** — destructive.
+
+---
+
+### Finding 02 — IMPORTANT — E-paper module mechanical envelope understated (`cp1_display_side.md` §2.1)
+
+**Issue:** The depth-stack section cites module outline **91 × 77 mm** as the
+Waveshare 4.2" Module (B) envelope. That dimension is the **bare panel
+outline** only. The **full module** (driver PCB + panel + connector) is
+**103.0 × 78.5 mm** per Waveshare — 12 mm wider than documented. The
+faceplate mount contract and STEP envelope must use the full module PCB size,
+not the panel-only outline.
+
+**Evidence:** Waveshare 4.2" e-Paper Module (B) manual — "Driver board
+dimensions: **103.0 mm × 78.5 mm**"; "Outline dimensions (screen only):
+91 mm × 77 mm"
+([Waveshare wiki](https://www.waveshare.com/wiki/4.2inch_e-Paper_Module_(B)_Manual)).
+`cp1_display_side.md` §2.1 lines 75, 108–109 mix panel outline with module
+fit. Faceplate is 115 × 117 mm — **103 mm module width still fits**, but
+mounting bosses, cable exit, and M2 holes must be laid out against **103 mm**,
+not 91 mm.
+
+**Suggested fix:** In `cp1_display_side.md` §2.1 and DR-10 references, split
+panel vs module dimensions explicitly: panel outline ~91 × 77 mm; **module
+PCB 103.0 × 78.5 mm** (binding for faceplate mount). Update the CP5 STEP
+contract note accordingly. Depth tally (~5 mm module thickness) is still
+plausible; re-measure at CP3 against the physical module.
+
+---
+
+### Finding 03 — IMPORTANT — U1 500 mA headroom vs WiFi peak + always-on peripherals (`D25`, `cp1_battery_side.md` §4.2)
+
+**Issue:** D25 budgets WiFi at **sustained 150–250 mA** with **peaks 300–500 mA**
+on the 3.3 V rail, while U1 is rated **500 mA** max. The always-on rail also
+feeds **U3 (SN65HVD3082E, ~30 mA active)** and the RV-3028 (~45 nA). A WiFi
+TX peak at the top of the stated range plus an active RS-485 transceiver is
+**530 mA** — above the buck's rated output. C2 (22 µF) covers sub-ms spikes
+but not a multi-second association burst.
+
+**Evidence:** `decisions.md` D25 — "peaks ~300–500 mA"; `cp1_battery_side.md`
+§4.6 — U3 on always-on 3V3; LM5166 IOUT max = 500 mA (TI datasheet).
+
+**Suggested fix:** Either (a) document a **firmware policy**: assert DE/RE
+shutdown (~µA) for the full WiFi session so ESP peak is the only meaningful
+load, and size C2 per LM5166 datasheet for the remaining transient budget; or
+(b) re-validate combined peak with a scope at CP2 and, if margin is <10 %,
+add a brief note that LM5166 current-limit foldback during WiFi is acceptable
+(duty-cycled, seconds-long). Do not leave the 530 mA arithmetic implicit.
+
+---
+
+### Finding 04 — IMPORTANT — RS-485 bias still listed on battery always-on domain (`cp1_battery_side.md` §3, §7)
+
+**Issue:** D19/DR-4b moved idle bias to the display end only so the battery
+always-on rail draws **zero** RS-485 static current. `cp1_battery_side.md` §4.6
+and the net list state this correctly, but §3 domain table (line 92) still lists
+**"bias"** under always-on 3V3, and §7 States 1–2 budget rows include
+**"bias ~1.5 mA"** without clarifying that this is display-end bias **referred
+to the 24 V pack through U2/Cat5e**, not a battery-side resistor leak. A reader
+could infer the old DR-4b defect was reintroduced.
+
+**Evidence:** `cp1_battery_side.md` §92 — "Always-on 3V3 … RS-485 xceiver,
+**bias**, sense divider"; §7 State 1 — "bias ~1.5 mA"; contrast §4.6 — "bus
+idle-bias resistors are **on the display end only**".
+
+**Suggested fix:** Remove "bias" from the §3 always-on domain table. In §7,
+rename to **"display-end RS-485 bias (via Cat5e, shed at hard-cut)"** or fold
+into the "display side ~5 mA" line. Keeps DR-4b unambiguous for CP2 capture.
+
+---
+
+### Finding 05 — NIT — Power-tree ASCII diagram self-contradicts on bias (`cp1_battery_side.md` §3)
+
+**Issue:** The §3 ASCII tree labels the U3 branch **"bias"** on line 78 while
+line 79 parenthetically says **"(no bias here — display-end only)"**. Cosmetic,
+but it undermines the DR-4b story next to Finding 04.
+
+**Suggested fix:** Change line 78 label from `bias` to `U3 xceiver` (or similar).
+
+---
+
+### Finding 06 — NIT — Packet §0 still cites LM5165 as verified U1 (superseded by D25)
+
+**Issue:** §0 "Verified parts" still lists **LM5165YDRCR** (150 mA) as U1,
+while D25 and all per-board docs now specify **LM5166** (500 mA). Stale for
+human readers of this packet.
+
+**Suggested fix:** Update §0 verified-parts bullet to LM5166**YDRCR** once
+Finding 01 is fixed.
+
+---
+
+### Finding 07 — NIT — 13 % surge margin on 60 V parts is acceptable for this application
+
+**Issue:** None — re-derivation confirms the designer's coordination table.
+Flagging for the human reader per §5 item 1.
+
+**Evidence:** SMAJ33CA VC(max) = **53.3 V** @ Ipp = 7.5 A, 10/1000 µs
+(Littelfuse SMAJ series datasheet). Tightest downstream ratings: D1/Q1/Q2 at
+**60 V** → margin **(60 − 53.3) / 53.3 = 12.6 %**. On a **1 A fast-blow**
+battery tap, Ipp at the TVS will be **far below** 7.5 A in practice, so the
+53.3 V figure is a conservative ceiling. BZX84C12 holds |Vgs| ≤ **12.7 V**
+max vs ZXMP6A13F Vgs abs-max **±20 V** → **≥36 %** gate margin at Zener
+tolerance corner.
+
+**Suggested fix:** No part change required. Add a one-line note in §3.1 that
+substitutions on V24_FUSED/V24_SW must stay **≥60 V** (already present) and
+that 75 V FETs/Schottkys are optional cost insurance, not required.
+
+---
+
+### Finding 08 — QUESTION — LM5166YDRCR distributor stock at BOM-lock
+
+**Issue:** TI.com shows **LM5166YDRCR** out of stock (2026-06-21 spot check);
+Mouser fetch timed out. The **correct** 3.3 V fixed PN exists and is
+orderable, but live stock was not confirmed this pass.
+
+**Evidence:** [TI LM5166YDRCR product page](https://www.ti.com/product/LM5166/part-details/LM5166YDRCR) — Active, Out of stock.
+
+**Suggested fix:** Re-check DigiKey/Mouser for **LM5166YDRCR** at BOM-lock.
+If both are dry, `LM5166YDRCT` (cut tape) or the adjustable `LM5166DRCR` +
+divider is the documented fallback — but do **not** substitute `LM5166XDRCR`
+(that is 5 V).
+
+---
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 1 blocker, 3 important. (See findings 01, 02, 03, 04.)
