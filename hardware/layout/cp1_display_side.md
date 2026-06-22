@@ -136,7 +136,7 @@ U1 [Recom R-78E3.3-0.5, 12 V → 3.3 V, 0.5 A] ← stocked module, no inductor B
 3V3 ──┬─── ESP32-S3 (MOD1)
       ├─── e-paper VCC (LCD1 module via 8-pin J2)
       ├─── SN65HVD3082E (U2) VCC
-      └─── RS-485 bias (R3/R4 ~390 Ω — the bus's only bias; see §4.5)
+      └─── RS-485 bias (R3/R4 ~330 Ω — the bus's only bias; see §4.5)
 ```
 
 No 24 V on this board. No RTC chip (time syncs from RS-485 frames). No
@@ -205,8 +205,8 @@ there's no FFC; the module exposes the fixed 8-signal SPI bus above.)*
 |-----|--------------------------------------------|----------------|-----|-----------|
 | U2  | SN65HVD3082E                                | SOIC-8         | 1   | Same as battery-side U3 |
 | R2  | 120 Ω 1 % termination, A ↔ B              | 0805           | 1   | This end is always the bus terminus → populated by default |
-| R3  | ~390 Ω idle bias: A → V3V3                 | 0805           | 1   | **POPULATED — the bus's ONLY fail-safe bias (D19/DR-4).** ~390 Ω gives 236 mV idle across the two 120 Ω terminators (> 200 mV) |
-| R4  | ~390 Ω idle bias: B → GND                  | 0805           | 1   | (paired with R3) |
+| R3  | ~330 Ω idle bias: A → V3V3                 | 0805           | 1   | **POPULATED — the bus's ONLY fail-safe bias (D19/DR-4).** ~330 Ω gives **~275 mV** idle across the two 120 Ω terminators (60 Ω ∥) — ~38 % over the 200 mV floor (DR-13; was 390 Ω → 236 mV, only ~18 %). Free margin: this bias is display-end, shed at hard-cut. Reviewer to confirm vs the SN65HVD3082E guaranteed threshold |
+| R4  | ~330 Ω idle bias: B → GND                  | 0805           | 1   | (paired with R3) |
 | TVS2 | SMAJ12CA bidirectional                    | SMA            | 1   | RS-485 surge clamp |
 | C7  | 100 nF X7R (U2 VCC decoupling)             | 0603           | 1   | |
 
@@ -216,7 +216,7 @@ always-on, so battery-side bias (~2.3 mA) would draw continuously and blow
 the ~1 mW hard-cut budget. On the display side, the bias is sourced from
 the display 3V3, which is **shed with the display** when the battery opens
 Q1 at low SOC — so it costs nothing in the state that matters. Resized
-680 → ~390 Ω so a single bias point clears 200 mV idle across both
+680 → ~330 Ω so a single bias point clears 200 mV idle across both
 terminators.
 
 ### 4.6 User input (3 tactile buttons, software-defined labels)
@@ -337,7 +337,7 @@ there): **board is off**. No draw.
 ## 8. RS-485 interface
 
 - Bus terminus → R2 populated.
-- Idle bias (R3, R4, ~390 Ω) **populated — this is the bus's only
+- Idle bias (R3, R4, ~330 Ω) **populated — this is the bus's only
   fail-safe bias** (D19/DR-4; battery side carries none). See §4.5.
 - Shield drain wire from J1 is **NC** at this end. Single-point bond at
   battery side. (See [`cat5e_pinout.md`](../../docs/hardware/cat5e_pinout.md).)
@@ -421,7 +421,7 @@ minimum).
 | ID            | Question | Default if no reviewer input |
 |---------------|----------|------------------------------|
 | **D-OPEN-1**  | ESP32-S3-WROOM-1-N16R8 vs -N8? | N16R8 (consistent with battery side) |
-| ~~**D-OPEN-8**~~ | Populate R3/R4 idle-bias on display side? | **RESOLVED (D19/DR-4): populate at ~390 Ω** — this is the bus's *only* bias (battery side carries none, to keep its always-on rail at zero static draw) |
+| ~~**D-OPEN-8**~~ | Populate R3/R4 idle-bias on display side? | **RESOLVED (D19/DR-4): populate at ~330 Ω** — this is the bus's *only* bias (battery side carries none, to keep its always-on rail at zero static draw) |
 | **D-OPEN-9**  | RS-485 receiver power-gate (N-FET on U2 VCC) for further idle-current reduction? | **No** — adds complexity for ~1 mA savings; defer to v2 |
 | **D-OPEN-10** | Button hardware-debounce RC values? CP1 specs 1 MΩ + 100 nF (RC = 100 ms). Some prefer 10 kΩ + 100 nF (RC = 1 ms, faster response). | **100 ms** — human buttons; the RC delay is invisible. 1 MΩ keeps Iq trivially low even if any GPIO ever inverts polarity at fab |
 | ~~**D-OPEN-11**~~ | Panel mount? | **RESOLVED (D27/DR-10):** the e-paper **module mounts to the back of the oversized custom faceplate** (the ~90–103 mm module doesn't fit inside the ~95 mm box); the main PCB sits in the box behind, 8-pin cable between. |
@@ -451,7 +451,7 @@ minimum).
 | Board outline                    | ~85 × 60 mm                              | 85 × 65 mm — slightly bigger thanks to double-gang  |
 | Button function                  | Hardcoded (Refresh / Next-screen / Release-BLE) | **Software-defined**, with on-screen labels rendered next to each button |
 | Debug LED                        | LED1 + R_led                            | **Removed** per D4                          |
-| Idle bias on RS-485              | Battery-side R11/R12 (~2.3 mA, always-on leak under D19) | **Moved here, populated at ~390 Ω** — the bus's only bias; shed with the display at low SOC (D19/DR-4) |
+| Idle bias on RS-485              | Battery-side R11/R12 (~2.3 mA, always-on leak under D19) | **Moved here, populated at ~330 Ω** — the bus's only bias; shed with the display at low SOC (D19/DR-4) |
 | Mounting                         | Single-gang low-voltage bracket          | Custom 3D-printed bracket (drops into double-gang box and secures PCB) |
 | Faceplate                        | Blank single-gang plate, cut for window  | Custom 3D-printed plate (user designs against PCB STEP from CP5) |
 
