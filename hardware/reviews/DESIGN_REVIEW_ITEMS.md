@@ -300,3 +300,82 @@ with the battery-side U2 (R-78HB12, ~0.5 A foldback) — a display short
 would more likely fold U2 back than trip the PTC. **Resolution:** tighten
 to a **~0.25 A-hold PTC** (covers refresh/inrush, trips well below U2's
 limit → real cable + upstream protection). Agent call.
+
+---
+
+# Designer fresh-look pass (2026-06-22) — pre-iter-3
+
+Self-review + datasheet homework before the next reviewer pass, on the
+principle that errors are cheapest to catch at CP1. Each item below is the
+*designer's* analysis with a proposed resolution; the iter-3 reviewer brief
+(packet §10) asks for independent verification. Several need a **user call**.
+
+## DR-12 — Input fuse vs ceramic inrush (F1 1 A fast-blow + low-ESR bulk)  [OPEN — analysis done; fuse-type call]
+
+**Issue.** F1 (1 A fast-blow, 5×20 mm) sees inrush charging low-ESR ceramic
+bulk on each power event: ~22 µF (C1, LM5166 input on V24_FUSED) at
+cold-start, and again ~22 µF (C3, U2 input on V24_SW) when Q1 enables the
+display. With ceramic ESR + SS26 + trace ≈ 0.1–0.5 Ω, single-event
+I²t ≈ **0.06–0.13 A²s** — the same order as a 1 A **fast-blow**'s melting
+I²t. Risk: nuisance trip / fuse fatigue over repeated cold-starts.
+**Mitigation already present:** Q1's 1 kΩ gate resistor soft-starts the C3
+event; the cold-start C1 event is unmitigated.
+**Proposed:** spec F1 as a **1 A time-lag ("T"/slow-blow)** cartridge (same
+holder) — tolerates µs-scale inrush, still protects the ~45 mA steady load
+and a hard short. **Confidence: medium** — depends on the exact fuse I²t and
+real loop R; reviewer to verify against the chosen fuse's datasheet I²t.
+
+## DR-13 — RS-485 fail-safe bias margin is thin (236 mV, dual-termination)  [OPEN — analysis done; value call]
+
+**Derivation.** Both ends terminated (120 Ω each → 60 Ω across A–B) + a
+single display-end fail-safe bias (Rb = 390 Ω up/down): idle differential =
+3.3 × 60/(60 + 2·390) = **236 mV** — only ~18 % over the +200 mV a receiver
+needs for a guaranteed idle "1". Should be checked against the
+SN65HVD3082E's **guaranteed** fail-safe threshold, not nominal ±200 mV.
+**Key freedom:** the bias is at the **display end** (shed at hard-cut), so
+more bias current costs nothing on the battery hard-cut budget.
+**Proposed:** drop Rb 390 → **~300–330 Ω** for ~280–300 mV (~45 % margin).
+Reviewer to confirm the datasheet threshold and pick the value.
+
+## DR-14 — Display 12 V TVS ↔ R-78E3.3 coordination is tight (15 %)  [RESOLVED — coordinated; margin logged]
+
+**Derivation.** SMAJ15A VC(max) = **24.4 V** (@ IPP 16.4 A) vs R-78E3.3-0.5
+abs-max input = **28 V** → margin 3.6 V (**15 %**); standoff 15 V > 12 V
+nominal ✓. DR-1's "sound" holds, but this is the **tightest coordination on
+the display side**, and 24.4 V is only reached at the TVS's full pulse
+current. **No change required**; logged so any TVS sub keeps VC < 28 V (a
+13 V-standoff part would add margin — optional). Evidence: Littelfuse SMAJ
+datasheet; Recom R-78E-0.5 (6–28 V).
+
+## DR-15 — Cat5e 12 V power pair: TVS only at the display end  [OPEN — analysis done; add-part call]
+
+**Issue.** The in-wall 12 V/GND pair (several metres, surge-exposed) has a
+TVS (SMAJ15A) at the **display** end only. The **battery** end — U2 output
+into the cable — has just a 22 µF bulk cap (C4), no clamp. A surge induced
+on a long inductive pair isn't fully clamped at the far end by a single
+near-end TVS.
+**Proposed:** add a **battery-side 12 V TVS** on V12_CAT5E at J2 (e.g.
+SMAJ15A, matching the display end) — cheap symmetric protection. Standard
+practice on long exposed DC pairs is a clamp at **both** ends.
+**Confidence: medium**; reviewer to judge near-end-only vs both-ends.
+
+## DR-16 — "Must not finish off a low pack" rests entirely on firmware  [OPEN — architecture call: USER + reviewer]
+
+**Issue.** The load-shed-at-low-SOC guarantee (the product's core safety
+promise) depends on firmware: the ESP must read V24_SENSE, deep-sleep, and
+open Q1 below ~10 % SOC. The hardware default (R3 pull-up) only protects
+against a **dead** MCU (Q1 defaults OFF). A **hung-but-powered** MCU —
+firmware crash with the WDT mis-serviced, or stuck active — keeps the
+display on and draws ~38 mA at low SOC indefinitely: exactly the failure the
+design exists to prevent.
+**Options.** (a) Firmware-only (status quo): rely on the ESP internal WDT +
+careful firmware; zero added parts. (b) **Independent hardware UVLO** (
+recommended): a ~µA voltage supervisor (e.g. TPS3839, or a micropower
+comparator on the sense node) force-opens Q1 below a hardware threshold
+(~21 V ≈ 10 % SOC, 8S LiFePO₄), independent of firmware. Cost: 1 IC + 2
+passives, ~1–3 µA (hard-cut stays ≈1 mW).
+**Designer recommendation: (b)** — directly backstops the one requirement
+the user singled out, for ~µA and ~$1; the power-first tension is negligible
+at µA. **Needs a user decision** (accept the part + µA?) and the reviewer's
+independent take on whether firmware-only is acceptable for an unattended
+pack.
