@@ -71,9 +71,9 @@ Hard constraints this imposes (CP3 must honor; a depth tally is produced then):
   RJ45** (also lets the in-wall Cat5e enter from the side/bottom cleanly);
   orient/seat the R-78 for minimum height. Keep tall parts off the
   module-facing side.
-- **The e-paper module doesn't fit *inside* the box.** Its outline
-  (**91 × 77 mm**, Waveshare 4.2" (B) verified) meets/exceeds the ~95 mm
-  box interior on the long axis. → **mount the module to the back of the oversized custom
+- **The e-paper module doesn't fit *inside* the box.** Its **driver-board
+  outline is 103.0 × 78.5 mm** (the 91 × 77 mm figure is the screen/panel
+  only — reviewer Finding 02), which exceeds the ~95 mm box interior. → **mount the module to the back of the oversized custom
   faceplate** (~115×117 mm), with the main PCB in the box behind it; the
   8-pin SPI cable (DR-7) runs between, with slack + a strain-relief anchor.
 - **Button-cap height spans the PCB→faceplate gap** (set by the module +
@@ -105,11 +105,14 @@ R-78E3.3 SIP (~11 mm vertical) and the RJ45; both are addressable — a
 **low-profile right-angle RJ45 protrudes only ~4.4 mm above the PCB** (e.g.
 SUYIN 100362-series, 9.6 mm overall), and the R-78 is oriented for minimum
 height. Even with a standard ~13 mm right-angle RJ45 the total stays
-~33 mm. Module outline is **91 × 77 mm** (Waveshare 4.2" (B), active area
-84.8 × 63.6 mm), so it exceeds the ~95 mm box interior only on the long
-axis — but it mounts to the faceplate regardless (D-OPEN-11). The earlier
-~21 mm vertical-RJ45 worry is exactly what the right-angle choice removes.
-This confirms the fit; CP3 re-checks against the chosen-part datasheets.
+~33 mm. **Module dims (reviewer Finding 02): driver-board (binding for the
+faceplate mount) = 103.0 × 78.5 mm; screen/panel = 91 × 77 mm; active area
+84.8 × 63.6 mm.** The 103 mm board exceeds the ~95 mm box interior but mounts
+to the faceplate regardless (D-OPEN-11) — and still fits the 115 × 117 mm
+faceplate; **lay out the mounting bosses, cable exit, and M2 holes against
+103 × 78.5 mm, not 91 × 77 mm.** The earlier ~21 mm vertical-RJ45 worry is
+exactly what the right-angle choice removes. CP3 re-checks the ~5 mm module
+thickness against the physical part.
 
 **Deliverable:** the **PCB STEP** (with the e-paper-module envelope +
 connector/button/USB-C positions) is the contract the user designs the

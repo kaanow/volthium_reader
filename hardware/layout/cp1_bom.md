@@ -80,7 +80,7 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| U1  | **LM5166XDRCR** (24 V→3.3 V, **always-on** µA-Iq buck, **500 mA**, **fixed 3.3 V**) | VSON-10 | 1 | LM5166**X**DRCR (fixed 3.3 V) confirmed orderable, stocked @ Mouser 2026-06-21 | 595-LM5166XDRCR | $4 | **Δ (D25): LM5165→LM5166**, fixed-3.3 V resolved — 500 mA feeds a WiFi session; ~14 µA Iq keeps hard-cut ~1 mW. **Fixed variant `LM5166XDRCR` exists → FB→VOUT, no divider.** Confirm stock + price at BOM-lock |
+| U1  | **LM5166YDRCR** (24 V→3.3 V, **always-on** µA-Iq buck, **500 mA**, **fixed 3.3 V**) | VSON-10 | 1 | LM5166**Y**DRCR = fixed 3.3 V (TI Active; YDRCR out-of-stock on TI.com 2026-06-21 — confirm distributor stock at BOM-lock) | 595-LM5166YDRCR | $4 | **Δ (D25): LM5165→LM5166**, fixed-3.3 V = **`LM5166YDRCR`** (reviewer Finding 01: `X`=5 V, `Y`=3.3 V — order **Y**). FB→VOUT, no divider. Fallback: YDRCT cut-tape, else adjustable + divider; **never XDRCR** (5 V) |
 | L1  | 10–47 µH ≥0.3 A shielded SMD inductor (per LM5166 datasheet) | SMD | 1 | _verify_ | _verify_ | $0.50 | **Δ: LM5166 inductor** (low-Iq COT favors larger L than the old 2.2 µH) |
 | C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210 | 2 | _verify_ | _verify_ | $0.50 ea | **Δ: C1 →100 V** (LM5166 input on V24_FUSED, behind the ~53 V clamp) |
 | U2  | Recom R-78HB12-0.5 buck (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1 | R-78HB12-0.5 (DK 2256237, **in stock, Active 2026-06-17**) | 919-R-78HB12-0.5 | $8.00 | **Δ (D19/DR-3): R-78E12 (34 V) → R-78HB12 (72 V)** to survive the clamp. Switched (behind Q1) |
