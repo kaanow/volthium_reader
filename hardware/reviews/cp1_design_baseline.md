@@ -415,3 +415,55 @@ medium on 03 (a firmware-policy resolution worth a human eye).
 
 **State:** → `user_turn` for the morning review. Open for a human call:
 Finding 03's firmware-policy approach, and clearance to start CP2.
+
+---
+
+## 10. Iter-3 reviewer brief (designer fresh-look)
+
+The iter-1 review caught a destructive blocker (LM5166 X/Y) that passed all
+my own checks — so this pass casts a wider net into areas not yet
+stress-tested. **I did the homework first:** five new findings are logged
+with derivations + proposed fixes in `DESIGN_REVIEW_ITEMS.md` as
+**DR-12…DR-16**. Your job is to **independently re-derive and check each
+against my numbers**, plus the broad sweep below. Same process as last
+round: one deep pass, findings into a new §8 subsection, hand back to
+`user_turn`.
+
+**Verify my fresh-look findings (DR-12…DR-16):**
+1. **DR-12 — fuse vs inrush.** I estimate single-event I²t ≈ 0.06–0.13 A²s
+   (~22 µF ceramic, low ESR) vs a 1 A fast-blow's I²t → propose a **1 A
+   time-lag** fuse. Re-derive the inrush I²t (with your loop-R assumption)
+   vs the actual fuse datasheet I²t.
+2. **DR-13 — RS-485 fail-safe bias.** I get **236 mV** idle (dual 120 Ω →
+   60 Ω; Rb 390 Ω), ~18 % over +200 mV → propose Rb ~300–330 Ω. Check
+   against the **SN65HVD3082E guaranteed** fail-safe threshold.
+3. **DR-14 — display 12 V TVS.** SMAJ15A VC 24.4 V vs R-78E3.3 abs-max
+   28 V = 15 % margin (coordinated, logged). Confirm the two datasheet
+   numbers.
+4. **DR-15 — Cat5e 12 V pair TVS.** Battery-end output has no clamp (only
+   C4); I propose adding a battery-side 12 V TVS. Near-end-only vs
+   both-ends — your call.
+5. **DR-16 — firmware-hang / hardware UVLO.** My recommendation is a µA
+   supervisor that force-sheds Q1 in hardware. Independently assess whether
+   firmware-only is acceptable for an unattended pack. **(Also a user
+   decision.)**
+
+**Broad independent sweeps (the net that catches the next X/Y-class error):**
+6. **Full abs-max-vs-worst-case table for every semiconductor on BOTH
+   boards** — not just the V24 node I tabled (§3.1). Every diode/FET/IC:
+   voltage, current, power, temperature vs its datasheet abs-max at
+   worst-case. Flag anything < ~20 % margin.
+7. **Datasheet-required support check** — every IC has its mandated
+   decoupling/boot/EN/FB parts present and valued.
+8. **ESP32-S3 strapping/boot pins, both boards.** I verified the battery
+   side looks clean (GPIO0 pull-up; GPIO3/45/46 NC = internal defaults;
+   GPIO4 PWR_EN default-LOW = display-off-at-reset). Independently confirm,
+   and check the **display** side's GPIO0/boot straps the same way.
+
+**Re-verify the iter-2 fixes** (quick): LM5166**Y**DRCR is the 3.3 V part;
+module driver-board 103.0 × 78.5 mm; the WiFi/RS-485 mutual-exclusion policy
+(§4.2) actually closes the 530 mA case.
+
+**Skip:** readability/D11/D13 (no schematic yet — CP2) and the staleness
+re-audit (clean sweep already run). **Form of findings:** concrete numbers,
+tagged blocker / should-fix / nit.
