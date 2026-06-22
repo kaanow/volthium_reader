@@ -79,6 +79,24 @@ as real a defect as a wrong value.
 > or the exhaustive remaining list. Opportunistic discovery is the failure
 > mode; the mechanical sweep is the gate.
 
+**Design-complete before handoff (do the work; don't outsource it).** A
+reviewer is a second set of eyes on *completed* work, never a way to get the
+work done. Before flipping to review, audit your own "request to the
+reviewer": **every item must be a finished analysis with numbers that the
+reviewer can re-derive and check against — not an open design question.**
+
+> **The test:** read each ask aloud. If it's phrased as a question you don't
+> know the answer to ("is a fixed variant orderable?", "does the stack fit?",
+> "is the divider impedance OK?", "is either regulator marginal?"), it is a
+> **design step you skipped**, not a review item — and that is a **FAIL**. Go
+> do it: compute the number, resolve the part, dimension the stack, *then*
+> ask the reviewer to independently re-derive and confirm. It is fine — good,
+> even — to ask for an independent re-derivation of something high-stakes;
+> the rule is only that *you must already have the answer on record* so there
+> is something to check against. An asserted claim with no derivation ("60 V
+> out-rates the clamp") is also incomplete: show the worst-case number and
+> the margin. "Ask the reviewer" is not a substitute for "know the answer."
+
 - **Power input:** over-current (fuse/PTC); reverse polarity (series
   diode/ideal-diode, or crowbar); surge TVS (cathode→rail for a +rail,
   standoff > Vmax-charge, **clamp < downstream abs-max**); bulk caps
@@ -126,6 +144,14 @@ by adding the missing gate:
    keepout for the wrong module variant. A deep dive in one domain masked
    a whole un-reviewed domain → the **domain-complete + spec-consistent**
    rules above.
+5. **CP1 handoff** — the first "ready for review" packet asked the reviewer
+   to *resolve* open questions (LM5166 fixed-vs-adjustable, regulator
+   thermals, the display depth fit, the ADC source impedance) — i.e. it
+   outsourced un-done design steps as if they were review items. Caught by
+   the user: "those sound like design steps you skipped." → the
+   **design-complete-before-handoff** rule above. The fix was to do every
+   analysis first (clamp table, thermals, depth tally, fixed-PN resolution)
+   so the reviewer re-derives against a real answer.
 
 The pattern: every gate converts a hard, late-caught lesson into
 front-loaded discipline so the *next* project gets it right from CP1.

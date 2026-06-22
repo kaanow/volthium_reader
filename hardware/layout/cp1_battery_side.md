@@ -103,6 +103,44 @@ sense divider ~19 µA + ESP deep-sleep). The **RV-3028-C7 RTC adds only
 This replaces the pre-D19 design where the MCU sat on the switched rail and
 could not boot — see DESIGN_REVIEW_ITEMS DR-3/DR-4.
 
+### 3.1 Protection coordination — worst-case clamp vs part ratings
+
+The defect that reached CP6 last round (DR-1/DR-2) was a protective part
+out-rated by what it protected, so this coordination is derived explicitly
+rather than asserted.
+
+The highest voltage any part on V24_FUSED/V24_SW can see during a clamped
+transient is the **SMAJ33CA maximum clamping voltage VC = 53.3 V** (at
+IPP = 7.5 A, 10/1000 µs — Littelfuse SMAJ datasheet). Every part on that
+node is rated against that ceiling:
+
+| Part on the protected node | Voltage rating        | Margin over 53.3 V |
+|----------------------------|-----------------------|--------------------|
+| D1  SS26 (Schottky)        | VRRM **60 V**         | +6.7 V (**13 %**)  |
+| Q1  ZXMP6A13F (P-FET)      | Vds **−60 V**         | +6.7 V (**13 %**)  |
+| Q2  2N7002 (N-FET)         | Vds **60 V**          | +6.7 V (**13 %**)  |
+| U1  LM5166X buck           | VIN abs-max **65 V**  | +11.7 V (22 %)     |
+| U2  R-78HB12               | VIN max **72 V**      | +18.7 V (35 %)     |
+| C1, C3 input caps          | **100 V**             | +46.7 V (88 %)     |
+
+The three **60 V** parts (D1/Q1/Q2) set the floor at **~13 % margin** — the
+tightest coordination in the design. Because the clamp is a non-repetitive
+transient and 60 V is an absolute-max rating, 13 % is acceptable; but it is
+a hard constraint: **any substitution on this node must hold ≥ 60 V.**
+(75 V/100 V parts would buy margin at higher cost/size — judged unnecessary.)
+Note 53.3 V is the TVS's *full* 7.5 A pulse; the actual transient on a
+1 A-fused battery tap is far smaller, so this is a conservative ceiling.
+
+**Gate-source clamp (Q1 Vgs).** Q1 ZXMP6A13F Vgs abs-max = **±20 V**
+(Diodes DS32014). Without a clamp, turning Q1 on pulls the gate toward
+(source − bus) and would drive Vgs to ~−29 V at full charge — destroying
+the gate (DR-4). **DZ1 = BZX84C12** across gate↔source clamps |Vgs| to the
+Zener voltage **~12 V** (11.4–12.7 V) regardless of bus voltage → **~36 %
+margin** under the ±20 V max across the whole range. The same 12 V fully
+enhances the FET: RDS(on) is specified at Vgs = −4.5 V (600 mΩ) and −10 V
+(400 mΩ), so −12 V sits in the fully-on region. The clamp therefore both
+protects the gate **and** guarantees turn-on.
+
 ## 4. Component list
 
 ### 4.1 Power input
@@ -123,11 +161,31 @@ so the protected rail out-rates the clamp (D19/DR-3).
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| U1  | **LM5166** (24 V→3.3 V sync buck, **always-on**, fixed-3.3 V variant — FB→VOUT, no divider) | VSON-10 | 1 | **~14 µA Iq**, 3–65 V in (65 V out-rates the ~53 V clamp), **500 mA** — enough to power a **WiFi session** (D25); a brick can't be both µA-Iq *and* surge-tolerant (D19/DR-4). 500 mA sibling of the LM5165 (which couldn't feed WiFi). *Confirm exact fixed-3.3 V orderable PN + stock at BOM-lock.* No FB divider |
+| U1  | **LM5166XDRCR** (24 V→3.3 V sync buck, **always-on**, **fixed-3.3 V** variant — FB→VOUT, no divider) | VSON-10 | 1 | **~14 µA Iq**, 3–65 V in (65 V out-rates the 53.3 V clamp, §3.1), **500 mA** — enough to power a **WiFi session** (D25); a brick can't be both µA-Iq *and* surge-tolerant (D19/DR-4). Fixed-3.3 V `LM5166XDRCR` confirmed orderable (TI, VSON-10, stocked @ Mouser — 2026-06-21); no FB divider. Confirm stock + price at BOM-lock |
 | L1  | 10–47 µH ≥0.3 A shielded SMD inductor | per datasheet | 1 | LM5166 buck inductor; low-Iq COT mode favors a larger L than a fast buck |
 | C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210      | 2   | LM5166 input (C1 on V24_FUSED, behind the ~53 V clamp → 100 V) / output (C2, 3.3 V) |
 | U2  | Recom R-78HB12-0.5 (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1   | **Switched** (behind Q1) — drives the Cat5e/display. 72 V in tolerates the ~53 V clamp (D19/DR-3). Was R-78E12 (34 V, under-rated) |
 | C3, C4 | C3 22 µF / **100 V**, C4 22 µF / 25 V X7R | 1210      | 2   | U2 input (C3 on V24_SW, behind the clamp → 100 V) / 12 V output (C4) |
+
+**Regulator thermals (worst case, no heatsink).** Both converters are
+switchers, so dissipation is conversion loss — and both run far below rated
+load:
+
+- **U1 LM5166X (24→3.3 V, always-on).** Worst case is a WiFi push: ~250 mA
+  at 3.3 V = 0.83 W out; at ~85 % efficiency, loss ≈ 0.83·(1/0.85 − 1) ≈
+  **0.15 W**. VSON-10 θJA ≈ 50 °C/W → **ΔT ≈ 7 °C**, and only for the
+  ~2–6 s burst; steady normal load (~75 mA) dissipates ~0.04 W → ΔT ~2 °C.
+  Non-issue. (The exposed-pad VSON wants a few thermal vias to the GND
+  pour — standard practice, not heatsinking.)
+- **U2 R-78HB12-0.5 (24→12 V, switched).** The display draws only ~5 mA avg
+  / tens-of-mA peak at 12 V (power_budget.md) ≈ 0.06 W out — **~1 %** of the
+  module's 0.5 A / 6 W rating; loss ≈ 0.015 W. Recom's derating allows full
+  6 W to ~50 °C ambient unheatsinked, so at ~1 % load there is effectively
+  no rise. (The "~0.3 A" in the Q1 row below is turn-on **inrush** into U2's
+  input cap, not steady load — it does not change the thermal picture.)
+
+Neither regulator needs heatsinking; the always-on rail's thermal is
+dominated by the brief WiFi burst (~7 °C).
 
 ### 4.3 Hard-cut load switch
 
@@ -152,7 +210,7 @@ capacitance is ~330 pF; even at 100 kΩ the RC turn-OFF time is
 |-----|-------------------------------------|----------------|-----|-----------|
 | R5  | 1.2 MΩ 1 % (top of divider)          | 0805          | 1   | Iq ≈ 24 V / 1.3 MΩ ≈ 18.5 µA (~22 µA at 29 V full charge). Was 100 kΩ → 220 µA |
 | R6  | 100 kΩ 1 % (bottom of divider)       | 0805          | 1   | Ratio 100 k / 1.3 M: full charge 29.2 V → **2.25 V**, nominal 24 V → 1.85 V — inside the ESP ADC's linear band (DR-6) |
-| C5  | 100 nF X7R (sense filter)            | 0603          | 1   | Anti-aliasing on the ADC; with ~1 MΩ source impedance, RC ≈ 100 ms — too slow for fast transients but ideal for SOC monitoring |
+| C5  | 100 nF X7R (sense filter + ADC tank) | 0603          | 1   | Anti-aliasing + S/H tank; Thevenin source R5‖R6 ≈ 92 kΩ, so RC ≈ 9.2 ms (corner ~17 Hz) — slow vs transients, ideal for SOC. **Load-bearing for ADC settling (§4.4); do not reduce below 100 nF** |
 
 **Power-first commentary**: increasing the divider impedance from
 100 kΩ/11 kΩ to 1.2 MΩ/100 kΩ trades 220 µA for ~19 µA on the

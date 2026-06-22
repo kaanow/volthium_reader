@@ -1297,6 +1297,14 @@ more supply/budget). Uses the ESP32-S3's built-in radio + the `-1` PCB
 antenna (shared with BLE, D21) — **no new RF parts**. A bulk cap on 3V3
 still helps the sub-ms TX peaks. **Supersedes the LM5165 choice in D19.**
 
+**Fixed-vs-adjustable resolved (2026-06-21).** The open question — whether
+a fixed-3.3 V LM5166 is orderable or we must use adjustable + an FB divider
+— is closed: **`LM5166XDRCR`** (the `LM5166X` fixed-output variant, 3.3 V)
+exists, is in the TI datasheet, and is stocked at Mouser. CP1 commits to it:
+**FB→VOUT, no divider.** (The earlier adjustable `LM5166DRCR` + high-Z
+divider fallback is dropped — replace, don't patch.) Confirm stock + price
+at BOM-lock.
+
 ## D26 — Display-side MCU: keep the WROOM, radio unused, antenna keepout dropped
 
 **Date**: 2026-06-18
