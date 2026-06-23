@@ -260,6 +260,39 @@ button:** the hardware floor wins (can't force-drain a dead pack).
 The EN-asserted floor (~µA, chip in reset) is *lower* power than the firmware
 deep-sleep state it backstops.
 
+### 4.3b USB maintenance power (run/program/troubleshoot off USB) — D29 / DR-18
+
+Lets the USB-C port power the MCU for bring-up, flashing, and field
+troubleshooting **without a 24 V supply** — integrated so it draws **zero**
+from the pack when unplugged (all VBUS-referenced) and leaves the UVLO and
+hard-cut budget intact.
+
+| Ref | Part | Pkg | Qty | Rationale |
+|-----|------|-----|-----|-----------|
+| U5  | 3.3 V LDO (e.g. AP2112K-3.3, ~600 mA) | SOT-23-5 | 1 | VBUS (5 V) → 3V3_USB. **Powered from VBUS only** — no pack draw when unplugged. ~600 mA covers programming + occasional WiFi |
+| U6  | **TI TPS2116** 2-input priority power mux (1.6–5.5 V, 2.5 A, ~1.3 µA Iq / 50 nA standby, auto-switchover, reverse-blocking) | SOT-23-6 | 1 | **VIN1 (priority) = 3V3_USB, VIN2 = U1 buck 3V3, OUT = V3V3.** USB present → output from USB, buck idles; USB absent → buck. Reverse-blocking N-FETs (no Schottky drop) |
+| Q3  | small signal N-FET (UVLO bypass) | SOT-23 | 1 | In series with U4 RESET→EN; **held open while VBUS present** (gate from VBUS divider) so the MCU boots off USB with no/low pack. VBUS absent → closed → UVLO active. VBUS-referenced |
+| C_usb1, C_usb2 | LDO in/out caps (1 µF / 1 µF) | 0603 | 2 | per AP2112 datasheet |
+| R_byp1, R_byp2 | VBUS-present divider → Q3 gate | 0805 | 2 | high-value; VBUS-referenced |
+
+**Behavior.** USB present → TPS2116 selects 3V3_USB → the LM5166 sees its
+output held high → **stops switching → pack draw ≈ its ~14 µA Iq** (MCU now
+on USB); Q3 opens → U4 can't hold EN low → MCU boots even on a dead/absent
+pack (bench). USB absent → mux falls back to the buck, Q3 closes → V3V3 and
+the UVLO behave **exactly as without this circuit**.
+
+**Why no requirement is compromised:** every part except U6 is
+**VBUS-referenced → 0 pack draw unplugged**; U6 adds only **~1.3 µA**
+always-on (~4 µW) → hard-cut stays **≈1 mW**. UVLO protects the *unattended*
+(always USB-absent) system fully; the bypass only relaxes it during
+*attended* USB sessions, when the MCU is on USB and isn't draining the pack.
+No 5 V reaches V3V3 (LDO). D19 always-on unchanged. **Residual (accepted):**
+attended USB + low pack + firmware enabling the display could drain the pack
+via U2 — attended/transient, firmware shouldn't.
+
+**Display side** mirrors U5 + U6 (VIN2 = R-78E3.3 output); **no Q3** (the
+display has no UVLO). See `cp1_display_side.md`.
+
 ### 4.4 24 V sense (always-on)
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
@@ -373,7 +406,9 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | V24_RAW      | 24–28 V     | J1 pin 1             | F1                                            | Pack tap, unfused |
 | V24_FUSED    | 24–28 V     | D1 cathode           | Q1 source, R5 top (sense divider), R3 (Q1 gate pull-up), TVS1, **R_uv1 (UVLO divider top)** | Always-alive 24 V rail (post-fuse, post-reverse). Loads: load-switch input, sense divider, gate pull-up, TVS clamp, and the ~10 MΩ UVLO divider (~2 µA, D28) — minimal idle draw |
 | V24_SW       | 24–28 V     | Q1 drain             | R-78HB12 VIN (U2) only                         | Switched 24 V branch downstream of the load switch. Feeds **only** U2 (12 V/display). Collapses when PWR_EN is LOW/Hi-Z — sheds the display, **not** the MCU |
-| V3V3         | 3.3 V       | LM5166 VOUT (U1)     | ESP3V3, RTC VCC, U3 VCC, R8/R9, R13, C6/C7/C8 | **Always-on** 3.3 V (D19). Powers the MCU in every state; never gated. No RS-485 bias here (display-end only) |
+| V3V3         | 3.3 V       | **TPS2116 OUT (U6)** — sources: U1 buck (VIN2) / USB-LDO U5 (VIN1, priority) | ESP3V3, RTC VCC, U3 VCC, U4 VDD, R8/R9, R13, C6/C7/C8 | **Always-on** 3.3 V (D19). USB present → from USB-LDO (buck idles); USB absent → from buck. Powers the MCU in every state; never gated. No RS-485 bias here (display-end only) |
+| 3V3_USB      | 3.3 V       | U5 LDO (from VBUS)   | TPS2116 VIN1 (U6)                             | USB maintenance rail (D29); present only when a cable is plugged in; VBUS-referenced |
+| VBUS         | 5 V (USB)   | J3 VBUS              | U-ESD, U5 VIN, R_byp1 (Q3-gate divider)       | Present only with a USB cable; powers U5 + the UVLO-bypass divider (D29) |
 | V12_CAT5E    | 12 V        | R-78HB12 VOUT (U2)   | J2 RJ45 pins 1/2/3, C4, **TVS3**              | Powers display side over Cat5e; off when Q1 sheds it. TVS3 clamps cable surges at this end (DR-15) |
 | GND          | 0 V         | (chassis)            | every IC GND, J2 pins 6/7/8, chassis stud near J2 | Single-point shield-drain bond at J2 |
 | V24_SENSE    | 0–2.3 V     | R5/R6 midpoint       | ESP IO1 (ADC1_CH0)                            | Always-alive; 1.2 M/100 k divider → ~2.25 V at full charge (DR-6) |
@@ -387,7 +422,7 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | PWR_EN       | 3.3 V LV    | ESP IO4              | Q2 gate, R4 pull-down to GND                  | **Active-HIGH**: HIGH = rails ON; LOW or Hi-Z = rails OFF. Canonical truth table in §8 |
 | BTN_OVERRIDE | 3.3 V LV    | BTN1 + R13           | ESP IO7 (RTC-wake capable)                    | Active-LOW; pulled HIGH by 1 MΩ |
 | RTC_BACKUP   | ~3.0 V      | C-bk (backup cap)    | RTC1 VBACKUP                                  | RTC ride-through (trickle-charged by RV-3028) |
-| RESET#       | 3.3 V LV    | ESP EN pin / J5 pin 4 | **U4 RESET (open-drain)**                     | Pulled HIGH via R7 + C8 (RC soft-start); **U4 (UVLO, D28) pulls it LOW below the ~20 V pack floor** → ESP held in reset → display auto-sheds via PWR_EN Hi-Z |
+| RESET#       | 3.3 V LV    | ESP EN pin / J5 pin 4 | **U4 RESET via Q3**                           | Pulled HIGH via R7 + C8 (RC soft-start); **U4 (UVLO, D28) pulls it LOW below the ~20 V floor** → ESP reset → display auto-sheds. **Q3 (D29) opens this path when VBUS present** → UVLO bypassed so the MCU boots off USB on the bench |
 
 ## 6. ESP32-S3 pin assignment
 

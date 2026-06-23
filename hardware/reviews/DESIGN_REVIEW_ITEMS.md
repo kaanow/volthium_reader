@@ -429,7 +429,7 @@ whether the board boots, so any interaction is high-stakes.
 **Reviewer:** verify the brownout-vs-UVLO ordering, the open-drain/C8 edge,
 and the CT deglitch value vs LM5166 start-up.
 
-## DR-18 — USB-C VBUS / 3.3 V interaction (bare-tie trap; optional USB-power)  [RESOLVED 2026-06-22 — designer default: VBUS = data+ESD only; USB-power opt-in (user may override)]
+## DR-18 — USB-C VBUS / 3.3 V interaction → USB maintenance power ADDED  [RESOLVED 2026-06-22 — user chose to integrate USB-power; see D29]
 
 **Issue (latent layout trap).** The maintenance USB-C carries 5 V VBUS. Dev-
 board reference schematics routinely OR VBUS into the system 3.3 V. If that
@@ -449,21 +449,27 @@ protected either way. The only real reason not to bare-tie VBUS→V3V3 is the
 the LM5166 sees its output already high → stops switching → pack draw ≈ its
 ~14 µA quiescent. UVLO via EN is unaffected.
 
-**Resolution (user-confirmed default): keep VBUS = data + ESD only; do NOT
-add the USB-power OR.** Rationale: (a) the benefit is mainly bench bring-up
-without a 24 V supply — a convenience a bench 24 V already covers; (b) any
-always-on OR element taxes the hard-cut ~1 mW budget (the power-first value);
-(c) a sub-20 V pack holds the board in reset even on USB (UVLO), so USB-power
-wouldn't enable dead-pack field-flash without *more* logic (a VBUS-present
-UVLO bypass). So: **3.3 V sourced solely by U1; VBUS → USBLC6 ESD (+ optional
-VBUS-present sense GPIO via a high-value divider) only.** Both boards
-identically (display: V3V3 from R-78E3.3).
+**Resolution (2026-06-22 — USER chose to integrate USB-power; see D29).**
+The user values USB-power for bring-up/programming/troubleshooting (every
+hand-built unit). It integrates **without compromising** the hard-cut
+budget, the UVLO, or D19 — because all added parts except the mux are
+**VBUS-referenced** (present only with a cable in → 0 pack draw unplugged):
+- **U5 LDO** VBUS→3V3_USB; **U6 TPS2116** priority mux (VIN1=USB-LDO,
+  VIN2=U1 buck, OUT=V3V3, ~1.3 µA Iq) → USB present = buck idles, pack draw
+  ~µA; USB absent = buck, unchanged.
+- **Q3** opens U4's RESET→EN line when VBUS present → MCU boots off USB on a
+  dead/absent pack (solves the "(c)" objection that previously argued
+  against it). UVLO fully active whenever USB is out (the unattended state).
+- Display side mirrors U5+U6, no Q3.
+Hard-cut stays **≈1 mW** (+~1.3 µA mux). No 5 V on V3V3 (LDO). Residual
+(accepted): attended USB + low pack + firmware enabling the display could
+drain the pack via U2 — attended/transient.
 
-*Opt-in available:* if tetherless bench-USB-power is wanted later, add the
-µA-class OR + accept the small budget hit; revisit then.
-
-**Reviewer:** confirm both netlists keep VBUS off V3V3; sanity-check the
-correction that EN-gating preserves the UVLO regardless of supply.
+**Reviewer:** verify (a) both netlists keep raw 5 V VBUS off V3V3 (LDO
+regulates); (b) the TPS2116 priority/idle behavior + that the buck tolerates
+its output held high; (c) the Q3 VBUS-bypass correctly inhibits U4 only when
+VBUS present and restores full UVLO when out; (d) the always-on adder is just
+the ~1.3 µA mux; (e) EN-gating preserves the UVLO regardless of supply.
 
 ## DR-19 — End-to-end grounding & shield (single-point bond) — audit the whole link  [OPEN — per-board clean; reviewer to verify as a loop]
 

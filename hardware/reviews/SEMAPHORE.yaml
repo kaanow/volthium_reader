@@ -36,9 +36,14 @@ note: >
 
   USER decisions already made — VERIFY the engineering, do NOT reopen:
   DR-16 accepted (add UVLO), DR-21 accepted (UVLO fail-to-baseline, no
-  self-test), DR-22 accepted (e-paper 0 °C floor, no heater), DR-18 default
-  (no USB-power OR). Skip readability/D11/D13 (no schematic — that's CP2) and
-  the staleness re-audit (clean sweep already run). CP2 remains HELD pending
-  the user; board generators (build_*.py) are intentionally still pre-D19.
+  self-test), DR-22 accepted (e-paper 0 °C floor, no heater). **DR-18 → D29:
+  USB maintenance power ADDED** (new U5 LDO + U6 TPS2116 priority mux + Q3
+  VBUS-present UVLO bypass; display mirrors U5/U6, no Q3). It's VBUS-
+  referenced → 0 pack draw unplugged; hard-cut still ≈1 mW (+~1.3 µA mux);
+  UVLO active whenever USB is out. **This circuit is brand-new and touches
+  the boot net + the UVLO — give it close scrutiny** (packet §11 item 2 /
+  DR-18 / D29 list the specific checks). Skip readability/D11/D13 (no
+  schematic — that's CP2) and the staleness re-audit. CP2 remains HELD
+  pending the user; board generators (build_*.py) are intentionally pre-D19.
 
 user_pause_reasons_seen_this_run: []
