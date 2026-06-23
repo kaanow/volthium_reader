@@ -231,7 +231,7 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| BTN1, BTN2, BTN3 | C&K PTS525 6×6×4.3 mm tactile SMT | SMT | 3 | 450-1641-ND | 642-TL3300AF260QG | $0.50 ea | (unchanged) |
+| BTN1, BTN2, BTN3 | **THT tall-actuator tactile** (6×6 mm body, long plunger ~13–17 mm class) | THT | 3 | _verify (height from CP3 stack)_ | _verify_ | $0.30 ea | **Δ (2026-06-23 user call):** real button protruding through the faceplate (no printed caps). Pick the catalog plunger height nearest (PCB-front→faceplate gap + ~2–3 mm) at CP3/CP5 |
 | R5, R6, R7 | 1 MΩ 0805 1 % BTN pull-ups | 0805 | 3 | RMCF0805FT1M00CT-ND | 71-CRCW08051M00FKEA | $0.10 ea | **Δ: 10 kΩ → 1 MΩ** (display BTN pull-ups; 1 MΩ, distinct from battery R5 = 1.2 MΩ) |
 | C8, C9, C10 | 100 nF X7R debounce caps | 0603 | 3 | (unchanged) | | $0.05 ea | |
 
@@ -257,7 +257,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | —   | 3D-printed faceplate | 1 | — | — | $1.00 (PLA) | User-printed; user-designed against PCB STEP |
 | —   | M3 standoffs + screws | 1 set | — | — | $2.50 | PCB to bracket |
 | —   | M2 mounting hardware for e-paper module | 1 | — | — | $2.00 | **Module mounts to the faceplate back** (D27/DR-10) — the ~90–103 mm module doesn't fit inside the ~95 mm box; main PCB sits behind, 8-pin cable between |
-| —   | Tactile button cap extensions (3D-printed, optional, ~5 mm tall) | 3 | — | — | $0.10 (PLA) | If standard caps don't reach the faceplate |
+| —   | _(button cap extensions removed — using tall-actuator THT tactiles that protrude through the faceplate directly; 2026-06-23 user call)_ | — | — | — | — | See BTN1–3 |
 
 ### Display-side subtotal
 
