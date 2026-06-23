@@ -471,3 +471,49 @@ module driver-board 103.0 × 78.5 mm; the WiFi/RS-485 mutual-exclusion policy
 **Skip:** readability/D11/D13 (no schematic yet — CP2) and the staleness
 re-audit (clean sweep already run). **Form of findings:** concrete numbers,
 tagged blocker / should-fix / nit.
+
+---
+
+## 11. Iter-4 reviewer brief (designer fresh-look pass 2)
+
+A second net cast into domains **no prior pass touched** — system integrity,
+the D28 supervisor's second-order effects, USB power interactions, FMEA, and
+the cabin's real cold environment. Homework done first: seven findings with
+derivations + proposed resolutions logged as **DR-17…DR-23** in
+`DESIGN_REVIEW_ITEMS.md`. Verify each against my analysis; same process —
+one deep pass, findings to a new §8 subsection, hand back to `user_turn`.
+
+**Verify my findings:**
+1. **DR-17 — D28 EN-node second-order (highest value).** New silicon (U4
+   open-drain RESET) now sits on the boot-critical EN node with R7 + C8.
+   Confirm: brownout (2.43 V on 3V3) vs UVLO (~20 V pack) ordering can't
+   chatter (U4 always fires first); the open-drain/C8 edge + R7·C8 = 10 ms
+   release gives a clean single boot; CT deglitch value vs LM5166 start-up.
+2. **DR-18 — USB-C VBUS must not back-feed 3V3 (latent layout trap).** I set
+   the design rule: VBUS → ESD array only, **never V3V3** (which is solely
+   U1). This keeps USB from fighting the buck *and* from defeating the D28
+   UVLO floor. Confirm both boards' netlists keep VBUS off V3V3.
+3. **DR-19 — grounding/shield as a loop.** Per-board clean (single-point
+   shield bond, battery end). Trace the full link: exactly one
+   signal-GND-to-chassis tie, no inadvertent second tie at the display.
+4. **DR-20 — Cat5e EMC.** My read: buck ripple on the 12 V pairs is
+   acceptable vs the slew-limited RS-485 on its own twist; I propose a DNP
+   common-mode-choke footprint as an escape hatch. Confirm + rule on the DNP.
+5. **DR-21 — FMEA (esp. U4 silent failure).** Key property I claim:
+   U4's silent failure modes **revert to firmware-only (the pre-D28
+   baseline)** → the backstop can't make things worse. Verify the table and
+   the fail-to-baseline conclusion; weigh whether a UVLO self-test is worth
+   it (I recommend not).
+6. **DR-22 — cold-temp survey.** I confirm e-paper (0 °C) is the BOM cold
+   floor (everything else −40; no electrolytics). Independently confirm no
+   part is colder-limited; note the pack charge-temp cutoff is the BMS's job.
+7. **DR-23 — RTC backup cap.** I tightened the spec to low-leakage
+   ~10–50 mF (a supercap's µA leakage would dwarf the 45 nA RTC and *shorten*
+   hold time). Verify the leakage argument + VBACKUP max vs trickle.
+
+**User-decision items surfaced (flag for the human, don't resolve):**
+DR-21 (accept the UVLO fail-to-baseline residual vs add self-test) and
+DR-22 (accept "display blank below 0 °C, logging continues" for the cabin).
+
+**Skip:** readability/D11/D13 (no schematic — CP2) and staleness re-audit.
+**Form:** concrete numbers, tagged blocker / should-fix / nit.

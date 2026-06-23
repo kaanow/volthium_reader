@@ -391,3 +391,169 @@ because it's EN, not power, the MCU stays wakeable (D19 intact). Floor
 **D28** and `cp1_battery_side.md §4.3a`. **Reviewer (iter-3):** verify the
 threshold/divider, the EN-assert→auto-shed chain, U4 SKU/stock, and that the
 floor sits safely below the firmware shed.
+
+---
+
+# Designer fresh-look pass 2 (2026-06-22) — pre-iter-4
+
+Second self-review + datasheet homework, aimed at domains no prior pass
+touched: system integrity (grounding/EMC), the new D28 supervisor's
+second-order effects, USB power interactions, single-point-failure (FMEA),
+and the cabin's real cold-temperature environment. Each item is the
+*designer's* analysis with a proposed resolution; the iter-4 reviewer brief
+(packet §11) asks for independent verification. Items needing a **user call**
+are flagged.
+
+## DR-17 — D28 supervisor on the boot-critical EN node: second-order interactions  [RESOLVED — analysis done; reviewer to verify]
+
+**Why.** D28 put U4's open-drain RESET on the **EN node**, which already
+carries R7 (10 kΩ pull-up to V3V3) + C8 (1 µF soft-start). EN decides
+whether the board boots, so any interaction is high-stakes.
+
+**Analysis.**
+- **Brownout vs UVLO never fight.** ESP32-S3 brown-out detector ≈ **2.43 V
+  on the 3.3 V rail** (Espressif). U4 trips on the **24 V pack at ~20 V**.
+  The LM5166 holds 3.3 V regulated until the pack nears its ~3.6 V dropout,
+  so U4 *always* asserts first (at 20 V pack); the 3.3 V brown-out detector
+  is never reached in the low-pack path. No chatter between the two.
+- **Open-drain vs C8.** U4 sinks EN low through R7 (0.33 mA, trivial) and
+  discharges C8 (1 µF) — open-drain handles it. On release, EN rises via
+  R7·C8 = **10 ms** (the intended soft-start ramp) → clean single cold-boot.
+- **Deglitch.** C8 + U4's CT deglitch must reject LM5166/load transients
+  (don't false-trip) yet act on a real sustained sag — CT in the tens-of-ms
+  range. R7·C8 = 10 ms is the recommended Espressif value; keep it.
+- **One thing to design at CP2:** U4 RESET is open-drain, so it must tie to
+  the EN node *directly* (it relies on R7 as its pull-up); don't add a second
+  series R. Confirm U4 Vol < the ESP EN logic-low at the always-on rail.
+
+**Reviewer:** verify the brownout-vs-UVLO ordering, the open-drain/C8 edge,
+and the CT deglitch value vs LM5166 start-up.
+
+## DR-18 — USB-C VBUS must NOT back-feed the 3.3 V rail (and must not defeat the UVLO)  [RESOLVED — design rule set; CP2 must honor]
+
+**Issue (latent layout trap).** The maintenance USB-C carries 5 V VBUS. Dev-
+board reference schematics routinely diode-OR VBUS into the system 3.3 V via
+an LDO. If that pattern is copy-pasted at CP2, two bad things happen: (a) 5 V
+VBUS fights the LM5166's 3.3 V output, and (b) **plugging in USB would power
+the board and *defeat the D28 UVLO floor*** — exactly the dead-pack
+protection we just added.
+
+**Resolution (design rule for CP2).** The 3.3 V rail is sourced **solely by
+U1 (LM5166)**. **VBUS connects only to the USBLC6 ESD array (+ optionally a
+VBUS-present sense GPIO via a high-value divider) — never to V3V3.** Native
+ESP32-S3 USB needs only D+/D−/GND for flash/console/JTAG; VBUS-as-power is
+not required. Consequence, by design: USB cannot back-feed the buck, and
+cannot override the UVLO floor (you can't run a dead pack from the laptop).
+Field/bench recovery still works whenever the pack is healthy (≥ release
+threshold), because then V3V3 is alive from U1 and USB enumerates normally.
+
+**Applies to both boards** (display J-USB identically: VBUS→ESD only, V3V3
+from R-78E3.3). **Reviewer:** confirm the netlists keep VBUS off V3V3 on
+both boards.
+
+## DR-19 — End-to-end grounding & shield (single-point bond) — audit the whole link  [OPEN — per-board clean; reviewer to verify as a loop]
+
+**State.** Per-board it looks textbook: signal GND on RJ45 pins 6/7/8;
+cable shield bonds to chassis **at the battery end only**; display-end shield
+drain NC (`cat5e_pinout.md`, both layout docs). That's the correct
+single-point scheme.
+
+**What's un-audited:** the link as a *loop*. (a) Is signal GND tied to
+chassis GND at exactly **one** point (battery end), with no inadvertent
+second tie at the display (e.g. a mounting-screw/bracket path to chassis, or
+the e-paper frame)? (b) Is the RS-485 GND reference solid across 5 m given
+GND is paralleled on pins 6/7/8? (c) Does the display 3D-printed bracket
+(plastic) guarantee no chassis path — so the single point really is single?
+
+**Reviewer:** trace GND/chassis end-to-end; confirm one and only one
+signal-GND-to-chassis tie, at the battery end.
+
+## DR-20 — EMC: buck ripple on the 12 V Cat5e pairs vs the RS-485 pair in the same jacket  [RESOLVED — acceptable; optional DNP choke; reviewer to confirm]
+
+**Concern.** R-78HB12 (switching) drives the 12 V pairs that share the Cat5e
+jacket with the RS-485 differential pair for ~5 m → switching noise could
+couple onto RS-485.
+
+**Analysis — why it's acceptable.** (a) RS-485 is on its **own twisted pair**
+(pair 1), separate from the 12 V pairs (2/3) — twist gives common-mode
+rejection. (b) U3/U2 are **SN65HVD3082E, slew-rate-limited** (~250 kbps
+class) → high immunity to fast switching edges and low emitted harmonics.
+(c) Bulk + ceramic on the 12 V at **both** ends (C4 battery / C1 display).
+(d) `cat5e_pinout.md` already notes ferrite beads as a contingency. At this
+data rate the margin is large.
+
+**Proposed:** keep as-is, but **add a DNP footprint for a common-mode choke
+(or pi-filter) on the 12 V feed** at the battery end — zero cost now, an
+escape hatch if bench EMC shows RS-485 bit errors. **Reviewer:** confirm the
+low-rate immunity argument and whether the DNP choke is worth the footprint.
+
+## DR-21 — FMEA: single-point failures of the protective network (esp. U4 silent failure)  [OPEN — residual documented; user/reviewer to accept]
+
+**Why.** Protective parts can fail and *remove protection without any
+symptom*. Tabulated fail-open / fail-short consequence + fail-safe direction:
+
+| Part | Fails OPEN | Fails SHORT | Notes |
+|------|-----------|-------------|-------|
+| F1 fuse | (is the fail-safe) | n/a | catch-all |
+| TVS1/TVS3 | no surge clamp (**silent**; surge rare) | clamps rail → blows F1 (safe, visible) | |
+| DZ1 (gate Zener) | Q1 Vgs unclamped → possible gate damage on switch | Q1 held off (display never comes up — visible) | |
+| R3 / R4 (default-OFF) | Q1/Q2 default state lost → display could latch on (**bad at low SOC**) | gate pinned → display off (visible) | |
+| **U4 (UVLO)** | **stuck Hi-Z → backstop silently gone → reverts to firmware-only** | **holds EN low → board dark, no comms (very visible)** | asymmetric |
+| **R_uv1 open** | SENSE→0 → U4 reads UV → asserts → board off (visible) | — | |
+| **R_uv2 open** | SENSE→full → U4 never trips → **backstop silently gone** | — | |
+
+**Key finding — fail-to-baseline (acceptable property).** U4's *silent*
+failure modes (stuck-Hi-Z, R_uv2-open) revert to **firmware-only** — i.e.
+the exact baseline we had *before* D28. So the backstop can never make things
+*worse* than not having it; at worst it silently doesn't help. For a
+backstop that is a sound property. Its *visible* failures (stuck-asserted,
+R_uv1-open) are safe (board off, can't drain pack).
+
+**Residual to accept:** there's no cheap self-check that U4 is alive. Option
+(if desired): firmware periodically reads the pack via its own ADC and could
+log "UVLO divider sanity" — but it can't truly test U4's output without
+forcing a low rail. **User/reviewer:** accept the fail-to-baseline residual,
+or ask for a self-test provision. My recommendation: **accept** (a backstop
+that fails to baseline is fine; adding self-test cost exceeds the benefit).
+
+## DR-22 — Full-BOM cold-temperature survey (off-grid cabin can go sub-zero)  [OPEN — e-paper confirmed floor; one user call]
+
+**Why.** An unheated off-grid cabin in winter can sit **below freezing**.
+We accepted the **e-paper 0 °C** operating limit (D24) as *the* limiting
+device — this verifies that's actually true across the BOM.
+
+**Survey (operating min):** ESP32-S3 −40, **RV-3028-C7 −40**, LM5166 −40,
+R-78HB12 / R-78E3.3 −40, SN65HVD3082E −40, TPS3890 −40, all ceramics X7R −55
+(capacitance drops with cold but no failure), **no electrolytics anywhere**
+(so no cold-ESR problem — a deliberately good property of the all-ceramic
+BOM). **E-paper (B) = 0 °C → confirmed the floor.**
+
+**Two real notes:** (1) The **LiFePO₄ pack must not be *charged* below 0 °C**
+— but that's the **BMS's** job, not ours; our board only *monitors*, and
+reads SOC fine when cold. Worth stating so it's not mistaken for our
+responsibility. (2) **Product decision (USER):** below 0 °C the e-paper
+won't refresh, but the electronics keep logging (and WiFi-push). Is
+"display blank/again-on-warmup, logging continues" acceptable for the cabin,
+or do we need a heater / different display? D24 implicitly accepted this; DR-
+22 makes it explicit for sign-off.
+
+**Reviewer:** independently confirm e-paper is the cold floor and no BOM part
+is colder-limited.
+
+## DR-23 — RTC backup-cap (C-bk): leakage vs 45 nA, and VBACKUP rating  [RESOLVED — spec tightened; reviewer to verify hold time]
+
+**Issue.** C-bk was speced loosely as "~10 mF–0.1 F." That range spans two
+very different parts: a small low-leakage cap vs a **supercap whose own
+leakage (~µA) dwarfs the RTC's 45 nA** — which would (a) dominate the
+always-on draw and (b) *shorten* the hold time it's meant to extend.
+
+**Analysis.** Hold time ≈ C·ΔV / I_total. At 45 nA the RTC sips tiny charge,
+so a **low-leakage ~10–50 mF** cap already rides a full pack disconnect for
+days–weeks, with leakage ≪ a supercap's. Trickle charge: RV-3028 internal
+charger (selectable series R) → τ = R·C; tens-of-mF charges in minutes.
+VBACKUP abs-max (per datasheet, ~5.5 V) > the 3.3 V trickle source → safe.
+
+**Resolution:** spec **C-bk = low-leakage ~10–50 mF (not a leaky supercap)**;
+pick the trickle resistor for a few-minute charge; confirm hold-time =
+C·ΔV/(45 nA + cap leakage) at BOM-lock. **Reviewer:** verify the leakage
+argument and the VBACKUP max vs trickle voltage.
