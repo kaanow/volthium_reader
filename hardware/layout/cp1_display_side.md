@@ -47,9 +47,9 @@ PCB outline target: **85 × 65 mm**. Mounting:
 - 84.8 × 63.6 mm rectangular window for e-paper active area (Waveshare 4.2" (B) verified active area), centered
   vertically with ~5 mm offset toward the top edge to leave room for
   the button labels
-- 3× 6 mm round cutouts along the bottom edge, on 18 mm centers, for
-  the 6×6 mm tactile button caps to poke through (~16 mm horizontal
-  span between centers of buttons 1 and 3)
+- 3× round clearance holes (sized to the chosen plunger ⌀, ~4–6 mm) along
+  the bottom edge, on 18 mm centers, for the **tall tactile actuators to poke
+  through** (~16 mm horizontal span between centers of buttons 1 and 3)
 
 The user designs the faceplate against a STEP file of the PCB +
 mechanical envelope, exported at CP5.
@@ -76,9 +76,10 @@ Hard constraints this imposes (CP3 must honor; a depth tally is produced then):
   only — reviewer Finding 02), which exceeds the ~95 mm box interior. → **mount the module to the back of the oversized custom
   faceplate** (~115×117 mm), with the main PCB in the box behind it; the
   8-pin SPI cable (DR-7) runs between, with slack + a strain-relief anchor.
-- **Button-cap height spans the PCB→faceplate gap** (set by the module +
-  standoff stack) — so it can only be fixed once the depth stack is. → spec
-  tall-actuator tactiles or printed cap extensions sized to the final gap.
+- **Button actuator height spans the PCB→faceplate gap + protrudes slightly**
+  (user call: real tall-actuator THT tactiles, not printed caps). The plunger
+  length can only be fixed once the depth stack is → pick the catalog height
+  at CP3/CP5 from the PCB STEP (§4.6).
 - **Service port (D27, geometry corrected):** the box is recessed in the
   wall, so a "bottom" port isn't accessible — only the faceplate front is
   exposed. Routine firmware is **OTA over RS-485** (battery side pulls it
@@ -225,7 +226,7 @@ terminators.
 
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
-| BTN1, BTN2, BTN3 | 6×6×4.3 mm tactile SMT switch (e.g. C&K PTS525 SMT) | SMT | 3 | Mounted on the **bottom edge** of the PCB, on 18 mm centers; line up under faceplate cutouts |
+| BTN1, BTN2, BTN3 | **THT tall-actuator tactile switch** (6×6 mm body, long plunger — e.g. the 6×6×N mm family, N ≈ 13–17 mm) | THT | 3 | **User call (2026-06-23): real tactile button whose actuator protrudes slightly through the faceplate** — no printed caps. Mounted on the **bottom edge**, actuator pointing **toward the faceplate (+Z)**, on 18 mm centers under the faceplate cutouts. **Actuator height = (PCB-front → faceplate-front gap) + ~2–3 mm protrusion**; the gap is set by the module/standoff depth stack, so the exact plunger length is locked at CP3/CP5 from the PCB STEP (DR-10). Pick the catalog height nearest that figure |
 | R5, R6, R7 | 1 MΩ pull-ups (BTN ↔ V3V3)        | 0805 ×3        | 3   | High-value to minimize Iq; ESP internal pullup also available as backup |
 | C8, C9, C10 | 100 nF X7R RC debounce             | 0603 ×3        | 3   | RC = 100 ms — human-button slow |
 
@@ -408,14 +409,14 @@ ground pour).
 6. **USB-C bench/recovery port at a board edge** (D27) — reached by
    popping the faceplate (no front cutout); routine updates are OTA over
    RS-485, so it's rarely used.
-7. **Buttons exit the PCB toward the faceplate side**; their height
-   plus PCB to faceplate distance must clear the box's interior front
-   ribs. Tactile switch is 4.3 mm tall; PCB + standoff stack adds ~5 mm;
-   total ~10 mm from PCB back to button cap top. Faceplate sits ~12 mm
-   in front of the PCB back. Caps need 2 mm of travel to actuate plus
-   the faceplate's 2 mm thickness → caps need to be ~4 mm above the
-   faceplate front surface to be operable. Will need ~5–6 mm cap height
-   custom or a longer rubber dome cap. **3D-print extension required.**
+7. **Buttons exit the PCB toward the faceplate (+Z)** with a **tall-actuator
+   THT tactile** whose plunger reaches through the faceplate cutout and
+   **protrudes ~2–3 mm** for an easy press (user call — no printed caps).
+   Actuator length = (PCB-front → faceplate-front gap) + protrusion; the gap
+   is set by the module/standoff depth stack, so pick the catalog plunger
+   height at CP3/CP5 from the PCB STEP. The faceplate carries a clearance
+   hole per button (not a cap pocket). Keep the switch bodies clear of the
+   box's interior front ribs.
 
 ### 10.3 Net classes
 
@@ -454,10 +455,10 @@ minimum).
    is no FFC. J2 is an 8-pin 2.54 mm header to the Waveshare Module (B)'s
    fixed SPI interface (§4.4). Residual: match the physical pin order on J2
    to the module's silk/cable at assembly.
-2. **Tactile button cap height** — 4.3 mm switch + standoffs leaves
-   ~10 mm from PCB back to cap top, while the faceplate sits ~12 mm
-   ahead. Need cap extensions in the 3D print. Compute exactly at CP3
-   based on actual standoff stack.
+2. **Tall-actuator tactile plunger length** — pick the catalog height so the
+   plunger spans the PCB-front→faceplate gap and protrudes ~2–3 mm through
+   the faceplate hole (user call — no printed caps). Lock the exact height at
+   CP3 from the actual standoff/depth stack.
 3. **R-78E3.3 SIP3 footprint orientation** — taller side of the module
    must face AWAY from the e-paper to avoid clearance issues.
 4. **Panel SPI bus timing on 4 MHz** — verify partial refresh works at
