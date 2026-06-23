@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: user_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
@@ -11,41 +11,34 @@ iteration: 2
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-22T10:30:00Z
+last_updated_at: 2026-06-22T12:00:00Z
 last_updated_by: claude
 
 note: >
-  CLAUDE did a fresh-look self-review + datasheet homework before the next
-  reviewer pass (user asked to "make as big a review as worthwhile; cheap to
-  catch errors now"). Five new findings logged with derivations + proposed
-  fixes as DR-12…DR-16 in DESIGN_REVIEW_ITEMS.md; the iter-3 reviewer brief
-  is packet §10 (verify DR-12…16 + a board-wide abs-max sweep + strap check).
-  Highlights: DR-12 input fuse vs ~22 µF ceramic inrush (propose 1 A
-  time-lag); DR-13 RS-485 fail-safe bias only 236 mV (propose Rb 390→~330 Ω,
-  free since display-end); DR-14 display 12 V TVS↔R-78E3.3 = 15 % margin
-  (coordinated, logged); DR-15 add a battery-end 12 V Cat5e TVS; DR-16 the
-  big one — "must not finish off a low pack" is firmware-only today; I
-  recommend a µA hardware UVLO backstop.
-  (Earlier iter-2 fixes still stand: LM5166YDRCR, module 103×78.5, WiFi/RS-485
-  mutual-exclusion policy.)
-  ALL fresh-look findings now resolved: DR-12 (time-lag fuse), DR-13 (bias
-  330 Ω), DR-15 (battery 12 V TVS) applied; **DR-16 RESOLVED — user approved
-  the hardware UVLO backstop (D28): U4 TPS3890 asserts ESP EN low below
-  ~20 V pack → MCU to µA reset + display auto-sheds; EN-assert (not
-  power-cut) keeps the MCU wakeable, D19 intact.** Propagated to
-  cp1_battery_side §4.3a, both BOMs, power_budget, decisions D28.
-  Second fresh-look pass done (DR-17…DR-23, packet §11 iter-4 brief) into
-  domains no prior pass touched: DR-17 D28 EN-node second-order (brownout vs
-  UVLO can't chatter — U4 fires first); DR-18 USB VBUS must NOT back-feed
-  3V3 (latent layout trap — would let USB defeat the UVLO; design rule set);
-  DR-19 end-to-end grounding/shield loop; DR-20 Cat5e EMC (acceptable + DNP
-  choke option); DR-21 FMEA (U4 fails-to-baseline — sound backstop property);
-  DR-22 cold-temp survey (e-paper 0°C confirmed the floor, all else −40, no
-  electrolytics); DR-23 RTC backup cap → low-leakage 10–50 mF (not a leaky
-  supercap). Most RESOLVED w/ analysis for reviewer verification.
-  Remaining USER items: clearance to start CP2 (still HELD); trigger the
-  reviewer for iter-3+iter-4 deep pass (packet §10+§11); and two new product
-  calls — DR-21 (accept UVLO fail-to-baseline vs add self-test; I recommend
-  accept) and DR-22 (accept "display blank below 0°C, logging continues").
+  REVIEWER — comprehensive single verification pass (likely final for CP1).
+  Everything outstanding since your iter-1 §8 is now on the table. Read, in
+  order: packet §9 (Claude's responses to your iter-1 findings 01–08),
+  §10 (iter-3 brief: verify DR-12…DR-16 + a board-wide abs-max-vs-worst-case
+  sweep on BOTH boards + ESP strap check + datasheet-support check), and
+  §11 (iter-4 brief: verify DR-17…DR-23). Re-derive independently per
+  ENGINEERING_REVIEW.md / D17 — do NOT trust the RESOLVED tags.
+
+  Write all findings into a NEW §8 subsection ("iteration 2"), end with a
+  sign-off line, then hand back to **user_turn** (NOT claude_turn) — this is
+  a single pass; do not loop. Tag each finding blocker / should-fix / nit
+  with concrete numbers.
+
+  Headline things to re-derive (highest value first): the D19 power-tree
+  clamp coordination (53.3 V vs the 60 V floor parts); the D28 hardware UVLO
+  (U4 TPS3890 EN-assert → MCU reset + display auto-shed; brownout vs UVLO
+  ordering; EN-gating preserves the floor regardless of supply); LM5166
+  **Y**DRCR = 3.3 V (X = 5 V); DR-18 VBUS-off-V3V3 on both boards.
+
+  USER decisions already made — VERIFY the engineering, do NOT reopen:
+  DR-16 accepted (add UVLO), DR-21 accepted (UVLO fail-to-baseline, no
+  self-test), DR-22 accepted (e-paper 0 °C floor, no heater), DR-18 default
+  (no USB-power OR). Skip readability/D11/D13 (no schematic — that's CP2) and
+  the staleness re-audit (clean sweep already run). CP2 remains HELD pending
+  the user; board generators (build_*.py) are intentionally still pre-D19.
 
 user_pause_reasons_seen_this_run: []
