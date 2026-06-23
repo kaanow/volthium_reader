@@ -34,8 +34,18 @@ note: >
   ~20 V pack → MCU to µA reset + display auto-sheds; EN-assert (not
   power-cut) keeps the MCU wakeable, D19 intact.** Propagated to
   cp1_battery_side §4.3a, both BOMs, power_budget, decisions D28.
-  Remaining USER items: clearance to start CP2 (still HELD), and triggering
-  the reviewer for the iter-3 deep pass (packet §10 — now also asks the
-  reviewer to verify the D28 UVLO design).
+  Second fresh-look pass done (DR-17…DR-23, packet §11 iter-4 brief) into
+  domains no prior pass touched: DR-17 D28 EN-node second-order (brownout vs
+  UVLO can't chatter — U4 fires first); DR-18 USB VBUS must NOT back-feed
+  3V3 (latent layout trap — would let USB defeat the UVLO; design rule set);
+  DR-19 end-to-end grounding/shield loop; DR-20 Cat5e EMC (acceptable + DNP
+  choke option); DR-21 FMEA (U4 fails-to-baseline — sound backstop property);
+  DR-22 cold-temp survey (e-paper 0°C confirmed the floor, all else −40, no
+  electrolytics); DR-23 RTC backup cap → low-leakage 10–50 mF (not a leaky
+  supercap). Most RESOLVED w/ analysis for reviewer verification.
+  Remaining USER items: clearance to start CP2 (still HELD); trigger the
+  reviewer for iter-3+iter-4 deep pass (packet §10+§11); and two new product
+  calls — DR-21 (accept UVLO fail-to-baseline vs add self-test; I recommend
+  accept) and DR-22 (accept "display blank below 0°C, logging continues").
 
 user_pause_reasons_seen_this_run: []
