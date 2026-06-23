@@ -124,7 +124,7 @@ bracket + faceplate against.
 +12 V from Cat5e (J1 RJ45 pins 1/2/3)
     │
     ▼
-F1 [PTC polyfuse 0.5 A hold, 1 A trip]    ← resettable; protects cable
+F1 [PTC polyfuse ~0.25 A hold (DR-11)]    ← resettable; protects cable
     │
     ▼
 TVS1 [SMAJ15A unidirectional, V12 ↔ GND]   ← inductive kick from cable
@@ -263,7 +263,9 @@ refresh for live updates, etc.
 |--------------|-------------|-----------------------|-----------------------------------------------|-------|
 | V12_CAT5E    | 12 V        | J1 pins 1/2/3        | F1                                            | From battery side over Cat5e |
 | V12_PROT     | 12 V        | F1 out               | TVS1, U1 VIN, C1                              | Post-PTC, post-TVS |
-| V3V3         | 3.3 V       | U1 VOUT              | ESP3V3, U2 VCC, panel VCC, R3 (if pop), R5/R6/R7 | Switched 3.3 V (only one switch: the ESP itself sleeps) |
+| V3V3         | 3.3 V       | **U4-MUX OUT (TPS2116)** — sources: R-78E3.3 (VIN2) / USB-LDO U3-LDO (VIN1, priority) | ESP3V3, U2 VCC, panel VCC, R3 (if pop), R5/R6/R7 | USB present → from USB-LDO (R-78E3.3 idles); USB absent → from R-78E3.3. D29 (mirrors battery side; **no UVLO bypass** — display has no supervisor) |
+| 3V3_USB      | 3.3 V       | U3-LDO (from VBUS)   | TPS2116 VIN1 (U4-MUX)                          | USB maintenance rail (D29); present only with a cable in; VBUS-referenced |
+| VBUS         | 5 V (USB)   | J-USB VBUS           | U-ESD, U3-LDO VIN                              | Present only with a USB cable; powers the USB-LDO (D29). **Never tied to V3V3** (LDO regulates — reviewer F04) |
 | GND          | 0 V         | (chassis)            | All IC GNDs, J1 pins 6/7/8                    | Single-point bond at battery side; J1 shield drain NC at this end |
 | UART_TX_3V3  | 3.3 V       | ESP IO17              | U2 D pin                                       | RS-485 driver input |
 | UART_RX_3V3  | 3.3 V       | U2 R pin              | ESP IO18                                       | RS-485 receiver output |
@@ -289,7 +291,10 @@ expansion pad on J3 or J4.
 
 | GPIO   | Direction | Function                | Sleep behavior              |
 |--------|-----------|--------------------------|------------------------------|
-| GPIO0  | (strap)   | Bootloader strap         | -                            |
+| GPIO0  | (strap)   | Bootloader strap         | weak pull-up                 |
+| GPIO3  | (strap)   | USB-JTAG select; leave NC (internal default) | - (reviewer F05) |
+| GPIO45 | (strap)   | VDD_SPI strap; leave NC (internal default)   | - (reviewer F05) |
+| GPIO46 | (strap)   | Boot-mode strap; leave NC (internal default) | - (reviewer F05) |
 | GPIO2  | output    | RS-485 DE/RE             | Hi-Z in deep sleep           |
 | GPIO5  | output    | E-paper CS               | Hi-Z; pulled HIGH externally? No — leave at last state |
 | GPIO6  | output    | E-paper DC               | "                            |
@@ -356,6 +361,8 @@ there): **board is off**. No draw.
 | C6    | 1 µF   | V3V3 (panel) | J2 VCC pin < 3 mm        | Panel refresh dip suppression |
 | C7    | 100 nF | V3V3    | U2 VCC < 2 mm                | RS-485 decoupling |
 | C8, C9, C10 | 100 nF | BTNn_IN | -                       | Button RC debounce (×3) |
+| C_usb1, C_usb2 | 1 µF | 3V3_USB / VBUS | U3-LDO in/out < 2 mm   | AP2112 in/out (D29, reviewer F04) |
+| C_mux | ~47 µF | V3V3 | TPS2116 OUT < 5 mm           | Mux OUT bulk for RCB on USB hot-plug (D29; mirrors battery C13, reviewer F11) |
 
 ## 10. Layout strategy
 

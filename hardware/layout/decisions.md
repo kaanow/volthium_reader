@@ -1390,18 +1390,24 @@ releases EN → the MCU **cold-boots fresh** (which also un-hangs it) and
 resumes. So DR-4's "fully-unpowered MCU can't wake" problem is *not*
 reopened — this is the key difference from a hysteretic power-cut.
 
-**Threshold.** Floor trip ~**20 V** pack (≈2.5 V/cell, the LiFePO₄ cliff —
-well below the firmware's ~10 % SOC shed), release ~**22 V** (built-in
-hysteresis + the CT deglitch rejects momentary sags). LiFePO₄ voltage is a
-poor mid-SOC proxy but **sharp at this low knee**, so a voltage floor is
-well-suited *here* even though it'd be a bad primary SOC method. U4 senses
-the pack via a dedicated high-value divider (~10 MΩ-class → ~2 µA) — kept
-high to protect the power-first budget; exact value + the SENSE-bias-current
-accuracy tradeoff to confirm at CP2/BOM-lock.
+**Threshold (corrected per reviewer iter-2 F01/F02).** Floor trip ~**20 V**
+pack (≈2.5 V/cell, the LiFePO₄ cliff — well below the firmware's ~10 % SOC
+shed); release ~**21.5 V** set by an **external hysteresis resistor R_hys**
+(RESET→SENSE, ~3.9–4.7 MΩ → ~1.5 V band). The TPS3890's *built-in*
+hysteresis is only ~0.33–0.83 % (~0.12 V pack) — far too small: shedding the
+~38 mA load rebounds the pack well past 0.12 V, which would chatter. So the
+band is set deliberately in hardware. LiFePO₄ voltage is a poor mid-SOC proxy
+but **sharp at this low knee**, so a voltage floor suits *here*. **Divider
+R_total ≈ 2.0 MΩ, not 10 MΩ:** the TPS3890 needs divider current ≥ 100×
+I_SENSE (max 100 nA) = ≥ 10 µA for threshold accuracy; 20 V/2.0 MΩ = 10 µA at
+trip. (The earlier 10 MΩ drew only ~2 µA — below the rule, several-percent
+threshold error.) Finalize R1/R2/R_hys at CP2.
 
-**Power.** ~2 µA divider + 2.1 µA U4 Iq ≈ **~0.06 mW** added; hard-cut stays
-**≈1 mW**. The EN-asserted floor state (~µA, chip in reset) is actually
-*lower* power than the firmware deep-sleep state it backstops.
+**Power.** divider ~10 µA at trip (~14 µA at 29 V → ~0.4 mW) + U4 Iq ~2.1 µA
+≈ **~0.45 mW**; with the D29 mux (~1.3 µA) **hard-cut ≈ 1.3 mW** (was ~1 mW —
+the accuracy rule wins over shaving 0.3 mW; still ~5 orders under any real
+drain). The EN-asserted floor state (~µA, chip in reset) is still *lower*
+power than the firmware deep-sleep it backstops.
 
 **Override-button precedence.** The hardware floor **wins** over the
 panel-mount manual override — a user can't force the display on below the
@@ -1431,11 +1437,17 @@ only.") Earlier DR-18 correction stands: USB does **not** defeat the UVLO
   **OUT = V3V3**. USB present → output from USB, the LM5166 sees its output
   held high → **stops switching → pack draw ≈ its ~14 µA Iq**; USB absent →
   auto-switches to the buck → V3V3 exactly as before.
-- **VBUS-present UVLO bypass = Q3** (small signal FET) in series with U4's
-  open-drain RESET→EN line, **held open while VBUS is present** (gate from a
-  VBUS divider). So with USB in, U4 can't hold EN low → the MCU **boots off
-  USB even with no/low pack** (essential for bench programming). VBUS
-  absent → Q3 closed → UVLO fully active. Referenced to **VBUS only**.
+- **VBUS-present UVLO bypass = Q3 + Q4 (fail-safe default-ON; corrected per
+  reviewer iter-2 F03).** Q3 = N-FET in series in U4's open-drain RESET→EN
+  line; its gate is **pulled to V3V3 via R_byp1 (100 kΩ) → default-ON**, so
+  with VBUS **absent** Q3 conducts → U4 drives EN → **UVLO active (the safe
+  default)**. With VBUS **present**, Q4 (a second small N-FET, gate from a
+  VBUS divider R_byp2) turns on and pulls Q3's gate to GND → Q3 opens → U4
+  isolated → the MCU **boots off USB even on a dead/absent pack** (essential
+  for bench programming). *(My first cut drove Q3's gate straight from a VBUS
+  divider, which defaulted to UVLO-**bypassed** when unplugged — the unsafe
+  direction; F03 fixed it to default-ON.)* R_byp1 only carries current when
+  Q4 pulls low (VBUS present) → ~0 always-on pack draw.
 
 **Display side:** same **LDO + TPS2116** (VIN1 = USB-LDO, VIN2 = R-78E3.3
 output). **No UVLO bypass** (the display has no U4 — it's shed by the battery

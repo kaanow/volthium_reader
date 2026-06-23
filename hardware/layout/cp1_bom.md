@@ -98,7 +98,8 @@ Grand total **~$145** for one complete monitor (including extras).
 | R3  | 100 kΩ 0805 1 % (Q1 gate pull-up to V24_FUSED) | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805100KFKEA | $0.10 | Default-OFF load switch |
 | R4  | 100 kΩ 0805 1 % (Q2 gate pull-down to GND) | 0805 | 1 | (same as R3) | (same) | $0.10 | Brown-out failsafe-off |
 | U4  | **TI TPS3890** voltage supervisor (~2.1 µA, adj. SENSE, OD RESET, CT delay) | SOT-23-6/SON | 1 | _verify_ TPS389030DSER-family | _verify_ | $0.80 | **NEW (D28/DR-16):** hardware UVLO backstop — asserts ESP EN low below ~20 V pack → reset MCU (~µA) + auto-shed display. Confirm SKU/threshold at BOM-lock |
-| R_uv1, R_uv2 | UVLO pack divider → U4 SENSE (~10 MΩ-class, ratio for ~20 V trip) | 0805 ×2 | 2 | _verify_ | _verify_ | $0.10 ea | **NEW (D28):** high-value → ~2 µA draw; confirm vs SENSE bias current |
+| R_uv1, R_uv2 | UVLO pack divider → U4 SENSE (**R_total ≈ 2.0 MΩ**, ratio for ~20 V trip) | 0805 ×2 | 2 | _verify_ | _verify_ | $0.10 ea | **NEW (D28); ~2.0 MΩ not 10 MΩ (reviewer F02)** — TPS3890 needs ≥10 µA divider current (≥100× I_SENSE) for accuracy; 20 V/2.0 MΩ = 10 µA at trip |
+| R_hys | UVLO external hysteresis, RESET→SENSE (~3.9–4.7 MΩ) | 0805 | 1 | _verify_ | _verify_ | $0.05 | **NEW (reviewer F01):** sets a deliberate ~1.5 V band (trip ~20 V / release ~21.5 V); chip's built-in ~0.12 V is too small (chatter) |
 | C_ct | UVLO CT deglitch cap (~tens of ms) | 0603 | 1 | _verify_ | _verify_ | $0.05 | **NEW (D28):** rejects momentary sags |
 
 ### 24 V sense (always-on)
@@ -123,9 +124,12 @@ Grand total **~$145** for one complete monitor (including extras).
 | U-ESD | USB ESD array (USBLC6-2SC6) | SOT-23-6 | 1 | _verify_ USBLC6-2 | 511-USBLC6-2SC6 | $0.30 | **NEW**: ESD clamp on the external USB-C D+/D−/VBUS (D22) |
 | U5  | 3.3 V LDO (AP2112K-3.3, ~600 mA) | SOT-23-5 | 1 | _verify_ AP2112K-3.3 | _verify_ | $0.20 | **NEW (D29):** VBUS→3V3_USB for USB maintenance power; VBUS-referenced (0 pack draw unplugged) |
 | U6  | **TI TPS2116** priority power mux (~1.3 µA Iq, 2.5 A, reverse-blocking) | SOT-23-6 | 1 | _verify_ TPS2116DRLR | _verify_ | $0.70 | **NEW (D29):** VIN1=USB-LDO (priority), VIN2=U1 buck, OUT=V3V3. USB present → buck idles. Only ~1.3 µA always-on |
-| Q3  | small signal N-FET (UVLO bypass) | SOT-23 | 1 | _verify_ 2N7002 | 512-2N7002 | $0.10 | **NEW (D29):** opens U4 RESET→EN when VBUS present so the MCU boots off USB on a dead/absent pack; VBUS-referenced |
+| Q3  | small signal N-FET, series in U4 RESET→EN (UVLO bypass) | SOT-23 | 1 | _verify_ 2N7002 | 512-2N7002 | $0.10 | **NEW (D29); default-ON via R_byp1→V3V3 (fail-safe, reviewer F03)** — conducts when VBUS absent (UVLO active); opened by Q4 when VBUS present |
+| Q4  | small signal N-FET, VBUS-driven Q3-gate pulldown | SOT-23 | 1 | _verify_ 2N7002 | 512-2N7002 | $0.10 | **NEW (reviewer F03):** VBUS present → Q4 ON → Q3 gate to GND → bypass. VBUS-referenced |
 | C_usb1, C_usb2 | LDO in/out 1 µF X7R | 0603 ×2 | 2 | _verify_ | _verify_ | $0.05 ea | **NEW (D29):** AP2112 in/out caps |
-| R_byp1, R_byp2 | VBUS-present divider → Q3 gate (high-value) | 0805 ×2 | 2 | _verify_ | _verify_ | $0.05 ea | **NEW (D29):** VBUS-referenced |
+| C_mux | ~47 µF on TPS2116 OUT (V3V3) | 0805/1206 | 1 | _verify_ | _verify_ | $0.10 | **NEW (reviewer F11):** OUT bulk for reverse-current-blocking on USB hot-plug |
+| R_byp1 | Q3 gate pull-up to **V3V3** (100 kΩ) | 0805 | 1 | _verify_ | _verify_ | $0.05 | **NEW (reviewer F03):** sets fail-safe default-ON |
+| R_byp2 | VBUS → Q4 gate divider | 0805 | 1 | _verify_ | _verify_ | $0.05 | **NEW (D29):** VBUS-referenced |
 | C9  | 100 nF X7R | 0603 | 1 | (unchanged) 311-1141-1-ND | (as C5) | $0.05 | RTC decoupling |
 | R8, R9 | 4.7 kΩ 0805 1 % I²C pull-ups | 0805 | 2 | RMCF0805FT4K70CT-ND | 71-CRCW08054K70FKEA | $0.05 ea | I²C bus pull-ups |
 
@@ -240,6 +244,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | U3-LDO | 3.3 V LDO (AP2112K-3.3, ~600 mA) | SOT-23-5 | 1 | _verify_ | _verify_ | $0.20 | **NEW (D29):** VBUS→3V3_USB; VBUS-referenced |
 | U4-MUX | **TI TPS2116** priority power mux | SOT-23-6 | 1 | _verify_ TPS2116DRLR | _verify_ | $0.70 | **NEW (D29):** VIN1=USB-LDO (priority), VIN2=R-78E3.3, OUT=V3V3. No UVLO bypass (display has no U4) |
 | C_usb1, C_usb2 | LDO in/out 1 µF X7R | 0603 ×2 | 2 | _verify_ | _verify_ | $0.05 ea | **NEW (D29):** LDO caps |
+| C_mux | ~47 µF on TPS2116 OUT (V3V3) | 0805/1206 | 1 | _verify_ | _verify_ | $0.10 | **NEW (reviewer F11):** OUT bulk for reverse-current-blocking on USB hot-plug |
 | J3  | 4-pin 2.54 mm header (UART debug) | THT | 1 | (same as battery-side J5) | | $0.30 | Internal bench bring-up only |
 | J5  | 2-pin 2.54 mm jumper (term lift) | THT | 1 | (same as battery-side J4) | | $0.20 | |
 

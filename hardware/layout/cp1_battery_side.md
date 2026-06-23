@@ -119,7 +119,7 @@ node is rated against that ceiling:
 | D1  SS26 (Schottky)        | VRRM **60 V**         | +6.7 V (**13 %**)  |
 | Q1  ZXMP6A13F (P-FET)      | Vds **−60 V**         | +6.7 V (**13 %**)  |
 | Q2  2N7002 (N-FET)         | Vds **60 V**          | +6.7 V (**13 %**)  |
-| U1  LM5166X buck           | VIN abs-max **65 V**  | +11.7 V (22 %)     |
+| U1  LM5166Y buck           | VIN abs-max **65 V**  | +11.7 V (22 %)     |
 | U2  R-78HB12               | VIN max **72 V**      | +18.7 V (35 %)     |
 | C1, C3 input caps          | **100 V**             | +46.7 V (88 %)     |
 
@@ -172,7 +172,7 @@ so the protected rail out-rates the clamp (D19/DR-3).
 switchers, so dissipation is conversion loss — and both run far below rated
 load:
 
-- **U1 LM5166X (24→3.3 V, always-on).** Worst case is a WiFi push: ~250 mA
+- **U1 LM5166Y (24→3.3 V, always-on).** Worst case is a WiFi push: ~250 mA
   at 3.3 V = 0.83 W out; at ~85 % efficiency, loss ≈ 0.83·(1/0.85 − 1) ≈
   **0.15 W**. VSON-10 θJA ≈ 50 °C/W → **ΔT ≈ 7 °C**, and only for the
   ~2–6 s burst; steady normal load (~75 mA) dissipates ~0.04 W → ΔT ~2 °C.
@@ -237,7 +237,8 @@ firmware-only shed + R3 default-OFF do **not** cover (R3 only handles a
 | Ref | Part | Pkg | Qty | Rationale |
 |-----|------|-----|-----|-----------|
 | U4  | **TI TPS3890** voltage supervisor (~2.1 µA Iq, adjustable SENSE, open-drain RESET, prog. CT delay) | SOT-23-6 / SON | 1 | Asserts ESP **EN** low when the pack droops below the hardware floor. Powered from always-on V3V3 |
-| R_uv1, R_uv2 | high-value pack divider → U4 SENSE (~10 MΩ-class, ratio sets ~20 V trip) | 0805 ×2 | 2 | From V24_FUSED. ~10 MΩ keeps draw ~2 µA (power-first); confirm value vs SENSE bias current at CP2/BOM-lock |
+| R_uv1, R_uv2 | pack divider → U4 SENSE (**R_total ≈ 2.0 MΩ**, ratio sets ~20 V trip; V_SENSE = V_ITN = 1.15 V) | 0805 ×2 | 2 | From V24_FUSED. **2.0 MΩ — not 10 MΩ (reviewer F02):** TPS3890 needs divider current ≥ 100× I_SENSE(max 100 nA) = **≥ 10 µA**; 20 V/2.0 MΩ = 10 µA at the trip point ✓. Finalize R1/R2 at CP2 |
+| R_hys | external hysteresis: U4 RESET → SENSE (**~3.9–4.7 MΩ**) | 0805 | 1 | **NEW (reviewer F01):** the TPS3890's *built-in* hysteresis is only ~0.33–0.83 % (~0.12 V pack) — far too small, would chatter. R_hys injects RESET-state feedback into SENSE to set a deliberate **~1.5 V** band (trip ~20 V / release ~21.5 V). Value couples to the divider; finalize at CP2 |
 | C_ct | CT delay cap (deglitch, ~tens of ms) | 0603 | 1 | Rejects momentary sags so only a sustained low-pack condition trips the floor |
 
 **How it acts (reuses the existing default-OFF chain — no extra Q1 driver):**
@@ -252,13 +253,20 @@ On recovery (pack ≥ release threshold + hysteresis) U4 releases EN → the ESP
 keeps the MCU wakeable (D19 intact; DR-4 not reopened).
 
 **Thresholds:** trip ~**20 V** pack (LiFePO₄ cliff, well below the firmware's
-~10 % SOC shed), release ~**22 V**. The two layers never fight — staggered
-voltages; the hardware floor is silent in normal operation. **Override
-button:** the hardware floor wins (can't force-drain a dead pack).
+~10 % SOC shed); release ~**21.5 V** set by the **external** hysteresis
+resistor R_hys (reviewer F01 — the chip's built-in ~0.12 V band is too small
+and would chatter, since shedding the ~38 mA load rebounds the pack well past
+0.12 V). The two layers never fight — staggered voltages; the hardware floor
+is silent in normal operation. **Override button:** the hardware floor wins
+(can't force-drain a dead pack). CP2: confirm on the bench that release +
+deglitch give a clean single re-engage (no oscillation).
 
-**Power:** ~2 µA divider + 2.1 µA Iq ≈ **~0.06 mW**; hard-cut stays ≈1 mW.
-The EN-asserted floor (~µA, chip in reset) is *lower* power than the firmware
-deep-sleep state it backstops.
+**Power (reviewer F02):** divider 20 V/2.0 MΩ ≈ 10 µA at trip (~14 µA at
+29 V full charge → ~0.4 mW) + U4 Iq ~2.1 µA ≈ **~0.45 mW** — up from the
+earlier (rule-violating) 10 MΩ estimate. **Hard-cut now ≈ 1.3 mW** (was
+~1 mW); still ~5 orders of magnitude under any meaningful pack drain, so the
+accuracy rule wins over shaving 0.3 mW. The EN-asserted floor (~µA, chip in
+reset) is still *lower* power than the firmware deep-sleep it backstops.
 
 ### 4.3b USB maintenance power (run/program/troubleshoot off USB) — D29 / DR-18
 
@@ -271,24 +279,35 @@ hard-cut budget intact.
 |-----|------|-----|-----|-----------|
 | U5  | 3.3 V LDO (e.g. AP2112K-3.3, ~600 mA) | SOT-23-5 | 1 | VBUS (5 V) → 3V3_USB. **Powered from VBUS only** — no pack draw when unplugged. ~600 mA covers programming + occasional WiFi |
 | U6  | **TI TPS2116** 2-input priority power mux (1.6–5.5 V, 2.5 A, ~1.3 µA Iq / 50 nA standby, auto-switchover, reverse-blocking) | SOT-23-6 | 1 | **VIN1 (priority) = 3V3_USB, VIN2 = U1 buck 3V3, OUT = V3V3.** USB present → output from USB, buck idles; USB absent → buck. Reverse-blocking N-FETs (no Schottky drop) |
-| Q3  | small signal N-FET (UVLO bypass) | SOT-23 | 1 | In series with U4 RESET→EN; **held open while VBUS present** (gate from VBUS divider) so the MCU boots off USB with no/low pack. VBUS absent → closed → UVLO active. VBUS-referenced |
+| Q3  | small signal N-FET, **series in U4 RESET→EN** | SOT-23 | 1 | **Default-ON (UVLO active) — fail-safe (reviewer F03):** gate pulled to **V3V3 via R_byp1 (100 kΩ)** so with VBUS **absent** Q3 conducts → U4 drives EN → UVLO active. When VBUS **present**, Q4 pulls the gate LOW → Q3 opens → U4 isolated → MCU boots off USB on a dead/absent pack. Q3 Rds (~7 Ω) ≪ R7 (10 kΩ) → no effect on the assert level |
+| Q4  | small signal N-FET, **VBUS-driven gate pulldown** | SOT-23 | 1 | **NEW (reviewer F03):** VBUS (via R_byp2 divider) turns Q4 ON → pulls Q3 gate to GND → opens the bypass. VBUS absent → Q4 OFF → Q3 stays default-ON. Draws from VBUS only |
 | C_usb1, C_usb2 | LDO in/out caps (1 µF / 1 µF) | 0603 | 2 | per AP2112 datasheet |
-| R_byp1, R_byp2 | VBUS-present divider → Q3 gate | 0805 | 2 | high-value; VBUS-referenced |
+| R_byp1 | Q3 gate pull-up to **V3V3** (100 kΩ) | 0805 | 1 | sets the fail-safe default-ON; only carries current when Q4 pulls low (VBUS present) → ~0 always-on draw when unplugged |
+| R_byp2 | VBUS → Q4 gate divider | 0805 | 1 | VBUS-referenced |
 
 **Behavior.** USB present → TPS2116 selects 3V3_USB → the LM5166 sees its
 output held high → **stops switching → pack draw ≈ its ~14 µA Iq** (MCU now
-on USB); Q3 opens → U4 can't hold EN low → MCU boots even on a dead/absent
-pack (bench). USB absent → mux falls back to the buck, Q3 closes → V3V3 and
-the UVLO behave **exactly as without this circuit**.
+on USB); Q4 (VBUS-driven) pulls Q3's gate low → Q3 opens → U4 isolated from
+EN → MCU boots even on a dead/absent pack (bench). USB absent → mux falls
+back to the buck; Q4 OFF → Q3 default-ON via the 100 kΩ to V3V3 → U4 drives
+EN → V3V3 and the UVLO behave **exactly as without this circuit**.
+
+**Bypass truth table (fail-safe — reviewer F03):**
+
+| VBUS | Q4 | Q3 (series in U4→EN) | UVLO |
+|------|----|----------------------|------|
+| absent (unattended) | OFF | **ON** (gate→V3V3) | **active** — the safe default |
+| present (attended)  | ON  | OFF (gate→GND)     | bypassed — MCU runs off USB |
 
 **Why no requirement is compromised:** every part except U6 is
-**VBUS-referenced → 0 pack draw unplugged**; U6 adds only **~1.3 µA**
-always-on (~4 µW) → hard-cut stays **≈1 mW**. UVLO protects the *unattended*
-(always USB-absent) system fully; the bypass only relaxes it during
-*attended* USB sessions, when the MCU is on USB and isn't draining the pack.
-No 5 V reaches V3V3 (LDO). D19 always-on unchanged. **Residual (accepted):**
-attended USB + low pack + firmware enabling the display could drain the pack
-via U2 — attended/transient, firmware shouldn't.
+**VBUS-referenced → 0 pack draw unplugged** (R_byp1 only carries current when
+Q4 pulls it low, i.e. VBUS present); U6 adds only **~1.3 µA** always-on
+(~4 µW). With the F02 UVLO-divider resize, **hard-cut ≈ 1.3 mW** (still
+negligible). UVLO protects the *unattended* (always USB-absent) system fully;
+the bypass relaxes it only during *attended* USB sessions, when the MCU is on
+USB and isn't draining the pack. No 5 V reaches V3V3 (LDO). D19 always-on
+unchanged. **Residual (accepted):** attended USB + low pack + firmware
+enabling the display could drain the pack via U2 — attended/transient.
 
 **Display side** mirrors U5 + U6 (VIN2 = R-78E3.3 output); **no Q3** (the
 display has no UVLO). See `cp1_display_side.md`.
@@ -344,7 +363,7 @@ exceeds 1 %, drop divider impedance (e.g. 470 kΩ/39 kΩ) or buffer.
 | C8  | 1 µF X7R (EN pin filter)            | 0603          | 1   | Soft-start; Espressif notes 470 nF–1 µF on EN |
 | R7  | 10 kΩ EN pull-up                    | 0805          | 1   | EN to V3V3 |
 | RTC1 | **Micro Crystal RV-3028-C7** (45 nA ultra-low-power I²C RTC, integrated 32.768 kHz crystal) | 4-pin SMD 3.2×1.5 mm | 1 | **D23:** ±1 ppm RT / ±3 ppm range; built-in backup switchover + trickle charger. **45 nA** → the RTC is no longer a meaningful load (was RV-3028 ~0.2 mA / ~0.5 mW; DR-8). −40…+85 °C |
-| C-bk | Small backup cap (~10 mF–0.1 F) on RV-3028 VBACKUP | SMD | 1 | Trickle-charged by the RTC; rides a full pack disconnect (45 nA → weeks). No coin cell, no bulky supercap, no D14 short risk |
+| C-bk | **Low-leakage backup cap ~10–50 mF** (ceramic/tantalum, **not a supercap**) on RV-3028 VBACKUP | SMD | 1 | Trickle-charged by the RTC; rides a full pack disconnect (45 nA → weeks). **≤50 mF, low-leakage (DR-23, reviewer F09):** a 0.1 F supercap's ~µA leakage would dwarf the 45 nA RTC and *shorten* hold time. No coin cell, no D14 short risk |
 | C9  | 100 nF X7R (RTC decoupling)         | 0603          | 1   | RV-3028 datasheet recommends 100 nF on V_CC |
 | R8, R9 | 4.7 kΩ I²C pull-ups (to V3V3) | 0805 ×2       | 2   | Standard I²C bias; 4.7 kΩ sits in the 1–10 kΩ window for 100/400 kHz I²C |
 
@@ -408,7 +427,7 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | V24_SW       | 24–28 V     | Q1 drain             | R-78HB12 VIN (U2) only                         | Switched 24 V branch downstream of the load switch. Feeds **only** U2 (12 V/display). Collapses when PWR_EN is LOW/Hi-Z — sheds the display, **not** the MCU |
 | V3V3         | 3.3 V       | **TPS2116 OUT (U6)** — sources: U1 buck (VIN2) / USB-LDO U5 (VIN1, priority) | ESP3V3, RTC VCC, U3 VCC, U4 VDD, R8/R9, R13, C6/C7/C8 | **Always-on** 3.3 V (D19). USB present → from USB-LDO (buck idles); USB absent → from buck. Powers the MCU in every state; never gated. No RS-485 bias here (display-end only) |
 | 3V3_USB      | 3.3 V       | U5 LDO (from VBUS)   | TPS2116 VIN1 (U6)                             | USB maintenance rail (D29); present only when a cable is plugged in; VBUS-referenced |
-| VBUS         | 5 V (USB)   | J3 VBUS              | U-ESD, U5 VIN, R_byp1 (Q3-gate divider)       | Present only with a USB cable; powers U5 + the UVLO-bypass divider (D29) |
+| VBUS         | 5 V (USB)   | J3 VBUS              | U-ESD, U5 VIN, R_byp2 (Q4 gate)               | Present only with a USB cable; powers U5 + the UVLO-bypass driver Q4 (D29). Q3 gate defaults ON via R_byp1→V3V3 (fail-safe; reviewer F03) |
 | V12_CAT5E    | 12 V        | R-78HB12 VOUT (U2)   | J2 RJ45 pins 1/2/3, C4, **TVS3**              | Powers display side over Cat5e; off when Q1 sheds it. TVS3 clamps cable surges at this end (DR-15) |
 | GND          | 0 V         | (chassis)            | every IC GND, J2 pins 6/7/8, chassis stud near J2 | Single-point shield-drain bond at J2 |
 | V24_SENSE    | 0–2.3 V     | R5/R6 midpoint       | ESP IO1 (ADC1_CH0)                            | Always-alive; 1.2 M/100 k divider → ~2.25 V at full charge (DR-6) |
@@ -461,7 +480,7 @@ deep-sleep (alive) and hard-cut (off) — see [§13 D-OPEN-7a/7b](#13-open-decis
 |-------|----------|--------------------------------|-----------|-------|
 | 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 ~0.5 mA + RTC <100 µA + **display-end** RS-485 bias (via Cat5e) ~1.5 mA + rest of display side ~5 mA + sense 22 µA = 45 mA × 24 V | **~1.08 W** | ±2 % vs power_budget.md. **No battery-side idle bias (DR-4b)** — the ~1.5 mA is sourced at the display end and shed with the display at hard-cut |
 | 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + **display-end** RS-485 bias (via Cat5e, shed at hard-cut) ~1.5 mA + display unchanged + sense 22 µA | **~0.30 W** | — |
-| 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + RV-3028 ~150 µA + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Display still up (Q1 ON) |
+| 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + RV-3028 ~45 nA (negligible; D23) + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Display still up (Q1 ON) |
 | 4 — Hard cut | < 10 % | U1 LM5166 Iq ~14 µA + ESP deep-sleep ~10 µA + sense divider ~19 µA + **RV-3028-C7 RTC ~45 nA (negligible)**; display shed (Q1 OFF) | **~1 mW** | RTC swapped DS3231→RV-3028-C7 to kill the ~0.5 mW always-on draw (D23/DR-8). MCU re-engages on recovery (D19) |
 
 State 4 budget: at ~1 mW, decades to lose 1 % SOC from the monitor alone —
@@ -541,6 +560,14 @@ populated. **Idle bias is NOT here** — it lives on the display end only
 | C9    | 100 nF | V3V3  | RV-3028 VCC < 2 mm            | RTC decoupling |
 | C10   | 100 nF | V3V3  | SN65HVD3082 VCC < 2 mm       | RS-485 decoupling |
 | C11   | 100 nF | BTN_OVERRIDE | -                       | Button RC debounce |
+| C12   | 1 µF   | 3V3_USB | U5 (LDO) in/out < 2 mm       | AP2112 in/out (D29) |
+| C13   | **~47 µF** | V3V3 | TPS2116 OUT < 5 mm          | **CP2/reviewer F11:** TI recommends ~100 µF on the mux OUT when reverse-current-blocking is exercised (USB hot-plug holds the buck output high). Design bulk on V3V3 is C2 22 µF + C6 10 µF ≈ 32 µF; add ~47 µF (→ ~79 µF) **or** scope USB hot-plug at CP2 to confirm VOUT stays < 5.5 V on the mux/buck pins |
+
+**CP2 schematic TODOs surfaced by the iter-2 review:**
+- **LM5166 support network (F10):** document the **EN** strap (recommend EN→V24_FUSED via the part's enable threshold network for always-on start), the **SS** pin (open = 900 µs default, or a soft-start cap), and **ILIM** (default unless a lower limit is wanted). These are required-support pins not yet enumerated in CP1.
+- **TPS2116 OUT capacitance (F11):** see C13 above.
+- **UVLO hysteresis (F01) + divider (F02):** finalize R_uv1/R_uv2 (~2.0 MΩ, ≥10 µA at trip) and R_hys (~3.9–4.7 MΩ for ~1.5 V band); bench-verify clean re-engage.
+- **Q3/Q4 UVLO-bypass (F03):** verify the fail-safe default-ON truth table on the bench.
 
 ## 11. Layout strategy
 

@@ -68,18 +68,19 @@ when the pack recovers. No full power-down, no separate supervisor IC
 | U1 LM5166 Iq            | ~14 µA → **~0.34 mW**            |
 | ESP32-S3 deep-sleep     | ~10 µA @ 3.3 V → **~0.2 mW**       |
 | 24 V sense divider (1.2 MΩ/100 k) | 24 V / 1.3 MΩ ≈ 18.5 µA → **~0.44 mW** |
-| UVLO supervisor U4 + ~10 MΩ divider (D28) | ~2 µA Iq + ~2 µA divider → **~0.1 mW** |
+| UVLO supervisor U4 + **~2.0 MΩ** divider (D28; reviewer F02) | ~2.1 µA Iq + ~10–14 µA divider → **~0.45 mW** (2.0 MΩ, not 10 MΩ: TPS3890 needs ≥10 µA divider current for threshold accuracy) |
 | USB power-mux U6 TPS2116 (D29, always-on) | ~1.3 µA → **~4 µW** (the rest of the USB circuit is VBUS-referenced → 0 when unplugged) |
 | RV-3028-C7 RTC (always-on) | 45 nA → **negligible** (D23/DR-8; was DS3231 ~0.5 mW) |
 | Display side (U2 shed)  | 0                                 |
-| **Total from pack**     | **~1.1 mW**                        |
+| **Total from pack**     | **~1.3 mW** (the F02 divider resize added ~0.35 mW; still negligible) |
 
 **Hardware floor (D28/DR-16), an even lower state below state 4.** If the
 firmware ever fails to shed (hung-but-powered MCU), U4 asserts ESP **EN**
 low below ~20 V pack: the ESP drops to its ~µA reset state (killing the
 ~38 mA hung drain) and the display auto-sheds (PWR_EN Hi-Z). Draw in this
 floor state is *lower* than state 4 — only U1 Iq + the two dividers + U4 ≈
-**~0.9 mW** — and it holds until the pack recovers past ~22 V.
+**~1.1 mW** — and it holds until the pack recovers past **~21.5 V** (set by
+the external hysteresis resistor R_hys; reviewer F01).
 
 At ~1 mW the pack would take **~10 years** to lose 1 % SOC from this load
 alone — self-discharge and the cabin's own parasitics dominate by orders
