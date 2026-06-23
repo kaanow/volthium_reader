@@ -783,3 +783,53 @@ power ADDED** (verify the new U5/U6/Q3 circuit per item 2 above).
 
 **Skip:** readability/D11/D13 (no schematic — CP2) and staleness re-audit.
 **Form:** concrete numbers, tagged blocker / should-fix / nit.
+
+---
+
+## 12. Claude's responses (to reviewer iteration 2, 2026-06-23)
+
+All 6 should-fix + 5 nit addressed. Two were real errors (F01 hysteresis,
+F02 divider) and one a real polarity bug (F03) — excellent catches. No
+blockers; architecture confirmed sound by the reviewer. Hand back to **user**.
+
+- **RESOLVED — F01 (should-fix), UVLO release voltage.** Correct — the
+  TPS3890's built-in hysteresis is ~0.12 V, not 2 V, and shedding the ~38 mA
+  load rebounds the pack well past that → chatter. Fixed properly, not just in
+  prose: **added an external hysteresis resistor R_hys (RESET→SENSE,
+  ~3.9–4.7 MΩ)** to set a deliberate **~1.5 V** band (trip ~20 V / release
+  ~21.5 V). Updated §4.3a, D28, power_budget, BOMs. CP2 to bench-verify clean
+  re-engage.
+- **RESOLVED — F02 (should-fix), UVLO divider.** Correct — 10 MΩ drew ~2 µA,
+  below the TPS3890's ≥100×I_SENSE (≥10 µA) accuracy rule. **Resized to
+  R_total ≈ 2.0 MΩ** (10 µA at the 20 V trip). Cost: hard-cut ~1 mW → **~1.3
+  mW** — accepted (accuracy beats shaving 0.3 mW; still ~5 orders under any
+  real drain). Updated §4.3a, D28, power_budget, BOMs.
+- **RESOLVED — F03 (should-fix), Q3 bypass polarity.** Correct and important:
+  my single-FET-from-VBUS-divider defaulted to UVLO-**bypassed** when
+  unplugged — the unsafe direction. **Fixed to fail-safe default-ON:** Q3 gate
+  pulled to V3V3 (R_byp1 100 kΩ) → conducts (UVLO active) when VBUS absent;
+  **added Q4** (VBUS-driven) to pull Q3's gate low → bypass only when USB
+  present. Truth table in §4.3b. Updated D29 + BOMs.
+- **RESOLVED — F04 (should-fix), display D29 net list.** Mirrored the
+  battery-side net list in `cp1_display_side.md` §5 (V3V3 ← U4-MUX OUT;
+  3V3_USB ← U3-LDO; VBUS → ESD/LDO, never V3V3) and added C_usb1/C_usb2 +
+  C_mux to §9.
+- **RESOLVED — F05 (should-fix), display straps.** Added GPIO3/45/46 as NC
+  (internal default) to `cp1_display_side.md` §6.
+- **RESOLVED — F06 (should-fix), §7 State 3 RTC current.** RV-3028
+  ~150 µA → **~45 nA (negligible)**.
+- **RESOLVED — F07 (nit).** §3.1 + §4.2 "LM5166X" → **LM5166Y**.
+- **RESOLVED — F08 (nit).** Display §3 ASCII PTC 0.5 A → **~0.25 A**.
+- **RESOLVED — F09 (nit).** C-bk capped at **~10–50 mF low-leakage (no
+  supercap)** in §4.5.
+- **RESOLVED — F10 (nit, CP2 gate).** Recorded LM5166 EN/SS/ILIM support-
+  network TODO in §10 "CP2 schematic TODOs."
+- **RESOLVED — F11 (nit, CP2 gate).** Added **~47 µF** on the TPS2116 OUT
+  (C13 battery / C_mux display) for reverse-current-blocking on USB hot-plug;
+  CP2 to scope the hot-plug spike.
+
+**State:** → `user_turn`. CP1 is, in my honest judgment, at genuine
+excellence: 0 blockers, architecture independently confirmed, all should-fix/
+nit closed, every figure re-derived. Remaining gate is **CP2 clearance**
+(yours). The CP2-gate items (F10/F11 + the UVLO/bypass bench checks) are
+schematic-capture tasks, logged for that checkpoint.
