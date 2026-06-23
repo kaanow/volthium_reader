@@ -489,13 +489,14 @@ one deep pass, findings to a new §8 subsection, hand back to `user_turn`.
    Confirm: brownout (2.43 V on 3V3) vs UVLO (~20 V pack) ordering can't
    chatter (U4 always fires first); the open-drain/C8 edge + R7·C8 = 10 ms
    release gives a clean single boot; CT deglitch value vs LM5166 start-up.
-2. **DR-18 — USB-C VBUS / 3V3 (bare-tie trap + USB-power correction).** Rule:
-   VBUS → ESD array only, **never V3V3** (sourced solely by U1) — the 5 V/
-   3.3 V conflict is the real reason. **Correction:** USB power does *not*
-   defeat the UVLO (U4 gates EN, supply-independent) — verify that reasoning.
-   USB-powering the MCU is achievable via a µA OR but **not added** (designer
-   default; budget + bench-supply rationale). Confirm both netlists keep VBUS
-   off V3V3.
+2. **DR-18 → D29 — USB maintenance power ADDED (new circuit, verify it).**
+   User chose to integrate USB-power (bring-up/program/troubleshoot off USB,
+   no 24 V). New parts: **U5 LDO** (VBUS→3V3_USB), **U6 TPS2116** priority
+   mux (USB-LDO vs buck → V3V3), **Q3** VBUS-present UVLO bypass (battery
+   only). Verify: raw 5 V never reaches V3V3 (LDO); TPS2116 priority/idle +
+   buck tolerates its output held high; Q3 inhibits U4 *only* when VBUS
+   present and restores full UVLO when out; always-on adder is just the
+   ~1.3 µA mux (hard-cut still ≈1 mW); EN-gating preserves the UVLO. See D29.
 3. **DR-19 — grounding/shield as a loop.** Per-board clean (single-point
    shield bond, battery end). Trace the full link: exactly one
    signal-GND-to-chassis tie, no inadvertent second tie at the display.
@@ -516,8 +517,8 @@ one deep pass, findings to a new §8 subsection, hand back to `user_turn`.
 
 **User decisions — now made (do NOT reopen, just verify the engineering):**
 DR-21 **accepted** (UVLO fail-to-baseline residual; no self-test). DR-22
-**accepted** (e-paper 0 °C floor; no heater). DR-18 **default** = no USB-power
-OR (user may still opt in).
+**accepted** (e-paper 0 °C floor; no heater). DR-18 → **D29: USB maintenance
+power ADDED** (verify the new U5/U6/Q3 circuit per item 2 above).
 
 **Skip:** readability/D11/D13 (no schematic — CP2) and staleness re-audit.
 **Form:** concrete numbers, tagged blocker / should-fix / nit.

@@ -121,6 +121,11 @@ Grand total **~$145** for one complete monitor (including extras).
 | RTC1 | **Micro Crystal RV-3028-C7** I²C RTC (45 nA) | 4-pin SMD 3.2×1.5 | 1 | RV-3028-C7 (in stock @ DigiKey 2026-06-18) | 727-RV-3028-C7 | $2.00 | **Δ (D23/DR-8): DS3231 → RV-3028-C7** — 45 nA vs ~0.2 mA; ±1 ppm; integrated crystal + backup switchover/trickle charger |
 | C-bk | Small backup cap (~10 mF–0.1 F) on RV-3028 VBACKUP | SMD | 1 | _verify_ | _verify_ | $0.50 | **Δ (D23): replaces CR2032 + holder** — trickle-charged, rides a full disconnect; no coin, no D14 short risk |
 | U-ESD | USB ESD array (USBLC6-2SC6) | SOT-23-6 | 1 | _verify_ USBLC6-2 | 511-USBLC6-2SC6 | $0.30 | **NEW**: ESD clamp on the external USB-C D+/D−/VBUS (D22) |
+| U5  | 3.3 V LDO (AP2112K-3.3, ~600 mA) | SOT-23-5 | 1 | _verify_ AP2112K-3.3 | _verify_ | $0.20 | **NEW (D29):** VBUS→3V3_USB for USB maintenance power; VBUS-referenced (0 pack draw unplugged) |
+| U6  | **TI TPS2116** priority power mux (~1.3 µA Iq, 2.5 A, reverse-blocking) | SOT-23-6 | 1 | _verify_ TPS2116DRLR | _verify_ | $0.70 | **NEW (D29):** VIN1=USB-LDO (priority), VIN2=U1 buck, OUT=V3V3. USB present → buck idles. Only ~1.3 µA always-on |
+| Q3  | small signal N-FET (UVLO bypass) | SOT-23 | 1 | _verify_ 2N7002 | 512-2N7002 | $0.10 | **NEW (D29):** opens U4 RESET→EN when VBUS present so the MCU boots off USB on a dead/absent pack; VBUS-referenced |
+| C_usb1, C_usb2 | LDO in/out 1 µF X7R | 0603 ×2 | 2 | _verify_ | _verify_ | $0.05 ea | **NEW (D29):** AP2112 in/out caps |
+| R_byp1, R_byp2 | VBUS-present divider → Q3 gate (high-value) | 0805 ×2 | 2 | _verify_ | _verify_ | $0.05 ea | **NEW (D29):** VBUS-referenced |
 | C9  | 100 nF X7R | 0603 | 1 | (unchanged) 311-1141-1-ND | (as C5) | $0.05 | RTC decoupling |
 | R8, R9 | 4.7 kΩ 0805 1 % I²C pull-ups | 0805 | 2 | RMCF0805FT4K70CT-ND | 71-CRCW08054K70FKEA | $0.05 ea | I²C bus pull-ups |
 
@@ -232,6 +237,9 @@ Grand total **~$145** for one complete monitor (including extras).
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | J-USB | **USB-C receptacle** (native ESP32-S3 USB, board edge) | SMD | 1 | _verify_ | | $0.60 | **Δ (D27): bench/recovery port** — reached by popping the faceplate (no front cutout); routine updates OTA over RS-485. Replaces the USB-OTG pin header |
 | U-ESD | USB ESD array (USBLC6-2) | SOT-23-6 | 1 | _verify_ USBLC6-2 | 511-USBLC6-2SC6 | $0.30 | **NEW (D27):** ESD clamp on USB-C D+/D−/VBUS |
+| U3-LDO | 3.3 V LDO (AP2112K-3.3, ~600 mA) | SOT-23-5 | 1 | _verify_ | _verify_ | $0.20 | **NEW (D29):** VBUS→3V3_USB; VBUS-referenced |
+| U4-MUX | **TI TPS2116** priority power mux | SOT-23-6 | 1 | _verify_ TPS2116DRLR | _verify_ | $0.70 | **NEW (D29):** VIN1=USB-LDO (priority), VIN2=R-78E3.3, OUT=V3V3. No UVLO bypass (display has no U4) |
+| C_usb1, C_usb2 | LDO in/out 1 µF X7R | 0603 ×2 | 2 | _verify_ | _verify_ | $0.05 ea | **NEW (D29):** LDO caps |
 | J3  | 4-pin 2.54 mm header (UART debug) | THT | 1 | (same as battery-side J5) | | $0.30 | Internal bench bring-up only |
 | J5  | 2-pin 2.54 mm jumper (term lift) | THT | 1 | (same as battery-side J4) | | $0.20 | |
 

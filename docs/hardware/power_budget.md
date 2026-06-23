@@ -69,6 +69,7 @@ when the pack recovers. No full power-down, no separate supervisor IC
 | ESP32-S3 deep-sleep     | ~10 µA @ 3.3 V → **~0.2 mW**       |
 | 24 V sense divider (1.2 MΩ/100 k) | 24 V / 1.3 MΩ ≈ 18.5 µA → **~0.44 mW** |
 | UVLO supervisor U4 + ~10 MΩ divider (D28) | ~2 µA Iq + ~2 µA divider → **~0.1 mW** |
+| USB power-mux U6 TPS2116 (D29, always-on) | ~1.3 µA → **~4 µW** (the rest of the USB circuit is VBUS-referenced → 0 when unplugged) |
 | RV-3028-C7 RTC (always-on) | 45 nA → **negligible** (D23/DR-8; was DS3231 ~0.5 mW) |
 | Display side (U2 shed)  | 0                                 |
 | **Total from pack**     | **~1.1 mW**                        |

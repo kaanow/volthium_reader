@@ -1412,3 +1412,52 @@ floor.
 the assumption always-on MCU + firmware sufficed; DR-16 is the realization
 that "always-on" also means "un-stoppable when hung." This adds the
 supervisor for ~µA and ~$1, without undoing D19's wake guarantee.
+
+## D29 — USB maintenance power (run/program/troubleshoot off USB) — DR-18
+
+**Decision.** Make the USB-C maintenance port able to **power the MCU** (for
+bring-up, flashing, and field troubleshooting **without a 24 V supply**),
+integrated so it does **not** compromise the hard-cut budget, the UVLO, or
+the always-on architecture. (Supersedes the DR-18 default of "data+ESD
+only.") Earlier DR-18 correction stands: USB does **not** defeat the UVLO
+(U4 gates EN, supply-independent); 5 V must never reach the 3.3 V rail.
+
+**Topology (battery side).**
+- **U5 = 3.3 V LDO** (e.g. AP2112K-3.3, ~600 mA), VBUS (5 V) → 3V3_USB.
+  Powered from **VBUS only**.
+- **U6 = TPS2116** 2-input priority power mux (1.6–5.5 V, 2.5 A, **~1.3 µA
+  Iq / 50 nA standby**, auto switchover, reverse-blocking N-FETs — no
+  Schottky drop): **VIN1 (priority) = 3V3_USB**, **VIN2 = U1 buck 3V3**,
+  **OUT = V3V3**. USB present → output from USB, the LM5166 sees its output
+  held high → **stops switching → pack draw ≈ its ~14 µA Iq**; USB absent →
+  auto-switches to the buck → V3V3 exactly as before.
+- **VBUS-present UVLO bypass = Q3** (small signal FET) in series with U4's
+  open-drain RESET→EN line, **held open while VBUS is present** (gate from a
+  VBUS divider). So with USB in, U4 can't hold EN low → the MCU **boots off
+  USB even with no/low pack** (essential for bench programming). VBUS
+  absent → Q3 closed → UVLO fully active. Referenced to **VBUS only**.
+
+**Display side:** same **LDO + TPS2116** (VIN1 = USB-LDO, VIN2 = R-78E3.3
+output). **No UVLO bypass** (the display has no U4 — it's shed by the battery
+side), so it's simpler.
+
+**Why no requirement is compromised.**
+- **Hard-cut ~1 mW (power-first):** every added part except the mux is
+  **VBUS-referenced → zero pack draw when unplugged** (the unattended state).
+  The mux adds only **~1.3 µA always-on** (~4 µW) — rounding error on 1 mW.
+  Hard-cut stays **≈1 mW**.
+- **D28 UVLO:** the protected scenario (unattended hung MCU) is always
+  USB-absent → UVLO fully active. The bypass relaxes it **only during
+  attended USB sessions**, where the MCU runs off USB and isn't draining the
+  pack anyway. Guarantee intact.
+- **No 5 V on 3.3 V** (LDO regulates); **D19 always-on** unchanged (buck is
+  VIN2; V3V3 identical when unplugged).
+
+**Residual (accepted):** attended USB session **and** a low pack connected
+**and** firmware (mis)enables the display → the display could draw the low
+pack via U2 while you work. Attended/transient, and firmware should not
+enable the display on a low pack. Acceptable. **Trade:** ~LDO + mux + bypass
+FET + passives on the battery side (LDO + mux on display) — the cost is parts
+and a more complex power section, **not** any core requirement. The
+bring-up/programming/troubleshooting value (every hand-built unit) justifies
+it. Exact LDO/mux SKUs + the bypass implementation finalized at CP2/BOM-lock.
