@@ -97,6 +97,9 @@ Grand total **~$145** for one complete monitor (including extras).
 | Rg  | ~1 kΩ 0805 1 % (series gate, Q2 drain → Q1 gate) | 0805 | 1 | _verify_ | _verify_ | $0.10 | **NEW (D19/DR-4)** — works with DZ1 to clamp the gate |
 | R3  | 100 kΩ 0805 1 % (Q1 gate pull-up to V24_FUSED) | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805100KFKEA | $0.10 | Default-OFF load switch |
 | R4  | 100 kΩ 0805 1 % (Q2 gate pull-down to GND) | 0805 | 1 | (same as R3) | (same) | $0.10 | Brown-out failsafe-off |
+| U4  | **TI TPS3890** voltage supervisor (~2.1 µA, adj. SENSE, OD RESET, CT delay) | SOT-23-6/SON | 1 | _verify_ TPS389030DSER-family | _verify_ | $0.80 | **NEW (D28/DR-16):** hardware UVLO backstop — asserts ESP EN low below ~20 V pack → reset MCU (~µA) + auto-shed display. Confirm SKU/threshold at BOM-lock |
+| R_uv1, R_uv2 | UVLO pack divider → U4 SENSE (~10 MΩ-class, ratio for ~20 V trip) | 0805 ×2 | 2 | _verify_ | _verify_ | $0.10 ea | **NEW (D28):** high-value → ~2 µA draw; confirm vs SENSE bias current |
+| C_ct | UVLO CT deglitch cap (~tens of ms) | 0603 | 1 | _verify_ | _verify_ | $0.05 | **NEW (D28):** rejects momentary sags |
 
 ### 24 V sense (always-on)
 

@@ -443,10 +443,14 @@ round: one deep pass, findings into a new §8 subsection, hand back to
 4. **DR-15 — Cat5e 12 V pair TVS.** Battery-end output has no clamp (only
    C4); I propose adding a battery-side 12 V TVS. Near-end-only vs
    both-ends — your call.
-5. **DR-16 — firmware-hang / hardware UVLO.** My recommendation is a µA
-   supervisor that force-sheds Q1 in hardware. Independently assess whether
-   firmware-only is acceptable for an unattended pack. **(Also a user
-   decision.)**
+5. **DR-16 — firmware-hang / hardware UVLO (RESOLVED → verify the design).**
+   User-approved; designed in D28 + `cp1_battery_side.md §4.3a`: **U4 TPS3890**
+   asserts ESP **EN** low below a ~20 V pack floor → MCU to ~µA reset **and**
+   display auto-sheds (PWR_EN Hi-Z → R4/R3 default-OFF). Verify: (a) the
+   EN-assert→auto-shed chain actually holds Q1 off in reset; (b) the ~20 V
+   trip / ~22 V release sits safely below the firmware shed and above pack
+   damage; (c) the ~10 MΩ SENSE divider value vs the TPS3890 SENSE bias
+   current; (d) U4 SKU/stock; (e) hard-cut still ≈1 mW.
 
 **Broad independent sweeps (the net that catches the next X/Y-class error):**
 6. **Full abs-max-vs-worst-case table for every semiconductor on BOTH

@@ -359,7 +359,7 @@ SMAJ15A, matching the display end) — cheap symmetric protection. Standard
 practice on long exposed DC pairs is a clamp at **both** ends.
 **Confidence: medium**; reviewer to judge near-end-only vs both-ends.
 
-## DR-16 — "Must not finish off a low pack" rests entirely on firmware  [OPEN — architecture call: USER + reviewer]
+## DR-16 — "Must not finish off a low pack" rests entirely on firmware  [RESOLVED 2026-06-22 — user-approved: hardware UVLO backstop, see D28]
 
 **Issue.** The load-shed-at-low-SOC guarantee (the product's core safety
 promise) depends on firmware: the ESP must read V24_SENSE, deep-sleep, and
@@ -379,3 +379,15 @@ the user singled out, for ~µA and ~$1; the power-first tension is negligible
 at µA. **Needs a user decision** (accept the part + µA?) and the reviewer's
 independent take on whether firmware-only is acceptable for an unattended
 pack.
+
+**RESOLVED 2026-06-22 (user-approved).** Option (b), refined: an
+**EN-asserting** supervisor (**U4 = TPS3890**), not a Q1-only shed. The key
+realization from the design discussion: the dominant low-SOC drain is the
+**MCU itself** (~38 mA), not the display (~5 mA), so the backstop must act
+on the MCU. Asserting ESP **EN** low (i) drops the MCU to ~µA reset and
+(ii) auto-sheds the display for free (PWR_EN Hi-Z → R4/R3 default-OFF) — and
+because it's EN, not power, the MCU stays wakeable (D19 intact). Floor
+~20 V trip / ~22 V release, CT-deglitched. Full design + topology + power in
+**D28** and `cp1_battery_side.md §4.3a`. **Reviewer (iter-3):** verify the
+threshold/divider, the EN-assert→auto-shed chain, U4 SKU/stock, and that the
+floor sits safely below the firmware shed.
