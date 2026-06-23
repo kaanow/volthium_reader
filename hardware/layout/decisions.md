@@ -1357,3 +1357,58 @@ No separate config radio (config is via the 3 buttons + on-screen labels).
   derived from it and specified in the CP-layout docs, not left open.
 
 (PTC also tightened to ~0.25 A hold — DR-11.)
+
+## D28 — Hardware UVLO backstop (independent low-pack supervisor) — DR-16
+
+**Decision.** Add a micropower hardware voltage supervisor (**U4 = TI
+TPS3890**, ~2.1 µA Iq, adjustable threshold via SENSE, open-drain RESET,
+programmable deglitch) as an **independent backstop** to the firmware's
+low-SOC load-shed. This closes the gap that D19's always-on MCU created:
+the firmware-only shed protects against a *dead* MCU (R3 defaults Q1 OFF)
+but **not** a *hung-but-powered* MCU, which keeps drawing ~38 mA at low SOC
+— the dominant low-SOC load (the display is only ~5 mA) and exactly the
+failure "must not finish off a low pack" exists to prevent.
+
+**Operational relationship — two staggered layers (they never fight):**
+- **Layer 1 — firmware (smart, primary).** BLE/sense-informed SOC, tiered
+  shedding, hysteresis, deep-sleep; sheds the display at ~10 % SOC. Does
+  ~100 % of the work in a healthy system.
+- **Layer 2 — hardware (dumb floor, backstop).** U4 monitors the **pack**
+  voltage and, below a hard floor **set *below* the firmware's range**,
+  asserts the ESP **EN** low. Fires only if Layer 1 failed and let the bus
+  droop to the floor. Silent (insurance) in normal operation because the
+  firmware always sheds at a higher voltage first.
+
+**Why EN-assert, not power-cut (preserves D19's wake guarantee).** U4's
+open-drain RESET pulls the **ESP EN** node low. That (a) drops the MCU to
+its ~µA reset state — killing the ~38 mA hung drain — and (b) **auto-sheds
+the display for free**: a reset MCU floats GPIO4 (PWR_EN) Hi-Z → R4 holds
+Q2 off → R3 holds Q1 off → display dark. No separate Q1-override part
+needed; it reuses the existing default-OFF chain. Because it asserts **EN**
+(not power), the MCU stays powered on the always-on rail; on recovery U4
+releases EN → the MCU **cold-boots fresh** (which also un-hangs it) and
+resumes. So DR-4's "fully-unpowered MCU can't wake" problem is *not*
+reopened — this is the key difference from a hysteretic power-cut.
+
+**Threshold.** Floor trip ~**20 V** pack (≈2.5 V/cell, the LiFePO₄ cliff —
+well below the firmware's ~10 % SOC shed), release ~**22 V** (built-in
+hysteresis + the CT deglitch rejects momentary sags). LiFePO₄ voltage is a
+poor mid-SOC proxy but **sharp at this low knee**, so a voltage floor is
+well-suited *here* even though it'd be a bad primary SOC method. U4 senses
+the pack via a dedicated high-value divider (~10 MΩ-class → ~2 µA) — kept
+high to protect the power-first budget; exact value + the SENSE-bias-current
+accuracy tradeoff to confirm at CP2/BOM-lock.
+
+**Power.** ~2 µA divider + 2.1 µA U4 Iq ≈ **~0.06 mW** added; hard-cut stays
+**≈1 mW**. The EN-asserted floor state (~µA, chip in reset) is actually
+*lower* power than the firmware deep-sleep state it backstops.
+
+**Override-button precedence.** The hardware floor **wins** over the
+panel-mount manual override — a user can't force the display on below the
+floor (can't drain a dead pack). The override only re-engages above the
+floor.
+
+**Supersedes** D19's "no separate supervisor IC" stance: D19 omitted it on
+the assumption always-on MCU + firmware sufficed; DR-16 is the realization
+that "always-on" also means "un-stoppable when hung." This adds the
+supervisor for ~µA and ~$1, without undoing D19's wake guarantee.

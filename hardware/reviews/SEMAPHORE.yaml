@@ -28,9 +28,14 @@ note: >
   recommend a µA hardware UVLO backstop.
   (Earlier iter-2 fixes still stand: LM5166YDRCR, module 103×78.5, WiFi/RS-485
   mutual-exclusion policy.)
-  USER decisions open: DR-12 fuse type, DR-13 bias value, DR-15 TVS add-part,
-  **DR-16 hardware UVLO (architecture)**, the iter-2 Finding-03 policy, and
-  clearance to start CP2 (HELD). Reviewer can be triggered for the iter-3
-  deep pass per packet §10 whenever you want.
+  ALL fresh-look findings now resolved: DR-12 (time-lag fuse), DR-13 (bias
+  330 Ω), DR-15 (battery 12 V TVS) applied; **DR-16 RESOLVED — user approved
+  the hardware UVLO backstop (D28): U4 TPS3890 asserts ESP EN low below
+  ~20 V pack → MCU to µA reset + display auto-sheds; EN-assert (not
+  power-cut) keeps the MCU wakeable, D19 intact.** Propagated to
+  cp1_battery_side §4.3a, both BOMs, power_budget, decisions D28.
+  Remaining USER items: clearance to start CP2 (still HELD), and triggering
+  the reviewer for the iter-3 deep pass (packet §10 — now also asks the
+  reviewer to verify the D28 UVLO design).
 
 user_pause_reasons_seen_this_run: []

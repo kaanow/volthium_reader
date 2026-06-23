@@ -227,6 +227,39 @@ substantial. Increased to 100 kΩ (24 V / 100 kΩ = 240 µA). Q1's gate
 capacitance is ~330 pF; even at 100 kΩ the RC turn-OFF time is
 ~33 µs, plenty fast for a load switch.
 
+### 4.3a UVLO backstop — hardware low-pack supervisor (D28 / DR-16)
+
+Independent hardware floor below the firmware's smart shed. Protects against
+a **hung-but-powered** MCU (~38 mA, the dominant low-SOC load) that the
+firmware-only shed + R3 default-OFF do **not** cover (R3 only handles a
+*dead* MCU).
+
+| Ref | Part | Pkg | Qty | Rationale |
+|-----|------|-----|-----|-----------|
+| U4  | **TI TPS3890** voltage supervisor (~2.1 µA Iq, adjustable SENSE, open-drain RESET, prog. CT delay) | SOT-23-6 / SON | 1 | Asserts ESP **EN** low when the pack droops below the hardware floor. Powered from always-on V3V3 |
+| R_uv1, R_uv2 | high-value pack divider → U4 SENSE (~10 MΩ-class, ratio sets ~20 V trip) | 0805 ×2 | 2 | From V24_FUSED. ~10 MΩ keeps draw ~2 µA (power-first); confirm value vs SENSE bias current at CP2/BOM-lock |
+| C_ct | CT delay cap (deglitch, ~tens of ms) | 0603 | 1 | Rejects momentary sags so only a sustained low-pack condition trips the floor |
+
+**How it acts (reuses the existing default-OFF chain — no extra Q1 driver):**
+U4 RESET (open-drain) ties to the **EN/RESET# node** (already pulled up by
+R7). Below the floor it pulls EN low →
+1. the ESP drops to its ~µA reset state — **kills the ~38 mA hung drain**, and
+2. a reset ESP floats **GPIO4 (PWR_EN) Hi-Z → R4 holds Q2 OFF → R3 holds Q1
+   OFF → display shed** — automatically.
+
+On recovery (pack ≥ release threshold + hysteresis) U4 releases EN → the ESP
+**cold-boots fresh** (un-hangs) and resumes. Asserting **EN, not power**,
+keeps the MCU wakeable (D19 intact; DR-4 not reopened).
+
+**Thresholds:** trip ~**20 V** pack (LiFePO₄ cliff, well below the firmware's
+~10 % SOC shed), release ~**22 V**. The two layers never fight — staggered
+voltages; the hardware floor is silent in normal operation. **Override
+button:** the hardware floor wins (can't force-drain a dead pack).
+
+**Power:** ~2 µA divider + 2.1 µA Iq ≈ **~0.06 mW**; hard-cut stays ≈1 mW.
+The EN-asserted floor (~µA, chip in reset) is *lower* power than the firmware
+deep-sleep state it backstops.
+
 ### 4.4 24 V sense (always-on)
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
@@ -338,7 +371,7 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | Net          | Voltage     | Source                | Sinks                                         | Notes |
 |--------------|-------------|-----------------------|-----------------------------------------------|-------|
 | V24_RAW      | 24–28 V     | J1 pin 1             | F1                                            | Pack tap, unfused |
-| V24_FUSED    | 24–28 V     | D1 cathode           | Q1 source, R5 top (sense divider), R3 (Q1 gate pull-up), TVS1 | Always-alive 24 V rail (post-fuse, post-reverse). Only loads are the load-switch input, the sense divider, the gate pull-up, and the TVS clamp — minimal idle draw |
+| V24_FUSED    | 24–28 V     | D1 cathode           | Q1 source, R5 top (sense divider), R3 (Q1 gate pull-up), TVS1, **R_uv1 (UVLO divider top)** | Always-alive 24 V rail (post-fuse, post-reverse). Loads: load-switch input, sense divider, gate pull-up, TVS clamp, and the ~10 MΩ UVLO divider (~2 µA, D28) — minimal idle draw |
 | V24_SW       | 24–28 V     | Q1 drain             | R-78HB12 VIN (U2) only                         | Switched 24 V branch downstream of the load switch. Feeds **only** U2 (12 V/display). Collapses when PWR_EN is LOW/Hi-Z — sheds the display, **not** the MCU |
 | V3V3         | 3.3 V       | LM5166 VOUT (U1)     | ESP3V3, RTC VCC, U3 VCC, R8/R9, R13, C6/C7/C8 | **Always-on** 3.3 V (D19). Powers the MCU in every state; never gated. No RS-485 bias here (display-end only) |
 | V12_CAT5E    | 12 V        | R-78HB12 VOUT (U2)   | J2 RJ45 pins 1/2/3, C4, **TVS3**              | Powers display side over Cat5e; off when Q1 sheds it. TVS3 clamps cable surges at this end (DR-15) |
@@ -354,7 +387,7 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | PWR_EN       | 3.3 V LV    | ESP IO4              | Q2 gate, R4 pull-down to GND                  | **Active-HIGH**: HIGH = rails ON; LOW or Hi-Z = rails OFF. Canonical truth table in §8 |
 | BTN_OVERRIDE | 3.3 V LV    | BTN1 + R13           | ESP IO7 (RTC-wake capable)                    | Active-LOW; pulled HIGH by 1 MΩ |
 | RTC_BACKUP   | ~3.0 V      | C-bk (backup cap)    | RTC1 VBACKUP                                  | RTC ride-through (trickle-charged by RV-3028) |
-| RESET#       | 3.3 V LV    | ESP EN pin / J5 pin 4 | -                                            | Pulled HIGH via R7 + C8 (RC soft-start) |
+| RESET#       | 3.3 V LV    | ESP EN pin / J5 pin 4 | **U4 RESET (open-drain)**                     | Pulled HIGH via R7 + C8 (RC soft-start); **U4 (UVLO, D28) pulls it LOW below the ~20 V pack floor** → ESP held in reset → display auto-sheds via PWR_EN Hi-Z |
 
 ## 6. ESP32-S3 pin assignment
 
