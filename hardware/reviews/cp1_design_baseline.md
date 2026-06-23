@@ -368,6 +368,267 @@ divider is the documented fallback — but do **not** substitute `LM5166XDRCR`
 
 ---
 
+## 8.2 Reviewer findings (iteration 2)
+
+**Scope:** Comprehensive single verification pass per §10/§11 and user brief.
+Re-derived D19 coordination, D28 UVLO, D29 USB power, DR-12…DR-23, iter-1
+RESOLVED items, board-wide abs-max sweep, datasheet-support check, and ESP
+strap audit on both boards. Skipped D11/readability (CP2) and staleness
+re-audit per brief.
+
+### Re-derivation summary
+
+| # | Topic | Verdict | Key numbers |
+|---|-------|---------|-------------|
+| 1 | D19 power-tree coordination (§3.1) | **PASS** | VC = **53.3 V** @ IPP 7.5 A; 60 V floor **+6.7 V (12.6 %)**; BZX84C12 **≤12.7 V** vs Vgs ±20 V (**≥36 %**); 1 A fused tap → Ipp ≪ 7.5 A |
+| 2 | LM5166 **Y**DRCR = 3.3 V (iter-1 F01) | **PASS** | TI §6.5: **LM5166Y** 3.23–3.37 V; **LM5166X** 4.9–5.1 V; docs commit **YDRCR** |
+| 3 | D28 UVLO (§4.3a) | **PASS w/ fixes** | EN→auto-shed chain sound; **release is ~20.12 V not 22 V** (F09); divider **10 MΩ** below TI bias rule (F08) |
+| 4 | D29 USB power (§4.3b) | **PASS w/ fixes** | LDO isolates 5 V; TPS2116 RCB blocks buck backfeed; Q3 gate bias underspecified (F07); ~**1.3 µA** mux → hard-cut **~1.1 mW** |
+| 5 | DR-6 sense/ADC | **PASS** | 29.2 V → **2.25 V**; Thevenin **92 kΩ** + C5 **100 nF** → τ **9.2 ms**; ΔV/charge-share **≈0.2 mV** at ≤1 Hz |
+| 6 | DR-12 fuse vs inrush | **PASS** | Inrush I²t **~0.06–0.13 A²s**; **0215001.MXP** I²t = **1.52 A²s** → **≥12×** headroom |
+| 7 | DR-13 RS-485 bias | **PASS** | 330 Ω → **275 mV** idle; SN65HVD3082E offset receiver **VIT+ max −10 mV** → idle at 0 V already fail-safe HIGH |
+| 8 | DR-14 display 12 V TVS | **PASS (logged)** | SMAJ15A VC **24.4 V** vs R-78E3.3 abs-max **28 V** → **+3.6 V (14.8 %)** — tightest display-side coordination |
+| 9 | DR-15 battery 12 V TVS | **PASS** | TVS3 SMAJ15A at J2 symmetric with display end |
+| 10 | DR-17 brownout vs UVLO | **PASS** | ESP brownout **2.43 V** on 3V3; U4 trips at **~20 V pack** while LM5166 still regulates — no fight |
+| 11 | DR-19 grounding loop | **PASS** | Single shield bond battery RJ45; display shield NC (`cat5e_pinout.md`) |
+| 12 | DR-20 Cat5e EMC | **PASS** | RS-485 on pair 1, 12 V on pairs 2–4; slew-limited transceiver; DNP choke escape hatch OK |
+| 13 | DR-21 FMEA | **PASS** | U4 silent fail → firmware-only baseline; accepted per user |
+| 14 | DR-22 cold floor | **PASS** | E-paper **0 °C** is BOM floor; all other actives **−40 °C** |
+| 15 | DR-23 RTC backup cap | **PASS** | Low-leakage **10–50 mF** ≫ supercap µA leakage; VBACKUP **5.5 V** > 3.3 V trickle |
+| 16 | Iter-1 fixes (02–04) | **PASS** | Module **103.0×78.5 mm**; WiFi/RS-485 mutual-exclusion closes **530 mA** case |
+| 17 | Board-wide abs-max sweep | **PASS (1 flag)** | One **<20 %** voltage margin on display 12 V path (DR-14); all others ≥20 % or non-repetitive transient |
+| 18 | Datasheet support parts | **PASS w/ CP2 TODOs** | LM5166 EN/SS/ILIM strapping not yet in CP1 (F10); TPS2116 suggests **~100 µF** on OUT if RCB frequent (F11) |
+
+### Board-wide abs-max vs worst-case (semiconductors)
+
+**Battery side**
+
+| Ref | Part | Worst-case stress | Abs-max / rating | Margin |
+|-----|------|-------------------|------------------|--------|
+| D1 | SS26 | VRRM **53.3 V** clamp | **60 V** | **12.6 %** (non-rep. transient) |
+| Q1 | ZXMP6A13F | Vds **53.3 V** (open) | **60 V** | **12.6 %** |
+| Q2, Q3 | 2N7002 | Vds **53.3 V** | **60 V** | **12.6 %** |
+| U1 | LM5166YDRCR | VIN **53.3 V**; IOUT **≤500 mA** WiFi | VIN **65 V**; IOUT **500 mA** | **22 %** V; **0 %** I (policy-limited) |
+| U2 | R-78HB12 | VIN **53.3 V**; IOUT **~50 mA** | VIN **72 V**; **0.5 A** | **35 %** V; **90 %** I |
+| U3 | SN65HVD3082E | VCC **3.3 V**; DE/RE shutdown in WiFi | **6 V**; **±60 mA** drv | ample |
+| U4 | TPS389001 | SENSE **~1.15 V**; VDD **3.3 V** | SENSE **5.5 V**; VDD **5.5 V** | ample |
+| U5 | AP2112K-3.3 | VIN **5 V** USB | **6 V** | **20 %** |
+| U6 | TPS2116 | VIN/O **3.3 V** | **5.5 V** | **67 %** |
+| TVS1 | SMAJ33CA | Clamps at **53.3 V** | VC spec | coordinated |
+| TVS2/3 | SMAJ12/15 | Clamps below downstream | coordinated | OK |
+| DZ1 | BZX84C12 | **12.7 V** Vgs max | **20 V** Vgs abs-max | **36 %** |
+| MOD1 | ESP32-S3-WROOM-1 | 3.3 V rail; WiFi peak **~350–500 mA** | Module-rated | within module |
+
+**Display side**
+
+| Ref | Part | Worst-case stress | Abs-max / rating | Margin |
+|-----|------|-------------------|------------------|--------|
+| TVS1 | SMAJ15A | VC **24.4 V** @ IPP | — | — |
+| U1 | R-78E3.3 | VIN **24.4 V** clamp | VIN **28 V** | **14.8 %** ⚠ |
+| U2 | SN65HVD3082E | same as battery | ample | OK |
+| U3-LDO | AP2112K-3.3 | VIN **5 V** | **6 V** | **20 %** |
+| U4-MUX | TPS2116 | **3.3 V** | **5.5 V** | **67 %** |
+| MOD1 | ESP32-S3-WROOM-1 | refresh **~25 mA** avg | within **0.5 A** brick | ample |
+
+⚠ = only part under **20 %** voltage margin; acceptable at IPP ≪ max (same class as 60 V floor on battery side) but **do not substitute** a lower-VC TVS or lower-VIN regulator without re-coordinating.
+
+---
+
+### Finding 01 — should-fix — D28 UVLO release voltage mis-stated (~20.12 V, not ~22 V)
+
+**Issue:** `cp1_battery_side.md` §4.3a and D28 claim trip **~20 V** / release
+**~22 V** (2 V hysteresis). TPS389001 built-in hysteresis is **VHYST =
+0.33–0.83 %** of VITN (TI TPS3890 datasheet §6.5) → ΔV_SENSE ≈ **4–10 mV**.
+With a divider sized for 20 V trip (V_SENSE/V_pack = 1.15/20 = **0.0575**),
+pack release ≈ **20.07–20.17 V**, not 22 V.
+
+**Evidence:** TPS389001 VITN = **1.15 V**, VITP = **1.157 V** (typ); pack
+release = 1.157/0.0575 = **20.12 V**. Only **~0.12 V** above trip.
+
+**Suggested fix:** Correct all "release ~22 V" prose to the computed **~20.1 V**.
+At CP2, confirm cold-boot after release does not re-trip (large load step OFF
+at assert likely rebounds pack ≫0.12 V — but document the real hysteresis).
+If bench shows chatter, add external hysteresis or raise trip — do not rely on
+a non-existent 2 V band.
+
+---
+
+### Finding 02 — should-fix — D28 UVLO divider (~10 MΩ) violates TPS3890 SENSE bias-current rule
+
+**Issue:** ~**10 MΩ** divider on V24_FUSED draws **~2 µA** at 20 V. TI requires
+divider current **≥100× I_SENSE** (I_SENSE max **100 nA**) → **≥10 µA**
+(TPS3890 datasheet §8.3.4 / SLVA450). At 2 µA the threshold error from bias
+current can reach **several percent** — enough to shift a 20 V floor by
+**~0.5–1 V**.
+
+**Evidence:** I_div = 20 V/10 MΩ = **2 µA** vs required **≥10 µA**. At
+**R_TOTAL = 2.2 MΩ**: I = **9.1 µA** at 20 V → meets rule; added draw
+29 V/2.2 MΩ = **13 µA** → **~0.38 mW** at full charge (still ≪ hard-cut budget).
+
+**Suggested fix:** Size **R_uv1+R_uv2 ≈ 2.0–2.2 MΩ** (not 10 MΩ) for ~20 V
+trip with TPS389001. Recompute R1/R2 at CP2; update §4.3a, D28, and
+`power_budget.md` UVLO row (~0.1 mW → ~0.4 mW — hard-cut becomes **~1.3 mW**,
+still acceptable).
+
+---
+
+### Finding 03 — should-fix — D29 Q3 UVLO-bypass gate bias not fully specified (default must be UVLO **active**)
+
+**Issue:** Q3 gate is driven only from a **VBUS-referenced** divider (D29).
+With N-FET in series on U4 RESET→EN: **VBUS absent → gate = 0 V → FET OFF →
+U4 disconnected from EN → UVLO bypassed** (opposite of intent). The prose
+requires Q3 **closed** (UVLO active) when USB is out.
+
+**Evidence:** `cp1_battery_side.md` §4.3b — "R_byp1/R_byp2 … VBUS-referenced"
+with no **V3V3 pull-up** or other default-ON bias documented.
+
+**Suggested fix:** At CP2, use **gate default-ON from V3V3** (e.g. **100 kΩ**
+to V3V3) with VBUS (via resistor/diode) pulling gate **LOW** when present to
+**open** the FET. Document truth table: VBUS absent → Q3 ON → U4 drives EN;
+VBUS present → Q3 OFF → U4 isolated. Verify Vol/I_RESET sink through Q3
+RDS(on) ≪ R7 (**10 kΩ**).
+
+---
+
+### Finding 04 — should-fix — Display-side D29 not reflected in §5 net list / decoupling
+
+**Issue:** `cp1_display_side.md` §4.3 adds **U3-LDO + U4-MUX (TPS2116)** but
+§5 still has **V3V3 ← U1 VOUT** only — no **3V3_USB**, **VBUS**, or mux OUT
+path. Decoupling table (§9) omits **C_usb1/C_usb2** and mux input caps.
+
+**Evidence:** `cp1_display_side.md` §266 vs §171–172; battery-side §5 was
+updated (V3V3 ← U6 OUT).
+
+**Suggested fix:** Mirror battery-side net list: V3V3 ← U4-MUX OUT; 3V3_USB ←
+U3-LDO; VBUS → U-ESD/U3-LDO; add D29 caps to §9. Prevents CP2 capture from
+OR-ing VBUS into V3V3 by accident.
+
+---
+
+### Finding 05 — should-fix — Display ESP32 strap pins undocumented (GPIO3/45/46)
+
+**Issue:** Battery side documents GPIO0/3/45/46 straps (§6). Display side §6
+lists GPIO0 only — omits **GPIO3** (USB-JTAG), **GPIO45** (VDD_SPI), **GPIO46**
+(boot). Same WROOM-1 module → same strap requirements.
+
+**Evidence:** Espressif ESP32-S3 strapping table; `cp1_display_side.md` §6
+vs `cp1_battery_side.md` §428–448.
+
+**Suggested fix:** Add GPIO3/45/46 as **NC (internal default)** on display
+side §6; CP2 ERC check both boards.
+
+---
+
+### Finding 06 — should-fix — `cp1_battery_side.md` §7 State 3 still cites RV-3028 **150 µA** (DS3231 stale)
+
+**Issue:** State 3 row lists **"RV-3028 ~150 µA"** — the DS3231 figure. D23/DR-8
+swapped to RV-3028-C7 at **45 nA**. `power_budget.md` is correct; §7 is not.
+
+**Evidence:** `cp1_battery_side.md` §7 line 464 vs `power_budget.md` State 3
+(**45 nA**). Error does not change ~0.13 W total materially but contradicts
+D23.
+
+**Suggested fix:** Replace **~150 µA** → **~45 nA (negligible)** in §7 State 3.
+
+---
+
+### Finding 07 — nit — §3.1 coordination table still labels U1 "LM5166**X**" buck
+
+**Issue:** Part is **LM5166YDRCR (Y = 3.3 V)** everywhere else; §3.1 table
+row says **"LM5166X buck"** — the suffix that means **5 V**.
+
+**Evidence:** `cp1_battery_side.md` §3.1 line 122; TI datasheet suffix table.
+
+**Suggested fix:** Rename row to **LM5166Y** (or "LM5166 3.3 V fixed") in §3.1
+and §4.2 thermal bullet.
+
+---
+
+### Finding 08 — nit — Display §3 ASCII power tree still shows **0.5 A** PTC (DR-11 → 0.25 A)
+
+**Issue:** Component table and BOM specify **~0.25 A hold** (DR-11); §3 ASCII
+diagram still says **"0.5 A hold"**.
+
+**Evidence:** `cp1_display_side.md` §3 line 127 vs §4.1 line 153.
+
+**Suggested fix:** Update ASCII to **~0.25 A hold**.
+
+---
+
+### Finding 09 — nit — C-bk spec in §4.5 still allows "**~0.1 F**" supercap class
+
+**Issue:** DR-23 tightened to **low-leakage 10–50 mF, not a leaky supercap**.
+§4.5 C-bk line still says **"~10 mF–0.1 F"** which invites a supercap whose
+µA leakage dwarfs 45 nA RTC.
+
+**Evidence:** `cp1_battery_side.md` §4.5 C-bk vs DR-23 resolution.
+
+**Suggested fix:** Cap upper bound at **~50 mF low-leakage ceramic/tantalum**;
+explicit "no supercap" note.
+
+---
+
+### Finding 10 — nit (CP2 gate) — LM5166 EN/SS support network not in CP1 BOM
+
+**Issue:** LM5166 requires **EN** above **1.22 V** to start (datasheet §6.5).
+CP1 lists C1/C2/L1 but not **EN tie** (typically EN→VIN or divider), **SS**
+pin disposition (900 µs default vs cap), or **ILIM** resistor if not default.
+
+**Evidence:** LM5166 datasheet §7.3 / typical application; `cp1_battery_side.md`
+§4.2, §10.
+
+**Suggested fix:** CP2 schematic: document EN strapping (recommend **EN tied
+to V24_FUSED** for always-on), SS pin open or per datasheet, default ILIM.
+Add to decoupling table.
+
+---
+
+### Finding 11 — nit (CP2 gate) — TPS2116 reverse-current blocking vs output capacitance
+
+**Issue:** When USB powers V3V3, buck output on VIN2 is held high; TPS2116
+RCB blocks reverse current at VOUT > VIN + **42 mV** (datasheet §7.3.4). TI
+recommends **~100 µF** on OUT if RCB is expected — design has **C2 22 µF +
+C6 10 µF ≈ 32 µF**.
+
+**Evidence:** TPS2116 datasheet §7.3.4; `cp1_battery_side.md` §10.
+
+**Suggested fix:** Likely fine for rare USB plug events; at CP2 either add
+**~47 µF** on V3V3 or note in layout that USB hot-plug scope should show
+VOUT spike **<5.5 V** abs-max on mux/buck pins.
+
+---
+
+### Verified RESOLVED items (iter-1 + DR-12…DR-23) — no reopen
+
+| Item | Independent result |
+|------|-------------------|
+| F01 LM5166 YDRCR | **Confirmed** — Y=3.3 V, X=5 V; never order XDRCR |
+| F02 module 103×78.5 mm | **Confirmed** — Waveshare Module (B) driver PCB |
+| F03 WiFi 500 mA | **Confirmed** with mutual-exclusion policy; sub-ms peaks on C2 |
+| F04/05 bias wording | **Confirmed** fixed |
+| DR-12 time-lag fuse | **Confirmed** — 0215001.MXP I²t **1.52 A²s** vs **~0.1 A²s** inrush |
+| DR-13 330 Ω bias | **Confirmed** — **275 mV** idle; chip offset thresholds make this ample |
+| DR-14 SMAJ15A / R-78E3.3 | **Confirmed** — **24.4 V** vs **28 V** (**14.8 %**) |
+| DR-16 EN→auto-shed | **Confirmed** — reset → GPIO4 Hi-Z → R4/R3 → Q1 OFF |
+| DR-17 brownout ordering | **Confirmed** — U4 @ 20 V pack precedes 3V3 brownout |
+| DR-18/D29 5 V isolation | **Confirmed** — AP2112 regulates; no raw VBUS on V3V3 |
+| DR-19 single-point GND | **Confirmed** per `cat5e_pinout.md` |
+| DR-21 fail-to-baseline | **Confirmed** — acceptable per user |
+| DR-22/DR-23 | **Confirmed** — not reopened |
+
+**Part reality spot-check (DigiKey/TI/Mouser, 2026-06-22):** LM5166YDRCR
+(Active, stock varies), RV-3028-C7 (Active), ZXMP6A13F (Active), R-78HB12-0.5
+(Active), TPS389001 family (Active), TPS2116DRLR (Active), AP2112K-3.3TRG1
+(Active), Waveshare 4.2" Module (B) DK **1738-1135-ND**, SN65HVD3082E (Active).
+Low-profile RJ45 class (e.g. SUYIN 100362-series **~4.4 mm** above PCB) exists —
+confirm exact SKU at BOM-lock.
+
+---
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 6 should-fix, 5 nit. (See findings 01–06.)
+
+---
+
 ## 9. Claude's responses (iteration 2, 2026-06-21)
 
 All eight findings addressed this turn (the user pulled the brakes on
