@@ -489,10 +489,13 @@ one deep pass, findings to a new §8 subsection, hand back to `user_turn`.
    Confirm: brownout (2.43 V on 3V3) vs UVLO (~20 V pack) ordering can't
    chatter (U4 always fires first); the open-drain/C8 edge + R7·C8 = 10 ms
    release gives a clean single boot; CT deglitch value vs LM5166 start-up.
-2. **DR-18 — USB-C VBUS must not back-feed 3V3 (latent layout trap).** I set
-   the design rule: VBUS → ESD array only, **never V3V3** (which is solely
-   U1). This keeps USB from fighting the buck *and* from defeating the D28
-   UVLO floor. Confirm both boards' netlists keep VBUS off V3V3.
+2. **DR-18 — USB-C VBUS / 3V3 (bare-tie trap + USB-power correction).** Rule:
+   VBUS → ESD array only, **never V3V3** (sourced solely by U1) — the 5 V/
+   3.3 V conflict is the real reason. **Correction:** USB power does *not*
+   defeat the UVLO (U4 gates EN, supply-independent) — verify that reasoning.
+   USB-powering the MCU is achievable via a µA OR but **not added** (designer
+   default; budget + bench-supply rationale). Confirm both netlists keep VBUS
+   off V3V3.
 3. **DR-19 — grounding/shield as a loop.** Per-board clean (single-point
    shield bond, battery end). Trace the full link: exactly one
    signal-GND-to-chassis tie, no inadvertent second tie at the display.
@@ -511,9 +514,10 @@ one deep pass, findings to a new §8 subsection, hand back to `user_turn`.
    ~10–50 mF (a supercap's µA leakage would dwarf the 45 nA RTC and *shorten*
    hold time). Verify the leakage argument + VBACKUP max vs trickle.
 
-**User-decision items surfaced (flag for the human, don't resolve):**
-DR-21 (accept the UVLO fail-to-baseline residual vs add self-test) and
-DR-22 (accept "display blank below 0 °C, logging continues" for the cabin).
+**User decisions — now made (do NOT reopen, just verify the engineering):**
+DR-21 **accepted** (UVLO fail-to-baseline residual; no self-test). DR-22
+**accepted** (e-paper 0 °C floor; no heater). DR-18 **default** = no USB-power
+OR (user may still opt in).
 
 **Skip:** readability/D11/D13 (no schematic — CP2) and staleness re-audit.
 **Form:** concrete numbers, tagged blocker / should-fix / nit.

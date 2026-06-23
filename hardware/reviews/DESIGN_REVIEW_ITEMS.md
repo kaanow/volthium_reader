@@ -429,27 +429,41 @@ whether the board boots, so any interaction is high-stakes.
 **Reviewer:** verify the brownout-vs-UVLO ordering, the open-drain/C8 edge,
 and the CT deglitch value vs LM5166 start-up.
 
-## DR-18 — USB-C VBUS must NOT back-feed the 3.3 V rail (and must not defeat the UVLO)  [RESOLVED — design rule set; CP2 must honor]
+## DR-18 — USB-C VBUS / 3.3 V interaction (bare-tie trap; optional USB-power)  [RESOLVED 2026-06-22 — designer default: VBUS = data+ESD only; USB-power opt-in (user may override)]
 
 **Issue (latent layout trap).** The maintenance USB-C carries 5 V VBUS. Dev-
-board reference schematics routinely diode-OR VBUS into the system 3.3 V via
-an LDO. If that pattern is copy-pasted at CP2, two bad things happen: (a) 5 V
-VBUS fights the LM5166's 3.3 V output, and (b) **plugging in USB would power
-the board and *defeat the D28 UVLO floor*** — exactly the dead-pack
-protection we just added.
+board reference schematics routinely OR VBUS into the system 3.3 V. If that
+pattern is copy-pasted at CP2, 5 V lands on the 3.3 V rail and fights the
+LM5166 / destroys 3.3 V parts.
 
-**Resolution (design rule for CP2).** The 3.3 V rail is sourced **solely by
-U1 (LM5166)**. **VBUS connects only to the USBLC6 ESD array (+ optionally a
-VBUS-present sense GPIO via a high-value divider) — never to V3V3.** Native
-ESP32-S3 USB needs only D+/D−/GND for flash/console/JTAG; VBUS-as-power is
-not required. Consequence, by design: USB cannot back-feed the buck, and
-cannot override the UVLO floor (you can't run a dead pack from the laptop).
-Field/bench recovery still works whenever the pack is healthy (≥ release
-threshold), because then V3V3 is alive from U1 and USB enumerates normally.
+**Correction (2026-06-22).** My first write of this item also claimed USB
+power would "defeat the D28 UVLO floor." **That was wrong.** U4 asserts the
+ESP **EN** pin, which holds the chip in reset **independent of where 3.3 V
+comes from** — so USB power does *not* defeat the UVLO; the pack stays
+protected either way. The only real reason not to bare-tie VBUS→V3V3 is the
+5 V-vs-3.3 V voltage conflict.
 
-**Applies to both boards** (display J-USB identically: VBUS→ESD only, V3V3
-from R-78E3.3). **Reviewer:** confirm the netlists keep VBUS off V3V3 on
-both boards.
+**Could the MCU run off USB (user question)?** Yes, and with ~zero pack draw
+— but it is **not** automatic: it needs a **µA-class power-OR** (ideal-diode
+/ LDO from VBUS into V3V3, priority over the buck). With it, USB present →
+the LM5166 sees its output already high → stops switching → pack draw ≈ its
+~14 µA quiescent. UVLO via EN is unaffected.
+
+**Resolution (user-confirmed default): keep VBUS = data + ESD only; do NOT
+add the USB-power OR.** Rationale: (a) the benefit is mainly bench bring-up
+without a 24 V supply — a convenience a bench 24 V already covers; (b) any
+always-on OR element taxes the hard-cut ~1 mW budget (the power-first value);
+(c) a sub-20 V pack holds the board in reset even on USB (UVLO), so USB-power
+wouldn't enable dead-pack field-flash without *more* logic (a VBUS-present
+UVLO bypass). So: **3.3 V sourced solely by U1; VBUS → USBLC6 ESD (+ optional
+VBUS-present sense GPIO via a high-value divider) only.** Both boards
+identically (display: V3V3 from R-78E3.3).
+
+*Opt-in available:* if tetherless bench-USB-power is wanted later, add the
+µA-class OR + accept the small budget hit; revisit then.
+
+**Reviewer:** confirm both netlists keep VBUS off V3V3; sanity-check the
+correction that EN-gating preserves the UVLO regardless of supply.
 
 ## DR-19 — End-to-end grounding & shield (single-point bond) — audit the whole link  [OPEN — per-board clean; reviewer to verify as a loop]
 
@@ -487,7 +501,7 @@ data rate the margin is large.
 escape hatch if bench EMC shows RS-485 bit errors. **Reviewer:** confirm the
 low-rate immunity argument and whether the DNP choke is worth the footprint.
 
-## DR-21 — FMEA: single-point failures of the protective network (esp. U4 silent failure)  [OPEN — residual documented; user/reviewer to accept]
+## DR-21 — FMEA: single-point failures of the protective network (esp. U4 silent failure)  [RESOLVED 2026-06-22 — user accepted the fail-to-baseline residual; no self-test added]
 
 **Why.** Protective parts can fail and *remove protection without any
 symptom*. Tabulated fail-open / fail-short consequence + fail-safe direction:
@@ -512,11 +526,13 @@ R_uv1-open) are safe (board off, can't drain pack).
 **Residual to accept:** there's no cheap self-check that U4 is alive. Option
 (if desired): firmware periodically reads the pack via its own ADC and could
 log "UVLO divider sanity" — but it can't truly test U4's output without
-forcing a low rail. **User/reviewer:** accept the fail-to-baseline residual,
-or ask for a self-test provision. My recommendation: **accept** (a backstop
-that fails to baseline is fine; adding self-test cost exceeds the benefit).
+forcing a low rail. My recommendation was **accept**.
 
-## DR-22 — Full-BOM cold-temperature survey (off-grid cabin can go sub-zero)  [OPEN — e-paper confirmed floor; one user call]
+**RESOLVED 2026-06-22 (user-approved): accept the fail-to-baseline residual;
+no self-test provision added.** Reviewer: verify the FMEA table and the
+fail-to-baseline conclusion (don't reopen the accept).
+
+## DR-22 — Full-BOM cold-temperature survey (off-grid cabin can go sub-zero)  [RESOLVED 2026-06-22 — user accepted e-paper 0 °C as the floor; no heater]
 
 **Why.** An unheated off-grid cabin in winter can sit **below freezing**.
 We accepted the **e-paper 0 °C** operating limit (D24) as *the* limiting
@@ -537,8 +553,10 @@ won't refresh, but the electronics keep logging (and WiFi-push). Is
 or do we need a heater / different display? D24 implicitly accepted this; DR-
 22 makes it explicit for sign-off.
 
-**Reviewer:** independently confirm e-paper is the cold floor and no BOM part
-is colder-limited.
+**RESOLVED 2026-06-22 (user-approved): e-paper 0 °C floor accepted; no heater
+/ no display change.** "Display blank below 0 °C, logging continues" is fine
+for the cabin. Reviewer: confirm e-paper is the cold floor and no BOM part is
+colder-limited (don't reopen the accept).
 
 ## DR-23 — RTC backup-cap (C-bk): leakage vs 45 nA, and VBACKUP rating  [RESOLVED — spec tightened; reviewer to verify hold time]
 
