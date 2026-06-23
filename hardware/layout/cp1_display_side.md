@@ -165,7 +165,7 @@ bistable display; the ESP32-S3 self-manages its sleep states).
 
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
-| MOD1 | ESP32-S3-WROOM-1-N16R8 (`-1`)             | SMD module     | 1   | Matches battery-side (firmware + footprint commonality). **Radio unused** — RS-485 is the only link, so disable RF in firmware and **drop the antenna keepout** (D26). (D-OPEN-1: -N8 vs -N16R8 — defer.) |
+| MOD1 | ESP32-S3-WROOM-1-N16R8 (`-1`)             | SMD module     | 1   | Matches battery-side (firmware + footprint commonality). **Radio unused** — RS-485 is the only link, so disable RF in firmware and **drop the antenna keepout** (D26). **D-OPEN-1 RESOLVED (D31): keep -N16R8 on both boards** — the $1.10 vs -N8 is moot at build qty 1; one SKU avoids mix-ups. PSRAM unused (30 KB framebuffer fits internal SRAM). |
 | J-USB | **USB-C receptacle** on native ESP32-S3 USB (board edge) | SMD | 1 | **D27:** bench/recovery port — reached by popping the faceplate (no front cutout). Routine firmware is OTA over RS-485, so it's rarely used. |
 | U-ESD | USB ESD array (USBLC6-2)                   | SOT-23-6       | 1   | ESD clamp on the USB-C D+/D−/VBUS (D27). |
 | U3-LDO | 3.3 V LDO (AP2112K-3.3, ~600 mA), VBUS→3V3_USB | SOT-23-5 | 1 | **USB maintenance power (D29):** run/program/troubleshoot the display MCU off USB **without 12 V**. VBUS-referenced → zero draw when unplugged. |
@@ -180,7 +180,7 @@ bistable display; the ESP32-S3 self-manages its sleep states).
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
 | LCD1 | **Waveshare 4.2inch e-Paper Module (B)** — module **with onboard driver PCB + 8-pin SPI header** | module | 1 | Bistable B/W/R; B&W partial refresh ~500–700 ms, color full refresh ~7 s. See [`decisions.md#d6`](decisions.md#d6-display-42-tri-color-bwr-e-paper). The driver + booster live on the module; we provide only 3.3 V + SPI (DR-7) |
-| J2  | **8-pin 2.54 mm header** (e-paper SPI) | THT 1×8 | 1 | Mates the module's 8-pin cable. **Δ (DR-7): was a 24-pin Hirose FH12-24S FFC** — that's the connector for the *bare* `WFT0420CZ15` panel, which needs an on-board booster network (VGH/VGL/VDH/VDL/VCOM) the board doesn't carry. The module hides all of that behind 8 pins |
+| J2  | **8-pin keyed header** (e-paper SPI), service = unplug | THT 1×8 | 1 | Mates the module's 8-pin cable. **Δ (DR-7): was a 24-pin Hirose FH12-24S FFC** — that's the connector for the *bare* `WFT0420CZ15` panel, which needs an on-board booster network the board doesn't carry. The module hides all of that behind 8 pins. **Connection mechanics (D27 service / no-crimp-tool constraint):** the module is on the pop-off faceplate, J2 on the PCB in the box — joined by a ~100–150 mm cable with slack + strain relief; faceplate-off = **unplug**. Use a **keyed** connector so it can't seat reversed; pre-assembled (no-tool) JST-XH dual-ended jumper cables are stocked at DK/Mouser. **CP2/BOM-lock TODO:** confirm what the Waveshare Module (B) actually ships with and pick the board-side mate accordingly; since the faceplate is user-3D-printed, a **keying rib in the print + pin-1 silk** can enforce orientation mechanically if a 2.54 mm header is used. |
 | C6  | 1 µF X7R (panel VCC bulk) | 0603 | 1   | Reduces V3V3 dip during refresh |
 
 **J2 8-pin pinout** (canonical Waveshare e-paper interface — match the
@@ -244,10 +244,22 @@ ESP GPIO mapping (BTN inputs):
 
 ### 4.7 Status indicator
 
-**None.** Per [D4](decisions.md#d4) — no idle indicator LEDs.
+**No status LED** (consistent with D4) — and deliberately **no last-gasp
+supercap** either (a tri-color refresh is ~7 s / ~1.3 J → would need ~0.7 F,
+and wouldn't reliably complete on a dying rail). Instead, "is the display
+dead?" is solved in firmware/sequencing per **D30**:
+- **"Last updated HH:MM" timestamp on every refresh** — a frozen e-paper
+  showing a stale time is the unmistakable tell (covers both comms-loss and
+  power-loss, since the bistable image keeps the old time).
+- **Graceful pre-shed render** — the battery side sends a "sleeping" frame
+  and waits for the display to draw it *before* opening Q1; the bistable
+  screen then holds "Monitor sleeping — low battery."
+- **Battery-side heartbeat detection** — missing display acks → flagged via
+  the WiFi push (D25).
+- Comms-dead-but-powered is already caught by `watchdog_task` ("LINK DOWN").
 
-The e-paper handles all status display: red text for alerts, B&W partial
-refresh for live updates, etc.
+A status LED was rejected because it **dies with the board** → tells you
+nothing about the power-loss case. See D30.
 
 ### 4.8 Dev / debug headers
 

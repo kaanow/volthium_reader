@@ -1473,3 +1473,52 @@ FET + passives on the battery side (LDO + mux on display) — the cost is parts
 and a more complex power section, **not** any core requirement. The
 bring-up/programming/troubleshooting value (every hand-built unit) justifies
 it. Exact LDO/mux SKUs + the bypass implementation finalized at CP2/BOM-lock.
+
+## D30 — Display "deadness" detection (no status LED, no last-gasp supercap)
+
+**Problem.** E-paper is **bistable** → on power loss the display **freezes**
+the last image. So a dead display can show a stale-but-plausible screen, and
+a viewer can't tell. Two failure modes: (a) **comms dead, display powered**
+(RS-485 stops); (b) **display loses power** (battery sheds it at low SOC, or
+a Cat5e fault).
+
+**Options weighed.** A *status LED* dies with the board → tells you nothing
+about power loss (mode b); it only shows "powered + running." A *last-gasp
+supercap* to render one final error: a tri-color **full refresh is ~7 s
+@ ~55 mA ≈ 1.3 J** → needs **~0.7 F** (rides 3.3→2.7 V) — bulky, and the 7 s
+refresh won't reliably complete on a collapsing rail. **Both rejected.**
+
+**Decision — three firmware/sequencing measures, no added hardware:**
+1. **"Last updated HH:MM" timestamp on every e-paper refresh.** A frozen
+   screen with a stale timestamp is unmistakably dead — covers **both** modes
+   (the frozen image carries the old time). This is the primary indicator.
+2. **Graceful pre-shed render (mode b, the common case).** The battery side
+   *controls* the shed (it opens Q1), so before cutting it sends a final
+   RS-485 "low-battery / sleeping" frame, waits for the display to render it,
+   *then* opens Q1. The bistable screen **holds that correct message** after
+   power is cut — zero stored energy needed.
+3. **Battery-side heartbeat detection.** The battery side already expects
+   display acks over RS-485; on heartbeat loss it flags the display dead via
+   the WiFi log-push (D25). System-level "the display is dead" without any
+   display-side hardware.
+
+Mode (a) is already covered by the display `watchdog_task` ("LINK DOWN"
+overlay on 90 s frame timeout). **No status LED (consistent with D4); no
+supercap.** Downstream hooks: firmware tasks + the RS-485 protocol
+(shutdown/sleeping frame + display heartbeat/ack) — see
+[`docs/firmware/architecture.md`](../../docs/firmware/architecture.md);
+captured as CP-firmware items, not CP1/CP2 hardware.
+
+## D31 — MCU module SKU common to both boards; build qty = 1
+
+**Decision.** Both boards use **ESP32-S3-WROOM-1-N16R8** (resolves the
+D-OPEN-1 -N16R8-vs-N8 question — keep them the same). The display's job is
+tiny (30 KB framebuffer fits internal SRAM → PSRAM unused; 8 MB flash would
+suffice), so -N8 ($5.66) vs -N16R8 ($6.76) is a **$1.10** difference. With
+**build qty = 1 (populated units)**, a single module SKU across both boards
+(no mix-up risk, firmware/footprint commonality) is worth far more than
+$1.10. The battery side also has a marginal real use for the 16 MB (log
+buffering between WiFi pushes), so matching to it is the simple call.
+
+*Note: "build qty = 1" is the populated-assembly count; JLCPCB's 5-pc
+bare-PCB minimum is unrelated (spare boards).*
