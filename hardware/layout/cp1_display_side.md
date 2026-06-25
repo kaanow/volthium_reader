@@ -181,7 +181,7 @@ bistable display; the ESP32-S3 self-manages its sleep states).
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
 | LCD1 | **Waveshare 4.2inch e-Paper Module (B)** — module **with onboard driver PCB + 8-pin SPI header** | module | 1 | Bistable B/W/R; B&W partial refresh ~500–700 ms, color full refresh ~7 s. See [`decisions.md#d6`](decisions.md#d6-display-42-tri-color-bwr-e-paper). The driver + booster live on the module; we provide only 3.3 V + SPI (DR-7) |
-| J2  | **8-pin keyed header** (e-paper SPI), service = unplug | THT 1×8 | 1 | Mates the module's 8-pin cable. **Δ (DR-7): was a 24-pin Hirose FH12-24S FFC** — that's the connector for the *bare* `WFT0420CZ15` panel, which needs an on-board booster network the board doesn't carry. The module hides all of that behind 8 pins. **Connection mechanics (D27 service / no-crimp-tool constraint):** the module is on the pop-off faceplate, J2 on the PCB in the box — joined by a ~100–150 mm cable with slack + strain relief; faceplate-off = **unplug**. Use a **keyed** connector so it can't seat reversed; pre-assembled (no-tool) JST-XH dual-ended jumper cables are stocked at DK/Mouser. **CP2/BOM-lock TODO:** confirm what the Waveshare Module (B) actually ships with and pick the board-side mate accordingly; since the faceplate is user-3D-printed, a **keying rib in the print + pin-1 silk** can enforce orientation mechanically if a 2.54 mm header is used. |
+| J2  | **JST-PH 2.0 mm, 8-pin** post header (B8B-PH-K-S top-entry; S8B-PH-K-S side-entry option), e-paper SPI; service = unplug | THT 1×8 | 1 | **Matches the module's connector (verified):** the Waveshare Module (B) onboard connector is **JST-PH 2.0 mm 8-pin** and ships with a PH2.0 20 cm 8-pin cable. We put the **same JST-PH family on our board** so an off-the-shelf **pre-crimped PH↔PH cable assembly** (e.g. JST ASPHSPH24K102-class) connects module↔board — **no crimp tool**. **JST-PH is mechanically keyed/latched → can't seat reversed** (the earlier 2.54 mm-header + printed-keying-rib plan is dropped). **Δ (DR-7): was a 24-pin Hirose FH12-24S FFC** (the *bare*-panel connector, needs a booster network we don't carry). The module is on the pop-off faceplate, J2 on the PCB behind; the ~200 mm cable gives service slack — faceplate-off = unplug. CP3: pick top- vs side-entry from the cable-routing/depth stack. |
 | C6  | 1 µF X7R (panel VCC bulk) | 0603 | 1   | Reduces V3V3 dip during refresh |
 
 **J2 8-pin pinout** (canonical Waveshare e-paper interface — match the
@@ -452,9 +452,9 @@ minimum).
 ## 13. Risk register
 
 1. ~~**FFC connector pinout verification**~~ — **RESOLVED (DR-7):** there
-   is no FFC. J2 is an 8-pin 2.54 mm header to the Waveshare Module (B)'s
-   fixed SPI interface (§4.4). Residual: match the physical pin order on J2
-   to the module's silk/cable at assembly.
+   is no FFC. J2 is an **8-pin JST-PH 2.0 mm** post header matching the
+   Waveshare Module (B)'s onboard PH connector (§4.4) — keyed by design.
+   Residual: match the physical pin order on J2 to the module's silk/cable.
 2. **Tall-actuator tactile plunger length** — pick the catalog height so the
    plunger spans the PCB-front→faceplate gap and protrudes ~2–3 mm through
    the faceplate hole (user call — no printed caps). Lock the exact height at

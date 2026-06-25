@@ -214,7 +214,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | LCD1 | Waveshare 4.2inch e-Paper **Module (B)** — tri-color (B/W/R), onboard driver + 8-pin SPI | module | 1 | 1738-1135-ND | 992-19094 | $35.00 | **Δ (DR-7): use the module (8-pin SPI), not a bare panel.** Driver + booster on the module |
-| J2  | **8-pin 2.54 mm header** (e-paper SPI: VCC/GND/DIN/CLK/CS/DC/RST/BUSY) | THT 1×8 | 1 | _verify_ 1x8 2.54mm | _verify_ | $0.30 | **Δ (DR-7): was a 24-pin Hirose FH12-24S FFC** (the bare-panel connector). Match pin order to module silk at assembly |
+| J2  | **JST-PH 2.0 mm 8-pin** post header (B8B-PH-K-S top / S8B-PH-K-S side) — e-paper SPI: VCC/GND/DIN/CLK/CS/DC/RST/BUSY | THT 1×8 | 1 | B8B-PH-K-S → 455-1722-ND | 798-B8B-PH-K-S | $0.20 | **Matches the module's PH 2.0 connector (verified).** Same family both sides → pre-crimped PH↔PH cable (user: ASPHSPH24K102-class), no tool. Keyed by design. **Δ (DR-7):** was a 24-pin FH12-24S FFC (bare-panel) |
 | C6  | 1 µF X7R panel VCC bulk | 0603 | 1 | (same as C5) | | $0.10 | NEW — reduces VCC dip during refresh |
 
 ### RS-485
