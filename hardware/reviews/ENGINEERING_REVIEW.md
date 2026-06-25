@@ -58,6 +58,25 @@ others — the most common miss is a thorough power review that never looks
 at mechanical/RF/thermal/serviceability. Run the whole list even when one
 area is consuming your attention.
 
+**COTS interface-reality (verify the object, not your model of it).** The
+recurring class of error that reaches the *user* — not caught by the
+designer or the reviewer — is not arithmetic; it is a **wrong premise about
+a real purchased part**: its connector pitch/PN, pinout, what ships in the
+box, mechanical envelope, mounting, the actual mating part. These pass
+unchecked because they *feel obvious*, so no one opens the datasheet, and the
+reviewer (re-deriving the designer's math, not auditing the designer's
+premises) inherits the same assumption. **Gate:** for **every** COTS module /
+connector / mechanical part, before it is used and again at BOM-lock, open
+its **actual datasheet/product page** and verify against the design: (1)
+exact connector **part number + pitch + pinout**; (2) **what's in the box**
+(included cables/accessories — and the board-side mate is the *correct* PN
+for it); (3) mechanical envelope + mount; (4) operating/interface specs.
+**Generic priors are not verification** — "it's obviously a 2.54 mm header"
+is exactly how the e-paper's JST-PH 2.0 mating connector shipped wrong
+through both design and review until the user caught it (2026-06-25). The
+reviewer's brief MUST include "independently re-ground each COTS part's
+interface from its datasheet — challenge premises, not just the math."
+
 **Spec-consistent.** Cross-check each CP doc against the **decisions log**
 and the chosen *parts*. A spec that contradicts a later decision or the
 actual part (e.g. a board-size or antenna-keepout line that a newer

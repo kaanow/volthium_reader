@@ -216,9 +216,11 @@ wrong connector for the module.
 
 **Resolution (agent call — use the module, the simplest robust choice for
 a hand-soldered cabin product).** Commit to the **Waveshare 4.2" e-Paper
-Module (B)** and change **J2 → an 8-pin 2.54 mm header** matching its
-interface: **VCC, GND, DIN (MOSI), CLK (SCK), CS, DC, RST, BUSY** (the
-canonical Waveshare e-paper pinout; the module includes the mating cable).
+Module (B)** and change **J2 → an 8-pin JST-PH 2.0 mm post header** matching
+its onboard connector (verified 2026-06-25 — the module is JST-PH 2.0, not
+2.54 mm; user caught the mismatch): **VCC, GND, DIN (MOSI), CLK (SCK), CS,
+DC, RST, BUSY**. Same family both ends → off-the-shelf pre-crimped PH↔PH
+cable, no tool, keyed by design.
 This drops the FH12-24S FFC, the 16 NC pins, and the entire missing-booster
 risk, and closes the old "verify the FFC pinout before fab" open item.
 *CP2 note:* match the physical pin order on J2 to the module's silk at
