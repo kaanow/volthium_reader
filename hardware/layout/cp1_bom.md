@@ -91,7 +91,7 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| Q1  | ZXMP6A13F P-MOSFET (Vds −60 V, 0.9 A) | SOT-23 | 1 | ZXMP6A13FTA (DK 560639, **in stock, Active 2026-06-17**) | 522-ZXMP6A13F | $0.40 | **Δ (D19/DR-4): AO3401A (30 V) → ZXMP6A13F (60 V)** to survive the ~53 V clamp when open (~0.3 A load) |
+| Q1  | ZXMP6A13F P-MOSFET (Vds −60 V, 0.9 A) | SOT-23 | 1 | ZXMP6A13F**TA** (orderable tape&reel; Mouser stock ~75k, API-verified 2026-06-25 — bare ZXMP6A13F shows 0 stock) | 522-ZXMP6A13FTA | $0.40 | **Δ (D19/DR-4): AO3401A (30 V) → ZXMP6A13F (60 V)** to survive the ~53 V clamp when open (~0.3 A load) |
 | Q2  | 2N7002 N-MOSFET (Vds 60 V) | SOT-23 | 1 | _verify_ 2N7002 | 512-2N7002 | $0.10 | **Δ (D19/DR-4): AO3400A (30 V) → 2N7002 (60 V)** — drain follows the V24 rail when Q1 is off |
 | DZ1 | BZX84C12 12 V Zener (Q1 gate–source clamp) | SOT-23 | 1 | _verify_ BZX84C12 | 512-BZX84C12LT1G | $0.10 | **NEW (D19/DR-4)** — holds Q1 Vgs ≤ 12 V (was driven to −29 V) |
 | Rg  | ~1 kΩ 0805 1 % (series gate, Q2 drain → Q1 gate) | 0805 | 1 | _verify_ | _verify_ | $0.10 | **NEW (D19/DR-4)** — works with DZ1 to clamp the gate |
@@ -119,9 +119,9 @@ Grand total **~$145** for one complete monitor (including extras).
 | C7  | 100 nF X7R | 0402 | 1 | 311-1086-1-ND | 81-GRM155R71H104KE14D | $0.05 | **Δ: 0603 → 0402** for ESP HF decoupling close-in (or 0603 if 0402 hard to hand-place) |
 | C8  | 1 µF X7R | 0603 | 1 | 311-1361-1-ND | 81-GRM188R71H105KA93D | $0.10 | **NEW** — ESP EN soft-start cap |
 | R7  | 10 kΩ 0805 | 0805 | 1 | RMCF0805FT10K0CT-ND | 71-CRCW080510K0FKEA | $0.05 | **NEW** — ESP EN pull-up |
-| RTC1 | **Micro Crystal RV-3028-C7** I²C RTC (45 nA) | 4-pin SMD 3.2×1.5 | 1 | RV-3028-C7 (in stock @ DigiKey 2026-06-18) | 727-RV-3028-C7 | $2.00 | **Δ (D23/DR-8): DS3231 → RV-3028-C7** — 45 nA vs ~0.2 mA; ±1 ppm; integrated crystal + backup switchover/trickle charger |
+| RTC1 | **Micro Crystal RV-3028-C7 32.768kHz 1ppm TA QA** I²C RTC (45 nA) | 4-pin SMD 3.2×1.5 | 1 | 2195-RV-3028-C732.768KHZ1PPM-TA-QATR-ND | _verify (Mouser)_ | $2.00 | **Δ (D23/DR-8): DS3231 → RV-3028-C7** — 45 nA. **Full orderable MPN corrected (API 2026-06-25):** plain "RV-3028-C7" is ambiguous (QA standard / QC AEC-Q200 / "ON BOARD" = a dev board — avoid). Using **QA**; QC if a wider-grade part is ever wanted |
 | C-bk | Small backup cap (~10 mF–0.1 F) on RV-3028 VBACKUP | SMD | 1 | _verify_ | _verify_ | $0.50 | **Δ (D23): replaces CR2032 + holder** — trickle-charged, rides a full disconnect; no coin, no D14 short risk |
-| U-ESD | USB ESD array (USBLC6-2SC6) | SOT-23-6 | 1 | _verify_ USBLC6-2 | 511-USBLC6-2SC6 | $0.30 | **NEW**: ESD clamp on the external USB-C D+/D−/VBUS (D22) |
+| U-ESD | USB ESD array (**USBLC6-2SC6Y**) | SOT-23-6 | 1 | 497-11882-2-ND | 511-USBLC6-2SC6Y | $0.30 | **NEW**: ESD clamp on the external USB-C D+/D−/VBUS (D22). **API-verified 2026-06-25: the original SC6 is out of stock at all sources → use the `-2SC6Y` variant** (DK ~30k, Mouser ~15k; pin-compatible) |
 | U5  | 3.3 V LDO (AP2112K-3.3, ~600 mA) | SOT-23-5 | 1 | _verify_ AP2112K-3.3 | _verify_ | $0.20 | **NEW (D29):** VBUS→3V3_USB for USB maintenance power; VBUS-referenced (0 pack draw unplugged) |
 | U6  | **TI TPS2116** priority power mux (~1.3 µA Iq, 2.5 A, reverse-blocking) | SOT-23-6 | 1 | _verify_ TPS2116DRLR | _verify_ | $0.70 | **NEW (D29):** VIN1=USB-LDO (priority), VIN2=U1 buck, OUT=V3V3. USB present → buck idles. Only ~1.3 µA always-on |
 | Q3  | small signal N-FET, series in U4 RESET→EN (UVLO bypass) | SOT-23 | 1 | _verify_ 2N7002 | 512-2N7002 | $0.10 | **NEW (D29); default-ON via R_byp1→V3V3 (fail-safe, reviewer F03)** — conducts when VBUS absent (UVLO active); opened by Q4 when VBUS present |
@@ -214,7 +214,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | LCD1 | Waveshare 4.2inch e-Paper **Module (B)** — tri-color (B/W/R), onboard driver + 8-pin SPI | module | 1 | 1738-1135-ND | 992-19094 | $35.00 | **Δ (DR-7): use the module (8-pin SPI), not a bare panel.** Driver + booster on the module |
-| J2  | **JST-PH 2.0 mm 8-pin** post header (B8B-PH-K-S top / S8B-PH-K-S side) — e-paper SPI: VCC/GND/DIN/CLK/CS/DC/RST/BUSY | THT 1×8 | 1 | B8B-PH-K-S → 455-1722-ND | 798-B8B-PH-K-S | $0.20 | **Matches the module's PH 2.0 connector (verified).** Same family both sides → pre-crimped PH↔PH cable (user: ASPHSPH24K102-class), no tool. Keyed by design. **Δ (DR-7):** was a 24-pin FH12-24S FFC (bare-panel) |
+| J2  | **JST-PH 2.0 mm 8-pin** post header (B8B-PH-K-S top / S8B-PH-K-S side) — e-paper SPI: VCC/GND/DIN/CLK/CS/DC/RST/BUSY | THT 1×8 | 1 | B8B-PH-K-S → 455-1710-ND (API-verified 2026-06-25; stock ~2900) | 455-B8B-PH-K-S | $0.51 | **Matches the module's PH 2.0 connector (verified).** Same family both sides → pre-crimped PH↔PH cable (user: ASPHSPH24K102-class), no tool. Keyed by design. **Δ (DR-7):** was a 24-pin FH12-24S FFC (bare-panel) |
 | C6  | 1 µF X7R panel VCC bulk | 0603 | 1 | (same as C5) | | $0.10 | NEW — reduces VCC dip during refresh |
 
 ### RS-485
@@ -240,7 +240,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | J-USB | **USB-C receptacle** (native ESP32-S3 USB, board edge) | SMD | 1 | _verify_ | | $0.60 | **Δ (D27): bench/recovery port** — reached by popping the faceplate (no front cutout); routine updates OTA over RS-485. Replaces the USB-OTG pin header |
-| U-ESD | USB ESD array (USBLC6-2) | SOT-23-6 | 1 | _verify_ USBLC6-2 | 511-USBLC6-2SC6 | $0.30 | **NEW (D27):** ESD clamp on USB-C D+/D−/VBUS |
+| U-ESD | USB ESD array (**USBLC6-2SC6Y**) | SOT-23-6 | 1 | 497-11882-2-ND | 511-USBLC6-2SC6Y | $0.30 | **NEW (D27):** ESD clamp on USB-C D+/D−/VBUS. **API-verified 2026-06-25: use `-2SC6Y` (the SC6 is out of stock everywhere)** |
 | U3-LDO | 3.3 V LDO (AP2112K-3.3, ~600 mA) | SOT-23-5 | 1 | _verify_ | _verify_ | $0.20 | **NEW (D29):** VBUS→3V3_USB; VBUS-referenced |
 | U4-MUX | **TI TPS2116** priority power mux | SOT-23-6 | 1 | _verify_ TPS2116DRLR | _verify_ | $0.70 | **NEW (D29):** VIN1=USB-LDO (priority), VIN2=R-78E3.3, OUT=V3V3. No UVLO bypass (display has no U4) |
 | C_usb1, C_usb2 | LDO in/out 1 µF X7R | 0603 ×2 | 2 | _verify_ | _verify_ | $0.05 ea | **NEW (D29):** LDO caps |
