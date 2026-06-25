@@ -70,9 +70,9 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes (Δ from prior BOM) |
 |-----|------|-----|-----|-------------|------------|-------|--------------------------|
-| J1  | Phoenix MSTB 2,5/2-G-5,08 pluggable terminal block (2-pin male header + female plug) | THT 5.08 mm | 1 | **277-1271-ND** + 277-1272-ND (plug) | 651-1755736 + 651-1755503 | $3.50 | **NEW** — replaces ring-terminal + external fuse |
+| J1  | Phoenix **MSTBA 2,5/2-G-5,08** header (1757242) + **MSTB 2,5/2-ST-5,08** plug (1727010) | THT 5.08 mm | 1 | 277-1106-ND (hdr) + 277-1947-ND (plug) | 651-1757242 + 651-1727010 | $3.50 | **NEW** — replaces ring-terminal + external fuse. **MPNs/SKUs API-verified 2026-06-25** (hdr stock ~34k, plug ~9.8k) — supersedes the earlier unverified 1755736/1755503 |
 | F1  | 5×20 mm cartridge fuse holder (PCB clip, ×2) | THT clip | 2 | **F1465-ND** | 530-31MJ005H | $0.70 ea | **NEW** — replaces ATO fuse holder. Holds the 1 A cartridge |
-| F1_ELEM | 1 A 5×20 mm **time-lag (T)** ceramic cartridge fuse | TH 5×20 mm | 1 | _verify_ | _verify_ | $0.95 | **NEW** — fuse element. **Time-lag (DR-12)**: rides the ~22 µF ceramic inrush; ceramic body = safer in a high-energy DC fault than glass |
+| F1_ELEM | **Littelfuse 0215001.MXP** — 1 A 5×20 mm **time-lag (T)** ceramic cartridge fuse | TH 5×20 mm | 1 | F1696-ND | 576-0215001.MXP | $0.95 | **NEW** — fuse element. **Time-lag (DR-12)**: rides the ~22 µF ceramic inrush; ceramic = safer in a high-energy DC fault than glass. **API-verified 2026-06-25** (DK ~3.8k stock) |
 | D1  | SS26 Schottky 60 V/2 A | SMA | 1 | _verify_ SS26FACT-ND | 583-SS26 | $0.30 | **Δ (D19/DR-3): SS24 (40 V) → SS26 (60 V)** to out-rate the ~53 V clamp |
 | TVS1 | SMAJ33CA bidirectional TVS (Vrwm 33 V) | SMA | 1 | _verify_ SMAJ33CADICT-ND | 78-SMAJ33CA | $0.40 | **Δ (D19/DR-2): SMAJ30CA → SMAJ33CA** — 33 V clears the ~29 V full-charge bus with margin |
 | TVS3 | SMAJ15A unidirectional TVS, V12_CAT5E↔GND | SMA | 1 | SMAJ15ADICT-ND | 78-SMAJ15A-E3/61 | $0.30 | **NEW (DR-15):** clamps cable surges on the 12 V Cat5e pair at the **battery** end (matches the display-end SMAJ15A → both ends protected). Zero static draw |
@@ -97,7 +97,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | Rg  | ~1 kΩ 0805 1 % (series gate, Q2 drain → Q1 gate) | 0805 | 1 | _verify_ | _verify_ | $0.10 | **NEW (D19/DR-4)** — works with DZ1 to clamp the gate |
 | R3  | 100 kΩ 0805 1 % (Q1 gate pull-up to V24_FUSED) | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805100KFKEA | $0.10 | Default-OFF load switch |
 | R4  | 100 kΩ 0805 1 % (Q2 gate pull-down to GND) | 0805 | 1 | (same as R3) | (same) | $0.10 | Brown-out failsafe-off |
-| U4  | **TI TPS3890** voltage supervisor (~2.1 µA, adj. SENSE, OD RESET, CT delay) | SOT-23-6/SON | 1 | _verify_ TPS389030DSER-family | _verify_ | $0.80 | **NEW (D28/DR-16):** hardware UVLO backstop — asserts ESP EN low below ~20 V pack → reset MCU (~µA) + auto-shed display. Confirm SKU/threshold at BOM-lock |
+| U4  | **TI TPS389030DSER** voltage supervisor (~2.1 µA, SENSE, OD RESET, CT delay) | SOT-23-6 | 1 | 296-51976-2-ND | 595-TPS389030DSER | $0.80 | **NEW (D28/DR-16):** hardware UVLO backstop. **Variant chosen for stock (API 2026-06-25): TPS389030DSER** (Mouser ~2.7k / DK ~2.5k); the earlier-implied **TPS389001 is DK 0-stock**. **CP2:** size the UVLO divider to *this* variant's SENSE threshold (from datasheet) at the 20 V trip — the F02 ≥10 µA divider rule holds regardless of variant. Other stocked options: TPS389033/389018 |
 | R_uv1, R_uv2 | UVLO pack divider → U4 SENSE (**R_total ≈ 2.0 MΩ**, ratio for ~20 V trip) | 0805 ×2 | 2 | _verify_ | _verify_ | $0.10 ea | **NEW (D28); ~2.0 MΩ not 10 MΩ (reviewer F02)** — TPS3890 needs ≥10 µA divider current (≥100× I_SENSE) for accuracy; 20 V/2.0 MΩ = 10 µA at trip |
 | R_hys | UVLO external hysteresis, RESET→SENSE (~3.9–4.7 MΩ) | 0805 | 1 | _verify_ | _verify_ | $0.05 | **NEW (reviewer F01):** sets a deliberate ~1.5 V band (trip ~20 V / release ~21.5 V); chip's built-in ~0.12 V is too small (chatter) |
 | C_ct | UVLO CT deglitch cap (~tens of ms) | 0603 | 1 | _verify_ | _verify_ | $0.05 | **NEW (D28):** rejects momentary sags |
@@ -155,7 +155,7 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| J2  | Amphenol RJHSE-538X-MOD RJ45 keystone, shielded | THT shielded | 1 | (unchanged) 207-RJ45-T568B-ND | — | $4.00 | (unchanged) |
+| J2  | **Amphenol RJHSE-5380** RJ45 jack, shielded, THT | THT shielded | 1 | 664-RJHSE5380-ND | 523-RJHSE-5380 | $2.50 | **MPN/SKU API-verified 2026-06-25** (DK ~18k, was the placeholder "RJHSE-538X" + a wrong generic SKU). **⚠ DATASHEET CHECK (COTS gate): confirm NO integrated magnetics** — we carry **12 V DC + RS-485**, an Ethernet magjack's transformer would block both. RJHSE = plain shielded jack (no mag) per series, but verify on the datasheet before BOM-lock. Battery enclosure isn't depth-limited → vertical jack OK |
 | J3  | **USB-C receptacle** (native ESP32-S3 USB) | SMD | 1 | _verify_ | | $0.50 | **Δ (D22): was a USB-OTG pin header** — now a board-edge maintenance port (flash/console/JTAG), accessible without opening. ESD-protected by U-ESD |
 | J4  | 2-pin 2.54 mm header, RS-485 term lift jumper | THT | 1 | S1011EC-02-ND | 200-TSW10206TS | $0.20 | NEW |
 | J5  | 4-pin 2.54 mm header, debug UART | THT | 1 | (same as J3) | (same) | $0.30 | NEW — dev only |
@@ -187,8 +187,8 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| J1  | **Right-angle / low-profile RJ45**, shielded | THT shielded | 1 | _verify_ | | $4.00 | **Δ (DR-10): right-angle** — fits the shallow box, Cat5e enters side/bottom |
-| F1  | PTC polyfuse, **~0.25 A hold** (e.g. Bourns MF-R025) | THT radial | 1 | _verify_ MF-R025 | 652-MF-R025 | $1.00 | **Δ (DR-11): 0.5 A → ~0.25 A** — matches the ~40–150 mA load, trips below U2 foldback |
+| J1  | **Right-angle, shielded RJ45**, THT — candidate **Würth 615008145521** | THT shielded | 1 | 732-615008145521-ND | 710-615008145521 | $4.00 | **Δ (DR-10): right-angle** for the shallow box. **The earlier SUYIN 100362-series is NOT distributor-stocked (API 2026-06-25)** → Würth 615008145521 is a stocked candidate (DK ~1.8k). **⚠ DATASHEET CHECK: confirm it is right-angle + shielded + NO magnetics + its above-PCB height fits the depth stack** before committing |
+| F1  | **Bourns MF-R025** PTC polyfuse, **~0.25 A hold** | THT radial | 1 | MF-R025-ND | 652-MFR025 | $1.00 | **Δ (DR-11): 0.5 A → ~0.25 A** — matches the ~40–150 mA load, trips below U2 foldback. **API-verified 2026-06-25** (DK ~4.2k, Mouser ~7k) |
 | TVS1 | SMAJ15A unidirectional TVS | SMA | 1 | SMAJ15ADICT-ND | 78-SMAJ15A-E3/61 | $0.30 | (unchanged) |
 | C1  | 22 µF / 25 V X7R | 1210 | 1 | (unchanged) | | $0.20 | V12 input bulk |
 
