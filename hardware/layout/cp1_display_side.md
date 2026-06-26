@@ -170,7 +170,7 @@ bistable display; the ESP32-S3 self-manages its sleep states).
 | J-USB | **USB-C receptacle** on native ESP32-S3 USB (board edge) | SMD | 1 | **D27:** bench/recovery port — reached by popping the faceplate (no front cutout). Routine firmware is OTA over RS-485, so it's rarely used. |
 | U-ESD | USB ESD array (USBLC6-2)                   | SOT-23-6       | 1   | ESD clamp on the USB-C D+/D−/VBUS (D27). |
 | U3-LDO | 3.3 V LDO (AP2112K-3.3, ~600 mA), VBUS→3V3_USB | SOT-23-5 | 1 | **USB maintenance power (D29):** run/program/troubleshoot the display MCU off USB **without 12 V**. VBUS-referenced → zero draw when unplugged. |
-| U4-MUX | **TI TPS2116** priority power mux (~1.3 µA Iq, reverse-blocking) | SOT-23-6 | 1 | **D29:** VIN1=USB-LDO (priority), VIN2=R-78E3.3 output, OUT=V3V3. USB present → R-78E3.3 idles. **No UVLO bypass** — the display has no supervisor (it's shed by the battery side), so simpler than the battery board. No 5 V on V3V3 (LDO). |
+| U4-MUX | **TI TPS2116DRLR** priority power mux (~1.3 µA Iq, reverse-blocking) | **SOT-583 (leadless ⚠)** | 1 | **D29:** VIN1=USB-LDO (priority), VIN2=R-78E3.3 output, OUT=V3V3. USB present → R-78E3.3 idles. **No UVLO bypass** — the display has no supervisor (it's shed by the battery side). No 5 V on V3V3 (LDO). **Package SOT-583, not SOT-23 (API 2026-06-25)** — leadless, see DR-24 |
 | C3  | 10 µF X7R (ESP bulk, ≤ 2 mm from 3V3 pin)  | 0805           | 1   | |
 | C4  | 100 nF X7R (ESP HF decoupling, 0402 if possible) | 0402 | 1 | |
 | C5  | 1 µF X7R (EN soft-start)                    | 0603           | 1   | |
