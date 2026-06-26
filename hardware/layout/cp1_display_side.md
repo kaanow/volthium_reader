@@ -97,16 +97,15 @@ Hard constraints this imposes (CP3 must honor; a depth tally is produced then):
 | e-paper module (panel 1.2 mm + driver PCB + connector)  | ~5 mm   |
 | module-back → PCB-front standoff gap (clears 8-pin cable + button throw) | ~8 mm |
 | main PCB                                                 | 1.6 mm  |
-| tallest back-side part: R-78E3.3 SIP (oriented low) **or** low-profile right-angle RJ45 | ~11 mm |
+| tallest back-side part: **J1 Würth RJ45 ~13.6 mm above PCB** (R-78E3.3 SIP ~11 mm is shorter) | ~13.6 mm |
 | bracket standoff + clearance to box floor               | ~5 mm   |
-| **Total**                                               | **~30–31 mm** |
+| **Total**                                               | **~33 mm** |
 
-Against ~45 mm usable → **~14 mm margin**. The binding parts are the
-R-78E3.3 SIP (~11 mm vertical) and the RJ45; both are addressable — a
-**low-profile right-angle RJ45 protrudes only ~4.4 mm above the PCB** (e.g.
-SUYIN 100362-series, 9.6 mm overall), and the R-78 is oriented for minimum
-height. Even with a standard ~13 mm right-angle RJ45 the total stays
-~33 mm. **Module dims (reviewer Finding 02): driver-board (binding for the
+Against ~45 mm usable → **~12 mm margin**. The tallest back-side part is the
+**J1 RJ45 (Würth 615008145521, ~13.6 mm above PCB — datasheet-confirmed)**;
+the R-78E3.3 SIP (~11 mm) is next. (The earlier ~4.4 mm SUYIN low-profile is
+gone — not distributor-stocked; the Würth standard right-angle still fits with
+~12 mm margin.) **Module dims (reviewer Finding 02): driver-board (binding for the
 faceplate mount) = 103.0 × 78.5 mm; screen/panel = 91 × 77 mm; active area
 84.8 × 63.6 mm.** The 103 mm board exceeds the ~95 mm box interior but mounts
 to the faceplate regardless (D-OPEN-11) — and still fits the 115 × 117 mm
@@ -150,7 +149,7 @@ bistable display; the ESP32-S3 self-manages its sleep states).
 
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
-| J1  | **Right-angle / low-profile RJ45** jack (T568B), shielded | THT shielded   | 1   | **Right-angle (DR-10):** a vertical jack (~13–21 mm) blows the shallow-box depth budget; right-angle keeps height down and lets the in-wall Cat5e enter from the side/bottom. Shield drain NOT bonded here (single-point bond at battery side, [`cat5e_pinout.md`](../../docs/hardware/cat5e_pinout.md)). |
+| J1  | **Würth 615008145521** WR-MJ RJ45 jack, right-angle (horizontal, tab-down), shielded, T568B | THT shielded   | 1   | **Right-angle (DR-10):** horizontal jack so the in-wall Cat5e enters from the side. **Datasheet-verified 2026-06-25: right-angle + shielded + MAGNETICS-FREE (plain CAT5e 8P8C — safe for our 12 V DC + RS-485) + ~13.6 mm above PCB (fits the depth stack).** Replaces the un-sourceable SUYIN 100362. Shield drain NOT bonded here (single-point bond at battery side, [`cat5e_pinout.md`](../../docs/hardware/cat5e_pinout.md)). Datasheet: [`../datasheets/615008145521.pdf`](../datasheets/615008145521.pdf). |
 | F1  | PTC polyfuse, **~0.25 A hold** (DR-11) | THT radial   | 1 | Resettable cable protection. 0.25 A covers the ~40 mA load + ~150 mA refresh/inrush peaks, and trips well below the battery-side U2's ~0.5 A foldback → real cable + upstream protection (was 0.5 A — too loose). |
 | TVS1 | SMAJ15A unidirectional TVS (Vrwm 15 V)    | SMA            | 1   | Clamps V12 transients (cable inrush, regulator turn-on) |
 | C1  | 22 µF / 25 V X7R (V12 input bulk)          | 1210           | 1   | U1 input bulk; smooths cable inductive ringing |

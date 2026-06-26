@@ -155,7 +155,7 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| J2  | **Amphenol RJHSE-5380** RJ45 jack, shielded, THT | THT shielded | 1 | 664-RJHSE5380-ND | 523-RJHSE-5380 | $2.50 | **MPN/SKU API-verified 2026-06-25** (DK ~18k, was the placeholder "RJHSE-538X" + a wrong generic SKU). **⚠ DATASHEET CHECK (COTS gate): confirm NO integrated magnetics** — we carry **12 V DC + RS-485**, an Ethernet magjack's transformer would block both. RJHSE = plain shielded jack (no mag) per series, but verify on the datasheet before BOM-lock. Battery enclosure isn't depth-limited → vertical jack OK |
+| J2  | **Amphenol RJHSE-5380** RJ45 jack, shielded, THT | THT shielded | 1 | 664-RJHSE5380-ND | 523-RJHSE-5380 | $2.50 | **MPN/SKU API-verified 2026-06-25** (DK ~18k; was the placeholder "RJHSE-538X" + wrong SKU). **✅ MAGNETICS-FREE confirmed from datasheet (P-RJHSE-X380): "8P8C, shielded, without LEDs", phosphor-bronze contacts straight to 8 PCB pins, no transformer** — safe for 12 V DC + RS-485. Vertical jack (battery enclosure not depth-limited). Datasheet: hardware/datasheets/RJHSE-5380.pdf |
 | J3  | **USB-C receptacle** (native ESP32-S3 USB) | SMD | 1 | _verify_ | | $0.50 | **Δ (D22): was a USB-OTG pin header** — now a board-edge maintenance port (flash/console/JTAG), accessible without opening. ESD-protected by U-ESD |
 | J4  | 2-pin 2.54 mm header, RS-485 term lift jumper | THT | 1 | S1011EC-02-ND | 200-TSW10206TS | $0.20 | NEW |
 | J5  | 4-pin 2.54 mm header, debug UART | THT | 1 | (same as J3) | (same) | $0.30 | NEW — dev only |
@@ -187,7 +187,7 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| J1  | **Right-angle, shielded RJ45**, THT — candidate **Würth 615008145521** | THT shielded | 1 | 732-615008145521-ND | 710-615008145521 | $4.00 | **Δ (DR-10): right-angle** for the shallow box. **The earlier SUYIN 100362-series is NOT distributor-stocked (API 2026-06-25)** → Würth 615008145521 is a stocked candidate (DK ~1.8k). **⚠ DATASHEET CHECK: confirm it is right-angle + shielded + NO magnetics + its above-PCB height fits the depth stack** before committing |
+| J1  | **Würth 615008145521** WR-MJ RJ45 jack, right-angle (horizontal, tab-down), shielded, THT | THT shielded | 1 | 732-615008145521-ND | 710-615008145521 | $4.00 | **Δ (DR-10): right-angle** for the shallow box (the earlier SUYIN 100362 is NOT distributor-stocked). **✅ Datasheet-verified 2026-06-25: horizontal/right-angle + shielded (EMI panel finger) + 8P8C + MAGNETICS-FREE** (plain CAT5e jack, 20 mΩ contacts, no magjack) + ~13.6 mm height → fits the ~45 mm depth (~33 mm stack). −40…+85 °C, UL E324776. **Tab-down** → confirm cable-entry orientation at CP3. Datasheet: hardware/datasheets/615008145521.pdf |
 | F1  | **Bourns MF-R025** PTC polyfuse, **~0.25 A hold** | THT radial | 1 | MF-R025-ND | 652-MFR025 | $1.00 | **Δ (DR-11): 0.5 A → ~0.25 A** — matches the ~40–150 mA load, trips below U2 foldback. **API-verified 2026-06-25** (DK ~4.2k, Mouser ~7k) |
 | TVS1 | SMAJ15A unidirectional TVS | SMA | 1 | SMAJ15ADICT-ND | 78-SMAJ15A-E3/61 | $0.30 | (unchanged) |
 | C1  | 22 µF / 25 V X7R | 1210 | 1 | (unchanged) | | $0.20 | V12 input bulk |
