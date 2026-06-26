@@ -149,7 +149,7 @@ protects the gate **and** guarantees turn-on.
 |-----|-------------------------------------|----------------|-----|-----------|
 | J1  | Phoenix MSTB-2,5/ 2-G-5,08 pluggable terminal block (2-pin, 5.08 mm pitch) | THT 5.08 mm | 1 | Field-replaceable wiring; pluggable means user can disconnect the board from the pack without unscrewing wires |
 | F1  | 5×20 mm fuse + 2× PCB-mount clips (**1 A time-lag "T"**, e.g. Littelfuse 0215001.MXP) | THT clip      | 1 | Cartridge fuses are universally stocked; pops out for replacement. **Time-lag, not fast-blow (DR-12):** tolerates the µs-scale ~22 µF ceramic inrush (I²t ≈ 0.06–0.13 A²s) without nuisance-tripping, while still clearing the ~45 mA steady load and a hard short |
-| D1  | SS26 Schottky (60 V, 2 A, low Vf)   | SMA           | 1 | Reverse-polarity protection; 60 V out-rates the ~53 V clamp (D19/DR-3). Vf ~0.4 V, ~20 mW dissipation |
+| D1  | SS26 Schottky (60 V, 2 A, low Vf)   | **DO-214AA (SMB)** | 1 | Reverse-polarity protection; 60 V out-rates the ~53 V clamp (D19/DR-3). Vf ~0.4 V, ~20 mW dissipation. **Package SMA → SMB (SS26-E3/52T is DO-214AA; API 2026-06-25)** |
 | TVS1 | SMAJ33CA bidirectional TVS (Vrwm 33 V) | SMA       | 1 | Clamps 24 V transients; 33 V Vrwm clears the ~29 V full-charge bus with margin (D19/DR-2). Clamps ~53 V — every part on V24_FUSED/V24_SW is rated ≥60 V to suit |
 
 **Change from existing BOM**: removed `1 A ATO fast-blow fuse + holder` +
@@ -236,7 +236,7 @@ firmware-only shed + R3 default-OFF do **not** cover (R3 only handles a
 
 | Ref | Part | Pkg | Qty | Rationale |
 |-----|------|-----|-----|-----------|
-| U4  | **TI TPS3890** voltage supervisor (~2.1 µA Iq, adjustable SENSE, open-drain RESET, prog. CT delay) | SOT-23-6 / SON | 1 | Asserts ESP **EN** low when the pack droops below the hardware floor. Powered from always-on V3V3 |
+| U4  | **TI TPS389030DSER** voltage supervisor (~2.1 µA Iq, SENSE, open-drain RESET, prog. CT delay) | **6-WSON 1.5×1.5 mm (leadless ⚠)** | 1 | Asserts ESP **EN** low when the pack droops below the hardware floor. Powered from always-on V3V3. **Package is WSON 1.5×1.5, not SOT-23 (API 2026-06-25)** — leadless, see assembly note / DR-24 |
 | R_uv1, R_uv2 | pack divider → U4 SENSE (**R_total ≈ 2.0 MΩ**, ratio sets ~20 V trip; V_SENSE = V_ITN = 1.15 V) | 0805 ×2 | 2 | From V24_FUSED. **2.0 MΩ — not 10 MΩ (reviewer F02):** TPS3890 needs divider current ≥ 100× I_SENSE(max 100 nA) = **≥ 10 µA**; 20 V/2.0 MΩ = 10 µA at the trip point ✓. Finalize R1/R2 at CP2 |
 | R_hys | external hysteresis: U4 RESET → SENSE (**~3.9–4.7 MΩ**) | 0805 | 1 | **NEW (reviewer F01):** the TPS3890's *built-in* hysteresis is only ~0.33–0.83 % (~0.12 V pack) — far too small, would chatter. R_hys injects RESET-state feedback into SENSE to set a deliberate **~1.5 V** band (trip ~20 V / release ~21.5 V). Value couples to the divider; finalize at CP2 |
 | C_ct | CT delay cap (deglitch, ~tens of ms) | 0603 | 1 | Rejects momentary sags so only a sustained low-pack condition trips the floor |
@@ -278,7 +278,7 @@ hard-cut budget intact.
 | Ref | Part | Pkg | Qty | Rationale |
 |-----|------|-----|-----|-----------|
 | U5  | 3.3 V LDO (e.g. AP2112K-3.3, ~600 mA) | SOT-23-5 | 1 | VBUS (5 V) → 3V3_USB. **Powered from VBUS only** — no pack draw when unplugged. ~600 mA covers programming + occasional WiFi |
-| U6  | **TI TPS2116** 2-input priority power mux (1.6–5.5 V, 2.5 A, ~1.3 µA Iq / 50 nA standby, auto-switchover, reverse-blocking) | SOT-23-6 | 1 | **VIN1 (priority) = 3V3_USB, VIN2 = U1 buck 3V3, OUT = V3V3.** USB present → output from USB, buck idles; USB absent → buck. Reverse-blocking N-FETs (no Schottky drop) |
+| U6  | **TI TPS2116DRLR** 2-input priority power mux (1.6–5.5 V, 2.5 A, ~1.3 µA Iq / 50 nA standby, auto-switchover, reverse-blocking) | **SOT-583 (leadless ⚠)** | 1 | **VIN1 (priority) = 3V3_USB, VIN2 = U1 buck 3V3, OUT = V3V3.** USB present → output from USB, buck idles; USB absent → buck. Reverse-blocking N-FETs (no Schottky drop). **Package SOT-583, not SOT-23 (API 2026-06-25)** — leadless, see DR-24 |
 | Q3  | small signal N-FET, **series in U4 RESET→EN** | SOT-23 | 1 | **Default-ON (UVLO active) — fail-safe (reviewer F03):** gate pulled to **V3V3 via R_byp1 (100 kΩ)** so with VBUS **absent** Q3 conducts → U4 drives EN → UVLO active. When VBUS **present**, Q4 pulls the gate LOW → Q3 opens → U4 isolated → MCU boots off USB on a dead/absent pack. Q3 Rds (~7 Ω) ≪ R7 (10 kΩ) → no effect on the assert level |
 | Q4  | small signal N-FET, **VBUS-driven gate pulldown** | SOT-23 | 1 | **NEW (reviewer F03):** VBUS (via R_byp2 divider) turns Q4 ON → pulls Q3 gate to GND → opens the bypass. VBUS absent → Q4 OFF → Q3 stays default-ON. Draws from VBUS only |
 | C_usb1, C_usb2 | LDO in/out caps (1 µF / 1 µF) | 0603 | 2 | per AP2112 datasheet |

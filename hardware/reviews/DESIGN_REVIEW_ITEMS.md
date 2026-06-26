@@ -583,3 +583,41 @@ VBACKUP abs-max (per datasheet, ~5.5 V) > the 3.3 V trickle source → safe.
 pick the trickle resistor for a few-minute charge; confirm hold-time =
 C·ΔV/(45 nA + cap leakage) at BOM-lock. **Reviewer:** verify the leakage
 argument and the VBACKUP max vs trickle voltage.
+
+---
+
+## DR-24 — Assembly reality: three key parts are leadless (hand-solder concern)  [OPEN — user call: assembly capability vs package alternatives]
+
+**Surfaced by the COTS sweep (API `package` field, 2026-06-25).** The project
+is described as **hand-soldered**, but three central parts are **leadless /
+bottom-terminated** — they have no accessible pins and (usually a thermal pad)
+and are **not reliably solderable with an iron alone**; they want **hot-air,
+a hotplate, or stencil+reflow**:
+
+| Ref | Part | Package | Note |
+|-----|------|---------|------|
+| U4 | TPS389030DSER (UVLO) | **6-WSON 1.5×1.5 mm** | the hardest — tiny + leadless |
+| U6 | TPS2116DRLR (power mux) | **SOT-583** (~1.6×1.6, leadless) | |
+| U1 | LM5166YDRCR (always-on buck) | **VSON-10 3×3 mm** | leadless, has thermal pad |
+
+(The ESP32-S3-WROOM-1 module is also reflow-style but is castellated/edge —
+more forgiving. Everything else — SOT-23/SMA/SMB/SIP/THT — is iron-friendly.)
+
+**Why it's hard to design around:** these are modern **µA-Iq** parts, and the
+µA/wide-Vin/small combo is exactly what drove D19/D28/D29 — leaded equivalents
+largely don't exist without giving up the power-first goal that's the heart of
+the design. So "swap to a leaded package" likely means a worse part.
+
+**Options (user decision):**
+- **(a) Accept + reflow these (recommended):** confirm you have hot-air or a
+  hotplate (cheap; ~$40–60). The 3 leadless parts + the module get reflowed;
+  the rest goes by iron. Keeps every power-first part. For a qty-1 build this
+  is the normal path.
+- **(b) Hunt leaded alternatives** for U4/U6 specifically (U1 has no good
+  leaded µA-Iq option). A SOT-23 supervisor with an adjustable SENSE exists
+  (e.g. TPS3840 family — verify) for U4; U6's priority-mux niche is mostly
+  leadless. Costs design time + possibly spec compromises.
+
+**Recommendation: (a)** — confirm hot-air/hotplate availability; don't
+compromise the power design for solderability. Flagged now (CP1) so it
+informs footprint/thermal-pad/via choices at CP3 placement, not after fab.
