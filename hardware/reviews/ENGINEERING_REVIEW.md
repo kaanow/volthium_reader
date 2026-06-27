@@ -77,6 +77,22 @@ through both design and review until the user caught it (2026-06-25). The
 reviewer's brief MUST include "independently re-ground each COTS part's
 interface from its datasheet — challenge premises, not just the math."
 
+> **CP1 GATE (D32): every active BOM part's datasheet must be on hand and
+> read before CP1 is complete.** Store one PDF per active part in
+> `hardware/datasheets/` (with a manifest: MPN → file → source → sha) — use
+> the parts-sourcing API's `/datasheet` proxy to fetch them; for the few
+> hosts it can't reach, pull them manually. **Why a gate, not a nicety:** the
+> datasheet is the source of truth, and *reading* it has repeatedly caught
+> errors invisible at the model level — wrong connector pitch (JST-PH vs
+> 2.54), wrong package (TPS3890 = WSON 1.5×1.5 not SOT-23; TPS2116 = SOT-583;
+> SS26 = SMB not SMA), wrong threshold (TPS389030 VITN = 2.89 V not 1.15 V),
+> Ethernet magnetics that would block DC, and obsolete variants. **And the
+> correct response when a datasheet reveals a part is a poor fit is to RETIRE
+> it for a better part — never to bend the design around the bad choice**
+> ([[replace-dont-patch]] — e.g. the LM5165→LM5166 fixed-variant swap, the
+> SUYIN→Würth RJ45 swap). A part with no datasheet on hand is an unverified
+> premise; CP1 doesn't sign off on unverified premises.
+
 **Spec-consistent.** Cross-check each CP doc against the **decisions log**
 and the chosen *parts*. A spec that contradicts a later decision or the
 actual part (e.g. a board-size or antenna-keepout line that a newer

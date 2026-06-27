@@ -122,6 +122,7 @@ ERC + readability audits) is the next checkpoint, **not** part of CP1.
 - [ ] D18/D19 sound; DR-3/4/5 independently re-derived and agreed.
 - [ ] No part on V24_FUSED/V24_SW under-rates the ~53 V clamp; no continuous draw violates the ~1 mW hard-cut budget.
 - [ ] Baseline docs internally consistent (one part set, no stale refs).
+- [ ] **Every active BOM part's datasheet is in `hardware/datasheets/` and has been read** to verify package/footprint, connector PN/pinout, in-box contents, mechanical envelope, and the electrical premises actually used (D32). Manifest "not yet retrieved" list empty for active parts. Parts found unfit are *retired for better parts*, not patched.
 - [ ] No new design question survives a careful read.
 
 ## 4. Out of scope (later checkpoints)
