@@ -1390,18 +1390,21 @@ releases EN → the MCU **cold-boots fresh** (which also un-hangs it) and
 resumes. So DR-4's "fully-unpowered MCU can't wake" problem is *not*
 reopened — this is the key difference from a hysteretic power-cut.
 
-**Threshold (corrected per reviewer iter-2 F01/F02).** Floor trip ~**20 V**
-pack (≈2.5 V/cell, the LiFePO₄ cliff — well below the firmware's ~10 % SOC
-shed); release ~**21.5 V** set by an **external hysteresis resistor R_hys**
-(RESET→SENSE, ~3.9–4.7 MΩ → ~1.5 V band). The TPS3890's *built-in*
-hysteresis is only ~0.33–0.83 % (~0.12 V pack) — far too small: shedding the
-~38 mA load rebounds the pack well past 0.12 V, which would chatter. So the
-band is set deliberately in hardware. LiFePO₄ voltage is a poor mid-SOC proxy
-but **sharp at this low knee**, so a voltage floor suits *here*. **Divider
-R_total ≈ 2.0 MΩ, not 10 MΩ:** the TPS3890 needs divider current ≥ 100×
-I_SENSE (max 100 nA) = ≥ 10 µA for threshold accuracy; 20 V/2.0 MΩ = 10 µA at
-trip. (The earlier 10 MΩ drew only ~2 µA — below the rule, several-percent
-threshold error.) Finalize R1/R2/R_hys at CP2.
+**Threshold (corrected per reviewer iter-2 F01/F02; part = TPS389030DSER,
+datasheet-confirmed 2026-06-26).** The chosen variant's SENSE negative
+threshold is **VITN = 2.89 V** (the suffix sets it; range 1.15–3.17 V across
+the family — the earlier "1.15 V" was the -01 variant, now corrected). Floor
+trip ~**20 V** pack (≈2.5 V/cell, the LiFePO₄ cliff): divider R2/(R1+R2) =
+2.89/20 = **0.1445** → **R1 ≈ 1.69 MΩ, R2 ≈ 287 kΩ** (E96; trip ≈ 19.9 V).
+Release ~**21.3 V** set by an **external hysteresis resistor R_hys** (RESET→
+SENSE, **~3.9 MΩ** → ΔV_trip ≈ V_RESET(3.3 V)·R1/R_hys ≈ **1.4 V band**). The
+device's *built-in* hysteresis is only **0.325 %** (≈65 mV at the 20 V trip)
+— far too small: shedding the ~38 mA load rebounds the pack well past that,
+which would chatter, so the band is set deliberately in hardware. **Divider
+R_total ≈ 2.0 MΩ, not 10 MΩ:** SENSE current ~10 nA typ/~100 nA max → divider
+current must be ≥ 100× = ≥ 10 µA; ~20 V/1.98 MΩ = 10.1 µA at trip ✓. (The
+earlier 10 MΩ drew only ~2 µA — below the rule.) Final E96 values + bench
+hysteresis check at CP2.
 
 **Power.** divider ~10 µA at trip (~14 µA at 29 V → ~0.4 mW) + U4 Iq ~2.1 µA
 ≈ **~0.45 mW**; with the D29 mux (~1.3 µA) **hard-cut ≈ 1.3 mW** (was ~1 mW —
