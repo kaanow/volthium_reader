@@ -1525,3 +1525,37 @@ buffering between WiFi pushes), so matching to it is the simple call.
 
 *Note: "build qty = 1" is the populated-assembly count; JLCPCB's 5-pc
 bare-PCB minimum is unrelated (spare boards).*
+
+## D32 — Every active BOM part's datasheet on hand + read is a CP1 completion gate
+
+**Decision (user, 2026-06-26).** CP1 is **not complete** until **every active
+BOM part** (both boards) has its **datasheet stored in
+[`hardware/datasheets/`](../datasheets/)** (manifest: MPN → file → source URL
+→ sha256) **and has been read** to verify the part against the design —
+package/footprint, connector PN/pitch/pinout, in-box contents, mechanical
+envelope, and the key electrical premises actually used (thresholds, clamps,
+ratings).
+
+**Why a hard gate, not a nicety.** Reading the actual datasheets — enabled by
+the parts-sourcing API's `/datasheet` proxy — has repeatedly caught errors
+that were invisible at the "model of the part" level and that both designer
+and reviewer missed: connector pitch (e-paper JST-PH 2.0 vs an assumed
+2.54 mm header), package (TPS3890 = WSON 1.5×1.5 not SOT-23; TPS2116 =
+SOT-583; SS26 = SMB not SMA → DR-24 leadless assembly concern), threshold
+(TPS389030 VITN = 2.89 V not the 1.15 V carried from the -01 variant),
+**Ethernet magnetics** that would have blocked our DC + RS-485 (both RJ45s
+verified magnetics-free from datasheets), and obsolete variants
+(USBLC6-2SC6 → SC6Y). The datasheet is the source of truth; an absent or
+unread datasheet is an **unverified premise**, and CP1 does not sign off on
+unverified premises.
+
+**Replace, don't patch.** When a datasheet reveals a part is a poor fit, the
+correct response is to **retire it in favor of a better part**, not to bend
+the design around the bad choice (see [`feedback`/replace-don't-patch];
+precedents: LM5165→LM5166 fixed-output, SUYIN→Würth RJ45, the planned reflow
+acceptance vs leaded downgrades in DR-24).
+
+**Operational.** Fetch via the API proxy (`GET …/datasheet?mpn=…`); for the
+few bot/WAF-blocked hosts it can't reach (onsemi, Littelfuse, ST, Phoenix,
+Micro Crystal), pull manually. The manifest's "not yet retrieved" list is the
+CP1 punch-list — it must reach empty (for active parts) before CP1 sign-off.
