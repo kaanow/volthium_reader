@@ -986,8 +986,14 @@ async function tick() {
       trendEl.textContent = "—";
     }
     setText("pv", fixed(x.pack_v, 2));
-    setText("pi", x.pack_i == null ? "—" : (x.pack_i > 0 ? "+" : "") + (+x.pack_i).toFixed(2));
-    setText("pp", x.pack_p == null ? "—" : Math.round(x.pack_p));
+    // Headline A/W use the *smoothed* current/power so their sign always agrees
+    // with the (smoothed) state badge. Instantaneous pack_i lags the EMA across
+    // a charge↔discharge crossing, which used to show e.g. "+1.2 A" under a
+    // "DISCHARGING" badge for minutes. Per-battery rows stay instantaneous.
+    const headlineI = x.smoothed_i != null ? x.smoothed_i : x.pack_i;
+    const headlineP = x.smoothed_p != null ? x.smoothed_p : x.pack_p;
+    setText("pi", headlineI == null ? "—" : (headlineI > 0 ? "+" : "") + (+headlineI).toFixed(2));
+    setText("pp", headlineP == null ? "—" : Math.round(headlineP));
 
     // Derive per-battery label from the BMS-advertised name; fall back to A/B for old rows.
     const labelOf = (name, fallback) => {

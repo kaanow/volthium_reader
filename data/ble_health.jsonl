@@ -1,0 +1,4 @@
+{"ts": "2026-06-30T07:12:25Z", "event": "watchdog-start", "note": "stale>150.0s interval=30.0s dry=False"}
+{"ts": "2026-06-30T07:12:26Z", "event": "outage", "csv_age_s": 1287.6, "rung": 0, "note": "starting maintenance cycle"}
+{"ts": "2026-06-30T07:12:36Z", "event": "recovery", "rung": 0, "action": "logger-cycle-only", "a_seen": true, "b_seen": false, "a_rssi": -87, "b_rssi": null}
+{"ts": "2026-06-30T07:12:36Z", "event": "next-recovery", "note": "in 180s (attempt 1)"}

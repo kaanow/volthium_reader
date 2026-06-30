@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+import json
+import os
+import time
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from aiobmsble import BMSSample
@@ -14,6 +19,156 @@ from bleak.backends.device import BLEDevice
 
 # SC12200G4DPH advertises as "V-12V200Ah-<serial>"
 ADV_NAME_PREFIX = "V-12V"
+
+
+# --- Structured BLE diagnostics ------------------------------------------------
+# A per-cycle JSONL trace of everything the radio does: discovery results with
+# per-battery RSSI, connect/read/disconnect timings, classified read errors, and
+# — most important — the *wedge signature*: a battery that's absent from the
+# discovery scan yet still shows a live controller connection. That state is the
+# proven failure mode (a leaked BleakClient pins a single-connection BMS so it
+# stops advertising; see docs/reliability_failure_modes.md, FM-8). We log it with
+# the raw `hcitool con` evidence so a future outage is self-diagnosing rather than
+# needing a live operator with bluetoothctl.
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_EVENT_LOG = Path(
+    os.environ.get("VOLTHIUM_BLE_EVENT_LOG", _REPO_ROOT / "data" / "ble_events.jsonl")
+)
+
+
+def _event(event: str, **fields) -> None:
+    """Append one structured BLE record as JSON. Best-effort — diagnostics must
+    never break the read loop, so every failure here is swallowed."""
+    try:
+        rec = {
+            "ts": datetime.now(timezone.utc)
+            .isoformat(timespec="milliseconds")
+            .replace("+00:00", "Z"),
+            "event": event,
+            **fields,
+        }
+        with _EVENT_LOG.open("a") as f:
+            f.write(json.dumps(rec, default=str) + "\n")
+    except Exception:
+        pass
+
+
+async def _run(cmd: list[str], *, timeout: float = 8.0) -> str:
+    """Run a short BlueZ CLI command and return combined stdout/stderr. Used for
+    observational connection-state checks (no discovery), so it can't collide
+    with the single-adapter scan. Never raises — returns an error marker."""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        out, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        return out.decode(errors="replace")
+    except Exception as exc:  # noqa: BLE001 — diagnostics, must not propagate
+        return f"<cmd {' '.join(cmd)} failed: {type(exc).__name__}: {exc}>"
+
+
+async def _connected_targets(targets: set[str]) -> set[str]:
+    """Of `targets`, which does the controller currently hold an LE connection
+    to? Parses `hcitool con`. A target here that we could NOT discover/read this
+    cycle is wedged: pinned by a leaked connection so it can't advertise."""
+    out = await _run(["hcitool", "con"])
+    up = out.upper()
+    return {t for t in targets if t.upper() in up}
+
+
+async def _force_disconnect(addr: str) -> str:
+    """Best-effort release of a wedged battery's radio from the Pi side. Clears
+    a BlueZ-level lingering connection; an in-process leaked client may re-grab
+    it (the logger's wedge self-restart is the backstop for that case)."""
+    return (await _run(["bluetoothctl", "disconnect", addr], timeout=15.0)).strip()
+
+
+# Bounds for one battery read. The read is capped so a hung GATT exchange can't
+# park a live connection; the disconnect is capped AND verified because
+# aiobmsble's disconnect() (basebms.py) has no timeout and silently swallows
+# BleakError, while keep_alive=True leaves the link open after a read — together
+# the exact recipe that leaks a client and wedges a single-connection BMS (FM-8).
+_READ_TIMEOUT = 15.0
+_DISCONNECT_TIMEOUT = 10.0
+
+
+async def _teardown(bms: VolthiumBMS, address: str) -> None:
+    """Guarantee a battery's link is released after a read. This is the
+    source-level cure for FM-8: no read may ever leave a connection open.
+
+    Three layers: (1) bound aiobmsble's disconnect so a hung teardown can't stall
+    the loop or strand the link; (2) verify at the controller level (`hcitool
+    con`) because aiobmsble returns success even when it internally swallowed a
+    BleakError; (3) if the link is somehow still up, force it down via BlueZ.
+    Never raises — teardown failures are logged, not propagated.
+    """
+    key = address.upper()
+    t0 = time.monotonic()
+    disconnect_error: Optional[str] = None
+    try:
+        await asyncio.wait_for(bms.disconnect(), timeout=_DISCONNECT_TIMEOUT)
+    except Exception as exc:  # noqa: BLE001 — teardown must never raise into the loop
+        disconnect_error = f"{type(exc).__name__}: {exc}"
+    forced = False
+    still_connected = False
+    try:
+        if await _connected_targets({key}):
+            await _force_disconnect(address)
+            forced = True
+            still_connected = bool(await _connected_targets({key}))
+    except Exception:  # noqa: BLE001 — verification/force is best-effort
+        pass
+    _event(
+        "teardown",
+        address=key,
+        teardown_s=round(time.monotonic() - t0, 2),
+        disconnect_error=disconnect_error,
+        forced=forced,
+        still_connected=still_connected,
+    )
+
+
+class DiscoveryWedgeError(RuntimeError):
+    """Discovery itself failed — classically org.bluez.Error.InProgress, a stuck
+    adapter-level discovery session (FM-3). Distinct from a both-batteries-absent
+    read failure: this is an adapter/bluetoothd wedge that a process restart will
+    NOT clear (it survives across restarts), so the logger must reset the adapter.
+    """
+
+
+async def _default_adapter() -> str:
+    """Best-effort name of the BLE controller (e.g. 'hci0'). Falls back to hci0,
+    the Raspberry Pi onboard adapter."""
+    out = await _run(["hciconfig"], timeout=8.0)
+    for line in out.splitlines():
+        line = line.strip()
+        if line.startswith("hci") and ":" in line:
+            return line.split(":", 1)[0]
+    return "hci0"
+
+
+async def recover_adapter(level: int) -> str:
+    """Escalating adapter recovery for a stuck discovery (FM-3) that a process
+    restart can't fix. level 1 = HCI controller reset (clears the wedged
+    discovery session, fast); level >= 2 = full bluetooth.service restart (the
+    proven heavy hammer — verified to clear `Discovering: yes` on 2026-06-30).
+    Uses passwordless sudo. Best-effort; logs a structured event; never raises.
+    """
+    hci = await _default_adapter()
+    if level <= 1:
+        action = f"hciconfig {hci} reset"
+        out = await _run(["sudo", "-n", "hciconfig", hci, "reset"], timeout=20.0)
+        await asyncio.sleep(2.0)  # let the controller re-init before next scan
+    else:
+        action = "systemctl restart bluetooth"
+        out = await _run(
+            ["sudo", "-n", "systemctl", "restart", "bluetooth"], timeout=30.0
+        )
+        await asyncio.sleep(5.0)  # bluetoothd + adapter need a moment to come back
+    _event("adapter_recovery", level=level, action=action, output=out.strip()[:500])
+    return action
 
 
 @dataclass
@@ -78,6 +233,11 @@ class PackReading:
     """
     a: BatteryReading
     b: BatteryReading
+    # Addresses detected wedged this cycle: absent from discovery but still
+    # holding a controller connection (leaked-link signature). The logger uses
+    # this to escalate to a self-restart — the proven cure — when a force-
+    # disconnect won't free an in-process leaked client.
+    wedged: list[str] = field(default_factory=list)
 
     @property
     def pack_voltage(self) -> Optional[float]:
@@ -132,11 +292,48 @@ async def discover_volthium(timeout: float = 8.0) -> list[tuple[BLEDevice, str]]
 
 
 async def _read_device(dev: BLEDevice, address: str) -> BatteryReading:
-    """Connect to an already-discovered device, read one sample, disconnect."""
-    async with VolthiumBMS(ble_device=dev) as bms:
-        sample = await bms.async_update()
+    """Connect to an already-discovered device, read one sample, and ALWAYS
+    release the link (bounded + verified — see _teardown / FM-8).
+
+    Uses explicit lifecycle rather than `async with`: the context manager's
+    __aexit__ disconnect is unbounded and swallows errors, so a hung/failed
+    teardown there leaks the client and wedges the BMS. Here the read is
+    time-bounded and teardown runs in `finally` no matter how the read exits
+    (success, error, or timeout cancellation).
+    """
+    key = address.upper()
+    t0 = time.monotonic()
+    # keep_alive=True so async_update() leaves the link open and WE own teardown.
+    bms = VolthiumBMS(ble_device=dev, keep_alive=True)
+    read_s: Optional[float] = None
+    try:
+        sample = await asyncio.wait_for(bms.async_update(), timeout=_READ_TIMEOUT)
+        read_s = round(time.monotonic() - t0, 2)
+    except Exception as exc:  # noqa: BLE001 — re-raised; logged with timing for triage
+        _event(
+            "read_exception",
+            address=key,
+            error_type=type(exc).__name__,
+            error_str=str(exc),
+            elapsed_s=round(time.monotonic() - t0, 2),
+        )
+        raise
+    finally:
+        await _teardown(bms, address)
     name = dev.name or ""
-    return BatteryReading.from_sample(address, name, sample)
+    reading = BatteryReading.from_sample(address, name, sample)
+    _event(
+        "read_ok",
+        address=key,
+        read_s=read_s,
+        total_s=round(time.monotonic() - t0, 2),
+        voltage=reading.voltage,
+        current=reading.current,
+        soc=reading.soc,
+        temp=reading.temperature,
+        problem_code=reading.problem_code,
+    )
+    return reading
 
 
 async def read_battery(address: str, *, timeout: float = 20.0) -> BatteryReading:
@@ -160,11 +357,26 @@ async def _discover_addresses(
     """
     wanted = {a.upper() for a in addresses}
     found: dict[str, BLEDevice] = {}
+    rssi: dict[str, int] = {}
+    names: dict[str, str] = {}
+    packets: dict[str, int] = {}
     done = asyncio.Event()
+    t0 = time.monotonic()
 
-    def cb(dev: BLEDevice, _adv) -> None:
+    def cb(dev: BLEDevice, adv) -> None:
         key = dev.address.upper()
-        if key in wanted and key not in found:
+        if key not in wanted:
+            return
+        # Track RSSI/adv-name/packet-count every time we hear this battery — the
+        # RSSI trend leading into a dropout distinguishes a link-budget fade
+        # (signal sags toward the floor) from a clean wedge (cuts out at strong
+        # signal). adv.rssi is the per-advertisement value (dev.rssi is deprecated).
+        rssi[key] = getattr(adv, "rssi", None)
+        nm = (getattr(adv, "local_name", None) or dev.name or "")
+        if nm:
+            names[key] = nm
+        packets[key] = packets.get(key, 0) + 1
+        if key not in found:
             found[key] = dev
             if wanted <= set(found):
                 done.set()
@@ -177,6 +389,17 @@ async def _discover_addresses(
         pass
     finally:
         await scanner.stop()
+    scan_s = round(time.monotonic() - t0, 2)
+    for key in sorted(wanted):
+        _event(
+            "scan_result",
+            address=key,
+            seen=key in found,
+            rssi=rssi.get(key),
+            adv_name=names.get(key),
+            adv_packets=packets.get(key, 0),
+            scan_s=scan_s,
+        )
     return found
 
 
@@ -204,7 +427,22 @@ async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackR
     is the pack current. Raises only if NEITHER battery can be read, so the
     logger still treats a total blackout as a failed cycle (no empty row).
     """
-    devs = await _discover_addresses({addr_a, addr_b}, timeout=timeout)
+    try:
+        devs = await _discover_addresses({addr_a, addr_b}, timeout=timeout)
+    except Exception as exc:  # noqa: BLE001 — log then re-raise; keeps FM-3 self-diagnosing
+        # A discovery that throws (classically org.bluez.Error.InProgress — a
+        # stuck adapter-level discovery session, FM-3) never reaches the per-
+        # cycle events below, so record it here. Note this is an adapter/bluetoothd
+        # wedge, NOT the connection-leak wedge (FM-8): a process restart won't
+        # clear it — it needs an adapter reset (the watchdog's job).
+        _event(
+            "scan_error",
+            error_type=type(exc).__name__,
+            error_str=str(exc),
+            note="discovery failed (likely stuck adapter discovery, FM-3 — "
+            "needs adapter reset, not a process restart)",
+        )
+        raise DiscoveryWedgeError(f"{type(exc).__name__}: {exc}") from exc
     readings: dict[str, Optional[BatteryReading]] = {}
     for addr in (addr_a, addr_b):
         dev = devs.get(addr.upper())
@@ -213,11 +451,54 @@ async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackR
             continue
         try:
             readings[addr] = await _read_device(dev, addr)
-        except Exception:  # noqa: BLE001 — one battery's failure must not sink the other
+        except Exception as exc:  # noqa: BLE001 — one battery's failure must not sink the other
+            _event(
+                "read_fail",
+                address=addr.upper(),
+                error_type=type(exc).__name__,
+                error_str=str(exc),
+                error_repr=repr(exc),
+            )
             readings[addr] = None
+
+    # Wedge detection + leak backstop. Any battery we did NOT read this cycle
+    # but that the controller still holds a connection to is wedged: a leaked /
+    # half-open link is pinning its single-connection BMS so it can't advertise
+    # (the proven FM-8 failure). Record the raw evidence, try to free its radio,
+    # and surface the address so the logger can escalate to a self-restart (the
+    # cure we verified) if a force-disconnect won't shake an in-process leak.
+    unread = {addr_a.upper(), addr_b.upper()} - {
+        addr.upper() for addr, r in readings.items() if r is not None
+    }
+    wedged: list[str] = []
+    if unread:
+        connected = await _connected_targets(unread)
+        if connected:
+            evidence = (await _run(["hcitool", "con"])).strip()
+            for addr in sorted(connected):
+                wedged.append(addr)
+                _event(
+                    "wedge_detected",
+                    address=addr,
+                    note="absent from discovery but controller still connected "
+                    "— leaked link pinning the BMS radio (FM-8)",
+                    hcitool_con=evidence,
+                )
+                result = await _force_disconnect(addr)
+                _event("force_disconnect", address=addr, result=result)
+
     if readings[addr_a] is None and readings[addr_b] is None:
+        _event("cycle_done", outcome="both_down", wedged=wedged)
         raise RuntimeError(f"neither battery found in scan (a={addr_a} b={addr_b})")
+    _event(
+        "cycle_done",
+        outcome="ok" if (readings[addr_a] and readings[addr_b]) else "partial",
+        a_read=readings[addr_a] is not None,
+        b_read=readings[addr_b] is not None,
+        wedged=wedged,
+    )
     return PackReading(
         a=readings[addr_a] or _missing_reading(addr_a),
         b=readings[addr_b] or _missing_reading(addr_b),
+        wedged=wedged,
     )

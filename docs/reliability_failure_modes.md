@@ -124,7 +124,17 @@ attempt, success or fail, per battery, with RSSI) — see "Cross-cutting" below.
   loops; treat the pack view as a join over the two latest per-battery readings
   rather than an all-or-nothing read. Alert when either battery is stale > T.
 
-## FM-6 — Battery advertises, then goes silent with no holding connection (OPEN)
+## FM-6 — Battery advertises, then goes silent with no holding connection (RESOLVED → FM-8)
+
+> **Resolved 2026-06-30:** the "no holding connection" observation was a red
+> herring — it was made *after* the logger process had been stopped, which kills
+> the leaked client and drops the connection. With the logger running
+> continuously we caught the live holding connection (`Connected: yes`, LE handle
+> 64). Root cause is **FM-8** (leaked in-process `BleakClient`), not a BMS/RF
+> fault. The operator's key clue was decisive: B worked for extended periods on
+> CoreBluetooth (Mac) and the vendor app, and only hung once the Pi/BlueZ stack
+> drove it. Original notes kept below for the record.
+
 
 - **Signature:** a battery that read fine then **emits no BLE advertisements at
   all** in a 15–20 s scan, while `hcitool con` shows **no** connection holding it
@@ -163,6 +173,58 @@ attempt, success or fail, per battery, with RSSI) — see "Cross-cutting" below.
   not just a banner), with per-stage attribution: is the CSV stale (logger/BLE) or
   is the uploader stale (network/cloud)? The data to attribute it already exists
   (CSV mtime vs uploader last-success time vs cloud last-ts).
+
+## FM-8 — Leaked `BleakClient` pins a battery's radio → it stops advertising ⚠️ (root cause of FM-6)
+
+- **Signature:** a battery is **absent from every discovery scan** (so the logger
+  reports it DOWN) **while `hcitool con` / `bluetoothctl info` show it still
+  `Connected: yes`** with a live LE handle. The *other* battery is unaffected. The
+  state persists for the entire life of the logger process and is only cleared by
+  a process restart or a DC power-cycle of the battery.
+- **Proven mechanism (2026-06-30, live capture):**
+  1. A read cycle leaves a `BleakClient` **connected** (an error/timeout path that
+     doesn't cleanly disconnect — the disconnect is the slowest part of a read,
+     ~1.8 s, and is the precursor that hangs).
+  2. The leaked client **pins the connection** and **auto-reconnects** the instant
+     it's externally dropped (an outside `bluetoothctl disconnect` came back in
+     ~2 s). So a Pi-side disconnect can't shake an in-process leak.
+  3. The battery's BMS accepts only **one** central connection, so while pinned it
+     **stops advertising** → discovery never finds it → logger reports DOWN forever.
+- **Why only one battery / why the Pi:** confirmed by the operator that the same
+  cells ran for extended periods on CoreBluetooth (Mac) and the vendor app with no
+  hangs — CoreBluetooth tears connections down cleanly; BlueZ leaks them. The
+  weaker/slower battery (B sits ~15 dB down: −62 vs A's −45 dBm) hits the bad
+  read/disconnect path more often, so it's the one that wedges.
+- **Proof the cure is software, not power:** `systemctl stop volthium-logger`
+  dropped B's connection immediately and it *stayed* dropped; a restart let B be
+  rediscovered and read within <10 s — **no inverter/panel disconnect needed**
+  (the operator's previous, impractical remedy).
+- **Fix shipped:**
+  - **Prevent:** `_read_device` now bounds the GATT read with `asyncio.wait_for`
+    so a hung read can't park a live connection, and logs connect/read/disconnect
+    timings so a slow teardown is visible before it strands a battery.
+  - **Detect + record:** `read_pack` checks any unread target against `hcitool con`
+    and, if still connected, emits a `wedge_detected` event with the raw evidence
+    to `data/ble_events.jsonl`, then attempts a Pi-side `force_disconnect`.
+  - **Recover (agent-free):** the wedged address is surfaced on `PackReading.wedged`;
+    after `RESTART_AFTER_WEDGE_CYCLES` (~1 min) of the same battery wedged, the
+    logger exits for a clean systemd restart — the proven cure. Genuinely-off
+    batteries never show `Connected`, so they can't trip a restart loop.
+- **Still worth doing:** root-cause the disconnect leak inside the read path so the
+  restart is a backstop, not the primary mechanism; consider holding a single
+  persistent connection per battery instead of connect-per-cycle (fewer teardowns
+  = fewer chances to leak). An external USB BLE dongle remains the strongest
+  hardware mitigation.
+
+## FM-3 addendum — stuck adapter discovery is NOT cured by a process restart
+
+While diagnosing FM-8, rapid manual `bluetoothctl`/`hcitool` use + fast logger
+restarts left the adapter in `Discovering: yes` with every read failing
+`org.bluez.Error.InProgress`. A **logger process restart does not clear this** —
+it lives in `bluetoothd`, so it survived multiple restarts. Cure: an adapter /
+`bluetooth.service` reset. The logger now logs a `scan_error` event when discovery
+throws so this is self-diagnosing, but the *recovery* (adapter reset, needs
+privilege) belongs in the watchdog, not the unprivileged logger.
 
 ---
 

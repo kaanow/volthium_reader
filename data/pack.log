@@ -549,3 +549,259 @@
 2026-05-19 05:26:56,382 INFO BLE recovered after 1 errors
 2026-05-19 05:31:26,095 INFO n=12090  26.17V  -2.90A  -76W  SOC 66-68%  state=discharging  remain≈2328m
 2026-05-19 05:36:27,432 INFO n=12120  26.18V  -2.50A  -65W  SOC 65-68%  state=discharging  remain≈2612m
+2026-06-29 23:24:29,079 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-29 23:24:29,089 WARNING CSV schema drift: archived old file with 22 cols → pack.csv.v1-2324; new file will use the current 32-col schema
+2026-06-29 23:24:29,153 WARNING read #1 failed (1 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-29 23:24:39,122 WARNING read #1 failed (2 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-29 23:24:49,129 WARNING read #1 failed (3 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-29 23:24:59,124 WARNING read #1 failed (4 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-29 23:25:19,158 WARNING read #1 failed (5 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-29 23:25:44,187 WARNING read #1 failed (6 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-29 23:26:14,233 WARNING read #1 failed (7 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-29 23:34:45,512 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-29 23:34:56,381 INFO n=1  26.41V  -8.80A  -232W  SOC 74-84%  state=discharging  remain≈873m
+2026-06-29 23:38:28,235 ERROR V-12V200AH-0667|55DF: TX BLE request error (BleakGATTProtocolError)
+2026-06-29 23:38:28,242 ERROR V-12V200AH-0667|55DF: TX BLE request error (BleakDBusError)
+2026-06-29 23:38:30,286 WARNING read #13 failed (1 in a row): TimeoutError: 
+2026-06-29 23:38:41,368 INFO BLE recovered after 1 errors
+2026-06-29 23:39:01,401 WARNING read #14 failed (1 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-29 23:39:11,368 INFO BLE recovered after 1 errors
+2026-06-29 23:41:51,437 WARNING read #23 failed (1 in a row): RuntimeError: battery 09:01:00:14:7E:DC not found in scan
+2026-06-29 23:42:02,376 INFO BLE recovered after 1 errors
+2026-06-29 23:43:54,370 INFO n=30  26.40V  -8.40A  -222W  SOC 73-83%  state=discharging  remain≈880m
+2026-06-29 23:50:37,866 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-29 23:50:48,402 INFO n=1  26.43V  -6.00A  -159W  SOC 73-83%  state=discharging  remain≈1260m
+2026-06-29 23:51:29,828 WARNING read #3 failed (1 in a row): BleakNotFoundError: 09:01:00:11:55:DF - 09:01:00:11:55:DF: Failed to connect after 4 attempt(s): device 'dev_09_01_00_11_55_DF' not found: The device disappeared; Try restarting the scanner or moving the device closer
+2026-06-29 23:51:49,907 WARNING read #3 failed (2 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-29 23:52:09,968 WARNING read #3 failed (3 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-29 23:52:30,022 WARNING read #3 failed (4 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-29 23:53:10,072 WARNING read #3 failed (5 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-29 23:53:55,131 WARNING read #3 failed (6 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-29 23:54:45,190 WARNING read #3 failed (7 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-29 23:55:40,245 WARNING read #3 failed (8 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-29 23:56:40,318 WARNING read #3 failed (9 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-29 23:57:45,393 WARNING read #3 failed (10 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-29 23:58:55,470 WARNING read #3 failed (11 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:00:44,522 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 00:01:04,598 WARNING read #1 failed (1 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:01:24,649 WARNING read #1 failed (2 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:01:44,752 WARNING read #1 failed (3 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:02:04,850 WARNING read #1 failed (4 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:02:44,910 WARNING read #1 failed (5 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:03:29,962 WARNING read #1 failed (6 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:04:59,087 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 00:05:19,179 WARNING read #1 failed (1 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:05:39,229 WARNING read #1 failed (2 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:05:59,279 WARNING read #1 failed (3 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:06:19,330 WARNING read #1 failed (4 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:06:59,415 WARNING read #1 failed (5 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:07:44,755 WARNING read #1 failed (6 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:09:33,096 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 00:09:53,195 WARNING read #1 failed (1 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:10:13,235 WARNING read #1 failed (2 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:10:33,283 WARNING read #1 failed (3 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:10:53,340 WARNING read #1 failed (4 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:11:33,399 WARNING read #1 failed (5 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:12:18,500 WARNING read #1 failed (6 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:12:39,207 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+                                                                                                                       2026-06-30 00:14:12,028 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 00:14:32,130 WARNING read #1 failed (1 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:14:52,159 WARNING read #1 failed (2 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:15:12,188 WARNING read #1 failed (3 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:15:32,211 WARNING read #1 failed (4 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:16:12,262 WARNING read #1 failed (5 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:16:57,318 WARNING read #1 failed (6 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:17:47,349 WARNING read #1 failed (7 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:18:42,393 WARNING read #1 failed (8 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:19:42,448 WARNING read #1 failed (9 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:20:47,487 WARNING read #1 failed (10 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:21:57,677 WARNING read #1 failed (11 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:23:12,742 WARNING read #1 failed (12 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:24:32,811 WARNING read #1 failed (13 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:25:52,875 WARNING read #1 failed (14 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:27:12,931 WARNING read #1 failed (15 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:28:33,001 WARNING read #1 failed (16 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:29:53,073 WARNING read #1 failed (17 in a row): RuntimeError: battery 09:01:00:11:55:DF not found in scan
+2026-06-30 00:29:57,311 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 00:30:22,897 WARNING battery presence: A=up B=DOWN  (partial row — pack totals unavailable)
+2026-06-30 00:30:22,898 INFO n=1  0.00V  -7.20A  +0W  SOC 80-80%  state=discharging  remain≈1167m
+2026-06-30 00:39:01,679 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 00:39:25,903 WARNING battery presence: A=up B=DOWN  (partial row — pack totals unavailable)
+2026-06-30 00:39:25,904 INFO n=1  0.00V  -9.80A  +0W  SOC 80-80%  state=discharging  remain≈857m
+2026-06-30 00:42:37,143 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 00:43:00,875 WARNING battery presence: A=up B=DOWN  (partial row — pack totals unavailable)
+2026-06-30 00:43:00,876 INFO n=1  0.00V  -9.60A  +0W  SOC 79-79%  state=discharging  remain≈862m
+2026-06-30 00:54:39,886 INFO n=30  0.00V  -6.40A  +0W  SOC 78-78%  state=discharging  remain≈1082m
+2026-06-30 01:06:41,891 INFO n=60  0.00V  -6.00A  +0W  SOC 78-78%  state=discharging  remain≈1326m
+2026-06-30 01:18:41,880 INFO n=90  0.00V  -9.20A  +0W  SOC 77-77%  state=discharging  remain≈886m
+2026-06-30 01:30:42,881 INFO n=120  0.00V  -6.40A  +0W  SOC 76-76%  state=discharging  remain≈1185m
+2026-06-30 01:42:45,891 INFO n=150  0.00V  -8.40A  +0W  SOC 76-76%  state=discharging  remain≈1208m
+2026-06-30 01:54:46,883 INFO n=180  0.00V  -9.00A  +0W  SOC 75-75%  state=discharging  remain≈873m
+2026-06-30 02:06:46,886 INFO n=210  0.00V  -6.00A  +0W  SOC 74-74%  state=discharging  remain≈1241m
+2026-06-30 02:18:54,889 INFO n=240  0.00V  -9.20A  +0W  SOC 73-73%  state=discharging  remain≈847m
+2026-06-30 02:30:58,890 INFO n=270  0.00V  -6.20A  +0W  SOC 73-73%  state=discharging  remain≈1092m
+2026-06-30 02:43:04,890 INFO n=300  0.00V  -6.00A  +0W  SOC 72-72%  state=discharging  remain≈1213m
+2026-06-30 02:55:12,881 INFO n=330  0.00V  -8.80A  +0W  SOC 71-71%  state=discharging  remain≈827m
+2026-06-30 03:07:18,877 INFO n=360  0.00V  -4.80A  +0W  SOC 70-70%  state=discharging  remain≈1427m
+2026-06-30 03:19:20,881 INFO n=390  0.00V  -8.00A  +0W  SOC 70-70%  state=discharging  remain≈997m
+2026-06-30 03:31:24,885 INFO n=420  0.00V  -4.60A  +0W  SOC 69-69%  state=discharging  remain≈1154m
+2026-06-30 03:43:24,887 INFO n=450  0.00V  -4.80A  +0W  SOC 69-69%  state=discharging  remain≈1471m
+2026-06-30 03:55:32,878 INFO n=480  0.00V  -7.20A  +0W  SOC 68-68%  state=discharging  remain≈934m
+2026-06-30 04:07:34,878 INFO n=510  0.00V  -4.60A  +0W  SOC 67-67%  state=discharging  remain≈1385m
+2026-06-30 04:19:37,888 INFO n=540  0.00V  -8.00A  +0W  SOC 67-67%  state=discharging  remain≈1100m
+2026-06-30 04:31:38,884 INFO n=570  0.00V  -4.60A  +0W  SOC 66-66%  state=discharging  remain≈1001m
+2026-06-30 04:43:40,878 INFO n=600  0.00V  -5.00A  +0W  SOC 66-66%  state=discharging  remain≈1390m
+2026-06-30 04:54:49,916 WARNING read #628 failed (1 in a row): RuntimeError: neither battery found in scan (a=09:01:00:14:7E:DC b=09:01:00:11:55:DF)
+2026-06-30 04:55:12,887 INFO BLE recovered after 1 errors
+2026-06-30 04:56:00,887 INFO n=630  0.00V  -7.80A  +0W  SOC 65-65%  state=discharging  remain≈879m
+2026-06-30 05:08:08,886 INFO n=660  0.00V  -4.80A  +0W  SOC 64-64%  state=discharging  remain≈1309m
+2026-06-30 05:20:10,880 INFO n=690  0.00V  -4.80A  +0W  SOC 64-64%  state=discharging  remain≈1355m
+2026-06-30 05:32:10,904 INFO n=720  0.00V  -7.60A  +0W  SOC 63-63%  state=discharging  remain≈852m
+2026-06-30 05:44:11,878 INFO n=750  0.00V  -4.60A  +0W  SOC 63-63%  state=discharging  remain≈1344m
+2026-06-30 05:56:13,886 INFO n=780  0.00V  -6.60A  +0W  SOC 62-62%  state=discharging  remain≈920m
+2026-06-30 06:08:13,879 INFO n=810  0.00V  -3.40A  +0W  SOC 62-62%  state=discharging  remain≈1593m
+2026-06-30 06:20:13,879 INFO n=840  0.00V  -3.40A  +0W  SOC 61-61%  state=discharging  remain≈1873m
+2026-06-30 06:32:14,900 INFO n=870  0.00V  -5.40A  +0W  SOC 61-61%  state=discharging  remain≈1083m
+2026-06-30 06:44:15,892 INFO n=900  0.00V  -2.60A  +0W  SOC 60-60%  state=discharging  remain≈2276m
+2026-06-30 06:56:15,886 INFO n=930  0.00V  -6.20A  +0W  SOC 60-60%  state=discharging  remain≈393m
+2026-06-30 07:08:24,592 INFO n=960  0.00V  -2.60A  +0W  SOC 58-58%  state=discharging  remain≈1502m
+2026-06-30 07:20:24,879 INFO n=990  0.00V  -3.20A  +0W  SOC 58-58%  state=discharging  remain≈1967m
+2026-06-30 07:32:27,877 INFO n=1020  0.00V  -5.40A  +0W  SOC 57-57%  state=discharging  remain≈1006m
+2026-06-30 07:42:54,907 WARNING battery presence: A=up B=up
+2026-06-30 07:43:32,882 INFO n=1050  25.91V  -62.90A  -1630W  SOC 45-57%  state=discharging  remain≈402m
+2026-06-30 07:48:40,886 INFO n=1080  26.12V  +0.00A  +0W  SOC 44-56%  state=discharging  remain≈2563m
+2026-06-30 07:53:48,880 INFO n=1110  26.17V  -1.40A  -37W  SOC 44-56%  state=idle  remain≈—
+2026-06-30 07:58:58,893 INFO n=1140  26.15V  -2.70A  -71W  SOC 44-56%  state=discharging  remain≈1553m
+2026-06-30 08:03:58,887 INFO n=1170  26.15V  -2.20A  -58W  SOC 44-56%  state=discharging  remain≈1731m
+2026-06-30 08:09:25,883 INFO n=1200  26.19V  +0.00A  +0W  SOC 44-56%  state=idle  remain≈—
+2026-06-30 08:13:00,391 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 08:13:08,840 WARNING battery presence: A=up B=up
+2026-06-30 08:13:08,841 INFO n=1  26.26V  +3.70A  +97W  SOC 44-56%  state=charging  remain≈1265m
+2026-06-30 08:25:30,560 INFO n=30  26.25V  +1.70A  +45W  SOC 44-56%  state=charging  remain≈3788m
+2026-06-30 08:30:29,553 INFO n=60  26.09V  -12.20A  -318W  SOC 44-56%  state=discharging  remain≈366m
+2026-06-30 08:35:31,553 INFO n=90  26.24V  +3.30A  +87W  SOC 44-56%  state=charging  remain≈1836m
+2026-06-30 08:40:32,554 INFO n=120  26.28V  +3.50A  +92W  SOC 44-56%  state=charging  remain≈1229m
+2026-06-30 08:45:30,554 INFO n=150  26.28V  +3.00A  +79W  SOC 44-56%  state=charging  remain≈1353m
+2026-06-30 08:50:30,593 INFO n=180  26.29V  +3.60A  +95W  SOC 44-56%  state=charging  remain≈1299m
+2026-06-30 08:55:33,562 INFO n=210  26.24V  +0.00A  +0W  SOC 44-56%  state=idle  remain≈—
+2026-06-30 09:00:40,567 INFO n=240  26.19V  +0.00A  +0W  SOC 44-56%  state=discharging  remain≈2208m
+2026-06-30 09:05:52,559 INFO n=270  26.03V  +1.90A  +49W  SOC 44-56%  state=discharging  remain≈283m
+2026-06-30 09:08:02,640 WARNING read #282 failed (1 in a row): RuntimeError: neither battery found in scan (a=09:01:00:14:7E:DC b=09:01:00:11:55:DF)
+2026-06-30 09:08:10,566 INFO BLE recovered after 1 errors
+2026-06-30 09:11:18,569 INFO n=300  26.07V  +2.10A  +55W  SOC 44-56%  state=discharging  remain≈1671m
+2026-06-30 09:16:29,582 INFO n=330  26.20V  +4.20A  +110W  SOC 43-55%  state=charging  remain≈1483m
+2026-06-30 09:21:41,563 INFO n=360  26.23V  +0.60A  +16W  SOC 43-55%  state=charging  remain≈3751m
+2026-06-30 09:24:50,566 WARNING battery presence: A=up B=DOWN  (partial row — pack totals unavailable)
+2026-06-30 09:28:30,556 INFO n=390  0.00V  +2.20A  +0W  SOC 55-55%  state=charging  remain≈2438m
+2026-06-30 09:38:29,563 INFO n=420  0.00V  +4.20A  +0W  SOC 55-55%  state=charging  remain≈2028m
+2026-06-30 09:47:40,560 INFO n=450  0.00V  +4.20A  +0W  SOC 56-56%  state=charging  remain≈1101m
+2026-06-30 09:57:07,950 INFO V-12V200AH-0667|55DF: failed to initialize BMS connection (BleakDBusError)
+2026-06-30 09:57:13,079 INFO n=480  0.00V  +4.40A  +0W  SOC 56-56%  state=charging  remain≈806m
+2026-06-30 09:57:34,800 WARNING battery presence: A=up B=up
+2026-06-30 10:01:42,741 ERROR V-12V200AH-0667|55DF: TX BLE request error (BleakDBusError)
+2026-06-30 10:01:57,150 WARNING battery presence: A=up B=DOWN  (partial row — pack totals unavailable)
+2026-06-30 10:02:26,478 WARNING battery presence: A=up B=up
+2026-06-30 10:03:28,532 WARNING battery presence: A=up B=DOWN  (partial row — pack totals unavailable)
+2026-06-30 10:03:56,069 WARNING battery presence: A=up B=up
+2026-06-30 10:06:46,042 WARNING battery presence: A=up B=DOWN  (partial row — pack totals unavailable)
+2026-06-30 10:08:22,084 WARNING battery presence: A=up B=up
+2026-06-30 10:09:58,769 WARNING read #502 failed (1 in a row): RuntimeError: neither battery found in scan (a=09:01:00:14:7E:DC b=09:01:00:11:55:DF)
+2026-06-30 10:12:20,672 WARNING read #502 failed (2 in a row): RuntimeError: neither battery found in scan (a=09:01:00:14:7E:DC b=09:01:00:11:55:DF)
+2026-06-30 10:12:51,278 WARNING read #502 failed (3 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:13:53,725 WARNING read #502 failed (4 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:15:47,974 WARNING read #502 failed (5 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:17:38,016 WARNING read #502 failed (6 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:18:45,359 WARNING read #502 failed (7 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:20:30,735 WARNING read #502 failed (8 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:21:50,607 WARNING read #502 failed (9 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:23:15,887 WARNING read #502 failed (10 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:24:28,937 WARNING read #502 failed (11 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:25:47,033 WARNING read #502 failed (12 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:27:11,964 WARNING read #502 failed (13 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:29:05,133 WARNING read #502 failed (14 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:31:00,822 WARNING read #502 failed (15 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:33:52,184 WARNING read #502 failed (16 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:35:46,966 WARNING read #502 failed (17 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:37:17,091 WARNING read #502 failed (18 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:38:46,309 WARNING read #502 failed (19 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:40:08,960 WARNING read #502 failed (20 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:40:57,021 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 10:41:17,081 WARNING read #1 failed (1 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:41:37,115 WARNING read #1 failed (2 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:41:57,143 WARNING read #1 failed (3 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:42:17,157 WARNING read #1 failed (4 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:42:57,188 WARNING read #1 failed (5 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:43:42,248 WARNING read #1 failed (6 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:44:32,300 WARNING read #1 failed (7 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:45:20,597 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 10:45:40,659 WARNING read #1 failed (1 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:46:00,692 WARNING read #1 failed (2 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:46:20,705 WARNING read #1 failed (3 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:46:40,730 WARNING read #1 failed (4 in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 10:47:14,050 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 10:47:22,564 WARNING battery presence: A=up B=up
+2026-06-30 10:47:22,565 INFO n=1  26.40V  +4.30A  +114W  SOC 45-57%  state=charging  remain≈1060m
+2026-06-30 10:49:18,100 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 10:49:45,607 WARNING battery presence: A=DOWN B=up  (partial row — pack totals unavailable)
+2026-06-30 10:49:45,608 WARNING BLE wedge: 09:01:00:14:7E:DC absent from discovery but still connected (leaked link, FM-8) — streak 1/6
+2026-06-30 10:49:45,609 INFO n=1  0.00V  +4.40A  +0W  SOC 45-45%  state=charging  remain≈1364m
+2026-06-30 10:49:53,578 WARNING battery presence: A=up B=up
+2026-06-30 10:55:04,561 INFO n=30  26.40V  +3.80A  +100W  SOC 45-57%  state=charging  remain≈1149m
+2026-06-30 11:00:38,564 INFO n=60  26.36V  +0.00A  +0W  SOC 45-57%  state=charging  remain≈8702m
+2026-06-30 11:03:33,064 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 11:03:41,655 WARNING battery presence: A=up B=up
+2026-06-30 11:03:41,656 INFO n=1  26.37V  +2.90A  +76W  SOC 45-57%  state=charging  remain≈1572m
+2026-06-30 11:08:55,608 INFO n=30  26.47V  +7.80A  +206W  SOC 45-57%  state=charging  remain≈656m
+2026-06-30 11:12:43,902 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 11:12:54,401 WARNING battery presence: A=up B=up
+2026-06-30 11:12:54,402 INFO n=1  26.63V  +18.80A  +501W  SOC 46-58%  state=charging  remain≈236m
+2026-06-30 11:17:43,251 INFO n=30  26.34V  +11.70A  +308W  SOC 46-58%  state=discharging  remain≈431m
+2026-06-30 11:22:53,272 INFO n=60  26.51V  +7.90A  +209W  SOC 46-58%  state=charging  remain≈408m
+2026-06-30 11:28:03,255 INFO n=90  26.55V  +13.90A  +369W  SOC 47-59%  state=charging  remain≈407m
+2026-06-30 11:33:15,269 WARNING battery presence: A=up B=DOWN  (partial row — pack totals unavailable)
+2026-06-30 11:35:06,335 WARNING read #113 failed (1 in a row): RuntimeError: neither battery found in scan (a=09:01:00:14:7E:DC b=09:01:00:11:55:DF)
+2026-06-30 11:35:41,268 WARNING read #113 failed (2 in a row): RuntimeError: neither battery found in scan (a=09:01:00:14:7E:DC b=09:01:00:11:55:DF)
+2026-06-30 11:36:10,258 WARNING read #113 failed (3 in a row): RuntimeError: neither battery found in scan (a=09:01:00:14:7E:DC b=09:01:00:11:55:DF)
+2026-06-30 11:36:39,258 WARNING read #113 failed (4 in a row): RuntimeError: neither battery found in scan (a=09:01:00:14:7E:DC b=09:01:00:11:55:DF)
+2026-06-30 11:37:17,268 INFO BLE recovered after 4 errors
+2026-06-30 11:39:25,263 INFO n=120  0.00V  +4.20A  +0W  SOC 60-60%  state=charging  remain≈647m
+2026-06-30 11:48:18,269 INFO n=150  0.00V  +2.40A  +0W  SOC 60-60%  state=charging  remain≈1330m
+2026-06-30 11:57:47,266 INFO n=180  0.00V  +18.40A  +0W  SOC 61-61%  state=charging  remain≈232m
+2026-06-30 12:07:15,270 INFO n=210  0.00V  +13.40A  +0W  SOC 62-62%  state=charging  remain≈292m
+2026-06-30 12:16:40,263 INFO n=240  0.00V  +10.40A  +0W  SOC 63-63%  state=charging  remain≈333m
+2026-06-30 12:26:03,264 INFO n=270  0.00V  +12.20A  +0W  SOC 64-64%  state=charging  remain≈298m
+2026-06-30 12:36:10,264 INFO n=300  0.00V  +1.20A  +0W  SOC 64-64%  state=charging  remain≈4523m
+2026-06-30 12:44:47,114 WARNING read #325 failed (1 in a row): RuntimeError: neither battery found in scan (a=09:01:00:14:7E:DC b=09:01:00:11:55:DF)
+2026-06-30 12:44:47,223 WARNING discovery wedged (#325, 1 scan-errors in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 12:45:27,462 WARNING discovery wedged (#325, 2 scan-errors in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 12:45:38,892 WARNING discovery wedged (#325, 3 scan-errors in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 12:45:40,126 ERROR discovery wedged 3× — resetting the HCI controller
+2026-06-30 12:46:07,206 INFO adapter recovery (soft): hciconfig hci0 reset
+2026-06-30 12:47:11,877 WARNING discovery wedged (#325, 4 scan-errors in a row): BleakDBusError: [org.bluez.Error.InProgress] Operation already in progress
+2026-06-30 15:43:01,118 WARNING read #325 failed (2 in a row): RuntimeError: neither battery found in scan (a=09:01:00:14:7E:DC b=09:01:00:11:55:DF)
+2026-06-30 15:53:32,687 WARNING read #325 failed (3 in a row): RuntimeError: neither battery found in scan (a=09:01:00:14:7E:DC b=09:01:00:11:55:DF)
+2026-06-30 15:55:26,547 WARNING read #325 failed (4 in a row): RuntimeError: neither battery found in scan (a=09:01:00:14:7E:DC b=09:01:00:11:55:DF)
+2026-06-30 16:05:33,173 WARNING read #325 failed (5 in a row): RuntimeError: neither battery found in scan (a=09:01:00:14:7E:DC b=09:01:00:11:55:DF)
+2026-06-30 16:08:41,713 WARNING discovery wedged (#325, 1 scan-errors in a row): BleakDBusError: [org.freedesktop.DBus.Error.TimedOut] Failed to activate service 'org.bluez': timed out (service_start_timeout=25000ms)
+2026-06-30 16:08:42,365 WARNING discovery wedged (#325, 2 scan-errors in a row): BleakBluetoothNotAvailableError: ('No Bluetooth adapters found.', <BleakBluetoothNotAvailableReason.NO_BLUETOOTH: 1>)
+2026-06-30 16:08:52,930 WARNING discovery wedged (#325, 3 scan-errors in a row): BleakBluetoothNotAvailableError: ('No Bluetooth adapters found.', <BleakBluetoothNotAvailableReason.NO_BLUETOOTH: 1>)
+2026-06-30 16:08:53,040 ERROR discovery wedged 3× — resetting the HCI controller
+2026-06-30 16:09:08,041 INFO adapter recovery (soft): hciconfig hci0 reset
+2026-06-30 16:09:08,363 WARNING discovery wedged (#325, 4 scan-errors in a row): BleakBluetoothNotAvailableError: ('No Bluetooth adapters found.', <BleakBluetoothNotAvailableReason.NO_BLUETOOTH: 1>)
+2026-06-30 16:22:52,803 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 16:23:04,363 WARNING battery presence: A=up B=up
+2026-06-30 16:23:04,364 INFO n=1  26.23V  +0.70A  +18W  SOC 49-61%  state=charging  remain≈5829m
+2026-06-30 16:24:19,638 INFO starting: csv=data/pack.csv interval=10.0s a=09:01:00:14:7E:DC b=09:01:00:11:55:DF
+2026-06-30 16:24:32,052 WARNING battery presence: A=up B=up
+2026-06-30 16:24:32,053 INFO n=1  26.21V  -2.20A  -58W  SOC 49-61%  state=discharging  remain≈2127m
+2026-06-30 16:31:02,480 INFO n=30  26.19V  -1.70A  -45W  SOC 49-61%  state=discharging  remain≈3577m
+2026-06-30 16:31:26,483 WARNING battery presence: A=DOWN B=up  (partial row — pack totals unavailable)
+2026-06-30 16:31:41,498 WARNING battery presence: A=up B=up
+2026-06-30 16:33:18,534 WARNING battery presence: A=up B=DOWN  (partial row — pack totals unavailable)
+2026-06-30 16:33:39,670 ERROR V-12V200AH-0533|7EDC: TX BLE request error (BleakDBusError)
+2026-06-30 16:33:39,682 ERROR V-12V200AH-0533|7EDC: TX BLE request error (BleakDBusError)
+2026-06-30 16:33:55,561 WARNING read #40 failed (1 in a row): RuntimeError: neither battery found in scan (a=09:01:00:14:7E:DC b=09:01:00:11:55:DF)
+2026-06-30 16:34:39,566 INFO BLE recovered after 1 errors
+2026-06-30 16:37:10,309 WARNING read #45 failed (1 in a row): RuntimeError: neither battery found in scan (a=09:01:00:14:7E:DC b=09:01:00:11:55:DF)
+2026-06-30 16:37:29,497 INFO BLE recovered after 1 errors
+2026-06-30 16:42:37,508 INFO n=60  0.00V  +0.00A  +0W  SOC 61-61%  state=idle  remain≈—
