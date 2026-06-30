@@ -131,18 +131,69 @@ async def discover_volthium(timeout: float = 8.0) -> list[tuple[BLEDevice, str]]
     return list(found.values())
 
 
-async def read_battery(address: str, *, timeout: float = 20.0) -> BatteryReading:
-    """Connect to one battery by address, read one sample, disconnect."""
-    dev = await BleakScanner.find_device_by_address(address, timeout=timeout)
-    if dev is None:
-        raise RuntimeError(f"battery {address} not found in scan")
+async def _read_device(dev: BLEDevice, address: str) -> BatteryReading:
+    """Connect to an already-discovered device, read one sample, disconnect."""
     async with VolthiumBMS(ble_device=dev) as bms:
         sample = await bms.async_update()
     name = dev.name or ""
     return BatteryReading.from_sample(address, name, sample)
 
 
-async def read_pack(addr_a: str, addr_b: str) -> PackReading:
-    """Read both batteries concurrently."""
-    a, b = await asyncio.gather(read_battery(addr_a), read_battery(addr_b))
+async def read_battery(address: str, *, timeout: float = 20.0) -> BatteryReading:
+    """Connect to one battery by address, read one sample, disconnect."""
+    dev = await BleakScanner.find_device_by_address(address, timeout=timeout)
+    if dev is None:
+        raise RuntimeError(f"battery {address} not found in scan")
+    return await _read_device(dev, address)
+
+
+async def _discover_addresses(
+    addresses: set[str], *, timeout: float = 20.0
+) -> dict[str, BLEDevice]:
+    """Resolve several addresses to BLEDevices in a *single* discovery scan.
+
+    BlueZ permits only one discovery session per adapter, so two concurrent
+    `find_device_by_address` scans collide with org.bluez.Error.InProgress
+    (CoreBluetooth tolerates it, which is why this only bites on Linux/Pi).
+    One shared scan sidesteps that and returns as soon as every target is
+    seen, rather than waiting the full timeout.
+    """
+    wanted = {a.upper() for a in addresses}
+    found: dict[str, BLEDevice] = {}
+    done = asyncio.Event()
+
+    def cb(dev: BLEDevice, _adv) -> None:
+        key = dev.address.upper()
+        if key in wanted and key not in found:
+            found[key] = dev
+            if wanted <= set(found):
+                done.set()
+
+    scanner = BleakScanner(detection_callback=cb)
+    await scanner.start()
+    try:
+        await asyncio.wait_for(done.wait(), timeout=timeout)
+    except asyncio.TimeoutError:
+        pass
+    finally:
+        await scanner.stop()
+    return found
+
+
+async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackReading:
+    """Read both batteries.
+
+    A single shared discovery resolves both addresses (BlueZ allows only one
+    discovery per adapter, so we can't scan for each battery concurrently),
+    then the two connect-and-read steps run sequentially on the one radio.
+    """
+    devs = await _discover_addresses({addr_a, addr_b}, timeout=timeout)
+    dev_a = devs.get(addr_a.upper())
+    dev_b = devs.get(addr_b.upper())
+    if dev_a is None:
+        raise RuntimeError(f"battery {addr_a} not found in scan")
+    if dev_b is None:
+        raise RuntimeError(f"battery {addr_b} not found in scan")
+    a = await _read_device(dev_a, addr_a)
+    b = await _read_device(dev_b, addr_b)
     return PackReading(a=a, b=b)

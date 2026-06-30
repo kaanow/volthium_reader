@@ -180,7 +180,11 @@ def read_new_rows(csv_path: Path, state: dict, max_rows: int) -> tuple[list[dict
         state = {"offset_bytes": 0, "inode": inode, "header": None}
     elif size < state.get("offset_bytes", 0):
         log.warning("CSV shrank (truncation) — resetting offset")
-        state = {"offset_bytes": 0, "inode": inode, "header": state.get("header")}
+        # Reset header too (like the rotation branch): a shrunk file is a fresh
+        # file, so its first line must be re-read as the header and skipped.
+        # Keeping the stale header here suppresses the offset==0 header-skip
+        # below and ingests the new header line as a bogus data row.
+        state = {"offset_bytes": 0, "inode": inode, "header": None}
     else:
         state = dict(state)
         state["inode"] = inode
