@@ -109,6 +109,45 @@ class StatePersistenceTests(unittest.TestCase):
             self.assertEqual(load_state(p)["offset_bytes"], 12345)
 
 
+class DryRunNonDestructiveTests(unittest.TestCase):
+    """A `--dry-run` invocation must NOT persist the offset state file.
+    Otherwise switching to live mode after a dry-run silently skips rows
+    the dry-run "consumed". Regression test for that bug."""
+
+    def test_dry_run_does_not_persist_state(self):
+        import argparse, asyncio
+        from cloud.uploader.uploader import run, _state_path
+
+        cols = list(_csv_row().keys())
+        with TemporaryDirectory() as d:
+            p = Path(d) / "pack.csv"
+            with p.open("w", newline="") as f:
+                w = csv.DictWriter(f, fieldnames=cols)
+                w.writeheader()
+                for _ in range(3):
+                    w.writerow(_csv_row())
+
+            args = argparse.Namespace(
+                csv=p, url="http://unused", source_id="pi-barge", dry_run=True,
+            )
+            # Run the loop briefly via wait_for; it will iterate the file,
+            # log the would-POST line, then poll. We cancel it before any
+            # save_state could happen for a live row.
+            async def driver():
+                task = asyncio.create_task(run(args, token=""))
+                await asyncio.sleep(0.05)
+                task.cancel()
+                try:
+                    await task
+                except (asyncio.CancelledError, BaseException):
+                    pass
+            asyncio.run(driver())
+
+            # The state file must NOT exist — dry-run is non-destructive.
+            self.assertFalse(_state_path(p).exists(),
+                             "dry-run must not persist offset state")
+
+
 class ReadNewRowsTests(unittest.TestCase):
     def _write_csv(self, path: Path, n: int) -> None:
         cols = list(_csv_row().keys())

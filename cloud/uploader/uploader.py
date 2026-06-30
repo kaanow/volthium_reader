@@ -280,8 +280,11 @@ async def run(args, token: str) -> None:
             if args.dry_run:
                 log.info("[dry-run] would POST %d rows (first ts=%s, last ts=%s)",
                          len(wire_rows), wire_rows[0]["ts"], wire_rows[-1]["ts"])
+                # In-memory advance only — do NOT persist. A dry-run must be
+                # idempotent: re-running it shouldn't shift where the live
+                # uploader will start. Switching to live mode after a dry-run
+                # picks up from offset 0 as expected.
                 state = next_state
-                save_state(args.csv, state)
                 continue
 
             ok, msg = await post_batch(client, args.url, body, token)
