@@ -27,6 +27,11 @@ from volthium.pack import read_pack
 # Per-pack cell count for the SC12200G4DPH (12V LiFePO4 = 4 cells in series).
 CELLS_PER_BATTERY = 4
 
+# After this many consecutive TOTAL-read failures, exit so systemd respawns us
+# with a fresh BlueZ client (self-heals adapter wedges without an operator).
+# With ~10s interval + backoff this is on the order of ~15+ min of hard outage.
+RESTART_AFTER_CONSEC_ERRORS = 30
+
 
 CSV_FIELDS = [
     "ts", "state",
@@ -196,6 +201,18 @@ async def main() -> int:
             consec_errors += 1
             log.warning("read #%d failed (%d in a row): %s: %s",
                         n + 1, consec_errors, type(exc).__name__, exc)
+            # Self-heal a wedged BLE stack without an operator: after a long run
+            # of *total* failures (read_pack only raises when BOTH batteries are
+            # unreadable — a single dropout now yields a partial row), exit so
+            # systemd (Restart=always) respawns us with a fresh BlueZ client.
+            # This clears adapter wedges (org.bluez.Error.InProgress, FM-3) that
+            # a same-process retry can't. A genuine RF blackout just restart-
+            # loops harmlessly until a battery returns.
+            if consec_errors >= RESTART_AFTER_CONSEC_ERRORS:
+                log.error("%d consecutive total-read failures — exiting for a "
+                          "clean systemd restart to reset the BLE stack",
+                          consec_errors)
+                return 1
             # exponential-ish backoff so we don't hammer a flaky link
             if consec_errors > 3:
                 await asyncio.sleep(min(60.0, 5.0 * consec_errors))

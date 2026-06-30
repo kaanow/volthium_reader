@@ -241,3 +241,16 @@ and remote dashboards, implemented **partial-success logging**:
 dashboard `/api/latest.json` (fresh, B null). 312 main + 14 uploader tests pass.
 When B's BMS eventually re-advertises, the logger resumes full both-battery rows
 automatically (logs `A=up B=up`) with no intervention.
+
+### Self-heal on wedge (00:39): logger exits → systemd respawns fresh
+
+Added agent-free recovery for the adapter-wedge case (FM-3) that needs no
+privilege escalation and no extra service: after `RESTART_AFTER_CONSEC_ERRORS`
+(30) consecutive **total** read failures, `log.py` exits non-zero so its
+`Restart=always` unit respawns it with a fresh BlueZ client — which clears
+`org.bluez.Error.InProgress` wedges that a same-process retry cannot. Because
+partial logging means a single-battery dropout no longer raises, this only fires
+on a genuine both-batteries-down wedge, exactly where a fresh process helps; a
+real RF blackout just restart-loops harmlessly until a battery returns. This is
+the privilege-free subset of the `volthium-watchdog` ladder (adapter power-cycle
+/ bluetooth restart still need the reviewed service).
