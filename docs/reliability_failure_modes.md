@@ -185,3 +185,59 @@ attempt, success or fail, per battery, with RSSI) — see "Cross-cutting" below.
 The throughline: today an outage erases its own evidence (no CSV row). Start
 recording *attempts and their outcomes*, not just successes, and the system can
 begin diagnosing and improving itself.
+
+---
+
+## Live incident log — 2026-06-30 (battery B / 0667 outage)
+
+Ongoing monitoring run (goal: keep both batteries logging until 08:00, recover
+issues, gather data).
+
+- **~00:51 (prev session)** B (0667) stops advertising; logging halts (FM-5).
+- **00:00–00:06** A-only; B absent across 10+ scans. Ruled out: phone app,
+  movement (operator), lingering connection (`hcitool con` empty).
+- **Recovery ladder attempted on B (all Pi-side levers):**
+  - Adapter power-cycle (`bluetoothctl power off/on`): **A recovered −89→−79 dBm,
+    B still absent.**
+  - Full `systemctl restart bluetooth`: **A −80 dBm, B still absent.**
+  - → Conclusion: **B's silence is source-side (BMS BLE), not the Pi adapter.**
+    A recovers with adapter resets; B does not. No Pi-side action recovers B —
+    it needs B's BMS to resume (likely a physical battery power-cycle).
+- **RSSI samples (data/ble_health.jsonl):** A ranges −79..−89 dBm depending on
+  adapter state; B: no advertisements at all. A's signal is also marginal/weak.
+- **Built `scripts/ble_watchdog.py`** — staleness-triggered auto-recovery +
+  per-battery RSSI health logging to `data/ble_health.jsonl`, single-adapter-safe
+  (only scans while it has stopped the logger), escalating ladder with backoff.
+  **Not installed as a service** (safety policy: a new privileged always-on
+  daemon needs explicit operator approval). Runs on demand via
+  `.venv/bin/python scripts/ble_watchdog.py --once`. Pending operator decision to
+  install as `volthium-watchdog.service`.
+- **Logger** keeps retrying every ~70 s (`Restart=always`) and will resume both-
+  battery logging automatically the instant B re-advertises — this doubles as a
+  zero-churn "is B back yet?" probe, so no need to thrash the BT stack overnight.
+
+**Operator note:** battery B (0667) **cannot be physically power-cycled** (per
+operator), so it stays down until its BMS BLE resumes on its own. Consider an
+external USB BLE dongle: A's RSSI (−79..−89) is marginal and the onboard Pi radio
+shares its antenna with Wi-Fi (the uploader's traffic).
+
+### Resolution (00:30): partial logging deployed — FM-5 fixed
+
+Since B can't be recovered and the goal requires data flowing to both the local
+and remote dashboards, implemented **partial-success logging**:
+
+- `volthium/pack.py::read_pack` no longer raises when one battery is absent — it
+  reads whichever batteries are present and substitutes an all-None placeholder
+  (`_missing_reading`) for the missing one. Raises only if BOTH are gone. The
+  whole downstream path was already null-tolerant (PackReading properties,
+  Estimator, uploader `_maybe_float`, wire `Optional`, cloud NULL/dash), so no
+  other code — and crucially **not** the wire contract — had to change.
+- `scripts/log.py` logs a `battery presence: A=up B=DOWN` transition line so
+  dropouts/returns are visible in the journal.
+
+**Result:** logging resumed at 00:30 with A-only rows (B columns blank,
+`pack_i` = A's current since series, `pack_v`/`pack_p` blank). Verified flowing to
+`pack.csv` → uploader (200 OK) → cloud `/api/latest` (fresh, B null) → local
+dashboard `/api/latest.json` (fresh, B null). 312 main + 14 uploader tests pass.
+When B's BMS eventually re-advertises, the logger resumes full both-battery rows
+automatically (logs `A=up B=up`) with no intervention.

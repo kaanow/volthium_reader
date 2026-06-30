@@ -57,6 +57,12 @@ def _cell_columns(cells: list[float] | None) -> dict[str, float | None]:
     return out
 
 
+def _present(br) -> bool:
+    """True if this battery actually reported data this cycle (vs. an all-None
+    placeholder for a battery that dropped off BLE)."""
+    return br.soc is not None or br.voltage is not None or br.current is not None
+
+
 def _archive_if_schema_drift(path: Path, log: logging.Logger) -> None:
     """If `path` exists but its header doesn't match the current CSV_FIELDS,
     rotate it to `path.vN-HHMM` (matching the existing data/pack.csv.v0-1512
@@ -151,6 +157,7 @@ async def main() -> int:
     est = Estimator()
     consec_errors = 0
     n = 0
+    prev_present: tuple[bool, bool] | None = None
 
     while True:
         t0 = time.monotonic()
@@ -162,6 +169,16 @@ async def main() -> int:
             if consec_errors:
                 log.info("BLE recovered after %d errors", consec_errors)
             consec_errors = 0
+            # Visibility into single-battery dropouts (we now log a partial row
+            # rather than failing the whole cycle): announce presence changes.
+            present = (_present(pack.a), _present(pack.b))
+            if present != prev_present:
+                log.warning("battery presence: A=%s B=%s%s",
+                            "up" if present[0] else "DOWN",
+                            "up" if present[1] else "DOWN",
+                            "  (partial row — pack totals unavailable)"
+                            if not (present[0] and present[1]) else "")
+                prev_present = present
             # every ~5 min at 10s interval, drop a progress line
             if n == 1 or n % 30 == 0:
                 log.info(

@@ -180,20 +180,44 @@ async def _discover_addresses(
     return found
 
 
+def _missing_reading(address: str) -> BatteryReading:
+    """Placeholder for a battery that wasn't found / couldn't be read this
+    cycle. All telemetry fields are None, so PackReading's properties treat it
+    as absent and the CSV/wire/cloud/dashboard render it blank (a dash)."""
+    return BatteryReading(
+        address=address, name="", voltage=None, current=None, soc=None,
+        remaining_ah=None, temperature=None, cycles=None, cell_voltages=None,
+        delta_voltage=None, charging_fet=None, discharging_fet=None,
+        problem_code=None,
+    )
+
+
 async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackReading:
-    """Read both batteries.
+    """Read both batteries, tolerating a single-battery dropout.
 
     A single shared discovery resolves both addresses (BlueZ allows only one
     discovery per adapter, so we can't scan for each battery concurrently),
-    then the two connect-and-read steps run sequentially on the one radio.
+    then the present batteries are read sequentially on the one radio. A missing
+    or unreadable battery becomes an all-None placeholder so the *other*
+    battery's telemetry still flows to the CSV/cloud/dashboard — PackReading's
+    properties are null-safe, and for a series pack the present battery's current
+    is the pack current. Raises only if NEITHER battery can be read, so the
+    logger still treats a total blackout as a failed cycle (no empty row).
     """
     devs = await _discover_addresses({addr_a, addr_b}, timeout=timeout)
-    dev_a = devs.get(addr_a.upper())
-    dev_b = devs.get(addr_b.upper())
-    if dev_a is None:
-        raise RuntimeError(f"battery {addr_a} not found in scan")
-    if dev_b is None:
-        raise RuntimeError(f"battery {addr_b} not found in scan")
-    a = await _read_device(dev_a, addr_a)
-    b = await _read_device(dev_b, addr_b)
-    return PackReading(a=a, b=b)
+    readings: dict[str, Optional[BatteryReading]] = {}
+    for addr in (addr_a, addr_b):
+        dev = devs.get(addr.upper())
+        if dev is None:
+            readings[addr] = None
+            continue
+        try:
+            readings[addr] = await _read_device(dev, addr)
+        except Exception:  # noqa: BLE001 — one battery's failure must not sink the other
+            readings[addr] = None
+    if readings[addr_a] is None and readings[addr_b] is None:
+        raise RuntimeError(f"neither battery found in scan (a={addr_a} b={addr_b})")
+    return PackReading(
+        a=readings[addr_a] or _missing_reading(addr_a),
+        b=readings[addr_b] or _missing_reading(addr_b),
+    )
