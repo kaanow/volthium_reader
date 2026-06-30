@@ -254,3 +254,15 @@ on a genuine both-batteries-down wedge, exactly where a fresh process helps; a
 real RF blackout just restart-loops harmlessly until a battery returns. This is
 the privilege-free subset of the `volthium-watchdog` ladder (adapter power-cycle
 / bluetooth restart still need the reviewed service).
+
+### 00:41 — B re-addressing ruled out
+
+Checked whether B's BMS had reset and come back under a *different* BLE address
+(some BMS rotate addresses; the logger only looks for the fixed MAC). A 12 s
+**name-based** scan for any `V-12V*` advertiser found **only** battery A
+(0533, now −51 dBm — its link fully recovered). No second Volthium battery on
+any address. So B (0667) is emitting nothing at all — conclusively source-side
+(BMS BLE off), not a re-addressing or RF-sensitivity issue. All Pi-side levers
+exhausted (adapter power-cycle, bluetooth restart, cache purge, fixed-MAC and
+name-based scans). B can only return when its own BMS resumes; the logger probes
+for it every cycle and will resume full logging automatically.
