@@ -304,41 +304,19 @@ async def _teardown(bms: VolthiumBMS, address: str) -> None:
     """Guarantee a battery's link is released after a read. This is the
     source-level cure for FM-8: no read may ever leave a connection open.
 
-    Four layers:
-      1. Bound aiobmsble's disconnect so a hung teardown can't stall the loop.
-      2. Also disconnect the raw BleakClient directly. aiobmsble's disconnect
-         silently swallows BleakError and has no timeout on the inner
-         _client.disconnect() call (see basebms.py::disconnect); an in-flight
-         BleakError can leave the client in a state that auto-reconnects the
-         moment the external link drops. Calling bleak directly with our own
-         timeout — even if aiobmsble already returned — is what actually
-         cleans up its internal state.
-      3. Verify at the controller level (`hcitool con`) because both of the
-         above can lie.
-      4. If the link is somehow still up, force it down via BlueZ.
+    Three layers: (1) bound aiobmsble's disconnect so a hung teardown can't stall
+    the loop or strand the link; (2) verify at the controller level (`hcitool
+    con`) because aiobmsble returns success even when it internally swallowed a
+    BleakError; (3) if the link is somehow still up, force it down via BlueZ.
     Never raises — teardown failures are logged, not propagated.
     """
     key = address.upper()
     t0 = time.monotonic()
     disconnect_error: Optional[str] = None
-    inner_disconnect_error: Optional[str] = None
     try:
         await asyncio.wait_for(bms.disconnect(), timeout=_DISCONNECT_TIMEOUT)
     except Exception as exc:  # noqa: BLE001 — teardown must never raise into the loop
         disconnect_error = f"{type(exc).__name__}: {exc}"
-    # Belt-and-suspenders: also call the raw BleakClient's disconnect. Idempotent
-    # in bleak, but critically it clears the client's internal connection state
-    # even if aiobmsble's own disconnect silently failed. Without this, the
-    # leaked-client-auto-reconnects-after-external-drop path (FM-8's proven
-    # failure mode) can still bite us. HARDWARE-DEP: Pi 3B / BlueZ — needed
-    # while aiobmsble's disconnect swallows BleakError; on a stack where the
-    # library's own disconnect is reliable, this layer becomes redundant.
-    try:
-        client = getattr(bms, "_client", None)
-        if client is not None:
-            await asyncio.wait_for(client.disconnect(), timeout=5.0)
-    except Exception as exc:  # noqa: BLE001
-        inner_disconnect_error = f"{type(exc).__name__}: {exc}"
     forced = False
     still_connected = False
     try:
@@ -353,7 +331,6 @@ async def _teardown(bms: VolthiumBMS, address: str) -> None:
         address=key,
         teardown_s=round(time.monotonic() - t0, 2),
         disconnect_error=disconnect_error,
-        inner_disconnect_error=inner_disconnect_error,
         forced=forced,
         still_connected=still_connected,
     )
@@ -378,54 +355,12 @@ async def _default_adapter() -> str:
     return "hci0"
 
 
-async def _adapter_is_up(hci: str) -> bool:
-    """True iff the adapter appears in `hciconfig <hci>` and is not marked
-    `DOWN`. Best-effort; a parse failure returns False so we err on the side
-    of trying to power it up."""
-    out = (await _run(["hciconfig", hci], timeout=5.0)).upper()
-    if "NO SUCH DEVICE" in out or hci.upper() not in out:
-        return False
-    # `DOWN` appears in the status line for a powered-off adapter, `UP` for on.
-    if "DOWN" in out:
-        return False
-    return "UP" in out
-
-
-async def _power_on_adapter(hci: str) -> str:
-    """Bring the adapter up + power it via bluetoothctl. Called after level 1
-    or level 2 recovery leaves the controller unpowered — we saw this happen
-    live on 2026-07-01 after `systemctl restart bluetooth`.
-
-    Two-step because they cover different failure modes:
-      - `hciconfig <hci> up` clears controller-level DOWN state (kernel side)
-      - `bluetoothctl power on` sets bluetoothd's managed power flag
-
-    Best-effort; never raises; logs the outcome.
-    """
-    hci_out = (await _run(["sudo", "-n", "hciconfig", hci, "up"], timeout=15.0)).strip()
-    await asyncio.sleep(1.0)
-    bt_out = (await _run(["sudo", "-n", "bluetoothctl", "power", "on"], timeout=15.0)).strip()
-    _event(
-        "adapter_power_on",
-        hci=hci,
-        hciconfig_up=hci_out[:200],
-        bluetoothctl_power=bt_out[:200],
-    )
-    return f"hciconfig {hci} up; bluetoothctl power on"
-
-
 async def recover_adapter(level: int) -> str:
     """Escalating adapter recovery for a stuck discovery (FM-3) that a process
     restart can't fix. level 1 = HCI controller reset (clears the wedged
     discovery session, fast); level >= 2 = full bluetooth.service restart (the
     proven heavy hammer — verified to clear `Discovering: yes` on 2026-06-30).
     Uses passwordless sudo. Best-effort; logs a structured event; never raises.
-
-    Both recovery paths can leave the adapter powered off (observed live
-    2026-07-01 after a level 2 recovery — the logger then loops on
-    "No powered Bluetooth adapters found" until manual intervention). To
-    close that gap the recovery now verifies the adapter is up afterward
-    and calls `hciconfig <hci> up + bluetoothctl power on` if not.
 
     HARDWARE-DEP: Pi 3B / BlueZ — the entire adapter-recovery ladder exists
     because bluetoothd on this platform periodically gets stuck in
@@ -445,11 +380,6 @@ async def recover_adapter(level: int) -> str:
         )
         await asyncio.sleep(5.0)  # bluetoothd + adapter need a moment to come back
     _event("adapter_recovery", level=level, action=action, output=out.strip()[:500])
-    # Verify the adapter came back powered. If not, explicitly bring it up —
-    # this is the FM-3 gap we just closed after the 2026-07-01 incident.
-    if not await _adapter_is_up(hci):
-        power_action = await _power_on_adapter(hci)
-        action = f"{action}; {power_action}"
     return action
 
 

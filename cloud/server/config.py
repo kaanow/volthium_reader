@@ -38,11 +38,6 @@ class Settings:
     idle_current_a: float
     display_tz: str
     auto_migrate: bool
-    # Staleness alerting (webhook-based). Alerting is disabled if
-    # staleness_webhook_url is empty. See cloud/server/staleness.py.
-    staleness_webhook_url: str
-    staleness_threshold_s: float
-    staleness_check_interval_s: float
 
 
 def _collect_tokens() -> Dict[str, str]:
@@ -74,7 +69,4 @@ def load_settings() -> Settings:
         idle_current_a=_env_float("IDLE_CURRENT_A", 0.5),
         display_tz=_env_str("DISPLAY_TZ", "America/Toronto"),
         auto_migrate=os.environ.get("DB_MIGRATE", "1") not in ("0", "", "false"),
-        staleness_webhook_url=_env_str("STALENESS_WEBHOOK_URL", ""),
-        staleness_threshold_s=_env_float("STALENESS_THRESHOLD_S", 300.0),
-        staleness_check_interval_s=_env_float("STALENESS_CHECK_INTERVAL_S", 60.0),
     )

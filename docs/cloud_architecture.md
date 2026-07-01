@@ -219,40 +219,9 @@ Edge changes (also part of v1):
 | `IDLE_CURRENT_A`             | `0.5`            | |I| below this → state=idle, no projection.    |
 | `DISPLAY_TZ`                 | `America/Toronto`| Dashboard rendering tz (cosmetic only).        |
 | `DB_MIGRATE`                 | `1`              | If truthy, runs migrations/*.sql on boot.      |
-| `STALENESS_WEBHOOK_URL`      | (empty; disabled) | HTTP endpoint the staleness monitor POSTs alerts to. ntfy.sh-compatible JSON body. |
-| `STALENESS_THRESHOLD_S`      | `300`            | Age (in seconds) before a source is called stale. |
-| `STALENESS_CHECK_INTERVAL_S` | `60`             | How often the monitor polls the DB.            |
 
 Token-naming rule: env var `READER_TOKEN_<UPPER_SNAKE>` authorizes
 `source_id=<lower-kebab>`. So `READER_TOKEN_PI_BARGE=...` ↔ `pi-barge`.
-
-### Staleness alerting
-
-The server can push a webhook when a source stops sending fresh data (and
-again when it recovers). Off by default. To turn on, set
-`STALENESS_WEBHOOK_URL` to any endpoint that accepts a JSON POST — the payload
-shape is directly ntfy.sh-compatible:
-
-```
-POST $STALENESS_WEBHOOK_URL
-{
-  "title": "Volthium: pi-barge stale",
-  "message": "No fresh telemetry for 412s (threshold 300s)",
-  "priority": 4,
-  "tags": ["warning"]
-}
-```
-
-- **For ntfy.sh** (simplest): set to `https://ntfy.sh/<your-topic>`. Subscribe
-  on your phone via the ntfy app. Fields are honored directly.
-- **For Discord**: set to a channel webhook and expect payload adaptation
-  (Discord wants `content` not `message`); run a tiny relay in between if
-  needed.
-- **For Pushover / Slack / email**: same story — put an intermediary in front.
-
-Only *transitions* fire alerts (fresh → stale, or stale → fresh). Repeated
-checks while in the same state stay silent. State is in-memory per-process
-so a server restart re-arms all sources.
 
 ## Railway deploy steps
 
