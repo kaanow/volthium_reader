@@ -30,10 +30,11 @@ pulled manually. Read + interface-verified per D32.
 | USBLC6-2SC6Y | USBLC6-2SC6Y.pdf (117K) | manual | user download 2026-07-01 | c0352261dede |
 | ZXMP6A13FTA | ZXMP6A13FTA.pdf (246K) | digikey | https://www.diodes.com/assets/Datasheets/ZXMP6A13F.pdf | bb474f827be4 |
 | MSTB 2,5/2-ST-5,08 (1757019) | 1757019.pdf (2400K) | manual | user upload 2026-07-01 | d849479aae64 |
+| LCD1 Waveshare 4.2" e-Paper Module (B) | Waveshare-4.2-ePaper-B.pdf (3.9M) | manual | files.waveshare.com (V2 user manual) | 32b126146869 |
 
 ## Still needed (CP1 datasheet gate)
 
-**None — gate CLOSED 2026-07-01.** Every active BOM part (both boards) has its datasheet on hand and read-verified (D32).
+**None — gate CLOSED 2026-07-01.** Every active BOM part (both boards) has its datasheet on hand and read-verified (D32) — including the non-distributor e-paper module (LCD1, Waveshare manual; 8-pin SPI order VCC/GND/DIN/CLK/CS/DC/RST/BUSY confirmed vs J2).
 
 
 ## Retired (in store history, not used)
