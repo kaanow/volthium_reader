@@ -29,12 +29,12 @@ pulled manually. Read + interface-verified per D32.
 | TPS389030DSER | TPS389030DSER.pdf (1175K) | digikey | https://www.ti.com/lit/ds/symlink/tps3890.pdf?ts=1782479038210&ref_url=https%253A%252F%252Fwww.ti.com%252Fproduct%252FTPS3890 | ee79599730e7 |
 | USBLC6-2SC6Y | USBLC6-2SC6Y.pdf (117K) | manual | user download 2026-07-01 | c0352261dede |
 | ZXMP6A13FTA | ZXMP6A13FTA.pdf (246K) | digikey | https://www.diodes.com/assets/Datasheets/ZXMP6A13F.pdf | bb474f827be4 |
+| MSTB 2,5/2-ST-5,08 (1757019) | 1757019.pdf (2400K) | manual | user upload 2026-07-01 | d849479aae64 |
 
-## Still needed (CP1 gate not closed until empty)
+## Still needed (CP1 datasheet gate)
 
-| MPN | manufacturer | why |
-|-----|--------------|-----|
-| MSTB 2,5/2-ST-5,08 (1757019) | Phoenix Contact | corrected J1 plug (replaces retired 1727010); WAF-blocked → pull manually, save as 1757019.pdf |
+**None — gate CLOSED 2026-07-01.** Every active BOM part (both boards) has its datasheet on hand and read-verified (D32).
+
 
 ## Retired (in store history, not used)
 
