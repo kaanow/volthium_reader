@@ -1,0 +1,54 @@
+# Runs the same Docker build + import-check that ./scripts/preflight_cloud.sh
+# does locally, but on every push/PR that touches cloud/server/ or its deps.
+#
+# Backstory: 2026-07-01 downtime — staleness.py imported httpx, but httpx
+# wasn't in cloud/server/requirements.txt. Local smoke tests missed it because
+# the dev venv already had httpx installed for the uploader. This job runs the
+# actual Railway build in isolation, so a missing runtime dep fails CI instead
+# of the live service.
+
+name: preflight
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cloud/server/**"
+      - "cloud/shared/**"
+      - ".github/workflows/preflight.yml"
+      - "scripts/preflight_cloud.sh"
+  pull_request:
+    paths:
+      - "cloud/server/**"
+      - "cloud/shared/**"
+      - ".github/workflows/preflight.yml"
+      - "scripts/preflight_cloud.sh"
+
+jobs:
+  cloud-image-import-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker build (mirrors Railway build)
+        run: |
+          docker build \
+            -f cloud/server/Dockerfile \
+            -t volthium-preflight:ci \
+            .
+
+      - name: Import cloud.server module tree in the built image
+        run: |
+          docker run --rm \
+            -e DATABASE_URL="" \
+            --entrypoint python \
+            volthium-preflight:ci \
+            -c '
+          import cloud.server.main
+          import cloud.server.staleness
+          import cloud.server.derive
+          import cloud.server.db
+          import cloud.server.config
+          import cloud.shared.wire
+          print("cloud/server module tree imports cleanly")
+          '

@@ -254,6 +254,20 @@ Only *transitions* fire alerts (fresh → stale, or stale → fresh). Repeated
 checks while in the same state stay silent. State is in-memory per-process
 so a server restart re-arms all sources.
 
+## Preflight (run before pushing changes to cloud/server/)
+
+`make preflight` (or `./scripts/preflight_cloud.sh`) builds the exact
+Dockerfile Railway uses and imports the whole `cloud.server.*` module tree
+in the resulting slim image. Catches missing-runtime-dep bugs (e.g. a
+module imports `httpx` but `httpx` isn't in `cloud/server/requirements.txt`
+— the actual regression that took down the service 2026-07-01) before they
+hit production.
+
+Needs Docker locally. If you don't have it, GitHub Actions runs the same
+check on every push/PR touching `cloud/server/` — see
+`.github/workflows/preflight.yml`. Either way, a missing dep now fails
+loud before the deploy instead of after.
+
 ## Railway deploy steps
 
 1. **Push the repo to a GitHub remote** Railway can read. (Right now the

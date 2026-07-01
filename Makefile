@@ -14,7 +14,7 @@
 PYTHON ?= .venv/bin/python
 VOLTHIUM_LIB := firmware/common/volthium_lib
 
-.PHONY: default test test-py test-c vectors clean help
+.PHONY: default test test-py test-c vectors clean help preflight preflight-cloud
 
 default: test
 
@@ -25,6 +25,15 @@ help:
 	@echo "  make test-c     — C tests only (firmware/common/volthium_lib/)"
 	@echo "  make vectors    — regenerate the Python test-vector .bin files"
 	@echo "  make clean      — remove compiled C test binaries"
+	@echo "  make preflight  — Docker-build cloud/server + import-check (run before pushing)"
+
+# Preflight for the cloud/server image — builds the Railway Dockerfile and
+# imports the whole cloud.server module tree inside the resulting slim image.
+# Catches missing runtime deps (like the httpx-not-in-requirements bug of
+# 2026-07-01) before the code hits Railway. Needs Docker; skip if you don't
+# have it (CI will catch it too).
+preflight preflight-cloud:
+	@./scripts/preflight_cloud.sh
 
 test: test-py test-c
 	@echo ""
