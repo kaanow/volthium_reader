@@ -14,7 +14,7 @@ it later costs much more.
 > the WSON TPS389030/TPS389001 for hand-assembly at ~zero power cost.
 > Its **VIT = 0.405 V** (not 2.89 V / 1.15 V), so the divider is
 > **R1≈4.87 MΩ / R2≈100 kΩ** (draws ~4.8 µA — *less* than the old part while
-> still meeting the ≥100×ISENSE rule) and the **hard-cut is ≈1.1 mW**. U6
+> still meeting the ≥100×ISENSE rule) and the **hard-cut is ≈1.2 mW**. U6
 > (`TPS2116`, SOT-583) and U1 (`LM5166`, VSON-10) stay leadless and reflow
 > with a paste stencil. Current values live in D28/D33 + DR-24; the text below
 > is retained as the review record.

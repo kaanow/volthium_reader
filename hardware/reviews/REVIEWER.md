@@ -10,6 +10,11 @@ The system runs on a semaphore at
 take turns. The user invokes you on a timer; the semaphore prevents
 collisions.
 
+> **Review against [`SOP.md`](SOP.md)** — the standing standard (governing
+> principles + gates G1–G7). Your job is to independently re-derive each
+> applicable gate; a designer's "PASS" is not evidence. Challenge *premises*
+> (G2 — the real part behind the model), not just the math.
+
 ## Suggested Cursor trigger interval
 
 **Set Cursor to trigger this agent every 15 minutes.**
