@@ -264,7 +264,7 @@ deglitch give a clean single re-engage (no oscillation).
 **Power (F02/D33):** divider ~4.8 µA at 24 V (~5.9 µA at 29 V full charge →
 ~0.17 mW) + U4 Iq ~2.4 µA ≈ **~0.25 mW** — the 0.405 V part's high-R divider
 draws less than the old 2.89 V/2.0 MΩ one while still satisfying the ≥100×
-ISENSE rule. **Hard-cut now ≈ 1.1 mW**; ~5 orders of magnitude under any
+ISENSE rule. **Hard-cut now ≈ 1.2 mW**; ~5 orders of magnitude under any
 meaningful pack drain. The EN-asserted floor (~µA, chip in reset) is still
 *lower* power than the firmware deep-sleep it backstops.
 
@@ -302,7 +302,7 @@ EN → V3V3 and the UVLO behave **exactly as without this circuit**.
 **Why no requirement is compromised:** every part except U6 is
 **VBUS-referenced → 0 pack draw unplugged** (R_byp1 only carries current when
 Q4 pulls it low, i.e. VBUS present); U6 adds only **~1.3 µA** always-on
-(~4 µW). With the F02 UVLO-divider resize, **hard-cut ≈ 1.3 mW** (still
+(~4 µW). With the D33 UVLO part/divider (0.405 V), **hard-cut ≈ 1.2 mW** (still
 negligible). UVLO protects the *unattended* (always USB-absent) system fully;
 the bypass relaxes it only during *attended* USB sessions, when the MCU is on
 USB and isn't draining the pack. No 5 V reaches V3V3 (LDO). D19 always-on

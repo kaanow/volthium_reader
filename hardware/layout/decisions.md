@@ -1407,9 +1407,9 @@ lower-threshold part now draws *less* than the old 2.89 V/2.0 MΩ divider
 final E96 values + bench hysteresis check at CP2.
 
 **Power.** divider ~4.8 µA at 24 V (~5.9 µA at 29 V → ~0.17 mW) + U4 Iq
-~2.4 µA ≈ **~0.25 mW**; with the D29 mux (~1.3 µA) **hard-cut ≈ 1.1 mW** (the
-0.405 V part's high-R divider recovered most of the ~0.3 mW the 2.89 V part
-had cost; still ~5 orders under any real drain). The EN-asserted floor state
+~2.4 µA ≈ **~0.25 mW**; with the D29 mux (~1.3 µA) **hard-cut ≈ 1.2 mW** (the
+0.405 V part's high-R divider trimmed ~0.2 mW off the old 2.89 V divider;
+still ~5 orders under any real drain). The EN-asserted floor state
 (~µA, chip in reset) is still *lower* power than the firmware deep-sleep it
 backstops.
 

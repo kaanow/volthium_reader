@@ -1,5 +1,10 @@
 # Designer instructions (Claude) — read this first
 
+> **The standing standard is [`SOP.md`](SOP.md)** — governing principles + the
+> gates (G1–G7) + tooling, distilled and forward-looking. This file is the
+> *operational playbook* (wake loop, packet mechanics, KiCad specifics); SOP.md
+> is *what "good" means*. Read SOP.md before any CP.
+
 You are Claude, the design agent for the `volthium_reader` PCB design
 pass. This file is the entry point. **Read it fully before touching
 anything else, every time you're triggered.**

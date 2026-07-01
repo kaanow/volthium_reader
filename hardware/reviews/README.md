@@ -4,6 +4,11 @@ Each PCB-design checkpoint produces a review packet here. Reviewers
 (human or agent) start from the packet, follow links into the design
 docs, and post findings as comments / commits / PR suggestions.
 
+> **The standing standard is [`SOP.md`](SOP.md)** — the distilled gates,
+> principles, and tooling every checkpoint must satisfy, forward-looking and
+> free of the incident history. Read it before starting any CP. Role
+> playbooks: [`DESIGNER.md`](DESIGNER.md), [`REVIEWER.md`](REVIEWER.md).
+
 | File                            | Phase                | Status     |
 |---------------------------------|----------------------|------------|
 | `cp1_design_baseline.md`         | Design baseline      | **in review (re-opened, D18/D19)** |
