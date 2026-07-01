@@ -135,6 +135,8 @@ ERC + readability audits) is the next checkpoint, **not** part of CP1.
 - [ ] Baseline docs internally consistent (one part set, no stale refs).
 - [ ] **Every active BOM part's datasheet is in `hardware/datasheets/` and has been read** to verify package/footprint, connector PN/pinout, in-box contents, mechanical envelope, and the electrical premises actually used (D32). Manifest "not yet retrieved" list empty for active parts. Parts found unfit are *retired for better parts*, not patched.
 - [ ] No new design question survives a careful read.
+- [ ] **Assembly is designed-for (G4/D33):** every leadless part is deliberate, justified on merit vs a leaded alternative, and its package won't be a fab surprise; assembly method (stencil + reflow) is on record. See §13.
+- [ ] Gates G1–G7 of [`SOP.md`](SOP.md) independently re-derived where applicable.
 
 ## 4. Out of scope (later checkpoints)
 
@@ -845,3 +847,34 @@ excellence: 0 blockers, architecture independently confirmed, all should-fix/
 nit closed, every figure re-derived. Remaining gate is **CP2 clearance**
 (yours). The CP2-gate items (F10/F11 + the UVLO/bypass bench checks) are
 schematic-capture tasks, logged for that checkpoint.
+
+## 13. Post-baseline changes since iteration 4 (for this review pass)
+
+Three changes since the iter-4 hand-off; all propagated and swept. The
+top-of-packet **amendment banner** carries the superseding UVLO numbers.
+
+1. **U4 repackaged to a leaded part (D33 / DR-24 resolved).** The COTS sweep
+   flagged three leadless parts (U1 VSON-10, U4 WSON, U6 SOT-583) as an
+   assembly risk. User confirmed reflow capability (heat gun + oven) and a
+   paste stencil (solves paste-volume-on-small-pads); each part was then judged
+   on merit. **U4 `TPS389030DSER` (WSON 1.5×1.5) → `TPS3808G01DBVR`
+   (SOT-23-6, leaded)** — functional superset (adj SENSE, OD RESET, prog CT
+   delay, +MR) at ~same Iq (2.4 vs 2.1 µA), Active/149k stock, datasheet stored
+   (sha 682abbc0). **U6/U1 kept** (the only leaded mux, TPS2113A, draws 57× the
+   Iq — a power-first violation; no leaded µA-Iq buck exists) and reflow with
+   the stencil. **What changed numerically:** VIT 2.89 V → **0.405 V**, so the
+   divider re-derived to **R1≈4.87 MΩ / R2≈100 kΩ** (trip ~20.1 V, ISENSE
+   ±25 nA → ≥2.5 µA rule met at 4.05 µA), and because the high-R divider draws
+   *less* (~4.8 µA vs ~12 µA) the **hard-cut dropped 1.3 → ~1.2 mW**. Please
+   re-derive the new divider + the ~1.3 V external-hysteresis band.
+2. **Hard-cut figure reconciled to ~1.2 mW deep-sleep / ~1.0 mW EN-asserted
+   floor** across decisions/battery-side/power_budget (a G5 mechanical sweep
+   caught a stray 1.3 mW the swap had missed). Honest sum: U1 0.34 + ESP 0.2 +
+   sense 0.44 + U4 0.25 + mux 0.004 ≈ 1.2 mW.
+3. **Added [`SOP.md`](SOP.md)** — the distilled standing standard (gates
+   G1–G7). Not a design change; it codifies the review bar the reviewer applies
+   (including the new G4 assembly/solderability gate).
+
+**Still the one open reviewer-verify item:** **DR-19** (end-to-end grounding &
+shield single-point bond as a *loop* — per-board is clean, the loop is the
+ask). Nothing else is open.
