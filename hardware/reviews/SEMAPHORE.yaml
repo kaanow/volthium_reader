@@ -2,34 +2,35 @@
 
 schema_version: 1
 
-state: user_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 4
+iteration: 5
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-06-23T12:00:00Z
+last_updated_at: 2026-07-01T16:00:00Z
 last_updated_by: claude
 
 note: >
-  CLAUDE addressed ALL reviewer iteration-2 findings (responses in packet §12).
-  6 should-fix + 5 nit closed; 0 blockers; architecture independently confirmed
-  sound. Real fixes (not just prose): F01 added an EXTERNAL hysteresis resistor
-  R_hys (RESET→SENSE ~3.9–4.7 MΩ) → deliberate ~1.5 V band, release ~21.5 V
-  (chip's built-in ~0.12 V would chatter); F02 resized the UVLO divider 10 MΩ →
-  ~2.0 MΩ to meet the TPS3890 ≥10 µA accuracy rule (hard-cut ~1 mW → ~1.3 mW,
-  accepted); F03 fixed the Q3 bypass to fail-safe default-ON (gate→V3V3) + added
-  Q4 as the VBUS-driven pulldown (my first cut defaulted to UVLO-bypassed when
-  unplugged — the unsafe direction). F04 display net list mirrored; F05 display
-  straps; F06 RTC 150 µA→45 nA; F07 LM5166X→Y; F08 PTC 0.5→0.25 A; F09 C-bk
-  ≤50 mF no-supercap; F10/F11 logged as CP2-gate TODOs (+~47 µF on TPS2116 OUT).
-  Propagated to decisions D28/D29, cp1_battery_side §3.1/§4.3a/§4.3b/§5/§7/§10,
-  cp1_display_side §3/§5/§6/§9, both BOMs, power_budget.
-  → user_turn. CP1 is at genuine excellence; remaining gate is the USER's CP2
-  clearance. CP2-gate items (F10/F11 + UVLO/bypass bench checks) belong to CP2
-  schematic capture. Reviewer need not re-run unless the user wants a re-verify.
+  Ready for another CP1 pass. Since iter-4 (all iter-2 findings already closed,
+  0 blockers, architecture independently confirmed): three changes, all
+  propagated + swept — see packet §13 and the top-of-packet amendment banner.
+  (1) U4 repackaged WSON→SOT-23-6 leaded: TPS389030DSER → TPS3808G01DBVR
+  (D33, resolves DR-24). VIT 2.89 V → 0.405 V, so divider re-derived to
+  R1≈4.87 MΩ/R2≈100 kΩ (trip ~20.1 V; ISENSE ±25 nA → ≥2.5 µA rule met at
+  4.05 µA); high-R divider draws LESS (~4.8 vs ~12 µA) → hard-cut 1.3 → ~1.2 mW.
+  U6 (TPS2116 SOT-583) + U1 (LM5166 VSON-10) KEPT on merit (leaded mux TPS2113A
+  = 57× the Iq; no leaded µA-Iq buck) and reflow with a paste stencil.
+  (2) Hard-cut reconciled to ~1.2 mW deep-sleep / ~1.0 mW EN-asserted floor.
+  (3) Added SOP.md — distilled standing standard, gates G1–G7 (the bar you
+  apply; new G4 = assembly/solderability).
+  Please independently re-derive: the new UVLO divider + ~1.3 V external-
+  hysteresis band, and the ~1.2 mW hard-cut sum. One open reviewer-verify item
+  remains: DR-19 (end-to-end grounding/shield single-point bond as a LOOP —
+  per-board is clean). Everything else RESOLVED. CP2 remains HELD (user clears).
+  Datasheet gate (D32) still CLOSED; TPS3808G01DBVR.pdf added, old PDF retired.
 
 user_pause_reasons_seen_this_run: []
