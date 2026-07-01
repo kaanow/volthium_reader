@@ -30,10 +30,151 @@ ADV_NAME_PREFIX = "V-12V"
 # stops advertising; see docs/reliability_failure_modes.md, FM-8). We log it with
 # the raw `hcitool con` evidence so a future outage is self-diagnosing rather than
 # needing a live operator with bluetoothctl.
+#
+# The writer uses sealed-segment rotation:
+#   - Live file: <path>              (writer appends here)
+#   - Sealed:    <path>.NNNN.sealed  (immutable; uploader drains + deletes)
+# The uploader never touches the live file so writer and uploader can't race.
+# Rotation triggers at 5 MB or after 10 min of accumulation (whichever first),
+# so the round-trip Pi → Railway latency is bounded even when the pack is idle.
+# HARDWARE-DEP: Pi 3B — default path is a tmpfs (/run/volthium/) because the
+# on-board SU16G SD card can't sustain the write rate. On faster storage
+# (USB SSD / NVMe / a newer Pi with proper block-layer perf), setting
+# VOLTHIUM_BLE_EVENT_LOG to a real disk path would be safe and free us
+# from the rotation-and-upload pipeline for smaller footprints.
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _EVENT_LOG = Path(
     os.environ.get("VOLTHIUM_BLE_EVENT_LOG", _REPO_ROOT / "data" / "ble_events.jsonl")
 )
+
+# Rotation tunables — small enough to keep tmpfs footprint modest, large enough
+# that segments amortize the HTTP overhead on the uploader side.
+_MAX_SEGMENT_BYTES = 5_000_000     # 5 MB per sealed segment
+_MAX_SEGMENT_AGE_S = 600.0         # force rotate every 10 min so latency is bounded
+_MAX_SEALED_KEEP = 8               # 8 * 5 MB = 40 MB ceiling if uploader is way behind
+
+
+class _EventLogWriter:
+    """Sealed-segment log writer for BLE diagnostics.
+
+    Instantiate once per process (module-level `_writer` below). All state is
+    on the instance so tests can construct fresh writers with a temp path.
+    """
+
+    def __init__(
+        self,
+        log_path: Path,
+        max_segment_bytes: int = _MAX_SEGMENT_BYTES,
+        max_segment_age_s: float = _MAX_SEGMENT_AGE_S,
+        max_sealed_keep: int = _MAX_SEALED_KEEP,
+    ) -> None:
+        self.log_path = log_path
+        self.max_segment_bytes = max_segment_bytes
+        self.max_segment_age_s = max_segment_age_s
+        self.max_sealed_keep = max_sealed_keep
+        self._fh = None
+        self._size = 0
+        self._opened_at = 0.0
+        self._next_seq: Optional[int] = None
+
+    def write_line(self, line: str) -> None:
+        """Append one JSONL line; may trigger rotation. Never raises — the
+        read loop must survive a broken diagnostics pipeline."""
+        try:
+            if self._fh is None:
+                self._open()
+            assert self._fh is not None
+            self._fh.write(line)
+            self._fh.flush()
+            self._size += len(line.encode("utf-8"))
+            now = time.monotonic()
+            over_size = self._size >= self.max_segment_bytes
+            aged_out = (
+                self._size > 0
+                and (now - self._opened_at) >= self.max_segment_age_s
+            )
+            if over_size or aged_out:
+                self._rotate()
+        except Exception:
+            # Diagnostics must never propagate — try to recover on next call.
+            try:
+                if self._fh is not None:
+                    self._fh.close()
+            except Exception:
+                pass
+            self._fh = None
+
+    def _open(self) -> None:
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        self._fh = self.log_path.open("a")
+        try:
+            self._size = self.log_path.stat().st_size
+        except OSError:
+            self._size = 0
+        self._opened_at = time.monotonic()
+        if self._next_seq is None:
+            self._next_seq = self._discover_next_seq()
+        # If we're opening onto an already-oversized live file (e.g. previous
+        # process died before it could rotate), seal it right away.
+        if self._size >= self.max_segment_bytes:
+            self._rotate()
+
+    def _discover_next_seq(self) -> int:
+        max_seq = 0
+        for p in self.log_path.parent.glob(f"{self.log_path.name}.*.sealed"):
+            # <base>.NNNN.sealed — take the second-to-last dotted component
+            try:
+                seq = int(p.name.rsplit(".", 2)[-2])
+                max_seq = max(max_seq, seq)
+            except (ValueError, IndexError):
+                pass
+        return max_seq + 1
+
+    def _rotate(self) -> None:
+        if self._fh is None:
+            return
+        try:
+            self._fh.close()
+        except Exception:
+            pass
+        self._fh = None
+        # Enforce the sealed-file cap: if the uploader is behind, drop the
+        # oldest sealed file to make room. Older diagnostics are less useful
+        # than dropping the whole pipeline into a wedge state.
+        self._enforce_cap()
+        # Seal the live file by rename. Uploader never touches sealed files
+        # until we've done this, so no race.
+        assert self._next_seq is not None
+        sealed = self.log_path.parent / f"{self.log_path.name}.{self._next_seq:04d}.sealed"
+        try:
+            if self.log_path.exists():
+                self.log_path.rename(sealed)
+        except OSError:
+            pass
+        self._next_seq += 1
+        # Reopen fresh — next write_line() will create the live file if needed.
+        self._size = 0
+        self._opened_at = time.monotonic()
+
+    def _enforce_cap(self) -> None:
+        existing = sorted(self.log_path.parent.glob(f"{self.log_path.name}.*.sealed"))
+        while len(existing) >= self.max_sealed_keep:
+            try:
+                existing[0].unlink()
+            except OSError:
+                break
+            existing = existing[1:]
+
+
+_writer = _EventLogWriter(_EVENT_LOG)
+
+
+def _reset_writer_for_tests(path: Path) -> _EventLogWriter:
+    """Test helper — swap the module-level writer to a fresh path. Returns
+    the new writer so tests can also close/inspect it explicitly."""
+    global _writer
+    _writer = _EventLogWriter(path)
+    return _writer
 
 
 def _event(event: str, **fields) -> None:
@@ -47,10 +188,66 @@ def _event(event: str, **fields) -> None:
             "event": event,
             **fields,
         }
-        with _EVENT_LOG.open("a") as f:
-            f.write(json.dumps(rec, default=str) + "\n")
+        _writer.write_line(json.dumps(rec, default=str) + "\n")
     except Exception:
         pass
+
+
+# --- Raw BLE frame capture ------------------------------------------------
+# Env-gated: VOLTHIUM_CAPTURE_RAW=1 turns on notify-frame taps in the read
+# path, streaming hex-encoded BMS responses through the same _event() log for
+# later lab replay. Auto-caps at _CAPTURE_CYCLE_CAP pack cycles per process
+# so a long-running logger doesn't drown the pipeline in raw traffic.
+#
+# NOT a hardware-dependent workaround — this exists to gather samples for
+# building an offline BMS simulator. Toggle on/off via systemd env-var; new
+# 30-cycle window on every process restart.
+_CAPTURE_CYCLE_CAP = 30
+_capture_pack_cycles = 0
+
+
+def _capture_active() -> bool:
+    return (
+        os.environ.get("VOLTHIUM_CAPTURE_RAW", "0") == "1"
+        and _capture_pack_cycles < _CAPTURE_CYCLE_CAP
+    )
+
+
+class _VolthiumBMSTapped(VolthiumBMS):
+    """VolthiumBMS with a raw-frame tap on the notify path.
+
+    Overriding `_notification_handler` gives us the raw bytes as bleak
+    delivers them — after HCI reassembly but before aiobmsble decodes into
+    a BMSSample. Perfect for lab replay: capture (RX bytes, timing) tuples,
+    replay them back into a mock BleakClient to reconstruct a session.
+    """
+    _raw_addr: str = ""
+
+    def _notification_handler(self, *args, **kwargs):
+        try:
+            # bleak calls (BleakGATTCharacteristic, bytearray). Be defensive.
+            data = args[1] if len(args) > 1 else kwargs.get("data", b"")
+            _event(
+                "raw_frame",
+                address=self._raw_addr,
+                direction="rx",
+                data_hex=bytes(data).hex(),
+                data_len=len(bytes(data)),
+            )
+        except Exception:
+            # A broken tap must never break the read.
+            pass
+        return super()._notification_handler(*args, **kwargs)
+
+
+def _make_bms(dev: BLEDevice, address: str, keep_alive: bool = True):
+    """Construct the BMS instance for a single read cycle, choosing between
+    the tapped and plain classes based on whether raw capture is active."""
+    if _capture_active():
+        bms = _VolthiumBMSTapped(ble_device=dev, keep_alive=keep_alive)
+        bms._raw_addr = address.upper()
+        return bms
+    return VolthiumBMS(ble_device=dev, keep_alive=keep_alive)
 
 
 async def _run(cmd: list[str], *, timeout: float = 8.0) -> str:
@@ -81,7 +278,12 @@ async def _connected_targets(targets: set[str]) -> set[str]:
 async def _force_disconnect(addr: str) -> str:
     """Best-effort release of a wedged battery's radio from the Pi side. Clears
     a BlueZ-level lingering connection; an in-process leaked client may re-grab
-    it (the logger's wedge self-restart is the backstop for that case)."""
+    it (the logger's wedge self-restart is the backstop for that case).
+
+    HARDWARE-DEP: Pi 3B — this exists because BlueZ leaks connections after
+    certain error paths. A cleaner BT stack (e.g. NimBLE on an ESP32 or a
+    dedicated USB dongle with a modern controller) wouldn't need this ladder.
+    """
     return (await _run(["bluetoothctl", "disconnect", addr], timeout=15.0)).strip()
 
 
@@ -90,6 +292,10 @@ async def _force_disconnect(addr: str) -> str:
 # aiobmsble's disconnect() (basebms.py) has no timeout and silently swallows
 # BleakError, while keep_alive=True leaves the link open after a read — together
 # the exact recipe that leaks a client and wedges a single-connection BMS (FM-8).
+# HARDWARE-DEP: Pi 3B — these are conservative because the on-board BCM43438
+# combo chip's HCI transport drops frames under Wi-Fi coexistence pressure
+# (dozens of `Frame reassembly failed (-84)` in dmesg per bad session). With a
+# dedicated USB BLE dongle these could tighten to ~5 s and ~3 s respectively.
 _READ_TIMEOUT = 15.0
 _DISCONNECT_TIMEOUT = 10.0
 
@@ -155,6 +361,12 @@ async def recover_adapter(level: int) -> str:
     discovery session, fast); level >= 2 = full bluetooth.service restart (the
     proven heavy hammer — verified to clear `Discovering: yes` on 2026-06-30).
     Uses passwordless sudo. Best-effort; logs a structured event; never raises.
+
+    HARDWARE-DEP: Pi 3B / BlueZ — the entire adapter-recovery ladder exists
+    because bluetoothd on this platform periodically gets stuck in
+    `Discovering: yes` and refuses new sessions. On a healthier stack this
+    function shouldn't need to exist; when we swap hardware, this whole
+    function and its callers in scripts/log.py can go.
     """
     hci = await _default_adapter()
     if level <= 1:
@@ -304,7 +516,10 @@ async def _read_device(dev: BLEDevice, address: str) -> BatteryReading:
     key = address.upper()
     t0 = time.monotonic()
     # keep_alive=True so async_update() leaves the link open and WE own teardown.
-    bms = VolthiumBMS(ble_device=dev, keep_alive=True)
+    # HARDWARE-DEP: Pi 3B — keep_alive=True is a workaround for aiobmsble's
+    # unbounded disconnect() path. With a healthier BT stack and dedicated USB
+    # dongle we could let the context manager handle teardown normally.
+    bms = _make_bms(dev, address, keep_alive=True)
     read_s: Optional[float] = None
     try:
         sample = await asyncio.wait_for(bms.async_update(), timeout=_READ_TIMEOUT)
@@ -427,6 +642,11 @@ async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackR
     is the pack current. Raises only if NEITHER battery can be read, so the
     logger still treats a total blackout as a failed cycle (no empty row).
     """
+    global _capture_pack_cycles
+    # Snapshot the cycle-cap boundary BEFORE reads run — the reads themselves
+    # bump _writer through raw_frame events, but we only advance the pack-cycle
+    # counter once per read_pack call so the cap counts pack cycles, not batteries.
+    capture_was_active = _capture_active()
     try:
         devs = await _discover_addresses({addr_a, addr_b}, timeout=timeout)
     except Exception as exc:  # noqa: BLE001 — log then re-raise; keeps FM-3 self-diagnosing
@@ -486,6 +706,19 @@ async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackR
                 )
                 result = await _force_disconnect(addr)
                 _event("force_disconnect", address=addr, result=result)
+
+    # Advance the raw-capture pack-cycle counter (once per read_pack call, not
+    # per battery). Emit a boundary marker on the cycle that flips capture off
+    # so a downstream consumer can find the end of the sample stream cleanly.
+    if capture_was_active:
+        _capture_pack_cycles += 1
+        if _capture_pack_cycles >= _CAPTURE_CYCLE_CAP:
+            _event(
+                "raw_capture_exhausted",
+                cycles_captured=_capture_pack_cycles,
+                cap=_CAPTURE_CYCLE_CAP,
+                note="raw capture disabled until next process restart",
+            )
 
     if readings[addr_a] is None and readings[addr_b] is None:
         _event("cycle_done", outcome="both_down", wedged=wedged)

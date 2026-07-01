@@ -328,3 +328,57 @@ any address. So B (0667) is emitting nothing at all — conclusively source-side
 exhausted (adapter power-cycle, bluetooth restart, cache purge, fixed-MAC and
 name-based scans). B can only return when its own BMS resumes; the logger probes
 for it every cycle and will resume full logging automatically.
+
+---
+
+## Once hardware is upgraded — what to revisit
+
+The Pi 3B (2016) has two properties driving most of the workarounds above:
+
+1. **BCM43438 combo Wi-Fi + Bluetooth chip on one shared 2.4 GHz antenna** — the
+   `-84` frame-reassembly errors and coexistence-related GATT stalls come from
+   here. External USB BLE dongle (with its own antenna) removes this.
+2. **SU16G SanDisk Ultra SD card as sole storage** — the `mmc_rescan` hung tasks
+   and `journald` timeouts come from the card periodically going non-responsive
+   under sustained write load. USB SSD (or newer Pi that boots from NVMe) removes
+   this.
+
+When the platform is swapped, these files/lines are the ones to reconsider — each
+is tagged `HARDWARE-DEP: Pi 3B ...` in the source so `grep -rn HARDWARE-DEP` finds
+them all.
+
+- **`volthium/pack.py`**
+  - `_READ_TIMEOUT` (15 s) + `_DISCONNECT_TIMEOUT` (10 s) — conservative because
+    of BlueZ frame drops. Tighten to ~5 s / ~3 s on a clean stack.
+  - `keep_alive=True` in `_read_device` — workaround for aiobmsble's unbounded
+    `disconnect()` swallowing BleakError. Cleaner stack → let the context manager
+    handle teardown normally.
+  - `_force_disconnect` + `_teardown`'s verify-and-force loop — exists because
+    BlueZ leaks connections. Not needed on a stack that disconnects cleanly.
+  - `recover_adapter()` — exists because bluetoothd gets stuck in
+    `Discovering: yes`. Not needed on a healthier controller / stack. Delete the
+    whole function and its callers.
+  - `_EVENT_LOG` tmpfs default — exists because the SD card can't sustain writes.
+    On SSD/NVMe, direct-to-disk is fine; the sealed-segment rotation + separate
+    uploader machinery becomes optional (still nice for durability but no longer
+    survival-critical).
+
+- **`scripts/log.py`**
+  - `RESTART_AFTER_CONSEC_ERRORS` (30) — self-heal by respawning. Only necessary
+    because the leaked BleakClient needs a fresh process. Remove on clean stack.
+  - `RESTART_AFTER_WEDGE_CYCLES` (6) — same story, wedge-specific. Remove.
+  - `ADAPTER_SOFT_RESET_AFTER` / `HARD_RESET_AFTER` / `RESTART_AFTER_SCAN_WEDGE`
+    — bluetoothd-recovery ladder. Remove.
+  - The `battery presence: A=up B=DOWN` transition warning stays useful for
+    genuine BMS outages; keep it.
+
+- **`docs/production_design.md`** — the "battery-side ESP32-S3 + display-side
+  ESP32-S3 over RS-485" architecture is what the wedge-and-restart workarounds
+  are ultimately here to bridge until. Once that hardware is running, the whole
+  `data/pack.csv` + cloud uploader path becomes optional (still nice for cloud
+  viewing) rather than survival-critical for the local wall display.
+
+The reader-side telemetry (partial-success logging in `read_pack`, structured
+event log via `_event`, per-battery RSSI capture, `data/ble_events.jsonl`
+rotation) is **not** hardware-dependent — those are diagnostic infrastructure
+that helps *any* platform and should stay.

@@ -30,6 +30,10 @@ CELLS_PER_BATTERY = 4
 # After this many consecutive TOTAL-read failures, exit so systemd respawns us
 # with a fresh BlueZ client (self-heals adapter wedges without an operator).
 # With ~10s interval + backoff this is on the order of ~15+ min of hard outage.
+# HARDWARE-DEP: Pi 3B / BlueZ — this whole self-restart mechanism exists
+# because the in-process BleakClient leaks connections and only a fresh
+# process can drop them. On a stack that doesn't leak, restart-on-wedge
+# becomes unnecessary and this constant + its call site can go.
 RESTART_AFTER_CONSEC_ERRORS = 30
 
 # After this many consecutive cycles with the SAME battery wedged (absent from
@@ -48,6 +52,10 @@ RESTART_AFTER_WEDGE_CYCLES = 6
 # consecutive discovery failures: soft HCI reset → full bluetooth.service restart
 # → finally give up to a process restart (last resort, in case the loop itself is
 # the problem). Each level only fires once (==) so we climb the ladder.
+# HARDWARE-DEP: Pi 3B — every rung here is a workaround for bluetoothd getting
+# stuck. Modern controllers with clean state management shouldn't need this;
+# this whole ladder + the recover_adapter() function it calls can be removed
+# on hardware upgrade.
 ADAPTER_SOFT_RESET_AFTER = 3    # consecutive scan failures → hciconfig reset
 ADAPTER_HARD_RESET_AFTER = 6    # still failing → restart bluetooth.service
 RESTART_AFTER_SCAN_WEDGE = 15   # adapter resets didn't help → exit for respawn

@@ -758,6 +758,11 @@ INDEX_HTML = """<!doctype html>
                                     font-weight: 500;
                                     font-variant-numeric: tabular-nums; }
   .spark { width: 100%; height: 80px; }
+  .spark-range { color: var(--dim); font-size: 11px; font-weight: 400;
+                 text-transform: none; letter-spacing: 0; margin-left: 10px;
+                 font-variant-numeric: tabular-nums; }
+  table.batt th[title] { cursor: help; text-decoration: underline dotted;
+                         text-underline-offset: 2px; }
   .footer { color: var(--dim); font-size: 11px; margin-top: 14px; }
   .num { font-variant-numeric: tabular-nums; }
   @media (max-width: 700px) {
@@ -813,16 +818,22 @@ INDEX_HTML = """<!doctype html>
         <div class="stat"><div class="label">pack I</div><div class="v num"><span id="pi">—</span><span class="u">A</span></div></div>
         <div class="stat"><div class="label">pack P</div><div class="v num"><span id="pp">—</span><span class="u">W</span></div></div>
       </div>
-      <div class="label" style="margin-top:6px">pack power (W) — last 2 h</div>
+      <div class="label" style="margin-top:6px">
+        pack power (W) — last 2 h
+        <span id="spark-p-range" class="spark-range"></span>
+      </div>
       <svg class="spark" id="spark-p" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
-      <div class="label">SOC (%) — last 2 h</div>
+      <div class="label">
+        SOC (%) — last 2 h
+        <span id="spark-soc-range" class="spark-range"></span>
+      </div>
       <svg class="spark" id="spark-soc" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
       <div class="footer"><span id="updated">—</span></div>
     </div>
     <div class="panel">
       <div class="label">per battery</div>
       <table class="batt">
-        <thead><tr><th>id</th><th>SOC</th><th>V</th><th>A</th><th>T</th><th>ΔmV</th></tr></thead>
+        <thead><tr><th>id</th><th>SOC</th><th>V</th><th>A</th><th>T</th><th title="Spread between the highest and lowest cell voltage in this battery's 4-cell stack (max − min). ~5–20 mV under load is healthy; sustained 50 mV+ indicates cell imbalance and is an early aging signal.">ΔmV</th></tr></thead>
         <tbody>
           <tr id="rowA"><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
           <tr id="rowB"><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
@@ -960,12 +971,20 @@ async function tick() {
       setText("target", "—");
       setText("time-value", "—");
     }
-    // SOC headline + bar
-    const socAvg = (x.soc_a != null && x.soc_b != null) ? (x.soc_a + x.soc_b) / 2 : null;
-    if (socAvg != null) {
+    // SOC headline + bar — WEAKEST battery. Only the lower-SOC one actually
+    // reaches the 10 % floor first (see volthium/estimator.py), so showing
+    // an average masks the meaningful signal. Falls back to the sole
+    // present battery if only one is up.
+    const _sa = x.soc_a != null ? Number(x.soc_a) : null;
+    const _sb = x.soc_b != null ? Number(x.soc_b) : null;
+    const socMaster = (_sa != null && _sb != null) ? Math.min(_sa, _sb)
+                    : (_sa != null) ? _sa
+                    : (_sb != null) ? _sb
+                    : null;
+    if (socMaster != null) {
       document.getElementById("soc-headline").innerHTML =
-          `${Math.round(socAvg)}<span class="u">%</span>`;
-      document.getElementById("soc-fill").style.width = socAvg + "%";
+          `${Math.round(socMaster)}<span class="u">%</span>`;
+      document.getElementById("soc-fill").style.width = socMaster + "%";
     } else {
       document.getElementById("soc-headline").innerHTML = `—<span class="u">%</span>`;
     }
@@ -1078,10 +1097,12 @@ async function tick() {
       return out;
     }
 
-    function spark(id, values, includeZero, color, markers) {
+    function spark(id, values, includeZero, color, markers, opts) {
+      opts = opts || {};
       const svg = document.getElementById(id);
-      if (values.length < 2) { svg.innerHTML = ""; return; }
-      let lo = Math.min(...values), hi = Math.max(...values);
+      if (values.length < 2) { svg.innerHTML = ""; return null; }
+      const rawLo = Math.min(...values), rawHi = Math.max(...values);
+      let lo = rawLo, hi = rawHi;
       if (includeZero) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
       const pad = (hi - lo) * 0.05 || 1;
       lo -= pad; hi += pad;
@@ -1105,15 +1126,49 @@ async function tick() {
              + `stroke-dasharray="3,2" opacity="0.6">`
              + `<title>${m.label}</title></line>`;
       }).join("");
-      svg.innerHTML = zeroLine + markerSvg +
+      // Axis-range labels — RAW (pre-pad) values, so what the operator sees
+      // matches the actual data.
+      const fmtAx = v => Math.abs(v) >= 100 ? v.toFixed(0)
+                       : Math.abs(v) >= 10  ? v.toFixed(1)
+                                            : v.toFixed(2);
+      const unit = opts.unit || "";
+      const hiTxt = `<text x="${W - 3}" y="10" fill="#6e7681" font-size="10" `
+                  + `text-anchor="end" font-family="ui-monospace,monospace" `
+                  + `font-variant-numeric="tabular-nums">${fmtAx(rawHi)}${unit}</text>`;
+      const loTxt = `<text x="${W - 3}" y="${H - 3}" fill="#6e7681" font-size="10" `
+                  + `text-anchor="end" font-family="ui-monospace,monospace" `
+                  + `font-variant-numeric="tabular-nums">${fmtAx(rawLo)}${unit}</text>`;
+      svg.innerHTML = zeroLine + markerSvg + hiTxt + loTxt +
         `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/>`;
+      return { lo: rawLo, hi: rawHi };
     }
 
     const onsetMarkers = computeOnsetMarkers(series, j.solar_onset);
     const ps = series.map(x => x.pack_p ?? 0);
-    spark("spark-p", ps, true, ps[ps.length-1] >= 0 ? "var(--grn)" : "var(--ylw)", onsetMarkers);
-    const socs = series.map(x => (x.soc_a != null && x.soc_b != null) ? (x.soc_a + x.soc_b) / 2 : null).filter(v => v != null);
-    spark("spark-soc", socs, false, "var(--blu)", onsetMarkers);
+    const pRange = spark("spark-p", ps, true,
+      ps[ps.length-1] >= 0 ? "var(--grn)" : "var(--ylw)",
+      onsetMarkers, { unit: " W" });
+    // SOC series: track weakest battery (matches the headline rule).
+    const socs = series.map(x => {
+      const a = x.soc_a != null ? Number(x.soc_a) : null;
+      const b = x.soc_b != null ? Number(x.soc_b) : null;
+      if (a != null && b != null) return Math.min(a, b);
+      if (a != null) return a;
+      if (b != null) return b;
+      return null;
+    }).filter(v => v != null);
+    const socRange = spark("spark-soc", socs, false, "var(--blu)",
+      onsetMarkers, { unit: "%" });
+    // Range chips in the section labels.
+    const fmtRange = (r, unit) => {
+      if (!r) return "";
+      const f = v => Math.abs(v) >= 100 ? v.toFixed(0)
+                    : Math.abs(v) >= 10 ? v.toFixed(1)
+                    : v.toFixed(2);
+      return `${f(r.lo)}${unit} to ${f(r.hi)}${unit}`;
+    };
+    setText("spark-p-range", fmtRange(pRange, " W"));
+    setText("spark-soc-range", fmtRange(socRange, "%"));
     setText("updated", new Date().toLocaleTimeString() + "  •  " + series.length + " samples");
 
     // Advisor panel — and hide its wrapper if there's nothing to show
