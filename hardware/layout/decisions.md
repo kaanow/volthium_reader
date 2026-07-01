@@ -1361,8 +1361,8 @@ No separate config radio (config is via the 3 buttons + on-screen labels).
 ## D28 — Hardware UVLO backstop (independent low-pack supervisor) — DR-16
 
 **Decision.** Add a micropower hardware voltage supervisor (**U4 = TI
-TPS3890**, ~2.1 µA Iq, adjustable threshold via SENSE, open-drain RESET,
-programmable deglitch) as an **independent backstop** to the firmware's
+TPS3808G01DBVR**, ~2.4 µA Iq, adjustable threshold via SENSE, open-drain
+RESET, programmable CT deglitch) as an **independent backstop** to the firmware's
 low-SOC load-shed. This closes the gap that D19's always-on MCU created:
 the firmware-only shed protects against a *dead* MCU (R3 defaults Q1 OFF)
 but **not** a *hung-but-powered* MCU, which keeps drawing ~38 mA at low SOC
@@ -1390,27 +1390,28 @@ releases EN → the MCU **cold-boots fresh** (which also un-hangs it) and
 resumes. So DR-4's "fully-unpowered MCU can't wake" problem is *not*
 reopened — this is the key difference from a hysteretic power-cut.
 
-**Threshold (corrected per reviewer iter-2 F01/F02; part = TPS389030DSER,
-datasheet-confirmed 2026-06-26).** The chosen variant's SENSE negative
-threshold is **VITN = 2.89 V** (the suffix sets it; range 1.15–3.17 V across
-the family — the earlier "1.15 V" was the -01 variant, now corrected). Floor
-trip ~**20 V** pack (≈2.5 V/cell, the LiFePO₄ cliff): divider R2/(R1+R2) =
-2.89/20 = **0.1445** → **R1 ≈ 1.69 MΩ, R2 ≈ 287 kΩ** (E96; trip ≈ 19.9 V).
-Release ~**21.3 V** set by an **external hysteresis resistor R_hys** (RESET→
-SENSE, **~3.9 MΩ** → ΔV_trip ≈ V_RESET(3.3 V)·R1/R_hys ≈ **1.4 V band**). The
-device's *built-in* hysteresis is only **0.325 %** (≈65 mV at the 20 V trip)
-— far too small: shedding the ~38 mA load rebounds the pack well past that,
-which would chatter, so the band is set deliberately in hardware. **Divider
-R_total ≈ 2.0 MΩ, not 10 MΩ:** SENSE current ~10 nA typ/~100 nA max → divider
-current must be ≥ 100× = ≥ 10 µA; ~20 V/1.98 MΩ = 10.1 µA at trip ✓. (The
-earlier 10 MΩ drew only ~2 µA — below the rule.) Final E96 values + bench
-hysteresis check at CP2.
+**Threshold (part = TPS3808G01DBVR, repackaged per D33/DR-24 2026-07-01;
+datasheet-confirmed).** The G01 adjustable variant's SENSE negative threshold
+is **VIT = 0.405 V** (the low reference is why the divider top resistor is
+large). Floor trip ~**20 V** pack (≈2.5 V/cell, the LiFePO₄ cliff): divider
+R2/(R1+R2) = 0.405/20 = **0.02025** → **R1 ≈ 4.87 MΩ, R2 ≈ 100 kΩ** (E96;
+trip ≈ 20.1 V). Release ~**21.3 V** set by an **external hysteresis resistor
+R_hys** (RESET→SENSE → ΔV_trip ≈ V_RESET(3.3 V)·R1/R_hys ≈ **~1.3 V band**).
+The device's *built-in* hysteresis is only **1.5 % of VIT** (≈6 mV at SENSE,
+~0.3 V at the pack) — too small: shedding the ~38 mA load rebounds the pack
+well past that, which would chatter, so the band is set deliberately in
+hardware. **Divider bias:** ISENSE ±25 nA max → divider current must be
+≥ 100× ≈ 2.5 µA; 0.405 V/100 kΩ = 4.05 µA at trip ✓ — and the higher-R,
+lower-threshold part now draws *less* than the old 2.89 V/2.0 MΩ divider
+(~4.8 µA at 24 V vs ~12 µA). Add a small SENSE filter cap for the high-Z node;
+final E96 values + bench hysteresis check at CP2.
 
-**Power.** divider ~10 µA at trip (~14 µA at 29 V → ~0.4 mW) + U4 Iq ~2.1 µA
-≈ **~0.45 mW**; with the D29 mux (~1.3 µA) **hard-cut ≈ 1.3 mW** (was ~1 mW —
-the accuracy rule wins over shaving 0.3 mW; still ~5 orders under any real
-drain). The EN-asserted floor state (~µA, chip in reset) is still *lower*
-power than the firmware deep-sleep it backstops.
+**Power.** divider ~4.8 µA at 24 V (~5.9 µA at 29 V → ~0.17 mW) + U4 Iq
+~2.4 µA ≈ **~0.25 mW**; with the D29 mux (~1.3 µA) **hard-cut ≈ 1.1 mW** (the
+0.405 V part's high-R divider recovered most of the ~0.3 mW the 2.89 V part
+had cost; still ~5 orders under any real drain). The EN-asserted floor state
+(~µA, chip in reset) is still *lower* power than the firmware deep-sleep it
+backstops.
 
 **Override-button precedence.** The hardware floor **wins** over the
 panel-mount manual override — a user can't force the display on below the
@@ -1559,3 +1560,32 @@ acceptance vs leaded downgrades in DR-24).
 few bot/WAF-blocked hosts it can't reach (onsemi, Littelfuse, ST, Phoenix,
 Micro Crystal), pull manually. The manifest's "not yet retrieved" list is the
 CP1 punch-list — it must reach empty (for active parts) before CP1 sign-off.
+
+## D33 — Assembly method: reflow + paste stencil; U4 repackaged to leaded — DR-24
+
+**Decision (user, 2026-07-01).** Build qty = 1, assembled in-house with a
+**heat gun + a crude oven**, so **reflow is available**. The real assembly
+pain the user identified is *not* the package footprint but **getting the
+right amount of solder on tiny pads by hand**. The fix for that is a
+**solder-paste stencil** (JLCPCB laser-cut steel bundles one for ~$8–30 with
+the board) — it deposits an exact, repeatable paste volume per aperture, which
+makes even bottom-terminated parts tractable. **Assembly plan = stencil +
+reflow (heat gun/oven) for the leadless/module parts; iron for everything
+else.** With a stencil in the plan, package choice is decided on **function +
+power**, not solderability.
+
+Judged that way, the three leadless parts flagged in DR-24 split:
+
+| Ref | Was | Now | Rationale |
+|-----|-----|-----|-----------|
+| **U4** UVLO supervisor | TPS389030DSER, **WSON 1.5×1.5** | **TPS3808G01DBVR, SOT-23-6 (leaded)** | **Swapped.** Functional superset (adj SENSE, OD RESET, prog CT delay, +MR input) at **Iq 2.4 µA vs 2.1 µA** — negligible. Free upside: easier to place/inspect/rework. VIT changes 2.89 V→0.405 V → divider re-derived (see D28). Active, DK 149k, ~$0.90. |
+| **U6** priority mux | **TPS2116DRLR, SOT-583** | **kept (SOT-583)** | The only leaded alternative (TPS2113A, TSSOP-8) draws **~75 µA operating vs the TPS2116's 1.32 µA** — 57× more, ~0.25 mW continuous on the always-on field path — a power-first violation. Low-Iq leaded routes (LTC4412 + external P-FET) add parts/complexity. Stencil solves solderability without the power cost. |
+| **U1** always-on buck | **LM5166YDRCR, VSON-10** | **kept (VSON-10)** | No leaded µA-Iq wide-Vin equivalent; user accepted. Reflowed with the stencil. |
+
+**Why this is "replace, don't patch" done right:** U4 had a genuinely
+equal-or-better leaded part available, so we swapped ([[replace-dont-patch]]).
+U6/U1 did not — the "leaded" options were strictly worse on the design's
+core power-first axis ([[power-first]]), so the correct move is to keep the
+right part and make assembly easier via the stencil, not to downgrade the
+part. **Resolves DR-24.** Feeds CP3 placement (footprints/thermal-pad/vias for
+U1/U6) and the fab order (add stencil).

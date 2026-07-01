@@ -26,7 +26,7 @@ pulled manually. Read + interface-verified per D32.
 | SN65HVD3082EDR | SN65HVD3082EDR.pdf (1373K) | digikey | https://www.ti.com/lit/ds/symlink/sn65hvd3082e.pdf?ts=1639755616460&ref_url=https%253A%252F%252Fwww.ti.com%252Fsitesearch%252Fdocs%252Funiversalsearch.tsp%253FlangPref%253Den-US%2526searchTerm%253Dsn65hvd3082edr%2526nr%253D16 | ec138afa78b3 |
 | SS26-E3/52T | SS26-E3_52T.pdf (151K) | digikey | https://www.vishay.com/docs/88748/ss22.pdf | 4bcd8bc129f3 |
 | TPS2116DRLR | TPS2116DRLR.pdf (2855K) | digikey | https://www.ti.com/lit/ds/symlink/tps2116.pdf | 5babd88afb84 |
-| TPS389030DSER | TPS389030DSER.pdf (1175K) | digikey | https://www.ti.com/lit/ds/symlink/tps3890.pdf?ts=1782479038210&ref_url=https%253A%252F%252Fwww.ti.com%252Fproduct%252FTPS3890 | ee79599730e7 |
+| TPS3808G01DBVR | TPS3808G01DBVR.pdf (2034K) | digikey | https://www.ti.com/lit/ds/symlink/tps3808.pdf | 682abbc06a0c |
 | USBLC6-2SC6Y | USBLC6-2SC6Y.pdf (117K) | manual | user download 2026-07-01 | c0352261dede |
 | ZXMP6A13FTA | ZXMP6A13FTA.pdf (246K) | digikey | https://www.diodes.com/assets/Datasheets/ZXMP6A13F.pdf | bb474f827be4 |
 | MSTB 2,5/2-ST-5,08 (1757019) | 1757019.pdf (2400K) | manual | user upload 2026-07-01 | d849479aae64 |
@@ -40,3 +40,4 @@ pulled manually. Read + interface-verified per D32.
 ## Retired (in store history, not used)
 
 - **1727010** (Phoenix MKDS 1/2-3,81) — was mistakenly specced as the J1 plug; it's a 3.81 mm board-mount screw terminal, wrong series/pitch. Replaced by 1757019 (2026-07-01, D32 catch). PDF removed.
+- **TPS389030DSER** (U4 UVLO supervisor) — WSON 1.5×1.5 leadless; repackaged to **TPS3808G01DBVR (SOT-23-6, leaded)** for hand-assembly (2026-07-01, D33/DR-24). Functional superset at ~same Iq. PDF removed.

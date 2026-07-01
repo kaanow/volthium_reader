@@ -236,9 +236,9 @@ firmware-only shed + R3 default-OFF do **not** cover (R3 only handles a
 
 | Ref | Part | Pkg | Qty | Rationale |
 |-----|------|-----|-----|-----------|
-| U4  | **TI TPS389030DSER** voltage supervisor (~2.1 µA Iq, SENSE, open-drain RESET, prog. CT delay) | **6-WSON 1.5×1.5 mm (leadless ⚠)** | 1 | Asserts ESP **EN** low when the pack droops below the hardware floor. Powered from always-on V3V3. **Package is WSON 1.5×1.5, not SOT-23 (API 2026-06-25)** — leadless, see assembly note / DR-24 |
-| R_uv1 (top), R_uv2 (bottom) | pack divider → U4 SENSE. **VITN = 2.89 V** (TPS389030, datasheet-confirmed 2026-06-26). For a ~20 V trip: R2/(R1+R2) = 2.89/20 = **0.1445** → **R1 ≈ 1.69 MΩ, R2 ≈ 287 kΩ** (E96, R_total ≈ 1.98 MΩ → trip ≈ 19.9 V) | 0805 ×2 | 2 | From V24_FUSED. **R_total ≈ 2.0 MΩ, not 10 MΩ (reviewer F02):** TPS3890 SENSE current ~10 nA typ/~100 nA max → divider current must be ≥ 100× = **≥ 10 µA**; ~20 V/1.98 MΩ = 10.1 µA at the trip point ✓. (Earlier "VITN 1.15 V" was the -01 variant — corrected.) |
-| R_hys | external hysteresis: U4 RESET → SENSE (**~3.9 MΩ**) | 0805 | 1 | **NEW (reviewer F01):** the TPS389030 *built-in* hysteresis is only **0.325 %** (VHYST = (VITP−VITN)/VITN) ≈ **~65 mV at the 20 V trip** — far too small, would chatter. R_hys sets a deliberate band: ΔV_trip ≈ V_RESET(3.3 V) × R1/R_hys → with R1 1.69 MΩ, **R_hys ≈ 3.9 MΩ → ~1.43 V band** (trip ~19.9 V / release ~21.3 V). Finalize at CP2 |
+| U4  | **TI TPS3808G01DBVR** voltage supervisor (~2.4 µA Iq, adj SENSE, open-drain RESET, prog. CT delay, +MR) | **SOT-23-6 (leaded ✓)** | 1 | Asserts ESP **EN** low when the pack droops below the hardware floor. Powered from always-on V3V3. **Repackaged WSON→SOT-23-6 for hand-assembly (D33/DR-24)** — functional superset, ~same Iq |
+| R_uv1 (top), R_uv2 (bottom) | pack divider → U4 SENSE. **VIT = 0.405 V** (TPS3808G01, datasheet-confirmed). For a ~20 V trip: R2/(R1+R2) = 0.405/20 = **0.02025** → **R1 ≈ 4.87 MΩ, R2 ≈ 100 kΩ** (E96 → trip ≈ 20.1 V) | 0805 ×2 | 2 | From V24_FUSED. **ISENSE ±25 nA max** → divider current ≥ 100× = **≥ 2.5 µA**; 0.405 V/100 kΩ = 4.05 µA at trip ✓. The lower 0.405 V threshold lets the high-R divider draw *less* (~4.8 µA at 24 V) than the old 2.89 V/2.0 MΩ part. Add a small SENSE filter cap for the high-Z node. |
+| R_hys | external hysteresis: U4 RESET → SENSE | 0805 | 1 | **F01/D33:** the TPS3808G01 *built-in* VHYS is only **1.5 % of VIT** (≈6 mV at SENSE, ~0.3 V at pack) — too small, would chatter. R_hys sets a deliberate band: ΔV_trip ≈ V_RESET(3.3 V) × R1/R_hys → **~1.3 V band** (trip ~20.1 V / release ~21.3 V). Finalize at CP2 |
 | C_ct | CT delay cap (deglitch, ~tens of ms) | 0603 | 1 | Rejects momentary sags so only a sustained low-pack condition trips the floor |
 
 **How it acts (reuses the existing default-OFF chain — no extra Q1 driver):**
@@ -253,20 +253,20 @@ On recovery (pack ≥ release threshold + hysteresis) U4 releases EN → the ESP
 keeps the MCU wakeable (D19 intact; DR-4 not reopened).
 
 **Thresholds:** trip ~**20 V** pack (LiFePO₄ cliff, well below the firmware's
-~10 % SOC shed); release ~**21.5 V** set by the **external** hysteresis
-resistor R_hys (reviewer F01 — the chip's built-in ~0.12 V band is too small
-and would chatter, since shedding the ~38 mA load rebounds the pack well past
-0.12 V). The two layers never fight — staggered voltages; the hardware floor
+~10 % SOC shed); release ~**21.3 V** set by the **external** hysteresis
+resistor R_hys (reviewer F01 — the chip's built-in band (~0.3 V at pack) is
+too small and would chatter, since shedding the ~38 mA load rebounds the pack
+well past that). The two layers never fight — staggered voltages; the hardware floor
 is silent in normal operation. **Override button:** the hardware floor wins
 (can't force-drain a dead pack). CP2: confirm on the bench that release +
 deglitch give a clean single re-engage (no oscillation).
 
-**Power (reviewer F02):** divider 20 V/2.0 MΩ ≈ 10 µA at trip (~14 µA at
-29 V full charge → ~0.4 mW) + U4 Iq ~2.1 µA ≈ **~0.45 mW** — up from the
-earlier (rule-violating) 10 MΩ estimate. **Hard-cut now ≈ 1.3 mW** (was
-~1 mW); still ~5 orders of magnitude under any meaningful pack drain, so the
-accuracy rule wins over shaving 0.3 mW. The EN-asserted floor (~µA, chip in
-reset) is still *lower* power than the firmware deep-sleep it backstops.
+**Power (F02/D33):** divider ~4.8 µA at 24 V (~5.9 µA at 29 V full charge →
+~0.17 mW) + U4 Iq ~2.4 µA ≈ **~0.25 mW** — the 0.405 V part's high-R divider
+draws less than the old 2.89 V/2.0 MΩ one while still satisfying the ≥100×
+ISENSE rule. **Hard-cut now ≈ 1.1 mW**; ~5 orders of magnitude under any
+meaningful pack drain. The EN-asserted floor (~µA, chip in reset) is still
+*lower* power than the firmware deep-sleep it backstops.
 
 ### 4.3b USB maintenance power (run/program/troubleshoot off USB) — D29 / DR-18
 
@@ -423,7 +423,7 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | Net          | Voltage     | Source                | Sinks                                         | Notes |
 |--------------|-------------|-----------------------|-----------------------------------------------|-------|
 | V24_RAW      | 24–28 V     | J1 pin 1             | F1                                            | Pack tap, unfused |
-| V24_FUSED    | 24–28 V     | D1 cathode           | Q1 source, R5 top (sense divider), R3 (Q1 gate pull-up), TVS1, **R_uv1 (UVLO divider top)** | Always-alive 24 V rail (post-fuse, post-reverse). Loads: load-switch input, sense divider, gate pull-up, TVS clamp, and the ~10 MΩ UVLO divider (~2 µA, D28) — minimal idle draw |
+| V24_FUSED    | 24–28 V     | D1 cathode           | Q1 source, R5 top (sense divider), R3 (Q1 gate pull-up), TVS1, **R_uv1 (UVLO divider top)** | Always-alive 24 V rail (post-fuse, post-reverse). Loads: load-switch input, sense divider, gate pull-up, TVS clamp, and the ~4.9 MΩ UVLO divider (~4.8 µA, D28/D33) — minimal idle draw |
 | V24_SW       | 24–28 V     | Q1 drain             | R-78HB12 VIN (U2) only                         | Switched 24 V branch downstream of the load switch. Feeds **only** U2 (12 V/display). Collapses when PWR_EN is LOW/Hi-Z — sheds the display, **not** the MCU |
 | V3V3         | 3.3 V       | **TPS2116 OUT (U6)** — sources: U1 buck (VIN2) / USB-LDO U5 (VIN1, priority) | ESP3V3, RTC VCC, U3 VCC, U4 VDD, R8/R9, R13, C6/C7/C8 | **Always-on** 3.3 V (D19). USB present → from USB-LDO (buck idles); USB absent → from buck. Powers the MCU in every state; never gated. No RS-485 bias here (display-end only) |
 | 3V3_USB      | 3.3 V       | U5 LDO (from VBUS)   | TPS2116 VIN1 (U6)                             | USB maintenance rail (D29); present only when a cable is plugged in; VBUS-referenced |
@@ -572,7 +572,7 @@ populated. **Idle bias is NOT here** — it lives on the display end only
   takes over when plugged in and the buck idles — exactly the D29 intent. ST
   (open-drain status) optional; PR1 unused in priority mode. Same on the
   display mux.
-- **UVLO hysteresis (F01) + divider (F02):** finalize R_uv1/R_uv2 (~2.0 MΩ, ≥10 µA at trip) and R_hys (~3.9–4.7 MΩ for ~1.5 V band); bench-verify clean re-engage.
+- **UVLO hysteresis (F01) + divider (F02/D33):** finalize R_uv1/R_uv2 (R1≈4.87 MΩ/R2≈100 kΩ for the TPS3808G01 0.405 V VIT, ≥2.5 µA at trip) + SENSE filter cap and R_hys (~1.3 V band); bench-verify clean re-engage.
 - **Q3/Q4 UVLO-bypass (F03):** verify the fail-safe default-ON truth table on the bench.
 
 ## 11. Layout strategy
