@@ -8,13 +8,14 @@ cloud/tests/test_server.py).
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import datetime
 from typing import Optional, Protocol, Sequence
 
 import asyncpg
 
 from cloud.server.derive import Derived
-from cloud.shared.wire import Reading
+from cloud.shared.wire import BleEvent, Reading
 
 
 class ReadingsDAO(Protocol):
@@ -47,6 +48,13 @@ class ReadingsDAO(Protocol):
 
     async def sources(self) -> list[str]:
         """Distinct source_ids that have ever uploaded."""
+
+    async def insert_events(
+        self, source_id: str, events: Sequence[BleEvent]
+    ) -> int:
+        """Bulk-insert BLE diagnostic events. Returns count inserted. No
+        uniqueness constraint — events are append-only telemetry, duplicates
+        from an uploader retry are cheap to store and easy to filter out."""
 
 
 class AsyncpgReadingsDAO:
@@ -146,6 +154,20 @@ class AsyncpgReadingsDAO:
                 "SELECT DISTINCT source_id FROM readings ORDER BY source_id"
             )
         return [r["source_id"] for r in rows]
+
+    async def insert_events(
+        self, source_id: str, events: Sequence[BleEvent]
+    ) -> int:
+        if not events:
+            return 0
+        rows = [(source_id, e.ts, e.event, json.dumps(e.data)) for e in events]
+        async with self.pool.acquire() as conn:
+            await conn.executemany(
+                """INSERT INTO ble_events (source_id, ts, event, data)
+                   VALUES ($1, $2, $3, $4::jsonb)""",
+                rows,
+            )
+        return len(rows)
 
 
 async def create_pool(database_url: str) -> asyncpg.Pool:

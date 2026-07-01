@@ -72,6 +72,12 @@
                   font-family: ui-monospace, monospace;
                   background: rgba(248,81,73,.12); color: var(--red); }
   .problem-pill.ok { background: rgba(63,185,80,.12); color: var(--grn); }
+  .spark-range { color: var(--dim); font-size: 11px; font-weight: 400;
+                 text-transform: none; letter-spacing: 0; margin-left: 10px;
+                 font-variant-numeric: tabular-nums; }
+  /* ΔmV column header tooltip: browser-native cursor cue. */
+  table.batt th[title] { cursor: help; text-decoration: underline dotted;
+                         text-underline-offset: 2px; }
   @media (max-width: 700px) {
     .grid { grid-template-columns: 1fr; }
     .headline-pair .cell .h { font-size: 44px; }
@@ -115,9 +121,15 @@
           <div class="v"><span id="pp">—</span><span class="u">W</span></div>
         </div>
       </div>
-      <div class="label" style="margin-top:18px">pack power (W) — last 2 h</div>
+      <div class="label" style="margin-top:18px">
+        pack power (W) — last 2 h
+        <span id="spark-p-range" class="spark-range"></span>
+      </div>
       <svg id="spark-p" class="spark" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
-      <div class="label">SOC (%) — last 2 h</div>
+      <div class="label">
+        SOC (%) — last 2 h
+        <span id="spark-soc-range" class="spark-range"></span>
+      </div>
       <svg id="spark-soc" class="spark" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
       <div class="footer"><span id="updated">—</span></div>
     </div>
@@ -125,7 +137,7 @@
       <div class="label">per battery</div>
       <table class="batt">
         <thead>
-          <tr><th>id</th><th>SOC</th><th>V</th><th>A</th><th>T</th><th>ΔmV</th><th>prob</th></tr>
+          <tr><th>id</th><th>SOC</th><th>V</th><th>A</th><th>T</th><th title="Spread between the highest and lowest cell voltage in this battery's 4-cell stack (max − min). ~5–20 mV under load is healthy; sustained 50 mV+ indicates cell imbalance and is an early aging signal.">ΔmV</th><th>prob</th></tr>
         </thead>
         <tbody>
           <tr id="rowA"><td>A</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
@@ -176,11 +188,13 @@ function updateStale(latestTs) {
   }
 }
 
-function spark(id, values, includeZero, color) {
+function spark(id, values, includeZero, color, opts) {
+  opts = opts || {};
   const svg = document.getElementById(id);
-  if (values.length < 2) { svg.innerHTML = ""; return; }
+  if (values.length < 2) { svg.innerHTML = ""; return null; }
   const W = 600, H = 80, PAD = 4;
-  let lo = Math.min(...values), hi = Math.max(...values);
+  const rawLo = Math.min(...values), rawHi = Math.max(...values);
+  let lo = rawLo, hi = rawHi;
   if (includeZero) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
   const pad = (hi - lo) * 0.05 || 1;
   lo -= pad; hi += pad;
@@ -194,8 +208,25 @@ function spark(id, values, includeZero, color) {
   const zeroLine = (includeZero && lo <= 0 && hi >= 0)
     ? `<line x1="0" y1="${zeroY}" x2="${W}" y2="${zeroY}" stroke="#30363d" stroke-width="1"/>`
     : "";
-  svg.innerHTML = zeroLine +
+  // Axis-range labels: max at top-right, min at bottom-right. Use the RAW
+  // (pre-pad) values so the number the operator sees matches the actual
+  // data — the 5%% pad is a rendering nicety, not a data claim.
+  const fmt = (v) => {
+    if (!isFinite(v)) return "—";
+    if (Math.abs(v) >= 100) return v.toFixed(0);
+    if (Math.abs(v) >= 10)  return v.toFixed(1);
+    return v.toFixed(2);
+  };
+  const unit = opts.unit || "";
+  const hiTxt = `<text x="${W - 3}" y="10" fill="#6e7681" font-size="10" `
+              + `text-anchor="end" font-family="ui-monospace,monospace" `
+              + `font-variant-numeric="tabular-nums">${fmt(rawHi)}${unit}</text>`;
+  const loTxt = `<text x="${W - 3}" y="${H - 3}" fill="#6e7681" font-size="10" `
+              + `text-anchor="end" font-family="ui-monospace,monospace" `
+              + `font-variant-numeric="tabular-nums">${fmt(rawLo)}${unit}</text>`;
+  svg.innerHTML = zeroLine + hiTxt + loTxt +
     `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/>`;
+  return { lo: rawLo, hi: rawHi };
 }
 
 const labelOf = (name, fallback) => {
@@ -246,12 +277,21 @@ async function tick() {
       setText("time-value", "—");
     }
 
-    const socAvg = (x.soc_a != null && x.soc_b != null)
-      ? (Number(x.soc_a) + Number(x.soc_b)) / 2 : null;
-    if (socAvg != null) {
+    // Master SOC = weakest present battery. Only the lower-SOC battery
+    // actually reaches 10 % first (that's what triggers the discharge floor
+    // in Estimator.update), so showing anything else on the headline would
+    // mislead the operator. If only one battery is up, that one *is* the
+    // master. If neither, show a dash.
+    const _sa = x.soc_a != null ? Number(x.soc_a) : null;
+    const _sb = x.soc_b != null ? Number(x.soc_b) : null;
+    const socMaster = (_sa != null && _sb != null) ? Math.min(_sa, _sb)
+                    : (_sa != null) ? _sa
+                    : (_sb != null) ? _sb
+                    : null;
+    if (socMaster != null) {
       document.getElementById("soc-headline").innerHTML =
-        `${Math.round(socAvg)}<span class="u">%</span>`;
-      document.getElementById("soc-fill").style.width = socAvg + "%";
+        `${Math.round(socMaster)}<span class="u">%</span>`;
+      document.getElementById("soc-fill").style.width = socMaster + "%";
     } else {
       document.getElementById("soc-headline").innerHTML = `—<span class="u">%</span>`;
     }
@@ -310,13 +350,33 @@ async function tick() {
     }
 
     const ps = rows.map(r => r.pack_p == null ? 0 : Number(r.pack_p));
-    spark("spark-p", ps, true,
-          ps[ps.length - 1] >= 0 ? "var(--grn)" : "var(--ylw)");
+    const pRange = spark("spark-p", ps, true,
+                         ps[ps.length - 1] >= 0 ? "var(--grn)" : "var(--ylw)",
+                         { unit: " W" });
+    // SOC sparkline: track the WEAKEST battery over time — same rule as the
+    // headline. Falls back to the sole present battery when only one is up.
     const socs = rows
-      .map(r => (r.soc_a != null && r.soc_b != null)
-          ? (Number(r.soc_a) + Number(r.soc_b)) / 2 : null)
+      .map(r => {
+        const a = r.soc_a != null ? Number(r.soc_a) : null;
+        const b = r.soc_b != null ? Number(r.soc_b) : null;
+        if (a != null && b != null) return Math.min(a, b);
+        if (a != null) return a;
+        if (b != null) return b;
+        return null;
+      })
       .filter(v => v != null);
-    spark("spark-soc", socs, false, "var(--blu)");
+    const socRange = spark("spark-soc", socs, false, "var(--blu)",
+                           { unit: "%" });
+    // Range chips in the section labels — quick "how zoomed am I" cue.
+    const fmtRange = (r, unit) => {
+      if (!r) return "";
+      const f = v => Math.abs(v) >= 100 ? v.toFixed(0)
+                    : Math.abs(v) >= 10 ? v.toFixed(1)
+                    : v.toFixed(2);
+      return `${f(r.lo)}${unit} to ${f(r.hi)}${unit}`;
+    };
+    setText("spark-p-range", fmtRange(pRange, " W"));
+    setText("spark-soc-range", fmtRange(socRange, "%"));
 
     setText("updated", new Date().toLocaleTimeString() + " · " + rows.length + " samples");
   } catch (e) {

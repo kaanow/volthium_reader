@@ -25,12 +25,13 @@ from fastapi.testclient import TestClient   # noqa: E402
 
 from cloud.server import main as server_main   # noqa: E402
 from cloud.server.derive import Derived   # noqa: E402
-from cloud.shared.wire import Reading   # noqa: E402
+from cloud.shared.wire import BleEvent, Reading   # noqa: E402
 
 
 class FakeDAO:
     def __init__(self):
         self.rows: list[dict] = []
+        self.events: list[dict] = []
         # rows are stored newest-first (mirroring DAO.recent contract)
 
     async def latest_smoothed(self, source_id: str, before_ts: datetime):
@@ -83,6 +84,16 @@ class FakeDAO:
 
     async def sources(self) -> list[str]:
         return sorted({r["source_id"] for r in self.rows})
+
+    async def insert_events(self, source_id, events):
+        for e in events:
+            self.events.append({
+                "source_id": source_id,
+                "ts": e.ts,
+                "event": e.event,
+                "data": e.data,
+            })
+        return len(events)
 
 
 def _client() -> TestClient:
@@ -211,6 +222,75 @@ class ReadbackTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         latest = r.json()["latest"]
         self.assertEqual(latest["state"], "discharging")
+
+
+class BleEventIngestTests(unittest.TestCase):
+
+    def _batch(self, **overrides):
+        base = {
+            "source_id": "pi-barge",
+            "events": [
+                {"ts": "2026-07-01T15:00:00Z", "event": "scan_result",
+                 "data": {"address": "AA:BB", "seen": True, "rssi": -71}},
+                {"ts": "2026-07-01T15:00:03Z", "event": "read_ok",
+                 "data": {"address": "AA:BB", "read_s": 1.2, "soc": 62}},
+            ],
+        }
+        base.update(overrides)
+        return base
+
+    def test_rejects_no_auth(self):
+        c = _client()
+        r = c.post("/api/events/ingest", json=self._batch())
+        self.assertEqual(r.status_code, 401)
+
+    def test_accepts_and_stores(self):
+        c = _client()
+        r = c.post(
+            "/api/events/ingest",
+            headers={"Authorization": "Bearer secret-pi-token"},
+            json=self._batch(),
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json(), {"accepted": 2})
+        stored = server_main._state["dao"].events
+        self.assertEqual(len(stored), 2)
+        self.assertEqual(stored[0]["event"], "scan_result")
+        self.assertEqual(stored[0]["data"]["rssi"], -71)
+
+    def test_naive_ts_rejected(self):
+        c = _client()
+        bad = self._batch(events=[{"ts": "2026-07-01T15:00:00", "event": "x", "data": {}}])
+        r = c.post(
+            "/api/events/ingest",
+            headers={"Authorization": "Bearer secret-pi-token"},
+            json=bad,
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_extras_rejected_in_event(self):
+        # Same strict-schema policy as readings — unknown top-level fields on
+        # the event get rejected. The `data` dict itself is free-form.
+        c = _client()
+        bad = self._batch(events=[
+            {"ts": "2026-07-01T15:00:00Z", "event": "x", "data": {},
+             "extra_field": "nope"},
+        ])
+        r = c.post(
+            "/api/events/ingest",
+            headers={"Authorization": "Bearer secret-pi-token"},
+            json=bad,
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_empty_batch_rejected(self):
+        c = _client()
+        r = c.post(
+            "/api/events/ingest",
+            headers={"Authorization": "Bearer secret-pi-token"},
+            json={"source_id": "pi-barge", "events": []},
+        )
+        self.assertEqual(r.status_code, 422)
 
 
 if __name__ == "__main__":

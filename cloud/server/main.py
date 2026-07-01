@@ -32,7 +32,13 @@ from fastapi.staticfiles import StaticFiles
 from cloud.server.config import Settings, load_settings
 from cloud.server.db import AsyncpgReadingsDAO, ReadingsDAO, create_pool
 from cloud.server.derive import derive
-from cloud.shared.wire import IngestBatch, IngestResponse, Reading
+from cloud.shared.wire import (
+    BleEventBatch,
+    BleEventIngestResponse,
+    IngestBatch,
+    IngestResponse,
+    Reading,
+)
 
 
 log = logging.getLogger("volthium-cloud")
@@ -151,6 +157,64 @@ async def ingest(
 
     accepted, duplicates = await dao.insert(batch.source_id, readings, deriveds)
     return IngestResponse(accepted=accepted, duplicates=duplicates)
+
+
+@app.post("/api/events/ingest", response_model=BleEventIngestResponse)
+async def ingest_events(
+    batch: BleEventBatch,
+    request: Request,
+    dao: ReadingsDAO = Depends(get_dao),
+    settings: Settings = Depends(get_settings),
+) -> BleEventIngestResponse:
+    """Bulk-append BLE diagnostic events. Uses the same per-source bearer
+    token as /ingest — the events pipeline shares auth with the readings
+    pipeline because the reader itself owns both streams."""
+    _check_token(request, batch.source_id, settings)
+    inserted = await dao.insert_events(batch.source_id, batch.events)
+    return BleEventIngestResponse(accepted=inserted)
+
+
+@app.get("/api/events")
+async def api_events(
+    source_id: Optional[str] = Query(default=None),
+    event: Optional[str] = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=10000),
+    dao: ReadingsDAO = Depends(get_dao),
+) -> dict:
+    """Debug / dashboard readback for BLE events. Filters: optional
+    source_id and optional event-kind. Newest first."""
+    # No dedicated DAO method yet — a plain query is fine while the shape
+    # is stabilizing. Add one when the dashboard actually consumes it.
+    rows = []
+    if isinstance(dao, AsyncpgReadingsDAO):
+        clauses, params = [], []
+        if source_id:
+            params.append(source_id)
+            clauses.append(f"source_id = ${len(params)}")
+        if event:
+            params.append(event)
+            clauses.append(f"event = ${len(params)}")
+        params.append(limit)
+        where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+        sql = (
+            f"SELECT source_id, ts, event, data FROM ble_events "
+            f"{where} ORDER BY ts DESC LIMIT ${len(params)}"
+        )
+        async with dao.pool.acquire() as conn:
+            for r in await conn.fetch(sql, *params):
+                d = dict(r)
+                ts = d.get("ts")
+                if ts is not None and hasattr(ts, "isoformat"):
+                    d["ts"] = ts.isoformat().replace("+00:00", "Z")
+                # asyncpg returns JSONB as a str; parse for API clients
+                if isinstance(d.get("data"), str):
+                    import json as _json
+                    try:
+                        d["data"] = _json.loads(d["data"])
+                    except Exception:
+                        pass
+                rows.append(d)
+    return {"events": rows, "count": len(rows)}
 
 
 # --- read endpoints -------------------------------------------------------
