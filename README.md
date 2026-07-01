@@ -160,8 +160,10 @@ dashboard is read-only off the CSV, so both can run forever.
 - `scripts/install_desktop_launcher.sh` — re-create the Desktop alias
 - `Volthium Monitor.app/` — double-clickable launcher
 - `Launch Volthium Monitor.command` — Terminal-friendly launcher with QR code
+- **`docs/RUNBOOK.md` — start here for operating the live system**: current deployment, where things live on the Pi, common ops, failure-mode playbook, hardware upgrade path.
 - `docs/production_design.md` — architecture for the cabin-side hardware
 - `docs/cloud_architecture.md` — Railway telemetry design + repo-wide timestamp convention (ISO-8601 UTC `Z` on the wire; read this before adding any code that emits or consumes timestamps over the network)
+- `docs/reliability_failure_modes.md` — field log of BLE / storage failure modes, root causes, and mitigations
 - `cloud/` — FastAPI ingest server + Pi-side CSV uploader + browser dashboard, deployable to Railway. See `docs/cloud_architecture.md` § "Railway deploy steps".
 - `data/pack.csv`, `data/pack.log` — captured data (gitignored)
 
