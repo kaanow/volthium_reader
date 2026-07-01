@@ -566,6 +566,12 @@ populated. **Idle bias is NOT here** — it lives on the display end only
 **CP2 schematic TODOs surfaced by the iter-2 review:**
 - **LM5166 support network (F10):** document the **EN** strap (recommend EN→V24_FUSED via the part's enable threshold network for always-on start), the **SS** pin (open = 900 µs default, or a soft-start cap), and **ILIM** (default unless a lower limit is wanted). These are required-support pins not yet enumerated in CP1.
 - **TPS2116 OUT capacitance (F11):** see C13 above.
+- **TPS2116 config (datasheet-confirmed 2026-07-01):** tie **MODE → VIN1** for
+  **automatic priority mode** (auto-selects VIN1 when valid, falls back to
+  VIN2 when it drops); with **VIN1 = USB-LDO (priority), VIN2 = U1 buck**, USB
+  takes over when plugged in and the buck idles — exactly the D29 intent. ST
+  (open-drain status) optional; PR1 unused in priority mode. Same on the
+  display mux.
 - **UVLO hysteresis (F01) + divider (F02):** finalize R_uv1/R_uv2 (~2.0 MΩ, ≥10 µA at trip) and R_hys (~3.9–4.7 MΩ for ~1.5 V band); bench-verify clean re-engage.
 - **Q3/Q4 UVLO-bypass (F03):** verify the fail-safe default-ON truth table on the bench.
 
