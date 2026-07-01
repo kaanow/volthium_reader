@@ -147,7 +147,7 @@ protects the gate **and** guarantees turn-on.
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| J1  | Phoenix MSTB-2,5/ 2-G-5,08 pluggable terminal block (2-pin, 5.08 mm pitch) | THT 5.08 mm | 1 | Field-replaceable wiring; pluggable means user can disconnect the board from the pack without unscrewing wires |
+| J1  | Phoenix **MSTBA 2,5/2-G-5,08** board header (1757242) **+ MSTB 2,5/2-ST-5,08** wire plug (1757019), 2-pin, 5.08 mm | THT 5.08 mm | 1 | Field-replaceable wiring; **pluggable** means user can disconnect the board from the pack without unscrewing wires (D19). Plug = 2-pos screw rising-cage clamp (12–30 AWG). *(Plug corrected from 1727010 — a wrong 3.81 mm MKDS terminal — per the D32 datasheet check, 2026-07-01.)* |
 | F1  | 5×20 mm fuse + 2× PCB-mount clips (**1 A time-lag "T"**, e.g. Littelfuse 0215001.MXP) | THT clip      | 1 | Cartridge fuses are universally stocked; pops out for replacement. **Time-lag, not fast-blow (DR-12):** tolerates the µs-scale ~22 µF ceramic inrush (I²t ≈ 0.06–0.13 A²s) without nuisance-tripping, while still clearing the ~45 mA steady load and a hard short |
 | D1  | SS26 Schottky (60 V, 2 A, low Vf)   | **DO-214AA (SMB)** | 1 | Reverse-polarity protection; 60 V out-rates the ~53 V clamp (D19/DR-3). Vf ~0.4 V, ~20 mW dissipation. **Package SMA → SMB (SS26-E3/52T is DO-214AA; API 2026-06-25)** |
 | TVS1 | SMAJ33CA bidirectional TVS (Vrwm 33 V) | SMA       | 1 | Clamps 24 V transients; 33 V Vrwm clears the ~29 V full-charge bus with margin (D19/DR-2). Clamps ~53 V — every part on V24_FUSED/V24_SW is rated ≥60 V to suit |
