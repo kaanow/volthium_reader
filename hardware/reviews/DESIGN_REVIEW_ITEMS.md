@@ -383,7 +383,8 @@ independent take on whether firmware-only is acceptable for an unattended
 pack.
 
 **RESOLVED 2026-06-22 (user-approved).** Option (b), refined: an
-**EN-asserting** supervisor (**U4 = TPS3890**), not a Q1-only shed. The key
+**EN-asserting** supervisor (**U4 = TPS3808G01DBVR**, repackaged per D33/DR-24),
+not a Q1-only shed. The key
 realization from the design discussion: the dominant low-SOC drain is the
 **MCU itself** (~38 mA), not the display (~5 mA), so the backstop must act
 on the MCU. Asserting ESP **EN** low (i) drops the MCU to ~µA reset and
@@ -547,7 +548,7 @@ We accepted the **e-paper 0 °C** operating limit (D24) as *the* limiting
 device — this verifies that's actually true across the BOM.
 
 **Survey (operating min):** ESP32-S3 −40, **RV-3028-C7 −40**, LM5166 −40,
-R-78HB12 / R-78E3.3 −40, SN65HVD3082E −40, TPS3890 −40, all ceramics X7R −55
+R-78HB12 / R-78E3.3 −40, SN65HVD3082E −40, TPS3808 −40, all ceramics X7R −55
 (capacitance drops with cold but no failure), **no electrolytics anywhere**
 (so no cold-ESR problem — a deliberately good property of the all-ceramic
 BOM). **E-paper (B) = 0 °C → confirmed the floor.**
@@ -586,7 +587,7 @@ argument and the VBACKUP max vs trickle voltage.
 
 ---
 
-## DR-24 — Assembly reality: three key parts are leadless (hand-solder concern)  [OPEN — user call: assembly capability vs package alternatives]
+## DR-24 — Assembly reality: three key parts are leadless (hand-solder concern)  [RESOLVED 2026-07-01 (D33) — reflow + stencil; U4 repackaged to SOT-23-6; U1/U6 stay leadless]
 
 **Surfaced by the COTS sweep (API `package` field, 2026-06-25).** The project
 is described as **hand-soldered**, but three central parts are **leadless /
@@ -596,8 +597,8 @@ a hotplate, or stencil+reflow**:
 
 | Ref | Part | Package | Note |
 |-----|------|---------|------|
-| U4 | TPS389030DSER (UVLO) | **6-WSON 1.5×1.5 mm** | the hardest — tiny + leadless |
-| U6 | TPS2116DRLR (power mux) | **SOT-583** (~1.6×1.6, leadless) | |
+| U4 | ~~TPS389030DSER~~ → **TPS3808G01DBVR** | ~~6-WSON~~ → **SOT-23-6 (leaded)** | **swapped (D33)** — leaded equivalent found |
+| U6 | TPS2116DRLR (power mux) | **SOT-583** (~1.6×1.6, leadless) | kept — leaded TPS2113A costs 57× the Iq |
 | U1 | LM5166YDRCR (always-on buck) | **VSON-10 3×3 mm** | leadless, has thermal pad |
 
 (The ESP32-S3-WROOM-1 module is also reflow-style but is castellated/edge —
@@ -608,16 +609,18 @@ more forgiving. Everything else — SOT-23/SMA/SMB/SIP/THT — is iron-friendly.
 largely don't exist without giving up the power-first goal that's the heart of
 the design. So "swap to a leaded package" likely means a worse part.
 
-**Options (user decision):**
-- **(a) Accept + reflow these (recommended):** confirm you have hot-air or a
-  hotplate (cheap; ~$40–60). The 3 leadless parts + the module get reflowed;
-  the rest goes by iron. Keeps every power-first part. For a qty-1 build this
-  is the normal path.
-- **(b) Hunt leaded alternatives** for U4/U6 specifically (U1 has no good
-  leaded µA-Iq option). A SOT-23 supervisor with an adjustable SENSE exists
-  (e.g. TPS3840 family — verify) for U4; U6's priority-mux niche is mostly
-  leadless. Costs design time + possibly spec compromises.
+**RESOLVED 2026-07-01 (user has heat gun + oven → reflow available; D33).**
+The stated pain was *"getting the right amount of solder on tiny pads,"* which
+a **paste stencil** solves directly (exact volume per aperture; JLCPCB bundles
+one). With reflow + stencil in the plan, each part was judged on merit:
+- **U4 → swapped to TPS3808G01DBVR (SOT-23-6, leaded).** A genuine functional
+  superset at the same Iq (2.4 µA vs 2.1 µA) — a free solderability win.
+  Divider re-derived for its 0.405 V VIT (D28); datasheet stored.
+- **U6 kept (TPS2116, SOT-583).** The only leaded mux (TPS2113A, TSSOP-8) draws
+  ~75 µA operating vs the TPS2116's 1.32 µA — a power-first violation; the
+  stencil makes SOT-583 tractable instead.
+- **U1 kept (LM5166, VSON-10).** No leaded µA-Iq wide-Vin equivalent; reflowed.
 
-**Recommendation: (a)** — confirm hot-air/hotplate availability; don't
-compromise the power design for solderability. Flagged now (CP1) so it
-informs footprint/thermal-pad/via choices at CP3 placement, not after fab.
+**Assembly plan:** stencil + reflow (heat gun/oven) for U1/U6 + the WROOM
+module; iron for everything else. **Add a stencil to the fab order.** Informs
+CP3 footprint/thermal-pad/via choices for the two remaining leadless parts.
