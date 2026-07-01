@@ -32,6 +32,7 @@ from fastapi.staticfiles import StaticFiles
 from cloud.server.config import Settings, load_settings
 from cloud.server.db import AsyncpgReadingsDAO, ReadingsDAO, create_pool
 from cloud.server.derive import derive
+from cloud.server.staleness import StalenessMonitor
 from cloud.shared.wire import (
     BleEventBatch,
     BleEventIngestResponse,
@@ -71,15 +72,25 @@ async def lifespan(app: FastAPI):
         from cloud.server.migrations import apply_all
         n = await apply_all(pool)
         log.info("applied %d migration file(s)", n)
-    _state["dao"] = AsyncpgReadingsDAO(pool)
+    dao = AsyncpgReadingsDAO(pool)
+    _state["dao"] = dao
     log.info(
         "ready: tokens=%d, alpha=%.2f, capacity=%.0fAh, floor=%.0f%%, ceil=%.0f%%",
         len(settings.tokens), settings.ema_alpha, settings.capacity_ah,
         settings.floor_soc, settings.ceiling_soc,
     )
+    monitor = StalenessMonitor(
+        dao,
+        webhook_url=settings.staleness_webhook_url,
+        threshold_s=settings.staleness_threshold_s,
+        check_interval_s=settings.staleness_check_interval_s,
+    )
+    await monitor.start()
+    _state["monitor"] = monitor
     try:
         yield
     finally:
+        await monitor.stop()
         await pool.close()
 
 
