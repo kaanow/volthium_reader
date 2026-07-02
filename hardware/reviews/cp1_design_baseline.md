@@ -749,6 +749,75 @@ is below the deep-sleep assumption.
 
 ---
 
+## 8.4 Reviewer findings (iteration 6)
+
+**Scope:** Re-verified Claude's §14 responses to iteration-5 Findings 01/02.
+The hysteresis polarity correction and cross-document State 4 term list are
+propagated. Independently re-derived the actual node equations and pack power.
+DR-19 remains verified closed. CP2 was not started.
+
+### Resolution check
+
+| Prior item | Verdict | Notes |
+|------------|---------|-------|
+| Iter-5 F01, hysteresis polarity | **PASS directionally** | Divider is now correctly release-sized and RESET-to-SENSE feedback lowers the falling trip. Exact release is slightly higher than documented; see Finding 04. |
+| Iter-5 F02, stale State 4 row | **PASS consistency / FAIL arithmetic** | U4 and mux terms now appear in §3/§7, but the total still mixes 3.3 V rail current with 24 V pack power; see Finding 03. |
+| DR-19 grounding/shield loop | **PASS** | One battery-end shield-to-pack-GND bond, display shield NC, plastic enclosures; retain the CP5 visual confirmation. |
+
+### Finding 03 — IMPORTANT — `power_budget.md` State 4 / `cp1_battery_side.md` §7
+
+**Issue**: The `~1.2 mW` hard-cut total is dimensionally wrong because several
+3.3 V rail currents are treated as though they flow directly from the 24 V
+pack. In particular, ESP deep-sleep `10 µA @ 3.3 V` is listed as `~0.2-0.24
+mW`, which is 10 µA multiplied by roughly 24 V; its load power is **0.033 mW**
+before buck-conversion loss. U4 Iq and TPS2116 Iq have the same voltage-domain
+issue. The error is conservative, but this is the project's power-first
+budget and must be internally valid.
+
+**Evidence**: `docs/hardware/power_budget.md` labels the column "referred to
+24 V pack" but gives ESP `~10 µA @ 3.3 V -> ~0.2 mW`; `cp1_battery_side.md`
+§7 gives `~0.24 mW`. The correct first-order terms at 24 V nominal are:
+LM5166 input Iq `14 µA * 24 V = 0.336 mW`; V24 sense divider
+`24^2 / 1.3 MΩ = 0.443 mW`; UVLO divider approximately
+`4.56 µA * 24 V = 0.109 mW`; 3.3 V loads ESP/U4/mux approximately
+`(10 + 2.4 + 1.3) µA * 3.3 V = 0.045 mW` before conversion loss; RTC is
+negligible. Even allowing poor light-load conversion efficiency for the
+0.045 mW output load, the total is approximately **0.94-1.0 mW**, not
+1.2 mW. The EN-asserted floor is only tens of microwatts lower, not
+approximately 0.2 mW lower.
+
+**Suggested fix**: Keep every term in its native voltage domain, convert
+3.3 V load power through an explicit conservative LM5166 light-load
+efficiency assumption, and add the LM5166's 24 V input Iq separately. Update
+the State 4 and EN-asserted totals consistently in `power_budget.md`,
+`cp1_battery_side.md`, D28, BOM commentary, and the packet banner/§13/§14.
+A defensible rounded result appears to be **~1.0 mW** for both states, with
+the floor slightly lower; use a range if light-load efficiency is not yet
+bench-verified.
+
+### Finding 04 — NIT — `cp1_battery_side.md` §4.3a / `decisions.md` D28
+
+**Issue**: The corrected hysteresis direction is sound, but the nominal
+release is still understated. The prose now mentions the built-in hysteresis
+and the R_hys-to-R2 term, yet calls the result `~21.5 V`. Solving the asserted
+state gives approximately **21.7-21.8 V**, depending on RESET VOL, for the
+documented 5.16 MΩ / 100 kΩ / 11.5 MΩ values.
+
+**Evidence**: TPS3808 deasserts after SENSE exceeds
+`VIT + VHYS = 0.405 V * 1.015 = 0.4111 V`. With RESET low, R_hys is an
+additional SENSE-to-RESET path, so
+`Vrelease = Vs + R1*(Vs/R2 + (Vs-VOL)/R_hys)`. Using VOL = 0-0.2 V gives
+**21.80-21.71 V**. The falling-trip equation with RESET high still reproduces
+approximately **20.00 V**.
+
+**Suggested fix**: Quote the nominal release as approximately **21.7-21.8 V**
+for the provisional values, or choose final E96 values at CP2 that center the
+desired release. Keep the planned tolerance analysis and bench verification.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 03.)
+
+---
+
 ## 9. Claude's responses (iteration 2, 2026-06-21)
 
 All eight findings addressed this turn (the user pulled the brakes on
