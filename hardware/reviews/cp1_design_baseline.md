@@ -643,6 +643,109 @@ confirm exact SKU at BOM-lock.
 
 ---
 
+## 8.3 Reviewer findings (iteration 5)
+
+**Scope:** Independent CP1 pass against `SOP.md` gates G1-G7 where applicable,
+starting from §13. Re-derived the D33 U4 swap to `TPS3808G01DBVR`, the new
+UVLO divider and external hysteresis premise, the hard-cut power sum, G4
+assembly trade, G5 consistency sweep, and DR-19 end-to-end shield/ground loop.
+Did not start CP2; schematic readability/ERC/DRC remain out of scope.
+
+### SOP gate re-derivation summary
+
+| Gate | Verdict | Notes |
+|------|---------|-------|
+| G1 engineering correctness | **FAIL w/ fixes** | U4 part class and divider bias are sound; external hysteresis math/sign is not self-consistent with active-low RESET (Finding 01). |
+| G2 datasheet-on-hand | **PASS for changed item** | `hardware/datasheets/TPS3808G01DBVR.pdf` is present and manifest-listed; retired TPS389030 PDF is removed. Full active-parts gate remains D32-owned. |
+| G3 availability/variant | **PASS for changed item** | Packet/BOM consistently name `TPS3808G01DBVR`, SOT-23-6, active with distributor stock noted. |
+| G4 assembly/solderability | **PASS** | U4 swap is a merit-positive solderability win; keeping U1 VSON-10 and U6 SOT-583 is justified by power-first tradeoffs plus stencil/reflow plan. |
+| G5 spec consistency | **FAIL** | Superseded U4 history is correctly bannered, but the live battery-side State 4 budget still says `~1 mW` and omits U4/mux (Finding 02). |
+| G6 readability | **N/A** | CP1 markdown only; no schematic/PDF artifacts to inspect. |
+| G7 design-complete before handoff | **PASS** | The packet provides concrete values to check; the two failures are derivation/spec-consistency defects, not unanswered design questions. |
+
+### Re-derivation notes
+
+- **U4 swap:** TPS3808G01DBVR fits the intended role: adjustable SENSE at
+  0.405 V, open-drain active-low RESET, programmable CT delay, SOT-23-6
+  leaded package, and ~2.4 µA Iq. This is a cleaner assembly choice than the
+  WSON TPS3890 without giving up the power budget.
+- **UVLO divider without external hysteresis:** R1 = 4.87 MΩ, R2 = 100 kΩ
+  gives Vpack = 0.405 V * (4.87 MΩ + 0.100 MΩ) / 0.100 MΩ = **20.13 V**.
+  Divider current is 20.13 V / 4.97 MΩ = **4.05 µA** at threshold, which is
+  **162x** the TPS3808 SENSE current max of 25 nA; the >=100x rule is met.
+  At 24 V it draws **4.83 µA / 0.116 mW**; at 29.2 V it draws **5.88 µA /
+  0.172 mW**.
+- **Built-in hysteresis:** TPS3808G01 built-in VHYS is 1.5% of VIT, so
+  0.015 * 0.405 V = **6.1 mV** at SENSE. Referred through the 49.7:1 divider,
+  that is about **0.30 V** at the pack: better than the old TPS3890 internal
+  band, but still plausibly too small after shedding a ~38 mA hung-MCU load.
+- **Hard-cut arithmetic:** Using the packet numbers at 24 V: LM5166 Iq
+  14 µA -> **0.336 mW**; ESP deep sleep ~10 µA -> **0.240 mW**; V24 sense
+  divider 24 V / 1.3 MΩ = 18.5 µA -> **0.443 mW**; U4 + UVLO divider
+  (2.4 + 4.83) µA -> **0.174 mW**; TPS2116 mux 1.3 µA at 3.3 V -> **0.004 mW**.
+  Total = **1.20 mW**. If U4 asserts EN and the ESP reset current is below
+  the assumed 10 µA deep-sleep current, the floor trends toward the documented
+  **~1.0 mW**.
+- **DR-19 grounding/shield loop:** Battery board J2 shield/drain is bonded to
+  battery-side signal/pack GND; display J1 shield is explicitly NC; Cat5e
+  pinout ties signal GND over pins 6/7/8 and shield/drain only at the battery
+  end. Both enclosures are plastic, so there is no second chassis/earth path
+  from the display box. Result: exactly one signal-GND-to-shield bond in the
+  loop. **DR-19 verified closed** for CP1 intent; CP5 should still visually
+  confirm the display RJ45 shell has no copper bond or mounting hardware path.
+
+### Finding 01 — IMPORTANT — `cp1_battery_side.md` §4.3a / `decisions.md` D28
+
+**Issue**: The documented R1/R2/R_hys values do not produce "trip ~20.1 V /
+release ~21.3 V" when R_hys is connected from active-low RESET to SENSE. With
+R1 = 4.87 MΩ and R2 = 100 kΩ, the no-feedback threshold is ~20.13 V. Because
+TPS3808 RESET is open-drain active-low, a resistor from RESET (pulled high to
+3.3 V when unasserted) to SENSE raises SENSE before the falling trip and
+therefore lowers the falling pack trip; after RESET asserts low, the release
+threshold returns to the no-feedback value. The stated values therefore make
+~20.1 V the release point, not the trip point.
+
+**Evidence**: TI TPS3808 datasheet §8.3.1 defines the G01 threshold as
+`VIT' = (1 + R1/R2) * 0.405`; §8.3.4 states RESET is open-drain, asserted low
+when SENSE falls below VIT, and deasserts only after SENSE is above
+`VIT + VHYS`. For the documented R1/R2, `0.405*(1+4.87M/100k)=20.13 V`.
+With RESET high at 3.3 V, KCL at SENSE gives
+`Vfall = VIT*(1+R1/R2) - R1*(3.3-VIT)/R_hys`; an R_hys that creates a 1.3 V
+band would make Vfall about **18.8 V** and Vrelease about **20.1 V**, opposite
+the prose.
+
+**Suggested fix**: Re-derive the CP2 values with the intended polarity. If the
+requirement is falling trip ~20.0 V and rising release ~21.3 V using RESET-to-
+SENSE positive feedback, set the divider's no-feedback threshold at the release
+point (for R2 = 100 kΩ, R1 ≈ **5.16 MΩ**) and size R_hys around
+`R1*(3.3-0.405)/1.3 ≈ 11.5-12 MΩ` before E96/tolerance analysis. Alternatively
+choose a supervisor topology/output polarity that makes the documented equation
+true. Update D28, §4.3a, BOM rows, and the packet banner after choosing values.
+
+### Finding 02 — IMPORTANT — `cp1_battery_side.md` §7 / §3
+
+**Issue**: The live battery-side power budget still reports State 4 hard-cut as
+`~1 mW` and lists only LM5166 Iq + ESP deep sleep + the V24 sense divider +
+RTC. It omits the new U4/TPS3808 supervisor, UVLO divider, and TPS2116 mux,
+while §13 claims the hard-cut figure was reconciled across battery-side docs to
+~1.2 mW. This is a G5 consistency failure in a live baseline document.
+
+**Evidence**: `cp1_battery_side.md` §7 State 4 still says `~1 mW`; the same
+file §4.3a/§4.3b says the D33 UVLO divider and D29 mux make hard-cut
+`≈ 1.2 mW`; `docs/hardware/power_budget.md` §State 4 lists the correct sum:
+sense divider **~0.44 mW**, UVLO supervisor+divider **~0.25 mW**, mux
+**~0.004 mW**, total **~1.2 mW**.
+
+**Suggested fix**: Update `cp1_battery_side.md` §3 and §7 to show the current
+hard-cut budget terms: LM5166 Iq, ESP deep sleep, V24 sense divider, U4 +
+UVLO divider, TPS2116 mux, RTC negligible, total **~1.2 mW**; note the
+EN-asserted hardware floor separately as **~1.0 mW** if the ESP reset current
+is below the deep-sleep assumption.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings 01, 02.)
+
+---
+
 ## 9. Claude's responses (iteration 2, 2026-06-21)
 
 All eight findings addressed this turn (the user pulled the brakes on
