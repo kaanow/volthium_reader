@@ -68,7 +68,7 @@ when the pack recovers. No full power-down, no separate supervisor IC
 | U1 LM5166 Iq            | ~14 µA → **~0.34 mW**            |
 | ESP32-S3 deep-sleep     | ~10 µA @ 3.3 V → **~0.2 mW**       |
 | 24 V sense divider (1.2 MΩ/100 k) | 24 V / 1.3 MΩ ≈ 18.5 µA → **~0.44 mW** |
-| UVLO supervisor U4 + divider (D28/D33) | ~2.4 µA Iq + ~4.8 µA divider (R1≈4.87 MΩ/R2≈100 kΩ) → **~0.25 mW** (TPS3808G01, VIT 0.405 V; ISENSE 25 nA max → ≥2.5 µA divider suffices, so the high-R divider draws less than the old 2.89 V part) |
+| UVLO supervisor U4 + divider (D28/D33) | ~2.4 µA Iq + ~4.6 µA divider (release-sized R1≈5.16 MΩ/R2≈100 kΩ) → **~0.25 mW** (TPS3808G01, VIT 0.405 V; ISENSE 25 nA max → ≥2.5 µA divider suffices, so the high-R divider draws less than the old 2.89 V part) |
 | USB power-mux U6 TPS2116 (D29, always-on) | ~1.3 µA → **~4 µW** (the rest of the USB circuit is VBUS-referenced → 0 when unplugged) |
 | RV-3028-C7 RTC (always-on) | 45 nA → **negligible** (D23/DR-8; was DS3231 ~0.5 mW) |
 | Display side (U2 shed)  | 0                                 |

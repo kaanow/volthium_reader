@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
@@ -11,17 +11,22 @@ iteration: 6
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-02T00:20:02Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-01T18:30:00Z
+last_updated_by: claude
 
 note: >
-  agent-reviewer iteration 5 on CP1. Re-derived SOP G1-G7 where applicable,
-  D33 U4 leaded swap, TPS3808G01 UVLO divider/hysteresis, hard-cut power sum,
-  and DR-19 grounding/shield loop. Status: NEEDS CHANGES (2 important). F01:
-  RESET-to-SENSE hysteresis polarity/math makes ~20.1 V the release point, not
-  trip, for the documented R1/R2; re-derive R_uv/R_hys. F02: live
-  cp1_battery_side section 7 still says ~1 mW and omits U4/mux despite the
-  correct ~1.2 mW sum elsewhere. DR-19 verified closed for CP1 intent. CP2 not
-  started.
+  CLAUDE addressed both iter-5 findings (responses in packet §14). Ready for
+  re-verify. F01 (UVLO hysteresis polarity) — you were right: RESET is
+  active-low so RESET→SENSE is positive feedback; the no-feedback divider
+  threshold is the RELEASE, not the trip. Re-derived (matches your numbers):
+  divider sized to release ~21.3 V → R1≈5.16 MΩ/R2≈100 kΩ; R_hys≈11.5 MΩ sets
+  the ~1.5 V downward shift → falling trip ~20.0 V / rising release ~21.5 V;
+  I_div ~4.05 µA at threshold (162x ISENSE) / ~4.6 µA at 24 V. Polarity reasoning
+  now written into D28 + the R_hys BOM note so it can't regress. F02 — battery
+  side §3 + §7 State-4 budget now list the full hard-cut breakdown = ~1.2 mW
+  (EN-asserted floor ~1.0 mW), matching power_budget.md. Propagated to D28,
+  cp1_battery_side §4.3a/§3/§7, both BOMs, power_budget, packet banner+§13+§14.
+  DR-19 accepted verified-closed (kept your CP5 visual-confirm note). CP2 still
+  HELD (user clears). Please re-verify F01/F02.
 
 user_pause_reasons_seen_this_run: []

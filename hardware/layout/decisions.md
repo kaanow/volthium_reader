@@ -1390,23 +1390,30 @@ releases EN → the MCU **cold-boots fresh** (which also un-hangs it) and
 resumes. So DR-4's "fully-unpowered MCU can't wake" problem is *not*
 reopened — this is the key difference from a hysteretic power-cut.
 
-**Threshold (part = TPS3808G01DBVR, repackaged per D33/DR-24 2026-07-01;
-datasheet-confirmed).** The G01 adjustable variant's SENSE negative threshold
-is **VIT = 0.405 V** (the low reference is why the divider top resistor is
-large). Floor trip ~**20 V** pack (≈2.5 V/cell, the LiFePO₄ cliff): divider
-R2/(R1+R2) = 0.405/20 = **0.02025** → **R1 ≈ 4.87 MΩ, R2 ≈ 100 kΩ** (E96;
-trip ≈ 20.1 V). Release ~**21.3 V** set by an **external hysteresis resistor
-R_hys** (RESET→SENSE → ΔV_trip ≈ V_RESET(3.3 V)·R1/R_hys ≈ **~1.3 V band**).
-The device's *built-in* hysteresis is only **1.5 % of VIT** (≈6 mV at SENSE,
-~0.3 V at the pack) — too small: shedding the ~38 mA load rebounds the pack
-well past that, which would chatter, so the band is set deliberately in
-hardware. **Divider bias:** ISENSE ±25 nA max → divider current must be
-≥ 100× ≈ 2.5 µA; 0.405 V/100 kΩ = 4.05 µA at trip ✓ — and the higher-R,
-lower-threshold part now draws *less* than the old 2.89 V/2.0 MΩ divider
-(~4.8 µA at 24 V vs ~12 µA). Add a small SENSE filter cap for the high-Z node;
-final E96 values + bench hysteresis check at CP2.
+**Threshold (part = TPS3808G01DBVR, repackaged per D33/DR-24; datasheet-
+confirmed; hysteresis polarity corrected per reviewer iter-5 F01).** VIT =
+**0.405 V**. **Key polarity fact:** U4's RESET is open-drain **active-low**, so
+the RESET→SENSE hysteresis resistor R_hys is *positive* feedback whose effect
+is present only while **healthy** — RESET pulled to 3.3 V injects into SENSE,
+raising it, which drops the *falling* trip below the plain divider threshold;
+once RESET asserts (0 V, and R_hys ≫ R2) its contribution is negligible, so the
+**rising release sits at the plain (no-feedback) divider threshold.** Therefore
+size the **divider to the release** and R_hys to the downward trip shift:
+- **No-feedback divider threshold** set to the release target ~**21.3 V**:
+  R2/(R1+R2) = 0.405/21.3 → **R1 ≈ 5.16 MΩ, R2 ≈ 100 kΩ** (E96).
+- **R_hys ≈ 11.5 MΩ** sets the downward shift ΔV = R1·(3.3 − VIT)/R_hys ≈
+  **1.5 V** → **falling trip ~20.0 V**; the rising release lands **~21.5 V**
+  (no-feedback threshold + the small R_hys‖R2 term + built-in VHYS).
 
-**Power.** divider ~4.8 µA at 24 V (~5.9 µA at 29 V → ~0.17 mW) + U4 Iq
+The *built-in* VHYS (1.5 % of VIT ≈ 6 mV at SENSE, ~0.3 V at the pack) is too
+small alone — shedding the ~38 mA load rebounds the pack past it → chatter — so
+the band is set deliberately in hardware. **Divider bias:** ISENSE ±25 nA max →
+divider current ≥ 100× ≈ 2.5 µA; 0.405 V/100 kΩ = 4.05 µA at threshold ✓ — and
+the higher-R, lower-threshold part still draws *less* than the old 2.89 V/2.0 MΩ
+divider (~4.6 µA at 24 V vs ~12 µA). Add a small SENSE filter cap for the
+high-Z node; final E96 values + bench hysteresis check at CP2.
+
+**Power.** divider ~4.6 µA at 24 V (~5.5 µA at 29 V → ~0.16 mW) + U4 Iq
 ~2.4 µA ≈ **~0.25 mW**; with the D29 mux (~1.3 µA) **hard-cut ≈ 1.2 mW** (the
 0.405 V part's high-R divider trimmed ~0.2 mW off the old 2.89 V divider;
 still ~5 orders under any real drain). The EN-asserted floor state

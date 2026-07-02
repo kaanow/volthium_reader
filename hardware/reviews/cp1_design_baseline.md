@@ -12,12 +12,15 @@ it later costs much more.
 > numbers in the frozen text below (abs-max table §5, Findings 01/02, §12
 > notes): **U4 is now `TPS3808G01DBVR` (SOT-23-6, leaded)** — repackaged from
 > the WSON TPS389030/TPS389001 for hand-assembly at ~zero power cost.
-> Its **VIT = 0.405 V** (not 2.89 V / 1.15 V), so the divider is
-> **R1≈4.87 MΩ / R2≈100 kΩ** (draws ~4.8 µA — *less* than the old part while
-> still meeting the ≥100×ISENSE rule) and the **hard-cut is ≈1.2 mW**. U6
-> (`TPS2116`, SOT-583) and U1 (`LM5166`, VSON-10) stay leadless and reflow
-> with a paste stencil. Current values live in D28/D33 + DR-24; the text below
-> is retained as the review record.
+> Its **VIT = 0.405 V** (not 2.89 V / 1.15 V). Because RESET is open-drain
+> **active-low**, the RESET→SENSE hysteresis is positive feedback that sets the
+> *falling* trip below the plain divider threshold, so the divider is sized to
+> the **release**: **R1≈5.16 MΩ / R2≈100 kΩ** + **R_hys≈11.5 MΩ** →
+> **falling trip ~20.0 V / rising release ~21.5 V** (draws ~4.6 µA — *less*
+> than the old part). Hard-cut **≈1.2 mW**. U6 (`TPS2116`, SOT-583) and U1
+> (`LM5166`, VSON-10) stay leadless and reflow with a paste stencil. Current
+> values live in D28/D33 + DR-24; the text below is retained as the review
+> record. (Divider polarity/values corrected per reviewer iter-5 F01 — see §14.)
 
 ---
 
@@ -965,11 +968,13 @@ top-of-packet **amendment banner** carries the superseding UVLO numbers.
    delay, +MR) at ~same Iq (2.4 vs 2.1 µA), Active/149k stock, datasheet stored
    (sha 682abbc0). **U6/U1 kept** (the only leaded mux, TPS2113A, draws 57× the
    Iq — a power-first violation; no leaded µA-Iq buck exists) and reflow with
-   the stencil. **What changed numerically:** VIT 2.89 V → **0.405 V**, so the
-   divider re-derived to **R1≈4.87 MΩ / R2≈100 kΩ** (trip ~20.1 V, ISENSE
-   ±25 nA → ≥2.5 µA rule met at 4.05 µA), and because the high-R divider draws
-   *less* (~4.8 µA vs ~12 µA) the **hard-cut dropped 1.3 → ~1.2 mW**. Please
-   re-derive the new divider + the ~1.3 V external-hysteresis band.
+   the stencil. **What changed numerically:** VIT 2.89 V → **0.405 V**. Divider
+   is **release-sized** (RESET active-low → R_hys is positive feedback that
+   pulls the falling trip down): **R1≈5.16 MΩ / R2≈100 kΩ + R_hys≈11.5 MΩ →
+   trip ~20.0 V / release ~21.5 V** (ISENSE ±25 nA → ≥2.5 µA rule met at
+   4.05 µA; ~4.6 µA at 24 V, *less* than the old ~12 µA), **hard-cut 1.3 →
+   ~1.2 mW**. *(These are the corrected values — reviewer iter-5 F01 caught that
+   my first cut mis-placed the band above the divider threshold; see §14.)*
 2. **Hard-cut figure reconciled to ~1.2 mW deep-sleep / ~1.0 mW EN-asserted
    floor** across decisions/battery-side/power_budget (a G5 mechanical sweep
    caught a stray 1.3 mW the swap had missed). Honest sum: U1 0.34 + ESP 0.2 +
@@ -981,3 +986,36 @@ top-of-packet **amendment banner** carries the superseding UVLO numbers.
 **Still the one open reviewer-verify item:** **DR-19** (end-to-end grounding &
 shield single-point bond as a *loop* — per-board is clean, the loop is the
 ask). Nothing else is open.
+
+## 14. Claude's responses (to reviewer iteration 5, 2026-07-01)
+
+Both findings were real and are fixed. Thank you — F01 in particular was a
+genuine engineering error, not a typo.
+
+- **RESOLVED — F01 (IMPORTANT), UVLO hysteresis polarity/values.** You are
+  correct: with U4's **active-low** open-drain RESET, the RESET→SENSE resistor
+  is *positive* feedback whose full effect is present only while healthy
+  (RESET = 3.3 V raises SENSE → pulls the *falling* trip **below** the plain
+  divider threshold); once RESET asserts (0 V, R_hys ≫ R2) its effect is
+  negligible, so the **rising release sits at the plain divider threshold** — my
+  prose had the band on the wrong side. **Fix:** size the divider to the
+  **release** and R_hys to the downward trip shift. Re-derived (matches your
+  numbers): **R1 ≈ 5.16 MΩ, R2 = 100 kΩ** (no-feedback threshold 21.30 V) +
+  **R_hys ≈ 11.5 MΩ** (ΔV = R1·(3.3−0.405)/R_hys ≈ 1.5 V) → **falling trip
+  ~20.0 V / rising release ~21.5 V**. Divider draws ~4.05 µA at threshold
+  (162× the 25 nA ISENSE) / ~4.6 µA at 24 V. Propagated to D28, `cp1_battery_side.md`
+  §4.3a (rows + prose + CP2 punch-list), both BOMs, `power_budget.md`, and the
+  banner + §13. The **polarity reasoning is now written into D28 and the R_hys
+  BOM note** so it can't silently regress. Final E96 + tolerance/bench at CP2.
+- **RESOLVED — F02 (IMPORTANT), §7 State-4 budget stale.** `cp1_battery_side.md`
+  §3 and §7 State 4 now list the full hard-cut breakdown — U1 Iq ~0.34 mW +
+  ESP deep-sleep ~0.24 mW + V24 sense divider ~0.44 mW + **U4 supervisor +
+  UVLO divider ~0.25 mW** + **TPS2116 mux ~4 µW** + RTC negligible = **~1.2 mW**
+  — matching `power_budget.md`, with the EN-asserted hardware floor noted
+  separately at **~1.0 mW**.
+- **DR-19:** acknowledged verified-closed for CP1 intent; I've retained your
+  note that CP5 should visually confirm the display RJ45 shell has no
+  copper/mounting bond.
+
+**State:** → `reviewer_turn` for re-verify of F01/F02. No blockers, no open
+design questions; CP2 remains held pending user clearance.
