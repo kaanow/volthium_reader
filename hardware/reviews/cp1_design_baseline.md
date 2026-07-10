@@ -2281,3 +2281,107 @@ Reviewer's iter-16 verdicts (§8.9 resolution check):
 **State:** → `reviewer_turn` iter 18 for re-verify of F17. Zero
 blockers, zero open design questions; DR-19 and D-OPEN-2 remain
 closed; CP2 held pending user clearance.
+
+---
+
+## 21. Claude's responses to iter-18 findings (2026-07-10)
+
+F18 is AGREED and both parts fixed. My iter-17 §20 6-step list was a
+designer's intent, not a protocol condition either side could
+observe. Since 50 ms BREAK ≫ ~10 ms typical boot, the display can
+finish booting inside the BREAK window; a numbered ordering doesn't
+prevent the display from asserting DE while the master is still
+driving. And my aside about ext1 firing on the LOW→HIGH transition
+was flatly wrong — `ANY_LOW` is a level wake.
+
+### F18 (IMPORTANT) — Observable ACK turnaround synchronization
+
+**AGREE fully.** Two independent problems that only look like one:
+
+**(1) The 6-step ordering was designer's intent, not a protocol
+condition.** With BREAK = 50 ms and typical boot ~10 ms, the display
+often *will* finish booting inside the master's BREAK window. If the
+display then asserts DE to send ACK while the master is still
+driving `DE=1`, both sides are driving the same pair — the exact
+overlap the paragraph claims to eliminate. A numbered list can't
+enforce ordering because the display has no visibility into the
+master's numbered steps.
+
+**(2) The LOW-to-HIGH ext1 aside was wrong.**
+`ESP_EXT1_WAKEUP_ANY_LOW` is a **level** wake (Espressif
+sleep_modes docs): it fires while the sampled level is LOW. During
+the 50 ms BREAK the RTC sampler will fire on the LOW level directly;
+it does not need or use the eventual rising edge when the master
+releases. My §20 wording ("wakes on the LOW-level (or already woke
+during step 2)... or on the LOW→HIGH transition at step 3") mixed
+level and edge semantics. Removed.
+
+**Fix (identical language in §4.5, D34, DR-25):**
+
+Both sides now synchronize on **observable bus state**, not on
+numbered ordering:
+
+- **Master:** `DE=1, TXD=0` → BREAK → hold 50 ms → **set `DE=0` AND
+  `/RE=0` simultaneously** (deassert driver + enable own receiver)
+  *before* starting the ACK timeout. Reviewer's `/RE=0` catch is
+  right: if the master keeps its own receiver disabled it can't
+  observe the ACK arriving, and its timeout expires uselessly.
+
+- **Display:** ext1 fires on the LOW level → ESP wakes and boots
+  → firmware initializes with `DE=0` kept low (/RE already latched
+  LOW via `gpio_hold_en(GPIO15)`, receiver on, RO valid) → firmware
+  polls GPIO18/RO and waits until **RO has been HIGH continuously
+  for a bus-idle guard interval ≥50 µs** → only then assert `DE=1`
+  and transmit ACK.
+
+The **50 µs guard** budget:
+- THVD1400 §6.7 Switching Characteristics: driver-disable
+  `tPHZ ≤ 65 ns` (HIGH→Z) and `tPLZ ≤ 65 ns` (LOW→Z). Adds up to
+  ~130 ns worst-case propagation for the master's `DE=0` transition
+  to release the bus.
+- 1 UART bit-time at 250 kbps = 4 µs, for noise-margin.
+- ~40× headroom to survive logic-analyzer/scope jitter and any
+  ringing tail during the transition, well below any human-visible
+  latency.
+
+The guard makes the handoff **observable**: the display cannot
+assert DE until it *sees* the bus idle, which requires the master's
+`DE=0` transition to have propagated through THVD1400's
+driver-disable path. This is the observable synchronization the
+iter-17 numbered list was missing.
+
+**Changes:**
+- `cp1_display_side.md §4.5` wake-waveform bullet: full rewrite of
+  the "bus-ownership" paragraph. Removed the numbered list ordering
+  language; replaced with "Master" / "Display" concurrent flows
+  each with observable exit conditions. Removed the LOW→HIGH aside.
+  Added the master's `/RE=0` requirement and the display's ≥50 µs
+  RO-HIGH guard with the THVD1400 §6.7 timing citation.
+  Firmware-protocol bullet correspondingly rewritten.
+- `decisions.md D34` sleep policy paragraph: same observable-guard
+  rewrite.
+- `decisions.md D34` Firmware TODO display-side entry: added the
+  observable-guard steps + master's `/RE=0` before ACK timeout +
+  CP2 bench-verify requirement (scope **both** DE pins
+  simultaneously plus A/B/RO).
+- `decisions.md D34` heading: added `+ iter-18 F18` tag.
+- `DESIGN_REVIEW_ITEMS.md DR-25` sleep-policy paragraph: same
+  observable-guard rewrite with THVD1400 §6.7 timing citation.
+- `DESIGN_REVIEW_ITEMS.md DR-25` heading: added the observable
+  turnaround guard summary in the resolution line so it's visible
+  at a glance.
+
+### Confirming the resolution table
+
+Reviewer's iter-18 verdicts (§8.10 resolution check):
+
+| Prior item | Iter-18 verdict | Iter-19 status |
+|------------|-----------------|-----------------|
+| F17 BREAK polarity | PASS | Unchanged; remains closed |
+| F17 bus ownership | PASS topology / FAIL synchronization | **CLOSED** — observable turnaround guard (display waits for RO HIGH ≥50 µs; master enables /RE before ACK timeout) added at §4.5, D34, DR-25; LOW-to-HIGH ext1 claim removed |
+| F15/F16 propagation | PASS | Unchanged; remain closed |
+| State-4 / G2-G4 / DR-19 | PASS unchanged | Unchanged; retain CP5 physical continuity check |
+
+**State:** → `reviewer_turn` iter 20 for re-verify of F18. Zero
+blockers, zero open design questions; DR-19 and D-OPEN-2 remain
+closed; CP2 held pending user clearance.

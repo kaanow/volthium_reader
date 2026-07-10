@@ -257,22 +257,52 @@ to toggle on a start-bit, otherwise the wake path is impossible. So:
   bus (display side included). CP2 firmware nominal: hold that BREAK
   for **50 ms** — orders of magnitude above the 20 µs sampling
   minimum, and comfortably above ESP32-S3 wake+boot (~10 ms typical
-  from Deep-sleep). **Bus-ownership sequence** (only the master can
-  release its own DE): (1) master sets `DE=1, TXD=0`; (2) master holds
-  BREAK for the 50 ms window; (3) master sets **`DE=0`** — bus is now
-  free and biased-idle via THVD1400 Full Fail-Safe RX; (4) ESP wakes
-  on the LOW-level (or already woke during step 2) and boots;
-  (5) display firmware initializes, briefly asserts its DE, transmits
-  ACK, deasserts DE; (6) master sees ACK, transmits the payload frame.
-  **Bench-measure wake-to-ACK at CP2** — don't size correctness around
-  the ~10 ms boot assumption; verify A/B/RO polarity and no
-  driver-overlap window with a scope/logic analyzer.
+  from Deep-sleep). **Bus-ownership with observable turnaround
+  guard** (F17 + iter-18 F18): the display can and often will finish
+  booting inside the master's 50 ms BREAK window, so a numbered
+  ordering ("master releases DE, then display asserts DE") cannot be
+  enforced by numbering alone — both sides need an observable
+  condition to synchronize on. `ESP_EXT1_WAKEUP_ANY_LOW` is a **level**
+  wake, so ext1 fires during the LOW sampling window itself (not on
+  the LOW→HIGH transition when the master releases). Wake causes the
+  boot; the bus-idle handoff is a separate event.
+  - **Master:** (1) set `DE=1, TXD=0` → drive BREAK. (2) Hold BREAK
+    50 ms nominal. (3) **Set `DE=0` AND `/RE=0` simultaneously**
+    (deassert driver + enable own receiver) *before* starting the
+    ACK timeout — if the master keeps /RE=1, it can't observe the
+    display's ACK arriving. (4) Watch RO for the ACK frame; on ACK,
+    transmit payload.
+  - **Display:** (a) ext1 fires on the LOW level → ESP wakes and
+    boots. (b) Firmware initializes with **`DE=0` kept low**
+    (/RE=0 is already latched via `gpio_hold_en(GPIO15)`, so the
+    receiver is on and RO is valid). (c) Firmware polls GPIO18/RO
+    and waits until it has been **HIGH continuously for a bus-idle
+    guard interval** — nominally **≥50 µs**, which covers
+    [THVD1400 §6.7](https://www.ti.com/lit/ds/symlink/thvd1400.pdf)
+    Switching Characteristics driver-disable `tPHZ ≤ 65 ns` HIGH→Z
+    + `tPLZ ≤ 65 ns` LOW→Z + a 250 kbps bit-time (4 µs) of noise
+    margin + ~40× headroom for logic-analyzer-visible slop. (d) Once
+    RO has been continuously HIGH for the guard, display asserts
+    `DE=1`, transmits the ACK frame, then sets `DE=0`. (e) Done.
+  The guard makes the handoff **observable**: the display cannot
+  assert DE until it *sees* the bus idle, which requires the
+  master's `DE=0` transition to have propagated through THVD1400's
+  driver-disable time. This eliminates the driver-overlap risk that
+  a numbered-list ordering leaves open when boot happens to
+  complete mid-BREAK. **Bench-verify at CP2:** scope **both DE pins
+  simultaneously** plus A/B/RO, and confirm no driver-overlap window
+  ever appears — including cases where display boot completes
+  mid-BREAK. Don't size correctness around the ~10 ms boot assumption.
 - **Firmware protocol requirement (CP2 firmware handoff):** master
-  drives BREAK → releases DE → waits for display ACK → transmits
-  payload. Master's DE release before display ACK is what prevents
-  driver overlap. ACK timeout and retry policy are firmware-layer
-  decisions. **The wake-causing waveform is lost by design; the ACK
-  is what tells the master the display is ready to receive.**
+  drives BREAK → sets `DE=0` + `/RE=0` → starts ACK timeout →
+  display observes RO HIGH for ≥50 µs guard → display asserts DE,
+  transmits ACK, deasserts DE → master receives ACK → master
+  transmits payload. ACK timeout, retry policy, and the exact guard
+  interval are firmware-layer decisions, but the **observable
+  turnaround** (display waits on RO HIGH; master enables /RE before
+  starting timeout) is a correctness requirement, not a
+  nice-to-have. **The wake-causing waveform is lost by design; the
+  ACK is what tells the master the display is ready to receive.**
 - **Transceiver draws its RX-only Iq (~900 µA max, ~700 µA typ)
   continuously** in this state — a real cost that appears in the
   display-side State B budget (§7). Not in the battery-side hard-cut

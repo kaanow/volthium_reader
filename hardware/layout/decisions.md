@@ -1628,10 +1628,11 @@ right part and make assembly easier via the stencil, not to downgrade the
 part. **Resolves DR-24.** Feeds CP3 placement (footprints/thermal-pad/vias for
 U1/U6) and the fab order (add stencil).
 
-## D34 — RS-485 transceiver = THVD1400DR (3.3 V half-duplex); DE / /RE split; per-board sleep policy — DR-25 (reviewer iter-8 F05/F06 + iter-10 F08/F09 + iter-14 F15 + iter-16 F17)
+## D34 — RS-485 transceiver = THVD1400DR (3.3 V half-duplex); DE / /RE split; per-board sleep policy — DR-25 (reviewer iter-8 F05/F06 + iter-10 F08/F09 + iter-14 F15 + iter-16 F17 + iter-18 F18)
 
 **Decision (2026-07-02, revised iter-10, further revised iter-14 F15
-wake spec, polarity + bus-ownership tightened iter-16 F17).** Swap `SN65HVD3082EDR` → **`THVD1400DR`** on both boards.
+wake spec, polarity + bus-ownership tightened iter-16 F17,
+observable turnaround guard added iter-18 F18).** Swap `SN65HVD3082EDR` → **`THVD1400DR`** on both boards.
 Route the transceiver enables as **two independent ESP GPIOs** (DE +
 /RE) and rely on THVD1400's **datasheet-guaranteed internal pulls**
 (DE 2 MΩ pull-DOWN + /RE 2 MΩ pull-UP) for the default-safe state;
@@ -1790,22 +1791,45 @@ load-bearing miss.
   the RTC slow-clock's ≥3-cycle sampling minimum (150 kHz slow clock
   → ~20 µs floor). CP2 firmware nominal is **50 ms sustained LOW** —
   comfortably above the 20 µs minimum and above ESP32-S3 wake+boot
-  (~10 ms typical from Deep-sleep). **Bus-ownership sequence** (only
-  the master can release its own DE): (1) master sets `DE=1, TXD=0`;
-  (2) master holds BREAK for the 50 ms window; (3) master sets
-  **`DE=0`** to release the bus (biased-idle via THVD1400 Full
-  Fail-Safe RX); (4) display ESP wakes on the LOW-level (or already
-  woke during step 2) and boots; (5) display firmware initializes,
-  briefly asserts its DE, transmits ACK, deasserts DE; (6) master sees
-  ACK, transmits the payload frame. The ESP wakes and reloads the
-  application; the wake-causing waveform is lost. **Firmware protocol
-  requirement:** master drives BREAK → releases DE → waits for
-  display ACK → transmits payload. Master's DE release before display
-  ACK is what prevents driver overlap. ACK timeout, retry policy, and
-  the exact BREAK duration (bench-measured at CP2 against real
-  wake-to-ACK latency) are firmware-layer decisions — see CP2
-  firmware handoff. **Bench-measure at CP2**: verify A/B/RO polarity
-  and no driver-overlap window with a scope/logic analyzer; do not
+  (~10 ms typical from Deep-sleep). **Bus-ownership with observable
+  turnaround guard** (F17 + iter-18 F18): the display can and often
+  will finish booting inside the master's 50 ms BREAK window, so
+  numbered ordering ("master releases DE, then display asserts DE")
+  cannot be enforced by numbering alone — both sides need an
+  observable condition. `ESP_EXT1_WAKEUP_ANY_LOW` is a **level** wake,
+  so ext1 fires during the LOW sampling window itself (not on the
+  LOW→HIGH transition when the master releases). Wake causes the
+  boot; the bus-idle handoff is a separate event.
+  - **Master:** (1) `DE=1, TXD=0` → drive BREAK. (2) Hold 50 ms.
+    (3) **Set `DE=0` AND `/RE=0` simultaneously** (deassert driver
+    + enable own receiver) *before* starting the ACK timeout —
+    otherwise the master cannot observe the display's ACK arriving.
+    (4) Watch RO for the ACK frame; on ACK, transmit payload.
+  - **Display:** (a) ext1 fires on LOW-level → ESP wakes + boots.
+    (b) Firmware initializes with **`DE=0` kept low** (/RE=0 is
+    already latched via `gpio_hold_en(GPIO15)` so receiver is on
+    and RO is valid). (c) Firmware polls GPIO18/RO and waits until
+    RO has been **HIGH continuously for a bus-idle guard interval**
+    — nominally **≥50 µs**, covering
+    [THVD1400 §6.7](https://www.ti.com/lit/ds/symlink/thvd1400.pdf)
+    driver-disable `tPHZ/tPLZ ≤ 65 ns` + a 4 µs UART bit-time at
+    250 kbps + ~40× logic-analyzer margin. (d) Once RO has been
+    continuously HIGH for the guard, display asserts `DE=1`,
+    transmits the ACK frame, then sets `DE=0`. (e) Done.
+  The guard makes the handoff **observable**: display cannot assert
+  DE until it sees the bus idle, which requires the master's
+  `DE=0` transition to have propagated through THVD1400's
+  driver-disable time. This eliminates the driver-overlap risk left
+  open when boot happens to complete mid-BREAK. **Firmware protocol
+  requirement:** master drives BREAK → sets `DE=0` + `/RE=0` →
+  starts ACK timeout → display observes RO HIGH for ≥50 µs guard →
+  display asserts DE + transmits ACK + deasserts DE → master
+  receives ACK → master transmits payload. The observable turnaround
+  (display waits on RO HIGH; master enables /RE before starting
+  timeout) is a correctness requirement, not a nice-to-have. **Bench
+  -verify at CP2**: scope **both DE pins simultaneously** plus
+  A/B/RO, and confirm no driver-overlap window ever appears —
+  including cases where display boot completes mid-BREAK. Do not
   size correctness around the ~10 ms boot assumption. The transceiver draws its
   **RX-only Iq (~900 µA max)** continuously in this state — a real
   cost that appears in the display-side State B budget (§7), but the
@@ -1859,12 +1883,12 @@ be ~1.14 mW (the extra 11 µA on the U3 shutdown line).
   enabling either as an output. On entering deep-sleep, configure both
   GPIOs to Hi-Z (no RTC-GPIO latch) so THVD1400's internal pulls take
   over to shutdown.
-- **Display-side (revised iter-12 F11 + iter-14 F15 + iter-16 F17):**
-  on boot, drive GPIO2 LOW and GPIO15 LOW (receiver on). Before
-  entering Deep-sleep, call `gpio_hold_en(GPIO15)` then
-  `gpio_deep_sleep_hold_en()` to latch GPIO15 LOW through the sleep —
-  /RE stays 0, transceiver stays in RX. Configure the **`ext1` wake
-  mode with `ESP_EXT1_WAKEUP_ANY_LOW`** and a bit mask covering
+- **Display-side (revised iter-12 F11 + iter-14 F15 + iter-16 F17 +
+  iter-18 F18):** on boot, drive GPIO2 LOW and GPIO15 LOW (receiver
+  on). Before entering Deep-sleep, call `gpio_hold_en(GPIO15)` then
+  `gpio_deep_sleep_hold_en()` to latch GPIO15 LOW through the sleep
+  — /RE stays 0, transceiver stays in RX. Configure the **`ext1`
+  wake mode with `ESP_EXT1_WAKEUP_ANY_LOW`** and a bit mask covering
   GPIO12, GPIO13, GPIO14 (buttons, §4.6), and GPIO18 (RS-485 RO).
   **Not** the ESP UART wake API (UART is powered down in Deep-sleep
   per Espressif sleep_modes docs, and the triggering byte is lost
@@ -1872,19 +1896,27 @@ be ~1.14 mW (the extra 11 µA on the U3 shutdown line).
   driving the RS-485 pair to the BREAK state — **`DE=1, D/TXD=0` →
   A LOW, B HIGH, VA-VB negative → RO LOW at every enabled receiver**
   per [THVD1400 §7.4](https://www.ti.com/lit/ds/symlink/thvd1400.pdf)
-  Function Tables — for **≥20 µs (RTC slow-clock 3-cycle minimum) with
-  a nominal 50 ms** used at CP2 (bench-measured against real
-  wake-to-ACK latency; boot time is ~10 ms typical from Deep-sleep,
-  so 50 ms leaves 5× margin). **Bus-ownership sequence:** master
-  drives BREAK → master **sets `DE=0`** to release the bus
-  (biased-idle via Full Fail-Safe RX) → display ESP wakes, boots,
-  briefly asserts its DE, transmits ACK, deasserts DE → master sees
-  ACK and transmits the payload. Master's DE release before display
-  ACK is what prevents driver overlap. BREAK duration + ACK timeout +
-  retry policy are firmware-layer decisions — CP2 handoff item.
-  GPIO12/13/14/15/18 all RTC-capable per Espressif ESP32-S3
-  datasheet Table 5-3. **CP2 bench-verify** A/B/RO polarity and no
-  driver-overlap window with a scope/logic analyzer.
+  Function Tables — for **≥20 µs (RTC slow-clock 3-cycle minimum)
+  with a nominal 50 ms** used at CP2. After the BREAK the master
+  sets **`DE=0` AND `/RE=0` simultaneously** (deasserts driver +
+  enables own receiver) before starting the ACK timeout —
+  otherwise it can't observe the display's ACK arriving. **Observable
+  turnaround guard (iter-18 F18):** on wake, display firmware keeps
+  `DE=0` and polls GPIO18/RO until it has been **HIGH continuously
+  for a bus-idle guard interval — nominally ≥50 µs** (covers
+  THVD1400 §6.7 driver-disable `tPHZ/tPLZ ≤ 65 ns` + 4 µs UART
+  bit-time at 250 kbps + ~40× logic-analyzer margin). Only then may
+  display firmware assert `DE=1`, transmit the ACK frame, and
+  deassert `DE=0`. Master sees ACK on its now-enabled receiver and
+  transmits the payload. The guard makes the handoff observable so
+  the bus never has two active drivers even if display boot
+  completes mid-BREAK. BREAK duration + guard interval + ACK
+  timeout + retry policy are firmware-layer decisions — CP2
+  handoff item. GPIO12/13/14/15/18 all RTC-capable per Espressif
+  ESP32-S3 datasheet Table 5-3. **CP2 bench-verify:** scope both DE
+  pins simultaneously plus A/B/RO and confirm no driver-overlap
+  window ever appears — including cases where display boot completes
+  mid-BREAK.
 
 **Supersedes** D-OPEN-2 (transceiver alternatives inventory). The reviewer's
 existing D-OPEN-2 list (SN65HVD3082E, THVD1452, MAX3485, ISL3170E,
