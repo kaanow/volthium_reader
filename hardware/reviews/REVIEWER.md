@@ -102,11 +102,15 @@ will reject your finding if your reasoning is wrong**, but it'll do so
 transparently in a `RESOLVED` entry under each finding. Iterate until
 consensus.
 
-Bring outside knowledge (use the **current** part set — D19–D27):
+Bring outside knowledge (use the **current** part set — D19–D34):
 - Datasheets: ESP32-S3-WROOM-1, **LM5166** (always-on µA-Iq buck),
-  **RV-3028-C7** (RTC), **R-78HB12** / **R-78E3.3** (Recom), **ZXMP6A13F /
-  2N7002** (load switch), **SS26**, **SMAJ33CA/SMAJ15A/SMAJ12CA**,
-  **SN65HVD3082E**, **USBLC6-2** (USB ESD), Waveshare 4.2" e-Paper (B).
+  **TPS3808G01DBVR** (UVLO supervisor, D33), **TPS2116** (USB power-mux,
+  D29), **RV-3028-C7** (RTC, D23), **R-78HB12** / **R-78E3.3** (Recom),
+  **ZXMP6A13F / 2N7002** (load switch), **SS26**,
+  **SMAJ33CA/SMAJ15A/SMAJ12CA**, **THVD1400DR** (RS-485 transceiver,
+  D34 — supersedes both `SN65HVD3082E` and the iter-8 ISL3175EIBZ pick),
+  **USBLC6-2** (USB ESD), **AP2112K-3.3** (USB LDO), Waveshare 4.2"
+  e-Paper (B).
 - ESP32-S3 quirks (boot straps, ADC1 vs ADC2/WiFi conflict, RTC-GPIO
   capability per pin, **native USB on GPIO19/20**, brown-out behavior,
   WiFi TX current vs the supply).
@@ -115,8 +119,33 @@ Bring outside knowledge (use the **current** part set — D19–D27):
 - General EE conventions (decoupling close to pin, ground pour stitch
   vias, antenna keepouts, switching loop area, etc.)
 
-Web tools encouraged. Cite sources in findings (URL or datasheet
-section).
+**Tooling — parts-sourcing API (canonical, use it).** An internal
+service at **`http://eridani.zt:8787`** aggregates stock, CAD pricing,
+lifecycle, package, parametrics, and datasheet URLs across Mouser +
+DigiKey + Octopart. Use `curl` over **plain http** (do not use fetchers
+that force-upgrade to https). Common endpoints:
+
+- `POST /query` — flexible lookup by MPN. Body:
+  `{"type":"mpn","value":"THVD1400DR"}` returns stock / price / lifecycle
+  per distributor.
+- `POST /batch` — same, list of MPNs at once.
+- `GET  /datasheet?mpn=THVD1400DR` — fetches the datasheet PDF through the
+  service (works for hosts that block direct requests); the response
+  carries `X-Datasheet-Source-Url` and `X-Datasheet-SHA256` headers so
+  you can cite provenance in a finding.
+- `GET  /guide` — full contract in Markdown (read this first if you
+  haven't used the service before).
+- `GET  /health` — liveness / configured providers.
+
+Use it whenever a finding claims (or challenges) part availability,
+lifecycle, price, package, or a datasheet spec — cite MPN + distributor
+stock number + SHA256 as evidence. Fetch datasheets straight into
+`hardware/datasheets/` (SHA256 already recorded in `manifest.md`) rather
+than downloading through a browser. Details in
+[`SOP.md`](SOP.md) §Tooling and [`ENGINEERING_REVIEW.md`](ENGINEERING_REVIEW.md) §CP1 GATE (D32).
+
+Web tools also encouraged. Cite sources in findings (URL, datasheet
+section, or parts-sourcing API endpoint + SHA256).
 
 ## 4. How to do a review
 
