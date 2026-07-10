@@ -153,6 +153,20 @@ railway shell
 psql $DATABASE_URL -c "SELECT ts, state, pack_v, soc_a, soc_b FROM readings ORDER BY ts DESC LIMIT 20;"
 ```
 
+## Push notifications you might receive
+
+All go to the same ntfy topic (env var `STALENESS_WEBHOOK_URL` on Railway).
+
+| Title | What it means | First move |
+|---|---|---|
+| `pi-barge stale` | No fresh telemetry for 5+ min | See "stale push" playbook below |
+| `pi-barge recovered` | Telemetry flowing again after stale | No action; sanity-check on dashboard |
+| `pi-barge adapter pin failing` | Reader's pinned adapter (UB500) is unresolvable; it's silently falling back to the internal chip. Payload names the fallback BD address. | Not urgent — internal chip usually works. Plan a physical unplug/replug of the UB500 next time you're at the Pi. |
+| `pi-barge adapter re-pinned` | Fallback recovered; pinned adapter is back | No action |
+| `pi-barge wedge L2 — <classification>` | BLE stack wedged badly enough that a plain HCI reset didn't fix it. The classification tells you which layer: `kernel_usb_reset_chip_hung`, `chip_firmware_hci_unresponsive`, `bluez_discovery_state_stuck`, `bluez_adapter_object_missing`, `bms_peer_not_responding`, `power_under_voltage_active`, etc. | Cross-reference the classification with the wedge_snapshot event on Railway (has full evidence: dmesg tail, hciconfig, bluetoothctl show, vcgencmd throttled, temp). Response depends on which layer. |
+
+Wedges at recovery-ladder Level 1 self-heal within a few seconds and don't push — the process-exit Level 3 usually resolves the stragglers via systemd's `Restart=always`.
+
 ## Failure modes and response
 
 ### "Volthium: pi-barge stale" push arrives
@@ -185,6 +199,50 @@ psql $DATABASE_URL -c "SELECT ts, state, pack_v, soc_a, soc_b FROM readings ORDE
 5. **Logger dead** — `sudo systemctl restart volthium-logger`.
 6. **Pi entirely unreachable via SSH** — power or SD card failure. Nothing
    software can do; needs physical access.
+
+### "adapter pin failing" push arrives (no matching stale)
+The UB500 has stopped responding — data is still flowing on the internal BT.
+Not urgent, but the internal BT is less reliable, so the situation should be
+resolved. Steps:
+
+1. Check the Railway event stream:
+   ```
+   curl https://volts.alti2.de/api/events?event=adapter_fallback&limit=1
+   ```
+   The `fallback_hci` field tells you which adapter is now serving reads.
+2. SSH in and look at the UB500's state:
+   ```
+   ssh kaan@192.168.1.251
+   hciconfig | grep -B1 "20:E1:5D:68:30:8B"     # find the UB500's hci*
+   sudo hciconfig hci<N> up
+   ```
+   If the `up` command returns `Connection timed out (110)`, the chip is
+   firmware-hung — a plain `hciconfig up` won't revive it. Only a physical
+   unplug/replug will.
+3. **Physical unplug/replug** of the UB500 dongle at the Pi. Takes seconds;
+   the logger picks it up on its next `_adapter_kwargs()` call after the
+   next process restart (or restart it manually with
+   `sudo systemctl restart volthium-logger` to fast-forward).
+
+### "wedge L2 / L3" push arrives
+The classification in the title is the fast triage. Then pull the full
+snapshot from Railway to see the raw evidence:
+
+```
+curl "https://volts.alti2.de/api/events?event=wedge_snapshot&limit=1" | jq .
+```
+
+Common classifications and what they mean:
+
+| Classification | Layer | Likely fix |
+|---|---|---|
+| `kernel_usb_reset_chip_hung` | Kernel had to USB-reset the dongle because it stopped answering | Chip firmware hung; usually recovers on its own via kernel reset. Watch for repeats. |
+| `chip_firmware_hci_unresponsive` | Same but kernel hasn't given up yet | Ditto. If it doesn't self-recover in ~2 min, unplug/replug the dongle. |
+| `power_under_voltage_active` | Pi throttled register shows active undervoltage | PSU / cable issue. Check the power supply. |
+| `bluez_discovery_state_stuck` | FM-3 classic; bluetoothd's Discovering flag stuck | Recovery ladder Level 2 (bluetoothd restart) usually clears this |
+| `bluez_adapter_object_missing` | D-Bus adapter object disappeared, but chip is fine | Ditto |
+| `ub500_dongle_missing_from_usb` | lsusb doesn't see the dongle | Physical unplug — plug it back in |
+| `bms_peer_not_responding` | Adapter fine, BMS not answering | RF / BMS-side issue, not our stack. Usually self-resolves. |
 
 ### No pushes for weeks
 Two possibilities: everything is normal (fine), or the alerting itself broke
