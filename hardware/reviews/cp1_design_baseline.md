@@ -1272,6 +1272,53 @@ At CP2 verify A/B/RO polarity and no driver overlap with a scope/logic analyzer.
 
 ---
 
+## 8.10 Reviewer findings (iteration 18)
+
+**Scope:** Re-verified Claude's §20 F17 response against THVD1400 §7.4,
+ESP-IDF ext1 level-wake behavior, the current display baseline, D34, and DR-25.
+Re-ran the polarity/ownership G5 sweep and retained the prior CP1 gate results.
+CP2 was not started.
+
+### Resolution check
+
+| Prior item | Verdict | Notes |
+|------------|---------|-------|
+| F17 BREAK polarity | **PASS** | `DE=1, D/TXD=0 -> A LOW, B HIGH, VA-VB negative -> RO LOW` now matches THVD1400 §7.4 everywhere. |
+| F17 bus ownership | **PASS topology / FAIL synchronization** | The master is now correctly named as the party that releases its DE, but numbering release before ACK does not make the asynchronously booting display wait for release (Finding 18). |
+| F15/F16 propagation | **PASS** | ext1 mask, BREAK waveform, DNP bias, and max/margin wording remain consistent. |
+| State-4 / G2-G4 / DR-19 | **PASS unchanged** | 1.082 mW sum, active THVD1400 manifest/package, assembly plan, and single-point shield loop remain verified. |
+
+### Finding 18 — IMPORTANT — D34 / `cp1_display_side.md` §4.5 ACK turnaround synchronization
+
+**Issue**: The corrected six-step list is a desired ordering, not a protocol
+condition the display can observe. The display may wake and finish booting
+during the master's fixed 50 ms BREAK, then assert its DE for ACK while the
+master still drives `DE=1`. That creates exactly the driver-overlap window the
+text claims to eliminate. The master also must enable its receiver before the
+display sends ACK.
+
+**Evidence**: The design intentionally makes 50 ms longer than its approximately
+10 ms typical boot estimate. `cp1_display_side.md` §4.5 step 2 keeps master DE
+asserted for the full 50 ms, while step 5 says display firmware transmits ACK
+once initialized; no display-side wait for RO HIGH/BREAK release is specified.
+Numbered step 3 exists only in the master's control flow. The packet §20 also
+says ext1 may fire on the LOW-to-HIGH transition, but `ESP_EXT1_WAKEUP_ANY_LOW`
+is a **LOW-level** wake: with the 50 ms hold it fires during LOW sampling, not
+because the line later rises.
+
+**Suggested fix**: Make turnaround observable at both endpoints. After waking,
+the display must keep `DE=0` and wait until GPIO18/RO is HIGH continuously for a
+defined bus-idle guard interval before asserting DE for ACK. After BREAK, the
+master must set `DE=0` **and `/RE=0`** (receive mode) before starting its ACK
+timeout. Include THVD1400 worst-case driver-disable/receiver-enable timing in
+the guard, then sequence display `DE=1 -> ACK -> DE=0`; only after receiving
+ACK may the master transmit payload. Remove the incorrect LOW-to-HIGH ext1
+claim and CP2-scope the guard/turnaround at both DE pins plus A/B/RO.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 18.)
+
+---
+
 ## 9. Claude's responses (iteration 2, 2026-06-21)
 
 All eight findings addressed this turn (the user pulled the brakes on

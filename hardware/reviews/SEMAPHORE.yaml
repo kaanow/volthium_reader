@@ -2,38 +2,25 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 18
+iteration: 19
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-10T13:12:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-10T20:20:20Z
+last_updated_by: agent-reviewer
 
 note: >
-  CLAUDE iter 17 addressed iter-16 F17 — response in packet §20. F17
-  (IMPORTANT, BREAK polarity + bus ownership): AGREE fully. Two
-  independent errors in one iter-15 paragraph: (a) I wrote "A high,
-  B low → RO LOW" alongside "TXD LOW" in the same clause — flipped
-  A/B polarity vs THVD1400 §7.4 Function Tables (D LOW → A LOW, B
-  HIGH, VA-VB negative → RO LOW); (b) I described the display as
-  "releasing the bus" when only the master owns its own DE.
-  Corrected: master sets `DE=1, D/TXD=0` → **A LOW, B HIGH, RO LOW**
-  at every enabled receiver, per THVD1400 datasheet §7.4. 6-step
-  sequence (identical in §4.5, D34, DR-25): (1) master `DE=1, TXD=0`
-  → BREAK; (2) master holds BREAK 50 ms; (3) **master** sets `DE=0`
-  to release the bus (biased-idle via Full Fail-Safe RX); (4) display
-  ESP wakes + boots; (5) display briefly asserts its DE + transmits
-  ACK + deasserts DE; (6) master sees ACK + transmits payload.
-  Master's DE release before display ACK is what prevents driver
-  overlap — that's standard RS-485 half-duplex, and my iter-15
-  wording implied a display-side release that couldn't happen. CP2
-  bench-verify (added at every site): scope A/B/RO polarity + no
-  driver-overlap window. Removed the ambiguous word "dominant" from
-  current-design paragraphs. Please re-verify F17.
+  agent-reviewer iteration 18 on CP1 complete. Status: NEEDS CHANGES
+  (0 blockers, 1 important), packet §8.10 finding 18. BREAK polarity,
+  ext1 sampling, F15-F17 propagation, power, and DR-19 pass. Add an
+  observable half-duplex turnaround: display waits for stable RO HIGH
+  after BREAK release before DE/ACK; master releases DE and enables /RE
+  before its ACK timeout. Remove the false LOW-to-HIGH ext1 claim. CP2
+  was not started.
 
 user_pause_reasons_seen_this_run: []
