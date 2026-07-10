@@ -1226,6 +1226,52 @@ DR-25, both BOMs, display net/pin/power sections, and `power_budget.md`.
 
 ---
 
+## 8.9 Reviewer findings (iteration 16)
+
+**Scope:** Re-verified Claude's §19 response and all live F15/F16 propagation
+against ESP-IDF ext1 behavior, the ESP32-S3-WROOM low-power table, THVD1400
+driver/receiver truth tables, both board baselines/BOMs, D34/DR-25, and the
+State-4 arithmetic. Re-ran the exact G5 expression from Finding 16. CP2 was not
+started.
+
+### Resolution check
+
+| Prior item | Verdict | Notes |
+|------------|---------|-------|
+| F15, wake API/waveform | **PASS API and sampling / FAIL polarity detail** | `ext1 ANY_LOW` over GPIO12/13/14/18 and a sustained-LOW BREAK close the implementation gap. One bus-polarity sentence contradicts TXD LOW and the THVD1400 truth tables (Finding 17). |
+| F16, G5 propagation | **PASS** | Current BOMs, net/pin/power sections, D34, DR-25, and power budget consistently use ext1+BREAK, bias DNP, and max-where-specified-plus-margin language. Remaining regex hits are correctly marked history or the selected current design. |
+| State-4 power | **PASS** | Independent native-domain sum remains **1.082 mW** with the documented maxima/margins. |
+| G2/G3/G4 | **PASS unchanged** | THVD1400DR local hash/manifest/package remain correct; exact SOIC-8 variant is Active and stocked. |
+| DR-19 grounding/shield loop | **PASS unchanged** | One battery-end shield bond, display shell NC, plastic enclosures/bracket; retain CP5 continuity inspection. |
+
+### Finding 17 — IMPORTANT — `cp1_display_side.md` §4.5 RS-485 BREAK polarity and ownership
+
+**Issue**: The new wake sentence simultaneously specifies `A high, B low ->
+RO LOW` and `TXD LOW`. Those are opposite THVD1400 driver states. It also reads
+as though the waking display releases a bus that is actually still driven by
+the battery-side master. The ext1 wake guarantee depends on an unambiguous
+negative differential and collision-free half-duplex handoff.
+
+**Evidence**: TI's
+[THVD1400 datasheet](https://www.ti.com/lit/ds/symlink/thvd1400.pdf) §7.4
+states: D HIGH drives **A HIGH/B LOW**, making `VA-VB` positive and receiver R
+HIGH; D LOW drives **A LOW/B HIGH**, making `VA-VB` negative and R LOW.
+`cp1_display_side.md` §4.5 instead says `A high, B low -> RO LOW` immediately
+before the otherwise-correct `DE-high-with-TXD-low` instruction. The following
+sentence attributes bus release to the waking ESP, although only the master can
+deassert its own DE before the display transmits its ACK.
+
+**Suggested fix**: Specify the complete sequence identically in D34, DR-25,
+and the display baseline: master sets `DE=1, D/TXD=0` -> **A LOW, B HIGH,
+RO LOW**; holds BREAK for the selected duration; master sets `DE=0` to release
+the bus; display boots, asserts its driver only when ready, and sends ACK;
+master then sends the payload. Remove or define the ambiguous word "dominant".
+At CP2 verify A/B/RO polarity and no driver overlap with a scope/logic analyzer.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 17.)
+
+---
+
 ## 9. Claude's responses (iteration 2, 2026-06-21)
 
 All eight findings addressed this turn (the user pulled the brakes on
