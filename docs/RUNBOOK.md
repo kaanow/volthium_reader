@@ -10,7 +10,9 @@
 |---|---|
 | **Site** | The Barge Inn, Loon Lake |
 | **Pack** | 2 × Volthium SC12200G4DPH 12V 200Ah LiFePO4 in series (24 V nominal) |
-| **Reader** | Raspberry Pi 3B running Ubuntu 24.04 LTS aarch64 (kernel 6.8.0-1057-raspi) |
+| **Reader** | Raspberry Pi 3B running Ubuntu 24.04 LTS aarch64 (kernel 6.8.0-1060-raspi) |
+| **BLE adapter** | TP-Link UB500 USB dongle (RTL8761B chipset), enumerates as `hci1` — the internal BCM43438 (`hci0`) is left DOWN, its UART bring-up is broken on this board |
+| **Storage** | Samsung PRO Endurance 64 GB microSD (replaced the aging SU16G on 2026-07-09) |
 | **Reader hostname / IP** | `kwpi` / `192.168.1.251` (LAN + ZeroTier reachable) |
 | **SSH access** | `ssh kaan@192.168.1.251` — key auth, passwordless sudo |
 | **Repo on Pi** | `/srv/volthium_reader` (branch `main`, owner `claude:users`) |
@@ -156,12 +158,17 @@ psql $DATABASE_URL -c "SELECT ts, state, pack_v, soc_a, soc_b FROM readings ORDE
    adapters found" in the log):
    ```
    sudo systemctl restart bluetooth
-   sudo hciconfig hci0 up
+   sudo hciconfig hci1 up      # UB500 dongle — hci0 is the dead built-in
    sudo systemctl restart volthium-logger
    ```
 4. **Adapter came back DOWN after `systemctl restart bluetooth`** — the
    `recover_adapter` code handles this now (verified 2026-07-01) but if a
    regression happened: `sudo bluetoothctl power on`.
+   `_default_adapter()` picks whichever adapter `hciconfig` lists first —
+   BlueZ orders UP before DOWN, so as long as `hci1` (UB500) is UP the
+   code targets it. If `hci1` goes missing entirely (dongle unplugged /
+   USB fault), `hciconfig` will not list it and the code will fall through
+   to the wedged `hci0` — plug the dongle back in.
 5. **Logger dead** — `sudo systemctl restart volthium-logger`.
 6. **Pi entirely unreachable via SSH** — power or SD card failure. Nothing
    software can do; needs physical access.
@@ -182,18 +189,23 @@ Two possibilities: everything is normal (fine), or the alerting itself broke
 - Fastest fix: `git revert <bad commit> && git push origin main` — Railway
   redeploys the previous good commit within ~1 min.
 
-## Hardware upgrade plan (deferred)
+## Hardware upgrade plan (partially completed)
 
-The Pi 3B substrate is aging: SD card shows wear signatures (mmc_rescan hung
-tasks), BT chip shares antenna with Wi-Fi. Software workarounds are keeping
-things healthy but the root-cause fix is hardware.
+Done 2026-07-09:
+- **Samsung PRO Endurance 64 GB** microSD — old SU16G was showing wear
+  signatures (mmc_rescan hung tasks). Imaged old → new, root grew to 59 GB.
+- **TP-Link UB500** USB BT dongle (RTL8761B, BT 5.1). The built-in
+  BCM43438 (`hci0`) on the imaged card would not come up — firmware loaded
+  but every subsequent HCI command timed out (classic Pi 3B miniUART
+  clock instability, likely lost the `dtoverlay=miniuart-bt` overlay
+  from the old card's config.txt during imaging). Rather than edit
+  `/boot/firmware/config.txt` remotely — one bad line bricks the Pi until
+  someone visits the cabin — we plugged in the UB500. It enumerated as
+  `hci1`, BlueZ preferred it (UP over DOWN), the logger picked it up on
+  its own, live readings resumed within ~10 s of insertion.
 
-Planned replacement, once parts arrive:
+Still deferred:
 - **Raspberry Pi 4B** (any RAM tier ≥ 1 GB; workload uses ~300 MB)
-- **USB Bluetooth 5.0 dongle** with RTL8761B chipset (TP-Link UB500 or
-  equivalent) — the single most-important upgrade, gives independent BT
-  antenna and modern controller
-- **Samsung PRO Endurance 64 GB** microSD (or SanDisk HIGH ENDURANCE)
 - Official Pi 4 USB-C PSU, case with active cooling
 - Optional: USB 3.0 SSD to escape SD cards entirely (Pi 4 boots from USB
   natively)
@@ -221,3 +233,4 @@ upgraded" enumerates them by file.
 | 2026-06-29 | Deployed to Railway |
 | 2026-06-30 | Bring-up on Pi at cabin; discovered FM-2/3/5/8 series |
 | 2026-07-01 | Write-load reduction (tmpfs); FM hardening (adapter power-on, direct BleakClient teardown, staleness alerts); preflight CI |
+| 2026-07-09 | SD card replaced (SU16G → Samsung PRO Endurance 64 GB); built-in BT wedged after imaging; UB500 dongle plugged in, live readings resumed on `hci1` |
