@@ -72,55 +72,67 @@ Iter-10 F08: the iter-8 first cut quoted transceiver shutdown Iq at
 typical (10 nA) instead of maximum (12 µA), which triggered the
 ISL3175E → THVD1400DR reselection.)*
 
-| Subsystem                                | Native draw                    | Referred to pack (24 V) |
-|------------------------------------------|--------------------------------|-------------------------|
-| U1 LM5166 input Iq                       | ~14 µA @ 24 V                  | **~0.34 mW**            |
-| 24 V sense divider (R1+R2 = 1.3 MΩ)      | 24 V / 1.3 MΩ ≈ 18.5 µA @ 24 V | **~0.44 mW**            |
-| UVLO divider (D28: R1≈5.16 MΩ/R2≈100 kΩ) | ~4.56 µA @ 24 V                | **~0.11 mW**            |
-| ESP32-S3 deep-sleep                      | ~10 µA @ 3.3 V (~33 µW)        | ~0.07 mW (η ≈ 50 %)     |
-| U4 TPS3808G01 Iq (VDD_TPS = 3.3 V)       | ~2.4 µA @ 3.3 V (~8 µW)        | ~0.02 mW (η ≈ 50 %)     |
-| U6 TPS2116 mux Iq (Vout = 3.3 V)         | ~1.3 µA @ 3.3 V (~4 µW)        | ~0.01 mW (η ≈ 50 %)     |
-| U3 THVD1400DR RS-485 xcvr (D34, shutdown via DE=0+/RE=1; **max** per F08) | ≤ 1 µA @ 3.3 V (~3.3 µW) | ~7 µW (η ≈ 50 %; below rounding) |
-| RV-3028-C7 RTC (D23; V_CC on V3V3, not a coin cell — iter-8 F07) | 45 nA @ 3.3 V (~150 nW) | ~0.3 µW (η ≈ 50 %; below rounding) |
-| Display side (Q1 OFF, U2 shed)           | 0                              | 0                       |
-| **Total from pack**                      |                                | **~0.98 mW**            |
+| Subsystem                                | Native draw (typ / **max** where spec'd) | Referred to pack (24 V) |
+|------------------------------------------|------------------------------------------|-------------------------|
+| U1 LM5166 input Iq (`IQ-SLEEP` no-load @ TJ = 25 °C) | 9.7 µA typ / **15 µA max** @ 24 V | **~0.36 mW** (max) |
+| 24 V sense divider (R1+R2 = 1.3 MΩ)      | 24 V / 1.3 MΩ = 18.5 µA @ 24 V (fixed R) | **~0.44 mW** |
+| UVLO divider (D28: R1≈5.16 MΩ/R2≈100 kΩ) | 4.56 µA @ 24 V (fixed R)                 | **~0.11 mW** |
+| ESP32-S3-WROOM Deep-sleep (RTC + ULP off) | 7–8 µA **typ** per Espressif ES-datasheet §5.4; use **10 µA + ~5 µA engineering margin = 15 µA** @ 3.3 V (~50 µW) | ~0.10 mW (η ≈ 50 %) |
+| U4 TPS3808G01 Iq (VDD_TPS = 3.3 V)       | 2.4 µA typ / **5 µA max** @ 3.3 V (~17 µW at max) | ~0.03 mW (η ≈ 50 %) |
+| U6 TPS2116 mux Iq (Vout = 3.3 V, `IQ,VIN2`) | 1.35 µA typ / **4.5 µA max** over -40 to 105 °C (~15 µW at max) | ~0.03 mW (η ≈ 50 %) |
+| U3 THVD1400DR RS-485 xcvr (D34, shutdown via DE=0+/RE=1) | 100 nA typ / **1 µA max** @ 3.3 V (~3.3 µW at max) | ~7 µW (η ≈ 50 %; below rounding) |
+| RV-3028-C7 RTC (D23; VDD on V3V3)         | 45 nA typ @ 3.3 V (max ≤ 200 nA per Micro Crystal AN); ~150 nW at typ | ~0.3 µW (η ≈ 50 %; below rounding) |
+| Display side (Q1 OFF, U2 shed)           | 0                                        | 0                       |
+| **Total from pack (max Iq where spec'd + ESP margin)** |                                | **~1.08 mW** |
 
 The 3.3 V load-referred conversion uses a deliberately conservative
-**η ≈ 50 %** light-load efficiency for the LM5166 at ~14 µA of output
-load — LM5166's datasheet plots hit ~60–80 % at this current, so the
-row is upper-bound. Even at η = 65 % the total is **~0.96 mW**;
-at η = 80 % it drops to ~0.94 mW. Call it **~1.0 mW** headline. *(This
-supersedes the prior ~1.2 mW figure that mixed voltage domains — reviewer
-iter-6 F03.)*
+**η ≈ 50 %** light-load efficiency for the LM5166 at ~25 µA of output
+load — LM5166's datasheet plots hit ~60–80 % at this current, so this
+row is upper-bound. Even at η = 65 % the total is **~1.05 mW**; at
+η = 80 % it drops to ~1.02 mW. Call it **~1.1 mW** headline honestly.
+
+**Honesty about typ vs max (reviewer iter-12 F13).** Prior versions of
+this table claimed "max throughout" but several rows were actually
+*typical* values (U1 14 µA, U4 2.4 µA, U6 1.3 µA, U3 shutdown "10 nA
+typ / 12 µA max" carried as 10 nA). Rebuilt here with datasheet
+*maxima* where the datasheet publishes them; ESP Deep-sleep is an
+Espressif-typical figure with an explicit engineering margin added
+(ESP32-S3-WROOM does not publish a spec max for Deep-sleep Iq — its
+5.4 table lists 7–8 µA typical); RTC 45 nA is typical per Micro
+Crystal's spec sheet with an application-note-cited max ≤ 200 nA
+(negligible either way).
 
 **Hardware floor (D28/DR-16), an even lower state below state 4.** If the
 firmware ever fails to shed (hung-but-powered MCU), U4 asserts ESP **EN**
 low below ~20 V pack: the ESP drops to its ~µA reset state (killing the
-~38 mA hung drain) and the display auto-sheds (PWR_EN Hi-Z). Draw in this
-floor state is only marginally lower than state 4 — U1 Iq + the two
-dividers dominate (~0.89 mW), with only the ESP's 3.3 V draw going away
-(~0.07 mW saved) — total **~0.9 mW**. It holds until the pack recovers past
-**~21.7–21.8 V** (release from the built-in VHYS + external R_hys network;
-reviewer iter-5 F01 for polarity, iter-6 F04 for the release value).
+~38 mA hung drain) and the display auto-sheds (PWR_EN Hi-Z). Draw in
+this floor state is only marginally lower than state 4 — U1 Iq + the
+two dividers dominate (~0.91 mW), with only the ESP's ~15 µA (with
+margin) going away (~0.10 mW saved) — total **~0.98 mW**. It holds
+until the pack recovers past **~21.7–21.8 V** (release from the built-in
+VHYS + external R_hys network; reviewer iter-5 F01 for polarity, iter-6
+F04 for the release value).
 
-At ~1 mW the pack would take **~10 years** to lose 1 % SOC from this load
-alone — self-discharge and the cabin's own parasitics dominate by orders
-of magnitude. (A literal full cut + hardware supervisor could reach
-~0.7 mW, but D19 judged the extra part not worth the marginal saving.)
+At ~1 mW the pack would take **~10 years** to lose 1 % SOC from this
+load alone — self-discharge and the cabin's own parasitics dominate by
+orders of magnitude. (A literal full cut + hardware supervisor could
+reach ~0.7 mW, but D19 judged the extra part not worth the marginal
+saving.)
 
 ## Display-side draw
 
 The display side gets 12 V over Cat5e. Looking at it from the display
 end (before tracing back to the 24 V pack):
 
-| Subsystem               | 3.3 V load     | 12 V draw  | Note |
-|-------------------------|----------------|------------|------|
-| ESP32-S3 active (RX only) | ~30 mA       | ~10 mA     | Listening, refreshing e-paper occasionally |
-| ESP32-S3 light-sleep    | ~2 mA          | ~0.8 mA    | Most of the time |
-| RS-485 receive-only     | ~1 mA          | ~0.4 mA    |  |
-| E-paper during refresh  | ~25 mA × ~2 s every 30 s | ~1.5 mA avg | Worst-case full refresh; partial refresh much less |
-| E-paper static          | 0              | 0          | The whole point of e-paper |
-| **Display-side average**| —              | **~3–5 mA at 12 V ≈ 50 mW** | |
+| Subsystem               | 3.3 V load (max where spec'd) | 12 V draw  | Note |
+|-------------------------|--------------------------------|------------|------|
+| ESP32-S3 active (RX only) | ~30 mA                       | ~10 mA     | Listening, refreshing e-paper occasionally |
+| ESP32-S3 light-sleep    | ~2 mA                          | ~0.8 mA    | Most of the time |
+| RS-485 receive-only (U2 THVD1400 RX, no load) | ~700 µA typ / **~900 µA max** | ~0.4 mA | Under F11 Deep-sleep wake: this term is continuous while the display is powered (State A+B). |
+| **R3/R4 idle bias (DNP by default, iter-12 F12)** | **0 (not stuffed)** — populate only if bench shows EMI noise. If populated: **4.58 mA at 3.3 V ≈ 15 mW** whenever display is powered. | +1.6 mA if populated | THVD1400 §8.2.1.4 guarantees Full Fail-Safe RX without bias; power-first (D5) rule keeps it off the board by default. |
+| E-paper during refresh  | ~25 mA × ~2 s every 30 s      | ~1.5 mA avg | Worst-case full refresh; partial refresh much less |
+| E-paper static          | 0                              | 0          | The whole point of e-paper |
+| **Display-side average**| —                              | **~3–5 mA at 12 V ≈ 50 mW** | With bias DNP; +18 mW if populated. |
 
 At the **24 V pack** end, with 80 % conversion through U2 (R-78HB12),
 that becomes ~63 mW.
@@ -148,7 +160,7 @@ Assuming a fully charged 200 Ah pack with no other loads:
 | Normal (state 1)                   | 1.1 W      | ~340 days           |
 | Low (state 2)                      | 0.31 W     | ~1,200 days         |
 | Deep sleep (state 3)               | 0.13 W     | ~2,800 days         |
-| Hard cut (state 4)                 | ~1.0 mW    | decades (self-discharge dominates first) |
+| Hard cut (state 4)                 | ~1.08 mW (max Iq + ESP margin per iter-12 F13) | decades (self-discharge dominates first) |
 
 These are upper bounds — in reality the inverter idle is dozens of watts,
 the cabin's fridge is ~5 A intermittent, etc. The monitor is rounding

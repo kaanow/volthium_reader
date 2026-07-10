@@ -169,7 +169,7 @@ distributor PN behind a search URL may change.
 |-----------|-------------------------------------------------|---------|-----|-------------|---------|--------|--------|-------|
 | U2        | **TI THVD1400DR** (as battery U3)               | SOIC-8  | 1   | both        | (as battery U3) | (as battery U3) | $1.38  | **D34/DR-25 (revised iter-10 F08)** — see battery-side U3 row. Same part, same footprint. Display firmware latches GPIO15 LOW in deep sleep so /RE = 0 (receiver on) and GPIO18 UART RX wake works (F09). |
 | R2        | 120 Ω 1 % termination                           | 0805    | 1   | both        | (as battery R1) | (as battery R1) | $0.10  | RS-485 term |
-| R3, R4    | 680 Ω idle bias                                 | 0805 ×2 | 2   | PCB         | (as battery R2) | (as battery R2) | $0.10  |  |
+| R3, R4    | ~330 Ω idle bias footprints (A→3V3, B→GND) — **DNP by default (iter-12 F12)** | 0805 ×2 | 2 (DNP) | PCB         | (as battery R2) | (as battery R2) | $0.10  | THVD1400 has guaranteed Full Fail-Safe RX; populated bias would draw 4.58 mA × 3.3 V = 15 mW continuously whenever display is powered. Leave footprint, stuff at CP5 bench only if EMI testing reveals need. |
 | TVS2      | SMAJ12CA                                        | SMA     | 1   | PCB         | (as battery TVS1) | (as battery TVS1) | $0.30  | RS-485 ESD |
 
 ### Buttons + interconnect

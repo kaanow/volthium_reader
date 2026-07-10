@@ -676,27 +676,56 @@ needed** — THVD1400's internal pulls default to shutdown when both
 GPIOs float. Saves 2 board parts vs the iter-8 first cut. Firmware
 truth table in D34.
 
-**Per-board sleep policy (F09 close).**
+**Per-board sleep policy (F09 close, revised iter-12 F11).**
 - **Battery side (State 3/4).** Both GPIOs Hi-Z → THVD1400 internal
   pulls → shutdown (max 1 µA). Battery does not use RS-485 as a wake
   source; wakes from its own RTC timer + GPIO7 BTN_OVERRIDE only.
-- **Display side (State B).** ESP `gpio_hold_en(GPIO15)` latches
-  GPIO15 LOW through deep-sleep, overriding the internal pull-UP so
-  /RE = 0 (receiver on). GPIO2 (DE) Hi-Z → internal pull-DOWN keeps
-  DE = 0 (driver off). GPIO18 configured as an RTC-capable UART-RX wake
-  source. Transceiver draws its RX-only Iq (~900 µA max) continuously;
-  this appears explicitly in the display §7 State B budget. GPIO15 is
-  RTC-capable on the ESP32-S3-WROOM (Espressif Table 5-3 covers
-  GPIO0..21).
+- **Display side (State B, revised iter-12 F11).** ESP
+  `gpio_hold_en(GPIO15)` + `gpio_deep_sleep_hold_en()` latches GPIO15
+  LOW through Deep-sleep, overriding the internal pull-UP so /RE = 0
+  (receiver on). GPIO2 (DE) Hi-Z → internal pull-DOWN keeps DE = 0
+  (driver off). **Wake source = GPIO18 configured as `ext0` (or `ext1`)
+  RTC-GPIO LOW-level wake — NOT the ESP UART wake.** Espressif docs are
+  explicit: UART wake is Light-sleep-only; Deep-sleep powers off the
+  APB-clocked UART so the triggering byte is lost. Corrected wake
+  path: bus start-bit → THVD1400 RO LOW → GPIO18 LOW → ext0 fires →
+  ESP wakes + reloads app. Firmware protocol requirement: battery-side
+  sends a ~50 ms wake preamble + waits for display ACK before
+  transmitting the real frame; display firmware sends ACK once the
+  UART is initialized. Preamble length + ACK timeout + retry policy
+  are CP2 firmware-layer decisions. Transceiver draws its RX-only Iq
+  (~900 µA max) continuously in State B — appears explicitly in the
+  display §7 State B budget. GPIO15 and GPIO18 both RTC-capable per
+  Espressif ESP32-S3 datasheet Table 5-3. Alternative rejected:
+  Light-sleep + UART wake (~1–2 mA vs ~10 µA Deep-sleep, a permanent
+  ~3 mW display-side penalty).
 
-**Hard-cut impact:** transceiver contribution ≤ 1 µA max @ 3.3 V ≈
-7 µW referred — below the ~1.0 mW headline's rounding floor. Budget
-unchanged. Had we kept ISL3175E at its 12 µA max, the headline would be
-~1.06 mW.
+**Hard-cut impact (revised iter-12 F13 — rebuilt on datasheet-max Iq
+throughout).** Transceiver contribution ≤ 1 µA max @ 3.3 V ≈ 7 µW
+referred — inside the µW rounding floor. Full State-4 sum rebuilt on
+datasheet-max Iq (my iter-10 "max throughout" claim actually still
+carried typ values for U1/U4/U6): LM5166 15 µA max × 24 V + TPS3808
+5 µA max + TPS2116 4.5 µA max + THVD1400 1 µA max + ESP 10 µA typ +
+5 µA engineering margin = **~1.08 mW** headline (was quoted as
+~1.0 mW). Order-of-magnitude conclusion unchanged.
 
-**DR-13 (RS-485 bias margin) note.** The 275 mV idle bias holds against
-THVD1400's guaranteed thresholds by a wide margin: the receiver's
-built-in Full Fail-Safe drives RO HIGH on open/short/idle bus
+**Display idle bias R3/R4 policy (iter-12 F12 close).** R3/R4 at
+~330 Ω would draw 3.3 V / 720 Ω = **4.58 mA ≈ 15 mW** continuously
+whenever the display board is powered. This was omitted from States A
+and B and mis-labeled "free margin". THVD1400 datasheet §8.2.1.4
+guarantees Full Fail-Safe RX (open/short/idle bus all drive RO HIGH
+built-in) so the bias is not needed for correct RS-485 idle behavior.
+**Marked DNP by default** in both BOMs and both packet §4.5 tables;
+footprint remains on the PCB so it can be stuffed at CP5 bench if EMI
+testing reveals a need. Removes 15 mW × States A+B duty from the
+display budget — meaningful given State A totals ~29 mW at 3.3 V.
+
+**DR-13 (RS-485 bias margin) note.** THVD1400's built-in Full Fail-Safe
+makes the previously-critical DR-13 bias a noise-margin luxury, not a
+correctness requirement — hence the iter-12 F12 DNP decision. If bench
+testing shows spurious RO glitches, populate at ~330 Ω and re-budget
+the 15 mW. Prior justification lines about the receiver's guaranteed
+threshold:
 (datasheet §8.2.1.4), so 275 mV of A-B differential is comfortably in
 the guaranteed-HIGH region. Bias is noise-margin insurance, not a
 fail-safe requirement.

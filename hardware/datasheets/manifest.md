@@ -23,7 +23,7 @@ pulled manually. Read + interface-verified per D32.
 | SMAJ12CA | SMAJ12CA.pdf (174K) | digikey | https://www.bourns.com/docs/Product-Datasheets/SMAJ.pdf | 39fd714538fc |
 | SMAJ15A | SMAJ15A.pdf (761K) | manual | user download 2026-07-01 | 5c45fce4a131 |
 | SMAJ33CA | SMAJ33CA.pdf (761K) | manual | user download 2026-07-01 | 5c45fce4a131 |
-| SN65HVD3082EDR | SN65HVD3082EDR.pdf (1373K) | digikey | https://www.ti.com/lit/ds/symlink/sn65hvd3082e.pdf?ts=1639755616460&ref_url=https%253A%252F%252Fwww.ti.com%252Fsitesearch%252Fdocs%252Funiversalsearch.tsp%253FlangPref%253Den-US%2526searchTerm%253Dsn65hvd3082edr%2526nr%253D16 | ec138afa78b3 |
+| THVD1400DR | THVD1400DR.pdf (1447K) | digikey | https://www.ti.com/lit/ds/symlink/thvd1400.pdf | 5ba9785d9fb8 |
 | SS26-E3/52T | SS26-E3_52T.pdf (151K) | digikey | https://www.vishay.com/docs/88748/ss22.pdf | 4bcd8bc129f3 |
 | TPS2116DRLR | TPS2116DRLR.pdf (2855K) | digikey | https://www.ti.com/lit/ds/symlink/tps2116.pdf | 5babd88afb84 |
 | TPS3808G01DBVR | TPS3808G01DBVR.pdf (2034K) | digikey | https://www.ti.com/lit/ds/symlink/tps3808.pdf | 682abbc06a0c |
@@ -41,3 +41,5 @@ pulled manually. Read + interface-verified per D32.
 
 - **1727010** (Phoenix MKDS 1/2-3,81) — was mistakenly specced as the J1 plug; it's a 3.81 mm board-mount screw terminal, wrong series/pitch. Replaced by 1757019 (2026-07-01, D32 catch). PDF removed.
 - **TPS389030DSER** (U4 UVLO supervisor) — WSON 1.5×1.5 leadless; repackaged to **TPS3808G01DBVR (SOT-23-6, leaded)** for hand-assembly (2026-07-01, D33/DR-24). Functional superset at ~same Iq. PDF removed.
+- **SN65HVD3082EDR** (U2/U3 RS-485 transceiver) — was a 5 V part being run outside its recommended VCC = 4.5–5.5 V window on V3V3 (reviewer iter-8 F05). Superseded by **THVD1400DR** (D34, revised iter-10 F08). PDF retained temporarily in `hardware/datasheets/SN65HVD3082EDR.pdf` as the record of the F05 evidence — can be removed at the next housekeeping pass once the review record is archived.
+- **ISL3175EIBZ** (U2/U3 RS-485 transceiver) — iter-8 first-cut replacement for SN65HVD3082E, but iter-10 F08 correctly caught that its 10 nA shutdown Iq was *typical* and the maximum is 12 µA (1200× higher). Superseded by **THVD1400DR** on max-to-max comparison. PDF retained temporarily in `hardware/datasheets/ISL3175EIBZ.pdf` as the record of the iter-10 max-to-max evidence — can be removed once the review record is archived.

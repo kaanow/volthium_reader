@@ -1717,3 +1717,122 @@ State 1's ~1.08 W.
 **State:** → `reviewer_turn` for re-verify of F08/F09/F10. Zero blockers,
 zero open design questions; DR-19 remains verified-closed; **D-OPEN-2**
 closed by D34; CP2 held pending user clearance.
+
+## 18. Claude's responses (to reviewer iteration 12, 2026-07-02)
+
+All four findings are real. F11 is a documentation error I inherited
+from the iter-8 first cut and repeated through §16 + §17 without
+verifying against Espressif's sleep_modes docs — a genuine engineering
+mistake. F12 is a real budget omission plus a mis-framing of "free
+margin". F13 is my false "max throughout" claim caught. F14 is a
+mechanical propagation gap that was avoidable.
+
+- **AGREE — F11 (IMPORTANT), display Deep-sleep wake path.** You're
+  right. ESP32-S3 UART wake is Light-sleep-only per Espressif's
+  sleep_modes documentation; Deep-sleep powers off the APB-clocked
+  peripherals including UART, so the triggering start-bit is
+  unavailable to the application on wake. I've been calling the wake
+  path "GPIO18 UART wake" since iter-8 without checking the actual
+  Espressif docs. **Chose architecture (b): Deep-sleep + `ext0`
+  RTC-GPIO level wake + firmware protocol.** The bus start-bit drives
+  THVD1400 RO LOW → GPIO18 LOW → ext0 fires → ESP wakes and reloads
+  the app. The wake-causing byte is lost by design. Battery-side
+  firmware must send a **wake preamble** (~50 ms of sync bytes, well
+  over the ~10 ms ESP32-S3 wake+boot time) *before* every real frame,
+  wait for a display-side ACK, then transmit the actual payload.
+  Preamble length, ACK timeout, and retry policy are firmware-layer
+  decisions (CP2 handoff).
+
+  Rationale for (b) over (a) Light-sleep + UART wake: Light-sleep Iq
+  is ~1–2 mA vs Deep-sleep's ~10 µA — a permanent ~1 mA (~3 mW)
+  display-side penalty for the ~10 ms wake latency (a) would save.
+  Power-first ([[power-first]]) wins.
+
+  **Propagated:** D34 "Display side (State B)" bullet rewritten with
+  the ext0 story + preamble/ACK protocol requirement + Light-sleep
+  rejection rationale; D34 firmware TODO rewritten to specify
+  `gpio_deep_sleep_hold_en()` + `ext0`; DR-25 rewritten; display §4.5
+  sleep-policy block replaced end-to-end with the corrected wake
+  architecture; display §6 pin map GPIO18 row rewritten to explicitly
+  say "ext0 wake, NOT UART wake, byte-is-lost-by-design"; display §7
+  State B budget note updated to reference the F11 protocol.
+
+- **AGREE — F12 (IMPORTANT), display R3/R4 idle bias omitted + cost
+  understated.** You're right that the 4.58 mA bias was omitted from
+  States A and B and that calling it "free margin" was true only in
+  State 4/C (display shed). It's 15 mW continuous whenever the
+  display board is powered. **Marked R3/R4 DNP by default.** THVD1400
+  §8.2.1.4 explicitly guarantees Full Fail-Safe RX (open/short/idle
+  bus all drive RO HIGH built-in), so the bias is not needed for
+  correct RS-485 idle behavior — only for extra noise-margin against
+  transient bus dips. Power-first ([[power-first]]) rule: leave the
+  footprint on the PCB but do not stuff by default; populate at CP5
+  bench only if actual link testing shows spurious RO glitches. Saves
+  15 mW × States A+B duty; State A stays at ~29 mW (as previously
+  documented), State B lands at ~3.0 mW (was ~3.3 mW at 900 µA max
+  — bias was omitted before F12).
+
+  **Propagated:** display §4.5 R3/R4 rows rewritten to say "DNP by
+  default (F12)" with the cost breakdown; `docs/hardware/bom.md` +
+  `cp1_bom.md` R3/R4 rows marked DNP with rationale; display §7 State
+  A + State B tables now explicitly show the bias as a row (0 by
+  default, +15 mW if populated); `power_budget.md` display table
+  same treatment.
+
+- **AGREE — F13 (IMPORTANT), State-4 max-vs-typ claim was false.**
+  You're right. My §17 claimed "worst-case max Iq throughout" but
+  U1/U4/U6 rows were carrying typical values. Rebuilt with datasheet
+  maxima where the datasheet publishes them, and explicit engineering
+  margin where it does not:
+
+  | Row | Was (typ dressed as max) | Now (real max) |
+  |-----|--------------------------|----------------|
+  | LM5166 Iq (IQ-SLEEP, TJ = 25 °C) | 14 µA | **15 µA max** |
+  | TPS3808 Iq @ 3.3 V | 2.4 µA | **5 µA max** |
+  | TPS2116 Iq (VIN2 → VOUT, -40 to 105 °C) | 1.3 µA | **4.5 µA max** |
+  | THVD1400 shutdown Iq | 1 µA (already max) | 1 µA max (unchanged) |
+  | ESP32-S3 Deep-sleep | 10 µA (typ carried as if bound) | 10 µA typ + **5 µA engineering margin** (Espressif §5.4 lists 7–8 µA typical; does not publish spec max — margin added and labelled honestly) |
+  | RV-3028 RTC | 45 nA typ | 45 nA typ (max ≤ 200 nA per Micro Crystal AN; negligible either way) |
+
+  New State-4 total: LM5166 15 µA × 24 V = 0.36 mW + V24 sense
+  0.44 mW + UVLO div 0.11 mW + 3.3 V-side (15+5+4.5+1+0.045 µA at
+  3.3 V referred through U1 at η ≈ 50 %) ≈ 0.17 mW → **~1.08 mW total
+  (~1.1 mW headline)**. Order-of-magnitude conclusion unchanged; the
+  defect was the unsupported "max throughout" claim, and that's now
+  corrected. **Propagated:** `docs/hardware/power_budget.md` State-4
+  table rebuilt with a per-row `typ / max` column and a leading note
+  distinguishing spec'd max from typ + engineering margin; battery-side
+  §7 State 4 row + surrounding prose updated; §3 hard-cut summary
+  paragraph updated; decisions.md D28 Power paragraph updated;
+  D34 hard-cut impact paragraph updated; time-to-deplete table
+  headline updated to 1.08 mW.
+
+- **AGREE — F14 (IMPORTANT), THVD1400 manifest + doc propagation gap.**
+  You're right, three specific docs still carried the old parts:
+  - `hardware/datasheets/manifest.md` — replaced the SN65HVD3082EDR
+    row with THVD1400DR (sha `5ba9785d…`); moved SN65HVD3082EDR +
+    ISL3175EIBZ to the "Retired" section with their supersession
+    rationale. The "Still needed: None" line stays valid — every
+    active BOM part still has its datasheet on hand.
+  - `cp1_battery_side.md §3` power-tree ASCII diagram — `SN65...` →
+    `THVD1400`.
+  - `decisions.md` D-OPEN-2 closure text — was still saying the
+    resolution was `ISL3175EIBZ` (fixed the D-OPEN-2 closure to
+    reference D34's actual `THVD1400DR` outcome + max-to-max story).
+  - The `cp1_battery_side.md §7` D-OPEN-2 row had the same stale
+    ISL3175EIBZ reference — updated to point at THVD1400 with the
+    iter-8 first cut / iter-10 max-to-max history in the row itself.
+  - `REVIEWER.md §3` canonical parts list was updated in a separate
+    commit (`c22eb3d`, iter-11 doc update) — swapped SN65HVD3082E for
+    THVD1400 and added a Tooling subsection explicitly pointing at
+    the parts-sourcing API endpoints.
+
+  **Retained PDF copies** of both SN65HVD3082EDR.pdf and
+  ISL3175EIBZ.pdf in `hardware/datasheets/` as the review-record
+  evidence for F05 (wrong-VCC) and F08 (typ-vs-max) respectively —
+  can be removed at the next housekeeping pass once the review
+  history is archived. Manifest's Retired section flags them.
+
+**State:** → `reviewer_turn` for re-verify of F11/F12/F13/F14. Zero
+blockers, zero open design questions; DR-19 remains verified-closed;
+**D-OPEN-2** closed by D34; CP2 held pending user clearance.

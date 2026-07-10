@@ -75,7 +75,7 @@ TVS1 [SMAJ33CA,           U1 [LM5166         R5/R6 divider      Q1/Q2 load switc
                               │                              U2 [R-78HB12 24V→12V]
        ┌────────┬────────┬───┴─────┬──────────┐                     │
        ▼        ▼        ▼         ▼          ▼                     ▼ V12_CAT5E
-   ESP32-S3   RV-3028   SN65...    R10      decoupling           J2 RJ45 → display
+   ESP32-S3   RV-3028   THVD1400  R10      decoupling           J2 RJ45 → display
    (MOD1)    (RTC1)    (U3)    term Ω   (no idle bias here — display-end only)
 
 Always-on (off V24_FUSED, never via Q1):
@@ -98,12 +98,14 @@ downstream MCU can't gate its own supply (nor boot if it starts unpowered).
 At < 10 % SOC the ESP deep-sleeps (~µA), periodically reads V24_SENSE, and
 sheds the display by opening Q1; the RS-485 transceiver enters real
 shutdown via DE=0+/RE=1 (D34; iter-8 F06), not power-switched. All-in
-trickle at hard-cut ≈ **~1.0 mW** using **datasheet max** for U3
-shutdown Iq (native-domain sum per `docs/hardware/power_budget.md` State
-4: LM5166 input Iq 0.34 mW + V24 sense divider 0.44 mW + UVLO divider
-0.11 mW + 3.3 V loads (ESP deep-sleep + U4 + TPS2116 + U3 THVD1400
-shutdown 1 µA max + RV-3028 45 nA at V3V3 ≈ 15 µA at load × 3.3 V →
-~50 µW at load, ~0.10 mW referred through U1 at η ≈ 50 % conservative)).
+trickle at hard-cut ≈ **~1.08 mW** (~1.1 mW headline) using
+**datasheet max where spec'd** for all 3.3 V loads + explicit ESP
+engineering margin (native-domain sum per `docs/hardware/power_budget.md`
+State 4: LM5166 input Iq max 0.36 mW + V24 sense divider 0.44 mW +
+UVLO divider 0.11 mW + 3.3 V loads (ESP deep-sleep 10 µA + 5 µA
+engineering margin + U4 5 µA max + TPS2116 4.5 µA max + U3 THVD1400
+shutdown 1 µA max + RV-3028 45 nA ≈ 25.6 µA at load × 3.3 V →
+~84 µW at load, ~0.17 mW referred through U1 at η ≈ 50 % conservative)).
 The **RV-3028-C7 RTC** VCC is on the always-on V3V3 rail (D23) and draws
 ~45 nA in timekeeping mode; C-bk on VBACKUP is a backup-only cap that
 rides a full pack disconnect. *(Prior "~1.2 mW" mixed 3.3 V rail current
@@ -281,12 +283,14 @@ staggered voltages; the hardware floor is silent in normal operation.
 pack). CP2: confirm on the bench that release + deglitch give a clean
 single re-engage (no oscillation).
 
-**Power (F02/D33; corrected per iter-6 F03).** UVLO divider ~4.6 µA at
-24 V ≈ **~0.11 mW** at pack + U4 Iq ~2.4 µA @ 3.3 V ≈ 8 µW at load
-(~16 µW referred through U1 at η ≈ 50 %). **Hard-cut hits ~1.0 mW total**
-(native-domain sum in `docs/hardware/power_budget.md` State 4); the
-EN-asserted floor drops the ~66 µW ESP-referred term and lands ~0.9 mW —
-tens of µW below hard-cut, since the V24-side terms dominate. All
+**Power (F02/D33; corrected per iter-6 F03, iter-10 F08, iter-12 F13).**
+UVLO divider ~4.6 µA at 24 V ≈ **~0.11 mW** at pack + U4 Iq max
+5 µA @ 3.3 V ≈ 17 µW at load (~33 µW referred through U1 at η ≈ 50 %).
+**Hard-cut hits ~1.08 mW total** (~1.1 mW headline, using datasheet
+max where spec'd + explicit ESP engineering margin — native-domain
+sum in `docs/hardware/power_budget.md` State 4); the EN-asserted floor
+drops the ESP ~99 µW referred term and lands at ~0.98 mW — only
+~0.1 mW below hard-cut, since the V24-side terms dominate. All
 comfortably ~5 orders of magnitude under any meaningful pack drain.
 
 ### 4.3b USB maintenance power (run/program/troubleshoot off USB) — D29 / DR-18
@@ -325,9 +329,10 @@ EN → V3V3 and the UVLO behave **exactly as without this circuit**.
 Q4 pulls it low, i.e. VBUS present); U6 adds only **~1.3 µA** always-on
 (~4 µW at load). With the D33 UVLO part/divider (0.405 V) and D34's
 real-shutdown RS-485 transceiver (THVD1400, 1 µA max shutdown Iq per
-F08), **hard-cut ≈ ~1.0 mW** (native-domain sum per §7 and
-`docs/hardware/power_budget.md`; iter-6 F03 + iter-8 F05/F06/F07 +
-iter-10 F08 corrections). UVLO protects the *unattended* (always USB-absent) system fully;
+F08), **hard-cut ≈ ~1.08 mW** (~1.1 mW headline, native-domain sum
+per §7 and `docs/hardware/power_budget.md`; iter-6 F03 + iter-8
+F05/F06/F07 + iter-10 F08 + iter-12 F13 corrections — now built on
+datasheet max Iq where spec'd). UVLO protects the *unattended* (always USB-absent) system fully;
 the bypass relaxes it only during *attended* USB sessions, when the MCU is on
 USB and isn't draining the pack. No 5 V reaches V3V3 (LDO). D19 always-on
 unchanged. **Residual (accepted):** attended USB + low pack + firmware
@@ -529,13 +534,15 @@ deep-sleep (alive) and hard-cut (off) — see [§13 D-OPEN-7a/7b](#13-open-decis
 | 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 THVD1400 ~0.7 mA typ / ~0.9 mA max RX-only (D34) + RTC <100 µA + **display-end** RS-485 bias (via Cat5e) ~1.5 mA + rest of display side ~5 mA + sense 22 µA ≈ 45 mA × 24 V | **~1.08 W** | ±2 % vs power_budget.md. **No battery-side idle bias (DR-4b)** — the ~1.5 mA is sourced at the display end and shed with the display at hard-cut |
 | 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + **display-end** RS-485 bias (via Cat5e, shed at hard-cut) ~1.5 mA + display unchanged + sense 22 µA | **~0.30 W** | — |
 | 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + RV-3028 ~45 nA (negligible; D23) + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Display still up (Q1 ON) |
-| 4 — Hard cut | < 10 % | **Native-domain sum with worst-case max Iq (iter-6 F03 + iter-10 F08).** V24-side: LM5166 Iq 14 µA × 24 V = **0.34 mW** + V24 sense divider 24²/1.3 MΩ = **0.44 mW** + UVLO divider 4.6 µA × 24 V = **0.11 mW**. 3.3 V-side (load, max): ESP deep-sleep 10 µA + U4 Iq 2.4 µA + TPS2116 Iq 1.3 µA + **U3 THVD1400 shutdown 1 µA max (D34)** + RV-3028 RTC 45 nA @ V3V3 (D23) ≈ 15 µA at load × 3.3 V = 50 µW → **~0.10 mW referred through U1 at η ≈ 50 %** conservative. Display shed (Q1 OFF). | **~0.99 mW** (~1.0 mW headline, max) | Uses **datasheet max** for U3 shutdown Iq (F08). The transceiver contribution assumes real shutdown (D34's DE=0+/RE=1 default via THVD1400 internal pulls) — F06 fixed the tied-enable topology. Had we kept ISL3175E at its 12 µA max shutdown, headline would be ~1.06 mW (F08 was the direct trigger for the reselection). RTC 45 nA drawn from V3V3 (D23) and rides U1 through the same efficiency assumption (iter-8 F07). Full native+referred table in `docs/hardware/power_budget.md`. |
+| 4 — Hard cut | < 10 % | **Native-domain sum with datasheet-max Iq where spec'd + explicit ESP margin (iter-6 F03 + iter-10 F08 + iter-12 F13).** V24-side: LM5166 Iq **15 µA max** × 24 V = **0.36 mW** + V24 sense divider 24²/1.3 MΩ = **0.44 mW** + UVLO divider 4.6 µA × 24 V = **0.11 mW**. 3.3 V-side (load): ESP deep-sleep 10 µA typ + **5 µA engineering margin** (Espressif does not publish a Deep-sleep spec max) + U4 TPS3808 **5 µA max** + U6 TPS2116 **4.5 µA max** + U3 THVD1400 shutdown **1 µA max** + RV-3028 RTC 45 nA @ V3V3 (D23) ≈ **25.6 µA** at load × 3.3 V = 84 µW → **~0.17 mW referred through U1 at η ≈ 50 %** conservative. Display shed (Q1 OFF). | **~1.08 mW** (~1.1 mW headline, max Iq where spec'd) | Uses **datasheet max where spec'd** (U1/U4/U6/U3), typ + explicit margin where max isn't published (ESP32-S3 Deep-sleep). Iter-12 F13 caught that my prior "max throughout" claim was actually mixing typ + max. Corrected. Full native+referred table in `docs/hardware/power_budget.md`. |
 
-State 4 budget: at **~1.0 mW** deep-sleep (the EN-asserted hardware floor,
-U4 tripped + MCU in reset, is only marginally lower at **~0.9 mW** since
-V24-side terms dominate — reviewer iter-6 F03), decades to lose 1 % SOC
-from the monitor alone — self-discharge dominates. A literal full cut
-could reach ~0.7 mW; D19 judged the extra part not worth it.
+State 4 budget: at **~1.08 mW** deep-sleep (~1.1 mW headline, using
+datasheet-max Iq where spec'd + explicit ESP engineering margin per
+iter-12 F13); the EN-asserted hardware floor (U4 tripped + MCU in
+reset) is only marginally lower at **~0.98 mW** since V24-side terms
+dominate. Decades to lose 1 % SOC from the monitor alone —
+self-discharge dominates. A literal full cut could reach ~0.7 mW; D19
+judged the extra part not worth it.
 
 ## 8. Load switch (display-feed shed) behavior
 
@@ -692,7 +699,7 @@ margin.
 | ID            | Question | Default if no reviewer input |
 |---------------|----------|------------------------------|
 | **D-OPEN-1**  | ESP32-S3-WROOM-1-N16R8 vs -N8 (no PSRAM)? | N16R8 — keep existing BOM choice; minor $1.50 difference doesn't move the needle |
-| ~~**D-OPEN-2**~~ (**closed by D34, 2026-07-02**) | ~~SN65HVD3082E vs lower-Iq alternative (ISL3175E)?~~ Superseded: **SN65HVD3082E was a 5 V part** (reviewer iter-8 F05); resolved to **ISL3175EIBZ** on genuine-3.3 V + power-first + drop-in footprint grounds. See D34. |
+| ~~**D-OPEN-2**~~ (**closed by D34, 2026-07-02**) | ~~SN65HVD3082E vs lower-Iq alternative (ISL3175E)?~~ Superseded: **SN65HVD3082E was a 5 V part** (reviewer iter-8 F05); iter-8 first cut picked ISL3175EIBZ but iter-10 F08 caught its 12 µA max shutdown (typ-vs-max misquote); reselected to **THVD1400DR** on max-to-max comparison (1 µA max shutdown, 12× better). See D34. |
 | **D-OPEN-3**  | Internal ESP32 ADC vs external supervisor IC (TPS3839) for ULP voltage monitoring? | **Internal ADC** — saves $1.50 + footprint; ULP draws ~10 µA which dominates over the regulator Iq anyway |
 | ~~D-OPEN-5~~  | ~~Hard-cut topology~~ — **RESOLVED 2026-05-23 (post-CP1 agent-reviewer Finding 01)**: original P-FET in the 24 V path. Topology described in §8. No EN-pin alternative |
 | **D-OPEN-6**  | Q1 gate pull-up value — 10 kΩ (~2.4 mA) vs 100 kΩ (~240 µA) vs 1 MΩ (~24 µA)? | **100 kΩ** — balance of fast turn-OFF (RC ~33 µs) and low idle current |
