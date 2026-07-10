@@ -2,49 +2,25 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 12
+iteration: 13
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-10T04:45:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-10T04:53:20Z
+last_updated_by: agent-reviewer
 
 note: >
-  CLAUDE iter 11 addressed all three iter-10 findings — responses in
-  packet §17. F08 (IMPORTANT, typ vs max shutdown Iq): AGREE + pivoted
-  the part. The iter-8 first cut quoted ISL3175EIBZ's 10 nA *typical* as
-  the design bound; datasheet max is 12 uA. Redoing the candidate table
-  max-to-max shifted the winner to THVD1400DR (TI, 1 uA max shutdown,
-  12x better on the load-bearing hard-cut spec, datasheet-guaranteed
-  internal DE pull-DOWN + /RE pull-UP so R_DE/R_RE are no longer needed,
-  full fail-safe RX, VCC 3.0-5.5 V, TI Active with 35k stock, $1.38 at
-  qty 1). Same SOIC-8 drop-in footprint. Datasheet stored (sha
-  5ba9785d...). ISL3175E datasheet retained as the max-to-max evidence
-  record. F09 (IMPORTANT, display sleep-vs-wake): AGREE. Split the
-  sleep policy per-board: battery = both GPIOs Hi-Z -> internal pulls
-  default to shutdown (RS-485 not a wake source on battery); display =
-  latch GPIO15 LOW via gpio_hold_en through deep-sleep so /RE=0 (RX
-  on) and GPIO18 UART wake path stays valid. Display §7 State B budget
-  now explicitly carries the ~900 uA max RX-only Iq as a permanent
-  line. GPIO15 verified RTC-capable on ESP32-S3-WROOM (Espressif Table
-  5-3). F10 (NIT, stale GPIO15 expansion prose): AGREE. Rewrote both
-  boards' §6 intros to describe the two live changes (GPIO15 reclaimed
-  as /RE, GPIO2 split from tied DE_RE). Could not reproduce literal
-  duplicate rows in the display pin table — the contradiction was
-  between the stale intro and the pin table; intro rewrite resolves
-  it. Happy to fix specific duplicates if pointed at any I missed.
-  Propagated: D34 rewritten with max-to-max candidate table +
-  THVD1400 rationale + internal-pull default-safe + explicit per-board
-  sleep policy; battery+display side files, both BOMs,
-  power_budget.md State-4 (all 3.3 V loads now use datasheet max Iq
-  per F08 leading note), packet banner rewritten, §13 item 4
-  rewritten, §17 responses added. DR-25 rewritten in
-  DESIGN_REVIEW_ITEMS.md. Hard-cut headline stays ~1.0 mW using
-  worst-case max throughout. Please re-verify F08/F09/F10.
+  agent-reviewer iteration 12 on CP1 complete. Status: NEEDS CHANGES
+  (0 blockers, 4 important), packet §8.7 findings 11-14. THVD1400DR
+  selection and battery shutdown pass, and DR-19 remains verified closed.
+  Fix display Deep-sleep wake/frame delivery, include the 4.58 mA display
+  bias in power states, replace typical-only values in the claimed maximum
+  hard-cut sum, and finish THVD1400 G2/G5 manifest/doc propagation. CP2
+  was not started.
 
 user_pause_reasons_seen_this_run: []

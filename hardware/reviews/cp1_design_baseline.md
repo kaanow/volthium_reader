@@ -1020,6 +1020,131 @@ expansion pin on both boards.
 
 ---
 
+## 8.7 Reviewer findings (iteration 12)
+
+**Scope:** Independently re-ran the applicable CP1 SOP gates against Claude's
+§17 response and the current D34 implementation. Started with the
+`ISL3175EIBZ` -> `THVD1400DR` change, re-derived both boards' enable/sleep
+states, the hard-cut sum, display idle power, G2/G3/G4/G5, and the DR-19
+ground/shield loop. CP2 was not started.
+
+### Resolution check
+
+| Prior item | Verdict | Notes |
+|------------|---------|-------|
+| Iter-10 F08, transceiver max Iq | **PASS for U2/U3** | THVD1400DR is a genuine 3.0-5.5 V SOIC-8 part; at 3.6 V its RX-only current is 900 µA max and shutdown is 1 µA max. The local PDF hash matches D34. The broader hard-cut table still mislabels typical values as maximum; see Finding 13. |
+| Iter-10 F09, display wake policy | **PASS receiver enable / FAIL wake semantics** | GPIO15 LOW plus `gpio_hold_en()` and `gpio_deep_sleep_hold_en()` can keep /RE low. UART wake itself is Light-sleep-only; the documented Deep-sleep path needs an RTC-GPIO wake and a protocol retry, see Finding 11. |
+| Iter-10 F10, GPIO15 prose/rows | **PASS** | Both §6 introductions now describe GPIO15 as /RE, and the current display table has one row each for GPIO2/15/17/18. |
+| DR-19 grounding/shield loop | **PASS** | Battery J2 shell/drain is the sole shield-to-signal/pack-GND bond; display J1 shell is NC; signal GND crosses pins 6/7/8; both enclosures and the display bracket are plastic. Retain the CP5 visual/continuity check that the display shell has no copper or mounting path. |
+
+### SOP gate re-derivation summary
+
+| Gate | Verdict | Notes |
+|------|---------|-------|
+| G1 engineering correctness | **FAIL w/ fixes** | THVD1400 selection and battery shutdown state pass. Display Deep-sleep frame delivery, display bias power, and the hard-cut worst-case premise need correction (Findings 11-13). |
+| G2 datasheet/interface reality | **FAIL documentation** | `THVD1400DR.pdf` is present and its SHA-256 is correct, but the active part is absent from `manifest.md`, which still presents SN65HVD3082E as active and declares the gate closed (Finding 14). |
+| G3 availability/lifecycle | **PASS** | TI lists THVD1400 Active; DigiKey listed 39,643 SOIC-8 units and Mouser 341 at this pass. Exact orderable variant is `THVD1400DR`. |
+| G4 assembly/solderability | **PASS** | `DR` is the standard leaded SOIC-8 package, appropriate for hand soldering. |
+| G5 spec consistency | **FAIL** | Wake semantics and several live superseded-part references remain (Findings 11 and 14). Bannered pre-CP1 `production_design.md` and frozen review history were classified as intentional history. |
+| G6 readability | **N/A** | CP1 markdown only. |
+| G7 design-complete handoff | **FAIL** | The packet says zero open questions, but no frame-delivery protocol is defined for a Deep-sleep wake and the power tables do not close. |
+
+### Finding 11 — IMPORTANT — `cp1_display_side.md` §4.5/§6/§7 and D34 Deep-sleep wake
+
+**Issue**: The design calls GPIO18 an RTC-capable **UART wake** in Deep-sleep
+and assumes the incoming start bit wakes the ESP in time to receive the frame.
+ESP32-S3 UART wake is supported only from Light-sleep. Deep-sleep can wake on
+GPIO18's RTC level, but the UART is powered off and wake proceeds through app
+reload, so the wake-causing frame is not available to the application.
+
+**Evidence**: Espressif's
+[ESP32-S3 sleep documentation](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/system/sleep_modes.html)
+states that Deep-sleep powers off the CPUs and APB-clocked digital peripherals,
+labels UART wake **Light-sleep Only**, and notes that even Light-sleep UART wake
+loses the triggering character. The same document defines `ext0`/`ext1` as
+RTC-GPIO **level** wakes and says Deep-sleep wake proceeds to load the
+application. The documented `gpio_hold_en(GPIO15)` plus
+`gpio_deep_sleep_hold_en()` pairing itself agrees with Espressif's
+[GPIO hold API](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/peripherals/gpio.html).
+
+**Suggested fix**: Choose and specify one complete architecture before CP2:
+(a) Light-sleep plus real UART wake, with its higher ESP/PSRAM current and an
+extra wake character budgeted; or (b) Deep-sleep plus GPIO18 `ext0`/`ext1`
+LOW-level wake, explicitly treating the first frame as sacrificial and defining
+a long wake preamble/retransmit/ACK sequence after boot. Propagate the choice
+through D34, DR-25, both BOM notes, the display pin map/power states, and the
+firmware protocol requirements.
+
+### Finding 12 — IMPORTANT — `cp1_display_side.md` §7 / `power_budget.md` display states
+
+**Issue**: The populated R3/R4 idle-bias network draws continuously whenever
+the display board is powered, but State A and State B omit it. Calling the
+bias "free margin" is true only in State 4, when the entire display rail is
+shed; it is not free during normal or low-SOC display operation.
+
+**Evidence**: `cp1_display_side.md` §4.5 explicitly derives
+`3.3 V / (330 Ω + 60 Ω + 330 Ω) = 4.58 mA`. Adding that omitted term changes
+State A from **8.8 mA to about 13.4 mA at 3.3 V** (about 4.6 mA at 12 V with
+the stated 80% efficiency). State B changes from roughly 0.71/0.91 mA to
+**5.29 mA typical / 5.49 mA maximum at 3.3 V**, about 17.5/18.1 mW. The
+`power_budget.md` display table likewise has receiver current but no explicit
+bias row.
+
+**Suggested fix**: Add the 4.58 mA bias to every applicable display and
+pack-referred state and recompute subtotals. Since THVD1400 has guaranteed
+open/short/idle full fail-safe behavior, explicitly re-judge whether a
+continuous approximately 15 mW noise-margin bias remains justified under the
+power-first rule; retain it if EMC margin wins, or make it DNP pending link
+testing, but do not omit its cost.
+
+### Finding 13 — IMPORTANT — `power_budget.md` State 4 maximum-Iq premise
+
+**Issue**: State 4 says all 3.3 V rows use datasheet **maximum** Iq, but several
+rows are typical values or unbounded estimates. The approximately 0.98 mW sum
+is therefore not the worst-case maximum it claims to be.
+
+**Evidence**: TI's TPS3808 electrical table gives **2.4 µA typical, 5 µA
+maximum** at 3.3 V, while the budget uses 2.4 µA. TI's TPS2116 table gives
+**1.35 µA typical, 4.5 µA maximum** when VIN2 powers VOUT over -40 to 105 °C,
+while the budget uses approximately 1.3 µA. The LM5166 no-load input current
+is 15 µA max rather than the budget's approximately 14 µA. Espressif's
+ESP32-S3-WROOM low-power table labels its 7/8 µA Deep-sleep figures **typical**;
+the budget's 10 µA is a reasonable estimate, but not a guaranteed maximum.
+Using only the listed maxima for U1/U4/U6 and retaining the same 10 µA ESP
+assumption moves the documented sum to at least **about 1.05 mW** before any
+margin for typical-only loads.
+
+**Suggested fix**: Rebuild State 4 with guaranteed maxima where available and
+label typical-only terms honestly. Add an explicit engineering/measurement
+margin for the ESP/module and any other unbounded terms, then update the exact
+total and headline consistently. The order-of-magnitude conclusion remains
+sound; the defect is the unsupported "maximum throughout" claim.
+
+### Finding 14 — IMPORTANT — G2/G5 THVD1400 propagation and datasheet manifest
+
+**Issue**: The transceiver pivot is not completely propagated through the
+live CP1 sources, and the active-part datasheet manifest is false as written.
+This can send CP2 back to either superseded transceiver despite the correct
+component tables and BOM.
+
+**Evidence**: `hardware/datasheets/THVD1400DR.pdf` exists and hashes to
+`5ba9785d9fb8dc878b90fd196ff5faed27b5fff0ddfccb8346a82ac3c6a5c47f`, but
+`hardware/datasheets/manifest.md` has no THVD1400 row, still lists
+SN65HVD3082EDR in its active table, and says "Still needed: None". In
+`cp1_battery_side.md`, the §3 power-tree diagram still says `SN65...`, and the
+closed D-OPEN-2 row says the resolution is `ISL3175EIBZ`. `REVIEWER.md` §3 also
+labels SN65HVD3082E part of the "current part set".
+
+**Suggested fix**: Add THVD1400DR to the manifest with TI source URL and full
+hash; classify SN65HVD3082E and ISL3175E as retired/evidence-only; correct the
+live battery power tree, closed-decision row, and reviewer current-part list.
+Re-run the G5 sweep for `SN65`, `ISL3175`, `R_DE`, `R_RE`, `DE_RE`, and UART
+wake terminology, preserving only explicitly marked history.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 4 important. (See findings 11, 12, 13, 14.)
+
+---
+
 ## 9. Claude's responses (iteration 2, 2026-06-21)
 
 All eight findings addressed this turn (the user pulled the brakes on
