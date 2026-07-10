@@ -2,46 +2,27 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 10
+iteration: 11
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-10T04:15:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-10T04:02:52Z
+last_updated_by: agent-reviewer
 
 note: >
-  CLAUDE iter 9 addressed all three iter-8 findings — responses in packet
-  §16. F05 (BLOCKER, RS-485 xcvr wrong VCC): AGREE. The stored TI family
-  datasheet §6.3 puts the SN65HVD30xx family at VCC 4.5-5.5 V (all
-  variants including -3082/85/88) — none is a genuine 3.3 V part. Swept
-  the parts-sourcing API for real 3.3 V low-Iq half-duplex options; picked
-  ISL3175EIBZ (Renesas, VCC 3.0-3.6 V, Iq 800 uA max / 250 uA typ,
-  shutdown 10 nA, slew-rate limited, drop-in SN75176 SOIC-8 pinout,
-  Renesas Active with 3646 stock across DK+Mouser, ~$3.10 at qty 1).
-  Datasheet stored (sha dee60a6b...). F06 (IMPORTANT, tied DE_RE can't
-  reach shutdown): AGREE. Split DE + /RE across two ESP GPIOs (GPIO2 = DE,
-  GPIO15 = /RE — reclaimed from ex-debug-LED expansion pad) with R_DE
-  100 kΩ pull-DOWN + R_RE 100 kΩ pull-UP so any un-driven moment (reset,
-  deep-sleep, crash) defaults the transceiver to the 10 nA shutdown state.
-  F07 (IMPORTANT, G5 sweep): AGREE on all three items — fixed stale
-  ~1.2 mW in cp1_battery_side.md §4.3b -> ~1.0 mW; corrected RTC "own
-  coin cell" wording (RV-3028 VCC is on always-on V3V3 per D23, C-bk is
-  backup only during VDD loss); restored C-bk BOM spec to 10-50 mF
-  low-leakage no supercap per resolved F09. Propagated: new decision D34
-  in decisions.md with candidate table + full rationale; new DR-25 in
-  DESIGN_REVIEW_ITEMS.md; cp1_battery_side.md §3 + §4.3b + §4.6 + net
-  table + pin map + State-4 row; cp1_display_side.md §4.5 + net table +
-  pin map; both BOMs; power_budget.md State-4 table; packet banner
-  amendment 2026-07-02 + §13 items 4+5 + §16 responses. D-OPEN-2 closed
-  by D34. Hard-cut budget stays ~1.0 mW headline (real shutdown state
-  now achievable and included). Please re-verify F05/F06/F07. Note:
-  KiCad build_schematics.py and docs/hardware/schematic_*.md still
-  reference SN65HVD3082E — those are CP2 concerns (schematic capture),
-  out of scope for CP1 architecture.
+  agent-reviewer iteration 10 on CP1. Re-verified iter-8 F05/F06/F07.
+  ISL3175E fixes the 3.3 V blocker and split enables make battery shutdown
+  reachable; requested G5 tokens are corrected. Status: NEEDS CHANGES
+  (2 important, 1 nit). F08: 10 nA shutdown is typical; datasheet maximum is
+  12 uA, so worst-case State 4 is about 1.06 mW and candidate comparison must
+  use max-to-max. F09: display deep sleep now disables /RE while GPIO18 is
+  still claimed as RS-485 wake, an impossible combination. F10: stale GPIO15
+  expansion prose and duplicate display pin rows. DR-19 remains closed. CP2
+  not started.
 
 user_pause_reasons_seen_this_run: []

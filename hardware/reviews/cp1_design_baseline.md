@@ -928,6 +928,90 @@ review responses clearly historical rather than rewriting them.
 
 ---
 
+## 8.6 Reviewer findings (iteration 10)
+
+**Scope:** Re-verified Claude's §16 responses to iteration-8 Findings 05/06/07
+against the stored Renesas datasheet and both board baselines. The
+`ISL3175EIBZ` supply range, package/pinout, active-current limit, slew-rate
+class, and full-fail-safe receiver fit the 3.3 V design. The split DE and /RE
+topology makes shutdown reachable. The three specific F07 corrections are
+present. CP2 was not started.
+
+### Resolution check
+
+| Prior item | Verdict | Notes |
+|------------|---------|-------|
+| Iter-8 F05, wrong-VCC transceiver | **PASS** | ISL3175EIBZ is guaranteed at VCC 3.0-3.6 V, 8-SOIC, 500 kbps slew-limited, standard half-duplex pinout. |
+| Iter-8 F06, tied enables | **PASS battery / FAIL display policy** | Independent DE and /RE plus pulls reach shutdown and safely default the battery endpoint off; applying the same deep-sleep policy to the display breaks RS-485 wake (Finding 09). |
+| Iter-8 F07, G5 corrections | **PASS requested tokens** | Stale 1.2 mW, RTC coin-cell wording, and C-bk 0.1 F limits are corrected; a smaller pin-map drift remains (Finding 10). |
+| DR-19 grounding/shield loop | **PASS** | Remains verified closed for CP1 intent. |
+
+### Finding 08 — IMPORTANT — ISL3175E shutdown-current premise / State 4 budget
+
+**Issue**: The replacement is repeatedly described and budgeted as a `10 nA`
+shutdown load, but 10 nA is only the datasheet **typical** value. The
+guaranteed maximum shutdown current is **12 µA**, 1200 times higher. G1 requires
+worst-case margin, and the reviewer explicitly requested the selected part's
+maximum shutdown current in iteration-8 Finding 06.
+
+**Evidence**: Stored Renesas datasheet `hardware/datasheets/ISL3175EIBZ.pdf`,
+Electrical Specifications / Supply Current table: `ISHDN`, DE = 0 V and
+/RE = VCC, is **0.01 µA typical, 12 µA maximum** over temperature. D34, both
+board component tables, both BOMs, and `power_budget.md` use 10 nA as though it
+were the design bound. At the stated eta = 50%, 12 µA at 3.3 V refers to about
+**0.079 mW** at the pack, moving the prior 0.978 mW worst-case estimate to
+about **1.06 mW** before other tolerance effects; 10 nA contributes only
+0.000066 mW.
+
+**Suggested fix**: Compare candidate shutdown currents max-to-max, not
+typical-to-typical. Either retain ISL3175E and budget its 12 µA maximum
+(headline approximately **1.1 mW**, still acceptable if explicitly judged),
+or reselect if a genuinely lower guaranteed shutdown current wins on merit.
+Propagate typical and maximum values distinctly through D34, DR-25, both board
+docs/BOMs, the packet, and `power_budget.md`.
+
+### Finding 09 — IMPORTANT — display-side deep-sleep RS-485 wake regression
+
+**Issue**: The new display policy makes GPIO15 Hi-Z in deep sleep so R_RE pulls
+/RE high and disables the receiver, while the same pin map says UART RX on
+GPIO18 wakes the ESP from RS-485. A disabled receiver cannot toggle RO, so the
+documented wake path is impossible. This affects normal display operation,
+not State 4: the display board is powered in State 3/idle and must receive the
+next frame.
+
+**Evidence**: `cp1_display_side.md` §6 says GPIO15 becomes Hi-Z in deep sleep,
+R_RE sets /RE = 1, and the transceiver enters shutdown; two rows later it says
+GPIO18 RS-485 RX wakes the ESP. §7 State B budgets an active RS-485 receiver
+while the ESP deep-sleeps. D34 instead mandates both GPIOs Hi-Z in deep sleep
+on both boards. The ISL3175E truth table requires /RE low for receiver output
+RO to be active.
+
+**Suggested fix**: Define board-specific sleep behavior. Battery-side State 4
+should default to shutdown. Display-side deep sleep must either hold /RE low
+with DE low so RO can wake GPIO18 (and budget the receiver's **maximum** active
+current plus any R_RE pull current), or replace RS-485 wake with a different
+explicit wake strategy. Record which ESP sleep/hold mechanism guarantees the
+chosen GPIO15 level and verify GPIO18 wake capability before CP2.
+
+### Finding 10 — NIT — GPIO15 prose and duplicated display pin-map rows
+
+**Issue**: The G5 propagation left stale text saying GPIO15 is unused/an
+expansion pad, and the display pin table contains duplicate GPIO15/GPIO17/
+GPIO18 rows. The tables otherwise map GPIO15 to /RE correctly.
+
+**Evidence**: `cp1_battery_side.md` §6 introduction says GPIO15 is unused and
+becomes a J3 expansion pad immediately before mapping it to RS-485 /RE.
+`cp1_display_side.md` §6 has the same stale introduction and repeats the
+GPIO15, GPIO17, and GPIO18 rows twice.
+
+**Suggested fix**: Remove the stale GPIO15 expansion prose and deduplicate the
+display pin table; note explicitly that D34 reclaimed the former debug-LED/
+expansion pin on both boards.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings 08, 09.)
+
+---
+
 ## 9. Claude's responses (iteration 2, 2026-06-21)
 
 All eight findings addressed this turn (the user pulled the brakes on
