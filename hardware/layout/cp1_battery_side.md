@@ -97,11 +97,14 @@ must stay alive to drive Q1 and to wake on voltage recovery, and a
 downstream MCU can't gate its own supply (nor boot if it starts unpowered).
 At < 10 % SOC the ESP deep-sleeps (~µA), periodically reads V24_SENSE, and
 sheds the display by opening Q1; RS-485 is disabled via DE/RE (not
-power-switched). All-in trickle at hard-cut ≈ **~1.2 mW** (U1 Iq ~14 µA +
-V24 sense divider ~19 µA + ESP deep-sleep ~10 µA + the D28 UVLO supervisor
-U4 + its divider ~7 µA + the D29 TPS2116 mux ~1.3 µA). The **RV-3028-C7 RTC
-adds only ~45 nA** — negligible (D23 swapped out the power-hungry DS3231; see
-DR-8).
+power-switched). All-in trickle at hard-cut ≈ **~1.0 mW** (native-domain sum
+per `docs/hardware/power_budget.md` State 4: LM5166 input Iq 0.34 mW +
+V24 sense divider 0.44 mW + UVLO divider 0.11 mW + 3.3 V loads (ESP
+deep-sleep + U4 + TPS2116 = ~45 µW at load, ~0.09 mW referred through U1
+at η ≈ 50 % conservative)). The **RV-3028-C7 RTC adds only ~45 nA** on
+its own coin cell — negligible (D23 swapped out the power-hungry DS3231;
+see DR-8). *(Prior "~1.2 mW" mixed 3.3 V rail current with 24 V pack
+power — reviewer iter-6 F03.)*
 This replaces the pre-D19 design where the MCU sat on the switched rail and
 could not boot — see DESIGN_REVIEW_ITEMS DR-3/DR-4.
 
@@ -239,8 +242,8 @@ firmware-only shed + R3 default-OFF do **not** cover (R3 only handles a
 | Ref | Part | Pkg | Qty | Rationale |
 |-----|------|-----|-----|-----------|
 | U4  | **TI TPS3808G01DBVR** voltage supervisor (~2.4 µA Iq, adj SENSE, open-drain RESET, prog. CT delay, +MR) | **SOT-23-6 (leaded ✓)** | 1 | Asserts ESP **EN** low when the pack droops below the hardware floor. Powered from always-on V3V3. **Repackaged WSON→SOT-23-6 for hand-assembly (D33/DR-24)** — functional superset, ~same Iq |
-| R_uv1 (top), R_uv2 (bottom) | pack divider → U4 SENSE. **VIT = 0.405 V** (TPS3808G01). The plain (no-feedback) divider threshold sets the **rising release** point (see R_hys row for why): for release ~21.3 V, R2/(R1+R2) = 0.405/21.3 → **R1 ≈ 5.16 MΩ, R2 ≈ 100 kΩ** (E96). RESET→SENSE feedback then pulls the *falling* trip down to ~20.0 V. | 0805 ×2 | 2 | From V24_FUSED. **ISENSE ±25 nA max** → divider current ≥ 100× = **≥ 2.5 µA**; 0.405 V/100 kΩ = 4.05 µA at threshold ✓ (~4.6 µA at 24 V, ~0.11 mW — still *less* than the old 2.89 V/2.0 MΩ part). Add a small SENSE filter cap for the high-Z node. |
-| R_hys | external hysteresis: U4 RESET → SENSE (**~11.5 MΩ**) | 0805 | 1 | **F01 (reviewer iter-5):** U4's RESET is open-drain **active-low**, so R_hys (RESET→SENSE) is *positive* feedback whose effect is present only while **healthy** — RESET pulled to 3.3 V raises SENSE → drops the **falling trip** below the divider threshold; once RESET asserts (0 V, R_hys ≫ R2) its effect is negligible → the **rising release sits at the divider threshold**. So size the divider to release and R_hys to the trip shift: ΔV = R1·(3.3−VIT)/R_hys ≈ **1.5 V** at **R_hys ≈ 11.5 MΩ** → **falling trip ~20.0 V / rising release ~21.5 V**. (Built-in VHYS is only ~6 mV at SENSE, ~0.3 V at pack — too small alone.) Finalize E96 at CP2. |
+| R_uv1 (top), R_uv2 (bottom) | pack divider → U4 SENSE. **VIT = 0.405 V** (TPS3808G01). The plain (no-feedback) divider threshold is the *lower bound* on the rising release (see R_hys row): sizing the plain threshold to ~21.3 V gives an actual release ~21.7–21.8 V after built-in VHYS + R_hys leg. R2/(R1+R2) = 0.405/21.3 → **R1 ≈ 5.16 MΩ, R2 ≈ 100 kΩ** (E96). RESET→SENSE feedback then pulls the *falling* trip down to ~20.0 V. | 0805 ×2 | 2 | From V24_FUSED. **ISENSE ±25 nA max** → divider current ≥ 100× = **≥ 2.5 µA**; 0.405 V/100 kΩ = 4.05 µA at threshold ✓ (~4.6 µA at 24 V, ~0.11 mW — still *less* than the old 2.89 V/2.0 MΩ part). Add a small SENSE filter cap for the high-Z node. |
+| R_hys | external hysteresis: U4 RESET → SENSE (**~11.5 MΩ**) | 0805 | 1 | **F01 (reviewer iter-5) + F04 (iter-6):** U4's RESET is open-drain **active-low**, so R_hys (RESET→SENSE) is *positive* feedback whose effect is present only while **healthy** — RESET pulled to ~3.3 V raises SENSE → drops the **falling trip** below the divider threshold; once RESET asserts (0–0.2 V), R_hys still sources a small current from SENSE → RESET so the release lands a few hundred mV *above* the plain divider threshold. Size the divider to the release target and R_hys to the trip shift: ΔV = R1·(V_RESET_H − VIT)/R_hys ≈ **1.5 V** at **R_hys ≈ 11.5 MΩ** → **falling trip ~20.0 V** (with VOH ≈ 3.2 V); **rising release ~21.7–21.8 V** (VOL = 0–0.2 V, solved at SENSE = VIT + VHYS = 0.4111 V). (Built-in VHYS is only ~6 mV at SENSE, ~0.3 V at pack — too small alone.) Finalize E96 at CP2. |
 | C_ct | CT delay cap (deglitch, ~tens of ms) | 0603 | 1 | Rejects momentary sags so only a sustained low-pack condition trips the floor |
 
 **How it acts (reuses the existing default-OFF chain — no extra Q1 driver):**
@@ -255,24 +258,28 @@ On recovery (pack ≥ release threshold + hysteresis) U4 releases EN → the ESP
 keeps the MCU wakeable (D19 intact; DR-4 not reopened).
 
 **Thresholds:** falling **trip ~20.0 V** pack (LiFePO₄ cliff, well below the
-firmware's ~10 % SOC shed) / rising **release ~21.5 V**. Because U4's RESET is
-open-drain **active-low**, the RESET→SENSE resistor R_hys is *positive*
-feedback whose full effect appears only while healthy — so the divider
-(R1 ≈ 5.16 MΩ/R2 ≈ 100 kΩ) is sized to the **release** point and R_hys
-(~11.5 MΩ) sets the ~1.5 V *downward* shift to the trip (reviewer iter-5 F01).
-The chip's built-in band (~0.3 V at pack) alone is too small and would chatter,
-since shedding the ~38 mA load rebounds the pack well past that. The two layers
-never fight — staggered voltages; the hardware floor
-is silent in normal operation. **Override button:** the hardware floor wins
-(can't force-drain a dead pack). CP2: confirm on the bench that release +
-deglitch give a clean single re-engage (no oscillation).
+firmware's ~10 % SOC shed) / rising **release ~21.7–21.8 V** (reviewer
+iter-6 F04). Because U4's RESET is open-drain **active-low**, the
+RESET→SENSE resistor R_hys is *positive* feedback whose full effect
+appears only while healthy — the divider (R1 ≈ 5.16 MΩ/R2 ≈ 100 kΩ) sets
+the plain-divider threshold ~21.3 V as a *lower bound* on the release,
+and R_hys (~11.5 MΩ) both lifts the release ~0.4–0.5 V (built-in VHYS +
+R_hys leg at VOL = 0–0.2 V) and drives the ~1.5 V *downward* shift to
+the trip (reviewer iter-5 F01). The chip's built-in band (~0.3 V at
+pack) alone is too small and would chatter, since shedding the ~38 mA
+load rebounds the pack well past that. The two layers never fight —
+staggered voltages; the hardware floor is silent in normal operation.
+**Override button:** the hardware floor wins (can't force-drain a dead
+pack). CP2: confirm on the bench that release + deglitch give a clean
+single re-engage (no oscillation).
 
-**Power (F02/D33):** divider ~4.6 µA at 24 V (~5.5 µA at 29 V full charge →
-~0.16 mW) + U4 Iq ~2.4 µA ≈ **~0.25 mW** — the 0.405 V part's high-R divider
-draws less than the old 2.89 V/2.0 MΩ one while still satisfying the ≥100×
-ISENSE rule. **Hard-cut now ≈ 1.2 mW**; ~5 orders of magnitude under any
-meaningful pack drain. The EN-asserted floor (~µA, chip in reset) is still
-*lower* power than the firmware deep-sleep it backstops.
+**Power (F02/D33; corrected per iter-6 F03).** UVLO divider ~4.6 µA at
+24 V ≈ **~0.11 mW** at pack + U4 Iq ~2.4 µA @ 3.3 V ≈ 8 µW at load
+(~16 µW referred through U1 at η ≈ 50 %). **Hard-cut hits ~1.0 mW total**
+(native-domain sum in `docs/hardware/power_budget.md` State 4); the
+EN-asserted floor drops the ~66 µW ESP-referred term and lands ~0.9 mW —
+tens of µW below hard-cut, since the V24-side terms dominate. All
+comfortably ~5 orders of magnitude under any meaningful pack drain.
 
 ### 4.3b USB maintenance power (run/program/troubleshoot off USB) — D29 / DR-18
 
@@ -487,12 +494,13 @@ deep-sleep (alive) and hard-cut (off) — see [§13 D-OPEN-7a/7b](#13-open-decis
 | 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 ~0.5 mA + RTC <100 µA + **display-end** RS-485 bias (via Cat5e) ~1.5 mA + rest of display side ~5 mA + sense 22 µA = 45 mA × 24 V | **~1.08 W** | ±2 % vs power_budget.md. **No battery-side idle bias (DR-4b)** — the ~1.5 mA is sourced at the display end and shed with the display at hard-cut |
 | 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + **display-end** RS-485 bias (via Cat5e, shed at hard-cut) ~1.5 mA + display unchanged + sense 22 µA | **~0.30 W** | — |
 | 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + RV-3028 ~45 nA (negligible; D23) + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Display still up (Q1 ON) |
-| 4 — Hard cut | < 10 % | U1 LM5166 Iq ~14 µA (~0.34 mW) + ESP deep-sleep ~10 µA (~0.24 mW) + V24 sense divider ~19 µA (~0.44 mW) + **U4 UVLO supervisor + divider ~7 µA (~0.25 mW, D28/D33)** + **TPS2116 mux ~1.3 µA (~4 µW, D29)** + RV-3028-C7 RTC ~45 nA (negligible); display shed (Q1 OFF) | **~1.2 mW** | RTC swapped DS3231→RV-3028-C7 to kill the ~0.5 mW always-on draw (D23/DR-8). The D28 supervisor + D29 mux are the +~0.25 mW added vs the original ~1 mW. MCU re-engages on recovery (D19) |
+| 4 — Hard cut | < 10 % | **Native-domain sum (reviewer iter-6 F03).** V24-side: LM5166 Iq 14 µA × 24 V = **0.34 mW** + V24 sense divider 24²/1.3 MΩ = **0.44 mW** + UVLO divider 4.6 µA × 24 V = **0.11 mW**. 3.3 V-side (load): ESP deep-sleep 10 µA + U4 Iq 2.4 µA + TPS2116 Iq 1.3 µA ≈ 45 µW at load → **~0.09 mW referred through U1 at η ≈ 50 %** conservative. RV-3028-C7 RTC on own coin cell (negligible). Display shed (Q1 OFF). | **~0.98 mW** (~1.0 mW headline) | Prior "~1.2 mW" mixed 3.3 V rail current with 24 V pack power. See `docs/hardware/power_budget.md` for the full native+referred table. RTC swapped DS3231→RV-3028-C7 to kill the ~0.5 mW always-on draw (D23/DR-8). MCU re-engages on recovery (D19). |
 
-State 4 budget: at **~1.2 mW** deep-sleep (the EN-asserted hardware floor, U4
-tripped + MCU in reset, is lower at **~1.0 mW**), decades to lose 1 % SOC from
-the monitor alone — self-discharge dominates. A literal full cut could reach
-~0.7 mW; D19 judged the extra part not worth it.
+State 4 budget: at **~1.0 mW** deep-sleep (the EN-asserted hardware floor,
+U4 tripped + MCU in reset, is only marginally lower at **~0.9 mW** since
+V24-side terms dominate — reviewer iter-6 F03), decades to lose 1 % SOC
+from the monitor alone — self-discharge dominates. A literal full cut
+could reach ~0.7 mW; D19 judged the extra part not worth it.
 
 ## 8. Load switch (display-feed shed) behavior
 
@@ -579,7 +587,7 @@ populated. **Idle bias is NOT here** — it lives on the display end only
   takes over when plugged in and the buck idles — exactly the D29 intent. ST
   (open-drain status) optional; PR1 unused in priority mode. Same on the
   display mux.
-- **UVLO hysteresis + divider (D33; reviewer iter-5 F01):** finalize R_uv1/R_uv2 (**release-sized** R1≈5.16 MΩ/R2≈100 kΩ for the TPS3808G01 0.405 V VIT) + SENSE filter cap and R_hys (**~11.5 MΩ**, ~1.5 V band → trip ~20.0/release ~21.5) — remember RESET is **active-low** so R_hys is positive feedback that sets the *downward* trip shift; bench-verify clean re-engage.
+- **UVLO hysteresis + divider (D33; reviewer iter-5 F01 + iter-6 F04):** finalize R_uv1/R_uv2 (**release-sized** R1≈5.16 MΩ/R2≈100 kΩ for the TPS3808G01 0.405 V VIT) + SENSE filter cap and R_hys (**~11.5 MΩ**, ~1.5 V band → trip ~20.0/release ~21.7–21.8) — remember RESET is **active-low** so R_hys is positive feedback that sets the *downward* trip shift *and* lifts the release ~0.4–0.5 V above the plain divider threshold; bench-verify clean re-engage.
 - **Q3/Q4 UVLO-bypass (F03):** verify the fail-safe default-ON truth table on the bench.
 
 ## 11. Layout strategy

@@ -1396,14 +1396,24 @@ confirmed; hysteresis polarity corrected per reviewer iter-5 F01).** VIT =
 the RESET→SENSE hysteresis resistor R_hys is *positive* feedback whose effect
 is present only while **healthy** — RESET pulled to 3.3 V injects into SENSE,
 raising it, which drops the *falling* trip below the plain divider threshold;
-once RESET asserts (0 V, and R_hys ≫ R2) its contribution is negligible, so the
-**rising release sits at the plain (no-feedback) divider threshold.** Therefore
-size the **divider to the release** and R_hys to the downward trip shift:
-- **No-feedback divider threshold** set to the release target ~**21.3 V**:
+once RESET asserts (VOL ≈ 0–0.2 V) its R_hys leg becomes small — but not
+zero, so the **rising release sits a few hundred mV above the plain
+(no-feedback) divider threshold** (see F04 refinement below). Therefore
+size the **divider to the release target** (the plain divider threshold is
+the *lower bound* on the release) and R_hys to the downward trip shift:
+- **No-feedback divider threshold** set to the release target ~**21.3 V**
+  (VIT only, ignoring built-in VHYS and R_hys):
   R2/(R1+R2) = 0.405/21.3 → **R1 ≈ 5.16 MΩ, R2 ≈ 100 kΩ** (E96).
-- **R_hys ≈ 11.5 MΩ** sets the downward shift ΔV = R1·(3.3 − VIT)/R_hys ≈
-  **1.5 V** → **falling trip ~20.0 V**; the rising release lands **~21.5 V**
-  (no-feedback threshold + the small R_hys‖R2 term + built-in VHYS).
+- **R_hys ≈ 11.5 MΩ** sets the downward shift ΔV = R1·(V_RESET_H − VIT)/R_hys.
+- **Falling trip ~20.0 V** (RESET pulled high to ~3.3 V, ΔV ≈ 1.5 V below the
+  no-feedback threshold; solving at SENSE = VIT = 0.405 V).
+- **Rising release ~21.7–21.8 V.** After the built-in VHYS lifts SENSE to
+  VIT + VHYS = 0.4111 V and RESET is still low (0–0.2 V, VOL range), a small
+  extra current flows from SENSE to RESET through R_hys, so V24 must reach
+  ~21.72 V (VOL = 0.2 V) to ~21.81 V (VOL = 0 V) to deassert. *(Reviewer
+  iter-6 F04 caught that my earlier "~21.5 V" understated this: I'd
+  quoted the no-feedback divider threshold + built-in VHYS but forgot the
+  R_hys leg is still active at deassertion.)*
 
 The *built-in* VHYS (1.5 % of VIT ≈ 6 mV at SENSE, ~0.3 V at the pack) is too
 small alone — shedding the ~38 mA load rebounds the pack past it → chatter — so
@@ -1413,12 +1423,17 @@ the higher-R, lower-threshold part still draws *less* than the old 2.89 V/2.0 M�
 divider (~4.6 µA at 24 V vs ~12 µA). Add a small SENSE filter cap for the
 high-Z node; final E96 values + bench hysteresis check at CP2.
 
-**Power.** divider ~4.6 µA at 24 V (~5.5 µA at 29 V → ~0.16 mW) + U4 Iq
-~2.4 µA ≈ **~0.25 mW**; with the D29 mux (~1.3 µA) **hard-cut ≈ 1.2 mW** (the
-0.405 V part's high-R divider trimmed ~0.2 mW off the old 2.89 V divider;
-still ~5 orders under any real drain). The EN-asserted floor state
-(~µA, chip in reset) is still *lower* power than the firmware deep-sleep it
-backstops.
+**Power.** Keeping each term in its native voltage domain
+(reviewer iter-6 F03 caught the prior mixed-domain sum): UVLO divider
+~4.6 µA @ 24 V ≈ **~0.11 mW** at pack; U4 Iq ~2.4 µA @ 3.3 V ≈ 8 µW at
+load, ~16 µW referred through U1 at η ≈ 50 %. Adding LM5166 Iq ~0.34 mW +
+V24 sense divider ~0.44 mW + ESP32-S3 deep-sleep ~10 µA @ 3.3 V (~33 µW
+load, ~66 µW referred) + D29 mux ~1.3 µA @ 3.3 V (~4 µW load, ~8 µW
+referred) gives **hard-cut ≈ ~1.0 mW** total from pack (see
+`docs/hardware/power_budget.md` State 4 for the full table). The
+EN-asserted floor state (chip in reset, ESP off) drops the ~66 µW ESP
+term and lands at ~0.9 mW — only tens of µW below hard-cut, since the
+V24-side terms dominate.
 
 **Override-button precedence.** The hardware floor **wins** over the
 panel-mount manual override — a user can't force the display on below the

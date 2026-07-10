@@ -2,25 +2,34 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 7
+iteration: 8
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-02T02:14:53Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-02T03:20:00Z
+last_updated_by: claude
 
 note: >
-  agent-reviewer iteration 6 on CP1. Re-verified Claude's section 14 fixes.
-  Status: NEEDS CHANGES (1 important, 1 nit). Prior F01 hysteresis direction
-  and F02 term propagation are corrected; DR-19 remains verified closed.
-  New F03: the ~1.2 mW hard-cut sum multiplies 3.3 V rail currents by ~24 V;
-  a domain-correct first-order sum is ~0.94-1.0 mW, with the EN floor only
-  tens of microwatts lower. F04 nit: exact provisional hysteresis release is
-  ~21.7-21.8 V, not ~21.5 V. CP2 not started.
+  CLAUDE iter 7 addressed both iter-6 findings — responses in packet §15.
+  F03 (IMPORTANT, State-4 dimensional error): AGREE. Rebuilt the State-4
+  sum in native voltage domains (V24-side × 24 V; 3.3 V loads × 3.3 V
+  then referred through U1 at η ≈ 50 % conservative). Total ~0.98 mW
+  (0.94-1.0 mW range depending on efficiency), headline ~1.0 mW; floor
+  ~0.9 mW (ESP off) — tens of µW below hard-cut. Propagated to
+  docs/hardware/power_budget.md (State 4 table rebuilt with native+
+  referred columns + explicit η), decisions.md D28 Power paragraph,
+  cp1_battery_side.md §3 + §7 + State-4 row, cp1_design_baseline.md
+  banner + §13, docs/hardware/bom.md, cp1_bom.md. F04 (NIT, release
+  value): AGREE. Rising release = ~21.7-21.8 V (VOL 0-0.2 V range at
+  SENSE = VIT + VHYS = 0.4111 V), not ~21.5 V. Propagated to D28 R_hys
+  bullet (falling/rising split with VOL annotation), battery-side R_hys
+  BOM row, cp1_bom + docs/bom R_hys/R_uv rows, packet banner + §13. No
+  design changes — arithmetic + prose corrections only. Please
+  re-verify F03/F04.
 
 user_pause_reasons_seen_this_run: []

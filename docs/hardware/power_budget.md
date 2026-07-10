@@ -63,24 +63,40 @@ deep-sleeps, waking briefly to read the sense divider and re-engage Q1
 when the pack recovers. No full power-down, no separate supervisor IC
 (D19 / DR-4: a fully-unpowered MCU couldn't wake itself).
 
-| Subsystem               | Draw (referred to 24 V pack)      |
-|-------------------------|-----------------------------------|
-| U1 LM5166 Iq            | ~14 µA → **~0.34 mW**            |
-| ESP32-S3 deep-sleep     | ~10 µA @ 3.3 V → **~0.2 mW**       |
-| 24 V sense divider (1.2 MΩ/100 k) | 24 V / 1.3 MΩ ≈ 18.5 µA → **~0.44 mW** |
-| UVLO supervisor U4 + divider (D28/D33) | ~2.4 µA Iq + ~4.6 µA divider (release-sized R1≈5.16 MΩ/R2≈100 kΩ) → **~0.25 mW** (TPS3808G01, VIT 0.405 V; ISENSE 25 nA max → ≥2.5 µA divider suffices, so the high-R divider draws less than the old 2.89 V part) |
-| USB power-mux U6 TPS2116 (D29, always-on) | ~1.3 µA → **~4 µW** (the rest of the USB circuit is VBUS-referenced → 0 when unplugged) |
-| RV-3028-C7 RTC (always-on) | 45 nA → **negligible** (D23/DR-8; was DS3231 ~0.5 mW) |
-| Display side (U2 shed)  | 0                                 |
-| **Total from pack**     | **~1.2 mW** (D33's 0.405 V U4 trimmed its divider back ~0.2 mW; still negligible) |
+Terms are kept in their **native voltage domain** and only the buck-input
+side is referred to the pack directly; 3.3 V loads are drawn from the pack
+via U1's light-load efficiency. *(Reviewer iter-6 F03: prior rows
+mis-referred 3.3 V rail current to 24 V.)*
+
+| Subsystem                                | Native draw                    | Referred to pack (24 V) |
+|------------------------------------------|--------------------------------|-------------------------|
+| U1 LM5166 input Iq                       | ~14 µA @ 24 V                  | **~0.34 mW**            |
+| 24 V sense divider (R1+R2 = 1.3 MΩ)      | 24 V / 1.3 MΩ ≈ 18.5 µA @ 24 V | **~0.44 mW**            |
+| UVLO divider (D28: R1≈5.16 MΩ/R2≈100 kΩ) | ~4.56 µA @ 24 V                | **~0.11 mW**            |
+| ESP32-S3 deep-sleep                      | ~10 µA @ 3.3 V (~33 µW)        | ~0.07 mW (η ≈ 50 %)     |
+| U4 TPS3808G01 Iq (VDD_TPS = 3.3 V)       | ~2.4 µA @ 3.3 V (~8 µW)        | ~0.02 mW (η ≈ 50 %)     |
+| U6 TPS2116 mux Iq (Vout = 3.3 V)         | ~1.3 µA @ 3.3 V (~4 µW)        | ~0.01 mW (η ≈ 50 %)     |
+| RV-3028-C7 RTC                           | 45 nA on VBAT coin (D23/DR-8)  | 0 (own cell)            |
+| Display side (Q1 OFF, U2 shed)           | 0                              | 0                       |
+| **Total from pack**                      |                                | **~0.98 mW**            |
+
+The 3.3 V load-referred conversion uses a deliberately conservative
+**η ≈ 50 %** light-load efficiency for the LM5166 at ~14 µA of output
+load — LM5166's datasheet plots hit ~60–80 % at this current, so the
+row is upper-bound. Even at η = 65 % the total is **~0.96 mW**;
+at η = 80 % it drops to ~0.94 mW. Call it **~1.0 mW** headline. *(This
+supersedes the prior ~1.2 mW figure that mixed voltage domains — reviewer
+iter-6 F03.)*
 
 **Hardware floor (D28/DR-16), an even lower state below state 4.** If the
 firmware ever fails to shed (hung-but-powered MCU), U4 asserts ESP **EN**
 low below ~20 V pack: the ESP drops to its ~µA reset state (killing the
 ~38 mA hung drain) and the display auto-sheds (PWR_EN Hi-Z). Draw in this
-floor state is *lower* than state 4 — only U1 Iq + the two dividers + U4 ≈
-**~1.0 mW** — and it holds until the pack recovers past **~21.3 V** (set by
-the external hysteresis resistor R_hys; reviewer F01).
+floor state is only marginally lower than state 4 — U1 Iq + the two
+dividers dominate (~0.89 mW), with only the ESP's 3.3 V draw going away
+(~0.07 mW saved) — total **~0.9 mW**. It holds until the pack recovers past
+**~21.7–21.8 V** (release from the built-in VHYS + external R_hys network;
+reviewer iter-5 F01 for polarity, iter-6 F04 for the release value).
 
 At ~1 mW the pack would take **~10 years** to lose 1 % SOC from this load
 alone — self-discharge and the cabin's own parasitics dominate by orders
@@ -127,7 +143,7 @@ Assuming a fully charged 200 Ah pack with no other loads:
 | Normal (state 1)                   | 1.1 W      | ~340 days           |
 | Low (state 2)                      | 0.31 W     | ~1,200 days         |
 | Deep sleep (state 3)               | 0.13 W     | ~2,800 days         |
-| Hard cut (state 4)                 | ~1 mW      | decades (self-discharge dominates first) |
+| Hard cut (state 4)                 | ~1.0 mW    | decades (self-discharge dominates first) |
 
 These are upper bounds — in reality the inverter idle is dozens of watts,
 the cabin's fridge is ~5 A intermittent, etc. The monitor is rounding

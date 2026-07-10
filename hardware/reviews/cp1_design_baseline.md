@@ -16,11 +16,14 @@ it later costs much more.
 > **active-low**, the RESET→SENSE hysteresis is positive feedback that sets the
 > *falling* trip below the plain divider threshold, so the divider is sized to
 > the **release**: **R1≈5.16 MΩ / R2≈100 kΩ** + **R_hys≈11.5 MΩ** →
-> **falling trip ~20.0 V / rising release ~21.5 V** (draws ~4.6 µA — *less*
-> than the old part). Hard-cut **≈1.2 mW**. U6 (`TPS2116`, SOT-583) and U1
+> **falling trip ~20.0 V / rising release ~21.7–21.8 V** (draws ~4.6 µA —
+> *less* than the old part). Hard-cut **≈ ~1.0 mW** (native-domain sum
+> per `docs/hardware/power_budget.md`). U6 (`TPS2116`, SOT-583) and U1
 > (`LM5166`, VSON-10) stay leadless and reflow with a paste stencil. Current
 > values live in D28/D33 + DR-24; the text below is retained as the review
-> record. (Divider polarity/values corrected per reviewer iter-5 F01 — see §14.)
+> record. *(Polarity/values corrected per reviewer iter-5 F01; release
+> value + State-4 arithmetic corrected per reviewer iter-6 F03/F04 — see
+> §14 + §15.)*
 
 ---
 
@@ -1040,14 +1043,18 @@ top-of-packet **amendment banner** carries the superseding UVLO numbers.
    the stencil. **What changed numerically:** VIT 2.89 V → **0.405 V**. Divider
    is **release-sized** (RESET active-low → R_hys is positive feedback that
    pulls the falling trip down): **R1≈5.16 MΩ / R2≈100 kΩ + R_hys≈11.5 MΩ →
-   trip ~20.0 V / release ~21.5 V** (ISENSE ±25 nA → ≥2.5 µA rule met at
-   4.05 µA; ~4.6 µA at 24 V, *less* than the old ~12 µA), **hard-cut 1.3 →
-   ~1.2 mW**. *(These are the corrected values — reviewer iter-5 F01 caught that
-   my first cut mis-placed the band above the divider threshold; see §14.)*
-2. **Hard-cut figure reconciled to ~1.2 mW deep-sleep / ~1.0 mW EN-asserted
-   floor** across decisions/battery-side/power_budget (a G5 mechanical sweep
-   caught a stray 1.3 mW the swap had missed). Honest sum: U1 0.34 + ESP 0.2 +
-   sense 0.44 + U4 0.25 + mux 0.004 ≈ 1.2 mW.
+   trip ~20.0 V / release ~21.7–21.8 V** (ISENSE ±25 nA → ≥2.5 µA rule met
+   at 4.05 µA; ~4.6 µA at 24 V, *less* than the old ~12 µA), **hard-cut
+   ≈ ~1.0 mW** (native-domain sum). *(Polarity + values corrected per
+   reviewer iter-5 F01; release refined + State-4 arithmetic corrected per
+   iter-6 F03/F04 — see §14 + §15.)*
+2. **Hard-cut figure ≈ ~1.0 mW** across decisions/battery-side/power_budget
+   using **native-domain accounting** (V24-side terms × 24 V; 3.3 V-side
+   terms × 3.3 V then referred through U1 at η ≈ 50 % conservative). Honest
+   sum: U1 Iq 0.34 + V24 sense 0.44 + UVLO divider 0.11 + (ESP 33 µW + U4
+   8 µW + TPS2116 4 µW) load × 2 (η) ≈ 0.09 mW referred → **~0.98 mW**;
+   floor ~0.9 mW (ESP off). *(Supersedes the ~1.2 mW figure that mixed 3.3 V
+   currents with 24 V — reviewer iter-6 F03.)*
 3. **Added [`SOP.md`](SOP.md)** — the distilled standing standard (gates
    G1–G7). Not a design change; it codifies the review bar the reviewer applies
    (including the new G4 assembly/solderability gate).
@@ -1088,3 +1095,52 @@ genuine engineering error, not a typo.
 
 **State:** → `reviewer_turn` for re-verify of F01/F02. No blockers, no open
 design questions; CP2 remains held pending user clearance.
+
+## 15. Claude's responses (to reviewer iteration 6, 2026-07-02)
+
+Both findings are real and are fixed. F03 is an honest embarrassment — I
+carried the mixed-domain sum forward from §14 even though `power_budget.md`
+literally labeled the column *"referred to 24 V pack"*. F04 is a real math
+gap in the polarity fix I wrote for F01.
+
+- **AGREE — F03 (IMPORTANT), State-4 dimensional error.** The reviewer is
+  right: `ESP ~10 µA @ 3.3 V → ~0.24 mW` treats a 3.3 V-rail current as
+  though it flows from 24 V. Same for U4 and TPS2116. Re-derived in
+  native voltage domains, keeping U1's light-load efficiency explicit:
+  LM5166 input Iq (14 µA × 24 V) **0.336 mW** + V24 sense divider
+  (24² / 1.3 MΩ) **0.443 mW** + UVLO divider (4.56 µA × 24 V) **0.109 mW**
+  + 3.3 V loads (ESP 33 µW + U4 8 µW + TPS2116 4 µW = 45 µW at load,
+  referred through U1 at η ≈ 50 % conservative) **~0.090 mW** + RTC
+  (own coin cell) 0 = **~0.978 mW**. Rounded to **~1.0 mW** headline.
+  At η ≈ 65 % the total is ~0.96 mW; at η ≈ 80 % ~0.94 mW — so
+  ~0.94–1.0 mW is the honest range. The EN-asserted floor (ESP off)
+  loses only the ~66 µW ESP-referred term, landing ~0.9 mW — tens of
+  microwatts below hard-cut, not the ~0.2 mW gap I previously implied.
+  **Propagated:** `docs/hardware/power_budget.md` State 4 table rebuilt
+  in native+referred columns with explicit η, floor updated to ~0.9 mW +
+  release ~21.7–21.8 V; `decisions.md` D28 Power paragraph rewritten
+  native-domain, cross-links `power_budget.md`; packet banner (line 20)
+  updated to ~1.0 mW; packet §13 item 2 rewritten with the native-domain
+  math. No change to the design itself — this is a documentation-arithmetic
+  correction that leaves margins comfortably in the "~1 mW" bucket used
+  by DR-8, DR-16, and D28's power-first framing.
+- **AGREE — F04 (NIT), rising release value.** Also right. My F01 fix
+  quoted the *plain divider threshold plus built-in VHYS* as the release
+  (~21.5 V) but ignored that R_hys is still sourcing current from SENSE
+  to RESET_low at deassertion. Re-deriving V24 with the node equation at
+  Vs = VIT + VHYS = 0.4111 V, V_RESET = VOL ∈ [0, 0.2 V]: **21.72 V
+  (VOL = 0.2 V) to 21.81 V (VOL = 0 V)** — so ~21.7–21.8 V is the honest
+  provisional. Falling trip is unchanged (~20.0 V at V_RESET_H ≈ 3.2 V).
+  **Propagated:** D28 R_hys bullet split into explicit falling/rising
+  cases with the VOL-range annotation; banner + §13 updated; packet §14
+  historical response left intact (it's the iter-5 response record) and
+  superseded here in §15. Final E96 values + tolerance analysis + bench
+  hysteresis measurement remain the CP2 punch-list items.
+
+Neither correction changes a design decision — the UVLO band is still
+comfortably above the LM5166 dropout and comfortably below the trickle-
+charge float — but the numbers on paper now match the equations.
+
+**State:** → `reviewer_turn` for re-verify of F03/F04. Zero blockers, zero
+open design questions; DR-19 remains verified-closed; CP2 held pending
+user clearance.
