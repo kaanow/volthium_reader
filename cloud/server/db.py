@@ -169,6 +169,39 @@ class AsyncpgReadingsDAO:
             )
         return len(rows)
 
+    async def recent_events(
+        self,
+        source_id: str,
+        event: str,
+        since: datetime,
+        limit: int = 20,
+    ) -> list[dict]:
+        """Fetch events of a specific kind for a source, since `since`,
+        newest first. Used by EventAlertMonitor to react to reader-side
+        incidents. Parses JSONB data into a dict for the caller."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT source_id, ts, event, data
+                   FROM ble_events
+                   WHERE source_id = $1 AND event = $2 AND ts >= $3
+                   ORDER BY ts DESC
+                   LIMIT $4""",
+                source_id, event, since, limit,
+            )
+        out = []
+        for r in rows:
+            d = dict(r)
+            ts = d.get("ts")
+            if ts is not None and hasattr(ts, "isoformat"):
+                d["ts"] = ts.isoformat().replace("+00:00", "Z")
+            if isinstance(d.get("data"), str):
+                try:
+                    d["data"] = json.loads(d["data"])
+                except json.JSONDecodeError:
+                    d["data"] = {}
+            out.append(d)
+        return out
+
 
 async def create_pool(database_url: str) -> asyncpg.Pool:
     """Open the asyncpg pool with a small bounded size — Railway free tier

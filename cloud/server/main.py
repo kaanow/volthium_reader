@@ -32,7 +32,7 @@ from fastapi.staticfiles import StaticFiles
 from cloud.server.config import Settings, load_settings
 from cloud.server.db import AsyncpgReadingsDAO, ReadingsDAO, create_pool
 from cloud.server.derive import derive
-from cloud.server.staleness import StalenessMonitor
+from cloud.server.staleness import EventAlertMonitor, StalenessMonitor
 from cloud.shared.wire import (
     BleEventBatch,
     BleEventIngestResponse,
@@ -87,9 +87,17 @@ async def lifespan(app: FastAPI):
     )
     await monitor.start()
     _state["monitor"] = monitor
+    event_monitor = EventAlertMonitor(
+        dao,
+        webhook_url=settings.staleness_webhook_url,
+        check_interval_s=settings.staleness_check_interval_s,
+    )
+    await event_monitor.start()
+    _state["event_monitor"] = event_monitor
     try:
         yield
     finally:
+        await event_monitor.stop()
         await monitor.stop()
         await pool.close()
 

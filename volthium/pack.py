@@ -414,6 +414,11 @@ async def _default_adapter() -> str:
 # calls omit the `adapter` kwarg and bleak uses its per-platform default.
 _ADAPTER_ENV = "VOLTHIUM_ADAPTER"
 _resolved_adapter: Optional[str] = None
+# Sentinel: pin resolution has been ATTEMPTED and failed. Distinct from
+# _resolved_adapter=None (which means "not resolved yet"). We cache the
+# failure so we don't spam adapter_pin_failed on every scan cycle — one
+# event per process, then quietly fall through to bleak's default.
+_adapter_pin_attempted_and_failed: bool = False
 _adapter_resolve_lock: Optional[asyncio.Lock] = None
 
 
@@ -450,9 +455,11 @@ async def _resolve_configured_adapter() -> Optional[str]:
     unresolvable). Cached after first success — BD addresses don't change
     during a process's lifetime, and a physical unplug of the dongle would
     trigger the wedge-restart backstop which re-enters this from scratch."""
-    global _resolved_adapter, _adapter_resolve_lock
+    global _resolved_adapter, _adapter_resolve_lock, _adapter_pin_attempted_and_failed
     if _resolved_adapter is not None:
         return _resolved_adapter
+    if _adapter_pin_attempted_and_failed:
+        return None
     raw = os.environ.get(_ADAPTER_ENV, "").strip()
     if not raw:
         return None
@@ -461,14 +468,12 @@ async def _resolve_configured_adapter() -> Optional[str]:
     async with _adapter_resolve_lock:
         if _resolved_adapter is not None:
             return _resolved_adapter
+        if _adapter_pin_attempted_and_failed:
+            return None
         if _looks_like_mac(raw):
             hci = await _hci_owning_mac(raw)
             if hci is None:
-                _event(
-                    "adapter_pin_failed",
-                    configured=raw,
-                    reason="no hci with matching BD address",
-                )
+                await _mark_pin_failed(raw, "no hci with matching BD address")
                 return None
             _resolved_adapter = hci
             _event("adapter_pinned", configured=raw, resolved=hci, by="mac")
@@ -477,12 +482,65 @@ async def _resolve_configured_adapter() -> Optional[str]:
             _resolved_adapter = raw
             _event("adapter_pinned", configured=raw, resolved=raw, by="name")
             return raw
-        _event(
-            "adapter_pin_failed",
-            configured=raw,
-            reason="not a MAC or hci name",
-        )
+        await _mark_pin_failed(raw, "not a MAC or hci name")
         return None
+
+
+async def _mark_pin_failed(configured: str, reason: str) -> None:
+    """Log one `adapter_pin_failed` event and, for context, one
+    `adapter_fallback` event naming the adapter we're likely to end up on.
+    Sets the "already failed" sentinel so subsequent scans are silent about
+    it — the alerting server only needs to know once per process."""
+    global _adapter_pin_attempted_and_failed
+    _adapter_pin_attempted_and_failed = True
+    _event(
+        "adapter_pin_failed",
+        configured=configured,
+        reason=reason,
+    )
+    # Probe what bleak/BlueZ will most likely fall through to — the first
+    # UP-and-real adapter in hciconfig output. This makes the operator's
+    # question "which adapter is actually reading?" answerable without SSH.
+    try:
+        out = await _run(["hciconfig"], timeout=5.0)
+    except Exception:
+        out = ""
+    fallback_hci: Optional[str] = None
+    fallback_bd: Optional[str] = None
+    current: Optional[str] = None
+    current_bd: Optional[str] = None
+    up = False
+    for line in out.splitlines():
+        s = line.strip()
+        if s.startswith("hci") and ":" in s:
+            # Record the previous adapter if it was viable
+            if current and up and current_bd and current_bd != "00:00:00:00:00:00":
+                fallback_hci = current
+                fallback_bd = current_bd
+                break
+            current = s.split(":", 1)[0]
+            current_bd = None
+            up = False
+            continue
+        if current:
+            if s.upper().startswith("BD ADDRESS:"):
+                current_bd = s.split(":", 1)[1].strip().split()[0]
+            if "UP RUNNING" in s.upper():
+                up = True
+    if current and up and current_bd and current_bd != "00:00:00:00:00:00" and not fallback_hci:
+        fallback_hci = current
+        fallback_bd = current_bd
+    _event(
+        "adapter_fallback",
+        configured=configured,
+        pin_failed_reason=reason,
+        fallback_hci=fallback_hci,
+        fallback_bd_address=fallback_bd,
+        note=(
+            "reader will use bleak's default adapter until the pinned one "
+            "reappears (usually the first UP+valid hci above)"
+        ),
+    )
 
 
 async def _adapter_kwargs() -> dict:
@@ -529,14 +587,23 @@ async def _power_on_adapter(hci: str) -> str:
     return f"hciconfig {hci} up; bluetoothctl power on"
 
 
-async def _dmesg_bt_tail(since: str = "2min", limit: int = 30) -> list[str]:
-    """Kernel-log tail filtered to Bluetooth/hci/usb-reset lines. `journalctl -k`
-    is readable without sudo on Ubuntu; falls back to `sudo -n dmesg` if not.
-    Best-effort — returns [] on any failure so callers get an empty snapshot,
-    not an exception."""
-    interesting = ("Bluetooth:", "hci0", "hci1", "usb ", "Resetting usb",
-                   "Frame reassembly", "reset full-speed", "reset high-speed",
-                   "btusb", "brcm")
+async def _dmesg_bt_tail(since: str = "5min", limit: int = 40) -> list[str]:
+    """Kernel-log tail filtered to lines relevant to a BLE / USB wedge.
+    Widened beyond just BT/hci to also catch USB bus events, hub errors,
+    power/current spikes, and thermal warnings — any of these can be the
+    proximate cause of a chip firmware hang.
+
+    `journalctl -k` is readable without sudo on Ubuntu; falls back to
+    `sudo -n dmesg` if not. Best-effort — returns [] on any failure so
+    callers get an empty snapshot, not an exception."""
+    interesting = (
+        "Bluetooth:", "hci0", "hci1", "hci2",
+        "usb ", "Resetting usb", "Frame reassembly",
+        "reset full-speed", "reset high-speed",
+        "over-current", "over-voltage", "under-voltage", "power budget",
+        "thermal", "throttl", "hub_port_status",
+        "btusb", "brcm",
+    )
     for cmd in (
         ["journalctl", "-k", "-q", "--no-pager", f"--since={since} ago"],
         ["sudo", "-n", "dmesg", "-T", "--nopager"],
@@ -606,6 +673,54 @@ async def _lsusb_ub500() -> Optional[bool]:
     return bool(out.strip())
 
 
+async def _power_and_thermal() -> dict:
+    """Sample the Pi's throttled register and SoC temperature. The throttled
+    register is a bit-mask that latches under-voltage / freq-cap / temp-cap
+    events — an exact source-of-truth "did the PSU sag?" answer that we can't
+    get from dmesg alone. Non-zero on a wedge is diagnostic gold: it says the
+    USB dongle was probably brownout-hung, not firmware-hung."""
+    out = {"throttled_hex": None, "throttled_flags": [], "soc_temp_c": None}
+    try:
+        raw = (await _run(["vcgencmd", "get_throttled"], timeout=2.0)).strip()
+        if "=" in raw:
+            hexv = raw.split("=", 1)[1].strip()
+            out["throttled_hex"] = hexv
+            try:
+                bits = int(hexv, 16)
+            except ValueError:
+                bits = 0
+            # Per Pi documentation:
+            #   bit  0: under-voltage detected NOW
+            #   bit  1: arm freq capped NOW
+            #   bit  2: currently throttled
+            #   bit  3: soft temp limit active NOW
+            #   bit 16: under-voltage has occurred since boot
+            #   bit 17: arm freq cap has occurred since boot
+            #   bit 18: throttling has occurred since boot
+            #   bit 19: soft temp limit has occurred since boot
+            flag_names = {
+                0: "under_voltage_now",
+                1: "freq_capped_now",
+                2: "throttled_now",
+                3: "soft_temp_limit_now",
+                16: "under_voltage_since_boot",
+                17: "freq_capped_since_boot",
+                18: "throttled_since_boot",
+                19: "soft_temp_limit_since_boot",
+            }
+            out["throttled_flags"] = [
+                n for b, n in flag_names.items() if bits & (1 << b)
+            ]
+    except Exception:
+        pass
+    try:
+        with open("/sys/class/thermal/thermal_zone0/temp") as f:
+            out["soc_temp_c"] = int(f.read().strip()) / 1000.0
+    except Exception:
+        pass
+    return out
+
+
 def _classify_wedge(
     reason: str,
     dmesg: list[str],
@@ -647,35 +762,44 @@ async def snapshot_stack(reason: str, level: int) -> None:
     All probes run in parallel with tight timeouts so the snapshot itself
     can't stall the loop for more than ~3 s in the worst case."""
     hci = await _default_adapter()
-    dmesg, hci_state, bctl, ub500, hcicon = await asyncio.gather(
+    dmesg, hci_state, bctl, ub500, hcicon, ptherm = await asyncio.gather(
         _dmesg_bt_tail(),
         _hciconfig_snapshot(hci),
         _bluetoothctl_snapshot(),
         _lsusb_ub500(),
         _run(["hcitool", "con"], timeout=2.0),
+        _power_and_thermal(),
         return_exceptions=True,
     )
-    # Coerce exceptions to their string form so the JSON event stays clean.
-    def _safe(v, default):
-        if isinstance(v, Exception):
-            return f"{type(v).__name__}: {v}"
-        return v if v is not None or default is not None else default
     dmesg = dmesg if isinstance(dmesg, list) else []
     hci_state = hci_state if isinstance(hci_state, dict) else {"error": str(hci_state)}
     bctl = bctl if isinstance(bctl, str) else str(bctl)
     hcicon = hcicon if isinstance(hcicon, str) else str(hcicon)
+    ptherm = ptherm if isinstance(ptherm, dict) else {}
     classification = _classify_wedge(reason, dmesg, hci_state, bctl, ub500)
+    # If Pi throttling is currently active, upgrade the classification —
+    # any recent under-voltage strongly implies the chip hang was electrical,
+    # not firmware. Preserve the original label as a hint field.
+    thermal_hint = None
+    if ptherm.get("throttled_flags"):
+        if "under_voltage_now" in ptherm["throttled_flags"]:
+            thermal_hint = classification
+            classification = "power_under_voltage_active"
+        elif any(f.endswith("_since_boot") for f in ptherm["throttled_flags"]):
+            thermal_hint = "throttling_history_present"
     _event(
         "wedge_snapshot",
         recovery_level=level,
         reason=reason[:400],
         classification=classification,
+        classification_notes=thermal_hint,
         hci=hci,
         dmesg_bt_tail=dmesg,
         hciconfig=hci_state,
         bluetoothctl_show=bctl,
         ub500_present=ub500,
         hcitool_con=hcicon.strip()[:500],
+        power_thermal=ptherm,
     )
 
 
