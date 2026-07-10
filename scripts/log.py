@@ -21,7 +21,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from volthium.estimator import Estimator
-from volthium.pack import DiscoveryWedgeError, read_pack, recover_adapter
+from volthium.pack import (
+    DiscoveryWedgeError,
+    read_pack,
+    recover_adapter,
+    snapshot_stack,
+)
 
 
 # Per-pack cell count for the SC12200G4DPH (12V LiFePO4 = 4 cells in series).
@@ -264,17 +269,25 @@ async def main() -> int:
             if consec_scan_errors == ADAPTER_SOFT_RESET_AFTER:
                 log.error("discovery wedged %d× — resetting the HCI controller",
                           consec_scan_errors)
+                # Snapshot BEFORE the recovery runs so the event captures the
+                # wedge state itself. We label the level of recovery about to
+                # be taken so downstream analysis can correlate.
+                await snapshot_stack(reason=str(exc), level=1)
                 action = await recover_adapter(1)
                 log.info("adapter recovery (soft): %s", action)
             elif consec_scan_errors == ADAPTER_HARD_RESET_AFTER:
                 log.error("discovery still wedged %d× — restarting bluetooth.service",
                           consec_scan_errors)
+                await snapshot_stack(reason=str(exc), level=2)
                 action = await recover_adapter(2)
                 log.info("adapter recovery (hard): %s", action)
             elif consec_scan_errors >= RESTART_AFTER_SCAN_WEDGE:
                 log.error("discovery wedged %d× despite adapter resets — exiting "
                           "for a clean systemd restart (last resort)",
                           consec_scan_errors)
+                # Last-resort snapshot: the wedge survived level 1 AND level 2
+                # — the surviving evidence is what makes this incident learnable.
+                await snapshot_stack(reason=str(exc), level=3)
                 return 1
             if consec_scan_errors > 3:
                 await asyncio.sleep(min(30.0, 3.0 * consec_scan_errors))

@@ -529,6 +529,156 @@ async def _power_on_adapter(hci: str) -> str:
     return f"hciconfig {hci} up; bluetoothctl power on"
 
 
+async def _dmesg_bt_tail(since: str = "2min", limit: int = 30) -> list[str]:
+    """Kernel-log tail filtered to Bluetooth/hci/usb-reset lines. `journalctl -k`
+    is readable without sudo on Ubuntu; falls back to `sudo -n dmesg` if not.
+    Best-effort — returns [] on any failure so callers get an empty snapshot,
+    not an exception."""
+    interesting = ("Bluetooth:", "hci0", "hci1", "usb ", "Resetting usb",
+                   "Frame reassembly", "reset full-speed", "reset high-speed",
+                   "btusb", "brcm")
+    for cmd in (
+        ["journalctl", "-k", "-q", "--no-pager", f"--since={since} ago"],
+        ["sudo", "-n", "dmesg", "-T", "--nopager"],
+    ):
+        try:
+            out = await _run(cmd, timeout=3.0)
+        except Exception:
+            continue
+        if not out or "not found" in out.lower() and cmd[0] != "sudo":
+            continue
+        lines = [ln for ln in out.splitlines()
+                 if any(tok in ln for tok in interesting)]
+        if lines:
+            return lines[-limit:]
+        # Empty match but command worked — return [] rather than trying next
+        if out.strip():
+            return []
+    return []
+
+
+async def _hciconfig_snapshot(hci: str) -> dict:
+    """Adapter state right now: up/down, powered address, RX/TX counters.
+    Blank BD address (00:00:00:00:00:00) or DOWN state is a strong signal
+    the chip is not communicating."""
+    try:
+        out = await _run(["hciconfig", hci], timeout=2.5)
+    except Exception as exc:
+        return {"error": f"{type(exc).__name__}: {exc}"}
+    if not out.strip():
+        return {"error": "empty hciconfig output"}
+    up = "UP RUNNING" in out.upper()
+    down = "DOWN" in out.upper() and not up
+    bd = ""
+    for ln in out.splitlines():
+        s = ln.strip()
+        if s.upper().startswith("BD ADDRESS:"):
+            bd = s.split(":", 1)[1].strip().split()[0]
+            break
+    return {
+        "up": up,
+        "down": down,
+        "bd_address": bd,
+        "bd_null": bd == "00:00:00:00:00:00",
+        "raw": out.strip()[:500],
+    }
+
+
+async def _bluetoothctl_snapshot() -> str:
+    """`bluetoothctl show` — Powered/Discovering/UUIDs of the default
+    controller. `Discovering: yes` while the reader thinks it's not scanning
+    is the classic BlueZ-state-stuck (FM-3) fingerprint."""
+    try:
+        out = await _run(["bluetoothctl", "show"], timeout=3.0)
+    except Exception as exc:
+        return f"error: {type(exc).__name__}: {exc}"
+    return out.strip()[:800]
+
+
+async def _lsusb_ub500() -> Optional[bool]:
+    """True if the UB500 (VID 2357, PID 0604) is currently on the USB bus,
+    False if not, None if lsusb failed. Chip-firmware-hang and dongle-fell-off
+    look identical up-stack — this splits them apart."""
+    try:
+        out = await _run(["lsusb", "-d", "2357:0604"], timeout=2.0)
+    except Exception:
+        return None
+    return bool(out.strip())
+
+
+def _classify_wedge(
+    reason: str,
+    dmesg: list[str],
+    hci_state: dict,
+    bctl: str,
+    ub500_present: Optional[bool],
+) -> str:
+    """Heuristic layer label for the wedge. The raw fields are the source of
+    truth; this string is a triage shortcut for the runbook and dashboards.
+
+    Order matters — most specific evidence first, so a chip hang that also
+    causes a "not found" up-stack still classifies as chip-layer."""
+    dm = "\n".join(dmesg)
+    if "Resetting usb device" in dm or "reset full-speed" in dm:
+        return "kernel_usb_reset_chip_hung"
+    if "tx timeout" in dm or "Frame reassembly failed" in dm:
+        return "chip_firmware_hci_unresponsive"
+    if ub500_present is False:
+        return "ub500_dongle_missing_from_usb"
+    if hci_state.get("bd_null") or (hci_state.get("down") and not hci_state.get("up")):
+        return "adapter_down_or_bd_null"
+    if "Discovering: yes" in bctl:
+        return "bluez_discovery_state_stuck"
+    if "InProgress" in reason or "org.bluez.Error.InProgress" in reason:
+        return "bluez_discovery_state_stuck"
+    if "adapter" in reason.lower() and "not found" in reason.lower():
+        return "bluez_adapter_object_missing"
+    if "TimeoutError" in reason and hci_state.get("up") and ub500_present:
+        return "bms_peer_not_responding"
+    return "unclassified"
+
+
+async def snapshot_stack(reason: str, level: int) -> None:
+    """Gather every layer's state at the moment of a wedge and emit one
+    `wedge_snapshot` event containing all of it. Called from each rung of the
+    recovery ladder BEFORE that rung fires, so we capture the wedge state
+    itself, not the post-recovery state.
+
+    All probes run in parallel with tight timeouts so the snapshot itself
+    can't stall the loop for more than ~3 s in the worst case."""
+    hci = await _default_adapter()
+    dmesg, hci_state, bctl, ub500, hcicon = await asyncio.gather(
+        _dmesg_bt_tail(),
+        _hciconfig_snapshot(hci),
+        _bluetoothctl_snapshot(),
+        _lsusb_ub500(),
+        _run(["hcitool", "con"], timeout=2.0),
+        return_exceptions=True,
+    )
+    # Coerce exceptions to their string form so the JSON event stays clean.
+    def _safe(v, default):
+        if isinstance(v, Exception):
+            return f"{type(v).__name__}: {v}"
+        return v if v is not None or default is not None else default
+    dmesg = dmesg if isinstance(dmesg, list) else []
+    hci_state = hci_state if isinstance(hci_state, dict) else {"error": str(hci_state)}
+    bctl = bctl if isinstance(bctl, str) else str(bctl)
+    hcicon = hcicon if isinstance(hcicon, str) else str(hcicon)
+    classification = _classify_wedge(reason, dmesg, hci_state, bctl, ub500)
+    _event(
+        "wedge_snapshot",
+        recovery_level=level,
+        reason=reason[:400],
+        classification=classification,
+        hci=hci,
+        dmesg_bt_tail=dmesg,
+        hciconfig=hci_state,
+        bluetoothctl_show=bctl,
+        ub500_present=ub500,
+        hcitool_con=hcicon.strip()[:500],
+    )
+
+
 async def recover_adapter(level: int) -> str:
     """Escalating adapter recovery for a stuck discovery (FM-3) that a process
     restart can't fix. level 1 = HCI controller reset (clears the wedged
