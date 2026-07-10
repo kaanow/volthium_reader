@@ -915,11 +915,15 @@ warning-severity per the D13 convention.
 - **D-OPEN-2: RS-485 transceiver part.** ~~Original BOM:
   `SN65HVD3082EDR`. Alternative `THVD1452`, `MAX3485ESA`. Need to pick
   based on stock + low quiescent (THVD1452 is the lowest-Iq).~~
-  **CLOSED 2026-07-02 by D34.** SN65HVD3082EDR was a 5 V part being run
-  outside its VCC = 4.5–5.5 V window (reviewer iter-8 F05). Resolved to
-  **`ISL3175EIBZ`** (Renesas, genuine 3.3 V VCC 3.0–3.6 V, active Iq
-  800 µA max / 250 µA typ, shutdown Iq **10 nA**, slew-limited, drop-in
-  SN75176 SOIC-8 pinout, Renesas Active with DK+Mouser 3646 stock).
+  **CLOSED 2026-07-02 by D34 (revised iter-10 F08).** SN65HVD3082EDR was
+  a 5 V part being run outside its VCC = 4.5–5.5 V window (reviewer
+  iter-8 F05). Iter-8 first cut picked ISL3175EIBZ, but iter-10 F08
+  correctly flagged that I quoted its 10 nA *typical* shutdown Iq as the
+  design bound (max is 12 µA). Max-to-max reselect → **`THVD1400DR`**
+  (TI, VCC 3.0–5.5 V, RX-only Iq 900 µA max, **1 µA max shutdown Iq**,
+  datasheet-guaranteed internal DE pull-DOWN + /RE pull-UP → default-safe
+  without external resistors, full fail-safe RX, drop-in SN75176 SOIC-8
+  pinout, TI Active with DK+Mouser 35016 stock).
   See **D34** for the full candidate table and rationale.
 - **D-OPEN-3: ULP voltage monitor IC vs ESP32-S3 internal ADC.** The
   4-tier shutdown needs sub-100 µA monitoring of pack voltage in
@@ -1618,14 +1622,23 @@ right part and make assembly easier via the stencil, not to downgrade the
 part. **Resolves DR-24.** Feeds CP3 placement (footprints/thermal-pad/vias for
 U1/U6) and the fab order (add stencil).
 
-## D34 — RS-485 transceiver = ISL3175EIBZ (3.3 V half-duplex); DE / /RE split — DR-25 (reviewer iter-8 F05/F06)
+## D34 — RS-485 transceiver = THVD1400DR (3.3 V half-duplex); DE / /RE split; per-board sleep policy — DR-25 (reviewer iter-8 F05/F06 + iter-10 F08/F09)
 
-**Decision (2026-07-02).** Swap `SN65HVD3082EDR` → **`ISL3175EIBZ`** on
-both boards, and route the transceiver enables as **two independent ESP
-GPIOs** (DE + /RE) with external boot-time pulls that guarantee shutdown
-whenever the MCU is not driving them. Resolves **F05 (BLOCKER, wrong-VCC
-part)** and **F06 (IMPORTANT, tied enables can't shutdown)** from reviewer
-iter-8, and closes the long-open **D-OPEN-2** RS-485 transceiver selection.
+**Decision (2026-07-02, revised iter-10).** Swap `SN65HVD3082EDR` →
+**`THVD1400DR`** on both boards. Route the transceiver enables as **two
+independent ESP GPIOs** (DE + /RE) and rely on THVD1400's
+**datasheet-guaranteed internal pulls** (DE 2 MΩ pull-DOWN + /RE 2 MΩ
+pull-UP) for the default-safe state; **battery firmware defaults to
+shutdown** (both GPIOs Hi-Z), **display firmware defaults to
+receive-active** (GPIO15 latched LOW via RTC-GPIO so the SN75176-family
+UART-RX wake path from GPIO18 stays valid). Resolves **F05 (BLOCKER,
+wrong-VCC part)**, **F06 (IMPORTANT, tied enables can't shutdown)**, and
+**F08 (IMPORTANT, max-vs-typ shutdown accounting)**, and closes the
+long-open **D-OPEN-2**. **F09 (display deep-sleep RX wake regression)** is
+addressed by the split sleep policy below. **Note:** the iter-8 first cut
+picked `ISL3175EIBZ`; reviewer iter-10 F08 correctly flagged that its
+worst-case shutdown Iq is 12 µA max, not the 10 nA typ I quoted. Redoing
+the candidate table max-to-max shifted the winner to THVD1400DR.
 
 **Why the swap.** `SN65HVD3082E` is unambiguously a **5 V** device (its TI
 family datasheet §6.3 Recommended Operating Conditions specifies
@@ -1638,94 +1651,178 @@ the way into `docs/hardware/bom.md`, which literally labels the part
 "half-duplex, 3.3 V". [[cots-interface-reality]] and [[part-availability-early]]
 both apply — I should have opened the datasheet at part-selection time.
 
-**Why ISL3175EIBZ over the alternatives.** Four candidates cleared the
-"genuine 3.3 V, low-Iq, half-duplex, in-stock, active" bar (parts-sourcing
-API, 2026-07-02):
+**Why THVD1400DR over the alternatives — max-to-max analysis.** Five
+candidates cleared the "genuine 3.3 V, low-Iq, half-duplex, in-stock,
+active" bar (parts-sourcing API, 2026-07-02). Comparing **datasheet
+maximum** shutdown Iq (the number that actually bounds worst-case
+State-4 draw, not typical) after reviewer iter-10 F08:
 
-| Part | VCC (Rec.) | Iq active (max) | Shutdown Iq | Stock (DK/Mouser) | $1 qty | Notes |
-|------|------------|-----------------|-------------|-------------------|--------|-------|
-| **ISL3175EIBZ** (Renesas) | 3.0 – 3.6 V | **800 µA (250 µA typ)** | **10 nA** | 889 / 2757 | ~$3.10 | Slew-rate limited (better EMI over 5 m Cat5e), 8-SOIC standard SN75176 pinout — drop-in footprint on `SN65HVD3082E` |
-| SP3485EN-L (Exar/MaxLinear) | 3.0 – 3.6 V | ~500 µA typ | ~1 µA | 0 / 3534 | ~$1.38 | 2× the Iq, 100× the shutdown current; cheaper |
-| THVD1400DR (TI) | 3.3 – 5.5 V | ~1 mA typ | µA-range | 32635 / 2381 | ~$1.47 | 3-5V compat but active current higher (not power-first) |
-| MAX3485ESA (Maxim/ADI) | 3.0 – 3.6 V | ~300 µA typ | ~1 µA | 3508 / 729 | ~$11.22 | ~4× the cost, no clear win |
+| Part | VCC (Rec.) | Iq active max (RX-only, no load) | Shutdown Iq **max** | Data-rate class | Full Fail-Safe RX | Stock (DK/Mouser) | $1 qty | Datasheet-guaranteed internal pulls? |
+|------|------------|----------------------------------|---------------------|-----------------|-------------------|-------------------|--------|--------------------------------------|
+| **THVD1400DR** (TI) | 3.0 – 5.5 V | 900 µA | **1 µA** | 500 kbps | Yes (open/short/idle bus) | 32635 / 2381 | ~$1.38 | **Yes** — DE 2 MΩ pull-DOWN, /RE 2 MΩ pull-UP → defaults to shutdown when both float |
+| MAX3485ESA (Maxim/ADI) | 3.0 – 3.6 V | 500 µA | 1 µA | 10 Mbps | Not spec'd fail-safe | 3508 / 729 | ~$11.22 | No |
+| SN65HVD75DR (TI) | 3.0 – 3.6 V | 950 µA | 2 µA | 20 Mbps | Not spec'd fail-safe | 0 / 0 | ~$3.58 | No (stock = 0 disqualifies anyway) |
+| ISL3175EIBZ (Renesas) | 3.0 – 3.6 V | 700 µA | **12 µA** | 200 kbps | Yes | 889 / 2757 | ~$3.10 | No |
+| SP3485EN-L (Exar/MaxLinear) | 3.0 – 3.6 V | 2000 µA | not spec'd (implied ~1 µA "50 nA" text) | 10 Mbps | No | 0 / 3534 | ~$1.38 | No |
 
-**ISL3175EIBZ** wins on the two axes this project ranks first:
-- **Power (D5 [[power-first]]).** Active Iq max **800 µA** vs SP3485's
-  ~500 µA typ is comparable while active, but shutdown Iq **10 nA** vs
-  ~1 µA is a 100× improvement in the state that dominates hard-cut. On
-  the always-on 3.3 V rail, that's the difference between "negligible"
-  and "add another line to the budget."
-- **EMI.** Slew-rate-limited driver (200 kbps class) matches the 5 m
-  Cat5e link topology; a fast driver (THVD1400 at 500 kbps, MAX3485
-  10 Mbps) would just add radiated noise for no throughput win.
+**THVD1400DR** wins on the axes this project ranks:
+- **Power-first (D5 [[power-first]]) on max shutdown Iq.** THVD1400 = 1 µA
+  max shutdown; ISL3175 = 12 µA max (12×), SN65HVD75 = 2 µA max, SP3485
+  not fully spec'd. At 3.3 V load and η ≈ 50 % through U1, the max
+  shutdown contribution to State-4 is **~7 µW referred** vs ISL3175's
+  ~80 µW — a 73 µW gap, ~7 % of the 1 mW hard-cut headline. The
+  transceiver is in shutdown ~99 % of the time on the always-on battery
+  side, so max-shutdown *is* the load-bearing spec.
+- **Default-safe without extra parts.** THVD1400's datasheet
+  §Pin Functions (page 4) explicitly specifies the enable pins with
+  internal pulls that put the device in shutdown when both float —
+  independent of external components, guaranteed across the temperature
+  range. This means the F06 topology fix needs only two GPIO nets (no
+  R_DE / R_RE), saves 4 board parts, and is more robust than external
+  pulls that a stuff-error could omit.
+- **Fail-safe RX (matches ISL3175E).** Open / short / idle bus all drive
+  RO high, so DR-13's 275 mV bias is now noise-margin insurance, not a
+  fail-safe requirement. Same story as with ISL3175.
+- **Package + pinout.** SOIC-8 standard SN75176 pinout
+  (RO/RE/DE/DI/GND/A/B/VCC on pins 1..8), drop-in for the CP1 U3/U2
+  footprint.
+- **Availability + lifecycle.** TI Active with **32635 stock at DigiKey**
+  + 2381 at Mouser — ~10× the ISL3175's headroom. Same-day cut-tape
+  everywhere.
+- **Cost.** $1.38 at qty 1 vs ISL3175's $3.10 — matters little for the
+  qty-1 build ([[build-quantity]]) but "cheaper *and* better" is worth
+  noting.
 
-Cost delta vs SP3485 (~$1.70) is real but this is a **qty-1 build**
-([[build-quantity]]), so single-unit sourcing dominates over volume
-pricing. Datasheet stored at `hardware/datasheets/ISL3175EIBZ.pdf`
-(sha `dee60a6b…`; Renesas family datasheet covers ISL3170E–ISL3178E).
+**Iq active trade-off (transparent).** THVD1400 draws 900 µA max in RX-only
+mode vs ISL3175's 700 µA max — a 200 µA gap when the receiver is actively
+listening. On the battery side, that's during infrequent RS-485 comm
+sessions (~1 % duty cycle in field operation); on the display side, that's
+whenever the display is on the always-listening rail. Even at 100 % duty
+the delta is 200 µA × 3.3 V = 660 µW at load, ~1.3 mW referred through
+U1 — inside the noise band of State 1's ~1.08 W. Not the load-bearing
+spec. Data-rate class (500 kbps vs 200 kbps) is also comfortably above
+our 250 kbps target and 5 m Cat5e handles both.
 
-**Why DE / /RE split.** ISL3175E (like SN65HVD3082E and every other
+Datasheet stored at `hardware/datasheets/THVD1400DR.pdf`
+(sha `5ba9785d9fb8dc878b90fd196ff5faed27b5fff0ddfccb8346a82ac3c6a5c47f`).
+
+**Why not just retain ISL3175E and budget its 12 µA max shutdown?** The
+reviewer explicitly offered that option in iter-10 F08. I chose to
+reselect because (a) THVD1400 is a 12× improvement on the **exact** spec
+this project's power-first ethic prioritizes ([[power-first]]), (b) the
+switch is a same-footprint, same-pinout swap so integration cost is a
+BOM cell + datasheet swap, no schematic rework at this CP, and (c) the
+internal-pull default-safe eliminates R_DE / R_RE entirely, which is a
+cleaner CP1 close on F06 than the belt-and-suspenders external pulls
+would have been. Every axis except peak active current improves.
+
+**Why DE / /RE split.** THVD1400DR (like SN65HVD3082E and every
 DE/RE-enable transceiver in this class) enters shutdown when
 **DE = 0 AND /RE = 1** simultaneously. Tying DE to /RE across a single
 GPIO gives only two states — receive (both low) or transmit (both high) —
 so shutdown is topologically unreachable. The prior CP1 design tied both
 enables to ESP GPIO2; F06 correctly identifies that this means the
 transceiver is *always active* in every state that isn't Q1-shed, so its
-active current (~800 µA at 3.3 V = **~2.6 mW at load, ~5.3 mW referred
-through U1 at η ≈ 50 %**) was silently absent from the State-4 hard-cut
-budget for the battery side. That's a real, load-bearing miss.
+worst-case active current (RX-only ~900 µA at 3.3 V = **~3.0 mW at load,
+~6.0 mW referred through U1 at η ≈ 50 %**) was silently absent from the
+State-4 hard-cut budget for the battery side. That's a real,
+load-bearing miss.
 
 **Topology.**
 - **DE → ESP GPIO2** (active-HIGH, transmit enable).
 - **/RE → ESP GPIO15** (active-LOW, receive enable). GPIO15 was previously
   unused (D4 removed the debug LED it once drove; it was surfaced on J3 as
   an expansion pad). Reclaimed for /RE on **both boards**.
-- **Boot / crash / deep-sleep pulls**:
-  - **R_DE = 100 kΩ pull-DOWN** on DE (holds DE = 0 when GPIO2 is Hi-Z).
-  - **R_RE = 100 kΩ pull-UP** on /RE (holds /RE = 1 when GPIO15 is Hi-Z).
-  - Together they *default to* **shutdown** whenever the MCU isn't
-    driving them — reset, deep-sleep, hung firmware, boot strapping. This
-    is the same failure-safe stance D19 used for `PWR_EN` (default OFF).
-- **Truth table for firmware:**
+- **Default-safe pulls are internal to THVD1400** (datasheet-guaranteed):
+  - **DE has an internal 2 MΩ pull-DOWN** → floating GPIO2 defaults DE = 0
+    (transmit off).
+  - **/RE has an internal 2 MΩ pull-UP** → floating GPIO15 defaults
+    /RE = 1 (receiver off).
+  - So an un-driven pair defaults to **shutdown** — no external pulls
+    needed. This is the F06 fix distilled into pure topology + datasheet
+    guarantees.
+- **Truth table for firmware (both boards):**
 
 | Mode      | DE (GPIO2) | /RE (GPIO15) | State                  |
 |-----------|------------|--------------|------------------------|
-| Shutdown  | 0          | 1            | driver off, RX off; Icc = 10 nA |
-| Receive   | 0          | 0            | driver off, RX on               |
-| Transmit  | 1          | 1            | driver on, RX off               |
-| (illegal) | 1          | 0            | both on — not used (would drive & echo) |
+| Shutdown  | 0          | 1            | driver off, RX off; Icc ≤ 1 µA (max, THVD1400 spec) |
+| Receive   | 0          | 0            | driver off, RX on; Icc ≤ 900 µA (max, RX-only, no load) |
+| Transmit  | 1          | 1            | driver on, RX off; Icc ≤ 1500 µA (max, DE+RE, no load) |
+| (illegal) | 1          | 0            | both on — not used (would drive + echo) |
+
+**Board-specific deep-sleep policy (F09).**
+
+- **Battery side (State 3/4):** ESP puts GPIO2 and GPIO15 to Hi-Z; the
+  THVD1400 internal pulls default to shutdown (Icc ≤ 1 µA max).
+  Transceiver contributes ~7 µW referred to pack in State 4 — negligible
+  vs the ~1 mW headline. The GPIO18 UART-RX wake path is NOT used on the
+  battery side (battery ESP wakes on its own timer + BTN_OVERRIDE, not on
+  RS-485 traffic).
+- **Display side (State B — waiting for the next frame from the battery
+  ESP):** ESP holds GPIO15 **LOW via RTC-GPIO latch** (GPIO_hold_en)
+  through deep-sleep, so /RE = 0 = receiver on, keeping RO active. GPIO2
+  can Hi-Z (internal pull-DOWN → DE = 0 = driver off). GPIO18 (UART1
+  RX) is configured as an RTC-capable wake source; a start-bit on the bus
+  clocks the transceiver's RO output, which wakes the ESP. The
+  transceiver draws its **RX-only Iq (~900 µA max)** continuously in
+  this state — a real cost that must appear in the display-side State B
+  budget, but the display is on the Q1-shed rail so this term is *not* in
+  the battery-side hard-cut budget.
+- **Both boards, reset / crash / brown-out:** both GPIOs float → THVD1400
+  internal pulls → shutdown. No external components required.
 
 **GPIO map delta (both boards).** GPIO2 = **RS-485 DE** (was: DE/RE tied);
 **GPIO15 = RS-485 /RE** (was: unused, brought to J3). J3 loses that
 expansion pad — acceptable since J3 keeps the other unused GPIOs and this
 board is single-purpose.
 
-**Hard-cut budget impact.** With the split, State-4 shutdown is
-achievable; the transceiver contributes **10 nA @ 3.3 V ≈ 33 nW at load,
-~66 nW referred** — well below the "µW" rounding floor. The budget
-headline stays at **~1.0 mW** ([[power-first]]).
+**Hard-cut budget impact (F08 max accounting).** With the split, State-4
+shutdown is achievable and the transceiver contributes **at most 1 µA @
+3.3 V ≈ 3.3 µW at load, ~7 µW referred** (max, worst-case over temp) —
+inside the µW rounding floor. The budget headline stays at **~1.0 mW**
+([[power-first]]). If we had kept ISL3175E and honored F08 max-to-max,
+the headline would be ~1.06 mW (still acceptable but with less margin).
 
 **BOM impact.**
-- U3 (battery) / U2 (display): `SN65HVD3082EDR` → **`ISL3175EIBZ`**
-  (both SOIC-8, drop-in footprint per family datasheet pinout: RO/RE/DE/DI/GND/A/B/VCC on pins 1..8).
-- Add R_DE (100 kΩ, 0805) + R_RE (100 kΩ, 0805) on **each** board. +$0.10, +4 parts total.
+- U3 (battery) / U2 (display): `SN65HVD3082EDR` → **`THVD1400DR`**
+  (both SOIC-8, drop-in footprint per datasheet pinout:
+  R/RE/DE/D/GND/A/B/VCC on pins 1..8).
+- **No** R_DE / R_RE required — THVD1400 internal pulls do the job.
+  Saves 4 board parts (2 per board) vs the initial ISL3175 topology.
 - Retire `docs/hardware/bom.md` "half-duplex, 3.3 V" label on `SN65HVD3082E`
   (was misleading, part is 5 V).
 
-**Firmware TODO (deferred to CP2/firmware layer).** Set GPIO2 output LOW,
-GPIO15 output HIGH before enabling either as an output. In deep-sleep,
-configure both GPIOs to Hi-Z so the external pulls take over — do not
-latch them via RTC-GPIO.
+**Firmware TODO (deferred to CP2/firmware layer).**
+- **Battery-side:** on boot, drive GPIO2 LOW and GPIO15 HIGH before
+  enabling either as an output. On entering deep-sleep, configure both
+  GPIOs to Hi-Z (no RTC-GPIO latch) so THVD1400's internal pulls take
+  over to shutdown.
+- **Display-side:** on boot, drive GPIO2 LOW and GPIO15 LOW (receiver
+  on). Before entering deep-sleep, **`gpio_hold_en(GPIO15)` to latch it
+  LOW** through the sleep, so /RE stays 0 and the transceiver stays in
+  RX. Configure GPIO18 as an RTC wake source (UART start-bit → RO edge →
+  wake). GPIO15 is RTC-capable on the ESP32-S3-WROOM (verified against
+  Espressif Table 5-3).
 
 **Supersedes** D-OPEN-2 (transceiver alternatives inventory). The reviewer's
 existing D-OPEN-2 list (SN65HVD3082E, THVD1452, MAX3485, ISL3170E,
-ISL3175E) is now closed: **ISL3175EIBZ** on power/EMI/pinout grounds.
+ISL3175E) is now closed: **THVD1400DR** on power-first + drop-in-pinout
++ default-safe + stock/price grounds. Iter-8's ISL3175E choice was on
+the right track but I mis-quoted its shutdown Iq as 10 nA (typical) when
+the design-relevant number is 12 µA (max); reviewer iter-10 F08 forced
+the correct max-to-max comparison.
 
 **Sources.**
-- ISL3175EIBZ datasheet: `hardware/datasheets/ISL3175EIBZ.pdf`,
-  sha256 `dee60a6b8227f6f03e9a425586c2714452b6b9e68ff4c9ac771d8111c6c5ecb0`
-  (Renesas family PDF for ISL3170E–ISL3178E).
-- Parts-sourcing API pulled 2026-07-02: Renesas Active, MOQ 1, DigiKey
-  ISL3175EIBZ-ND ($3.73) / Mouser 968-ISL3175EIBZ ($3.10) — total 3646
-  units across two authorized distributors, comfortable head-room for the
-  qty-1 build + spare-parts buffer.
+- THVD1400DR datasheet: `hardware/datasheets/THVD1400DR.pdf`,
+  sha256 `5ba9785d9fb8dc878b90fd196ff5faed27b5fff0ddfccb8346a82ac3c6a5c47f`
+  (TI THVD1400/THVD1420 family; §Pin Functions confirms internal pulls;
+  §Electrical Characteristics confirms 1 µA max shutdown Iq at DE = 0,
+  RE = VCC).
+- ISL3175EIBZ datasheet retained at `hardware/datasheets/ISL3175EIBZ.pdf`
+  (sha `dee60a6b8227f6f03e9a425586c2714452b6b9e68ff4c9ac771d8111c6c5ecb0`)
+  as the record of the iter-8 candidate table + iter-10 max-to-max
+  benchmark.
+- Parts-sourcing API pulled 2026-07-02: TI Active, MOQ 1, DigiKey
+  296-THVD1400DRTR-ND ($1.47) / Mouser 595-THVD1400DR ($1.38) — total
+  **35016** units across two authorized distributors, comfortable
+  head-room for the qty-1 build + spare-parts buffer.

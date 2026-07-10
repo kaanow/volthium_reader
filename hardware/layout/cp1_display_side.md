@@ -135,7 +135,7 @@ U1 [Recom R-78E3.3-0.5, 12 V → 3.3 V, 0.5 A] ← stocked module, no inductor B
     ▼
 3V3 ──┬─── ESP32-S3 (MOD1)
       ├─── e-paper VCC (LCD1 module via 8-pin J2)
-      ├─── ISL3175EIBZ (U2) VCC  (D34)
+      ├─── THVD1400DR (U2) VCC  (D34, revised iter-10)
       └─── RS-485 bias (R3/R4 ~330 Ω — the bus's only bias; see §4.5)
 ```
 
@@ -205,22 +205,46 @@ there's no FFC; the module exposes the fixed 8-signal SPI bus above.)*
 
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
-| U2  | **ISL3175EIBZ** (Renesas, genuine 3.3 V half-duplex, slew-limited) | SOIC-8 | 1 | Same as battery-side U3 (**D34**, reviewer iter-8 F05). VCC 3.0–3.6 V, Iq 800 µA max / 250 µA typ, shutdown 10 nA, "Full Fail-Safe" Rx (RO HIGH on open/shorted/floating bus). SN75176 8-SOIC pinout. |
-| R_DE | 100 kΩ 1 % pull-**DOWN**: U2 DE → GND     | 0805           | 1   | **D34/F06:** defaults DE=0 when ESP GPIO2 is Hi-Z, pairs with R_RE pull-up for real shutdown default |
-| R_RE | 100 kΩ 1 % pull-**UP**: U2 /RE → V3V3     | 0805           | 1   | **D34/F06:** defaults /RE=1 when ESP GPIO15 is Hi-Z |
+| U2  | **THVD1400DR** (TI, 3.3–5.5 V half-duplex, 500 kbps, full fail-safe RX) | SOIC-8 | 1 | Same as battery-side U3 (**D34**, revised iter-10 F08). VCC 3.0–5.5 V, RX-only Iq 900 µA max / 700 µA typ, **shutdown Iq 1 µA max** (12× better than the iter-8 first cut ISL3175E on the max-to-max comparison), full fail-safe RX (open/short/idle → RO HIGH), datasheet-guaranteed internal DE pull-DOWN + /RE pull-UP → default-safe without external resistors. SN75176 8-SOIC pinout. |
 | R2  | 120 Ω 1 % termination, A ↔ B              | 0805           | 1   | This end is always the bus terminus → populated by default |
-| R3  | ~330 Ω idle bias: A → V3V3                 | 0805           | 1   | **POPULATED — the bus's noise-margin bias (D19/DR-4).** ~330 Ω gives **~275 mV** differential (A > B) across the two 120 Ω terminators in parallel (60 Ω), current 3.3 V / 720 Ω ≈ 4.58 mA → 275 mV across 60 Ω. ISL3175E's Rx has built-in Full Fail-Safe (RO HIGH at |VID| ≥ -50 mV even on open/shorted bus), so this bias is *not* required to prevent RO flapping when idle; it exists for noise margin against transient dips (275 mV is well above the -200 mV LOW threshold, leaving > 475 mV of margin). Free margin: bias is display-end, shed at hard-cut. |
+| R3  | ~330 Ω idle bias: A → V3V3                 | 0805           | 1   | **POPULATED — the bus's noise-margin bias (D19/DR-4).** ~330 Ω gives **~275 mV** differential (A > B) across the two 120 Ω terminators in parallel (60 Ω), current 3.3 V / 720 Ω ≈ 4.58 mA → 275 mV across 60 Ω. THVD1400's RX has built-in Full Fail-Safe (open/short/idle bus all drive RO HIGH — datasheet §8.2.1.4), so this bias is *not* required to prevent RO flapping when the bus is idle; it exists for noise-margin against transient dips. Free margin: bias is display-end, shed at hard-cut. |
 | R4  | ~330 Ω idle bias: B → GND                  | 0805           | 1   | (paired with R3) |
 | TVS2 | SMAJ12CA bidirectional                    | SMA            | 1   | RS-485 surge clamp |
 | C7  | 100 nF X7R (U2 VCC decoupling)             | 0603           | 1   | |
 
-**Enable topology (D34, reviewer iter-8 F06).** DE and /RE routed as
-**two independent ESP GPIOs** (GPIO2 = DE, GPIO15 = /RE) with R_DE
-pull-DOWN + R_RE pull-UP defaulting to the DE=0+/RE=1 shutdown state
-whenever the MCU isn't driving. Display-side power is already shed with
-the display at hard-cut (Q1 OFF via battery-side), so the display's
-transceiver is unpowered in State 4 regardless — but the pulls still
-matter for State 3 (light-sleep) and reset windows.
+**Enable topology (D34, reviewer iter-8 F06 + iter-10 F08/F09).** DE and
+/RE routed as **two independent ESP GPIOs** (GPIO2 = DE, GPIO15 = /RE).
+THVD1400 has **datasheet-guaranteed internal pulls** (DE 2 MΩ pull-DOWN,
+/RE 2 MΩ pull-UP) that default the transceiver to shutdown whenever both
+GPIOs float — no external R_DE / R_RE needed. Reset / crash / brown-out
+land in shutdown safely. Display-side power is shed with the display at
+hard-cut (Q1 OFF via battery-side), so the display's transceiver is
+unpowered in State 4 regardless — but the topology still matters for
+State 3/B (deep-sleep waiting for the next RS-485 frame).
+
+**Display-side sleep policy (D34 / F09, differs from battery side).**
+The display's job in deep-sleep is to wake on incoming RS-485 traffic
+(GPIO18 UART1 RX wake). The transceiver's receiver **must be enabled**
+during deep-sleep for RO to toggle on a start-bit, otherwise the wake
+path is impossible. So:
+
+- **GPIO15 (/RE) latched LOW through deep-sleep** via
+  `gpio_hold_en(GPIO15)` before entering sleep. This overrides
+  THVD1400's internal pull-UP and keeps /RE = 0 → receiver on.
+- **GPIO2 (DE) can Hi-Z** in deep-sleep — internal pull-DOWN takes DE = 0
+  = driver off. (Alternatively latched LOW; makes no functional
+  difference.)
+- **GPIO18 (UART1 RX)** configured as an RTC-capable wake source — a
+  start-bit on the bus drives THVD1400 RO which wakes the ESP.
+- **Transceiver draws its RX-only Iq (~900 µA max, ~700 µA typ)
+  continuously** in this state — a real cost that appears in the
+  display-side State B budget (§7). Not in the battery-side hard-cut
+  budget because the display is on the Q1-shed rail; at hard-cut Q1 is
+  off and the whole display side is dark.
+- GPIO15 is RTC-capable on the ESP32-S3-WROOM (verified against
+  Espressif ESP32-S3 datasheet Table 5-3, RTC-GPIO0..21). Firmware TODO
+  at CP2: call `gpio_deep_sleep_hold_en()` after `gpio_hold_en(GPIO15)`
+  to persist the latch across the RTC domain.
 
 **Power-first note (D19/DR-4)**: the bus's idle bias lives **here, on the
 display end** — *not* on the battery side. The battery 3V3 rail is now
@@ -291,8 +315,8 @@ nothing about the power-loss case. See D30.
 | GND          | 0 V         | (chassis)            | All IC GNDs, J1 pins 6/7/8                    | Single-point bond at battery side; J1 shield drain NC at this end |
 | UART_TX_3V3  | 3.3 V       | ESP IO17              | U2 D pin                                       | RS-485 driver input |
 | UART_RX_3V3  | 3.3 V       | U2 R pin              | ESP IO18                                       | RS-485 receiver output |
-| DE           | 3.3 V       | ESP IO2               | U2 DE pin (active-HIGH); R_DE 100 kΩ pull-DOWN to GND  | **D34/F06:** split from tied DE_RE. Defaults 0 at Hi-Z → transmit off |
-| /RE          | 3.3 V       | ESP IO15              | U2 /RE pin (active-LOW); R_RE 100 kΩ pull-UP to V3V3   | **D34/F06:** split from tied DE_RE. Defaults 1 at Hi-Z → receiver off → transceiver in 10 nA shutdown |
+| DE           | 3.3 V       | ESP IO2               | U2 DE pin (active-HIGH); THVD1400 internal 2 MΩ pull-DOWN → default 0 | **D34/F06:** split from tied DE_RE. Internal pull → default-safe (driver off). |
+| /RE          | 3.3 V       | ESP IO15              | U2 /RE pin (active-LOW); THVD1400 internal 2 MΩ pull-UP → default 1  | **D34/F06 + F09:** split from tied DE_RE. Internal pull defaults /RE = 1 (shutdown). **Display sleep policy latches GPIO15 LOW via RTC-GPIO (`gpio_hold_en`)** so the receiver stays on and GPIO18 UART RX wake works. |
 | RS485_A      | 0–5 V diff  | U2 A pin              | J1 pin 4, R2, R3 (opt), TVS2                   | Differential pair |
 | RS485_B      | 0–5 V diff  | U2 B pin              | J1 pin 5, R2, R4 (opt), TVS2                   | (paired with A) |
 | EPD_CS       | 3.3 V       | ESP IO5               | J2 (CS pin)                                | SPI chip select |
@@ -308,9 +332,11 @@ nothing about the power-loss case. See D30.
 
 ## 6. ESP32-S3 pin assignment
 
-Inherits from [`schematic_display_side.md`](../../docs/hardware/schematic_display_side.md)
-with one change: GPIO15 (debug LED) is **unused** (D4); becomes
-expansion pad on J3 or J4.
+Inherits the ESP32-S3-WROOM base pinout, with two CP1-era changes vs the
+older `schematic_display_side.md` parent doc: GPIO15 (originally debug
+LED) was freed by D4 (no LEDs) and **reclaimed as RS-485 /RE by D34**
+(post-iter-8, resolves F06 topology + F09 wake-path); GPIO2 was split from
+tied DE_RE to plain DE by D34.
 
 | GPIO   | Direction | Function                | Sleep behavior              |
 |--------|-----------|--------------------------|------------------------------|
@@ -318,7 +344,7 @@ expansion pad on J3 or J4.
 | GPIO3  | (strap)   | USB-JTAG select; leave NC (internal default) | - (reviewer F05) |
 | GPIO45 | (strap)   | VDD_SPI strap; leave NC (internal default)   | - (reviewer F05) |
 | GPIO46 | (strap)   | Boot-mode strap; leave NC (internal default) | - (reviewer F05) |
-| GPIO2  | output    | **RS-485 DE** (D34)      | Hi-Z in deep sleep → R_DE pull-down defaults DE=0 (transmit off) |
+| GPIO2  | output    | **RS-485 DE** (D34)      | Hi-Z in deep sleep → THVD1400 internal 2 MΩ pull-DOWN defaults DE=0 (transmit off) |
 | GPIO5  | output    | E-paper CS               | Hi-Z; pulled HIGH externally? No — leave at last state |
 | GPIO6  | output    | E-paper DC               | "                            |
 | GPIO7  | output    | E-paper RST              | "                            |
@@ -328,9 +354,9 @@ expansion pad on J3 or J4.
 | GPIO12 | input     | BTN1 (RTC-capable)       | Wake source for "any button press" |
 | GPIO13 | input     | BTN2 (RTC-capable)       | "                            |
 | GPIO14 | input     | BTN3 (RTC-capable)       | "                            |
-| GPIO15 | output    | **RS-485 /RE** (D34)     | Hi-Z in deep sleep → R_RE pull-up defaults /RE=1 (receiver off) → transceiver in 10 nA shutdown by default |
-| GPIO17 | UART1 TX  | to U2 (ISL3175E) D pin   | Hi-Z in deep sleep           |
-| GPIO18 | UART1 RX  | from U2 (ISL3175E) R pin | Hi-Z in deep sleep; **RS-485 RX wakes the ESP** (configure as RTC-capable wake) |
+| GPIO15 | output    | **RS-485 /RE** (D34/F09) | **Latched LOW in deep sleep via `gpio_hold_en(GPIO15)`** so /RE = 0 → receiver stays on for GPIO18 wake path. RTC-capable per ESP32-S3 Table 5-3. Overrides THVD1400 internal 2 MΩ pull-UP. |
+| GPIO17 | UART1 TX  | to U2 (THVD1400) D pin   | Hi-Z in deep sleep           |
+| GPIO18 | UART1 RX  | from U2 (THVD1400) R pin | Hi-Z in deep sleep; **RS-485 RX wakes the ESP** (configured as RTC-capable UART wake — depends on GPIO15 latched LOW per row above) |
 | GPIO19/20 | USB DM/DP | native USB → USB-C port (J-USB), ESD-clamped | maintenance port (D27) |
 
 ## 7. Power budget (per [`power_budget.md`](../../docs/hardware/power_budget.md))
@@ -351,15 +377,18 @@ This is the typical state. At the 24 V pack end (U2 R-78HB12, 80 % eff) →
 
 State B — Idle (no frames coming in for > 5 minutes, ESP deeper sleep):
 
-| Subsystem            | Avg draw |
-|----------------------|----------|
-| ESP32-S3 deep sleep  | ~10 µA   |
-| RS-485 receive       | ~1 mA    |
-| Panel static         | 0        |
-| Total                | ~1 mA at 3.3 V = 3.3 mW |
+| Subsystem            | Avg draw (typ / max) |
+|----------------------|----------------------|
+| ESP32-S3 deep sleep  | ~10 µA               |
+| RS-485 receive (U2 THVD1400, RX-only, no load; D34/F09) | ~700 µA typ / **~900 µA max** |
+| Panel static         | 0                    |
+| Total                | ~0.9–1.0 mA at 3.3 V ≈ **~3.3 mW** (max) |
 
-Could improve further by gating RS-485 receiver power via an N-FET on
-the U2 VCC line — defer to a future revision; ~1 mA is fine.
+The RX-active current is unavoidable in State B: F09 requires /RE to stay
+LOW through deep-sleep so a UART start-bit on the bus can wake the ESP via
+GPIO18. Gating VCC to U2 with an N-FET would kill this wake path and
+require re-establishing sync each time the battery pushes a frame — deferred
+to a future revision if this term becomes load-bearing.
 
 State C — Hard cut (no V12 from battery side because Q1 is OFF over
 there): **board is off**. No draw.

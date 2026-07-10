@@ -64,9 +64,13 @@ when the pack recovers. No full power-down, no separate supervisor IC
 (D19 / DR-4: a fully-unpowered MCU couldn't wake itself).
 
 Terms are kept in their **native voltage domain** and only the buck-input
-side is referred to the pack directly; 3.3 V loads are drawn from the pack
-via U1's light-load efficiency. *(Reviewer iter-6 F03: prior rows
-mis-referred 3.3 V rail current to 24 V.)*
+side is referred to the pack directly; 3.3 V loads are drawn from the
+pack via U1's light-load efficiency. **All 3.3 V load rows use the
+datasheet *maximum* Iq**, not typical, per reviewer iter-10 F08.
+*(Reviewer iter-6 F03: prior rows mis-referred 3.3 V rail current to 24 V.
+Iter-10 F08: the iter-8 first cut quoted transceiver shutdown Iq at
+typical (10 nA) instead of maximum (12 µA), which triggered the
+ISL3175E → THVD1400DR reselection.)*
 
 | Subsystem                                | Native draw                    | Referred to pack (24 V) |
 |------------------------------------------|--------------------------------|-------------------------|
@@ -76,7 +80,7 @@ mis-referred 3.3 V rail current to 24 V.)*
 | ESP32-S3 deep-sleep                      | ~10 µA @ 3.3 V (~33 µW)        | ~0.07 mW (η ≈ 50 %)     |
 | U4 TPS3808G01 Iq (VDD_TPS = 3.3 V)       | ~2.4 µA @ 3.3 V (~8 µW)        | ~0.02 mW (η ≈ 50 %)     |
 | U6 TPS2116 mux Iq (Vout = 3.3 V)         | ~1.3 µA @ 3.3 V (~4 µW)        | ~0.01 mW (η ≈ 50 %)     |
-| U3 ISL3175E RS-485 xcvr (D34, shutdown state via DE=0+/RE=1) | 10 nA @ 3.3 V (~33 nW) | ~0.07 µW (η ≈ 50 %; below rounding) |
+| U3 THVD1400DR RS-485 xcvr (D34, shutdown via DE=0+/RE=1; **max** per F08) | ≤ 1 µA @ 3.3 V (~3.3 µW) | ~7 µW (η ≈ 50 %; below rounding) |
 | RV-3028-C7 RTC (D23; V_CC on V3V3, not a coin cell — iter-8 F07) | 45 nA @ 3.3 V (~150 nW) | ~0.3 µW (η ≈ 50 %; below rounding) |
 | Display side (Q1 OFF, U2 shed)           | 0                              | 0                       |
 | **Total from pack**                      |                                | **~0.98 mW**            |

@@ -33,7 +33,8 @@ review (Finding 03) flagged several that appear stale:
 |-------------------------------|----------------------------|------------------------------------|
 | ~~DS3231SN# RTC~~ → RV-3028-C7 | (DS3231 dropped, D23) | RV-3028-C7 — in stock, verified 2026-06-18 |
 | ~~SN65HVD3082EDR transceiver~~ (superseded D34, iter-8 F05) | ~~`296-21908-1-ND`~~ | ~~`296-31719-1-ND`~~ |
-| ISL3175EIBZ transceiver (D34)  | `ISL3175EIBZ-ND` (889) | `968-ISL3175EIBZ` (2757) |
+| ~~ISL3175EIBZ~~ (iter-8 first cut; superseded iter-10 F08 max-to-max) | ~~`ISL3175EIBZ-ND`~~ | ~~`968-ISL3175EIBZ`~~ |
+| **THVD1400DR** transceiver (D34, current) | `296-THVD1400DRTR-ND` (32635) | `595-THVD1400DR` (2381) |
 
 **Action**: At **CP5 procurement**, before clicking ORDER:
 1. Visit DigiKey for each line, search the manufacturer part number, and
@@ -138,9 +139,7 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| U3  | **ISL3175EIBZ** (Renesas, genuine 3.3 V half-duplex, slew-limited) | SOIC-8 | 1 | ISL3175EIBZ-ND | 968-ISL3175EIBZ | $3.10 | **D34 (2026-07-02, reviewer iter-8 F05)**: `SN65HVD3082EDR` was a 5 V part; swap to true 3.3 V. VCC 3.0–3.6 V, Iq 800 µA max/250 µA typ, shutdown 10 nA, standard SN75176 8-SOIC pinout (drop-in). Renesas Active, DK+Mouser 3646 stock. Datasheet: `hardware/datasheets/ISL3175EIBZ.pdf` (sha `dee60a6b…`). |
-| R_DE | 100 kΩ 1 % pull-**DOWN**: U3 DE → GND | 0805 | 1 | _verify_ | _verify_ | $0.05 | **D34/F06**: defaults DE=0 when GPIO2 Hi-Z; pairs with R_RE pull-up for real shutdown |
-| R_RE | 100 kΩ 1 % pull-**UP**: U3 /RE → V3V3 | 0805 | 1 | _verify_ | _verify_ | $0.05 | **D34/F06**: defaults /RE=1 when GPIO15 Hi-Z; pairs with R_DE pull-down for real shutdown |
+| U3  | **THVD1400DR** (TI, 3.3–5.5 V half-duplex, 500 kbps, full fail-safe RX) | SOIC-8 | 1 | 296-THVD1400DRTR-ND | 595-THVD1400DR | $1.38 | **D34 (revised iter-10 F08)**: pivot from ISL3175EIBZ (12 µA max shutdown, iter-8 first cut) to THVD1400 (**1 µA max shutdown**, 12× better on the load-bearing hard-cut spec). VCC 3.0–5.5 V, RX-only Iq 900 µA max/700 µA typ; **datasheet-guaranteed internal DE pull-DOWN + /RE pull-UP** → default-safe without external R_DE/R_RE. Standard SN75176 8-SOIC pinout (drop-in). TI Active, DK+Mouser **35016** stock. Datasheet: `hardware/datasheets/THVD1400DR.pdf` (sha `5ba9785d…`). |
 | R10 | 120 Ω 0805 1 % term resistor | 0805 | 1 | RMCF0805FT120RCT-ND | 71-CRCW0805120RFKEA | $0.10 | (unchanged) |
 | — | _(no idle bias on the battery side — D19/DR-4)_ | — | 0 | — | — | — | **Δ: removed battery-side bias.** The always-on rail would otherwise leak ~2.3 mA continuously; bias is now display-end only |
 | TVS2 | SMAJ12CA bidirectional TVS | SMA | 1 | (unchanged) SMAJ12CADICT-ND | 78-SMAJ12CA-E3/61 | $0.30 | Δ: renumbered from TVS1 in prior schematic |
@@ -224,7 +223,7 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| U2  | **ISL3175EIBZ** (Renesas, genuine 3.3 V half-duplex, slew-limited) | SOIC-8 | 1 | ISL3175EIBZ-ND | 968-ISL3175EIBZ | $3.10 | **D34 (2026-07-02, reviewer iter-8 F05)** — same swap as battery-side U3, drop-in SOIC-8. Add R_DE pull-DOWN + R_RE pull-UP for real shutdown (F06). |
+| U2  | **THVD1400DR** (TI, 3.3–5.5 V half-duplex, 500 kbps, full fail-safe RX) | SOIC-8 | 1 | 296-THVD1400DRTR-ND | 595-THVD1400DR | $1.38 | **D34 (revised iter-10 F08)** — same swap as battery-side U3, drop-in SOIC-8. Internal DE pull-DOWN + /RE pull-UP → no external R_DE/R_RE needed. Display firmware latches GPIO15 LOW via `gpio_hold_en` in deep sleep so /RE = 0 (receiver on) and GPIO18 UART RX wake works (F09). |
 | R2  | 120 Ω 0805 1 % | 0805 | 1 | (same as battery R10) | | $0.10 | Bus terminus |
 | R3, R4 | ~330 Ω 0805 1 % idle bias (A→3V3, B→GND) | 0805 | 2 | _verify_ | | $0.10 ea | **POPULATED — the bus's only fail-safe bias (D19/DR-4).** ~330 Ω gives **~275 mV** idle across the two 120 Ω terminators (~38 % over the 200 mV floor; DR-13, was 390 Ω/236 mV). Sourced from display 3V3 (shed with the display at low SOC) |
 | TVS2 | SMAJ12CA bidirectional | SMA | 1 | (unchanged) | | $0.30 | |

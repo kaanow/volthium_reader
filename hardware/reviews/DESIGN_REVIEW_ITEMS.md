@@ -625,44 +625,79 @@ one). With reflow + stencil in the plan, each part was judged on merit:
 module; iron for everything else. **Add a stencil to the fab order.** Informs
 CP3 footprint/thermal-pad/via choices for the two remaining leadless parts.
 
-## DR-25 — RS-485 transceiver was a 5 V part; DE_RE tied enables can't reach shutdown  [RESOLVED 2026-07-02 (D34) — swapped to ISL3175EIBZ; DE + /RE split with default-safe pulls]
+## DR-25 — RS-485 transceiver: wrong-VCC part + tied-enable can't reach shutdown + max-to-max reselect + per-board sleep policy  [RESOLVED 2026-07-02 (D34, revised iter-10) — THVD1400DR; DE + /RE split; battery = default-shutdown, display = latched RX-active for UART wake]
 
-**Reviewer iter-8 F05 + F06.** Both boards specified `SN65HVD3082EDR`
-as a "3.3 V" transceiver and powered it from V3V3. The stored TI family
+**Reviewer iter-8 F05 + F06, iter-10 F08 + F09.** Multi-turn resolution.
+
+**F05 (BLOCKER, iter-8).** Both boards specified `SN65HVD3082EDR` as a
+"3.3 V" transceiver and powered it from V3V3. The stored TI family
 datasheet (§6.3 Recommended Operating Conditions) puts the whole
-`SN65HVD30xx` family at **VCC = 4.5–5.5 V** — none of the -3082/85/88
-is a 3.3 V part. The "3.3 V" label was invented in `docs/hardware/bom.md`
-and repeated across CP1 without a datasheet check ([[cots-interface-reality]],
-[[part-availability-early]]). Even D-OPEN-2's "recommend keeping
-SN65HVD3082E" line survived without one.
+`SN65HVD30xx` family at **VCC = 4.5–5.5 V** — none of the -3082/85/88 is
+a 3.3 V part. The "3.3 V" label was invented in `docs/hardware/bom.md`
+and repeated across CP1 without a datasheet check
+([[cots-interface-reality]], [[part-availability-early]]). Even
+D-OPEN-2's "recommend keeping SN65HVD3082E" line survived without one.
 
-Independently (F06), the enable topology tied DE (active-HIGH) and /RE
-(active-LOW) across a single ESP GPIO. That gives receive (both low) or
-transmit (both high), but shutdown requires **DE=0 AND /RE=1** simultaneously
-— topologically unreachable. So the "silently active ~800 µA" transceiver
-was absent from the State-4 hard-cut budget.
+**F06 (IMPORTANT, iter-8).** The enable topology tied DE (active-HIGH)
+and /RE (active-LOW) across a single ESP GPIO. That gives receive (both
+low) or transmit (both high), but shutdown requires **DE=0 AND /RE=1**
+simultaneously — topologically unreachable. So the "silently active
+~800 µA" transceiver was absent from the State-4 hard-cut budget.
 
-**Fix (D34).** Swept the parts-sourcing API for genuine 3.3 V half-duplex
-low-Iq candidates; picked **`ISL3175EIBZ`** (Renesas). VCC 3.0–3.6 V,
-active Iq 800 µA max / 250 µA typ, **shutdown Iq 10 nA** (100× better
-than SP3485 / MAX3485), slew-rate limited (better EMI over 5 m Cat5e),
-standard SN75176 8-SOIC pinout so it drops into the existing footprint.
-Renesas Active, DK+Mouser 3646 stock, ~$3.10 at qty 1. Datasheet stored
-at `hardware/datasheets/ISL3175EIBZ.pdf`
-(sha `dee60a6b8227f6f03e9a425586c2714452b6b9e68ff4c9ac771d8111c6c5ecb0`).
+**F08 (IMPORTANT, iter-10).** The iter-8 first cut picked
+`ISL3175EIBZ` and quoted its **typical** shutdown Iq (10 nA) as though
+it were the design bound. The datasheet **maximum** is 12 µA, 1200×
+higher — a G1 (engineering-correctness) miss. Redoing the candidate
+table max-to-max shifted the winner, correctly.
 
-**Enable topology fix.** DE and /RE routed on **two independent ESP
-GPIOs** (GPIO2 = DE, GPIO15 = /RE — reclaiming the ex-debug-LED GPIO
-that D4 freed) with **R_DE = 100 kΩ pull-DOWN** and **R_RE = 100 kΩ
-pull-UP** so any un-driven moment defaults the transceiver to the 10 nA
-shutdown state. Firmware truth table in D34.
+**F09 (IMPORTANT, iter-10).** The iter-8 sleep policy (both GPIOs Hi-Z →
+transceiver defaults to shutdown) applied to the display broke the
+GPIO18 UART-RX wake path — receiver off + wake-on-RX are mutually
+exclusive.
 
-**Hard-cut impact:** transceiver contribution 10 nA @ 3.3 V ≈ 66 nW
-referred — below the ~1.0 mW headline's rounding floor. Budget unchanged.
+**Fix (D34, current form).** After the F08 max-to-max sweep, picked
+**`THVD1400DR`** (TI). VCC 3.0–5.5 V, RX-only Iq 900 µA max / 700 µA
+typ, **shutdown Iq 1 µA max** (12× better than ISL3175 on the
+load-bearing hard-cut spec), full fail-safe RX, datasheet-guaranteed
+internal DE 2 MΩ pull-DOWN + /RE 2 MΩ pull-UP so an un-driven pair
+defaults to shutdown *without external components*. Standard SN75176
+8-SOIC pinout so it drops into the existing footprint. TI Active,
+DK+Mouser 35016 stock, $1.38 at qty 1. Datasheet stored at
+`hardware/datasheets/THVD1400DR.pdf`
+(sha `5ba9785d9fb8dc878b90fd196ff5faed27b5fff0ddfccb8346a82ac3c6a5c47f`).
+ISL3175EIBZ datasheet retained at
+`hardware/datasheets/ISL3175EIBZ.pdf` (sha `dee60a6b…`) as the record
+of the iter-8 candidate table + iter-10 max-to-max evidence.
+
+**Enable topology fix (F06 close).** DE and /RE routed on **two
+independent ESP GPIOs** (GPIO2 = DE, GPIO15 = /RE — reclaiming the
+ex-debug-LED GPIO that D4 freed). **No external R_DE / R_RE resistors
+needed** — THVD1400's internal pulls default to shutdown when both
+GPIOs float. Saves 2 board parts vs the iter-8 first cut. Firmware
+truth table in D34.
+
+**Per-board sleep policy (F09 close).**
+- **Battery side (State 3/4).** Both GPIOs Hi-Z → THVD1400 internal
+  pulls → shutdown (max 1 µA). Battery does not use RS-485 as a wake
+  source; wakes from its own RTC timer + GPIO7 BTN_OVERRIDE only.
+- **Display side (State B).** ESP `gpio_hold_en(GPIO15)` latches
+  GPIO15 LOW through deep-sleep, overriding the internal pull-UP so
+  /RE = 0 (receiver on). GPIO2 (DE) Hi-Z → internal pull-DOWN keeps
+  DE = 0 (driver off). GPIO18 configured as an RTC-capable UART-RX wake
+  source. Transceiver draws its RX-only Iq (~900 µA max) continuously;
+  this appears explicitly in the display §7 State B budget. GPIO15 is
+  RTC-capable on the ESP32-S3-WROOM (Espressif Table 5-3 covers
+  GPIO0..21).
+
+**Hard-cut impact:** transceiver contribution ≤ 1 µA max @ 3.3 V ≈
+7 µW referred — below the ~1.0 mW headline's rounding floor. Budget
+unchanged. Had we kept ISL3175E at its 12 µA max, the headline would be
+~1.06 mW.
 
 **DR-13 (RS-485 bias margin) note.** The 275 mV idle bias holds against
-ISL3175E's guaranteed thresholds by a wide margin: the receiver's built-in
-Full Fail-Safe puts RO HIGH at |VID| ≥ -50 mV even on open/shorted/
-floating bus, so 275 mV of A-B differential is >475 mV above the LOW
-threshold — bias is now noise-margin insurance, not a fail-safe requirement.
+THVD1400's guaranteed thresholds by a wide margin: the receiver's
+built-in Full Fail-Safe drives RO HIGH on open/short/idle bus
+(datasheet §8.2.1.4), so 275 mV of A-B differential is comfortably in
+the guaranteed-HIGH region. Bias is noise-margin insurance, not a
+fail-safe requirement.
 DR-13 stays RESOLVED with the improved threshold picture.

@@ -25,21 +25,29 @@ it later costs much more.
 > value + State-4 arithmetic corrected per reviewer iter-6 F03/F04 — see
 > §14 + §15.)*
 >
-> **Amendment 2026-07-02 (post-baseline, D34/DR-25).** Supersedes the
-> RS-485 transceiver premise in the frozen text below (§4.5/§4.6 tables,
-> §11 abs-max, §12 notes, Finding 03/DR-13 references): the previous
-> `SN65HVD3082EDR` was a **5 V** part (VCC 4.5–5.5 V per TI family datasheet
-> §6.3) that both boards ran outside its recommended operating conditions
-> on V3V3. **U3/U2 → `ISL3175EIBZ` (Renesas, genuine 3.3 V half-duplex,
-> VCC 3.0–3.6 V, Iq 800 µA max, shutdown 10 nA)** with **DE / /RE split
-> across two ESP GPIOs** (GPIO2 = DE, GPIO15 = /RE) + external pulls
-> (R_DE 100 kΩ pull-DOWN, R_RE 100 kΩ pull-UP) that default the
-> transceiver to real shutdown whenever the MCU isn't driving. This
-> closes iter-8 F05 (BLOCKER, wrong-VCC part) and F06 (IMPORTANT, tied
-> enables can't reach shutdown), and closes long-open **D-OPEN-2**. Full
-> rationale in D34; part is in `hardware/datasheets/ISL3175EIBZ.pdf`
-> (Renesas family PDF, sha `dee60a6b…`). Hard-cut stays **~1.0 mW** with
-> the real shutdown state now achievable and included. See §16.
+> **Amendment 2026-07-02 (post-baseline, D34/DR-25; revised iter-10 F08).**
+> Supersedes the RS-485 transceiver premise in the frozen text below
+> (§4.5/§4.6 tables, §11 abs-max, §12 notes, Finding 03/DR-13
+> references): the previous `SN65HVD3082EDR` was a **5 V** part (VCC
+> 4.5–5.5 V per TI family datasheet §6.3) that both boards ran outside
+> its recommended operating conditions on V3V3. **U3/U2 →
+> `THVD1400DR`** (TI, 3.3–5.5 V half-duplex, RX-only Iq 900 µA max,
+> **shutdown Iq 1 µA max**, full fail-safe RX, datasheet-guaranteed
+> internal DE pull-DOWN + /RE pull-UP → default-safe without external
+> resistors). Enables split across two independent ESP GPIOs (GPIO2 = DE,
+> GPIO15 = /RE). **Per-board sleep policy (F09):** battery side both
+> Hi-Z → shutdown default; display side latches GPIO15 LOW via RTC-GPIO
+> so /RE stays 0 and the GPIO18 UART RX wake path stays valid. This
+> closes iter-8 F05 (BLOCKER, wrong-VCC part), F06 (IMPORTANT, tied
+> enables can't reach shutdown), iter-10 F08 (IMPORTANT, max-vs-typ
+> shutdown accounting), and F09 (IMPORTANT, display deep-sleep wake
+> regression), and closes long-open **D-OPEN-2**. Iter-8 first cut
+> was ISL3175EIBZ; reviewer iter-10 F08 correctly flagged its 12 µA max
+> shutdown Iq (vs the 10 nA typ I quoted), which triggered the
+> max-to-max reselection to THVD1400. Full rationale in D34; part
+> datasheet at `hardware/datasheets/THVD1400DR.pdf` (sha `5ba9785d…`).
+> Hard-cut stays **~1.0 mW** headline using worst-case max Iq
+> throughout. See §16 (iter-8 responses) and §17 (iter-10 responses).
 
 ---
 
@@ -1249,24 +1257,33 @@ top-of-packet **amendment banner** carries the superseding UVLO numbers.
 3. **Added [`SOP.md`](SOP.md)** — the distilled standing standard (gates
    G1–G7). Not a design change; it codifies the review bar the reviewer applies
    (including the new G4 assembly/solderability gate).
-4. **RS-485 transceiver swap + enable-topology fix (D34/DR-25, reviewer
-   iter-8 F05 + F06, 2026-07-02).** `SN65HVD3082EDR` was a **5 V** part
-   (VCC 4.5–5.5 V per TI family datasheet §6.3) that both boards ran
-   outside its recommended operating conditions on V3V3 — an outright
-   wrong-part premise carried in from D-OPEN-2 and never checked against
-   the datasheet ([[cots-interface-reality]] +
-   [[part-availability-early]]). Swapped **U3/U2 → `ISL3175EIBZ`**
-   (Renesas, genuine 3.3 V half-duplex, slew-limited, drop-in
-   SOIC-8 pinout, Iq 800 µA max / 250 µA typ, **shutdown Iq 10 nA**,
-   Renesas Active with 3646 stock across DK+Mouser). Independently, the
-   prior CP1 tied DE + /RE across a single ESP GPIO2 — that only lets
-   the transceiver be in *receive* (both low) or *transmit* (both high),
-   never *shutdown* (DE=0 AND /RE=1). Split into **GPIO2 = DE, GPIO15 =
-   /RE** with **R_DE 100 kΩ pull-DOWN + R_RE 100 kΩ pull-UP** so any
-   un-driven moment (reset, deep-sleep, crash) defaults the transceiver
-   to 10 nA shutdown. State-4 sum unchanged at **~1.0 mW** headline
-   (transceiver contribution 10 nA @ 3.3 V ≈ 66 nW referred, below the
-   rounding floor). Closes **D-OPEN-2**.
+4. **RS-485 transceiver swap + enable-topology fix + max-to-max reselect
+   (D34/DR-25, reviewer iter-8 F05 + F06, then revised for iter-10 F08 + F09,
+   2026-07-02).** `SN65HVD3082EDR` was a **5 V** part (VCC 4.5–5.5 V per
+   TI family datasheet §6.3) that both boards ran outside its recommended
+   operating conditions on V3V3 — an outright wrong-part premise carried
+   in from D-OPEN-2 and never checked against the datasheet
+   ([[cots-interface-reality]] + [[part-availability-early]]). The iter-8
+   first cut swapped to `ISL3175EIBZ` and split enables across two GPIOs
+   with external R_DE / R_RE pulls. **Reviewer iter-10 F08 correctly
+   caught that I quoted ISL3175's 10 nA typical shutdown Iq as though it
+   were the design bound; the datasheet maximum is 12 µA.** Redoing the
+   candidate table max-to-max shifted the winner to **`THVD1400DR`** (TI,
+   3.3–5.5 V, RX-only Iq 900 µA max, **1 µA max shutdown Iq** — 12×
+   better than ISL3175 on the load-bearing spec, datasheet-guaranteed
+   internal pulls that default-safe without R_DE / R_RE, full fail-safe
+   RX, drop-in SOIC-8 pinout, TI Active with 35016 stock, $1.38). The
+   split-GPIO topology stays (**GPIO2 = DE, GPIO15 = /RE**). External
+   R_DE / R_RE are **dropped** — THVD1400's internal 2 MΩ pull-DOWN on DE
+   + 2 MΩ pull-UP on /RE handle the default-safe state (saves 2 parts
+   per board). **Per-board sleep policy (F09):** battery both GPIOs Hi-Z
+   → shutdown default (RS-485 is not used as a wake source on the
+   battery side); display latches GPIO15 LOW via `gpio_hold_en` through
+   deep-sleep so /RE = 0 (receiver on) and the GPIO18 UART RX wake
+   path works. Hard-cut headline unchanged at **~1.0 mW** using
+   worst-case max Iq throughout (~1 µA @ 3.3 V ≈ 7 µW referred vs the
+   iter-8 first cut's ~80 µW referred at 12 µA — meaningful margin
+   restored). Closes **D-OPEN-2**.
 5. **G5 sweep of stale post-§15 items (reviewer iter-8 F07).** Three
    spot corrections: (a) `cp1_battery_side.md §4.3b` was still saying
    "hard-cut ≈ 1.2 mW" — updated to ~1.0 mW with the D28+D34 refs;
@@ -1456,5 +1473,122 @@ identified another live "~1.2 mW" or "coin cell" reference (grep'd across
 `hardware/`, `docs/hardware/`).
 
 **State:** → `reviewer_turn` for re-verify of F05/F06/F07. Zero blockers,
+zero open design questions; DR-19 remains verified-closed; **D-OPEN-2**
+closed by D34; CP2 held pending user clearance.
+
+## 17. Claude's responses (to reviewer iteration 10, 2026-07-02)
+
+All three findings are real. F08 is the most substantive — I quoted
+ISL3175E's 10 nA *typical* shutdown current as though it were the design
+bound; the datasheet maximum is **12 µA**, 1200× higher. That's a G1
+(engineering correctness) miss on my part, and the reviewer was right
+to insist on max-to-max comparison. Rather than just budget the ~1.06 mW
+headline with ISL3175, I re-ran the candidate table properly and pivoted
+to a genuinely better part. F09 is a real logic gap in the sleep policy I
+wrote — the display can't both shut down its receiver and use RS-485 as
+a wake source. F10 is a G5 cleanup.
+
+- **AGREE — F08 (IMPORTANT), shutdown-current typical vs maximum.** You're
+  right. From `hardware/datasheets/ISL3175EIBZ.pdf` Electrical
+  Specifications table: `ISHDN` (DE = 0 V, RE = VCC, DI = 0 V or VCC),
+  0.01 µA typical, **12 µA maximum** over the full temperature range. My
+  §16 quotes "10 nA shutdown" repeatedly as though it were the number to
+  budget against — that's a G1 miss. Redoing the max-to-max analysis:
+
+  | Part | Iq active (RX-only, max) | **Shutdown Iq max** | Stock | $/1 |
+  |------|--------------------------|---------------------|-------|-----|
+  | **THVD1400DR** (TI) | 900 µA | **1 µA** | 32635 / 2381 | $1.38 |
+  | MAX3485ESA (Maxim) | 500 µA | 1 µA | 3508 / 729 | $11.22 |
+  | SN65HVD75DR (TI) | 950 µA | 2 µA | 0 / 0 | n/a (0 stock) |
+  | ISL3175EIBZ (iter-8 first cut) | 700 µA | **12 µA** | 889 / 2757 | $3.10 |
+
+  **THVD1400DR wins on max-to-max**: 1 µA max shutdown, 12× better than
+  ISL3175, with three material bonuses I missed in the iter-8 sweep —
+  (a) *datasheet-guaranteed internal DE pull-DOWN + /RE pull-UP*, so the
+  F06 fix needs no external R_DE / R_RE (saves 2 parts per board,
+  removes a stuff-error surface); (b) *full fail-safe RX* per §8.2.1.4
+  (open/short/idle bus all drive RO HIGH — same behavior story as
+  ISL3175, so the DR-13 bias math is preserved); (c) *3.3–5.5 V VCC*
+  giving +2 V headroom vs ISL3175's tight 3.6 V max. TI Active, 35016
+  total stock (~10× ISL3175's headroom), $1.38 at qty 1. Datasheet
+  stored at `hardware/datasheets/THVD1400DR.pdf` (sha
+  `5ba9785d9fb8dc878b90fd196ff5faed27b5fff0ddfccb8346a82ac3c6a5c47f`).
+
+  **Propagated:** D34 rewritten head-to-tail with the max-to-max
+  candidate table + THVD1400 rationale + internal-pull default-safe
+  story + explicit per-board sleep policy; battery + display §4.5/§4.6
+  and BOMs updated (part swap + R_DE / R_RE rows removed + max Iq in
+  the truth tables); `docs/hardware/power_budget.md` State-4 table now
+  uses max Iq for U3 (1 µA) with a leading note that *all* 3.3 V load
+  rows now use datasheet max per F08; battery §7 State-4 row rebuilt at
+  max (headline stays ~1.0 mW because the U3 max is only 1 µA); packet
+  banner rewritten for the pivot; §13 item 4 rewritten with the
+  reselection story. **Retained the ISL3175 datasheet** at
+  `hardware/datasheets/ISL3175EIBZ.pdf` as the record of the iter-8
+  candidate table + the F08 max-to-max evidence — so the pivot is
+  reproducible from repo state alone.
+- **AGREE — F09 (IMPORTANT), display deep-sleep RX wake regression.**
+  You're right that my iter-8 §16 wrote "R_RE pull-UP defaults /RE=1 in
+  deep sleep" without noticing that the display's pin map calls out
+  GPIO18 UART RX as a wake source — which requires RO to be able to
+  toggle, which requires the receiver to be ON, which requires /RE = 0.
+  Those two claims can't both be true. Split the sleep policy per-board
+  in D34:
+  - **Battery side (State 3/4):** ESP GPIO2 + GPIO15 both Hi-Z; THVD1400
+    internal pulls default to shutdown (max 1 µA). Battery does not use
+    RS-485 as a wake source — wakes on its own RTC timer + GPIO7
+    BTN_OVERRIDE only — so shutdown is the correct sleep default.
+  - **Display side (State B — waiting for the next frame):** ESP
+    `gpio_hold_en(GPIO15)` latches GPIO15 LOW *through* deep-sleep,
+    overriding THVD1400's internal /RE pull-UP so /RE stays 0 = receiver
+    on. GPIO2 (DE) Hi-Z is fine — internal pull-DOWN keeps DE = 0. GPIO18
+    configured as an RTC-capable wake source (UART start-bit → RO edge →
+    ESP wakes). Verified GPIO15 is RTC-capable on the ESP32-S3-WROOM
+    (Espressif ESP32-S3 datasheet Table 5-3: GPIO0..21 are all
+    RTC-capable). Transceiver draws its RX-only Iq — worst case
+    **900 µA max** — continuously in this state.
+
+  **Propagated:** D34's Board-specific deep-sleep policy section
+  written explicitly (battery = default shutdown, display = RX-active
+  via `gpio_hold_en`); display §4.5 gets a "Display-side sleep policy"
+  block; display §6 pin map GPIO15 row updated to describe the latch
+  behavior; display §7 State B row explicitly lists the RX-only Iq as
+  a permanent budget line (~0.9 mA max at 3.3 V ≈ 3.3 mW), with a note
+  that gating VCC to U2 would kill the wake path — deferred as
+  future-revision optimization only if this term becomes load-bearing.
+  Battery-side §4.6 states clearly that RS-485 is *not* a wake source
+  on the battery side, so its sleep policy stays at default-shutdown.
+- **AGREE — F10 (NIT), GPIO15 stale expansion prose + duplicated pin
+  rows.** Cleaned up:
+  - **Battery §6 intro** was still saying "GPIO15 (debug LED) is now
+    **unused** (D4 — no LEDs). GPIO15 becomes an expansion pad on J3."
+    Rewrote to describe the two live changes: GPIO15 reclaimed as
+    RS-485 /RE by D34, GPIO2 split from tied DE_RE.
+  - **Display §6 intro** had the same stale "GPIO15 debug LED …
+    unused" prose. Same rewrite applied.
+  - **Duplicate rows**: I could not reproduce genuine row duplicates in
+    the display §6 pin table — a single grep run gives one row each for
+    GPIO2, GPIO15, GPIO17, GPIO18 (no duplicates). If you were reading
+    the intersection of the stale intro + the pin table (both
+    referencing GPIO15 in incompatible ways), that reads as
+    duplicate/contradictory even though the rows aren't literally
+    repeated. The rewritten intro resolves the contradiction. If you can
+    point at literal duplicate rows I missed, happy to fix — but the
+    intent of F10 is met by the intro rewrite.
+
+**On accepting reselection over budgeting.** F08 explicitly offered
+"either retain ISL3175E and budget its 12 µA maximum (headline
+approximately 1.1 mW, still acceptable if explicitly judged), or
+reselect if a genuinely lower guaranteed shutdown current wins on
+merit." I chose to reselect because THVD1400 is 12× better on the *exact*
+axis this project ranks first ([[power-first]]), is a same-footprint
+same-pinout swap so integration cost is a BOM cell change (no schematic
+rework), and the internal-pull default-safe eliminates R_DE / R_RE
+entirely — a cleaner F06 close than external pulls would have been.
+Every axis except peak active current improves. Peak active is 200 µA
+higher (900 max vs 700 max, RX-only) which is inside the noise band of
+State 1's ~1.08 W.
+
+**State:** → `reviewer_turn` for re-verify of F08/F09/F10. Zero blockers,
 zero open design questions; DR-19 remains verified-closed; **D-OPEN-2**
 closed by D34; CP2 held pending user clearance.
