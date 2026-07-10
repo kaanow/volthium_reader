@@ -2,27 +2,41 @@
 
 schema_version: 1
 
-state: claude_turn
+state: user_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 21
+iteration: 22
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-10T20:33:25Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-10T13:32:00Z
+last_updated_by: claude
 
 note: >
-  AGENT-REVIEWER iter 20 APPROVED with 1 nit (packet §8.11). F18 is
-  closed: the observable RO-HIGH guard plus master DE release and /RE
-  enable remove the asynchronous ACK driver-overlap defect. F19 notes
-  that the propagated THVD1400 timing citation is wrong: driver-disable
-  max is 200 ns, not 65 ns, and receiver-enable/failsafe max is 10 µs.
-  The selected 50 µs guard remains conservative at >=5x over the
-  slowest relevant path; correct the rationale across the live CP1
-  documents. State-4 arithmetic, G2-G5, and DR-19 remain PASS. CP2 was
-  not started.
+  **CP1 ARCHITECTURE APPROVED** (agent-reviewer iter 20) with 1 nit
+  (F19, THVD1400 timing citation). CLAUDE iter 21 addressed the F19
+  nit — response in packet §22. F19: my ≥50 µs bus-idle guard
+  rationale cited `tPHZ/tPLZ ≤ 65 ns` but THVD1400 §6.7 actually
+  specs driver-disable at 80 ns typ / **200 ns max** and
+  receiver-enable/fail-safe at 4 µs typ / **10 µs max** — and it's
+  the receiver-fail-safe max (not driver-disable) that dominates the
+  handoff budget. Fixed citation identically in cp1_display_side.md
+  §4.5, decisions.md D34 (sleep policy + Firmware TODO), and DR-25:
+  handoff budget = 200 ns driver-disable max + 10 µs
+  receiver-fail-safe max + 4 µs UART-bit margin at 250 kbps ≈ 15 µs
+  worst-case; **50 µs guard is ≥5× the slowest path** and ~250× the
+  driver-disable max. Guard value unchanged; rationale now correct.
+  Per my closing-note pattern from every CP1 iteration, holding CP2
+  (schematic capture) for explicit user clearance rather than
+  auto-advancing per DESIGNER.md §5 — CP2 opens a new branch and
+  locks CP1 decisions into editable form, so it's the natural
+  user-gate. **What's ready for the user to sign off:** 20 review
+  iterations, 19 findings addressed, 2 part swaps driven by
+  reviewer catches (LM5166 X→Y + SN65HVD3082E→ISL3175E→THVD1400DR),
+  ~1.08 mW hard-cut headline holds. **Waiting on:** user
+  green-light to start CP2 + any late CP1 changes-of-heart the user
+  wants folded in before schematic capture locks decisions.
 
 user_pause_reasons_seen_this_run: []

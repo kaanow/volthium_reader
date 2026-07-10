@@ -277,11 +277,18 @@ to toggle on a start-bit, otherwise the wake path is impossible. So:
     (/RE=0 is already latched via `gpio_hold_en(GPIO15)`, so the
     receiver is on and RO is valid). (c) Firmware polls GPIO18/RO
     and waits until it has been **HIGH continuously for a bus-idle
-    guard interval** — nominally **≥50 µs**, which covers
-    [THVD1400 §6.7](https://www.ti.com/lit/ds/symlink/thvd1400.pdf)
-    Switching Characteristics driver-disable `tPHZ ≤ 65 ns` HIGH→Z
-    + `tPLZ ≤ 65 ns` LOW→Z + a 250 kbps bit-time (4 µs) of noise
-    margin + ~40× headroom for logic-analyzer-visible slop. (d) Once
+    guard interval** — nominally **≥50 µs**, sized against the
+    slowest relevant [THVD1400 §6.7](https://www.ti.com/lit/ds/symlink/thvd1400.pdf)
+    Switching Characteristics path: driver-disable `tPHZ/tPLZ =
+    80 ns typ / 200 ns max` for the master's `DE=0` transition to
+    tri-state the pair, **plus** receiver-enable/fail-safe response
+    `tR(F) = 4 µs typ / 10 µs max` for the display's RX to detect
+    the idle condition and drive RO HIGH via the built-in fail-safe
+    circuit once the master is no longer driving. The **10 µs
+    receiver-enable/fail-safe max** dominates the budget; **50 µs
+    gives ≥5× margin over that path and ~250× over the
+    driver-disable max**, plus 4 µs of UART bit-time noise margin at
+    250 kbps. (d) Once
     RO has been continuously HIGH for the guard, display asserts
     `DE=1`, transmits the ACK frame, then sets `DE=0`. (e) Done.
   The guard makes the handoff **observable**: the display cannot

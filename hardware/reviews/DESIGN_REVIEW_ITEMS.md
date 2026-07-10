@@ -716,10 +716,13 @@ truth table in D34.
     firmware initializes with **`DE=0` kept low** (/RE=0 already
     latched via `gpio_hold_en(GPIO15)` so RO is valid) → firmware
     polls GPIO18/RO until RO has been **HIGH continuously for a
-    bus-idle guard interval ≥50 µs** (covers THVD1400 §6.7
-    driver-disable `tPHZ/tPLZ ≤ 65 ns` + 4 µs UART bit-time at
-    250 kbps + ~40× logic-analyzer margin) → display asserts
-    `DE=1`, transmits ACK, sets `DE=0`.
+    bus-idle guard interval ≥50 µs**, sized against the slowest
+    relevant THVD1400 §6.7 path: driver-disable
+    `tPHZ/tPLZ = 80 ns typ / 200 ns max` plus receiver-enable/
+    fail-safe `tR(F) = 4 µs typ / 10 µs max` — the 10 µs
+    receiver-fail-safe max dominates and 50 µs is ≥5× that path plus
+    4 µs UART-bit noise margin at 250 kbps → display asserts `DE=1`,
+    transmits ACK, sets `DE=0`.
   The guard makes the handoff observable: display cannot assert DE
   until it sees the bus idle, which requires the master's `DE=0`
   transition to have propagated through THVD1400's driver-disable

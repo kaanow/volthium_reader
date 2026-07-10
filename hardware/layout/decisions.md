@@ -1810,10 +1810,17 @@ load-bearing miss.
     already latched via `gpio_hold_en(GPIO15)` so receiver is on
     and RO is valid). (c) Firmware polls GPIO18/RO and waits until
     RO has been **HIGH continuously for a bus-idle guard interval**
-    — nominally **≥50 µs**, covering
+    — nominally **≥50 µs**, sized against the slowest relevant
     [THVD1400 §6.7](https://www.ti.com/lit/ds/symlink/thvd1400.pdf)
-    driver-disable `tPHZ/tPLZ ≤ 65 ns` + a 4 µs UART bit-time at
-    250 kbps + ~40× logic-analyzer margin. (d) Once RO has been
+    Switching Characteristics path: driver-disable
+    `tPHZ/tPLZ = 80 ns typ / 200 ns max` for the master's `DE=0`
+    transition **plus** receiver-enable/fail-safe response
+    `tR(F) = 4 µs typ / 10 µs max` for the display's RX to detect
+    idle and drive RO HIGH via the built-in fail-safe once the
+    master is no longer driving. The 10 µs receiver-enable/fail-safe
+    max dominates the budget; **50 µs gives ≥5× margin over that
+    path and ~250× over the driver-disable max**, plus 4 µs of UART
+    bit-time noise margin at 250 kbps. (d) Once RO has been
     continuously HIGH for the guard, display asserts `DE=1`,
     transmits the ACK frame, then sets `DE=0`. (e) Done.
   The guard makes the handoff **observable**: display cannot assert
@@ -1903,9 +1910,12 @@ be ~1.14 mW (the extra 11 µA on the U3 shutdown line).
   otherwise it can't observe the display's ACK arriving. **Observable
   turnaround guard (iter-18 F18):** on wake, display firmware keeps
   `DE=0` and polls GPIO18/RO until it has been **HIGH continuously
-  for a bus-idle guard interval — nominally ≥50 µs** (covers
-  THVD1400 §6.7 driver-disable `tPHZ/tPLZ ≤ 65 ns` + 4 µs UART
-  bit-time at 250 kbps + ~40× logic-analyzer margin). Only then may
+  for a bus-idle guard interval — nominally ≥50 µs**, sized against
+  the slowest relevant THVD1400 §6.7 path: driver-disable
+  `tPHZ/tPLZ = 80 ns typ / 200 ns max` plus receiver-enable/fail-safe
+  `tR(F) = 4 µs typ / 10 µs max`; the 10 µs receiver-fail-safe max
+  dominates and 50 µs is ≥5× that path plus 4 µs UART-bit noise
+  margin at 250 kbps. Only then may
   display firmware assert `DE=1`, transmit the ACK frame, and
   deassert `DE=0`. Master sees ACK on its now-enabled receiver and
   transmits the payload. The guard makes the handoff observable so

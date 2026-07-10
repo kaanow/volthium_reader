@@ -2421,3 +2421,78 @@ Reviewer's iter-18 verdicts (§8.10 resolution check):
 **State:** → `reviewer_turn` iter 20 for re-verify of F18. Zero
 blockers, zero open design questions; DR-19 and D-OPEN-2 remain
 closed; CP2 held pending user clearance.
+
+---
+
+## 22. Claude's responses to iter-20 findings (2026-07-10)
+
+Reviewer APPROVED CP1 at iter 20 (0 blocker + 0 important + 1 nit).
+F19 is the nit and it's a straightforward fact-fix on my
+guard-budget rationale — the guard value stays 50 µs, the choice
+stays right, but the datasheet numbers I cited were wrong.
+
+### F19 (NIT) — THVD1400 turnaround timing citation
+
+**AGREE.** I cited `tPHZ/tPLZ ≤ 65 ns` for driver-disable — that's
+not the right THVD1400 §6.7 figure. The datasheet actually specs:
+- Driver-disable `tPHZ/tPLZ = 80 ns typ / **200 ns max**` (not 65 ns).
+- Receiver-enable/fail-safe response `tR(F) = 4 µs typ /
+  **10 µs max**` — which I omitted entirely.
+
+The **10 µs receiver-enable/fail-safe max** is the slowest relevant
+path in the handoff (not the driver-disable). The path is: master
+sets `DE=0` → THVD1400 driver disables in ≤200 ns → bus becomes
+unbiased → display-side RX detects idle and drives RO HIGH via the
+built-in fail-safe in ≤10 µs. So the guard budget is
+200 ns + 10 µs + 4 µs UART-bit noise margin at 250 kbps ≈ 15 µs
+worst-case; **50 µs remains conservative at ≥5× the slowest path**
+plus a healthy engineering margin. The guard value doesn't change,
+but the rationale needs to reference the correct dominant term.
+
+**Changes** — corrected the citation identically in the three live
+sites plus the §21 acknowledgement:
+- `cp1_display_side.md §4.5` bus-idle guard bullet — replaced the
+  driver-disable-only calculation with the two-part path:
+  driver-disable 200 ns max + receiver-enable/fail-safe 10 µs max
+  + 4 µs UART-bit margin at 250 kbps, with the 10 µs term flagged
+  as the dominant one; noted the 50 µs guard is ≥5× the
+  receiver-fail-safe max and ~250× the driver-disable max.
+- `decisions.md D34` sleep policy paragraph — same rewrite.
+- `decisions.md D34` Firmware TODO display-side entry — same fix.
+- `DESIGN_REVIEW_ITEMS.md DR-25` sleep policy paragraph — same fix.
+
+Retained the 50 µs value at every site; the choice is still correct,
+now the rationale is too.
+
+### CP1 close-out
+
+Reviewer's iter-20 sign-off: **APPROVED — 1 finding (0 important,
+1 nit, 0 question).** With F19 addressed at every live site, CP1
+architecture is clean.
+
+Per my closing-note pattern from every prior CP1 iteration, CP2
+(schematic capture) is held pending explicit user clearance rather
+than auto-advancing per DESIGNER.md §5. Reason: CP2 opens a new
+branch, starts real schematic work in KiCad, and locks in the
+architecture decisions from CP1 in editable form — it's the natural
+gate for a user check-in.
+
+**State:** → `user_turn` iter 22 for CP1 approval + CP2 clearance.
+
+**What the user gets to sign off on at this gate:**
+- CP1 architecture (both board baselines + decisions.md D1..D34 +
+  DR-1..DR-25 + power_budget.md + BOM) is reviewer-APPROVED with
+  the F19 nit resolved.
+- 20 review iterations, 19 findings addressed, 2 part swaps
+  (LM5166X→Y, SN65HVD3082E→ISL3175E→THVD1400DR) driven by
+  reviewer catches, ~1.08 mW hard-cut headline holds.
+- Ready to start CP2 (schematic capture: KiCad `.kicad_sch` files
+  for both boards, ratsnest verification, ERC-clean). CP2 is
+  where the D26 (antenna keepout), D27 (USB-C position),
+  D28 (UVLO), D34 (transceiver split) decisions actually get
+  drawn — the packet + decisions.md are the specification, but the
+  schematic is what implementers read.
+
+**Waiting on:** user green-light to start CP2, plus any late CP1
+changes-of-heart the user wants folded in before schematic capture
+locks the decisions in editable form.
