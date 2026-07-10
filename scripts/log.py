@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from volthium.estimator import Estimator
 from volthium.pack import (
     DiscoveryWedgeError,
+    emit_stack_health,
     read_pack,
     recover_adapter,
     snapshot_stack,
@@ -64,6 +65,19 @@ RESTART_AFTER_WEDGE_CYCLES = 6
 ADAPTER_SOFT_RESET_AFTER = 3    # consecutive scan failures → hciconfig reset
 ADAPTER_HARD_RESET_AFTER = 6    # still failing → restart bluetooth.service
 RESTART_AFTER_SCAN_WEDGE = 15   # adapter resets didn't help → exit for respawn
+
+# Trigger one wedge_snapshot on the "neither battery found in scan" streak so
+# a Level-1 read-failure loop is diagnosable without having to force a
+# snapshot by hand. Distinct threshold from the recovery ladder because this
+# is the *other* wedge kind (scan succeeded but returned zero peers — often
+# an RF / power / peer-side issue, not a BlueZ state issue).
+CONSEC_ERR_SNAPSHOT_AT = 5
+
+# Baseline stack_health probe cadence. Every ~5 min at interval=5s (=60
+# cycles) we emit power/thermal + adapter/BlueZ state even without a wedge,
+# so any incident has a clean "before" to diff against and Pi under-voltage
+# becomes visible from Railway the moment it starts.
+HEALTH_SNAPSHOT_EVERY_CYCLES = 60
 
 
 CSV_FIELDS = [
@@ -245,6 +259,12 @@ async def main() -> int:
                     "cure; no DC power-cycle needed)",
                     RESTART_AFTER_WEDGE_CYCLES, ",".join(stuck))
                 return 1
+            # Periodic health snapshot — see HEALTH_SNAPSHOT_EVERY_CYCLES.
+            # Emit AFTER the first cycle so we always have a baseline
+            # `stack_health` event right after startup.
+            if n == 1 or n % HEALTH_SNAPSHOT_EVERY_CYCLES == 0:
+                await emit_stack_health(reason=f"periodic n={n}")
+
             # every ~5 min at 10s interval, drop a progress line
             if n == 1 or n % 30 == 0:
                 log.info(
@@ -299,6 +319,15 @@ async def main() -> int:
             consec_scan_errors = 0
             log.warning("read #%d failed (%d in a row): %s: %s",
                         n + 1, consec_errors, type(exc).__name__, exc)
+            # Fire ONE snapshot on the streak so the diagnosis (RF /
+            # power / peer / BlueZ) lands on Railway BEFORE the process
+            # eventually exits. Without this, the "neither battery found"
+            # class of outage stays silent (it went undiagnosed until we
+            # forced a snapshot by hand — 2026-07-10).
+            if consec_errors == CONSEC_ERR_SNAPSHOT_AT:
+                await snapshot_stack(
+                    reason=f"{type(exc).__name__}: {exc}", level=1,
+                )
             # Self-heal without an operator: after a long run of *total* failures
             # (read_pack only raises here when BOTH batteries are unreadable — a
             # single dropout now yields a partial row), exit so systemd
@@ -308,6 +337,11 @@ async def main() -> int:
                 log.error("%d consecutive total-read failures — exiting for a "
                           "clean systemd restart to reset the BLE stack",
                           consec_errors)
+                # Last-resort snapshot before exit — same rationale as
+                # the discovery-wedge Level-3 case.
+                await snapshot_stack(
+                    reason=f"{type(exc).__name__}: {exc}", level=3,
+                )
                 return 1
             # exponential-ish backoff so we don't hammer a flaky link
             if consec_errors > 3:

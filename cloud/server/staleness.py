@@ -209,10 +209,18 @@ class EventAlertMonitor:
     # every Level 1 would produce false-positive noise.
     WEDGE_MIN_LEVEL = 2
 
+    # Classifications that fire an alert IMMEDIATELY regardless of level or
+    # event kind (wedge_snapshot or stack_health). Power under-voltage is
+    # the canonical case: it's a hardware/wiring problem the operator has
+    # to fix; the reader can't self-heal. Waiting for Level 2 or waiting
+    # for the "stale" push is losing information.
+    URGENT_CLASSIFICATIONS = ("power_under_voltage_active",)
+
     # Cooldowns prevent a stuck reader from spamming the operator. Each
     # source has independent cooldowns per event kind.
     PIN_FAIL_COOLDOWN = timedelta(hours=1)
     WEDGE_COOLDOWN = timedelta(minutes=30)
+    POWER_COOLDOWN = timedelta(hours=2)
 
     def __init__(
         self,
@@ -273,6 +281,8 @@ class EventAlertMonitor:
                 "last_wedge_alert_at": None,
             }
             self._state[source_id] = st
+            st.setdefault("last_power_alert_at", None)
+            st.setdefault("last_power_ts_alerted", None)
         return st
 
     async def check_once(self, client: httpx.AsyncClient) -> None:
@@ -285,6 +295,7 @@ class EventAlertMonitor:
             st = self._get_source_state(source_id)
             await self._check_pin_failed(client, source_id, st, since, now)
             await self._check_wedges(client, source_id, st, since, now)
+            await self._check_urgent_classification(client, source_id, st, since, now)
 
     async def _check_pin_failed(
         self, client, source_id: str, st: dict, since: datetime, now: datetime,
@@ -381,6 +392,58 @@ class EventAlertMonitor:
             st["last_wedge_ts_alerted"] = ts
             st["last_wedge_alert_at"] = now
             break  # one alert per check window
+
+    async def _check_urgent_classification(
+        self, client, source_id: str, st: dict, since: datetime, now: datetime,
+    ) -> None:
+        """Fire on any wedge_snapshot OR stack_health event whose classification
+        is in URGENT_CLASSIFICATIONS. These are conditions where the reader
+        can't self-heal — waiting for a Level-2 wedge or a stale-push is
+        losing time. Independent cooldown; independent last-alerted ts."""
+        cooldown_ok = (
+            st["last_power_alert_at"] is None
+            or (now - st["last_power_alert_at"]) > self.POWER_COOLDOWN
+        )
+        if not cooldown_ok:
+            return
+        # Fetch recent events of BOTH kinds and pick the newest one that
+        # matches an urgent classification. We can't filter by classification
+        # at the SQL layer (it's inside JSONB), so pull the last few and
+        # filter in Python — trivial since events are rare.
+        candidates = []
+        for kind in ("stack_health", "wedge_snapshot"):
+            candidates.extend(
+                await self.dao.recent_events(source_id, kind, since, limit=10)
+            )
+        candidates.sort(key=lambda e: e["ts"], reverse=True)
+        for evt in candidates:
+            d = evt.get("data", {})
+            cls = d.get("classification", "")
+            if cls not in self.URGENT_CLASSIFICATIONS:
+                continue
+            ts = _parse_ts(evt["ts"])
+            if st["last_power_ts_alerted"] and ts <= st["last_power_ts_alerted"]:
+                continue
+            pt = d.get("power_thermal", {}) or {}
+            flags = pt.get("throttled_flags", [])
+            temp = pt.get("soc_temp_c")
+            temp_str = f"{temp:.1f}°C" if isinstance(temp, (int, float)) else "?"
+            await self._fire(
+                client,
+                title=f"Volthium: {source_id} POWER — {cls}",
+                message=(
+                    f"Pi under-voltage detected. Throttled flags: "
+                    f"{', '.join(flags) or 'none'}. SoC {temp_str}. "
+                    "Check the Pi's PSU / cable — reader can't self-heal from "
+                    "an under-powered host."
+                ),
+                priority=5,
+                tags=["rotating_light"],
+                context=f"source={source_id} kind={evt['event']} cls={cls}",
+            )
+            st["last_power_alert_at"] = now
+            st["last_power_ts_alerted"] = ts
+            break
 
     async def _fire(
         self, client, *, title: str, message: str, priority: int,

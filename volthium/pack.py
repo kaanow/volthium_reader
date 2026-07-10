@@ -753,14 +753,11 @@ def _classify_wedge(
     return "unclassified"
 
 
-async def snapshot_stack(reason: str, level: int) -> None:
-    """Gather every layer's state at the moment of a wedge and emit one
-    `wedge_snapshot` event containing all of it. Called from each rung of the
-    recovery ladder BEFORE that rung fires, so we capture the wedge state
-    itself, not the post-recovery state.
-
-    All probes run in parallel with tight timeouts so the snapshot itself
-    can't stall the loop for more than ~3 s in the worst case."""
+async def _collect_stack_evidence(reason: str) -> dict:
+    """Fan out to every layer's state probe in parallel and return one
+    normalized evidence dict. Shared by wedge and health snapshots so they
+    speak identical JSON — analysis tooling can treat both event kinds the
+    same way and just look at the `event` field to know why it fired."""
     hci = await _default_adapter()
     dmesg, hci_state, bctl, ub500, hcicon, ptherm = await asyncio.gather(
         _dmesg_bt_tail(),
@@ -780,27 +777,48 @@ async def snapshot_stack(reason: str, level: int) -> None:
     # If Pi throttling is currently active, upgrade the classification —
     # any recent under-voltage strongly implies the chip hang was electrical,
     # not firmware. Preserve the original label as a hint field.
-    thermal_hint = None
+    thermal_hint: Optional[str] = None
     if ptherm.get("throttled_flags"):
         if "under_voltage_now" in ptherm["throttled_flags"]:
             thermal_hint = classification
             classification = "power_under_voltage_active"
         elif any(f.endswith("_since_boot") for f in ptherm["throttled_flags"]):
             thermal_hint = "throttling_history_present"
-    _event(
-        "wedge_snapshot",
-        recovery_level=level,
-        reason=reason[:400],
-        classification=classification,
-        classification_notes=thermal_hint,
-        hci=hci,
-        dmesg_bt_tail=dmesg,
-        hciconfig=hci_state,
-        bluetoothctl_show=bctl,
-        ub500_present=ub500,
-        hcitool_con=hcicon.strip()[:500],
-        power_thermal=ptherm,
-    )
+    return {
+        "reason": reason[:400],
+        "classification": classification,
+        "classification_notes": thermal_hint,
+        "hci": hci,
+        "dmesg_bt_tail": dmesg,
+        "hciconfig": hci_state,
+        "bluetoothctl_show": bctl,
+        "ub500_present": ub500,
+        "hcitool_con": hcicon.strip()[:500],
+        "power_thermal": ptherm,
+    }
+
+
+async def snapshot_stack(reason: str, level: int) -> None:
+    """Gather every layer's state at the moment of a wedge and emit one
+    `wedge_snapshot` event containing all of it. Called from every code path
+    where the reader gives up on a read cycle — the recovery ladder rungs AND
+    the "neither battery found" streak — so nothing that hurts operational
+    data quality goes undiagnosed.
+
+    All probes run in parallel with tight timeouts so the snapshot itself
+    can't stall the loop for more than ~3 s in the worst case."""
+    evidence = await _collect_stack_evidence(reason)
+    _event("wedge_snapshot", recovery_level=level, **evidence)
+
+
+async def emit_stack_health(reason: str = "periodic") -> None:
+    """Emit a `stack_health` event with the same evidence a wedge would
+    capture. Fires on a slow cadence (~every 5 min) whether or not anything
+    is wrong — the point is to establish a baseline so a future incident
+    has "healthy state" to diff against, and so under-voltage becomes
+    visible the moment it starts rather than only when it breaks reads."""
+    evidence = await _collect_stack_evidence(reason)
+    _event("stack_health", **evidence)
 
 
 async def recover_adapter(level: int) -> str:
