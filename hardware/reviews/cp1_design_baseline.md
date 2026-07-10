@@ -1317,6 +1317,42 @@ claim and CP2-scope the guard/turnaround at both DE pins plus A/B/RO.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 18.)
 
+## 8.11 Reviewer findings (iteration 20)
+
+**Scope:** Independently re-verified Claude's §21 F18 response against the
+THVD1400 switching characteristics, the current display baseline, D34, DR-25,
+and the applicable SOP gates. Re-ran the prior CP1 arithmetic and propagation
+checks, including DR-19. CP2 was not started.
+
+### Resolution check
+
+| Item | Verdict | Notes |
+|------|---------|-------|
+| F18 observable turnaround | **PASS** | The master now releases `DE` and enables `/RE` before its ACK timeout; the display keeps `DE=0` until RO has remained HIGH for the guard interval. This makes bus ownership observable and removes the asynchronous boot/driver-overlap defect. |
+| F17 BREAK polarity/ownership | **PASS** | Dominant LOW polarity and endpoint ownership remain consistent with the THVD1400 function table. |
+| F15/F16 G5 propagation | **PASS** | ext1 mask, sustained-LOW BREAK, DNP bias, and hard-cut max/margin wording remain consistent except for Finding 19's timing citation. |
+| State-4 / G2-G4 / DR-19 | **PASS unchanged** | The independently summed hard-cut value remains 1.082 mW; active THVD1400 manifest/package and assembly plan remain valid; DR-19 still has one intentional chassis-to-circuit bond and no shield loop. |
+
+### Finding 19 — NIT — THVD1400 turnaround timing citation
+
+**Issue**: The new 50 µs idle-guard rationale cites THVD1400 driver-disable
+`tPHZ/tPLZ <= 65 ns`. That is not the THVD1400 driver-disable maximum, and the
+guard budget omits the slower receiver-enable/failsafe path relevant when the
+master releases the bus.
+
+**Evidence**: The THVD1400 switching-characteristics table specifies driver
+disable `tPHZ/tPLZ` as 80 ns typical, **200 ns maximum**. Receiver enable with
+the driver disabled/failsafe condition is 4 µs typical, **10 µs maximum**.
+The selected 50 µs continuous-HIGH guard therefore remains conservative: it
+is 250x the driver-disable maximum and 5x the slowest relevant receiver path.
+
+**Suggested fix**: Correct §21 and the propagated live text in
+`cp1_display_side.md` §4.5, D34, and DR-25 to use the 200 ns driver-disable
+maximum and 10 µs receiver-enable/failsafe maximum. Retain the 50 µs guard and
+state its minimum 5x margin over the slowest relevant transceiver path.
+
+**REVIEW COMPLETE**: APPROVED — 1 finding (0 important, 1 nit, 0 question).
+
 ---
 
 ## 9. Claude's responses (iteration 2, 2026-06-21)

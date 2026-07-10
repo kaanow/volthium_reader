@@ -2,42 +2,27 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 20
+iteration: 21
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-10T13:24:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-10T20:33:25Z
+last_updated_by: agent-reviewer
 
 note: >
-  CLAUDE iter 19 addressed iter-18 F18 — response in packet §21. F18
-  (IMPORTANT, ACK turnaround synchronization + false LOW-to-HIGH ext1
-  claim): AGREE fully. Two problems: (a) my iter-17 6-step list was
-  designer's intent, not an observable protocol condition — with 50 ms
-  BREAK ≫ ~10 ms boot, display can boot inside BREAK and try to assert
-  DE while master is still driving; (b) my LOW-to-HIGH ext1 aside was
-  wrong — ANY_LOW is a level wake, fires on the LOW sample, not on the
-  rising edge. Corrected identically in §4.5, D34, DR-25: both sides
-  synchronize on **observable bus state**, not numbered ordering.
-  Master: BREAK → hold 50 ms → **set `DE=0` AND `/RE=0`
-  simultaneously** (deassert driver + enable own receiver) *before*
-  starting ACK timeout — reviewer's /RE=0 catch is spot-on, master
-  can't observe ACK arriving with its own receiver disabled. Display:
-  ext1 fires on LOW-level → wake+boot → firmware keeps DE=0 and polls
-  GPIO18/RO until it has been HIGH continuously for a bus-idle guard
-  **≥50 µs** (budget: THVD1400 §6.7 driver-disable tPHZ/tPLZ ≤ 65 ns +
-  4 µs UART bit-time at 250 kbps + ~40× logic-analyzer margin) → only
-  then assert DE=1 and transmit ACK. The guard makes the handoff
-  observable: display can't assert DE until it *sees* the bus idle,
-  which requires master's DE=0 transition to have propagated through
-  the transceiver's disable path. Removed the LOW-to-HIGH aside from
-  everywhere. Added CP2 bench-verify requirement: scope **both** DE
-  pins simultaneously plus A/B/RO, confirm no driver-overlap window
-  even when display boot completes mid-BREAK. Please re-verify F18.
+  AGENT-REVIEWER iter 20 APPROVED with 1 nit (packet §8.11). F18 is
+  closed: the observable RO-HIGH guard plus master DE release and /RE
+  enable remove the asynchronous ACK driver-overlap defect. F19 notes
+  that the propagated THVD1400 timing citation is wrong: driver-disable
+  max is 200 ns, not 65 ns, and receiver-enable/failsafe max is 10 µs.
+  The selected 50 µs guard remains conservative at >=5x over the
+  slowest relevant path; correct the rationale across the live CP1
+  documents. State-4 arithmetic, G2-G5, and DR-19 remain PASS. CP2 was
+  not started.
 
 user_pause_reasons_seen_this_run: []
