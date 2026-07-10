@@ -37,11 +37,12 @@ ADV_NAME_PREFIX = "V-12V"
 # The uploader never touches the live file so writer and uploader can't race.
 # Rotation triggers at 5 MB or after 10 min of accumulation (whichever first),
 # so the round-trip Pi → Railway latency is bounded even when the pack is idle.
-# HARDWARE-DEP: Pi 3B — default path is a tmpfs (/run/volthium/) because the
-# on-board SU16G SD card can't sustain the write rate. On faster storage
-# (USB SSD / NVMe / a newer Pi with proper block-layer perf), setting
-# VOLTHIUM_BLE_EVENT_LOG to a real disk path would be safe and free us
-# from the rotation-and-upload pipeline for smaller footprints.
+# HARDWARE-DEP: Pi 3B — default path is a tmpfs (/run/volthium/). Originally
+# because the on-board SU16G SD card couldn't sustain the write rate; the
+# 2026-07-09 upgrade to a Samsung PRO Endurance 64 GB card removed that
+# constraint, but we keep tmpfs because it also gives a clean rotate/upload
+# boundary (writer never touches sealed segments, uploader never touches the
+# live file, and event logs vanish on reboot — a virtue for privacy).
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _EVENT_LOG = Path(
     os.environ.get("VOLTHIUM_BLE_EVENT_LOG", _REPO_ROOT / "data" / "ble_events.jsonl")
@@ -200,8 +201,12 @@ def _event(event: str, **fields) -> None:
 # so a long-running logger doesn't drown the pipeline in raw traffic.
 #
 # NOT a hardware-dependent workaround — this exists to gather samples for
-# building an offline BMS simulator. Toggle on/off via systemd env-var; new
-# 30-cycle window on every process restart.
+# building an offline BMS simulator. As of 2026-07-09 the corpus at
+# `data/simulator/pi-barge_raw_frames.jsonl` (~3.9k frames, ~550 full BMS
+# records across both batteries) is sufficient for simulator work, so the
+# flag is off in production. Turn it back on temporarily to grow the
+# corpus for a specific scenario (e.g. a charging-cycle span). Each process
+# restart opens a fresh 30-cycle capture window.
 _CAPTURE_CYCLE_CAP = 30
 _capture_pack_cycles = 0
 
@@ -292,10 +297,13 @@ async def _force_disconnect(addr: str) -> str:
 # aiobmsble's disconnect() (basebms.py) has no timeout and silently swallows
 # BleakError, while keep_alive=True leaves the link open after a read — together
 # the exact recipe that leaks a client and wedges a single-connection BMS (FM-8).
-# HARDWARE-DEP: Pi 3B — these are conservative because the on-board BCM43438
-# combo chip's HCI transport drops frames under Wi-Fi coexistence pressure
-# (dozens of `Frame reassembly failed (-84)` in dmesg per bad session). With a
-# dedicated USB BLE dongle these could tighten to ~5 s and ~3 s respectively.
+# These were originally conservative because the on-board BCM43438 combo
+# chip's HCI transport drops frames under Wi-Fi coexistence pressure (dozens
+# of `Frame reassembly failed (-84)` in dmesg per bad session). Since
+# 2026-07-09 the reader has been pinned to the TP-Link UB500 dongle
+# (RTL8761B on its own USB controller — no Wi-Fi coexistence), so these
+# could tighten to ~5 s / ~3 s. Left as-is for headroom against random
+# BlueZ hiccups; revisit if we ever want faster per-cycle turnaround.
 _READ_TIMEOUT = 15.0
 _DISCONNECT_TIMEOUT = 10.0
 
@@ -368,14 +376,121 @@ class DiscoveryWedgeError(RuntimeError):
 
 
 async def _default_adapter() -> str:
-    """Best-effort name of the BLE controller (e.g. 'hci0'). Falls back to hci0,
-    the Raspberry Pi onboard adapter."""
+    """Best-effort name of the BLE controller (e.g. 'hci0') for adapter recovery
+    (`hciconfig <hci> reset`). Distinct from the scan/connect adapter selection
+    in `_resolve_configured_adapter()` — this one just needs *some* live hci
+    name to pass to CLI recovery tools.
+
+    If `VOLTHIUM_ADAPTER` is set and resolved, prefer it: the recovery ladder
+    should target the *actual* reader adapter, not whichever one hciconfig
+    lists first. Otherwise fall through to the first hci name in `hciconfig`
+    output. Ultimate fallback is `hci0`."""
+    pinned = await _resolve_configured_adapter()
+    if pinned:
+        return pinned
     out = await _run(["hciconfig"], timeout=8.0)
     for line in out.splitlines():
         line = line.strip()
         if line.startswith("hci") and ":" in line:
             return line.split(":", 1)[0]
     return "hci0"
+
+
+# --- Adapter pinning ------------------------------------------------------
+# `VOLTHIUM_ADAPTER=<mac>` or `=<hci_name>` pins every scan and connect call
+# to a specific BLE controller. This matters because bleak/BlueZ picks a
+# default adapter by index (usually `hci0`) which is fragile when a machine
+# has more than one — e.g. this Pi has both a built-in BCM43438 chip and a
+# USB dongle (TP-Link UB500). Their `hci*` numbers even swapped between two
+# reboots we observed on 2026-07-09; without pinning, a stray boot could
+# route the reader to the flaky internal chip instead of the reliable dongle.
+#
+# The env var accepts either form:
+#   VOLTHIUM_ADAPTER=20:E1:5D:68:30:8B   → resolved to whichever hci owns
+#                                          that BD address at process start
+#   VOLTHIUM_ADAPTER=hci0                → passed straight through
+#
+# Unset (macOS dev rig, or a single-adapter Linux box) → the scan/connect
+# calls omit the `adapter` kwarg and bleak uses its per-platform default.
+_ADAPTER_ENV = "VOLTHIUM_ADAPTER"
+_resolved_adapter: Optional[str] = None
+_adapter_resolve_lock: Optional[asyncio.Lock] = None
+
+
+def _looks_like_mac(s: str) -> bool:
+    """True for `XX:XX:XX:XX:XX:XX` or `XX-XX-XX-XX-XX-XX`, any case."""
+    parts = s.replace("-", ":").split(":")
+    return len(parts) == 6 and all(
+        len(p) == 2 and all(c in "0123456789abcdefABCDEF" for c in p)
+        for p in parts
+    )
+
+
+async def _hci_owning_mac(bd_addr: str) -> Optional[str]:
+    """Return the hci* name whose BD address matches `bd_addr`, by parsing
+    `hciconfig`. Case-insensitive. Returns None if not found (or hciconfig
+    is unavailable, e.g. on macOS)."""
+    target = bd_addr.replace("-", ":").upper()
+    out = await _run(["hciconfig"], timeout=5.0)
+    current_hci: Optional[str] = None
+    for line in out.splitlines():
+        line = line.strip()
+        if line.startswith("hci") and ":" in line:
+            current_hci = line.split(":", 1)[0]
+            continue
+        if current_hci and line.upper().startswith("BD ADDRESS:"):
+            token = line.split(":", 1)[1].strip().split()[0].upper()
+            if token == target:
+                return current_hci
+    return None
+
+
+async def _resolve_configured_adapter() -> Optional[str]:
+    """Resolve `VOLTHIUM_ADAPTER` to an `hci*` name (or None if unset /
+    unresolvable). Cached after first success — BD addresses don't change
+    during a process's lifetime, and a physical unplug of the dongle would
+    trigger the wedge-restart backstop which re-enters this from scratch."""
+    global _resolved_adapter, _adapter_resolve_lock
+    if _resolved_adapter is not None:
+        return _resolved_adapter
+    raw = os.environ.get(_ADAPTER_ENV, "").strip()
+    if not raw:
+        return None
+    if _adapter_resolve_lock is None:
+        _adapter_resolve_lock = asyncio.Lock()
+    async with _adapter_resolve_lock:
+        if _resolved_adapter is not None:
+            return _resolved_adapter
+        if _looks_like_mac(raw):
+            hci = await _hci_owning_mac(raw)
+            if hci is None:
+                _event(
+                    "adapter_pin_failed",
+                    configured=raw,
+                    reason="no hci with matching BD address",
+                )
+                return None
+            _resolved_adapter = hci
+            _event("adapter_pinned", configured=raw, resolved=hci, by="mac")
+            return hci
+        if raw.startswith("hci"):
+            _resolved_adapter = raw
+            _event("adapter_pinned", configured=raw, resolved=raw, by="name")
+            return raw
+        _event(
+            "adapter_pin_failed",
+            configured=raw,
+            reason="not a MAC or hci name",
+        )
+        return None
+
+
+async def _adapter_kwargs() -> dict:
+    """kwargs to splat into bleak scan/connect calls. `{"adapter": "hciN"}`
+    when `VOLTHIUM_ADAPTER` is set and resolved; `{}` otherwise (bleak
+    picks its per-platform default — the right thing on macOS)."""
+    adapter = await _resolve_configured_adapter()
+    return {"adapter": adapter} if adapter else {}
 
 
 async def _adapter_is_up(hci: str) -> bool:
@@ -427,7 +542,7 @@ async def recover_adapter(level: int) -> str:
     close that gap the recovery now verifies the adapter is up afterward
     and calls `hciconfig <hci> up + bluetoothctl power on` if not.
 
-    HARDWARE-DEP: Pi 3B / BlueZ — the entire adapter-recovery ladder exists
+    HARDWARE-DEP: BlueZ — the entire adapter-recovery ladder exists
     because bluetoothd on this platform periodically gets stuck in
     `Discovering: yes` and refuses new sessions. On a healthier stack this
     function shouldn't need to exist; when we swap hardware, this whole
@@ -564,7 +679,7 @@ async def discover_volthium(timeout: float = 8.0) -> list[tuple[BLEDevice, str]]
         if name.startswith(ADV_NAME_PREFIX):
             found[dev.address] = (dev, name)
 
-    scanner = BleakScanner(detection_callback=cb)
+    scanner = BleakScanner(detection_callback=cb, **(await _adapter_kwargs()))
     await scanner.start()
     try:
         await asyncio.sleep(timeout)
@@ -586,9 +701,10 @@ async def _read_device(dev: BLEDevice, address: str) -> BatteryReading:
     key = address.upper()
     t0 = time.monotonic()
     # keep_alive=True so async_update() leaves the link open and WE own teardown.
-    # HARDWARE-DEP: Pi 3B — keep_alive=True is a workaround for aiobmsble's
-    # unbounded disconnect() path. With a healthier BT stack and dedicated USB
-    # dongle we could let the context manager handle teardown normally.
+    # keep_alive=True is a workaround for aiobmsble's unbounded disconnect()
+    # path — the swallowed-BleakError bug is upstream, not tied to the BT
+    # stack. Now on the UB500 (2026-07-09) but the aiobmsble teardown quirk
+    # persists, so we still own the disconnect explicitly.
     bms = _make_bms(dev, address, keep_alive=True)
     read_s: Optional[float] = None
     try:
@@ -623,7 +739,9 @@ async def _read_device(dev: BLEDevice, address: str) -> BatteryReading:
 
 async def read_battery(address: str, *, timeout: float = 20.0) -> BatteryReading:
     """Connect to one battery by address, read one sample, disconnect."""
-    dev = await BleakScanner.find_device_by_address(address, timeout=timeout)
+    dev = await BleakScanner.find_device_by_address(
+        address, timeout=timeout, **(await _adapter_kwargs())
+    )
     if dev is None:
         raise RuntimeError(f"battery {address} not found in scan")
     return await _read_device(dev, address)
@@ -666,7 +784,7 @@ async def _discover_addresses(
             if wanted <= set(found):
                 done.set()
 
-    scanner = BleakScanner(detection_callback=cb)
+    scanner = BleakScanner(detection_callback=cb, **(await _adapter_kwargs()))
     await scanner.start()
     try:
         await asyncio.wait_for(done.wait(), timeout=timeout)

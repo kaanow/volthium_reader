@@ -43,7 +43,7 @@ log = logging.getLogger("volthium-events-uploader")
 # Server caps a batch at 5000 events (see cloud/shared/wire.py:BleEventBatch).
 # 4000 leaves margin for future tightening without a client change.
 BATCH_SIZE = 4000
-POLL_INTERVAL_S = 15.0        # HARDWARE-DEP: Pi 3B — could be shorter on faster storage
+POLL_INTERVAL_S = 15.0        # Fine on the new PRO Endurance SD; shorter would just increase HTTP chatter
 HTTP_TIMEOUT_S = 60.0
 
 
