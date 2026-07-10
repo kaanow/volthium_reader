@@ -64,10 +64,20 @@ Deep architecture: `docs/cloud_architecture.md`. Deep field notes:
 | `volthium-uploader.service` | claude | one Python process, ~25 MB RSS | POSTs pack.csv rows to Railway |
 | `volthium-events-uploader.service` | claude | one Python process, ~20 MB RSS | POSTs sealed event segments to Railway |
 | `volthium-dashboard.service` | claude | one Python process, ~40 MB RSS | local browser dashboard on :8421 |
-| `volthium-weekly-reboot.timer` | root | fires Sun 04:00 | clean-slate reboot to clear BlueZ / MMC state |
+| `volthium-weekly-reboot.timer` | root | fires 1st Sun of month, 04:00 | clean-slate reboot to clear BlueZ / MMC state (used to be weekly; monthly since 2026-07-09 hardware refresh) |
 
 All four data services have `Restart=always`. If any crashes, systemd
 respawns within a few seconds.
+
+## Env vars on the Pi (logger drop-in)
+
+`/etc/systemd/system/volthium-logger.service.d/10-tmpfs-events.conf`:
+
+| Var | Purpose |
+|---|---|
+| `VOLTHIUM_BLE_EVENT_LOG` | Path to tmpfs event log (sealed-segment rotation lives here) |
+| `VOLTHIUM_ADAPTER` | BLE controller pin — accepts a MAC or `hci*` name. Set to the UB500's BD address `20:E1:5D:68:30:8B`. Resolved to `hci*` at process start via `hciconfig`; emits `adapter_pinned` event to prove it took effect |
+| `VOLTHIUM_CAPTURE_RAW` | (off in prod) When `1`, tap raw BLE notify frames into the event log for lab replay. Turned off 2026-07-09 — the [`data/simulator/`](../data/simulator/) corpus is enough for now |
 
 ## Env vars on Railway
 
@@ -155,20 +165,23 @@ psql $DATABASE_URL -c "SELECT ts, state, pack_v, soc_a, soc_b FROM readings ORDE
    sudo journalctl -u volthium-logger --since '30 min ago' | tail -80
    ```
 3. **BlueZ wedged** (see `org.bluez.Error.InProgress` or "No powered Bluetooth
-   adapters found" in the log):
+   adapters found" in the log). First look up which hci* the UB500 lives
+   on this boot (it can vary), then reset that specific one:
    ```
+   hciconfig | awk '/^hci/{h=$1} /20:E1:5D:68:30:8B/{sub(":","",h); print h}'
    sudo systemctl restart bluetooth
-   sudo hciconfig hci1 up      # UB500 dongle — hci0 is the dead built-in
+   sudo hciconfig <hci_from_above> up
    sudo systemctl restart volthium-logger
    ```
 4. **Adapter came back DOWN after `systemctl restart bluetooth`** — the
    `recover_adapter` code handles this now (verified 2026-07-01) but if a
    regression happened: `sudo bluetoothctl power on`.
-   `_default_adapter()` picks whichever adapter `hciconfig` lists first —
-   BlueZ orders UP before DOWN, so as long as `hci1` (UB500) is UP the
-   code targets it. If `hci1` goes missing entirely (dongle unplugged /
-   USB fault), `hciconfig` will not list it and the code will fall through
-   to the wedged `hci0` — plug the dongle back in.
+   The reader is pinned to the UB500 by BD address (`VOLTHIUM_ADAPTER=20:E1:5D:68:30:8B`
+   in the logger drop-in), so whichever `hci*` index the dongle enumerates as,
+   the scanner picks it. If the dongle physically disappears (unplugged /
+   USB fault) the pin resolution fails, an `adapter_pin_failed` event fires,
+   and the code falls back to bleak's default adapter — which will try the
+   flaky internal chip. Plug the dongle back in.
 5. **Logger dead** — `sudo systemctl restart volthium-logger`.
 6. **Pi entirely unreachable via SSH** — power or SD card failure. Nothing
    software can do; needs physical access.
@@ -223,6 +236,7 @@ upgraded" enumerates them by file.
 - `docs/cloud_architecture.md` — cloud + wire protocol + env vars + deploy
 - `docs/reliability_failure_modes.md` — FM-* field log; root causes and fixes
 - `docs/production_design.md` — original hardware design (ESP32 target)
+- `data/simulator/README.md` — captured raw BMS frame corpus for building an offline simulator
 - `README.md` — project overview + local dev setup
 
 ## Recent milestones
@@ -234,3 +248,4 @@ upgraded" enumerates them by file.
 | 2026-06-30 | Bring-up on Pi at cabin; discovered FM-2/3/5/8 series |
 | 2026-07-01 | Write-load reduction (tmpfs); FM hardening (adapter power-on, direct BleakClient teardown, staleness alerts); preflight CI |
 | 2026-07-09 | SD card replaced (SU16G → Samsung PRO Endurance 64 GB); built-in BT wedged after imaging; UB500 dongle plugged in, live readings resumed on `hci1` |
+| 2026-07-09 | Hardware-refresh cleanup: `VOLTHIUM_ADAPTER` pin (MAC-based), raw-frame corpus archived to `data/simulator/`, capture off in prod, reboot cadence weekly → monthly, HARDWARE-DEP markers refreshed |
