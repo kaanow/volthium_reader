@@ -1145,6 +1145,87 @@ wake terminology, preserving only explicitly marked history.
 
 ---
 
+## 8.8 Reviewer findings (iteration 14)
+
+**Scope:** Re-verified Claude's §18 responses to iteration-12 Findings 11-14
+against the current ESP-IDF documentation, THVD1400 datasheet/manifest, D34,
+both board baselines/BOMs, and the power tables. Recomputed State 4 from its
+native-domain terms and re-ran the F11-F14 G5 token sweep. CP2 was not started.
+
+### Resolution check
+
+| Prior item | Verdict | Notes |
+|------------|---------|-------|
+| F11, display Deep-sleep wake | **PASS direction / FAIL completion** | Deep-sleep plus RTC-GPIO wake and an ACK handshake is sound, but `ext0 (or ext1)` is not a selected implementation and a byte stream does not guarantee the sustained LOW required by the RTC wake sampler (Finding 15). |
+| F12, display bias power | **PASS design / FAIL propagation** | R3/R4 are now DNP by default and the optional 4.58 mA cost is correctly shown in the main tables. Stale live text still calls the bias populated (Finding 16). |
+| F13, hard-cut max premise | **PASS arithmetic / FAIL propagation** | Independent sum is **1.082 mW** using the documented maxima and ESP margin. Several live sentences still say "max throughout" despite the honest typical-plus-margin ESP/RTC rows (Finding 16). |
+| F14, THVD1400 G2/G5 | **PASS requested items** | Manifest entry/source/hash, retired-part classification, battery power tree, closed D-OPEN-2 row, and reviewer current-parts list are corrected. Local SHA-256 remains `5ba9785d...c6a5c47f`. |
+| DR-19 grounding/shield loop | **PASS** | Unchanged: exactly one battery-end shield-to-signal-GND bond, display shell NC, plastic enclosures/bracket; retain CP5 physical continuity check. |
+
+### Finding 15 — IMPORTANT — D34 / `cp1_display_side.md` §4.5 Deep-sleep wake trigger
+
+**Issue**: The selected architecture is still not implementation-complete.
+It alternates between `ext0` and `ext1`, while the display also requires three
+active-LOW button wake inputs, and it specifies approximately 50 ms of
+unspecified "sync bytes" rather than a guaranteed LOW wake level. Repeating
+short UART bits for 50 ms does not guarantee that any LOW pulse meets the RTC
+wake sampler's minimum duration.
+
+**Evidence**: D34 sets a **250 kbps** target, so one bit is only 4 µs; common
+`0x55` sync bytes never hold RO LOW longer than one bit. Espressif's
+[ESP32-S3 Deep-sleep GPIO wake documentation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/system/sleep_modes.html)
+requires a wake level/pulse to persist for at least **three RTC slow-clock
+cycles** for reliable sampling. Its
+[ext0/ext1 documentation](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/system/sleep_modes.html)
+defines ext0 as one RTC GPIO and ext1 as multiple RTC GPIOs; GPIO12/13/14
+(buttons) and GPIO18 (RO) are all active-LOW and RTC-capable. The same design
+still says `ext0 (or ext1)`, so G7 has not selected the actual wake mask/API.
+Also, the claimed 1-2 mA Light-sleep current is not the module-datasheet value:
+the [ESP32-S3-WROOM-1 datasheet](https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf)
+lists 240 µA typical plus approximately 140 µA for the N16R8's 8-line PSRAM,
+so the mode delta is closer to 0.37 mA (about 1.2 mW at 3.3 V) than 1 mA/3 mW.
+
+**Suggested fix**: Select one concrete wake scheme. The clean option is ext1
+`ANY_LOW` over GPIO12/13/14/18. Begin each transaction with a deliberate UART
+BREAK / RS-485 dominant-LOW wake interval bounded against the selected RTC
+clock (at least three slow-clock cycles plus margin; 50 ms continuous LOW is
+ample), release the bus, wait for the display's post-boot ACK, then send the
+payload with a bounded timeout/retry policy. Bench-measure wake-to-ACK at CP2;
+do not size correctness around an unsupported approximately 10 ms full-app
+boot assumption. Re-state the Light-sleep alternative using module-datasheet
+current before retaining the power trade decision.
+
+### Finding 16 — IMPORTANT — F11-F13 G5 propagation remains incomplete
+
+**Issue**: The main design changes are correct, but the required mechanical G5
+sweep left multiple live contradictions. These are current CP1 handoff sources,
+not bannered history, so CP2 can still implement the superseded behavior.
+
+**Evidence**:
+
+- `power_budget.md` State 4 still says **all** 3.3 V rows use datasheet maxima,
+  while its ESP and RTC rows explicitly use typical values plus margin. D34 and
+  DR-25 likewise retain "datasheet-max Iq throughout" wording.
+- `docs/hardware/bom.md` U2, `cp1_bom.md` U2, and the display `/RE` net row
+  still say GPIO18 **UART RX wake works**, contrary to the corrected RTC-GPIO
+  architecture. DR-25's current heading also still ends in "UART wake".
+- `cp1_display_side.md` §14 still says R3/R4 are **populated at ~330 Ω**, and
+  its §3 power tree / §4.5 power note still present an installed "bus's only
+  bias" without the new DNP default.
+- The Light-sleep alternative says no preamble is required, but Espressif says
+  the UART wake-triggering character is lost and an extra wake character is
+  normally required even in Light-sleep.
+
+**Suggested fix**: Run one exact G5 sweep over live Markdown for
+`UART.*wake|ext0|ext1|sync bytes|populated.*330|only bias|max.*throughout` and
+classify every hit. Make the selected wake API/waveform, DNP bias state, and
+"max where specified plus explicit margin" language identical across D34,
+DR-25, both BOMs, display net/pin/power sections, and `power_budget.md`.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings 15, 16.)
+
+---
+
 ## 9. Claude's responses (iteration 2, 2026-06-21)
 
 All eight findings addressed this turn (the user pulled the brakes on

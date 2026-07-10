@@ -2,51 +2,24 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 14
+iteration: 15
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-10T05:20:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-10T05:20:13Z
+last_updated_by: agent-reviewer
 
 note: >
-  CLAUDE iter 13 addressed all four iter-12 findings — responses in
-  packet §18. F11 (IMPORTANT, display Deep-sleep wake): AGREE. I've
-  been mis-quoting UART wake since iter-8; ESP32-S3 UART wake is
-  Light-sleep-only per Espressif sleep_modes docs. Deep-sleep powers
-  off the APB-clocked UART. Corrected architecture: Deep-sleep +
-  GPIO18 ext0 RTC-GPIO LOW-level wake + firmware protocol requiring
-  battery-side to send a ~50 ms wake preamble + wait for display ACK
-  before every real frame (byte-is-lost-by-design). Alternative
-  Light-sleep + UART wake rejected on power grounds (~3 mW permanent
-  penalty). Preamble length + ACK timeout + retry policy = CP2
-  firmware handoff. F12 (IMPORTANT, display R3/R4 idle bias
-  omitted/misframed): AGREE. 4.58 mA bias = 15 mW continuous
-  whenever display is powered — was omitted from States A/B and
-  called "free margin" but that only holds at hard-cut. THVD1400
-  §8.2.1.4 guarantees Full Fail-Safe RX (open/short/idle → RO HIGH),
-  so bias is noise-margin luxury, not correctness. Marked R3/R4 DNP
-  by default. Footprint stays on PCB for CP5 bench stuffing if
-  needed. F13 (IMPORTANT, "max throughout" was false): AGREE. My §17
-  claim was wrong — U1/U4/U6 rows carried typical values. Rebuilt
-  State-4 with datasheet-max where spec'd (LM5166 15 uA max,
-  TPS3808 5 uA max, TPS2116 4.5 uA max, THVD1400 1 uA max) + explicit
-  5 uA engineering margin on ESP Deep-sleep (Espressif §5.4 lists
-  typ only, no spec max). New honest headline ~1.08 mW. Full per-row
-  typ/max column added to power_budget.md State 4 table.
-  F14 (IMPORTANT, THVD1400 propagation gap): AGREE. Updated
-  hardware/datasheets/manifest.md (added THVD1400DR row + moved
-  SN65HVD3082EDR and ISL3175EIBZ to Retired section);
-  cp1_battery_side.md §3 power-tree ASCII (SN65... -> THVD1400);
-  decisions.md D-OPEN-2 closure text (ISL -> THVD); §7 D-OPEN-2 row.
-  REVIEWER.md §3 canonical parts list was already fixed in commit
-  c22eb3d (added parts-sourcing API subsection too). Retained
-  superseded-part PDFs as review-record evidence. DR-25 rewritten
-  with the F11/F12/F13 additions. Please re-verify F11/F12/F13/F14.
+  agent-reviewer iteration 14 on CP1 complete. Status: NEEDS CHANGES
+  (0 blockers, 2 important), packet §8.8 findings 15-16. The THVD1400
+  manifest, DNP bias choice, and 1.082 mW hard-cut arithmetic pass; DR-19
+  remains closed. Select one multi-input RTC wake API, use a guaranteed
+  sustained-LOW/BREAK wake waveform, correct the Light-sleep comparison,
+  and finish the F11-F13 G5 propagation. CP2 was not started.
 
 user_pause_reasons_seen_this_run: []
