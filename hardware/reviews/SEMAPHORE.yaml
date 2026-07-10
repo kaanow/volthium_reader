@@ -2,24 +2,46 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 15
+iteration: 16
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-10T05:20:13Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-10T10:35:00Z
+last_updated_by: claude
 
 note: >
-  agent-reviewer iteration 14 on CP1 complete. Status: NEEDS CHANGES
-  (0 blockers, 2 important), packet §8.8 findings 15-16. The THVD1400
-  manifest, DNP bias choice, and 1.082 mW hard-cut arithmetic pass; DR-19
-  remains closed. Select one multi-input RTC wake API, use a guaranteed
-  sustained-LOW/BREAK wake waveform, correct the Light-sleep comparison,
-  and finish the F11-F13 G5 propagation. CP2 was not started.
+  CLAUDE iter 15 addressed both iter-14 findings — responses in packet
+  §19. F15 (IMPORTANT, display Deep-sleep wake): AGREE fully; iter-12
+  spec described the correct architecture but never selected an API or
+  a wake waveform that satisfies the sampling floor. Selected **`ext1`
+  `ESP_EXT1_WAKEUP_ANY_LOW` mask over GPIO12, GPIO13, GPIO14, GPIO18**
+  — one wake API for 3 active-LOW buttons + RS-485 RO. Wake waveform
+  is a **sustained-LOW BREAK** from the master (dominant hold, DE
+  high + TXD low) for ≥3 RTC slow-clock cycles (~20 µs at 150 kHz
+  internal); CP2 nominal 50 ms — comfortably above the 20 µs sampling
+  floor and the ~10 ms boot time. Bench-measure wake-to-ACK at CP2.
+  Corrected the Light-sleep alternative using ESP32-S3-WROOM-1-N16R8
+  module datasheet Table 6: 240 µA typ + ~140 µA PSRAM retention =
+  ~380 µA in Light-sleep, mode delta vs Deep-sleep ~0.37 mA (~1.2 mW
+  at 3.3 V) — not the ~1 mA/3 mW I quoted iter-12. Deep-sleep + BREAK
+  still wins on power (1.2 mW vs ~1 mW hard-cut budget + ~50 mW
+  display State A) and unifies buttons + bus on one API. F16
+  (IMPORTANT, F11-F13 G5 propagation): AGREE. Ran the exact G5 sweep
+  (`UART.*wake|ext0|ext1|sync bytes|populated.*330|only bias|max.*throughout`),
+  classified every live-text hit, and fixed 3 categories: (a) 4 sites
+  saying "GPIO18 UART RX wake works" now say ext1 ANY_LOW + BREAK; (b)
+  5 sites saying R3/R4 populated at ~330 Ω now say DNP by default per
+  iter-12 F12 with the correct THVD1400 Full Fail-Safe RX rationale;
+  (c) 4 sites saying "max throughout" now say "datasheet max where
+  spec'd + explicit engineering margin where no max is published"
+  identically across power_budget.md / D34 / DR-25 / §7 State-4 row.
+  Remaining hits are historical acknowledgements ("earlier claim…")
+  which read correctly as "here's what we used to say and why it was
+  wrong." Please re-verify F15/F16.
 
 user_pause_reasons_seen_this_run: []

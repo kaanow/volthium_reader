@@ -223,7 +223,7 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| U2  | **THVD1400DR** (TI, 3.3–5.5 V half-duplex, 500 kbps, full fail-safe RX) | SOIC-8 | 1 | 296-THVD1400DRTR-ND | 595-THVD1400DR | $1.38 | **D34 (revised iter-10 F08)** — same swap as battery-side U3, drop-in SOIC-8. Internal DE pull-DOWN + /RE pull-UP → no external R_DE/R_RE needed. Display firmware latches GPIO15 LOW via `gpio_hold_en` in deep sleep so /RE = 0 (receiver on) and GPIO18 UART RX wake works (F09). |
+| U2  | **THVD1400DR** (TI, 3.3–5.5 V half-duplex, 500 kbps, full fail-safe RX) | SOIC-8 | 1 | 296-THVD1400DRTR-ND | 595-THVD1400DR | $1.38 | **D34 (revised iter-10 F08 + iter-14 F15)** — same swap as battery-side U3, drop-in SOIC-8. Internal DE pull-DOWN + /RE pull-UP → no external R_DE/R_RE needed. Display firmware latches GPIO15 LOW via `gpio_hold_en` in deep sleep so /RE = 0 (receiver on); wake is the **`ext1` `ESP_EXT1_WAKEUP_ANY_LOW` RTC-GPIO mask** over GPIO12/13/14 (buttons) + GPIO18 (RO), triggered by a master-driven sustained-LOW BREAK — **not** the ESP UART wake (UART off in Deep-sleep). |
 | R2  | 120 Ω 0805 1 % | 0805 | 1 | (same as battery R10) | | $0.10 | Bus terminus |
 | R3, R4 | ~330 Ω 0805 1 % idle bias footprints (A→3V3, B→GND) | 0805 | 2 (**DNP by default**) | _verify_ | | $0.10 ea | **DNP by default (iter-12 F12).** THVD1400 datasheet §8.2.1.4 guarantees Full Fail-Safe RX (open/short/idle bus → RO HIGH built-in), so a static bias is not required for correct RS-485 idle behavior. If populated, it draws **4.58 mA at 3.3 V ≈ 15 mW continuously** whenever the display board is powered — that's the reviewer's F12 catch; prior text called this "free margin at hard-cut" but it's a real 15 mW cost in State A + State B (only free in State C hard-cut). Footprint stays on the PCB so it can be stuffed at CP5 bench if actual link EMI ever shows spurious RO glitches. |
 | TVS2 | SMAJ12CA bidirectional | SMA | 1 | (unchanged) | | $0.30 | |
@@ -345,9 +345,13 @@ so the extras are not wasted.
 - **D-OPEN-1** ESP module variant — would standardizing on -N8 save
   $1.50 per board and reduce ESP power slightly? Reviewer to weigh.
 - ~~**D-OPEN-8** Display-side bias resistors populated or not?~~
-  **RESOLVED (D19/DR-4):** populated at ~330 Ω — they are the bus's *only*
-  fail-safe bias (battery-side bias removed to keep the always-on rail at
-  zero static draw).
+  **RESOLVED (D19/DR-4, revised iter-12 F12):** DNP by default —
+  THVD1400 Full Fail-Safe RX (datasheet §8.2.1.4) guarantees RO HIGH on
+  open/short/idle bus without external bias, so the 15 mW cost of the
+  ~330 Ω bias is not spent. Footprint stays on the PCB; CP5 stuff at
+  ~330 Ω if bench testing reveals a specific noise-margin need
+  (battery-side bias remains removed regardless to keep the always-on
+  rail at zero static draw).
 - **D-OPEN-13** Panel-mount switch BTN1 on battery side — does the
   RP3502MA-series exist in stock with sealed cap (IP67) options? Confirm
   during ordering.

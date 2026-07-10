@@ -625,7 +625,7 @@ one). With reflow + stencil in the plan, each part was judged on merit:
 module; iron for everything else. **Add a stencil to the fab order.** Informs
 CP3 footprint/thermal-pad/via choices for the two remaining leadless parts.
 
-## DR-25 — RS-485 transceiver: wrong-VCC part + tied-enable can't reach shutdown + max-to-max reselect + per-board sleep policy  [RESOLVED 2026-07-02 (D34, revised iter-10) — THVD1400DR; DE + /RE split; battery = default-shutdown, display = latched RX-active for UART wake]
+## DR-25 — RS-485 transceiver: wrong-VCC part + tied-enable can't reach shutdown + max-to-max reselect + per-board sleep policy  [RESOLVED 2026-07-02 (D34, revised iter-10, further revised iter-14 F15) — THVD1400DR; DE + /RE split; battery = default-shutdown, display = latched RX-active with `ext1` `ANY_LOW` wake mask (GPIO12/13/14 buttons + GPIO18 RO), triggered by master-side sustained-LOW BREAK]
 
 **Reviewer iter-8 F05 + F06, iter-10 F08 + F09.** Multi-turn resolution.
 
@@ -676,38 +676,58 @@ needed** — THVD1400's internal pulls default to shutdown when both
 GPIOs float. Saves 2 board parts vs the iter-8 first cut. Firmware
 truth table in D34.
 
-**Per-board sleep policy (F09 close, revised iter-12 F11).**
+**Per-board sleep policy (F09 close, revised iter-12 F11 + iter-14 F15).**
 - **Battery side (State 3/4).** Both GPIOs Hi-Z → THVD1400 internal
   pulls → shutdown (max 1 µA). Battery does not use RS-485 as a wake
   source; wakes from its own RTC timer + GPIO7 BTN_OVERRIDE only.
-- **Display side (State B, revised iter-12 F11).** ESP
+- **Display side (State B, revised iter-12 F11 + iter-14 F15).** ESP
   `gpio_hold_en(GPIO15)` + `gpio_deep_sleep_hold_en()` latches GPIO15
   LOW through Deep-sleep, overriding the internal pull-UP so /RE = 0
   (receiver on). GPIO2 (DE) Hi-Z → internal pull-DOWN keeps DE = 0
-  (driver off). **Wake source = GPIO18 configured as `ext0` (or `ext1`)
-  RTC-GPIO LOW-level wake — NOT the ESP UART wake.** Espressif docs are
-  explicit: UART wake is Light-sleep-only; Deep-sleep powers off the
-  APB-clocked UART so the triggering byte is lost. Corrected wake
-  path: bus start-bit → THVD1400 RO LOW → GPIO18 LOW → ext0 fires →
-  ESP wakes + reloads app. Firmware protocol requirement: battery-side
-  sends a ~50 ms wake preamble + waits for display ACK before
-  transmitting the real frame; display firmware sends ACK once the
-  UART is initialized. Preamble length + ACK timeout + retry policy
-  are CP2 firmware-layer decisions. Transceiver draws its RX-only Iq
-  (~900 µA max) continuously in State B — appears explicitly in the
-  display §7 State B budget. GPIO15 and GPIO18 both RTC-capable per
-  Espressif ESP32-S3 datasheet Table 5-3. Alternative rejected:
-  Light-sleep + UART wake (~1–2 mA vs ~10 µA Deep-sleep, a permanent
-  ~3 mW display-side penalty).
+  (driver off). **Wake source = `ext1` `ESP_EXT1_WAKEUP_ANY_LOW` mask
+  over GPIO12, GPIO13, GPIO14, GPIO18** — one RTC-GPIO wake API covers
+  the 3 active-LOW buttons and the RS-485 RO wake. **NOT the ESP UART
+  wake API.** Espressif docs are explicit: UART wake is Light-sleep-only;
+  Deep-sleep powers off the APB-clocked UART so the triggering byte is
+  lost. **Corrected wake waveform (iter-14 F15):** the master drives the
+  RS-485 pair in the dominant state (UART BREAK / DE-high with TXD-low
+  hold) for a sustained-LOW interval bounded ≥3 RTC slow-clock cycles
+  (~20 µs at the 150 kHz internal slow clock) + margin. **CP2 firmware
+  nominal is 50 ms** — orders of magnitude above the 20 µs sampling
+  minimum and comfortably above ESP32-S3 wake+boot (~10 ms typical
+  from Deep-sleep). Bus wake path: master BREAK → THVD1400 RO LOW →
+  GPIO18 LOW → ext1 fires → ESP wakes + reloads app; wake-causing
+  waveform is lost. Firmware protocol requirement: master sends
+  sustained LOW → waits for display ACK (sent once display UART is up)
+  → transmits payload frame. Bench-measure wake-to-ACK at CP2;
+  BREAK duration + ACK timeout + retry policy are CP2 firmware-layer
+  decisions. Transceiver draws its RX-only Iq (~900 µA max)
+  continuously in State B — appears explicitly in the display §7 State
+  B budget. GPIO12/13/14/15/18 all RTC-capable per Espressif ESP32-S3
+  datasheet Table 5-3. **Alternative rejected: Light-sleep + UART wake**
+  (revised iter-14 F15 numbers). ESP32-S3-WROOM-1-N16R8 module datasheet
+  Table 6 lists Light-sleep at **240 µA typ** plus **~140 µA for the
+  N16R8's 8-line PSRAM** (retention), so Light-sleep vs ~10 µA Deep-sleep
+  is a **~0.37 mA (~1.2 mW at 3.3 V)** mode delta — not the ~1 mA/~3 mW
+  I quoted iter-12. Even Light-sleep loses the UART triggering character
+  per Espressif docs so a preamble byte is normally still required.
+  Deep-sleep + BREAK still wins on power (1.2 mW is meaningful on a
+  ~1 mW hard-cut budget and ~50 mW display State A total) and unifies
+  buttons + bus on one wake API.
 
-**Hard-cut impact (revised iter-12 F13 — rebuilt on datasheet-max Iq
-throughout).** Transceiver contribution ≤ 1 µA max @ 3.3 V ≈ 7 µW
-referred — inside the µW rounding floor. Full State-4 sum rebuilt on
-datasheet-max Iq (my iter-10 "max throughout" claim actually still
-carried typ values for U1/U4/U6): LM5166 15 µA max × 24 V + TPS3808
-5 µA max + TPS2116 4.5 µA max + THVD1400 1 µA max + ESP 10 µA typ +
-5 µA engineering margin = **~1.08 mW** headline (was quoted as
-~1.0 mW). Order-of-magnitude conclusion unchanged.
+**Hard-cut impact (revised iter-12 F13 + iter-14 F16 wording sweep —
+rebuilt on datasheet max where spec'd + explicit engineering margin
+where no max is published).** Transceiver contribution ≤ 1 µA max @
+3.3 V ≈ 7 µW referred — inside the µW rounding floor. Full State-4 sum
+uses **max** for LM5166 (15 µA), TPS3808 (5 µA), TPS2116 (4.5 µA), and
+THVD1400 (1 µA); **typ + margin** for ESP32-S3 Deep-sleep (10 µA typ
++ 5 µA margin, since Espressif publishes no spec max in ES §5.4) and
+RV-3028-C7 RTC (45 nA typ, ≤200 nA per Micro Crystal AN — well under
+the µW floor) → **~1.08 mW** headline (was quoted as ~1.0 mW iter-6,
+then claimed "max throughout" iter-10 with typ still buried, corrected
+iter-12 F13, wording tightened iter-14 F16 across power_budget.md /
+D34 / DR-25 / cp1_battery_side.md §7 State-4 row). Order-of-magnitude
+conclusion unchanged.
 
 **Display idle bias R3/R4 policy (iter-12 F12 close).** R3/R4 at
 ~330 Ω would draw 3.3 V / 720 Ω = **4.58 mA ≈ 15 mW** continuously

@@ -136,7 +136,7 @@ U1 [Recom R-78E3.3-0.5, 12 V → 3.3 V, 0.5 A] ← stocked module, no inductor B
 3V3 ──┬─── ESP32-S3 (MOD1)
       ├─── e-paper VCC (LCD1 module via 8-pin J2)
       ├─── THVD1400DR (U2) VCC  (D34, revised iter-10)
-      └─── RS-485 bias (R3/R4 ~330 Ω — the bus's only bias; see §4.5)
+      └─── RS-485 bias footprint (R3/R4, **DNP by default per iter-12 F12** — THVD1400 Full Fail-Safe RX (§8.2.1.4) means the bus doesn't need continuous bias for idle correctness; footprint remains for CP5 bench-stuff at ~330 Ω if EMI shows a need. See §4.5.)
 ```
 
 No 24 V on this board. No RTC chip (time syncs from RS-485 frames). No
@@ -235,41 +235,69 @@ to toggle on a start-bit, otherwise the wake path is impossible. So:
 - **GPIO2 (DE) can Hi-Z** in Deep-sleep — internal pull-DOWN takes
   DE = 0 = driver off. (Alternatively latched LOW; no functional
   difference.)
-- **GPIO18 configured as an `ext0` (or `ext1`) RTC-GPIO LOW-level wake
-  source — NOT the ESP UART wake.** ESP32-S3 UART wake is **Light-sleep
-  only** per Espressif sleep_modes documentation; Deep-sleep powers off
-  the APB-clocked digital peripherals including the UART, so the
-  triggering byte is unavailable to the application on wake. A start-bit
-  on the bus drives THVD1400 RO LOW → GPIO18 LOW → ext0 fires → ESP
-  wakes and reloads the app. **The wake-causing byte is lost by
-  design.**
-- **Firmware protocol requirement (CP2 firmware handoff):** battery-side
-  firmware must send a **wake preamble** (~50 ms of sync bytes,
-  conservative starting point — ESP32-S3 wake+boot from Deep-sleep is
-  ~10 ms) *before* every real frame, wait for a **display-side ACK**,
-  then transmit the actual payload. Display firmware sends the ACK once
-  the UART is initialized. Preamble length, ACK timeout, and retry
-  policy are firmware-layer decisions.
+- **Wake source: `ext1` `ESP_EXT1_WAKEUP_ANY_LOW` mask over GPIO12,
+  GPIO13, GPIO14, GPIO18** (F15). One RTC-GPIO wake API covers all four
+  active-LOW wake inputs: BTN1/BTN2/BTN3 (§4.6) and RS-485 RO from U2.
+  All four are RTC-capable per ESP32-S3 datasheet Table 5-3. **NOT the
+  ESP UART wake API** — ESP32-S3 UART wake is Light-sleep-only per
+  Espressif [`sleep_modes.html`](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/system/sleep_modes.html);
+  Deep-sleep powers off the APB-clocked digital peripherals including
+  the UART, so the triggering byte is unavailable to the application on
+  wake regardless.
+- **Wake waveform: a sustained LOW held for ≥3 RTC slow-clock cycles
+  plus margin** (F15). The RTC slow clock is 150 kHz internal → 3 cycles
+  ≈ 20 µs; Espressif's Deep-sleep GPIO wake documentation requires this
+  minimum for reliable sampling. At the D34 250 kbps bit rate, a normal
+  UART data byte is only 4 µs per bit — a random `0x55` never holds RO
+  LOW long enough. **Master-side implementation**: hold the RS-485
+  driver in the dominant state (A high, B low → RO LOW at the receiver)
+  as a UART BREAK / DE-high-with-TXD-low for a fixed pre-frame
+  interval. CP2 firmware nominal is **50 ms sustained LOW** — orders of
+  magnitude above the 20 µs minimum, and comfortably above the
+  ESP32-S3 wake+boot time (~10 ms typical from Deep-sleep). The wake
+  triggers on the LOW level, ESP boots + reloads app, releases the
+  bus, sends the display-side ACK once its UART is up, then the master
+  transmits the payload frame. **Bench-measure wake-to-ACK at CP2** —
+  don't size correctness around the ~10 ms boot assumption.
+- **Firmware protocol requirement (CP2 firmware handoff):** master
+  drives sustained LOW → waits for display ACK → transmits payload. ACK
+  timeout and retry policy are firmware-layer decisions. **The
+  wake-causing waveform is lost by design; the ACK is what tells the
+  master the display is ready to receive.**
 - **Transceiver draws its RX-only Iq (~900 µA max, ~700 µA typ)
   continuously** in this state — a real cost that appears in the
   display-side State B budget (§7). Not in the battery-side hard-cut
   budget because the display is on the Q1-shed rail; at hard-cut Q1 is
   off and the whole display side is dark.
-- **Alternative considered and rejected: Light-sleep + UART wake.** The
-  UART is clocked in Light-sleep, so a start-bit does wake the ESP
-  within microseconds without any preamble protocol. But Light-sleep Iq
-  is ~1–2 mA vs Deep-sleep's ~10 µA — a permanent ~1 mA (~3 mW)
-  penalty on the display side. Deep-sleep + preamble is the power-first
-  choice ([[power-first]]).
+- **Alternative considered and rejected: Light-sleep + UART wake** (F15,
+  corrected iter-15). ESP32-S3-WROOM-1-N16R8 module
+  [datasheet](https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf)
+  Table 6 lists Light-sleep at **240 µA typ** for the base module, plus
+  **~140 µA for the N16R8's 8-line PSRAM** (kept in retention);
+  Deep-sleep is ~7-8 µA typ. Mode delta ≈ **0.37 mA (~1.2 mW at 3.3 V)**,
+  not the ~1 mA / ~3 mW previously quoted. Even so, Light-sleep
+  UART wake still normally loses the triggering character (Espressif
+  sleep_modes docs: the triggering character is not received and an
+  extra wake character is normally required) — so the master would still
+  send a preamble byte, and the display's ACK would still be needed. On
+  a ~1 mW hard-cut budget and a ~50 mW display State A total, 1.2 mW
+  is meaningful; and Deep-sleep + BREAK still wins on both power and
+  wake-source unification (buttons + bus on one API). Deep-sleep +
+  BREAK is the power-first choice ([[power-first]]).
 
-**Power-first note (D19/DR-4)**: the bus's idle bias lives **here, on the
-display end** — *not* on the battery side. The battery 3V3 rail is now
-always-on, so battery-side bias (~2.3 mA) would draw continuously and blow
-the ~1 mW hard-cut budget. On the display side, the bias is sourced from
-the display 3V3, which is **shed with the display** when the battery opens
-Q1 at low SOC — so it costs nothing in the state that matters. Resized
-680 → ~330 Ω so a single bias point clears 200 mV idle across both
-terminators.
+**Power-first note (D19/DR-4, revised iter-12 F12)**: if the bus ever
+needs continuous idle bias, it lives **here, on the display end** —
+*not* on the battery side. The battery 3V3 rail is now always-on, so
+battery-side bias (~2.3 mA) would draw continuously and blow the ~1 mW
+hard-cut budget. **But**: THVD1400's Full Fail-Safe RX (datasheet
+§8.2.1.4) guarantees RO HIGH on an open/short/idle bus without any
+external bias, so **R3/R4 are DNP by default** (iter-12 F12) — the
+15 mW cost is not spent unless bench testing reveals a specific noise
+problem. If populated at CP5 at the previously-computed ~330 Ω (a
+single bias point that clears 200 mV idle across both terminators),
+the 15 mW is sourced from the display 3V3 rail, which is **shed with
+the display** when the battery opens Q1 at low SOC — so the cost is
+zero in State 4 regardless of stuff status.
 
 ### 4.6 User input (3 tactile buttons, software-defined labels)
 
@@ -332,7 +360,7 @@ nothing about the power-loss case. See D30.
 | UART_TX_3V3  | 3.3 V       | ESP IO17              | U2 D pin                                       | RS-485 driver input |
 | UART_RX_3V3  | 3.3 V       | U2 R pin              | ESP IO18                                       | RS-485 receiver output |
 | DE           | 3.3 V       | ESP IO2               | U2 DE pin (active-HIGH); THVD1400 internal 2 MΩ pull-DOWN → default 0 | **D34/F06:** split from tied DE_RE. Internal pull → default-safe (driver off). |
-| /RE          | 3.3 V       | ESP IO15              | U2 /RE pin (active-LOW); THVD1400 internal 2 MΩ pull-UP → default 1  | **D34/F06 + F09:** split from tied DE_RE. Internal pull defaults /RE = 1 (shutdown). **Display sleep policy latches GPIO15 LOW via RTC-GPIO (`gpio_hold_en`)** so the receiver stays on and GPIO18 UART RX wake works. |
+| /RE          | 3.3 V       | ESP IO15              | U2 /RE pin (active-LOW); THVD1400 internal 2 MΩ pull-UP → default 1  | **D34/F06 + F09 + F15:** split from tied DE_RE. Internal pull defaults /RE = 1 (shutdown). **Display sleep policy latches GPIO15 LOW via RTC-GPIO (`gpio_hold_en`)** so the receiver stays on and RO can pull GPIO18 LOW when the master drives a sustained-LOW wake waveform (ext1 ANY_LOW mask over GPIO12/13/14/18). |
 | RS485_A      | 0–5 V diff  | U2 A pin              | J1 pin 4, R2, R3 (opt), TVS2                   | Differential pair |
 | RS485_B      | 0–5 V diff  | U2 B pin              | J1 pin 5, R2, R4 (opt), TVS2                   | (paired with A) |
 | EPD_CS       | 3.3 V       | ESP IO5               | J2 (CS pin)                                | SPI chip select |
@@ -370,9 +398,9 @@ tied DE_RE to plain DE by D34.
 | GPIO12 | input     | BTN1 (RTC-capable)       | Wake source for "any button press" |
 | GPIO13 | input     | BTN2 (RTC-capable)       | "                            |
 | GPIO14 | input     | BTN3 (RTC-capable)       | "                            |
-| GPIO15 | output    | **RS-485 /RE** (D34/F09) | **Latched LOW in Deep-sleep via `gpio_hold_en(GPIO15)` + `gpio_deep_sleep_hold_en()`** so /RE = 0 → receiver stays on for the GPIO18 wake path. RTC-capable per ESP32-S3 Table 5-3. Overrides THVD1400 internal 2 MΩ pull-UP. |
+| GPIO15 | output    | **RS-485 /RE** (D34/F09) | **Latched LOW in Deep-sleep via `gpio_hold_en(GPIO15)` + `gpio_deep_sleep_hold_en()`** so /RE = 0 → receiver stays on so RO can respond to the master's sustained-LOW BREAK (ext1 ANY_LOW wake mask, see GPIO18 row). RTC-capable per ESP32-S3 Table 5-3. Overrides THVD1400 internal 2 MΩ pull-UP. |
 | GPIO17 | UART1 TX  | to U2 (THVD1400) D pin   | Hi-Z in deep sleep           |
-| GPIO18 | UART1 RX + ext0 wake  | from U2 (THVD1400) R pin | Hi-Z in Deep-sleep for the UART bit; also configured as **`ext0` RTC-GPIO LOW-level wake** (D34/F11). A start-bit on the bus → THVD1400 RO LOW → ext0 fires. **The triggering byte is lost** — Espressif UART wake is Light-sleep-only. Firmware protocol: battery-side sends a ~50 ms wake preamble + waits for display ACK before transmitting the real frame. GPIO18 is RTC-capable per ESP32-S3 Table 5-3. |
+| GPIO18 | UART1 RX + `ext1` wake mask | from U2 (THVD1400) R pin | Hi-Z in Deep-sleep for the UART bit; also included in the **`ext1 ESP_EXT1_WAKEUP_ANY_LOW` wake mask** with GPIO12/13/14 (D34/F11+F15). A sustained LOW on the bus → THVD1400 RO LOW → ext1 fires. **The triggering waveform is lost** — Espressif UART wake is Light-sleep-only; ext1 wakes on a level, not a byte. Firmware protocol: master sends a ≥20 µs sustained LOW (nominally 50 ms UART BREAK / dominant hold) + waits for display ACK before transmitting the real frame. GPIO18 is RTC-capable per ESP32-S3 Table 5-3. |
 | GPIO19/20 | USB DM/DP | native USB → USB-C port (J-USB), ESD-clamped | maintenance port (D27) |
 
 ## 7. Power budget (per [`power_budget.md`](../../docs/hardware/power_budget.md))
@@ -400,19 +428,20 @@ see §4.5 for the F11 Deep-sleep wake decision):
 
 | Subsystem            | Avg draw (max where spec'd) |
 |----------------------|------------------------------|
-| ESP32-S3 Deep-sleep + RTC hold (per F11 architecture; ext0 wake on GPIO18) | ~10 µA typ (Espressif §5.4; add engineering margin for max) |
+| ESP32-S3 Deep-sleep + RTC hold (per F11+F15 architecture; ext1 ANY_LOW mask over GPIO12/13/14/18) | ~10 µA typ (Espressif §5.4; add engineering margin for max) |
 | RS-485 receive (U2 THVD1400, RX-only, no load; /RE held LOW via `gpio_hold_en` per F09) | ~700 µA typ / **~900 µA max** |
 | R3/R4 idle bias      | **0 (DNP, F12)**             |
 | Panel static         | 0                            |
 | Total                | ~0.9 mA at 3.3 V ≈ **~3.0 mW** (max, no bias) |
 
-The RX-active current is unavoidable in State B given the F11 Deep-sleep
-wake architecture: /RE must stay LOW so the receiver can drive RO on an
-incoming start-bit, and GPIO18 must be configured as an ext0 RTC-GPIO
-level wake source (UART peripheral is powered off in Deep-sleep — the
-triggering byte is lost, so battery-side firmware must send a sync
-preamble + wait for display ACK before sending the real frame; see D34
-§Firmware TODO). Gating VCC to U2 with an N-FET would kill even the RO
+The RX-active current is unavoidable in State B given the F11+F15
+Deep-sleep wake architecture: /RE must stay LOW so the receiver can
+drive RO on the master's sustained-LOW BREAK, and GPIO18 is one of
+four active-LOW wake inputs in the ext1 ANY_LOW mask (with buttons
+GPIO12/13/14; UART peripheral is powered off in Deep-sleep — the
+triggering waveform is lost, so battery-side firmware must send a
+sustained-LOW wake interval + wait for display ACK before sending the
+real frame; see D34 §Firmware TODO). Gating VCC to U2 with an N-FET would kill even the RO
 edge and force the display back to Light-sleep + higher ESP Iq — deferred
 to a future revision if this ~3 mW ever becomes load-bearing vs the
 display's ~29 mW State A average.
@@ -424,8 +453,10 @@ regardless of stuff status.
 ## 8. RS-485 interface
 
 - Bus terminus → R2 populated.
-- Idle bias (R3, R4, ~330 Ω) **populated — this is the bus's only
-  fail-safe bias** (D19/DR-4; battery side carries none). See §4.5.
+- Idle bias (R3, R4) **DNP by default per iter-12 F12** — THVD1400's
+  Full Fail-Safe RX handles open/short/idle without external bias.
+  Footprint stays on the PCB; CP5 stuff at ~330 Ω if EMI testing reveals
+  a specific need (D19/DR-4; battery side carries none regardless). See §4.5.
 - Shield drain wire from J1 is **NC** at this end. Single-point bond at
   battery side. (See [`cat5e_pinout.md`](../../docs/hardware/cat5e_pinout.md).)
 
@@ -540,7 +571,7 @@ minimum).
 | Board outline                    | ~85 × 60 mm                              | 85 × 65 mm — slightly bigger thanks to double-gang  |
 | Button function                  | Hardcoded (Refresh / Next-screen / Release-BLE) | **Software-defined**, with on-screen labels rendered next to each button |
 | Debug LED                        | LED1 + R_led                            | **Removed** per D4                          |
-| Idle bias on RS-485              | Battery-side R11/R12 (~2.3 mA, always-on leak under D19) | **Moved here, populated at ~330 Ω** — the bus's only bias; shed with the display at low SOC (D19/DR-4) |
+| Idle bias on RS-485              | Battery-side R11/R12 (~2.3 mA, always-on leak under D19) | **Moved footprint here; DNP by default per iter-12 F12** — THVD1400 Full Fail-Safe RX (§8.2.1.4) handles idle without external bias. CP5 stuff at ~330 Ω if EMI testing requires it; sourced from display 3V3 so shed with the display at low SOC either way (D19/DR-4) |
 | Mounting                         | Single-gang low-voltage bracket          | Custom 3D-printed bracket (drops into double-gang box and secures PCB) |
 | Faceplate                        | Blank single-gang plate, cut for window  | Custom 3D-printed plate (user designs against PCB STEP from CP5) |
 

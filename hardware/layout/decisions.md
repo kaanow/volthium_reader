@@ -1445,9 +1445,11 @@ shutdown max 1 µA gives **hard-cut ≈ ~1.08 mW** total from pack
 full table with per-row typ vs max annotations). The EN-asserted floor
 state (chip in reset, ESP off) drops the ESP ~99 µW referred term and
 lands at ~0.98 mW — only ~0.1 mW below hard-cut, since the V24-side
-terms dominate. *(iter-12 F13 rebuilt this on datasheet-max Iq
-throughout, correcting the earlier "max throughout" claim that had
-carried typ values for U1/U4/U6.)*
+terms dominate. *(iter-12 F13 rebuilt this on datasheet max where
+spec'd + explicit engineering margin where max isn't published,
+correcting the earlier "max throughout" claim that had carried typ
+values for U1/U4/U6; iter-14 F16 tightened the wording so it matches
+across power_budget.md, D34, DR-25, and the §7 State-4 row.)*
 
 **Override-button precedence.** The hardware floor **wins** over the
 panel-mount manual override — a user can't force the display on below the
@@ -1626,16 +1628,18 @@ right part and make assembly easier via the stencil, not to downgrade the
 part. **Resolves DR-24.** Feeds CP3 placement (footprints/thermal-pad/vias for
 U1/U6) and the fab order (add stencil).
 
-## D34 — RS-485 transceiver = THVD1400DR (3.3 V half-duplex); DE / /RE split; per-board sleep policy — DR-25 (reviewer iter-8 F05/F06 + iter-10 F08/F09)
+## D34 — RS-485 transceiver = THVD1400DR (3.3 V half-duplex); DE / /RE split; per-board sleep policy — DR-25 (reviewer iter-8 F05/F06 + iter-10 F08/F09 + iter-14 F15)
 
-**Decision (2026-07-02, revised iter-10).** Swap `SN65HVD3082EDR` →
-**`THVD1400DR`** on both boards. Route the transceiver enables as **two
-independent ESP GPIOs** (DE + /RE) and rely on THVD1400's
-**datasheet-guaranteed internal pulls** (DE 2 MΩ pull-DOWN + /RE 2 MΩ
-pull-UP) for the default-safe state; **battery firmware defaults to
-shutdown** (both GPIOs Hi-Z), **display firmware defaults to
-receive-active** (GPIO15 latched LOW via RTC-GPIO so the SN75176-family
-UART-RX wake path from GPIO18 stays valid). Resolves **F05 (BLOCKER,
+**Decision (2026-07-02, revised iter-10, further revised iter-14 F15
+wake spec).** Swap `SN65HVD3082EDR` → **`THVD1400DR`** on both boards.
+Route the transceiver enables as **two independent ESP GPIOs** (DE +
+/RE) and rely on THVD1400's **datasheet-guaranteed internal pulls**
+(DE 2 MΩ pull-DOWN + /RE 2 MΩ pull-UP) for the default-safe state;
+**battery firmware defaults to shutdown** (both GPIOs Hi-Z), **display
+firmware defaults to receive-active** (GPIO15 latched LOW via RTC-GPIO
+so RO stays live and can pull GPIO18 LOW when the master drives the
+sustained-LOW wake BREAK; wake API = `ext1` `ESP_EXT1_WAKEUP_ANY_LOW`
+mask over GPIO12/13/14/18, per iter-14 F15). Resolves **F05 (BLOCKER,
 wrong-VCC part)**, **F06 (IMPORTANT, tied enables can't shutdown)**, and
 **F08 (IMPORTANT, max-vs-typ shutdown accounting)**, and closes the
 long-open **D-OPEN-2**. **F09 (display deep-sleep RX wake regression)** is
@@ -1759,39 +1763,52 @@ load-bearing miss.
 - **Battery side (State 3/4):** ESP puts GPIO2 and GPIO15 to Hi-Z; the
   THVD1400 internal pulls default to shutdown (Icc ≤ 1 µA max).
   Transceiver contributes ~7 µW referred to pack in State 4 — negligible
-  vs the ~1 mW headline. The GPIO18 UART-RX wake path is NOT used on the
-  battery side (battery ESP wakes on its own timer + BTN_OVERRIDE, not on
-  RS-485 traffic).
+  vs the ~1 mW headline. Battery does not use RS-485 as a wake source
+  (battery ESP wakes on its own timer + BTN_OVERRIDE, not on RS-485
+  traffic).
 - **Display side (State B — waiting for the next frame from the battery
-  ESP; revised iter-12 F11):** ESP holds GPIO15 **LOW via RTC-GPIO
-  latch** (`gpio_hold_en(GPIO15)` + `gpio_deep_sleep_hold_en()`) through
-  Deep-sleep, so /RE = 0 = receiver on, keeping RO active. GPIO2 can
-  Hi-Z (internal pull-DOWN → DE = 0 = driver off). **Wake source =
-  GPIO18 configured as `ext0` (or `ext1`) RTC-GPIO LOW-level wake, NOT
-  the ESP UART wake.** Espressif's sleep documentation states clearly:
+  ESP; revised iter-12 F11 + iter-14 F15):** ESP holds GPIO15 **LOW via
+  RTC-GPIO latch** (`gpio_hold_en(GPIO15)` + `gpio_deep_sleep_hold_en()`)
+  through Deep-sleep, so /RE = 0 = receiver on, keeping RO active. GPIO2
+  can Hi-Z (internal pull-DOWN → DE = 0 = driver off). **Wake source =
+  `ext1` `ESP_EXT1_WAKEUP_ANY_LOW` mask over GPIO12, GPIO13, GPIO14,
+  GPIO18** — one wake API covers the 3 active-LOW buttons (§4.6) and
+  the RS-485 RO wake. Espressif's sleep documentation states clearly:
   Deep-sleep powers off the APB-clocked digital peripherals (including
   the UART), so UART wake is **Light-sleep-only** and the triggering
   frame is unavailable to the application. The iter-8 first cut and my
-  iter-10 §17 both said "GPIO18 UART start-bit wakes the ESP" — that is
-  false in Deep-sleep. **Corrected wake path:** the incoming RS-485
-  start-bit drives THVD1400's RO LOW, which drives GPIO18 LOW, which
-  triggers ext0. ESP wakes and reloads the application; the wake-causing
-  byte is lost. **Firmware protocol requirement:** battery-side sends a
-  **wake preamble** (a few sync/junk bytes) *before* the actual frame,
-  waits for a **display-side ACK**, then transmits the real frame.
-  Preamble length is set by ESP32-S3 wake-time-from-Deep-sleep + boot
-  time; a conservative starting point is ~50 ms of preamble (well over
-  the ~10 ms typical wake+boot). The specific preamble length, ACK
-  timeout, and retry policy are firmware-layer decisions — see CP2
-  firmware handoff. The transceiver draws its **RX-only Iq (~900 µA
-  max)** continuously in this state — a real cost that appears in the
-  display-side State B budget (§7), but the display is on the Q1-shed
-  rail so this term is *not* in the battery-side hard-cut budget.
-  Alternative rejected: **Light-sleep + UART wake** works (the UART is
-  clocked and a start-bit does wake the ESP within µs), but Light-sleep
-  Iq is ~1–2 mA vs Deep-sleep's ~10 µA — a ~1 mA (~3 mW) permanent
-  penalty on the display side, so Deep-sleep + preamble is the
-  power-first choice.
+  iter-10 §17 both said "GPIO18 UART start-bit wakes the ESP" — false
+  in Deep-sleep. Iter-12 F11 corrected to ext0/ext1 RTC-GPIO wake but
+  left the API un-selected; iter-14 F15 selects **ext1 ANY_LOW** so
+  the buttons and bus share one wake mechanism. **Corrected wake
+  waveform:** the master drives the RS-485 pair in the dominant state
+  (a UART BREAK / DE-high-with-TXD-low hold) for a sustained-LOW
+  interval that meets the RTC slow-clock's ≥3-cycle sampling minimum
+  (150 kHz slow clock → ~20 µs floor). This drives THVD1400 RO LOW,
+  which drives GPIO18 LOW, which fires ext1. CP2 firmware nominal is
+  **50 ms sustained LOW** — comfortably above the 20 µs minimum and
+  above ESP32-S3 wake+boot (~10 ms typical from Deep-sleep). The ESP
+  wakes and reloads the application; the wake-causing waveform is
+  lost. **Firmware protocol requirement:** master drives sustained LOW
+  → waits for display ACK → transmits payload. ACK timeout, retry
+  policy, and the exact BREAK duration (bench-measured at CP2 against
+  real wake-to-ACK latency) are firmware-layer decisions — see CP2
+  firmware handoff. **Do not size correctness around the ~10 ms boot
+  assumption; bench-measure at CP2.** The transceiver draws its
+  **RX-only Iq (~900 µA max)** continuously in this state — a real
+  cost that appears in the display-side State B budget (§7), but the
+  display is on the Q1-shed rail so this term is *not* in the
+  battery-side hard-cut budget. Alternative rejected: **Light-sleep +
+  UART wake** (revised iter-14 F15 numbers). Module datasheet
+  ESP32-S3-WROOM-1 Table 6 lists Light-sleep at **240 µA typ** plus
+  **~140 µA for the N16R8's 8-line PSRAM** (retention), so the mode
+  delta vs ~10 µA Deep-sleep is **~0.37 mA (~1.2 mW at 3.3 V)** — not
+  the ~1 mA/~3 mW I quoted iter-12. Even in Light-sleep, Espressif
+  notes the triggering character is not received and an extra wake
+  character is normally required, so the master would still send a
+  preamble byte. Deep-sleep + BREAK still wins on power (1.2 mW is
+  meaningful on a ~1 mW hard-cut budget and ~50 mW display State A
+  total) and unifies buttons + bus on one wake API.
 - **Both boards, reset / crash / brown-out:** both GPIOs float → THVD1400
   internal pulls → shutdown. No external components required.
 
@@ -1804,14 +1821,17 @@ board is single-purpose.
 With the split, State-4 shutdown is achievable and the transceiver
 contributes **at most 1 µA @ 3.3 V ≈ 3.3 µW at load, ~7 µW referred**
 (max, worst-case over temp) — inside the µW rounding floor. **Full
-State-4 sum rebuilt on datasheet-max Iq throughout** (iter-12 F13
-caught that my "max throughout" claim was still using typical values
-for U1/U4/U6): **~1.08 mW total (~1.1 mW headline)** with LM5166
-15 µA max + TPS3808 5 µA max + TPS2116 4.5 µA max + THVD1400 1 µA max
+State-4 sum rebuilt on datasheet max where spec'd + explicit engineering
+margin where no max is published** (iter-12 F13 caught that my earlier
+"max throughout" claim was still using typical values for U1/U4/U6, and
+iter-14 F16 flagged one remaining "throughout" phrasing here; this is
+the corrected convention used everywhere in the CP1 documents):
+**~1.08 mW total (~1.1 mW headline)** with LM5166 **15 µA max** +
+TPS3808 **5 µA max** + TPS2116 **4.5 µA max** + THVD1400 **1 µA max**
 + ESP32-S3 Deep-sleep 10 µA typ + 5 µA engineering margin (Espressif
-does not publish a spec max). ([[power-first]]) If we had kept
-ISL3175E and honored F08 max-to-max, the headline would be ~1.14 mW
-(the extra 11 µA on the U3 shutdown line).
+does not publish a spec max for Deep-sleep in ES §5.4). ([[power-first]])
+If we had kept ISL3175E and honored F08 max-to-max, the headline would
+be ~1.14 mW (the extra 11 µA on the U3 shutdown line).
 
 **BOM impact.**
 - U3 (battery) / U2 (display): `SN65HVD3082EDR` → **`THVD1400DR`**
@@ -1827,20 +1847,25 @@ ISL3175E and honored F08 max-to-max, the headline would be ~1.14 mW
   enabling either as an output. On entering deep-sleep, configure both
   GPIOs to Hi-Z (no RTC-GPIO latch) so THVD1400's internal pulls take
   over to shutdown.
-- **Display-side (revised iter-12 F11):** on boot, drive GPIO2 LOW and
-  GPIO15 LOW (receiver on). Before entering Deep-sleep, call
-  `gpio_hold_en(GPIO15)` then `gpio_deep_sleep_hold_en()` to latch
+- **Display-side (revised iter-12 F11 + iter-14 F15):** on boot, drive
+  GPIO2 LOW and GPIO15 LOW (receiver on). Before entering Deep-sleep,
+  call `gpio_hold_en(GPIO15)` then `gpio_deep_sleep_hold_en()` to latch
   GPIO15 LOW through the sleep — /RE stays 0, transceiver stays in RX.
-  Configure GPIO18 as an **ext0 (or ext1) RTC-GPIO LOW-level wake
-  source** — NOT the ESP UART wake API (UART is powered down in
-  Deep-sleep, per Espressif sleep_modes docs, and the triggering byte
-  is lost regardless). Battery-side firmware must send a **wake
-  preamble** (~50 ms of sync bytes suggested) before every real frame
-  and wait for a display ACK before transmitting the payload; display
-  firmware sends the ACK once boot completes and the UART is ready.
-  Preamble length + ACK timeout + retry policy are firmware-layer
-  decisions — CP2 handoff item. GPIO15 and GPIO18 both RTC-capable per
-  Espressif ESP32-S3 datasheet Table 5-3.
+  Configure the **`ext1` wake mode with `ESP_EXT1_WAKEUP_ANY_LOW`** and
+  a bit mask covering GPIO12, GPIO13, GPIO14 (buttons, §4.6), and
+  GPIO18 (RS-485 RO). **Not** the ESP UART wake API (UART is powered
+  down in Deep-sleep per Espressif sleep_modes docs, and the triggering
+  byte is lost regardless). Battery-side firmware wakes the display by
+  driving the RS-485 pair in the sustained dominant state — either
+  raise DE with TXD held LOW, or transmit a UART BREAK — for **≥20 µs
+  (RTC slow-clock 3-cycle minimum) with a nominal 50 ms** used at CP2
+  (bench-measured against real wake-to-ACK latency; boot time is
+  ~10 ms typical from Deep-sleep, so 50 ms leaves 5× margin). The
+  display's ACK, sent as soon as the UART is up, is what tells the
+  master the display is ready to receive the payload frame. BREAK
+  duration + ACK timeout + retry policy are firmware-layer decisions —
+  CP2 handoff item. GPIO12/13/14/15/18 all RTC-capable per Espressif
+  ESP32-S3 datasheet Table 5-3.
 
 **Supersedes** D-OPEN-2 (transceiver alternatives inventory). The reviewer's
 existing D-OPEN-2 list (SN65HVD3082E, THVD1452, MAX3485, ISL3170E,

@@ -65,12 +65,19 @@ when the pack recovers. No full power-down, no separate supervisor IC
 
 Terms are kept in their **native voltage domain** and only the buck-input
 side is referred to the pack directly; 3.3 V loads are drawn from the
-pack via U1's light-load efficiency. **All 3.3 V load rows use the
-datasheet *maximum* Iq**, not typical, per reviewer iter-10 F08.
-*(Reviewer iter-6 F03: prior rows mis-referred 3.3 V rail current to 24 V.
-Iter-10 F08: the iter-8 first cut quoted transceiver shutdown Iq at
-typical (10 nA) instead of maximum (12 µA), which triggered the
-ISL3175E → THVD1400DR reselection.)*
+pack via U1's light-load efficiency. **Rows use the datasheet
+*maximum* Iq where the datasheet publishes a spec max** (U1/U4/U6/U3);
+**typical + explicit engineering margin** is used where no max is
+published (ESP32-S3-WROOM Deep-sleep is 7-8 µA typ per Espressif ES §5.4
+with no listed max, so this table uses 10 µA typ + 5 µA margin = 15 µA;
+RTC RV-3028-C7 at 45 nA is typ, ≤200 nA per Micro Crystal AN — well
+under the µW floor). *(Reviewer iter-6 F03: prior rows mis-referred
+3.3 V rail current to 24 V. Iter-10 F08: the iter-8 first cut quoted
+transceiver shutdown Iq at typical (10 nA) instead of maximum (12 µA),
+which triggered the ISL3175E → THVD1400DR reselection. Iter-12 F13
+caught that my "max throughout" claim still mixed typ and max — this
+"max where spec'd + explicit margin where not" wording is the corrected
+convention used everywhere in the CP1 documents.)*
 
 | Subsystem                                | Native draw (typ / **max** where spec'd) | Referred to pack (24 V) |
 |------------------------------------------|------------------------------------------|-------------------------|

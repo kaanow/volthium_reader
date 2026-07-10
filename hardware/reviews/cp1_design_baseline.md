@@ -1917,3 +1917,181 @@ mechanical propagation gap that was avoidable.
 **State:** → `reviewer_turn` for re-verify of F11/F12/F13/F14. Zero
 blockers, zero open design questions; DR-19 remains verified-closed;
 **D-OPEN-2** closed by D34; CP2 held pending user clearance.
+
+---
+
+## 19. Claude's responses to iter-14 findings (2026-07-10)
+
+Both iter-14 findings are AGREED and addressed here. F15's underlying
+issue is exactly the failure mode you flagged: my iter-12 wake spec
+described the correct *architecture* but never chose a concrete API or
+wake waveform, so the description was engineering-fiction — you can't
+implement `ext0 (or ext1)` and you can't RTC-wake off a bit stream
+whose LOW pulses are ~4 µs at 250 kbps when the sampler needs ~20 µs.
+F16 is the same iter-12 pattern I keep making: I fix the main design
+site but skip mechanically sweeping the same wording across every
+downstream doc.
+
+### F15 (IMPORTANT) — display Deep-sleep wake trigger
+
+**AGREE fully.** The gap you called out is real on all three axes:
+(a) API un-selected, (b) waveform doesn't guarantee sampling, (c) my
+Light-sleep alternative used wrong (higher) numbers, so the trade
+looked more one-sided than it is. Corrected below.
+
+**Wake API selected: `ext1` with `ESP_EXT1_WAKEUP_ANY_LOW`.** Mask
+covers **GPIO12, GPIO13, GPIO14, GPIO18** — the three active-LOW
+buttons (§4.6) and the RS-485 RO wake all on one API. All four are
+RTC-capable per ESP32-S3 datasheet Table 5-3. ext1 (vs ext0) is the
+right call precisely because we need multiple wake inputs; and ANY_LOW
+is right because buttons and RO are both active-LOW. This unifies the
+button wake path (which was implicit in the design but never
+tied down to a specific wake mechanism) with the RS-485 wake path.
+
+**Wake waveform: sustained-LOW BREAK ≥3 RTC slow-clock cycles.** RTC
+slow clock is 150 kHz internal → 3 cycles ≈ 20 µs floor per Espressif's
+Deep-sleep GPIO wake sampling spec. **Master implementation**: drive
+the RS-485 pair in the dominant state (DE high, TXD held LOW) as a
+UART BREAK / dominant-hold for a fixed pre-frame interval. **CP2
+nominal is 50 ms sustained LOW** — orders of magnitude above the 20 µs
+minimum and comfortably above ESP32-S3 wake+boot from Deep-sleep
+(~10 ms typical). The 0x55 sync-byte "preamble" I described iter-12
+was wrong: at 4 µs per bit, worst-case LOW is 4 µs, well under the
+20 µs sampling floor — that waveform could miss the wake sampler
+depending on phase. A sustained LOW eliminates the risk. Bench-measure
+wake-to-ACK at CP2 against real wake+boot timing; do not size
+correctness around the ~10 ms boot assumption.
+
+**Light-sleep alternative — corrected numbers.** My iter-12 write-up
+claimed ~1 mA / ~3 mW mode delta for Light-sleep vs Deep-sleep, using
+a hand-wavy 1-2 mA figure. The **actual module datasheet** for
+ESP32-S3-WROOM-1-N16R8 (Table 6) lists:
+- Light-sleep base: **240 µA typ**
+- **N16R8 PSRAM in retention: +~140 µA** (8-line octal PSRAM)
+- Deep-sleep: ~7-8 µA typ
+
+Mode delta ≈ **0.37 mA (~1.2 mW at 3.3 V)**, not 3 mW. So the
+Light-sleep alternative is less penalizing than I quoted — but
+Deep-sleep + BREAK still wins on three counts: (i) 1.2 mW is
+meaningful given a ~1 mW hard-cut budget and ~50 mW display State A
+total; (ii) even Light-sleep loses the UART triggering character per
+Espressif docs, so the master would still send a preamble byte; and
+(iii) using ext1 unifies buttons + bus on one wake API. Keeping the
+Deep-sleep + BREAK choice.
+
+**Changes:**
+- `cp1_display_side.md §4.5` — full sleep policy rewrite: ext1
+  ANY_LOW mask over GPIO12/13/14/18, sustained-LOW BREAK waveform
+  with 20 µs floor + 50 ms CP2 nominal, corrected Light-sleep
+  numbers with module datasheet citation.
+- `cp1_display_side.md §6` GPIO18 row + GPIO15 (/RE) row — updated to
+  ext1 mask; GPIO15's rationale for latching LOW now points at
+  "receiver stays on so RO can respond to the master's sustained-LOW
+  BREAK" rather than the (broken) UART-RX wake path.
+- `cp1_display_side.md §7 State B row + narrative` — updated to
+  reference ext1 ANY_LOW mask + sustained-LOW wake interval.
+- `cp1_display_side.md §3 power tree` and §4.5 Power-first note and
+  §8 fail-safe bias sentence — updated (see F16 below).
+- `decisions.md D34` — heading gets "+ iter-14 F15" tag; display
+  sleep policy rewritten with the ext1 mask, sustained-LOW BREAK,
+  20 µs sampling floor, 50 ms CP2 nominal, and corrected Light-sleep
+  numbers with the ~140 µA PSRAM addition.
+- `decisions.md D34 Firmware TODO` — display-side entry rewritten to
+  spec `ESP_EXT1_WAKEUP_ANY_LOW` with the exact GPIO mask + the
+  BREAK-based wake waveform.
+- `DESIGN_REVIEW_ITEMS.md DR-25` — heading updated + display sleep
+  policy paragraph rewritten to match, with the corrected Light-sleep
+  numbers and the multi-input rationale for `ext1`.
+
+### F16 (IMPORTANT) — F11/F12/F13 G5 propagation
+
+**AGREE.** This is the same G5 gap I keep making: I fix the source of
+truth (§4.5, D34, DR-25) and skip mechanically walking the same
+language into every downstream doc. Ran the exact G5 sweep you
+suggested (`UART.*wake|ext0|ext1|sync bytes|populated.*330|only bias|max.*throughout`),
+classified every hit, and fixed every live-text occurrence. Remaining
+hits are historical acknowledgements ("earlier claim", "iter-8 first
+cut said…") which read correctly as "here's what we used to say and
+why it was wrong."
+
+**Specific corrections:**
+
+**UART wake / API selection propagation (F16 a):**
+- `docs/hardware/bom.md` U2 row — "and GPIO18 UART RX wake works
+  (F09)" → "wake is the `ext1` `ESP_EXT1_WAKEUP_ANY_LOW` RTC-GPIO
+  mask over GPIO12/13/14 (buttons) + GPIO18 (RO), triggered by a
+  master-driven sustained-LOW BREAK — not the ESP UART wake API
+  (UART is off in Deep-sleep)."
+- `hardware/layout/cp1_bom.md` U2 row — same correction.
+- `cp1_display_side.md §6` GPIO15 (/RE) net row — was "so the
+  receiver stays on and GPIO18 UART RX wake works" → "so /RE = 0 →
+  receiver stays on so RO can respond to the master's sustained-LOW
+  BREAK (ext1 ANY_LOW wake mask, see GPIO18 row)."
+- `decisions.md` battery-side sleep policy bullet — "The GPIO18
+  UART-RX wake path is NOT used on the battery side (battery ESP
+  wakes on its own timer + BTN_OVERRIDE, not on RS-485 traffic)" —
+  removed the "UART-RX wake path" language which was itself
+  inaccurate; now reads "Battery does not use RS-485 as a wake
+  source" without embedding the (already-corrected) UART framing.
+
+**DNP bias propagation (F16 b):**
+- `cp1_display_side.md §3` power tree — was "RS-485 bias (R3/R4
+  ~330 Ω — the bus's only bias; see §4.5)" → "RS-485 bias
+  footprint (R3/R4, DNP by default per iter-12 F12) — THVD1400 Full
+  Fail-Safe RX (§8.2.1.4) means the bus doesn't need continuous bias
+  for idle correctness; footprint remains for CP5 bench-stuff at
+  ~330 Ω if EMI shows a need."
+- `cp1_display_side.md §4.5` Power-first note — rewritten to lead
+  with "if the bus ever needs continuous idle bias, it lives here"
+  rather than the (now-false) "the bus's idle bias lives here on the
+  display end." Explicit DNP call-out, with the 15 mW cost
+  explicitly not-spent-unless-bench-shows-a-problem.
+- `cp1_display_side.md §8` idle-bias bullet — was "(R3, R4, ~330 Ω)
+  **populated — this is the bus's only fail-safe bias**" → "R3, R4)
+  DNP by default per iter-12 F12 — THVD1400's Full Fail-Safe RX
+  handles open/short/idle without external bias."
+- `cp1_display_side.md §14` change-log row — was "Moved here,
+  populated at ~330 Ω — the bus's only bias" → "Moved footprint
+  here; DNP by default per iter-12 F12."
+- `cp1_bom.md D-OPEN-8` closure — was "populated at ~330 Ω — they
+  are the bus's *only* fail-safe bias" → "DNP by default — THVD1400
+  Full Fail-Safe RX guarantees RO HIGH on open/short/idle without
+  external bias, so the 15 mW cost is not spent."
+
+**"max throughout" propagation (F16 c):**
+- `docs/hardware/power_budget.md` State-4 lead-in sentence — was
+  "**All 3.3 V load rows use the datasheet *maximum* Iq**, not
+  typical" → "**Rows use the datasheet *maximum* Iq where the
+  datasheet publishes a spec max** (U1/U4/U6/U3); **typical + explicit
+  engineering margin** is used where no max is published (ESP32-S3
+  Deep-sleep, RTC)." This wording is now the canonical description
+  used at every site.
+- `decisions.md D34 Hard-cut budget impact` — "rebuilt on
+  datasheet-max Iq throughout" → "rebuilt on datasheet max where
+  spec'd + explicit engineering margin where no max is published"
+  with the corrected list.
+- `decisions.md D28/DR-16 hard-cut narrative` — same "max throughout"
+  → "datasheet max where spec'd + explicit engineering margin where
+  max isn't published."
+- `DESIGN_REVIEW_ITEMS.md DR-25 Hard-cut impact` — same correction,
+  now explicitly names typ + margin for ESP Deep-sleep and RTC.
+- `cp1_battery_side.md §7 State-4 row` — already said "max Iq where
+  spec'd + explicit ESP margin" (correct); tightened the notes
+  column to explicitly cover RTC (typ, under µW floor) so the four
+  sites read identically.
+
+### Confirming the resolution table
+
+Reviewer's iter-14 verdicts (§8.8 resolution check):
+
+| Prior item | Iter-14 verdict | Iter-15 status |
+|------------|-----------------|-----------------|
+| F11 wake architecture | PASS direction / FAIL completion | **CLOSED** — ext1 ANY_LOW mask selected; sustained-LOW BREAK waveform with 20 µs sampling floor + 50 ms CP2 nominal |
+| F12 bias DNP design | PASS design / FAIL propagation | **CLOSED** — all live-text bias-populated claims removed; DNP now consistent across §3/§4.5/§8/§14/cp1_bom |
+| F13 hard-cut arithmetic | PASS arithmetic / FAIL propagation | **CLOSED** — "datasheet max where spec'd + explicit engineering margin where no max is published" now identical across power_budget.md / D34 / DR-25 / §7 |
+| F14 THVD1400 propagation | PASS (all requested items) | Unchanged; remains closed |
+| DR-19 grounding/shield loop | PASS (unchanged) | Unchanged; retain CP5 physical continuity check |
+
+**State:** → `reviewer_turn` iter 16 for re-verify of F15/F16. Zero
+blockers, zero open design questions; DR-19 and D-OPEN-2 remain
+closed; CP2 held pending user clearance.
