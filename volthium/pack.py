@@ -823,19 +823,12 @@ async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackR
 
     A single shared discovery resolves both addresses (BlueZ allows only one
     discovery per adapter, so we can't scan for each battery concurrently),
-    then the present batteries are read **concurrently** — the RTL8761B in
-    the UB500 handles ≥2 simultaneous GATT connections comfortably, and each
-    `_read_device` call owns an independent BleakClient (aiobmsble's BMS
-    instance holds one privately, so there's no shared connection state
-    across the two calls). Cycle time drops from ~10 s (serial) to
-    ~4-5 s (parallel) because the two 4 s per-battery reads overlap.
-
-    A missing or unreadable battery becomes an all-None placeholder so the
-    other battery's telemetry still flows to the CSV/cloud/dashboard —
-    PackReading's properties are null-safe, and for a series pack the
-    present battery's current is the pack current. Raises only if NEITHER
-    battery can be read, so the logger still treats a total blackout as a
-    failed cycle (no empty row).
+    then the present batteries are read sequentially on the one radio. A missing
+    or unreadable battery becomes an all-None placeholder so the *other*
+    battery's telemetry still flows to the CSV/cloud/dashboard — PackReading's
+    properties are null-safe, and for a series pack the present battery's current
+    is the pack current. Raises only if NEITHER battery can be read, so the
+    logger still treats a total blackout as a failed cycle (no empty row).
     """
     global _capture_pack_cycles
     # Snapshot the cycle-cap boundary BEFORE reads run — the reads themselves
@@ -858,17 +851,14 @@ async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackR
             "needs adapter reset, not a process restart)",
         )
         raise DiscoveryWedgeError(f"{type(exc).__name__}: {exc}") from exc
-
-    async def _read_or_none(addr: str) -> Optional[BatteryReading]:
-        """One battery's read, self-contained: absence → None (no exception);
-        read failure → log + None. Returning None (never raising) is what lets
-        the two coroutines run under a plain `gather` and preserves the "one
-        battery's failure must not sink the other" contract."""
+    readings: dict[str, Optional[BatteryReading]] = {}
+    for addr in (addr_a, addr_b):
         dev = devs.get(addr.upper())
         if dev is None:
-            return None
+            readings[addr] = None
+            continue
         try:
-            return await _read_device(dev, addr)
+            readings[addr] = await _read_device(dev, addr)
         except Exception as exc:  # noqa: BLE001 — one battery's failure must not sink the other
             _event(
                 "read_fail",
@@ -877,10 +867,7 @@ async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackR
                 error_str=str(exc),
                 error_repr=repr(exc),
             )
-            return None
-
-    r_a, r_b = await asyncio.gather(_read_or_none(addr_a), _read_or_none(addr_b))
-    readings: dict[str, Optional[BatteryReading]] = {addr_a: r_a, addr_b: r_b}
+            readings[addr] = None
 
     # Wedge detection + leak backstop. Any battery we did NOT read this cycle
     # but that the controller still holds a connection to is wedged: a leaked /
