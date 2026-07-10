@@ -625,7 +625,7 @@ one). With reflow + stencil in the plan, each part was judged on merit:
 module; iron for everything else. **Add a stencil to the fab order.** Informs
 CP3 footprint/thermal-pad/via choices for the two remaining leadless parts.
 
-## DR-25 — RS-485 transceiver: wrong-VCC part + tied-enable can't reach shutdown + max-to-max reselect + per-board sleep policy  [RESOLVED 2026-07-02 (D34, revised iter-10, further revised iter-14 F15) — THVD1400DR; DE + /RE split; battery = default-shutdown, display = latched RX-active with `ext1` `ANY_LOW` wake mask (GPIO12/13/14 buttons + GPIO18 RO), triggered by master-side sustained-LOW BREAK]
+## DR-25 — RS-485 transceiver: wrong-VCC part + tied-enable can't reach shutdown + max-to-max reselect + per-board sleep policy  [RESOLVED 2026-07-02 (D34, revised iter-10, further revised iter-14 F15 + iter-16 F17) — THVD1400DR; DE + /RE split; battery = default-shutdown, display = latched RX-active with `ext1` `ANY_LOW` wake mask (GPIO12/13/14 buttons + GPIO18 RO), triggered by master-side sustained-LOW BREAK (`DE=1, TXD=0` → A LOW, B HIGH, RO LOW) followed by master DE release before display ACK]
 
 **Reviewer iter-8 F05 + F06, iter-10 F08 + F09.** Multi-turn resolution.
 
@@ -689,17 +689,24 @@ truth table in D34.
   the 3 active-LOW buttons and the RS-485 RO wake. **NOT the ESP UART
   wake API.** Espressif docs are explicit: UART wake is Light-sleep-only;
   Deep-sleep powers off the APB-clocked UART so the triggering byte is
-  lost. **Corrected wake waveform (iter-14 F15):** the master drives the
-  RS-485 pair in the dominant state (UART BREAK / DE-high with TXD-low
-  hold) for a sustained-LOW interval bounded ≥3 RTC slow-clock cycles
-  (~20 µs at the 150 kHz internal slow clock) + margin. **CP2 firmware
-  nominal is 50 ms** — orders of magnitude above the 20 µs sampling
-  minimum and comfortably above ESP32-S3 wake+boot (~10 ms typical
-  from Deep-sleep). Bus wake path: master BREAK → THVD1400 RO LOW →
-  GPIO18 LOW → ext1 fires → ESP wakes + reloads app; wake-causing
-  waveform is lost. Firmware protocol requirement: master sends
-  sustained LOW → waits for display ACK (sent once display UART is up)
-  → transmits payload frame. Bench-measure wake-to-ACK at CP2;
+  lost. **Corrected wake waveform (iter-14 F15, polarity + bus-ownership
+  tightened iter-16 F17):** the master drives the RS-485 pair with
+  **`DE=1, D/TXD=0`**, which per
+  [THVD1400 §7.4](https://www.ti.com/lit/ds/symlink/thvd1400.pdf)
+  Function Tables puts **A LOW, B HIGH, `V_A − V_B` negative** on the
+  bus → every enabled receiver drives **RO LOW**. Hold for a
+  sustained-LOW interval bounded ≥3 RTC slow-clock cycles (~20 µs at
+  the 150 kHz internal slow clock) + margin. **CP2 firmware nominal
+  is 50 ms** — orders of magnitude above the 20 µs sampling minimum
+  and comfortably above ESP32-S3 wake+boot (~10 ms typical from
+  Deep-sleep). **Bus-ownership sequence** (only the master can release
+  its own DE): master sets `DE=1, TXD=0` → holds BREAK → master
+  **sets `DE=0`** to release the bus (biased-idle via Full Fail-Safe
+  RX) → display ESP wakes + boots + briefly asserts its own DE and
+  transmits ACK + deasserts DE → master sees ACK and transmits the
+  payload. Master's DE release before display ACK is what prevents
+  driver overlap. Bench-measure wake-to-ACK at CP2 + verify A/B/RO
+  polarity and no driver-overlap window with a scope/logic analyzer;
   BREAK duration + ACK timeout + retry policy are CP2 firmware-layer
   decisions. Transceiver draws its RX-only Iq (~900 µA max)
   continuously in State B — appears explicitly in the display §7 State

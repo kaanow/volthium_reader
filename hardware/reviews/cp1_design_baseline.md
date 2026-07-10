@@ -2141,3 +2141,96 @@ Reviewer's iter-14 verdicts (§8.8 resolution check):
 **State:** → `reviewer_turn` iter 16 for re-verify of F15/F16. Zero
 blockers, zero open design questions; DR-19 and D-OPEN-2 remain
 closed; CP2 held pending user clearance.
+
+---
+
+## 20. Claude's responses to iter-16 findings (2026-07-10)
+
+F17 is AGREED and both parts fixed. The iter-15 §4.5 sentence went
+opposite ways on the driver polarity — I wrote "A high, B low → RO
+LOW" alongside "TXD LOW" in the same clause, which is polarity-wrong
+per THVD1400 §7.4, and separately I described the *display* as
+releasing the bus when only the master owns its own DE. Reviewer's
+catch is correct on both.
+
+### F17 (IMPORTANT) — BREAK polarity + bus ownership
+
+**AGREE fully.** Two independent errors in one paragraph:
+
+**Polarity (per THVD1400 datasheet §7.4 Function Tables):**
+- D HIGH → **A HIGH, B LOW** → `V_A − V_B` positive → RO HIGH.
+- D LOW → **A LOW, B HIGH** → `V_A − V_B` negative → RO LOW.
+
+So the master's `DE=1, D/TXD=0` drives **A LOW, B HIGH** on the pair,
+which is what every enabled receiver on the bus (display side
+included) sees as RO LOW. My iter-15 sentence had A/B flipped;
+corrected everywhere.
+
+**Bus ownership (RS-485 half-duplex):** only the master can deassert
+its own DE. During BREAK, the master is the sole driver on the bus.
+When the master finishes the BREAK window, **the master** sets
+`DE=0` — the bus is now unbiased-driven (with THVD1400 Full Fail-Safe
+RX handling the idle-safe state). The display, still booting, has
+never asserted its DE. Once display firmware is up, the display
+asserts its DE briefly to transmit the ACK, then deasserts. Only then
+does the master transmit the payload. My iter-15 sentence had the
+display "releasing the bus," which was topologically impossible.
+
+**Corrected 6-step sequence** (now identical in §4.5, D34, DR-25):
+1. Master sets `DE=1, D/TXD=0` → A LOW, B HIGH, RO LOW at receivers.
+2. Master holds BREAK for the 50 ms CP2-nominal window (≥20 µs
+   sampling floor + 5× margin over ~10 ms boot).
+3. Master sets **`DE=0`** — bus is now free; Full Fail-Safe RX keeps
+   RO HIGH (biased-idle) with no driver on the bus.
+4. Display ESP wakes (level-triggered ext1 fires either during step 2
+   or on the LOW→HIGH transition at step 3, depending on exactly
+   when the RTC sampler catches the level; either way the ESP boots).
+5. Display firmware initializes, briefly asserts its DE, transmits
+   ACK, deasserts DE.
+6. Master sees the ACK and transmits the payload frame.
+
+Master's DE release **before** display ACK is what prevents driver
+overlap (both sides driving the bus at once). This is standard
+RS-485 half-duplex protocol; my iter-15 wording implied a driver
+overlap that would not actually happen but that also could not be
+prevented by the display side.
+
+**CP2 bench-verify** (added as an explicit requirement at each site):
+scope the A/B/RO polarity end-to-end during the wake sequence and
+confirm no driver-overlap window. Removed the ambiguous word
+"dominant" from the current-design paragraphs (kept only in
+historical references).
+
+**Changes:**
+- `cp1_display_side.md §4.5` wake-waveform bullet: full rewrite with
+  the 6-step sequence, corrected polarity citing THVD1400 §7.4, and
+  the CP2 bench-verify requirement.
+- `decisions.md D34` sleep policy paragraph: same 6-step sequence,
+  same polarity citation, tagged `iter-16 F17`.
+- `decisions.md D34` Firmware TODO display-side entry: same
+  correction — master drives BREAK, master sets `DE=0`, display
+  wakes/boots/asserts DE/transmits ACK/deasserts DE, master
+  transmits payload.
+- `decisions.md D34` heading: added `+ iter-16 F17` tag and
+  parenthetical "polarity + bus-ownership tightened."
+- `DESIGN_REVIEW_ITEMS.md DR-25` sleep policy paragraph: same
+  6-step sequence and polarity citation.
+- `DESIGN_REVIEW_ITEMS.md DR-25` heading: appended "(`DE=1, TXD=0` →
+  A LOW, B HIGH, RO LOW) followed by master DE release before display
+  ACK" so the polarity + ownership pair is visible in the resolution
+  line itself.
+
+### Confirming the resolution table
+
+Reviewer's iter-16 verdicts (§8.9 resolution check):
+
+| Prior item | Iter-16 verdict | Iter-17 status |
+|------------|-----------------|-----------------|
+| F15 wake API/waveform | PASS API and sampling / FAIL polarity detail | **CLOSED** — polarity + 6-step bus-ownership sequence corrected across §4.5, D34, DR-25 with THVD1400 §7.4 citation |
+| F16 G5 propagation | PASS | Unchanged; remains closed |
+| F11-F14 | Closed at iter-15 | Unchanged; remain closed |
+| DR-19 grounding/shield loop | PASS (unchanged) | Unchanged; retain CP5 physical continuity check |
+
+**State:** → `reviewer_turn` iter 18 for re-verify of F17. Zero
+blockers, zero open design questions; DR-19 and D-OPEN-2 remain
+closed; CP2 held pending user clearance.

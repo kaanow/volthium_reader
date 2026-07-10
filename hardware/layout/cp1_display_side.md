@@ -245,25 +245,34 @@ to toggle on a start-bit, otherwise the wake path is impossible. So:
   the UART, so the triggering byte is unavailable to the application on
   wake regardless.
 - **Wake waveform: a sustained LOW held for ≥3 RTC slow-clock cycles
-  plus margin** (F15). The RTC slow clock is 150 kHz internal → 3 cycles
-  ≈ 20 µs; Espressif's Deep-sleep GPIO wake documentation requires this
-  minimum for reliable sampling. At the D34 250 kbps bit rate, a normal
-  UART data byte is only 4 µs per bit — a random `0x55` never holds RO
-  LOW long enough. **Master-side implementation**: hold the RS-485
-  driver in the dominant state (A high, B low → RO LOW at the receiver)
-  as a UART BREAK / DE-high-with-TXD-low for a fixed pre-frame
-  interval. CP2 firmware nominal is **50 ms sustained LOW** — orders of
-  magnitude above the 20 µs minimum, and comfortably above the
-  ESP32-S3 wake+boot time (~10 ms typical from Deep-sleep). The wake
-  triggers on the LOW level, ESP boots + reloads app, releases the
-  bus, sends the display-side ACK once its UART is up, then the master
-  transmits the payload frame. **Bench-measure wake-to-ACK at CP2** —
-  don't size correctness around the ~10 ms boot assumption.
+  plus margin** (F15, polarity + bus-ownership corrected iter-17 F17).
+  The RTC slow clock is 150 kHz internal → 3 cycles ≈ 20 µs;
+  Espressif's Deep-sleep GPIO wake documentation requires this minimum
+  for reliable sampling. At the D34 250 kbps bit rate, a normal UART
+  data byte is only 4 µs per bit — a random `0x55` never holds RO LOW
+  long enough. **Master-side driver polarity (from
+  [THVD1400 datasheet](https://www.ti.com/lit/ds/symlink/thvd1400.pdf)
+  §7.4 Function Tables): master sets `DE=1, D/TXD=0` → A LOW, B HIGH,
+  `V_A − V_B` negative → RO LOW** at every enabled receiver on the
+  bus (display side included). CP2 firmware nominal: hold that BREAK
+  for **50 ms** — orders of magnitude above the 20 µs sampling
+  minimum, and comfortably above ESP32-S3 wake+boot (~10 ms typical
+  from Deep-sleep). **Bus-ownership sequence** (only the master can
+  release its own DE): (1) master sets `DE=1, TXD=0`; (2) master holds
+  BREAK for the 50 ms window; (3) master sets **`DE=0`** — bus is now
+  free and biased-idle via THVD1400 Full Fail-Safe RX; (4) ESP wakes
+  on the LOW-level (or already woke during step 2) and boots;
+  (5) display firmware initializes, briefly asserts its DE, transmits
+  ACK, deasserts DE; (6) master sees ACK, transmits the payload frame.
+  **Bench-measure wake-to-ACK at CP2** — don't size correctness around
+  the ~10 ms boot assumption; verify A/B/RO polarity and no
+  driver-overlap window with a scope/logic analyzer.
 - **Firmware protocol requirement (CP2 firmware handoff):** master
-  drives sustained LOW → waits for display ACK → transmits payload. ACK
-  timeout and retry policy are firmware-layer decisions. **The
-  wake-causing waveform is lost by design; the ACK is what tells the
-  master the display is ready to receive.**
+  drives BREAK → releases DE → waits for display ACK → transmits
+  payload. Master's DE release before display ACK is what prevents
+  driver overlap. ACK timeout and retry policy are firmware-layer
+  decisions. **The wake-causing waveform is lost by design; the ACK
+  is what tells the master the display is ready to receive.**
 - **Transceiver draws its RX-only Iq (~900 µA max, ~700 µA typ)
   continuously** in this state — a real cost that appears in the
   display-side State B budget (§7). Not in the battery-side hard-cut
