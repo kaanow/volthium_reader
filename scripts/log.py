@@ -169,7 +169,7 @@ async def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--a", required=True)
     ap.add_argument("--b", required=True)
-    ap.add_argument("--interval", type=float, default=10.0)
+    ap.add_argument("--interval", type=float, default=5.0)
     ap.add_argument("--csv", type=Path, required=True)
     ap.add_argument("--log", type=Path, help="human-readable progress log")
     args = ap.parse_args()

@@ -60,7 +60,7 @@ started_dashboard=0
 if ! pgrep -f "scripts/log\.py.*${CSV}" > /dev/null; then
     nohup "${KEEPAWAKE[@]}" .venv/bin/python scripts/log.py \
         --a "$ADDR_A" --b "$ADDR_B" \
-        --interval 10 --csv "$CSV" --log "$LOG" \
+        --interval 5 --csv "$CSV" --log "$LOG" \
         > /dev/null 2>&1 &
     disown
     started_logger=1

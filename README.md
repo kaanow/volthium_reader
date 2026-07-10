@@ -137,7 +137,7 @@ visible terminal. Use these two together instead:
 caffeinate -i .venv/bin/python scripts/log.py \
     --a 9058AE7F-F98B-D0F6-237D-6769894DE118 \
     --b 6EC69980-CA43-7DEF-519B-6235C8C535B7 \
-    --interval 10 \
+    --interval 5 \
     --csv data/pack.csv --log data/pack.log
 
 # In another terminal:

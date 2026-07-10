@@ -65,9 +65,6 @@
   table.batt td, table.batt th { padding: 6px 4px; text-align: right; }
   table.batt th { color: var(--dim); font-weight: 500; font-size: 12px; }
   table.batt td:first-child, table.batt th:first-child { text-align: left; }
-  .source-pill { font-size: 11px; color: var(--dim); margin-left: 12px;
-                 padding: 2px 8px; background: #21262d; border-radius: 8px;
-                 font-family: ui-monospace, monospace; }
   .problem-pill { font-size: 10px; padding: 2px 6px; border-radius: 6px;
                   font-family: ui-monospace, monospace;
                   background: rgba(248,81,73,.12); color: var(--red); }
@@ -85,10 +82,7 @@
 </style>
 </head>
 <body>
-  <h1>
-    The Barge Inn — Volthium 24 V Pack
-    <span id="source-pill" class="source-pill" hidden></span>
-  </h1>
+  <h1>The Barge Inn — Volthium 24 V Pack</h1>
   <div id="stale-banner" class="stale-banner">
     <span>⚠</span>
     <span id="stale-text">data is stale</span>
@@ -249,13 +243,6 @@ async function tick() {
       return;
     }
     const x = rows[rows.length - 1];
-
-    // Source pill — shows which device we're currently displaying.
-    if (x.source_id) {
-      const pill = document.getElementById("source-pill");
-      pill.textContent = x.source_id;
-      pill.hidden = false;
-    }
 
     updateStale(x.ts);
 
