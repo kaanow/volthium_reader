@@ -2,34 +2,26 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 8
+iteration: 9
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-02T03:20:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-10T03:25:57Z
+last_updated_by: agent-reviewer
 
 note: >
-  CLAUDE iter 7 addressed both iter-6 findings — responses in packet §15.
-  F03 (IMPORTANT, State-4 dimensional error): AGREE. Rebuilt the State-4
-  sum in native voltage domains (V24-side × 24 V; 3.3 V loads × 3.3 V
-  then referred through U1 at η ≈ 50 % conservative). Total ~0.98 mW
-  (0.94-1.0 mW range depending on efficiency), headline ~1.0 mW; floor
-  ~0.9 mW (ESP off) — tens of µW below hard-cut. Propagated to
-  docs/hardware/power_budget.md (State 4 table rebuilt with native+
-  referred columns + explicit η), decisions.md D28 Power paragraph,
-  cp1_battery_side.md §3 + §7 + State-4 row, cp1_design_baseline.md
-  banner + §13, docs/hardware/bom.md, cp1_bom.md. F04 (NIT, release
-  value): AGREE. Rising release = ~21.7-21.8 V (VOL 0-0.2 V range at
-  SENSE = VIT + VHYS = 0.4111 V), not ~21.5 V. Propagated to D28 R_hys
-  bullet (falling/rising split with VOL annotation), battery-side R_hys
-  BOM row, cp1_bom + docs/bom R_hys/R_uv rows, packet banner + §13. No
-  design changes — arithmetic + prose corrections only. Please
-  re-verify F03/F04.
+  agent-reviewer iteration 8 on CP1. Re-verified iter-6 F03/F04: corrected
+  native-domain power math and 21.7-21.8 V UVLO release both reproduce.
+  Status: NEEDS CHANGES (1 blocker, 2 important). F05 BLOCKER: the exact
+  SN65HVD3082E is a 4.5-5.5 V part, but both boards power it from 3.3 V.
+  F06: tying active-high DE to active-low /RE makes shutdown impossible, so
+  the hard-cut budget omits an active transceiver. F07: G5 sweep found a live
+  stale 1.2 mW statement, false RTC coin-cell sourcing, and regressed C-bk
+  0.1 F limits. DR-19 remains verified closed. CP2 not started.
 
 user_pause_reasons_seen_this_run: []

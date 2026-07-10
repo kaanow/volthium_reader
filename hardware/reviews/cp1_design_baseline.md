@@ -821,6 +821,97 @@ desired release. Keep the planned tolerance analysis and bench verification.
 
 ---
 
+## 8.5 Reviewer findings (iteration 8)
+
+**Scope:** Re-verified Claude's §15 responses to iteration-6 Findings 03/04.
+The corrected native-domain power calculation reproduces (~0.98 mW at the
+documented conservative 50% light-load efficiency), and the corrected
+21.7-21.8 V release equation reproduces. A clean-sheet G1/G2 comms check then
+found a wrong-part premise and a shutdown-topology defect that invalidate the
+current RS-485 implementation and hard-cut budget. CP2 was not started.
+
+### Resolution check
+
+| Prior item | Verdict | Notes |
+|------------|---------|-------|
+| Iter-6 F03, hard-cut dimensional error | **PASS for listed terms** | 0.336 + 0.443 + 0.109 + 0.090 = 0.978 mW at eta = 50%; however the list omits the active RS-485 transceiver because the documented enable topology cannot shut it down (Finding 06). |
+| Iter-6 F04, UVLO release | **PASS** | Node equation at SENSE = 0.4111 V and RESET VOL = 0-0.2 V reproduces 21.81-21.72 V. |
+| DR-19 grounding/shield loop | **PASS** | Remains verified closed for CP1 intent; retain CP5 visual confirmation. |
+
+### Finding 05 — BLOCKER — both boards' RS-485 transceiver supply (`SN65HVD3082E`)
+
+**Issue**: Both boards specify `SN65HVD3082E` as a 3.3 V transceiver powered
+from V3V3, but that exact part is a **5 V device**. Its guaranteed recommended
+VCC range is 4.5-5.5 V. Operation at 3.3 V is outside the datasheet's operating
+conditions, so neither RS-485 link endpoint is valid as designed.
+
+**Evidence**: Stored TI datasheet `hardware/datasheets/SN65HVD3082EDR.pdf`,
+§3 says the family is powered by a 5 V supply; §6.3 specifies VCC minimum
+**4.5 V**, maximum **5.5 V**. In contrast, `cp1_battery_side.md` §4.6 calls U3
+"3.3 V" and its net table connects U3 VCC to V3V3; `cp1_display_side.md` §3,
+§4.5, and §5 likewise connect U2 VCC to V3V3. `docs/hardware/bom.md` explicitly
+labels `SN65HVD3082EDR` "half-duplex, 3.3 V," contradicting its datasheet.
+
+**Suggested fix**: Apply SOP principle 2 and replace U2/U3 with a genuinely
+3.3 V, low-Iq half-duplex RS-485 transceiver rather than adding always-on 5 V
+rails. Independently verify the exact replacement's supply range, receiver
+thresholds/fail-safe behavior, shutdown current, enable truth table, bus-pin
+ratings/ESD, package, lifecycle, and stock; store/read its datasheet per G2.
+Recompute the display-end bias if its guaranteed thresholds differ. The
+existing D-OPEN-2 alternatives are candidates, not evidence, until checked.
+
+### Finding 06 — IMPORTANT — `DE_RE` tied-enable topology / hard-cut budget
+
+**Issue**: The battery-side design claims the ESP shuts U3 down through a
+single `DE_RE` net, but tying active-high DE to active-low `/RE` makes shutdown
+impossible: LOW selects receive and HIGH selects transmit. The corrected
+~0.98 mW budget therefore omits an always-on active transceiver. The same tied
+topology exists on the display side, although display power is shed in State 4.
+
+**Evidence**: TI datasheet §5 identifies `/RE` as active-low and DE as
+active-high; §9.2.2.2 requires **DE low and /RE high simultaneously** for
+low-power shutdown (typical 1 nA). It states active operation is typically
+**0.3 mA**, not the `30 µA` claimed by `cp1_battery_side.md` §4.6. The battery
+and display net tables both say `DE_RE -> DE & RE pins (tied)`. With the
+existing part active, 0.3 mA at 5 V is 1.5 mW before source-conversion loss;
+for any replacement, its active current must be included until a realizable
+shutdown state is specified.
+
+**Suggested fix**: Specify independent DE and `/RE` control (including
+boot/reset/deep-sleep pulls) or select a replacement with a separately usable
+shutdown mechanism. The unattended battery state must guarantee driver OFF
+and receiver OFF in hardware/firmware, not rely on a tied complementary-enable
+net. Recalculate State 4 using the selected part's **maximum** shutdown current,
+and update both pin maps/net lists and the WiFi mutual-exclusion policy.
+
+### Finding 07 — IMPORTANT — G5 live-document consistency after §15
+
+**Issue**: The claimed propagation is incomplete. A live battery-side USB
+section still says hard-cut is ~1.2 mW; the new budget says the RTC draws from
+an "own coin cell" even though D23 explicitly removed the coin cell and powers
+RTC VCC from always-on V3V3; and both active BOMs have regressed the backup-cap
+range to 10 mF-0.1 F despite the resolved 10-50 mF/no-supercap limit.
+
+**Evidence**: `cp1_battery_side.md` §4.3b still states `hard-cut ≈ 1.2 mW`.
+Its §3 and §7 plus `power_budget.md` State 4 say `own coin cell`, while the same
+file's power tree/net table connects RV-3028 VCC to V3V3 and §4.5 specifies a
+trickle-charged C-bk with **no coin cell**; D23 says the same. The RV-3028
+datasheet's 45 nA figure is specified in timekeeping mode at VDD = 3 V, so it
+belongs in the 3.3 V load sum (negligible, but not zero/from another source).
+`cp1_bom.md` and `docs/hardware/bom.md` list C-bk as `10 mF-0.1 F`, contrary
+to `cp1_battery_side.md` §4.5 and resolved reviewer F09 (`10-50 mF`, no
+supercap).
+
+**Suggested fix**: Mechanically sweep and correct all live instances: change
+the stale 1.2 mW statement to the final post-RS-485 value; model RTC VCC as
+45 nA at 3.3 V through U1 while describing C-bk only as backup during VDD loss;
+and restore `10-50 mF low-leakage, no supercap` in both BOMs. Keep historical
+review responses clearly historical rather than rewriting them.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 1 blocker, 2 important. (See findings 05, 06, 07.)
+
+---
+
 ## 9. Claude's responses (iteration 2, 2026-06-21)
 
 All eight findings addressed this turn (the user pulled the brakes on
