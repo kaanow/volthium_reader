@@ -44,7 +44,7 @@
   .state-badge.state-full        { background: rgba(63,185,80,.24);  color: var(--grn); letter-spacing: .2em; }
   .state-badge.state-unknown     { background: rgba(248,81,73,.16);  color: var(--red); }
   .headline-pair { display: flex; gap: 28px; flex-wrap: wrap; margin: 10px 0 14px; }
-  .headline-pair .cell { flex: 1 1 130px; min-width: 130px; }
+  .headline-pair .cell { flex: 1 1 120px; min-width: 0; }
   .headline-pair .cell .h { font-size: 64px; font-weight: 700; line-height: 1;
                             font-variant-numeric: tabular-nums;
                             white-space: nowrap; }
@@ -84,8 +84,20 @@
   table.batt th[title] { cursor: help; text-decoration: underline dotted;
                          text-underline-offset: 2px; }
   @media (max-width: 700px) {
-    .grid { grid-template-columns: 1fr; }
-    .headline-pair .cell .h { font-size: 44px; }
+    /* Give the content back most of the LHS/RHS padding — on a phone every
+       pixel matters, and the panel already has its own inset. */
+    body { padding: 14px 10px; }
+    .grid { grid-template-columns: 1fr; gap: 12px; }
+    .panel { padding: 16px 14px; }
+    /* Tighten the SOC ↔ time-to gap so 44 px numerals aren't fighting for
+       width, and drop the number size a touch so "14h 10m" doesn't crowd the
+       right edge. */
+    .headline-pair { gap: 12px; }
+    .headline-pair .cell .h { font-size: 40px; }
+    .headline-pair .cell .h .u { font-size: 20px; }
+    /* Cell-voltages table is 9 cols — squeeze the padding so all fit without
+       spawning the panel's local scrollbar. */
+    table.batt td, table.batt th { padding: 5px 2px; }
   }
 </style>
 </head>
