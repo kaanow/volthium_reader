@@ -11,7 +11,8 @@
     --grn: #3fb950; --ylw: #d29922; --red: #f85149; --blu: #58a6ff;
   }
   body { font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-         background: var(--bg); color: var(--ink); margin: 0; padding: 24px; }
+         background: var(--bg); color: var(--ink); margin: 0; padding: 24px;
+         overflow-x: hidden; }
   h1 { font-size: 14px; font-weight: 600; color: var(--dim); margin: 0 0 18px;
        letter-spacing: .12em; text-transform: uppercase; }
   .stale-banner {
@@ -24,7 +25,13 @@
   .stale-banner.shown { display: flex; }
   .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 18px;
           max-width: 980px; }
-  .panel { background: var(--panel); border-radius: 10px; padding: 22px; }
+  /* min-width:0 lets grid children shrink below their content width (default is
+     min-content), which is what prevents the panels from pushing the grid
+     wider than the viewport. overflow-x: auto keeps any residual too-wide
+     content (e.g. the 9-column cell-voltages table on a phone) confined to
+     the panel with a local scrollbar, so it never spawns a page-level one. */
+  .panel { background: var(--panel); border-radius: 10px; padding: 22px;
+           min-width: 0; overflow-x: auto; }
   .state-badge {
     display: inline-block; font-size: 13px; font-weight: 600;
     letter-spacing: .14em; text-transform: uppercase;
@@ -39,7 +46,8 @@
   .headline-pair { display: flex; gap: 28px; flex-wrap: wrap; margin: 10px 0 14px; }
   .headline-pair .cell { flex: 1 1 130px; min-width: 130px; }
   .headline-pair .cell .h { font-size: 64px; font-weight: 700; line-height: 1;
-                            font-variant-numeric: tabular-nums; }
+                            font-variant-numeric: tabular-nums;
+                            white-space: nowrap; }
   .headline-pair .cell .h .u { font-size: 28px; color: var(--dim); margin-left: 4px; }
   .headline-pair .cell .h-sub { color: var(--dim); font-size: 12px;
                                  text-transform: uppercase; letter-spacing: .1em;
