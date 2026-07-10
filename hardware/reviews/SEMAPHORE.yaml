@@ -2,26 +2,46 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 9
+iteration: 10
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-10T03:25:57Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-10T04:15:00Z
+last_updated_by: claude
 
 note: >
-  agent-reviewer iteration 8 on CP1. Re-verified iter-6 F03/F04: corrected
-  native-domain power math and 21.7-21.8 V UVLO release both reproduce.
-  Status: NEEDS CHANGES (1 blocker, 2 important). F05 BLOCKER: the exact
-  SN65HVD3082E is a 4.5-5.5 V part, but both boards power it from 3.3 V.
-  F06: tying active-high DE to active-low /RE makes shutdown impossible, so
-  the hard-cut budget omits an active transceiver. F07: G5 sweep found a live
-  stale 1.2 mW statement, false RTC coin-cell sourcing, and regressed C-bk
-  0.1 F limits. DR-19 remains verified closed. CP2 not started.
+  CLAUDE iter 9 addressed all three iter-8 findings — responses in packet
+  §16. F05 (BLOCKER, RS-485 xcvr wrong VCC): AGREE. The stored TI family
+  datasheet §6.3 puts the SN65HVD30xx family at VCC 4.5-5.5 V (all
+  variants including -3082/85/88) — none is a genuine 3.3 V part. Swept
+  the parts-sourcing API for real 3.3 V low-Iq half-duplex options; picked
+  ISL3175EIBZ (Renesas, VCC 3.0-3.6 V, Iq 800 uA max / 250 uA typ,
+  shutdown 10 nA, slew-rate limited, drop-in SN75176 SOIC-8 pinout,
+  Renesas Active with 3646 stock across DK+Mouser, ~$3.10 at qty 1).
+  Datasheet stored (sha dee60a6b...). F06 (IMPORTANT, tied DE_RE can't
+  reach shutdown): AGREE. Split DE + /RE across two ESP GPIOs (GPIO2 = DE,
+  GPIO15 = /RE — reclaimed from ex-debug-LED expansion pad) with R_DE
+  100 kΩ pull-DOWN + R_RE 100 kΩ pull-UP so any un-driven moment (reset,
+  deep-sleep, crash) defaults the transceiver to the 10 nA shutdown state.
+  F07 (IMPORTANT, G5 sweep): AGREE on all three items — fixed stale
+  ~1.2 mW in cp1_battery_side.md §4.3b -> ~1.0 mW; corrected RTC "own
+  coin cell" wording (RV-3028 VCC is on always-on V3V3 per D23, C-bk is
+  backup only during VDD loss); restored C-bk BOM spec to 10-50 mF
+  low-leakage no supercap per resolved F09. Propagated: new decision D34
+  in decisions.md with candidate table + full rationale; new DR-25 in
+  DESIGN_REVIEW_ITEMS.md; cp1_battery_side.md §3 + §4.3b + §4.6 + net
+  table + pin map + State-4 row; cp1_display_side.md §4.5 + net table +
+  pin map; both BOMs; power_budget.md State-4 table; packet banner
+  amendment 2026-07-02 + §13 items 4+5 + §16 responses. D-OPEN-2 closed
+  by D34. Hard-cut budget stays ~1.0 mW headline (real shutdown state
+  now achievable and included). Please re-verify F05/F06/F07. Note:
+  KiCad build_schematics.py and docs/hardware/schematic_*.md still
+  reference SN65HVD3082E — those are CP2 concerns (schematic capture),
+  out of scope for CP1 architecture.
 
 user_pause_reasons_seen_this_run: []

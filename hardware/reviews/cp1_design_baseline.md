@@ -24,6 +24,22 @@ it later costs much more.
 > record. *(Polarity/values corrected per reviewer iter-5 F01; release
 > value + State-4 arithmetic corrected per reviewer iter-6 F03/F04 — see
 > §14 + §15.)*
+>
+> **Amendment 2026-07-02 (post-baseline, D34/DR-25).** Supersedes the
+> RS-485 transceiver premise in the frozen text below (§4.5/§4.6 tables,
+> §11 abs-max, §12 notes, Finding 03/DR-13 references): the previous
+> `SN65HVD3082EDR` was a **5 V** part (VCC 4.5–5.5 V per TI family datasheet
+> §6.3) that both boards ran outside its recommended operating conditions
+> on V3V3. **U3/U2 → `ISL3175EIBZ` (Renesas, genuine 3.3 V half-duplex,
+> VCC 3.0–3.6 V, Iq 800 µA max, shutdown 10 nA)** with **DE / /RE split
+> across two ESP GPIOs** (GPIO2 = DE, GPIO15 = /RE) + external pulls
+> (R_DE 100 kΩ pull-DOWN, R_RE 100 kΩ pull-UP) that default the
+> transceiver to real shutdown whenever the MCU isn't driving. This
+> closes iter-8 F05 (BLOCKER, wrong-VCC part) and F06 (IMPORTANT, tied
+> enables can't reach shutdown), and closes long-open **D-OPEN-2**. Full
+> rationale in D34; part is in `hardware/datasheets/ISL3175EIBZ.pdf`
+> (Renesas family PDF, sha `dee60a6b…`). Hard-cut stays **~1.0 mW** with
+> the real shutdown state now achievable and included. See §16.
 
 ---
 
@@ -1149,6 +1165,36 @@ top-of-packet **amendment banner** carries the superseding UVLO numbers.
 3. **Added [`SOP.md`](SOP.md)** — the distilled standing standard (gates
    G1–G7). Not a design change; it codifies the review bar the reviewer applies
    (including the new G4 assembly/solderability gate).
+4. **RS-485 transceiver swap + enable-topology fix (D34/DR-25, reviewer
+   iter-8 F05 + F06, 2026-07-02).** `SN65HVD3082EDR` was a **5 V** part
+   (VCC 4.5–5.5 V per TI family datasheet §6.3) that both boards ran
+   outside its recommended operating conditions on V3V3 — an outright
+   wrong-part premise carried in from D-OPEN-2 and never checked against
+   the datasheet ([[cots-interface-reality]] +
+   [[part-availability-early]]). Swapped **U3/U2 → `ISL3175EIBZ`**
+   (Renesas, genuine 3.3 V half-duplex, slew-limited, drop-in
+   SOIC-8 pinout, Iq 800 µA max / 250 µA typ, **shutdown Iq 10 nA**,
+   Renesas Active with 3646 stock across DK+Mouser). Independently, the
+   prior CP1 tied DE + /RE across a single ESP GPIO2 — that only lets
+   the transceiver be in *receive* (both low) or *transmit* (both high),
+   never *shutdown* (DE=0 AND /RE=1). Split into **GPIO2 = DE, GPIO15 =
+   /RE** with **R_DE 100 kΩ pull-DOWN + R_RE 100 kΩ pull-UP** so any
+   un-driven moment (reset, deep-sleep, crash) defaults the transceiver
+   to 10 nA shutdown. State-4 sum unchanged at **~1.0 mW** headline
+   (transceiver contribution 10 nA @ 3.3 V ≈ 66 nW referred, below the
+   rounding floor). Closes **D-OPEN-2**.
+5. **G5 sweep of stale post-§15 items (reviewer iter-8 F07).** Three
+   spot corrections: (a) `cp1_battery_side.md §4.3b` was still saying
+   "hard-cut ≈ 1.2 mW" — updated to ~1.0 mW with the D28+D34 refs;
+   (b) `power_budget.md` State-4 row for RTC said "45 nA on VBAT coin
+   (own cell)" — wrong per D23 (no coin cell, RTC VCC is on always-on
+   V3V3, C-bk is backup only during VDD loss); corrected to a 3.3 V load
+   row with the 45 nA referred through U1 like the other 3.3 V-side
+   loads. Same fix in `cp1_battery_side.md §3`; (c) both BOMs regressed
+   C-bk to "10 mF–0.1 F" (would allow a 0.1 F supercap); resolved F09
+   spec was **10–50 mF low-leakage, no supercap** — restored in
+   `cp1_bom.md` + `docs/hardware/bom.md`. Historical §14 response left
+   intact (frozen record) and superseded here.
 
 **Still the one open reviewer-verify item:** **DR-19** (end-to-end grounding &
 shield single-point bond as a *loop* — per-board is clean, the loop is the
@@ -1235,3 +1281,96 @@ charge float — but the numbers on paper now match the equations.
 **State:** → `reviewer_turn` for re-verify of F03/F04. Zero blockers, zero
 open design questions; DR-19 remains verified-closed; CP2 held pending
 user clearance.
+
+## 16. Claude's responses (to reviewer iteration 8, 2026-07-02)
+
+All three findings are real. F05 is a wrong-part premise I inherited and
+never validated against the datasheet — precisely the failure mode
+[[cots-interface-reality]] and [[part-availability-early]] exist to
+prevent, and it should not have survived D-OPEN-2's "recommend keeping
+SN65HVD3082E" line either. F06 is a real topology defect that would have
+kept a ~800 µA transceiver silently active in the always-on domain. F07's
+three spots are honest G5 misses from the iter-6 sweep.
+
+- **AGREE — F05 (BLOCKER), RS-485 transceiver 5 V premise.** Confirmed
+  against the stored family datasheet (`hardware/datasheets/SN65HVD3082EDR.pdf`,
+  now cross-verified against the same PDF re-fetched as SN65HVD3085 —
+  Renesas... sorry, TI: `sn65hvd3082e.pdf` is a family datasheet covering
+  SN65HVD3082/3085/3088, and §6.3 Recommended Operating Conditions lists
+  **VCC 4.5–5.5 V** for the whole family — none of the -3082/85/88 is a
+  3.3 V part; the "3.3 V" label in `docs/hardware/bom.md` was invented
+  wholesale). Swept the parts-sourcing API for genuine 3.3 V low-Iq
+  half-duplex candidates (SN65HVD75, THVD1452/1400, MAX3485/13487,
+  SP3485EN, ISL3175E/3178E, ADM3485). Picked **`ISL3175EIBZ`** (Renesas)
+  on power-first grounds: **shutdown Iq 10 nA** (SP3485 is 1 µA; MAX3485
+  is 1 µA — 100× worse in the state that dominates hard-cut), 250 µA typ
+  / 800 µA max active, slew-rate-limited (better EMI over 5 m Cat5e),
+  standard SN75176 8-SOIC pinout so it drops into the current U3/U2
+  footprint. Renesas Active, MOQ 1, DK+Mouser 3646 total stock at
+  ~$3.10 (qty 1). Datasheet stored at
+  `hardware/datasheets/ISL3175EIBZ.pdf` (sha
+  `dee60a6b8227f6f03e9a425586c2714452b6b9e68ff4c9ac771d8111c6c5ecb0`).
+  **Propagated:** new decision **D34** written head-to-tail with the
+  candidate table + rationale; battery-side §4.6 + display-side §4.5
+  swapped U3/U2 rows and added R_DE/R_RE pull rows; net tables split;
+  BOMs updated (both `hardware/layout/cp1_bom.md` and
+  `docs/hardware/bom.md`); banner amendment 2026-07-02 records the swap;
+  §13 item 4 added. **D-OPEN-2 closed** (transceiver alternatives inventory
+  is now resolved).
+- **AGREE — F06 (IMPORTANT), tied DE_RE can't reach shutdown.** Correct
+  and unambiguous: DE = 1 & /RE = 1 (both high) is transmit-only; DE = 0
+  & /RE = 0 (both low) is receive-only; shutdown *requires* the
+  asymmetric DE = 0 AND /RE = 1 pair. Every candidate part in the API
+  sweep uses the same shutdown truth table, so the fix has to be
+  topological, not part-selectable. **Split into two GPIOs** on both
+  boards: **GPIO2 = DE** (unchanged pin) + **GPIO15 = /RE** (was
+  labelled "expansion pad on J3, unused" post-D4 — reclaimed). Added
+  **R_DE 100 kΩ pull-DOWN** and **R_RE 100 kΩ pull-UP** so any un-driven
+  moment (reset, deep-sleep, firmware crash, boot strapping) forces the
+  transceiver into the 10 nA shutdown state — same "default-safe"
+  posture D19 uses for PWR_EN. Firmware truth table written into D34 +
+  both §4.5/§4.6 tables:
+
+| Mode      | GPIO2 (DE) | GPIO15 (/RE) | State                    |
+|-----------|------------|--------------|--------------------------|
+| Shutdown  | 0          | 1            | driver off, RX off; Icc = 10 nA (default) |
+| Receive   | 0          | 0            | driver off, RX on        |
+| Transmit  | 1          | 1            | driver on, RX off        |
+
+  **State-4 impact:** the transceiver contribution is now genuinely
+  achievable at 10 nA @ 3.3 V ≈ 33 nW at load / ~66 nW referred through
+  U1 at η ≈ 50 % — below the rounding floor of the ~1.0 mW headline,
+  so the total is unchanged at **~0.98 mW**. Prior "silently active
+  ~800 µA" was the failure mode; that's what F06 caught and this closes.
+  `docs/hardware/power_budget.md` State-4 table now lists the U3
+  shutdown row explicitly (below rounding). WiFi mutual-exclusion policy
+  unchanged (WiFi TX still coexists with RS-485 idle: independent
+  transceivers on separate rails / rate-matched slots).
+- **AGREE — F07 (IMPORTANT), three G5 stale items.**
+  - **(a) `cp1_battery_side.md §4.3b` stale "~1.2 mW".** Missed in the
+    iter-6 §15 propagation. Updated to "~1.0 mW (native-domain sum per
+    §7 and `power_budget.md`; iter-6 F03 + iter-8 F05/F06/F07 corrections)".
+  - **(b) RTC "own coin cell" wording (`power_budget.md` State 4 row +
+    `cp1_battery_side.md §3`).** Wrong per D23 — the RV-3028-C7 has *no*
+    coin cell; VCC is on always-on V3V3 and C-bk (10–50 mF, low-leakage,
+    not a supercap) is on VBACKUP for VDD-loss ride-through only. The
+    45 nA belongs in the 3.3 V-load column, referred through U1's
+    efficiency like every other 3.3 V load. Corrected in both files;
+    added an explicit U3 shutdown 10 nA row alongside so the two "µA-ish"
+    3.3 V-side loads are visible.
+  - **(c) C-bk BOM regressed to "10 mF–0.1 F".** The resolved F09 spec
+    was **10–50 mF, low-leakage, not a supercap** — a 0.1 F supercap's
+    ~µA leakage would dwarf the RTC's 45 nA and *shorten* backup hold
+    time (the exact anti-goal). Restored the correct spec in
+    `hardware/layout/cp1_bom.md` and `docs/hardware/bom.md`; both now
+    match `cp1_battery_side.md §4.5`. Historical review responses left
+    intact (frozen); this correction sweep touched only the live BOM cells.
+
+All three F07 items are documentation-only corrections; no design
+changes. Post-sweep, live G5 consistency should be clean — I have not
+identified another live "~1.2 mW" or "coin cell" reference (grep'd across
+`hardware/`, `docs/hardware/`).
+
+**State:** → `reviewer_turn` for re-verify of F05/F06/F07. Zero blockers,
+zero open design questions; DR-19 remains verified-closed; **D-OPEN-2**
+closed by D34; CP2 held pending user clearance.

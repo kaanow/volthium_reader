@@ -32,7 +32,8 @@ review (Finding 03) flagged several that appear stale:
 | Part                          | CP1 SKU (this doc)         | Spotted alternate (verify) |
 |-------------------------------|----------------------------|------------------------------------|
 | ~~DS3231SN# RTC~~ → RV-3028-C7 | (DS3231 dropped, D23) | RV-3028-C7 — in stock, verified 2026-06-18 |
-| SN65HVD3082EDR transceiver    | `296-21908-1-ND`           | `296-31719-1-ND` (~11,546) |
+| ~~SN65HVD3082EDR transceiver~~ (superseded D34, iter-8 F05) | ~~`296-21908-1-ND`~~ | ~~`296-31719-1-ND`~~ |
+| ISL3175EIBZ transceiver (D34)  | `ISL3175EIBZ-ND` (889) | `968-ISL3175EIBZ` (2757) |
 
 **Action**: At **CP5 procurement**, before clicking ORDER:
 1. Visit DigiKey for each line, search the manufacturer part number, and
@@ -120,7 +121,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | C8  | 1 µF X7R | 0603 | 1 | 311-1361-1-ND | 81-GRM188R71H105KA93D | $0.10 | **NEW** — ESP EN soft-start cap |
 | R7  | 10 kΩ 0805 | 0805 | 1 | RMCF0805FT10K0CT-ND | 71-CRCW080510K0FKEA | $0.05 | **NEW** — ESP EN pull-up |
 | RTC1 | **Micro Crystal RV-3028-C7 32.768kHz 1ppm TA QA** I²C RTC (45 nA) | 4-pin SMD 3.2×1.5 | 1 | 2195-RV-3028-C732.768KHZ1PPM-TA-QATR-ND | _verify (Mouser)_ | $2.00 | **Δ (D23/DR-8): DS3231 → RV-3028-C7** — 45 nA. **Full orderable MPN corrected (API 2026-06-25):** plain "RV-3028-C7" is ambiguous (QA standard / QC AEC-Q200 / "ON BOARD" = a dev board — avoid). Using **QA**; QC if a wider-grade part is ever wanted |
-| C-bk | Small backup cap (~10 mF–0.1 F) on RV-3028 VBACKUP | SMD | 1 | _verify_ | _verify_ | $0.50 | **Δ (D23): replaces CR2032 + holder** — trickle-charged, rides a full disconnect; no coin, no D14 short risk |
+| C-bk | **Low-leakage backup cap ~10–50 mF (not a supercap)** on RV-3028 VBACKUP | SMD | 1 | _verify_ | _verify_ | $0.50 | **Δ (D23) + reviewer F09 / iter-8 F07:** trickle-charged by the RTC, rides a full disconnect. Supercap-class (0.1 F) leakage would dwarf the RTC's 45 nA and *shorten* hold time — the ≤50 mF, low-leakage constraint is the point. No coin, no D14 short risk. |
 | U-ESD | USB ESD array (**USBLC6-2SC6Y**) | SOT-23-6 | 1 | 497-11882-2-ND | 511-USBLC6-2SC6Y | $0.30 | **NEW**: ESD clamp on the external USB-C D+/D−/VBUS (D22). **API-verified 2026-06-25: the original SC6 is out of stock at all sources → use the `-2SC6Y` variant** (DK ~30k, Mouser ~15k; pin-compatible) |
 | U5  | 3.3 V LDO (AP2112K-3.3, ~600 mA) | SOT-23-5 | 1 | _verify_ AP2112K-3.3 | _verify_ | $0.20 | **NEW (D29):** VBUS→3V3_USB for USB maintenance power; VBUS-referenced (0 pack draw unplugged) |
 | U6  | **TI TPS2116DRLR** priority power mux (~1.3 µA Iq, 2.5 A, reverse-blocking) | **SOT-583 (leadless ⚠)** | 1 | _verify_ TPS2116DRLR | 595-TPS2116DRLR | $0.70 | **NEW (D29):** VIN1=USB-LDO (priority), VIN2=U1 buck, OUT=V3V3. USB present → buck idles. Only ~1.3 µA always-on. **Package SOT-23-6 → SOT-583 (API 2026-06-25)** |
@@ -137,7 +138,9 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| U3  | SN65HVD3082EDR | SOIC-8 | 1 | (unchanged) 296-21908-1-ND | 595-SN65HVD3082EDR | $1.20 | (unchanged) |
+| U3  | **ISL3175EIBZ** (Renesas, genuine 3.3 V half-duplex, slew-limited) | SOIC-8 | 1 | ISL3175EIBZ-ND | 968-ISL3175EIBZ | $3.10 | **D34 (2026-07-02, reviewer iter-8 F05)**: `SN65HVD3082EDR` was a 5 V part; swap to true 3.3 V. VCC 3.0–3.6 V, Iq 800 µA max/250 µA typ, shutdown 10 nA, standard SN75176 8-SOIC pinout (drop-in). Renesas Active, DK+Mouser 3646 stock. Datasheet: `hardware/datasheets/ISL3175EIBZ.pdf` (sha `dee60a6b…`). |
+| R_DE | 100 kΩ 1 % pull-**DOWN**: U3 DE → GND | 0805 | 1 | _verify_ | _verify_ | $0.05 | **D34/F06**: defaults DE=0 when GPIO2 Hi-Z; pairs with R_RE pull-up for real shutdown |
+| R_RE | 100 kΩ 1 % pull-**UP**: U3 /RE → V3V3 | 0805 | 1 | _verify_ | _verify_ | $0.05 | **D34/F06**: defaults /RE=1 when GPIO15 Hi-Z; pairs with R_DE pull-down for real shutdown |
 | R10 | 120 Ω 0805 1 % term resistor | 0805 | 1 | RMCF0805FT120RCT-ND | 71-CRCW0805120RFKEA | $0.10 | (unchanged) |
 | — | _(no idle bias on the battery side — D19/DR-4)_ | — | 0 | — | — | — | **Δ: removed battery-side bias.** The always-on rail would otherwise leak ~2.3 mA continuously; bias is now display-end only |
 | TVS2 | SMAJ12CA bidirectional TVS | SMA | 1 | (unchanged) SMAJ12CADICT-ND | 78-SMAJ12CA-E3/61 | $0.30 | Δ: renumbered from TVS1 in prior schematic |
@@ -221,7 +224,7 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| U2  | SN65HVD3082EDR | SOIC-8 | 1 | (unchanged) | | $1.20 | (unchanged) |
+| U2  | **ISL3175EIBZ** (Renesas, genuine 3.3 V half-duplex, slew-limited) | SOIC-8 | 1 | ISL3175EIBZ-ND | 968-ISL3175EIBZ | $3.10 | **D34 (2026-07-02, reviewer iter-8 F05)** — same swap as battery-side U3, drop-in SOIC-8. Add R_DE pull-DOWN + R_RE pull-UP for real shutdown (F06). |
 | R2  | 120 Ω 0805 1 % | 0805 | 1 | (same as battery R10) | | $0.10 | Bus terminus |
 | R3, R4 | ~330 Ω 0805 1 % idle bias (A→3V3, B→GND) | 0805 | 2 | _verify_ | | $0.10 ea | **POPULATED — the bus's only fail-safe bias (D19/DR-4).** ~330 Ω gives **~275 mV** idle across the two 120 Ω terminators (~38 % over the 200 mV floor; DR-13, was 390 Ω/236 mV). Sourced from display 3V3 (shed with the display at low SOC) |
 | TVS2 | SMAJ12CA bidirectional | SMA | 1 | (unchanged) | | $0.30 | |

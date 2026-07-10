@@ -624,3 +624,45 @@ one). With reflow + stencil in the plan, each part was judged on merit:
 **Assembly plan:** stencil + reflow (heat gun/oven) for U1/U6 + the WROOM
 module; iron for everything else. **Add a stencil to the fab order.** Informs
 CP3 footprint/thermal-pad/via choices for the two remaining leadless parts.
+
+## DR-25 — RS-485 transceiver was a 5 V part; DE_RE tied enables can't reach shutdown  [RESOLVED 2026-07-02 (D34) — swapped to ISL3175EIBZ; DE + /RE split with default-safe pulls]
+
+**Reviewer iter-8 F05 + F06.** Both boards specified `SN65HVD3082EDR`
+as a "3.3 V" transceiver and powered it from V3V3. The stored TI family
+datasheet (§6.3 Recommended Operating Conditions) puts the whole
+`SN65HVD30xx` family at **VCC = 4.5–5.5 V** — none of the -3082/85/88
+is a 3.3 V part. The "3.3 V" label was invented in `docs/hardware/bom.md`
+and repeated across CP1 without a datasheet check ([[cots-interface-reality]],
+[[part-availability-early]]). Even D-OPEN-2's "recommend keeping
+SN65HVD3082E" line survived without one.
+
+Independently (F06), the enable topology tied DE (active-HIGH) and /RE
+(active-LOW) across a single ESP GPIO. That gives receive (both low) or
+transmit (both high), but shutdown requires **DE=0 AND /RE=1** simultaneously
+— topologically unreachable. So the "silently active ~800 µA" transceiver
+was absent from the State-4 hard-cut budget.
+
+**Fix (D34).** Swept the parts-sourcing API for genuine 3.3 V half-duplex
+low-Iq candidates; picked **`ISL3175EIBZ`** (Renesas). VCC 3.0–3.6 V,
+active Iq 800 µA max / 250 µA typ, **shutdown Iq 10 nA** (100× better
+than SP3485 / MAX3485), slew-rate limited (better EMI over 5 m Cat5e),
+standard SN75176 8-SOIC pinout so it drops into the existing footprint.
+Renesas Active, DK+Mouser 3646 stock, ~$3.10 at qty 1. Datasheet stored
+at `hardware/datasheets/ISL3175EIBZ.pdf`
+(sha `dee60a6b8227f6f03e9a425586c2714452b6b9e68ff4c9ac771d8111c6c5ecb0`).
+
+**Enable topology fix.** DE and /RE routed on **two independent ESP
+GPIOs** (GPIO2 = DE, GPIO15 = /RE — reclaiming the ex-debug-LED GPIO
+that D4 freed) with **R_DE = 100 kΩ pull-DOWN** and **R_RE = 100 kΩ
+pull-UP** so any un-driven moment defaults the transceiver to the 10 nA
+shutdown state. Firmware truth table in D34.
+
+**Hard-cut impact:** transceiver contribution 10 nA @ 3.3 V ≈ 66 nW
+referred — below the ~1.0 mW headline's rounding floor. Budget unchanged.
+
+**DR-13 (RS-485 bias margin) note.** The 275 mV idle bias holds against
+ISL3175E's guaranteed thresholds by a wide margin: the receiver's built-in
+Full Fail-Safe puts RO HIGH at |VID| ≥ -50 mV even on open/shorted/
+floating bus, so 275 mV of A-B differential is >475 mV above the LOW
+threshold — bias is now noise-margin insurance, not a fail-safe requirement.
+DR-13 stays RESOLVED with the improved threshold picture.

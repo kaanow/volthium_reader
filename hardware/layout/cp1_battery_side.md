@@ -96,15 +96,19 @@ The MCU is **always powered** — it cannot sit behind the load switch: it
 must stay alive to drive Q1 and to wake on voltage recovery, and a
 downstream MCU can't gate its own supply (nor boot if it starts unpowered).
 At < 10 % SOC the ESP deep-sleeps (~µA), periodically reads V24_SENSE, and
-sheds the display by opening Q1; RS-485 is disabled via DE/RE (not
-power-switched). All-in trickle at hard-cut ≈ **~1.0 mW** (native-domain sum
-per `docs/hardware/power_budget.md` State 4: LM5166 input Iq 0.34 mW +
-V24 sense divider 0.44 mW + UVLO divider 0.11 mW + 3.3 V loads (ESP
-deep-sleep + U4 + TPS2116 = ~45 µW at load, ~0.09 mW referred through U1
-at η ≈ 50 % conservative)). The **RV-3028-C7 RTC adds only ~45 nA** on
-its own coin cell — negligible (D23 swapped out the power-hungry DS3231;
-see DR-8). *(Prior "~1.2 mW" mixed 3.3 V rail current with 24 V pack
-power — reviewer iter-6 F03.)*
+sheds the display by opening Q1; the RS-485 transceiver enters real
+shutdown via DE=0+/RE=1 (D34; iter-8 F06), not power-switched. All-in
+trickle at hard-cut ≈ **~1.0 mW** (native-domain sum per
+`docs/hardware/power_budget.md` State 4: LM5166 input Iq 0.34 mW + V24
+sense divider 0.44 mW + UVLO divider 0.11 mW + 3.3 V loads (ESP
+deep-sleep + U4 + TPS2116 + U3 shutdown 10 nA + RV-3028 45 nA at V3V3 =
+~45 µW at load, ~0.09 mW referred through U1 at η ≈ 50 %
+conservative)). The **RV-3028-C7 RTC** VCC is on the always-on V3V3
+rail (D23) and draws ~45 nA in timekeeping mode; C-bk on VBACKUP is a
+backup-only cap that rides a full pack disconnect. *(Prior "~1.2 mW"
+mixed 3.3 V rail current with 24 V pack power — reviewer iter-6 F03;
+prior "own coin cell" wording was wrong — RTC is on V3V3, not a coin
+cell — reviewer iter-8 F07.)*
 This replaces the pre-D19 design where the MCU sat on the switched rail and
 could not boot — see DESIGN_REVIEW_ITEMS DR-3/DR-4.
 
@@ -198,8 +202,9 @@ sized so the **worst-case simultaneous peak stays ≤ 500 mA**:
 
 - ESP32-S3 WiFi: ~150–250 mA sustained during a push, with sub-ms TX peaks
   to ~350–500 mA.
-- U3 SN65HVD3082E: ~0.4–1 mA idle/receive; only the *driver actively
-  transmitting into a terminated bus* approaches tens of mA.
+- U3 ISL3175EIBZ (D34): ~250 µA typ / 800 µA max active (receive/idle);
+  only the *driver actively transmitting into a terminated bus*
+  approaches tens of mA. Shutdown state 10 nA via DE=0+/RE=1 (F06 default).
 - RV-3028 ~45 nA, sense ~22 µA — negligible.
 
 **Firmware policy (D25):** the WiFi push and RS-485 transmit are **mutually
@@ -315,8 +320,10 @@ EN → V3V3 and the UVLO behave **exactly as without this circuit**.
 **Why no requirement is compromised:** every part except U6 is
 **VBUS-referenced → 0 pack draw unplugged** (R_byp1 only carries current when
 Q4 pulls it low, i.e. VBUS present); U6 adds only **~1.3 µA** always-on
-(~4 µW). With the D33 UVLO part/divider (0.405 V), **hard-cut ≈ 1.2 mW** (still
-negligible). UVLO protects the *unattended* (always USB-absent) system fully;
+(~4 µW at load). With the D33 UVLO part/divider (0.405 V) and D34's
+real-shutdown RS-485 transceiver, **hard-cut ≈ ~1.0 mW** (native-domain
+sum per §7 and `docs/hardware/power_budget.md`; iter-6 F03 + iter-8
+F05/F06/F07 corrections). UVLO protects the *unattended* (always USB-absent) system fully;
 the bypass relaxes it only during *attended* USB sessions, when the MCU is on
 USB and isn't draining the pack. No 5 V reaches V3V3 (LDO). D19 always-on
 unchanged. **Residual (accepted):** attended USB + low pack + firmware
@@ -384,10 +391,28 @@ exceeds 1 %, drop divider impedance (e.g. 470 kΩ/39 kΩ) or buffer.
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| U3  | SN65HVD3082E (3.3 V, half-duplex, ESD)  | SOIC-8     | 1   | 30 µA Iq, slew-rate-limited (low EMI). On the **always-on** rail; the ESP shuts it to ~µA via DE/RE when idle. **D-OPEN-2** flagged; alternatives MAX3485 (higher Iq), ISL3170E (lower Iq). Recommend keeping SN65HVD3082E |
+| U3  | **ISL3175EIBZ** (Renesas, genuine 3.3 V half-duplex, slew-rate limited) | SOIC-8 | 1 | **D34 (2026-07-02, reviewer iter-8 F05).** Prior `SN65HVD3082E` was a 5 V part being run outside its VCC = 4.5–5.5 V window; caught by review. ISL3175E VCC 3.0–3.6 V, active Iq **800 µA max / 250 µA typ**, **shutdown Iq 10 nA**, standard SN75176 8-SOIC pinout (drop-in footprint). |
+| R_DE | 100 kΩ 1 % pull-**DOWN**: U3 DE → GND | 0805 | 1 | **D34/F06.** Guarantees DE = 0 when ESP GPIO2 is Hi-Z (reset / crash / deep-sleep) — pairs with R_RE pull-up to force the DE=0+/RE=1 shutdown state whenever the MCU isn't driving. |
+| R_RE | 100 kΩ 1 % pull-**UP**: U3 /RE → V3V3 | 0805 | 1 | **D34/F06.** Guarantees /RE = 1 when ESP GPIO15 is Hi-Z — pairs with R_DE pull-down for default shutdown. |
 | R10 | 120 Ω 1 % termination, A↔B          | 0805          | 1   | This end is one terminus; populate by default (display side is the other terminus, also populated) |
 | TVS2 | SMAJ12CA bidirectional (A↔B)         | SMA           | 1   | Differential surge clamp on the RS-485 wires |
 | C10 | 100 nF X7R (U3 decoupling)           | 0603          | 1   | |
+
+**Enable topology (D34, resolves reviewer iter-8 F06).** DE and /RE are
+routed on **two separate ESP GPIOs** (GPIO2 = DE, GPIO15 = /RE), not
+tied. Tying them across a single GPIO would only give the receive/transmit
+pair — shutdown (DE=0 AND /RE=1 simultaneously) would be topologically
+unreachable. External pulls default DE low + /RE high whenever the MCU
+isn't driving (reset, deep-sleep, hung firmware), so U3 defaults to the
+10 nA shutdown state at any un-driven moment — matching D19's
+"default-safe" stance for `PWR_EN`. Firmware truth table:
+
+| Mode      | GPIO2 (DE) | GPIO15 (/RE) | State                     |
+|-----------|------------|--------------|---------------------------|
+| Shutdown  | 0          | 1            | driver off, RX off; Icc = 10 nA (default when MCU idle) |
+| Receive   | 0          | 0            | driver off, RX on         |
+| Transmit  | 1          | 1            | driver on, RX off         |
+| illegal   | 1          | 0            | not used (bus + local echo) |
 
 **Power-first note (D19/DR-4)**: the bus idle-bias resistors are **on the
 display end only** (resized to ~330 Ω there — see cp1_display_side.md), not
@@ -397,8 +422,8 @@ budget (~8×). Putting bias on the display end means it is sourced from the
 display's 3V3 — which is shed with the display at low SOC — so the
 battery always-on rail carries **zero** RS-485 static draw. The battery
 keeps only the terminator (R10, no static draw) and the transceiver (U3,
-~µA in DE/RE shutdown). Idle bias is present whenever the display is
-powered (i.e. whenever the link is actually used).
+**10 nA in real shutdown per D34** — via DE=0+/RE=1 default from the R_DE / R_RE pulls).
+Idle bias is present whenever the display is powered (i.e. whenever the link is actually used).
 
 ### 4.7 User input & visible status
 
@@ -448,7 +473,8 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | I2C_SCL      | 3.3 V LV    | ESP IO6 ↔ RTC SCL    | R9                                            | Pull-up R9 to V3V3 |
 | UART_TX_3V3  | 3.3 V LV    | ESP IO17             | U3 D pin                                       | UART1 TX → RS-485 driver input |
 | UART_RX_3V3  | 3.3 V LV    | U3 R pin             | ESP IO18                                       | UART1 RX ← RS-485 receiver output |
-| DE_RE        | 3.3 V LV    | ESP IO2              | U3 DE & RE pins (tied)                         | Active-HIGH = transmit; LOW = receive |
+| DE           | 3.3 V LV    | ESP IO2              | U3 DE pin (active-HIGH); R_DE 100 kΩ pull-DOWN to GND | **D34/F06:** split from tied DE_RE. Active-HIGH = transmit; pulled LOW at reset/deep-sleep so DE defaults 0 |
+| /RE          | 3.3 V LV    | ESP IO15             | U3 /RE pin (active-LOW); R_RE 100 kΩ pull-UP to V3V3   | **D34/F06:** split from tied DE_RE. LOW = receive-on; pulled HIGH at reset/deep-sleep so /RE defaults 1 → transceiver in 10 nA shutdown by default |
 | RS485_A      | 0–5 V diff  | U3 A pin             | J2 pin 4 (blue), R10, TVS2                     | Differential pair (bias is display-end only) |
 | RS485_B      | 0–5 V diff  | U3 B pin             | J2 pin 5 (white-blue), R10, TVS2               | (paired with A) |
 | PWR_EN       | 3.3 V LV    | ESP IO4              | Q2 gate, R4 pull-down to GND                  | **Active-HIGH**: HIGH = rails ON; LOW or Hi-Z = rails OFF. Canonical truth table in §8 |
@@ -466,15 +492,15 @@ GPIO15 becomes an expansion pad on J3.
 |---------|-----------|---------------------------|------------------------------|
 | GPIO0   | (strap)   | Bootloader strap; weak pull-up | -                        |
 | GPIO1   | analog in | **V24_SENSE ADC (ADC1_CH0)** | ULP-wakeable in deep sleep |
-| GPIO2   | output    | RS-485 DE/RE              | Hi-Z in deep sleep           |
+| GPIO2   | output    | **RS-485 DE** (D34)       | Hi-Z in deep sleep → R_DE pull-down defaults DE=0 (transmit off) |
 | GPIO3   | (strap)   | USB-JTAG select; leave NC | -                            |
 | GPIO4   | output    | **PWR_EN** (active-HIGH rail enable) | Latches via RTC-GPIO; default state at reset is LOW (rails OFF — safe). Firmware drives HIGH after boot to bring rails up |
 | GPIO5   | I²C SDA   | RV-3028                    | Hi-Z; OK because RTC is on its backup cap |
 | GPIO6   | I²C SCL   | RV-3028                    | "                            |
 | GPIO7   | input, RTC | **BTN_OVERRIDE** (deep-sleep wake) | RTC-GPIO wake source     |
-| GPIO15  | (expansion) | brought to J3, not used   | -                            |
-| GPIO17  | UART1 TX  | to SN65HVD3082 D pin      | Hi-Z in deep sleep           |
-| GPIO18  | UART1 RX  | from SN65HVD3082 R pin    | Hi-Z in deep sleep           |
+| GPIO15  | output    | **RS-485 /RE** (D34)      | Hi-Z in deep sleep → R_RE pull-up defaults /RE=1 (receiver off) → transceiver in 10 nA shutdown by default |
+| GPIO17  | UART1 TX  | to U3 (ISL3175E) D pin    | Hi-Z in deep sleep           |
+| GPIO18  | UART1 RX  | from U3 (ISL3175E) R pin  | Hi-Z in deep sleep           |
 | GPIO19/20 | USB DM/DP | USB-C (J3 dev header)  | Hi-Z; not connected to bus when not in use |
 | GPIO45  | (strap)   | VDD_SPI strap; leave NC   | -                            |
 | GPIO46  | (strap)   | Boot-mode strap; leave NC | -                            |
@@ -491,10 +517,10 @@ deep-sleep (alive) and hard-cut (off) — see [§13 D-OPEN-7a/7b](#13-open-decis
 
 | State | SOC band | Subsystem draws (at 24 V end) | Pack draw | Notes |
 |-------|----------|--------------------------------|-----------|-------|
-| 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 ~0.5 mA + RTC <100 µA + **display-end** RS-485 bias (via Cat5e) ~1.5 mA + rest of display side ~5 mA + sense 22 µA = 45 mA × 24 V | **~1.08 W** | ±2 % vs power_budget.md. **No battery-side idle bias (DR-4b)** — the ~1.5 mA is sourced at the display end and shed with the display at hard-cut |
+| 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 ISL3175E ~0.25 mA typ / ~0.8 mA max (D34) + RTC <100 µA + **display-end** RS-485 bias (via Cat5e) ~1.5 mA + rest of display side ~5 mA + sense 22 µA ≈ 45 mA × 24 V | **~1.08 W** | ±2 % vs power_budget.md. **No battery-side idle bias (DR-4b)** — the ~1.5 mA is sourced at the display end and shed with the display at hard-cut |
 | 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + **display-end** RS-485 bias (via Cat5e, shed at hard-cut) ~1.5 mA + display unchanged + sense 22 µA | **~0.30 W** | — |
 | 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + RV-3028 ~45 nA (negligible; D23) + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Display still up (Q1 ON) |
-| 4 — Hard cut | < 10 % | **Native-domain sum (reviewer iter-6 F03).** V24-side: LM5166 Iq 14 µA × 24 V = **0.34 mW** + V24 sense divider 24²/1.3 MΩ = **0.44 mW** + UVLO divider 4.6 µA × 24 V = **0.11 mW**. 3.3 V-side (load): ESP deep-sleep 10 µA + U4 Iq 2.4 µA + TPS2116 Iq 1.3 µA ≈ 45 µW at load → **~0.09 mW referred through U1 at η ≈ 50 %** conservative. RV-3028-C7 RTC on own coin cell (negligible). Display shed (Q1 OFF). | **~0.98 mW** (~1.0 mW headline) | Prior "~1.2 mW" mixed 3.3 V rail current with 24 V pack power. See `docs/hardware/power_budget.md` for the full native+referred table. RTC swapped DS3231→RV-3028-C7 to kill the ~0.5 mW always-on draw (D23/DR-8). MCU re-engages on recovery (D19). |
+| 4 — Hard cut | < 10 % | **Native-domain sum (reviewer iter-6 F03).** V24-side: LM5166 Iq 14 µA × 24 V = **0.34 mW** + V24 sense divider 24²/1.3 MΩ = **0.44 mW** + UVLO divider 4.6 µA × 24 V = **0.11 mW**. 3.3 V-side (load): ESP deep-sleep 10 µA + U4 Iq 2.4 µA + TPS2116 Iq 1.3 µA + **U3 ISL3175E in real shutdown 10 nA (D34)** + **RV-3028-C7 RTC 45 nA @ V3V3 (D23 corrected, iter-8 F07)** ≈ 45 µW at load → **~0.09 mW referred through U1 at η ≈ 50 %** conservative. Display shed (Q1 OFF). | **~0.98 mW** (~1.0 mW headline) | Prior "~1.2 mW" mixed 3.3 V rail current with 24 V pack power. The transceiver contribution assumes real shutdown (D34's DE=0+/RE=1 default) — F06 fixed the tied-enable topology that would have kept ~800 µA active here. RTC 45 nA is drawn from V3V3 (D23) and rides U1 through the same efficiency assumption (iter-8 F07 correction). See `docs/hardware/power_budget.md` for the full native+referred table. |
 
 State 4 budget: at **~1.0 mW** deep-sleep (the EN-asserted hardware floor,
 U4 tripped + MCU in reset, is only marginally lower at **~0.9 mW** since
@@ -573,7 +599,7 @@ populated. **Idle bias is NOT here** — it lives on the display end only
 | C7    | 100 nF | V3V3  | ESP 3V3 pin < 2 mm (0402 if poss.) | ESP HF decoupling |
 | C8    | 1 µF   | EN net   | ESP EN < 5 mm                | Soft-start    |
 | C9    | 100 nF | V3V3  | RV-3028 VCC < 2 mm            | RTC decoupling |
-| C10   | 100 nF | V3V3  | SN65HVD3082 VCC < 2 mm       | RS-485 decoupling |
+| C10   | 100 nF | V3V3  | U3 (ISL3175E) VCC < 2 mm      | RS-485 decoupling |
 | C11   | 100 nF | BTN_OVERRIDE | -                       | Button RC debounce |
 | C12   | 1 µF   | 3V3_USB | U5 (LDO) in/out < 2 mm       | AP2112 in/out (D29) |
 | C13   | **~47 µF** | V3V3 | TPS2116 OUT < 5 mm          | **CP2/reviewer F11:** TI recommends ~100 µF on the mux OUT when reverse-current-blocking is exercised (USB hot-plug holds the buck output high). Design bulk on V3V3 is C2 22 µF + C6 10 µF ≈ 32 µF; add ~47 µF (→ ~79 µF) **or** scope USB hot-plug at CP2 to confirm VOUT stays < 5.5 V on the mux/buck pins |
@@ -657,7 +683,7 @@ margin.
 | ID            | Question | Default if no reviewer input |
 |---------------|----------|------------------------------|
 | **D-OPEN-1**  | ESP32-S3-WROOM-1-N16R8 vs -N8 (no PSRAM)? | N16R8 — keep existing BOM choice; minor $1.50 difference doesn't move the needle |
-| **D-OPEN-2**  | SN65HVD3082E vs lower-Iq alternative (ISL3175E)? | SN65HVD3082E — stocked, proven |
+| ~~**D-OPEN-2**~~ (**closed by D34, 2026-07-02**) | ~~SN65HVD3082E vs lower-Iq alternative (ISL3175E)?~~ Superseded: **SN65HVD3082E was a 5 V part** (reviewer iter-8 F05); resolved to **ISL3175EIBZ** on genuine-3.3 V + power-first + drop-in footprint grounds. See D34. |
 | **D-OPEN-3**  | Internal ESP32 ADC vs external supervisor IC (TPS3839) for ULP voltage monitoring? | **Internal ADC** — saves $1.50 + footprint; ULP draws ~10 µA which dominates over the regulator Iq anyway |
 | ~~D-OPEN-5~~  | ~~Hard-cut topology~~ — **RESOLVED 2026-05-23 (post-CP1 agent-reviewer Finding 01)**: original P-FET in the 24 V path. Topology described in §8. No EN-pin alternative |
 | **D-OPEN-6**  | Q1 gate pull-up value — 10 kΩ (~2.4 mA) vs 100 kΩ (~240 µA) vs 1 MΩ (~24 µA)? | **100 kΩ** — balance of fast turn-OFF (RC ~33 µs) and low idle current |

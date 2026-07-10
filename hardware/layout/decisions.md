@@ -912,9 +912,15 @@ warning-severity per the D13 convention.
   - PSRAM yes/no → no PSRAM needed
   - antenna onboard vs U.FL connector → onboard (lower BoM, fewer SKUs)
   - revision (WROOM-1 vs WROOM-2) → WROOM-1, ubiquitous in stock
-- **D-OPEN-2: RS-485 transceiver part.** Original BOM:
+- **D-OPEN-2: RS-485 transceiver part.** ~~Original BOM:
   `SN65HVD3082EDR`. Alternative `THVD1452`, `MAX3485ESA`. Need to pick
-  based on stock + low quiescent (THVD1452 is the lowest-Iq).
+  based on stock + low quiescent (THVD1452 is the lowest-Iq).~~
+  **CLOSED 2026-07-02 by D34.** SN65HVD3082EDR was a 5 V part being run
+  outside its VCC = 4.5–5.5 V window (reviewer iter-8 F05). Resolved to
+  **`ISL3175EIBZ`** (Renesas, genuine 3.3 V VCC 3.0–3.6 V, active Iq
+  800 µA max / 250 µA typ, shutdown Iq **10 nA**, slew-limited, drop-in
+  SN75176 SOIC-8 pinout, Renesas Active with DK+Mouser 3646 stock).
+  See **D34** for the full candidate table and rationale.
 - **D-OPEN-3: ULP voltage monitor IC vs ESP32-S3 internal ADC.** The
   4-tier shutdown needs sub-100 µA monitoring of pack voltage in
   HARDCUT. Options:
@@ -1611,3 +1617,115 @@ core power-first axis ([[power-first]]), so the correct move is to keep the
 right part and make assembly easier via the stencil, not to downgrade the
 part. **Resolves DR-24.** Feeds CP3 placement (footprints/thermal-pad/vias for
 U1/U6) and the fab order (add stencil).
+
+## D34 — RS-485 transceiver = ISL3175EIBZ (3.3 V half-duplex); DE / /RE split — DR-25 (reviewer iter-8 F05/F06)
+
+**Decision (2026-07-02).** Swap `SN65HVD3082EDR` → **`ISL3175EIBZ`** on
+both boards, and route the transceiver enables as **two independent ESP
+GPIOs** (DE + /RE) with external boot-time pulls that guarantee shutdown
+whenever the MCU is not driving them. Resolves **F05 (BLOCKER, wrong-VCC
+part)** and **F06 (IMPORTANT, tied enables can't shutdown)** from reviewer
+iter-8, and closes the long-open **D-OPEN-2** RS-485 transceiver selection.
+
+**Why the swap.** `SN65HVD3082E` is unambiguously a **5 V** device (its TI
+family datasheet §6.3 Recommended Operating Conditions specifies
+**VCC = 4.5–5.5 V**, and §3 opens with "Powered by a 5-V supply"). Both
+boards nonetheless powered it from V3V3 — outside its operating conditions
+on both endpoints, so the RS-485 link is undefined as designed. The
+reviewer's F05 catch was correct on the merits; `SN65HVD3082E` was picked
+against a "3.3 V" premise that was never true. The premise regressed all
+the way into `docs/hardware/bom.md`, which literally labels the part
+"half-duplex, 3.3 V". [[cots-interface-reality]] and [[part-availability-early]]
+both apply — I should have opened the datasheet at part-selection time.
+
+**Why ISL3175EIBZ over the alternatives.** Four candidates cleared the
+"genuine 3.3 V, low-Iq, half-duplex, in-stock, active" bar (parts-sourcing
+API, 2026-07-02):
+
+| Part | VCC (Rec.) | Iq active (max) | Shutdown Iq | Stock (DK/Mouser) | $1 qty | Notes |
+|------|------------|-----------------|-------------|-------------------|--------|-------|
+| **ISL3175EIBZ** (Renesas) | 3.0 – 3.6 V | **800 µA (250 µA typ)** | **10 nA** | 889 / 2757 | ~$3.10 | Slew-rate limited (better EMI over 5 m Cat5e), 8-SOIC standard SN75176 pinout — drop-in footprint on `SN65HVD3082E` |
+| SP3485EN-L (Exar/MaxLinear) | 3.0 – 3.6 V | ~500 µA typ | ~1 µA | 0 / 3534 | ~$1.38 | 2× the Iq, 100× the shutdown current; cheaper |
+| THVD1400DR (TI) | 3.3 – 5.5 V | ~1 mA typ | µA-range | 32635 / 2381 | ~$1.47 | 3-5V compat but active current higher (not power-first) |
+| MAX3485ESA (Maxim/ADI) | 3.0 – 3.6 V | ~300 µA typ | ~1 µA | 3508 / 729 | ~$11.22 | ~4× the cost, no clear win |
+
+**ISL3175EIBZ** wins on the two axes this project ranks first:
+- **Power (D5 [[power-first]]).** Active Iq max **800 µA** vs SP3485's
+  ~500 µA typ is comparable while active, but shutdown Iq **10 nA** vs
+  ~1 µA is a 100× improvement in the state that dominates hard-cut. On
+  the always-on 3.3 V rail, that's the difference between "negligible"
+  and "add another line to the budget."
+- **EMI.** Slew-rate-limited driver (200 kbps class) matches the 5 m
+  Cat5e link topology; a fast driver (THVD1400 at 500 kbps, MAX3485
+  10 Mbps) would just add radiated noise for no throughput win.
+
+Cost delta vs SP3485 (~$1.70) is real but this is a **qty-1 build**
+([[build-quantity]]), so single-unit sourcing dominates over volume
+pricing. Datasheet stored at `hardware/datasheets/ISL3175EIBZ.pdf`
+(sha `dee60a6b…`; Renesas family datasheet covers ISL3170E–ISL3178E).
+
+**Why DE / /RE split.** ISL3175E (like SN65HVD3082E and every other
+DE/RE-enable transceiver in this class) enters shutdown when
+**DE = 0 AND /RE = 1** simultaneously. Tying DE to /RE across a single
+GPIO gives only two states — receive (both low) or transmit (both high) —
+so shutdown is topologically unreachable. The prior CP1 design tied both
+enables to ESP GPIO2; F06 correctly identifies that this means the
+transceiver is *always active* in every state that isn't Q1-shed, so its
+active current (~800 µA at 3.3 V = **~2.6 mW at load, ~5.3 mW referred
+through U1 at η ≈ 50 %**) was silently absent from the State-4 hard-cut
+budget for the battery side. That's a real, load-bearing miss.
+
+**Topology.**
+- **DE → ESP GPIO2** (active-HIGH, transmit enable).
+- **/RE → ESP GPIO15** (active-LOW, receive enable). GPIO15 was previously
+  unused (D4 removed the debug LED it once drove; it was surfaced on J3 as
+  an expansion pad). Reclaimed for /RE on **both boards**.
+- **Boot / crash / deep-sleep pulls**:
+  - **R_DE = 100 kΩ pull-DOWN** on DE (holds DE = 0 when GPIO2 is Hi-Z).
+  - **R_RE = 100 kΩ pull-UP** on /RE (holds /RE = 1 when GPIO15 is Hi-Z).
+  - Together they *default to* **shutdown** whenever the MCU isn't
+    driving them — reset, deep-sleep, hung firmware, boot strapping. This
+    is the same failure-safe stance D19 used for `PWR_EN` (default OFF).
+- **Truth table for firmware:**
+
+| Mode      | DE (GPIO2) | /RE (GPIO15) | State                  |
+|-----------|------------|--------------|------------------------|
+| Shutdown  | 0          | 1            | driver off, RX off; Icc = 10 nA |
+| Receive   | 0          | 0            | driver off, RX on               |
+| Transmit  | 1          | 1            | driver on, RX off               |
+| (illegal) | 1          | 0            | both on — not used (would drive & echo) |
+
+**GPIO map delta (both boards).** GPIO2 = **RS-485 DE** (was: DE/RE tied);
+**GPIO15 = RS-485 /RE** (was: unused, brought to J3). J3 loses that
+expansion pad — acceptable since J3 keeps the other unused GPIOs and this
+board is single-purpose.
+
+**Hard-cut budget impact.** With the split, State-4 shutdown is
+achievable; the transceiver contributes **10 nA @ 3.3 V ≈ 33 nW at load,
+~66 nW referred** — well below the "µW" rounding floor. The budget
+headline stays at **~1.0 mW** ([[power-first]]).
+
+**BOM impact.**
+- U3 (battery) / U2 (display): `SN65HVD3082EDR` → **`ISL3175EIBZ`**
+  (both SOIC-8, drop-in footprint per family datasheet pinout: RO/RE/DE/DI/GND/A/B/VCC on pins 1..8).
+- Add R_DE (100 kΩ, 0805) + R_RE (100 kΩ, 0805) on **each** board. +$0.10, +4 parts total.
+- Retire `docs/hardware/bom.md` "half-duplex, 3.3 V" label on `SN65HVD3082E`
+  (was misleading, part is 5 V).
+
+**Firmware TODO (deferred to CP2/firmware layer).** Set GPIO2 output LOW,
+GPIO15 output HIGH before enabling either as an output. In deep-sleep,
+configure both GPIOs to Hi-Z so the external pulls take over — do not
+latch them via RTC-GPIO.
+
+**Supersedes** D-OPEN-2 (transceiver alternatives inventory). The reviewer's
+existing D-OPEN-2 list (SN65HVD3082E, THVD1452, MAX3485, ISL3170E,
+ISL3175E) is now closed: **ISL3175EIBZ** on power/EMI/pinout grounds.
+
+**Sources.**
+- ISL3175EIBZ datasheet: `hardware/datasheets/ISL3175EIBZ.pdf`,
+  sha256 `dee60a6b8227f6f03e9a425586c2714452b6b9e68ff4c9ac771d8111c6c5ecb0`
+  (Renesas family PDF for ISL3170E–ISL3178E).
+- Parts-sourcing API pulled 2026-07-02: Renesas Active, MOQ 1, DigiKey
+  ISL3175EIBZ-ND ($3.73) / Mouser 968-ISL3175EIBZ ($3.10) — total 3646
+  units across two authorized distributors, comfortable head-room for the
+  qty-1 build + spare-parts buffer.

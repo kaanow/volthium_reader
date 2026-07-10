@@ -76,7 +76,8 @@ mis-referred 3.3 V rail current to 24 V.)*
 | ESP32-S3 deep-sleep                      | ~10 µA @ 3.3 V (~33 µW)        | ~0.07 mW (η ≈ 50 %)     |
 | U4 TPS3808G01 Iq (VDD_TPS = 3.3 V)       | ~2.4 µA @ 3.3 V (~8 µW)        | ~0.02 mW (η ≈ 50 %)     |
 | U6 TPS2116 mux Iq (Vout = 3.3 V)         | ~1.3 µA @ 3.3 V (~4 µW)        | ~0.01 mW (η ≈ 50 %)     |
-| RV-3028-C7 RTC                           | 45 nA on VBAT coin (D23/DR-8)  | 0 (own cell)            |
+| U3 ISL3175E RS-485 xcvr (D34, shutdown state via DE=0+/RE=1) | 10 nA @ 3.3 V (~33 nW) | ~0.07 µW (η ≈ 50 %; below rounding) |
+| RV-3028-C7 RTC (D23; V_CC on V3V3, not a coin cell — iter-8 F07) | 45 nA @ 3.3 V (~150 nW) | ~0.3 µW (η ≈ 50 %; below rounding) |
 | Display side (Q1 OFF, U2 shed)           | 0                              | 0                       |
 | **Total from pack**                      |                                | **~0.98 mW**            |
 
