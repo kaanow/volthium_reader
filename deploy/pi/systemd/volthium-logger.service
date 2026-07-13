@@ -1,0 +1,17 @@
+[Unit]
+Description=Volthium battery BLE logger (writes data/pack.csv)
+After=bluetooth.target network.target
+Wants=bluetooth.target
+
+[Service]
+Type=simple
+User=claude
+Group=users
+WorkingDirectory=/srv/volthium_reader
+EnvironmentFile=/srv/volthium_reader/pack.env
+ExecStart=/srv/volthium_reader/.venv/bin/python scripts/log.py --a ${ADDR_A_LINUX} --b ${ADDR_B_LINUX} --interval 5 --csv data/pack.csv --log data/pack.log
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

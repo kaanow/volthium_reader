@@ -147,6 +147,105 @@ class DisabledTests(unittest.TestCase):
         _run(m.stop())   # should be a no-op
 
 
+class _FakeEventsDAO:
+    """recent_events fake: event kind → list of {ts, event, data} dicts."""
+
+    def __init__(self):
+        self._events: dict[str, list[dict]] = {}
+
+    def add(self, event: str, ts: datetime, data: dict):
+        self._events.setdefault(event, []).insert(0, {
+            "source_id": "pi-barge", "ts": ts, "event": event, "data": data,
+        })
+
+    async def recent_events(self, source_id, event, since, limit):
+        return [e for e in self._events.get(event, [])
+                if e["ts"] >= since][:limit]
+
+
+class StaleDiagnosisTests(unittest.TestCase):
+    """The stale alert must carry a likely-cause hint composed from the
+    reader's recent ble_events — the operator asked for exactly this after
+    the 2026-07-12/13 outage ('alerts should contain a hint about what the
+    issue is')."""
+
+    def _go_stale(self, events_dao) -> dict:
+        """Run a fresh→stale transition and return the alert payload."""
+        dao = _FakeDAO()
+        dao.set_latest("pi-barge", datetime.now(timezone.utc))
+        client = _FakeClient()
+        m = StalenessMonitor(
+            dao, "https://ntfy.example/topic", threshold_s=60.0,
+            check_interval_s=60.0, events_dao=events_dao,
+        )
+        _run(m.check_once(client))
+        dao.set_latest("pi-barge",
+                       datetime.now(timezone.utc) - timedelta(seconds=200))
+        _run(m.check_once(client))
+        assert len(client.posts) == 1
+        return client.posts[0]["json"]
+
+    def test_wedge_classification_lands_in_alert(self):
+        ev = _FakeEventsDAO()
+        ev.add("wedge_snapshot",
+               datetime.now(timezone.utc) - timedelta(minutes=6),
+               {"classification": "bluez_adapter_object_missing",
+                "recovery_level": 3, "reason": "BleakError: ..."})
+        body = self._go_stale(ev)
+        self.assertIn("bluez_adapter_object_missing", body["message"])
+        self.assertIn("Likely cause", body["message"])
+        # The mini-runbook hint rides along.
+        self.assertIn("replug", body["message"].lower())
+
+    def test_fallback_and_replug_context_included(self):
+        now = datetime.now(timezone.utc)
+        ev = _FakeEventsDAO()
+        ev.add("adapter_fallback_active", now - timedelta(minutes=10),
+               {"resolved": "hci1", "primary_fail_reason": "..."})
+        ev.add("usb_replug", now - timedelta(minutes=4), {"ok": True})
+        body = self._go_stale(ev)
+        self.assertIn("fallback adapter", body["message"])
+        self.assertIn("USB-replug", body["message"])
+
+    def test_silent_reader_is_called_out(self):
+        # No diagnostics at all → the alert must say the Pi itself may be
+        # offline, which changes what the operator does first.
+        body = self._go_stale(_FakeEventsDAO())
+        self.assertIn("No reader diagnostics", body["message"])
+
+    def test_healthy_diagnostics_point_at_uploader(self):
+        ev = _FakeEventsDAO()
+        ev.add("stack_health",
+               datetime.now(timezone.utc) - timedelta(minutes=3),
+               {"classification": "unclassified"})
+        body = self._go_stale(ev)
+        self.assertIn("uploader", body["message"])
+
+    def test_no_events_dao_still_alerts(self):
+        dao = _FakeDAO()
+        dao.set_latest("pi-barge",
+                       datetime.now(timezone.utc) - timedelta(seconds=600))
+        client = _FakeClient()
+        m = _monitor(dao, threshold_s=60.0)   # events_dao omitted
+        _run(m.check_once(client))
+        self.assertEqual(len(client.posts), 1)
+
+    def test_diagnosis_failure_never_blocks_the_alert(self):
+        class _BrokenEventsDAO:
+            async def recent_events(self, *a, **kw):
+                raise RuntimeError("db down")
+        dao = _FakeDAO()
+        dao.set_latest("pi-barge",
+                       datetime.now(timezone.utc) - timedelta(seconds=600))
+        client = _FakeClient()
+        m = StalenessMonitor(
+            dao, "https://ntfy.example/topic", threshold_s=60.0,
+            check_interval_s=60.0, events_dao=_BrokenEventsDAO(),
+        )
+        _run(m.check_once(client))
+        self.assertEqual(len(client.posts), 1)
+
+
 class ParseTests(unittest.TestCase):
 
     def test_iso_string_and_datetime_both_accepted(self):

@@ -73,6 +73,8 @@ class RecoverAdapterPowerOnTests(unittest.TestCase):
         d = TemporaryDirectory()
         self.addCleanup(d.cleanup)
         pack_mod._reset_writer_for_tests(Path(d.name) / "ev.jsonl")
+        # Close the live handle before the temp dir is removed (Windows).
+        self.addCleanup(lambda: pack_mod._writer.close())
 
         # Patch _run to a controllable fake. Each test constructs its own
         # command→output mapping.
@@ -134,6 +136,8 @@ class TeardownInnerDisconnectTests(unittest.TestCase):
         d = TemporaryDirectory()
         self.addCleanup(d.cleanup)
         pack_mod._reset_writer_for_tests(Path(d.name) / "ev.jsonl")
+        # Close the live handle before the temp dir is removed (Windows).
+        self.addCleanup(lambda: pack_mod._writer.close())
 
         self._orig_run = pack_mod._run
         async def fake_run(cmd, *, timeout=8.0):

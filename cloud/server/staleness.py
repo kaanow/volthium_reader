@@ -58,12 +58,61 @@ def _parse_ts(v) -> Optional[datetime]:
     return None
 
 
+# One-line operator hints per wedge classification — the mini-runbook that
+# rides inside the stale push so a non-SSH reader of the alert knows what's
+# going on and how urgent it is. Keep these short: ntfy renders them on a
+# phone lock screen.
+_CLASSIFICATION_HINTS = {
+    "kernel_usb_reset_chip_hung": (
+        "USB dongle firmware hung and the kernel reset it. The reader "
+        "auto-replugs it (recovery L3); if this repeats, the dongle may be "
+        "failing."
+    ),
+    "chip_firmware_hci_unresponsive": (
+        "Dongle firmware unresponsive — reader will escalate to a USB "
+        "replug on its own."
+    ),
+    "ub500_dongle_missing_from_usb": (
+        "USB dongle is GONE from the bus — needs a physical reseat at the Pi."
+    ),
+    "adapter_down_or_bd_null": (
+        "Adapter powered down / not communicating — reader is power-cycling it."
+    ),
+    "bluez_discovery_state_stuck": (
+        "BlueZ discovery state stuck — usually cleared by the reader's "
+        "bluetoothd restart (recovery L2)."
+    ),
+    "bluez_adapter_object_missing": (
+        "Kernel sees the adapter but bluetoothd doesn't (post-USB-reset "
+        "state) — reader auto-replugs the dongle (recovery L3); it should "
+        "also be reading via the fallback adapter meanwhile."
+    ),
+    "bms_peer_not_responding": (
+        "Radio is fine; the battery BMS isn't answering — usually RF or "
+        "battery-side, tends to self-resolve."
+    ),
+    "power_under_voltage_active": (
+        "Pi is UNDER-VOLTAGE — check the PSU/cable. Software can't fix this."
+    ),
+    "unclassified": "No clear layer identified — see the wedge_snapshot event.",
+}
+
+
 class StalenessMonitor:
     """Watches every source in the readings table for freshness.
+
+    When a source goes stale, the alert is enriched with a diagnosis derived
+    from the reader's recent `ble_events` (wedge classifications, adapter
+    fallback state) — so the push itself says WHAT broke and whether the
+    reader is already fixing it, not just "no data".
 
     In-memory state is per-process (fine for a single Railway service; would
     need Redis / DB-backed state for multi-replica deployments).
     """
+
+    # How far back to look for reader diagnostics when composing the
+    # stale-alert hint. Generous: the reader batches events (≤10 min latency).
+    DIAGNOSIS_WINDOW = timedelta(minutes=45)
 
     def __init__(
         self,
@@ -71,8 +120,10 @@ class StalenessMonitor:
         webhook_url: str,
         threshold_s: float,
         check_interval_s: float,
+        events_dao: Optional["_EventsSourceDAO"] = None,
     ) -> None:
         self.dao = dao
+        self.events_dao = events_dao
         self.webhook_url = webhook_url
         self.threshold_s = threshold_s
         self.check_interval_s = check_interval_s
@@ -132,6 +183,78 @@ class StalenessMonitor:
                 self._state[source_id] = is_stale
                 await self._fire(client, source_id, is_stale, age_s)
 
+    async def _diagnose(self, source_id: str) -> str:
+        """Compose a one-paragraph likely-cause hint from the reader's recent
+        diagnostics events. Best-effort — any failure returns a generic line
+        rather than blocking the alert."""
+        if self.events_dao is None:
+            return ""
+        try:
+            now = datetime.now(timezone.utc)
+            since = now - self.DIAGNOSIS_WINDOW
+
+            def _age_str(ts) -> str:
+                dt = _parse_ts(ts)
+                if dt is None:
+                    return "?"
+                mins = int((now - dt).total_seconds() // 60)
+                return f"{mins}m ago"
+
+            wedges = await self.events_dao.recent_events(
+                source_id, "wedge_snapshot", since, limit=3,
+            )
+            fallback = await self.events_dao.recent_events(
+                source_id, "adapter_fallback_active", since, limit=1,
+            )
+            replug = await self.events_dao.recent_events(
+                source_id, "usb_replug", since, limit=1,
+            )
+            health = await self.events_dao.recent_events(
+                source_id, "stack_health", since, limit=1,
+            )
+
+            parts: list[str] = []
+            if wedges:
+                d = wedges[0].get("data", {})
+                cls = d.get("classification", "unclassified")
+                lvl = d.get("recovery_level", "?")
+                hint = _CLASSIFICATION_HINTS.get(cls, "")
+                parts.append(
+                    f"Likely cause: {cls} (wedge L{lvl}, {_age_str(wedges[0]['ts'])})."
+                    + (f" {hint}" if hint else "")
+                )
+            if fallback:
+                parts.append(
+                    f"Reader switched to its fallback adapter "
+                    f"{_age_str(fallback[0]['ts'])} — degraded but should be "
+                    "flowing; if still stale, the fallback is failing too."
+                )
+            if replug:
+                ok = replug[0].get("data", {}).get("ok")
+                parts.append(
+                    f"Auto USB-replug attempted {_age_str(replug[0]['ts'])}"
+                    + (" (no sysfs target found)." if ok is False else ".")
+                )
+            if not parts:
+                if health:
+                    parts.append(
+                        f"Reader diagnostics still arriving (last "
+                        f"{_age_str(health[0]['ts'])}) with no wedge recorded — "
+                        "BLE reads may be fine; suspect the CSV uploader or the "
+                        "readings path instead."
+                    )
+                else:
+                    parts.append(
+                        "No reader diagnostics received in the last "
+                        f"{int(self.DIAGNOSIS_WINDOW.total_seconds() // 60)}m "
+                        "either — Pi may be offline (power/network) or "
+                        "crash-looping before it can upload."
+                    )
+            return " ".join(parts)
+        except Exception as exc:  # noqa: BLE001 — the alert must still fire
+            log.warning("stale-alert diagnosis failed for %s: %s", source_id, exc)
+            return ""
+
     async def _fire(
         self,
         client: httpx.AsyncClient,
@@ -140,12 +263,16 @@ class StalenessMonitor:
         age_s: float,
     ) -> None:
         if is_stale:
+            message = (
+                f"No fresh telemetry for {int(age_s)}s "
+                f"(threshold {int(self.threshold_s)}s)"
+            )
+            diagnosis = await self._diagnose(source_id)
+            if diagnosis:
+                message += "\n" + diagnosis
             payload = {
                 "title": f"Volthium: {source_id} stale",
-                "message": (
-                    f"No fresh telemetry for {int(age_s)}s "
-                    f"(threshold {int(self.threshold_s)}s)"
-                ),
+                "message": message,
                 "priority": 4,
                 "tags": ["warning"],
             }
@@ -283,6 +410,8 @@ class EventAlertMonitor:
             self._state[source_id] = st
             st.setdefault("last_power_alert_at", None)
             st.setdefault("last_power_ts_alerted", None)
+        st.setdefault("last_fallback_ts_alerted", None)
+        st.setdefault("last_restored_ts_alerted", None)
         return st
 
     async def check_once(self, client: httpx.AsyncClient) -> None:
@@ -296,6 +425,59 @@ class EventAlertMonitor:
             await self._check_pin_failed(client, source_id, st, since, now)
             await self._check_wedges(client, source_id, st, since, now)
             await self._check_urgent_classification(client, source_id, st, since, now)
+            await self._check_adapter_fallback(client, source_id, st, since, now)
+
+    async def _check_adapter_fallback(
+        self, client, source_id: str, st: dict, since: datetime, now: datetime,
+    ) -> None:
+        """Informational pushes for the degraded-mode transitions:
+        `adapter_fallback_active` (reading on the second-choice controller
+        while the primary is being auto-repaired) and `adapter_restored`
+        (back on the primary). The reader emits each only on an actual
+        transition, so no cooldown is needed — just dedup by ts."""
+        fallback = await self.dao.recent_events(
+            source_id, "adapter_fallback_active", since, limit=1,
+        )
+        if fallback:
+            ts = _parse_ts(fallback[0]["ts"])
+            if not (st["last_fallback_ts_alerted"] and ts is not None
+                    and ts <= st["last_fallback_ts_alerted"]):
+                d = fallback[0].get("data", {})
+                await self._fire(
+                    client,
+                    title=f"Volthium: {source_id} on FALLBACK adapter",
+                    message=(
+                        f"Primary adapter unusable "
+                        f"({d.get('primary_fail_reason', '?')}). Reading via "
+                        f"{d.get('resolved', '?')} instead — data keeps flowing, "
+                        "degraded. The reader auto-repairs the primary (USB "
+                        "replug) and will switch back by itself."
+                    ),
+                    priority=3,
+                    tags=["yellow_circle"],
+                    context=f"source={source_id} kind=adapter_fallback_active",
+                )
+                st["last_fallback_ts_alerted"] = ts
+        restored = await self.dao.recent_events(
+            source_id, "adapter_restored", since, limit=1,
+        )
+        if restored:
+            ts = _parse_ts(restored[0]["ts"])
+            if not (st["last_restored_ts_alerted"] and ts is not None
+                    and ts <= st["last_restored_ts_alerted"]):
+                d = restored[0].get("data", {})
+                await self._fire(
+                    client,
+                    title=f"Volthium: {source_id} primary adapter restored",
+                    message=(
+                        f"Back on the primary adapter "
+                        f"({d.get('resolved', '?')}); fallback powered down."
+                    ),
+                    priority=3,
+                    tags=["white_check_mark"],
+                    context=f"source={source_id} kind=adapter_restored",
+                )
+                st["last_restored_ts_alerted"] = ts
 
     async def _check_pin_failed(
         self, client, source_id: str, st: dict, since: datetime, now: datetime,
@@ -378,12 +560,14 @@ class EventAlertMonitor:
                 continue
             classification = d.get("classification", "unclassified")
             reason = str(d.get("reason", ""))[:120]
+            hint = _CLASSIFICATION_HINTS.get(classification, "")
             await self._fire(
                 client,
                 title=f"Volthium: {source_id} wedge L{lvl} — {classification}",
                 message=(
                     f"BLE stack wedged; recovery ladder at level {lvl}. "
                     f"Trigger: {reason}"
+                    + (f"\n{hint}" if hint else "")
                 ),
                 priority=4,
                 tags=["warning"],

@@ -226,6 +226,71 @@ it lives in `bluetoothd`, so it survived multiple restarts. Cure: an adapter /
 throws so this is self-diagnosing, but the *recovery* (adapter reset, needs
 privilege) belongs in the watchdog, not the unprivileged logger.
 
+## FM-9 — UB500 firmware hang → kernel USB reset → bluetoothd can't re-init it ⚠️ (the 2026-07-12/13 14.5 h outage)
+
+- **Signature:** logger loops on `BleakError: adapter 'hciN' not found` while
+  `hciconfig` shows that adapter UP RUNNING. The tell: the adapter is missing
+  from `bluetoothctl list` (bluetoothd's D-Bus view — the one bleak actually
+  uses). bluetoothd's journal shows `Failed to set privacy: Rejected (0x0b)`.
+  Preceded in dmesg by `command 0x2042 tx timeout` ×5 → `Resetting usb device`
+  and an hci index change (hci0 → hci2).
+- **Root cause (two layers):**
+  1. *Why the chip hung:* USB autosuspend (btusb default, 2 s idle delay) vs
+     the 5 s scan cadence = thousands of suspend/resume transitions/day; the
+     RTL8761B is a known repeat offender for firmware lockups when a resume
+     races an LE scan-enable (opcode 0x2042 — exactly where ours died).
+  2. *Why nothing recovered:* after the kernel's USB reset the chip
+     re-enumerated in a state bluetoothd could not initialize — visible to the
+     kernel, absent from D-Bus. The adapter pin resolved via `hciconfig`
+     (kernel view), so the logger kept pinning to a D-Bus-invisible adapter.
+     Every ladder rung (HCI reset, bluetoothd restart, process exit — 171
+     restarts) operates above the broken layer; only USB re-enumeration fixes
+     it. Meanwhile the internal-chip fallback had also wedged (`0x200c`
+     EBUSY), and no explicit fallback logic existed to manage it.
+- **Fix shipped (2026-07-13):**
+  - **Prevent:** udev rule disables USB autosuspend for the UB500
+    (`deploy/pi/udev/50-volthium-ub500-usb-power.rules`).
+  - **Detect:** adapter resolution (`_AdapterManager`) now verifies the pin
+    against BOTH `hciconfig` and `bluetoothctl list`, re-verifies on a 60 s
+    TTL (hci indexes change on re-enumeration), and `_classify_wedge` has a
+    direct kernel-vs-D-Bus check for `bluez_adapter_object_missing`.
+  - **Recover:** new ladder rung L3 = software USB replug (sysfs `authorized`
+    0→1 — full re-enumeration + firmware reload; verified live 2026-07-13,
+    readings resumed in seconds). Process exit is now L4.
+  - **Degrade gracefully:** `VOLTHIUM_FALLBACK_ADAPTER` (internal BCM43438) is
+    used automatically while the primary is unusable; the reader replugs the
+    primary every ~10 min in the background, switches back when healthy, and
+    powers the fallback down to its documented steady state.
+- **Still worth doing:** the internal chip's own wedge (`0x200c` EBUSY) is
+  only cured here by ladder rungs 1-2; if both radios wedge simultaneously
+  again, the monthly reboot or a manual reboot is the backstop. The Pi 4B
+  swap remains the real fix.
+
+## FM-10 — Crash-looping logger never seals event segments → outage ships zero diagnostics
+
+- **Signature:** hours-long outage on the dashboard; `/api/events` on Railway
+  shows nothing after the outage began; `/run/volthium` (now `data/`) holds a
+  growing live `ble_events.jsonl` full of wedge evidence and no `.sealed`
+  files; events_uploader idle ("no segments").
+- **Root cause:** segment age was measured from `_EventLogWriter._open()`
+  (process start). The wedge-restart ladder exits the process every ~5 min,
+  so no segment ever reached the 10-min age trigger — each respawn reset the
+  clock. 14 h of wedge snapshots sat unshipped while the operator's alert
+  said only "stale". (Found while implementing the operator's request that
+  alerts carry a diagnosis — the diagnosis pipeline itself was the gap.)
+- **Fix shipped (2026-07-13):**
+  - Writer inherits the live file's age from its first line's `ts` on open,
+    so the 10-min shipping bound holds across restarts (and an already-aged
+    file seals immediately on reopen).
+  - `seal_event_log()` runs in `log.py`'s exit path (`finally:`) — a logger
+    dying for a wedge restart seals its evidence on the way out.
+  - Event log moved from tmpfs to `data/` (survives reboots; the SD-card
+    write-rate constraint died with the 2026-07-09 card upgrade).
+- **Instrumentation to add:** server-side "diagnostics silence" — the
+  staleness alert now explicitly says when *no events* arrived either
+  (implemented in `StalenessMonitor._diagnose`), which distinguishes
+  "Pi offline" from "BLE broken, Pi fine" at a glance.
+
 ---
 
 ## Cross-cutting: what to build for a self-improving system

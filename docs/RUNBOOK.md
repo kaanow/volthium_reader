@@ -27,11 +27,13 @@
 ## Architecture in 60 seconds
 
 1. **`volthium-logger`** on the Pi reads both batteries over BLE every 10 s.
-   Writes to `data/pack.csv` (durable) and `/run/volthium/ble_events.jsonl`
-   (tmpfs — sealed-segment rotation).
+   Writes to `data/pack.csv` and `data/ble_events.jsonl` (sealed-segment
+   rotation; moved off tmpfs 2026-07-13 so diagnostics survive reboots).
+   Reads via the UB500 dongle, with automatic fallback to the internal BT
+   chip — and automatic USB-replug repair of the dongle — when it wedges.
 2. **`volthium-uploader`** tails `data/pack.csv`, converts naive-local to
    UTC `Z`, POSTs batches to Railway `/ingest`, upserts on `(source_id, ts)`.
-3. **`volthium-events-uploader`** drains sealed segments from tmpfs to
+3. **`volthium-events-uploader`** drains sealed segments from `data/` to
    Railway `/api/events/ingest` → `ble_events` table.
 4. **`volthium-dashboard`** on the Pi serves the local dashboard at :8421.
 5. **Railway** hosts the FastAPI ingest server + a public browser dashboard
@@ -51,10 +53,11 @@ Deep architecture: `docs/cloud_architecture.md`. Deep field notes:
 | `/srv/volthium_reader/data/pack.log` | Human-readable logger progress |
 | `/srv/volthium_reader/pack.env` | Battery BLE addresses (`ADDR_A_LINUX`, `ADDR_B_LINUX`) |
 | `/etc/volthium-uploader.env` | `READER_TOKEN` (bearer for Railway) |
-| `/etc/systemd/system/volthium-*.service` | Unit files |
-| `/etc/systemd/system/volthium-*.service.d/*.conf` | Local drop-in overrides |
-| `/etc/tmpfiles.d/volthium.conf` | Ensures `/run/volthium/` exists at boot |
-| `/run/volthium/` | tmpfs; event log + sealed segments + uploader.log |
+| `/etc/systemd/system/volthium-*.service` | Unit files — **versioned in `deploy/pi/`**, installed by `deploy/pi/install.sh` |
+| `/etc/systemd/system/volthium-*.service.d/*.conf` | Drop-in overrides (also versioned in `deploy/pi/`) |
+| `/etc/udev/rules.d/50-volthium-ub500-usb-power.rules` | Disables USB autosuspend on the UB500 (FM-9 root-cause fix) |
+| `data/ble_events.jsonl` (+ `.NNNN.sealed`) | Event log + sealed segments (durable since 2026-07-13; was `/run/volthium` tmpfs) |
+| `/etc/tmpfiles.d/volthium.conf` | Legacy — still creates the (now unused) `/run/volthium/`; harmless |
 
 ## Systemd services on the Pi
 
@@ -71,12 +74,15 @@ respawns within a few seconds.
 
 ## Env vars on the Pi (logger drop-in)
 
-`/etc/systemd/system/volthium-logger.service.d/10-tmpfs-events.conf`:
+`/etc/systemd/system/volthium-logger.service.d/10-reader-env.conf`
+(versioned at `deploy/pi/systemd/volthium-logger.service.d/`):
 
 | Var | Purpose |
 |---|---|
-| `VOLTHIUM_BLE_EVENT_LOG` | Path to tmpfs event log (sealed-segment rotation lives here) |
-| `VOLTHIUM_ADAPTER` | BLE controller pin — accepts a MAC or `hci*` name. Set to the UB500's BD address `20:E1:5D:68:30:8B`. Resolved to `hci*` at process start via `hciconfig`; emits `adapter_pinned` event to prove it took effect |
+| `VOLTHIUM_BLE_EVENT_LOG` | Event log path (`data/ble_events.jsonl` — durable; sealed-segment rotation lives here) |
+| `VOLTHIUM_ADAPTER` | Primary BLE controller pin — accepts a MAC or `hci*` name. Set to the UB500's BD address `20:E1:5D:68:30:8B`. Resolution is re-verified every ~60 s against BOTH `hciconfig` (kernel) and `bluetoothctl list` (bluetoothd/D-Bus — what bleak actually uses); emits `adapter_pinned` when it takes effect |
+| `VOLTHIUM_FALLBACK_ADAPTER` | Second-choice controller (the internal BCM43438, `B8:27:EB:37:69:FD`). Used automatically while the primary is unusable (`adapter_fallback_active` event / push); the reader auto-repairs the primary (USB replug) and switches back (`adapter_restored`), powering the fallback down |
+| `VOLTHIUM_ADAPTER_USB_ID` | VID:PID of the primary dongle for the replug rung (`2357:0604`) |
 | `VOLTHIUM_CAPTURE_RAW` | (off in prod) When `1`, tap raw BLE notify frames into the event log for lab replay. Turned off 2026-07-09 — the [`data/simulator/`](../data/simulator/) corpus is enough for now |
 
 ## Env vars on Railway
@@ -145,6 +151,12 @@ sudo -u claude git pull --ff-only origin main
 sudo systemctl restart volthium-logger volthium-uploader volthium-events-uploader
 ```
 
+If the change touches system config (units, drop-ins, udev), run the
+versioned installer instead of hand-editing `/etc`:
+```
+sudo bash deploy/pi/install.sh
+```
+
 ### View Postgres readings
 ```
 railway run psql $DATABASE_URL   # in the Railway CLI, from the linked project
@@ -161,11 +173,20 @@ All go to the same ntfy topic (env var `STALENESS_WEBHOOK_URL` on Railway).
 |---|---|---|
 | `pi-barge stale` | No fresh telemetry for 5+ min | See "stale push" playbook below |
 | `pi-barge recovered` | Telemetry flowing again after stale | No action; sanity-check on dashboard |
-| `pi-barge adapter pin failing` | Reader's pinned adapter (UB500) is unresolvable; it's silently falling back to the internal chip. Payload names the fallback BD address. | Not urgent — internal chip usually works. Plan a physical unplug/replug of the UB500 next time you're at the Pi. |
-| `pi-barge adapter re-pinned` | Fallback recovered; pinned adapter is back | No action |
-| `pi-barge wedge L2 — <classification>` | BLE stack wedged badly enough that a plain HCI reset didn't fix it. The classification tells you which layer: `kernel_usb_reset_chip_hung`, `chip_firmware_hci_unresponsive`, `bluez_discovery_state_stuck`, `bluez_adapter_object_missing`, `bms_peer_not_responding`, `power_under_voltage_active`, etc. | Cross-reference the classification with the wedge_snapshot event on Railway (has full evidence: dmesg tail, hciconfig, bluetoothctl show, vcgencmd throttled, temp). Response depends on which layer. |
+| `pi-barge stale` (with diagnosis) | No fresh telemetry for 5+ min. Since 2026-07-13 the message body includes a likely-cause line composed from recent reader diagnostics (wedge classification + mini-runbook hint, fallback/replug status) — read it before doing anything | See "stale push" playbook below; the diagnosis usually names the first move |
+| `pi-barge adapter pin failing` | Reader's pinned adapter (UB500) is unresolvable | Usually followed within seconds by "on FALLBACK adapter" — see below |
+| `pi-barge adapter re-pinned` | Pinned adapter is back | No action |
+| `pi-barge on FALLBACK adapter` | Reading via the internal chip while the UB500 is broken. Data flows, degraded. The reader attempts a USB replug of the UB500 every ~10 min on its own | No action needed; if it persists for hours, the dongle may need a physical reseat |
+| `pi-barge primary adapter restored` | Back on the UB500; fallback powered down | No action |
+| `pi-barge wedge L2/L3 — <classification>` | BLE stack wedged badly enough that a plain HCI reset didn't fix it. The classification names the layer; the push now includes the matching runbook hint | Cross-reference with the wedge_snapshot event on Railway (full evidence: dmesg tail, hciconfig, bluetoothctl show + list, vcgencmd throttled, temp). Response depends on the layer |
 
-Wedges at recovery-ladder Level 1 self-heal within a few seconds and don't push — the process-exit Level 3 usually resolves the stragglers via systemd's `Restart=always`.
+Recovery ladder (logger-side, per consecutive discovery failures): L1 @3 =
+HCI reset · L2 @6 = bluetoothd restart · **L3 @9 = software USB replug of the
+dongle** (sysfs `authorized` 0→1 — full re-enumeration + firmware reload) ·
+L4 @15 = process exit for a systemd respawn. Level-1 wedges self-heal within
+seconds and don't push. Independently of the ladder, the reader switches to
+the fallback adapter whenever the primary is unusable, so most wedges no
+longer interrupt telemetry at all.
 
 ## Failure modes and response
 
@@ -236,12 +257,12 @@ Common classifications and what they mean:
 
 | Classification | Layer | Likely fix |
 |---|---|---|
-| `kernel_usb_reset_chip_hung` | Kernel had to USB-reset the dongle because it stopped answering | Chip firmware hung; usually recovers on its own via kernel reset. Watch for repeats. |
-| `chip_firmware_hci_unresponsive` | Same but kernel hasn't given up yet | Ditto. If it doesn't self-recover in ~2 min, unplug/replug the dongle. |
+| `kernel_usb_reset_chip_hung` | Kernel had to USB-reset the dongle because it stopped answering (FM-9 — autosuspend/scan race; udev rule now prevents most of these) | Reader auto-replugs (L3) and reads on the fallback meanwhile. Watch for repeats. |
+| `chip_firmware_hci_unresponsive` | Same but kernel hasn't given up yet | Ditto — self-heals via replug rung. |
 | `power_under_voltage_active` | Pi throttled register shows active undervoltage | PSU / cable issue. Check the power supply. |
 | `bluez_discovery_state_stuck` | FM-3 classic; bluetoothd's Discovering flag stuck | Recovery ladder Level 2 (bluetoothd restart) usually clears this |
-| `bluez_adapter_object_missing` | D-Bus adapter object disappeared, but chip is fine | Ditto |
-| `ub500_dongle_missing_from_usb` | lsusb doesn't see the dongle | Physical unplug — plug it back in |
+| `bluez_adapter_object_missing` | Kernel sees the adapter but bluetoothd never initialized it (the post-USB-reset state behind the 2026-07-12/13 outage). No HCI/bluetoothd reset can fix it | Reader auto-replugs (L3) — the only remote cure — and reads on the fallback meanwhile. If it persists, physical reseat. |
+| `ub500_dongle_missing_from_usb` | lsusb doesn't see the dongle | Physical unplug — plug it back in. Fallback keeps data flowing meanwhile |
 | `bms_peer_not_responding` | Adapter fine, BMS not answering | RF / BMS-side issue, not our stack. Usually self-resolves. |
 
 ### No pushes for weeks

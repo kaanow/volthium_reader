@@ -84,6 +84,7 @@ async def lifespan(app: FastAPI):
         webhook_url=settings.staleness_webhook_url,
         threshold_s=settings.staleness_threshold_s,
         check_interval_s=settings.staleness_check_interval_s,
+        events_dao=dao,   # enriches stale alerts with recent wedge diagnostics
     )
     await monitor.start()
     _state["monitor"] = monitor

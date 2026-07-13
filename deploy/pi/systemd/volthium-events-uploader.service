@@ -1,0 +1,17 @@
+[Unit]
+Description=Volthium BLE events uploader (sealed segments -> Railway)
+After=network.target volthium-logger.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=claude
+Group=users
+WorkingDirectory=/srv/volthium_reader
+EnvironmentFile=/etc/volthium-uploader.env
+ExecStart=/srv/volthium_reader/.venv/bin/python -m cloud.uploader.events_uploader --log-dir /srv/volthium_reader/data --log-base ble_events.jsonl --url https://volts.alti2.de --source-id pi-barge --log data/events_uploader.log
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

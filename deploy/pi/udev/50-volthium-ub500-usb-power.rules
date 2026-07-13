@@ -1,0 +1,13 @@
+# Disable USB autosuspend for the TP-Link UB500 BLE dongle (RTL8761B).
+#
+# Root cause of the 2026-07-12 dongle firmware hang (FM-9): btusb autosuspend
+# is on by default (2 s idle delay), and the reader's 5 s scan cadence crosses
+# that idle threshold every cycle — thousands of suspend/resume transitions a
+# day. The RTL8761B is a known repeat offender for firmware lockups when a
+# suspend/resume races an LE scan-enable command; ours hung on exactly that
+# opcode (0x2042) and needed a USB re-enumeration to recover.
+#
+# Scoped to this VID:PID only. Installed at /etc/udev/rules.d/ by
+# deploy/pi/install.sh; takes effect on device add (replug or reboot), and the
+# installer also applies it to the live device immediately.
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="2357", ATTR{idProduct}=="0604", TEST=="power/control", ATTR{power/control}="on"

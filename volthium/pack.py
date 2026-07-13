@@ -113,12 +113,71 @@ class _EventLogWriter:
         except OSError:
             self._size = 0
         self._opened_at = time.monotonic()
+        # Inherit the age of pre-existing content. Without this, a crash-looping
+        # process resets the age clock every respawn and the age-based rotation
+        # NEVER fires — which is exactly how 14 h of wedge diagnostics sat
+        # unshipped on the Pi during the 2026-07-12/13 outage (each 5-min-lived
+        # process thought its segment was 0 minutes old). Age = now minus the
+        # first line's `ts`, so the 10-min latency bound holds across restarts.
+        if self._size > 0:
+            age = self._first_line_age_s()
+            if age is not None and age > 0:
+                self._opened_at = time.monotonic() - age
         if self._next_seq is None:
             self._next_seq = self._discover_next_seq()
-        # If we're opening onto an already-oversized live file (e.g. previous
-        # process died before it could rotate), seal it right away.
-        if self._size >= self.max_segment_bytes:
+        # If we're opening onto an already-oversized or already-aged-out live
+        # file (e.g. previous process died before it could rotate), seal it
+        # right away — then reopen so the caller's pending write still lands
+        # (rotate leaves _fh None for the normal in-loop path).
+        if self._size >= self.max_segment_bytes or (
+            self._size > 0
+            and (time.monotonic() - self._opened_at) >= self.max_segment_age_s
+        ):
             self._rotate()
+            self._fh = self.log_path.open("a")
+
+    def _first_line_age_s(self) -> Optional[float]:
+        """Age in seconds of the oldest event in the live file, from its `ts`
+        field. Best-effort — None if the line is unreadable/unparseable."""
+        try:
+            with self.log_path.open("r") as f:
+                first = f.readline()
+            ts = json.loads(first).get("ts", "")
+            dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+            age = (datetime.now(timezone.utc) - dt).total_seconds()
+            # Clamp to sanity: a corrupt/future ts must not produce a bogus age.
+            return age if 0 <= age <= 7 * 86400 else None
+        except Exception:
+            return None
+
+    def close(self) -> None:
+        """Close the live file handle without sealing (tests, shutdown).
+        The next write_line() reopens transparently."""
+        try:
+            if self._fh is not None:
+                self._fh.close()
+        except Exception:
+            pass
+        finally:
+            self._fh = None
+
+    def seal_now(self) -> None:
+        """Seal the live segment immediately regardless of size/age, so the
+        events uploader can ship it. Called on process exit — a logger that's
+        about to die for a wedge restart must not take its evidence with it.
+        Never raises."""
+        try:
+            if self._fh is None:
+                try:
+                    if not self.log_path.exists() or self.log_path.stat().st_size == 0:
+                        return
+                except OSError:
+                    return
+                self._open()
+            if self._size > 0:
+                self._rotate()
+        except Exception:
+            pass
 
     def _discover_next_seq(self) -> int:
         max_seq = 0
@@ -172,10 +231,22 @@ _writer = _EventLogWriter(_EVENT_LOG)
 
 def _reset_writer_for_tests(path: Path) -> _EventLogWriter:
     """Test helper — swap the module-level writer to a fresh path. Returns
-    the new writer so tests can also close/inspect it explicitly."""
+    the new writer so tests can also close/inspect it explicitly. Closes the
+    outgoing writer's handle so its temp dir can be deleted (Windows can't
+    remove open files)."""
     global _writer
+    _writer.close()
     _writer = _EventLogWriter(path)
     return _writer
+
+
+def seal_event_log() -> None:
+    """Seal the live event segment so the uploader ships it now rather than
+    on the next rotation. Call before any deliberate process exit."""
+    try:
+        _writer.seal_now()
+    except Exception:
+        pass
 
 
 def _event(event: str, **fields) -> None:
@@ -396,7 +467,7 @@ async def _default_adapter() -> str:
     return "hci0"
 
 
-# --- Adapter pinning ------------------------------------------------------
+# --- Adapter pinning + fallback -------------------------------------------
 # `VOLTHIUM_ADAPTER=<mac>` or `=<hci_name>` pins every scan and connect call
 # to a specific BLE controller. This matters because bleak/BlueZ picks a
 # default adapter by index (usually `hci0`) which is fragile when a machine
@@ -405,21 +476,32 @@ async def _default_adapter() -> str:
 # reboots we observed on 2026-07-09; without pinning, a stray boot could
 # route the reader to the flaky internal chip instead of the reliable dongle.
 #
-# The env var accepts either form:
+# The env vars accept either form:
 #   VOLTHIUM_ADAPTER=20:E1:5D:68:30:8B   → resolved to whichever hci owns
-#                                          that BD address at process start
+#                                          that BD address right now
 #   VOLTHIUM_ADAPTER=hci0                → passed straight through
+#
+# `VOLTHIUM_FALLBACK_ADAPTER` (same forms) names a second-choice controller
+# (on the Pi: the internal BCM43438) that the reader switches to WHILE the
+# primary is unusable, and automatically switches back off when the primary
+# recovers. Degraded but flowing beats a 14-hour outage.
+#
+# Two lessons from the 2026-07-12/13 outage are baked in here:
+#   1. Resolution must verify the adapter with *bluetoothd* (D-Bus), not just
+#      `hciconfig` (kernel). After a kernel USB reset the chip can re-enumerate
+#      in a state bluetoothd fails to initialize — the kernel lists it, bleak
+#      (which talks D-Bus) throws `adapter not found` forever.
+#   2. Resolution must be re-verified over time (VERIFY_TTL_S), not cached for
+#      the process lifetime — hci indexes change when a dongle re-enumerates.
 #
 # Unset (macOS dev rig, or a single-adapter Linux box) → the scan/connect
 # calls omit the `adapter` kwarg and bleak uses its per-platform default.
 _ADAPTER_ENV = "VOLTHIUM_ADAPTER"
-_resolved_adapter: Optional[str] = None
-# Sentinel: pin resolution has been ATTEMPTED and failed. Distinct from
-# _resolved_adapter=None (which means "not resolved yet"). We cache the
-# failure so we don't spam adapter_pin_failed on every scan cycle — one
-# event per process, then quietly fall through to bleak's default.
-_adapter_pin_attempted_and_failed: bool = False
-_adapter_resolve_lock: Optional[asyncio.Lock] = None
+_FALLBACK_ADAPTER_ENV = "VOLTHIUM_FALLBACK_ADAPTER"
+# VID:PID of the primary adapter's USB dongle, for the replug rung when the
+# hci is gone entirely. Default is the TP-Link UB500.
+_ADAPTER_USB_ID_ENV = "VOLTHIUM_ADAPTER_USB_ID"
+_DEFAULT_ADAPTER_USB_ID = "2357:0604"
 
 
 def _looks_like_mac(s: str) -> bool:
@@ -450,103 +532,244 @@ async def _hci_owning_mac(bd_addr: str) -> Optional[str]:
     return None
 
 
-async def _resolve_configured_adapter() -> Optional[str]:
-    """Resolve `VOLTHIUM_ADAPTER` to an `hci*` name (or None if unset /
-    unresolvable). Cached after first success — BD addresses don't change
-    during a process's lifetime, and a physical unplug of the dongle would
-    trigger the wedge-restart backstop which re-enters this from scratch."""
-    global _resolved_adapter, _adapter_resolve_lock, _adapter_pin_attempted_and_failed
-    if _resolved_adapter is not None:
-        return _resolved_adapter
-    if _adapter_pin_attempted_and_failed:
+async def _bluez_controllers() -> Optional[set[str]]:
+    """BD addresses of the controllers bluetoothd exposes on D-Bus, from
+    `bluetoothctl list` — bleak's actual universe of usable adapters. Returns
+    None when bluetoothctl is unavailable (macOS dev rig), so callers skip
+    the check rather than failing everything."""
+    out = await _run(["bluetoothctl", "list"], timeout=5.0)
+    if out.startswith("<cmd "):
         return None
-    raw = os.environ.get(_ADAPTER_ENV, "").strip()
-    if not raw:
-        return None
-    if _adapter_resolve_lock is None:
-        _adapter_resolve_lock = asyncio.Lock()
-    async with _adapter_resolve_lock:
-        if _resolved_adapter is not None:
-            return _resolved_adapter
-        if _adapter_pin_attempted_and_failed:
-            return None
-        if _looks_like_mac(raw):
-            hci = await _hci_owning_mac(raw)
-            if hci is None:
-                await _mark_pin_failed(raw, "no hci with matching BD address")
-                return None
-            _resolved_adapter = hci
-            _event("adapter_pinned", configured=raw, resolved=hci, by="mac")
-            return hci
-        if raw.startswith("hci"):
-            _resolved_adapter = raw
-            _event("adapter_pinned", configured=raw, resolved=raw, by="name")
-            return raw
-        await _mark_pin_failed(raw, "not a MAC or hci name")
-        return None
-
-
-async def _mark_pin_failed(configured: str, reason: str) -> None:
-    """Log one `adapter_pin_failed` event and, for context, one
-    `adapter_fallback` event naming the adapter we're likely to end up on.
-    Sets the "already failed" sentinel so subsequent scans are silent about
-    it — the alerting server only needs to know once per process."""
-    global _adapter_pin_attempted_and_failed
-    _adapter_pin_attempted_and_failed = True
-    _event(
-        "adapter_pin_failed",
-        configured=configured,
-        reason=reason,
-    )
-    # Probe what bleak/BlueZ will most likely fall through to — the first
-    # UP-and-real adapter in hciconfig output. This makes the operator's
-    # question "which adapter is actually reading?" answerable without SSH.
-    try:
-        out = await _run(["hciconfig"], timeout=5.0)
-    except Exception:
-        out = ""
-    fallback_hci: Optional[str] = None
-    fallback_bd: Optional[str] = None
-    current: Optional[str] = None
-    current_bd: Optional[str] = None
-    up = False
+    macs: set[str] = set()
     for line in out.splitlines():
-        s = line.strip()
-        if s.startswith("hci") and ":" in s:
-            # Record the previous adapter if it was viable
-            if current and up and current_bd and current_bd != "00:00:00:00:00:00":
-                fallback_hci = current
-                fallback_bd = current_bd
-                break
-            current = s.split(":", 1)[0]
-            current_bd = None
-            up = False
-            continue
-        if current:
-            if s.upper().startswith("BD ADDRESS:"):
-                current_bd = s.split(":", 1)[1].strip().split()[0]
-            if "UP RUNNING" in s.upper():
-                up = True
-    if current and up and current_bd and current_bd != "00:00:00:00:00:00" and not fallback_hci:
-        fallback_hci = current
-        fallback_bd = current_bd
-    _event(
-        "adapter_fallback",
-        configured=configured,
-        pin_failed_reason=reason,
-        fallback_hci=fallback_hci,
-        fallback_bd_address=fallback_bd,
-        note=(
-            "reader will use bleak's default adapter until the pinned one "
-            "reappears (usually the first UP+valid hci above)"
-        ),
-    )
+        parts = line.split()
+        if len(parts) >= 2 and parts[0] == "Controller" and _looks_like_mac(parts[1]):
+            macs.add(parts[1].upper())
+    return macs
+
+
+class _AdapterManager:
+    """Owns which BLE controller the reader is using right now.
+
+    Responsibilities:
+      - Resolve the primary pin (`VOLTHIUM_ADAPTER`) to an hci name, verified
+        against BOTH the kernel (`hciconfig`) and bluetoothd (`bluetoothctl
+        list`) views. Kernel-only visibility means bleak can't use it.
+      - When the primary is unusable, switch to `VOLTHIUM_FALLBACK_ADAPTER`
+        (powering it on if needed) so telemetry keeps flowing degraded.
+      - Re-verify on a TTL and switch back to the primary automatically the
+        moment it's healthy again — then return the fallback to its
+        documented steady state (DOWN).
+      - While on the fallback, periodically try to *repair* the primary with
+        a software USB replug (`maybe_repair_primary`), rate-limited.
+    """
+
+    VERIFY_TTL_S = 60.0
+    REPLUG_MIN_INTERVAL_S = 600.0
+
+    def __init__(self) -> None:
+        self.active: Optional[str] = None       # hci name in use; None = bleak default
+        self.active_is_fallback = False
+        # None sentinels (not 0.0): time.monotonic() is system uptime on
+        # Linux, so a freshly booted Pi has small values and a 0.0 sentinel
+        # would make the first minutes look "already verified/attempted".
+        self._verified_at: Optional[float] = None
+        self._last_replug_at: Optional[float] = None
+        self._pin_fail_reported = False         # one adapter_pin_failed per streak
+        self._last_emitted: Optional[tuple] = None  # (hci, is_fallback) last announced
+        self._lock: Optional[asyncio.Lock] = None
+
+    def invalidate(self) -> None:
+        """Force a fresh resolution on the next call — used after any recovery
+        action, because hci indexes change when a dongle re-enumerates."""
+        self._verified_at = None
+
+    def _cache_fresh(self) -> bool:
+        return (
+            self._verified_at is not None
+            and (time.monotonic() - self._verified_at) < self.VERIFY_TTL_S
+        )
+
+    async def resolve(self) -> Optional[str]:
+        raw_primary = os.environ.get(_ADAPTER_ENV, "").strip()
+        if not raw_primary:
+            return None  # unpinned (macOS dev rig) — bleak default
+        if self._cache_fresh():
+            return self.active
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        async with self._lock:
+            if self._cache_fresh():
+                return self.active
+            return await self._resolve_locked(raw_primary)
+
+    async def _resolve_locked(self, raw_primary: str) -> Optional[str]:
+        hci, why = await self._probe(raw_primary)
+        if hci is not None:
+            was_fallback = self.active_is_fallback
+            self.active, self.active_is_fallback = hci, False
+            self._verified_at = time.monotonic()
+            self._pin_fail_reported = False
+            if self._last_emitted != (hci, False):
+                _event(
+                    "adapter_restored" if was_fallback else "adapter_pinned",
+                    configured=raw_primary,
+                    resolved=hci,
+                    by="mac" if _looks_like_mac(raw_primary) else "name",
+                )
+                self._last_emitted = (hci, False)
+                if was_fallback:
+                    await self._power_down_fallback()
+            return hci
+
+        # Primary unusable — report once per streak, then try the fallback.
+        if not self._pin_fail_reported:
+            self._pin_fail_reported = True
+            _event("adapter_pin_failed", configured=raw_primary, reason=why)
+        raw_fb = os.environ.get(_FALLBACK_ADAPTER_ENV, "").strip()
+        if raw_fb:
+            fhci = await self._probe_fallback(raw_fb)
+            if fhci is not None:
+                self.active, self.active_is_fallback = fhci, True
+                self._verified_at = time.monotonic()
+                if self._last_emitted != (fhci, True):
+                    _event(
+                        "adapter_fallback_active",
+                        configured=raw_fb,
+                        resolved=fhci,
+                        primary=raw_primary,
+                        primary_fail_reason=why,
+                        note=(
+                            "reading on the fallback controller while the "
+                            "primary is repaired — degraded but flowing"
+                        ),
+                    )
+                    self._last_emitted = (fhci, True)
+                return fhci
+
+        # Nothing usable — bleak default. Cache the outcome for a TTL so we
+        # don't hammer probes every read cycle while everything is broken.
+        _event(
+            "adapter_fallback",
+            configured=raw_primary,
+            pin_failed_reason=why,
+            fallback_hci=None,
+            fallback_bd_address=None,
+            note="no configured adapter usable; bleak default until one returns",
+        )
+        self.active, self.active_is_fallback = None, False
+        self._verified_at = time.monotonic()
+        self._last_emitted = (None, False)
+        return None
+
+    async def _probe(self, raw: str) -> tuple[Optional[str], str]:
+        """(hci, "") when `raw` maps to a controller both the kernel AND
+        bluetoothd can see; (None, reason) otherwise."""
+        if _looks_like_mac(raw):
+            mac = raw.replace("-", ":").upper()
+            hci = await _hci_owning_mac(mac)
+            if hci is None:
+                return None, "no hci with matching BD address"
+            controllers = await _bluez_controllers()
+            if controllers is not None and mac not in controllers:
+                return None, (
+                    f"kernel sees {hci} but bluetoothd does not "
+                    "(D-Bus adapter object missing — bleak can't use it)"
+                )
+            return hci, ""
+        if raw.startswith("hci"):
+            out = await _run(["hciconfig", raw], timeout=5.0)
+            if "no such device" in out.lower():
+                return None, "no such hci device"
+            return raw, ""
+        return None, "not a MAC or hci name"
+
+    async def _probe_fallback(self, raw_fb: str) -> Optional[str]:
+        """Resolve the fallback controller, powering it on if it's sitting in
+        its steady-state DOWN. Returns None if it's unusable too."""
+        fhci, _why = await self._probe(raw_fb)
+        if fhci is None:
+            return None
+        if not await _adapter_is_up(fhci):
+            await _power_on_adapter(fhci)
+            if not await _adapter_is_up(fhci):
+                return None
+        return fhci
+
+    async def _power_down_fallback(self) -> None:
+        """Primary is back — return the fallback controller to its documented
+        steady state (DOWN) so its wedge-prone scan state can't confuse BlueZ
+        (the internal chip was left UP-and-wedged after the 2026-07-12 episode)."""
+        raw_fb = os.environ.get(_FALLBACK_ADAPTER_ENV, "").strip()
+        if not raw_fb:
+            return
+        if _looks_like_mac(raw_fb):
+            fhci = await _hci_owning_mac(raw_fb)
+        elif raw_fb.startswith("hci"):
+            fhci = raw_fb
+        else:
+            fhci = None
+        if fhci and fhci != self.active:
+            out = await _run(["sudo", "-n", "hciconfig", fhci, "down"], timeout=10.0)
+            _event("fallback_powered_down", hci=fhci, output=out.strip()[:200])
+
+    async def maybe_repair_primary(self) -> Optional[str]:
+        """While surviving on the fallback, try to bring the primary back with
+        a software USB replug. Rate-limited to one attempt per
+        REPLUG_MIN_INTERVAL_S. Returns a description when a replug ran, None
+        otherwise. Called every read cycle by the logger — cheap no-op unless
+        we're actually degraded and due for an attempt."""
+        if not self.active_is_fallback:
+            return None
+        now = time.monotonic()
+        if (
+            self._last_replug_at is not None
+            and (now - self._last_replug_at) < self.REPLUG_MIN_INTERVAL_S
+        ):
+            return None
+        raw = os.environ.get(_ADAPTER_ENV, "").strip()
+        if not raw:
+            return None
+        # Cheap re-check first — bluetoothd may have recovered it on its own,
+        # in which case the next resolve() switches back without a replug.
+        hci, _why = await self._probe(raw)
+        if hci is not None:
+            self.invalidate()
+            return None
+        self._last_replug_at = now
+        action = await replug_usb_adapter()
+        self.invalidate()
+        return action
+
+
+_adapter_mgr = _AdapterManager()
+
+
+def _reset_adapter_state_for_tests() -> _AdapterManager:
+    """Swap in a fresh manager (module-level state otherwise leaks between
+    tests). Returns it for direct inspection."""
+    global _adapter_mgr
+    _adapter_mgr = _AdapterManager()
+    return _adapter_mgr
+
+
+async def _resolve_configured_adapter() -> Optional[str]:
+    """The adapter the reader should use right now (primary, fallback, or
+    None for bleak's default). Kept as a thin wrapper — callers predate the
+    manager."""
+    return await _adapter_mgr.resolve()
+
+
+async def maybe_repair_primary() -> Optional[str]:
+    """Module-level convenience for the logger loop — see
+    _AdapterManager.maybe_repair_primary."""
+    return await _adapter_mgr.maybe_repair_primary()
 
 
 async def _adapter_kwargs() -> dict:
     """kwargs to splat into bleak scan/connect calls. `{"adapter": "hciN"}`
-    when `VOLTHIUM_ADAPTER` is set and resolved; `{}` otherwise (bleak
-    picks its per-platform default — the right thing on macOS)."""
+    when a configured adapter resolved; `{}` otherwise (bleak picks its
+    per-platform default — the right thing on macOS)."""
     adapter = await _resolve_configured_adapter()
     return {"adapter": adapter} if adapter else {}
 
@@ -585,6 +808,115 @@ async def _power_on_adapter(hci: str) -> str:
         bluetoothctl_power=bt_out[:200],
     )
     return f"hciconfig {hci} up; bluetoothctl power on"
+
+
+# --- USB replug (recovery ladder Level 3) -----------------------------------
+# The 2026-07-12/13 outage proved a failure mode no HCI reset or bluetoothd
+# restart can fix: the dongle's firmware hangs, the kernel USB-resets it, and
+# it re-enumerates in a state bluetoothd can't initialize ("Failed to set
+# privacy: Rejected (0x0b)") — kernel-visible, D-Bus-invisible, dead to bleak.
+# The only remote cure is a full USB re-enumeration with a fresh firmware
+# load, which sysfs `authorized` 0→1 provides (a software unplug/replug).
+# Verified live 2026-07-13: readings resumed within seconds.
+#
+# Scoped strictly to the adapter's own USB device dir — never a hub or any
+# other device — so it cannot affect connectivity (the Pi's network is on
+# wlan0, not USB, but we don't rely on that).
+
+
+def _usb_device_dir_for_hci(
+    hci: str, base: Path = Path("/sys/class/bluetooth")
+) -> Optional[Path]:
+    """sysfs USB *device* dir (e.g. .../1-1.5) for a USB-attached hci, by
+    following /sys/class/bluetooth/<hci>/device → the USB interface, whose
+    parent is the device. None for non-USB adapters or on any error."""
+    try:
+        real = (base / hci / "device").resolve()
+    except OSError:
+        return None
+    dev = real.parent
+    return dev if (dev / "authorized").is_file() else None
+
+
+def _usb_device_dir_by_id(
+    usb_id: str, base: Path = Path("/sys/bus/usb/devices")
+) -> Optional[Path]:
+    """sysfs USB device dir matching `vid:pid` — the fallback lookup for when
+    the dongle is on the bus but its hci is gone entirely."""
+    try:
+        vid, pid = usb_id.lower().split(":")
+    except ValueError:
+        return None
+    try:
+        candidates = list(base.iterdir())
+    except OSError:
+        return None
+    for d in candidates:
+        try:
+            if (
+                (d / "idVendor").read_text().strip().lower() == vid
+                and (d / "idProduct").read_text().strip().lower() == pid
+                and (d / "authorized").is_file()
+            ):
+                return d
+        except OSError:
+            continue
+    return None
+
+
+async def _find_replug_target() -> Optional[Path]:
+    """Locate the primary adapter's USB device dir. Prefer following the hci's
+    own sysfs link (exact, works when bluetoothd lost the adapter); fall back
+    to a VID:PID scan (works when even the hci is gone)."""
+    raw = os.environ.get(_ADAPTER_ENV, "").strip()
+    if _looks_like_mac(raw):
+        hci = await _hci_owning_mac(raw)
+        if hci:
+            d = _usb_device_dir_for_hci(hci)
+            if d is not None:
+                return d
+    elif raw.startswith("hci"):
+        d = _usb_device_dir_for_hci(raw)
+        if d is not None:
+            return d
+    usb_id = os.environ.get(_ADAPTER_USB_ID_ENV, _DEFAULT_ADAPTER_USB_ID)
+    return _usb_device_dir_by_id(usb_id)
+
+
+async def replug_usb_adapter() -> str:
+    """Software unplug/replug of the primary USB BLE adapter via its sysfs
+    `authorized` toggle — full re-enumeration + fresh firmware load, same
+    effect as physically reseating the dongle. Best-effort; never raises;
+    emits a `usb_replug` event with the before/after evidence."""
+    target = await _find_replug_target()
+    if target is None:
+        _event(
+            "usb_replug",
+            ok=False,
+            note="no USB device dir found for the primary adapter — "
+            "not a USB dongle, or it fell off the bus entirely",
+        )
+        return "usb replug skipped (no sysfs target)"
+    auth = target / "authorized"
+    before = await _run(["hciconfig"], timeout=5.0)
+    out0 = await _run(["sudo", "-n", "sh", "-c", f"echo 0 > {auth}"], timeout=10.0)
+    await asyncio.sleep(2.0)
+    out1 = await _run(["sudo", "-n", "sh", "-c", f"echo 1 > {auth}"], timeout=10.0)
+    # Re-enumeration + RTL firmware download takes a few seconds; give
+    # bluetoothd a moment to register the new controller too.
+    await asyncio.sleep(6.0)
+    after = await _run(["hciconfig"], timeout=5.0)
+    _event(
+        "usb_replug",
+        ok=True,
+        usb_dev=target.name,
+        deauthorize=out0.strip()[:150],
+        reauthorize=out1.strip()[:150],
+        hciconfig_before=before.strip()[:400],
+        hciconfig_after=after.strip()[:400],
+    )
+    _adapter_mgr.invalidate()
+    return f"usb replug of {target.name} (authorized 0→1)"
 
 
 async def _dmesg_bt_tail(since: str = "5min", limit: int = 40) -> list[str]:
@@ -727,6 +1059,8 @@ def _classify_wedge(
     hci_state: dict,
     bctl: str,
     ub500_present: Optional[bool],
+    pinned_in_kernel: Optional[str] = None,
+    pinned_in_bluez: Optional[bool] = None,
 ) -> str:
     """Heuristic layer label for the wedge. The raw fields are the source of
     truth; this string is a triage shortcut for the runbook and dashboards.
@@ -740,6 +1074,12 @@ def _classify_wedge(
         return "chip_firmware_hci_unresponsive"
     if ub500_present is False:
         return "ub500_dongle_missing_from_usb"
+    # Direct kernel-vs-D-Bus comparison — the 2026-07-12/13 signature: the
+    # kernel lists the pinned adapter but bluetoothd never initialized it, so
+    # bleak throws `adapter not found` while hciconfig looks perfectly healthy.
+    # Cured by a USB replug (recovery Level 3), not by HCI/bluetoothd resets.
+    if pinned_in_kernel and pinned_in_bluez is False:
+        return "bluez_adapter_object_missing"
     if hci_state.get("bd_null") or (hci_state.get("down") and not hci_state.get("up")):
         return "adapter_down_or_bd_null"
     if "Discovering: yes" in bctl:
@@ -759,13 +1099,14 @@ async def _collect_stack_evidence(reason: str) -> dict:
     speak identical JSON — analysis tooling can treat both event kinds the
     same way and just look at the `event` field to know why it fired."""
     hci = await _default_adapter()
-    dmesg, hci_state, bctl, ub500, hcicon, ptherm = await asyncio.gather(
+    dmesg, hci_state, bctl, ub500, hcicon, ptherm, bluez_macs = await asyncio.gather(
         _dmesg_bt_tail(),
         _hciconfig_snapshot(hci),
         _bluetoothctl_snapshot(),
         _lsusb_ub500(),
         _run(["hcitool", "con"], timeout=2.0),
         _power_and_thermal(),
+        _bluez_controllers(),
         return_exceptions=True,
     )
     dmesg = dmesg if isinstance(dmesg, list) else []
@@ -773,7 +1114,24 @@ async def _collect_stack_evidence(reason: str) -> dict:
     bctl = bctl if isinstance(bctl, str) else str(bctl)
     hcicon = hcicon if isinstance(hcicon, str) else str(hcicon)
     ptherm = ptherm if isinstance(ptherm, dict) else {}
-    classification = _classify_wedge(reason, dmesg, hci_state, bctl, ub500)
+    bluez_macs = bluez_macs if isinstance(bluez_macs, (set, type(None))) else None
+    # Kernel-vs-D-Bus comparison for the pinned adapter (see _classify_wedge).
+    pinned_raw = os.environ.get(_ADAPTER_ENV, "").strip()
+    pinned_in_kernel: Optional[str] = None
+    pinned_in_bluez: Optional[bool] = None
+    if _looks_like_mac(pinned_raw):
+        mac = pinned_raw.replace("-", ":").upper()
+        try:
+            pinned_in_kernel = await _hci_owning_mac(mac)
+        except Exception:
+            pinned_in_kernel = None
+        if bluez_macs is not None:
+            pinned_in_bluez = mac in bluez_macs
+    classification = _classify_wedge(
+        reason, dmesg, hci_state, bctl, ub500,
+        pinned_in_kernel=pinned_in_kernel,
+        pinned_in_bluez=pinned_in_bluez,
+    )
     # If Pi throttling is currently active, upgrade the classification —
     # any recent under-voltage strongly implies the chip hang was electrical,
     # not firmware. Preserve the original label as a hint field.
@@ -795,6 +1153,12 @@ async def _collect_stack_evidence(reason: str) -> dict:
         "ub500_present": ub500,
         "hcitool_con": hcicon.strip()[:500],
         "power_thermal": ptherm,
+        "bluez_controllers": sorted(bluez_macs) if bluez_macs is not None else None,
+        "pinned_adapter": pinned_raw or None,
+        "pinned_in_kernel": pinned_in_kernel,
+        "pinned_in_bluez": pinned_in_bluez,
+        "active_adapter": _adapter_mgr.active,
+        "on_fallback_adapter": _adapter_mgr.active_is_fallback,
     }
 
 
@@ -822,24 +1186,33 @@ async def emit_stack_health(reason: str = "periodic") -> None:
 
 
 async def recover_adapter(level: int) -> str:
-    """Escalating adapter recovery for a stuck discovery (FM-3) that a process
-    restart can't fix. level 1 = HCI controller reset (clears the wedged
-    discovery session, fast); level >= 2 = full bluetooth.service restart (the
-    proven heavy hammer — verified to clear `Discovering: yes` on 2026-06-30).
+    """Escalating adapter recovery for a stuck discovery (FM-3/FM-9) that a
+    process restart can't fix.
+      level 1 — HCI controller reset (clears a wedged discovery session, fast)
+      level 2 — full bluetooth.service restart (the proven heavy hammer —
+                verified to clear `Discovering: yes` on 2026-06-30)
+      level 3 — software USB replug of the primary dongle (full re-enumeration
+                + firmware reload; the only remote cure when the chip came
+                back from a kernel USB reset in a state bluetoothd can't
+                initialize — the 2026-07-12/13 outage)
     Uses passwordless sudo. Best-effort; logs a structured event; never raises.
 
-    Both recovery paths can leave the adapter powered off (observed live
-    2026-07-01 after a level 2 recovery — the logger then loops on
-    "No powered Bluetooth adapters found" until manual intervention). To
-    close that gap the recovery now verifies the adapter is up afterward
-    and calls `hciconfig <hci> up + bluetoothctl power on` if not.
+    Levels 1-2 can leave the adapter powered off (observed live 2026-07-01
+    after a level 2 recovery — the logger then loops on "No powered Bluetooth
+    adapters found" until manual intervention). To close that gap the recovery
+    verifies the adapter is up afterward and calls `hciconfig <hci> up +
+    bluetoothctl power on` if not. Level 3 changes the hci index, so it skips
+    that check and instead invalidates the adapter cache (all levels do).
 
-    HARDWARE-DEP: BlueZ — the entire adapter-recovery ladder exists
-    because bluetoothd on this platform periodically gets stuck in
-    `Discovering: yes` and refuses new sessions. On a healthier stack this
-    function shouldn't need to exist; when we swap hardware, this whole
-    function and its callers in scripts/log.py can go.
+    HARDWARE-DEP: BlueZ / RTL8761B — the entire adapter-recovery ladder exists
+    because this platform's BT stack periodically wedges at some layer. On a
+    healthier stack this function shouldn't need to exist; when we swap
+    hardware, this whole function and its callers in scripts/log.py can go.
     """
+    if level >= 3:
+        action = await replug_usb_adapter()
+        _event("adapter_recovery", level=level, action=action, output="")
+        return action
     hci = await _default_adapter()
     if level <= 1:
         action = f"hciconfig {hci} reset"
@@ -857,6 +1230,9 @@ async def recover_adapter(level: int) -> str:
     if not await _adapter_is_up(hci):
         power_action = await _power_on_adapter(hci)
         action = f"{action}; {power_action}"
+    # hci indexes and D-Bus registration can change under any recovery — make
+    # the next read cycle re-resolve rather than trusting a stale pin.
+    _adapter_mgr.invalidate()
     return action
 
 

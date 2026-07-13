@@ -24,8 +24,10 @@ from volthium.estimator import Estimator
 from volthium.pack import (
     DiscoveryWedgeError,
     emit_stack_health,
+    maybe_repair_primary,
     read_pack,
     recover_adapter,
+    seal_event_log,
     snapshot_stack,
 )
 
@@ -52,18 +54,24 @@ RESTART_AFTER_CONSEC_ERRORS = 30
 # batteries never show as connected, so they can't trip this into a restart loop.
 RESTART_AFTER_WEDGE_CYCLES = 6
 
-# Stuck-adapter-discovery (FM-3) escalation ladder. A wedged discovery session
-# (org.bluez.Error.InProgress) lives in bluetoothd, NOT our process, so a process
-# restart can't clear it — the adapter itself must be reset. Escalate by count of
-# consecutive discovery failures: soft HCI reset → full bluetooth.service restart
-# → finally give up to a process restart (last resort, in case the loop itself is
-# the problem). Each level only fires once (==) so we climb the ladder.
-# HARDWARE-DEP: Pi 3B — every rung here is a workaround for bluetoothd getting
-# stuck. Modern controllers with clean state management shouldn't need this;
-# this whole ladder + the recover_adapter() function it calls can be removed
-# on hardware upgrade.
+# Stuck-adapter-discovery (FM-3/FM-9) escalation ladder. A wedged discovery
+# session (org.bluez.Error.InProgress) lives in bluetoothd, NOT our process, so a
+# process restart can't clear it — the adapter itself must be reset. Escalate by
+# count of consecutive discovery failures: soft HCI reset → full
+# bluetooth.service restart → software USB replug of the dongle (full
+# re-enumeration + firmware reload — the only remote cure for the FM-9
+# kernel-sees-it-but-bluetoothd-doesn't state) → finally give up to a process
+# restart (last resort, in case the loop itself is the problem). Each level only
+# fires once (==) so we climb the ladder. Note the fallback adapter
+# (VOLTHIUM_FALLBACK_ADAPTER) usually keeps reads flowing before the ladder even
+# climbs — these rungs matter when BOTH adapters are unusable.
+# HARDWARE-DEP: Pi 3B — every rung here is a workaround for the BT stack
+# getting stuck. Modern controllers with clean state management shouldn't need
+# this; this whole ladder + the recover_adapter() function it calls can be
+# removed on hardware upgrade.
 ADAPTER_SOFT_RESET_AFTER = 3    # consecutive scan failures → hciconfig reset
 ADAPTER_HARD_RESET_AFTER = 6    # still failing → restart bluetooth.service
+ADAPTER_USB_REPLUG_AFTER = 9    # still failing → software-replug the USB dongle
 RESTART_AFTER_SCAN_WEDGE = 15   # adapter resets didn't help → exit for respawn
 
 # Trigger one wedge_snapshot on the "neither battery found in scan" streak so
@@ -206,6 +214,18 @@ async def main() -> int:
              args.csv, args.interval, args.a, args.b)
     _archive_if_schema_drift(args.csv, log)
 
+    try:
+        return await _loop(args, log)
+    finally:
+        # Whatever way we exit — wedge restart, total-read-failure restart,
+        # crash — seal the live event segment so the events uploader ships the
+        # evidence NOW. Without this, a crash-looping logger resets the
+        # age-rotation clock every respawn and diagnostics never leave the Pi
+        # (the 2026-07-12/13 outage ran 14 h with zero events reaching Railway).
+        seal_event_log()
+
+
+async def _loop(args, log: logging.Logger) -> int:
     est = Estimator()
     consec_errors = 0
     consec_scan_errors = 0              # consecutive discovery-wedge failures (FM-3)
@@ -265,6 +285,14 @@ async def main() -> int:
             if n == 1 or n % HEALTH_SNAPSHOT_EVERY_CYCLES == 0:
                 await emit_stack_health(reason=f"periodic n={n}")
 
+            # Degraded-mode self-repair: when reads are surviving on the
+            # fallback adapter, periodically try to fix the primary (USB
+            # replug). Rate-limited inside — a cheap no-op almost always.
+            repair = await maybe_repair_primary()
+            if repair:
+                log.warning("primary adapter repair attempted while on "
+                            "fallback: %s", repair)
+
             # every ~5 min at 10s interval, drop a progress line
             if n == 1 or n % 30 == 0:
                 log.info(
@@ -301,13 +329,20 @@ async def main() -> int:
                 await snapshot_stack(reason=str(exc), level=2)
                 action = await recover_adapter(2)
                 log.info("adapter recovery (hard): %s", action)
+            elif consec_scan_errors == ADAPTER_USB_REPLUG_AFTER:
+                log.error("discovery still wedged %d× — software-replugging "
+                          "the USB adapter (full re-enumeration)",
+                          consec_scan_errors)
+                await snapshot_stack(reason=str(exc), level=3)
+                action = await recover_adapter(3)
+                log.info("adapter recovery (usb replug): %s", action)
             elif consec_scan_errors >= RESTART_AFTER_SCAN_WEDGE:
                 log.error("discovery wedged %d× despite adapter resets — exiting "
                           "for a clean systemd restart (last resort)",
                           consec_scan_errors)
-                # Last-resort snapshot: the wedge survived level 1 AND level 2
-                # — the surviving evidence is what makes this incident learnable.
-                await snapshot_stack(reason=str(exc), level=3)
+                # Last-resort snapshot: the wedge survived every ladder rung —
+                # the surviving evidence is what makes this incident learnable.
+                await snapshot_stack(reason=str(exc), level=4)
                 return 1
             if consec_scan_errors > 3:
                 await asyncio.sleep(min(30.0, 3.0 * consec_scan_errors))
@@ -338,9 +373,9 @@ async def main() -> int:
                           "clean systemd restart to reset the BLE stack",
                           consec_errors)
                 # Last-resort snapshot before exit — same rationale as
-                # the discovery-wedge Level-3 case.
+                # the discovery-wedge Level-4 case.
                 await snapshot_stack(
-                    reason=f"{type(exc).__name__}: {exc}", level=3,
+                    reason=f"{type(exc).__name__}: {exc}", level=4,
                 )
                 return 1
             # exponential-ish backoff so we don't hammer a flaky link

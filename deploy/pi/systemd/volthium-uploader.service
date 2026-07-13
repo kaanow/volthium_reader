@@ -1,0 +1,17 @@
+[Unit]
+Description=Volthium cloud uploader (data/pack.csv -> Railway)
+After=network-online.target volthium-logger.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=claude
+Group=users
+WorkingDirectory=/srv/volthium_reader
+EnvironmentFile=/etc/volthium-uploader.env
+ExecStart=/srv/volthium_reader/.venv/bin/python -m cloud.uploader.uploader --csv data/pack.csv --url https://volts.alti2.de --source-id pi-barge --log data/uploader.log
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

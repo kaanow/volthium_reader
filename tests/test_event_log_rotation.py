@@ -73,6 +73,7 @@ class SizeBasedRotationTests(unittest.TestCase):
             w = _EventLogWriter(p, max_segment_bytes=10_000, max_segment_age_s=999.0)
             w.write_line('{"a": 1}\n')
             w.write_line('{"a": 2}\n')
+            w.close()
             self.assertTrue(p.exists())
             self.assertEqual(p.read_text(), '{"a": 1}\n{"a": 2}\n')
             self.assertEqual(_sealed_files(Path(d), "ev.jsonl"), [])
@@ -84,6 +85,7 @@ class SizeBasedRotationTests(unittest.TestCase):
             w = _EventLogWriter(p, max_segment_bytes=30, max_segment_age_s=999.0)
             for i in range(3):
                 w.write_line(f'{{"n": {i:03d}}}\n')
+            w.close()
             sealed = _sealed_files(Path(d), "ev.jsonl")
             self.assertEqual(len(sealed), 1)
             # Sealed file has all three lines
@@ -101,6 +103,7 @@ class SizeBasedRotationTests(unittest.TestCase):
             w = _EventLogWriter(p, max_segment_bytes=20, max_segment_age_s=999.0)
             for i in range(3):
                 w.write_line(f'{{"n": {i}}}\n')
+            w.close()
             sealed = _sealed_files(Path(d), "ev.jsonl")
             # Old .0007.sealed + new .0008.sealed
             self.assertEqual(len(sealed), 2)
@@ -118,6 +121,7 @@ class TimeBasedRotationTests(unittest.TestCase):
             w.write_line('{"first": 1}\n')
             time.sleep(0.08)
             w.write_line('{"second": 1}\n')  # this write should trip aged_out
+            w.close()
             sealed = _sealed_files(Path(d), "ev.jsonl")
             self.assertEqual(len(sealed), 1)
 
@@ -141,12 +145,90 @@ class SealedCapTests(unittest.TestCase):
             # Fill enough to trigger rotation once; before renaming the live
             # to sealed, cap enforcement should have dropped the oldest.
             w.write_line("a" * 25 + "\n")
+            w.close()
             sealed = _sealed_files(Path(d), "ev.jsonl")
             self.assertEqual(len(sealed), 3)
             # 0001 should have been evicted; 0004 should be present
             names = {s.name for s in sealed}
             self.assertNotIn("ev.jsonl.0001.sealed", names)
             self.assertTrue(any("0004" in n for n in names))
+
+
+class CrashLoopSealingTests(unittest.TestCase):
+    """FM-10: a crash-looping logger must not reset the age-rotation clock on
+    every respawn — that's how 14 h of wedge diagnostics sat unshipped on
+    2026-07-12/13. The writer inherits the live file's age from its first
+    line's `ts`, and `seal_now()` ships evidence on deliberate exits."""
+
+    @staticmethod
+    def _old_line(age_s: float) -> str:
+        from datetime import datetime, timedelta, timezone
+        ts = (
+            datetime.now(timezone.utc) - timedelta(seconds=age_s)
+        ).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        return f'{{"ts": "{ts}", "event": "scan_result"}}\n'
+
+    def test_inherits_age_from_existing_file(self):
+        # A fresh writer opening a live file whose oldest event is past the
+        # age cap must seal it on the first write, not 10 minutes later.
+        with TemporaryDirectory() as d:
+            p = Path(d) / "ev.jsonl"
+            p.write_text(self._old_line(age_s=3600))
+            w = _EventLogWriter(p, max_segment_bytes=1_000_000, max_segment_age_s=600.0)
+            w.write_line('{"fresh": 1}\n')
+            w.close()
+            sealed = _sealed_files(Path(d), "ev.jsonl")
+            self.assertEqual(len(sealed), 1, "aged pre-existing content must seal")
+            self.assertIn('"scan_result"', sealed[0].read_text())
+            # The new line must NOT be lost — it lands in the fresh live file.
+            self.assertEqual(p.read_text(), '{"fresh": 1}\n')
+
+    def test_young_existing_file_does_not_seal(self):
+        with TemporaryDirectory() as d:
+            p = Path(d) / "ev.jsonl"
+            p.write_text(self._old_line(age_s=5))
+            w = _EventLogWriter(p, max_segment_bytes=1_000_000, max_segment_age_s=600.0)
+            w.write_line('{"fresh": 1}\n')
+            w.close()
+            self.assertEqual(_sealed_files(Path(d), "ev.jsonl"), [])
+
+    def test_unparseable_first_line_is_tolerated(self):
+        with TemporaryDirectory() as d:
+            p = Path(d) / "ev.jsonl"
+            p.write_text("not json at all\n")
+            w = _EventLogWriter(p, max_segment_bytes=1_000_000, max_segment_age_s=600.0)
+            w.write_line('{"fresh": 1}\n')   # must not raise or seal
+            w.close()
+            self.assertEqual(_sealed_files(Path(d), "ev.jsonl"), [])
+
+    def test_seal_now_ships_live_content(self):
+        with TemporaryDirectory() as d:
+            p = Path(d) / "ev.jsonl"
+            w = _EventLogWriter(p, max_segment_bytes=1_000_000, max_segment_age_s=999.0)
+            w.write_line('{"evidence": 1}\n')
+            self.assertEqual(_sealed_files(Path(d), "ev.jsonl"), [])
+            w.seal_now()
+            sealed = _sealed_files(Path(d), "ev.jsonl")
+            self.assertEqual(len(sealed), 1)
+            self.assertIn('"evidence"', sealed[0].read_text())
+
+    def test_seal_now_on_cold_writer_with_existing_file(self):
+        # seal_now on a writer that never wrote (e.g. the process crashed
+        # right after import) must still seal leftover live content.
+        with TemporaryDirectory() as d:
+            p = Path(d) / "ev.jsonl"
+            p.write_text(self._old_line(age_s=5))
+            w = _EventLogWriter(p, max_segment_bytes=1_000_000, max_segment_age_s=600.0)
+            w.seal_now()
+            self.assertEqual(len(_sealed_files(Path(d), "ev.jsonl")), 1)
+
+    def test_seal_now_noop_when_nothing_to_seal(self):
+        with TemporaryDirectory() as d:
+            p = Path(d) / "ev.jsonl"
+            w = _EventLogWriter(p)
+            w.seal_now()   # no file at all — must not raise or create anything
+            self.assertFalse(p.exists())
+            self.assertEqual(_sealed_files(Path(d), "ev.jsonl"), [])
 
 
 class ModuleLevelEventTests(unittest.TestCase):
@@ -158,6 +240,7 @@ class ModuleLevelEventTests(unittest.TestCase):
             w = _reset_writer_for_tests(p)
             self.assertIs(pack_mod._writer, w)
             _event("test_event", value=42)
+            w.close()
             self.assertTrue(p.exists())
             line = p.read_text().strip()
             self.assertIn('"event": "test_event"', line)
@@ -179,6 +262,7 @@ class RawTapTests(unittest.TestCase):
             bms._raw_addr = "AA:BB:CC:DD:EE:FF"
             fake_data = bytes([0x3a, 0x30, 0x30, 0x7e])   # ":00~" — plausible frame
             bms._notification_handler(None, fake_data)
+            pack_mod._writer.close()
             content = p.read_text()
             self.assertIn('"event": "raw_frame"', content)
             self.assertIn('"address": "AA:BB:CC:DD:EE:FF"', content)
