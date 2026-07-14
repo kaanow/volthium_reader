@@ -1295,7 +1295,7 @@ learning. (These limits are inherent to this e-paper class, color or not.)
 log-push** role (the Starlink router is near the batteries; ABS-plastic
 cells + plastic box → a clean 2.4 GHz hop, and the battery board is the
 data *source*). To power a WiFi session, **swap U1 from LM5165 (150 mA) →
-LM5166 (500 mA)** — same TI 3–65 V ultra-low-IQ family (~14 µA at 24 V),
+LM5166 (500 mA)** — same TI 3–65 V ultra-low-IQ family (IQ-SLEEP 9.7 µA typ / 15 µA max — [corrected 2026-07-14: earlier "~14 µA" was unsourced]),
 fixed 3.3 V, same package.
 
 **Why the supply swap (not a cap).** A WiFi connect → DHCP → TLS-auth →
@@ -1303,7 +1303,7 @@ upload sequence runs **~2–6 s** at a **sustained ~150–250 mA** (peaks
 ~300–500 mA) — not a millisecond spike. Bridging a multi-second deficit
 off the 150 mA LM5165 would need ~1+ **farad** (a supercap); a bulk cap
 only covers sub-ms TX peaks. The LM5166's 500 mA actually sources the
-session, while its ~14 µA idle keeps **hard-cut at ~1 mW** (vs the LM5165's
+session, while its ~10 µA sleep idle keeps **hard-cut at ~1 mW** (vs the LM5165's
 10.5 µA — negligible difference).
 
 **Scope.** WiFi is **duty-cycled**: connect, dump logs buffered in the
@@ -1482,7 +1482,7 @@ only.") Earlier DR-18 correction stands: USB does **not** defeat the UVLO
   Iq / 50 nA standby**, auto switchover, reverse-blocking N-FETs — no
   Schottky drop): **VIN1 (priority) = 3V3_USB**, **VIN2 = U1 buck 3V3**,
   **OUT = V3V3**. USB present → output from USB, the LM5166 sees its output
-  held high → **stops switching → pack draw ≈ its ~14 µA Iq**; USB absent →
+  held high → **stops switching → pack draw ≈ its ~10 µA sleep Iq (15 µA max)**; USB absent →
   auto-switches to the buck → V3V3 exactly as before.
 - **VBUS-present UVLO bypass = Q3 + Q4 (fail-safe default-ON; corrected per
   reviewer iter-2 F03).** Q3 = N-FET in series in U4's open-drain RESET→EN
@@ -1877,7 +1877,7 @@ the corrected convention used everywhere in the CP1 documents):
 **~1.08 mW total (~1.1 mW headline)** with LM5166 **15 µA max** +
 TPS3808 **5 µA max** + TPS2116 **4.5 µA max** + THVD1400 **1 µA max**
 + ESP32-S3 Deep-sleep 10 µA typ + 5 µA engineering margin (Espressif
-does not publish a spec max for Deep-sleep in ES §5.4). ([[power-first]])
+does not publish a spec max for Deep-sleep in ES Table 6-7 [citation corrected 2026-07-14]). ([[power-first]])
 If we had kept ISL3175E and honored F08 max-to-max, the headline would
 be ~1.14 mW (the extra 11 µA on the U3 shutdown line).
 
@@ -1928,7 +1928,7 @@ be ~1.14 mW (the extra 11 µA on the U3 shutdown line).
   completes mid-BREAK. BREAK duration + guard interval + ACK
   timeout + retry policy are firmware-layer decisions — CP2
   handoff item. GPIO12/13/14/15/18 all RTC-capable per Espressif
-  ESP32-S3 datasheet Table 5-3. **CP2 bench-verify:** scope both DE
+  ESP32-S3 datasheet Table 3-1 [corrected 2026-07-14]. **CP2 bench-verify:** scope both DE
   pins simultaneously plus A/B/RO and confirm no driver-overlap
   window ever appears — including cases where display boot completes
   mid-BREAK.

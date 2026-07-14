@@ -20,9 +20,9 @@ pulled manually. Read + interface-verified per D32.
 | R-78HB12-0.5 | R-78HB12-0.5.pdf (1836K) | digikey | https://recom-power.com/pdf/Innoline/R-78HB-0.5.pdf | 457ccbb2825f |
 | RJHSE-5380 | RJHSE-5380.pdf (102K) | digikey | https://cdn.amphenol-cs.com/media/wysiwyg/files/drawing/rjhsex380.pdf | 3254d85eaaa6 |
 | RV-3028-C7 | RV-3028-C7.pdf (830K) | manual | user download 2026-07-01 | fb5a01874b3e |
-| SMAJ12CA | SMAJ12CA.pdf (174K) | digikey | https://www.bourns.com/docs/Product-Datasheets/SMAJ.pdf | 39fd714538fc |
-| SMAJ15A | SMAJ15A.pdf (761K) | manual | user download 2026-07-01 | 5c45fce4a131 |
-| SMAJ33CA | SMAJ33CA.pdf (761K) | manual | user download 2026-07-01 | 5c45fce4a131 |
+| SMAJ12CA | SMAJ_Diodes.pdf (116K) | mouser (API proxy) | https://www.mouser.com/catalog/specsheets/ds19005.pdf — Diodes Inc DS19005, covers SMAJ5.0(C)A–SMAJ200(C)A | 70bd31105424 |
+| SMAJ15A | SMAJ_Diodes.pdf (same file) | " | " — VC 24.4 V @ 16.4 A read + verified vs D19/DR-15 | 70bd31105424 |
+| SMAJ33CA | SMAJ_Diodes.pdf (same file) | " | " — VC 53.3 V @ 7.5 A read + verified vs the "~53 V clamp" coordination (SS26 60 V, R-78HB12 72 V) | 70bd31105424 |
 | THVD1400DR | THVD1400DR.pdf (1447K) | digikey | https://www.ti.com/lit/ds/symlink/thvd1400.pdf | 5ba9785d9fb8 |
 | SS26-E3/52T | SS26-E3_52T.pdf (151K) | digikey | https://www.vishay.com/docs/88748/ss22.pdf | 4bcd8bc129f3 |
 | TPS2116DRLR | TPS2116DRLR.pdf (2855K) | digikey | https://www.ti.com/lit/ds/symlink/tps2116.pdf | 5babd88afb84 |
@@ -30,7 +30,7 @@ pulled manually. Read + interface-verified per D32.
 | USBLC6-2SC6Y | USBLC6-2SC6Y.pdf (117K) | manual | user download 2026-07-01 | c0352261dede |
 | ZXMP6A13FTA | ZXMP6A13FTA.pdf (246K) | digikey | https://www.diodes.com/assets/Datasheets/ZXMP6A13F.pdf | bb474f827be4 |
 | MSTB 2,5/2-ST-5,08 (1757019) | 1757019.pdf (2400K) | manual | user upload 2026-07-01 | d849479aae64 |
-| LCD1 Waveshare 4.2" e-Paper Module (B) | Waveshare-4.2-ePaper-B.pdf (3.9M) | manual | files.waveshare.com (V2 user manual) | 32b126146869 |
+| LCD1 Waveshare 4.2" e-Paper Module (B) | Waveshare-4.2-ePaper-B.pdf (3.9M) | manual | files.waveshare.com — **caveat (2026-07-14 audit): this PDF is the bare-*panel* V2 user manual** (SPI timing, panel specs, active area 84.8×63.6 mm), NOT the Module (B) driver-board doc. Module-level interface verified 2026-07-14 from waveshare.com product page + wiki: box lists "PH2.0 20cm 8Pin x1" cable; wiki pin table = VCC/GND/DIN/CLK/CS/DC/RST/BUSY; wiki caps cable extensions at 20 cm. **Verify at ordering:** in-box cable is PH2.0→DuPont singles (Pi/Arduino style) — the PH↔PH module↔board cable is the separate purchase already in the BOM (ASPHSPH24K102-class) | 32b126146869 |
 | RP3502MABLK (BTN1 battery override) | RP3502MABLK.pdf (100K) | digikey CDN | https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/4979/RP_3502_datasheet.pdf | 795c575e47eb |
 | 3517 | Keystone_3517.pdf (170K) | manual | https://www.keyelco.com/userAssets/file/K75p52.pdf | 441b810381ac |
 
@@ -69,6 +69,14 @@ display tactile buttons BTN1–3 (plunger height locked at CP3/CP5).
 
 
 ## Retired (in store history, not used)
+
+- **SMAJ12CA.pdf (Bourns) / SMAJ15A.pdf + SMAJ33CA.pdf (one Littelfuse
+  family PDF stored under two names — identical sha)** — retired
+  2026-07-14 audit: the datasheets on file were from manufacturers we
+  don't order (BOM DK SKUs are **Diodes Inc** SMAJxxCA-13). Replaced by
+  the single Diodes DS19005 family datasheet matching the orderable
+  parts; per-variant VC values re-read from it and confirmed identical
+  to the values used in the D19 coordination analysis. PDFs removed.
 
 - **1727010** (Phoenix MKDS 1/2-3,81) — was mistakenly specced as the J1 plug; it's a 3.81 mm board-mount screw terminal, wrong series/pitch. Replaced by 1757019 (2026-07-01, D32 catch). PDF removed.
 - **TPS389030DSER** (U4 UVLO supervisor) — WSON 1.5×1.5 leadless; repackaged to **TPS3808G01DBVR (SOT-23-6, leaded)** for hand-assembly (2026-07-01, D33/DR-24). Functional superset at ~same Iq. PDF removed.

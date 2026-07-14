@@ -10,8 +10,9 @@ pack.
 
 Conversion efficiency assumptions (per decisions.md D19):
 
-- **U1 LM5166** (24 V → 3.3 V, *always-on*), ~14 µA Iq; 70–85 % at
-  5–80 mA load. The microamp quiescent is the point — the always-on rail
+- **U1 LM5166** (24 V → 3.3 V, *always-on*), IQ-SLEEP 9.7 µA typ /
+  15 µA max (datasheet §6.5; the "~14 µA" previously quoted here was
+  unsourced — corrected 2026-07-14 PDF audit); 70–85 % at 5–80 mA load. The microamp quiescent is the point — the always-on rail
   costs almost nothing at idle, which keeps the low-SOC trickle ~1 mW
   (the RV-3028-C7 RTC adds only 45 nA — D23).
 - **U2 R-78HB12** (24 V → 12 V, *switched*, display feed), ~80 % over the
@@ -68,10 +69,12 @@ side is referred to the pack directly; 3.3 V loads are drawn from the
 pack via U1's light-load efficiency. **Rows use the datasheet
 *maximum* Iq where the datasheet publishes a spec max** (U1/U4/U6/U3);
 **typical + explicit engineering margin** is used where no max is
-published (ESP32-S3-WROOM Deep-sleep is 7-8 µA typ per Espressif ES §5.4
+published (ESP32-S3-WROOM Deep-sleep is 7-8 µA typ per Espressif Table 6-7
+— citation corrected 2026-07-14, "§5.4" doesn't exist in the WROOM datasheet
 with no listed max, so this table uses 10 µA typ + 5 µA margin = 15 µA;
-RTC RV-3028-C7 at 45 nA is typ, ≤200 nA per Micro Crystal AN — well
-under the µW floor). *(Reviewer iter-6 F03: prior rows mis-referred
+RTC RV-3028-C7 at 45 nA typ / **60 nA max** per its own EC table @ 3 V,
+25 °C — the earlier "≤200 nA per Micro Crystal AN" cited a document not
+on file (corrected 2026-07-14 PDF audit); well under the µW floor). *(Reviewer iter-6 F03: prior rows mis-referred
 3.3 V rail current to 24 V. Iter-10 F08: the iter-8 first cut quoted
 transceiver shutdown Iq at typical (10 nA) instead of maximum (12 µA),
 which triggered the ISL3175E → THVD1400DR reselection. Iter-12 F13
@@ -84,11 +87,11 @@ convention used everywhere in the CP1 documents.)*
 | U1 LM5166 input Iq (`IQ-SLEEP` no-load @ TJ = 25 °C) | 9.7 µA typ / **15 µA max** @ 24 V | **~0.36 mW** (max) |
 | 24 V sense divider (R1+R2 = 1.3 MΩ)      | 24 V / 1.3 MΩ = 18.5 µA @ 24 V (fixed R) | **~0.44 mW** |
 | UVLO divider (D28: R1≈5.16 MΩ/R2≈100 kΩ) | 4.56 µA @ 24 V (fixed R)                 | **~0.11 mW** |
-| ESP32-S3-WROOM Deep-sleep (RTC + ULP off) | 7–8 µA **typ** per Espressif ES-datasheet §5.4; use **10 µA + ~5 µA engineering margin = 15 µA** @ 3.3 V (~50 µW) | ~0.10 mW (η ≈ 50 %) |
+| ESP32-S3-WROOM Deep-sleep (RTC + ULP off) | 7–8 µA **typ** per Espressif ES-datasheet **Table 6-7** (citation corrected 2026-07-14; no §5.4 exists); use **10 µA + ~5 µA engineering margin = 15 µA** @ 3.3 V (~50 µW) | ~0.10 mW (η ≈ 50 %) |
 | U4 TPS3808G01 Iq (VDD_TPS = 3.3 V)       | 2.4 µA typ / **5 µA max** @ 3.3 V (~17 µW at max) | ~0.03 mW (η ≈ 50 %) |
 | U6 TPS2116 mux Iq (Vout = 3.3 V, `IQ,VIN2`) | 1.35 µA typ / **4.5 µA max** over -40 to 105 °C (~15 µW at max) | ~0.03 mW (η ≈ 50 %) |
 | U3 THVD1400DR RS-485 xcvr (D34, shutdown via DE=0+/RE=1) | 100 nA typ / **1 µA max** @ 3.3 V (~3.3 µW at max) | ~7 µW (η ≈ 50 %; below rounding) |
-| RV-3028-C7 RTC (D23; VDD on V3V3)         | 45 nA typ @ 3.3 V (max ≤ 200 nA per Micro Crystal AN); ~150 nW at typ | ~0.3 µW (η ≈ 50 %; below rounding) |
+| RV-3028-C7 RTC (D23; VDD on V3V3)         | 45 nA typ / **60 nA max** @ 3 V, 25 °C (datasheet EC table; prior "≤200 nA per AN" cited an off-file document — corrected 2026-07-14); ~150 nW at typ | ~0.3 µW (η ≈ 50 %; below rounding) |
 | Display side (Q1 OFF, U2 shed)           | 0                                        | 0                       |
 | **Total from pack (max Iq where spec'd + ESP margin)** |                                | **~1.08 mW** |
 
@@ -100,14 +103,17 @@ row is upper-bound. Even at η = 65 % the total is **~1.05 mW**; at
 
 **Honesty about typ vs max (reviewer iter-12 F13).** Prior versions of
 this table claimed "max throughout" but several rows were actually
-*typical* values (U1 14 µA, U4 2.4 µA, U6 1.3 µA, U3 shutdown "10 nA
+*typical* values (U1 was 14 µA, U4 2.4 µA, U6 1.3 µA, U3 shutdown "10 nA
 typ / 12 µA max" carried as 10 nA). Rebuilt here with datasheet
 *maxima* where the datasheet publishes them; ESP Deep-sleep is an
 Espressif-typical figure with an explicit engineering margin added
 (ESP32-S3-WROOM does not publish a spec max for Deep-sleep Iq — its
-5.4 table lists 7–8 µA typical); RTC 45 nA is typical per Micro
-Crystal's spec sheet with an application-note-cited max ≤ 200 nA
-(negligible either way).
+Table 6-7 lists 7–8 µA typical); RTC is 45 nA typ / 60 nA max per the
+RV-3028-C7 datasheet EC table (negligible either way). *(2026-07-14 PDF
+audit: this paragraph previously cited a "5.4 table" that doesn't exist
+and previously pointed at an off-file Micro Crystal AN for a ≤200 nA
+max — both citations replaced with figures read from the on-file
+datasheets.)*
 
 **Hardware floor (D28/DR-16), an even lower state below state 4.** If the
 firmware ever fails to shed (hung-but-powered MCU), U4 asserts ESP **EN**

@@ -94,6 +94,18 @@ absent or unread datasheet is an unverified premise — CP1 does not sign off on
 those.** When a datasheet reveals a poor fit, **retire the part** (principle 2).
 (Canonical: decisions **D32**.)
 
+Two hardening rules from the 2026-07-14 audits:
+- **The stored document must document the *ordered object*** — the exact
+  manufacturer of the orderable SKU (SMAJ from four vendors are different
+  datasheets) and the right product level (a bare-panel manual is not the
+  Module's doc). A PDF on file for a sibling object is a **false pass**, and
+  it's worse than a missing PDF because it launders a "verified" tag.
+- **Citations are claims.** Section/table numbers ("§5.4", "Table 5-3") and
+  spec figures written into docs must be copied from the open PDF in the same
+  turn, never recalled. The audit found fabricated citations attached to
+  *correct* numbers — right value, invented source — which is exactly the
+  pattern that makes later verification impossible.
+
 ### G3 — Part availability, early
 Sanity-check **stock + lifecycle (Active vs NRND/EOL/LTB) + the exact orderable
 variant** the moment you pick a part — not only at BOM-lock. The variant that's

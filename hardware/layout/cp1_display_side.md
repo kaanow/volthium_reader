@@ -231,14 +231,14 @@ to toggle on a start-bit, otherwise the wake path is impossible. So:
   `gpio_hold_en(GPIO15)` + `gpio_deep_sleep_hold_en()` before entering
   sleep. This overrides THVD1400's internal pull-UP and keeps /RE = 0 →
   receiver on. GPIO15 is RTC-capable per Espressif ESP32-S3 datasheet
-  Table 5-3 (RTC-GPIO0..21).
+  Table 3-1 Pin Definitions (RTC_GPIO0..21) [table number corrected 2026-07-14 — the datasheet has no Table 5-3].
 - **GPIO2 (DE) can Hi-Z** in Deep-sleep — internal pull-DOWN takes
   DE = 0 = driver off. (Alternatively latched LOW; no functional
   difference.)
 - **Wake source: `ext1` `ESP_EXT1_WAKEUP_ANY_LOW` mask over GPIO12,
   GPIO13, GPIO14, GPIO18** (F15). One RTC-GPIO wake API covers all four
   active-LOW wake inputs: BTN1/BTN2/BTN3 (§4.6) and RS-485 RO from U2.
-  All four are RTC-capable per ESP32-S3 datasheet Table 5-3. **NOT the
+  All four are RTC-capable per ESP32-S3 datasheet Table 3-1 (corrected 2026-07-14: was cited as a nonexistent Table 5-3). **NOT the
   ESP UART wake API** — ESP32-S3 UART wake is Light-sleep-only per
   Espressif [`sleep_modes.html`](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/system/sleep_modes.html);
   Deep-sleep powers off the APB-clocked digital peripherals including
@@ -444,9 +444,9 @@ tied DE_RE to plain DE by D34.
 | GPIO12 | input     | BTN1 (RTC-capable)       | Wake source for "any button press" |
 | GPIO13 | input     | BTN2 (RTC-capable)       | "                            |
 | GPIO14 | input     | BTN3 (RTC-capable)       | "                            |
-| GPIO15 | output    | **RS-485 /RE** (D34/F09) | **Latched LOW in Deep-sleep via `gpio_hold_en(GPIO15)` + `gpio_deep_sleep_hold_en()`** so /RE = 0 → receiver stays on so RO can respond to the master's sustained-LOW BREAK (ext1 ANY_LOW wake mask, see GPIO18 row). RTC-capable per ESP32-S3 Table 5-3. Overrides THVD1400 internal 2 MΩ pull-UP. |
+| GPIO15 | output    | **RS-485 /RE** (D34/F09) | **Latched LOW in Deep-sleep via `gpio_hold_en(GPIO15)` + `gpio_deep_sleep_hold_en()`** so /RE = 0 → receiver stays on so RO can respond to the master's sustained-LOW BREAK (ext1 ANY_LOW wake mask, see GPIO18 row). RTC-capable per ESP32-S3 Table 3-1 (corrected citation). Overrides THVD1400 internal 2 MΩ pull-UP. |
 | GPIO17 | UART1 TX  | to U2 (THVD1400) D pin   | Hi-Z in deep sleep           |
-| GPIO18 | UART1 RX + `ext1` wake mask | from U2 (THVD1400) R pin | Hi-Z in Deep-sleep for the UART bit; also included in the **`ext1 ESP_EXT1_WAKEUP_ANY_LOW` wake mask** with GPIO12/13/14 (D34/F11+F15). A sustained LOW on the bus → THVD1400 RO LOW → ext1 fires. **The triggering waveform is lost** — Espressif UART wake is Light-sleep-only; ext1 wakes on a level, not a byte. Firmware protocol: master sends a ≥20 µs sustained LOW (nominally 50 ms UART BREAK / dominant hold) + waits for display ACK before transmitting the real frame. GPIO18 is RTC-capable per ESP32-S3 Table 5-3. |
+| GPIO18 | UART1 RX + `ext1` wake mask | from U2 (THVD1400) R pin | Hi-Z in Deep-sleep for the UART bit; also included in the **`ext1 ESP_EXT1_WAKEUP_ANY_LOW` wake mask** with GPIO12/13/14 (D34/F11+F15). A sustained LOW on the bus → THVD1400 RO LOW → ext1 fires. **The triggering waveform is lost** — Espressif UART wake is Light-sleep-only; ext1 wakes on a level, not a byte. Firmware protocol: master sends a ≥20 µs sustained LOW (nominally 50 ms UART BREAK / dominant hold) + waits for display ACK before transmitting the real frame. GPIO18 is RTC-capable per ESP32-S3 Table 3-1 (corrected citation). |
 | GPIO19/20 | USB DM/DP | native USB → USB-C port (J-USB), ESD-clamped | maintenance port (D27) |
 
 ## 7. Power budget (per [`power_budget.md`](../../docs/hardware/power_budget.md))
@@ -474,7 +474,7 @@ see §4.5 for the F11 Deep-sleep wake decision):
 
 | Subsystem            | Avg draw (max where spec'd) |
 |----------------------|------------------------------|
-| ESP32-S3 Deep-sleep + RTC hold (per F11+F15 architecture; ext1 ANY_LOW mask over GPIO12/13/14/18) | ~10 µA typ (Espressif §5.4; add engineering margin for max) |
+| ESP32-S3 Deep-sleep + RTC hold (per F11+F15 architecture; ext1 ANY_LOW mask over GPIO12/13/14/18) | ~10 µA typ (Espressif Table 6-7 — corrected citation 2026-07-14; add engineering margin for max) |
 | RS-485 receive (U2 THVD1400, RX-only, no load; /RE held LOW via `gpio_hold_en` per F09) | ~700 µA typ / **~900 µA max** |
 | R3/R4 idle bias      | **0 (DNP, F12)**             |
 | Panel static         | 0                            |

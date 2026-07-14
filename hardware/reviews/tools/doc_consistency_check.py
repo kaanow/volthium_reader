@@ -60,7 +60,7 @@ NEARBY_WINDOW = 5
 
 HISTORY_MARKERS = re.compile(
     r"(supersed|was\b|Δ|retired?|retain|history|erratum|evidence|"
-    r"first[- ]cut|mistakenly|earlier|replace[sd]?\b|instead of|not the|"
+    r"first[- ]cut|mistakenly|earlier|prior|previously|replace[sd]?\b|instead of|not the|"
     r"caught|flagged|regressed|never\b|pivot|swap|corrected|removed|"
     r"un-sourceable|→|->)",
     re.IGNORECASE,
@@ -123,9 +123,22 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "455- is the DK prefix; Mouser doesn't list B8B-PH-K-S"),
     (r"945-R-78E3\.3", "945-1661-5-ND", "U1 DK cell was malformed"),
     (r"512-BZX84C12", "863-BZX84C12LT1G", "DZ1 Mouser prefix was wrong"),
-    (r"78-(SS26|SMAJ12CA|SMAJ15A)-E3", None,
+    (r"78-(SS26|SMAJ12CA|SMAJ15A)-E3|78-SMAJ33CA", None,
      "Mouser doesn't list these Vishay variants (2026-07-14 sweep); "
-     "DK cells verified — Mouser cell = '—'"),
+     "DK cells verified — Mouser cell = '—'; TVS standardized on Diodes Inc"),
+    # 2026-07-14 datasheet-claims audit (every number/citation re-read from
+    # the on-file PDFs after the SKU sweep proved fabrication was systemic):
+    (r"Table 5-3", "Table 3-1",
+     "ESP32-S3-WROOM datasheet has no Table 5-3; pin defs are Table 3-1"),
+    (r"§ ?5\.4|5\.4 table", "Table 6-7",
+     "Espressif low-power currents are Table 6-7; '§5.4' was fabricated"),
+    (r"200 nA per Micro Crystal|≤ ?200 nA|application-note-cited",
+     "60 nA",
+     "RV-3028 datasheet EC table: 45 typ / 60 nA max @3V; the 'AN' max "
+     "citation was to an off-file document"),
+    (r"~?14 µA( Iq| at 24 V| idle)?", "9.7 µA",
+     "LM5166 IQ-SLEEP is 9.7 µA typ / 15 µA max (§6.5); '~14 µA' was "
+     "unsourced"),
 ]
 
 # ---------------------------------------------------------------------------
