@@ -229,7 +229,15 @@ class AsyncpgReadingsDAO:
                        AVG(t_a)        AS t_a,
                        AVG(t_b)        AS t_b,
                        MAX(delta_v_a)  AS dv_a,
-                       MAX(delta_v_b)  AS dv_b
+                       MAX(delta_v_b)  AS dv_b,
+                       AVG(i_a)        AS i_a,
+                       AVG(i_b)        AS i_b,
+                       -- Current-asymmetry envelope: in a series string
+                       -- i_a = i_b, so a sustained difference means the
+                       -- operator's per-battery charger is hooked up. The
+                       -- max/min catch interventions shorter than a bucket.
+                       MAX(i_a - i_b)  AS di_max,
+                       MIN(i_a - i_b)  AS di_min
                    FROM readings
                    WHERE source_id = $1 AND ts >= $2 AND ts < $3
                    GROUP BY 1 ORDER BY 1""",

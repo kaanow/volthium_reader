@@ -120,11 +120,19 @@
       <span><span class="sw" style="background:var(--vio)"></span>battery B</span></div>
     <div class="chart-wrap"><svg id="ch-soc" class="chart" viewBox="0 0 900 140" preserveAspectRatio="none"></svg><div class="tip" id="tip-soc"></div></div>
 
+    <div class="label">battery imbalance — SOC gauge divergence (A − B)
+      <span class="sub">in a series string the batteries can't re-converge on their own — only your per-battery charger (shaded) pulls them back</span></div>
+    <div class="legend">
+      <span><span class="sw" style="background:rgba(88,166,255,.45)"></span>extra charge into A</span>
+      <span><span class="sw" style="background:rgba(188,140,255,.45)"></span>extra charge into B</span>
+      <span><span class="sw" style="background:#e6edf3"></span>A − B (SOC points)</span></div>
+    <div class="chart-wrap"><svg id="ch-div" class="chart short" viewBox="0 0 900 110" preserveAspectRatio="none"></svg><div class="tip" id="tip-div"></div></div>
+
     <div class="label">temperature (°C)</div>
     <div class="chart-wrap"><svg id="ch-t" class="chart short" viewBox="0 0 900 110" preserveAspectRatio="none"></svg><div class="tip" id="tip-t"></div></div>
 
-    <div class="label">cell imbalance (ΔmV)
-      <span class="sub">worst spread across each battery's 4 cells — sustained 50+ is an aging signal</span></div>
+    <div class="label">cell imbalance (ΔmV) — within each battery
+      <span class="sub">worst spread across the battery's own 4 cells; spikes at the charge knees, sustained 50+ mid-band is an aging signal</span></div>
     <div class="chart-wrap"><svg id="ch-dv" class="chart short" viewBox="0 0 900 110" preserveAspectRatio="none"></svg><div class="tip" id="tip-dv"></div></div>
     <div class="note" id="explorer-note"></div>
   </div>
@@ -230,6 +238,17 @@ function chart(svgId, tipId, data, series, opts) {
     const anchor = i === 0 ? "start" : i === 3 ? "end" : "middle";
     el += `<text x="${x}" y="${H - 4}" fill="${DIMC}" font-size="10" text-anchor="${anchor}" font-family="ui-monospace,monospace">${fmtT(tt, spanH)}</text>`;
   }
+  // Optional per-bucket background shading (e.g. charger-intervention bands).
+  if (opts.shadeFn) {
+    const halfW = data.length > 1
+      ? Math.max(1, (X(data[1].t) - X(data[0].t)) / 2) : 4;
+    for (const d of data) {
+      const col = opts.shadeFn(d);
+      if (col) el += `<rect x="${(X(d.t) - halfW).toFixed(1)}" y="${PADT}" `
+        + `width="${(halfW * 2).toFixed(1)}" height="${H - PADT - PADB}" `
+        + `fill="${col}" opacity="0.18"/>`;
+    }
+  }
   if (opts.zero && lo < 0 && hi > 0)
     el += `<line x1="${PADL}" y1="${Y(0)}" x2="${W - PADR}" y2="${Y(0)}" stroke="${GRID}" stroke-width="1"/>`;
   // y range labels
@@ -333,6 +352,10 @@ async function loadSeries(hours, before) {
     soc_a: r.soc_a, soc_b: r.soc_b, t_a: r.t_a, t_b: r.t_b,
     dv_a: r.dv_a != null ? r.dv_a * 1000 : null,
     dv_b: r.dv_b != null ? r.dv_b * 1000 : null,
+    ia: r.i_a, ib: r.i_b,
+    div: (r.soc_a != null && r.soc_b != null) ? r.soc_a - r.soc_b : null,
+    chgA: r.di_max != null && r.di_max > 1,   // charger hooked to A
+    chgB: r.di_min != null && r.di_min < -1,  // charger hooked to B
   }));
   chart("ch-p", "tip-p", rows, [
     {kind: "band", lo: "p_min", hi: "p_max", color: GRN},
@@ -343,6 +366,13 @@ async function loadSeries(hours, before) {
     {key: "soc_a", color: BLU}, {key: "soc_b", color: VIO},
   ], {unit: "%", tipFn: d =>
       `A <b style="color:${BLU}">${fmt(d.soc_a, "%")}</b> · B <b style="color:${VIO}">${fmt(d.soc_b, "%")}</b>`});
+  chart("ch-div", "tip-div", rows, [
+    {key: "div", color: "#e6edf3"},
+  ], {zero: true, unit: " pts",
+      shadeFn: d => d.chgA ? BLU : d.chgB ? VIO : null,
+      tipFn: d => `A−B <b>${fmt(d.div, " pts")}</b> · current A ${fmt(d.ia, " A")} / B ${fmt(d.ib, " A")}`
+        + (d.chgA ? ` · <b style="color:${BLU}">charger → A</b>`
+           : d.chgB ? ` · <b style="color:${VIO}">charger → B</b>` : "")});
   chart("ch-t", "tip-t", rows, [
     {key: "t_a", color: BLU}, {key: "t_b", color: VIO},
   ], {unit: "°", tipFn: d =>
