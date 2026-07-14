@@ -2496,3 +2496,90 @@ gate for a user check-in.
 **Waiting on:** user green-light to start CP2, plus any late CP1
 changes-of-heart the user wants folded in before schematic capture
 locks the decisions in editable form.
+
+## 23. Post-approval audit deltas (2026-07-14) — re-verify pass requested (iter 23)
+
+CP1 was approved at iter 20, but a user-triggered audit chain since then
+made **material changes to the BOM, the datasheet store, and the process
+docs**. None of it has had reviewer eyes. Before CP2 opens, please run a
+re-verify pass over the deltas below — and use it as the shakedown for
+the new **REVIEWER.md §3.5 grounding rules** (read that section first;
+it exists because of what this audit found).
+
+### 23.1 What happened (5 commits: `fdd01be`…`733e52a`)
+
+1. **`fdd01be` — D35 doc architecture + staleness audit.** User caught
+   docs/hardware/bom.md still listing EG1218 (superseded) and a phantom
+   680 Ω bias row. Root-cause fix: one canonical home per fact type
+   (docs/hardware/bom.md now banner-marked NON-NORMATIVE);
+   `tools/doc_consistency_check.py` — append-only SUPERSEDED registry +
+   D32-as-code, exit-0 required before every semaphore flip (both
+   roles). RP3502MABLK datasheet fetched/read (was a D32 hole behind a
+   false "gate CLOSED" claim); dry-circuit read-flag recorded.
+2. **`fc095fd` — fuse-clip SKUs were phantoms.** BOM's F1465-ND /
+   530-31MJ005H resolved to nothing at DK/Mouser/Octopart (user-caught).
+   Real part: **Keystone 3517** (36-3517-ND / 534-3517), datasheet
+   on file, ≥6.3 A ≫ 1 A fuse. Also: BTN1 firmware requirement added
+   (short press = display override; ≥10 s hold = WiFi config reset —
+   docs/firmware/architecture.md), and the stale "LED on GPIO15" line
+   there retired (D4/D34).
+3. **`a22de52` — full-BOM SKU sweep: 14 bad cells.** Every DK+Mouser
+   cell batch-`/resolve`d. Wrong-part SKUs: C6 cell was a 22 pF on a
+   10 µF row; C7 a 22 nF 0603 on a 100 nF 0402 row; C8 a Y5V 0805 on a
+   1 µF X7R row; C5/C9 an 0805 on 0603 rows; BTN1 EG4527-ND = a
+   different E-Switch part (real: **EG1932-ND**); LCD1 DK SKU was a
+   DFRobot display. Phantoms/malformed: MOD1 both cells, standoffs
+   36-9774-ND, U1 DK cell, J2 Mouser cell. Replacement caps chosen
+   in-stock (Samsung CL21B106KOQNNNE / CL05B104KO5NNNC, Taiyo Yuden
+   TMK107B7105KA-T, KEMET C0603C104K5RACTU). Price fix: U2 R-78HB12
+   $8 → **CA$27.95**. Stock flag: J2 B8B-PH-K-S collapsed 2900 → 16.
+   LCD1: **not stocked at DK/Mouser at all** → waveshare.com/Amazon.
+4. **`1b444d5` — datasheet-claims probe.** Every spec number/citation
+   re-read from the on-file PDFs. Fabricated citations fixed: Espressif
+   "§5.4" → Table 6-7 (5 sites), "Table 5-3" → Table 3-1 (5 sites),
+   RV-3028 "≤200 nA per AN" → its own EC-table 60 nA max. Unsourced
+   LM5166 "~14 µA" (10 sites) → §6.5 IQ-SLEEP 9.7 typ / 15 µA max
+   (budget table already used 9.7/15 — **~1.08 mW hard-cut unchanged**).
+   Wrong-object PDFs replaced: TVS datasheets were Bourns + Littelfuse
+   while we order **Diodes Inc** → single DS19005 on file, VC values
+   re-read (53.3/24.4/19.9 V — D19 coordination holds). Waveshare PDF
+   on file is the bare-*panel* manual; module-level claims (PH2.0 8-pin,
+   in-box 20 cm cable) now verified from waveshare.com product page +
+   wiki, caveat recorded in manifest.
+5. **`733e52a` — REVIEWER.md §3.5 grounding rules + DESIGNER.md
+   source-pointer rule** (see §23.3).
+
+### 23.2 Specific asks for this pass
+
+- Run `python3 hardware/reviews/tools/doc_consistency_check.py` — must
+  exit 0 on your clone.
+- **§3.5 rule 5:** independently batch-`/resolve` the changed SKU cells
+  in `cp1_bom.md` (C5–C9, MOD1, BTN1, U1, U2, F1 clips, standoffs,
+  TVS1) — confirm each resolves to the row's MPN.
+- **§3.5 rule 2:** spot-check ≥3 corrected citations against the
+  on-file PDFs (suggested: Espressif Table 6-7 deep-sleep 7–8 µA typ;
+  LM5166 §6.5 IQ-SLEEP 9.7/15 µA; RV-3028 EC table 45/60 nA;
+  THVD1400 receiver-enable-from-shutdown 4/10 µs).
+- **§3.5 rule 4:** object-identity check on the changed manifest rows —
+  `SMAJ_Diodes.pdf` (DS19005, must match the Diodes -13 SKUs),
+  `Keystone_3517.pdf`, `RP3502MABLK.pdf`, and the Waveshare
+  panel-vs-module caveat.
+- Sanity-check the replacement cap choices (values/dielectric/voltage
+  vs the rows they landed in) and the U2 price correction.
+- Judgment call invited: BTN1 RP3502MABLK dry-circuit read-flag
+  (3 A/120 VAC switch at 3.3 V/µA; C11 debounce discharge as wetting;
+  CP5 bench check) — agree or challenge.
+
+### 23.3 Process changes binding on you (read before reviewing)
+
+- **REVIEWER.md §3.5** — REASONING vs FACT split; citation spot-check
+  quota; unsourced "verified" = finding; object-identity for D32; full
+  SKU-cell sweeps. Recall tells you where to look; it is never itself
+  evidence.
+- **SOP G3/G5** — SKU cells are claims (batch `/resolve` at BOM-lock);
+  doc_consistency_check.py before every flip; same-commit registry
+  entries for any superseded token.
+
+Scope note: this is a **delta re-verify on an approved CP1**, iter 23.
+CP2 remains gated on explicit user clearance regardless of this pass's
+outcome.

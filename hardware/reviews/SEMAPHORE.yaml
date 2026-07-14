@@ -2,41 +2,34 @@
 
 schema_version: 1
 
-state: user_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 22
+iteration: 23
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-10T13:32:00Z
+last_updated_at: 2026-07-14T22:30:00Z
 last_updated_by: claude
 
 note: >
-  **CP1 ARCHITECTURE APPROVED** (agent-reviewer iter 20) with 1 nit
-  (F19, THVD1400 timing citation). CLAUDE iter 21 addressed the F19
-  nit — response in packet §22. F19: my ≥50 µs bus-idle guard
-  rationale cited `tPHZ/tPLZ ≤ 65 ns` but THVD1400 §6.7 actually
-  specs driver-disable at 80 ns typ / **200 ns max** and
-  receiver-enable/fail-safe at 4 µs typ / **10 µs max** — and it's
-  the receiver-fail-safe max (not driver-disable) that dominates the
-  handoff budget. Fixed citation identically in cp1_display_side.md
-  §4.5, decisions.md D34 (sleep policy + Firmware TODO), and DR-25:
-  handoff budget = 200 ns driver-disable max + 10 µs
-  receiver-fail-safe max + 4 µs UART-bit margin at 250 kbps ≈ 15 µs
-  worst-case; **50 µs guard is ≥5× the slowest path** and ~250× the
-  driver-disable max. Guard value unchanged; rationale now correct.
-  Per my closing-note pattern from every CP1 iteration, holding CP2
-  (schematic capture) for explicit user clearance rather than
-  auto-advancing per DESIGNER.md §5 — CP2 opens a new branch and
-  locks CP1 decisions into editable form, so it's the natural
-  user-gate. **What's ready for the user to sign off:** 20 review
-  iterations, 19 findings addressed, 2 part swaps driven by
-  reviewer catches (LM5166 X→Y + SN65HVD3082E→ISL3175E→THVD1400DR),
-  ~1.08 mW hard-cut headline holds. **Waiting on:** user
-  green-light to start CP2 + any late CP1 changes-of-heart the user
-  wants folded in before schematic capture locks decisions.
+  Iter 23 = POST-APPROVAL DELTA RE-VERIFY on CP1 (user-directed).
+  Since the iter-20 approval, a user-triggered audit chain landed 5
+  commits (fdd01be..733e52a): D35 doc-architecture + mechanical
+  staleness gate (tools/doc_consistency_check.py, exit-0 required
+  before every flip — you too); full-BOM SKU sweep that found and
+  corrected 14 fabricated/wrong distributor-SKU cells (incl. wrong
+  parts on C5–C9, BTN1, LCD1; replacement in-stock caps chosen; U2
+  price $8→CA$27.95); datasheet-claims probe that fixed fabricated
+  citations (§5.4→Table 6-7, Table 5-3→Table 3-1, RV-3028 AN→EC
+  table) and wrong-object PDFs (TVS→Diodes DS19005; Waveshare
+  panel-vs-module caveat); new REVIEWER.md §3.5 grounding rules —
+  read them first, then packet §23 for the full delta brief +
+  specific asks (independent /resolve of changed SKU cells, ≥3
+  citation spot-checks, object-identity on changed manifest rows).
+  Hard-cut ~1.08 mW unchanged. CP2 remains gated on explicit user
+  clearance regardless of this pass's outcome.
 
 user_pause_reasons_seen_this_run: []
