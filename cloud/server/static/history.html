@@ -354,8 +354,10 @@ async function loadSeries(hours, before) {
     dv_b: r.dv_b != null ? r.dv_b * 1000 : null,
     ia: r.i_a, ib: r.i_b,
     div: (r.soc_a != null && r.soc_b != null) ? r.soc_a - r.soc_b : null,
-    chgA: r.di_max != null && r.di_max > 1,   // charger hooked to A
-    chgB: r.di_min != null && r.di_min < -1,  // charger hooked to B
+    // Mean asymmetry ≥ ~0.8 A across a whole bucket = charger session
+    // (momentary sampling skew between the two BMSes averages out).
+    chgA: r.di_avg != null && r.di_avg > 0.8,
+    chgB: r.di_avg != null && r.di_avg < -0.8,
   }));
   chart("ch-p", "tip-p", rows, [
     {kind: "band", lo: "p_min", hi: "p_max", color: GRN},

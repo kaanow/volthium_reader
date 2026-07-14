@@ -232,12 +232,14 @@ class AsyncpgReadingsDAO:
                        MAX(delta_v_b)  AS dv_b,
                        AVG(i_a)        AS i_a,
                        AVG(i_b)        AS i_b,
-                       -- Current-asymmetry envelope: in a series string
-                       -- i_a = i_b, so a sustained difference means the
-                       -- operator's per-battery charger is hooked up. The
-                       -- max/min catch interventions shorter than a bucket.
-                       MAX(i_a - i_b)  AS di_max,
-                       MIN(i_a - i_b)  AS di_min
+                       -- Mean current asymmetry: in a series string i_a = i_b,
+                       -- so a bucket whose AVERAGE differs means the operator's
+                       -- per-battery charger was hooked up for a meaningful
+                       -- part of it. The mean (not min/max) matters: the two
+                       -- BMSes sample at slightly different instants, so load
+                       -- transients produce huge momentary skew (±60 A seen
+                       -- live) that averages back out.
+                       AVG(i_a - i_b)  AS di_avg
                    FROM readings
                    WHERE source_id = $1 AND ts >= $2 AND ts < $3
                    GROUP BY 1 ORDER BY 1""",
