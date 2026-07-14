@@ -114,6 +114,16 @@ class StalenessMonitor:
     # stale-alert hint. Generous: the reader batches events (≤10 min latency).
     DIAGNOSIS_WINDOW = timedelta(minutes=45)
 
+    # Per-battery silence: how long one battery must be absent from otherwise-
+    # flowing telemetry before we page. Battery B misses single scan cycles
+    # constantly (marginal RSSI — hundreds of 8-10 s blips in the record), so
+    # this must comfortably exceed a blip; the events that matter are the
+    # minutes-to-hours BLE dormancies (FM-6).
+    BATTERY_SILENT_THRESHOLD_S = 15 * 60
+    # How many recent rows to scan for per-battery presence — must cover the
+    # threshold at the ~8 s sample cadence with margin.
+    PRESENCE_WINDOW_ROWS = 150
+
     def __init__(
         self,
         dao: _RecentSourcesDAO,
@@ -129,6 +139,8 @@ class StalenessMonitor:
         self.check_interval_s = check_interval_s
         # source_id -> "is currently considered stale"
         self._state: dict[str, bool] = {}
+        # (source_id, "a"|"b") -> {"silent": bool, "since": datetime|None}
+        self._batt_state: dict[tuple[str, str], dict] = {}
         self._task: Optional[asyncio.Task] = None
 
     async def start(self) -> None:
@@ -168,12 +180,12 @@ class StalenessMonitor:
         spinning the background task."""
         now = datetime.now(timezone.utc)
         for source_id in await self.dao.sources():
-            latest_rows = await self.dao.recent(source_id, 1)
-            if not latest_rows:
+            rows = await self.dao.recent(source_id, self.PRESENCE_WINDOW_ROWS)
+            if not rows:
                 # Never received data for this source yet — skip; we can't
                 # judge stale if we've never seen fresh.
                 continue
-            ts = _parse_ts(latest_rows[0].get("ts"))
+            ts = _parse_ts(rows[0].get("ts"))
             if ts is None:
                 continue
             age_s = (now - ts).total_seconds()
@@ -182,6 +194,108 @@ class StalenessMonitor:
             if is_stale != was_stale:
                 self._state[source_id] = is_stale
                 await self._fire(client, source_id, is_stale, age_s)
+            # Per-battery silence only means something while pack telemetry
+            # itself is flowing (a stale source already has its own alert).
+            if not is_stale:
+                await self._check_battery_presence(client, source_id, rows, now)
+
+    @staticmethod
+    def _battery_present(row: dict, suffix: str) -> Optional[bool]:
+        """True/False if the row carries evidence about battery `suffix`
+        ("a"/"b"); None when the row has none of the fields at all (minimal
+        test fakes) so the presence check disengages rather than guessing."""
+        keys = (f"soc_{suffix}", f"v_{suffix}", f"i_{suffix}")
+        if not any(k in row for k in keys):
+            return None
+        return any(row.get(k) is not None for k in keys)
+
+    async def _check_battery_presence(
+        self, client: httpx.AsyncClient, source_id: str,
+        rows: list[dict], now: datetime,
+    ) -> None:
+        """Fire when ONE battery vanishes from otherwise-flowing telemetry
+        (FM-6: the BMS BLE goes dormant, or a phone app holds its single
+        connection slot) — and again when it returns, with the outage
+        duration. `rows` are newest-first."""
+        for suffix, label in (("a", "A"), ("b", "B")):
+            # Find the newest row where this battery reported anything.
+            last_present_ts: Optional[datetime] = None
+            engaged = False
+            for r in rows:
+                present = self._battery_present(r, suffix)
+                if present is None:
+                    continue
+                engaged = True
+                if present:
+                    last_present_ts = _parse_ts(r.get("ts"))
+                    break
+            if not engaged:
+                continue
+            silent_age = (
+                (now - last_present_ts).total_seconds()
+                if last_present_ts is not None
+                else self.BATTERY_SILENT_THRESHOLD_S + 1  # absent all window
+            )
+            is_silent = silent_age > self.BATTERY_SILENT_THRESHOLD_S
+            st = self._batt_state.setdefault(
+                (source_id, suffix), {"silent": False, "since": None},
+            )
+            if is_silent and not st["silent"]:
+                st["silent"] = True
+                st["since"] = last_present_ts or now
+                name = next(
+                    (r.get(f"name_{suffix}") for r in rows
+                     if r.get(f"name_{suffix}")), None,
+                )
+                await self._fire_raw(
+                    client,
+                    title=f"Volthium: {source_id} battery {label} silent",
+                    message=(
+                        f"Battery {label}"
+                        + (f" ({name})" if name else "")
+                        + f" has sent nothing for {int(silent_age // 60)} min "
+                        "while the pack keeps reporting — its BMS BLE is "
+                        "dormant (FM-6) or a phone app is holding its only "
+                        "connection slot. The reader probes every cycle and "
+                        "resumes automatically. Known manual cure if urgent: "
+                        "open the inverter breakers ~30 s (quiet bus resets "
+                        "the BMS radio)."
+                    ),
+                    priority=4,
+                    tags=["battery", "warning"],
+                    context=f"source={source_id} battery={label} silent",
+                )
+            elif not is_silent and st["silent"]:
+                st["silent"] = False
+                since = st.get("since")
+                dur = ""
+                if isinstance(since, datetime):
+                    mins = int((now - since).total_seconds() // 60)
+                    dur = (f" after ~{mins} min" if mins < 120
+                           else f" after ~{mins / 60:.1f} h")
+                st["since"] = None
+                await self._fire_raw(
+                    client,
+                    title=f"Volthium: {source_id} battery {label} back",
+                    message=f"Battery {label} is advertising again{dur}.",
+                    priority=3,
+                    tags=["battery", "white_check_mark"],
+                    context=f"source={source_id} battery={label} recovered",
+                )
+
+    async def _fire_raw(
+        self, client, *, title: str, message: str, priority: int,
+        tags: list[str], context: str,
+    ) -> None:
+        payload = {
+            "title": title, "message": message,
+            "priority": priority, "tags": tags,
+        }
+        try:
+            resp = await client.post(self.webhook_url, json=payload, timeout=10.0)
+            log.info("alert posted: %s http=%d", context, resp.status_code)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("alert POST failed (%s): %s", context, exc)
 
     async def _diagnose(self, source_id: str) -> str:
         """Compose a one-paragraph likely-cause hint from the reader's recent

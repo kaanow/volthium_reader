@@ -246,6 +246,99 @@ class StaleDiagnosisTests(unittest.TestCase):
         self.assertEqual(len(client.posts), 1)
 
 
+class _BattDAO:
+    """Fake DAO whose rows carry per-battery fields (newest-first)."""
+
+    def __init__(self):
+        self.rows: list[dict] = []
+
+    def build(self, minutes_b_absent: float, span_min: float = 25.0):
+        """Rows every ~30 s for `span_min` minutes; battery B's fields are
+        None for the newest `minutes_b_absent` minutes."""
+        now = datetime.now(timezone.utc)
+        self.rows = []
+        t = now
+        while (now - t).total_seconds() / 60 <= span_min:
+            absent = (now - t).total_seconds() / 60 < minutes_b_absent
+            self.rows.append({
+                "ts": t, "soc_a": 95.0, "v_a": 13.2, "i_a": -3.0,
+                "soc_b": None if absent else 81.0,
+                "v_b": None if absent else 13.1,
+                "i_b": None if absent else -3.0,
+                "name_b": None if absent else "V-12V200AH-0667",
+            })
+            t = t - timedelta(seconds=30)
+
+    async def sources(self):
+        return ["pi-barge"]
+
+    async def recent(self, source_id, limit):
+        return self.rows[:limit]
+
+
+class BatterySilenceTests(unittest.TestCase):
+    """One battery vanishing from otherwise-flowing telemetry (FM-6) must
+    page after the dwell threshold — and announce recovery with duration.
+    Micro-blips (B misses single scan cycles constantly) must not page."""
+
+    def _monitor(self, dao):
+        return StalenessMonitor(dao, "https://ntfy.example/topic",
+                                threshold_s=300.0, check_interval_s=60.0)
+
+    def test_prolonged_silence_fires_once(self):
+        dao = _BattDAO()
+        dao.build(minutes_b_absent=20)
+        client = _FakeClient()
+        m = self._monitor(dao)
+        _run(m.check_once(client))
+        _run(m.check_once(client))   # still silent — no refire
+        batt = [p for p in client.posts if "battery B" in p["json"]["title"]]
+        self.assertEqual(len(batt), 1)
+        self.assertIn("silent", batt[0]["json"]["title"])
+        self.assertIn("FM-6", batt[0]["json"]["message"])
+        self.assertIn("inverter breakers", batt[0]["json"]["message"])
+
+    def test_brief_blip_does_not_fire(self):
+        dao = _BattDAO()
+        dao.build(minutes_b_absent=3)
+        client = _FakeClient()
+        _run(self._monitor(dao).check_once(client))
+        self.assertEqual(client.posts, [])
+
+    def test_recovery_fires_with_duration(self):
+        dao = _BattDAO()
+        dao.build(minutes_b_absent=20)
+        client = _FakeClient()
+        m = self._monitor(dao)
+        _run(m.check_once(client))          # silent alert
+        dao.build(minutes_b_absent=0)       # B is back
+        _run(m.check_once(client))
+        backs = [p for p in client.posts if "battery B back" in p["json"]["title"]]
+        self.assertEqual(len(backs), 1)
+        self.assertIn("advertising again", backs[0]["json"]["message"])
+
+    def test_stale_source_suppresses_battery_alert(self):
+        # When ALL telemetry stopped, the stale alert owns the page — a
+        # battery-silence page on top would be noise.
+        dao = _BattDAO()
+        dao.build(minutes_b_absent=20)
+        old = datetime.now(timezone.utc) - timedelta(hours=2)
+        for i, r in enumerate(dao.rows):
+            r["ts"] = old - timedelta(seconds=30 * i)
+        client = _FakeClient()
+        _run(self._monitor(dao).check_once(client))
+        titles = [p["json"]["title"] for p in client.posts]
+        self.assertTrue(any("stale" in t for t in titles))
+        self.assertFalse(any("battery" in t for t in titles))
+
+    def test_rows_without_battery_fields_disengage(self):
+        dao = _FakeDAO()
+        dao.set_latest("pi-barge", datetime.now(timezone.utc))
+        client = _FakeClient()
+        _run(self._monitor(dao).check_once(client))
+        self.assertEqual(client.posts, [])
+
+
 class ParseTests(unittest.TestCase):
 
     def test_iso_string_and_datetime_both_accepted(self):

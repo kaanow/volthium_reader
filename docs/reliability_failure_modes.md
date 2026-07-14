@@ -226,6 +226,31 @@ it lives in `bluetoothd`, so it survived multiple restarts. Cure: an adapter /
 throws so this is self-diagnosing, but the *recovery* (adapter reset, needs
 privilege) belongs in the watchdog, not the unprivileged logger.
 
+## FM-6 addendum (2026-07-13) — recurrence, stats, and the operator's cure
+
+B went dormant again 2026-07-13 22:17 PDT (healthy final sample: 81 %,
+−3.8 A, 25 °C, 9 mV spread; then zero advertisements on any address — 15 s
+open scan confirmed). Reader stack verified healthy throughout (A read every
+cycle, `hcitool con` empty, no wedge events). Forensics over the full CSV
+record (`scripts/analyze_b_dropouts.py`):
+
+- **640 B-only dropouts since May.** The overwhelming majority are single
+  scan-cycle blips (8–10 s) — marginal link budget, not module hangs.
+- **The real FM-6 events are minutes-to-hours**: 5.9 h (Jul 10 00:39),
+  117 min (Jul 11 04:51), 26 min (Jul 10 15:37), plus tonight's.
+- **Load-step correlation is weak** (93/640 within ±1 min of a >60 W step)
+  — the "inverter transient knocks the radio over" hypothesis is NOT
+  supported at the dropout edge.
+- **Operator's proven manual cure** (corrects the earlier "B cannot be
+  power-cycled" note): open the inverter breakers for ~30 s so the batteries
+  see no charge/discharge path — B's BLE resumes. Not viable remotely or
+  long-term, but it means a quiet DC bus resets whatever wedges in the BMS
+  radio; dormancies also end on their own after minutes-to-hours.
+- **Alerting shipped**: StalenessMonitor now pages when one battery is
+  silent >15 min while the pack keeps reporting (dwell filters the RSSI
+  blips), and announces recovery with the outage duration — building the
+  per-battery outage dataset this mystery needs.
+
 ## FM-9 — UB500 firmware hang → kernel USB reset → bluetoothd can't re-init it ⚠️ (the 2026-07-12/13 14.5 h outage)
 
 - **Signature:** logger loops on `BleakError: adapter 'hciN' not found` while
