@@ -251,6 +251,44 @@ record (`scripts/analyze_b_dropouts.py`):
   blips), and announces recovery with the outage duration — building the
   per-battery outage dataset this mystery needs.
 
+### FM-6 mechanism found (2026-07-14): recovery is quiet-bus-gated ⚡
+
+The 2026-07-13 dormancy ended at 06:43 the next morning — and checking every
+long dormancy on record against bus current settled the mystery:
+
+| Dormancy | Recovered | Bus current leading into recovery |
+|---|---|---|
+| Jul 10, 5.9 h | 06:30 | taper −5.4 → −1.5 → **0 A for ~10 min** → B back |
+| Jul 10, 26 min | 16:02 | 4.7 → 2 → **0 A for ~6 min** → B back |
+| Jul 11, 117 min | 06:48 | **0 A for ~4 min** → B back |
+| Jul 13, 8.4 h | 06:43 | **0 A** in the minutes prior → B back |
+
+**4 / 4: B's BLE only ever resumes after the pack current has been ≈0 A for
+a few minutes.** The operator's breaker-flip cure and the "self-recovery"
+are the same mechanism — the breaker *forces* an idle window; mornings and
+midday lulls produce one naturally. Dropout *onset* is NOT load-correlated
+(93/640 within ±1 min of a >60 W step — see `scripts/analyze_b_dropouts.py`);
+only *recovery* is gated.
+
+Candidate mechanisms (both fit; undistinguished so far):
+1. **BMS-internal** — under current flow the BMS MCU never reschedules its
+   crashed BLE task; the ~0 A idle-state transition reinitializes the radio.
+2. **Inverter switching noise** — DC-bus hash under load suppresses the
+   radio; at no-load the inverter drops to standby and the bus goes quiet.
+   Fits B being the victim: B's link budget runs ~15 dB below A's.
+
+Consequences:
+- **Outages are self-resolving and bounded** by the next zero-load window
+  (worst case: overnight until the pre-dawn lull). No intervention needed;
+  the battery-silent / battery-back pushes book-end each episode.
+- **Breaker flip remains the correct emergency lever** (synthetic idle
+  window), rarely worth the trip.
+- **Discriminating experiment for the next site visit**: physically swap A
+  and B. Dormancy follows the battery → B's BMS module (warranty). Follows
+  the position → noise/placement (ferrite on the BMS leads or relocate).
+  The BMS serials in `name_a`/`name_b` will label the swap in the data
+  automatically.
+
 ## FM-9 — UB500 firmware hang → kernel USB reset → bluetoothd can't re-init it ⚠️ (the 2026-07-12/13 14.5 h outage)
 
 - **Signature:** logger loops on `BleakError: adapter 'hciN' not found` while
