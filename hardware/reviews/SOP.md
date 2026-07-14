@@ -102,6 +102,15 @@ current grade). Catch a phantom/obsolete/wrong-variant part while the choice is
 still cheap, before layout is built around it. Re-verify live stock at BOM-lock.
 Tool: the parts-sourcing API (see Tooling).
 
+**Distributor-SKU cells are claims too.** A BOM row's DK/Mouser SKU cell must
+come from an API response, never from pattern-matched memory — plausible-looking
+SKUs (`F1465-ND`, `36-9774-ND`) can be pure fabrication, and a real SKU can
+belong to a *different part* than the row describes. At BOM-lock (and after any
+SKU edit): batch `POST /resolve` every SKU cell in both columns and require
+each to resolve to the row's MPN. The 2026-07-14 sweep found 14 bad cells this
+way — phantoms, wrong-part SKUs (a 22 pF cell on a 10 µF row), wrong-prefix
+cells, and one obsolete part — in a BOM that had survived 20 review iterations.
+
 ### G4 — Assembly & solderability
 Decide the **assembly method explicitly** and design to it. This is a one-off,
 hand-assembled build (qty = 1): iron for leaded parts, and **hot-air / oven +

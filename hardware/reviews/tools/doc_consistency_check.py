@@ -99,6 +99,33 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
     (r"F1465|31MJ005", "3517",
      "fuse-clip SKUs were phantoms (no such parts anywhere, user-caught "
      "2026-07-14) → Keystone 3517 (DK 36-3517-ND / Mouser 534-3517)"),
+    # 2026-07-14 full-BOM SKU sweep (every DK+Mouser cell resolved via API
+    # after the fuse-clip phantom proved the class was systemic):
+    (r"EG4527-ND", "EG1932-ND",
+     "BTN1 DK SKU pointed at a different E-Switch part (LS0851503F040C1A)"),
+    (r"1965-ESP32-S3-WROOM|356-ESP32S3WROOM1N16R8",
+     "5407-ESP32-S3-WROOM-1-N16R8CT-ND",
+     "MOD1 SKUs malformed → DK 5407-…CT-ND / Mouser 356-ESP32S3WRM1N16R8"),
+    (r"1276-1023-1-ND|GRM21BR61C106KE15L", "CL21B106KOQNNNE",
+     "C6 10µF: DK SKU was a 22 pF C0G; Murata OOS → Samsung CL21B106KOQNNNE"),
+    (r"311-1086-1-ND|GRM155R71H104KE14D", "CL05B104KO5NNNC",
+     "C7 100nF 0402: DK SKU was a 22 nF 0603; Murata OOS → Samsung"),
+    (r"311-1361-1-ND|GRM188R71H105KA93D", "TMK107B7105KA-T",
+     "C8 1µF: DK SKU was a Y5V 0805 100 nF; Murata unlisted → Taiyo Yuden"),
+    (r"311-1141-1-ND|GRM188R71H104KA93D", "C0603C104K5RACTU",
+     "C5 100nF 0603: DK SKU was an 0805 part; Murata Obsolete → KEMET"),
+    (r"36-9774-ND", "970050354",
+     "standoff DK SKU was a phantom → Würth WA-SBRII M3×5 (710-970050354)"),
+    (r"1738-1135-ND|992-19094", "waveshare.com",
+     "LCD1 DK SKU = DFRobot DFR0290, Mouser SKU phantom; module not "
+     "stocked at DK/Mouser → Waveshare direct or Amazon"),
+    (r"455-B8B-PH-K-S", "455-1710-ND",
+     "455- is the DK prefix; Mouser doesn't list B8B-PH-K-S"),
+    (r"945-R-78E3\.3", "945-1661-5-ND", "U1 DK cell was malformed"),
+    (r"512-BZX84C12", "863-BZX84C12LT1G", "DZ1 Mouser prefix was wrong"),
+    (r"78-(SS26|SMAJ12CA|SMAJ15A)-E3", None,
+     "Mouser doesn't list these Vishay variants (2026-07-14 sweep); "
+     "DK cells verified — Mouser cell = '—'"),
 ]
 
 # ---------------------------------------------------------------------------

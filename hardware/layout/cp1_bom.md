@@ -75,9 +75,9 @@ Grand total **~$145** for one complete monitor (including extras).
 | J1  | Phoenix **MSTBA 2,5/2-G-5,08** header (1757242, right-angle, 2-pos) + **MSTB 2,5/2-ST-5,08** plug (1757019, 2-pos screw-clamp) | THT 5.08 mm | 1 | 277-1106-ND (hdr) + 277-1011-ND (plug) | 651-1757242 + 651-1757019 | $3.50 | **NEW** pluggable input — user lands pack wires on the plug, plugs into the board (disconnect w/o unscrewing, D19). **PLUG CORRECTED 2026-07-01 (user caught via datasheet, D32): was 1727010 = MKDS 1/2-3,81 — a 3.81 mm board-mount screw terminal, wrong series/pitch, doesn't mate the header. 1757019 = the real MSTB 2,5/2-ST-5,08 2-pos plug (parametrics-verified: 2 pos, 5.08 mm, screw rising-cage; stock ~15k).** |
 | F1  | 5×20 mm fuse clip, Keystone **3517** (×2, w/ end stops, UL E354010) | THT clip | 2 | **36-3517-ND** | 534-3517 | $0.48 ea | **NEW** — replaces ATO fuse holder. Holds the 1 A cartridge. **SKUs corrected 2026-07-14 (user-caught): prior F1465-ND / 530-31MJ005H were phantoms — zero hits at DK/Mouser/Octopart.** 3517 API-verified live: DK 85.7k / Mouser 54.3k stock, Active, datasheet on file |
 | F1_ELEM | **Littelfuse 0215001.MXP** — 1 A 5×20 mm **time-lag (T)** ceramic cartridge fuse | TH 5×20 mm | 1 | F1696-ND | 576-0215001.MXP | $0.95 | **NEW** — fuse element. **Time-lag (DR-12)**: rides the ~22 µF ceramic inrush; ceramic = safer in a high-energy DC fault than glass. **API-verified 2026-06-25** (DK ~3.8k stock) |
-| D1  | SS26 Schottky 60 V/2 A (SS26-E3/52T) | **DO-214AA (SMB)** | 1 | SS26-E3/52TGITR-ND | 78-SS26-E3/52T | $0.30 | **Δ (D19/DR-3): SS24 (40 V) → SS26 (60 V)** to out-rate the ~53 V clamp. **Package corrected SMA → SMB (API 2026-06-25)** — SS26-E3/52T is DO-214AA; SMB is also easier to hand-solder |
+| D1  | SS26 Schottky 60 V/2 A (SS26-E3/52T) | **DO-214AA (SMB)** | 1 | SS26-E3/52TGITR-ND | — | $0.30 | **Δ (D19/DR-3): SS24 (40 V) → SS26 (60 V)** to out-rate the ~53 V clamp. **Package corrected SMA → SMB (API 2026-06-25)** — SS26-E3/52T is DO-214AA; SMB is also easier to hand-solder |
 | TVS1 | SMAJ33CA bidirectional TVS (Vrwm 33 V) | SMA | 1 | _verify_ SMAJ33CADICT-ND | 78-SMAJ33CA | $0.40 | **Δ (D19/DR-2): SMAJ30CA → SMAJ33CA** — 33 V clears the ~29 V full-charge bus with margin |
-| TVS3 | SMAJ15A unidirectional TVS, V12_CAT5E↔GND | SMA | 1 | SMAJ15ADICT-ND | 78-SMAJ15A-E3/61 | $0.30 | **NEW (DR-15):** clamps cable surges on the 12 V Cat5e pair at the **battery** end (matches the display-end SMAJ15A → both ends protected). Zero static draw |
+| TVS3 | SMAJ15A unidirectional TVS, V12_CAT5E↔GND | SMA | 1 | SMAJ15ADICT-ND | — | $0.30 | **NEW (DR-15):** clamps cable surges on the 12 V Cat5e pair at the **battery** end (matches the display-end SMAJ15A → both ends protected). Zero static draw |
 
 ### Power conversion
 
@@ -86,7 +86,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | U1  | **LM5166YDRCR** (24 V→3.3 V, **always-on** µA-Iq buck, **500 mA**, **fixed 3.3 V**) | VSON-10 | 1 | LM5166**Y**DRCR = fixed 3.3 V (TI Active; YDRCR out-of-stock on TI.com 2026-06-21 — confirm distributor stock at BOM-lock) | 595-LM5166YDRCR | $4 | **Δ (D25): LM5165→LM5166**, fixed-3.3 V = **`LM5166YDRCR`** (reviewer Finding 01: `X`=5 V, `Y`=3.3 V — order **Y**). FB→VOUT, no divider. Fallback: YDRCT cut-tape, else adjustable + divider; **never XDRCR** (5 V) |
 | L1  | 10–47 µH ≥0.3 A shielded SMD inductor (per LM5166 datasheet) | SMD | 1 | _verify_ | _verify_ | $0.50 | **Δ: LM5166 inductor** (low-Iq COT favors larger L than the old 2.2 µH) |
 | C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210 | 2 | _verify_ | _verify_ | $0.50 ea | **Δ: C1 →100 V** (LM5166 input on V24_FUSED, behind the ~53 V clamp) |
-| U2  | Recom R-78HB12-0.5 buck (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1 | R-78HB12-0.5 (DK 2256237, **in stock, Active 2026-06-17**) | 919-R-78HB12-0.5 | $8.00 | **Δ (D19/DR-3): R-78E12 (34 V) → R-78HB12 (72 V)** to survive the clamp. Switched (behind Q1) |
+| U2  | Recom R-78HB12-0.5 buck (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1 | 945-1057-ND (383 stock, Active) | 919-R-78HB12-0.5 (1.9k) | **$27.95** (CAD; BOM had $8.00 — price corrected 2026-07-14) | **Δ (D19/DR-3): R-78E12 (34 V) → R-78HB12 (72 V)** to survive the clamp. Switched (behind Q1) |
 | C3, C4 | C3 22 µF / **100 V**, C4 22 µF / 25 V X7R | 1210 | 2 | _verify_ | _verify_ | $0.55 ea | **Δ: C3 →100 V** (U2 input on V24_SW, behind the clamp) |
 
 ### Hard-cut load switch
@@ -95,7 +95,7 @@ Grand total **~$145** for one complete monitor (including extras).
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | Q1  | ZXMP6A13F P-MOSFET (Vds −60 V, 0.9 A) | SOT-23 | 1 | ZXMP6A13F**TA** (orderable tape&reel; Mouser stock ~75k, API-verified 2026-06-25 — bare ZXMP6A13F shows 0 stock) | 522-ZXMP6A13FTA | $0.40 | **Δ (D19/DR-4): AO3401A (30 V) → ZXMP6A13F (60 V)** to survive the ~53 V clamp when open (~0.3 A load) |
 | Q2  | 2N7002 N-MOSFET (Vds 60 V) | SOT-23 | 1 | _verify_ 2N7002 | 512-2N7002 | $0.10 | **Δ (D19/DR-4): AO3400A (30 V) → 2N7002 (60 V)** — drain follows the V24 rail when Q1 is off |
-| DZ1 | BZX84C12 12 V Zener (Q1 gate–source clamp) | SOT-23 | 1 | _verify_ BZX84C12 | 512-BZX84C12LT1G | $0.10 | **NEW (D19/DR-4)** — holds Q1 Vgs ≤ 12 V (was driven to −29 V) |
+| DZ1 | BZX84C12 12 V Zener (Q1 gate–source clamp) | SOT-23 | 1 | BZX84C12LT1GOSCT-ND (71k stock, Active) | 863-BZX84C12LT1G (182k) | $0.10 | **NEW (D19/DR-4)** — holds Q1 Vgs ≤ 12 V (was driven to −29 V) |
 | Rg  | ~1 kΩ 0805 1 % (series gate, Q2 drain → Q1 gate) | 0805 | 1 | _verify_ | _verify_ | $0.10 | **NEW (D19/DR-4)** — works with DZ1 to clamp the gate |
 | R3  | 100 kΩ 0805 1 % (Q1 gate pull-up to V24_FUSED) | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805100KFKEA | $0.10 | Default-OFF load switch |
 | R4  | 100 kΩ 0805 1 % (Q2 gate pull-down to GND) | 0805 | 1 | (same as R3) | (same) | $0.10 | Brown-out failsafe-off |
@@ -110,16 +110,16 @@ Grand total **~$145** for one complete monitor (including extras).
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | R5  | 1.2 MΩ 0805 1 % (top of divider) | 0805 | 1 | RMCF0805FT1M20CT-ND | 71-CRCW08051M20FKEA | $0.10 | **Δ (DR-6): 1 MΩ → 1.2 MΩ** — full charge → 2.25 V, inside the ESP ADC linear band; also current-limits a surge to ~41 µA |
 | R6  | 100 kΩ 0805 1 % (bottom of divider) | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805100KFKEA | $0.10 | **Δ (DR-6): 110 kΩ → 100 kΩ** (sets the ratio with R5) |
-| C5  | 100 nF X7R | 0603 | 1 | (unchanged) 311-1141-1-ND | 81-GRM188R71H104KA93D | $0.05 | (unchanged) — ADC filter |
+| C5  | 100 nF X7R 50 V (KEMET C0603C104K5RACTU) | 0603 | 1 | 399-C0603C104K5RACTUCT-ND (7.3M stock) | — | $0.05 | ADC filter. **SKUs corrected 2026-07-14 (SKU sweep): prior DK 311-1141-1-ND was an 0805 part on this 0603 row; prior Mouser Murata GRM188R71H104KA93D is Obsolete** |
 
 ### MCU & support
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| MOD1 | ESP32-S3-WROOM-1-N16R8 | SMD module | 1 | (unchanged) 1965-ESP32-S3-WROOM-1-N16R8-ND | 356-ESP32S3WROOM1N16R8 | $6.00 | (D-OPEN-1: consider -N8 alternative @ $4.50) |
-| C6  | 10 µF X7R | 0805 | 1 | (unchanged) 1276-1023-1-ND | 187-GRM21BR61C106KE15L | $0.10 | ESP bulk |
-| C7  | 100 nF X7R | 0402 | 1 | 311-1086-1-ND | 81-GRM155R71H104KE14D | $0.05 | **Δ: 0603 → 0402** for ESP HF decoupling close-in (or 0603 if 0402 hard to hand-place) |
-| C8  | 1 µF X7R | 0603 | 1 | 311-1361-1-ND | 81-GRM188R71H105KA93D | $0.10 | **NEW** — ESP EN soft-start cap |
+| MOD1 | ESP32-S3-WROOM-1-N16R8 | SMD module | 1 | 5407-ESP32-S3-WROOM-1-N16R8CT-ND (3.2k stock, Active) | 356-ESP32S3WRM1N16R8 (66k) | $6.00 | **SKUs corrected 2026-07-14 (SKU sweep): prior DK "1965-…-ND" and Mouser "356-ESP32S3WROOM1N16R8" were malformed — resolved to nothing at either distributor.** (D-OPEN-1: consider -N8 alternative @ $4.50) |
+| C6  | 10 µF X7R 16 V (Samsung CL21B106KOQNNNE) | 0805 | 1 | 1276-2872-1-ND (18 in stock — order early) | 187-CL21B106KOQNNNE (80k) | $0.32 | ESP bulk. **Corrected 2026-07-14 (SKU sweep): prior DK 1276-1023-1-ND was a 22 pF C0G — wrong part entirely; prior Mouser Murata cell was a wrong-prefix SKU and the part is OOS everywhere** |
+| C7  | 100 nF X7R 16 V (Samsung CL05B104KO5NNNC) | 0402 | 1 | 1276-1001-1-ND (15.6M stock) | — | $0.05 | **Δ: 0603 → 0402** for ESP HF decoupling close-in (or 0603 if 0402 hard to hand-place). **Corrected 2026-07-14 (SKU sweep): prior DK 311-1086-1-ND was a 22 nF 0603 — wrong value AND size; prior Mouser Murata cell OOS** |
+| C8  | 1 µF X7R 25 V (Taiyo Yuden TMK107B7105KA-T) | 0603 | 1 | 587-2984-1-ND (785k stock) | — | $0.15 | **NEW** — ESP EN soft-start cap. **Corrected 2026-07-14 (SKU sweep): prior DK 311-1361-1-ND was a Y5V 0805 100 nF — wrong dielectric, size and value; prior Mouser Murata cell is unlisted at both distributors** |
 | R7  | 10 kΩ 0805 | 0805 | 1 | RMCF0805FT10K0CT-ND | 71-CRCW080510K0FKEA | $0.05 | **NEW** — ESP EN pull-up |
 | RTC1 | **Micro Crystal RV-3028-C7 32.768kHz 1ppm TA QA** I²C RTC (45 nA) | 4-pin SMD 3.2×1.5 | 1 | 2195-RV-3028-C732.768KHZ1PPM-TA-QATR-ND | _verify (Mouser)_ | $2.00 | **Δ (D23/DR-8): DS3231 → RV-3028-C7** — 45 nA. **Full orderable MPN corrected (API 2026-06-25):** plain "RV-3028-C7" is ambiguous (QA standard / QC AEC-Q200 / "ON BOARD" = a dev board — avoid). Using **QA**; QC if a wider-grade part is ever wanted |
 | C-bk | **Low-leakage backup cap ~10–50 mF (not a supercap)** on RV-3028 VBACKUP | SMD | 1 | _verify_ | _verify_ | $0.50 | **Δ (D23) + reviewer F09 / iter-8 F07:** trickle-charged by the RTC, rides a full disconnect. Supercap-class (0.1 F) leakage would dwarf the RTC's 45 nA and *shorten* hold time — the ≤50 mF, low-leakage constraint is the point. No coin, no D14 short risk. |
@@ -132,7 +132,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | C_mux | ~47 µF on TPS2116 OUT (V3V3) | 0805/1206 | 1 | _verify_ | _verify_ | $0.10 | **NEW (reviewer F11):** OUT bulk for reverse-current-blocking on USB hot-plug |
 | R_byp1 | Q3 gate pull-up to **V3V3** (100 kΩ) | 0805 | 1 | _verify_ | _verify_ | $0.05 | **NEW (reviewer F03):** sets fail-safe default-ON |
 | R_byp2 | VBUS → Q4 gate divider | 0805 | 1 | _verify_ | _verify_ | $0.05 | **NEW (D29):** VBUS-referenced |
-| C9  | 100 nF X7R | 0603 | 1 | (unchanged) 311-1141-1-ND | (as C5) | $0.05 | RTC decoupling |
+| C9  | 100 nF X7R 50 V (KEMET C0603C104K5RACTU, as C5) | 0603 | 1 | 399-C0603C104K5RACTUCT-ND | — | $0.05 | RTC decoupling. **Corrected 2026-07-14 (SKU sweep): prior DK 311-1141-1-ND was an 0805 part on this 0603 row** |
 | R8, R9 | 4.7 kΩ 0805 1 % I²C pull-ups | 0805 | 2 | RMCF0805FT4K70CT-ND | 71-CRCW08054K70FKEA | $0.05 ea | I²C bus pull-ups |
 
 ### RS-485
@@ -142,14 +142,14 @@ Grand total **~$145** for one complete monitor (including extras).
 | U3  | **THVD1400DR** (TI, 3.3–5.5 V half-duplex, 500 kbps, full fail-safe RX) | SOIC-8 | 1 | 296-THVD1400DRTR-ND | 595-THVD1400DR | $1.38 | **D34 (revised iter-10 F08)**: pivot from ISL3175EIBZ (12 µA max shutdown, iter-8 first cut) to THVD1400 (**1 µA max shutdown**, 12× better on the load-bearing hard-cut spec). VCC 3.0–5.5 V, RX-only Iq 900 µA max/700 µA typ; **datasheet-guaranteed internal DE pull-DOWN + /RE pull-UP** → default-safe without external R_DE/R_RE. Standard SN75176 8-SOIC pinout (drop-in). TI Active, DK+Mouser **35016** stock. Datasheet: `hardware/datasheets/THVD1400DR.pdf` (sha `5ba9785d…`). |
 | R10 | 120 Ω 0805 1 % term resistor | 0805 | 1 | RMCF0805FT120RCT-ND | 71-CRCW0805120RFKEA | $0.10 | (unchanged) |
 | — | _(no idle bias on the battery side — D19/DR-4)_ | — | 0 | — | — | — | **Δ: removed battery-side bias.** The always-on rail would otherwise leak ~2.3 mA continuously; bias is now display-end only |
-| TVS2 | SMAJ12CA bidirectional TVS | SMA | 1 | (unchanged) SMAJ12CADICT-ND | 78-SMAJ12CA-E3/61 | $0.30 | Δ: renumbered from TVS1 in prior schematic |
+| TVS2 | SMAJ12CA bidirectional TVS | SMA | 1 | (unchanged) SMAJ12CADICT-ND | — | $0.30 | Δ: renumbered from TVS1 in prior schematic |
 | C10 | 100 nF X7R | 0603 | 1 | (unchanged) | | $0.05 | U3 decoupling |
 
 ### User input
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| BTN1 | E-Switch RP3502MABLK panel-mount SPST NO momentary | Panel-mount | 1 | EG4527-ND | 612-RP3502MABLK | $3.00 | (Δ: was EG1218; RP3502MA-series stocks better) **Datasheet verified 2026-07-14** (`RP3502MABLK.pdf`): metal body, function A = OFF-(ON), 12.7 mm hole / 1/2"-28 UNEF, −20…+65 °C, solder lugs. **Read-flag: 3 A @ 120 VAC contact rating, no dry-circuit DC spec** — our 3.3 V/µA use relies on the C11 100 nF debounce discharge for contact wetting; sanity-check at CP5 bench. |
+| BTN1 | E-Switch RP3502MABLK panel-mount SPST NO momentary | Panel-mount | 1 | EG1932-ND (9.1k stock, Active) | 612-RP3502MABLK (524) | $3.00 | **DK SKU corrected 2026-07-14 (SKU sweep): prior EG4527-ND resolves to a different E-Switch part (LS0851503F040C1A).** (Δ: was EG1218; RP3502MA-series stocks better) **Datasheet verified 2026-07-14** (`RP3502MABLK.pdf`): metal body, function A = OFF-(ON), 12.7 mm hole / 1/2"-28 UNEF, −20…+65 °C, solder lugs. **Read-flag: 3 A @ 120 VAC contact rating, no dry-circuit DC spec** — our 3.3 V/µA use relies on the C11 100 nF debounce discharge for contact wetting; sanity-check at CP5 bench. |
 | R13 | 1 MΩ 0805 1 % | 0805 | 1 | RMCF0805FT1M00CT-ND | 71-CRCW08051M00FKEA | $0.10 | BTN pull-up (Δ: was 10 kΩ → 1 MΩ for lower Iq) |
 | C11 | 100 nF X7R | 0603 | 1 | (unchanged) | | $0.05 | Button debounce |
 
@@ -167,7 +167,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | Ref | Part | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-------------|------------|-------|-------|
 | EN1 | **User-3D-printed plastic enclosure, IP5x** (indoors) | 1 | — printed | — | (filament) | **Δ (D20): no commercial box** — wall-mount above the batteries (air gap), sized to the CP3 board outline, with a USB-C port + dust cap |
-| —   | M3 standoffs + screws (4 sets, 5 mm board-to-base spacing) | 1 set | 36-9774-ND | — | $2.50 | |
+| —   | M3×5 mm brass standoffs (Würth 970050354 WA-SBRII, ×4) + generic M3 screws | ×4 | — | 710-970050354 (4.5k stock) | $0.59 ea | **Corrected 2026-07-14 (SKU sweep): prior DK 36-9774-ND was a phantom — no such SKU.** Würth WA-SBRII M3×5 mm matches the 5 mm board-to-base spacing |
 | —   | 24 V hookup wire to pack, 30 cm of 18 AWG | 1 | — | — | $1.00 | User-supplied if they have it |
 
 ### Battery-side subtotal
@@ -191,14 +191,14 @@ Grand total **~$145** for one complete monitor (including extras).
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | J1  | **Würth 615008145521** WR-MJ RJ45 jack, right-angle (horizontal, tab-down), shielded, THT | THT shielded | 1 | 732-615008145521-ND | 710-615008145521 | $4.00 | **Δ (DR-10): right-angle** for the shallow box (the earlier SUYIN 100362 is NOT distributor-stocked). **✅ Datasheet-verified 2026-06-25: horizontal/right-angle + shielded (EMI panel finger) + 8P8C + MAGNETICS-FREE** (plain CAT5e jack, 20 mΩ contacts, no magjack) + ~13.6 mm height → fits the ~45 mm depth (~33 mm stack). −40…+85 °C, UL E324776. **Tab-down** → confirm cable-entry orientation at CP3. Datasheet: hardware/datasheets/615008145521.pdf |
 | F1  | **Bourns MF-R025** PTC polyfuse, **~0.25 A hold** | THT radial | 1 | MF-R025-ND | 652-MFR025 | $1.00 | **Δ (DR-11): 0.5 A → ~0.25 A** — matches the ~40–150 mA load, trips below U2 foldback. **API-verified 2026-06-25** (DK ~4.2k, Mouser ~7k) |
-| TVS1 | SMAJ15A unidirectional TVS | SMA | 1 | SMAJ15ADICT-ND | 78-SMAJ15A-E3/61 | $0.30 | (unchanged) |
+| TVS1 | SMAJ15A unidirectional TVS | SMA | 1 | SMAJ15ADICT-ND | — | $0.30 | (unchanged) |
 | C1  | 22 µF / 25 V X7R | 1210 | 1 | (unchanged) | | $0.20 | V12 input bulk |
 
 ### Power conversion
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| U1  | Recom R-78E3.3-0.5 (12 V→3.3 V, 0.5 A) | SIP3 THT | 1 | 945-R-78E3.3-0.5 | 919-R-78E3.3-0.5 | $5.00 | (unchanged) |
+| U1  | Recom R-78E3.3-0.5 (12 V→3.3 V, 0.5 A) | SIP3 THT | 1 | 945-1661-5-ND (7.0k stock, Active) | 919-R-78E3.3-0.5 (18k) | $5.00 | **DK cell corrected 2026-07-14 (SKU sweep): prior "945-R-78E3.3-0.5" was malformed (not a DK SKU)** |
 | C2  | 10 µF X7R | 0805 | 1 | (unchanged) | | $0.10 | V3V3 output bulk |
 
 ### MCU & support
@@ -215,8 +215,8 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| LCD1 | Waveshare 4.2inch e-Paper **Module (B)** — tri-color (B/W/R), onboard driver + 8-pin SPI | module | 1 | 1738-1135-ND | 992-19094 | $35.00 | **Δ (DR-7): use the module (8-pin SPI), not a bare panel.** Driver + booster on the module |
-| J2  | **JST-PH 2.0 mm 8-pin** post header (B8B-PH-K-S top / S8B-PH-K-S side) — e-paper SPI: VCC/GND/DIN/CLK/CS/DC/RST/BUSY | THT 1×8 | 1 | B8B-PH-K-S → 455-1710-ND (API-verified 2026-06-25; stock ~2900) | 455-B8B-PH-K-S | $0.51 | **Matches the module's PH 2.0 connector (verified).** Same family both sides → pre-crimped PH↔PH cable (user: ASPHSPH24K102-class), no tool. Keyed by design. **Δ (DR-7):** was a 24-pin FH12-24S FFC (bare-panel) |
+| LCD1 | Waveshare 4.2inch e-Paper **Module (B)** — tri-color (B/W/R), onboard driver + 8-pin SPI | module | 1 | — | — | ~$35.00 | **Δ (DR-7): use the module (8-pin SPI), not a bare panel.** Driver + booster on the module. **Sourcing corrected 2026-07-14 (SKU sweep): prior DK 1738-1135-ND resolves to DFRobot DFR0290 (different manufacturer's display) and Mouser 992-19094 is a phantom; keyword sweep confirms neither distributor lists this Waveshare module → order from waveshare.com or Amazon** |
+| J2  | **JST-PH 2.0 mm 8-pin** post header (B8B-PH-K-S top / S8B-PH-K-S side) — e-paper SPI: VCC/GND/DIN/CLK/CS/DC/RST/BUSY | THT 1×8 | 1 | B8B-PH-K-S → 455-1710-ND (**stock collapsed ~2900 → 16 between 2026-06-25 and 07-14 — order early**; still Active) | — (Mouser doesn't list; prior 455- cell used the DK prefix) | $0.51 | **Matches the module's PH 2.0 connector (verified).** Same family both sides → pre-crimped PH↔PH cable (user: ASPHSPH24K102-class), no tool. Keyed by design. **Δ (DR-7):** was a 24-pin FH12-24S FFC (bare-panel) |
 | C6  | 1 µF X7R panel VCC bulk | 0603 | 1 | (same as C5) | | $0.10 | NEW — reduces VCC dip during refresh |
 
 ### RS-485
