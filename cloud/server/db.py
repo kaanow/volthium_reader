@@ -265,7 +265,7 @@ class AsyncpgReadingsDAO:
                        MAX(GREATEST(soc_a, soc_b))              AS soc_max,
                        MIN(LEAST(t_a, t_b))                     AS t_min,
                        MAX(GREATEST(t_a, t_b))                  AS t_max,
-                       SUM(dt)                                  AS covered_s,
+                       SUM(dt)::float8                          AS covered_s,
                        COUNT(*)                                 AS n
                    FROM t
                    GROUP BY 1 ORDER BY 1""",
@@ -311,7 +311,7 @@ class AsyncpgReadingsDAO:
                    )
                    SELECT ts  AS gap_start,
                           nxt AS gap_end,
-                          EXTRACT(EPOCH FROM (nxt - ts)) AS duration_s
+                          EXTRACT(EPOCH FROM (nxt - ts))::float8 AS duration_s
                    FROM g
                    WHERE nxt - ts > make_interval(secs => $3)
                    ORDER BY ts DESC
@@ -344,7 +344,7 @@ class AsyncpgReadingsDAO:
                                    ELSE 0 END) / 3600.0 AS wh_in,
                           SUM(CASE WHEN pack_p < 0 THEN -pack_p * dt
                                    ELSE 0 END) / 3600.0 AS wh_out,
-                          SUM(dt) AS covered_s
+                          SUM(dt)::float8 AS covered_s
                    FROM t""",
                 source_id,
             )
