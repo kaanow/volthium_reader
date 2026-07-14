@@ -293,5 +293,64 @@ class BleEventIngestTests(unittest.TestCase):
         self.assertEqual(r.status_code, 422)
 
 
+class HistoryEndpointTests(unittest.TestCase):
+    """The /api/history/* endpoints run real SQL only on AsyncpgReadingsDAO;
+    with the fake they must return well-formed empty shapes, never 500 —
+    same contract as /api/events. /history serves the static page."""
+
+    def _seeded_client(self) -> TestClient:
+        c = _client()
+        r = c.post(
+            "/ingest",
+            headers={"Authorization": "Bearer secret-pi-token"},
+            json={"source_id": "pi-barge", "readings": [READING]},
+        )
+        assert r.status_code == 200
+        return c
+
+    def test_series_empty_shape(self):
+        c = self._seeded_client()
+        r = c.get("/api/history/series?hours=24&bucket_s=300")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["series"], [])
+
+    def test_series_rejects_bad_before(self):
+        c = self._seeded_client()
+        r = c.get("/api/history/series?before=not-a-date")
+        self.assertEqual(r.status_code, 422)
+
+    def test_series_accepts_iso_before(self):
+        c = self._seeded_client()
+        r = c.get("/api/history/series?hours=24&before=2026-07-01T00:00:00Z")
+        self.assertEqual(r.status_code, 200)
+
+    def test_daily_profile_gaps_stats_empty_shapes(self):
+        c = self._seeded_client()
+        self.assertEqual(c.get("/api/history/daily").json()["days"], [])
+        self.assertEqual(c.get("/api/history/profile").json()["profile"], [])
+        self.assertEqual(c.get("/api/history/gaps").json()["gaps"], [])
+        self.assertIsNone(c.get("/api/history/stats").json()["stats"])
+
+    def test_no_source_at_all(self):
+        # Fresh DAO with zero rows — endpoints must still 200.
+        c = _client()
+        for path in ("/api/history/series", "/api/history/daily",
+                     "/api/history/profile", "/api/history/gaps",
+                     "/api/history/stats"):
+            r = c.get(path)
+            self.assertEqual(r.status_code, 200, path)
+
+    def test_history_page_served(self):
+        c = _client()
+        r = c.get("/history")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("Pack History", r.text)
+
+    def test_dashboard_links_to_history(self):
+        c = _client()
+        r = c.get("/")
+        self.assertIn('href="/history"', r.text)
+
+
 if __name__ == "__main__":
     unittest.main()

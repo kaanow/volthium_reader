@@ -203,6 +203,219 @@ class AsyncpgReadingsDAO:
         return out
 
 
+    # --- history / analytics queries ---------------------------------------
+    # Prod-only (not part of the ReadingsDAO protocol): the /api/history/*
+    # endpoints isinstance-check for AsyncpgReadingsDAO and return empty
+    # shapes otherwise, mirroring the /api/events pattern.
+
+    async def history_series(
+        self, source_id: str, since: datetime, until: datetime, bucket_s: int
+    ) -> list[dict]:
+        """Time-bucketed aggregates for the range explorer. One row per
+        bucket: avg/min/max power, avg pack voltage, per-battery avg SOC and
+        temperature, per-battery max cell imbalance, sample count. Buckets
+        are epoch-aligned so ranges are stable across refreshes."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT
+                       to_timestamp(floor(extract(epoch FROM ts) / $4) * $4) AS bucket,
+                       COUNT(*)        AS n,
+                       AVG(pack_p)     AS p_avg,
+                       MIN(pack_p)     AS p_min,
+                       MAX(pack_p)     AS p_max,
+                       AVG(pack_v)     AS v_avg,
+                       AVG(soc_a)      AS soc_a,
+                       AVG(soc_b)      AS soc_b,
+                       AVG(t_a)        AS t_a,
+                       AVG(t_b)        AS t_b,
+                       MAX(delta_v_a)  AS dv_a,
+                       MAX(delta_v_b)  AS dv_b
+                   FROM readings
+                   WHERE source_id = $1 AND ts >= $2 AND ts < $3
+                   GROUP BY 1 ORDER BY 1""",
+                source_id, since, until, float(bucket_s),
+            )
+        return [dict(r) for r in rows]
+
+    async def history_daily(
+        self, source_id: str, days: int, tz: str
+    ) -> list[dict]:
+        """Per-local-day ledger: Wh charged in / drawn out (trapezoid-free
+        rectangle integration, per-row dt capped at 60 s so data gaps don't
+        fabricate energy), SOC floor/ceiling, temp range, coverage seconds
+        (→ availability)."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """WITH t AS (
+                       SELECT ts, pack_p, soc_a, soc_b, t_a, t_b,
+                              LEAST(COALESCE(EXTRACT(EPOCH FROM
+                                  (LEAD(ts) OVER (ORDER BY ts) - ts)), 0), 60)
+                                  AS dt
+                       FROM readings
+                       WHERE source_id = $1
+                         AND ts >= (now() - make_interval(days => $2::int))
+                   )
+                   SELECT
+                       (ts AT TIME ZONE $3)::date               AS day,
+                       SUM(CASE WHEN pack_p > 0 THEN pack_p * dt
+                                ELSE 0 END) / 3600.0            AS wh_in,
+                       SUM(CASE WHEN pack_p < 0 THEN -pack_p * dt
+                                ELSE 0 END) / 3600.0            AS wh_out,
+                       MIN(LEAST(soc_a, soc_b))                 AS soc_min,
+                       MAX(GREATEST(soc_a, soc_b))              AS soc_max,
+                       MIN(LEAST(t_a, t_b))                     AS t_min,
+                       MAX(GREATEST(t_a, t_b))                  AS t_max,
+                       SUM(dt)                                  AS covered_s,
+                       COUNT(*)                                 AS n
+                   FROM t
+                   GROUP BY 1 ORDER BY 1""",
+                source_id, days, tz,
+            )
+        return [dict(r) for r in rows]
+
+    async def history_profile(
+        self, source_id: str, days: int, tz: str
+    ) -> list[dict]:
+        """Average power by local hour-of-day over the window — the daily
+        rhythm. Split into charge/discharge components so the chart can show
+        when energy typically comes in vs goes out."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT
+                       EXTRACT(HOUR FROM ts AT TIME ZONE $3)::int AS hour,
+                       AVG(pack_p)                                AS p_avg,
+                       AVG(GREATEST(pack_p, 0))                   AS p_in,
+                       AVG(LEAST(pack_p, 0))                      AS p_out,
+                       COUNT(*)                                   AS n
+                   FROM readings
+                   WHERE source_id = $1
+                     AND ts >= (now() - make_interval(days => $2::int))
+                     AND pack_p IS NOT NULL
+                   GROUP BY 1 ORDER BY 1""",
+                source_id, days, tz,
+            )
+        return [dict(r) for r in rows]
+
+    async def history_gaps(
+        self, source_id: str, since: datetime, min_gap_s: float = 300.0
+    ) -> list[dict]:
+        """Telemetry outages in the window: consecutive-sample gaps longer
+        than min_gap_s, newest first. The endpoint decorates each gap with
+        the wedge classification recorded nearest its start."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """WITH g AS (
+                       SELECT ts, LEAD(ts) OVER (ORDER BY ts) AS nxt
+                       FROM readings
+                       WHERE source_id = $1 AND ts >= $2
+                   )
+                   SELECT ts  AS gap_start,
+                          nxt AS gap_end,
+                          EXTRACT(EPOCH FROM (nxt - ts)) AS duration_s
+                   FROM g
+                   WHERE nxt - ts > make_interval(secs => $3)
+                   ORDER BY ts DESC
+                   LIMIT 100""",
+                source_id, since, float(min_gap_s),
+            )
+        return [dict(r) for r in rows]
+
+    async def history_stats(self, source_id: str) -> dict:
+        """Lifetime records for the stats strip. Extremes carry their
+        timestamps so the page can say WHEN, not just how much."""
+        async with self.pool.acquire() as conn:
+            base = await conn.fetchrow(
+                """SELECT MIN(ts) AS first_ts, MAX(ts) AS last_ts,
+                          COUNT(*) AS n
+                   FROM readings WHERE source_id = $1""",
+                source_id,
+            )
+            if base is None or base["n"] == 0:
+                return {}
+            energy = await conn.fetchrow(
+                """WITH t AS (
+                       SELECT pack_p,
+                              LEAST(COALESCE(EXTRACT(EPOCH FROM
+                                  (LEAD(ts) OVER (ORDER BY ts) - ts)), 0), 60)
+                                  AS dt
+                       FROM readings WHERE source_id = $1
+                   )
+                   SELECT SUM(CASE WHEN pack_p > 0 THEN pack_p * dt
+                                   ELSE 0 END) / 3600.0 AS wh_in,
+                          SUM(CASE WHEN pack_p < 0 THEN -pack_p * dt
+                                   ELSE 0 END) / 3600.0 AS wh_out,
+                          SUM(dt) AS covered_s
+                   FROM t""",
+                source_id,
+            )
+            deepest = await conn.fetchrow(
+                """SELECT ts, LEAST(soc_a, soc_b) AS soc
+                   FROM readings
+                   WHERE source_id = $1 AND soc_a IS NOT NULL
+                     AND soc_b IS NOT NULL
+                   ORDER BY LEAST(soc_a, soc_b) ASC, ts ASC LIMIT 1""",
+                source_id,
+            )
+            peak_out = await conn.fetchrow(
+                """SELECT ts, pack_p FROM readings
+                   WHERE source_id = $1 AND pack_p IS NOT NULL
+                   ORDER BY pack_p ASC, ts ASC LIMIT 1""",
+                source_id,
+            )
+            peak_in = await conn.fetchrow(
+                """SELECT ts, pack_p FROM readings
+                   WHERE source_id = $1 AND pack_p IS NOT NULL
+                   ORDER BY pack_p DESC, ts ASC LIMIT 1""",
+                source_id,
+            )
+            coldest = await conn.fetchrow(
+                """SELECT ts, LEAST(t_a, t_b) AS t FROM readings
+                   WHERE source_id = $1 AND t_a IS NOT NULL AND t_b IS NOT NULL
+                   ORDER BY LEAST(t_a, t_b) ASC, ts ASC LIMIT 1""",
+                source_id,
+            )
+            hottest = await conn.fetchrow(
+                """SELECT ts, GREATEST(t_a, t_b) AS t FROM readings
+                   WHERE source_id = $1 AND t_a IS NOT NULL AND t_b IS NOT NULL
+                   ORDER BY GREATEST(t_a, t_b) DESC, ts ASC LIMIT 1""",
+                source_id,
+            )
+            worst_dv = await conn.fetchrow(
+                """SELECT ts, GREATEST(delta_v_a, delta_v_b) AS dv
+                   FROM readings
+                   WHERE source_id = $1 AND delta_v_a IS NOT NULL
+                     AND delta_v_b IS NOT NULL
+                   ORDER BY GREATEST(delta_v_a, delta_v_b) DESC, ts ASC
+                   LIMIT 1""",
+                source_id,
+            )
+        out = {
+            "first_ts": base["first_ts"], "last_ts": base["last_ts"],
+            "samples": base["n"],
+            "wh_in": energy["wh_in"], "wh_out": energy["wh_out"],
+            "covered_s": energy["covered_s"],
+        }
+        if deepest:
+            out["deepest_soc"] = deepest["soc"]
+            out["deepest_soc_ts"] = deepest["ts"]
+        if peak_out:
+            out["peak_out_w"] = peak_out["pack_p"]
+            out["peak_out_ts"] = peak_out["ts"]
+        if peak_in:
+            out["peak_in_w"] = peak_in["pack_p"]
+            out["peak_in_ts"] = peak_in["ts"]
+        if coldest:
+            out["coldest_c"] = coldest["t"]
+            out["coldest_ts"] = coldest["ts"]
+        if hottest:
+            out["hottest_c"] = hottest["t"]
+            out["hottest_ts"] = hottest["ts"]
+        if worst_dv:
+            out["worst_delta_v"] = worst_dv["dv"]
+            out["worst_delta_v_ts"] = worst_dv["ts"]
+        return out
+
+
 async def create_pool(database_url: str) -> asyncpg.Pool:
     """Open the asyncpg pool with a small bounded size — Railway free tier
     Postgres tops out at a low connection count."""

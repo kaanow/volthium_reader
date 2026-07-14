@@ -68,6 +68,9 @@
   .spark { width: 100%; height: 80px; }
   .footer { color: var(--dim); font-size: 11px; margin-top: 14px;
             font-variant-numeric: tabular-nums; }
+  .history-link { color: var(--dim); text-decoration: underline dotted;
+                  text-underline-offset: 2px; }
+  .history-link:hover { color: var(--ink); }
   table.batt { width: 100%; border-collapse: collapse; margin-top: 8px;
                font-variant-numeric: tabular-nums; font-size: 13px; }
   table.batt td, table.batt th { padding: 6px 4px; text-align: right; }
@@ -145,7 +148,7 @@
         <span id="spark-soc-range" class="spark-range"></span>
       </div>
       <svg id="spark-soc" class="spark" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
-      <div class="footer"><span id="updated">—</span></div>
+      <div class="footer"><span id="updated">—</span> · <a href="/history" class="history-link">history</a></div>
     </div>
     <div class="panel">
       <div class="label">per battery</div>

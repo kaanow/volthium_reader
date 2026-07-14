@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Barge Inn — Pack History</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0e1116; --panel: #161b22; --ink: #e6edf3; --dim: #8b949e;
+    --grn: #3fb950; --ylw: #d29922; --red: #f85149; --blu: #58a6ff;
+    --vio: #bc8cff;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+         background: var(--bg); color: var(--ink); margin: 0; padding: 24px;
+         overflow-x: hidden; }
+  h1 { font-size: 14px; font-weight: 600; color: var(--dim); margin: 0 0 4px;
+       letter-spacing: .12em; text-transform: uppercase; }
+  .backlink { font-size: 12px; color: var(--dim); text-decoration: none; }
+  .backlink:hover { color: var(--ink); }
+  .wrap { max-width: 980px; }
+  .panel { background: var(--panel); border-radius: 10px; padding: 20px 22px;
+           min-width: 0; margin-top: 16px; }
+  .label { color: var(--dim); font-size: 12px; text-transform: uppercase;
+           letter-spacing: .1em; margin-bottom: 6px; }
+  .sub { color: var(--dim); font-size: 11px; font-weight: 400;
+         text-transform: none; letter-spacing: 0; }
+
+  /* lifetime record cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+           gap: 10px; margin-top: 10px; }
+  .card { background: rgba(139,148,158,.06); border-radius: 8px; padding: 10px 12px; }
+  .card .cv { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .card .cv .u { font-size: 12px; color: var(--dim); margin-left: 3px; }
+  .card .ck { color: var(--dim); font-size: 10.5px; text-transform: uppercase;
+              letter-spacing: .08em; margin-bottom: 4px; }
+  .card .cd { color: var(--dim); font-size: 10.5px; margin-top: 3px;
+              font-variant-numeric: tabular-nums; }
+
+  /* range chips */
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 2px 0 4px; }
+  .chip { font-size: 12px; padding: 4px 12px; border-radius: 14px;
+          background: rgba(139,148,158,.12); color: var(--dim); cursor: pointer;
+          border: 1px solid transparent; user-select: none; }
+  .chip:hover { color: var(--ink); }
+  .chip.on { background: rgba(88,166,255,.16); color: var(--blu);
+             border-color: rgba(88,166,255,.4); }
+  .chip.custom { display: none; }
+  .chip.custom.shown { display: inline-block; }
+
+  .chart-wrap { position: relative; margin-bottom: 14px; }
+  svg.chart { width: 100%; height: 140px; display: block; }
+  svg.chart.short { height: 110px; }
+  .tip { position: absolute; pointer-events: none; display: none;
+         background: #1c2430; border: 1px solid #30363d; border-radius: 6px;
+         padding: 6px 9px; font-size: 11.5px; line-height: 1.5;
+         font-variant-numeric: tabular-nums; white-space: nowrap; z-index: 5;
+         box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+  .tip .tt { color: var(--dim); }
+
+  .legend { display: flex; gap: 14px; font-size: 11px; color: var(--dim);
+            margin: 2px 0 6px; flex-wrap: wrap; }
+  .legend .sw { display: inline-block; width: 9px; height: 9px;
+                border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+  /* gaps list */
+  table.gaps { width: 100%; border-collapse: collapse; font-size: 12.5px;
+               font-variant-numeric: tabular-nums; margin-top: 8px; }
+  table.gaps td, table.gaps th { padding: 5px 6px; text-align: left; }
+  table.gaps th { color: var(--dim); font-weight: 500; font-size: 11px;
+                  text-transform: uppercase; letter-spacing: .08em; }
+  table.gaps td.cls { font-family: ui-monospace, monospace; font-size: 11px;
+                      color: var(--ylw); }
+  .avail-badge { font-size: 12px; padding: 2px 10px; border-radius: 10px;
+                 background: rgba(63,185,80,.14); color: var(--grn);
+                 font-variant-numeric: tabular-nums; margin-left: 8px; }
+  .avail-badge.warn { background: rgba(210,153,34,.14); color: var(--ylw); }
+
+  .note { color: var(--dim); font-size: 11px; margin-top: 10px; }
+  .hint { color: var(--dim); font-size: 11px; }
+  @media (max-width: 700px) {
+    body { padding: 14px 10px; }
+    .panel { padding: 14px 12px; }
+    .cards { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>The Barge Inn — Pack History</h1>
+  <a class="backlink" href="/">← live dashboard</a>
+
+  <!-- lifetime records -->
+  <div class="panel">
+    <div class="label">for the record <span id="since-note" class="sub"></span></div>
+    <div class="cards" id="cards"></div>
+  </div>
+
+  <!-- range explorer -->
+  <div class="panel">
+    <div class="label" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      range explorer
+      <span class="chips" id="chips">
+        <span class="chip" data-h="24">24 h</span>
+        <span class="chip" data-h="72">3 d</span>
+        <span class="chip on" data-h="168">7 d</span>
+        <span class="chip" data-h="720">30 d</span>
+        <span class="chip" data-h="2160">90 d</span>
+        <span class="chip" data-h="all">all</span>
+        <span class="chip custom on" id="chip-custom">day</span>
+      </span>
+    </div>
+
+    <div class="label" style="margin-top:12px">pack power (W)
+      <span class="sub">band = min…max within each slice, line = average</span></div>
+    <div class="chart-wrap"><svg id="ch-p" class="chart" viewBox="0 0 900 140" preserveAspectRatio="none"></svg><div class="tip" id="tip-p"></div></div>
+
+    <div class="label">state of charge (%)</div>
+    <div class="legend"><span><span class="sw" style="background:var(--blu)"></span>battery A</span>
+      <span><span class="sw" style="background:var(--vio)"></span>battery B</span></div>
+    <div class="chart-wrap"><svg id="ch-soc" class="chart" viewBox="0 0 900 140" preserveAspectRatio="none"></svg><div class="tip" id="tip-soc"></div></div>
+
+    <div class="label">temperature (°C)</div>
+    <div class="chart-wrap"><svg id="ch-t" class="chart short" viewBox="0 0 900 110" preserveAspectRatio="none"></svg><div class="tip" id="tip-t"></div></div>
+
+    <div class="label">cell imbalance (ΔmV)
+      <span class="sub">worst spread across each battery's 4 cells — sustained 50+ is an aging signal</span></div>
+    <div class="chart-wrap"><svg id="ch-dv" class="chart short" viewBox="0 0 900 110" preserveAspectRatio="none"></svg><div class="tip" id="tip-dv"></div></div>
+    <div class="note" id="explorer-note"></div>
+  </div>
+
+  <!-- daily energy ledger -->
+  <div class="panel">
+    <div class="label">daily energy ledger — last 30 days
+      <span class="sub">tap a day to zoom the explorer to it</span></div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--grn)"></span>charged in (Wh)</span>
+      <span><span class="sw" style="background:var(--ylw)"></span>drawn out (Wh)</span>
+      <span><span class="sw" style="background:var(--blu)"></span>SOC floor of the day</span>
+    </div>
+    <div class="chart-wrap"><svg id="ch-daily" class="chart" viewBox="0 0 900 170" preserveAspectRatio="none" style="height:170px"></svg><div class="tip" id="tip-daily"></div></div>
+  </div>
+
+  <!-- shape of a day -->
+  <div class="panel">
+    <div class="label">the shape of a day
+      <span class="sub">average power by hour of day, last 14 days — above zero: charging, below: drawing</span></div>
+    <div class="chart-wrap"><svg id="ch-prof" class="chart" viewBox="0 0 900 140" preserveAspectRatio="none"></svg><div class="tip" id="tip-prof"></div></div>
+  </div>
+
+  <!-- reliability -->
+  <div class="panel">
+    <div class="label">telemetry reliability — selected range
+      <span id="avail" class="avail-badge">—</span></div>
+    <div class="chart-wrap"><svg id="ch-rel" class="chart" viewBox="0 0 900 26" preserveAspectRatio="none" style="height:26px"></svg></div>
+    <div id="gaps-box"></div>
+  </div>
+
+  <div class="note" style="margin-top:14px">
+    Aggregates are computed server-side from every sample ever uploaded
+    (one reading ≈ every 8 s). Energy figures integrate power over time with
+    data gaps excluded, so outages never fabricate Wh.
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const GRN = "#3fb950", YLW = "#d29922", RED = "#f85149", BLU = "#58a6ff",
+      VIO = "#bc8cff", GRID = "#30363d", DIMC = "#6e7681";
+
+const fmt = (v, u) => {
+  if (v == null || !isFinite(v)) return "—";
+  const a = Math.abs(v);
+  const s = a >= 100 ? v.toFixed(0) : a >= 10 ? v.toFixed(1) : v.toFixed(2);
+  return s + (u || "");
+};
+const fmtWh = wh => wh == null ? "—"
+  : Math.abs(wh) >= 10000 ? (wh / 1000).toFixed(1) + " kWh"
+  : Math.round(wh) + " Wh";
+const fmtDur = s => {
+  if (s == null) return "—";
+  if (s < 90) return Math.round(s) + " s";
+  if (s < 5400) return Math.round(s / 60) + " min";
+  if (s < 172800) return (s / 3600).toFixed(1) + " h";
+  return (s / 86400).toFixed(1) + " d";
+};
+const P = ts => Date.parse(ts);
+const fmtT = (ms, spanH) => {
+  const d = new Date(ms);
+  if (spanH <= 26)  return d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+  if (spanH <= 26 * 24) return d.toLocaleDateString([], {month: "short", day: "numeric"})
+    + " " + d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+  return d.toLocaleDateString([], {month: "short", day: "numeric"});
+};
+
+// --- generic SVG chart ------------------------------------------------------
+// series: [{key,color,kind:"line"|"band",lo,hi}] where band uses lo/hi keys.
+// Each datum needs .t (ms). Hover: nearest datum, custom tip via tipFn.
+function chart(svgId, tipId, data, series, opts) {
+  opts = opts || {};
+  const svg = $(svgId), tipEl = $(tipId);
+  const W = 900, H = svg.viewBox.baseVal.height, PADL = 6, PADR = 44,
+        PADT = 8, PADB = 16;
+  if (!data.length) { svg.innerHTML =
+    `<text x="${W/2}" y="${H/2}" fill="${DIMC}" font-size="12" text-anchor="middle">no data in range</text>`;
+    svg.onpointermove = svg.onpointerleave = null; return; }
+
+  const t0 = data[0].t, t1 = data[data.length - 1].t, spanH = (t1 - t0) / 3.6e6;
+  let vals = [];
+  for (const s of series) for (const d of data) {
+    if (s.kind === "band") { if (d[s.lo] != null) vals.push(d[s.lo]);
+                             if (d[s.hi] != null) vals.push(d[s.hi]); }
+    else if (d[s.key] != null) vals.push(d[s.key]);
+  }
+  if (!vals.length) { svg.innerHTML = ""; return; }
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (opts.zero) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+  if (opts.floor != null) lo = Math.max(lo, opts.floor);
+  const rawLo = lo, rawHi = hi;
+  const pad = (hi - lo) * 0.06 || 1; lo -= pad; hi += pad;
+  const X = t => PADL + (t - t0) / Math.max(1, t1 - t0) * (W - PADL - PADR);
+  const Y = v => PADT + (1 - (v - lo) / (hi - lo)) * (H - PADT - PADB);
+
+  let el = "";
+  // x grid + labels: 4 ticks
+  for (let i = 0; i <= 3; i++) {
+    const tt = t0 + (t1 - t0) * i / 3, x = X(tt);
+    el += `<line x1="${x}" y1="${PADT}" x2="${x}" y2="${H - PADB}" stroke="${GRID}" stroke-width="0.5" opacity="0.5"/>`;
+    const anchor = i === 0 ? "start" : i === 3 ? "end" : "middle";
+    el += `<text x="${x}" y="${H - 4}" fill="${DIMC}" font-size="10" text-anchor="${anchor}" font-family="ui-monospace,monospace">${fmtT(tt, spanH)}</text>`;
+  }
+  if (opts.zero && lo < 0 && hi > 0)
+    el += `<line x1="${PADL}" y1="${Y(0)}" x2="${W - PADR}" y2="${Y(0)}" stroke="${GRID}" stroke-width="1"/>`;
+  // y range labels
+  el += `<text x="${W - 3}" y="${PADT + 8}" fill="${DIMC}" font-size="10" text-anchor="end" font-family="ui-monospace,monospace">${fmt(rawHi, opts.unit)}</text>`;
+  el += `<text x="${W - 3}" y="${H - PADB}" fill="${DIMC}" font-size="10" text-anchor="end" font-family="ui-monospace,monospace">${fmt(rawLo, opts.unit)}</text>`;
+
+  for (const s of series) {
+    if (s.kind === "band") {
+      let up = [], dn = [];
+      for (const d of data) if (d[s.lo] != null && d[s.hi] != null) {
+        up.push(X(d.t).toFixed(1) + "," + Y(d[s.hi]).toFixed(1));
+        dn.unshift(X(d.t).toFixed(1) + "," + Y(d[s.lo]).toFixed(1));
+      }
+      if (up.length > 1)
+        el += `<polygon points="${up.join(" ")} ${dn.join(" ")}" fill="${s.color}" opacity="0.16"/>`;
+    } else {
+      // split on nulls so gaps show as gaps, not lies
+      let seg = [];
+      const flush = () => { if (seg.length > 1)
+        el += `<polyline points="${seg.join(" ")}" fill="none" stroke="${s.color}" stroke-width="1.6"/>`;
+        seg = []; };
+      for (const d of data) {
+        if (d[s.key] == null) { flush(); continue; }
+        seg.push(X(d.t).toFixed(1) + "," + Y(d[s.key]).toFixed(1));
+      }
+      flush();
+    }
+  }
+  el += `<line id="${svgId}-cursor" x1="-10" y1="${PADT}" x2="-10" y2="${H - PADB}" stroke="${DIMC}" stroke-width="1" opacity="0"/>`;
+  svg.innerHTML = el;
+
+  const cursor = () => svg.querySelector(`[id="${svgId}-cursor"]`);
+  svg.onpointermove = ev => {
+    const r = svg.getBoundingClientRect();
+    const fx = (ev.clientX - r.left) / r.width * W;
+    const tt = t0 + (fx - PADL) / (W - PADL - PADR) * (t1 - t0);
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < data.length; i++) {
+      const dd = Math.abs(data[i].t - tt); if (dd < bd) { bd = dd; best = i; }
+    }
+    const d = data[best], cx = X(d.t);
+    const c = cursor(); c.setAttribute("x1", cx); c.setAttribute("x2", cx);
+    c.setAttribute("opacity", "0.7");
+    tipEl.innerHTML = `<span class="tt">${fmtT(d.t, 0.1)} · ${new Date(d.t).toLocaleDateString([], {month:"short",day:"numeric"})}</span><br>` + opts.tipFn(d);
+    tipEl.style.display = "block";
+    const left = Math.min(Math.max(ev.clientX - r.left + 14, 0), r.width - tipEl.offsetWidth - 4);
+    tipEl.style.left = left + "px";
+    tipEl.style.top = "6px";
+  };
+  svg.onpointerleave = () => { tipEl.style.display = "none";
+    const c = cursor(); if (c) c.setAttribute("opacity", "0"); };
+}
+
+// --- lifetime stats ----------------------------------------------------------
+const dTs = ts => ts ? new Date(P(ts)).toLocaleDateString([], {month: "short", day: "numeric"}) : "";
+async function loadStats() {
+  const j = await (await fetch("/api/history/stats")).json();
+  const s = j.stats; if (!s) return null;
+  const days = (P(s.last_ts) - P(s.first_ts)) / 86400e3;
+  const avail = s.covered_s != null && days > 0
+    ? Math.min(100, s.covered_s / (days * 86400) * 100) : null;
+  $("since-note").textContent = "— monitored since "
+    + new Date(P(s.first_ts)).toLocaleDateString([], {month: "long", day: "numeric"})
+    + " (" + Math.floor(days) + " days, " + Number(s.samples).toLocaleString() + " samples)";
+  const cards = [
+    ["energy drawn", fmtWh(s.wh_out), "lifetime consumption", null],
+    ["energy charged", fmtWh(s.wh_in), "lifetime intake", null],
+    ["deepest discharge", s.deepest_soc != null ? Math.round(s.deepest_soc) + "%" : "—",
+      dTs(s.deepest_soc_ts), s.deepest_soc != null && s.deepest_soc < 20 ? YLW : null],
+    ["peak load", s.peak_out_w != null ? Math.round(-s.peak_out_w) + " W" : "—", dTs(s.peak_out_ts), null],
+    ["peak charge", s.peak_in_w != null ? Math.round(s.peak_in_w) + " W" : "—", dTs(s.peak_in_ts), null],
+    ["coldest cell", s.coldest_c != null ? Math.round(s.coldest_c) + " °C" : "—", dTs(s.coldest_ts), null],
+    ["hottest cell", s.hottest_c != null ? Math.round(s.hottest_c) + " °C" : "—", dTs(s.hottest_ts), null],
+    ["worst imbalance", s.worst_delta_v != null ? Math.round(s.worst_delta_v * 1000) + " mV" : "—",
+      dTs(s.worst_delta_v_ts), null],
+    ["telemetry uptime", avail != null ? avail.toFixed(1) + "%" : "—", "of elapsed time", null],
+  ];
+  $("cards").innerHTML = cards.map(([k, v, d, col]) =>
+    `<div class="card"><div class="ck">${k}</div>
+     <div class="cv"${col ? ` style="color:${col}"` : ""}>${v}</div>
+     <div class="cd">${d || ""}</div></div>`).join("");
+  return s;
+}
+
+// --- range explorer -----------------------------------------------------------
+let firstTs = null;
+function bucketFor(hours) {
+  const target = hours * 3600 / 450;   // ~450 buckets on screen
+  for (const b of [60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 43200, 86400])
+    if (target <= b) return b;
+  return 86400;
+}
+async function loadSeries(hours, before) {
+  const b = bucketFor(hours);
+  let url = `/api/history/series?hours=${hours}&bucket_s=${b}`;
+  if (before) url += `&before=${encodeURIComponent(before)}`;
+  const j = await (await fetch(url)).json();
+  const rows = (j.series || []).map(r => ({
+    t: P(r.bucket), n: r.n,
+    p_avg: r.p_avg, p_min: r.p_min, p_max: r.p_max,
+    soc_a: r.soc_a, soc_b: r.soc_b, t_a: r.t_a, t_b: r.t_b,
+    dv_a: r.dv_a != null ? r.dv_a * 1000 : null,
+    dv_b: r.dv_b != null ? r.dv_b * 1000 : null,
+  }));
+  chart("ch-p", "tip-p", rows, [
+    {kind: "band", lo: "p_min", hi: "p_max", color: GRN},
+    {key: "p_avg", color: GRN},
+  ], {zero: true, unit: " W", tipFn: d =>
+      `avg <b>${fmt(d.p_avg, " W")}</b> · range ${fmt(d.p_min)}…${fmt(d.p_max, " W")}`});
+  chart("ch-soc", "tip-soc", rows, [
+    {key: "soc_a", color: BLU}, {key: "soc_b", color: VIO},
+  ], {unit: "%", tipFn: d =>
+      `A <b style="color:${BLU}">${fmt(d.soc_a, "%")}</b> · B <b style="color:${VIO}">${fmt(d.soc_b, "%")}</b>`});
+  chart("ch-t", "tip-t", rows, [
+    {key: "t_a", color: BLU}, {key: "t_b", color: VIO},
+  ], {unit: "°", tipFn: d =>
+      `A <b style="color:${BLU}">${fmt(d.t_a, "°")}</b> · B <b style="color:${VIO}">${fmt(d.t_b, "°")}</b>`});
+  chart("ch-dv", "tip-dv", rows, [
+    {key: "dv_a", color: BLU}, {key: "dv_b", color: VIO},
+  ], {zero: true, unit: " mV", tipFn: d =>
+      `A <b style="color:${BLU}">${fmt(d.dv_a, " mV")}</b> · B <b style="color:${VIO}">${fmt(d.dv_b, " mV")}</b>`});
+  $("explorer-note").textContent = rows.length
+    ? `${rows.length} slices of ${b >= 3600 ? (b / 3600) + " h" : (b / 60) + " min"} each`
+    : "";
+  return rows;
+}
+
+// --- reliability ---------------------------------------------------------------
+async function loadGaps(hours, before) {
+  const now = before ? P(before) : Date.now();
+  const t0 = now - hours * 3600e3;
+  // The endpoint windows back from the server's NOW — when zoomed to a past
+  // day, widen the fetch so it still reaches t0.
+  const fetchHours = Math.max(hours, (Date.now() - t0) / 3.6e6);
+  const j = await (await fetch(`/api/history/gaps?hours=${fetchHours}`)).json();
+  const gaps = (j.gaps || [])
+    .map(g => ({s: P(g.gap_start), e: P(g.gap_end), d: g.duration_s, cls: g.classification}))
+    .filter(g => g.e > t0 && g.s < now);
+  const totalGap = gaps.reduce((a, g) => a + Math.min(g.e, now) - Math.max(g.s, t0), 0);
+  const avail = 100 * (1 - totalGap / (now - t0));
+  const badge = $("avail");
+  badge.textContent = avail.toFixed(2) + "% available";
+  badge.className = "avail-badge" + (avail < 99 ? " warn" : "");
+  const W = 900, H = 26;
+  let el = `<rect x="0" y="8" width="${W}" height="10" rx="5" fill="rgba(63,185,80,.25)"/>`;
+  for (const g of gaps) {
+    const x1 = Math.max(0, (Math.max(g.s, t0) - t0) / (now - t0) * W);
+    const x2 = Math.min(W, (Math.min(g.e, now) - t0) / (now - t0) * W);
+    el += `<rect x="${x1}" y="8" width="${Math.max(1.5, x2 - x1)}" height="10" fill="${RED}"/>`;
+  }
+  $("ch-rel").innerHTML = el;
+  $("gaps-box").innerHTML = !gaps.length
+    ? `<div class="hint" style="margin-top:8px">no telemetry gaps over 5 minutes in this range 🎉</div>`
+    : `<table class="gaps"><thead><tr><th>started</th><th>lasted</th><th>diagnosed as</th></tr></thead><tbody>`
+      + gaps.slice(0, 12).map(g =>
+        `<tr><td>${new Date(g.s).toLocaleString([], {month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}</td>`
+        + `<td>${fmtDur(g.d)}</td>`
+        + `<td class="cls">${g.cls || "<span style='color:var(--dim)'>no diagnosis recorded</span>"}</td></tr>`).join("")
+      + `</tbody></table>`
+      + (gaps.length > 12 ? `<div class="hint">…and ${gaps.length - 12} more</div>` : "");
+}
+
+// --- daily ledger ----------------------------------------------------------------
+async function loadDaily() {
+  const j = await (await fetch("/api/history/daily?days=30")).json();
+  const days = j.days || [];
+  const svg = $("ch-daily"), tipEl = $("tip-daily");
+  if (!days.length) { svg.innerHTML = ""; return; }
+  const W = 900, H = 170, PADT = 8, PADB = 26, PADR = 44;
+  const maxWh = Math.max(1, ...days.map(d => Math.max(d.wh_in || 0, d.wh_out || 0)));
+  const zero = PADT + (H - PADT - PADB) / 2, half = (H - PADT - PADB) / 2;
+  const bw = Math.min(26, (W - PADR) / days.length * 0.72);
+  let el = `<line x1="0" y1="${zero}" x2="${W - PADR}" y2="${zero}" stroke="${GRID}"/>`;
+  el += `<text x="${W - 3}" y="${PADT + 8}" fill="${DIMC}" font-size="10" text-anchor="end" font-family="ui-monospace,monospace">${fmtWh(maxWh)}</text>`;
+  el += `<text x="${W - 3}" y="${H - PADB}" fill="${DIMC}" font-size="10" text-anchor="end" font-family="ui-monospace,monospace">${fmtWh(maxWh)}</text>`;
+  days.forEach((d, i) => {
+    const xc = (i + 0.5) / days.length * (W - PADR);
+    const hIn = (d.wh_in || 0) / maxWh * half, hOut = (d.wh_out || 0) / maxWh * half;
+    el += `<g class="daybar" data-i="${i}" style="cursor:pointer">`;
+    el += `<rect x="${xc - bw/2}" y="${PADT}" width="${bw}" height="${H - PADT - PADB}" fill="transparent"/>`;
+    if (hIn > 0.5)  el += `<rect x="${xc - bw/2}" y="${zero - hIn}" width="${bw}" height="${hIn}" rx="2" fill="${GRN}" opacity="0.85"/>`;
+    if (hOut > 0.5) el += `<rect x="${xc - bw/2}" y="${zero}" width="${bw}" height="${hOut}" rx="2" fill="${YLW}" opacity="0.85"/>`;
+    if (d.soc_min != null) {
+      el += `<circle cx="${xc}" cy="${H - PADB + 8}" r="3" fill="${
+        d.soc_min < 20 ? RED : d.soc_min < 50 ? YLW : BLU}" opacity="0.9"/>`;
+    }
+    el += `</g>`;
+    const dd = new Date(d.day + "T12:00:00");
+    if (i % Math.ceil(days.length / 10) === 0)
+      el += `<text x="${xc}" y="${H - 2}" fill="${DIMC}" font-size="9.5" text-anchor="middle" font-family="ui-monospace,monospace">${dd.toLocaleDateString([], {month:"numeric",day:"numeric"})}</text>`;
+  });
+  svg.innerHTML = el;
+  svg.querySelectorAll(".daybar").forEach(g => {
+    const d = days[+g.dataset.i];
+    g.addEventListener("pointerenter", ev => {
+      const r = svg.getBoundingClientRect();
+      const net = (d.wh_in || 0) - (d.wh_out || 0);
+      const up = d.covered_s != null ? (d.covered_s / 864).toFixed(0) : null;
+      tipEl.innerHTML = `<span class="tt">${new Date(d.day + "T12:00:00").toLocaleDateString([], {weekday:"short",month:"short",day:"numeric"})}</span><br>`
+        + `in <b style="color:${GRN}">${fmtWh(d.wh_in)}</b> · out <b style="color:${YLW}">${fmtWh(d.wh_out)}</b> · net ${net >= 0 ? "+" : ""}${fmtWh(net)}<br>`
+        + `SOC ${d.soc_min != null ? Math.round(d.soc_min) : "—"}–${d.soc_max != null ? Math.round(d.soc_max) : "—"}% · `
+        + `${d.t_min != null ? Math.round(d.t_min) : "—"}–${d.t_max != null ? Math.round(d.t_max) : "—"}°C`
+        + (up != null ? ` · ${Math.min(100, up)}% coverage` : "");
+      tipEl.style.display = "block";
+      const left = Math.min(Math.max(ev.clientX - r.left + 12, 0), r.width - tipEl.offsetWidth - 4);
+      tipEl.style.left = left + "px"; tipEl.style.top = "4px";
+    });
+    g.addEventListener("pointerleave", () => tipEl.style.display = "none");
+    g.addEventListener("click", () => zoomToDay(d.day));
+  });
+}
+
+// --- day profile ------------------------------------------------------------------
+async function loadProfile() {
+  const j = await (await fetch("/api/history/profile?days=14")).json();
+  const prof = j.profile || [];
+  const svg = $("ch-prof"), tipEl = $("tip-prof");
+  if (!prof.length) { svg.innerHTML = ""; return; }
+  const W = 900, H = 140, PADT = 8, PADB = 18, PADR = 44;
+  const hi = Math.max(1, ...prof.map(p => p.p_in || 0));
+  const lo = Math.min(-1, ...prof.map(p => p.p_out || 0));
+  const Y = v => PADT + (1 - (v - lo) / (hi - lo)) * (H - PADT - PADB);
+  const bw = (W - PADR) / 24 * 0.68;
+  let el = `<line x1="0" y1="${Y(0)}" x2="${W - PADR}" y2="${Y(0)}" stroke="${GRID}"/>`;
+  el += `<text x="${W - 3}" y="${PADT + 8}" fill="${DIMC}" font-size="10" text-anchor="end" font-family="ui-monospace,monospace">${fmt(hi, " W")}</text>`;
+  el += `<text x="${W - 3}" y="${H - PADB}" fill="${DIMC}" font-size="10" text-anchor="end" font-family="ui-monospace,monospace">${fmt(lo, " W")}</text>`;
+  for (const p of prof) {
+    const xc = (p.hour + 0.5) / 24 * (W - PADR);
+    if (p.p_in > 0)
+      el += `<rect class="pb" data-h="${p.hour}" x="${xc - bw/2}" y="${Y(p.p_in)}" width="${bw}" height="${Y(0) - Y(p.p_in)}" rx="2" fill="${GRN}" opacity="0.8"/>`;
+    if (p.p_out < 0)
+      el += `<rect class="pb" data-h="${p.hour}" x="${xc - bw/2}" y="${Y(0)}" width="${bw}" height="${Y(p.p_out) - Y(0)}" rx="2" fill="${YLW}" opacity="0.8"/>`;
+    if (p.hour % 3 === 0)
+      el += `<text x="${xc}" y="${H - 4}" fill="${DIMC}" font-size="10" text-anchor="middle" font-family="ui-monospace,monospace">${String(p.hour).padStart(2, "0")}</text>`;
+  }
+  svg.innerHTML = el;
+  const byHour = Object.fromEntries(prof.map(p => [p.hour, p]));
+  svg.onpointermove = ev => {
+    const r = svg.getBoundingClientRect();
+    const hh = Math.max(0, Math.min(23, Math.floor((ev.clientX - r.left) / r.width * W / ((W - PADR) / 24))));
+    const p = byHour[hh]; if (!p) return;
+    tipEl.innerHTML = `<span class="tt">${String(hh).padStart(2, "0")}:00–${String((hh + 1) % 24).padStart(2, "0")}:00</span><br>`
+      + `charging avg <b style="color:${GRN}">${fmt(p.p_in, " W")}</b><br>`
+      + `drawing avg <b style="color:${YLW}">${fmt(-p.p_out, " W")}</b><br>`
+      + `net <b>${fmt(p.p_avg, " W")}</b>`;
+    tipEl.style.display = "block";
+    const left = Math.min(Math.max(ev.clientX - r.left + 12, 0), r.width - tipEl.offsetWidth - 4);
+    tipEl.style.left = left + "px"; tipEl.style.top = "4px";
+  };
+  svg.onpointerleave = () => tipEl.style.display = "none";
+}
+
+// --- range switching ----------------------------------------------------------------
+let curHours = 168, curBefore = null;
+function setChips(hoursOrCustom) {
+  document.querySelectorAll("#chips .chip").forEach(c => c.classList.remove("on"));
+  const cc = $("chip-custom");
+  if (hoursOrCustom === "custom") { cc.classList.add("shown", "on"); return; }
+  cc.classList.remove("shown", "on");
+  document.querySelectorAll("#chips .chip[data-h]").forEach(c => {
+    if (c.dataset.h === String(hoursOrCustom)) c.classList.add("on");
+  });
+}
+async function setRange(hours, before, chipKey) {
+  curHours = hours; curBefore = before || null;
+  setChips(chipKey != null ? chipKey : hours);
+  await Promise.all([loadSeries(hours, curBefore), loadGaps(hours, curBefore)]);
+}
+function zoomToDay(dayStr) {
+  // Local midnight → next local midnight, sent as ISO.
+  const start = new Date(dayStr + "T00:00:00");
+  const end = new Date(start.getTime() + 24 * 3600e3);
+  $("chip-custom").textContent = start.toLocaleDateString([], {month: "short", day: "numeric"});
+  setRange(24, end.toISOString(), "custom");
+  $("ch-p").scrollIntoView({behavior: "smooth", block: "center"});
+}
+document.querySelectorAll("#chips .chip[data-h]").forEach(c => {
+  c.addEventListener("click", async () => {
+    const h = c.dataset.h;
+    if (h === "all") {
+      if (!firstTs) return;
+      const hours = Math.max(24, (Date.now() - P(firstTs)) / 3.6e6);
+      setRange(hours, null, "all");
+      return;
+    }
+    setRange(parseFloat(h), null);
+  });
+});
+
+// --- boot -----------------------------------------------------------------------------
+(async () => {
+  const s = await loadStats().catch(e => (console.error(e), null));
+  if (s) firstTs = s.first_ts;
+  setRange(168, null);
+  loadDaily().catch(console.error);
+  loadProfile().catch(console.error);
+})();
+</script>
+</body>
+</html>

@@ -12,7 +12,11 @@ Endpoints:
     GET  /api/sources      — list of source_ids that have uploaded.
     GET  /api/readings     — query rows; supports ?source_id=…&limit=… (defaults sensible).
     GET  /api/latest       — single most-recent row.
+    GET  /api/history/*    — bucketed series, daily energy ledger, hour-of-day
+                             profile, outage gaps, lifetime stats (see the
+                             history section below).
     GET  /                 — browser dashboard (static HTML; polls /api/readings).
+    GET  /history          — historical explorer (static HTML; /api/history/*).
 
 Env vars: see cloud/server/config.py.
 """
@@ -22,6 +26,7 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -281,6 +286,139 @@ async def api_latest(
     return {"latest": r}
 
 
+# --- history / analytics ----------------------------------------------------
+# Read-only aggregate endpoints behind the /history page. All follow the
+# /api/events pattern: real SQL lives on AsyncpgReadingsDAO; with any other
+# DAO (tests) they return well-formed empty shapes.
+
+def _iso_z(v):
+    """Datetime/date → wire string; passthrough for everything else."""
+    if hasattr(v, "isoformat"):
+        s = v.isoformat()
+        return s.replace("+00:00", "Z") if "T" in s else s
+    return v
+
+
+def _rows_out(rows: list[dict]) -> list[dict]:
+    return [{k: _iso_z(v) for k, v in r.items()} for r in rows]
+
+
+async def _resolve_source(dao: ReadingsDAO, source_id: Optional[str]) -> Optional[str]:
+    if source_id:
+        return source_id
+    rows = await dao.recent(None, 1)
+    return rows[0].get("source_id") if rows else None
+
+
+@app.get("/api/history/series")
+async def api_history_series(
+    source_id: Optional[str] = Query(default=None),
+    hours: float = Query(default=24.0, gt=0, le=24 * 400),
+    bucket_s: int = Query(default=300, ge=10, le=86400),
+    before: Optional[str] = Query(default=None,
+                                  description="ISO end of range (default now)"),
+    dao: ReadingsDAO = Depends(get_dao),
+) -> dict:
+    """Bucketed min/avg/max series for the range explorer. `before` lets the
+    page zoom to a past window (e.g. one day clicked in the energy ledger)."""
+    until = datetime.now(timezone.utc)
+    if before:
+        try:
+            until = datetime.fromisoformat(before.replace("Z", "+00:00"))
+            if until.tzinfo is None:
+                until = until.replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(422, "before: not an ISO datetime")
+    src = await _resolve_source(dao, source_id)
+    if src is None or not isinstance(dao, AsyncpgReadingsDAO):
+        return {"series": [], "bucket_s": bucket_s}
+    since = until - timedelta(hours=hours)
+    rows = await dao.history_series(src, since, until, bucket_s)
+    return {"series": _rows_out(rows), "bucket_s": bucket_s, "source_id": src}
+
+
+@app.get("/api/history/daily")
+async def api_history_daily(
+    source_id: Optional[str] = Query(default=None),
+    days: int = Query(default=30, ge=1, le=400),
+    dao: ReadingsDAO = Depends(get_dao),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    """Per-local-day energy ledger (Wh in/out, SOC + temp range, coverage)."""
+    src = await _resolve_source(dao, source_id)
+    if src is None or not isinstance(dao, AsyncpgReadingsDAO):
+        return {"days": [], "tz": settings.display_tz}
+    rows = await dao.history_daily(src, days, settings.display_tz)
+    return {"days": _rows_out(rows), "tz": settings.display_tz, "source_id": src}
+
+
+@app.get("/api/history/profile")
+async def api_history_profile(
+    source_id: Optional[str] = Query(default=None),
+    days: int = Query(default=14, ge=1, le=400),
+    dao: ReadingsDAO = Depends(get_dao),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    """Average power by local hour-of-day — the pack's daily rhythm."""
+    src = await _resolve_source(dao, source_id)
+    if src is None or not isinstance(dao, AsyncpgReadingsDAO):
+        return {"profile": [], "tz": settings.display_tz}
+    rows = await dao.history_profile(src, days, settings.display_tz)
+    return {"profile": _rows_out(rows), "tz": settings.display_tz, "source_id": src}
+
+
+@app.get("/api/history/gaps")
+async def api_history_gaps(
+    source_id: Optional[str] = Query(default=None),
+    hours: float = Query(default=24.0 * 30, gt=0, le=24 * 400),
+    min_gap_s: float = Query(default=300.0, ge=60.0),
+    dao: ReadingsDAO = Depends(get_dao),
+) -> dict:
+    """Telemetry outages in the window, each decorated with the wedge
+    classification the reader recorded nearest the gap start (if any) —
+    so the timeline can say WHY, not just when."""
+    src = await _resolve_source(dao, source_id)
+    if src is None or not isinstance(dao, AsyncpgReadingsDAO):
+        return {"gaps": []}
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    gaps = await dao.history_gaps(src, since, min_gap_s)
+    wedges = await dao.recent_events(src, "wedge_snapshot", since, limit=500)
+    for g in gaps:
+        cls = None
+        for w in wedges:
+            wts = w.get("ts")
+            try:
+                wdt = datetime.fromisoformat(str(wts).replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            # Wedge evidence may land shortly after readings resume (upload
+            # latency), so accept a 15-min tail past the gap end.
+            if g["gap_start"] <= wdt and (
+                g["gap_end"] is None
+                or wdt <= g["gap_end"] + timedelta(minutes=15)
+            ):
+                cls = (w.get("data") or {}).get("classification")
+                break
+        g["classification"] = cls
+    return {"gaps": _rows_out(gaps), "source_id": src}
+
+
+@app.get("/api/history/stats")
+async def api_history_stats(
+    source_id: Optional[str] = Query(default=None),
+    dao: ReadingsDAO = Depends(get_dao),
+) -> dict:
+    """Lifetime records: totals and extremes with their timestamps."""
+    src = await _resolve_source(dao, source_id)
+    if src is None or not isinstance(dao, AsyncpgReadingsDAO):
+        return {"stats": None}
+    stats = await dao.history_stats(src)
+    return {
+        "stats": {k: _iso_z(v) for k, v in stats.items()} or None,
+        "source_id": src,
+    }
+
+
 # --- dashboard ------------------------------------------------------------
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -291,3 +429,8 @@ if STATIC_DIR.exists():
 @app.get("/")
 async def root() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/history")
+async def history_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "history.html")
