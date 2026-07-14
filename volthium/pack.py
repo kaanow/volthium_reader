@@ -1072,6 +1072,11 @@ def _classify_wedge(
         return "kernel_usb_reset_chip_hung"
     if "tx timeout" in dm or "Frame reassembly failed" in dm:
         return "chip_firmware_hci_unresponsive"
+    # FM-11: scans complete but hear zero advertisements from any device —
+    # the chip's RX path died while its command path still answers, so no
+    # dmesg noise and no errors. The reason string carries the diagnosis.
+    if "receiver deaf" in reason:
+        return "adapter_rx_deaf"
     if ub500_present is False:
         return "ub500_dongle_missing_from_usb"
     # Direct kernel-vs-D-Bus comparison — the 2026-07-12/13 signature: the
@@ -1417,7 +1422,7 @@ async def read_battery(address: str, *, timeout: float = 20.0) -> BatteryReading
 
 async def _discover_addresses(
     addresses: set[str], *, timeout: float = 20.0
-) -> dict[str, BLEDevice]:
+) -> tuple[dict[str, BLEDevice], int]:
     """Resolve several addresses to BLEDevices in a *single* discovery scan.
 
     BlueZ permits only one discovery session per adapter, so two concurrent
@@ -1425,16 +1430,25 @@ async def _discover_addresses(
     (CoreBluetooth tolerates it, which is why this only bites on Linux/Pi).
     One shared scan sidesteps that and returns as soon as every target is
     seen, rather than waiting the full timeout.
+
+    Returns (found, ambient) where `ambient` counts advertisement callbacks
+    from ANY device, targets or not. A scan that completes with ambient == 0
+    heard literally nothing — the FM-11 deaf-receiver signature (the dongle's
+    RX path died after a firmware hang while its command path kept answering,
+    so nothing ever throws). Callers use it to escalate the recovery ladder.
     """
     wanted = {a.upper() for a in addresses}
     found: dict[str, BLEDevice] = {}
     rssi: dict[str, int] = {}
     names: dict[str, str] = {}
     packets: dict[str, int] = {}
+    ambient = 0
     done = asyncio.Event()
     t0 = time.monotonic()
 
     def cb(dev: BLEDevice, adv) -> None:
+        nonlocal ambient
+        ambient += 1
         key = dev.address.upper()
         if key not in wanted:
             return
@@ -1469,9 +1483,10 @@ async def _discover_addresses(
             rssi=rssi.get(key),
             adv_name=names.get(key),
             adv_packets=packets.get(key, 0),
+            ambient_adv=ambient,
             scan_s=scan_s,
         )
-    return found
+    return found, ambient
 
 
 def _missing_reading(address: str) -> BatteryReading:
@@ -1504,7 +1519,7 @@ async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackR
     # counter once per read_pack call so the cap counts pack cycles, not batteries.
     capture_was_active = _capture_active()
     try:
-        devs = await _discover_addresses({addr_a, addr_b}, timeout=timeout)
+        devs, ambient = await _discover_addresses({addr_a, addr_b}, timeout=timeout)
     except Exception as exc:  # noqa: BLE001 — log then re-raise; keeps FM-3 self-diagnosing
         # A discovery that throws (classically org.bluez.Error.InProgress — a
         # stuck adapter-level discovery session, FM-3) never reaches the per-
@@ -1519,6 +1534,26 @@ async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackR
             "needs adapter reset, not a process restart)",
         )
         raise DiscoveryWedgeError(f"{type(exc).__name__}: {exc}") from exc
+    if not devs and ambient == 0:
+        # FM-11: the scan ran without error yet heard NOTHING — not the
+        # batteries, not the neighbors' gadgets, nothing. A live 2.4 GHz
+        # environment is never actually silent for a whole scan window, so
+        # this means the receiver is deaf (observed 2026-07-14: RTL8761B
+        # firmware hang at 02:33 left the command path answering but RX
+        # dead — 52 min of "neither battery found" that no ladder rung
+        # caught because nothing threw). Raise the wedge error so the
+        # standard ladder escalates: HCI reset → bluetoothd → USB replug
+        # (the cure) → process restart.
+        _event(
+            "scan_deaf",
+            note="scan completed but heard zero advertisements from any "
+            "device — BLE receiver presumed deaf (FM-11)",
+            scan_timeout_s=timeout,
+        )
+        raise DiscoveryWedgeError(
+            "scan heard zero advertisements from any device — "
+            "BLE receiver deaf (FM-11)"
+        )
     readings: dict[str, Optional[BatteryReading]] = {}
     for addr in (addr_a, addr_b):
         dev = devs.get(addr.upper())

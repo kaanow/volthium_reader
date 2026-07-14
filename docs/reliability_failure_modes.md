@@ -329,6 +329,35 @@ Consequences:
   again, the monthly reboot or a manual reboot is the backstop. The Pi 4B
   swap remains the real fix.
 
+## FM-11 — Dongle firmware hang leaves RX dead but command path alive → reader scans silence forever
+
+- **Signature:** `pack.log` loops on `neither battery found in scan` with NO
+  BLE errors; scans complete normally; `hciconfig` UP RUNNING; bluetoothd
+  lists the adapter. `scan_result` events show `seen=false, adv_packets=0`
+  for both targets. The tell: a 15 s open scan hears **zero devices of any
+  kind** — a live 2.4 GHz environment is never that quiet. dmesg shows the
+  FM-9 `0x2042 tx timeout` signature at the original hang, but the chip
+  "recovered" enough to answer commands.
+- **First seen:** 2026-07-14. Chip hung at 02:33 (kernel messages), limped
+  along, then at 11:28 went fully deaf — 52 min of readings outage. Nothing
+  escalated: the recovery ladder is driven by `DiscoveryWedgeError`, and a
+  deaf receiver never throws. Manual USB replug fixed it in seconds (same
+  cure as FM-9).
+- **Root cause:** RTL8761B firmware hang variant — RX path dead, HCI command
+  path alive, so every health probe passes while the radio hears nothing.
+- **Fix shipped (2026-07-14):** `_discover_addresses` counts advertisement
+  callbacks from ANY device (`ambient`); `read_pack` treats a zero-ambient
+  scan with no targets as `DiscoveryWedgeError` ("receiver deaf"), which
+  drives the standard ladder — HCI reset → bluetoothd restart → **USB replug
+  (the cure, ~rung 3, ≈3-4 min after onset)** → process restart. New
+  classification `adapter_rx_deaf` + server-side alert hint. `scan_result`
+  events now carry `ambient_adv` so receiver health is a queryable time
+  series.
+- **Watch for:** a genuinely RF-silent site would false-positive — harmless
+  here (the ladder rungs are no-ops on a healthy stack, and this site always
+  has ambient chatter), but revisit if the reader is ever deployed somewhere
+  truly quiet.
+
 ## FM-10 — Crash-looping logger never seals event segments → outage ships zero diagnostics
 
 - **Signature:** hours-long outage on the dashboard; `/api/events` on Railway

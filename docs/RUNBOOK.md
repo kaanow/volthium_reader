@@ -262,6 +262,7 @@ Common classifications and what they mean:
 | `power_under_voltage_active` | Pi throttled register shows active undervoltage | PSU / cable issue. Check the power supply. |
 | `bluez_discovery_state_stuck` | FM-3 classic; bluetoothd's Discovering flag stuck | Recovery ladder Level 2 (bluetoothd restart) usually clears this |
 | `bluez_adapter_object_missing` | Kernel sees the adapter but bluetoothd never initialized it (the post-USB-reset state behind the 2026-07-12/13 outage). No HCI/bluetoothd reset can fix it | Reader auto-replugs (L3) — the only remote cure — and reads on the fallback meanwhile. If it persists, physical reseat. |
+| `adapter_rx_deaf` | Dongle answers commands but its receiver is dead (FM-11) — scans succeed and hear literally nothing | Reader detects zero-ambient scans and auto-replugs (L3). If repeated, the dongle is degrading. |
 | `ub500_dongle_missing_from_usb` | lsusb doesn't see the dongle | Physical unplug — plug it back in. Fallback keeps data flowing meanwhile |
 | `bms_peer_not_responding` | Adapter fine, BMS not answering | RF / BMS-side issue, not our stack. Usually self-resolves. |
 

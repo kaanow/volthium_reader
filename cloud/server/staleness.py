@@ -72,6 +72,10 @@ _CLASSIFICATION_HINTS = {
         "Dongle firmware unresponsive — reader will escalate to a USB "
         "replug on its own."
     ),
+    "adapter_rx_deaf": (
+        "Dongle scans but hears nothing (RX died after a firmware hang) — "
+        "reader auto-replugs it (recovery L3); data resumes within minutes."
+    ),
     "ub500_dongle_missing_from_usb": (
         "USB dongle is GONE from the bus — needs a physical reseat at the Pi."
     ),
