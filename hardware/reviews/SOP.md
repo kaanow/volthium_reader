@@ -120,15 +120,26 @@ paste stencil** for leadless/bottom-terminated parts and modules. Rules:
   surprise at fab. (Canonical: decisions **D33**.)
 
 ### G5 — Spec-consistency sweep (run mechanically, not by noticing)
-After **any** decision that supersedes a part / value / enclosure / connector /
-net name / dimension, build an alternation of the **superseded tokens** and
-`grep -rniE` it across the whole repo (quote `--include='*.md'` so zsh doesn't
-expand it; exclude `/archive/`). Classify every hit: (a) intentional `was→now`
-history — leave; (b) a generator/output a later CP owns — note, don't fix; (c) a
-live contradiction in a current doc — fix now. Report a clean bill or the exact
-remaining list. **Opportunistic discovery is the failure mode; the mechanical
-sweep is the gate.** Also cross-check each CP doc against the decisions log and
-the actual chosen parts — internal drift is as real a defect as a wrong value.
+**Primary instrument (D35):** run
+`python3 hardware/reviews/tools/doc_consistency_check.py` — it carries an
+**append-only registry of every token this project has ever superseded**
+and re-checks all of them on every run, plus executes D32 as code
+(manifest ↔ PDFs on disk ↔ canonical BOM). Exit 0 required **before every
+semaphore flip**. When a decision supersedes a part / value / policy
+token, **the same commit adds it to the tool's SUPERSEDED registry** —
+that is what makes the gate persistent instead of memory-dependent.
+
+The manual sweep remains for tokens not yet in the registry: build an
+alternation of the superseded tokens and `grep -rniE` across the repo
+(quote `--include='*.md'`; exclude `/archive/`). Classify every hit:
+(a) intentional `was→now` history — leave (marked with a history word the
+tool recognizes); (b) a generator/output a later CP owns — note, don't
+fix; (c) a live contradiction — fix now. **Opportunistic discovery is the
+failure mode; the mechanical sweep is the gate.** Also cross-check each
+CP doc against the decisions log and the actual chosen parts — internal
+drift is as real a defect as a wrong value. (Origin: the 2026-07-14 user
+audit — EG1218/680 Ω bias staleness that survived 20 review iterations of
+remember-and-grep.)
 
 ### G6 — Documentation readability (CP2 onward)
 Schematic/PDF readability is a first-class deliverable. **Inspect at high

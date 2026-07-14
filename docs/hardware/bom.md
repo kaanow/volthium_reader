@@ -1,10 +1,15 @@
 # Bill of Materials
 
-> This is the **procurement / shopping** view (distributor methodology +
-> substitution notes). For the **complete per-reference-designator
-> engineering BOM**, see [`hardware/layout/cp1_bom.md`](../../hardware/layout/cp1_bom.md).
-> Both are reconciled to D19/DR-6/DR-7; a single merged BOM lands at CP2
-> when the schematic regen sets final reference designators.
+> **NON-NORMATIVE (D35, 2026-07-14).** The canonical BOM is
+> [`hardware/layout/cp1_bom.md`](../../hardware/layout/cp1_bom.md); on any
+> disagreement, that file wins. This procurement/shopping view (proto
+> alternates, sourcing methodology) has drifted before — a 2026-07-14
+> audit caught it still listing the superseded EG1218 for BTN1, and a
+> phantom 680 Ω battery-side bias row that D19/DR-4b had removed (both
+> corrected in that audit). Drift is now mechanically checked by
+> `hardware/reviews/tools/doc_consistency_check.py` before every
+> handoff. At CP2 the BOM becomes **generated** from KiCad schematic
+> fields and this file reduces to a pointer.
 
 > **How to read the distributor columns:**
 >
@@ -97,7 +102,7 @@ distributor PN behind a search URL may change.
 |-----------|-------------------------------------------------|---------|-----|-------------|---------|--------|--------|-------|
 | U3        | **TI THVD1400DR** 3.3–5.5 V half-duplex, 500 kbps, full fail-safe RX | SOIC-8  | 1   | both        | [DK 296-THVD1400DRTR-ND](https://www.digikey.com/en/products/detail/texas-instruments/THVD1400DR/9483064) ✓ | [Mouser 595-THVD1400DR](https://www.mouser.com/c/?q=THVD1400DR) | $1.38  | **D34/DR-25 (revised iter-10 F08):** the iter-8 first cut picked ISL3175EIBZ but its 12 µA max shutdown Iq (vs 10 nA *typical* I quoted) failed max-to-max. THVD1400 has **1 µA max shutdown** (12× better), datasheet-guaranteed internal DE pull-DOWN + /RE pull-UP → default-safe without external resistors. Full fail-safe RX (open/short/idle bus → RO HIGH). SN75176 SOIC-8 pinout (drop-in). TI Active, DK+Mouser **35016** stock. |
 | R1        | 120 Ω 1 % RS-485 termination (e.g. Vishay CRCW0805120RFKEA) | 0805    | 1   | both        | [search CRCW0805120RFKEA](https://www.digikey.com/en/products/result?keywords=CRCW0805120RFKEA) | [Mouser](https://www.mouser.com/c/?q=CRCW0805120RFKEA) | $0.10  | Bus terminator. Generic spec — any compliant 0805 120 Ω 1 % works. |
-| R2, R3    | 680 Ω 1 % bias (e.g. Vishay CRCW0805680RFKEA)   | 0805    | 2   | PCB         | [search CRCW0805680RFKEA](https://www.digikey.com/en/products/result?keywords=CRCW0805680RFKEA) | [Mouser](https://www.mouser.com/c/?q=CRCW0805680RFKEA) | $0.10  | Idle-state bias to A/B. |
+| —         | *(no battery-side idle bias — removed per D19/DR-4b)* | — | 0 | — | — | — | — | Battery 3V3 is always-on; a battery-side bias would draw continuously and blow the ~1 mW hard-cut budget. Bias footprints live on the **display** end and are **DNP by default** (iter-12 F12) — THVD1400 Full Fail-Safe RX needs no bias for idle correctness. |
 | TVS (A/B) | **Littelfuse SMAJ12CA** bidirectional TVS       | SMA     | 1   | PCB         | [DK 762271](https://www.digikey.com/en/products/detail/littelfuse-inc/SMAJ12CA/762271) ✓ | [Mouser](https://www.mouser.com/c/?q=SMAJ12CA) | $0.30  | Surge/ESD on the RS-485 A/B pair (schematic refdes TVS2). |
 | TVS3      | **Littelfuse SMAJ15A** unidirectional TVS (V12_CAT5E↔GND) | SMA | 1 | PCB | [search SMAJ15A](https://www.digikey.com/en/products/result?keywords=SMAJ15A) | [Mouser](https://www.mouser.com/c/?q=SMAJ15A) | $0.30 | **DR-15:** clamps surges on the long in-wall 12 V Cat5e pair at the **battery** end. Matches the display-end SMAJ15A so **both** ends of the exposed pair are protected (was: display-end only). Zero static draw. |
 
@@ -113,7 +118,7 @@ distributor PN behind a search URL may change.
 | R_uv1,R_uv2 | UVLO pack divider → U4 SENSE (release-sized R1≈5.16 MΩ/R2≈100 kΩ; trip ~20.0 V / release ~21.7–21.8 V)        | 0805 ×2 | 2 | PCB | [search](https://www.digikey.com/en/products/result?keywords=high+value+0805+resistor) | — | $0.10 | VIT 0.405 V → ~4.6 µA draw at 24 V (D28/D33; F01 polarity + F04 release refinement). |
 | C_ct      | UVLO CT deglitch cap (~tens of ms)                            | 0603    | 1 | PCB | [search](https://www.digikey.com/en/products/result?keywords=0603+X7R+cap) | — | $0.05 | Rejects momentary sags (D28). |
 | R5, R6    | 1.2 MΩ / 100 kΩ — 24 V → ~2.25 V sense divider  | 0805 ×2 | 2   | PCB         | [search](https://www.digikey.com/en/products/result?keywords=1.2M+100k+0805+1%25) | [search](https://www.mouser.com/c/?q=1.2M%20100k%200805%201%25) | $0.10  | 24 V sense on ADC1_CH0 (GPIO1). Full charge (29.2 V) → **2.25 V**, inside the ESP ADC linear band (DR-6). High-impedance (~19 µA) for power-first; the 1.2 MΩ top also current-limits a ~53 V surge to ~41 µA. C5 (100 nF) tank. Always-on. |
-| BTN1      | Panel-mount override pushbutton (e.g. E-Switch EG1218) | TH      | 1   | both        | [search](https://www.digikey.com/en/products/result?keywords=EG1218) | [search](https://www.mouser.com/c/?q=EG1218) | $2     | On battery-side enclosure; jumps ULP to wake state. |
+| BTN1      | **E-Switch RP3502MABLK** panel-mount SPST NO momentary pushbutton | Panel-mount | 1   | both        | [EG4527-ND](https://www.digikey.com/en/products/result?keywords=RP3502MABLK) | [612-RP3502MABLK](https://www.mouser.com/c/?q=RP3502MABLK) | $3     | On battery-side enclosure; BTN_OVERRIDE on GPIO7 (RTC-wake). **Δ: was EG1218 — RP3502MA-series stocks better** (COTS sweep; see cp1_bom.md). D-OPEN-13: confirm sealed-cap (IP67) option at ordering. |
 | C8        | 100 nF debounce                                 | 0603    | 1   | PCB         | (as C5) | (as C5) | $0.05  |  |
 
 ### Interconnect / enclosure
@@ -169,7 +174,7 @@ distributor PN behind a search URL may change.
 |-----------|-------------------------------------------------|---------|-----|-------------|---------|--------|--------|-------|
 | U2        | **TI THVD1400DR** (as battery U3)               | SOIC-8  | 1   | both        | (as battery U3) | (as battery U3) | $1.38  | **D34/DR-25 (revised iter-10 F08 + iter-14 F15)** — see battery-side U3 row. Same part, same footprint. Display firmware latches GPIO15 LOW in deep sleep so /RE = 0 (receiver on); wake is the **`ext1` `ESP_EXT1_WAKEUP_ANY_LOW` RTC-GPIO mask** over GPIO12/13/14 (buttons) + GPIO18 (RO), triggered by a master-driven sustained-LOW BREAK — **not** the ESP UART wake API (UART is off in Deep-sleep). |
 | R2        | 120 Ω 1 % termination                           | 0805    | 1   | both        | (as battery R1) | (as battery R1) | $0.10  | RS-485 term |
-| R3, R4    | ~330 Ω idle bias footprints (A→3V3, B→GND) — **DNP by default (iter-12 F12)** | 0805 ×2 | 2 (DNP) | PCB         | (as battery R2) | (as battery R2) | $0.10  | THVD1400 has guaranteed Full Fail-Safe RX; populated bias would draw 4.58 mA × 3.3 V = 15 mW continuously whenever display is powered. Leave footprint, stuff at CP5 bench only if EMI testing reveals need. |
+| R3, R4    | ~330 Ω idle bias footprints (A→3V3, B→GND) — **DNP by default (iter-12 F12)** | 0805 ×2 | 2 (DNP) | PCB         | [search 330Ω 0805 1%](https://www.digikey.com/en/products/result?keywords=330+ohm+0805+1%25) | [search](https://www.mouser.com/c/?q=330%20ohm%200805%201%25) | $0.10  | THVD1400 has guaranteed Full Fail-Safe RX; populated bias would draw 4.58 mA × 3.3 V = 15 mW continuously whenever display is powered. Leave footprint, stuff at CP5 bench only if EMI testing reveals need. |
 | TVS2      | SMAJ12CA                                        | SMA     | 1   | PCB         | (as battery TVS1) | (as battery TVS1) | $0.30  | RS-485 ESD |
 
 ### Buttons + interconnect

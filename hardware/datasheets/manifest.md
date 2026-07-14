@@ -31,10 +31,34 @@ pulled manually. Read + interface-verified per D32.
 | ZXMP6A13FTA | ZXMP6A13FTA.pdf (246K) | digikey | https://www.diodes.com/assets/Datasheets/ZXMP6A13F.pdf | bb474f827be4 |
 | MSTB 2,5/2-ST-5,08 (1757019) | 1757019.pdf (2400K) | manual | user upload 2026-07-01 | d849479aae64 |
 | LCD1 Waveshare 4.2" e-Paper Module (B) | Waveshare-4.2-ePaper-B.pdf (3.9M) | manual | files.waveshare.com (V2 user manual) | 32b126146869 |
+| RP3502MABLK (BTN1 battery override) | RP3502MABLK.pdf (100K) | digikey CDN | https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/4979/RP_3502_datasheet.pdf | 795c575e47eb |
 
 ## Still needed (CP1 datasheet gate)
 
-**None — gate CLOSED 2026-07-01.** Every active BOM part (both boards) has its datasheet on hand and read-verified (D32) — including the non-distributor e-paper module (LCD1, Waveshare manual; 8-pin SPI order VCC/GND/DIN/CLK/CS/DC/RST/BUSY confirmed vs J2).
+**Gate re-opened 2026-07-14 (user audit): the 2026-07-01 "CLOSED — every
+active part" claim was false.** RP3502MABLK (BTN1, swapped in during the
+COTS sweep) had no stored datasheet — now fetched, read, and verified:
+SPST NO momentary (function code A = OFF-(ON)), metal body, 12.7 mm
+panel hole / 1/2"-28 UNEF, −20…+65 °C, solder-lug terminals. **Two
+read-flags recorded:** (a) contact rating is 3 A @ 120 VAC — an AC power
+switch with **no low-level/dry-circuit DC rating**; our 3.3 V / ~3 µA
+(1 MΩ pull-up) use is dry-circuit, mitigated in practice by the 100 nF
+debounce discharge on each press; acceptable at qty 1, note for CP5
+bench sanity check. (b) No IP-sealed option in the RP3502 series page →
+**D-OPEN-13 resolves to "no IP67 cap available in-series"** — accept
+unsealed (IP5x indoor enclosure) or change series at ordering. Datasheet
+erratum: color table lists "BLK = Red" (obvious typo for Black).
+
+Remaining gaps (parts with a chosen MPN but no stored datasheet):
+
+- **5×20 mm fuse clip (DK F1465-ND / Mouser 530-31MJ005H)** — datasheet
+  URL not resolvable via the parts API at audit time (Octopart
+  rate-limited; no DK/Mouser URL returned). Mechanical clip, low risk.
+  **TODO: fetch + verify before BOM-lock.**
+
+Parts still at `_verify_` (MPN not yet chosen — D32 applies when chosen):
+L1 buck inductor, USB-C receptacles (J3 battery / J-USB display),
+display tactile buttons BTN1–3 (plunger height locked at CP3/CP5).
 
 
 ## Retired (in store history, not used)

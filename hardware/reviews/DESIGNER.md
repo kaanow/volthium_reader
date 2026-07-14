@@ -395,6 +395,19 @@ When done, hand back to agent-reviewer via `state: reviewer_turn`.
 
 ## 7. Commit + push protocol
 
+**Before every semaphore flip (D35 gate — no exceptions):**
+
+```bash
+python3 hardware/reviews/tools/doc_consistency_check.py
+```
+
+Exit 0 required. It re-checks the append-only registry of every token
+this project has ever superseded, and executes D32 (datasheet manifest ↔
+PDFs ↔ canonical BOM) as code. If your change superseded a part, value,
+or policy token, **add it to the tool's SUPERSEDED registry in the same
+commit** — that registry entry is part of the swap, not an optional
+extra. (Origin: 2026-07-14 user audit; SOP G5.)
+
 ```bash
 # Stage only what you changed.
 git add <specific paths>

@@ -149,7 +149,7 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| BTN1 | E-Switch RP3502MABLK panel-mount SPST NO momentary | Panel-mount | 1 | EG4527-ND | 612-RP3502MABLK | $3.00 | (Δ: was EG1218; RP3502MA-series stocks better) |
+| BTN1 | E-Switch RP3502MABLK panel-mount SPST NO momentary | Panel-mount | 1 | EG4527-ND | 612-RP3502MABLK | $3.00 | (Δ: was EG1218; RP3502MA-series stocks better) **Datasheet verified 2026-07-14** (`RP3502MABLK.pdf`): metal body, function A = OFF-(ON), 12.7 mm hole / 1/2"-28 UNEF, −20…+65 °C, solder lugs. **Read-flag: 3 A @ 120 VAC contact rating, no dry-circuit DC spec** — our 3.3 V/µA use relies on the C11 100 nF debounce discharge for contact wetting; sanity-check at CP5 bench. |
 | R13 | 1 MΩ 0805 1 % | 0805 | 1 | RMCF0805FT1M00CT-ND | 71-CRCW08051M00FKEA | $0.10 | BTN pull-up (Δ: was 10 kΩ → 1 MΩ for lower Iq) |
 | C11 | 100 nF X7R | 0603 | 1 | (unchanged) | | $0.05 | Button debounce |
 
@@ -352,8 +352,13 @@ so the extras are not wasted.
   ~330 Ω if bench testing reveals a specific noise-margin need
   (battery-side bias remains removed regardless to keep the always-on
   rail at zero static draw).
-- **D-OPEN-13** Panel-mount switch BTN1 on battery side — does the
-  RP3502MA-series exist in stock with sealed cap (IP67) options? Confirm
-  during ordering.
+- ~~**D-OPEN-13** Panel-mount switch BTN1 on battery side — does the
+  RP3502MA-series exist in stock with sealed cap (IP67) options?~~
+  **RESOLVED (2026-07-14, datasheet read):** the RP3502 series page
+  offers **no sealed/IP67 option** (body: plastic or metal; function
+  A/B; color — that's the whole ordering matrix). Accept unsealed —
+  the button lives on the battery-side enclosure lid inside the cabin
+  (IP5x indoor per D20). If sealing is ever wanted, change series at
+  ordering (e.g. an IP67 vandal-style momentary), not a cap add-on.
 - **D-OPEN-14** JLCPCB PCBA option deferred for now (qty 1 → expensive).
   Re-evaluate before a v2 spin if user wants more boards.

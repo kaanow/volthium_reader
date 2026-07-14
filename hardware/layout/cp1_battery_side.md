@@ -427,16 +427,18 @@ Hi-Z in deep sleep; THVD1400 internal pulls default to shutdown. Battery
 side does **not** use RS-485 as a wake source (wakes from its own timer +
 BTN_OVERRIDE only) — so shutdown is the correct default.
 
-**Power-first note (D19/DR-4)**: the bus idle-bias resistors are **on the
-display end only** (resized to ~330 Ω there — see cp1_display_side.md), not
-here. The reason: the battery 3V3 rail is now *always-on*, so a ~2.3 mA
-battery-side bias would draw continuously and blow the ~1 mW hard-cut
-budget (~8×). Putting bias on the display end means it is sourced from the
-display's 3V3 — which is shed with the display at low SOC — so the
-battery always-on rail carries **zero** RS-485 static draw. The battery
-keeps only the terminator (R10, no static draw) and the transceiver (U3,
-**≤1 µA max in real shutdown per D34 + iter-10 F08** — via DE=0+/RE=1 default from THVD1400's internal pulls).
-Idle bias is present whenever the display is powered (i.e. whenever the link is actually used).
+**Power-first note (D19/DR-4, revised iter-12 F12)**: there is **no
+battery-side idle bias** — and since iter-12 F12, no populated bias
+anywhere on the bus by default. The battery 3V3 rail is *always-on*, so
+a ~2.3 mA battery-side bias would draw continuously and blow the ~1 mW
+hard-cut budget (~8×); that ruled out battery-end bias (D19). Then F12
+marked even the display-end footprints (R3/R4, ~330 Ω) **DNP by
+default**: THVD1400's guaranteed Full Fail-Safe RX (§8.2.1.4) drives RO
+HIGH on an open/short/idle bus with no external bias, so the 15 mW
+display-side cost isn't spent unless CP5 bench testing reveals an EMI
+need. The battery keeps only the terminator (R10, no static draw) and
+the transceiver (U3, **≤1 µA max in real shutdown per D34 + iter-10
+F08** — via DE=0+/RE=1 default from THVD1400's internal pulls).
 
 ### 4.7 User input & visible status
 
@@ -531,8 +533,8 @@ deep-sleep (alive) and hard-cut (off) — see [§13 D-OPEN-7a/7b](#13-open-decis
 
 | State | SOC band | Subsystem draws (at 24 V end) | Pack draw | Notes |
 |-------|----------|--------------------------------|-----------|-------|
-| 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 THVD1400 ~0.7 mA typ / ~0.9 mA max RX-only (D34) + RTC <100 µA + **display-end** RS-485 bias (via Cat5e) ~1.5 mA + rest of display side ~5 mA + sense 22 µA ≈ 45 mA × 24 V | **~1.08 W** | ±2 % vs power_budget.md. **No battery-side idle bias (DR-4b)** — the ~1.5 mA is sourced at the display end and shed with the display at hard-cut |
-| 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + **display-end** RS-485 bias (via Cat5e, shed at hard-cut) ~1.5 mA + display unchanged + sense 22 µA | **~0.30 W** | — |
+| 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 THVD1400 ~0.7 mA typ / ~0.9 mA max RX-only (D34) + RTC <100 µA + display side ~5 mA at 24 V conv. + sense 22 µA ≈ 43.5 mA × 24 V | **~1.05 W** | ±5 % vs power_budget.md (~1.0 W table / 1.1 W daily headline). **No idle bias anywhere by default** — battery-side removed (DR-4b), display-side R3/R4 DNP (iter-12 F12; THVD1400 Full Fail-Safe RX needs none) |
+| 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + display unchanged (~5 mA at 24 V conv.) + sense 22 µA | **~0.30 W** | vs power_budget.md 0.31 W. No bias term (R3/R4 DNP per iter-12 F12) |
 | 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + RV-3028 ~45 nA (negligible; D23) + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Display still up (Q1 ON) |
 | 4 — Hard cut | < 10 % | **Native-domain sum with datasheet max where spec'd + explicit engineering margin where max isn't published (iter-6 F03 + iter-10 F08 + iter-12 F13 + iter-14 F16 wording sweep).** V24-side: LM5166 Iq **15 µA max** × 24 V = **0.36 mW** + V24 sense divider 24²/1.3 MΩ = **0.44 mW** + UVLO divider 4.6 µA × 24 V = **0.11 mW**. 3.3 V-side (load): ESP deep-sleep 10 µA typ + **5 µA engineering margin** (Espressif ES §5.4 lists 7-8 µA typ, no spec max) + U4 TPS3808 **5 µA max** + U6 TPS2116 **4.5 µA max** + U3 THVD1400 shutdown **1 µA max** + RV-3028 RTC 45 nA typ @ V3V3 (D23; ≤200 nA per Micro Crystal AN, well under µW floor) ≈ **25.6 µA** at load × 3.3 V = 84 µW → **~0.17 mW referred through U1 at η ≈ 50 %** conservative. Display shed (Q1 OFF). | **~1.08 mW** (~1.1 mW headline, max where spec'd) | Uses **datasheet max where spec'd** (U1/U4/U6/U3); **typ + explicit engineering margin** where no max is published (ESP32-S3 Deep-sleep); **typ** for RTC (max ≤200 nA is under the µW floor). Iter-12 F13 caught that my prior "max throughout" claim was actually mixing typ + max; iter-14 F16 tightened this wording across D34 / DR-25 / power_budget.md so all four sites match. Full native+referred table in `docs/hardware/power_budget.md`. |
 

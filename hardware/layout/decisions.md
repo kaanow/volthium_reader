@@ -316,7 +316,7 @@ that touches a rendered document must include:
 3. **Embed those screenshots in the active CP review packet** under
    a heading `## D11 visual inspection — iter <N>`. One screenshot
    per region, captioned with the region name (e.g. "U2
-   SN65HVD3082E + RS-485 termination").
+   THVD1400DR + RS-485 termination").
 4. **For each screenshot, write one sentence**:
    `Read every piece of text in this region. Findings: <none> | <list>.`
    If `<list>` is non-empty, the document does not pass D11 and the
@@ -353,7 +353,7 @@ immediately saw, on the display-side schematic alone:
 - FFC J2 pins 1–10: pin number + pin name (`Pin_N`) + net label
   (`GND`, `3V3`, `EPD_BUSY`, …) all occupying the same X coordinate
   — three pieces of text stacked at every used pin.
-- U2 SN65HVD3082E: net labels (`UART_RX`, `UART_TX`, `DE_RE`, `3V3`,
+- U2 (the since-superseded SN65HVD3082E): net labels (`UART_RX`, `UART_TX`, `DE_RE`, `3V3`,
   `GND`) placed directly on top of the chip's pin names (`RO`, `DI`,
   `RE`, `VCC`, pin 5).
 - C7, R3, R4, TVS R2: net labels and component reference text
@@ -1040,7 +1040,7 @@ work beyond what iter-7 did:
    whitespace separating it from neighbouring clusters.
 4. **Pin numbers retained on every IC.** Power-stack pin-number
    collisions are fixed at the lib-symbol level (e.g. consolidating
-   the DS3231M's 9 GND pins into a single multi-number `(alternates)`
+   the retired DS3231M's 9 GND pins into a single multi-number `(alternates)`
    block, or relocating ESP32-S3-WROOM-1's 1 / 40 / 41 GND pins) so
    the schematic can show pin numbers without rendering them on top
    of each other.
@@ -1193,6 +1193,11 @@ coordination defects together.
   draw) and the transceiver (~µA in DE/RE shutdown), so the always-on rail
   carries **zero** RS-485 static draw. Verified candidate values:
   3.3 V·60/(390+60+390) = 236 mV idle (> 200 mV fail-safe).
+  *[Superseded in two steps: DR-13 resized 390 → ~330 Ω; then iter-12
+  F12 (D34/DR-25) marked the display-end footprints **DNP by default**
+  — THVD1400's Full Fail-Safe RX (§8.2.1.4) needs no external bias for
+  idle correctness, so no bias is populated anywhere on the bus unless
+  CP5 bench testing reveals an EMI need.]*
 
 **Part-sourcing note.** LM5165YDRCR, R-78HB12-0.5, ZXMP6A13F were
 DigiKey stock/lifecycle-checked 2026-06-17 (all in stock, Active); final
@@ -1689,7 +1694,7 @@ State-4 draw, not typical) after reviewer iter-10 F08:
   range. This means the F06 topology fix needs only two GPIO nets (no
   R_DE / R_RE), saves 4 board parts, and is more robust than external
   pulls that a stuff-error could omit.
-- **Fail-safe RX (matches ISL3175E).** Open / short / idle bus all drive
+- **Fail-safe RX (matches the superseded ISL3175E).** Open / short / idle bus all drive
   RO high, so DR-13's 275 mV bias is now noise-margin insurance, not a
   fail-safe requirement. Same story as with ISL3175.
 - **Package + pinout.** SOIC-8 standard SN75176 pinout
@@ -1950,3 +1955,61 @@ the correct max-to-max comparison.
   296-THVD1400DRTR-ND ($1.47) / Mouser 595-THVD1400DR ($1.38) — total
   **35016** units across two authorized distributors, comfortable
   head-room for the qty-1 build + spare-parts buffer.
+
+## D35 — Documentation architecture: one canonical home per fact type + mechanical drift gate — user directive 2026-07-14
+
+**Date**: 2026-07-14
+**Status**: committed
+
+**Trigger.** A user audit found live staleness that survived 20 review
+iterations and the reviewer's manual G5 sweeps: `docs/hardware/bom.md`
+still listed EG1218 for BTN1 (superseded by RP3502MABLK in the COTS
+sweep) and a phantom battery-side 680 Ω bias row (removed by D19/DR-4b);
+`cp1_battery_side.md` States 1–2 still budgeted ~1.5 mA of display bias
+made DNP by iter-12 F12; and the datasheet manifest claimed "gate CLOSED
+— every active part" while RP3502MABLK had no stored datasheet. Root
+cause: the same fact was stored as free prose in up to five documents,
+and the G5 sweep depended on a human remembering which tokens had been
+superseded. Same failure class as reviewer findings F13/F14/F16.
+
+**Decision — three layers:**
+
+1. **Ownership: one canonical home per fact type.** Everything else may
+   carry a ≤1-line summary plus a link — never a restatement.
+   - Parts, sourcing, package, stuff-status → `hardware/layout/cp1_bom.md`
+     (per-CP successor files thereafter), with
+     `hardware/datasheets/manifest.md` as the machine-readable registry
+     of chosen parts (D32).
+   - Power numbers/budgets → `docs/hardware/power_budget.md`. Baseline
+     state tables cite it and carry a declared tolerance (±5 %), not
+     independent arithmetic.
+   - Design policies + rationale → this decisions log (D-entries).
+     Supersession is recorded with bracketed notes in place — history is
+     annotated, never silently rewritten.
+   - Review state → the active packet + `DESIGN_REVIEW_ITEMS.md` (both
+     are history-bearing records; stale tokens are expected there).
+   - `docs/hardware/bom.md` is **non-normative** effective now (banner
+     added); its unique content (proto alternates, sourcing links) will
+     be folded into the canonical BOM at CP2 and the file reduced to a
+     pointer.
+
+2. **Mechanical drift gate (replaces remember-and-grep G5).**
+   `hardware/reviews/tools/doc_consistency_check.py` runs an
+   **append-only superseded-token registry** — every part/value/policy
+   swap ever made stays in the registry and is re-checked on every run,
+   so catching drift no longer depends on recalling what changed. The
+   same tool executes D32 as code: manifest rows ↔ PDFs on disk ↔
+   canonical BOM presence. **Run before every semaphore flip** (added to
+   DESIGNER.md pre-handoff checklist and SOP G5). Registry maintenance
+   is part of every swap: the commit that supersedes a token adds it.
+
+3. **Structural elimination at CP2.** Schematic capture makes the KiCad
+   symbol fields (MPN, DK/Mouser SKU, DNP flag) the machine source of
+   parts truth; the markdown BOM becomes **generated** from the
+   schematic by script. Duplication then physically cannot drift, and
+   the checker's BOM cross-checks retarget the generated output.
+
+**Non-goals.** No mass rewrite of reviewer-approved CP1 prose beyond the
+specific staleness fixed in this commit; D-entry history stays intact
+(bracket-note convention). The gate is additive — the reviewer's
+independent G5 judgment remains; the tool is the floor, not the ceiling.

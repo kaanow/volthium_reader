@@ -147,6 +147,15 @@ than downloading through a browser. Details in
 Web tools also encouraged. Cite sources in findings (URL, datasheet
 section, or parts-sourcing API endpoint + SHA256).
 
+**Tooling — doc consistency gate (D35).** Run
+`python3 hardware/reviews/tools/doc_consistency_check.py` at the start
+of every review pass. It re-checks an append-only registry of every
+superseded token in project history and executes D32 (manifest ↔ PDFs ↔
+canonical BOM) as code. A non-zero exit is an automatic G5 finding. If
+your review supersedes a token, require the designer's fix commit to add
+it to the tool's SUPERSEDED registry. The tool is the floor, not the
+ceiling — your independent staleness judgment still applies.
+
 ## 4. How to do a review
 
 For **CP1 (markdown only)**, read in this order:
