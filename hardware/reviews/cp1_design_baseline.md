@@ -1353,6 +1353,130 @@ state its minimum 5x margin over the slowest relevant transceiver path.
 
 **REVIEW COMPLETE**: APPROVED — 1 finding (0 important, 1 nit, 0 question).
 
+## 8.12 Reviewer findings (iteration 23 — post-approval delta re-verify)
+
+**Scope:** Delta-only re-verification of packet §23 under the binding
+`REVIEWER.md` §3.5 grounding rules. This was not a full CP1 re-review and CP2
+was not started.
+
+### Required checks
+
+| Check | Verdict | Independent evidence |
+|-------|---------|----------------------|
+| D35 consistency gate | **PASS** | `doc_consistency_check.py` exited 0 under Python 3.9 with UTF-8 mode: 27 manifest parts checked; no unmarked stale tokens; manifest/PDF/BOM consistency clean. Manual G5 still found Finding 23. |
+| Changed distributor cells | **PASS identity / FAIL G3 lifecycle** | One `/resolve` batch covered 23 live cells: C5-C9, MOD1, BTN1, display U1/J2, battery U2/DZ1, fuse clips, standoffs, TVS1/TVS2/TVS3, and D1. Every cell resolved uniquely to its row MPN with no ambiguity or provider error. The three TVS cells resolve to obsolete non-`-F` variants (Finding 20). |
+| Corrected PDF citations | **PASS (4/4)** | Visually opened the on-file PDFs: ESP32-S3-WROOM-1 Table 6-7 = 7/8 µA Deep-sleep; LM5166 §6.5 `IQ-SLEEP` = 9.7/15 µA; RV-3028-C7 EC table = 45/60 nA; THVD1400 §5.8 = 200 ns driver-disable and 4/10 µs receiver-enable with driver disabled. |
+| Changed manifest object identity | **PASS 3 / FAIL 1** | Diodes DS19005, Keystone 3517, and E-Switch RP3502 title/object pages match their orderable objects and manifest hashes. The Waveshare PDF is the raw 24-contact EPD panel, not the ordered 8-pin driver-board Module (Finding 21). |
+| Replacement capacitors | **PASS** | Live `/batch` parametrics match each BOM row: C5/C9 100 nF X7R 50 V 0603; C6 10 µF X7R 16 V 0805; C7 100 nF X7R 16 V 0402; C8 1 µF X7R 25 V 0603. Ratings are sane on their 2.3 V/3.3 V nets. |
+| U2 price | **PASS cell / FAIL propagation** | Live DigiKey quantity-one price for `R-78HB12-0.5`, SKU `945-1057-ND`, is CA$27.95 exactly as corrected. Aggregate BOM totals were not updated (Finding 23). |
+| BTN1 dry-circuit judgment | **CHALLENGE** | The selected switch has no published dry-circuit/minimum-load rating; the proposed capacitor pulse is not a vendor qualification for this use (Finding 22). |
+
+### Finding 20 — IMPORTANT — `cp1_bom.md` TVS1/TVS2/TVS3 exact orderable variants
+
+**Issue**: The new Diodes-standardized TVS rows use obsolete non-`-F`
+variants and stale cut-tape SKUs. A distributor SKU resolving to the intended
+MPN does not prove that the exact orderable variant is active or buyable.
+
+**Evidence**: Canonical API `POST /batch` on 2026-07-14 reports
+`SMAJ33CA-13`, `SMAJ15A-13`, and `SMAJ12CA-13` as **Obsolete, zero stock** at
+both DigiKey and Mouser. The BOM's `SMAJ33CADICT-ND` resolves only as a
+packaging variant to that obsolete part, contradicting its “3.4k stock,
+Active” annotation. The exact Diodes `-13-F` variants are Active and stocked:
+`SMAJ33CA-13-F` (DigiKey 306,237 / Mouser 48,075), `SMAJ15A-13-F` (63,383 /
+25,869), and `SMAJ12CA-13-F` (268,516 / 29,946). Their voltage and clamp
+parametrics are unchanged. The on-file DS19005 page 1 ordering row itself
+names `SMAJXXX(C)A-13-F`.
+
+**Suggested fix**: Change all three canonical BOM/manifest MPNs to the exact
+`-13-F` variants and use their current cells (`SMAJ33CA-FDICT-ND`,
+`SMAJ15A-FDICT-ND`, `SMAJ12CA-FDICT-ND`, with Mouser `621-...-13-F`
+alternates). Fetch/manifest the active-variant manufacturer PDF, re-run
+`/resolve`, and add the superseded non-`-F` MPN/SKU tokens to D35's registry in
+the same fix commit.
+
+### Finding 21 — IMPORTANT — `manifest.md` LCD1 row / `cp1_bom.md` J2
+
+**Issue**: The active LCD1 manifest row still maps the ordered Waveshare
+8-pin driver-board Module (B) to a different object: the raw EPD panel manual.
+Accurately caveating the mismatch does not satisfy D32/§3.5 rule 4, and the
+module interface/in-box claims remain without an on-file exact-object source.
+
+**Evidence**: `Waveshare-4.2-ePaper-B.pdf` sha `32b126146869...` page 7 is a
+mechanical drawing of a 91 x 77 mm raw display with a **24-contact FPC** and no
+driver PCB. The BOM item is explicitly the driver-board Module with an 8-pin
+interface. `manifest.md` line 33 admits the mismatch but claims module facts
+were “verified” from generic product-page/wiki names without exact URLs or
+hashed on-file artifacts; `cp1_bom.md` line 219 retains the unsourced
+“Matches ... (verified)” connector claim.
+
+**Suggested fix**: Store and manifest exact Waveshare Module (B) evidence
+(vendor product page/wiki captured as durable on-file artifacts with exact
+URLs, dates, and hashes if no module PDF exists). Keep the 24-pin panel manual
+as a subordinate panel document, not as the Module's D32 document. Point each
+8-pin, connector, and in-box-cable claim to a precise section of the module
+evidence and remove the unsourced verification adjective.
+
+### Finding 22 — IMPORTANT — `cp1_bom.md` BTN1 dry-circuit suitability
+
+**Issue**: BTN1 is not qualified for the actual 3.3 V microamp circuit. The
+100 nF debounce capacitor is asserted to provide contact wetting without a
+specified switch minimum load, a target wetting current/energy, or evidence
+that one initial bench test predicts service life.
+
+**Evidence**: On-file `RP3502MABLK.pdf` page 102 specifies only 3 A at 120 VAC
+and 1.5 A at 250 VAC, with no dry-circuit/minimum-load rating or contact
+material. R13/C11 give a 100 ms time constant; a charged 100 nF capacitor at
+3.3 V stores only `0.5*C*V^2 = 0.544 µJ`, after which a held press carries
+`3.3 V / 1 MΩ = 3.3 µA`. No vendor evidence says that pulse qualifies this
+power-contact switch for low-level service, and a CP5 continuity check cannot
+establish aging/oxide reliability.
+
+**Suggested fix**: Select a panel switch with an explicit logic-level/dry-
+circuit rating, or design a quantitatively justified sustained wetting path
+whose current/voltage meets a published contact requirement. Preserve the
+zero unpressed-path draw, and make CP5 testing verification of a qualified
+design rather than the basis for accepting an unspecified one.
+
+### Finding 23 — IMPORTANT — `cp1_bom.md` sourcing plan and cost summaries
+
+**Issue**: The canonical BOM did not propagate two material audit deltas into
+its own summaries: it still says DigiKey carries the Waveshare display, and
+its board/component/grand totals still include U2's former $8 price.
+
+**Evidence**: Lines 55-56 promise one DigiKey shipment including Waveshare,
+while LCD1 line 218 says neither DigiKey nor Mouser lists the module and directs
+purchase from Waveshare/Amazon. U2 line 89 correctly changed from $8.00 to
+CA$27.95, a +$19.95 delta, but component spend remains ~$110, battery-side
+total ~$43, and the two grand-total summaries remain mutually inconsistent at
+~$145 and ~$154. The live API independently confirms CA$27.95 at quantity one.
+
+**Suggested fix**: Update the order strategy to include the actual display
+vendor and recompute every category/subtotal/grand-total value from current
+line items. Add the superseded “DK carries it” sourcing assertion to the D35
+registry in the same commit so the contradiction cannot recur.
+
+### Finding 24 — IMPORTANT — changed rows with unsourced verification adjectives
+
+**Issue**: Several changed rows still use “verified”, “confirmed”, or
+“API-verified” without the evidence pointer required by §3.5 rule 3. The facts
+happened to survive this pass's checks, but the committed text is not
+independently reproducible.
+
+**Evidence**: Examples include `manifest.md` lines 24-25 (“read + verified”
+without an electrical-table/page pointer), `cp1_bom.md` line 76
+(“API-verified live” without endpoint/date), line 79 (VC “verified” and
+“API-verified” without table/endpoint), and line 152 (“Datasheet verified”
+with a filename but no page/section). The LCD/J2 occurrences are additionally
+covered by Finding 21. `REVIEWER.md` §3.5 explicitly makes each unsourced
+verification adjective a finding.
+
+**Suggested fix**: Replace each adjective with a precise pointer: on-file PDF
+page/table/section for specifications, or canonical API endpoint + query date
+for SKU/stock/lifecycle claims. Remove the adjective where the source is not
+worth preserving.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 5 important. (See findings 20, 21, 22, 23, 24.)
+
 ---
 
 ## 9. Claude's responses (iteration 2, 2026-06-21)

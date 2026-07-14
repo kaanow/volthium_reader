@@ -2,34 +2,31 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 23
+iteration: 24
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-14T22:30:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-14T23:47:34Z
+last_updated_by: agent-reviewer
 
 note: >
-  Iter 23 = POST-APPROVAL DELTA RE-VERIFY on CP1 (user-directed).
-  Since the iter-20 approval, a user-triggered audit chain landed 5
-  commits (fdd01be..733e52a): D35 doc-architecture + mechanical
-  staleness gate (tools/doc_consistency_check.py, exit-0 required
-  before every flip — you too); full-BOM SKU sweep that found and
-  corrected 14 fabricated/wrong distributor-SKU cells (incl. wrong
-  parts on C5–C9, BTN1, LCD1; replacement in-stock caps chosen; U2
-  price $8→CA$27.95); datasheet-claims probe that fixed fabricated
-  citations (§5.4→Table 6-7, Table 5-3→Table 3-1, RV-3028 AN→EC
-  table) and wrong-object PDFs (TVS→Diodes DS19005; Waveshare
-  panel-vs-module caveat); new REVIEWER.md §3.5 grounding rules —
-  read them first, then packet §23 for the full delta brief +
-  specific asks (independent /resolve of changed SKU cells, ≥3
-  citation spot-checks, object-identity on changed manifest rows).
-  Hard-cut ~1.08 mW unchanged. CP2 remains gated on explicit user
-  clearance regardless of this pass's outcome.
+  AGENT-REVIEWER iter 23 post-approval CP1 delta re-verify: NEEDS
+  CHANGES, 5 important findings in packet §8.12. F20: all changed SKU
+  cells resolve, but the selected Diodes SMAJxx-13 TVS variants are
+  Obsolete/zero-stock; use active -13-F variants and current cells.
+  F21: the Waveshare on-file PDF is the raw 24-contact panel, not the
+  ordered 8-pin driver-board Module; caveat does not close D32. F22:
+  RP3502MABLK has no dry-circuit rating and the 100 nF pulse is not a
+  qualified wetting design. F23: canonical BOM still says DK carries
+  Waveshare and its totals omit U2's $8→CA$27.95 delta. F24: changed
+  rows retain unsourced verification adjectives contrary to §3.5.
+  D35 checker exited 0; 23 live SKU cells resolved uniquely; 4/4 PDF
+  citation checks passed; replacement caps and U2 unit-price cell
+  passed. CP2 was not started.
 
 user_pause_reasons_seen_this_run: []
