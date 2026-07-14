@@ -408,6 +408,16 @@ or policy token, **add it to the tool's SUPERSEDED registry in the same
 commit** — that registry entry is part of the swap, not an optional
 extra. (Origin: 2026-07-14 user audit; SOP G5.)
 
+**Facts carry source pointers (2026-07-14 audits).** Every identifier
+(SKU, MPN) and every datasheet figure/citation you write must be
+produced in the same turn as the tool output that grounds it (API
+response; open PDF), and the doc text must carry the pointer — file +
+table/section for specs, "API-verified <date>" for SKUs. No pointer =
+write `_verify_`, never a concrete value. The reviewer is instructed
+(REVIEWER.md §3.5) to treat unsourced verification adjectives and
+uncheckable citations as automatic findings — write so your claims are
+cheap for them to ground-truth.
+
 ```bash
 # Stage only what you changed.
 git add <specific paths>

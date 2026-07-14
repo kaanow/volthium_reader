@@ -102,7 +102,10 @@ will reject your finding if your reasoning is wrong**, but it'll do so
 transparently in a `RESOLVED` entry under each finding. Iterate until
 consensus.
 
-Bring outside knowledge (use the **current** part set — D19–D34):
+Bring outside knowledge (use the **current** part set — D19–D34).
+Recall tells you **where to look**; it is never itself evidence — any
+number, pin, or SKU you assert in a finding must come from the on-file
+PDF or a tool call made this pass (§3.5):
 - Datasheets: ESP32-S3-WROOM-1, **LM5166** (always-on µA-Iq buck),
   **TPS3808G01DBVR** (UVLO supervisor, D33), **TPS2116** (USB power-mux,
   D29), **RV-3028-C7** (RTC, D23), **R-78HB12** / **R-78E3.3** (Recom),
@@ -146,6 +149,46 @@ than downloading through a browser. Details in
 
 Web tools also encouraged. Cite sources in findings (URL, datasheet
 section, or parts-sourcing API endpoint + SHA256).
+
+## 3.5 Grounding rules (2026-07-14 — read before every pass)
+
+Two audits found **14 fabricated/wrong distributor SKUs, fabricated
+datasheet citations (a "§5.4" and a "Table 5-3" that never existed in
+the PDFs, an off-file app note), wrong-object PDFs (bare-panel manual standing in
+for the Module; Bourns/Littelfuse datasheets for Diodes-ordered parts),
+and an unsourced "(verified)" tag** — all of which survived 20
+iterations of this review process while it was catching genuinely
+subtle reasoning errors. The corollaries are now rules:
+
+1. **Split every claim into REASONING or FACT, and use the matching
+   check.** Reasoning (topology, coordination, derating, arithmetic) →
+   re-derive it, as you already do. Facts (SKUs, MPNs, spec numbers,
+   citations, in-box contents, pinouts) → **verify with a tool** (open
+   the on-file PDF; hit the parts API). *You cannot re-derive a fact.*
+   You are the same kind of model as the designer: an identifier or
+   citation that "looks right" to you looked right to them too —
+   plausibility agreement between the two of you is **correlated error,
+   not independent verification**, and adds ~zero evidence.
+2. **Citation spot-check quota — every pass.** Pick ≥3 cited datasheet
+   tables/sections from the docs under review, open the on-file PDF,
+   and confirm the table exists and the quoted value matches verbatim.
+   A citation that doesn't exist is an automatic IMPORTANT finding
+   *even if the number is right* — right-value/invented-source is the
+   pattern that makes all future verification impossible.
+3. **Unsourced verification adjectives are findings.** "verified",
+   "confirmed", "API-verified", "datasheet says" without an evidence
+   pointer (file + table/section, or API endpoint + date) — file it.
+   The Waveshare "(verified)" tag had no source and was false.
+4. **Object identity, not file existence (D32).** For each new or
+   changed manifest row, open the PDF's title page: the manufacturer
+   must match the orderable SKU's manufacturer, and the document level
+   must match the object (a Module and its bare panel are different
+   objects; SMAJ from four vendors are four datasheets).
+5. **SKU cells: full sweep, not spot-check.** When any SKU cell changed
+   (and always at BOM-lock), batch `POST /resolve` every DK/Mouser cell
+   and require each to resolve to the row's MPN (see SOP G3). Sampling
+   misses systematic fabrication — the 14 bad cells lived among
+   passives no 3-of-5 spot-check would ever select.
 
 **Tooling — doc consistency gate (D35).** Run
 `python3 hardware/reviews/tools/doc_consistency_check.py` at the start
@@ -270,8 +313,10 @@ What to look hard at (CP1 specifically):
   Are always-alive paths really minimal?
 - **Net-by-net sanity** — anything dangling, double-driven, or
   ambiguous?
-- **BOM SKU availability** — spot-check 3–5 parts; report current
-  stock counts.
+- **BOM SKU availability** — spot-check 3–5 parts *by MPN* for
+  stock/lifecycle; but if any SKU **cells** changed since your last
+  pass, `/resolve` **all** changed cells (§3.5 rule 5 — an MPN query
+  passing does not validate the SKU cell beside it).
 - **Power budget arithmetic** — do per-state numbers add up?
 - **Open decisions (D-OPEN-N)** — agree with defaults, or override?
 
