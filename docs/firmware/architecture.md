@@ -156,5 +156,24 @@ Each board exposes a 4-pin debug header on the PCB:
 
 Use any FTDI cable. The console runs at 115200 8N1.
 
-Optional onboard LED on GPIO15 (battery side) — slow blink in NORMAL,
-fast in LOW, off in DEEPSLEEP/HARDCUT, solid during BLE connect attempts.
+~~Optional onboard LED on GPIO15~~ — **retired (CP1):** D4 removed all
+indicator LEDs (power-first), and GPIO15 is now allocated to RS-485 /RE
+(D34). Status visibility comes from the e-paper timestamp (D30) and the
+UART console.
+
+## Button requirements (user-set, 2026-07-14)
+
+Battery-side **BTN1** (panel-mount, ESP GPIO7, RTC-wake capable,
+active-LOW) is a pure GPIO input — every function below is firmware,
+no hardware dependency:
+
+| Gesture | Function |
+|---------|----------|
+| Short press | Display-power override (existing function; UVLO hardware floor still wins below ~20 V pack) |
+| **Long press (hold ≥ 10 s)** | **WiFi config reset to base state** — wipe stored WiFi credentials/config and return to the not-yet-designed provisioning base state. Reset target state TBD when WiFi provisioning is designed; the trigger path is a firm requirement now |
+
+Long-press-from-deep-sleep works: GPIO7 is in the RTC wake mask, so the
+press wakes the ESP and firmware then samples hold duration. The 100 ms
+debounce RC is irrelevant at these timescales. Display-side BTN1–3
+(GPIO12/13/14) remain fully software-defined per D7 — a parallel reset
+gesture there needs no hardware change either.

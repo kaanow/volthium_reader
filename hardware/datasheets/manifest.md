@@ -32,6 +32,7 @@ pulled manually. Read + interface-verified per D32.
 | MSTB 2,5/2-ST-5,08 (1757019) | 1757019.pdf (2400K) | manual | user upload 2026-07-01 | d849479aae64 |
 | LCD1 Waveshare 4.2" e-Paper Module (B) | Waveshare-4.2-ePaper-B.pdf (3.9M) | manual | files.waveshare.com (V2 user manual) | 32b126146869 |
 | RP3502MABLK (BTN1 battery override) | RP3502MABLK.pdf (100K) | digikey CDN | https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/4979/RP_3502_datasheet.pdf | 795c575e47eb |
+| 3517 | Keystone_3517.pdf (170K) | manual | https://www.keyelco.com/userAssets/file/K75p52.pdf | 441b810381ac |
 
 ## Still needed (CP1 datasheet gate)
 
@@ -49,12 +50,18 @@ bench sanity check. (b) No IP-sealed option in the RP3502 series page →
 unsealed (IP5x indoor enclosure) or change series at ordering. Datasheet
 erratum: color table lists "BLK = Red" (obvious typo for Black).
 
-Remaining gaps (parts with a chosen MPN but no stored datasheet):
+Remaining gaps (parts with a chosen MPN but no stored datasheet): none.
 
-- **5×20 mm fuse clip (DK F1465-ND / Mouser 530-31MJ005H)** — datasheet
-  URL not resolvable via the parts API at audit time (Octopart
-  rate-limited; no DK/Mouser URL returned). Mechanical clip, low risk.
-  **TODO: fetch + verify before BOM-lock.**
+- ~~5×20 mm fuse clip~~ — **resolved 2026-07-14 (user-caught).** The BOM's
+  SKUs "DK F1465-ND / Mouser 530-31MJ005H" were **phantoms** — zero hits on
+  Mouser, DigiKey *and* Octopart via the parts API, and nothing on the
+  retailers' own sites (user check). Replaced with **Keystone 3517**
+  (5 mm/3AG PC-mount snap-in clip w/ end stops, tin-plated brass,
+  UL E354010): DK **36-3517-ND** (85,711 in stock, Active) / Mouser
+  **534-3517** (54,324 in stock), ~CA$0.48 ea. Datasheet fetched, read,
+  verified: 5 mm fuse diameter ✓ (fits the 5×20 0215001.MXP body), THT
+  snap-in legs, end stops (with-end-stop parts are the UL-recognized
+  ones), rated ≥ 6.3 A ≫ 1 A fuse. Optional cover = 3517C.
 
 Parts still at `_verify_` (MPN not yet chosen — D32 applies when chosen):
 L1 buck inductor, USB-C receptacles (J3 battery / J-USB display),

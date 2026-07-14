@@ -47,6 +47,9 @@ LIVE_DOCS = [
     "hardware/layout/decisions.md",
     "hardware/reviews/DESIGN_REVIEW_ITEMS.md",
     "hardware/reviews/REVIEWER.md",
+    "docs/firmware/architecture.md",
+    "docs/firmware/state_machine.md",
+    "docs/firmware/ble_flap_recovery.md",
 ]
 
 # Files that are history-bearing records end-to-end: hits allowed.
@@ -93,6 +96,9 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
     (r"ext0 \(or ext1\)", "ANY_LOW", "wake API selected: ext1 ANY_LOW (F15)"),
     (r"tP[HL]Z\s*≤?\s*65\s*ns", "200 ns",
      "THVD1400 §6.7: 200 ns max disable; 10 µs receiver-fail-safe (F19)"),
+    (r"F1465|31MJ005", "3517",
+     "fuse-clip SKUs were phantoms (no such parts anywhere, user-caught "
+     "2026-07-14) → Keystone 3517 (DK 36-3517-ND / Mouser 534-3517)"),
 ]
 
 # ---------------------------------------------------------------------------
