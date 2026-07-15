@@ -2013,3 +2013,48 @@ superseded. Same failure class as reviewer findings F13/F14/F16.
 specific staleness fixed in this commit; D-entry history stays intact
 (bracket-note convention). The gate is additive — the reviewer's
 independent G5 judgment remains; the tool is the floor, not the ceiling.
+
+## D36 — RS-485 wired battery-read backup (both packs, per-pack isolated) — user directive 2026-07-15
+
+**Decision.** Add a **populated, BLE-independent RS-485 read path to both
+packs** as a real backup/cross-check to the flaky BLE. Full design in
+[`cp1_rs485_battery_read.md`](cp1_rs485_battery_read.md).
+
+**Why.** BLE to the two BMS has been worryingly flaky in the field — the
+user wants a wired fallback, not a DNP option. Space/volume is not a
+constraint on the battery board.
+
+**Key architectural point (drives everything).** The two 12 V packs are
+in **series** → the top pack's comms port floats at **+12 V** common-mode,
+at/past the RS-485 valid range (THVD1400 datasheet −7/+12 V; CAN is
+tighter still). So this is **not** one shared bus — it is **two
+galvanically-isolated channels, one per pack**, each transceiver
+referenced to its own pack's ground. (This is also why BLE, RF-isolated,
+was the natural primary.)
+
+**Shape.** Shared ESP **UART2** (free — ESP32-S3 has 3 UART controllers;
+UART0 console, UART1 display) fanned to two **ADM2587E** isolated RS-485
+front-ends (integrated isoPower); **power-gating each channel's VCC is
+the channel select** (sequential polling, master role). Decoded frames
+reuse the existing `ej_bms` `:AddrCmd…CRC~` parser byte-for-byte — only
+the transport differs from BLE. Gated at ~0.5 % duty → average draw below
+the µW floor; States 3–4 unpowered → **hard-cut ~1.08 mW unchanged**.
+Connectors: 2× RJHSE-5380 RJ45 (mate the vendor M12→RJ45 adapter; A/B on
+pins 7/8; CAN-H/L on 4/5 to unpopulated pads for a future inverter
+bridge). Bus TVS = SM712 (RS-485-matched −7/+12).
+
+**Reserved, not chosen: CAN for reading.** CAN's role is a future
+pack→Victron-inverter bridge (the vendor CAN doc's purpose); its
+common-mode range is worse for a series stack and it carries less
+per-cell detail than the serial protocol. The ESP has a native TWAI/CAN
+controller if that bridge is ever built.
+
+**Open before BOM-lock (interface-reality, see design §7):** the 4-pin
+M12 leaves **no dedicated comms-ground pin** → the isolated-side
+reference scheme (tie to pack B− / series midpoint vs bias network) and
+the second-M12 function must be confirmed with Volthium / on the bench.
+**D32 TODO:** ADM2587E (ADI WAF-blocks the proxy) + SM712 datasheets to
+be pulled manually and manifested.
+
+**Status.** Extends approved CP1 → needs a **CP1-delta review pass before
+CP2**. Logged as **DR-26**.

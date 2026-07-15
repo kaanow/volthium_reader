@@ -780,3 +780,29 @@ threshold:
 the guaranteed-HIGH region. Bias is noise-margin insurance, not a
 fail-safe requirement.
 DR-13 stays RESOLVED with the improved threshold picture.
+
+## DR-26 — RS-485 wired battery-read backup (both packs)  [OPEN — design proposed 2026-07-15 (D36); needs CP1-delta review before CP2]
+
+User directive: BLE to the two BMS is worryingly flaky → add a real,
+populated wired read path. Design: [`../layout/cp1_rs485_battery_read.md`](../layout/cp1_rs485_battery_read.md); decision **D36**.
+
+Because the two 12 V packs are in **series**, the top pack's comms floats
+at +12 V common-mode (past RS-485's −7/+12 V) → **two per-pack isolated
+channels** (ADM2587E), shared UART2, power-gated select. Reuses the
+`ej_bms` frame parser.
+
+**Review asks (G1/G2/G3/G5):**
+- G1: isolation topology + the isolated-side ground reference for the
+  **top pack (series midpoint +12 V)** — the 4-pin M12 has no dedicated
+  comms-GND pin (design §7). Confirm sense-lead vs bias-network.
+- G1: shared-UART2 fan-out — de-powered-input leakage guard (1 kΩ series
+  on DI), wire-OR RX pull-up, isoPower settle time before first byte.
+- G2: **D32 — ADM2587E + SM712 datasheets not yet on file** (ADI/host
+  WAF-blocks the proxy; pull manually) → verify isoPower current, exact
+  isolation rating, fail-safe, ESD.
+- G3: stock checked 2026-07-15 (ADM2587E Mouser 3,848; SM712 103k;
+  RJHSE-5380 8,697) — re-verify at BOM-lock.
+- Interface-reality: real M12 pinout, comms-GND presence, second-M12
+  function, patch-cable straight-through — confirm with Volthium/bench.
+- Power: confirm the ~0.5 % gated duty keeps State-1 average negligible
+  and States 3–4 unpowered (hard-cut unchanged).
