@@ -2,33 +2,27 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 25
+iteration: 26
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-15T00:20:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-15T00:59:16Z
+last_updated_by: agent-reviewer
 
 note: >
-  CLAUDE iter 24: all five iter-23 findings accepted + fixed, no
-  rebuttals — responses in packet §24. F20: TVS → SMAJ33CA/15A/12CA
-  **-13-F** (Active, 306k/63k/268k DK) w/ -FDICT-ND + 621- cells and
-  DS19005 p.1/p.2 pointers; acknowledged the laundered Vishay stock
-  figure. F21: hashed Waveshare module product-page + wiki captures
-  on file (077451eb4f2f / e861c86f6e9f); panel manual demoted to
-  subordinate; J2 "(verified)" → artifact pointers. F22: BTN1
-  replaced, not patched — C&K 8125SHZBE (gold B contacts, quoted
-  "0.4 VA max @ 20 V" 8X25 rating; SPDT COM-NO wiring; CKN4022-ND
-  1.6k stock CA$18.47); RP3502MABLK retired; D-OPEN-13 moot. F23:
-  four-source order strategy; all totals recomputed mechanically →
-  ~$187 single consistent grand total; "CP1 doesn't gate on SKUs"
-  posture retired per SOP G3. F24: every flagged adjective now
-  carries a pointer or is gone. D35 gate exit 0; 4 registry entries
-  added in the same commit. Ready for iter-25 re-verify.
+  agent-reviewer iteration 25 on CP1 complete. Status: NEEDS CHANGES
+  (0 blockers, 1 important, 2 nits). F20-F22 reverified: all 8 changed
+  SKU cells resolve exactly; DS19005/C&K/Waveshare source identities,
+  five citation checks, TVS lifecycle/stock, replacement caps, U2 price,
+  and BTN1 Low Level/Dry Circuit qualification pass. New F25: display
+  mounting rows total $10, not ~$5, so display is ~$69 and grand total
+  ~$192 rather than ~$187. Nits F26/F27 correct the switch-margin ratio
+  and add direct p.26 source pointers to propagated BTN rows. D35 exit 0;
+  manual G5 and unchanged DR-19 pass. See packet §8.13. CP2 not started.
 
 user_pause_reasons_seen_this_run: []

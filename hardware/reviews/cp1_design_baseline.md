@@ -1477,6 +1477,70 @@ worth preserving.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 5 important. (See findings 20, 21, 22, 23, 24.)
 
+## 8.13 Reviewer findings (iteration 25 — post-approval delta re-verify)
+
+**Scope:** Delta-only re-verification of Claude's §24 responses to iteration-23
+Findings 20-24 under the binding `REVIEWER.md` §3.5 grounding rules. This was
+not a full CP1 re-review and CP2 was not started.
+
+### Required checks
+
+| Check | Verdict | Independent evidence |
+|-------|---------|----------------------|
+| D35 consistency gate | **PASS** | `doc_consistency_check.py` exited 0 at pass start: 27 manifest parts checked, 43 `_verify_` cells reported, no unmarked stale tokens, and D32 consistency clean. |
+| Changed distributor cells | **PASS (8/8)** | One canonical `POST /resolve` batch covered all changed DigiKey/Mouser cells for `SMAJ33CA-13-F`, `SMAJ15A-13-F`, `SMAJ12CA-13-F`, and `8125SHZBE`. Every cell matched exactly to its row MPN. A separate `POST /batch` confirmed the three Diodes variants and the C&K switch Active/stock/price claims. |
+| Corrected source citations | **PASS (5/5)** | Visually opened the on-file sources: Diodes DS19005 p.1 gives `SMAJXXX(C)A-13-F`; p.2 gives 53.3 V/7.5 A, 24.4 V/16.4 A, and 19.9 V/20.1 A for the three rows; C&K p.1 gives the 8X25 0.4 VA/20 V rating; p.2 gives 8125 ON-MOM and terminals 1-3/1-2 plus the S/H/Z/E/B option codes; p.26 explicitly labels B-contact 8X25 as `Low Level/Dry Circuit`. |
+| Changed manifest object identity | **PASS** | DS19005's title page is Diodes Incorporated's SMAJ5.0(C)A-SMAJ200(C)A family; the C&K/Littelfuse title page is the 8020 switch family and its ordering table constructs `8125SHZBE`; both Waveshare HTML captures identify the exact Module (B), not only the panel. The product and wiki Git-blob SHA256 values exactly match manifest prefixes `077451eb4f2f` and `e861c86f6e9f`; the different Windows working-tree wiki hash is solely CRLF checkout conversion. |
+| Replacement capacitors and U2 price | **PASS** | Live `POST /batch` parametrics match all four replacement rows: 10 µF/16 V/X7R/0805, 100 nF/16 V/X7R/0402, 1 µF/25 V/X7R/0603, and 100 nF/50 V/X7R/0603. `R-78HB12-0.5` quantity-one DigiKey price remains CA$27.95. |
+| BTN1 dry-circuit judgment | **PASS** | C&K p.26 explicitly classifies B-contact 8X25 models as Low Level/Dry Circuit; p.2 confirms the exact 8125 function and option string. This is vendor qualification for the circuit class, so Finding 22 is resolved. |
+| Manual G5 / DR-19 | **PASS unchanged** | Superseded TVS/SKU/RP3502/sourcing tokens appear only in marked history or registry context. The reviewed delta does not alter the previously approved single-point shield-bond topology, so DR-19 remains closed for CP1 intent. |
+
+### Finding 25 — IMPORTANT — `cp1_bom.md` display subtotal and grand total
+
+**Issue**: Finding 23 is only partially resolved. The display-side total omits
+half of its enclosure/mounting line items, so the stated ~$64 display total
+and ~$187 single-monitor total are still low by $5.
+
+**Evidence**: Independently summing the display component rows gives $59.38,
+which agrees with the stated ~$59.4. The five priced enclosure/mounting rows
+are $4.00 + $0.50 + $1.00 + $2.50 + $2.00 = **$10.00**, not the subtotal's
+"~$5". Therefore display-side is ~$69.4, and $83 + $69 + $10 + $30 gives a
+single-monitor total of about **$192**, not $187. This directly contradicts
+§24's claim that a mechanical script recomputed every row.
+
+**Suggested fix**: Change display enclosure/mounting to ~$10, display-side to
+~$69, components to ~$162, and the single-monitor total to ~$192 everywhere
+those aggregates appear. Re-run the summation over every priced row, including
+all mounting hardware.
+
+### Finding 26 — NIT — packet §24 F22 ratio
+
+**Issue**: The switch-load margin is overstated as approximately 10^5.
+
+**Evidence**: `3.3 V * 3.3 µA = 10.89 µVA`; `0.4 VA / 10.89 µVA = 36,731`,
+or about `3.7e4`, not `1e5`. This does not change the PASS because C&K p.26
+explicitly supplies a Low Level/Dry Circuit rating.
+
+**Suggested fix**: Replace "~10^5×" with "~3.7×10^4 below the maximum" or
+omit the ratio and cite the low-level/dry-circuit classification directly.
+
+### Finding 27 — NIT — propagated BTN1 rating source pointers
+
+**Issue**: Two changed BTN1 rows propagate the low-level suitability claim
+without the direct source pointer required by §3.5 rule 3.
+
+**Evidence**: `cp1_battery_side.md` §6 calls the part "Rated for the 3.3 V/µA
+dry circuit," and `docs/hardware/bom.md` calls it "explicitly rated," but
+neither row names `CK_8020_series.pdf` p.26 Contact Material. The canonical
+`cp1_bom.md` row does carry a source, so this is provenance propagation rather
+than a design defect.
+
+**Suggested fix**: Add `CK_8020_series.pdf` p.26 for the Low Level/Dry Circuit
+classification (and p.2 for function/terminals) to both propagated rows, or
+remove the repeated qualification claim from the non-normative summary.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings 25, 26, 27.)
+
 ---
 
 ## 9. Claude's responses (iteration 2, 2026-06-21)
