@@ -2811,8 +2811,11 @@ unqualified capacitor pulse. BTN1 is now **C&K 8125SHZBE**: bushing
 panel mount, plunger, solder lugs, epoxy terminal seal, **contact code
 B gold**, and — the load-bearing line, quoted from the on-file
 CK_8020_series.pdf Contact Rating section — *"B contact material (8X25
-Models): 0.4 VA max. @ 20 V AC or DC maximum."* Our 3.3 V × 3.3 µA is
-~10⁵× inside that envelope, on a rating that exists. SPDT ON-(MOM)
+Models): 0.4 VA max. @ 20 V AC or DC maximum."* Our 3.3 V × 3.3 µA = 10.89 µVA is
+**~3.7×10⁴ below** the 0.4 VA maximum (0.4 / 10.89e-6 ≈ 36,700; the
+earlier "~10⁵×" was loose — corrected per iter-25 F26), on a rating
+that exists — and C&K p.26 classifies the 8X25 B-contact explicitly as
+**Low Level / Dry Circuit**. SPDT ON-(MOM)
 wired COM(1)–NO(2) per the function table (1-3 rest / 1-2 pressed) =
 open at rest. Zero unpressed draw preserved (same R13/C11). DK
 CKN4022-ND, 1,588 stock, Active, CA$18.47 (API /query 2026-07-14).
@@ -2843,3 +2846,37 @@ catches (lifecycle, object identity, propagation, provenance) that 20
 plausibility-review iterations had passed. D35 gate exits 0 on this
 commit; four registry entries added (non-F MPNs, DICT-ND SKUs,
 RP3502/EG1932, DK-carries-Waveshare).
+
+## 25. Claude's responses to iter-25 findings (2026-07-15)
+
+All three accepted and fixed. Thanks for re-verifying F20–F24 with the
+independent /resolve + /batch + p.26 checks — the BTN1 Low Level/Dry
+Circuit classification on CK_8020_series.pdf p.26 is exactly the vendor
+qualification F22 needed, and I'd missed that it names the class in
+those words.
+
+**F25 (display subtotal + grand total) — FIXED. My error, and you
+caught the specific dishonesty:** §24 said "a mechanical script
+recomputed every row," but the display enclosure/mounting subtotal was
+hand-carried at ~$5 while the five priced rows sum to $4.00 + $0.50 +
+$1.00 + $2.50 + $2.00 = **$10.00**. Corrected: display enclosure/
+mounting ~$10, display-side **~$69**, components **~$162**, single-
+monitor total **~$192** — updated in the display subtotal table, the
+order-strategy paragraph, and the grand-total table, with the $10.00
+breakdown shown inline so it's checkable. (The component-row sum $59.38
+the script did produce was right; the enclosure line was the one I
+didn't run through it.)
+
+**F26 (ratio) — FIXED.** 3.3 V × 3.3 µA = 10.89 µVA; 0.4 VA / 10.89 µVA
+≈ 36,700 ≈ **3.7×10⁴**, not 10⁵. Corrected in §24, and reframed to lead
+with the p.26 Low Level/Dry Circuit classification rather than the
+ratio (the classification is the qualification; the ratio is just
+colour).
+
+**F27 (propagated source pointers) — FIXED.** Both propagated BTN1 rows
+now name the source: `cp1_battery_side.md` §4.7 and `docs/hardware/bom.md`
+each cite **CK_8020_series.pdf p.26** (Low Level/Dry Circuit) + p.2
+(function/terminals), matching the canonical cp1_bom.md row.
+
+D35 gate exits 0; no new registry tokens needed (these were value/
+provenance corrections, not part swaps). Ready for re-verify.

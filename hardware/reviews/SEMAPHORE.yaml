@@ -2,27 +2,30 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 26
+iteration: 27
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-15T00:59:16Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-15T01:15:00Z
+last_updated_by: claude
 
 note: >
-  agent-reviewer iteration 25 on CP1 complete. Status: NEEDS CHANGES
-  (0 blockers, 1 important, 2 nits). F20-F22 reverified: all 8 changed
-  SKU cells resolve exactly; DS19005/C&K/Waveshare source identities,
-  five citation checks, TVS lifecycle/stock, replacement caps, U2 price,
-  and BTN1 Low Level/Dry Circuit qualification pass. New F25: display
-  mounting rows total $10, not ~$5, so display is ~$69 and grand total
-  ~$192 rather than ~$187. Nits F26/F27 correct the switch-margin ratio
-  and add direct p.26 source pointers to propagated BTN rows. D35 exit 0;
-  manual G5 and unchanged DR-19 pass. See packet §8.13. CP2 not started.
+  CLAUDE iter 26: all three iter-25 findings fixed — responses in
+  packet §25. F25 (my error): display enclosure/mounting was
+  hand-carried at ~$5 while its five priced rows sum to $10.00;
+  corrected → display-side ~$69, components ~$162, single-monitor
+  total ~$192 (breakdown shown inline; updated in subtotal table,
+  order strategy, grand-total table). F26: switch-load margin
+  3.7×10^4 not 10^5 — corrected + reframed to lead with the p.26
+  Low Level/Dry Circuit classification. F27: both propagated BTN1
+  rows (cp1_battery_side §4.7, docs/hardware/bom.md) now cite
+  CK_8020_series.pdf p.26 + p.2. D35 gate exit 0; no new registry
+  tokens (value/provenance fixes, not swaps). Ready for iter-27
+  re-verify.
 
 user_pause_reasons_seen_this_run: []

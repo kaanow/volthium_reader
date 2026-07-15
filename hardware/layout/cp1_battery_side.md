@@ -444,7 +444,7 @@ F08** — via DE=0+/RE=1 default from THVD1400's internal pulls).
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| BTN1 | Panel-mount pushbutton, momentary, **C&K 8125SHZBE** (SPDT ON-(MOM) wired COM–NO ⇒ open at rest; gold contacts, **0.4 VA @ 20 V logic-level rating** — iter-23 F22 replaced the unrated RP3502MA) | Panel-mount bushing (off-PCB lead) | 1 | Hardware-override for the load switch; mounts through the enclosure lid. Rated for the 3.3 V/µA dry circuit it actually switches |
+| BTN1 | Panel-mount pushbutton, momentary, **C&K 8125SHZBE** (SPDT ON-(MOM) wired COM–NO ⇒ open at rest; gold contacts, **0.4 VA @ 20 V logic-level rating** — iter-23 F22 replaced the unrated RP3502MA) | Panel-mount bushing (off-PCB lead) | 1 | Hardware-override for the load switch; mounts through the enclosure lid. Rated for the 3.3 V/µA dry circuit it actually switches — **CK_8020_series.pdf p.26 classifies the 8X25 B-contact as Low Level / Dry Circuit**; function/terminals p.2 |
 | R13 | 1 MΩ pull-up: BTN signal → V3V3   | 0805          | 1   | High-value pull-up minimizes Iq while ESP GPIO7 is in RTC-wake state. ESP32-S3 GPIO leakage is ~50 nA → divider error is negligible |
 | C11 | 100 nF X7R debounce                 | 0603          | 1   | RC = 100 ms — slow but the user is pressing a physical button, not racing |
 

@@ -68,9 +68,10 @@ PCB no PCBA). DHL shipping; ~$25–35 total for both boards' PCBs.
 Component spend recomputed 2026-07-14 from the line items below (prior
 "~$110 components / ~$145 grand" predated the U2 price correction
 $8 → CA$27.95, the BTN1 dry-circuit upgrade $3 → CA$18.47, and the
-TVS -13-F price updates): battery-side **~$83**, display-side **~$64**,
-cable/shared **~$10** → components **~$157**. PCBs add ~$30;
-bracket/faceplate are filament cost (~$2). Grand total **~$187** for
+TVS -13-F price updates; display enclosure/mounting corrected to $10
+per iter-25 F25): battery-side **~$83**, display-side **~$69**,
+cable/shared **~$10** → components **~$162**. PCBs add ~$30;
+bracket/faceplate are filament cost (~$2). Grand total **~$192** for
 one complete monitor.
 
 ---
@@ -277,8 +278,8 @@ U2 R-78HB12-0.5 = CA$27.95 (was $8) and BTN1 8125SHZBE = CA$18.47
 | Category | Cost |
 |----------|------|
 | Component + connector line items incl. LCD1 $35 (mechanical sum of this section's price column, 2026-07-14) | ~$59.4 |
-| Enclosure + mounting (double-gang old-work box; faceplate printed) | ~$5 |
-| **Display-side total** | **~$64** |
+| Enclosure + mounting ($4.00 box + $0.50 bracket + $1.00 faceplate + $2.50 M3 + $2.00 M2 = $10.00; corrected iter-25 F25 — was hand-carried at ~$5) | ~$10 |
+| **Display-side total** | **~$69** |
 
 ---
 
@@ -300,14 +301,15 @@ U2 R-78HB12-0.5 = CA$27.95 (was $8) and BTN1 8125SHZBE = CA$18.47
 | Item | Cost |
 |------|------|
 | Battery-side board (qty 1, hand-assembled) | ~$83 |
-| Display-side board (qty 1, hand-assembled) | ~$64 |
+| Display-side board (qty 1, hand-assembled) | ~$69 |
 | Cable & shared connectors | ~$10 |
 | Bare PCBs from JLCPCB (qty 5 of each board, 2-layer FR-4 HASL, DHL shipping) | ~$30 |
-| **Single-monitor total** | **~$187** |
+| **Single-monitor total** | **~$192** |
 
-*(Recomputed 2026-07-14, iter-23 F23 — the previous ~$145 and ~$154
-figures were mutually inconsistent and predated the U2/BTN1/TVS price
-corrections.)*
+*(Recomputed 2026-07-14; display enclosure/mounting subtotal corrected
+$5 → $10 at iter-25 F25 — my earlier "~$5" was hand-carried, not the
+$10.00 sum of the five priced mounting rows. The previous ~$145/~$154
+figures predated the U2/BTN1/TVS price corrections.)*
 
 Spares for the 4× extra PCBs are essentially free at JLC's minimum-order
 pricing. Hand-solder rework on the first build is essentially guaranteed,
