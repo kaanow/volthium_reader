@@ -24,6 +24,7 @@ from volthium.estimator import Estimator
 from volthium.pack import (
     DiscoveryWedgeError,
     emit_stack_health,
+    invalidate_adapter_cache,
     maybe_repair_primary,
     read_pack,
     recover_adapter,
@@ -314,6 +315,11 @@ async def _loop(args, log: logging.Logger) -> int:
             consec_scan_errors += 1
             log.warning("discovery wedged (#%d, %d scan-errors in a row): %s",
                         n + 1, consec_scan_errors, exc)
+            # Re-resolve the adapter from scratch on every retry: hci indexes
+            # move when the dongle re-enumerates (kernel reset or our own
+            # replug), and trusting the 60 s cache here costs minutes of
+            # scanning a dead index (seen live 2026-07-14 21:20).
+            invalidate_adapter_cache()
             if consec_scan_errors == ADAPTER_SOFT_RESET_AFTER:
                 log.error("discovery wedged %d× — resetting the HCI controller",
                           consec_scan_errors)

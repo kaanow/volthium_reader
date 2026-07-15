@@ -766,6 +766,15 @@ async def maybe_repair_primary() -> Optional[str]:
     return await _adapter_mgr.maybe_repair_primary()
 
 
+def invalidate_adapter_cache() -> None:
+    """Force a fresh adapter resolution on the next scan. The logger calls
+    this on every discovery-wedge retry: during the 2026-07-14 21:17 FM-9
+    episode the 60 s TTL kept re-latching onto the dead hci2 entry for
+    3 minutes after the auto-replug had already produced a healthy adapter
+    under a new index — re-probing on every retry closes that window."""
+    _adapter_mgr.invalidate()
+
+
 async def _adapter_kwargs() -> dict:
     """kwargs to splat into bleak scan/connect calls. `{"adapter": "hciN"}`
     when a configured adapter resolved; `{}` otherwise (bleak picks its
