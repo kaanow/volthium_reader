@@ -2899,3 +2899,34 @@ each cite **CK_8020_series.pdf p.26** (Low Level/Dry Circuit) + p.2
 
 D35 gate exits 0; no new registry tokens needed (these were value/
 provenance corrections, not part swaps). Ready for re-verify.
+
+## 26. CP1 delta re-verify closed — APPROVED (2026-07-15)
+
+Reviewer iter-27 signed off **APPROVED, 0 findings** (§8.14), with every
+number independently recomputed: battery $82.86, display $69.38,
+components+shared $162.24, grand $192.24; switch margin 36,731; both
+propagated BTN rows cite CK p.26/p.2; 3/3 citation checks and 3/3 live
+G3 spot-checks pass; D35 gate exit 0.
+
+**What the post-approval audit chain (iter 23–27) accomplished**, on top
+of the original iter-20 CP1 approval:
+- Distributor SKUs: 14 fabricated/wrong cells found and corrected; all
+  cells now resolve to their row MPN (SOP G3 sweep is now standing).
+- TVS: standardized on the orderable Diodes -13-F variants (the -13
+  variants were Obsolete) with datasheet-page VC pointers.
+- BTN1: RP3502MABLK (no dry-circuit rating) → C&K 8125SHZBE, vendor-
+  classified Low Level/Dry Circuit (p.26) — a rated part, not a patch.
+- Datasheet claims: fabricated citations (§5.4, Table 5-3, off-file AN)
+  and wrong-object PDFs (panel-vs-module; wrong-manufacturer TVS)
+  replaced with on-file, hashed, correct-object evidence.
+- Costs: recomputed from line items → ~$192 (was inconsistent ~$145/154).
+- Process: D35 mechanical gate + REVIEWER.md §3.5 grounding rules +
+  DESIGNER.md source-pointer rule now bind both agents.
+
+**Hard-cut headline ~1.08 mW unchanged throughout.** CP1 architecture
+remains APPROVED and is now audit-clean.
+
+**Held at user_turn for explicit CP2 (schematic capture) clearance** —
+CP2 opens a new branch and locks these decisions into editable KiCad
+form, so it's the natural user gate (DESIGNER.md §5). Nothing is blocked;
+awaiting the user's go.

@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: claude_turn
+state: user_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
@@ -11,16 +11,21 @@ iteration: 28
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-15T01:46:17Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-15T01:52:00Z
+last_updated_by: claude
 
 note: >
-  agent-reviewer iteration 27 on CP1 complete. Status: APPROVED
-  (0 findings). F25-F27 independently reverified: exact totals are
-  $82.86 battery, $69.38 display, $162.24 with shared items, and
-  $192.24 grand; switch ratio is 36,730.95; both propagated BTN rows
-  cite C&K p.26/p.2. Three visual citation checks and three-part G3
-  live availability spot-check pass. D35 exit 0; manual G5 and unchanged
-  DR-19 pass. See packet §8.14. CP2 not started.
+  CP1 DELTA RE-VERIFY CLOSED — reviewer iter-27 APPROVED, 0 findings
+  (§8.14); all totals independently recomputed (grand $192.24, switch
+  ratio 36,731), 3/3 citation + 3/3 G3 spot-checks pass, D35 exit 0.
+  The post-approval audit chain (iter 23–27) is complete: 14 SKU cells
+  corrected, TVS → Diodes -13-F, BTN1 → C&K 8125SHZBE (vendor dry-circuit
+  rated), fabricated citations + wrong-object PDFs replaced with hashed
+  on-file evidence, costs recomputed to ~$192, and the D35 gate +
+  REVIEWER §3.5 + DESIGNER source-pointer rules now bind both agents.
+  Hard-cut ~1.08 mW unchanged. CP1 architecture APPROVED and audit-clean.
+  **Held at user_turn for explicit CP2 (schematic capture) clearance** —
+  CP2 opens a new branch + locks decisions into KiCad. Nothing blocked;
+  awaiting user go. Closing note in packet §26.
 
 user_pause_reasons_seen_this_run: []
