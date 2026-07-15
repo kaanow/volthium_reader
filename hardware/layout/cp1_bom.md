@@ -23,11 +23,14 @@ Conventions:
 
 ## ⚠ SKU verification status
 
-The **D19/D25 power-chain active parts (U1 LM5166, U2 R-78HB12-0.5,
-Q1 ZXMP6A13F) WERE DigiKey stock/lifecycle-checked 2026-06-17** — all in
-stock, Active. The remaining SKU columns were written from the prior
-pass + working knowledge and are **not yet live-checked**. An earlier CP1
-review (Finding 03) flagged several that appear stale:
+**All distributor SKU cells in this BOM were batch-resolved against the
+parts API on 2026-07-14** (SOP G3 sweep; independently re-run by the
+reviewer at iter 23) — every cell resolves uniquely to its row's MPN.
+That sweep replaced the earlier posture where only the D19/D25
+power-chain actives had been checked (2026-06-17) and the rest were
+written from working knowledge — which produced 14 fabricated or
+wrong-part cells (see per-row correction notes). Historical stale-SKU
+flags from the earlier review:
 
 | Part                          | CP1 SKU (this doc)         | Spotted alternate (verify) |
 |-------------------------------|----------------------------|------------------------------------|
@@ -36,33 +39,39 @@ review (Finding 03) flagged several that appear stale:
 | ~~ISL3175EIBZ~~ (iter-8 first cut; superseded iter-10 F08 max-to-max) | ~~`ISL3175EIBZ-ND`~~ | ~~`968-ISL3175EIBZ`~~ |
 | **THVD1400DR** transceiver (D34, current) | `296-THVD1400DRTR-ND` (32635) | `595-THVD1400DR` (2381) |
 
-**Action**: At **CP5 procurement**, before clicking ORDER:
-1. Visit DigiKey for each line, search the manufacturer part number, and
-   capture the current SKU + stock count.
-2. If the CP1 SKU here is EOL or out-of-stock, swap to a current SKU for
-   the same MPN.
-3. Stamp the BOM table with `last verified: YYYY-MM-DD` per line.
-
-CP1 doesn't gate on SKU correctness — design rules and topology don't
-depend on the exact reel/cut-tape variant. Procurement-time verification
-is CP5's job. The CP1 BOM is "design intent": correct manufacturer
-part numbers and packages.
+**Standing rule (SOP G3, revised 2026-07-14):** batch-`POST /resolve`
+every SKU cell after any SKU edit and again at BOM-lock — a SKU cell is
+a claim, never a recollection. At **CP5 procurement**, re-run the sweep
+and re-check stock/lifecycle before clicking ORDER (stock moves: J2
+B8B-PH-K-S collapsed 2900 → 16 in three weeks). The earlier posture
+("CP1 doesn't gate on SKU correctness; verification is CP5's job") is
+retired — it's how wrong-part cells survived 20 review iterations.
 
 ## Order strategy
 
-Two carts:
+Four sources (corrected 2026-07-14, iter-23 F23 — the prior "DigiKey
+carries the Waveshare, one shipment" plan was wrong; neither DigiKey nor
+Mouser lists the module):
 
-1. **DigiKey** — single-line vendor for most active parts and the
-   Waveshare e-paper (DK carries it). One shipment.
-2. **3D-printed bracket + faceplate** — user prints on their own
+1. **DigiKey** — primary cart for most active parts (all SKUs in this
+   BOM resolved via the parts API, 2026-07-14).
+2. **Mouser** — the Mouser-only lines: M3×5 standoffs (710-970050354);
+   also stocks most other lines as second source.
+3. **Waveshare direct (waveshare.com) or Amazon** — LCD1 e-paper
+   Module (B); not stocked at DK/Mouser (API keyword sweep 2026-07-14).
+4. **3D-printed bracket + faceplate** — user prints on their own
    printer; STL/STEP files come out of CP5.
 
 JLCPCB order separately (the PCBs themselves; qty 5 each board, bare
 PCB no PCBA). DHL shipping; ~$25–35 total for both boards' PCBs.
 
-Total component spend across both boards: **~$110** in single-qty
-parts. PCBs add ~$30. Bracket/faceplate are filament cost (~$2).
-Grand total **~$145** for one complete monitor (including extras).
+Component spend recomputed 2026-07-14 from the line items below (prior
+"~$110 components / ~$145 grand" predated the U2 price correction
+$8 → CA$27.95, the BTN1 dry-circuit upgrade $3 → CA$18.47, and the
+TVS -13-F price updates): battery-side **~$83**, display-side **~$64**,
+cable/shared **~$10** → components **~$157**. PCBs add ~$30;
+bracket/faceplate are filament cost (~$2). Grand total **~$187** for
+one complete monitor.
 
 ---
 
@@ -73,11 +82,11 @@ Grand total **~$145** for one complete monitor (including extras).
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes (Δ from prior BOM) |
 |-----|------|-----|-----|-------------|------------|-------|--------------------------|
 | J1  | Phoenix **MSTBA 2,5/2-G-5,08** header (1757242, right-angle, 2-pos) + **MSTB 2,5/2-ST-5,08** plug (1757019, 2-pos screw-clamp) | THT 5.08 mm | 1 | 277-1106-ND (hdr) + 277-1011-ND (plug) | 651-1757242 + 651-1757019 | $3.50 | **NEW** pluggable input — user lands pack wires on the plug, plugs into the board (disconnect w/o unscrewing, D19). **PLUG CORRECTED 2026-07-01 (user caught via datasheet, D32): was 1727010 = MKDS 1/2-3,81 — a 3.81 mm board-mount screw terminal, wrong series/pitch, doesn't mate the header. 1757019 = the real MSTB 2,5/2-ST-5,08 2-pos plug (parametrics-verified: 2 pos, 5.08 mm, screw rising-cage; stock ~15k).** |
-| F1  | 5×20 mm fuse clip, Keystone **3517** (×2, w/ end stops, UL E354010) | THT clip | 2 | **36-3517-ND** | 534-3517 | $0.48 ea | **NEW** — replaces ATO fuse holder. Holds the 1 A cartridge. **SKUs corrected 2026-07-14 (user-caught): prior F1465-ND / 530-31MJ005H were phantoms — zero hits at DK/Mouser/Octopart.** 3517 API-verified live: DK 85.7k / Mouser 54.3k stock, Active, datasheet on file |
+| F1  | 5×20 mm fuse clip, Keystone **3517** (×2, w/ end stops, UL E354010) | THT clip | 2 | **36-3517-ND** | 534-3517 | $0.48 ea | **NEW** — replaces ATO fuse holder. Holds the 1 A cartridge. **SKUs corrected 2026-07-14 (user-caught): prior F1465-ND / 530-31MJ005H were phantoms — zero hits at DK/Mouser/Octopart** (API /query + /resolve, 2026-07-14: DK 85.7k / Mouser 54.3k, Active). Datasheet Keystone_3517.pdf (5 mm/3AG clip table) |
 | F1_ELEM | **Littelfuse 0215001.MXP** — 1 A 5×20 mm **time-lag (T)** ceramic cartridge fuse | TH 5×20 mm | 1 | F1696-ND | 576-0215001.MXP | $0.95 | **NEW** — fuse element. **Time-lag (DR-12)**: rides the ~22 µF ceramic inrush; ceramic = safer in a high-energy DC fault than glass. **API-verified 2026-06-25** (DK ~3.8k stock) |
 | D1  | SS26 Schottky 60 V/2 A (SS26-E3/52T) | **DO-214AA (SMB)** | 1 | SS26-E3/52TGITR-ND | — | $0.30 | **Δ (D19/DR-3): SS24 (40 V) → SS26 (60 V)** to out-rate the ~53 V clamp. **Package corrected SMA → SMB (API 2026-06-25)** — SS26-E3/52T is DO-214AA; SMB is also easier to hand-solder |
-| TVS1 | SMAJ33CA bidirectional TVS (Vrwm 33 V; **Diodes Inc SMAJ33CA-13** — manufacturer standardized 2026-07-14 to match the DK SKUs + on-file DS19005 datasheet, VC 53.3 V verified) | SMA | 1 | SMAJ33CADICT-ND (3.4k stock, Active — API-verified 2026-07-14) | — (prior 78- cell was the Vishay part; dropped for single-manufacturer consistency) | $0.40 | **Δ (D19/DR-2): SMAJ30CA → SMAJ33CA** — 33 V clears the ~29 V full-charge bus with margin |
-| TVS3 | SMAJ15A unidirectional TVS, V12_CAT5E↔GND | SMA | 1 | SMAJ15ADICT-ND | — | $0.30 | **NEW (DR-15):** clamps cable surges on the 12 V Cat5e pair at the **battery** end (matches the display-end SMAJ15A → both ends protected). Zero static draw |
+| TVS1 | **SMAJ33CA-13-F** bidirectional TVS (Vrwm 33 V, VC 53.3 V @ 7.5 A per DS19005 p.2 device table; Diodes Inc) | SMA | 1 | SMAJ33CA-FDICT-ND (306k stock, Active; API /batch 2026-07-14) | 621-SMAJ33CA-13-F (48k) | $0.83 | **Iter-23 F20: non-F variant is Obsolete/zero-stock — and my prior "3.4k stock, Active" cell had laundered the Vishay listing's stock onto the Diodes SKU.** DS19005 p.1 ordering row names SMAJxxx(C)A-13-F. **Δ (D19/DR-2): SMAJ30CA → SMAJ33CA** — 33 V clears the ~29 V full-charge bus with margin |
+| TVS3 | **SMAJ15A-13-F** unidirectional TVS, V12_CAT5E↔GND (VC 24.4 V @ 16.4 A per DS19005 p.2) | SMA | 1 | SMAJ15A-FDICT-ND (63k stock, Active; API /batch 2026-07-14) | 621-SMAJ15A-13-F (26k) | $0.75 | **NEW (DR-15):** clamps cable surges on the 12 V Cat5e pair at the **battery** end (matches the display-end SMAJ15A → both ends protected). Zero static draw |
 
 ### Power conversion
 
@@ -142,14 +151,14 @@ Grand total **~$145** for one complete monitor (including extras).
 | U3  | **THVD1400DR** (TI, 3.3–5.5 V half-duplex, 500 kbps, full fail-safe RX) | SOIC-8 | 1 | 296-THVD1400DRTR-ND | 595-THVD1400DR | $1.38 | **D34 (revised iter-10 F08)**: pivot from ISL3175EIBZ (12 µA max shutdown, iter-8 first cut) to THVD1400 (**1 µA max shutdown**, 12× better on the load-bearing hard-cut spec). VCC 3.0–5.5 V, RX-only Iq 900 µA max/700 µA typ; **datasheet-guaranteed internal DE pull-DOWN + /RE pull-UP** → default-safe without external R_DE/R_RE. Standard SN75176 8-SOIC pinout (drop-in). TI Active, DK+Mouser **35016** stock. Datasheet: `hardware/datasheets/THVD1400DR.pdf` (sha `5ba9785d…`). |
 | R10 | 120 Ω 0805 1 % term resistor | 0805 | 1 | RMCF0805FT120RCT-ND | 71-CRCW0805120RFKEA | $0.10 | (unchanged) |
 | — | _(no idle bias on the battery side — D19/DR-4)_ | — | 0 | — | — | — | **Δ: removed battery-side bias.** The always-on rail would otherwise leak ~2.3 mA continuously; bias is now display-end only |
-| TVS2 | SMAJ12CA bidirectional TVS | SMA | 1 | (unchanged) SMAJ12CADICT-ND | — | $0.30 | Δ: renumbered from TVS1 in prior schematic |
+| TVS2 | **SMAJ12CA-13-F** bidirectional TVS (VC 19.9 V @ 20.1 A per DS19005 p.2) | SMA | 1 | SMAJ12CA-FDICT-ND (268k stock, Active; API /batch 2026-07-14) | 621-SMAJ12CA-13-F (30k) | $0.84 | **Iter-23 F20: -13 → -13-F (non-F Obsolete)** | Δ: renumbered from TVS1 in prior schematic |
 | C10 | 100 nF X7R | 0603 | 1 | (unchanged) | | $0.05 | U3 decoupling |
 
 ### User input
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| BTN1 | E-Switch RP3502MABLK panel-mount SPST NO momentary | Panel-mount | 1 | EG1932-ND (9.1k stock, Active) | 612-RP3502MABLK (524) | $3.00 | **DK SKU corrected 2026-07-14 (SKU sweep): prior EG4527-ND resolves to a different E-Switch part (LS0851503F040C1A).** (Δ: was EG1218; RP3502MA-series stocks better) **Datasheet verified 2026-07-14** (`RP3502MABLK.pdf`): metal body, function A = OFF-(ON), 12.7 mm hole / 1/2"-28 UNEF, −20…+65 °C, solder lugs. **Read-flag: 3 A @ 120 VAC contact rating, no dry-circuit DC spec** — our 3.3 V/µA use relies on the C11 100 nF debounce discharge for contact wetting; sanity-check at CP5 bench. |
+| BTN1 | **C&K 8125SHZBE** — SPDT ON-(MOM) snap-acting pushbutton, plunger actuator, 0.250" flat bushing panel mount, solder lugs, **contact code B = gold, epoxy terminal seal**. Wire COM(1)–NO(2): open at rest, closed pressed (function table, CK_8020_series.pdf) | Panel-mount bushing | 1 | CKN4022-ND (1,588 stock, Active, CA$18.47; API /query 2026-07-14) | 611-8125-241 (402) | $18.47 | **Iter-23 F22 (reviewer): RP3502MABLK superseded — an AC power switch with no published dry-circuit/minimum-load rating can't be qualified for 3.3 V/µA service, and the C11 100 nF pulse (0.54 µJ) is not a vendor wetting qualification.** 8125+B is *rated for this circuit class*: "B contact material (8X25 Models): 0.4 VA max. @ 20 V AC or DC maximum" (CK_8020_series.pdf, Contact Rating). Our 3.3 V × 3.3 µA ≪ 0.4 VA ✓. Zero unpressed draw preserved (same R13/C11 network). Smaller bushing than the RP3502 (1/4"-40 class vs 12.7 mm) — lid hole sized at enclosure design. CP5 bench = verification of a rated design, not qualification of an unrated one |
 | R13 | 1 MΩ 0805 1 % | 0805 | 1 | RMCF0805FT1M00CT-ND | 71-CRCW08051M00FKEA | $0.10 | BTN pull-up (Δ: was 10 kΩ → 1 MΩ for lower Iq) |
 | C11 | 100 nF X7R | 0603 | 1 | (unchanged) | | $0.05 | Button debounce |
 
@@ -174,12 +183,14 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Category | Cost |
 |----------|------|
-| Active components | ~$22 |
-| Passives | ~$5 |
-| Connectors / headers | ~$8 |
-| Enclosure | ~$5 |
-| Hardware (standoffs, screws) | ~$3 |
-| **Battery-side total** | **~$43** |
+| Component + connector line items (mechanical sum of this section's price column, 2026-07-14) | ~$79.6 |
+| Hardware (standoffs ×4 @ $0.59, hookup wire) | ~$3.4 |
+| Enclosure | (printed — filament) |
+| **Battery-side total** | **~$83** |
+
+*(Recomputed at iter-23 F23. The dominant deltas vs the stale ~$43:
+U2 R-78HB12-0.5 = CA$27.95 (was $8) and BTN1 8125SHZBE = CA$18.47
+(was $3).)*
 
 ---
 
@@ -191,7 +202,7 @@ Grand total **~$145** for one complete monitor (including extras).
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | J1  | **Würth 615008145521** WR-MJ RJ45 jack, right-angle (horizontal, tab-down), shielded, THT | THT shielded | 1 | 732-615008145521-ND | 710-615008145521 | $4.00 | **Δ (DR-10): right-angle** for the shallow box (the earlier SUYIN 100362 is NOT distributor-stocked). **✅ Datasheet-verified 2026-06-25: horizontal/right-angle + shielded (EMI panel finger) + 8P8C + MAGNETICS-FREE** (plain CAT5e jack, 20 mΩ contacts, no magjack) + ~13.6 mm height → fits the ~45 mm depth (~33 mm stack). −40…+85 °C, UL E324776. **Tab-down** → confirm cable-entry orientation at CP3. Datasheet: hardware/datasheets/615008145521.pdf |
 | F1  | **Bourns MF-R025** PTC polyfuse, **~0.25 A hold** | THT radial | 1 | MF-R025-ND | 652-MFR025 | $1.00 | **Δ (DR-11): 0.5 A → ~0.25 A** — matches the ~40–150 mA load, trips below U2 foldback. **API-verified 2026-06-25** (DK ~4.2k, Mouser ~7k) |
-| TVS1 | SMAJ15A unidirectional TVS | SMA | 1 | SMAJ15ADICT-ND | — | $0.30 | (unchanged) |
+| TVS1 | **SMAJ15A-13-F** unidirectional TVS (VC 24.4 V per DS19005 p.2) | SMA | 1 | SMAJ15A-FDICT-ND (63k, Active; API /batch 2026-07-14) | 621-SMAJ15A-13-F (26k) | $0.75 | **Iter-23 F20: -13 → -13-F** |
 | C1  | 22 µF / 25 V X7R | 1210 | 1 | (unchanged) | | $0.20 | V12 input bulk |
 
 ### Power conversion
@@ -216,7 +227,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | LCD1 | Waveshare 4.2inch e-Paper **Module (B)** — tri-color (B/W/R), onboard driver + 8-pin SPI | module | 1 | — | — | ~$35.00 | **Δ (DR-7): use the module (8-pin SPI), not a bare panel.** Driver + booster on the module. **Sourcing corrected 2026-07-14 (SKU sweep): prior DK 1738-1135-ND resolves to DFRobot DFR0290 (different manufacturer's display) and Mouser 992-19094 is a phantom; keyword sweep confirms neither distributor lists this Waveshare module → order from waveshare.com or Amazon** |
-| J2  | **JST-PH 2.0 mm 8-pin** post header (B8B-PH-K-S top / S8B-PH-K-S side) — e-paper SPI: VCC/GND/DIN/CLK/CS/DC/RST/BUSY | THT 1×8 | 1 | B8B-PH-K-S → 455-1710-ND (**stock collapsed ~2900 → 16 between 2026-06-25 and 07-14 — order early**; still Active) | — (Mouser doesn't list; prior 455- cell used the DK prefix) | $0.51 | **Matches the module's PH 2.0 connector (verified).** Same family both sides → pre-crimped PH↔PH cable (user: ASPHSPH24K102-class), no tool. Keyed by design. **Δ (DR-7):** was a 24-pin FH12-24S FFC (bare-panel) |
+| J2  | **JST-PH 2.0 mm 8-pin** post header (B8B-PH-K-S top / S8B-PH-K-S side) — e-paper SPI: VCC/GND/DIN/CLK/CS/DC/RST/BUSY | THT 1×8 | 1 | B8B-PH-K-S → 455-1710-ND (**stock collapsed ~2900 → 16 between 2026-06-25 and 07-14 — order early**; still Active) | — (Mouser doesn't list; prior 455- cell used the DK prefix) | $0.51 | **Matches the module's PH 2.0 connector — evidence: hashed Waveshare product-page + wiki captures 2026-07-14 (manifest LCD1 row; box lists "PH2.0 20cm 8Pin x1"; iter-23 F21).** Same family both sides → pre-crimped PH↔PH cable (user: ASPHSPH24K102-class), no tool. Keyed by design. **Δ (DR-7):** was a 24-pin FH12-24S FFC (bare-panel) |
 | C6  | 1 µF X7R panel VCC bulk | 0603 | 1 | (same as C5) | | $0.10 | NEW — reduces VCC dip during refresh |
 
 ### RS-485
@@ -226,7 +237,7 @@ Grand total **~$145** for one complete monitor (including extras).
 | U2  | **THVD1400DR** (TI, 3.3–5.5 V half-duplex, 500 kbps, full fail-safe RX) | SOIC-8 | 1 | 296-THVD1400DRTR-ND | 595-THVD1400DR | $1.38 | **D34 (revised iter-10 F08 + iter-14 F15)** — same swap as battery-side U3, drop-in SOIC-8. Internal DE pull-DOWN + /RE pull-UP → no external R_DE/R_RE needed. Display firmware latches GPIO15 LOW via `gpio_hold_en` in deep sleep so /RE = 0 (receiver on); wake is the **`ext1` `ESP_EXT1_WAKEUP_ANY_LOW` RTC-GPIO mask** over GPIO12/13/14 (buttons) + GPIO18 (RO), triggered by a master-driven sustained-LOW BREAK — **not** the ESP UART wake (UART off in Deep-sleep). |
 | R2  | 120 Ω 0805 1 % | 0805 | 1 | (same as battery R10) | | $0.10 | Bus terminus |
 | R3, R4 | ~330 Ω 0805 1 % idle bias footprints (A→3V3, B→GND) | 0805 | 2 (**DNP by default**) | _verify_ | | $0.10 ea | **DNP by default (iter-12 F12).** THVD1400 datasheet §8.2.1.4 guarantees Full Fail-Safe RX (open/short/idle bus → RO HIGH built-in), so a static bias is not required for correct RS-485 idle behavior. If populated, it draws **4.58 mA at 3.3 V ≈ 15 mW continuously** whenever the display board is powered — that's the reviewer's F12 catch; prior text called this "free margin at hard-cut" but it's a real 15 mW cost in State A + State B (only free in State C hard-cut). Footprint stays on the PCB so it can be stuffed at CP5 bench if actual link EMI ever shows spurious RO glitches. |
-| TVS2 | SMAJ12CA bidirectional | SMA | 1 | (unchanged) | | $0.30 | |
+| TVS2 | **SMAJ12CA-13-F** bidirectional (VC 19.9 V @ 20.1 A per DS19005 p.2) | SMA | 1 | SMAJ12CA-FDICT-ND (268k, Active; API /batch 2026-07-14) | 621-SMAJ12CA-13-F (30k) | $0.84 | **Iter-23 F20: -13 → -13-F (non-F Obsolete)** |
 | C7  | 100 nF X7R | 0603 | 1 | (unchanged) | | $0.05 | U2 decoupling |
 
 ### User input
@@ -265,12 +276,9 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Category | Cost |
 |----------|------|
-| Active components | ~$13 |
-| Passives | ~$5 |
-| E-paper panel | ~$35 |
-| Connectors / headers | ~$8 |
-| Enclosure + mounting | ~$10 |
-| **Display-side total** | **~$71** |
+| Component + connector line items incl. LCD1 $35 (mechanical sum of this section's price column, 2026-07-14) | ~$59.4 |
+| Enclosure + mounting (double-gang old-work box; faceplate printed) | ~$5 |
+| **Display-side total** | **~$64** |
 
 ---
 
@@ -291,11 +299,15 @@ Grand total **~$145** for one complete monitor (including extras).
 
 | Item | Cost |
 |------|------|
-| Battery-side board (qty 1, hand-assembled) | $43 |
-| Display-side board (qty 1, hand-assembled) | $71 |
-| Cable & shared connectors | $10 |
-| Bare PCBs from JLCPCB (qty 5 of each board, 2-layer FR-4 HASL, DHL shipping) | $30 |
-| **Single-monitor total** | **~$154** |
+| Battery-side board (qty 1, hand-assembled) | ~$83 |
+| Display-side board (qty 1, hand-assembled) | ~$64 |
+| Cable & shared connectors | ~$10 |
+| Bare PCBs from JLCPCB (qty 5 of each board, 2-layer FR-4 HASL, DHL shipping) | ~$30 |
+| **Single-monitor total** | **~$187** |
+
+*(Recomputed 2026-07-14, iter-23 F23 — the previous ~$145 and ~$154
+figures were mutually inconsistent and predated the U2/BTN1/TVS price
+corrections.)*
 
 Spares for the 4× extra PCBs are essentially free at JLC's minimum-order
 pricing. Hand-solder rework on the first build is essentially guaranteed,
@@ -353,12 +365,12 @@ so the extras are not wasted.
   (battery-side bias remains removed regardless to keep the always-on
   rail at zero static draw).
 - ~~**D-OPEN-13** Panel-mount switch BTN1 on battery side — does the
-  RP3502MA-series exist in stock with sealed cap (IP67) options?~~
-  **RESOLVED (2026-07-14, datasheet read):** the RP3502 series page
-  offers **no sealed/IP67 option** (body: plastic or metal; function
-  A/B; color — that's the whole ordering matrix). Accept unsealed —
-  the button lives on the battery-side enclosure lid inside the cabin
-  (IP5x indoor per D20). If sealing is ever wanted, change series at
+  since-retired RP3502MA-series exist in stock with sealed cap (IP67) options?~~
+  **RESOLVED then superseded:** the retired RP3502 series page
+  offered no sealed/IP67 option; the question is **moot since iter-23
+  F22 replaced BTN1 with the C&K 8125SHZBE** (also unsealed — accepted:
+  the button lives on the battery-side enclosure lid inside the cabin,
+  IP5x indoor per D20). If sealing is ever wanted, change series at
   ordering (e.g. an IP67 vandal-style momentary), not a cap add-on.
 - **D-OPEN-14** JLCPCB PCBA option deferred for now (qty 1 → expensive).
   Re-evaluate before a v2 spin if user wants more boards.

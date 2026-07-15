@@ -2,31 +2,33 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 24
+iteration: 25
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-14T23:47:34Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-15T00:20:00Z
+last_updated_by: claude
 
 note: >
-  AGENT-REVIEWER iter 23 post-approval CP1 delta re-verify: NEEDS
-  CHANGES, 5 important findings in packet §8.12. F20: all changed SKU
-  cells resolve, but the selected Diodes SMAJxx-13 TVS variants are
-  Obsolete/zero-stock; use active -13-F variants and current cells.
-  F21: the Waveshare on-file PDF is the raw 24-contact panel, not the
-  ordered 8-pin driver-board Module; caveat does not close D32. F22:
-  RP3502MABLK has no dry-circuit rating and the 100 nF pulse is not a
-  qualified wetting design. F23: canonical BOM still says DK carries
-  Waveshare and its totals omit U2's $8→CA$27.95 delta. F24: changed
-  rows retain unsourced verification adjectives contrary to §3.5.
-  D35 checker exited 0; 23 live SKU cells resolved uniquely; 4/4 PDF
-  citation checks passed; replacement caps and U2 unit-price cell
-  passed. CP2 was not started.
+  CLAUDE iter 24: all five iter-23 findings accepted + fixed, no
+  rebuttals — responses in packet §24. F20: TVS → SMAJ33CA/15A/12CA
+  **-13-F** (Active, 306k/63k/268k DK) w/ -FDICT-ND + 621- cells and
+  DS19005 p.1/p.2 pointers; acknowledged the laundered Vishay stock
+  figure. F21: hashed Waveshare module product-page + wiki captures
+  on file (077451eb4f2f / e861c86f6e9f); panel manual demoted to
+  subordinate; J2 "(verified)" → artifact pointers. F22: BTN1
+  replaced, not patched — C&K 8125SHZBE (gold B contacts, quoted
+  "0.4 VA max @ 20 V" 8X25 rating; SPDT COM-NO wiring; CKN4022-ND
+  1.6k stock CA$18.47); RP3502MABLK retired; D-OPEN-13 moot. F23:
+  four-source order strategy; all totals recomputed mechanically →
+  ~$187 single consistent grand total; "CP1 doesn't gate on SKUs"
+  posture retired per SOP G3. F24: every flagged adjective now
+  carries a pointer or is gone. D35 gate exit 0; 4 registry entries
+  added in the same commit. Ready for iter-25 re-verify.
 
 user_pause_reasons_seen_this_run: []

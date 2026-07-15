@@ -139,6 +139,18 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
     (r"~?14 µA( Iq| at 24 V| idle)?", "9.7 µA",
      "LM5166 IQ-SLEEP is 9.7 µA typ / 15 µA max (§6.5); '~14 µA' was "
      "unsourced"),
+    # iter-23 reviewer findings (F20/F22/F23):
+    (r"SMAJ(33CA|15A|12CA)-13(?!-F)", "-13-F",
+     "F20: Diodes non-F -13 variants are Obsolete/zero-stock → -13-F"),
+    (r"SMAJ(33CA|15A|12CA)DICT-ND", "-FDICT-ND",
+     "F20: cut-tape SKUs of the obsolete non-F variants → SMAJxx-FDICT-ND"),
+    (r"RP3502|EG1932-ND", "8125SHZBE",
+     "F22: BTN1 → C&K 8125SHZBE (gold, 0.4 VA @ 20 V logic-level rating; "
+     "RP3502MABLK had no dry-circuit rating)"),
+    (r"DK carries (it|the Waveshare)|single-line vendor for most",
+     "waveshare.com",
+     "F23: neither DK nor Mouser lists the Waveshare module — order "
+     "direct/Amazon; multi-cart order strategy"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -153,7 +165,7 @@ CANONICAL_BOM = REPO / "hardware/layout/cp1_bom.md"
 MANIFEST_TO_BOM_ALIAS = {
     "MSTB 2,5/2-ST-5,08 (1757019)": "1757019",
     "LCD1 Waveshare 4.2\" e-Paper Module (B)": "Waveshare",
-    "RP3502MABLK (BTN1 battery override)": "RP3502MABLK",
+    "8125SHZBE (BTN1 battery override)": "8125SHZBE",
     "RJHSE-5380": "RJHSE5380",
     "AP2112K-3.3TRG1": "AP2112K-3.3",
     "ZXMP6A13FTA": "ZXMP6A13F",

@@ -2707,3 +2707,75 @@ it exists because of what this audit found).
 Scope note: this is a **delta re-verify on an approved CP1**, iter 23.
 CP2 remains gated on explicit user clearance regardless of this pass's
 outcome.
+
+## 24. Claude's responses to iter-23 findings (2026-07-14)
+
+All five findings accepted and fixed — no rebuttals. This pass was the
+shakedown of the §3.5 grounding rules and they performed exactly as
+intended: F20 in particular is a class of error (real SKU, wrong
+lifecycle, laundered stock figure) that plausibility review can never
+catch.
+
+**F20 (TVS variants) — FIXED.** All three TVS positions (plus the
+display-side TVS2 the finding's sweep covered) moved to the exact
+Active variants: **SMAJ33CA-13-F / SMAJ15A-13-F / SMAJ12CA-13-F**, DK
+`SMAJ33CA-FDICT-ND` (306k) / `SMAJ15A-FDICT-ND` (63k) /
+`SMAJ12CA-FDICT-ND` (268k), Mouser `621-…-13-F` alternates — all from
+`POST /batch` 2026-07-14. Manifest rows now carry DS19005 p.1
+(ordering row names `SMAJxxx(C)A-13-F`) + p.2 device-table VC
+pointers. Prices updated ($0.75–0.84). Registry: two new entries
+(non-F MPNs; DICT-ND SKUs). Acknowledged explicitly in the TVS1 row:
+my "3.4k stock, Active" annotation had laundered the **Vishay**
+listing's stock onto the Diodes SKU — the precise failure mode §3.5
+rule 1 names.
+
+**F21 (Waveshare object identity) — FIXED.** Two durable, hashed
+module-object artifacts now on file: the product-page capture
+(sha `077451eb4f2f`, exact URL, 2026-07-14 — box contents list
+"PH2.0 20cm 8Pin x1") and the wiki capture (sha `e861c86f6e9f` —
+8PIN pin-correspondence tables VCC/GND/DIN/CLK/CS/DC/RST/BUSY, ≤20 cm
+cable-extension note). Manifest LCD1 row leads with the module
+evidence; the panel V2 manual is demoted to an explicitly subordinate
+panel document. The J2 rows' "(verified)" adjectives replaced with
+pointers to these artifacts. Residual honest TODO kept: confirm the
+in-box cable's far-end termination at ordering (the PH↔PH cable is a
+separate BOM line either way).
+
+**F22 (BTN1 dry-circuit) — ACCEPTED; part replaced, not patched.**
+You're right that an unpublished minimum-load spec can't be met by an
+unqualified capacitor pulse. BTN1 is now **C&K 8125SHZBE**: bushing
+panel mount, plunger, solder lugs, epoxy terminal seal, **contact code
+B gold**, and — the load-bearing line, quoted from the on-file
+CK_8020_series.pdf Contact Rating section — *"B contact material (8X25
+Models): 0.4 VA max. @ 20 V AC or DC maximum."* Our 3.3 V × 3.3 µA is
+~10⁵× inside that envelope, on a rating that exists. SPDT ON-(MOM)
+wired COM(1)–NO(2) per the function table (1-3 rest / 1-2 pressed) =
+open at rest. Zero unpressed draw preserved (same R13/C11). DK
+CKN4022-ND, 1,588 stock, Active, CA$18.47 (API /query 2026-07-14).
+RP3502MABLK retired in the manifest with the F22 rationale; D-OPEN-13
+marked moot. CP5 bench is now verification of a rated design.
+
+**F23 (sourcing plan + totals) — FIXED.** Order strategy rewritten to
+four sources (DK / Mouser / Waveshare-direct / printed). All
+subtotals and the grand total recomputed mechanically from the price
+column (script over the section tables, 2026-07-14): battery ~$83
+(dominated by U2 CA$27.95 + BTN1 CA$18.47), display ~$64, shared ~$10,
+PCBs ~$30 → **single-monitor total ~$187**, one consistent figure.
+The stale "CP1 doesn't gate on SKU correctness" posture in the SKU
+verification section is retired and replaced with the SOP G3 standing
+rule. Registry: "DK carries it / single-line vendor" tokens added.
+
+**F24 (unsourced verification adjectives) — FIXED.** Every cited
+instance now carries its pointer or lost the adjective: manifest SMAJ
+rows → DS19005 p.1/p.2 pointers; cp1_bom 3517 row → API /query +
+/resolve 2026-07-14; TVS1 row → /batch date + DS19005 pages; BTN1 row
+rewritten with datasheet-section quotes + API date; J2/LCD1 → hashed
+artifact pointers (F21). The DESIGNER.md source-pointer rule (added
+with §3.5) is what should keep new instances out; flag any stragglers.
+
+**Meta:** iter-23 is the strongest evidence yet for the two-agent
+grounding split — four of five findings were pure tool-grounding
+catches (lifecycle, object identity, propagation, provenance) that 20
+plausibility-review iterations had passed. D35 gate exits 0 on this
+commit; four registry entries added (non-F MPNs, DICT-ND SKUs,
+RP3502/EG1932, DK-carries-Waveshare).

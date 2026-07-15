@@ -20,9 +20,9 @@ pulled manually. Read + interface-verified per D32.
 | R-78HB12-0.5 | R-78HB12-0.5.pdf (1836K) | digikey | https://recom-power.com/pdf/Innoline/R-78HB-0.5.pdf | 457ccbb2825f |
 | RJHSE-5380 | RJHSE-5380.pdf (102K) | digikey | https://cdn.amphenol-cs.com/media/wysiwyg/files/drawing/rjhsex380.pdf | 3254d85eaaa6 |
 | RV-3028-C7 | RV-3028-C7.pdf (830K) | manual | user download 2026-07-01 | fb5a01874b3e |
-| SMAJ12CA | SMAJ_Diodes.pdf (116K) | mouser (API proxy) | https://www.mouser.com/catalog/specsheets/ds19005.pdf — Diodes Inc DS19005, covers SMAJ5.0(C)A–SMAJ200(C)A | 70bd31105424 |
-| SMAJ15A | SMAJ_Diodes.pdf (same file) | " | " — VC 24.4 V @ 16.4 A read + verified vs D19/DR-15 | 70bd31105424 |
-| SMAJ33CA | SMAJ_Diodes.pdf (same file) | " | " — VC 53.3 V @ 7.5 A read + verified vs the "~53 V clamp" coordination (SS26 60 V, R-78HB12 72 V) | 70bd31105424 |
+| SMAJ12CA-13-F | SMAJ_Diodes.pdf (116K) | mouser (API proxy) | https://www.mouser.com/catalog/specsheets/ds19005.pdf — Diodes DS19005; p.1 ordering row names SMAJxxx(C)A-13-F (iter-23 F20: non-F variants Obsolete); p.2 device table VC 19.9 V @ 20.1 A | 70bd31105424 |
+| SMAJ15A-13-F | SMAJ_Diodes.pdf (same file) | " | " — p.2 device table VC 24.4 V @ 16.4 A, matches D19/DR-15 coordination | 70bd31105424 |
+| SMAJ33CA-13-F | SMAJ_Diodes.pdf (same file) | " | " — p.2 device table VC 53.3 V @ 7.5 A, matches the ~53 V clamp coordination (SS26 60 V, R-78HB12 72 V) | 70bd31105424 |
 | THVD1400DR | THVD1400DR.pdf (1447K) | digikey | https://www.ti.com/lit/ds/symlink/thvd1400.pdf | 5ba9785d9fb8 |
 | SS26-E3/52T | SS26-E3_52T.pdf (151K) | digikey | https://www.vishay.com/docs/88748/ss22.pdf | 4bcd8bc129f3 |
 | TPS2116DRLR | TPS2116DRLR.pdf (2855K) | digikey | https://www.ti.com/lit/ds/symlink/tps2116.pdf | 5babd88afb84 |
@@ -30,25 +30,19 @@ pulled manually. Read + interface-verified per D32.
 | USBLC6-2SC6Y | USBLC6-2SC6Y.pdf (117K) | manual | user download 2026-07-01 | c0352261dede |
 | ZXMP6A13FTA | ZXMP6A13FTA.pdf (246K) | digikey | https://www.diodes.com/assets/Datasheets/ZXMP6A13F.pdf | bb474f827be4 |
 | MSTB 2,5/2-ST-5,08 (1757019) | 1757019.pdf (2400K) | manual | user upload 2026-07-01 | d849479aae64 |
-| LCD1 Waveshare 4.2" e-Paper Module (B) | Waveshare-4.2-ePaper-B.pdf (3.9M) | manual | files.waveshare.com — **caveat (2026-07-14 audit): this PDF is the bare-*panel* V2 user manual** (SPI timing, panel specs, active area 84.8×63.6 mm), NOT the Module (B) driver-board doc. Module-level interface verified 2026-07-14 from waveshare.com product page + wiki: box lists "PH2.0 20cm 8Pin x1" cable; wiki pin table = VCC/GND/DIN/CLK/CS/DC/RST/BUSY; wiki caps cable extensions at 20 cm. **Verify at ordering:** in-box cable is PH2.0→DuPont singles (Pi/Arduino style) — the PH↔PH module↔board cable is the separate purchase already in the BOM (ASPHSPH24K102-class) | 32b126146869 |
-| RP3502MABLK (BTN1 battery override) | RP3502MABLK.pdf (100K) | digikey CDN | https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/4979/RP_3502_datasheet.pdf | 795c575e47eb |
+| LCD1 Waveshare 4.2" e-Paper Module (B) | Waveshare-4.2-ePaper-B.pdf (3.9M — **subordinate bare-panel V2 manual only**, sha 32b126146869: SPI timing, panel specs, active area 84.8×63.6 mm; its p.7 shows the raw 24-contact FPC panel, not the ordered Module). **Module-object evidence (iter-23 F21):** Waveshare-42B-Module-productpage-2026-07-14.html (sha 077451eb4f2f, captured 2026-07-14 from https://www.waveshare.com/4.2inch-e-paper-module-b.htm — "What's on board" + box-contents list **"PH2.0 20cm 8Pin x1"**) + Waveshare-42B-Module-wiki-2026-07-14.html (sha e861c86f6e9f, captured 2026-07-14 from https://www.waveshare.com/wiki/4.2inch_e-Paper_Module_(B)_Manual — 8PIN pin-correspondence tables **VCC/GND/DIN/CLK/CS/DC/RST/BUSY**; FAQ caps cable extension at 20 cm). **Verify at ordering:** the in-box PH2.0 cable's far-end termination — the PH↔PH module↔board cable is a separate BOM purchase (ASPHSPH24K102-class) | 077451eb4f2f / e861c86f6e9f / 32b126146869 |
+| 8125SHZBE (BTN1 battery override) | CK_8020_series.pdf (29 pp) | littelfuse via API proxy | https://www.littelfuse.com/assetdocs/littelfuse-c-k-pushbutton-8020-series-datasheet?assetguid=6fa0d834-728f-45bc-ae08-4f1019eb241d — Contact Rating: "B contact material (8X25 Models): 0.4 VA max. @ 20 V AC or DC maximum"; function table 8125 = ON MOM., terminals 1-3 rest / 1-2 pressed; S=plunger, H=0.250" flat bushing, Z=solder lug, E=epoxy seal | 8e748f0b8502 |
 | 3517 | Keystone_3517.pdf (170K) | manual | https://www.keyelco.com/userAssets/file/K75p52.pdf | 441b810381ac |
 
 ## Still needed (CP1 datasheet gate)
 
 **Gate re-opened 2026-07-14 (user audit): the 2026-07-01 "CLOSED — every
-active part" claim was false.** RP3502MABLK (BTN1, swapped in during the
-COTS sweep) had no stored datasheet — now fetched, read, and verified:
-SPST NO momentary (function code A = OFF-(ON)), metal body, 12.7 mm
-panel hole / 1/2"-28 UNEF, −20…+65 °C, solder-lug terminals. **Two
-read-flags recorded:** (a) contact rating is 3 A @ 120 VAC — an AC power
-switch with **no low-level/dry-circuit DC rating**; our 3.3 V / ~3 µA
-(1 MΩ pull-up) use is dry-circuit, mitigated in practice by the 100 nF
-debounce discharge on each press; acceptable at qty 1, note for CP5
-bench sanity check. (b) No IP-sealed option in the RP3502 series page →
-**D-OPEN-13 resolves to "no IP67 cap available in-series"** — accept
-unsealed (IP5x indoor enclosure) or change series at ordering. Datasheet
-erratum: color table lists "BLK = Red" (obvious typo for Black).
+active part" claim was false.** RP3502MABLK (BTN1) had no stored
+datasheet; when fetched and read it exposed the dry-circuit gap that
+reviewer iter-23 F22 then escalated — the part is **superseded by C&K
+8125SHZBE** (gold contacts, published 0.4 VA @ 20 V logic-level rating;
+see the active-table row). D-OPEN-13 is moot with the supersession
+(unsealed accepted for the IP5x indoor enclosure).
 
 Remaining gaps (parts with a chosen MPN but no stored datasheet): none.
 
@@ -69,6 +63,13 @@ display tactile buttons BTN1–3 (plunger height locked at CP3/CP5).
 
 
 ## Retired (in store history, not used)
+
+- **RP3502MABLK** (BTN1) — retired at reviewer iter-23 F22 (2026-07-14):
+  AC power switch (3 A @ 120 VAC) with **no published dry-circuit /
+  minimum-load rating**; unqualifiable for the 3.3 V/µA override input,
+  and the C11 100 nF discharge (0.54 µJ) is not a vendor wetting
+  qualification. Superseded by **C&K 8125SHZBE** (explicit "0.4 VA max
+  @ 20 V" low-level rating, gold contacts). PDF removed.
 
 - **SMAJ12CA.pdf (Bourns) / SMAJ15A.pdf + SMAJ33CA.pdf (one Littelfuse
   family PDF stored under two names — identical sha)** — retired
