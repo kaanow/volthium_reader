@@ -270,6 +270,15 @@ midday lulls produce one naturally. Dropout *onset* is NOT load-correlated
 (93/640 within ±1 min of a >60 W step — see `scripts/analyze_b_dropouts.py`);
 only *recovery* is gated.
 
+> **Counterexample (2026-07-14 17:17):** battery A's FIRST long dormancy
+> (51 min, started 16:26) ended while charging at ~11 A — no quiet bus.
+> So the gate is either B-specific, or B's 4/4 was confounded by its
+> recoveries landing in naturally-idle hours. Score so far: B 4/4
+> quiet-bus, A 0/1. The battery-silent/battery-back alert pair now logs
+> every episode — let the tally decide. A's dormancy also weakens the
+> "B is a lemon" reading: both BMS units carry the quirk; B is just more
+> frequent (weaker link budget may be why).
+
 Candidate mechanisms (both fit; undistinguished so far):
 1. **BMS-internal** — under current flow the BMS MCU never reschedules its
    crashed BLE task; the ~0 A idle-state transition reinitializes the radio.

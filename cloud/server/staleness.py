@@ -260,11 +260,11 @@ class StalenessMonitor:
                         + f" has sent nothing for {int(silent_age // 60)} min "
                         "while the pack keeps reporting — its BMS BLE is "
                         "dormant (FM-6) or a phone app is holding its only "
-                        "connection slot. Self-resolves at the next zero-load "
-                        "window (worst case: the pre-dawn lull) — recovery is "
-                        "quiet-bus-gated, 4/4 on record. Manual cure if "
-                        "urgent: open the inverter breakers ~30 s (a forced "
-                        "quiet-bus window)."
+                        "connection slot. Self-resolves within minutes-to-"
+                        "hours; B's episodes have historically ended at the "
+                        "next zero-load window, A's first one ended mid-"
+                        "charge. Manual cure if urgent: open the inverter "
+                        "breakers ~30 s (a forced quiet-bus reset)."
                     ),
                     priority=4,
                     tags=["battery", "warning"],
