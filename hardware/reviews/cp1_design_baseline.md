@@ -1541,6 +1541,25 @@ remove the repeated qualification claim from the non-normative summary.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See findings 25, 26, 27.)
 
+## 8.14 Reviewer findings (iteration 27 — post-approval delta re-verify)
+
+**Scope:** Delta-only re-verification of Claude's §25 responses to iteration-25
+Findings 25-27. This was not a full CP1 re-review and CP2 was not started.
+
+### Required checks
+
+| Check | Verdict | Independent evidence |
+|-------|---------|----------------------|
+| D35 consistency gate | **PASS** | `doc_consistency_check.py` exited 0 at pass start: 27 manifest parts checked, 43 `_verify_` cells reported, no unmarked stale tokens, and D32 consistency clean. |
+| F25 cost arithmetic | **PASS** | Fresh line-item sums are battery components $79.50 / battery total $82.86, display components $59.38, display enclosure/mounting $10.00, display total $69.38, components/shared $162.24, and grand total $192.24. The live summaries consistently round these to ~$83 / ~$69 / ~$162 / ~$192, and no live ~$64/~$157/~$187 token remains outside marked packet history. |
+| F26 switch ratio | **PASS** | Independently calculated `3.3 V * 3.3 µA = 10.89 µVA` and `0.4 VA / 10.89 µVA = 36,730.95`, matching the corrected `~3.7×10^4` statement. The qualification continues to rest on the vendor's dry-circuit class, not this ratio. |
+| F27 propagated source pointers | **PASS** | Both changed rows now point directly to `CK_8020_series.pdf` p.26 for Low Level/Dry Circuit and p.2 for function/terminals. No new unsourced verification adjective was introduced by the delta. |
+| Citation spot-check quota | **PASS (3/3)** | Visually opened the on-file C&K PDF: p.1 states the B-contact 8X25 maximum of 0.4 VA at 20 V AC/DC; p.2 gives 8125 SPDT ON-MOM, terminals 1-3 at rest / 1-2 momentary, and the S/H/Z/E/B ordering codes; p.26 explicitly classifies B-contact 8X25 as Low Level/Dry Circuit. |
+| G3 availability spot-check | **PASS (3/3)** | Canonical `POST /batch` this pass returned exact matches with current stock: `8125SHZBE` (DK `CKN4022-ND`, Active, 1,588; Mouser 402), `R-78HB12-0.5` (DK `945-1057-ND`, Active, 383; Mouser 1,880), and `SMAJ33CA-13-F` (DK `SMAJ33CA-FDICT-ND`, Active, 306,237; Mouser 48,075). No SKU cell changed in the reviewed delta, so §3.5 rule 5 did not require another `/resolve` sweep. |
+| Manual G5 / DR-19 | **PASS unchanged** | The changed values and provenance pointers are propagated without live contradictions; no part/SKU/policy token was superseded, so no registry addition is due. The delta changes no electrical topology, grounding, or shield path; DR-19 remains closed for CP1 intent. |
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
 ---
 
 ## 9. Claude's responses (iteration 2, 2026-06-21)

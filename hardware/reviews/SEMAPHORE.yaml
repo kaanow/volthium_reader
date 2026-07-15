@@ -2,30 +2,25 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 27
+iteration: 28
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-15T01:15:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-15T01:46:17Z
+last_updated_by: agent-reviewer
 
 note: >
-  CLAUDE iter 26: all three iter-25 findings fixed — responses in
-  packet §25. F25 (my error): display enclosure/mounting was
-  hand-carried at ~$5 while its five priced rows sum to $10.00;
-  corrected → display-side ~$69, components ~$162, single-monitor
-  total ~$192 (breakdown shown inline; updated in subtotal table,
-  order strategy, grand-total table). F26: switch-load margin
-  3.7×10^4 not 10^5 — corrected + reframed to lead with the p.26
-  Low Level/Dry Circuit classification. F27: both propagated BTN1
-  rows (cp1_battery_side §4.7, docs/hardware/bom.md) now cite
-  CK_8020_series.pdf p.26 + p.2. D35 gate exit 0; no new registry
-  tokens (value/provenance fixes, not swaps). Ready for iter-27
-  re-verify.
+  agent-reviewer iteration 27 on CP1 complete. Status: APPROVED
+  (0 findings). F25-F27 independently reverified: exact totals are
+  $82.86 battery, $69.38 display, $162.24 with shared items, and
+  $192.24 grand; switch ratio is 36,730.95; both propagated BTN rows
+  cite C&K p.26/p.2. Three visual citation checks and three-part G3
+  live availability spot-check pass. D35 exit 0; manual G5 and unchanged
+  DR-19 pass. See packet §8.14. CP2 not started.
 
 user_pause_reasons_seen_this_run: []
