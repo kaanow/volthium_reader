@@ -171,6 +171,7 @@ one complete monitor.
 | J3  | **USB-C receptacle** (native ESP32-S3 USB) | SMD | 1 | _verify_ | | $0.50 | **Δ (D22): was a USB-OTG pin header** — now a board-edge maintenance port (flash/console/JTAG), accessible without opening. ESD-protected by U-ESD |
 | J4  | 2-pin 2.54 mm header, RS-485 term lift jumper | THT | 1 | S1011EC-02-ND | 200-TSW10206TS | $0.20 | NEW |
 | J5  | 4-pin 2.54 mm header, debug UART | THT | 1 | (same as J3) | (same) | $0.30 | NEW — dev only |
+| J_EXP | **Molex PicoBlade 1.25 mm, 8-ckt, SMT** expansion header (vertical) | SMT | 1 | WM7626TR-ND (r/a alt) | **538-53398-0871** (42.6k stock) | $1.40 | **NEW (D37):** future-expansion — dedicated I2C1 (SDA/SCL) + 2× ADC1/RTC-wake AIO + 1 generic DIO + 3V3/GND×2. Zero draw unplugged. Vertical **53398-0871**; right-angle option **53261-0871** (DK WM7626TR-ND, 32k, Active, $0.90). Mates PicoBlade 51021-08xx / pre-crimped cable. API-checked 2026-07-15. Pinout + rationale: decisions.md **D37** |
 
 ### Enclosure & mounting
 

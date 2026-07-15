@@ -2076,3 +2076,56 @@ manifested.
 
 **Status.** Extends approved CP1 → needs a **CP1-delta review pass before
 CP2**. Logged as **DR-26**.
+
+## D37 — Battery-side expansion header (Molex PicoBlade, 8-ckt) — user directive 2026-07-15
+
+**Decision.** Add a populated **8-circuit Molex PicoBlade (1.25 mm)**
+expansion header on the battery-side board (space is free there). It
+brings out an I2C expansion bus + flexible analog/wake/digital IO +
+power, chosen to maximize what an unknown future daughterboard can do
+using the fewest scarce ESP resources and **zero continuous draw when
+nothing is plugged in**.
+
+**Pinout (8-ckt, grounds bracketing the signals for return/SI):**
+
+| Pin | Signal | ESP capability required | Why it's the best use of the pin |
+|-----|--------|-------------------------|----------------------------------|
+| 1 | **GND** | — | return |
+| 2 | **3V3** | always-on rail (via series ferrite) | powers the add-on. **Power-first caveat:** draw here counts against the low-SOC budget — keep continuous load to a few mA; bursts OK within the LM5166's 500 mA. |
+| 3 | **EXP_SDA** | I2C1 (a **dedicated** controller, *not* the RTC's I2C0) | the single highest-leverage expansion bus: addressable, multi-drop, 2 pins — sensors / ADC / IO-expander / EEPROM / fuel-gauge all speak it. **Dedicated bus isolates the timekeeping-critical RV-3028 from an unknown add-on** (leaner alt: share I2C0 — 2 fewer GPIOs, 2 fewer pull-ups, but couples expansion to the RTC). Own pull-ups on the header. |
+| 4 | **EXP_SCL** | I2C1 | " |
+| 5 | **EXP_AIO1** | **ADC1 + RTC-wake** (free pool GPIO8/9/10) | analog-in *or* digital *or* an interrupt that can **wake the ESP from deep sleep** (ext1). ADC1 (not ADC2) so it never conflicts with WiFi (datasheet: ADC1 = GPIO1–10). |
+| 6 | **EXP_AIO2** | **ADC1 + RTC-wake** | second analog/wake/digital line |
+| 7 | **EXP_DIO3** | generic digital (free pool GPIO38–42) | CS / PWM / soft-UART / SPI via the GPIO matrix — keeps the two ADC1 pins free for analog. |
+| 8 | **GND** | — | second return near the analog/I2C pins |
+
+**Why these and not others.**
+- **No hardware UART is offered** — all three ESP UART controllers are
+  allocated (UART0 console, UART1 display RS-485, UART2 battery RS-485
+  read per D36). EXP_DIO3 can soft-UART or be reassigned if a peripheral
+  is freed. Stated honestly rather than implying a spare hardware UART.
+- **No dedicated SPI** — 3–4 pins for a maybe; I2C covers most
+  expansion, and EXP_DIO3 + the AIO pins can bit-bang or route a spare
+  SPI controller through the matrix.
+- **No raw-pack / high-power rail** — power-first: the header is
+  logic-level and current-limited so a future add-on can't quietly break
+  the ~1 mW low-SOC budget. A hungry add-on taps the pack elsewhere.
+
+**Exact GPIO numbers finalized at CP2** (coordinated with D36's UART2 +
+channel-select allocation); the *capabilities* above are the binding
+spec — the reviewer/gate checks the CP2 pin map against them.
+
+**Part.** Molex **PicoBlade 1.25 mm, 8-ckt, SMT** — vertical
+**53398-0871** (Mouser 538-53398-0871, 42.6k stock, $1.40) or right-angle
+**53261-0871** (DK WM7626TR-ND, 32k, Active, $0.90; cable exits parallel
+to the board — good for a lid-mounted daughterboard). Mates a standard
+PicoBlade **51021-08xx** receptacle / pre-crimped cable (verify exact
+mate PN at use). API-stock-checked 2026-07-15.
+
+**Protection.** Optional (DNP) series R on EXP_SDA/SCL to isolate the bus,
+and an optional ESD array on the exposed IO — it's an *internal* header
+(short cable to a controlled daughterboard), so light. Populate at CP2 if
+the add-on class warrants.
+
+**Status.** Extends approved CP1 → covered by the same CP1-delta review
+pass as D36 (logged under **DR-27**).

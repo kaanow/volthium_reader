@@ -810,3 +810,23 @@ Reuses the `ej_bms` frame parser.
   function, patch-cable straight-through — confirm with Volthium/bench.
 - Power: confirm the ~0.5 % gated duty keeps State-1 average negligible
   and States 3–4 unpowered (hard-cut unchanged).
+
+## DR-27 — Battery-side PicoBlade expansion header (D37)  [OPEN — design 2026-07-15; folds into the same CP1-delta review as DR-26]
+
+8-ckt Molex PicoBlade (53398-0871 vert / 53261-0871 r-a). Signals: 3V3,
+GND×2, dedicated **I2C1** (SDA/SCL, isolates the RV-3028 timekeeping bus),
+2× **ADC1+RTC-wake** AIO, 1 generic DIO. Rationale/pinout: decisions.md
+**D37**.
+
+**Review asks:**
+- Pin map (CP2): verify each expansion pin lands on a GPIO with the
+  required capability — 2× **ADC1** (GPIO1–10, *not* ADC2/WiFi) **and**
+  RTC-wake (GPIO0–21); I2C1 on a second controller; DIO on GPIO38–42; and
+  **no clash with D36's UART2 + CH1/CH2_PWR allocation** or the module's
+  flash/PSRAM pins (GPIO26–37 on N16R8).
+- Power-first: confirm the 3V3 pin is series-ferrite'd and documented as
+  budget-counting; unplugged draw = 0 (bus pull-ups idle-high).
+- Protection: decide series-R on SDA/SCL and ESD on exposed IO (DNP vs
+  populate) for an internal header.
+- Dedicated vs shared I2C: confirm the dedicated-I2C1 choice (RTC
+  isolation) vs the leaner shared-I2C0 alternative.
