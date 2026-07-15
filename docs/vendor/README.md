@@ -110,9 +110,10 @@ Not currently used by our reader — but if we ever build a cabin-side
 
 ### `volthium-pro-series-rj45-adapter-pinout.png`
 
-Product photo of the Volthium "Pro Series" adapter cable — proprietary
-"Battery" connector on one end, RJ45 on the other, with the pinout label
-visible in the shot:
+Product photo of the Volthium "Pro Series" adapter cable — **4-socket M12
+plug** on the battery end, **RJ45 female** on the client end. The label
+on the cable gives only the RJ45 pinout (the M12 pin layout is not
+published by the vendor):
 
 | RJ45 pin | Signal |
 |---|---|
@@ -127,3 +128,9 @@ visible in the shot:
 
 Both CAN and RS-485 come out on the same RJ45, so a single adapter cable
 supports both integration paths at once.
+
+**Field wiring note** — the SC-series packs have **two M12 sockets**. Per
+vendor guidance, for RS-485 communication use the M12 socket **closer to
+the negative battery post**. The function of the second M12 is not
+documented here (likely CAN or a daisy-chain, but confirm with the
+vendor before assuming).
