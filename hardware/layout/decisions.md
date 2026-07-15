@@ -2025,12 +2025,28 @@ user wants a wired fallback, not a DNP option. Space/volume is not a
 constraint on the battery board.
 
 **Key architectural point (drives everything).** The two 12 V packs are
-in **series** → the top pack's comms port floats at **+12 V** common-mode,
-at/past the RS-485 valid range (THVD1400 datasheet −7/+12 V; CAN is
-tighter still). So this is **not** one shared bus — it is **two
-galvanically-isolated channels, one per pack**, each transceiver
-referenced to its own pack's ground. (This is also why BLE, RF-isolated,
-was the natural primary.)
+in **series**, and this is a **polled** protocol (master must *transmit*
+queries). The top pack's BMS receiver is referenced to **+12 V**; a
+system-ground-referenced driver lands ≈ −9…−13 V common-mode at that
+receiver, past its −7 V limit — so we can't poll the top pack from system
+ground, and a wide-CM *receiver* doesn't help (it's the drive reference
+that's wrong). To transmit inside the pack's window the front-end must
+*float* to its reference = galvanic isolation. So this is **not** one
+shared bus (the two packs' fixed transceivers are 12 V apart and would
+see each other out of range) — it is **two galvanically-isolated
+channels**. (This is also why BLE, RF-isolated, was the natural primary;
+CAN's common-mode is tighter still → reserved for a future inverter
+bridge.)
+
+**Symmetric + self-referenced (user, 2026-07-15).** The two channels are
+**identical and interchangeable — either pack on either jack**; firmware
+distinguishes packs by protocol address (`0x01`/`0x02`), not by channel.
+Each isolated front-end references **locally** (its own iso-supply ground
++ fail-safe bias to local rails, Ethernet-style), connecting to the pack
+only through the 2-wire A/B pair — **no battery-negative / midpoint
+reference wire is required** (an optional ~1 MΩ iso-GND↔bus bleed is
+belt-and-suspenders). The asymmetric option (isolate only the top pack)
+was rejected in favor of swappable channels.
 
 **Shape.** Shared ESP **UART2** (free — ESP32-S3 has 3 UART controllers;
 UART0 console, UART1 display) fanned to two **ADM2587E** isolated RS-485
@@ -2049,12 +2065,14 @@ common-mode range is worse for a series stack and it carries less
 per-cell detail than the serial protocol. The ESP has a native TWAI/CAN
 controller if that bridge is ever built.
 
-**Open before BOM-lock (interface-reality, see design §7):** the 4-pin
-M12 leaves **no dedicated comms-ground pin** → the isolated-side
-reference scheme (tie to pack B− / series midpoint vs bias network) and
-the second-M12 function must be confirmed with Volthium / on the bench.
-**D32 TODO:** ADM2587E (ADI WAF-blocks the proxy) + SM712 datasheets to
-be pulled manually and manifested.
+**Open before BOM-lock (interface-reality, see design §7):** confirm the
+adapter really presents a clean 2-wire A/B on RJ45 7/8, the second-M12
+function, and patch-cable straight-through — on the bench / with Volthium.
+(The 4-pin M12 has no comms-ground pin, but that's fine: the isolated
+front-ends self-reference locally, so **no battery-negative reference is
+needed** — corrected from the first draft.) **D32 TODO:** ADM2587E (ADI
+WAF-blocks the proxy) + SM712 datasheets to be pulled manually and
+manifested.
 
 **Status.** Extends approved CP1 → needs a **CP1-delta review pass before
 CP2**. Logged as **DR-26**.

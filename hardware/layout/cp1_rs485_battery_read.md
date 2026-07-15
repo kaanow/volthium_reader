@@ -22,18 +22,39 @@ TTL-referenced to **its own** B− terminal, not to system ground:
 | **A** (bottom, id 0533) | ≈ 0 V |
 | **B** (top, id 0667)    | ≈ **+12 V** (up to +13 V at a 26 V full charge) |
 
-RS-485 receivers are only valid over a bounded common-mode range. The
-THVD1400 datasheet (on file) specifies **−7 V ≤ V(A,B) ≤ +12 V**. Pack B
-sits **at / just past the +12 V edge**, so a single non-isolated RS-485
-bus referenced to system ground **cannot reliably read the top pack**.
-(CAN is worse here — ISO 11898 common-mode is ≈ −2 V…+7 V — which is why
-CAN is reserved for a future pack→inverter bridge, not for reading.)
+This is a **polled** protocol — the master transmits a query and the
+pack answers — so the binding constraint is the **transmit** direction,
+not just reception. Pack B's BMS receiver is referenced to +12 V. A
+3.3 V RS-485 driver referenced to *system* ground puts its A/B at ≈ 1–3.5 V
+absolute → roughly **−9 to −11 V common-mode as seen by pack B** (−13 V
+at a 26 V charge), past pack B's own **−7 V** input limit (RS-485 valid
+range −7 V…+12 V; THVD1400 datasheet on file). So a system-ground driver
+**can't reliably poll the top pack** — and a wide-common-mode *receiver*
+doesn't fix it, because it's the drive reference that's wrong. To land
+our signal inside pack B's window our front-end must sit **at pack B's
++12 V reference** — i.e. *float* to it. Floating a DC-coupled transceiver
+is galvanic isolation. (CAN is worse still — ISO 11898 common-mode is
+≈ −2…+7 V — which is why CAN is reserved for a future pack→inverter
+bridge, not for reading.)
 
-**Therefore: two galvanically-isolated channels, one per pack, each
-transceiver referenced to its own pack's ground.** This is the standard
-topology for reading a series battery stack, and it is what makes BLE
-(RF-isolated) the natural primary — the wired backup simply reproduces
-that isolation with copper.
+**Therefore: two galvanically-isolated channels.** Each ADM2587E floats
+to whatever pack it's connected to and references **locally** — its own
+isolated supply is the ground, fail-safe bias resistors tie A/B to the
+local rails, and an optional ~1 MΩ bleed to a bus line keeps the island
+from charging up on barrier leakage. **Nothing lands on a battery
+negative terminal** — the only per-pack connection is the 2-wire A/B pair
+through the vendor M12→RJ45 adapter (Ethernet gets away with no ground
+the same way: it's isolated). This is also what made BLE (RF-isolated)
+the natural primary.
+
+**Symmetric by decision (user, 2026-07-15): the two channels are
+identical and interchangeable — either pack may plug into either RJ45.**
+Because each channel is isolated and self-referencing, the physical
+assignment is irrelevant; the firmware distinguishes the packs by
+**protocol address** (`0x01`/`0x02`), not by which jack. (The asymmetric
+option — read the bottom pack non-isolated off system ground, isolate
+only the top — was considered and rejected in favor of uniform,
+swappable channels; see §8.)
 
 ---
 
@@ -41,28 +62,37 @@ that isolation with copper.
 
 One shared ESP **UART2** (confirmed free: the ESP32-S3 has three UART
 controllers per its datasheet — UART0 = console, UART1 = display RS-485,
-**UART2 = this bus**), fanned to **two independent isolated RS-485
-front-ends**. Only one channel is powered at a time; **power-gating is
-the channel-select** (an unpowered ADM2587E's RO output is high-Z, so it
-drops off the shared RX line). Because the ESP is the bus master and
-polls the packs **sequentially** (`:01…~` then `:02…~`), the two channels
-never need to be live simultaneously.
+**UART2 = this bus**), fanned to **two identical, interchangeable
+isolated RS-485 front-ends** (channels 1 and 2 — *not* bound to a
+specific pack; either pack plugs into either jack). Only one channel is
+powered at a time; **power-gating is the channel-select** (an unpowered
+ADM2587E's RO output is high-Z, so it drops off the shared RX line).
+Because the ESP is the bus master and polls **sequentially by protocol
+address** (`:01…~` then `:02…~`), the two channels never need to be live
+at once, and firmware learns which pack is on which jack from the address
+in the reply.
 
 ```
                          ┌─────────── ISOLATION BARRIER ──────────┐
                          │                                        │
-  ESP32-S3        DI ────┼──► ADM2587E #A ──A/B──► RJ45_A ──patch──► M12 adapter ► Pack A (0533, GND≈0V)
-  (UART2)   TX ──┬──1kΩ──┤    (iso xcvr +          (RJHSE-5380)
+  ESP32-S3        DI ────┼──► ADM2587E ch1 ─A/B─► RJ45_1 ─patch─► M12 adapter ► (either pack)
+  (UART2)   TX ──┬──1kΩ──┤    (iso xcvr +         (RJHSE-5380)
                  │       │     iso DC-DC)   ▲
-           RX ──◄┼───────┼──RO─┘  VCC◄─[P-FET load switch A]◄─ CH_A_PWR (GPIO)
+           RX ──◄┼───────┼──RO─┘  VCC◄─[P-FET load switch 1]◄─ CH1_PWR (GPIO)
                  │       │
-                 └──1kΩ──┼──► ADM2587E #B ──A/B──► RJ45_B ──patch──► M12 adapter ► Pack B (0667, GND≈+12V)
-           DE ───────────┤    VCC◄─[P-FET load switch B]◄─ CH_B_PWR (GPIO)
+                 └──1kΩ──┼──► ADM2587E ch2 ─A/B─► RJ45_2 ─patch─► M12 adapter ► (either pack)
+           DE ───────────┤    VCC◄─[P-FET load switch 2]◄─ CH2_PWR (GPIO)
                          │                                        │
                          └────────────────────────────────────────┘
-   Shared logic side (ESP 3V3, GND1)      │      Isolated side per channel
-                                          │      (each floats at its pack's B−)
+   Shared logic side (ESP 3V3, GND1)      │   Isolated side per channel —
+                                          │   floats to whatever pack is
+                                          │   plugged in; references locally
+                                          │   (iso-supply GND + fail-safe bias)
 ```
+
+Because both channels are isolated and self-referencing, the design is
+**pack-agnostic**: swap the two cables and nothing changes but which
+address answers on which jack. No jumper, no per-jack configuration.
 
 - **DI (TX)** fanned to both ADM2587E, each through a **1 kΩ series R**
   so the unpowered channel's logic input can't leak from the ESP's
@@ -85,10 +115,11 @@ Every SKU/stock figure below was resolved against the parts API on
 
 | Ref (per ch.) | Part | Why | Sourcing (2026-07-15) |
 |---------------|------|-----|-----------------------|
-| U_iso_A / U_iso_B | **ADM2587E BRWZ** — isolated RS-485 w/ **integrated isolated DC-DC** (isoPower), 3.3 V, slew-limited 250 kbps, ±15 kV ESD, full fail-safe RX | One chip = isolation + transceiver + isolated supply → fewest solder joints for a qty-1 hand build. 250 kbps ≫ our 9600 baud, and slew-limiting *lowers* EMI. | Mouser **584-ADM2587EBRWZ**, 3,848 stock, $22.90. (ADM2582E is 16 Mbps overkill and DK-OOS.) **D32 TODO: datasheet — ADI host WAF-blocks the proxy; pull manually.** |
+| U_iso1 / U_iso2 | **ADM2587E BRWZ** — isolated RS-485 w/ **integrated isolated DC-DC** (isoPower), 3.3 V, slew-limited 250 kbps, ±15 kV ESD, full fail-safe RX | One chip = isolation + transceiver + isolated supply → fewest solder joints for a qty-1 hand build. 250 kbps ≫ our 9600 baud, and slew-limiting *lowers* EMI. | Mouser **584-ADM2587EBRWZ**, 3,848 stock, $22.90. (ADM2582E is 16 Mbps overkill and DK-OOS.) **D32 TODO: datasheet — ADI host WAF-blocks the proxy; pull manually.** |
 | Q_ls_p, Q_ls_n | ZXMP6A13F P-FET + 2N7002 (high-side load switch + gate pull) | Power-gate VCC so isoPower runs only during a poll (see §5). Parts already on the board. | (already in cp1_bom.md) |
-| J_bat_A / J_bat_B | **Amphenol RJHSE-5380** RJ45 jack, shielded, magnetics-free | Mates the vendor **M12→RJ45** adapter via a straight patch cable; same jack as the display link (commonality, on file). RS-485 A/B on RJ45 **pins 7/8** per the vendor pinout; CAN-H/L (4/5) to unpopulated pads for a future bridge. | Mouser **523-RJHSE-5380**, 8,697 stock, $2.30; datasheet on file (RJHSE-5380.pdf) |
-| TVS_bus | **SM712.TCT** asymmetric RS-485 TVS (+7 V/−12 V, matches the −7/+12 range), on isolated A/B↔iso-GND | Surge/ESD clamp on the exposed cable pair, referenced to the isolated pack ground. | Mouser **947-SM712.TCT**, 103,047 stock, $3.64. **D32 TODO: datasheet (proxy returned an error, pull manually).** |
+| J_bat1 / J_bat2 | **Amphenol RJHSE-5380** RJ45 jack, shielded, magnetics-free | Mates the vendor **M12→RJ45** adapter via a straight patch cable; same jack as the display link (commonality, on file). RS-485 A/B on RJ45 **pins 7/8** per the vendor pinout; CAN-H/L (4/5) to unpopulated pads for a future bridge. **Identical/interchangeable — either pack on either jack.** | Mouser **523-RJHSE-5380**, 8,697 stock, $2.30; datasheet on file (RJHSE-5380.pdf) |
+| TVS_bus | **SM712.TCT** asymmetric RS-485 TVS (+7 V/−12 V), on A/B↔iso-GND | Surge/ESD clamp on the exposed cable pair, referenced to the **local isolated** ground. | Mouser **947-SM712.TCT**, 103,047 stock, $3.64. **D32 TODO: datasheet (proxy returned an error, pull manually).** |
+| R_bias | fail-safe bias A/B → local iso-rails, + optional ~1 MΩ iso-GND↔bus bleed | References the floating island **locally** (defines idle; bleeds barrier leakage) — no battery-negative wire | high-value; per §7 |
 | R_di | 1 kΩ series on DI | de-powered-input leakage guard | 0402/0603 |
 | R_bus term | 120 Ω across A/B — **DNP** | at 9600 baud over a ~1–2 m point-to-point run, reflections settle ≪ 1 bit; termination just loads the driver. Footprint present, unstuffed; populate only if a bench capture shows ringing. | DNP |
 | C_iso | ADM2587E bypass (VCC + isolated Viso per datasheet) | isoPower decoupling | per datasheet (pull) |
@@ -105,8 +136,8 @@ for the pair. (Cheaper discrete alternative in §8.)
 | `RS485B_TX` | ESP→ | UART2 TXD → both ADM2587E DI (via 1 kΩ each) |
 | `RS485B_RX` | →ESP | UART2 RXD ← both ADM2587E RO (wire-OR + pull-up) |
 | `RS485B_DE` | ESP→ | shared half-duplex driver-enable (both DE; only the powered channel acts) |
-| `CH_A_PWR` | ESP→ | load-switch enable for channel A (power = select) |
-| `CH_B_PWR` | ESP→ | load-switch enable for channel B |
+| `CH1_PWR` | ESP→ | load-switch enable for channel 1 (power = select) |
+| `CH2_PWR` | ESP→ | load-switch enable for channel 2 |
 
 5 GPIOs. The battery-side map notes "all other GPIOs unused; available
 for expansion" — no contention with the approved pin assignments.
@@ -116,13 +147,15 @@ for expansion" — no contention with the approved pin assignments.
 ## 5. Firmware polling sequence (per pack, sequential)
 
 ```
-for pack in (A @ addr 0x01, B @ addr 0x02):
-    assert CH_x_PWR                 # power that isolated front-end
+for ch in (1, 2):                   # channels are pack-agnostic
+    assert CHx_PWR                  # power that isolated front-end
     wait ~2 ms                      # isoPower + transceiver settle (~1 ms typ)
-    DE = 1; send :xx02...~ (0x02 real-time query, 9600 8N1); DE = 0
-    read response frame (ej_bms decoder — identical byte format to BLE)
-    deassert CH_x_PWR               # power down → drops off shared RX
+    DE = 1; send :0002...~ (0x00 broadcast, or :01/:02 real-time query); DE = 0
+    read response; the reply's Addr field says which pack is on this jack
+    deassert CHx_PWR                # power down → drops off shared RX
 ```
+(9600 8N1; addresses `0x01`/`0x02`. Because either pack may be on either
+jack, firmware maps address→pack from the reply, not from the channel.)
 
 Poll cadence: alongside BLE, every 30 s (or on-demand when BLE misses).
 Window ≈ 50–100 ms/pack → **duty ≈ 0.5 %**.
@@ -152,23 +185,30 @@ Per the COTS interface-reality discipline — these depend on undocumented
 vendor hardware and must be checked on the bench / with Volthium, not
 assumed:
 
-1. **Comms ground.** The 4-pin M12 breaks out A/B **and** CAN-H/L on the
-   RJ45 (pins 7/8 + 4/5) — that is **4 signals on 4 pins, leaving no
-   dedicated comms-ground pin.** An isolated 2-wire RS-485 front-end
-   still needs a DC reference on its isolated side. Plan: tie each
-   channel's isolated GND to **that pack's B−** (pack A's B− = system
-   GND; pack B's B− = the **series midpoint, +12 V** — which is *not*
-   currently routed to the board and would need a sense lead), **or**
-   establish the reference with a high-value bias network from iso-GND
-   to the bus. **Confirm the real M12 pinout + whether the adapter
-   carries comms GND before committing the reference scheme.**
-2. **Series-midpoint reference for channel B** — see above; decide sense-
-   lead vs bias-network at review.
-3. **Second M12 socket** — vendor doc flags its function as undocumented
+**No battery-negative reference is required.** The 4-pin M12 breaks out
+A/B **and** CAN-H/L on the RJ45 (7/8 + 4/5) — 4 signals on 4 pins, no
+dedicated comms-ground pin — and that's fine: each isolated front-end
+references **locally** (its own iso-supply ground + fail-safe bias to the
+local rails, like Ethernet), connecting to the pack only through the
+2-wire A/B pair. We do **not** tie iso-GND to any pack terminal and do
+**not** run a series-midpoint sense lead. An optional ~1 MΩ bleed from
+iso-GND to one bus line is belt-and-suspenders for barrier-leakage
+charge-up and common-mode-transient settling — still entirely local.
+
+Remaining items to confirm on the real hardware (COTS interface-reality):
+
+1. **The pair is really a clean 2-wire A/B** on RJ45 7/8 (vs. TTL, which
+   the vendor serial doc mentions "at the pins") — a 60-second scope/
+   continuity check on the adapter output.
+2. **Second M12 socket** — vendor doc flags its function as undocumented
    ("likely CAN or daisy-chain"). Confirm which socket carries RS-485
    ("closer to the negative post" per vendor) on each physical pack.
-4. **Straight-through vs crossover** patch cable to preserve pins 7/8 →
+3. **Straight-through vs crossover** patch cable to preserve pins 7/8 →
    7/8 (standard patch is straight; verify the adapter isn't crossed).
+4. **CMTI headroom.** The series midpoint can move relative to system
+   ground under load transients; confirm the ADM2587E's rated CMTI
+   covers it (it will — kV/µs class — but note it once the datasheet is
+   on file).
 
 ---
 
@@ -180,13 +220,16 @@ assumed:
   count per channel. Reasonable if we want lower cost/power or an on-file
   datasheet immediately; the integrated ADM2587E wins on hand-build
   simplicity, which is why it's the primary.
-- **Asymmetric isolation** (isolate only channel B at +12 V; read
-  channel A with a plain transceiver at system GND): saves one isolated
-  part but is non-uniform and less robust to wiring changes. Rejected
-  given "space is no concern" + "want a *real* backup."
-- **One shared multi-drop bus:** impossible for a series stack — no
-  single ground reference lands within RS-485 common-mode of both packs
-  (see §1).
+- **Asymmetric isolation** (isolate only the top pack; read the bottom
+  pack with a plain transceiver off the system ground the board already
+  has): saves one isolated part and also needs no battery-negative wire,
+  but the two channels aren't interchangeable — the bottom-pack jack must
+  get the bottom pack. **Rejected by user choice (2026-07-15) in favor of
+  symmetric, swappable channels** ("either battery on either channel").
+- **One shared multi-drop bus:** impossible for a series stack — the two
+  packs' BMS transceivers are 12 V apart, so on a common pair each pack's
+  own (fixed E&J) transceiver sees the other past its ±common-mode range,
+  regardless of what the master does (see §1).
 
 ---
 

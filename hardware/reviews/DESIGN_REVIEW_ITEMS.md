@@ -786,15 +786,19 @@ DR-13 stays RESOLVED with the improved threshold picture.
 User directive: BLE to the two BMS is worryingly flaky → add a real,
 populated wired read path. Design: [`../layout/cp1_rs485_battery_read.md`](../layout/cp1_rs485_battery_read.md); decision **D36**.
 
-Because the two 12 V packs are in **series**, the top pack's comms floats
-at +12 V common-mode (past RS-485's −7/+12 V) → **two per-pack isolated
-channels** (ADM2587E), shared UART2, power-gated select. Reuses the
-`ej_bms` frame parser.
+Because the two 12 V packs are in **series** and the protocol is polled
+(must transmit to a +12 V-referenced receiver), the front-end must float
+to each pack's reference → **two isolated channels** (ADM2587E), shared
+UART2, power-gated select. **Symmetric/interchangeable** (user
+2026-07-15): either pack on either jack, addressed by protocol address.
+Reuses the `ej_bms` frame parser.
 
 **Review asks (G1/G2/G3/G5):**
-- G1: isolation topology + the isolated-side ground reference for the
-  **top pack (series midpoint +12 V)** — the 4-pin M12 has no dedicated
-  comms-GND pin (design §7). Confirm sense-lead vs bias-network.
+- G1: isolation topology. **No battery-negative reference is used** — each
+  front-end self-references locally (iso-supply GND + fail-safe bias,
+  Ethernet-style), connecting only via the 2-wire A/B pair. Sanity-check
+  the local bias / optional ~1 MΩ bleed and CMTI headroom vs the series
+  midpoint moving under load.
 - G1: shared-UART2 fan-out — de-powered-input leakage guard (1 kΩ series
   on DI), wire-OR RX pull-up, isoPower settle time before first byte.
 - G2: **D32 — ADM2587E + SM712 datasheets not yet on file** (ADI/host
