@@ -787,33 +787,41 @@ User directive: BLE to the two BMS is worryingly flaky → add a real,
 populated wired read path as a **co-equal alternative** (may become
 primary — not pre-judged). Design: [`../layout/cp1_rs485_battery_read.md`](../layout/cp1_rs485_battery_read.md); decision **D36**.
 
-Because the two 12 V packs are in **series** and the protocol is polled
-(must transmit to a +12 V-referenced receiver), the front-end must float
-to each pack's reference → **two isolated channels** (ADM2587E), shared
-UART2, power-gated select. **Symmetric/interchangeable** (user
-2026-07-15): either pack on either jack, addressed by protocol address.
-Reuses the `ej_bms` frame parser.
+Because the two 12 V packs are in **series** and the protocol is polled,
+the front-end must float to each pack's reference → **two isolated
+channels** (ADM2587E), **symmetric/interchangeable**, addressed by
+protocol address. Reuses the `ej_bms` parser.
 
-**Review asks (G1/G2/G3/G5):**
-- G1: isolation topology. **No battery-negative reference is used** — each
-  front-end self-references locally (iso-supply GND + fail-safe bias,
-  Ethernet-style), connecting only via the 2-wire A/B pair. Sanity-check
-  the local bias / optional ~1 MΩ bleed and CMTI headroom vs the series
-  midpoint moving under load.
-- G1: shared-UART2 fan-out — de-powered-input leakage guard (1 kΩ series
-  on DI), wire-OR RX pull-up, isoPower settle time before first byte.
-- G2: **D32 closed 2026-07-16 — ADM2587E + SM712 datasheets on file**
-  (user-provided), read/verified: 2500 Vrms iso, CMTI >25 kV/µs, ±15 kV
-  ESD, fail-safe RX, **ICC 90 mA @ 3.3 V/100 Ω** (iter-30 F28 corrected
-  the 72 mA mis-cite, which was the 5 V row); SM712 VRWM 12/7 V but the
-  on-file PDF now the correct Semtech doc (F29 closed 2026-07-16;
-  DNP-by-default). Gated ~0.5 % duty → ~1.5 mW avg.
-- G3: stock checked 2026-07-15 (ADM2587E Mouser 3,848; SM712 103k;
-  RJHSE-5380 8,697) — re-verify at BOM-lock.
-- Interface-reality: real M12 pinout, comms-GND presence, second-M12
-  function, patch-cable straight-through — confirm with Volthium/bench.
-- Power: confirm the ~0.5 % gated duty keeps State-1 average negligible
-  and States 3–4 unpowered (hard-cut unchanged).
+**BLOCKED on a physical-interface premise (F37) — do NOT advance to CP2
+until bench-characterized.** The vendor docs contradict each other on
+whether the adapter presents differential **RS-485 (A/B on RJ45 7/8)** or
+raw **3.3 V TTL** (README: "external MAX485 needed"), and the
+floating-reference behaviour (does GND2 track the pack CM so the ADM2587E
+bus pins stay in −9/+14 V?) is unproven at the real driver impedance +
+bus capacitance. Needs a scope/continuity session on the real pack +
+Volthium adapter (user has the hardware). See design §7.
+
+**Current topology (iter-30, F30) — supersedes the first draft:**
+- Off-state: **dedicated per-channel DI/DE/RO** on the ESP, UART2
+  matrix-muxed to the active channel, inactive pins held **high-Z**;
+  8 GPIOs. *(The first draft's "1 kΩ series on DI + wire-OR RX pull-up"
+  is retired — it leaned on the ADM2587E's unspecified VCC=0 behavior.)*
+- isoPower support (iter-31, F35): full net-by-net set — VCC bypass
+  0.1+0.01 (pin 2) & 0.1+10 µF (pin 8); VISOOUT(12)↔GND2(11) 10+0.1 µF;
+  VISOIN(19)↔GND2(20) 0.1+0.01 µF; **two** ferrites (L1 VISO, L2 GND2);
+  GND1↔GND2 stitching cap rated to VIORM 524 Vpeak. Leaded wide SOIC,
+  creepage-critical.
+
+**Review asks:**
+- **G1 (blocker): the F37 interface premise** — this is the gating item.
+- G1: SM712/ADM2587E **coordination (F36)** — SM712 clamps 20 V > the
+  ADM2587E +14 V bus abs-max; needs series R to protect (or accept DNP =
+  unprotected). ±15 kV is HBM, not IEC cable ESD.
+- G2: **D32 closed** — ADM2587E (90 mA @ 3.3 V/100 Ω; F28 fix of the
+  72 mA=5 V-row mis-cite) + **Semtech** SM712 (F29) on file, verified.
+- G3: re-verify stock at BOM-lock.
+- Power: gated ~0.5 % → ~1.5 mW avg; States 3–4 unpowered → hard-cut
+  unchanged (contingent on the F30 off-state + default-off switch).
 
 ## DR-27 — Battery-side PicoBlade expansion header (D37)  [OPEN — design 2026-07-15; folds into the same CP1-delta review as DR-26]
 
@@ -822,15 +830,20 @@ GND×2, dedicated **I2C1** (SDA/SCL, isolates the RV-3028 timekeeping bus),
 2× **ADC1+RTC-wake** AIO, 1 generic DIO. Rationale/pinout: decisions.md
 **D37**.
 
+**Power domain (iter-31, F34/F39) — supersedes the first draft:** the
+EXP_3V3 pin is a **load-switched, default-OFF** rail (Q_exp), **force-OFF
+in State 4** so the rail is dead in hard-cut; enable = `EXP_PWR_EN`. It is
+**on/off gating, not a current limiter** (off-leakage ≤0.5 µA → ≤1.65 µW,
+budgeted; real ceiling = F1 1 A + LM5166). *(The first draft's "series
+ferrite / budget-counting always-on 3V3" is retired — a ferrite is not a
+DC limit.)*
+
 **Review asks:**
-- Pin map (CP2): verify each expansion pin lands on a GPIO with the
-  required capability — 2× **ADC1** (GPIO1–10, *not* ADC2/WiFi) **and**
-  RTC-wake (GPIO0–21); I2C1 on a second controller; DIO on GPIO38–42; and
-  **no clash with D36's UART2 + CH1/CH2_PWR allocation** or the module's
-  flash/PSRAM pins (GPIO26–37 on N16R8).
-- Power-first: confirm the 3V3 pin is series-ferrite'd and documented as
-  budget-counting; unplugged draw = 0 (bus pull-ups idle-high).
-- Protection: decide series-R on SDA/SCL and ESD on exposed IO (DNP vs
-  populate) for an internal header.
-- Dedicated vs shared I2C: confirm the dedicated-I2C1 choice (RTC
-  isolation) vs the leaner shared-I2C0 alternative.
+- Pin map (CP2): each expansion pin on a GPIO with the required
+  capability — 2× **ADC1** (GPIO1–10, not ADC2/WiFi) **and** RTC-wake;
+  I2C1 on a second controller; DIO on GPIO38–42; `EXP_PWR_EN`; and **no
+  clash** with D36's 8 GPIOs or the module's flash/PSRAM (GPIO26–37).
+- F38: confirm the exact PicoBlade mate (51021-0800 housing + 50079-class
+  pre-crimp) + keying/rating from PS-51021-024 at sourcing.
+- Protection: series-R on SDA/SCL + ESD on exposed IO (DNP vs populate).
+- Dedicated vs shared I2C: confirm dedicated-I2C1 (RTC isolation).

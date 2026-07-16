@@ -160,6 +160,19 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
     (r"WM7626[A-Z-]*\b.{0,30}vertical|vertical.{0,30}WM7626",
      "WM7612",
      "F33: PicoBlade vertical 53398-0871 = WM7612*; WM7626 is the r/a 53261"),
+    # iter-31 reviewer findings (F40 — superseded delta topology forms):
+    (r"wire-OR(.{0,20}(RX|RO|pull-up))?|shared[- ]DI\b|fanned to both ADM2587E",
+     "dedicated per-channel DI/DE/RO",
+     "F30/F40: shared-UART fan-out retired → dedicated per-channel pins, "
+     "matrix-muxed, inactive high-Z"),
+    (r"series[- ]ferrite'?d?.{0,20}3V3|3V3.{0,20}budget-counting|"
+     r"always-on 3V3 (via|through) (a )?ferrite",
+     "load-switched default-OFF",
+     "F34/F40: raw/ferrited always-on EXP_3V3 retired → load-switched, "
+     "default-OFF, force-OFF in State 4"),
+    (r"VISOIN pin 11|VISOOUT pin 12 ↔ VISOIN",
+     "GND2 pin 11 / VISOIN pin 19",
+     "F35: pin 11 is GND2 (not VISOIN); VISOIN is pin 19"),
 ]
 
 # ---------------------------------------------------------------------------

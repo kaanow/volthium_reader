@@ -3340,3 +3340,79 @@ bound and plan an unterminated bench measurement; remove “unterminated →
 ~100 Ω regime.”
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 7 important. (See findings 35, 36, 37, 38, 39, 40, 41, 42.)
+
+## 29. Claude's responses to iter-31 findings (2026-07-16)
+
+All 8 accepted — another rigorous pass. F35 (my isoPower pinout error)
+and F37 (my over-claimed common-mode analysis) are exactly the kind of
+thing a second set of eyes should catch, and did.
+
+**F35 (isoPower support wiring wrong) — FIXED from the pin table.** I'd
+mis-assigned pin 11 as VISOIN — it's **GND2**; VISOIN is **pin 19**.
+Rewrote §3 net-by-net from Rev H p.8: VISOOUT(12)↔GND2(11) 10+0.1 µF;
+VISOIN(19)↔GND2(20) 0.1+0.01 µF; **two** ferrites (L1 VISO 12→19, L2 GND2
+→ iso-ground). Package corrected to **20-lead wide-body *leaded* SOIC**
+(not leadless — so *not* a hand-solder concern, but still creepage-
+critical). C_stitch rated to the real working isolation **VIORM 524 Vpk /
+396 Vrms** (not the 2500 Vrms 1-min proof voltage).
+
+**F36 (SM712 not coordinated) — FIXED.** Correct Semtech data shows
+SM712 clamps **20 V @ 5 A**, above the ADM2587E bus-pin abs-max of
+**−9/+14 V** — so the TVS alone doesn't protect the part (the DR-1/DR-2
+coordination rule). Reframed: added a per-line **series R (~10 Ω)** so a
+populated network is coordinated (residual < 14 V), and stated honestly
+that ±15 kV is **HBM (handling), not IEC cable-port ESD**. Default DNP =
+the cable port is *unprotected* (accepted for a short internal run); no
+longer called "surge insurance."
+
+**F37 (interface premise) — ACCEPTED; DR-26 held OPEN, not advanced.**
+You're right on all three points: (1) I can't resolve RS-485-vs-TTL from
+the contradictory vendor docs; (2) my "both transceivers see ≈0 V CM by
+construction" over-claimed — isolation *permits* a ground offset but
+doesn't *force* GND2 to track the pack; (3) my settling math was wrong
+(1 MΩ × 75 pF = **75 µs**, ≈ a 104 µs bit, not ≪ it; 75 pF is the DNP
+TVS's Cj, not measured bus C). **This genuinely needs the physical pack +
+adapter, which I don't have.** Rewrote §7 to say so plainly and marked
+**D36/DR-26 blocked on bench characterization — it does not go to CP2
+until that data exists.** D37 (expansion) is independent and unaffected.
+*This is the one finding I can't close myself — it needs a scope session
+on the real hardware (flagged to the user).*
+
+**F38 (PicoBlade mate/rating) — FIXED honestly.** The drawing confirms
+**MATE WITH: 51021 SERIES** and points to product spec **PS-51021-024**
+(which has the rating) — but the drawing itself states no current rating,
+so my "1 A/ckt" was unsourced (I misread circuit-position labels).
+Corrected: named the exact mate (51021-0800 housing + 50079-class
+pre-crimp), flagged the rating + keying to confirm from PS-51021-024 at
+CP2 (that spec isn't proxy-fetchable); noted our use is far below any
+PicoBlade rating.
+
+**F39 (expansion "current limit") — FIXED.** You're right — Q_exp is an
+on/off switch, not a limiter. Removed the "~50 mA limit" claim: it's
+**on/off, default-OFF gating**; the hard-cut guarantee is that the rail
+is *dead* in State 4, and the only always-on term is the ZXMP6A13F
+**off-leakage ≤ 0.5 µA → ≤ 1.65 µW** (now budgeted). Real ceiling = F1
+(1 A) + LM5166. A hard per-rail limit (series ~75 mA PPTC) is noted as a
+DNP option.
+
+**F40 (DR-26/DR-27 drift) — FIXED.** Both DR items rewritten to the
+current topology (F30 dedicated-pin off-state; F34/F39 load-switched
+default-off rail) and the retired forms marked. Added 3 registry tokens
+(wire-OR/shared-DI, ferrited-always-on-3V3, VISOIN-pin-11) so the
+superseded forms can't silently reappear.
+
+**F41 (BOM totals) — FIXED.** Grand-total table now shows the iter-27
+core (~$192) **+ the D36/D37 delta (~$56, itemized)** = **~$248**
+single-monitor with the pending delta, with a note that the parts fold
+into the battery-side line and the column is recomputed on CP1-delta
+approval.
+
+**F42 (nit, load wording) — FIXED.** 90 mA/100 Ω relabeled as the
+conservative documented bound; removed "unterminated → ~100 Ω regime"
+(unterminated is high-Z); the real default draw is a bench measurement.
+
+**Net:** F35/F36/F38/F39/F40/F41/F42 closed on file; **F37 is the honest
+blocker — the RS-485 topology needs bench data on the real pack+adapter
+before it can be approved or handed to CP2.** D37 is unaffected. D35 gate
+exit 0. Ready for re-verify of the fixes; the F37 bench gate is the
+user's call on when/how to get that measurement.

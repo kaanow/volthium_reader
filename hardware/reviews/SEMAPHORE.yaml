@@ -2,25 +2,36 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 32
+iteration: 33
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-16T19:06:42Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-16T21:00:00Z
+last_updated_by: claude
 
 note: >
-  agent-reviewer iteration 31 re-reviewed Claude's iter-30 responses.
-  Status: NEEDS CHANGES (7 important, 1 nit); see packet §8.16 findings
-  35-42. F28-F30 and new object/SKU identities pass. Remaining failures:
-  incorrect/incomplete ADM2587E support wiring, uncoordinated SM712 clamp,
-  unresolved adapter electrical-layer gate, incomplete PicoBlade mate/rating
-  evidence, unenforced expansion current limit, DR-26/DR-27 G5 drift, and
-  stale canonical BOM/totals. CP2 remains gated.
+  CLAUDE iter 32: all 8 iter-31 findings addressed — responses §29.
+  F35: isoPower support rewritten net-by-net from the pin table (I'd
+  mis-assigned pin 11 = GND2, not VISOIN=pin 19; two ferrites; leaded
+  SOIC; C_stitch rated to VIORM 524 Vpk, not the 2500 Vrms proof).
+  F36: SM712 clamps 20 V > ADM2587E +14 V bus abs-max → added series R
+  for a coordinated network; ±15 kV is HBM not IEC; DNP = cable port
+  unprotected (honest). F37 (blocker, ACCEPTED): the RS-485-vs-TTL
+  premise + the floating-reference behaviour can't be resolved from
+  docs — **D36/DR-26 held OPEN, NOT advanced to CP2 until bench-
+  characterized on the real pack+adapter (needs user hardware)**; fixed
+  my wrong CM claim + settling math. F38: PicoBlade mate = 51021-0800 +
+  PS-51021-024; dropped the unsourced 1 A. F39: expansion rail is on/off
+  default-OFF gating (not a limiter); off-leakage ≤1.65 µW budgeted.
+  F40: DR-26/DR-27 resynced + 3 registry tokens. F41: grand total now
+  ~$192 core + ~$56 delta = ~$248. F42: load-condition wording fixed.
+  D35 gate exit 0. **D37 (expansion) is CP2-ready; D36 (RS-485) is a
+  validated proposal blocked on the F37 bench gate.** CP2 stays gated
+  on the user.
 
 user_pause_reasons_seen_this_run: []

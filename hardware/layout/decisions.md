@@ -2106,7 +2106,7 @@ nothing is plugged in**.
 | Pin | Signal | ESP capability required | Why it's the best use of the pin |
 |-----|--------|-------------------------|----------------------------------|
 | 1 | **GND** | — | return |
-| 2 | **EXP_3V3** | **load-switched** rail (not raw always-on) — **F34** | powers the add-on through a **load switch that defaults OFF at reset and is force-OFF in State 4 (hard-cut)** — a ferrite is not a DC limit, so a plugged-in board must not be able to break the 1.08 mW hard-cut budget. Enable = a dedicated ESP GPIO (`EXP_PWR_EN`), off by default. Add a series resistor / PPTC or the load switch's own current limit for a **stated continuous limit (~50 mA)**; the switch's Iq (sub-µA class) is the only always-on term and is budgeted. If a State-3 wake-accessory is ever needed, budget that mode explicitly and still shed at hard-cut. |
+| 2 | **EXP_3V3** | **load-switched, default-OFF** rail (not raw always-on) — **F34/F39** | powers the add-on through an on/off load switch (Q_exp) that is **OFF at reset and force-OFF in State 4** — so the rail is **dead in hard-cut** and a plugged-in board cannot touch the 1.08 mW budget. **F39: this is on/off gating, not a current limiter** — the real upstream limit is F1 (1 A) + LM5166 (500 mA); off-leakage = ZXMP6A13F IDSS ≤ 0.5 µA → ≤1.65 µW, the only always-on term (budgeted into State 4). A per-rail hard limit (series ~75 mA PPTC) is an option, DNP. Enable = ESP `EXP_PWR_EN`. |
 | 3 | **EXP_SDA** | I2C1 (a **dedicated** controller, *not* the RTC's I2C0) | the single highest-leverage expansion bus: addressable, multi-drop, 2 pins — sensors / ADC / IO-expander / EEPROM / fuel-gauge all speak it. **Dedicated bus isolates the timekeeping-critical RV-3028 from an unknown add-on** (leaner alt: share I2C0 — 2 fewer GPIOs, 2 fewer pull-ups, but couples expansion to the RTC). Own pull-ups on the header. |
 | 4 | **EXP_SCL** | I2C1 | " |
 | 5 | **EXP_AIO1** | **ADC1 + RTC-wake** (free pool GPIO8/9/10) | analog-in *or* digital *or* an interrupt that can **wake the ESP from deep sleep** (ext1). ADC1 (not ADC2) so it never conflicts with WiFi (datasheet: ADC1 = GPIO1–10). |
@@ -2127,12 +2127,16 @@ nothing is plugged in**.
   future add-on can't break the ~1 mW low-SOC budget. A hungry add-on
   taps the pack elsewhere.
 
-**Enforceable power-domain contract (F34, reviewer iter-29).** The
-expansion rail is **not** raw always-on 3V3. It is fed through a load
-switch that is **OFF at reset** and **force-OFF in State 4 (hard-cut)**,
-with a stated ~50 mA continuous limit and the switch's sub-µA Iq
-budgeted into every state. The prior "current-limited via ferrite"
-wording was wrong — a ferrite is not a DC current limit.
+**Enforceable power-domain contract (F34/F39).** The expansion rail is
+**not** raw always-on 3V3, and — correcting the iter-30 wording — it is
+**not** current-limited either. It is an **on/off, default-OFF load
+switch** (Q_exp) that is **OFF at reset** and **force-OFF in State 4**;
+the hard-cut guarantee is that the rail is *dead* when it matters, and
+the only always-on term is Q_exp's ≤0.5 µA off-leakage (≤1.65 µW,
+budgeted). The real current ceiling is the upstream F1 (1 A) + LM5166
+(500 mA). If a per-rail hard limit is ever wanted, add a series PPTC
+(~75 mA hold) — noted, DNP. (F34's first fix claimed a "~50 mA limit"
+with no limiting component; F39 corrected that.)
 
 **Exact GPIO numbers finalized at CP2** (coordinated with D36's UART2 +
 channel-select allocation); the *capabilities* above are the binding
@@ -2145,11 +2149,18 @@ spec — the reviewer/gate checks the CP2 pin map against them.
 - Right-angle **53261-0871** — DK **WM7626TR-ND** / Mouser 538-53261-0871
   (cable exits parallel to the board — for a lid-mounted daughterboard).
 
-Datasheets on file (manifest: Molex_53398-0871_PicoBlade_vert.pdf sha
-642bc09ea605; RA sha 6e1b0968c9ed) — 1.25 mm pitch, 8-ckt, 1 A/ckt, tin.
-Mates a **PicoBlade 51021-08xx** receptacle / pre-crimped cable (confirm
-exact mate PN + pre-crimp + keying at CP2). **F33 fix:** the first draft
-put the r/a DK SKU (WM7626) in the vertical row — corrected.
+Customer drawings on file (manifest: Molex_53398-0871_PicoBlade_vert.pdf
+sha 642bc09ea605; RA sha 6e1b0968c9ed) — 1.25 mm pitch, 8-ckt, tin.
+**F38 (mate/rating):** the drawing states **MATE WITH: 51021 SERIES** and
+references product spec **PS-51021-024** (which carries the electrical
+rating); the drawing itself does *not* state a current rating, so the
+earlier "1 A/ckt" was unsourced — the PicoBlade catalog figure is 1 A/ckt
+but must be confirmed from PS-51021-024. Exact mate = **8-ckt housing
+51021-0800 + 50079-class pre-crimp / cable**, to confirm (housing/
+terminal/keying/mating-height/wire-gauge/rating) at CP2 sourcing (the
+product spec is not proxy-fetchable). Our use is logic + a ≤50 mA rail —
+far below any PicoBlade rating. **F33 fix:** the first draft put the r/a
+DK SKU (WM7626) in the vertical row — corrected to WM7612CT-ND.
 
 **Protection.** Optional (DNP) series R on EXP_SDA/SCL to isolate the bus,
 and an optional ESD array on the exposed IO — it's an *internal* header
