@@ -2058,8 +2058,10 @@ UART0 console, UART1 display) fanned to two **ADM2587E** isolated RS-485
 front-ends (integrated isoPower); **power-gating each channel's VCC is
 the channel select** (sequential polling, master role). Decoded frames
 reuse the existing `ej_bms` `:AddrCmd…CRC~` parser byte-for-byte — only
-the transport differs from BLE. Gated at ~0.5 % duty → average draw below
-the µW floor; States 3–4 unpowered → **hard-cut ~1.08 mW unchanged**.
+the transport differs from BLE. **ADM2587E ICC = 72 mA @ 3.3 V** (isoPower
+dominates whenever VCC is applied) → gating is essential; gated ~0.5 %
+duty → **~1–1.5 mW average** in polling states (~0.13 % of State-1),
+States 3–4 unpowered → **hard-cut ~1.08 mW unchanged**.
 Connectors: 2× RJHSE-5380 RJ45 (mate the vendor M12→RJ45 adapter; A/B on
 pins 7/8; CAN-H/L on 4/5 to unpopulated pads for a future inverter
 bridge). Bus TVS = SM712 (RS-485-matched −7/+12).
@@ -2075,9 +2077,10 @@ adapter really presents a clean 2-wire A/B on RJ45 7/8, the second-M12
 function, and patch-cable straight-through — on the bench / with Volthium.
 (The 4-pin M12 has no comms-ground pin, but that's fine: the isolated
 front-ends self-reference locally, so **no battery-negative reference is
-needed** — corrected from the first draft.) **D32 TODO:** ADM2587E (ADI
-WAF-blocks the proxy) + SM712 datasheets to be pulled manually and
-manifested.
+needed** — corrected from the first draft.) **D32 closed 2026-07-16:**
+ADM2587E + SM712 datasheets on file (user-provided), read and verified
+(manifest "Proposed CP1-delta additions"); SM712 is DNP by default since
+the ADM2587E carries ±15 kV ESD on the bus pins.
 
 **Status.** Extends approved CP1 → needs a **CP1-delta review pass before
 CP2**. Logged as **DR-26**.

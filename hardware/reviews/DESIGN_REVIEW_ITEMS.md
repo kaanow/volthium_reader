@@ -802,9 +802,11 @@ Reuses the `ej_bms` frame parser.
   midpoint moving under load.
 - G1: shared-UART2 fan-out — de-powered-input leakage guard (1 kΩ series
   on DI), wire-OR RX pull-up, isoPower settle time before first byte.
-- G2: **D32 — ADM2587E + SM712 datasheets not yet on file** (ADI/host
-  WAF-blocks the proxy; pull manually) → verify isoPower current, exact
-  isolation rating, fail-safe, ESD.
+- G2: **D32 closed 2026-07-16 — ADM2587E + SM712 datasheets on file**
+  (user-provided), read/verified: 2500 Vrms iso, CMTI >25 kV/µs, ±15 kV
+  ESD, fail-safe RX, **ICC 72 mA @ 3.3 V**; SM712 VRWM 12/7 V. SM712 now
+  DNP-by-default (on-chip ESD). Reviewer: sanity-check the gated-duty
+  power math (§6) against the 72 mA figure.
 - G3: stock checked 2026-07-15 (ADM2587E Mouser 3,848; SM712 103k;
   RJHSE-5380 8,697) — re-verify at BOM-lock.
 - Interface-reality: real M12 pinout, comms-GND presence, second-M12

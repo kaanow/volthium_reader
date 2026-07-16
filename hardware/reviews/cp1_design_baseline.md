@@ -2980,9 +2980,13 @@ is that hand-off. Read `REVIEWER.md §3.5` (grounding rules) first.
   RTC-wake; I2C1 on a second controller; DIO on GPIO38–42 — with **no
   clash** with D36's UART2 + CH1/CH2_PWR or the module's flash/PSRAM pins
   (GPIO26–37). Exact numbers are CP2; capabilities are the binding spec.
-- **G2 datasheets (D32):** **ADM2587E + SM712 are not yet on file** (ADI/
-  host WAF-blocks the proxy — pull manually) → verify isoPower current,
-  isolation rating, fail-safe, ESD, CMTI.
+- **G2 datasheets (D32) — CLOSED 2026-07-16:** ADM2587E + SM712 on file
+  (user-provided), read/verified — 2500 Vrms iso, CMTI >25 kV/µs, ±15 kV
+  ESD, fail-safe RX, **ICC 72 mA @ 3.3 V** (drove a power-figure
+  correction — §6 now ~1–1.5 mW gated avg, was mis-stated "<µW"); SM712
+  VRWM 12/7 V, now **DNP-by-default** (on-chip ESD covers the short run).
+  Manifest "Proposed CP1-delta additions". Reviewer: re-derive the gated
+  power math against 72 mA.
 - **G3 stock:** API-checked 2026-07-15 (ADM2587E Mouser 3,848; SM712
   103k; RJHSE-5380 8,697; PicoBlade 42.6k/32k) — re-verify at BOM-lock.
 - **Interface-reality (bench/vendor):** clean 2-wire A/B on RJ45 7/8,

@@ -120,17 +120,18 @@ Every SKU/stock figure below was resolved against the parts API on
 
 | Ref (per ch.) | Part | Why | Sourcing (2026-07-15) |
 |---------------|------|-----|-----------------------|
-| U_iso1 / U_iso2 | **ADM2587E BRWZ** — isolated RS-485 w/ **integrated isolated DC-DC** (isoPower), 3.3 V, slew-limited 250 kbps, ±15 kV ESD, full fail-safe RX | One chip = isolation + transceiver + isolated supply → fewest solder joints for a qty-1 hand build. 250 kbps ≫ our 9600 baud, and slew-limiting *lowers* EMI. | Mouser **584-ADM2587EBRWZ**, 3,848 stock, $22.90. (ADM2582E is 16 Mbps overkill and DK-OOS.) **D32 TODO: datasheet — ADI host WAF-blocks the proxy; pull manually.** |
+| U_iso1 / U_iso2 | **ADM2587E BRWZ** — isolated RS-485 w/ **integrated isolated DC-DC** (isoPower), 3.3 V, slew-limited **500 kbps**, ±15 kV ESD on bus pins, open/short fail-safe RX | One chip = isolation + transceiver + isolated supply → fewest solder joints for a qty-1 hand build. 500 kbps ≫ our 9600 baud, and slew-limiting *lowers* EMI. | Mouser **584-ADM2587EBRWZ**, 3,848 stock, $22.90. (ADM2582E is 16 Mbps overkill and DK-OOS.) **Datasheet on file** (Rev H, sha 77a52a9e6036): 2500 Vrms iso, CMTI >25 kV/µs, **ICC 72 mA @ 3.3 V** — see §6. |
 | Q_ls_p, Q_ls_n | ZXMP6A13F P-FET + 2N7002 (high-side load switch + gate pull) | Power-gate VCC so isoPower runs only during a poll (see §5). Parts already on the board. | (already in cp1_bom.md) |
 | J_bat1 / J_bat2 | **Amphenol RJHSE-5380** RJ45 jack, shielded, magnetics-free | Mates the vendor **M12→RJ45** adapter via a straight patch cable; same jack as the display link (commonality, on file). RS-485 A/B on RJ45 **pins 7/8** per the vendor pinout; CAN-H/L (4/5) to unpopulated pads for a future bridge. **Identical/interchangeable — either pack on either jack.** | Mouser **523-RJHSE-5380**, 8,697 stock, $2.30; datasheet on file (RJHSE-5380.pdf) |
-| TVS_bus | **SM712.TCT** asymmetric RS-485 TVS (+7 V/−12 V), on A/B↔iso-GND | Surge/ESD clamp on the exposed cable pair, referenced to the **local isolated** ground. | Mouser **947-SM712.TCT**, 103,047 stock, $3.64. **D32 TODO: datasheet (proxy returned an error, pull manually).** |
+| TVS_bus (**optional / DNP**) | **SM712.TCT** asymmetric RS-485 TVS (VRWM 12 V/7 V — matches −7/+12), on A/B↔iso-GND | Surge clamp on the cable pair. **The ADM2587E already has ±15 kV ESD on the bus pins**, so for this short internal run to a pack ~1 m away the SM712 is *surge* insurance (8/20 µs), not ESD — **DNP by default**, populate if the cable proves long/exposed. | Mouser **947-SM712.TCT**, 103,047 stock, $3.64. **Datasheet on file** (N2270 Rev C, sha e2bc628df997): VBR 13.3/7.5 V, VC 20/12 V @ 5 A, Cj 75 pF, SOT-23. |
 | R_bias | fail-safe bias A/B → local iso-rails, + optional ~1 MΩ iso-GND↔bus bleed | References the floating island **locally** (defines idle; bleeds barrier leakage) — no battery-negative wire | high-value; per §7 |
 | R_di | 1 kΩ series on DI | de-powered-input leakage guard | 0402/0603 |
 | R_bus term | 120 Ω across A/B — **DNP** | at 9600 baud over a ~1–2 m point-to-point run, reflections settle ≪ 1 bit; termination just loads the driver. Footprint present, unstuffed; populate only if a bench capture shows ringing. | DNP |
 | C_iso | ADM2587E bypass (VCC + isolated Viso per datasheet) | isoPower decoupling | per datasheet (pull) |
 
-Rough added cost: ~2 × ($22.90 + $2.30 + $3.64 + passives) ≈ **~$60**
-for the pair. (Cheaper discrete alternative in §8.)
+Rough added cost: ~2 × ($22.90 + $2.30 + passives) ≈ **~$52** for the
+pair (SM712 DNP by default; +$3.64/ch if populated). Cheaper discrete
+alternative in §8.
 
 ---
 
@@ -177,14 +178,23 @@ differs.**
 
 ## 6. Power analysis (power-first, D5 preserved)
 
-ADM2587E isoPower draws on the order of tens of mA **while enabled**
-(exact figure = D32 datasheet pull). Left continuously on, 2 channels
-would add ≈ 0.1–0.15 W to the ~0.9 W battery-side State-1 draw — a real
-hit. **Gated at ~0.5 % duty it averages well under 1 mW**, i.e. below the
-rounding floor of the existing budget. In States 3–4 (deep-sleep / hard-
-cut) both channels are unpowered, so the ~1.08 mW hard-cut headline is
-**unchanged**. This is the reason for the load-switch-per-channel rather
-than a simpler always-on wiring.
+**The datasheet number is bigger than a first guess, which makes the
+gating essential (not optional).** ADM2587E **ICC = 72 mA @ 3.3 V**
+(datasheet, ≤500 kbps, 100 Ω load) — and because the isoPower DC-DC runs
+whenever VCC is applied, the draw is ~this whether transmitting or
+listening. Left **continuously on**, one channel ≈ **238 mW**; two ≈
+**475 mW** — that would roughly *halve* the battery-side runtime. Hence
+the load-switch-per-channel and one-channel-at-a-time select.
+
+**Gated**, each poll powers one channel for ~50–100 ms; both packs every
+30 s → ~150 ms/30 s ≈ **0.5 % duty**. Average added draw ≈ 72 mA × 0.5 %
+≈ **0.36 mA @ 3.3 V ≈ ~1.2 mW** in the polling states (1/2). Against the
+~0.9 W State-1 budget that's **~0.13 %** — negligible, but *not* "below
+the µW floor" as the first draft claimed; call it **~1–1.5 mW average**.
+In States 3–4 (deep-sleep / hard-cut) both channels are **unpowered**, so
+the **~1.08 mW hard-cut headline is unchanged**. (Even if the wired path
+becomes *primary*, State-3 reads are ~1/10 min → far lower duty still;
+State-4 does no reads.)
 
 ---
 
@@ -247,6 +257,7 @@ Remaining items to confirm on the real hardware (COTS interface-reality):
 This **extends the approved CP1 architecture** (new nets, 2 connectors,
 2 isolated front-ends, 5 GPIOs, a firmware read path). It should get a
 **CP1-delta engineering-review pass** (G1 isolation/coordination, G2
-datasheets incl. the two D32 TODOs, G3 stock — done here, G5 registry)
-**before CP2 schematic capture** folds it in. Two D32 datasheets
-(ADM2587E, SM712) must be pulled manually and manifested first.
+datasheets, G3 stock, G5 registry) **before CP2 schematic capture** folds
+it in. **D32 closed:** ADM2587E + SM712 datasheets are now on file
+(user-provided 2026-07-16), read and verified — see the manifest
+"Proposed CP1-delta additions" section.

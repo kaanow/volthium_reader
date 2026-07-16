@@ -62,6 +62,18 @@ L1 buck inductor, USB-C receptacles (J3 battery / J-USB display),
 display tactile buttons BTN1–3 (plunger height locked at CP3/CP5).
 
 
+## Proposed CP1-delta additions (D36/D37) — datasheets on file, fold into the active table at CP2
+
+Not yet in the active table above (these parts are in the RS-485 /
+expansion design docs, pending the CP1-delta review; they move to the
+active table + `cp1_bom.md` when CP2 folds them in). Datasheets stored,
+read, and interface-verified now so the D32 gate closes when they land.
+
+| MPN | file | provider | source | sha256 (12) | read-verified |
+|-----|------|----------|--------|-------------|---------------|
+| ADM2587EBRWZ | ADM2582E_2587E.pdf (1291K) | user upload 2026-07-16 | analog.com/media/en/technical-documentation/data-sheets/adm2582e-2587e.pdf (Rev H) | 77a52a9e6036 | 2500 Vrms iso (1 min); CMTI >25 kV/µs; ±15 kV ESD on bus pins; open/short fail-safe RX; 3.3 V op; **ADM2587E = 500 kbps** slew-limited; **ICC 72 mA @ 3.3 V, 100 Ω load** (isoPower DC-DC dominates whenever VCC applied); supplies ~15 mA on VISOO |
+| SM712.TCT | SM712.pdf (465K) | user upload 2026-07-16 | smc-diodes.com/propdf/SM712 N2270 REV.C.pdf | e2bc628df997 | asymmetric RS-485 TVS, **VRWM 12 V / 7 V** (matches −7/+12); VBR 13.3 / 7.5 V min; VC 20 V/12 V @ 5 A (26/14 @ 15 A); Cj 75 pF; SOT-23 |
+
 ## Retired (in store history, not used)
 
 - **RP3502MABLK** (BTN1) — retired at reviewer iter-23 F22 (2026-07-14):

@@ -26,7 +26,10 @@ note: >
   self-referenced (no battery-negative wire); hard-cut ~1.08 mW unchanged.
   D37/DR-27: battery-side PicoBlade expansion header (dedicated I2C1 + 2×
   ADC1/RTC-wake AIO + DIO + power). Review asks in §27.2 + DR-26/DR-27.
-  Two D32 datasheets (ADM2587E, SM712) still to pull manually (ADI WAF).
-  D35 gate exit 0. CP2 stays gated on the user's go regardless of outcome.
+  **D32 CLOSED 2026-07-16:** ADM2587E + SM712 datasheets on file
+  (user-provided), read/verified — ADM2587E ICC 72 mA @ 3.3 V drove a
+  power correction (§6 ~1–1.5 mW gated avg; hard-cut unchanged), SM712
+  now DNP-by-default (on-chip ±15 kV ESD). D35 gate exit 0. CP2 stays
+  gated on the user's go regardless of outcome.
 
 user_pause_reasons_seen_this_run: []
