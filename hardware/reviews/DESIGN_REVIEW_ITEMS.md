@@ -781,10 +781,11 @@ the guaranteed-HIGH region. Bias is noise-margin insurance, not a
 fail-safe requirement.
 DR-13 stays RESOLVED with the improved threshold picture.
 
-## DR-26 — RS-485 wired battery-read backup (both packs)  [OPEN — design proposed 2026-07-15 (D36); needs CP1-delta review before CP2]
+## DR-26 — RS-485 wired battery read: co-equal alternative transport (both packs)  [OPEN — design proposed 2026-07-15 (D36); needs CP1-delta review before CP2]
 
 User directive: BLE to the two BMS is worryingly flaky → add a real,
-populated wired read path. Design: [`../layout/cp1_rs485_battery_read.md`](../layout/cp1_rs485_battery_read.md); decision **D36**.
+populated wired read path as a **co-equal alternative** (may become
+primary — not pre-judged). Design: [`../layout/cp1_rs485_battery_read.md`](../layout/cp1_rs485_battery_read.md); decision **D36**.
 
 Because the two 12 V packs are in **series** and the protocol is polled
 (must transmit to a +12 V-referenced receiver), the front-end must float

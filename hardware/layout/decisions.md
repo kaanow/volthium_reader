@@ -2014,15 +2014,20 @@ specific staleness fixed in this commit; D-entry history stays intact
 (bracket-note convention). The gate is additive — the reviewer's
 independent G5 judgment remains; the tool is the floor, not the ceiling.
 
-## D36 — RS-485 wired battery-read backup (both packs, per-pack isolated) — user directive 2026-07-15
+## D36 — RS-485 wired battery read: co-equal alternative transport (both packs, per-pack isolated) — user directive 2026-07-15
 
 **Decision.** Add a **populated, BLE-independent RS-485 read path to both
-packs** as a real backup/cross-check to the flaky BLE. Full design in
+packs** as a **co-equal alternative transport** to BLE — *not* a
+subordinate backup. Full design in
 [`cp1_rs485_battery_read.md`](cp1_rs485_battery_read.md).
 
-**Why.** BLE to the two BMS has been worryingly flaky in the field — the
-user wants a wired fallback, not a DNP option. Space/volume is not a
-constraint on the battery board.
+**Why + framing (user, 2026-07-15).** BLE to the two BMS has been
+worryingly flaky in the field; the user wants a real wired path, not a
+DNP option. **Which transport is primary is deliberately left open** — if
+the wired path performs better it may *become* the primary; that judgment
+is not made in advance. Firmware runs both in parallel (same `ej_bms`
+parser) and the selection/merge policy is a field decision. Space/volume
+is not a constraint on the battery board.
 
 **Key architectural point (drives everything).** The two 12 V packs are
 in **series**, and this is a **polled** protocol (master must *transmit*
@@ -2034,9 +2039,9 @@ that's wrong). To transmit inside the pack's window the front-end must
 *float* to its reference = galvanic isolation. So this is **not** one
 shared bus (the two packs' fixed transceivers are 12 V apart and would
 see each other out of range) — it is **two galvanically-isolated
-channels**. (This is also why BLE, RF-isolated, was the natural primary;
-CAN's common-mode is tighter still → reserved for a future inverter
-bridge.)
+channels**. (BLE is RF-isolated for the same reason — the two transports
+are isolation-equivalent peers, not primary-vs-backup; CAN's common-mode
+is tighter still → reserved for a future inverter bridge.)
 
 **Symmetric + self-referenced (user, 2026-07-15).** The two channels are
 **identical and interchangeable — either pack on either jack**; firmware

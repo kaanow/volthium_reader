@@ -1,13 +1,17 @@
-# CP1 addendum — RS-485 battery-read backup (both packs)
+# CP1 addendum — RS-485 battery read (alternative transport, both packs)
 
 **Status:** design proposed 2026-07-15 (user-directed). Extends the
 approved CP1 architecture; **needs a CP1-delta review pass before CP2**.
 **Driver:** BLE to the two BMS has been *worryingly flaky* in the field —
 worse than the "benign, self-correcting" characterization in
 [`../../docs/firmware/ble_flap_recovery.md`](../../docs/firmware/ble_flap_recovery.md).
-This adds a **real, populated wired read path** as a BLE-independent
-backup (and cross-check). Board space/volume is explicitly **not** a
-constraint on the battery side.
+This adds a **real, populated wired read path** as a **co-equal
+alternative transport** to BLE — deliberately *not* framed as a mere
+backup: if the wired path proves more reliable on the bench/in the field
+it may become the **primary**, and that call is left open, not baked in.
+Both transports feed the same decoder; firmware runs them in parallel and
+the selection/merge policy is a field decision. Board space/volume is
+explicitly **not** a constraint on the battery side.
 
 ---
 
@@ -44,8 +48,9 @@ local rails, and an optional ~1 MΩ bleed to a bus line keeps the island
 from charging up on barrier leakage. **Nothing lands on a battery
 negative terminal** — the only per-pack connection is the 2-wire A/B pair
 through the vendor M12→RJ45 adapter (Ethernet gets away with no ground
-the same way: it's isolated). This is also what made BLE (RF-isolated)
-the natural primary.
+the same way: it's isolated). BLE is RF-isolated for the same reason —
+the two transports are isolation-equivalent, which is part of why the
+wired path is a genuine alternative and not just a fallback.
 
 **Symmetric by decision (user, 2026-07-15): the two channels are
 identical and interchangeable — either pack may plug into either RJ45.**
@@ -157,12 +162,16 @@ for ch in (1, 2):                   # channels are pack-agnostic
 (9600 8N1; addresses `0x01`/`0x02`. Because either pack may be on either
 jack, firmware maps address→pack from the reply, not from the channel.)
 
-Poll cadence: alongside BLE, every 30 s (or on-demand when BLE misses).
-Window ≈ 50–100 ms/pack → **duty ≈ 0.5 %**.
+Poll cadence: **run in parallel with BLE**, every ~30 s per pack (window
+≈ 50–100 ms/pack → **duty ≈ 0.5 %**). The two transports are peers — the
+firmware can cross-check them, prefer whichever is answering, or make the
+wired path primary; that policy is a field/bench call (D36), not hard-
+coded, so nothing here presumes BLE is "the" primary.
 
 The decoded frame is the **same E&J `:AddrCmd…CRC~` format** the BLE path
 already tunnels, so `volthium/pack.py` / `ej_bms` decoding is reused
-byte-for-byte — the backup shares the parser, only the transport differs.
+byte-for-byte — **both transports share the parser; only the transport
+differs.**
 
 ---
 

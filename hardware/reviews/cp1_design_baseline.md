@@ -2930,3 +2930,68 @@ remains APPROVED and is now audit-clean.
 CP2 opens a new branch and locks these decisions into editable KiCad
 form, so it's the natural user gate (DESIGNER.md §5). Nothing is blocked;
 awaiting the user's go.
+
+## 27. CP1-delta additions bundled for review (iter 29)
+
+CP1 was APPROVED and audit-clean at iter-27 (§26). Since then the branch
+was **rebased onto `main`** (40 upstream commits — software/docs; one
+combined conflict in `docs/production_design.md`, resolved) and the user
+directed **two architecture additions**. Both extend the approved CP1
+(new nets/parts/GPIOs + firmware paths), so they need **one CP1-delta
+engineering-review pass before CP2** folds them into the schematic. This
+is that hand-off. Read `REVIEWER.md §3.5` (grounding rules) first.
+
+### 27.1 What's in the bundle
+
+1. **D36 / DR-26 — RS-485 wired battery read (co-equal *alternative*
+   transport, both packs).** Full design:
+   [`../layout/cp1_rs485_battery_read.md`](../layout/cp1_rs485_battery_read.md).
+   - **Framing (user 2026-07-15):** not a subordinate backup — a peer to
+     BLE that **may become primary**; the call is left open, firmware runs
+     both in parallel on the same `ej_bms` parser.
+   - **Topology:** the two 12 V packs are in **series**, and the protocol
+     is **polled** (we must transmit into a +12 V-referenced receiver), so
+     each front-end must *float* to its pack's reference → **two
+     galvanically-isolated channels** (ADM2587E, integrated isoPower),
+     shared UART2, **power-gating = channel select**. **Symmetric /
+     interchangeable** — either pack on either jack; addressed by protocol
+     address. **No battery-negative reference wire** — each channel
+     self-references locally (iso-supply GND + fail-safe bias, Ethernet-
+     style), connecting only via the 2-wire A/B pair.
+   - Gated ~0.5 % duty → avg < µW floor; States 3–4 unpowered →
+     **hard-cut ~1.08 mW unchanged.** 2× RJHSE-5380 RJ45 (mate vendor
+     M12→RJ45; A/B on 7/8, CAN 4/5 → unpop pads). SM712 bus TVS.
+
+2. **D37 / DR-27 — battery-side PicoBlade expansion header.** 8-ckt Molex
+   PicoBlade 1.25 mm SMT (vertical 53398-0871 / r-a 53261-0871). Signals:
+   3V3 + GND×2, **dedicated I2C1** (SDA/SCL, isolates the RV-3028
+   timekeeping bus), **2× ADC1+RTC-wake AIO**, 1 generic DIO. No hardware
+   UART offered (all three controllers allocated — console/display/battery
+   RS-485); no raw-pack rail (power-first). Zero draw unplugged.
+
+### 27.2 Review asks (details in DR-26 + DR-27)
+
+- **G1 isolation/topology (DR-26):** the transmit-into-+12 V argument;
+  the local self-reference (no battery-negative wire) incl. the fail-safe
+  bias / optional ~1 MΩ bleed and CMTI headroom; the shared-UART2 fan-out
+  guards (1 kΩ series on DI, wire-OR RX pull-up, isoPower settle).
+- **G1 pin map (DR-27):** each expansion pin lands on a GPIO with the
+  required capability — 2× **ADC1** (GPIO1–10, *not* ADC2/WiFi) **and**
+  RTC-wake; I2C1 on a second controller; DIO on GPIO38–42 — with **no
+  clash** with D36's UART2 + CH1/CH2_PWR or the module's flash/PSRAM pins
+  (GPIO26–37). Exact numbers are CP2; capabilities are the binding spec.
+- **G2 datasheets (D32):** **ADM2587E + SM712 are not yet on file** (ADI/
+  host WAF-blocks the proxy — pull manually) → verify isoPower current,
+  isolation rating, fail-safe, ESD, CMTI.
+- **G3 stock:** API-checked 2026-07-15 (ADM2587E Mouser 3,848; SM712
+  103k; RJHSE-5380 8,697; PicoBlade 42.6k/32k) — re-verify at BOM-lock.
+- **Interface-reality (bench/vendor):** clean 2-wire A/B on RJ45 7/8,
+  second-M12 function, patch-cable straight-through.
+- **G5/D35:** gate exits 0 on this commit; no new registry tokens (these
+  are additions, not part swaps).
+
+### 27.3 Scope note
+
+CP1's approved core is unchanged; this pass reviews **only the two
+additions + the rebase**. CP2 remains gated on the user's explicit go
+regardless of the outcome.
