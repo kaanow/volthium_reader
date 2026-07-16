@@ -1316,6 +1316,23 @@ async def ambient_scanner_loop(targets: set[str]) -> None:
             reason="same adapter as reader — refusing to double-book radio",
         )
         return
+    # The AdapterManager keeps the fallback adapter POWERED DOWN when the
+    # primary is healthy — good for power / RF, bad for our passive listener.
+    # Bring it up (hciconfig up + bluetoothctl power on) before starting.
+    # If it can't be powered — internal chip broken, cable pulled, etc. —
+    # log and quit; the reader's own operation isn't affected.
+    if not await _adapter_is_up(hci):
+        try:
+            await _power_on_adapter(hci)
+        except Exception as exc:
+            _event(
+                "ambient_scanner_unavailable",
+                resolved=hci,
+                reason=f"power-on failed: {type(exc).__name__}: {exc}",
+            )
+            return
+        # Give bluetoothd a moment to notice the adapter came up.
+        await asyncio.sleep(2.0)
     targets_upper = {t.upper() for t in targets}
     # Per-target rolling state — reset per emit window.
     state: dict[str, dict] = {
