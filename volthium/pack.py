@@ -427,6 +427,18 @@ async def _teardown(bms: VolthiumBMS, address: str) -> None:
             still_connected = bool(await _connected_targets({key}))
     except Exception:  # noqa: BLE001 — verification/force is best-effort
         pass
+    # Roll-up boolean for downstream analysis — a "clean" disconnect is one
+    # where both library-level calls succeeded, no `hcitool con` force was
+    # needed, and the controller confirms no lingering connection. We already
+    # log every input; this is just the derived answer to "did the release
+    # actually work?" so a Railway query can join wedge onsets against the
+    # `disconnect_clean` of the preceding cycle without recomputing the logic.
+    disconnect_clean = (
+        disconnect_error is None
+        and inner_disconnect_error is None
+        and not forced
+        and not still_connected
+    )
     _event(
         "teardown",
         address=key,
@@ -435,6 +447,7 @@ async def _teardown(bms: VolthiumBMS, address: str) -> None:
         inner_disconnect_error=inner_disconnect_error,
         forced=forced,
         still_connected=still_connected,
+        disconnect_clean=disconnect_clean,
     )
 
 
@@ -1014,6 +1027,38 @@ async def _lsusb_ub500() -> Optional[bool]:
     return bool(out.strip())
 
 
+async def _usb_dongle_stats() -> dict:
+    """Sysfs counters for the reader's USB dongle — 'is the USB layer
+    accumulating trouble independent of what BlueZ sees?' Located by
+    VID:PID `2357:0604` (TP-Link UB500) rather than by bus path so the
+    probe survives dongle re-enumeration after a kernel USB reset."""
+    out: dict = {"present": False}
+    try:
+        import os as _os
+        base = "/sys/bus/usb/devices"
+        for name in _os.listdir(base):
+            devpath = f"{base}/{name}"
+            try:
+                with open(f"{devpath}/idVendor") as f: vid = f.read().strip()
+                with open(f"{devpath}/idProduct") as f: pid = f.read().strip()
+            except OSError:
+                continue
+            if vid != "2357" or pid != "0604":
+                continue
+            out["present"] = True
+            out["busid"] = name
+            for attr in ("urbnum", "authorized"):
+                try:
+                    with open(f"{devpath}/{attr}") as f:
+                        out[attr] = f.read().strip()
+                except OSError:
+                    pass
+            break
+    except Exception as exc:
+        out["error"] = f"{type(exc).__name__}: {exc}"
+    return out
+
+
 async def _power_and_thermal() -> dict:
     """Sample the Pi's throttled register and SoC temperature. The throttled
     register is a bit-mask that latches under-voltage / freq-cap / temp-cap
@@ -1113,7 +1158,7 @@ async def _collect_stack_evidence(reason: str) -> dict:
     speak identical JSON — analysis tooling can treat both event kinds the
     same way and just look at the `event` field to know why it fired."""
     hci = await _default_adapter()
-    dmesg, hci_state, bctl, ub500, hcicon, ptherm, bluez_macs = await asyncio.gather(
+    dmesg, hci_state, bctl, ub500, hcicon, ptherm, bluez_macs, usb_stats = await asyncio.gather(
         _dmesg_bt_tail(),
         _hciconfig_snapshot(hci),
         _bluetoothctl_snapshot(),
@@ -1121,6 +1166,7 @@ async def _collect_stack_evidence(reason: str) -> dict:
         _run(["hcitool", "con"], timeout=2.0),
         _power_and_thermal(),
         _bluez_controllers(),
+        _usb_dongle_stats(),
         return_exceptions=True,
     )
     dmesg = dmesg if isinstance(dmesg, list) else []
@@ -1129,6 +1175,7 @@ async def _collect_stack_evidence(reason: str) -> dict:
     hcicon = hcicon if isinstance(hcicon, str) else str(hcicon)
     ptherm = ptherm if isinstance(ptherm, dict) else {}
     bluez_macs = bluez_macs if isinstance(bluez_macs, (set, type(None))) else None
+    usb_stats = usb_stats if isinstance(usb_stats, dict) else {}
     # Kernel-vs-D-Bus comparison for the pinned adapter (see _classify_wedge).
     pinned_raw = os.environ.get(_ADAPTER_ENV, "").strip()
     pinned_in_kernel: Optional[str] = None
@@ -1167,6 +1214,7 @@ async def _collect_stack_evidence(reason: str) -> dict:
         "ub500_present": ub500,
         "hcitool_con": hcicon.strip()[:500],
         "power_thermal": ptherm,
+        "usb_dongle": usb_stats,
         "bluez_controllers": sorted(bluez_macs) if bluez_macs is not None else None,
         "pinned_adapter": pinned_raw or None,
         "pinned_in_kernel": pinned_in_kernel,
@@ -1197,6 +1245,154 @@ async def emit_stack_health(reason: str = "periodic") -> None:
     visible the moment it starts rather than only when it breaks reads."""
     evidence = await _collect_stack_evidence(reason)
     _event("stack_health", **evidence)
+
+
+# --- Ambient advertising scanner (Phase 1 of the wedge-causation dig) -----
+# Rationale in docs/investigations/2026-07-16-bt-wedge-causation.md.
+#
+# When enabled via VOLTHIUM_AMBIENT_ADAPTER, we run a continuous BLE scan on
+# a *second* adapter (the internal BT chip on this Pi 3B) filtered to our
+# target battery MACs. Every AMBIENT_WINDOW_S we emit an ambient_advertising
+# event describing what that independent radio heard in the window —
+# per-battery adv packet count, last RSSI, seconds since last seen.
+#
+# This is the coarsest-grained way to answer "when hci0 says 'batteries
+# missing', are the batteries actually silent or is hci0 the problem?"
+# without touching the reader path or introducing any new traffic to the
+# BMS. It observes the exact same air the reader is trying to use, from a
+# radio the reader isn't touching.
+AMBIENT_WINDOW_S = 10.0
+_AMBIENT_ADAPTER_ENV = "VOLTHIUM_AMBIENT_ADAPTER"
+
+
+async def _resolve_ambient_adapter() -> Optional[str]:
+    """Map VOLTHIUM_AMBIENT_ADAPTER (MAC or hci name) to an hci name, or
+    None if unset / unresolvable. Same shape as the reader-adapter resolver
+    but no caching — the ambient adapter is resolved once per process at
+    scanner startup."""
+    raw = os.environ.get(_AMBIENT_ADAPTER_ENV, "").strip()
+    if not raw:
+        return None
+    if _looks_like_mac(raw):
+        try:
+            hci = await _hci_owning_mac(raw)
+        except Exception:
+            hci = None
+        if not hci:
+            _event(
+                "ambient_scanner_unavailable",
+                configured=raw,
+                reason="no hci with matching BD address",
+            )
+            return None
+        return hci
+    if raw.startswith("hci"):
+        return raw
+    _event(
+        "ambient_scanner_unavailable",
+        configured=raw,
+        reason="not a MAC or hci name",
+    )
+    return None
+
+
+async def ambient_scanner_loop(targets: set[str]) -> None:
+    """Long-running task: passive BLE scan on the ambient adapter, filtered
+    to `targets` (uppercase MAC strings), emitting one ambient_advertising
+    event per AMBIENT_WINDOW_S. Runs until cancelled.
+
+    Refuses to run if the ambient adapter is the same as the reader adapter
+    (would double-book the radio), or if resolution fails, or if the scan
+    can't start — all diagnostics are logged as ambient_scanner_* events
+    so the operator can see why the second-opinion signal is missing."""
+    hci = await _resolve_ambient_adapter()
+    if not hci:
+        return
+    reader_hci = await _resolve_configured_adapter()
+    if reader_hci and reader_hci == hci:
+        _event(
+            "ambient_scanner_unavailable",
+            resolved=hci,
+            reason="same adapter as reader — refusing to double-book radio",
+        )
+        return
+    targets_upper = {t.upper() for t in targets}
+    # Per-target rolling state — reset per emit window.
+    state: dict[str, dict] = {
+        t: {"count": 0, "last_rssi": None, "last_seen_mono": None,
+            "adv_names": set()}
+        for t in targets_upper
+    }
+
+    def cb(dev: BLEDevice, adv) -> None:
+        key = dev.address.upper()
+        if key not in state:
+            return
+        s = state[key]
+        s["count"] += 1
+        rssi = getattr(adv, "rssi", None)
+        if rssi is not None:
+            s["last_rssi"] = rssi
+        s["last_seen_mono"] = time.monotonic()
+        nm = adv.local_name or dev.name
+        if nm:
+            s["adv_names"].add(nm)
+
+    scanner = BleakScanner(detection_callback=cb, adapter=hci)
+    try:
+        await scanner.start()
+    except Exception as exc:
+        _event(
+            "ambient_scanner_unavailable",
+            resolved=hci,
+            reason=f"start failed: {type(exc).__name__}: {exc}",
+        )
+        return
+    _event(
+        "ambient_scanner_started",
+        adapter=hci,
+        targets=sorted(targets_upper),
+        window_s=AMBIENT_WINDOW_S,
+    )
+    try:
+        while True:
+            await asyncio.sleep(AMBIENT_WINDOW_S)
+            now_mono = time.monotonic()
+            snapshot: dict = {}
+            for addr, s in state.items():
+                age_s: Optional[float] = None
+                if s["last_seen_mono"] is not None:
+                    age_s = round(now_mono - s["last_seen_mono"], 1)
+                snapshot[addr] = {
+                    "adv_packets": s["count"],
+                    "last_rssi": s["last_rssi"],
+                    "age_s": age_s,
+                    "adv_names": sorted(s["adv_names"]),
+                }
+                s["count"] = 0
+                s["adv_names"] = set()
+            _event(
+                "ambient_advertising",
+                adapter=hci,
+                window_s=AMBIENT_WINDOW_S,
+                targets=snapshot,
+            )
+    except asyncio.CancelledError:
+        try:
+            await scanner.stop()
+        except Exception:
+            pass
+        raise
+    except Exception as exc:
+        _event(
+            "ambient_scanner_died",
+            adapter=hci,
+            reason=f"{type(exc).__name__}: {exc}",
+        )
+        try:
+            await scanner.stop()
+        except Exception:
+            pass
 
 
 async def recover_adapter(level: int) -> str:

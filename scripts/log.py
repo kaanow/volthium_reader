@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from volthium.estimator import Estimator
 from volthium.pack import (
     DiscoveryWedgeError,
+    ambient_scanner_loop,
     emit_stack_health,
     invalidate_adapter_cache,
     maybe_repair_primary,
@@ -215,9 +216,23 @@ async def main() -> int:
              args.csv, args.interval, args.a, args.b)
     _archive_if_schema_drift(args.csv, log)
 
+    # Passive "second opinion" scanner on the ambient adapter (env-gated;
+    # unset = no-op). See docs/investigations/2026-07-16-bt-wedge-causation.md
+    # — this is the single most decisive signal for splitting "chip failing"
+    # from "we're leaking connections" from "BMS itself went silent".
+    ambient_task = asyncio.create_task(
+        ambient_scanner_loop({args.a, args.b})
+    )
     try:
         return await _loop(args, log)
     finally:
+        ambient_task.cancel()
+        try:
+            await ambient_task
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:  # noqa: BLE001 — must not mask the real exit reason
+            log.warning("ambient scanner cleanup raised: %s", exc)
         # Whatever way we exit — wedge restart, total-read-failure restart,
         # crash — seal the live event segment so the events uploader ships the
         # evidence NOW. Without this, a crash-looping logger resets the
