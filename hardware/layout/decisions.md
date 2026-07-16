@@ -2058,10 +2058,17 @@ UART0 console, UART1 display) fanned to two **ADM2587E** isolated RS-485
 front-ends (integrated isoPower); **power-gating each channel's VCC is
 the channel select** (sequential polling, master role). Decoded frames
 reuse the existing `ej_bms` `:AddrCmd…CRC~` parser byte-for-byte — only
-the transport differs from BLE. **ADM2587E ICC = 72 mA @ 3.3 V** (isoPower
-dominates whenever VCC is applied) → gating is essential; gated ~0.5 %
-duty → **~1–1.5 mW average** in polling states (~0.13 % of State-1),
-States 3–4 unpowered → **hard-cut ~1.08 mW unchanged**.
+the transport differs from BLE. **ADM2587E ICC = 90 mA @ 3.3 V/100 Ω**
+(Rev H Table 1; **iter-30 F28 corrected the first draft's 72 mA**, which
+is the 5 V row — isoPower dominates whenever VCC is applied) → gating is
+essential; gated ~0.5 % duty → **~1.5 mW average** in polling states
+(~0.17 % of State-1). States 3–4 unpowered → **hard-cut ~1.08 mW
+unchanged**, contingent on the §2a off-state contract (F30) + a
+default-off load switch. **Shared-UART off-state (F30):** per-channel
+dedicated DI/DE/RO on the ESP, matrix-muxed, inactive pins held high-Z —
+no reliance on the ADM2587E's unspecified VCC=0 behavior. **isoPower
+support network (F32):** full bypass/ferrite/stitching set + a binding
+CP2/CP3 isolation-keepout contract (design §3).
 Connectors: 2× RJHSE-5380 RJ45 (mate the vendor M12→RJ45 adapter; A/B on
 pins 7/8; CAN-H/L on 4/5 to unpopulated pads for a future inverter
 bridge). Bus TVS = SM712 (RS-485-matched −7/+12).
@@ -2099,7 +2106,7 @@ nothing is plugged in**.
 | Pin | Signal | ESP capability required | Why it's the best use of the pin |
 |-----|--------|-------------------------|----------------------------------|
 | 1 | **GND** | — | return |
-| 2 | **3V3** | always-on rail (via series ferrite) | powers the add-on. **Power-first caveat:** draw here counts against the low-SOC budget — keep continuous load to a few mA; bursts OK within the LM5166's 500 mA. |
+| 2 | **EXP_3V3** | **load-switched** rail (not raw always-on) — **F34** | powers the add-on through a **load switch that defaults OFF at reset and is force-OFF in State 4 (hard-cut)** — a ferrite is not a DC limit, so a plugged-in board must not be able to break the 1.08 mW hard-cut budget. Enable = a dedicated ESP GPIO (`EXP_PWR_EN`), off by default. Add a series resistor / PPTC or the load switch's own current limit for a **stated continuous limit (~50 mA)**; the switch's Iq (sub-µA class) is the only always-on term and is budgeted. If a State-3 wake-accessory is ever needed, budget that mode explicitly and still shed at hard-cut. |
 | 3 | **EXP_SDA** | I2C1 (a **dedicated** controller, *not* the RTC's I2C0) | the single highest-leverage expansion bus: addressable, multi-drop, 2 pins — sensors / ADC / IO-expander / EEPROM / fuel-gauge all speak it. **Dedicated bus isolates the timekeeping-critical RV-3028 from an unknown add-on** (leaner alt: share I2C0 — 2 fewer GPIOs, 2 fewer pull-ups, but couples expansion to the RTC). Own pull-ups on the header. |
 | 4 | **EXP_SCL** | I2C1 | " |
 | 5 | **EXP_AIO1** | **ADC1 + RTC-wake** (free pool GPIO8/9/10) | analog-in *or* digital *or* an interrupt that can **wake the ESP from deep sleep** (ext1). ADC1 (not ADC2) so it never conflicts with WiFi (datasheet: ADC1 = GPIO1–10). |
@@ -2116,19 +2123,33 @@ nothing is plugged in**.
   expansion, and EXP_DIO3 + the AIO pins can bit-bang or route a spare
   SPI controller through the matrix.
 - **No raw-pack / high-power rail** — power-first: the header is
-  logic-level and current-limited so a future add-on can't quietly break
-  the ~1 mW low-SOC budget. A hungry add-on taps the pack elsewhere.
+  logic-level and its rail is **load-switched, default-off** (F34) so a
+  future add-on can't break the ~1 mW low-SOC budget. A hungry add-on
+  taps the pack elsewhere.
+
+**Enforceable power-domain contract (F34, reviewer iter-29).** The
+expansion rail is **not** raw always-on 3V3. It is fed through a load
+switch that is **OFF at reset** and **force-OFF in State 4 (hard-cut)**,
+with a stated ~50 mA continuous limit and the switch's sub-µA Iq
+budgeted into every state. The prior "current-limited via ferrite"
+wording was wrong — a ferrite is not a DC current limit.
 
 **Exact GPIO numbers finalized at CP2** (coordinated with D36's UART2 +
 channel-select allocation); the *capabilities* above are the binding
 spec — the reviewer/gate checks the CP2 pin map against them.
 
-**Part.** Molex **PicoBlade 1.25 mm, 8-ckt, SMT** — vertical
-**53398-0871** (Mouser 538-53398-0871, 42.6k stock, $1.40) or right-angle
-**53261-0871** (DK WM7626TR-ND, 32k, Active, $0.90; cable exits parallel
-to the board — good for a lid-mounted daughterboard). Mates a standard
-PicoBlade **51021-08xx** receptacle / pre-crimped cable (verify exact
-mate PN at use). API-stock-checked 2026-07-15.
+**Part + sourcing (G2/G3 — F33 corrected).** Molex **PicoBlade 1.25 mm,
+8-ckt, SMT**. Pick **one binding orientation** per row:
+- **Vertical 53398-0871** — DK **WM7612CT-ND** / Mouser 538-53398-0871
+  (both resolve to 53398-0871; API 2026-07-16). *Default.*
+- Right-angle **53261-0871** — DK **WM7626TR-ND** / Mouser 538-53261-0871
+  (cable exits parallel to the board — for a lid-mounted daughterboard).
+
+Datasheets on file (manifest: Molex_53398-0871_PicoBlade_vert.pdf sha
+642bc09ea605; RA sha 6e1b0968c9ed) — 1.25 mm pitch, 8-ckt, 1 A/ckt, tin.
+Mates a **PicoBlade 51021-08xx** receptacle / pre-crimped cable (confirm
+exact mate PN + pre-crimp + keying at CP2). **F33 fix:** the first draft
+put the r/a DK SKU (WM7626) in the vertical row — corrected.
 
 **Protection.** Optional (DNP) series R on EXP_SDA/SCL to isolate the bus,
 and an optional ESD array on the exposed IO — it's an *internal* header

@@ -804,9 +804,10 @@ Reuses the `ej_bms` frame parser.
   on DI), wire-OR RX pull-up, isoPower settle time before first byte.
 - G2: **D32 closed 2026-07-16 — ADM2587E + SM712 datasheets on file**
   (user-provided), read/verified: 2500 Vrms iso, CMTI >25 kV/µs, ±15 kV
-  ESD, fail-safe RX, **ICC 72 mA @ 3.3 V**; SM712 VRWM 12/7 V. SM712 now
-  DNP-by-default (on-chip ESD). Reviewer: sanity-check the gated-duty
-  power math (§6) against the 72 mA figure.
+  ESD, fail-safe RX, **ICC 90 mA @ 3.3 V/100 Ω** (iter-30 F28 corrected
+  the 72 mA mis-cite, which was the 5 V row); SM712 VRWM 12/7 V but the
+  on-file PDF is SMC not the ordered Semtech (F29, D32 still open —
+  DNP-by-default). Gated ~0.5 % duty → ~1.5 mW avg.
 - G3: stock checked 2026-07-15 (ADM2587E Mouser 3,848; SM712 103k;
   RJHSE-5380 8,697) — re-verify at BOM-lock.
 - Interface-reality: real M12 pinout, comms-GND presence, second-M12

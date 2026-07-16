@@ -2958,7 +2958,8 @@ is that hand-off. Read `REVIEWER.md §3.5` (grounding rules) first.
      address. **No battery-negative reference wire** — each channel
      self-references locally (iso-supply GND + fail-safe bias, Ethernet-
      style), connecting only via the 2-wire A/B pair.
-   - Gated ~0.5 % duty → avg < µW floor; States 3–4 unpowered →
+   - [corrected iter-30 F28] ICC 90 mA @ 3.3 V/100 Ω; gated ~0.5 % duty →
+     **~1.5 mW avg** (not "<µW"); States 3–4 unpowered →
      **hard-cut ~1.08 mW unchanged.** 2× RJHSE-5380 RJ45 (mate vendor
      M12→RJ45; A/B on 7/8, CAN 4/5 → unpop pads). SM712 bus TVS.
 
@@ -2980,13 +2981,11 @@ is that hand-off. Read `REVIEWER.md §3.5` (grounding rules) first.
   RTC-wake; I2C1 on a second controller; DIO on GPIO38–42 — with **no
   clash** with D36's UART2 + CH1/CH2_PWR or the module's flash/PSRAM pins
   (GPIO26–37). Exact numbers are CP2; capabilities are the binding spec.
-- **G2 datasheets (D32) — CLOSED 2026-07-16:** ADM2587E + SM712 on file
-  (user-provided), read/verified — 2500 Vrms iso, CMTI >25 kV/µs, ±15 kV
-  ESD, fail-safe RX, **ICC 72 mA @ 3.3 V** (drove a power-figure
-  correction — §6 now ~1–1.5 mW gated avg, was mis-stated "<µW"); SM712
-  VRWM 12/7 V, now **DNP-by-default** (on-chip ESD covers the short run).
-  Manifest "Proposed CP1-delta additions". Reviewer: re-derive the gated
-  power math against 72 mA.
+- **G2 datasheets (D32):** ADM2587E on file, read/verified — 2500 Vrms
+  iso, CMTI >25 kV/µs, ±15 kV ESD, fail-safe RX, **ICC 90 mA @ 3.3 V/
+  100 Ω** [corrected iter-30 F28 — was mis-cited 72 mA, the 5 V row].
+  **SM712 still OPEN (F29):** on-file PDF is SMC's; ordered part is
+  Semtech → Semtech datasheet needed before populating (DNP-by-default).
 - **G3 stock:** API-checked 2026-07-15 (ADM2587E Mouser 3,848; SM712
   103k; RJHSE-5380 8,697; PicoBlade 42.6k/32k) — re-verify at BOM-lock.
 - **Interface-reality (bench/vendor):** clean 2-wire A/B on RJ45 7/8,
@@ -3126,3 +3125,75 @@ always-powered wake accessory is required in State 3, budget that mode
 explicitly and still provide hardware shedding at the hard-cut threshold.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 7 important. (See findings 28, 29, 30, 31, 32, 33, 34.)
+
+## 28. Claude's responses to iter-29 findings (2026-07-16)
+
+All 7 accepted — a strong, well-grounded pass. F28 in particular is the
+exact transcription error the §3.5 grounding rules exist to catch (I read
+the table but copied the 5 V row), and the object-identity + power-domain
+findings caught real gaps. No rebuttals.
+
+**F28 (power evidence, 90 mA not 72) — FIXED.** ADM2587E ICC @ 3.3 V/
+100 Ω is **90 mA** (Rev H Table 1); 72 mA is the 5 V row. Re-derived:
+continuous ≈ 297 mW/ch (594 mW pair → gating is *essential*); gated
+0.5 % duty → **1.49 mW avg**, ~0.17 % of State 1. Corrected at every
+live site (manifest, D36, DR-26, addendum §3/§6, §27.1/§27.2) and the
+"<µW floor" claim removed. Registry: added the 72 mA/3.3 V and
+"<µW floor" tokens (F28 fix commit).
+
+**F29 (SM712 wrong manufacturer) — ACKNOWLEDGED, D32 kept OPEN.**
+Confirmed: `947-SM712.TCT` / `SM712CT-ND` resolve to **Semtech**; my
+on-file PDF is SMC's. Semtech's datasheet is Salesforce-hosted and blocks
+the fetch proxy (like ADI's). Since the SM712 is now **DNP-by-default**
+(the ADM2587E carries ±15 kV ESD on the bus pins), I've marked the
+manifest row D32-OPEN with the SMC sheet flagged as representative-only,
+and **flagged the Semtech datasheet as a specific user-provide** rather
+than pretend it's closed. It must be stored + re-verified before the
+SM712 is ever populated.
+
+**F30 (shared-UART off-state) — FIXED (topology change).** You're right
+that power-gating leaned on the ADM2587E's *unspecified* VCC=0 behavior.
+New §2a: **dedicated per-channel DI/DE/RO** on the ESP (no wire-OR, no
+shared DI), UART2 matrix-muxed to the active channel, and the inactive
+channel's pins held **high-Z (input)** before power-down — so the off
+channel is both unpowered *and* undriven, relying on nothing the
+datasheet doesn't specify. Cost: 5 → **8 GPIOs**, no added parts (a
+qualified 2:1 mux is the noted fallback if pins get tight).
+
+**F31 (remote reference + interface reality) — STRENGTHENED.** Added the
+worst-case DC common-mode analysis (§7): the +12 V series offset is
+absorbed **across the 2500 V isolation barrier**, so *both* transceivers
+see ≈ 0 V CM by construction — the bias/bleed only defines idle, and I
+gave concrete values (internal fail-safe per p.15; 1 MΩ local bleed).
+And I promoted the A/B-vs-TTL question to a **hard pre-freeze gate**:
+the vendor serial doc says "3.3 V TTL, external MAX485 needed" while the
+adapter label maps A/B to RJ45 7/8 — these conflict, so a scope check on
+the real adapter **gates the whole topology** before CP2 commits it.
+
+**F32 (isoPower support network) — FIXED (enumerated).** §3 now lists the
+full per-channel network from Rev H p.8/p.17: VCC bypass 0.1+0.01 µF
+(pin 2) and 0.1+10 µF (pin 8); VISOOUT↔VISOIN 10 µF+0.1 µF reservoir;
+GND2 ferrite (pins 11+14); GND1–GND2 HV stitching cap (2-layer) or
+embedded stitching (4-layer) — plus a **binding CP2/CP3 layout contract**
+(isolation keep-out, split GND planes, ferrite topology), and both
+ADM2587E flagged as creepage-critical at CP1 like U6.
+
+**F33 (J_EXP G2/G3) — FIXED.** Datasheets now on file (Molex vertical
+53398-0871 + r/a 53261-0871, manifest active table). SKU corrected: the
+vertical row's DK cell was `WM7626TR-ND` (which resolves to the **r/a**
+53261) → **WM7612CT-ND** (resolves to 53398-0871, API 2026-07-16); the
+r/a is a separate documented alternate. Registry token added. Mate/
+keying/pre-crimp confirmation carried to CP2.
+
+**F34 (always-on expansion power) — FIXED (design change).** You're
+right — a ferrite is not a DC limit. The expansion rail is now a
+**load-switched EXP_3V3** (new Q_exp in the BOM) that is **OFF at reset
+and force-OFF in State 4**, with a stated ~50 mA continuous limit and the
+switch's sub-µA Iq budgeted; enable = a dedicated `EXP_PWR_EN` GPIO. A
+plugged-in add-on can no longer break the 1.08 mW hard-cut budget. D37
+"current-limited via ferrite" wording corrected.
+
+**One item I could not fully close myself:** the **Semtech SM712
+datasheet** (F29) — Salesforce-hosted, blocks the proxy. It's DNP so not
+blocking, but flagged for the user. Everything else is closed on file.
+D35 gate exit 0 (addendum now in the gate's scope). Ready for re-verify.

@@ -44,6 +44,7 @@ LIVE_DOCS = [
     "hardware/layout/cp1_bom.md",
     "hardware/layout/cp1_battery_side.md",
     "hardware/layout/cp1_display_side.md",
+    "hardware/layout/cp1_rs485_battery_read.md",
     "hardware/layout/decisions.md",
     "hardware/reviews/DESIGN_REVIEW_ITEMS.md",
     "hardware/reviews/REVIEWER.md",
@@ -151,6 +152,14 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "waveshare.com",
      "F23: neither DK nor Mouser lists the Waveshare module — order "
      "direct/Amazon; multi-cart order strategy"),
+    # iter-29 reviewer findings (F28/F33):
+    (r"72 mA @ 3\.3|72 mA.{0,10}3\.3 V", "90 mA",
+     "F28: ADM2587E 3.3V/100Ω ICC is 90 mA; 72 mA is the 5 V row"),
+    (r"below the µW floor|<\s?µW", "1.5 mW",
+     "F28: gated RS-485 avg ≈ 1.5 mW, not below the µW floor"),
+    (r"WM7626[A-Z-]*\b.{0,30}vertical|vertical.{0,30}WM7626",
+     "WM7612",
+     "F33: PicoBlade vertical 53398-0871 = WM7612*; WM7626 is the r/a 53261"),
 ]
 
 # ---------------------------------------------------------------------------
