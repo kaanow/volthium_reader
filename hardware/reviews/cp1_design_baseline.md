@@ -3442,3 +3442,150 @@ needed (vendor "no ground" + ADM2587E internal fail-safe suggest none).
 **No circuit change is expected.** D37 (expansion) is unaffected and
 CP2-ready. The reviewer can now verify the RS-485 topology against the
 vendor evidence rather than an open premise.
+
+## 8.17 Reviewer findings (iteration 33 — iter-32 remediation + vendor-evidence re-review)
+
+This pass started from commit `740776b` (the iteration-31 handoff) and
+reviewed both remediation commits through `e180f66`.
+
+| Gate/check | Result | Independent evidence |
+|---|---|---|
+| D35 consistency gate | **PASS at start** | `doc_consistency_check.py` exited 0: 29 manifest parts, 43 `_verify_` markers, and the existing superseded-token registry were clean. Findings 46 and 49 show new registry coverage that the current checker lacks. |
+| Citation spot-check quota | **FAIL (coordination/net semantics)** | Opened the on-file PDFs. ADM2587E Rev H p.8 confirms pins 11/14 are converter GND2, pin 16 is bus-side GND2 and must not be directly connected to 11/14, pin 19 is VISOIN, and pin 20 is bus-side GND2; p.17 puts L2 between the two GND2 regions (Finding 43). Semtech SM712 Rev 6.0 p.2 confirms 20 V/10 V clamp at 5 A and p.5 only says a series current-limiting resistor *may* be added; ADM2587E p.7 still limits A/B/Y/Z to -9/+14 V (Finding 44). Molex 53398 drawing pp.2/4 confirms mate family 51021, housing pattern `51021**00`, and crimp-terminal families `500798*00`/`500588*00`, but no current rating or pre-crimp cable (Finding 49). ZXMP6A13F p.4 confirms 0.5 uA max IDSS at its stated test point; the on-file 2N7002 p.2 publishes 1 uA max IDSS at 25 C/60 V (Finding 48). |
+| Object identity/hash check | **PASS for the four opened PDFs** | Full SHA-256 prefixes match the manifest: ADM2587E `77a52a9e6036`, Semtech SM712 `6deb75310ebe`, Molex 53398 `642bc09ea605`, ZXMP6A13F `bb474f827be4`. Title/order pages match Analog Devices ADM2582E/ADM2587E, Semtech `SM712.TCT`, Molex 53398, and Diodes Inc. ZXMP6A13F respectively. The new email-summary object itself fails provenance grounding (Finding 45). |
+| Changed SKU-cell sweep | **N/A** | No DigiKey/Mouser SKU cell changed between `740776b` and `e180f66`; the edits changed claims around existing cells. |
+| G3 live availability | **PASS (5/5), 2026-07-16** | Canonical `POST /batch`, DigiKey + Mouser: ADM2587EBRWZ 261/3,666; SM712.TCT 50,500/99,077; RJHSE-5380 14,426/8,697; 53398-0871 22,165 CT/42,559; 51021-0800 81,346/122,615. All exact, active where lifecycle was returned. |
+
+### Finding 43 — IMPORTANT — D36 isoPower GND2 net split
+**Issue**: F35 fixed the pin numbers and added L2, but the revised table still
+does not give the two sides of L2 distinct binding net identities. Calling pins
+11/14/16/20 all `GND2` while saying 11+14 go through L2 to “PCB isolated
+ground” is unsafe for schematic capture: one shared `GND2` net label would
+short L2 and defeat the required converter-ground/bus-ground filtering.
+**Evidence**: ADM2587E Rev H Table 10 (p.8) says pins 11/14 are isolated
+DC/DC-converter ground and explicitly says bus-side pin 16 must not connect
+directly to pins 11/14. Page 17/Figure 35 places pins 11+14 on the device side
+of L2 and pins 16+20 on the bus side. The current D36 §3 table names only the
+11+14 side of L2 and never binds pins 16+20 to a separately named net.
+**Suggested fix**: Specify two schematic nets (for example
+`GND2_DCDC` = pins 11+14 and `ISO_BUS_GND` = pins 16+20), with L2 as their only
+connection; assign every capacitor and TVS return to the correct side and add
+the two names to the consistency registry.
+
+### Finding 44 — IMPORTANT — F36 transient coordination remains unproved
+**Issue**: Adding about 10 ohms in series after an SM712 does not by itself
+guarantee the ADM2587E pin remains below +14/-9 V. A high-impedance input draws
+essentially no current until an internal or external clamp conducts, so it sees
+the TVS-node voltage; the resistor has no defined drop. No permissible ADM2587E
+injection/clamp current or second-stage clamp is cited.
+**Evidence**: Semtech SM712 Rev 6.0 p.2 specifies 20 V positive and 10 V
+negative clamp at 5 A. ADM2587E Rev H p.7 specifies -9 V to +14 V absolute
+maximum on the bus pins. Semtech p.5 permits a series *current-limiting*
+resistor, but does not claim that resistor alone clamps the downstream voltage.
+The revised D36 §3 says “residual <14 V” without a current path, surge waveform,
+internal-clamp rating, or calculation.
+**Suggested fix**: Select a coordinated lower-clamp device/network, or add a
+documented second-stage clamp and size the resistor from a published allowable
+clamp/injection current across the chosen surge/ESD waveform. Otherwise leave
+the whole footprint DNP and state that F36 remains intentionally unprotected;
+do not call the populated 10-ohm network coordinated.
+
+### Finding 45 — IMPORTANT — vendor correspondence provenance and connector-domain ambiguity
+**Issue**: The new “authoritative” source is a designer-written Markdown
+summary, not the original correspondence. It has no message headers, complete
+question/answer context, or immutable attachment/export, so this reviewer
+cannot independently verify the claimed verbatim text or determine whether the
+vendor's CAN “pin 1 and 2” means XLR pins or RJ45 pins. The design nevertheless
+uses it to overwrite a photographed RJ45 4/5 mapping with RJ45 1/2.
+**Evidence**: `docs/vendor/volthium-rs485-correspondence-2024.md` contains only
+38 lines of selected quotations/paraphrases. It does not include dates per
+message, Message-IDs, the owner's questions, the vendor's full replies, or the
+source email/PDF/screenshots. Its own “pin 1 and 2” quotation does not name the
+connector, while D36 §3 turns it into “CAN-H/L on pins 1/2” of the RJ45.
+**Suggested fix**: Commit a redacted `.eml`, PDF export, or screenshots of the
+actual thread with message metadata and complete local context, record its
+hash/provenance, and transcribe connector endpoints explicitly (XLR pin N maps
+to RJ45 pin M). Until then, treat RS-485/no-ground as owner-supplied preliminary
+evidence and do not revise the CAN RJ45 mapping from this summary.
+
+### Finding 46 — IMPORTANT — G5 live-document drift after the vendor update
+**Issue**: The commit says the M12/CAN-4/5 assumption was corrected “at
+source,” but multiple live sources still assert it, while adjacent text asserts
+the opposite. The consistency checker exits 0 because these newly superseded
+forms were not registered.
+**Evidence**: `docs/vendor/README.md` line 30 says the adapter carries CAN on
+4/5; lines 123-145 still describe a 4-socket M12 cable and two M12 sockets.
+`hardware/layout/decisions.md` D36 still says CAN-H/L on 4/5. These contradict
+the new warning, D36 §7, and DR-26. `doc_consistency_check.py` has no registry
+rule for the M12/CAN-pin forms.
+**Suggested fix**: Preserve the photographed cable facts as clearly scoped
+historical/model-specific evidence instead of mixing them into current prose;
+make every live D36 statement use one connector mapping once Finding 45 is
+resolved, and add narrowly scoped superseded-token rules so this drift cannot
+return.
+
+### Finding 47 — IMPORTANT — D36 top-pack check is still topology-gating
+**Issue**: The revised text calls the remaining series-top-pack test
+“non-topology-gating” and says no circuit change is expected, but the test is
+exactly what determines whether the floating two-wire island needs a reference
+or bleed. Failure would require an electrical change, so D36 is not ready to
+advance merely because a standard single-pack adapter reportedly needs no
+ground.
+**Evidence**: D36 §7 correctly concedes that isolation permits an offset but
+does not force GND2 to track the pack, and that the prior RC estimate used an
+unmeasured capacitance. It then asks the on-site test to decide whether *any*
+local reference/bleed is required. Vendor guidance for a standard adapter does
+not document the proposed reader's two independently isolated channels on a
+series stack.
+**Suggested fix**: Keep D36/DR-26 and the CP1 delta gated until the physical
+top-pack read and common-mode capture pass. Define measurable pass limits
+(A/B-to-ISO_BUS_GND range, differential eye/margin at 9600 baud, idle/recovery,
+and both cable orientations) plus the fallback circuit if they fail.
+
+### Finding 48 — IMPORTANT — D37 switched rail does not close add-on back-power
+**Issue**: Switching only `EXP_3V3` does not guarantee a plugged-in add-on is
+dead in State 4. SDA/SCL/AIO/DIO can source it through input-protection paths,
+the pull-up supply and GPIO off-state are unspecified, and an unloaded switched
+rail can charge through switch leakage. The stated budget also counts only the
+P-FET leakage even though the proposed switch includes a 2N7002 control path.
+**Evidence**: D37 says the header has its “own pull-ups” but does not bind them
+to switched `EXP_3V3`, and has no all-signals-before-power-off sequence. The
+ZXMP6A13F datasheet p.4 gives IDSS up to 0.5 uA at its stated off test; the
+on-file 2N7002 p.2 gives IDSS up to 1 uA at 25 C/60 V. Neither leakage nor a
+discharge path makes the output literally “dead.”
+**Suggested fix**: Power the I2C pull-ups from switched `EXP_3V3`; define all
+expansion GPIOs high-Z before rail-off and while off; add output discharge and,
+if arbitrary daughterboards are allowed, partial-power-down-rated bus
+isolation/series limiting. Recompute State 4 with every switch/control/pull-up
+path and replace “dead” with a testable voltage/current contract.
+
+### Finding 49 — IMPORTANT — F38 PicoBlade cable/rating closure is incomplete
+**Issue**: `51021-0800` is now a plausible exact housing, but “50079-class
+pre-crimp” is not established: the on-file drawing identifies 50079/50058 as
+loose crimp-terminal families, not pre-crimp leads. The product-spec current
+rating is still absent, yet live docs retain “1 A/ckt” and “<=50 mA rail”
+claims even though F39 removed the 50 mA limiter.
+**Evidence**: Molex drawing p.4 lists applicable housing `51021**00`, applicable
+terminals `500798*00`/`500588*00`, wire ranges, and off-file product spec
+`PS-51021-024`; it contains no pre-crimp cable SKU or current rating. The
+manifest's 53398 row still says “1 A/ckt.” D37 and the BOM say the use is on a
+“<=50 mA rail,” while the same sections state the actual upstream ceiling is
+500 mA/1 A.
+**Suggested fix**: Obtain `PS-51021-024`, select and API-resolve an exact
+terminal or pre-crimp lead compatible with the intended wire gauge, and source
+the mating/current statements to those objects. Remove the 1 A and <=50 mA
+claims until supported; if 50 mA is a requirement, implement the limiter.
+
+### Finding 50 — NIT — D36/D37 delta-cost arithmetic
+**Issue**: The new delta sum uses prices inconsistent with its own selected
+parts. Two channel switches made from ZXMP6A13F ($0.40) + 2N7002 ($0.10) cost
+about $1.00, not $0.40; Q_exp made from the same pair costs about $0.50, not
+$0.20. The stated component sum is therefore low by about $0.90 before any
+support-part refinement.
+**Evidence**: `cp1_bom.md` prices Q1 at $0.40 and 2N7002 at $0.10, while the
+grand-total delta prices two complete D36 switches at $0.40 and Q_exp at $0.20.
+**Suggested fix**: Use quantities and unit prices from populated canonical BOM
+rows and mechanically recompute the delta (currently about $56.6, i.e. ~$57,
+before final support-part selection).
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 7 important. (See findings 43, 44, 45, 46, 47, 48, 49.)

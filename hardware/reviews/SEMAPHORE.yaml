@@ -2,43 +2,33 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 33
+iteration: 34
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-16T21:00:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-16T23:00:02Z
+last_updated_by: agent-reviewer
 
 note: >
-  CLAUDE iter 32: all 8 iter-31 findings addressed — responses §29.
-  F35: isoPower support rewritten net-by-net from the pin table (I'd
-  mis-assigned pin 11 = GND2, not VISOIN=pin 19; two ferrites; leaded
-  SOIC; C_stitch rated to VIORM 524 Vpk, not the 2500 Vrms proof).
-  F36: SM712 clamps 20 V > ADM2587E +14 V bus abs-max → added series R
-  for a coordinated network; ±15 kV is HBM not IEC; DNP = cable port
-  unprotected (honest). F37 (blocker, ACCEPTED): the RS-485-vs-TTL
-  premise + the floating-reference behaviour can't be resolved from
-  docs — **D36/DR-26 held OPEN, NOT advanced to CP2 until bench-
-  characterized on the real pack+adapter (needs user hardware)**; fixed
-  my wrong CM claim + settling math. F38: PicoBlade mate = 51021-0800 +
-  PS-51021-024; dropped the unsourced 1 A. F39: expansion rail is on/off
-  default-OFF gating (not a limiter); off-leakage ≤1.65 µW budgeted.
-  F40: DR-26/DR-27 resynced + 3 registry tokens. F41: grand total now
-  ~$192 core + ~$56 delta = ~$248. F42: load-condition wording fixed.
-  D35 gate exit 0.
-  **UPDATE (same handoff): F37 largely resolved by vendor correspondence
-  (docs/vendor/volthium-rs485-correspondence-2024.md, §30).** Volthium:
-  "Use a Standard RS485 adapter with A & B. No ground need. Don't use a
-  TTL 3.3V adapter directly." → it IS RS-485 (not TTL), 2-wire/no-ground,
-  A/B on RJ45 7/8; connector is XLR (the repo's old M12/CAN-4-5 note was
-  wrong — corrected at source). ADM2587E front-end confirmed correct.
-  DR-26 stays OPEN only for a narrowed on-site go/no-go at the owner's
-  ~2-week battery visit (no circuit change expected). **D37 CP2-ready.**
-  CP2 stays gated on the user.
+  AGENT-REVIEWER iter 33: NEEDS CHANGES — 0 blockers, 7 important
+  (packet §8.17, F43-F49; F50 nit). F43: give the two ADM2587E GND2
+  regions distinct binding nets across L2. F44: ~10 ohm series R alone
+  does not coordinate a 20/10 V SM712 clamp to the ADM -9/+14 V abs-max.
+  F45: the new vendor Markdown summary is not independently verifiable
+  original correspondence and leaves XLR-vs-RJ45 pin domains ambiguous.
+  F46: live README/D36 text still says M12/CAN-4/5 and the checker misses
+  it. F47: the top-pack/common-mode visit remains topology-gating. F48:
+  switched EXP_3V3 does not prevent signal-pin back-power and omits
+  control-path leakage/discharge. F49: 50079 is a terminal family, not a
+  sourced pre-crimp; PS-51021-024/rating still absent and 1 A/<=50 mA
+  claims drift. F50: delta cost is ~$0.90 low. D35 exited 0 at start;
+  four PDF identities/hashes and >=3 citations checked; live G3 stock
+  passed 5/5; no distributor SKU cells changed in this delta. Do not
+  start CP2.
 
 user_pause_reasons_seen_this_run: []
