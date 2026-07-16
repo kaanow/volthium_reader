@@ -2999,3 +2999,130 @@ is that hand-off. Read `REVIEWER.md §3.5` (grounding rules) first.
 CP1's approved core is unchanged; this pass reviews **only the two
 additions + the rebase**. CP2 remains gated on the user's explicit go
 regardless of the outcome.
+
+## 8.15 Reviewer findings (iteration 29 — CP1-delta engineering review)
+
+**Scope:** Independent review of D36/DR-26 and D37/DR-27 plus the rebase.
+This was not a full re-review of the previously approved CP1 core, and CP2
+was not started.
+
+### Required checks
+
+| Check | Verdict | Independent evidence |
+|-------|---------|----------------------|
+| D35 consistency gate | **PASS** | `doc_consistency_check.py` exited 0 at pass start: 27 manifest parts checked, 43 `_verify_` cells reported, no unmarked stale tokens, and manifest/PDF/BOM consistency clean. |
+| Citation spot-check quota | **FAIL (1 material mismatch)** | Opened the on-file PDFs, not recalled values. ADM2587E Rev H p.1 confirms 2500 V rms/1 min, >25 kV/µs CMTI, ±15 kV bus-pin ESD, 500 kbps, and 20-lead wide SOIC; p.3 Table 1 gives **90 mA at 3.3 V/100 Ω**, not 72 mA; p.15 confirms open/short fail-safe and says external bias is unnecessary. ESP32-S3-WROOM-1 v1.8 Table 3-1 (pp.11-12) confirms GPIO8/9/10 are ADC1+RTC GPIO, GPIO38-42 are exposed generic GPIO, and p.18 confirms two I2C interfaces. SMC SM712 N2270 Rev C p.2 contains the quoted 12/7 V, 13.3/7.5 V, and 20/12 V values, but it is the wrong manufacturer's document for the selected Semtech SKU (Finding 29). |
+| New/changed manifest object identity | **FAIL** | ADM2587EBRWZ passes: Analog Devices title page and exact API MPN/SKU identity. `SM712.TCT` fails: the stored title page is SMC Diode Solutions while live `/resolve` maps Mouser `947-SM712.TCT` to Semtech. J_EXP has no manifest row or on-file Molex datasheet. |
+| Changed SKU-cell sweep / G3 | **FAIL one cell; availability otherwise PASS** | Live `POST /resolve` on all five new sourcing cells resolved ADM2587EBRWZ, SM712.TCT, RJHSE-5380, and Mouser 53398-0871 exactly. DigiKey `WM7626TR-ND` resolves to **53261-0871**, not the vertical-row MPN 53398-0871. Live `/batch` found exact, stocked offers for all five MPNs (ADM2587EBRWZ, SM712.TCT, RJHSE-5380, 53398-0871, 53261-0871); the sourcing problem is identity/orientation, not availability. |
+| Power re-derivation | **FAIL source condition; topology conclusion partly holds** | At the documented 0.5% duty, 90 mA × 3.3 V × 0.005 = **1.49 mW**. The stated 72 mA calculation is the datasheet's 5 V/100 Ω row. States 3-4 can remain unchanged only after the power-off isolation and expansion-rail issues below are closed. |
+| Manual G5 / rebase | **FAIL delta propagation** | Packet §27.1 still says the gated average is below the µW floor while §27.2 and the design addendum say ~1-1.5 mW. The 72 mA/3.3 V token is propagated across all delta documents. No unrelated CP1-core regression was identified in the rebased hardware delta. |
+
+### Finding 28 — IMPORTANT — D36 power evidence and packet §27
+**Issue**: The ADM2587E supply-current fact is copied from the wrong voltage
+condition, so the gated-power derivation and its propagated citations are not
+grounded. Packet §27.1 also retains the superseded “below the µW floor” claim.
+**Evidence**: On-file `ADM2582E_2587E.pdf` (SHA256
+`77a52a9e60364895ff2ba65ce80891811108bfcda5799797f1a3ec517bd64a42`),
+Rev H p.3 Table 1: ADM2587E at 100 Ω is **90 mA for VCC=3.3 V** and
+**72 mA for VCC=5 V**. The wrong 72 mA/3.3 V pairing appears in the manifest,
+D36, DR-26, the addendum §§3/6, and packet §27.2; packet §27.1 says `<µW`.
+**Suggested fix**: Correct every live site, re-derive from an explicit load and
+poll-window condition (the design is unterminated by default), and add the
+superseded wrong-condition token to D35's registry. At 90 mA and 0.5% duty the
+documented estimate is 1.49 mW, before refining the actual 50-100 ms windows.
+
+### Finding 29 — IMPORTANT — G2 object identity for SM712.TCT
+**Issue**: The stored SM712 PDF documents SMC Diode Solutions' part, not the
+selected Semtech `SM712.TCT`; D32 is therefore not closed for this row even
+though the electrical numbers happen to resemble the selected device.
+**Evidence**: The on-file PDF title page visibly carries the SMC logo/domain
+and p.2 orders `SM712`/`SM712TR`. On 2026-07-16, canonical `POST /resolve`
+returned Mouser `947-SM712.TCT` -> manufacturer **Semtech**, MPN
+`SM712.TCT`; Semtech's primary product page is
+`https://www.semtech.com/products/circuit-protection/esd-protection/sm712`.
+**Suggested fix**: Store and read the exact Semtech datasheet, then replace the
+manifest source/hash and re-check pinout, ratings, and package. Alternatively,
+select an exact orderable SMC MPN/SKU and make every BOM/manifest cell match it.
+
+### Finding 30 — IMPORTANT — D36 shared UART power-off behavior
+**Issue**: Power-gating is being used as a logic mux without a specified
+partial-power-down guarantee. The unpowered channel's RxD is directly wire-OR'd
+to the active channel and pull-up, and its DE is driven directly; the 1 kΩ guard
+exists only on TxD. This can clamp or back-power the supposedly off channel.
+**Evidence**: ADM2587E Rev H p.8 states RxD is tristated when `/RE` is driven
+high; the design ties `/RE` low and instead assumes VCC=0 makes RxD high-Z.
+The datasheet does not specify RxD, DE, or TxD `IOFF` behavior at VCC=0. Its
+p.3 input-current specification applies in the stated 3.0-5.5 V operating
+range, not to an unpowered device.
+**Suggested fix**: Use a topology whose off-state is specified: separate ESP
+RX inputs per channel, or a qualified analog/digital mux or buffer with
+partial-power-down protection. Qualify and isolate both TxD and DE paths, and
+do not call a direct RxD tie a wire-OR until the off-state leakage/clamp limits
+prove it.
+
+### Finding 31 — IMPORTANT — D36 remote reference and interface reality
+**Issue**: The no-reference-wire bus is not design-complete. Local bias and an
+optional, unvalued ~1 MΩ bleed do not by themselves prove that both
+transceivers remain inside their common-mode windows, and the actual pack-side
+electrical layer is still explicitly left for bench confirmation.
+**Evidence**: Addendum §7 leaves A/B-vs-TTL, second-M12 function, and cable
+mapping open. `docs/vendor/README.md` says the serial document describes
+3.3 V TTL pins requiring an external MAX485, while the adapter label maps
+RS-485 A/B to RJ45 7/8 and publishes no M12 pin layout or common reference.
+ADM2587E Rev H p.3 guarantees receiver behavior only for -7 V < VCM < +12 V;
+the addendum supplies no DC equivalent circuit or worst-case bias/bleed result.
+**Suggested fix**: Confirm the physical pack+adapter interface before freezing
+the topology, then document the measured idle/drive levels and a worst-case DC
+common-mode analysis including both transceivers' input/leakage limits. Choose
+and justify concrete bias/bleed values, or add a defined reference path if the
+real interface requires one.
+
+### Finding 32 — IMPORTANT — ADM2587E support network
+**Issue**: The per-channel BOM's generic `C_iso ... per datasheet (pull)` is
+not a complete isoPower implementation and omits load-bearing layout parts and
+constraints.
+**Evidence**: ADM2587E Rev H p.8 requires the VISOOUT-to-VISOIN connection
+and gives four distinct bypass pairs (0.01/0.1/10 µF placements); p.17 gives
+the documented GND2/VISO ferrite topology. Page 17 also calls for a high-voltage
+GND1-GND2 return capacitor on a two-layer board (or embedded stitching
+capacitance on four layers) for emissions control and specifies the isolation
+keepout around the ferrites. Addendum §3 lists only one unspecified `C_iso`
+row.
+**Suggested fix**: Enumerate the complete support BOM and binding CP2/CP3
+layout contract now, including ferrite impedance, capacitor values/ratings,
+barrier-safe stitching method, keepouts, and the correct split-GND2 routing.
+
+### Finding 33 — IMPORTANT — D37 connector G2/G3 closure
+**Issue**: J_EXP is a chosen, populated COTS connector with no on-file
+datasheet, an unresolved exact mate, and a DigiKey SKU for a different
+orientation than the BOM row's MPN.
+**Evidence**: `cp1_bom.md` names vertical `53398-0871` but puts
+`WM7626TR-ND (r/a alt)` in its DigiKey cell. Canonical `/resolve` on
+2026-07-16 maps that SKU exactly to right-angle `0532610871`; the exact
+vertical DigiKey family is `WM7612*`. Neither 53398-0871 nor 53261-0871
+appears in `hardware/datasheets/manifest.md`, and D37 still says to verify the
+51021 mate at use.
+**Suggested fix**: Choose the binding orientation, give that row only SKUs
+that resolve to its exact MPN, and put alternatives in separate rows. Store the
+exact Molex drawing/datasheet and verify the housing, contacts/pre-crimps,
+keying, current rating, pin numbering, and mating height before CP1-delta
+approval.
+
+### Finding 34 — IMPORTANT — D37 always-on expansion power
+**Issue**: D37 calls the expansion rail “current-limited,” but the only stated
+series element is a ferrite. A ferrite does not enforce a DC current limit, and
+an attached daughterboard can therefore invalidate the 1.08 mW State-4 budget
+through the always-on 3V3 rail.
+**Evidence**: D37 pin 2 connects `3V3` through a series ferrite and allows “a
+few mA” continuous plus bursts up to the LM5166's 500 mA; the same decision
+claims a future add-on cannot quietly break the low-SOC budget. The State-4
+budget contains no expansion load and no switch/current-limiter quiescent
+term. Zero draw while unplugged does not define behavior for the feature's
+intended plugged-in state.
+**Suggested fix**: Define an enforceable power-domain contract: a current-
+limited/load-switched expansion rail that defaults off at reset and State 4,
+with a stated continuous/burst limit and Iq included in every state. If an
+always-powered wake accessory is required in State 3, budget that mode
+explicitly and still provide hardware shedding at the hard-cut threshold.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 7 important. (See findings 28, 29, 30, 31, 32, 33, 34.)
