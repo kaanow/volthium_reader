@@ -5,6 +5,16 @@ truth doesn't rot on a laptop somewhere. Do NOT edit the vendor files
 themselves — copy relevant excerpts into our own docs (`reliability_failure_modes.md`,
 `cloud_architecture.md`, etc.) with attribution.
 
+> ⚠ **Corrected 2026-07-16 by direct vendor correspondence** —
+> [`volthium-rs485-correspondence-2024.md`](volthium-rs485-correspondence-2024.md)
+> (Volthium support email thread, authoritative for the Loon Lake packs).
+> Two descriptions below predate it and are **wrong** for these batteries:
+> (1) the comms connector is an **XLR** port (vendor ships an **XLR→RJ45-female**
+> cable), **not** a "4-socket M12"; (2) the pack's **CAN is on pins 1 (H) / 2 (L)**,
+> **not** "4/5". RS-485 A/B on RJ45 **7/8** is confirmed correct. The vendor's
+> explicit guidance: *"Use a standard RS-485 adapter with A & B. No ground
+> needed. Don't use a TTL 3.3V adapter directly."*
+
 ## The picture these files paint together
 
 The Volthium pack exposes **three** integration paths, and these three

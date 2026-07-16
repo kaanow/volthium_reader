@@ -792,14 +792,18 @@ the front-end must float to each pack's reference → **two isolated
 channels** (ADM2587E), **symmetric/interchangeable**, addressed by
 protocol address. Reuses the `ej_bms` parser.
 
-**BLOCKED on a physical-interface premise (F37) — do NOT advance to CP2
-until bench-characterized.** The vendor docs contradict each other on
-whether the adapter presents differential **RS-485 (A/B on RJ45 7/8)** or
-raw **3.3 V TTL** (README: "external MAX485 needed"), and the
-floating-reference behaviour (does GND2 track the pack CM so the ADM2587E
-bus pins stay in −9/+14 V?) is unproven at the real driver impedance +
-bus capacitance. Needs a scope/continuity session on the real pack +
-Volthium adapter (user has the hardware). See design §7.
+**Interface premise VENDOR-CONFIRMED 2026-07-16 (F37 largely resolved).**
+Direct Volthium correspondence
+([`../../docs/vendor/volthium-rs485-correspondence-2024.md`](../../docs/vendor/volthium-rs485-correspondence-2024.md)):
+*"Use a Standard RS485 adapter with A & B. No ground need. Don't use a
+TTL 3.3V adapter directly."* → it **is** RS-485 (not TTL), 2-wire/
+no-ground, A/B on RJ45 **7/8**, **XLR** connector (not M12), socket
+closest to the negative terminal. The isolated ADM2587E front-end is the
+correct circuit. **DR-26 stays OPEN only for a narrowed on-site
+confirmation at the owner's ~2-week visit** (no longer topology-gating,
+no circuit change expected): functional read of the +12 V series-top pack
+through its isolated channel + a scope/common-mode check to confirm no
+local reference is needed. See design §7.
 
 **Current topology (iter-30, F30) — supersedes the first draft:**
 - Off-state: **dedicated per-channel DI/DE/RO** on the ESP, UART2

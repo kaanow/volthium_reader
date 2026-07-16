@@ -47,7 +47,7 @@ isolated supply is the ground, fail-safe bias resistors tie A/B to the
 local rails, and an optional ~1 MΩ bleed to a bus line keeps the island
 from charging up on barrier leakage. **Nothing lands on a battery
 negative terminal** — the only per-pack connection is the 2-wire A/B pair
-through the vendor M12→RJ45 adapter (Ethernet gets away with no ground
+through the vendor **XLR→RJ45** cable (Ethernet gets away with no ground
 the same way: it's isolated). BLE is RF-isolated for the same reason —
 the two transports are isolation-equivalent, which is part of why the
 wired path is a genuine alternative and not just a fallback.
@@ -81,10 +81,10 @@ firmware learns which pack is on which jack from the address in the reply.
 ```
                          ┌─────────── ISOLATION BARRIER ──────────┐
                          │                                        │
-  ESP32-S3   DI1,DE1 ────┼──► ADM2587E ch1 ─A/B─► RJ45_1 ─patch─► M12 adapter ► (either pack)
+  ESP32-S3   DI1,DE1 ────┼──► ADM2587E ch1 ─A/B─► RJ45_1 ─patch─► XLR cable ► (either pack)
              RO1     ◄───┼──  (iso xcvr + iso DC-DC)
                          │        VCC ◄─[P-FET load switch 1]◄─ CH1_PWR
-             DI2,DE2 ────┼──► ADM2587E ch2 ─A/B─► RJ45_2 ─patch─► M12 adapter ► (either pack)
+             DI2,DE2 ────┼──► ADM2587E ch2 ─A/B─► RJ45_2 ─patch─► XLR cable ► (either pack)
              RO2     ◄───┼──  (iso xcvr + iso DC-DC)
                          │        VCC ◄─[P-FET load switch 2]◄─ CH2_PWR
                          │                                        │
@@ -146,7 +146,7 @@ Every SKU/stock figure below was resolved against the parts API on
 |---------------|------|-----|-----------------------|
 | U_iso1 / U_iso2 | **ADM2587E BRWZ** — isolated RS-485 w/ **integrated isolated DC-DC** (isoPower), 3.3 V, slew-limited **500 kbps**, ±15 kV ESD on bus pins, open/short fail-safe RX | One chip = isolation + transceiver + isolated supply → fewest solder joints for a qty-1 hand build. 500 kbps ≫ our 9600 baud, and slew-limiting *lowers* EMI. | Mouser **584-ADM2587EBRWZ**, 3,848 stock, $22.90. (ADM2582E is 16 Mbps overkill and DK-OOS.) **Datasheet on file** (Rev H, sha 77a52a9e6036): 2500 Vrms iso, CMTI >25 kV/µs, **ICC 90 mA @ 3.3 V/100 Ω** (Table 1; corrected iter-30 F28 — was mis-cited 72 mA, which is the 5 V row) — see §6. |
 | Q_ls_p, Q_ls_n | ZXMP6A13F P-FET + 2N7002 (high-side load switch + gate pull) | Power-gate VCC so isoPower runs only during a poll (see §5). Parts already on the board. | (already in cp1_bom.md) |
-| J_bat1 / J_bat2 | **Amphenol RJHSE-5380** RJ45 jack, shielded, magnetics-free | Mates the vendor **M12→RJ45** adapter via a straight patch cable; same jack as the display link (commonality, on file). RS-485 A/B on RJ45 **pins 7/8** per the vendor pinout; CAN-H/L (4/5) to unpopulated pads for a future bridge. **Identical/interchangeable — either pack on either jack.** | Mouser **523-RJHSE-5380**, 8,697 stock, $2.30; datasheet on file (RJHSE-5380.pdf) |
+| J_bat1 / J_bat2 | **Amphenol RJHSE-5380** RJ45 jack, shielded, magnetics-free | Mates the vendor **XLR→RJ45-female** cable via a straight patch cable; same jack as the display link (commonality, on file). RS-485 A/B on RJ45 **pins 7/8** (vendor-confirmed); CAN-H/L on **pins 1/2** (vendor-confirmed — *not* 4/5) to unpopulated pads for a future bridge. **Identical/interchangeable — either pack on either jack.** | Mouser **523-RJHSE-5380**, 8,697 stock, $2.30; datasheet on file (RJHSE-5380.pdf) |
 | TVS_bus + R_ser (**DNP footprints**) | **Semtech SM712** asymmetric RS-485 TVS (VRWM 12/7 V) **+ per-line series R (≈10 Ω)** between the TVS node and the ADM2587E A/B | **F36 coordination:** SM712 clamps **VC = 20 V @ 5 A** (positive), which is **above the ADM2587E bus-pin abs-max of −9/+14 V** (Rev H p.7) — so the TVS **alone does not protect** the transceiver. A properly-coordinated network needs the series R so the residual at the pin stays < 14 V at the design surge current. The ADM2587E's ±15 kV is **HBM (handling)**, *not* an IEC 61000-4-2 cable-port rating. **Default DNP** (short internal ~1 m run): the cable port then has **no coordinated external transient protection** — accepted for an inside-enclosure link; if field cable ESD/surge is ever a concern, populate the SM712 **and** the series R as a coordinated pair (re-verify residual < 14 V). | DK **SM712CT-ND** / Mouser **947-SM712.TCT** (Semtech), 99k+ stock. **Datasheet on file** (Semtech Final Rev 6.0, sha 6deb75310ebe): VRWM 12/7 V, VBR 13.3/7.5 V, VC 20/10 V @ 5 A, SOT-23. |
 | R_bias | fail-safe bias A/B → local iso-rails, + optional ~1 MΩ iso-GND↔bus bleed | References the floating island **locally** (defines idle; bleeds barrier leakage) — no battery-negative wire | high-value; per §7 |
 | R_di1, R_di2 | 1 kΩ series on each DIx | power-up-settle guard (§2a) | 0402/0603 ×2 |
@@ -257,49 +257,53 @@ duty; State-4 does no reads.)
 
 ---
 
-## 7. The physical-interface premise is UNRESOLVED — DR-26 stays OPEN (F37)
+## 7. Interface premise — RS-485/no-ground VENDOR-CONFIRMED; one on-site check remains (F37)
 
-**This topology rests on a premise about vendor hardware I cannot verify
-from the documents, so it is a *proposal*, not a CP2-ready result.** Per
-G7 (design-complete before handoff), it is **not** advanced to CP2 until
-the bench data below exists. The blocker is twofold:
+**Update 2026-07-16 — the core F37 blocker is resolved by direct vendor
+correspondence** ([`../../docs/vendor/volthium-rs485-correspondence-2024.md`](../../docs/vendor/volthium-rs485-correspondence-2024.md)).
+Volthium support, verbatim: *"Use a Standard RS485 adapter with A & B. No
+ground need. Don't use a TTL 3.3V adapter directly."*
 
-1. **RS-485 vs TTL (contradictory vendor docs).** `docs/vendor/README.md`
-   says the M12 pins are **"3.3 V TTL; external MAX485 needed for
-   RS-485"**, while the *adapter* label maps **RS-485 A/B to RJ45 7/8**.
-   Both cannot describe the same node. If the adapter presents raw TTL
-   (referenced to the pack's +12 V), the entire ADM2587E RS-485 front-end
-   is the wrong circuit.
-2. **The floating-reference behaviour is not proven.** My earlier claim
-   that "both transceivers see ≈ 0 V CM by construction" **over-stated**
-   it (reviewer F37, correctly): galvanic isolation *permits* a ground
-   offset but does **not** by itself force the floating GND2 to track the
-   pack's common mode. The only DC reference proposed is 1 MΩ→A, and the
-   settling math I gave was wrong: **1 MΩ × 75 pF = 75 µs**, which is
-   *comparable to* a 9600-baud bit (**104 µs**), not ≪ it — and 75 pF is
-   the DNP TVS's own Cj, **not** a measured total bus capacitance. So
-   whether GND2 settles inside the ADM2587E's **−9/+14 V** bus-pin
-   abs-max, at the real pack's drive impedance and cable capacitance, is
-   **unknown until measured**.
+- **It is RS-485, not TTL.** The datasheet's "TTL 3.3 V" is the BMS's
+  *internal* signaling; you read it **through an RS-485 adapter** (A/B).
+  The ADM2587E RS-485 front-end is the **correct** circuit — the earlier
+  "maybe it's TTL" worry is closed. (The repo's old vendor-README "M12 /
+  external MAX485 / CAN 4-5" note was wrong; corrected.)
+- **No ground wire needed** — 2-wire A/B differential, vendor-confirmed.
+  Validates the **isolated 2-wire** approach: each of our isolated
+  channels behaves exactly like the vendor-endorsed standalone RS-485
+  adapter, floating to its pack's reference across the barrier.
+- **Connector:** pack **XLR** socket (closest to the negative terminal) →
+  Volthium **XLR→RJ45-female** cable → RJ45 patch → our RJHSE-5380; A/B on
+  RJ45 **7/8**. (CAN, if ever: pins **1/2**.)
 
-**Bench characterization required on the real pack + Volthium adapter
-(user has the hardware):**
+**Corrected over-claim (reviewer F37).** My earlier "both transceivers
+see ≈ 0 V CM by construction" over-stated it — isolation *permits* a
+ground offset but does not *force* the floating GND2 to track the pack;
+and my settling math was wrong (**1 MΩ × 75 pF = 75 µs**, comparable to a
+104 µs bit, not ≪ it, and 75 pF was the DNP-TVS Cj, not a measured bus
+C). The vendor's real-world "standard RS-485 adapter works, no ground"
+is strong evidence a floating isolated channel settles fine (standard
+adapters share the −7/+12 constraint and work), but the *series-stack top
+pack* at +12 V through one shared reader is the one case the vendor's
+single-battery guidance doesn't directly cover.
 
-1. **Scope RJ45 7/8** during a poll — differential RS-485 (A/B
-   complementary around a mid-rail) vs. single-ended TTL. *Gates the
-   whole topology.*
-2. **Measure the idle + driven common-mode** of A/B vs a local reference,
-   and the **bus capacitance**, to size a firm DC reference (the 1 MΩ
-   bleed may be too weak; a lower-value bias or a defined reference path
-   may be needed — decide from the measurement, not a guess).
-3. **Second M12 socket** function; which socket carries RS-485 (vendor:
-   "closer to the negative post") on each physical pack.
-4. **Patch cable straight-through** (pins 7/8 → 7/8).
+**Remaining on-site confirmation (owner at the batteries in ~2 weeks) —
+narrowed, no longer topology-gating:**
 
-**Only after this data does the RS-485 topology finalize.** CMTI is the
-one sub-item already closed (ADM2587E >25 kV/µs). Until then: **D37
-(expansion header) is independent and can proceed; D36 (this RS-485
-path) is a validated proposal held OPEN on DR-26.**
+1. **Functional read of the top (series-referenced) pack** through the
+   isolated channel — confirms the +12 V-floating channel works.
+2. **Scope A/B + measure common-mode / bus capacitance** to decide
+   whether *any* local reference/bleed is needed (vendor "no ground" +
+   ADM2587E internal fail-safe suggest **none** — likely drop the 1 MΩ
+   bleed; confirm).
+3. Which XLR socket carries RS-485 on each physical pack; patch-cable
+   straight-through.
+
+**Status:** the topology is **vendor-validated**; CMTI closed (>25 kV/µs).
+DR-26 stays OPEN only for the ~2-week functional confirmation above —
+**no circuit change is expected**, just the go/no-go measurement. D37
+(expansion) is independent and CP2-ready regardless.
 
 ---
 

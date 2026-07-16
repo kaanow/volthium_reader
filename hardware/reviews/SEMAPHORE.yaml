@@ -30,8 +30,15 @@ note: >
   default-OFF gating (not a limiter); off-leakage ≤1.65 µW budgeted.
   F40: DR-26/DR-27 resynced + 3 registry tokens. F41: grand total now
   ~$192 core + ~$56 delta = ~$248. F42: load-condition wording fixed.
-  D35 gate exit 0. **D37 (expansion) is CP2-ready; D36 (RS-485) is a
-  validated proposal blocked on the F37 bench gate.** CP2 stays gated
-  on the user.
+  D35 gate exit 0.
+  **UPDATE (same handoff): F37 largely resolved by vendor correspondence
+  (docs/vendor/volthium-rs485-correspondence-2024.md, §30).** Volthium:
+  "Use a Standard RS485 adapter with A & B. No ground need. Don't use a
+  TTL 3.3V adapter directly." → it IS RS-485 (not TTL), 2-wire/no-ground,
+  A/B on RJ45 7/8; connector is XLR (the repo's old M12/CAN-4-5 note was
+  wrong — corrected at source). ADM2587E front-end confirmed correct.
+  DR-26 stays OPEN only for a narrowed on-site go/no-go at the owner's
+  ~2-week battery visit (no circuit change expected). **D37 CP2-ready.**
+  CP2 stays gated on the user.
 
 user_pause_reasons_seen_this_run: []

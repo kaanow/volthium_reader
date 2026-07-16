@@ -3416,3 +3416,29 @@ blocker — the RS-485 topology needs bench data on the real pack+adapter
 before it can be approved or handed to CP2.** D37 is unaffected. D35 gate
 exit 0. Ready for re-verify of the fixes; the F37 bench gate is the
 user's call on when/how to get that measurement.
+
+## 30. F37 largely resolved by vendor correspondence (2026-07-16)
+
+The owner supplied the actual Volthium support email thread (captured at
+`docs/vendor/volthium-rs485-correspondence-2024.md`) — **authoritative,
+and it resolves the F37 core blocker.** Volthium, verbatim: *"Use a
+Standard RS485 adapter with A & B. No ground need. Don't use a TTL 3.3V
+adapter directly."*
+
+- **RS-485, not TTL** — the ADM2587E front-end is the correct circuit;
+  the "maybe it's TTL" branch is closed. 2-wire, **no ground** (validates
+  the isolated floating approach). A/B on RJ45 **7/8**.
+- **Connector is XLR** (vendor XLR→RJ45-female cable), *not* the "M12" the
+  repo's vendor-README had wrong — corrected there and in the design +
+  D36/DR-26. CAN (future) is pins **1/2**, not 4/5.
+- The repo's old vendor note (M12 / MAX485 / CAN-4-5) that *created* the
+  F37 ambiguity is fixed at the source.
+
+**What remains (DR-26 OPEN, narrowed, non-topology-gating):** the owner
+is on-site at the batteries in **~2 weeks** and will do the go/no-go
+functional check — read the +12 V series-top pack through its isolated
+channel, and scope A/B / common-mode to confirm no local reference is
+needed (vendor "no ground" + ADM2587E internal fail-safe suggest none).
+**No circuit change is expected.** D37 (expansion) is unaffected and
+CP2-ready. The reviewer can now verify the RS-485 topology against the
+vendor evidence rather than an open premise.

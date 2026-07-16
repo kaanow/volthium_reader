@@ -2069,7 +2069,7 @@ dedicated DI/DE/RO on the ESP, matrix-muxed, inactive pins held high-Z —
 no reliance on the ADM2587E's unspecified VCC=0 behavior. **isoPower
 support network (F32):** full bypass/ferrite/stitching set + a binding
 CP2/CP3 isolation-keepout contract (design §3).
-Connectors: 2× RJHSE-5380 RJ45 (mate the vendor M12→RJ45 adapter; A/B on
+Connectors: 2× RJHSE-5380 RJ45 (mate the vendor XLR→RJ45 cable; A/B on
 pins 7/8; CAN-H/L on 4/5 to unpopulated pads for a future inverter
 bridge). Bus TVS = SM712 (RS-485-matched −7/+12).
 
@@ -2079,15 +2079,19 @@ common-mode range is worse for a series stack and it carries less
 per-cell detail than the serial protocol. The ESP has a native TWAI/CAN
 controller if that bridge is ever built.
 
-**Open before BOM-lock (interface-reality, see design §7):** confirm the
-adapter really presents a clean 2-wire A/B on RJ45 7/8, the second-M12
-function, and patch-cable straight-through — on the bench / with Volthium.
-(The 4-pin M12 has no comms-ground pin, but that's fine: the isolated
-front-ends self-reference locally, so **no battery-negative reference is
-needed** — corrected from the first draft.) **D32 closed 2026-07-16:**
-ADM2587E + SM712 datasheets on file (user-provided), read and verified
-(manifest "Proposed CP1-delta additions"); SM712 is DNP by default since
-the ADM2587E carries ±15 kV ESD on the bus pins.
+**Interface premise VENDOR-CONFIRMED 2026-07-16** (F37, see design §7 +
+[`vendor/volthium-rs485-correspondence-2024.md`](../../docs/vendor/volthium-rs485-correspondence-2024.md)):
+Volthium — *"Use a Standard RS485 adapter with A & B. No ground need.
+Don't use a TTL 3.3V adapter directly."* So it **is** RS-485 (not TTL),
+2-wire/no-ground, A/B on RJ45 **7/8**; connector is **XLR** (not M12 — the
+old repo note was wrong), socket closest to the negative terminal. The
+ADM2587E isolated front-end is the correct circuit. **Remaining, narrowed
+to the owner's ~2-week on-site visit** (no longer topology-gating, no
+circuit change expected): functional read of the +12 V-referenced top
+pack through its isolated channel + a scope/common-mode measurement to
+confirm no local reference is needed. **DR-26 stays OPEN only for that.**
+**D32 closed 2026-07-16:** ADM2587E + Semtech SM712 datasheets on file,
+read and verified; SM712 DNP by default.
 
 **Status.** Extends approved CP1 → needs a **CP1-delta review pass before
 CP2**. Logged as **DR-26**.
