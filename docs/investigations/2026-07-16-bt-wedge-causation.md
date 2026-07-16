@@ -123,6 +123,28 @@ That changes the workload we're trying to measure — if our workload is
 what puts the BMS in a bad state, adding queries can only make it worse
 or muddy the picture.
 
+## Interpreting `ambient_advertising`
+
+**Important gotcha discovered 2026-07-16 iter 4:** `adv_packets=0` on
+the ambient scanner is NOT by itself the wedge payoff signal — it fires
+on every reader connect cycle, because when hci0 has an open GATT
+connection to a battery, that battery stops advertising (standard BLE
+peripheral behavior). Observed live at 21:05-21:06: both batteries had
+overlapping adv=0 windows on hci1 during a 33 s stretch where hci0's
+own `scan_result` events also gapped out — i.e. hci0 was mid-read, not
+wedged.
+
+The right diagnostic question is: **when hci0's scan itself fails
+(wedge or discovery timeout), does the ambient scanner *still see the
+batteries advertising in that exact window*?** That's the split
+between "our chip/BlueZ failed to see beacons that were there"
+(Family B) and "batteries genuinely stopped transmitting"
+(Family A2 / peer or Family C / environmental).
+
+Filter accordingly when reading the observation log: entries below
+tie each wedge to the specific ambient window(s) that straddle it, not
+to per-cycle adv=0 counts.
+
 ## Observation log
 
 <!-- Append entries below as wedges are observed with ambient data available. -->
