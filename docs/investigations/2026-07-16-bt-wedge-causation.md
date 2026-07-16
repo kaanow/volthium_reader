@@ -129,6 +129,7 @@ or muddy the picture.
 
 | Wedge onset (UTC) | `ambient_advertising` says | Interpretation | Notes |
 |---|---|---|---|
+| 2026-07-16T19:38:52Z (L1, `kernel_usb_reset_chip_hung`) | Both batteries visible on hci1 straddling the wedge: B `adv_packets=3` @ 19:38:50, A `adv_packets=1` @ 19:38:50; both jump to 5-8 packets/window immediately after. Neither battery ever showed `adv_packets=0` around the wedge | **Leans Family B / against chip-failure narrative** — the batteries were still transmitting beacons at normal cadence throughout the wedge; hci0's scan came up empty anyway. Rules out "BMS went silent" and "environmental blackout." | Wedge fired 22 s after `ambient_scanner_started` — startup transient can't be fully ruled out. Need 1-2 more observations. Also: RSSI dropped to -127 (sentinel = "unknown") after 19:39:00 on hci1 while packets kept flowing; possible bleak/BlueZ RSSI-reporting quirk on this adapter, not a signal-quality issue |
 
 ## Related docs
 
