@@ -3194,3 +3194,149 @@ plugged-in add-on can no longer break the 1.08 mW hard-cut budget. D37
 datasheet (F29) — the user has now supplied, so it's on file and D32 is
 **fully closed** for every chosen part in this delta. D35 gate exit 0
 (addendum now in the gate's scope). Ready for re-verify.
+
+## 8.16 Reviewer findings (iteration 31 — iter-30 resolution re-review)
+
+**Scope:** Independent re-verification of Claude's §28 responses to
+iteration-29 Findings 28-34. This remains a CP1-delta review; CP2 was not
+started.
+
+### Required checks
+
+| Check | Verdict | Independent evidence |
+|-------|---------|----------------------|
+| D35 consistency gate | **PASS floor; manual G5 FAIL** | `doc_consistency_check.py` exited 0 at pass start: 29 manifest parts checked, 43 `_verify_` cells reported, and no registered stale token. Manual review found live DR-26/DR-27 and cost contradictions (Findings 40-41). |
+| Citation spot-check quota | **FAIL (support-network transcription)** | Opened the on-file PDFs. ADM2587E Rev H p.8 identifies VISOOUT=pin 12 and VISOIN=pin 19; p.17 requires separate VISOOUT and VISOIN capacitor pairs plus two ferrites, contradicting the revised table (Finding 35). Semtech SM712 Rev 6.0 p.2 confirms 12/7 V VRWM, 13.3/7.5 V VBR, and 20/10 V clamp at 5 A; ADM2587E p.7 gives bus-pin absolute maximum -9/+14 V (Finding 36). Molex 53398 drawing p.2 confirms the 51021 mate *series* and p.3 contains material 533980871, but the stored drawing does not contain the claimed 1 A rating (Finding 38). Würth 970050354 p.1 confirms the exact manufacturer/order code, M3 internal thread, and 5 mm length. |
+| New/changed object identity | **PASS (4/4)** | Title/order pages match the selected objects: Semtech `SM712.TCT` (ordering table p.7), Molex vertical `53398-0871`, Molex right-angle `53261-0871`, and Würth `970050354`. Full file hashes match the manifest prefixes. |
+| Changed SKU-cell sweep | **PASS (8/8)** | Live `POST /resolve` on 2026-07-16 resolved both PicoBlade orientations at DigiKey/Mouser, Semtech SM712 at DigiKey/Mouser, ADM2587EBRWZ at Mouser, and RJHSE-5380 at Mouser to their stated MPNs. In particular, `WM7612CT-ND` now correctly resolves to vertical `0533980871`. |
+| G3 availability spot-check | **PASS (5/5)** | Live `/batch` exact matches: ADM2587EBRWZ (DK Active 261; Mouser 3,666), SM712.TCT (DK Active 50,563 CT; Mouser 99,077), RJHSE-5380 (DK Active 14,425; Mouser 8,697), vertical 53398-0871 (DK Active 22,500 CT; Mouser 42,559), and right-angle 53261-0871 (DK Active 32,000 TR; Mouser 81,654). |
+| Prior-finding disposition | **PARTIAL** | F28 current/correction, F29 object identity, and F30 dedicated-pin off-state topology pass. F31 remains an unresolved physical-interface gate; F32 contains an incorrect support circuit; F33 still defers exact mate/rating evidence; F34 states but does not implement a current limit. |
+
+### Finding 35 — IMPORTANT — `cp1_rs485_battery_read.md` §3 isoPower support
+**Issue**: The newly enumerated ADM2587E support circuit is electrically
+incorrect and incomplete. It names pin 11 as VISOIN, omits the VISOIN
+capacitor pair and VISOOUT ferrite, and misstates both the package class and
+the isolation rating used for the stitching capacitor.
+**Evidence**: The revised table connects “VISOOUT pin 12 ↔ VISOIN pin 11.”
+ADM2587E Rev H p.8 says pin 11 is GND2, pin 12 is VISOOUT, and pin 19 is
+VISOIN. It specifies 10 µF + 0.1 µF from pins 12→11, 0.1 µF + 0.01 µF
+from pins 19→20, and a ferrite between VISOOUT 12 and VISOIN 19. Page 17
+shows separate L1 (VISO) and L2 (GND2) ferrites. Pages 1/7 identify a
+20-lead wide-body **leaded SOIC**, not a leadless part. Pages 5-7 distinguish
+the 2500 V rms one-minute dielectric test from 396 V rms/524 V peak working
+isolation; “2500 V barrier working V” is not the published working rating.
+**Suggested fix**: Redraw the support table net-by-net from Figure 35: both
+VCC pairs, both VISOOUT/VISOIN pairs, L1 and L2, exact GND2 sides, and the
+required trace/plane keepouts. Select and rate C_stitch against the applicable
+working/safety requirement without calling the proof-test voltage a working
+voltage, and flag the package as creepage-critical **leaded** wide SOIC.
+
+### Finding 36 — IMPORTANT — D36 SM712-to-ADM2587E coordination
+**Issue**: The now-correct Semtech TVS data reveals that the optional surge
+path does not bracket the protected transceiver's absolute maximum. Populating
+SM712 as documented can still expose ADM2587E bus pins beyond their ratings.
+**Evidence**: Semtech SM712 Rev 6.0 p.2 specifies VC=20 V (positive side)
+and 10 V (negative side) at 5 A. ADM2587E Rev H p.7 rates driver/receiver
+bus pins only -9 V to +14 V. The addendum has no series impedance or residual-
+current calculation. Its fallback claim cites ADM2587E ±15 kV **HBM** ESD
+(p.7), which is not an IEC 61000-4-2 system/cable-port qualification.
+**Suggested fix**: Re-derive the protection network as a coordinated circuit:
+choose a clamp and series impedance such that residual pin voltage/current is
+inside a published transient or absolute-maximum limit. If SM712 remains DNP,
+state explicitly that system-level cable ESD/surge is unprotected and justify
+that risk; do not describe the uncoordinated footprint as surge insurance.
+
+### Finding 37 — IMPORTANT — F31 interface-reality gate remains open
+**Issue**: F31 was strengthened but not resolved. The design still cannot tell
+whether the real adapter exposes differential RS-485 or pack-referenced TTL,
+and therefore explicitly says a future bench test “gates the whole topology.”
+That is a skipped CP1 premise under G2/G7, not a CP2-ready result.
+**Evidence**: Addendum §7 retains the contradictory vendor evidence and a
+“Hard pre-freeze gate (must clear before CP2 commits this topology).” The new
+DC explanation does not replace that evidence: galvanic isolation permits a
+ground offset but does not by itself force an otherwise floating GND2 to the
+remote common mode. The only proposed DC reference is 1 MΩ to A. Its stated
+settling arithmetic is also wrong: 1 MΩ × 75 pF = **75 µs**, not a generic
+“~µs” value that is ≪ a 9600-baud bit (104.2 µs); 75 pF is the DNP TVS value,
+not a demonstrated total bus capacitance.
+**Suggested fix**: Clear the physical pack+adapter gate before CP1-delta
+approval, record scope/continuity evidence, then analyze the observed circuit
+with actual remote-driver impedances and total capacitance. If hardware is not
+available, choose an architecture valid for the documented TTL case or leave
+DR-26 open and do not hand it to CP2.
+
+### Finding 38 — IMPORTANT — F33 PicoBlade interface evidence
+**Issue**: The header SKU/orientation error is fixed, but the exact mating
+system and 1 A/ckt rating are still not verified from the stored object set.
+The response explicitly defers mate/keying/pre-crimp confirmation to CP2.
+**Evidence**: The Molex 53398 customer drawing p.2 says only “MATE WITH:
+51021 SERIES,” and p.4 points to product specification `PS-51021-024` and
+applicable housing `51021**00`; the stored drawing does not state 1 A/ckt.
+D37 and the BOM still use `51021-08xx`/“pre-crimped cable” rather than an exact
+housing, terminal/pre-crimp, and cable assembly, while SOP G2 requires exact
+mate, pinout/keying, ratings, and in-box/accessory assumptions at CP1.
+**Suggested fix**: Store the applicable Molex product specification, name the
+exact 8-circuit housing and contact/pre-crimp or complete cable MPNs, and verify
+pin numbering, keying, mating height, wire gauge, and current rating before
+calling F33/D32 closed.
+
+### Finding 39 — IMPORTANT — F34 expansion current limit is not implemented
+**Issue**: The revised design states a ~50 mA continuous limit but still has no
+chosen component that enforces it. The BOM's example ZXMP6A13F + 2N7002 is a
+plain switch, not a current limiter, and D37 leaves resistor/PPTC/current-
+limited-switch selection open.
+**Evidence**: `cp1_bom.md` Q_exp says “e.g. ZXMP6A13F + 2N7002,” “~50 mA
+continuous limit,” and “sub-µA Iq” without an exact limiter MPN, trip/current-
+limit tolerance, voltage drop, or leakage value. D37 says “Add a series
+resistor / PPTC or the load switch's own current limit,” which is an unresolved
+design choice. The battery State-4 budget has no Q_exp leakage term despite
+the claim that it is budgeted.
+**Suggested fix**: Select the actual current-limited load switch or complete
+PPTC/resistor network, verify worst-case limit/inrush/drop/leakage from its
+datasheet, add it to BOM+manifest, and propagate its maximum off leakage into
+the State-4 budget. If only on/off gating is required, remove the unsupported
+50 mA-limit claim and state the real upstream limit.
+
+### Finding 40 — IMPORTANT — G5 drift in DR-26/DR-27
+**Issue**: The authoritative open review items still describe the superseded
+pre-F30/F34 topology, so the packet, decisions, addendum, and DR ledger no
+longer agree.
+**Evidence**: Live DR-26 still asks reviewers to verify “1 kΩ series on DI,
+wire-OR RX pull-up” although F30 replaced that with six dedicated DI/DE/RO
+pins. Live DR-27 still asks whether the 3V3 pin is series-ferrited and
+budget-counting, omits EXP_PWR_EN, and does not state the load-switched rail.
+Both headings remain OPEN, so these are current requirements, not marked
+history. D35 exits 0 because these semantic forms are not in its registry.
+**Suggested fix**: Update DR-26/DR-27 to the current topology and add durable
+registry checks for the superseded wire-OR/shared-DI and raw/ferrited-3V3
+forms.
+
+### Finding 41 — IMPORTANT — `cp1_bom.md` delta completeness and totals
+**Issue**: The canonical BOM and cost summary still represent the iter-27 core,
+not the D36/D37 design being approved. The new isolated channels/support parts
+are absent from the canonical battery BOM and the new expansion rows are not
+reflected in its dated subtotals.
+**Evidence**: `cp1_bom.md` still reports battery ~$83 and grand total ~$192,
+with component sums dated 2026-07-14. The D36 addendum independently estimates
+~$52 for two isolated channels/support networks, while D37 adds J_EXP $1.40
+and Q_exp $0.20 after that dated sum. Therefore the current single-monitor
+total cannot remain ~$192; the rough documented delta alone moves it to about
+$246 before exact reconciliation.
+**Suggested fix**: Fold every populated D36/D37 part and quantity into the
+canonical BOM, then mechanically recompute battery, component/shared, and grand
+totals from the price column. If the delta remains a separate addendum until
+approval, make the top-level total explicitly include its subtotal.
+
+### Finding 42 — NIT — D36 §6 load-condition wording
+**Issue**: The revised power estimate says the unterminated bus is in the
+“~100 Ω regime.” An unterminated bus is high impedance, not approximately
+100 Ω; the datasheet simply lacks an unloaded ICC row.
+**Evidence**: ADM2587E Rev H p.3 gives 90 mA at 3.3 V/100 Ω and 125 mA at
+3.3 V/54 Ω. Addendum §3 marks the 120 Ω termination DNP, so neither test load
+describes the default bus. The 90 mA figure is a reasonable conservative
+budget point, but not an inferred default load.
+**Suggested fix**: Label 90 mA/1.49 mW as the conservative documented 100 Ω
+bound and plan an unterminated bench measurement; remove “unterminated →
+~100 Ω regime.”
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 7 important. (See findings 35, 36, 37, 38, 39, 40, 41, 42.)

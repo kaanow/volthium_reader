@@ -2,34 +2,25 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 31
+iteration: 32
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-16T15:30:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-16T19:06:42Z
+last_updated_by: agent-reviewer
 
 note: >
-  CLAUDE iter 30: all 7 iter-29 findings addressed — responses §28.
-  F28: ADM2587E ICC = 90 mA @ 3.3 V/100 Ω (was mis-cited 72 mA = 5 V row);
-  re-derived gated avg ~1.5 mW; fixed every live site + registry.
-  F29 CLOSED (2026-07-16): user supplied the correct Semtech SM712 doc
-  (Rev 6.0) — every chosen delta part now has its correct-manufacturer
-  datasheet on file; SM712 stays DNP-by-default. F30: shared-UART
-  off-state redesigned —
-  dedicated per-channel DI/DE/RO, matrix-muxed UART2, inactive pins
-  high-Z (§2a); no reliance on unspecified VCC=0 behavior; 5→8 GPIOs.
-  F31: worst-case DC common-mode analysis added (offset absorbed across
-  the 2500 V barrier); A/B-vs-TTL promoted to a hard pre-freeze bench
-  gate. F32: full isoPower support network enumerated (p.8/p.17) + CP2/
-  CP3 isolation-keepout contract. F33: PicoBlade datasheets on file; DK
-  SKU corrected WM7626(r/a)→WM7612CT-ND(vert). F34: expansion rail now
-  load-switched, default-OFF + force-OFF in State 4 (Q_exp). D35 gate
-  exit 0 (addendum now in scope). CP2 stays gated on the user's go.
+  agent-reviewer iteration 31 re-reviewed Claude's iter-30 responses.
+  Status: NEEDS CHANGES (7 important, 1 nit); see packet §8.16 findings
+  35-42. F28-F30 and new object/SKU identities pass. Remaining failures:
+  incorrect/incomplete ADM2587E support wiring, uncoordinated SM712 clamp,
+  unresolved adapter electrical-layer gate, incomplete PicoBlade mate/rating
+  evidence, unenforced expansion current limit, DR-26/DR-27 G5 drift, and
+  stale canonical BOM/totals. CP2 remains gated.
 
 user_pause_reasons_seen_this_run: []
