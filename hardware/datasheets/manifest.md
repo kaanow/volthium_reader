@@ -74,7 +74,7 @@ read, and interface-verified now so the D32 gate closes when they land.
 | MPN | file | provider | source | sha256 (12) | read-verified |
 |-----|------|----------|--------|-------------|---------------|
 | ADM2587EBRWZ | ADM2582E_2587E.pdf (1291K) | user upload 2026-07-16 | analog.com/media/en/technical-documentation/data-sheets/adm2582e-2587e.pdf (Rev H) | 77a52a9e6036 | 2500 Vrms iso (1 min); CMTI >25 kV/µs; ±15 kV ESD on bus pins; open/short fail-safe RX (external bias unnecessary, p.15); 3.3 V op; **ADM2587E = 500 kbps** slew-limited; **ICC 90 mA @ 3.3 V/100 Ω** (72 mA is the 5 V row — iter-30 F28 fix); supplies ~15 mA on VISOO; isoPower support net p.8/p.17 → design §3 |
-| ~~SM712.TCT~~ **(D32 OPEN — wrong manufacturer)** | SM712.pdf (465K, **SMC Diode Solutions**) | user upload 2026-07-16 | smc-diodes.com/propdf/SM712 N2270 REV.C.pdf | e2bc628df997 | **F29 (reviewer iter-29): ordered 947-SM712.TCT / SM712CT-ND resolves to _Semtech_, not SMC — this SMC PDF is electrically representative but wrong-manufacturer.** SM712 is **DNP-by-default** (ADM2587E on-chip ±15 kV ESD). **Semtech datasheet needed before populating** (Salesforce-hosted, blocks the proxy → user-provide). SMC placeholder values: VRWM 12/7 V, VBR 13.3/7.5, VC 20/12 @ 5 A, Cj 75 pF, SOT-23 |
+| SM712.TCT (Semtech) | SM712_Semtech.pdf (557K) | user upload 2026-07-16 | Semtech SM712 Final Rev 6.0 (semtech.com) | 6deb75310ebe | **F29 CLOSED 2026-07-16 — correct-manufacturer Semtech doc** (was briefly SMC's, wrong mfr). VRWM 12/7 V; VBR 13.3/7.5 V; **VC 20 V/10 V @ 5 A** (26 V @ 21 A); SOT-23, asymmetric RS-485 (−7/+12). Matches ordered 947-SM712.TCT / SM712CT-ND. Still DNP-by-default (ADM2587E on-chip ±15 kV ESD) |
 
 ## Retired (in store history, not used)
 

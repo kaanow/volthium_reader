@@ -2984,8 +2984,8 @@ is that hand-off. Read `REVIEWER.md §3.5` (grounding rules) first.
 - **G2 datasheets (D32):** ADM2587E on file, read/verified — 2500 Vrms
   iso, CMTI >25 kV/µs, ±15 kV ESD, fail-safe RX, **ICC 90 mA @ 3.3 V/
   100 Ω** [corrected iter-30 F28 — was mis-cited 72 mA, the 5 V row].
-  **SM712 still OPEN (F29):** on-file PDF is SMC's; ordered part is
-  Semtech → Semtech datasheet needed before populating (DNP-by-default).
+  **SM712 (F29) — CLOSED 2026-07-16:** correct-manufacturer Semtech
+  datasheet now on file (Rev 6.0, sha 6deb75310ebe); DNP-by-default.
 - **G3 stock:** API-checked 2026-07-15 (ADM2587E Mouser 3,848; SM712
   103k; RJHSE-5380 8,697; PicoBlade 42.6k/32k) — re-verify at BOM-lock.
 - **Interface-reality (bench/vendor):** clean 2-wire A/B on RJ45 7/8,
@@ -3141,15 +3141,12 @@ live site (manifest, D36, DR-26, addendum §3/§6, §27.1/§27.2) and the
 "<µW floor" claim removed. Registry: added the 72 mA/3.3 V and
 "<µW floor" tokens (F28 fix commit).
 
-**F29 (SM712 wrong manufacturer) — ACKNOWLEDGED, D32 kept OPEN.**
-Confirmed: `947-SM712.TCT` / `SM712CT-ND` resolve to **Semtech**; my
-on-file PDF is SMC's. Semtech's datasheet is Salesforce-hosted and blocks
-the fetch proxy (like ADI's). Since the SM712 is now **DNP-by-default**
-(the ADM2587E carries ±15 kV ESD on the bus pins), I've marked the
-manifest row D32-OPEN with the SMC sheet flagged as representative-only,
-and **flagged the Semtech datasheet as a specific user-provide** rather
-than pretend it's closed. It must be stored + re-verified before the
-SM712 is ever populated.
+**F29 (SM712 wrong manufacturer) — CLOSED 2026-07-16.** Confirmed
+`947-SM712.TCT` / `SM712CT-ND` are **Semtech**; my first PDF was SMC's.
+User supplied the correct **Semtech SM712 Final Rev 6.0** (sha
+6deb75310ebe), now on file and read-verified: VRWM 12/7 V, VBR 13.3/7.5,
+VC 20/10 V @ 5 A, SOT-23 — matches the ordered part. The SMC PDF was
+removed. (Still DNP-by-default given the ADM2587E's on-chip ±15 kV ESD.)
 
 **F30 (shared-UART off-state) — FIXED (topology change).** You're right
 that power-gating leaned on the ADM2587E's *unspecified* VCC=0 behavior.
@@ -3193,7 +3190,7 @@ switch's sub-µA Iq budgeted; enable = a dedicated `EXP_PWR_EN` GPIO. A
 plugged-in add-on can no longer break the 1.08 mW hard-cut budget. D37
 "current-limited via ferrite" wording corrected.
 
-**One item I could not fully close myself:** the **Semtech SM712
-datasheet** (F29) — Salesforce-hosted, blocks the proxy. It's DNP so not
-blocking, but flagged for the user. Everything else is closed on file.
-D35 gate exit 0 (addendum now in the gate's scope). Ready for re-verify.
+**Update 2026-07-16:** the one item I couldn't fetch — the Semtech SM712
+datasheet (F29) — the user has now supplied, so it's on file and D32 is
+**fully closed** for every chosen part in this delta. D35 gate exit 0
+(addendum now in the gate's scope). Ready for re-verify.

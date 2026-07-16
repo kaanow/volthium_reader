@@ -806,7 +806,7 @@ Reuses the `ej_bms` frame parser.
   (user-provided), read/verified: 2500 Vrms iso, CMTI >25 kV/µs, ±15 kV
   ESD, fail-safe RX, **ICC 90 mA @ 3.3 V/100 Ω** (iter-30 F28 corrected
   the 72 mA mis-cite, which was the 5 V row); SM712 VRWM 12/7 V but the
-  on-file PDF is SMC not the ordered Semtech (F29, D32 still open —
+  on-file PDF now the correct Semtech doc (F29 closed 2026-07-16;
   DNP-by-default). Gated ~0.5 % duty → ~1.5 mW avg.
 - G3: stock checked 2026-07-15 (ADM2587E Mouser 3,848; SM712 103k;
   RJHSE-5380 8,697) — re-verify at BOM-lock.
