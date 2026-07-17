@@ -1346,6 +1346,12 @@ async def _collect_stack_evidence(
         "on_fallback_adapter": _adapter_mgr.active_is_fallback,
         "ambient_peers_silent": ambient_peers_silent,
         "ambient_peer_ages_s": ambient_visibility,
+        # Burst-window tagging: a wedge within ~60 s of an ambient burst
+        # may have been provoked by the burst's own discovery session
+        # (the cross-adapter InProgress stressor). Analysis should count
+        # such wedges separately from the steady-state tally.
+        "recent_burst_age_s": recent_burst_age_s(),
+        "ambient_mode": ambient_mode(),
     }
 
 
@@ -1398,6 +1404,17 @@ async def emit_stack_health(
 # radio the reader isn't touching.
 AMBIENT_WINDOW_S = 10.0
 _AMBIENT_ADAPTER_ENV = "VOLTHIUM_AMBIENT_ADAPTER"
+# Mode selector: "continuous" (the original always-on second radio) or
+# "burst" (adapter stays powered down; ambient_burst_check() brings it up
+# on demand for ~AMBIENT_BURST_S when a recovery decision needs a second
+# opinion, then powers it back down). Burst mode exists because starting
+# a discovery session on the ambient adapter while the reader adapter has
+# one running is itself a demonstrated InProgress-wedge trigger (4/4
+# logger restarts with continuous ambient wedged within 22 s — see the
+# 2026-07-16 investigation doc). On-demand bursts shrink that exposure to
+# the moments where the answer actually changes what we do.
+_AMBIENT_MODE_ENV = "VOLTHIUM_AMBIENT_MODE"
+AMBIENT_BURST_S = 12.0
 
 # Cross-module state exposing what the ambient scanner has seen. Written by
 # the scanner callback (any adv packet updates the target's last-seen mono
@@ -1409,6 +1426,38 @@ _AMBIENT_ADAPTER_ENV = "VOLTHIUM_AMBIENT_ADAPTER"
 #
 # `None` = scanner never saw this target since process start (or hasn't run).
 _ambient_last_seen_mono: dict[str, Optional[float]] = {}
+
+# Monotonic timestamp of the last burst's END, plus a lock so overlapping
+# recovery paths can't double-book the burst adapter. Wedges that fire
+# within ~60 s of a burst are tagged burst-associated in the snapshot so
+# the steady-state wedge tally stays clean (a burst's discovery session is
+# itself the cross-adapter stressor under investigation).
+_last_burst_end_mono: Optional[float] = None
+_last_burst_verdict: Optional[bool] = None
+_burst_lock = asyncio.Lock()
+# Minimum spacing between real bursts. Recovery paths past their threshold
+# re-check every cycle (~30-40 s with backoff); without a cooldown a stuck
+# stretch would burst on every cycle, and each burst is itself a discovery-
+# session stressor. Within the cooldown, callers get the previous verdict.
+AMBIENT_BURST_COOLDOWN_S = 60.0
+
+
+def ambient_mode() -> str:
+    """"off" when no ambient adapter is configured; otherwise the value of
+    VOLTHIUM_AMBIENT_MODE ("continuous" default, or "burst")."""
+    if not os.environ.get(_AMBIENT_ADAPTER_ENV, "").strip():
+        return "off"
+    mode = os.environ.get(_AMBIENT_MODE_ENV, "").strip().lower()
+    return mode if mode in ("continuous", "burst") else "continuous"
+
+
+def recent_burst_age_s() -> Optional[float]:
+    """Seconds since the last ambient burst finished, or None if no burst
+    has run this process. Snapshot consumers use this to tag wedges that
+    may have been provoked by the burst's own discovery session."""
+    if _last_burst_end_mono is None:
+        return None
+    return round(time.monotonic() - _last_burst_end_mono, 1)
 
 
 def peer_visibility_via_ambient(addresses: set[str]) -> dict[str, Optional[float]]:
@@ -1482,18 +1531,13 @@ async def _resolve_ambient_adapter() -> Optional[str]:
     return None
 
 
-async def ambient_scanner_loop(targets: set[str]) -> None:
-    """Long-running task: passive BLE scan on the ambient adapter, filtered
-    to `targets` (uppercase MAC strings), emitting one ambient_advertising
-    event per AMBIENT_WINDOW_S. Runs until cancelled.
-
-    Refuses to run if the ambient adapter is the same as the reader adapter
-    (would double-book the radio), or if resolution fails, or if the scan
-    can't start — all diagnostics are logged as ambient_scanner_* events
-    so the operator can see why the second-opinion signal is missing."""
+async def _acquire_ambient_adapter() -> Optional[tuple[str, bool]]:
+    """Resolve + power the ambient adapter for scanning. Returns
+    (hci, was_already_up) or None (with an ambient_scanner_unavailable
+    event explaining why). Shared by the continuous loop and burst check."""
     hci = await _resolve_ambient_adapter()
     if not hci:
-        return
+        return None
     reader_hci = await _resolve_configured_adapter()
     if reader_hci and reader_hci == hci:
         _event(
@@ -1501,13 +1545,14 @@ async def ambient_scanner_loop(targets: set[str]) -> None:
             resolved=hci,
             reason="same adapter as reader — refusing to double-book radio",
         )
-        return
+        return None
     # The AdapterManager keeps the fallback adapter POWERED DOWN when the
     # primary is healthy — good for power / RF, bad for our passive listener.
     # Bring it up (hciconfig up + bluetoothctl power on) before starting.
     # If it can't be powered — internal chip broken, cable pulled, etc. —
     # log and quit; the reader's own operation isn't affected.
-    if not await _adapter_is_up(hci):
+    was_up = await _adapter_is_up(hci)
+    if not was_up:
         try:
             await _power_on_adapter(hci)
         except Exception as exc:
@@ -1516,9 +1561,76 @@ async def ambient_scanner_loop(targets: set[str]) -> None:
                 resolved=hci,
                 reason=f"power-on failed: {type(exc).__name__}: {exc}",
             )
-            return
+            return None
         # Give bluetoothd a moment to notice the adapter came up.
         await asyncio.sleep(2.0)
+    return hci, was_up
+
+
+async def _start_scanner_with_retry(hci: str, cb) -> Optional[BleakScanner]:
+    """Start a BleakScanner on `hci`, retrying once through an hciconfig
+    reset on `[org.bluez.Error.InProgress]` (a stale discovery session —
+    the sole start blocker seen on kwpi). Returns the started scanner or
+    None (with ambient_scanner_* events explaining why)."""
+    scanner = BleakScanner(detection_callback=cb, adapter=hci)
+    try:
+        await scanner.start()
+        return scanner
+    except Exception as exc:
+        first_err = f"{type(exc).__name__}: {exc}"
+        if "InProgress" not in first_err:
+            _event(
+                "ambient_scanner_unavailable",
+                resolved=hci,
+                reason=f"start failed: {first_err}",
+            )
+            return None
+        _event(
+            "ambient_scanner_retrying",
+            resolved=hci,
+            reason=f"first start failed: {first_err}; resetting hci and retrying",
+        )
+        try:
+            await _run(["sudo", "-n", "hciconfig", hci, "reset"], timeout=15.0)
+            await asyncio.sleep(2.0)
+            await _power_on_adapter(hci)
+            await asyncio.sleep(2.0)
+            scanner = BleakScanner(detection_callback=cb, adapter=hci)
+            await scanner.start()
+            return scanner
+        except Exception as exc2:
+            _event(
+                "ambient_scanner_unavailable",
+                resolved=hci,
+                reason=(
+                    f"start failed twice — first: {first_err}; "
+                    f"retry after reset: {type(exc2).__name__}: {exc2}"
+                ),
+            )
+            return None
+
+
+async def ambient_scanner_loop(targets: set[str]) -> None:
+    """Long-running task: passive BLE scan on the ambient adapter, filtered
+    to `targets` (uppercase MAC strings), emitting one ambient_advertising
+    event per AMBIENT_WINDOW_S. Runs until cancelled.
+
+    No-op in burst mode (ambient_burst_check does on-demand scans instead).
+    Refuses to run if the ambient adapter is the same as the reader adapter
+    (would double-book the radio), or if resolution fails, or if the scan
+    can't start — all diagnostics are logged as ambient_scanner_* events
+    so the operator can see why the second-opinion signal is missing."""
+    if ambient_mode() == "burst":
+        _event(
+            "ambient_scanner_unavailable",
+            reason="mode=burst — continuous scan disabled; on-demand "
+                   "ambient_burst_check only",
+        )
+        return
+    acquired = await _acquire_ambient_adapter()
+    if not acquired:
+        return
+    hci, _ = acquired
     targets_upper = {t.upper() for t in targets}
     # Per-target rolling state — reset per emit window.
     state: dict[str, dict] = {
@@ -1544,45 +1656,9 @@ async def ambient_scanner_loop(targets: set[str]) -> None:
         if nm:
             s["adv_names"].add(nm)
 
-    scanner = BleakScanner(detection_callback=cb, adapter=hci)
-    try:
-        await scanner.start()
-    except Exception as exc:
-        # `[org.bluez.Error.InProgress] Operation already in progress` means
-        # bluetoothd already has a discovery session going on this adapter
-        # (or a stale one from a previous incarnation). A single hciconfig
-        # reset clears the session; retry once. This has been the sole
-        # blocker to the ambient scanner starting on kwpi 3-4 times so far.
-        first_err = f"{type(exc).__name__}: {exc}"
-        if "InProgress" not in first_err:
-            _event(
-                "ambient_scanner_unavailable",
-                resolved=hci,
-                reason=f"start failed: {first_err}",
-            )
-            return
-        _event(
-            "ambient_scanner_retrying",
-            resolved=hci,
-            reason=f"first start failed: {first_err}; resetting hci and retrying",
-        )
-        try:
-            await _run(["sudo", "-n", "hciconfig", hci, "reset"], timeout=15.0)
-            await asyncio.sleep(2.0)
-            await _power_on_adapter(hci)
-            await asyncio.sleep(2.0)
-            scanner = BleakScanner(detection_callback=cb, adapter=hci)
-            await scanner.start()
-        except Exception as exc2:
-            _event(
-                "ambient_scanner_unavailable",
-                resolved=hci,
-                reason=(
-                    f"start failed twice — first: {first_err}; "
-                    f"retry after reset: {type(exc2).__name__}: {exc2}"
-                ),
-            )
-            return
+    scanner = await _start_scanner_with_retry(hci, cb)
+    if scanner is None:
+        return
     _event(
         "ambient_scanner_started",
         adapter=hci,
@@ -1628,6 +1704,116 @@ async def ambient_scanner_loop(targets: set[str]) -> None:
             await scanner.stop()
         except Exception:
             pass
+
+
+async def ambient_burst_check(
+    targets: set[str], trigger: str, duration_s: float = AMBIENT_BURST_S,
+) -> Optional[bool]:
+    """On-demand second opinion: power up the ambient adapter, scan for
+    `duration_s`, report whether any of `targets` is advertising, then
+    restore the adapter's prior power state. Emits one `ambient_burst`
+    event with the full result.
+
+    Returns the peers-silent verdict:
+      False — heard ≥1 adv packet from a target (peers NOT silent;
+              whatever the reader's problem is, it's reader-side)
+      True  — heard zero target packets but ≥1 packet from other BLE
+              devices (this radio provably works; peers really silent)
+      None  — heard nothing at all (this radio may itself be deaf — no
+              conclusion), or the burst couldn't run
+
+    Timing caveat (see investigation doc): a burst samples the air ~15 s
+    AFTER wedge onset, not during it. A short peer dormancy can end before
+    the burst starts — a False verdict is weaker evidence than continuous
+    ambient's was. True verdicts remain decisive.
+
+    Target sightings also feed `_ambient_last_seen_mono`, so the wedge
+    snapshot taken after a burst carries real `ambient_peer_ages_s`."""
+    global _last_burst_end_mono, _last_burst_verdict
+    if _burst_lock.locked():
+        # A burst is already in flight (overlapping recovery paths) —
+        # don't stack discovery sessions on the burst adapter.
+        return None
+    age = recent_burst_age_s()
+    if age is not None and age < AMBIENT_BURST_COOLDOWN_S:
+        # Within cooldown — reuse the previous verdict rather than adding
+        # another discovery session to an already-stressed stack.
+        return _last_burst_verdict
+    async with _burst_lock:
+        acquired = await _acquire_ambient_adapter()
+        if not acquired:
+            return None
+        hci, was_up = acquired
+        targets_upper = {t.upper() for t in targets}
+        state: dict[str, dict] = {
+            t: {"count": 0, "last_rssi": None, "adv_names": set()}
+            for t in targets_upper
+        }
+        other_packets = 0
+
+        def cb(dev: BLEDevice, adv) -> None:
+            nonlocal other_packets
+            key = dev.address.upper()
+            if key not in state:
+                other_packets += 1
+                return
+            s = state[key]
+            s["count"] += 1
+            rssi = getattr(adv, "rssi", None)
+            if rssi is not None:
+                s["last_rssi"] = rssi
+            _ambient_last_seen_mono[key] = time.monotonic()
+            nm = adv.local_name or dev.name
+            if nm:
+                s["adv_names"].add(nm)
+
+        verdict: Optional[bool] = None
+        scanner = await _start_scanner_with_retry(hci, cb)
+        if scanner is not None:
+            try:
+                await asyncio.sleep(duration_s)
+            finally:
+                try:
+                    await scanner.stop()
+                except Exception:
+                    pass
+            target_packets = sum(s["count"] for s in state.values())
+            if target_packets > 0:
+                verdict = False
+            elif other_packets > 0:
+                verdict = True
+            # else: dead air from everyone — inconclusive (None); mirrors
+            # the reader's FM-11 rx-deaf logic.
+        # Restore prior power state: if the adapter was down before the
+        # burst (its default between bursts), put it back down so the
+        # radio isn't left running outside the measurement window.
+        if not was_up:
+            try:
+                await _run(["sudo", "-n", "hciconfig", hci, "down"],
+                           timeout=10.0)
+            except Exception:
+                pass
+        _last_burst_end_mono = time.monotonic()
+        _last_burst_verdict = verdict
+        _event(
+            "ambient_burst",
+            adapter=hci,
+            trigger=trigger[:200],
+            duration_s=duration_s,
+            adapter_was_up=was_up,
+            ran=scanner is not None,
+            peers_silent=verdict,
+            other_adv_packets=other_packets,
+            targets={
+                t: {
+                    "adv_packets": s["count"],
+                    "last_rssi": s["last_rssi"],
+                    "adv_names": sorted(s["adv_names"]),
+                }
+                for t, s in state.items()
+            },
+        )
+        return verdict
 
 
 async def recover_adapter(level: int) -> str:

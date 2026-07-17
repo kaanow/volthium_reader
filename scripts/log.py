@@ -24,6 +24,8 @@ from volthium.estimator import Estimator
 from volthium.pack import (
     DiscoveryWedgeError,
     _event,  # for recovery_skipped events
+    ambient_burst_check,
+    ambient_mode,
     ambient_says_peers_silent,
     ambient_scanner_loop,
     emit_stack_health,
@@ -348,18 +350,30 @@ async def _loop(args, log: logging.Logger) -> int:
             # and each level churns adapter state. Skip and just wait.
             peers = {args.a.upper(), args.b.upper()}
 
-            def _peers_silent_gate() -> bool:
-                verdict = ambient_says_peers_silent(peers)
+            async def _peers_silent_gate() -> bool:
+                # burst mode: the second radio is normally off — bring it
+                # up for one ~12 s scan to answer the question, then it
+                # goes back down. continuous mode: read the always-on
+                # scanner's rolling state (free).
+                if ambient_mode() == "burst":
+                    verdict = await ambient_burst_check(
+                        peers,
+                        trigger=(f"recovery_gate scan_errors="
+                                 f"{consec_scan_errors}: {str(exc)[:120]}"),
+                    )
+                else:
+                    verdict = ambient_says_peers_silent(peers)
                 if verdict is True:
                     log.warning(
-                        "recovery escalation skipped — ambient scanner "
+                        "recovery escalation skipped — ambient (%s) "
                         "confirms both peers silent (scan-errors=%d); "
                         "waiting for peers to return rather than churning "
-                        "adapter state", consec_scan_errors,
+                        "adapter state", ambient_mode(), consec_scan_errors,
                     )
                     _event(
                         "recovery_skipped",
                         reason="ambient_confirms_peers_silent",
+                        ambient_mode=ambient_mode(),
                         scan_errors=consec_scan_errors,
                         trigger=str(exc)[:200],
                     )
@@ -369,6 +383,15 @@ async def _loop(args, log: logging.Logger) -> int:
             if consec_scan_errors == ADAPTER_SOFT_RESET_AFTER:
                 log.error("discovery wedged %d× — resetting the HCI controller",
                           consec_scan_errors)
+                # In burst mode, take a second opinion BEFORE the snapshot so
+                # every wedge gets a peers-or-us verdict — most wedges clear
+                # at L1, so waiting for L2+ would leave the common case
+                # undiagnosed. L1 itself stays unconditional (cheap, and it
+                # clears real reader-side wedges); the burst only informs.
+                if ambient_mode() == "burst":
+                    await ambient_burst_check(
+                        peers, trigger=f"L1 wedge: {str(exc)[:120]}",
+                    )
                 # Snapshot BEFORE the recovery runs so the event captures the
                 # wedge state itself. We label the level of recovery about to
                 # be taken so downstream analysis can correlate.
@@ -381,16 +404,21 @@ async def _loop(args, log: logging.Logger) -> int:
             elif consec_scan_errors == ADAPTER_HARD_RESET_AFTER:
                 log.error("discovery still wedged %d× — restarting bluetooth.service",
                           consec_scan_errors)
+                # Gate BEFORE the snapshot: in burst mode the gate runs a
+                # fresh ambient scan, so the snapshot then carries real
+                # ambient_peer_ages_s instead of nulls.
+                silent = await _peers_silent_gate()
                 await snapshot_stack(reason=str(exc), level=2, peers=peers)
-                if not _peers_silent_gate():
+                if not silent:
                     action = await recover_adapter(2)
                     log.info("adapter recovery (hard): %s", action)
             elif consec_scan_errors == ADAPTER_USB_REPLUG_AFTER:
                 log.error("discovery still wedged %d× — software-replugging "
                           "the USB adapter (full re-enumeration)",
                           consec_scan_errors)
+                silent = await _peers_silent_gate()
                 await snapshot_stack(reason=str(exc), level=3, peers=peers)
-                if not _peers_silent_gate():
+                if not silent:
                     action = await recover_adapter(3)
                     log.info("adapter recovery (usb replug): %s", action)
             elif consec_scan_errors >= RESTART_AFTER_SCAN_WEDGE:
@@ -399,8 +427,9 @@ async def _loop(args, log: logging.Logger) -> int:
                           consec_scan_errors)
                 # Last-resort snapshot: the wedge survived every ladder rung —
                 # the surviving evidence is what makes this incident learnable.
+                silent = await _peers_silent_gate()
                 await snapshot_stack(reason=str(exc), level=4, peers=peers)
-                if _peers_silent_gate():
+                if silent:
                     # Peers still silent — respawning the process won't help
                     # any more than the previous rungs. Skip the exit, keep
                     # looping (with backoff below) so we don't hammer systemd
@@ -424,6 +453,14 @@ async def _loop(args, log: logging.Logger) -> int:
             # class of outage stays silent (it went undiagnosed until we
             # forced a snapshot by hand — 2026-07-10).
             if consec_errors == CONSEC_ERR_SNAPSHOT_AT:
+                # Burst mode: sample the air before snapshotting — "neither
+                # battery readable" is exactly the case where peers-or-us
+                # is the whole diagnosis.
+                if ambient_mode() == "burst":
+                    await ambient_burst_check(
+                        {args.a.upper(), args.b.upper()},
+                        trigger=f"consec_read_failures={consec_errors}",
+                    )
                 await snapshot_stack(
                     reason=f"{type(exc).__name__}: {exc}", level=1,
                     peers={args.a.upper(), args.b.upper()},
@@ -437,22 +474,33 @@ async def _loop(args, log: logging.Logger) -> int:
                 log.error("%d consecutive total-read failures — exiting for a "
                           "clean systemd restart to reset the BLE stack",
                           consec_errors)
+                # Ambient gate: process restart won't help if peers are silent.
+                # Reset the counter to avoid the check firing every subsequent
+                # cycle and just keep looping — reads will resume the moment
+                # peers come back. Gate runs BEFORE the snapshot so a burst's
+                # fresh peer ages land in the snapshot fields.
+                peers = {args.a.upper(), args.b.upper()}
+                if ambient_mode() == "burst":
+                    verdict = await ambient_burst_check(
+                        peers,
+                        trigger=f"total_read_failures={consec_errors}",
+                    )
+                else:
+                    verdict = ambient_says_peers_silent(peers)
                 # Last-resort snapshot before exit — same rationale as
                 # the discovery-wedge Level-4 case.
                 await snapshot_stack(
                     reason=f"{type(exc).__name__}: {exc}", level=4,
-                    peers={args.a.upper(), args.b.upper()},
+                    peers=peers,
                 )
-                # Ambient gate: process restart won't help if peers are silent.
-                # Reset the counter to avoid the check firing every subsequent
-                # cycle and just keep looping — reads will resume the moment
-                # peers come back.
-                if ambient_says_peers_silent({args.a.upper(), args.b.upper()}) is True:
-                    log.warning("process restart skipped — ambient confirms "
-                                "peers silent; continuing to loop")
+                if verdict is True:
+                    log.warning("process restart skipped — ambient (%s) "
+                                "confirms peers silent; continuing to loop",
+                                ambient_mode())
                     _event(
                         "recovery_skipped",
                         reason="ambient_confirms_peers_silent",
+                        ambient_mode=ambient_mode(),
                         consec_errors=consec_errors,
                         would_have="process_exit",
                     )

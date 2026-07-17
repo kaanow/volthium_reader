@@ -177,6 +177,38 @@ restarts all wedged within 22 s). One wedge of a different class at
 17:03:49Z (`adapter_rx_deaf`, see observation log) — not an InProgress
 event, so the primary metric is still clean.
 
+### Phase 2B — burst-mode ambient (built 2026-07-17, deploy after experiment)
+
+Ambient as an on-demand instrument instead of an always-on second radio
+(operator-proposed; converges with the "burst-mode ambient" option above).
+`VOLTHIUM_AMBIENT_MODE=burst` keeps hci1 powered down; the reader brings
+it up for one ~12 s scan (`ambient_burst_check`) only when a recovery
+decision needs the peers-or-us verdict, then powers it back down. Burst
+points: L1 wedge snapshot (informational — L1 stays unconditional),
+L2/L3/L4 escalation gates (verdict can skip the rung), and the
+consecutive-total-read-failure snapshot. Emits one `ambient_burst` event
+per burst.
+
+Design properties:
+
+- **Verdict discrimination**: heard a target → peers NOT silent (False);
+  heard only neighbor devices → radio provably works, peers silent
+  (True); dead air → inconclusive (None, mirrors FM-11 rx-deaf logic).
+- **Timing caveat**: a burst samples ~15 s after wedge onset — short peer
+  dormancies can end before the burst starts, so False verdicts are
+  weaker than continuous ambient's; True verdicts remain decisive.
+- **Self-stressor accounting**: bursts run a discovery session on hci1 —
+  the demonstrated cross-adapter InProgress trigger. Wedge snapshots now
+  carry `recent_burst_age_s` + `ambient_mode`; wedges within ~60 s of a
+  burst are tallied separately from the steady-state rate. 60 s cooldown
+  between real bursts (cached verdict in between) stops a stuck recovery
+  loop from bursting every cycle.
+
+Deployment plan: after the single-adapter experiment concludes, set
+`VOLTHIUM_AMBIENT_MODE=burst` and re-enable `VOLTHIUM_AMBIENT_ADAPTER`
+in the systemd drop-in. This is the likely permanent configuration if
+the experiment confirms dual-adapter operation as a wedge contributor.
+
 ### Phase 2B+ — held for now
 
 Only if Phase 2A doesn't resolve the picture:
