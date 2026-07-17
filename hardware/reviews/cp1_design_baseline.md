@@ -4204,3 +4204,133 @@ Folded in before your pass so no known-stale statement survives review:
   the patch-cable check are closed. Four new registry rows cover the
   superseded forms (label-4/5 guidance, patch-cable chain, on-site
   caliper, "aviation-style"); all verified firing on pre-fix text.
+---
+
+## 8.20 Reviewer findings (iteration 39 - iter-38 resolution re-review)
+
+This pass independently re-verified the iteration-38 response plus the
+pre-review section 33.1 evidence addendum and did not start CP2. The mandatory
+D35 consistency checker ran first and exited 0 (31
+manifest parts; 40 `_verify_` BOM cells). The new FET identities, changed SKU
+cells, replacement electrical ratings, retired ZXMP object, REF-pad correction,
+and full Molex URL were checked. The replacement pass exposed one gate-drive
+power defect, one manufacturer lifecycle conflict, and live replacement drift.
+
+### Delta gate record
+
+| Gate / check | Independent result |
+|---|---|
+| D35 scripted gate | **PASS as implemented** - exit 0. The manual G5 sweep found live retired Q1 values and summary text; see Finding 62. |
+| F56 3V3 switch electrical fit | **PASS electrically** - the exact DMG3415U datasheet guarantees 53 mOhm max at VGS=-2.5 V, so the approximately -3.3 V direct drive qualifies the intended operating point. |
+| F57 Q1 electrical fit | **PASS for the FET itself** - the exact Si2309CDS datasheet gives -60 V VDS, +/-20 V VGS, and 0.345 Ohm max at VGS=-10 V. The inherited 1 kOhm gate-clamp network does not pass dissipation; see Finding 60. |
+| F57 changed-SKU reverse resolve | **PASS, 4/4 exact** - canonical `/resolve` on 2026-07-17 mapped DigiKey `SI2309CDS-T1-GE3CT-ND` and Mouser `781-SI2309CDS-GE3` to Vishay `SI2309CDS-T1-GE3`, and DigiKey `DMG3415UDICT-ND` and Mouser `621-DMG3415U-7` to Diodes `DMG3415U-7`. |
+| F57 object identity / stored files | **PASS, 2/2** - the local Si2309CDS and DMG3415U PDF SHA-256 prefixes are `feb0974dd371` and `3863b974014c`, matching their manifest rows; their manufacturers and orderable variants match the resolved objects. |
+| F57 availability / lifecycle | **FAIL for DMG3415U lifecycle** - both changed objects have ample live distributor stock, but Diodes marks DMG3415U NRND; see Finding 61. |
+| F58 REF fallback | **PASS** - live architecture text now makes the two-wire case conditional on the two-domain matrix and defines the fallback as a direct 0 Ohm reference conductor; old bleed forms remain only in explicitly superseded/history contexts. |
+| F59 manifest provenance | **PASS** - the PS-51021-024 row contains the complete official Molex URL. |
+| Section 33.1 cable evidence | **PASS for the visible objects; FAIL for G5 propagation** - the two committed photos show the four-position screw-coupled numbered face and the complete cable with an RJ45 male plug, supporting the family-level description and direct-mate correction. The continuity map is explicitly an owner multimeter measurement. Two live summary passages still preserve the superseded 4/5 interpretation; see Finding 63. |
+| Delta arithmetic | **PASS for the stated component-price sum** - the revised 3V3-switch subtotal is `2 * $0.72 = $1.44`, and the document's approximately `$57.4` delta / `$249.4` total follows its stated rounded inputs. Finding 60 adds an unbudgeted active-state pack burden, not a BOM-price correction. |
+
+Citation spot-check quota was met against three exact manufacturer documents.
+Vishay Si2309CDS document 68980 pp.1-2 lists orderable
+`Si2309CDS-T1-GE3`, -60 V VDS, +/-20 V VGS, and the cited 0.345/0.450 Ohm
+RDS(on) rows. Diodes DMG3415U DS31735 pp.1/3 lists -20 V VDS, +/-8 V
+VGS, and the cited 42.5/53/71 mOhm RDS(on) rows at -4.5/-2.5/-1.8 V.
+The exact onsemi BZX84C12LT1G family datasheet pp.2-3 gives 250 mW on
+FR-5 at 25 C, 2.0 mW/C derating above 25 C, and for BZX84C12LT1G gives
+11.4-12.9 V at the 20 mA test point. The three local hashes begin
+`feb0974dd371`, `3863b974014c`, and `f9818d9dfc03`, matching the
+manifest.
+
+### Finding 60 - IMPORTANT - Q1 gate clamp / Rg and DZ1: continuous full-charge dissipation is not rated
+**Issue**: Rg is documented as an approximately 1 kOhm 0805 transient-current
+limiter, but it carries large continuous current whenever Q1 is on. At a fully
+charged pack it dissipates roughly 0.27-0.32 W with no selected power-rated
+SKU, while DZ1 operates around 0.20-0.21 W against a 0.25 W rating that derates
+above 25 C. The network also adds roughly half a watt of unbudgeted pack load.
+
+**Evidence**: With Q1 source at 29.2 V and DZ1 holding source-to-gate at
+11.4-12.9 V, Q2 pulls the lower end of Rg approximately to ground. Therefore
+`I_Rg=(29.2-VZ)/1k=16.3-17.8 mA` and
+`P_Rg=(29.2-VZ)^2/1k=0.266-0.317 W`. R3 supplies only
+`VZ/100k=0.114-0.129 mA`, so
+`I_Z=I_Rg-I_R3=16.17-17.69 mA` and
+`P_Z=VZ*I_Z=0.202-0.209 W`. The exact onsemi datasheet rates DZ1 at
+250 mW on its specified FR-5 board at 25 C and derates it 2.0 mW/C above
+25 C, reducing the maximum to 200 mW at 50 C. The input burden is
+`29.2 V * I_Rg=0.476-0.520 W`. `hardware/layout/cp1_bom.md` leaves both
+Rg distributor cells `_verify_` and specifies only `~1 kOhm 0805 1 %`.
+
+**Suggested fix**: Re-size the gate network rather than treating Rg as a
+transient-only part. Independently bracket minimum Q1 VGS at minimum pack
+voltage, DZ1 current/knee and maximum clamp voltage at 29.2 V, Rg and DZ1
+power with ambient derating, and Q1 turn-on timing. Select an exact resistor
+value/package/SKU only after that derivation and include the resulting
+active-state burden in the power budget.
+
+### Finding 61 - IMPORTANT - G3 / DMG3415U-7: manufacturer marks the replacement NRND
+**Issue**: Iteration 38 describes DMG3415U as current-production and the BOM
+labels it Active, but the current manufacturer product page marks DMG3415U
+Not Recommended for New Design. Distributor stock does not override the
+manufacturer lifecycle status.
+
+**Evidence**: Diodes Incorporated's official DMG3415U product page displayed
+`DMG3415U (NRND)` on 2026-07-17. Live distributor queries the same day still
+showed 136,268 at DigiKey and 7,506 at Mouser, and all four changed SKU cells
+reverse-resolved exactly, so this is a lifecycle-selection defect rather than
+an identity or immediate-stock defect. The manufacturer status is the higher
+evidence rung.
+
+**Suggested fix**: Select a current-production P-channel load-switch FET with
+RDS(on) guaranteed at no more negative than -2.5 V and leakage specified well
+enough to support the parked-rail allocation. Reverse-resolve every changed
+SKU, store and hash the exact manufacturer datasheet, register DMG3415U as
+superseded, and re-run the voltage-drop, dissipation, leakage, and cost deltas.
+
+### Finding 62 - IMPORTANT - G5 / Q1 replacement: live baseline text retains ZXMP ratings and identity
+**Issue**: The Q1 replacement is not consistent across live binding documents.
+The battery-side design still quotes the retired ZXMP6A13F on-resistance and
+gate-rating text, and the overview BOM's current change summary stops at
+ZXMP6A13F even though the same document calls the following parts table the
+binding baseline.
+
+**Evidence**: `hardware/layout/cp1_battery_side.md` gate-clamp text cites the
+retired Diodes DS32014, states 600 mOhm at -4.5 V and 400 mOhm at -10 V
+instead of the Si2309CDS limits of 450/345 mOhm, and later compares the old
+approximately -29 V drive to `the FET's +/-12 V` although the selected
+Si2309CDS rating is +/-20 V. `docs/hardware/bom.md` says
+`Q1 (AO3401A->ZXMP6A13F)` in its live parts-changed banner while its Q1 row
+correctly selects Si2309CDS. These are not confined to the append-only review
+history or a clearly marked superseded schematic.
+
+**Suggested fix**: Update the live Q1 narrative to the exact Vishay document
+and Si2309CDS values, extend the change chain through Si2309CDS, and widen the
+D35 registry patterns so these stale rating/citation forms fail the scripted
+gate. Keep historical review responses unchanged.
+
+### Finding 63 - IMPORTANT - G5 / section 33.1 cable map: live summaries retain the superseded 4/5 interpretation
+**Issue**: The new measured 1-to-4 / 2-to-6 continuity map is not propagated
+consistently. Two live summaries still call the label's RJ45 4/5 map consistent
+with battery pins 1/2, even though their surrounding text now says the cable in
+hand maps those pins to RJ45 4/6 and that the label describes a different
+product.
+
+**Evidence**: `hardware/reviews/DESIGN_REVIEW_ITEMS.md` says `RJ45 side is
+4/5 per the label - consistent` at line 805, then records the owner-measured
+`battery 1/2 = CAN-H/L -> RJ45 4/6` at lines 807-809. `docs/vendor/README.md`
+likewise says the battery-side 1/2 statement does not conflict with the label's
+4/5 map because `one cable maps one to the other`, while its later live summary
+correctly says the purchased cable maps 1/2 to 4/6 and the 4/5 label belongs to
+a different cable product. The new checker patterns catch `follow ... label
+(4/5)` but not either surviving prose form, so D35 exits 0. Visual inspection
+of the two committed photos independently confirms the numbered four-position
+screw-coupled end and RJ45-male direct mate; the conductor continuity itself is
+explicitly an owner multimeter result and is not visible in those photographs.
+
+**Suggested fix**: Rewrite both live summaries to distinguish the separate
+label artifact from the measured in-service cable without calling their maps
+mutually consistent, and widen the superseded-token registry to cover these
+remaining 4/5 interpretation forms. Preserve the label's actual 4/5 content as
+artifact history, not routing guidance.
+
+**REVIEW COMPLETE**: NEEDS CHANGES - 0 blockers, 4 important. (See findings 60, 61, 62, 63.)
