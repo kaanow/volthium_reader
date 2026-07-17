@@ -3747,3 +3747,143 @@ packs, the vendor cable, and the app**. Consequences:
   channels on a series stack.
 - **F49's remaining owner ask (PS-51021-024) is still open** — not in
   this delivery.
+
+---
+
+## 8.18 Reviewer findings (iteration 35 — iter-34 resolution re-review)
+
+This pass was limited to independently re-verifying the iteration-34 fixes and
+same-day addendum; it did not start CP2. The mandatory consistency gate was run
+before review and exited 0 (29 manifest parts, 43 `_verify_` tokens). F43, F44,
+F46, and F50 close. F45's technical email content is usable, but its evidence
+labels need the minor correction in Finding 55. F47-F49 do not close as written.
+
+### Delta gate record
+
+| Gate / check | Independent result |
+|---|---|
+| D35 / G5 scripted consistency | **PASS** — `python3 hardware/reviews/tools/doc_consistency_check.py` equivalent run at review start, exit 0; 29 manifest parts and 43 `_verify_` tokens. |
+| F43 grounding re-check | **PASS** — ADM2587E Rev H Table 10 p.8 assigns converter GND2 to pins 11/14 and bus GND2 to pins 16/20, with pin 16 explicitly not directly tied to pins 11/14. Fig. 35 / p.17 places L2 between those domains and specifies the associated capacitor sides and L1/L2 keep-out. The revised `GND2_DCDC` / `ISO_BUS_GND` contract matches. |
+| F44 protection re-check | **PASS** — the populated-coordination claim is withdrawn; SM712 and series resistors are DNP and the shipped short internal port is explicitly unprotected. |
+| F45 correspondence content | **PASS with Finding 55 evidence-label nit** — the dated RS-485/no-ground and RJ45 7/8 statements exist in the committed transcript and the CAN connector-domain inference follows from the surrounding question. The committed artifact is nevertheless a derivative transcript, not the original `.eml`, and the cited photos are absent. |
+| F46 / F50 consistency and arithmetic | **PASS** — stale M12/CAN forms are registered and absent from live docs; 2 x ($0.40 + $0.10) + ($0.40 + $0.10) + $0.10 = $1.60 for the affected switch/bleed lines, reproducing the corrected approximately $57 delta / approximately $249 total. |
+| F47 isolated-bus acceptance | **FAIL** — the measurement reference checks only one transceiver domain, and the proposed two-wire fallback cannot guarantee the other domain's receiver common-mode. See Finding 52. |
+| F48 off-state contract | **FAIL** — the stated 1 uA 2N7002 bound is for 25 C only and comes from the wrong manufacturer's PDF. See Finding 51. |
+| F49 connector object identity | **FAIL** — PS-51021-009 is a wire-to-wire mate-side specification, not the 53398 header-side specification. The exact Molex PS-51021-024 is publicly available. See Finding 53. |
+| G3 changed-SKU reverse resolve | **FAIL, 4/5 exact** — four changed/relied-on cells resolve exactly; Mouser `71-CRCW0805100KFKEA` is ambiguous. See Finding 54. |
+| G3 live stock sample | **PASS, 5/5** — API 2026-07-17: `0151340801`, `53398-0871`, `51021-0800`, `ADM2587EBRWZ`, and `SM712.TCT` all had stock at DigiKey and/or Mouser; the queried listed lifecycle was Active where supplied. |
+
+Citation spot-check quota was met independently: ADM2587E Rev H pp.8/17
+(pins and split-ground layout); ZXMP6A13F p.4 plus the on-file 2N7002 p.2
+(off leakage and test conditions); and Molex PS-51021-009 pp.1-2 / section 3
+(wire-to-wire scope and mate-side ratings). The connector finding additionally
+uses the exact manufacturer PS-51021-024, opened from Molex during this pass.
+
+### Finding 51 — IMPORTANT — D37 / BOM Q_exp / datasheet manifest: 2N7002 off-state bound
+**Issue**: F48 still does not establish the claimed `<=1.5 uA` / `<=5 uW`
+worst-case expansion off-state term. The 2N7002 PDF on file is for a different
+manufacturer than the ordered SKU, and its 1 uA row is limited to 25 C rather
+than the project's full operating range.
+
+**Evidence**: Canonical `POST /resolve` on 2026-07-17 resolves Mouser
+`512-2N7002` exactly to **onsemi `2N7002`**. The manifest instead maps 2N7002
+to `2N7002.pdf` from **Diotec**. That PDF p.2 gives IDSS max 1 uA only at
+VDS=60 V, VGS=0, 25 C, and 500 uA at 125 C. The exact-manufacturer onsemi
+2N7002L family datasheet p.2 gives the same 1 uA at TJ=25 C and 500 uA at
+TJ=125 C and warns that performance is not indicated outside listed test
+conditions. Therefore 1 uA is not a datasheet maximum over 0-40 C, and a
+different manufacturer's same-generic-name PDF cannot verify the ordered
+object.
+
+**Suggested fix**: Select an exact manufacturer/orderable N-FET whose maximum
+off leakage is specified over the required temperature range (or select a
+purpose-built low-leakage switch/driver), reverse-resolve its distributor SKU,
+store and manifest that exact object's PDF, then recompute the parked voltage
+and hard-cut term. Until then describe 1 uA at 25 C as a test-point value, not
+an all-state worst-case bound.
+
+### Finding 52 — IMPORTANT — D36 section 7: common-mode test and fallback are one-sided
+**Issue**: The revised bench test measures A and B only with respect to the
+adapter's isolated ground. That can validate the reader-side receiver domain
+during the pack reply, but it does not validate the pack receiver's common-mode
+during reader transmission. The proposed 1 Mohm `ISO_BUS_GND`-to-B bleed also
+does not create a reference to the pack's B-minus, so failure cannot yet be
+claimed to cost population rather than a topology change.
+
+**Evidence**: For either RS-485 receiver, common-mode must be evaluated against
+that receiver's local ground. During adapter TX, the relevant remote reference
+is the active pack's B-minus (the series midpoint for the top pack); during the
+pack reply, it is `ISO_BUS_GND`. Section 7 criterion 2 specifies only A/B versus
+adapter isolated ground for both directions. The fallback ties
+`ISO_BUS_GND` to a signal conductor that the reader itself drives relative to
+`ISO_BUS_GND`; it provides no independent path to the remote B-minus while the
+reader drives, so it cannot force the pack receiver into its common-mode window.
+
+**Suggested fix**: Expand the acceptance matrix to capture A and B relative to
+both local grounds in the direction each receiver is active, using isolated
+differential probes for the top-pack midpoint. Keep D36 gated unless both
+receivers remain within their datasheet common-mode limits. Do not claim the
+DNP bias/bleed prevents a respin unless that exact network passes this matrix;
+reserve a real reference-conductor or other independently derived topology
+option if it does not.
+
+### Finding 53 — IMPORTANT — F49 / manifest 53398 row: exact header specification is missing but available
+**Issue**: PS-51021-009 cannot close the 53398 header-side object check. Its
+scope is the 51021 receptacle/50079 terminal wire-to-wire system, while the
+ordered PCB object is 53398-0871. The exact header-side manufacturer
+specification is available and must be stored rather than leaving this premise
+on a sibling document.
+
+**Evidence**: The on-file `Molex_PS-51021-009_PicoBlade_product_spec.pdf` p.1
+is titled for a 1.25 mm wire-to-wire connector and does not list 53398. Molex's
+official
+[`PS-51021-024-001`](https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/productspecificationpdf/510/51021/PS-51021-024-001.pdf?inline=)
+p.1 explicitly covers 50058/50079 terminals, 51021 receptacle housings,
+53398 vertical headers, and 53261 right-angle headers. Its p.2 ratings are
+1.0 A max for AWG 26/28/30, 0.8 A for AWG 32, 125 V, and -40 to +105 C; its
+8-circuit derating reference is 1.5 A for AWG 26/28 and 1.0 A for AWG 30/32,
+with the table marked reference-only. This positively supports the intended
+1 A ceiling once the exact PDF is committed and manifested.
+
+**Suggested fix**: Download the official PS-51021-024 PDF, record its source
+URL and SHA-256 in the manifest against the 53398/51021/50079 system, and make
+the 53398 rating claim cite that exact specification. Retain PS-51021-009 only
+for claims that it actually covers.
+
+### Finding 54 — IMPORTANT — cp1_bom.md R3/R6/R_exp_bleed: ambiguous Mouser SKU
+**Issue**: The changed-SKU sweep fails because the Mouser cell copied onto the
+new bleed resistor, and already used by R3/R6, is not an exact orderable SKU.
+It resolves ambiguously to two different suffix variants.
+
+**Evidence**: Canonical `POST /resolve` on 2026-07-17 returned exact matches for
+`WM15273-ND -> 0151340801`, `RMCF0805FT100KCT-ND -> RMCF0805FT100K`,
+`WM1142TR-ND -> 0500798000`, and `538-50079-8000 -> 50079-8000`. It returned
+`matched: ambiguous` for `71-CRCW0805100KFKEA`, with candidates
+`CRCW0805100KFKEAC` and `CRCW0805100KFKEAHP`. An exact MPN query for the BOM's
+intended Vishay `CRCW0805100KFKEA` instead returned Mouser
+`71-CRCW0805-100K-E3` (296,354 in stock at query time). The ambiguous cell
+appears in R3, R6, and R_exp_bleed.
+
+**Suggested fix**: Replace all three live Mouser cells with the exact
+reverse-resolved SKU (or another exact selected orderable), then add the
+superseded ambiguous token to the consistency registry and rerun the full SKU
+sweep.
+
+### Finding 55 — NIT — F45 evidence labels: derivative transcript and uncommitted photographs
+**Issue**: The technical email content is now inspectable, but live text
+overstates the committed evidence as the "original thread on file" and as
+reviewer-visible rung-1 photographs.
+
+**Evidence**: The committed artifact identifies itself as a **redacted
+transcript** decoded from an `.eml`; it says the owner retains the original,
+and its Message-ID is redacted. The recorded original SHA cannot be reproduced
+from an on-file original. No pack/cable photo artifacts were added in the two
+iteration-34 commits, so this reviewer could verify only the transcript's text,
+not the claimed physical-photo observations.
+
+**Suggested fix**: Label the evidence precisely as an owner-supplied redacted
+transcript derived from an off-file original, and label the connector photos as
+owner-reported inspection unless redacted image artifacts are committed. The
+dated RS-485/no-ground and pin-domain content may remain transcript-verified.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 4 important. (See findings 51, 52, 53, 54.)

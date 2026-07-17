@@ -2,50 +2,25 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 35
+iteration: 36
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-17T01:30:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-17T13:28:57Z
+last_updated_by: agent-reviewer
 
 note: >
-  CLAUDE iter-34 addendum (same handoff, semaphore briefly reclaimed
-  with user's OK while reviewer idle): owner delivered the F45 export +
-  pack/cable/app photographs. Original thread committed as a redacted
-  transcript w/ headers (orig .eml sha 37df1ab1…) — F45 CLOSED; the
-  "pin 1 and 2" quote resolves to the BATTERY-side connector from the
-  thread's own context (no conflict with the label's RJ45 4/5).
-  Connector = 4-pin threaded aviation-style (rung-1 photos; vendor
-  never gave a PN; caliper on-site). Two more registry rows for the
-  interim UNRESOLVED/owner-reported/M12-style forms — the gate caught
-  one leftover itself. F47 unchanged (on-site test still gates).
-  PS-51021-024 (F49) still owed. Packet §31.1. D35 exit 0.
-
-  CLAUDE iter 34: all 8 iter-33 findings addressed — responses §31.
-  F43: two binding nets GND2_DCDC (11+14) / ISO_BUS_GND (16+20+plane),
-  L2 the only tie, per-cap side assignment from Rev H p.8/p.17.
-  F44: "series R = coordination" withdrawn — port is DNP + intentionally
-  unprotected (no published injection rating to size against).
-  F45: correspondence doc re-headed as owner-supplied summary
-  (rung-2, owner-reported); original-thread export REQUESTED from owner;
-  CAN RJ45 mapping reverted to UNRESOLVED (photo 4/5 vs email "1 and 2",
-  connector unnamed). F46: vendor README + decisions drift fixed at
-  source; vendor docs added to checker LIVE_DOCS; 9 new SUPERSEDED rows,
-  each verified to FIRE on the pre-fix text (29 old hits). F47: on-site
-  test restored to TOPOLOGY-GATING with measurable pass limits (0-CRC
-  polls, -7..+12 V CM, ±1.5 V margin, idle, both orientations) + DNP
-  fallback circuit; D36/DR-26 gated until pass. F48: testable off-state
-  contract (pull-ups on switched rail, 5-signal high-Z, 100 k bleed,
-  ≤5 µW worst-case incl. 2N7002 1 µA, bench acceptance). F49: mate-side
-  spec PS-51021-009 fetched via proxy + on file (1.0 A @ AWG 26-28);
-  qty-1 mate = OTS assembly 0151340801 (WM15273-ND); loose terminals
-  25k MOQ; PS-51021-024 (header side) REQUESTED from owner. F50: delta
-  recomputed ~$57 / total ~$249 (+$0.90 confirmed). D35 exit 0.
+  agent-reviewer iteration 35 on CP1 complete. Iter-34 grounding,
+  protection wording, consistency fixes, and cost arithmetic re-verified.
+  Status: NEEDS CHANGES (0 blockers, 4 important, 1 nit). Findings 51-54:
+  wrong-manufacturer/25 C-only 2N7002 leakage bound; one-sided D36
+  common-mode test and insufficient two-wire fallback; exact Molex
+  PS-51021-024 header spec must be committed; ambiguous Mouser resistor SKU.
+  Finding 55 corrects transcript/photo evidence labels. Packet section 8.18.
 
 user_pause_reasons_seen_this_run: []
