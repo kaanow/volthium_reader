@@ -1,46 +1,54 @@
-# Volthium support correspondence — RS-485 / CAN battery interface (owner-supplied summary)
+# Volthium support correspondence — RS-485 / CAN battery interface (original thread on file)
 
-> **Provenance (F45, iter-34):** this file is an **owner-written summary** of
-> an email thread — selected quotations and paraphrases, without message
-> headers, dates-per-message, the owner's questions, or an immutable export.
-> It is therefore **rung-2 evidence held at "owner-reported"**: strong enough
-> to guide design direction, **not** strong enough to be independently
-> re-verified or to silently overwrite other physical evidence (e.g. the
-> photographed Pro-Series adapter label in [`README.md`](README.md)).
-> **Requested from the owner:** a redacted `.eml` / PDF export / screenshots
-> of the actual thread (with per-message metadata), committed alongside this
-> file with its hash recorded. When that lands, this banner is replaced and
-> the facts below graduate to verifiable vendor statements.
+> **Provenance (F45 — CLOSED 2026-07-16):** the original email thread is now
+> committed as
+> [`Voltage_monitoring_thread_2023-2024_redacted_transcript.txt`](Voltage_monitoring_thread_2023-2024_redacted_transcript.txt)
+> — a decoded transcript with headers and the complete message bodies in
+> both directions. Redaction scheme (privacy for a public repo): personal
+> names → [Owner]/[Support Agent], email addresses/phones/address →
+> generic placeholders, tracking/CRM URLs → generic descriptions; message
+> structure, dates, and all technical content unaltered. The owner
+> retains the unredacted original `.eml`
+> (SHA-256 `37df1ab1127bb20e36b715c02d0767a0eed23a6b57a7b34436ce39540863f573`);
+> transcript SHA-256 `7c7ac607a628295e…`. Every quotation below can be
+> checked against the transcript.
 
-**Source:** email thread between Kaan Williams (owner) and Volthium Support
-(Chloé Giroux, Yanni Samson), Nov 2023 – Mar 2024, as summarized by the
-owner on 2026-07-16. Subject: how to read the actual Loon Lake packs
-(**12 V 200 Ah, model ~12.8-200-G4DY-CH20**, built-in heater + Bluetooth, two
-in series → 24 V).
+**Source:** email thread between the owner and Volthium Support (one
+support agent throughout), **2023-11-12 → 2024-03-28**.
+Packs: 2× 12 V 200 Ah (heater + Bluetooth; owner's initial email says
+"12.8-200-G4DY-CH20 I think"; the pack serial label photographed reads
+**V-BTH-0821-12V200Ah-0533**, app ID V-12V200AH-0533), in series → 24 V,
+off-grid cabin.
 
-## Reported facts (verbatim-as-recalled / paraphrased with attribution)
+## Verified facts (each dated; check against the transcript)
 
-| Fact | Vendor statement (owner-reported) | Corroboration |
+| Fact | Vendor statement (date) | Status |
 |------|------------------|---------------|
-| **Interface is RS-485 (not TTL)** | *"Use a Standard RS485 adapter with A & B. No ground need. Don't use a TTL 3.3V adapter directly."* (Mar 2024). The datasheet's "Communication setting TTL, Voltage 3.3V" is the BMS's *internal* signaling; you access it **through an RS-485 adapter**, not by tapping raw TTL. | **Corroborated** by the independent photographed adapter label (RS-485-A/B present on the RJ45) |
-| **No ground wire needed** | *"No ground need."* — 2-wire A/B differential; a standard RS-485 adapter works. | Consistent with an isolated 2-wire front-end; **final proof = on-site test** (design §7 pass limits) |
-| **Battery connector** | Vendor sells **"XLR to RJ45 female"** cables (*"$10/Ea"*). The email calls the port **XLR**. | **In tension** with the photographed Pro-Series cable (4-socket M12-style plug). Exact family = **on-site identification**; not load-bearing (we mate at the RJ45 end) |
-| **RS-485 pinout on the RJ45 end** | *"Pin 7 RS485 A · Pin 8 RS485 B"* (Jan 2024). | **Corroborated** — the photographed label also shows 7/8. The one mapping with two independent sources |
-| **Which socket** | *"use the one closest to the negative terminal."* (Two comms sockets per pack.) | On-site check |
-| **Example working adapter** | Vendor-endorsed: a generic USB-RS485 converter (Amazon B081MB6PN2) — i.e. any standard RS-485 transceiver, no special hardware. | — |
-| **CAN pinout (future, not our path)** | *"our CAN uses pin 1 and 2 … first pin is CAN High and the 2nd is CAN Low."* (Nov 2023). **The quotation does not name the connector** — pins 1/2 could be the pack connector or the RJ45. CAN requires the Volthium **Communication Hub ($105)** + a Victron Cerbo-S GX. | **Conflicts** with the photographed adapter label (CAN-H/L on RJ45 **4/5**) if read as RJ45 pins. **CAN RJ45 mapping = UNRESOLVED** pending the original thread and/or on-site pin-out; CAN is unused by the current design |
-| **12 V packs ≠ Insight Home / Xanbus** | *"With the 12V 200Ah batteries, it is not possible to make it communicate with the Insight Home."* So the display/monitor must be our own reader (BLE or RS-485), not a Schneider/Victron ecosystem device. | — |
+| **Interface is RS-485 (not TTL)** | *"Use a Standard RS485 adapter with A & B. No ground need. Don't use a TTL 3.3V adapter directly."* (**2024-03-28**). The protocol doc's "TTL 3.3 V" is the BMS's internal signaling — the owner asked exactly this (2024-03-28 03:37) and this was the answer. | **VERIFIED** (transcript) — also corroborated by the photographed adapter label (RS-485 on the RJ45) |
+| **RS-485 pinout on the RJ45 end** | *"Pin 7 RS485 A · Pin 8 RS485 B"* (**2024-01-15**) | **VERIFIED** — two independent sources (thread + photographed label) |
+| **Which socket** | *"you'll need to use the one closest to the negative terminal"* (**2024-01-15**). The photographed pack face has **two** identical 4-pin sockets. | VERIFIED (transcript); which-is-which per pack = on-site |
+| **CAN pinout — battery-side connector, NOT RJ45** | *"On our CAN, the first pine is CAN High and the 2nd is CAN Low"* (**2023-11-14**); *"our CAN uses pin 1 and 2"* (**2023-11-21**). **Domain resolved by the thread context:** the owner's question (2023-12-27) was explicitly about the **connector on the battery** — *"It is not the RJ45 I expected … it is not clear which pins are 1 and 2"*. So CAN-H/L = **pins 1/2 of the pack's 4-pin connector**. This does **not** conflict with the photographed Pro-Series adapter label putting CAN-H/L on **RJ45 4/5** — different connectors, one cable maps one to the other. | **RESOLVED** (was flagged ambiguous in review F45) |
+| **Battery connector** | Vendor sells *"XLR to RJ45 female"* cables ($10/Ea, **2024-01-15**; "PACKAGE ADDITIONAL COMMUNICATION CABLE" $21.98, **2024-03-13**). Owner's photos (attached to the 2023-12-27 email; re-shared 2026-07-16): the pack carries **two 4-pin circular sockets with threaded collars** and the vendor cable's battery end is a **4-pin threaded aviation-style metal plug** — "XLR" is the vendor's colloquial name (true XLR latches; this threads). **Vendor never supplied the connector PN** (asked directly 2023-12-27, unanswered). Exact PN/family = on-site caliper/ID; not load-bearing (we mate at the RJ45 end). | **Photographic evidence**; PN open |
+| **Example working adapter** | Generic USB-RS485 converter, Amazon B081MB6PN2 (**2024-03-28**) | VERIFIED (transcript) |
+| **Protocol document** | RS-485 protocol shared via SharePoint link (**2024-03-25**) — the rev 1.1 doc stored in this directory | VERIFIED |
+| **12 V packs ≠ Insight Home / Xanbus** | *"With the 12V 200Ah batteries, it is not possible to make it communicate with the Insight Home"* (**2023-11-23**, correcting the 2023-11-21 "talk to the home insight" remark); no Xanbus either. Hence our own reader. | VERIFIED (transcript) |
+| **CAN path hardware (future, unused)** | Communication Hub $105 + Victron Cerbo-S GX (**2024-01-15**) | VERIFIED |
 
 ## Implications for the design
 
-- **F37 (interface premise):** the RS-485-vs-TTL question is answered
-  RS-485 A/B, 2-wire, no ground — at owner-reported strength, corroborated
-  on the RS-485/7-8 point by the photographed label. The isolated-per-channel
-  ADM2587E front-end is the correct topology class under this premise.
-  **The series-stack top-pack case is not covered by any source and remains
-  gated on the on-site test** (design §7 pass limits — F47).
-- Connector chain: **pack socket → Volthium pack-connector→RJ45-female cable →
-  RJ45 patch → our board RJ45 jack (RJHSE-5380)**, RS-485 A/B on pins 7/8.
-- On-site items (~2-week visit): the §7 gating measurements (top-pack read,
-  common-mode window, differential margin, idle behavior, both orientations),
-  plus connector-family identification and the CAN pin-domain question.
+- **F37/F45 premise now stands on the committed original thread**: RS-485
+  A/B, 2-wire, no ground, RJ45 7/8. The isolated-per-channel ADM2587E
+  front-end is the correct topology class.
+- **CAN ambiguity resolved**: battery-connector pins 1/2 (vendor) and the
+  Pro-Series label's RJ45 4/5 describe **different connectors** and are
+  mutually consistent. CAN remains unused by D36; if the future
+  unpopulated pads are routed, follow the RJ45-side label (4/5) and
+  bench-verify continuity through the actual cable at CP2+.
+- **The on-site electrical test remains topology-gating (F47)** — nothing
+  in the thread covers two isolated channels on a series stack; pass
+  limits in the design doc §7. Connector-family ID (caliper/photo) rides
+  along, plus which socket carries RS-485 on each pack.
+- Photo set (pack face w/ two capped sockets + serial label
+  V-BTH-0821-12V200Ah-0533; vendor cable both ends; app screenshot
+  showing 13.31 V/98 % SOC) received from the owner 2026-07-16 — also
+  referenced as attachments inside the 2023-12-27 message.

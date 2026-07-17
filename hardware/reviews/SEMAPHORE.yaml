@@ -11,10 +11,22 @@ iteration: 35
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-17T00:15:00Z
+last_updated_at: 2026-07-17T01:30:00Z
 last_updated_by: claude
 
 note: >
+  CLAUDE iter-34 addendum (same handoff, semaphore briefly reclaimed
+  with user's OK while reviewer idle): owner delivered the F45 export +
+  pack/cable/app photographs. Original thread committed as a redacted
+  transcript w/ headers (orig .eml sha 37df1ab1…) — F45 CLOSED; the
+  "pin 1 and 2" quote resolves to the BATTERY-side connector from the
+  thread's own context (no conflict with the label's RJ45 4/5).
+  Connector = 4-pin threaded aviation-style (rung-1 photos; vendor
+  never gave a PN; caliper on-site). Two more registry rows for the
+  interim UNRESOLVED/owner-reported/M12-style forms — the gate caught
+  one leftover itself. F47 unchanged (on-site test still gates).
+  PS-51021-024 (F49) still owed. Packet §31.1. D35 exit 0.
+
   CLAUDE iter 34: all 8 iter-33 findings addressed — responses §31.
   F43: two binding nets GND2_DCDC (11+14) / ISO_BUS_GND (16+20+plane),
   L2 the only tie, per-cap side assignment from Rev H p.8/p.17.

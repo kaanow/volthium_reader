@@ -218,6 +218,19 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "~$57 delta / ~$249 total",
      "F50: delta recomputed from populated BOM rows — two full FET pairs "
      "$1.00 + Q_exp $0.50 (+R_exp_bleed) → ~$56.7 ≈ $57"),
+    # 2026-07-16 same-day: owner committed the original thread (.eml) +
+    # pack/cable photographs — the F45 interim "unresolved" forms resolve:
+    (r"CAN (RJ45 )?mapping (is )?UNRESOLVED|owner-reported|"
+     r"owner-supplied summary(?!\)? of an email thread — selected)",
+     "transcript-verified (thread on file)",
+     "F45 closed: original thread committed (redacted transcript, orig "
+     "sha 37df1ab1…); 'pin 1 and 2' = battery-side connector domain — "
+     "consistent with the label's RJ45 4/5"),
+    (r"connector family unresolved|4-socket M12-style|M12[- ]style plug",
+     "4-pin circular threaded-collar aviation-style (photographed)",
+     "Owner photos 2026-07-16 (rung-1): two 4-pin threaded sockets per "
+     "pack; vendor cable = mating 4-pin threaded plug → RJ45 female; "
+     "vendor 'XLR' is colloquial; exact PN = on-site caliper"),
 ]
 
 # ---------------------------------------------------------------------------

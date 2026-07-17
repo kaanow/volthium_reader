@@ -2070,12 +2070,12 @@ no reliance on the ADM2587E's unspecified VCC=0 behavior. **isoPower
 support network (F32):** full bypass/ferrite/stitching set + a binding
 CP2/CP3 isolation-keepout contract (design §3).
 Connectors: 2× RJHSE-5380 RJ45 (mate the vendor pack-connector→RJ45
-cable; A/B on pins 7/8 — both independent sources agree; **CAN RJ45
-mapping unresolved, F45** — photo label says 4/5, vendor email says
-"pin 1 and 2" without naming the connector; unpopulated CAN pads are
-routed only after the on-site pin-out check). Bus TVS footprints =
-SM712 + series R, **DNP / port intentionally unprotected (F44)** — see
-design §3.
+cable; A/B on pins 7/8 — double-sourced: thread 2024-01-15 + photo
+label; **CAN domain resolved, F45 closed 2026-07-16** — the thread's
+"pin 1 and 2" is the battery-side connector, the RJ45 side is 4/5 per
+the label; consistent, different connectors; CAN pads follow the RJ45
+label if ever routed). Bus TVS footprints = SM712 + series R, **DNP /
+port intentionally unprotected (F44)** — see design §3.
 
 **Reserved, not chosen: CAN for reading.** CAN's role is a future
 pack→Victron-inverter bridge (the vendor CAN doc's purpose); its
@@ -2083,22 +2083,23 @@ common-mode range is worse for a series stack and it carries less
 per-cell detail than the serial protocol. The ESP has a native TWAI/CAN
 controller if that bridge is ever built.
 
-**Interface premise — owner-reported vendor guidance, provenance-scoped
-iter-34 (F37/F45/F47;** see design §7 +
-[`vendor/volthium-rs485-correspondence-2024.md`](../../docs/vendor/volthium-rs485-correspondence-2024.md)
-provenance banner): owner-reported Volthium wording — *"Use a Standard
-RS485 adapter with A & B. No ground need. Don't use a TTL 3.3V adapter
-directly."* So the premise is RS-485 (not TTL), 2-wire/no-ground, A/B on
-RJ45 **7/8** (the 7/8 mapping is corroborated by the independent
-photographed adapter label); socket closest to the negative terminal;
-pack connector family unresolved (email "XLR" vs photographed M12-style
-— not load-bearing, we mate at the RJ45). An export of the original
-thread is requested from the owner (F45). The ADM2587E isolated
-front-end is the correct circuit class under this premise. **The
-~2-week on-site test remains TOPOLOGY-GATING (F47):** it decides whether
-the floating island needs a local reference/bleed — pass limits and the
-DNP fallback circuit are specified in design §7; **D36/DR-26 stay gated
-until it passes.**
+**Interface premise — ORIGINAL THREAD ON FILE (F45 closed 2026-07-16;
+F37/F47;** see design §7 + the transcript
+[`vendor/Voltage_monitoring_thread_2023-2024_redacted_transcript.txt`](../../docs/vendor/Voltage_monitoring_thread_2023-2024_redacted_transcript.txt)
++ dated fact table in
+[`vendor/volthium-rs485-correspondence-2024.md`](../../docs/vendor/volthium-rs485-correspondence-2024.md)):
+verified verbatim, 2024-03-28 — *"Use a Standard RS485 adapter with
+A & B. No ground need. Don't use a TTL 3.3V adapter directly."* So:
+RS-485 (not TTL), 2-wire/no-ground, A/B on RJ45 **7/8** (double-sourced);
+socket closest to the negative terminal (2024-01-15). Pack connector
+**photographed** (owner, 2026-07-16): 4-pin circular threaded-collar
+aviation-style, two per pack — vendor's "XLR" is colloquial; exact PN
+never supplied by the vendor, caliper on-site; not load-bearing (we mate
+at the RJ45). The ADM2587E isolated front-end is the correct circuit
+class under this premise. **The ~2-week on-site test remains
+TOPOLOGY-GATING (F47):** it decides whether the floating island needs a
+local reference/bleed — pass limits and the DNP fallback circuit are
+specified in design §7; **D36/DR-26 stay gated until it passes.**
 **D32 closed 2026-07-16:** ADM2587E + Semtech SM712 datasheets on file,
 read and verified; SM712 DNP by default (port intentionally unprotected
 per F44 — no coordinated network exists; see design §3).

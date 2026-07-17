@@ -146,7 +146,7 @@ Every SKU/stock figure below was resolved against the parts API on
 |---------------|------|-----|-----------------------|
 | U_iso1 / U_iso2 | **ADM2587E BRWZ** — isolated RS-485 w/ **integrated isolated DC-DC** (isoPower), 3.3 V, slew-limited **500 kbps**, ±15 kV ESD on bus pins, open/short fail-safe RX | One chip = isolation + transceiver + isolated supply → fewest solder joints for a qty-1 hand build. 500 kbps ≫ our 9600 baud, and slew-limiting *lowers* EMI. | Mouser **584-ADM2587EBRWZ**, 3,848 stock, $22.90. (ADM2582E is 16 Mbps overkill and DK-OOS.) **Datasheet on file** (Rev H, sha 77a52a9e6036): 2500 Vrms iso, CMTI >25 kV/µs, **ICC 90 mA @ 3.3 V/100 Ω** (Table 1; corrected iter-30 F28 — was mis-cited 72 mA, which is the 5 V row) — see §6. |
 | Q_ls_p, Q_ls_n | ZXMP6A13F P-FET + 2N7002 (high-side load switch + gate pull) | Power-gate VCC so isoPower runs only during a poll (see §5). Parts already on the board. | (already in cp1_bom.md) |
-| J_bat1 / J_bat2 | **Amphenol RJHSE-5380** RJ45 jack, shielded, magnetics-free | Mates the vendor's pack-connector→RJ45-female cable via a straight patch cable; same jack as the display link (commonality, on file). RS-485 A/B on RJ45 **pins 7/8** — the one mapping **both** independent sources agree on (photographed Pro-Series adapter label *and* the vendor email). **CAN RJ45 mapping UNRESOLVED (F45):** the photographed adapter label says CAN-H/L on RJ45 **4/5**; the vendor email says CAN is "pin 1 and 2" *without naming the connector* (could be pack-connector pins). Not load-bearing — CAN is unused in D36; route the unpopulated CAN pads only after the on-site pin-out check (§7). **Identical/interchangeable — either pack on either jack.** | Mouser **523-RJHSE-5380**, 8,697 stock, $2.30; datasheet on file (RJHSE-5380.pdf) |
+| J_bat1 / J_bat2 | **Amphenol RJHSE-5380** RJ45 jack, shielded, magnetics-free | Mates the vendor's pack-connector→RJ45-female cable via a straight patch cable; same jack as the display link (commonality, on file). RS-485 A/B on RJ45 **pins 7/8** — verified in the committed original thread (2024-01-15) *and* the photographed adapter label. **CAN domain RESOLVED (F45 closed 2026-07-16):** the thread's "pin 1 and 2" is the **battery-side connector** (owner's 2023-12-27 question was explicitly about that connector); the RJ45-side label says 4/5 — consistent, different connectors. CAN unused in D36; if the unpopulated pads are ever routed, follow the RJ45-side label (4/5) and bench-verify continuity through the actual cable. **Identical/interchangeable — either pack on either jack.** | Mouser **523-RJHSE-5380**, 8,697 stock, $2.30; datasheet on file (RJHSE-5380.pdf) |
 | TVS_bus + R_ser (**DNP footprints**) | **Semtech SM712** asymmetric RS-485 TVS (VRWM 12/7 V) + per-line series R footprints between the TVS node and the ADM2587E A/B | **F36/F44 — no coordinated protection exists in this design; the port is unprotected.** SM712 clamps **VC = 20 V @ 5 A** positive (Semtech Rev 6.0 p.2), above the ADM2587E bus abs-max of **−9/+14 V** (Rev H p.7), and a series R **does not fix that by itself**: the A/B pins are high-impedance, draw no defined current below their (unpublished) internal clamp, and so see the TVS-node voltage — with no published ADM2587E injection/clamp-current rating there is nothing to size the R against (F44 accepted; the iter-32 "populate as a coordinated pair, residual <14 V" claim is **withdrawn**). The ADM2587E's ±15 kV is **HBM (handling)**, *not* IEC 61000-4-2. **Status: DNP, intentionally unprotected** — accepted risk for a short (~1 m) inside-enclosure link that never leaves the battery box. If field-cable surge/ESD ever becomes a requirement, the fix is a **properly coordinated network chosen then** — a lower-clamp TVS/steering-diode stage whose *documented* residual < 14 V, or a two-stage clamp with the series element sized from a *published* downstream clamp-current rating — not the current footprints. | DK **SM712CT-ND** / Mouser **947-SM712.TCT** (Semtech), 99k+ stock. **Datasheet on file** (Semtech Final Rev 6.0, sha 6deb75310ebe): VRWM 12/7 V, VBR 13.3/7.5 V, VC 20/10 V @ 5 A, SOT-23. |
 | R_bias | fail-safe bias A/B → local iso-rails, + optional ~1 MΩ iso-GND↔bus bleed | References the floating island **locally** (defines idle; bleeds barrier leakage) — no battery-negative wire | high-value; per §7 |
 | R_di1, R_di2 | 1 kΩ series on each DIx | power-up-settle guard (§2a) | 0402/0603 ×2 |
@@ -273,38 +273,35 @@ duty; State-4 does no reads.)
 
 ---
 
-## 7. Interface premise — vendor guidance supports RS-485/no-ground; on-site test still GATES the topology (F37/F45/F47)
+## 7. Interface premise — original thread ON FILE; on-site test still GATES the topology (F37/F45/F47)
 
-**Update 2026-07-16, provenance-corrected iter-34 (F45):** the vendor
-evidence is an **owner-supplied summary** of a Volthium support email
-thread ([`../../docs/vendor/volthium-rs485-correspondence-2024.md`](../../docs/vendor/volthium-rs485-correspondence-2024.md))
-— selected quotations without headers/dates/full context, so per the
-evidence ladder it is **preliminary rung-2 evidence, not yet
-independently verifiable**. An export of the original thread (redacted
-`.eml` / PDF / screenshots with per-message metadata) is **requested
-from the owner**; until committed, claims below it are held at
-"owner-reported". Owner-reported vendor wording: *"Use a Standard RS485
-adapter with A & B. No ground need. Don't use a TTL 3.3V adapter
-directly."*
+**Update 2026-07-16 (second pass — F45 CLOSED):** the owner supplied the
+**original email thread**, now committed as a redacted transcript with
+headers ([`../../docs/vendor/Voltage_monitoring_thread_2023-2024_redacted_transcript.txt`](../../docs/vendor/Voltage_monitoring_thread_2023-2024_redacted_transcript.txt);
+original-`.eml` SHA-256 `37df1ab1…` recorded). The load-bearing quote is
+verified verbatim, dated **2024-03-28**: *"Use a Standard RS485 adapter
+with A & B. No ground need. Don't use a TTL 3.3V adapter directly."*
+Dated fact table: [`../../docs/vendor/volthium-rs485-correspondence-2024.md`](../../docs/vendor/volthium-rs485-correspondence-2024.md).
 
-- **It is RS-485, not TTL** (owner-reported vendor statement). The
-  datasheet's "TTL 3.3 V" is the BMS's *internal* signaling; you read it
-  **through an RS-485 adapter** (A/B). The ADM2587E RS-485 front-end is
-  the correct circuit class under this premise. This also agrees with
-  the independent photographed adapter label (RS-485-A/B on RJ45 7/8) —
-  the **two sources corroborate each other on RS-485 + 7/8**, which is
-  why that mapping is treated as solid while CAN (where they diverge)
-  is not.
-- **No ground wire needed** (owner-reported) — 2-wire A/B differential.
-  Consistent with the **isolated 2-wire** approach: each isolated
-  channel floats to its pack's reference across the barrier like a
-  standalone adapter would.
-- **Connector:** the vendor email calls the pack port "XLR" and ships a
-  pack-connector→RJ45-female cable; the earlier photographed Pro-Series
-  cable shows a 4-socket M12-style plug. **Exact connector family =
-  on-site identification** (item 4 below); nothing in D36 depends on it
-  (we mate at the RJ45 end). Use the socket **closest to the negative
-  terminal** (owner-reported vendor guidance).
+- **It is RS-485, not TTL** (transcript-verified, 2024-03-28 — the
+  owner asked the TTL-vs-RS-485 question explicitly and this was the
+  answer). The protocol doc's "TTL 3.3 V" is the BMS's *internal*
+  signaling; you read it **through an RS-485 adapter** (A/B). The
+  ADM2587E RS-485 front-end is the correct circuit class. RS-485 A/B on
+  RJ45 **7/8** is double-sourced (thread 2024-01-15 + photographed
+  label).
+- **No ground wire needed** (transcript-verified) — 2-wire A/B
+  differential. Consistent with the **isolated 2-wire** approach: each
+  isolated channel floats to its pack's reference across the barrier
+  like a standalone adapter would.
+- **Connector (photographed 2026-07-16 — rung-1):** the pack carries
+  **two 4-pin circular threaded-collar aviation-style sockets** (capped)
+  and the vendor cable's battery end is the mating 4-pin threaded plug →
+  RJ45 female. The vendor's "XLR" is colloquial (true XLR latches).
+  **Exact PN unknown — the vendor never supplied it** (asked 2023-12-27,
+  unanswered); caliper/ID on-site. Nothing in D36 depends on it (we mate
+  at the RJ45 end). Use the socket **closest to the negative terminal**
+  (thread, 2024-01-15).
 
 **Corrected over-claim (reviewer F37).** My earlier "both transceivers
 see ≈ 0 V CM by construction" over-stated it — isolation *permits* a
@@ -352,13 +349,14 @@ the existing 2-wire cable — still no third wire to the battery). Both
 are DNP footprints on the CP2 schematic either way, so a failure costs
 population, not a respin.
 
-**Status:** premise supported by owner-reported vendor guidance +
+**Status:** premise verified against the committed original thread +
 corroborating adapter photo; CMTI closed (>25 kV/µs). **D36/DR-26 and
 the CP1 delta stay gated on the on-site pass** — CP2 capture may
 proceed on the approved core, but the D36 nets are frozen only after
 items 1–4 pass. D37 (expansion) is independent and CP2-ready
-regardless. On-site also (non-gating): **identify the pack connector
-family** (photo/caliper), which socket carries RS-485 on each pack, and
+regardless. On-site also (non-gating): caliper the pack connector for
+its exact PN (family already photographed: 4-pin threaded
+aviation-style), which socket carries RS-485 on each pack, and
 patch-cable straight-through check.
 
 ---

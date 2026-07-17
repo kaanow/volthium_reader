@@ -1,0 +1,264 @@
+REDACTED TRANSCRIPT of the original .eml (owner retains the original).
+Original file: Voltage_monitoring.eml  SHA-256: 37df1ab1127bb20e36b715c02d0767a0eed23a6b57a7b34436ce39540863f573
+Redaction scheme: personal names -> [Owner]/[Support Agent]; email
+addresses -> [owner email]/[vendor support email]; phones/address ->
+generic placeholders; tracking/CRM URLs -> generic descriptions.
+Message structure, dates, and all technical content unaltered.
+Decoded from the .eml text body by email.parser (python) 2026-07-16.
+========================================================================
+Subject: Re: Voltage monitoring
+From: Volthium Support [vendor support email]
+To: [Owner] [owner email]
+Date: Thu, 28 Mar 2024 10:10:16 +0000
+Message-ID: [redacted]
+========================================================================
+
+Hi,
+Use a Standard RS485 adapter with A & B.  No ground need.
+
+Don’t use a TTL 3.3V adapter directly.
+
+Here an example of Adapter that works :
+https://www.amazon.com/dp/B081MB6PN2 [tracking params removed]
+
+
+
+Téléchargez Outlook pour iOS<https://aka.ms/o0ukef>
+________________________________
+De : [Owner] <[owner email]>
+Envoyé : Thursday, March 28, 2024 3:37:07 AM
+À : Support | Volthium <[vendor support email]>
+Objet : Re: Voltage monitoring
+
+Hello,
+
+can I get clarification about the first line of the document? It reads "Communication setting T T L ,Voltage 3.3V".
+
+"TTL" usually means 5 V. Are you saying I can use 5 V or 3.3 V, or that I must use 3.3 V for my communication?
+
+Thank you so much for your help.
+
+Cheers,
+ [Owner]
+
+
+On Mon, Mar 25, 2024 at 6:54 AM Volthium Support <[vendor support email]> wrote:
+Hello [Owner],
+
+Here is the RS485 protocol: [vendor SharePoint link to RS-485 protocol doc — doc stored in this directory]
+
+Thank you and have a nice day,
+
+[Support Agent]
+[vendor support phone]
+
+
+--------------- Message d'origine ---------------
+De: [Owner] [[owner email]]
+Envoyé: 2024-03-23 10 h 29
+À: [vendor support email]
+Objet: Re: Voltage monitoring
+
+Hi [Support Agent],
+
+I've recieved the cables and I'm ready to implement the Rs485 protocol. Are you still able to send that to me?
+
+Thanks,
+
+[Owner]
+
+On Wed, Mar 13, 2024, 11:43 a.m. Volthium Support <[vendor support email]> wrote:
+Hello [Owner],
+
+Perfect, I've attached the link to our website where you can purchase both cables directly.
+
+  *   PACKAGE ADDITIONAL COMMUNICATION CABLE - 21.98$/Ea: https://volthium.com/en/product/additional-cables/
+
+Thank you and have a nice day,
+
+[Support Agent]
+[vendor support phone]
+
+
+--------------- Message d'origine ---------------
+De: [Owner] [[owner email]]
+Envoyé: 2024-03-13 13 h 37
+À: [vendor support email]
+Objet: Re: Voltage monitoring
+
+Hello [Support Agent],
+
+This email was lost to me and I just rediscovered it. Thank you for all the information.
+
+I would like to buy two of the XLR to RS485 cables.
+
+My shipping address is
+
+ [owner shipping address]
+
+Can I pay by Visa?
+
+I can provide the details by phone when you have an invoice ready.
+
+Thanks!
+
+[Owner]
+
+On Mon, Jan 15, 2024, 11:14 a.m. Volthium Support <[vendor support email]> wrote:
+Hello [Owner],
+
+There are two options for battery reading, either RS485 or CAN if you purchase the Communication Hub. If you want to communicate in CAN, here's what we recommend:
+
+  *   Communication Hub - 105$: https://volthium.com/fr/product/communication-hub-victron-ve-can/
+  *   Victron Cerbo-S GX - 299.98$
+  *   Victron GX Touch - 294.98$
+
+If you wish to communicate via RS485, we can send you two XLR to RJ45 female cables to be able to communicate with your batteries. See the attached photos of the equipment that will be sent.
+
+  *   XLR to RJ45 female - $10/Ea
+
+Here are the pin details:
+
+  *   Pin 7 RS485 A
+  *   Pin 8 RS485 B
+
+In addition, we will provide you with the RS485 protocol. Then, when you connect the XLR cable, you'll need to use the one closest to the negative terminal.
+
+Does this answer all your questions?
+
+Thank you,
+
+[Support Agent]
+[vendor support phone]
+
+
+--------------- Message d'origine ---------------
+De: [Owner] [[owner email]]
+Envoyé: 2023-12-27 14 h 59
+À: [vendor support email]
+Objet: Re: Voltage monitoring
+
+Hello,
+
+I finally got access to the batteries for our off -grid cabin and I cant move forward. I understand that I need to connect to pins 1 and 2 for CAN communication but it is not clear which pins are 1 and 2. I also can't find any documentation on your website to tell what the part number of connector is. It is not the RJ45 I expected.
+
+What is the pinout of the connection on my batteries?
+
+What is the part number of the battery canbus connection, or the part number for mating connector?
+
+What are the terminating requirements?
+
+I have attached photos of the connectors, the battery name plate, and a screen shot from the Bluetooth app in the hopes this gets us to the best information faster.
+
+Thanks,
+[Owner]
+[owner phone]
+
+
+On Fri, Dec 1, 2023, 11:37 p.m. [Owner] <[owner email]> wrote:
+Thank you for all the information. I am hopeful I can use it to improve the useability of these batteries at our cabin.
+
+Cheers,
+ [Owner]
+
+
+On Thu, Nov 30, 2023 at 10:17 AM Volthium Support <[vendor support email]> wrote:
+Hello [Owner],
+
+I'm following up on your last e-mail. Did we answer all your questions?
+
+Thank you and have a nice day,
+
+[Support Agent]
+
+
+--------------- Message d'origine ---------------
+De: Volthium Support [[vendor support email]]
+Envoyé: 2023-11-23 14 h 45
+À: [owner email]
+Objet: Re: Voltage monitoring
+
+Hello [Owner],
+
+With the 12V 200Ah batteries, it is not possible to make it communicate with the Insight Home unfortunately.
+
+Thank you,
+
+[Support Agent]
+
+
+--------------- Message d'origine ---------------
+De: [Owner] [[owner email]]
+Envoyé: 2023-11-21 14 h 12
+À: [vendor support email]
+Objet: Re: Voltage monitoring
+
+Oh! Fantastic! How to I get the batteries to talk to the home insight device?
+
+On Tue, Nov 21, 2023, 11:07 a.m. Volthium Support <[vendor support email]> wrote:
+Hello [Owner],
+
+As mentioned in the previous email, indeed our CAN uses pin 1 and 2.
+
+Subsequently, our batteries talk to the home insight, but do not talk to the Xanbus.
+
+Thank you,
+
+[Support Agent]
+
+
+--------------- Message d'origine ---------------
+De: [Owner] [[owner email]]
+Envoyé: 2023-11-15 03 h 49
+À: [vendor support email]
+Objet: Re: Voltage monitoring
+
+Hello [Support Agent],
+
+Thank you for sharing that document.
+I understood from your email that your batteries use pins 1 and 2 for H and L rather than pins 7 and 2 used by a normal canbus. (And this is in contrast to that document, which says the Victron canbus uses pins 7 and 8). Do I have this right?
+
+
+Before I go down this path, I thought I ought to just check first: is it possible to connect these batteries into the Xanbus system used by Schnieder so that all the battery details can be seen by the built in monitoring tools? This would likely be the ideal solution.
+
+Cheers,
+ [Owner]
+
+
+On Tue, Nov 14, 2023 at 5:47 AM Volthium Support <[vendor support email]> wrote:
+Hello [Owner],
+
+I enclose the Victron CAN protocol with our Communication Hub which may help you to program your aduino. On our CAN, the first pine is CAN High and the 2nd is CAN Low.
+
+Thank you and have a nice day,
+
+[Support Agent]
+
+--------------- Message d'origine ---------------
+De: [Owner] [[owner email]]
+Envoyé: 2023-11-12 23 h 48
+À: [vendor support email]
+Objet: Voltage monitoring
+
+Hello,
+
+I am running 2 of your 12 V 200 Ah batteries (the version with built in heater and bluetooth, 12.8-200-G4DY-CH20 I think) in series at my off-grid cabin. One of the pain points for us is the hassle of knowing the battery charge level. The current process involves going upstairs with a mobile phone and using the app to connect over bluetooth to each battery and note which one is lower.
+
+There are a couple of reasons why this is undesirable. One is that we encourage people to put their phones away at the cabin and the requirement to use an app is not convenient. Another is that the workflow of using the app is not easy for my in-laws to do. They are not particularly tech savvy.
+
+My preferred solution is to install a small display in the kitchen that shows the overall percentage. I think it would be sensible to pull the state of charge information off the batteries using the data port on their side using a simple computer like an arduino. I am an electrical engineer (I design helicopter accessories) and I've done a small amount of work with canbus. Before I jump in, I have a few questions.
+
+- Is the data port on the batteries CANBUS?
+- Do you have any issues with this approach?
+- Are you familiar with other customers doing anything comparable?
+- Is there any guidance or suggestion you have for me as I start down this road?
+
+Cheers,
+  [Owner]
+  Vancouver, BC
+[vendor CRM-hosted image attachment]
+[vendor CRM-hosted image attachment]
+[vendor CRM-hosted image attachment][vendor CRM-hosted image attachment]
+[vendor CRM-hosted image attachment]
+[vendor CRM-hosted image attachment]
+[vendor CRM-hosted image attachment]

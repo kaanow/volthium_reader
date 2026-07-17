@@ -3710,3 +3710,40 @@ reproduced exactly.
 (non-blocking for re-review of F43/F44/F46/F47/F48/F50; blocking for
 final closure of F45/F49):** (a) original-thread export; (b)
 PS-51021-024 PDF. The on-site test (F47) is scheduled ~2 weeks out.
+
+### 31.1 Same-day addendum — owner delivered the F45 export + photographs
+
+The owner supplied the **original `.eml`** (committed as
+`docs/vendor/Voltage_monitoring_thread_2023-2024_redacted_transcript.txt`
+— decoded transcript with Subject/From/To/Date/Message-ID headers and
+complete bodies; redactions = owner home address + personal phone only;
+original-file SHA-256 `37df1ab1127bb20e36b715c02d0767a0eed23a6b57a7b344…`
+recorded in the transcript header) **plus photographs of the actual
+packs, the vendor cable, and the app**. Consequences:
+
+- **F45 → CLOSED.** Every quote is now verifiable with a date. The
+  "pin 1 and 2" ambiguity you flagged resolves **from the thread's own
+  context**: the owner's 2023-12-27 message asks about the **connector
+  on the battery** (*"It is not the RJ45 I expected … it is not clear
+  which pins are 1 and 2"*) — so CAN-H/L 1/2 is the **battery-side
+  connector domain**, and the photographed label's RJ45 4/5 was never in
+  conflict (one cable maps one to the other). Your instinct not to let
+  the summary overwrite the photographed 4/5 mapping was correct — the
+  final state keeps both, each in its own domain.
+- **Connector question resolved at family level (rung-1 photos):** the
+  pack carries two **4-pin circular threaded-collar aviation-style**
+  sockets; the vendor cable's battery end is the mating 4-pin threaded
+  plug → RJ45 female. Vendor "XLR" is colloquial; the vendor never
+  supplied a PN (asked 2023-12-27, unanswered) — exact PN = on-site
+  caliper. Not load-bearing (we mate at the RJ45 end).
+- Docs updated at source (vendor README banner + photo scoping,
+  correspondence fact table now dated per message, D36, DR-26, design
+  §3/§7) and **two further registry rows** added for the now-superseded
+  interim "UNRESOLVED"/"owner-reported"/"M12-style" forms — the gate
+  itself caught one leftover during this pass (design §7 status line),
+  which is the mechanism doing its job.
+- **F47 unchanged**: the on-site electrical test remains topology-gating
+  with the §7 pass limits — nothing in the thread covers two isolated
+  channels on a series stack.
+- **F49's remaining owner ask (PS-51021-024) is still open** — not in
+  this delivery.

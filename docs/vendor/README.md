@@ -5,19 +5,22 @@ truth doesn't rot on a laptop somewhere. Do NOT edit the vendor files
 themselves — copy relevant excerpts into our own docs (`reliability_failure_modes.md`,
 `cloud_architecture.md`, etc.) with attribution.
 
-> ⚠ **Evidence status 2026-07-16 (revised iter-34, F45/F46)** — two sources
-> describe the pack comms interface and they **partially disagree**:
+> ✅ **Evidence status 2026-07-16 (second revision — original thread now on
+> file, F45 closed).** The full support-email thread is committed:
+> [`Voltage_monitoring_thread_2023-2024_redacted_transcript.txt`](Voltage_monitoring_thread_2023-2024_redacted_transcript.txt)
+> (headers + complete bodies; see
 > [`volthium-rs485-correspondence-2024.md`](volthium-rs485-correspondence-2024.md)
-> (an **owner-supplied summary** of a Volthium support thread — see its
-> provenance banner) and the **photographed Pro-Series adapter label** below.
-> Where they agree — **RS-485 A/B on RJ45 7/8; use a standard RS-485 adapter,
-> 2-wire, no ground, not a raw TTL adapter** — treat as solid. Where they
-> diverge, treat as **unresolved pending the on-site visit**: (1) the pack
-> connector family (email says "XLR"; the photo shows a 4-socket M12-style
-> plug — possibly different pack generations); (2) the **CAN pin mapping**
-> (photo label: RJ45 **4/5**; email: "pin 1 and 2" *with the connector
-> unnamed*). CAN is unused by the current design, so nothing is load-bearing
-> on (2).
+> for the dated fact table). Resolutions of the two earlier ambiguities:
+> (1) the pack connector is a **4-pin circular threaded-collar
+> aviation-style socket** (owner photographs of the actual Loon Lake packs +
+> the vendor cable, 2026-07-16) — the vendor's "XLR" is colloquial and the
+> earlier "M12" reading of the Pro-Series photo was the same shape guessed
+> differently; exact PN = on-site caliper (vendor never supplied it).
+> (2) the **CAN "pin 1 and 2" is the battery-side connector domain** (the
+> thread context is explicit), so it **does not conflict** with this
+> directory's photographed label putting CAN-H/L on RJ45 4/5 — one cable
+> maps one to the other. RS-485 A/B on RJ45 **7/8** and "standard RS-485
+> adapter, 2-wire, no ground, not raw TTL" are verified in the transcript.
 
 ## The picture these files paint together
 
@@ -31,9 +34,10 @@ files cover them end-to-end:
 | **CAN (2.0A, 250/500 kbps)** | Victron GX device / inverter / charger | Victron CANbus protocol + cable pinout |
 
 The pack can even do the last two simultaneously via the RJ45 adapter —
-the photographed Pro-Series label puts RS-485-A/B on pins 7/8 (both
-sources agree) and CAN-H/L on pins 4/5 (**unresolved** — the vendor email
-says "pin 1 and 2" without naming the connector; see the banner above).
+the photographed Pro-Series label puts RS-485-A/B on pins 7/8 (verified
+in the thread too) and CAN-H/L on RJ45 pins 4/5 (consistent with the
+thread's battery-side "pin 1 and 2" — different connector domains; see
+the banner above).
 
 ## Files
 
@@ -126,14 +130,12 @@ Not currently used by our reader — but if we ever build a cabin-side
 
 ### `volthium-pro-series-rj45-adapter-pinout.png`
 
-Product photo of the Volthium "Pro Series" adapter cable — a **4-socket
-M12-style plug** on the battery end, **RJ45 female** on the client end.
-**Scope (F46):** this documents *the photographed Pro-Series cable*; the
-vendor email calls the Loon Lake packs' port "XLR", so whether this exact
-cable/connector matches our packs is **unconfirmed until the on-site
-visit** (possibly a different pack generation). The label on the cable
-gives only the RJ45 pinout (the battery-end pin layout is not published
-by the vendor):
+Product photo of the Volthium "Pro Series" adapter cable — a **4-pin
+circular threaded aviation-style plug** on the battery end (the earlier
+"M12" wording here was a mis-family of the same shape; superseded by the
+owner's 2026-07-16 photos of the actual packs and cable), **RJ45 female**
+on the client end. The label on the cable gives only the RJ45 pinout
+(the battery-end pin layout is not published by the vendor):
 
 | RJ45 pin | Signal |
 |---|---|

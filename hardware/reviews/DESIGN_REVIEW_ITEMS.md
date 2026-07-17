@@ -792,26 +792,26 @@ the front-end must float to each pack's reference → **two isolated
 channels** (ADM2587E), **symmetric/interchangeable**, addressed by
 protocol address. Reuses the `ej_bms` parser.
 
-**Interface premise — owner-reported vendor guidance; on-site test is
-TOPOLOGY-GATING (iter-34 F45/F47 supersede the iter-32 "vendor-confirmed
-/ no longer topology-gating" wording).** The vendor evidence is an
-**owner-supplied summary** of a Volthium support thread
-([`../../docs/vendor/volthium-rs485-correspondence-2024.md`](../../docs/vendor/volthium-rs485-correspondence-2024.md)
-— see its provenance banner; an export of the original thread is
-requested from the owner, F45): *"Use a Standard RS485 adapter with
-A & B. No ground need. Don't use a TTL 3.3V adapter directly."* → the
-premise is RS-485 (not TTL), 2-wire/no-ground, A/B on RJ45 **7/8** (7/8
-corroborated by the independent photographed adapter label); socket
-closest to the negative terminal; connector family unresolved (email
-"XLR" vs photographed M12-style — not load-bearing). The isolated
-ADM2587E front-end is the correct circuit class under this premise.
+**Interface premise — ORIGINAL THREAD ON FILE (F45 closed 2026-07-16);
+on-site test is TOPOLOGY-GATING (F47).** The owner supplied the original
+`.eml`; a redacted transcript with headers is committed
+([`../../docs/vendor/Voltage_monitoring_thread_2023-2024_redacted_transcript.txt`](../../docs/vendor/Voltage_monitoring_thread_2023-2024_redacted_transcript.txt),
+original SHA-256 `37df1ab1…`). Verified verbatim (2024-03-28): *"Use a
+Standard RS485 adapter with A & B. No ground need. Don't use a TTL 3.3V
+adapter directly."* → RS-485 (not TTL), 2-wire/no-ground, A/B on RJ45
+**7/8** (double-sourced: thread 2024-01-15 + photographed label); socket
+closest to the negative terminal. **CAN pin-domain resolved**: the
+thread's "pin 1 and 2" is the battery-side connector (owner's 2023-12-27
+question is explicit); RJ45 side is 4/5 per the label — consistent.
+**Connector photographed** (owner, 2026-07-16): 4-pin circular
+threaded-collar aviation-style ×2 per pack; vendor never supplied the
+PN — caliper on-site; not load-bearing. The isolated ADM2587E front-end
+is the correct circuit class under this premise.
 **DR-26 stays OPEN and GATING on the ~2-week on-site test** — the test
 decides whether the floating island needs a local reference/bleed;
 **pass limits (top-pack read 0-CRC-fail, −7…+12 V CM window, ≥±1.5 V
 differential margin, clean idle/recovery, both orientations) + the DNP
-fallback circuit are specified in design §7.** CAN RJ45 mapping is
-UNRESOLVED (photo 4/5 vs email "pin 1 and 2", connector unnamed) — CAN
-unused, pads routed after the on-site pin-out check.
+fallback circuit are specified in design §7.**
 
 **Current topology (iter-30, F30) — supersedes the first draft:**
 - Off-state: **dedicated per-channel DI/DE/RO** on the ESP, UART2
