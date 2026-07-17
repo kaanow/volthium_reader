@@ -63,11 +63,16 @@ HISTORY_FILES = {"hardware/reviews/DESIGN_REVIEW_ITEMS.md"}
 # is within this many lines of the hit (bracket-note convention).
 NEARBY_WINDOW = 5
 
+# F67 (iter-41): the bare arrow → / -> was REMOVED as a history marker.
+# A signal-flow arrow ("Q2 drain → Q1 gate") is not a supersession and must
+# not legalize a stale value on that line. Genuine "old → new" history lines
+# still pass via the current-token-in-line check in _allowed() (they name the
+# new part explicitly), not via the arrow itself.
 HISTORY_MARKERS = re.compile(
     r"(supersed|was\b|Δ|retired?|retain|history|erratum|evidence|"
     r"first[- ]cut|mistakenly|earlier|prior|previously|replace[sd]?\b|instead of|not the|"
     r"caught|flagged|regressed|never\b|pivot|swap|corrected|removed|"
-    r"un-sourceable|→|->)",
+    r"un-sourceable)",
     re.IGNORECASE,
 )
 NEARBY_MARKERS = re.compile(r"(\[Supersed|supersed|revised|Δ|→)", re.IGNORECASE)
@@ -343,6 +348,33 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "F63: the 2026-07-17 beep-out measures CAN on RJ45 4/6; the "
      "Pro-Series label's 4/5 is a different cable — the maps are NOT "
      "consistent"),
+    # iter-41 reviewer findings (F64-F67, addressed iter-42):
+    (r"Rg\D{0,12}150 ?kΩ|150 ?kΩ\D{0,18}(Rg|gate)|RMCF0805FT150K|"
+     r"71-CRCW0805-150K",
+     "Rg 33 kΩ / R3 10 kΩ",
+     "F64: the iter-40 150 kΩ Rg relied on DZ1 to clamp the 53.3 V surge "
+     "at ~0.14 mA (below its characterized rows) and left Q2 leakage "
+     "unbounded → R3 10 kΩ / Rg 33 kΩ, divider is the bracket"),
+    (r"100 ?kΩ[^|]{0,20}\(Q1 gate pull-up|R3 100 ?kΩ|R3\(100k\)|"
+     r"100 kΩ / Rg 150",
+     "R3 10 kΩ (F64)",
+     "F64: R3 100 kΩ → 10 kΩ so Q2 OFF-leakage Vgs (=I_L·R3) stays below "
+     "the min Vth across temperature"),
+    (r"IDSS ≤?100 nA @25|100 nA @25 °C / ≤?1 µA @(TJ=)?55|"
+     r"IDSS ≤100 nA.{0,15}≤1 µA @55",
+     "Si2309CDS IGSS 100 nA; IDSS 1 µA@25 / 10 µA@55 (F65)",
+     "F65: the 100 nA/1 µA pair conflated IGSS (gate) with IDSS (drain); "
+     "IDSS is 1 µA @25 °C / 10 µA @55 °C (68980 p.2)"),
+    (r"≤ ?0\.5 µA IDSS × 100 kΩ|R_exp_bleed = 100 kΩ|100 kΩ, EXP_3V3|"
+     r"parked rail sits ≤ ?100 mV|parks the rail ≤ ?100 mV",
+     "R_exp_bleed 10 kΩ → ≤50 mV @85 °C (F66)",
+     "F66: the 100 kΩ bleed gave 500 mV at the NTR4171P 5 µA/85 °C limit "
+     "(and an older row cited the retired ZXMP 0.5 µA/50 mV) → 10 kΩ, "
+     "≤50 mV @85 °C"),
+    (r"Si2309CDS / DMG3415U|display side.{0,10}0 *\|",
+     "REVIEWER part list = NTR4171P; State-4 Q1-OFF ≠ 0",
+     "F67: REVIEWER.md still named DMG3415U; State-4 treated Q1-OFF as "
+     "zero (it has Q1/Q2 leakage terms)"),
 ]
 
 # ---------------------------------------------------------------------------

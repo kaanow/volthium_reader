@@ -1181,28 +1181,40 @@ coordination defects together.
   network applies). The three 3V3-domain switches went to Diodes
   DMG3415U, then **iter-40 (F61) to onsemi NTR4171P** when DMG3415U was
   also found NRND. See cp1_bom.]*
-  Add a **gate-source divider (R3 100 kΩ / Rg 150 kΩ) + Zener backstop
+  Add a **gate-source divider (R3 10 kΩ / Rg 33 kΩ) + Zener backstop
   (~12 V)** so Vgs stays in range regardless of bus voltage (the superseded
   AO3401A's ±12 V Vgs was driven to −29 V — the pre-clamp defect). The gate-driver N-FET also sees the high
   rail, so Q2 = **60 V N-FET** (2N7002). Q1 now switches only U2/the
   display feed.
 
-  *[Gate-network derivation, iter-40 (F60) — the superseded 1 kΩ Rg made
-  the Zener clamp a **continuous ~0.5 W path** whenever Q1 is ON (17 mA
-  at 29.2 V), over the 0805/Zener ratings. Corrected to a
-  divider-dominant design: with Rg = 150 kΩ, R3 = 100 kΩ, DC
-  Vgs = V24·R3/(R3+Rg) = **11.7 V at 29.2 V full charge / 8.4 V at the
-  21 V UVLO floor** — both < ±20 V and fully enhancing (RDS spec'd from
-  −4.5 V). DZ1 (BZX84C12) sits above the 11.7 V DC point → draws
-  ≤ 0.2 mW continuously and conducts only on a surge (the ~53 V clamp
-  divides to 21.2 V would-be Vgs → DZ1 clamps to ~12 V). Standing
-  current 117 µA → **3.4 mW pack burden while Q1 is ON, zero in
-  hard-cut**; P_Rg = 2.05 mW, P_R3 = 1.36 mW — all far under 0805
-  ratings. Turn-on τ ≈ 12 µs (softens display inrush). Fail-safe
-  unchanged: Q2 off → R3 pulls gate to source → Q1 off. Exact SKUs:
-  Rg = RMCF0805FT150KCT-ND / 71-CRCW0805-150K-E3 (resolve-exact
-  2026-07-17). This ~3.4 mW active-only term is added to the State-1/2
-  budget; it does not touch the ~1 mW hard-cut floor.]*
+  *[Gate-network derivation, iter-40→iter-42 (F60→F64) — the superseded
+  1 kΩ Rg made the Zener clamp a **continuous ~0.5 W path** whenever Q1
+  is ON (17 mA at 29.2 V), over the 0805/Zener ratings. The iter-40 fix
+  (Rg 150 kΩ, R3 100 kΩ) cut the power but F64 showed two holes: (a) at
+  the 53.3 V surge the divider would put 21.3 V across Vgs and rely on
+  DZ1 to clamp it, but the network only supplies ~0.14 mA — below the
+  BZX84C12's 1 mA-characterized row — so the clamp voltage is not a
+  guaranteed bracket; (b) Q2's temperature-dependent OFF leakage develops
+  Vgs across R3 and, with R3 = 100 kΩ, could exceed the min Vth at high
+  temp and partially turn Q1 on. **Final values R3 = 10 kΩ, Rg = 33 kΩ**
+  fix both:
+  - **The divider alone is the surge bracket** (no reliance on DZ1):
+    Vgs = V24·R3/(R3+Rg) = **6.8 V @29.2 V / 4.9 V @21 V floor /
+    12.4 V @53.3 V surge** — all < ±20 V (38 % margin at surge), at/above
+    the −4.5 V RDS spec point.
+  - **Q2 OFF-leakage immunity:** Vgs_off = I_L(Q2)·R3 ≤ **0.42 V @85 °C**
+    (2N7002L IDSS 1 µA@25 °C → 500 µA@125 °C envelope) < the 1 V min Vth
+    → Q1 stays off across the operating range; the small R3 buys this.
+  - DZ1 (BZX84C12) is now a **pure redundant backstop** — off at the
+    6.8 V DC point, and not needed for the surge bracket.
+  - Standing **679 µA → 19.8 mW pack burden while Q1 is ON, ~0 in
+    hard-cut** (only Q2 leakage flows when Q1 off — a State-4 term,
+    power_budget.md); P_Rg 15.2 mW, P_R3 4.6 mW — far under 0805.
+    Turn-on τ ≈ 1.5 µs. Fail-safe unchanged: Q2 off → R3 pulls gate to
+    source → Q1 off. Exact SKUs: R3 = RMCF0805FT10K0CT-ND /
+    71-CRCW0805-10K-E3, Rg = RMCF0805FT33K0CT-ND / 71-CRCW0805-33K-E3
+    (resolve-exact 2026-07-17). The 19.8 mW is active-only (States 1–3);
+    it does not touch the hard-cut floor.]*
 - **Surge coordination (DR-3).** U2 → **Recom R-78HB12-0.5** (17–72 V in,
   0.5 A). D1 → **60 V Schottky** (SS26/SK56). With U1 (65 V), Q1 (60 V),
   U2 (72 V), D1 (60 V) the whole protected rail out-rates the SMAJ33CA's
@@ -1621,7 +1633,7 @@ unverified premises.
 **Replace, don't patch.** When a datasheet reveals a part is a poor fit, the
 correct response is to **retire it in favor of a better part**, not to bend
 the design around the bad choice (see [`feedback`/replace-don't-patch];
-precedents: LM5165→LM5166 fixed-output, SUYIN→Würth RJ45, the planned reflow
+prior precedents: LM5165→LM5166 fixed-output, SUYIN→Würth RJ45, the planned reflow
 acceptance vs leaded downgrades in DR-24).
 
 **Operational.** Fetch via the API proxy (`GET …/datasheet?mpn=…`); for the
@@ -2198,24 +2210,25 @@ contract**:
    `EXP_PWR_EN` is deasserted and held high-Z whenever the rail is off**
    (same pattern as the D36 §2a contract) — no ESP pin may source an
    unpowered add-on through its protection diodes.
-3. **Discharge**: a bleed resistor **R_exp_bleed = 100 kΩ, EXP_3V3 →
+3. **Discharge**: a bleed resistor **R_exp_bleed = 10 kΩ, EXP_3V3 →
    GND** (populated) discharges the switched node so switch leakage
-   cannot float it: against NTR4171P's IDSS bound (≤1 µA @ −24 V,
-   25 °C; ≤5 µA @ 85 °C — pessimistic at our −3.3 V) the parked rail
-   sits **≤ 100 mV datasheet-bound**; the binding number is the measured limit in
-   item 5. On-state cost 33 µA (~110 µW) — active-mode only. If the
-   bench exceeds the limit, drop R_exp_bleed to 10–33 kΩ (resistor
-   swap).
+   cannot float it. **Sized against the elevated-temperature limit
+   (F66):** NTR4171P IDSS ≤ 5 µA @ 85 °C × 10 kΩ = **≤ 50 mV @ 85 °C**
+   (≤ 10 mV @ 25 °C) — the parked-rail bound now uses the worst-case
+   temperature, not the 25 °C point, and equals the item-5 acceptance
+   target. (At the retired 100 kΩ the same 5 µA gave 500 mV, and an
+   earlier row wrongly cited the ZXMP6A13F's 0.5 µA/50 mV — both fixed.)
+   On-state cost 330 µA (~1.1 mW) — active-mode only.
 4. **Off-state budget — honestly bounded (F51; FET re-pinned iter-38
    F56/F57)**: with the 2N7002 removed (F51 direct drive) the only
    semiconductor leak is the **NTR4171P**, whose IDSS ≤ 1 µA
    (NTR4171P/D, V_DS = −24 V, 25 °C) **and ≤ 5 µA @ 85 °C** are test
    points at a harsher V_DS than ours (−3.3 V); unlike the prior parts
    this one *does* publish an elevated-temp row. Budget structure:
-   **datasheet-anchored 25 °C bound ≤ 1 µA; engineering allocation
-   ≤ 5 µA (≈16 µW) at the ≤ 40 °C battery-box ambient** (stated as an
-   *allocation*, not a datasheet fact); the **binding number is the
-   measured acceptance limit in item 5**. If the bench measurement
+   **datasheet-anchored: ≤ 1 µA @ 25 °C, ≤ 5 µA @ 85 °C** (the published
+   worst-case, used for the parked-rail bound in item 3 and the State-4
+   term ≈ 5 µA × 3.3 V ≈ 16 µW); the **binding number is the measured
+   acceptance limit in item 5**. If the bench measurement
    exceeds the allocation, swap in a specified-over-temperature
    load-switch IC (noted alternative) — a part swap, not a respin.
 5. **Acceptance test (bench, at bring-up — the enforceable bound)**:

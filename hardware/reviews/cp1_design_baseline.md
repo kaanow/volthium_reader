@@ -4554,3 +4554,75 @@ exemption so a signal-flow arrow alone cannot legalize a stale value; require
 an actual supersession word or a same-line old-to-current token pair.
 
 **REVIEW COMPLETE**: NEEDS CHANGES - 0 blockers, 4 important. (See findings 64, 65, 66, 67.)
+
+---
+
+## 35. Designer responses — iteration 42 (F64–F67)
+
+All four addressed; F65 was a flat 10× misread on my part. D35 gate
+exit 0 after changes; all five new registry patterns verified to FIRE
+on pre-fix text (19 old hits). The narrowed arrow-history exemption
+(F67) surfaced 6 lines on first run — one genuine staleness (the
+procurement BOM's R3), five legit history lines that had leaned on the
+arrow — all fixed.
+
+### F64 (Q1 gate: surge clamp + OFF fail-safe unproved) — ACCEPTED; re-derived again
+Both holes are real and the iter-40 150 kΩ didn't close them.
+Reproduced your surge arithmetic: the unloaded divider puts 21.3 V
+across Vgs at the 53.3 V clamp and would rely on DZ1, but the network
+supplies only ~0.14 mA — below the BZX84C12's 1 mA-characterized row —
+so the Zener's clamp voltage is **not a bracket**. And Q2's
+temperature-dependent OFF leakage develops Vgs = I_L·R3, which at
+R3 = 100 kΩ could exceed the min Vth hot. Final values **R3 = 10 kΩ,
+Rg = 33 kΩ**:
+- **The divider alone is the surge bracket** (no DZ1 dependence):
+  Vgs = 6.8 V @29.2 V / 4.9 V @21 V floor / **12.4 V @53.3 V surge**,
+  all < ±20 V (38 % margin), at/above the −4.5 V RDS row.
+- **Q2 OFF-leakage bounded over temperature:** Vgs_off = I_L(Q2)·R3 ≤
+  **0.42 V @85 °C** (2N7002L 1 µA@25 °C → 500 µA@125 °C envelope) < the
+  1 V min Vth — Q1 stays off across the operating range; the small R3
+  buys this.
+- DZ1 is now a **pure redundant backstop**; the bracket doesn't need it.
+- Standing 679 µA → 19.8 mW (Q1-ON only, ~0 hard-cut); P_Rg 15.2 mW,
+  P_R3 4.6 mW; turn-on τ ≈ 1.5 µs; min-rail RDS 0.45 Ω (−4.5 V row) →
+  ≤0.135 V drop. SKUs resolve-exact (R3 10 kΩ, Rg 33 kΩ). Full
+  derivation in D19 (F64).
+
+### F65 (Si2309CDS IDSS misread 10×) — ACCEPTED; my error, corrected from the PDF
+You're right and I verified it against 68980 p.2 myself rather than
+re-recall: **IGSS = 100 nA** (gate leakage) is a *separate* row from
+**IDSS = 1 µA @25 °C / 10 µA @55 °C** (drain leakage). I'd conflated the
+two and shifted the temperature. Corrected in the manifest, cp1_bom Q1,
+and cp1_battery_side Q1. And the State-4 budget no longer treats Q1-OFF
+as zero: added the Q1 IDSS term (≤10 µA @55 °C → ≤0.24 mW into the shed
+U2 branch) **and** the Q2 gate-net leakage term (F64), both ~1 µA/25 °C
+(negligible) rising to ~0.45 mW combined at 60 °C — so the honest
+hard-cut is **~1.1 mW @25 °C / ~1.5 mW @60 °C** (bounded; absolute
+battery impact nil — even 2 mW on 4.8 kWh is centuries). power_budget.md
+State 4 rows + note updated.
+
+### F66 (expansion 100 mV bound is 25 °C-only) — ACCEPTED, fixed
+Correct: at NTR4171P's 5 µA @85 °C the 100 kΩ bleed gives 500 mV, not
+100 mV, and the R_exp_bleed row still cited the retired ZXMP 0.5 µA/
+50 mV. **R_exp_bleed 100 kΩ → 10 kΩ** so the parked-rail bound uses the
+worst-case temperature: **≤50 mV @85 °C** (5 µA×10 kΩ), matching the
+bring-up acceptance target. On-cost 330 µA (1.1 mW, active only). Q_exp,
+R_exp_bleed, D37 item 3/4, and the State-4 expansion term all now cite
+the 5 µA @85 °C limit consistently.
+
+### F67 (live 1 kΩ Rg + retired DMG3415U escape the checker) — ACCEPTED, fixed both ways
+- **Content:** cp1_battery_side component row (line 247) and topology
+  drawing (line 577) → 33 kΩ; REVIEWER.md load-switch list DMG3415U →
+  NTR4171P. (REVIEWER.md was already in LIVE_DOCS — the row escaped
+  because "superseded" on that line exempted it, the same
+  broad-exemption class as the arrow.)
+- **Gate:** removed the bare arrow `→`/`->` from HISTORY_MARKERS so a
+  signal-flow arrow can no longer legalize a stale value. Genuine
+  "old → new" lines still pass via the current-token-in-line check.
+  This immediately surfaced the procurement BOM's stale R3 (100 kΩ →
+  10 kΩ) and Rg (~1 kΩ → 33 kΩ), which I fixed, plus five legit history
+  lines that got proper marker words.
+
+**Handing back for iteration 43 re-verify.** Remaining open by design:
+the F47/F52 on-site two-domain matrix (~2 weeks) gating D36/DR-26; the
+BOM-lock manufacturer-lifecycle re-confirm on NTR4171P + Si2309CDS.

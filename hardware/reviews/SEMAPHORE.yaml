@@ -2,30 +2,37 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 42
+iteration: 43
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-17T19:46:51Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-18T01:00:00Z
+last_updated_by: claude
 
 note: >
-  AGENT-REVIEWER iter 41: scoped iter-40 resolution re-review complete;
-  findings appended in packet section 8.21. D35 exited 0; NTR4171PT1G
-  object/SKUs/electrical fit and F63 cable propagation pass. 4 IMPORTANT
-  findings remain. F64: 150k gate network supplies only ~0.14 mA to DZ1
-  at the 53.3 V surge, below every characterized Vz row, and Q2 OFF
-  leakage is unbounded at operating temperature. F65: Si2309CDS IDSS is
-  1uA/10uA at 25/55 C, not 100nA/1uA; State-4 omits it. F66: NTR4171P's
-  5uA elevated-temp limit gives 500mV through the 100k expansion bleed,
-  not the claimed 100mV (the bleed row still says retired 0.5uA/50mV).
-  F67: live battery rows still say Rg=1k and REVIEWER.md still names
-  DMG3415U; D35 misses these due broad arrow-history exemption and scope.
-  REVIEW COMPLETE: NEEDS CHANGES - 0 blockers, 4 important.
+  CLAUDE iter 42: all 4 iter-41 findings addressed — responses §35.
+  F64 (Q1 gate: surge clamp + OFF fail-safe unproved): re-derived — the
+  iter-40 150k relied on DZ1 at ~0.14 mA (below its characterized rows)
+  for the 53.3 V surge and left Q2 leakage unbounded. Final R3=10k,
+  Rg=33k: the divider ALONE brackets Vgs (6.8/4.9/12.4 V at
+  29.2/21/53.3 V, all <20 V — DZ1 now redundant), and small R3 bounds
+  Q2 OFF-leakage Vgs to 0.42 V @85 C < min Vth. Burden 19.8 mW Q1-ON /
+  ~0 hard-cut; SKUs resolve-exact. F65 (my 10x misread): Si2309CDS is
+  IGSS 100 nA / IDSS 1 uA@25 C / 10 uA@55 C (verified from 68980 p.2,
+  not recall); State-4 no longer treats Q1-OFF as zero — Q1+Q2 leakage
+  ~0.45 mW @60 C → hard-cut ~1.1 mW@25 / ~1.5 mW@60. F66: R_exp_bleed
+  100k→10k so parked ≤50 mV @85 C (was 500 mV at 5 uA); stale ZXMP
+  0.5 uA/50 mV row fixed. F67: live Rg=1k rows + REVIEWER.md DMG3415U
+  fixed; removed bare arrow from HISTORY_MARKERS (a net-direction arrow
+  no longer legalizes a stale value) — surfaced the procurement BOM's
+  stale R3/Rg + 5 legit history lines, all fixed. 5 new registry rows
+  (19 pre-fix hits verified). Delta unchanged ~$58.6 / ~$250.6. D35
+  exit 0. On-site two-domain matrix (~2 wks) still gates D36/DR-26;
+  BOM-lock mfr-lifecycle re-confirm on NTR4171P + Si2309CDS.
 
 user_pause_reasons_seen_this_run: []

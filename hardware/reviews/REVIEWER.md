@@ -109,7 +109,7 @@ PDF or a tool call made this pass (§3.5):
 - Datasheets: ESP32-S3-WROOM-1, **LM5166** (always-on µA-Iq buck),
   **TPS3808G01DBVR** (UVLO supervisor, D33), **TPS2116** (USB power-mux,
   D29), **RV-3028-C7** (RTC, D23), **R-78HB12** / **R-78E3.3** (Recom),
-  **Si2309CDS / DMG3415U / 2N7002LT1G** (load switches; ZXMP6A13F superseded iter-38 F57), **SS26**,
+  **Si2309CDS / NTR4171P / 2N7002LT1G** (load switches; ZXMP6A13F superseded iter-38 F57, then DMG3415U superseded iter-40 F61 — both NRND), **SS26**,
   **SMAJ33CA/SMAJ15A/SMAJ12CA**, **THVD1400DR** (RS-485 transceiver,
   D34 — supersedes both `SN65HVD3082E` and the iter-8 ISL3175EIBZ pick),
   **USBLC6-2** (USB ESD), **AP2112K-3.3** (USB LDO), Waveshare 4.2"

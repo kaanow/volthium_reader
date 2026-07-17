@@ -144,27 +144,36 @@ a hard constraint: **any substitution on this node must hold ≥ 60 V.**
 Note 53.3 V is the TVS's *full* 7.5 A pulse; the actual transient on a
 1 A-fused battery tap is far smaller, so this is a conservative ceiling.
 
-**Gate-source drive + clamp (Q1 Vgs) — divider-set, Zener-backstopped
-(F60, iter-40).** Q1 = **Si2309CDS**, Vgs abs-max **±20 V** (Vishay doc
-68980), RDS(on) specified **450 mΩ @ −4.5 V / 345 mΩ @ −10 V**. Without
-any network, turning Q1 on would pull the gate to ground and drive Vgs
-to ~−29 V at full charge (−53 V under surge) — past ±20 V, destroying
-the gate. The gate network sets a **safe DC operating point by division
-and uses the Zener only for transients**:
-- **R3 = 100 kΩ (gate→source) and Rg = 150 kΩ (gate→Q2→gnd)** form a
-  divider: DC Vgs = V24·R3/(R3+Rg) = **11.7 V at 29.2 V full charge**,
-  **8.4 V at the 21 V UVLO floor** — both comfortably below ±20 V and
-  well into full enhancement (RDS spec'd from −4.5 V).
-- **DZ1 = BZX84C12 (12 V)** sits *above* the 11.7 V DC point, so it draws
-  ≤ 0.2 mW continuously; it conducts only on a surge (the ~53 V clamp
-  would divide to 21.2 V Vgs → DZ1 clamps it to ~12 V). Transient
-  backstop, not the DC clamp.
-- **Standing burden 3.4 mW when Q1 is ON** (117 µA at 29.2 V), zero in
-  hard-cut (Q1 off). This replaces the prior 1 kΩ Rg, which drew ~17 mA
-  / ~0.5 W continuously and exceeded the 0805/Zener power ratings.
-The network therefore protects the gate, guarantees turn-on across the
-pack range, and costs single-digit mW only while the display feed is
-live.
+**Gate-source drive (Q1 Vgs) — divider is the safety bracket, Zener is a
+redundant backstop (F60→F64).** Q1 = **Si2309CDS**, Vgs abs-max **±20 V**
+(Vishay doc 68980), RDS(on) specified **450 mΩ @ −4.5 V / 345 mΩ @
+−10 V**. Without any network, turning Q1 on would pull the gate to ground
+and drive Vgs to ~−29 V at full charge (−53 V under surge) — past ±20 V,
+destroying the gate. The gate network sets a **safe operating point by
+division alone**, so the bracket does not depend on the Zener (F64 — at
+the sub-mA surge current the BZX84C12 sits below its characterized rows,
+so its clamp voltage is not a bracket):
+- **R3 = 10 kΩ (gate→source) and Rg = 33 kΩ (gate→Q2→gnd)** form the
+  divider: DC Vgs = V24·R3/(R3+Rg) = **6.8 V @ 29.2 V full charge**,
+  **4.9 V @ the 21 V UVLO floor**, and **12.4 V @ the 53.3 V surge** —
+  all below ±20 V (38 % margin at surge) and at/above the −4.5 V RDS
+  spec point (min-rail RDS 0.45 Ω → ≤0.135 V drop @ 0.3 A).
+- **Q2 OFF-leakage immunity (F64):** with Q1 commanded off, Q2's
+  temperature-dependent drain leakage develops Vgs across R3:
+  Vgs_off = I_L(Q2)·R3. On the 2N7002L IDSS envelope (1 µA @25 °C →
+  500 µA @125 °C) this is ≤ **0.42 V @ 85 °C** — below the 1 V min Vth,
+  so Q1 stays off across the operating range. The small R3 is what buys
+  this margin.
+- **DZ1 = BZX84C12 (12 V)** is now a **pure redundant backstop**: at the
+  6.8 V DC point it is fully off, and at the surge the divider already
+  holds Vgs < 20 V without it.
+- **Standing burden 19.8 mW when Q1 is ON** (679 µA at 29.2 V), ~0 in
+  hard-cut (Q1 off — only Q2 leakage flows, a State-4 term). This
+  replaces the prior 1 kΩ Rg, which drew ~17 mA / ~0.5 W continuously
+  and exceeded the 0805/Zener power ratings.
+The network protects the gate, guarantees turn-on across the pack range,
+keeps Q1 off across temperature, and costs tens of mW only while the
+display feed is live.
 
 ## 4. Component list
 
@@ -241,10 +250,10 @@ foldback explicitly. The 530 mA "driver-active + WiFi-peak" case is
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| Q1  | **Si2309CDS** (Vishay P-MOSFET, Vds −60 V, −1.6 A, SOT-23) | SOT-23 | 1 | Load switch for the 12 V/display feed (~0.3 A). **60 V** Vds survives the ~53 V clamp when open (D19/DR-4); AO3401A (30 V) did not. **Iter-38 (F57): ZXMP6A13F went NRND → Si2309CDS-T1-GE3** (DK 120k stock, Active, API 2026-07-17); RDS 0.345 Ω max @ −10 V (our Zener-clamped drive), IDSS ≤100 nA @25 °C / ≤1 µA @55 °C |
+| Q1  | **Si2309CDS** (Vishay P-MOSFET, Vds −60 V, −1.6 A, SOT-23) | SOT-23 | 1 | Load switch for the 12 V/display feed (~0.3 A). **60 V** Vds survives the ~53 V clamp when open (D19/DR-4); AO3401A (30 V) did not. **Iter-38 (F57): ZXMP6A13F went NRND → Si2309CDS-T1-GE3** (DK 120k stock, Active, API 2026-07-17); RDS **0.45 Ω max @ −4.5 V** (the divider drive is ~4.9–6.8 V — F64); **IGSS ≤100 nA; IDSS ≤1 µA @25 °C / ≤10 µA @55 °C** (68980 p.2 — F65 corrected). Q1-OFF IDSS is a State-4 term (power_budget.md) |
 | Q2  | 2N7002 (N-MOSFET, Vds 60 V, drives Q1 gate) | SOT-23 | 1 | **60 V** because its drain follows the V24 rail (up to the clamp) when Q1 is off (D19/DR-4); AO3400A (30 V) did not |
-| DZ1 | BZX84C12 (12 V Zener, Q1 gate–source **transient backstop**) | SOT-23 | 1 | Divider R3/Rg sets DC Vgs ~11.7 V; DZ1 clamps only surges (F60/D19/DR-4) |
-| Rg  | ~1 kΩ series gate (Q2 drain → Q1 gate) | 0805    | 1   | Limits gate transient current; works with DZ1 |
+| DZ1 | BZX84C12 (12 V Zener, Q1 gate–source **redundant backstop**) | SOT-23 | 1 | The R3(10k)/Rg(33k) divider is the bracket (Vgs ≤12.4 V @53.3 V surge); DZ1 is redundant (F64/D19/DR-4) |
+| Rg  | **33 kΩ** series gate (Q2 drain → Q1 gate) | 0805    | 1   | Δ (F60→F64) 1 kΩ→33 kΩ: sets the divider ratio with R3=10 kΩ; the old 1 kΩ was a continuous ~0.5 W path |
 | R3  | 100 kΩ pull-up: Q1 gate → V24_FUSED | 0805          | 1   | Default-OFF behavior — pack-safe on MCU lockup |
 | R4  | 100 kΩ pull-down: Q2 gate → GND     | 0805          | 1   | Defines Q2 state when MCU GPIO floats (boot / brown-out) |
 
@@ -548,7 +557,7 @@ deep-sleep (alive) and hard-cut (off) — see [§13 D-OPEN-7a/7b](#13-open-decis
 | 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 THVD1400 ~0.7 mA typ / ~0.9 mA max RX-only (D34) + RTC <100 µA + display side ~5 mA at 24 V conv. + sense 22 µA ≈ 43.5 mA × 24 V | **~1.05 W** | ±5 % vs power_budget.md (~1.0 W table / 1.1 W daily headline). **No idle bias anywhere by default** — battery-side removed (DR-4b), display-side R3/R4 DNP (iter-12 F12; THVD1400 Full Fail-Safe RX needs none) |
 | 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + display unchanged (~5 mA at 24 V conv.) + sense 22 µA | **~0.30 W** | vs power_budget.md 0.31 W. No bias term (R3/R4 DNP per iter-12 F12) |
 | 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + RV-3028 ~45 nA (negligible; D23) + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Display still up (Q1 ON) |
-| 4 — Hard cut | < 10 % | **Native-domain sum with datasheet max where spec'd + explicit engineering margin where max isn't published (iter-6 F03 + iter-10 F08 + iter-12 F13 + iter-14 F16 wording sweep).** V24-side: LM5166 Iq **15 µA max** × 24 V = **0.36 mW** + V24 sense divider 24²/1.3 MΩ = **0.44 mW** + UVLO divider 4.6 µA × 24 V = **0.11 mW**. 3.3 V-side (load): ESP deep-sleep 10 µA typ + **5 µA engineering margin** (Espressif ES Table 6-7 lists 7-8 µA typ, no spec max; citation corrected 2026-07-14) + U4 TPS3808 **5 µA max** + U6 TPS2116 **4.5 µA max** + U3 THVD1400 shutdown **1 µA max** + RV-3028 RTC 45 nA typ / 60 nA max @ 3 V per its EC table (D23; prior off-file-AN citation corrected 2026-07-14; well under µW floor) ≈ **25.6 µA** at load × 3.3 V = 84 µW → **~0.17 mW referred through U1 at η ≈ 50 %** conservative. Display shed (Q1 OFF). | **~1.08 mW** (~1.1 mW headline, max where spec'd) | Uses **datasheet max where spec'd** (U1/U4/U6/U3); **typ + explicit engineering margin** where no max is published (ESP32-S3 Deep-sleep); **typ** for RTC (datasheet max 60 nA is under the µW floor). Iter-12 F13 caught that my prior "max throughout" claim was actually mixing typ + max; iter-14 F16 tightened this wording across D34 / DR-25 / power_budget.md so all four sites match. Full native+referred table in `docs/hardware/power_budget.md`. |
+| 4 — Hard cut | < 10 % | **Native-domain sum with datasheet max where spec'd + explicit engineering margin where max isn't published (iter-6 F03 + iter-10 F08 + iter-12 F13 + iter-14 F16 wording sweep).** V24-side: LM5166 Iq **15 µA max** × 24 V = **0.36 mW** + V24 sense divider 24²/1.3 MΩ = **0.44 mW** + UVLO divider 4.6 µA × 24 V = **0.11 mW**. 3.3 V-side (load): ESP deep-sleep 10 µA typ + **5 µA engineering margin** (Espressif ES Table 6-7 lists 7-8 µA typ, no spec max; citation corrected 2026-07-14) + U4 TPS3808 **5 µA max** + U6 TPS2116 **4.5 µA max** + U3 THVD1400 shutdown **1 µA max** + RV-3028 RTC 45 nA typ / 60 nA max @ 3 V per its EC table (D23; prior off-file-AN citation corrected 2026-07-14; well under µW floor) ≈ **25.6 µA** at load × 3.3 V = 84 µW → **~0.17 mW referred through U1 at η ≈ 50 %** conservative. Display shed (Q1 OFF), **but Q1-OFF is not zero (F64/F65):** Q1 IDSS + the Q2 gate-net leakage add ~0.05 mW @25 °C, rising to ~0.45 mW @60 °C (power_budget.md State 4). | **~1.08 mW** (~1.1 mW headline, max where spec'd) | Uses **datasheet max where spec'd** (U1/U4/U6/U3); **typ + explicit engineering margin** where no max is published (ESP32-S3 Deep-sleep); **typ** for RTC (datasheet max 60 nA is under the µW floor). Iter-12 F13 caught that my prior "max throughout" claim was actually mixing typ + max; iter-14 F16 tightened this wording across D34 / DR-25 / power_budget.md so all four sites match. Full native+referred table in `docs/hardware/power_budget.md`. |
 
 State 4 budget: at **~1.08 mW** deep-sleep (~1.1 mW headline, using
 datasheet-max Iq where spec'd + explicit ESP engineering margin per
@@ -564,7 +573,7 @@ judged the extra part not worth it.
 branch only** — it gates U2 (the 12 V/display feed), **not** the MCU. The
 MCU rail (U1 LM5166) is always-on and never behind Q1. Q1 (Si2309CDS,
 60 V P-FET) passes V24_FUSED → V24_SW; Q2 (2N7002, 60 V N-FET) drives Q1's
-gate from ESP GPIO4 (`PWR_EN`, active-HIGH); DZ1 (12 V Zener) + Rg clamp
+gate from ESP GPIO4 (`PWR_EN`, active-HIGH); the R3/Rg divider (+ DZ1 backstop) bounds Vgs
 Q1's gate-source voltage.
 
 ```
@@ -574,7 +583,7 @@ V24_FUSED ──┬──── ALWAYS-ON: U1 (LM5166 → 3V3 MCU rail), TVS1, R
             ▼
          Q1 [P-FET 60V] ──── V24_SW ──► U2 (R-78HB12 → 12V → Cat5e → display)
               │
-              gate ◄── Rg [~1k] ◄── Q2 [N-FET 60V] drain
+              gate ◄── Rg [33k] ◄── Q2 [N-FET 60V] drain
                                         source ── GND
                                         gate   ◄── PWR_EN (ESP IO4) + R4 [100 kΩ pulldown]
 ```
@@ -594,7 +603,7 @@ V24_FUSED ──┬──── ALWAYS-ON: U1 (LM5166 → 3V3 MCU rail), TVS1, R
 - Q1 sheds only the sheddable load (U2 → 12 V → display). At < 10 % SOC the
   ESP opens Q1 to drop the display, then stays awake in deep-sleep to
   monitor recovery and re-engage — it is its own supervisor.
-- **Vgs is bounded** by the R3/Rg divider to ~11.7 V (DZ1 backstops
+- **Vgs is bounded** by the R3/Rg divider to ~6.8 V (DZ1 backstops
   transients — F60); without any network, pulling Q1's gate toward GND
   drove Vgs to −V24 ≈ −29 V (vs the Si2309CDS ±20 V max) — a latent
   gate-oxide failure in the old design.
