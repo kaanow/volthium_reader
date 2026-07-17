@@ -1115,12 +1115,21 @@ def _classify_wedge(
     ub500_present: Optional[bool],
     pinned_in_kernel: Optional[str] = None,
     pinned_in_bluez: Optional[bool] = None,
+    ambient_peers_silent: Optional[bool] = None,
 ) -> str:
     """Heuristic layer label for the wedge. The raw fields are the source of
     truth; this string is a triage shortcut for the runbook and dashboards.
 
     Order matters — most specific evidence first, so a chip hang that also
-    causes a "not found" up-stack still classifies as chip-layer."""
+    causes a "not found" up-stack still classifies as chip-layer.
+
+    The ambient-peers-silent check runs FIRST when available (see Iter 12,
+    2026-07-17T01:14): if the independent radio on hci1 also can't hear the
+    batteries, this can't be an hci0/BlueZ/our-stack problem — the wedge
+    is peer-side or environmental, and the label needs to say so plainly
+    so the recovery ladder skips destructive rungs (see log.py gating)."""
+    if ambient_peers_silent is True:
+        return "peer_silent_ambient_corroborated"
     dm = "\n".join(dmesg)
     if "Resetting usb device" in dm or "reset full-speed" in dm:
         return "kernel_usb_reset_chip_hung"
@@ -1152,11 +1161,18 @@ def _classify_wedge(
     return "unclassified"
 
 
-async def _collect_stack_evidence(reason: str) -> dict:
+async def _collect_stack_evidence(
+    reason: str, peers: Optional[set[str]] = None,
+) -> dict:
     """Fan out to every layer's state probe in parallel and return one
     normalized evidence dict. Shared by wedge and health snapshots so they
     speak identical JSON — analysis tooling can treat both event kinds the
-    same way and just look at the `event` field to know why it fired."""
+    same way and just look at the `event` field to know why it fired.
+
+    `peers` is the set of target BLE addresses (batteries). When supplied,
+    we consult the ambient scanner's visibility state so classification
+    can distinguish "hci0 alone can't see them" (Family B) from "neither
+    radio can see them" (peer-silent / environmental)."""
     hci = await _default_adapter()
     dmesg, hci_state, bctl, ub500, hcicon, ptherm, bluez_macs, usb_stats = await asyncio.gather(
         _dmesg_bt_tail(),
@@ -1188,10 +1204,19 @@ async def _collect_stack_evidence(reason: str) -> dict:
             pinned_in_kernel = None
         if bluez_macs is not None:
             pinned_in_bluez = mac in bluez_macs
+    # Ambient second-opinion: does the fallback radio also see the peers
+    # missing? Only signal when the caller told us who the peers are AND
+    # the ambient scanner has been running long enough to have real data.
+    ambient_peers_silent: Optional[bool] = None
+    ambient_visibility: Optional[dict] = None
+    if peers:
+        ambient_visibility = peer_visibility_via_ambient(peers)
+        ambient_peers_silent = ambient_says_peers_silent(peers)
     classification = _classify_wedge(
         reason, dmesg, hci_state, bctl, ub500,
         pinned_in_kernel=pinned_in_kernel,
         pinned_in_bluez=pinned_in_bluez,
+        ambient_peers_silent=ambient_peers_silent,
     )
     # If Pi throttling is currently active, upgrade the classification —
     # any recent under-voltage strongly implies the chip hang was electrical,
@@ -1221,29 +1246,41 @@ async def _collect_stack_evidence(reason: str) -> dict:
         "pinned_in_bluez": pinned_in_bluez,
         "active_adapter": _adapter_mgr.active,
         "on_fallback_adapter": _adapter_mgr.active_is_fallback,
+        "ambient_peers_silent": ambient_peers_silent,
+        "ambient_peer_ages_s": ambient_visibility,
     }
 
 
-async def snapshot_stack(reason: str, level: int) -> None:
+async def snapshot_stack(
+    reason: str, level: int, peers: Optional[set[str]] = None,
+) -> None:
     """Gather every layer's state at the moment of a wedge and emit one
     `wedge_snapshot` event containing all of it. Called from every code path
     where the reader gives up on a read cycle — the recovery ladder rungs AND
     the "neither battery found" streak — so nothing that hurts operational
     data quality goes undiagnosed.
 
+    Pass `peers` (the battery BLE addresses) to enable ambient-scanner
+    corroboration: the snapshot then carries `ambient_peers_silent` +
+    `ambient_peer_ages_s`, and the classifier promotes to
+    `peer_silent_ambient_corroborated` when both radios agree the peers
+    aren't advertising.
+
     All probes run in parallel with tight timeouts so the snapshot itself
     can't stall the loop for more than ~3 s in the worst case."""
-    evidence = await _collect_stack_evidence(reason)
+    evidence = await _collect_stack_evidence(reason, peers=peers)
     _event("wedge_snapshot", recovery_level=level, **evidence)
 
 
-async def emit_stack_health(reason: str = "periodic") -> None:
+async def emit_stack_health(
+    reason: str = "periodic", peers: Optional[set[str]] = None,
+) -> None:
     """Emit a `stack_health` event with the same evidence a wedge would
     capture. Fires on a slow cadence (~every 5 min) whether or not anything
     is wrong — the point is to establish a baseline so a future incident
     has "healthy state" to diff against, and so under-voltage becomes
     visible the moment it starts rather than only when it breaks reads."""
-    evidence = await _collect_stack_evidence(reason)
+    evidence = await _collect_stack_evidence(reason, peers=peers)
     _event("stack_health", **evidence)
 
 
@@ -1263,6 +1300,57 @@ async def emit_stack_health(reason: str = "periodic") -> None:
 # radio the reader isn't touching.
 AMBIENT_WINDOW_S = 10.0
 _AMBIENT_ADAPTER_ENV = "VOLTHIUM_AMBIENT_ADAPTER"
+
+# Cross-module state exposing what the ambient scanner has seen. Written by
+# the scanner callback (any adv packet updates the target's last-seen mono
+# clock); read by the recovery ladder to decide whether escalating past L1
+# would actually help. If ambient says the peers are silent, the wedge is
+# not chip/BlueZ/our-stack — escalating won't fix it and can only churn
+# adapter state. See docs/investigations/2026-07-16-bt-wedge-causation.md
+# Iter 12 for the observation that motivated this.
+#
+# `None` = scanner never saw this target since process start (or hasn't run).
+_ambient_last_seen_mono: dict[str, Optional[float]] = {}
+
+
+def peer_visibility_via_ambient(addresses: set[str]) -> dict[str, Optional[float]]:
+    """Return {address_upper: age_s or None} for each requested target,
+    based on the ambient scanner's independent second-opinion. `None` means
+    the ambient scanner has never seen that peer this process (or isn't
+    running); numeric age is seconds since the last observed adv packet.
+
+    Callers use this to gate recovery: if all targets show `age_s` older
+    than the recent window (say, > 30 s), the batteries are peer-silent
+    and escalating adapter recovery on hci0 won't help."""
+    now = time.monotonic()
+    out: dict[str, Optional[float]] = {}
+    for a in addresses:
+        key = a.upper()
+        seen = _ambient_last_seen_mono.get(key)
+        out[key] = round(now - seen, 1) if seen is not None else None
+    return out
+
+
+def ambient_says_peers_silent(
+    addresses: set[str], max_age_s: float = 30.0
+) -> Optional[bool]:
+    """True iff the ambient scanner has been running and has NOT seen ANY
+    of `addresses` in the last `max_age_s` seconds. False if any peer was
+    seen recently. None if ambient hasn't run / no data — caller should
+    fall back to legacy behavior (don't skip recovery under uncertainty)."""
+    vis = peer_visibility_via_ambient(addresses)
+    if all(age is None for age in vis.values()):
+        return None
+    # If any peer is fresh, we can't call this peer-silent.
+    for age in vis.values():
+        if age is not None and age <= max_age_s:
+            return False
+    # All ages are None (never seen) or > max_age_s (stale).
+    # Only call "silent" if at least one target has a stale age (we've seen
+    # it before, and it's now late). If ALL are None, we still don't know.
+    if any(age is not None for age in vis.values()):
+        return True
+    return None
 
 
 async def _resolve_ambient_adapter() -> Optional[str]:
@@ -1350,7 +1438,10 @@ async def ambient_scanner_loop(targets: set[str]) -> None:
         rssi = getattr(adv, "rssi", None)
         if rssi is not None:
             s["last_rssi"] = rssi
-        s["last_seen_mono"] = time.monotonic()
+        now_mono = time.monotonic()
+        s["last_seen_mono"] = now_mono
+        # Publish to the cross-module state for recovery-ladder gating.
+        _ambient_last_seen_mono[key] = now_mono
         nm = adv.local_name or dev.name
         if nm:
             s["adv_names"].add(nm)

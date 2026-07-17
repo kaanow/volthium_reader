@@ -101,10 +101,40 @@ Phase 1 is done when we've observed **at least 2-3 wedges** with
 | One battery silent, one visible | Per-BMS problem (independent from our stack) | Phase 2C — targeted per-BMS logging + timing analysis |
 | hci1 wedges at the same time as hci0 | Common-mode RF or Pi-level fault | Phase 2D — RF spectrum analysis (physical hardware required) |
 
-### Phase 2 — only if Phase 1 doesn't resolve
+### Phase 2A — ambient-gated recovery ladder (shipped 2026-07-17)
 
-Held explicitly out of Phase 1 to avoid changing the workload while
-measuring:
+Motivated by Iter 12: the recovery ladder ran through all four rungs
+(L1 hciconfig reset → L2 bluetoothd restart → L3 USB replug → L4
+process exit) trying to fix what the ambient scanner clearly showed
+was a peer-side silence. Every rung after L1 was wasted motion and
+each churned adapter state (adapter_pin_failed / adapter_restored /
+another adapter_pin_failed …).
+
+**The fix:** before firing anything past the cheap L1 rung, consult
+`ambient_says_peers_silent()`. If both peers have been invisible to the
+ambient scanner for more than 30 s, the wedge is peer-side or
+environmental — the destructive rungs can't help. Skip and just keep
+looping until peers return. L1 always fires (cheap, sometimes clears
+real reader-side wedges; rules nothing out).
+
+New event kind: `recovery_skipped` — emitted whenever the gate stops an
+escalation. Includes `reason`, `scan_errors` count, and what would have
+been done. Directly measurable "how much wasted motion did we prevent."
+
+New classification: `peer_silent_ambient_corroborated` — takes
+precedence over any dmesg-derived label. Any wedge_snapshot with this
+classification means "not our stack, not the chip, and not something
+recovery can fix."
+
+Two invariants preserved:
+- The reader still logs and snapshots the wedge — we just don't act on
+  it destructively. Analysis still gets the full evidence trail.
+- If ambient is unavailable (`None` return), we fall back to the
+  legacy escalation — the gate never worsens behavior versus pre-2A.
+
+### Phase 2B+ — held for now
+
+Only if Phase 2A doesn't resolve the picture:
 
 - **`btmon` ring-buffer capture** — kernel HCI trace, dump last N seconds on
   wedge. Big instrumentation with verbose output; worth it only after Phase 1
