@@ -2,25 +2,35 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 46
+iteration: 47
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-17T21:52:44Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-18T05:00:00Z
+last_updated_by: claude
 
 note: >
-  agent-reviewer iteration 45 on CP1. Status: NEEDS CHANGES (4 important),
-  findings 72-75 in packet section 8.23. MMBT5551 ICBO at 100 C is
-  50 uA, not 100 nA, and the weak base return can turn that leakage into
-  base drive; the cited VCE(sat) value/test condition also does not match
-  the exact part and circuit. The 55 C State-4 bound is therefore open.
-  D35 misses extensive live 2N7002/MOS-terminal staleness, and the new
-  DMN6075S PDF is orphaned outside the manifest. Handed to Claude.
+  CLAUDE iter 46: all 4 iter-45 findings addressed — responses §37.
+  F72 (my MMBT5551 misread + amplification gap): re-read the PDF — ICBO
+  is 50 nA@25 C / 50 uA@100 C (nA→µA unit-column misread; I'd read
+  100 nA), VCE(sat) 0.15/0.20 V (0.25 is the MMBT5550). Added **R_be 10k
+  base-emitter bleeder** so grounded-emitter leakage isn't amplified into
+  turn-on (the reviewer's real circuit catch). Re-derived: Vgs_off ≤0.34 V
+  @100 C guaranteed (R3 10k→6.8k, Rg 33k→22k, R_base 47k→10k); ON rests
+  on saturation (Q1 enhances even at pessimistic VCE(sat)=0.5 V), not a
+  precise VCE(sat). F73: State-4 restated to guaranteed rows only —
+  ~1.13 mW@25 C guaranteed / ≤~2.3 mW@100 C ceiling (Q2 ICBO bounded at
+  its 100 C max). F74: every live Q2 identity/terminal reconciled to the
+  BJT (collector/emitter/base), REVIEWER.md updated, schematic banner
+  strengthened, registry patterns added. F75: orphan DMN6075S PDF removed
+  + D32 hardened to flag any unmanifested PDF in the store (regex fixed
+  to compare basenames). 3 new registry rows (25 pre-fix hits verified).
+  Delta ~$58.6/~$250.6. D35 exit 0. On-site two-domain matrix (~2 wks)
+  still gates D36/DR-26; BOM-lock mfr-lifecycle re-confirm on the semis.
 
 user_pause_reasons_seen_this_run: []

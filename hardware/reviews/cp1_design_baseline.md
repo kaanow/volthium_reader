@@ -4919,3 +4919,69 @@ source URL, SHA256, exact object identity, and rejection reason. Harden
 D32 to flag unmanifested PDFs in the active store.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 4 important. (See findings 72, 73, 74, 75.)
+
+---
+
+## 37. Designer responses — iteration 46 (F72–F75)
+
+All four addressed. F72 was a real datasheet misread of mine plus a real
+circuit-physics gap; the fix keeps the BJT but corrects both. D35 gate
+exit 0 after changes (and the new orphan-PDF check caught a genuine
+orphan before it was removed); all three new registry patterns verified
+to FIRE on pre-fix text (25 old hits).
+
+### F72 (MMBT5551 ICBO misread + amplification not modeled) — ACCEPTED; my error, corrected from the PDF
+Two mistakes, both yours-to-catch:
+1. **Unit-column misread.** I re-opened the datasheet: MMBT5551 ICBO is
+   **50 nA @25 °C / 50 µA @100 °C** (VCB=120 V) — the unit column flips
+   nA→µA on the hot rows, and I'd read the "100 nA" off the MMBT5550
+   condition label. VCE(sat) is 0.15 V @10 mA / 0.20 V @50 mA (the
+   0.25 V is the MMBT5550). Both corrected everywhere.
+2. **Grounded-emitter amplification.** You're right that ICBO in a
+   grounded-emitter circuit can forward-bias the base and be amplified
+   (β·ICBO) into turn-on — 50 µA through my base return would have
+   developed >7 V. The fix is the textbook cure: a **base-emitter
+   bleeder R_be = 10 kΩ** that sinks the cutoff current so the base
+   stays ≤0.46 V (junction off), and the leakage flows as the raw ICBO.
+Re-derived from the corrected numbers: Vgs_off = ICBO·R3 ≤ **0.34 V
+@100 °C** (R3 dropped to 6.8 kΩ for a 3× margin), guaranteed, no
+interpolation. **ON no longer hinges on VCE(sat):** Q2 saturates (forced
+β ≈ 10 ≪ hFE 60) and Q1 enhances (Vgs ≥ 4.5 V) *even at a pessimistic
+VCE(sat) = 0.5 V* — so the guarantee rests on saturation, not a
+precise VCE(sat) value. Final network: Q2 MMBT5551, R_base 10 k, **R_be
+10 k (new)**, R3 6.8 k, Rg 22 k; SKUs resolve-exact. D19 re-derived.
+
+### F73 (State-4 55 °C not a bound) — ACCEPTED, restated to guaranteed rows only
+With ICBO corrected to 50 µA @100 °C, I no longer claim a guaranteed
+55 °C figure (there's no MMBT5551 cutoff row at 55 °C). State-4 is now:
+**~1.13 mW @25 °C (guaranteed)** and **≤~2.3 mW for any TA ≤100 °C**
+(bounding Q2's leakage at its guaranteed 100 °C max, ≤50 µA → ≤1.2 mW —
+a temperature the enclosure never reaches; the realistic ≤60 °C
+contribution is ~0.02 mW). The R_be bleeder ensures that even that
+bounded leakage is raw ICBO, not amplified. Reconciled every live
+headline to the "25 °C guaranteed / 100 °C ceiling" form.
+
+### F74 (Q2 replacement propagation incomplete) — ACCEPTED, fixed
+Reconciled every live Q2 identity/rating/terminal to the BJT:
+cp1_battery_side (topology drawing, component rows, state table, the
+gate paragraph, drain/source/gate → collector/emitter/base),
+docs/hardware/bom.md (Q2 row + banner + Rg-collector), cp1_bom,
+REVIEWER.md part list (now names MMBT5551). Added registry patterns for
+`Q2 2N7002`, the BJT terminal names, and the old divider values. The
+pre-CP1 `schematic_battery_side.md` (which showed AO3400A) already
+carried a SUPERSEDED banner; I strengthened it to "NOT a current design
+source — every part/value here is stale; do not cite." (2N7002 stays
+correctly live for Q3/Q4.)
+
+### F75 (orphan DMN6075S PDF) — ACCEPTED, removed + gate hardened
+Removed the rejected-candidate `DMN6075S_Diodes.pdf` from the active
+store. **Hardened D32**: the checker now enumerates every PDF in the
+datasheet directory and flags any not referenced in the manifest. On
+first run it correctly caught the DMN6075S orphan (before removal) and,
+after a regex fix so leading punctuation/paths don't corrupt the
+basename compare, passes the three legitimately-referenced PDFs (two
+retired-transceiver evidence records + the PicoBlade R/A alternate).
+
+**Handing back for iteration 47 re-verify.** Remaining open by design:
+the F47/F52 on-site two-domain matrix (~2 weeks) gating D36/DR-26; the
+BOM-lock manufacturer-lifecycle re-confirm on the semiconductors.

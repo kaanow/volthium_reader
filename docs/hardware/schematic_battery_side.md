@@ -1,8 +1,12 @@
 # Battery-side board — schematic (netlist form)
 
-> ⚠ **SUPERSEDED — historical pre-CP1 net intent (decisions.md D18–D27).**
-> This entire document predates the CP1 re-architecture and is retained only
-> for historical reference and as a starting point for the GPIO pin map.
+> ⚠ **SUPERSEDED — historical pre-CP1 net intent (decisions.md D18–D27). NOT
+> a current design source.** This entire document predates the CP1
+> re-architecture and is retained only for historical reference and the GPIO
+> pin-map starting point. **Every part/value here is stale** (e.g. it still
+> shows AO3400A/AO3401A, pre-D19). The authoritative battery-side design is
+> `cp1_battery_side.md` + `decisions.md` now, and the CP2 KiCad schematic
+> later. Do not cite this file for any current part, value, or topology.
 > **Do not treat any part number, component value, connector, or enclosure
 > here as current.** Re-architected since: the power tree (TPS62933→LM5166 on
 > the *always-on* rail; R-78E12→R-78HB12; AO340x→ZXMP6A13F/2N7002 + Vgs

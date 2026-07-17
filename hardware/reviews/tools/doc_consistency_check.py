@@ -394,13 +394,29 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "F70: stale R3=100k and DZ1-clamps-Vgs claims across battery-side/"
      "bom/manifest → R3 10 kΩ, DZ1 is a redundant backstop"),
     (r"~?1\.08 mW|~?1\.5 mW @ ?60 °C|~?0\.45 mW @ ?60 °C",
-     "~1.13 mW @25 °C / ~1.35 mW @55 °C (guaranteed rows)",
+     "~1.13 mW @25 °C guaranteed / ≤~2.3 mW @100 °C ceiling",
      "F69: the ~1.08 mW headline predated the Q1/Q2 leakage rows; the "
      "'~1.5 mW @60 °C' was an interpolation → guaranteed 55 °C bound"),
     (r"\(same as R3\)|R4.{0,20}same as R3",
      "explicit reverse-resolved SKU",
      "F71: forbid same-as inheritance when the referenced row's value "
      "changed (R4 100k inherited R3's new 10k cells)"),
+    # iter-45 reviewer findings (F72-F75, addressed iter-46):
+    (r"ICBO ≤ ?100 nA|Vgs_off = ICBO·R3 ≤ ?\*\*1 mV|VCE\(sat\) ≤ ?0\.25 V.{0,15}(guaranteed|our)",
+     "ICBO ≤50 µA@100 °C; Vgs_off ≤0.34 V; VCE(sat) 0.15/0.20 V (F72)",
+     "F72: MMBT5551 ICBO is 50 nA@25/50 µA@100 (nA→µA unit misread), "
+     "VCE(sat) 0.15/0.20 V (0.25 is the MMBT5550); R_be bleeder added so "
+     "leakage isn't amplified"),
+    (r"R3 10 ?kΩ / Rg 33 ?kΩ|R3 = 10 kΩ, Rg = 33 kΩ|divider R3 10k/Rg 33k|"
+     r"R_base = ?47 ?kΩ|R_base 47 ?kΩ",
+     "R3 6.8k / Rg 22k / R_base+R_be 10k (F72)",
+     "F72: gate network re-valued — R3 10k→6.8k, Rg 33k→22k, R_base "
+     "47k→10k, + R_be 10k bleeder"),
+    (r"Q2 \(2N7002|Q2 = ?\*?\*?2N7002|Q2 drain|Q2 source|Q2 gate\b|"
+     r"gate ◄── Rg \[33k\]|N-FET AO3400",
+     "Q2 = MMBT5551 BJT; base/emitter/collector terminals (F74)",
+     "F74: Q2 is a BJT now — use base/emitter/collector, not "
+     "drain/source/gate; 2N7002 stays only for Q3/Q4"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -487,6 +503,18 @@ def check_d32_manifest() -> list[str]:
             findings.append(
                 f"[d32] manifest part '{mpn}' (token '{bom_token}') absent "
                 f"from {CANONICAL_BOM.name} — stale manifest or BOM drift"
+            )
+    # F75 (iter-45): reverse check — every PDF in the active store must be
+    # referenced by a manifest row (or the Retired section). An unmanifested
+    # PDF is exactly the stale-object shape D32 exists to prevent.
+    # match basenames only (word/dot/plus/hyphen) so leading "(" or a
+    # path prefix or backtick does not corrupt the compare (F75).
+    manifested = set(re.findall(r"([\w.+-]+\.pdf)", text))
+    for pdf in sorted(DATASHEET_DIR.glob("*.pdf")):
+        if pdf.name not in manifested:
+            findings.append(
+                f"[d32] orphan PDF in active store: {pdf.name} has no "
+                f"manifest row — remove it or add a provenance row (F75)"
             )
     n_verify = len(re.findall(r"_verify", bom_text))
     print(f"  info: {n} manifest parts checked; {n_verify} BOM cells still "
