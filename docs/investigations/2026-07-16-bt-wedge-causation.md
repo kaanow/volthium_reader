@@ -132,6 +132,45 @@ Two invariants preserved:
 - If ambient is unavailable (`None` return), we fall back to the
   legacy escalation — the gate never worsens behavior versus pre-2A.
 
+### Experiment: single-adapter operation (2026-07-17T14:21:15Z / 07:21 PDT)
+
+Between 2026-07-17T02:26Z and 14:20Z we observed 8 wedges, all Family B
+or peer-context. 4 fired within 22 s of `ambient_scanner_started`; 2
+more fired during long peer-silent stretches. All had the same
+underlying signature: `[org.bluez.Error.InProgress]` on hci0's next
+scan. Hypothesis: **BlueZ's per-adapter discovery state machine wedges
+when stressed, and running two concurrent discovery sessions is a
+strong stressor.** Ambient scanner startup is one demonstrated trigger.
+
+To test how much of the observed wedge rate is caused by our own
+dual-adapter operation, we disabled the ambient scanner at
+2026-07-17T14:21:15Z. Only the primary adapter (UB500 / hci0) is
+scanning; the internal chip (hci1) is powered down as it would be
+without instrumentation.
+
+Reversion: uncomment `VOLTHIUM_AMBIENT_ADAPTER=…` in
+`/etc/systemd/system/volthium-logger.service.d/10-reader-env.conf`
+(currently prefixed with `#EXPERIMENT-2026-07-17`).
+
+Immediate baseline: 2 min post-restart, 0 wedges. Historical rate for
+this time window with ambient enabled was 4/4 InProgress wedges within
+22 s. The next 12-24 h will tell us:
+
+- If wedge rate drops significantly → dual-adapter operation is a
+  material contributor; the permanent answer is burst-mode ambient or
+  event-triggered ambient (Phase 2B option) rather than continuous.
+- If wedge rate is similar → our operation isn't the primary cause;
+  the InProgress wedges have other stressors we haven't found and the
+  ambient-scanner startup timing was coincidence + rare per-restart
+  wedges. Turn ambient back on and dig further.
+- Peer-side dormancies will continue independently — those aren't
+  affected by which adapter we're running.
+
+Cost during experiment: we lose the `peer_silent_ambient_corroborated`
+classification. New peer-silent wedges will fall back to the reason-
+string signals (`InProgress`, `TimeoutError`) and be classified as
+`bluez_discovery_state_stuck` or `bms_peer_not_responding`.
+
 ### Phase 2B+ — held for now
 
 Only if Phase 2A doesn't resolve the picture:
