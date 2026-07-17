@@ -1245,6 +1245,7 @@ def _classify_wedge(
 
 async def _collect_stack_evidence(
     reason: str, peers: Optional[set[str]] = None,
+    is_wedge: bool = False,
 ) -> dict:
     """Fan out to every layer's state probe in parallel and return one
     normalized evidence dict. Shared by wedge and health snapshots so they
@@ -1297,12 +1298,23 @@ async def _collect_stack_evidence(
     if peers:
         ambient_visibility = peer_visibility_via_ambient(peers)
         ambient_peers_silent = ambient_says_peers_silent(peers)
-    classification = _classify_wedge(
-        reason, dmesg, hci_state, bctl, ub500,
-        pinned_in_kernel=pinned_in_kernel,
-        pinned_in_bluez=pinned_in_bluez,
-        ambient_peers_silent=ambient_peers_silent,
-    )
+    if is_wedge:
+        classification = _classify_wedge(
+            reason, dmesg, hci_state, bctl, ub500,
+            pinned_in_kernel=pinned_in_kernel,
+            pinned_in_bluez=pinned_in_bluez,
+            ambient_peers_silent=ambient_peers_silent,
+        )
+    else:
+        # Health snapshots run mid-cycle when reads are healthy — most
+        # classifier signals (e.g. `Discovering: yes`) are TRUE-and-normal
+        # then, not diagnostic. Only the ambient peer-silent signal
+        # (which fires on age > 30 s, well past a normal read window) is
+        # a real anomaly for a health event.
+        if ambient_peers_silent is True:
+            classification = "peer_silent_ambient_corroborated"
+        else:
+            classification = "healthy"
     # If Pi throttling is currently active, upgrade the classification —
     # any recent under-voltage strongly implies the chip hang was electrical,
     # not firmware. Preserve the original label as a hint field.
@@ -1354,7 +1366,7 @@ async def snapshot_stack(
 
     All probes run in parallel with tight timeouts so the snapshot itself
     can't stall the loop for more than ~3 s in the worst case."""
-    evidence = await _collect_stack_evidence(reason, peers=peers)
+    evidence = await _collect_stack_evidence(reason, peers=peers, is_wedge=True)
     _event("wedge_snapshot", recovery_level=level, **evidence)
 
 
@@ -1366,7 +1378,7 @@ async def emit_stack_health(
     is wrong — the point is to establish a baseline so a future incident
     has "healthy state" to diff against, and so under-voltage becomes
     visible the moment it starts rather than only when it breaks reads."""
-    evidence = await _collect_stack_evidence(reason, peers=peers)
+    evidence = await _collect_stack_evidence(reason, peers=peers, is_wedge=False)
     _event("stack_health", **evidence)
 
 

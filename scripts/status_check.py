@@ -196,11 +196,15 @@ def section_events(since_iso: str) -> tuple[bool, list[str]]:
             )
     else:
         lines.append("  wedge_snapshot: none")
-    # stack_health with non-clean classification (baseline hits are noise)
+    # stack_health with non-clean classification. "healthy" and
+    # "unclassified" both count as clean; anything else (e.g.
+    # peer_silent_ambient_corroborated firing on a periodic snapshot,
+    # or legacy classifications from before the health-vs-wedge split)
+    # gets flagged.
     health = fetch_events("stack_health", since_iso)
     non_clean = [
         e for e in health
-        if (e["data"].get("classification") not in (None, "", "unclassified"))
+        if (e["data"].get("classification") not in (None, "", "unclassified", "healthy"))
     ]
     if non_clean:
         by_cls = Counter(e["data"].get("classification") for e in non_clean)
