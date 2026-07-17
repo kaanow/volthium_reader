@@ -802,12 +802,14 @@ adapter directly."* → RS-485 (not TTL), 2-wire/no-ground, A/B on RJ45
 **7/8** (double-sourced: thread 2024-01-15 + photographed label); socket
 closest to the negative terminal. **CAN pin-domain resolved**: the
 thread's "pin 1 and 2" is the battery-side connector (owner's 2023-12-27
-question is explicit); RJ45 side is 4/5 per the label — consistent.
-**Connector measured 2026-07-17** (cable photos on file): 4-position
-M12-pattern screw coupling, ~12.3 mm thread ID, numbered 1→4 CCW; full
-conductor map beeped out (battery 1/2 = CAN-H/L → RJ45 4/6; battery
-3/4 = RS-485 A/B → RJ45 7/8); purchased cable ends RJ45-male → direct
-mate. Vendor PN never supplied — not load-bearing. On-site side-item
+question is explicit). **Connector + conductor map measured 2026-07-17**
+(cable photos on file): 4-position M12-pattern screw coupling, ~12.3 mm
+thread ID, numbered 1→4 CCW; beep-out gives battery 1/2 = CAN-H/L →
+**RJ45 4/6** and battery 3/4 = RS-485 A/B → RJ45 7/8. **The separate
+Pro-Series *label* prints CAN on RJ45 4/5 — a different cable product,
+not the in-service cable; the two are NOT the same map** (F63). The
+purchased cable ends RJ45-male → direct mate. Vendor PN never supplied
+— not load-bearing. On-site side-item
 remaining: which socket per pack. The isolated ADM2587E front-end
 is the correct circuit class under this premise.
 **DR-26 stays OPEN and GATING on the ~2-week on-site test** — the test
@@ -853,13 +855,13 @@ GND×2, dedicated **I2C1** (SDA/SCL, isolates the RV-3028 timekeeping bus),
 
 **Power domain (iter-36, F48/F51 — supersedes the iter-34 wording):**
 the EXP_3V3 pin is a **load-switched, default-OFF** rail — a
-**direct-GPIO-driven DMG3415U** (F51: no 2N7002 level shifter — source
+**direct-GPIO-driven NTR4171P** (F51: no 2N7002 level shifter — source
 = 3V3 = the GPIO domain; 100 kΩ gate pull-up; `EXP_PWR_EN` active-LOW),
 **force-OFF in State 4**, with a **testable off-state contract**
 (decisions.md D37): I2C pull-ups powered from the **switched** rail; all
 5 signals **high-Z before/while rail-off** (firmware, binding);
 **R_exp_bleed 100 kΩ** parks the rail ≤ 50 mV. Off-leakage bound stated
-honestly (F51; FET = DMG3415U per F56/F57 — RDS(on) guaranteed 53 mΩ @ −2.5 V, the NRND ZXMP6A13F was not): IDSS ≤ 1 µA (−20 V) is a **25 °C test point, not
+honestly (F51; FET = NTR4171P per F61 — RDS(on) guaranteed 150 mΩ @ −2.5 V; replaced DMG3415U, which was itself NRND): IDSS ≤ 1 µA @25 °C / ≤5 µA @85 °C (−24 V) is a **test point, not
 a full-range max**; engineering **allocation ≤ 5 µA @ ≤40 °C ambient**,
 with the **bring-up acceptance measurement as the binding limit**
 (V(EXP_3V3) ≤ 50 mV, block draw ≤ 5 µA, add-on plugged, rail off);

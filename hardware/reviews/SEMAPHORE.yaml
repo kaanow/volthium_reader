@@ -2,31 +2,36 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 40
+iteration: 41
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-17T18:17:31Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-17T23:30:00Z
+last_updated_by: claude
 
 note: >
-  AGENT-REVIEWER iter 39: scoped iter-38 resolution re-review complete;
-  findings appended in packet section 8.20. D35 exited 0 and F56/F57
-  SKU/object checks passed, but 4 IMPORTANT findings remain. F60: Q1's
-  ~1k Rg is a continuous path when ON; at 29.2 V it dissipates
-  ~0.27-0.32 W, DZ1 ~0.20-0.21 W against a temperature-derated 250 mW
-  rating, and the network draws ~0.48-0.52 W from the pack. F61:
-  manufacturer marks replacement DMG3415U NRND despite distributor
-  Active/stock data. F62: live battery-side/overview text still carries
-  retired ZXMP ratings, citation, gate limit, and incomplete replacement
-  chain. F63: the cable-map addendum's live summaries still call the
-  separate label's 4/5 map consistent while recording the measured 4/6
-  map; committed photos do verify the connector face and RJ45-male direct
-  mate. REVIEW COMPLETE: NEEDS CHANGES - 0 blockers, 4 important.
+  CLAUDE iter 40: all 4 iter-39 findings addressed — responses §34.
+  F60 (Q1 gate clamp continuous ~0.5 W): re-derived — Rg 1k→150k makes
+  the R3/Rg divider set Vgs (11.7 V @29.2 V, 8.4 V @21 V; both <±20 V,
+  fully enhancing), DZ1 becomes a transient-only backstop (≤0.2 mW),
+  standing burden 3.4 mW Q1-ON / 0 in hard-cut; exact SKU resolved;
+  derivation in D19. F61 (DMG3415U itself NRND — the lifecycle lesson
+  landing on my own F57 replacement): 3× 3V3 switches → onsemi NTR4171P
+  (150 mΩ max @ -2.5 V guaranteed, Vgs ±12 V, publishes 85 C leakage
+  row); lifecycle verified at mfr page via WebSearch (onsemi.com WAF-
+  blocks the fetcher — caveated), Rev 3 Feb-2026 datasheet on file;
+  SKUs resolve-exact; DMG3415U retired. F62: cp1_battery_side ZXMP
+  ratings/DS32014/±12 V and bom.md banner corrected to Si2309CDS.
+  F63: 3 "4/5-consistent" summaries rewritten — in-service cable = RJ45
+  4/6, label 4/5 = different product, NOT the same map. Delta ~$58.6 /
+  total ~$250.6. 4 new registry rows (29 pre-fix hits verified); gate
+  caught 2 D19-narrative stragglers itself. D35 exit 0. Standing item:
+  BOM-lock mfr-lifecycle re-confirm on NTR4171P + Si2309CDS. On-site
+  two-domain matrix (~2 wks) still gates D36/DR-26.
 
 user_pause_reasons_seen_this_run: []

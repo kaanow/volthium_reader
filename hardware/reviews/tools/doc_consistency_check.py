@@ -319,6 +319,30 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "M12-pattern screw-coupling (measured; photos on file)",
      "The 12.3 mm thread + numbered molded insert identify the M12 "
      "pattern; 'aviation-style' was the interim family guess"),
+    # iter-39 reviewer findings (F60-F63, addressed iter-40):
+    (r"\bDMG3415U\b",
+     "NTR4171P",
+     "F61: Diodes marks DMG3415U NRND despite distributor Active/stock "
+     "→ onsemi NTR4171P (150 mΩ max @ -2.5 V, Vgs ±12 V, elevated-temp "
+     "leakage row); distributor lifecycle field is not authoritative"),
+    (r"600 ?mΩ|0\.6 ?Ω.{0,20}-?4\.5|400 ?mΩ.{0,20}-?10|DS32014|"
+     r"the FET's ±12 ?V",
+     "Si2309CDS 450/345 mΩ, ±20 V Vgs (Vishay 68980)",
+     "F62: cp1_battery_side carried the retired ZXMP6A13F RDS(on) "
+     "(600/400 mΩ), its DS32014 citation, and a ±12 V Vgs — all wrong "
+     "for the Si2309CDS (450/345 mΩ, ±20 V)"),
+    (r"~?1 ?kΩ.{0,40}(gate|Rg)|Rg.{0,20}~?1 ?kΩ|works with DZ1 to clamp",
+     "Rg 150 kΩ divider-set (F60)",
+     "F60: the 1 kΩ Rg made the Zener clamp a continuous ~0.5 W path "
+     "when Q1 ON; raised to 150 kΩ (divider sets Vgs, 3.4 mW burden, "
+     "DZ1 = transient backstop)"),
+    (r"RJ45 side is 4/5 per\s+the label; consistent|"
+     r"does not conflict.{0,60}4/5|4/5[ —-]+one cable\s+maps one to the other|"
+     r"different connectors, one cable maps one to the other",
+     "in-service cable measures RJ45 4/6; label's 4/5 is a different product",
+     "F63: the 2026-07-17 beep-out measures CAN on RJ45 4/6; the "
+     "Pro-Series label's 4/5 is a different cable — the maps are NOT "
+     "consistent"),
 ]
 
 # ---------------------------------------------------------------------------

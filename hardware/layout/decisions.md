@@ -1177,13 +1177,32 @@ coordination defects together.
   ZXMP6A17 is only SOT-23-6/SOT-223; the A13F is the clean 3-pin part.)
   *[Superseded iter-38 (F56/F57): Diodes marks ZXMP6A13F NRND and no
   RDS(on) is guaranteed at a 3.3 V gate drive → Q1 = Vishay
-  **Si2309CDS** (−60 V, ±20 V Vgs, RDS 0.345 Ω max @ −10 V — same Zener
-  clamp scheme applies) and the three 3V3-domain switches = Diodes
-  **DMG3415U** (53 mΩ max guaranteed @ VGS = −2.5 V). See cp1_bom.]*
-  Add a **gate-source Zener clamp (~12 V) + series gate resistor**
-  so Vgs stays in range regardless of bus voltage (AO3401A's ±12 V was
-  driven to −29 V). The gate-driver N-FET also sees the high rail, so
-  Q2 = **60 V N-FET** (2N7002). Q1 now switches only U2/the display feed.
+  **Si2309CDS** (−60 V, ±20 V Vgs, RDS 0.345 Ω max @ −10 V — same gate
+  network applies). The three 3V3-domain switches went to Diodes
+  DMG3415U, then **iter-40 (F61) to onsemi NTR4171P** when DMG3415U was
+  also found NRND. See cp1_bom.]*
+  Add a **gate-source divider (R3 100 kΩ / Rg 150 kΩ) + Zener backstop
+  (~12 V)** so Vgs stays in range regardless of bus voltage (the superseded
+  AO3401A's ±12 V Vgs was driven to −29 V — the pre-clamp defect). The gate-driver N-FET also sees the high
+  rail, so Q2 = **60 V N-FET** (2N7002). Q1 now switches only U2/the
+  display feed.
+
+  *[Gate-network derivation, iter-40 (F60) — the superseded 1 kΩ Rg made
+  the Zener clamp a **continuous ~0.5 W path** whenever Q1 is ON (17 mA
+  at 29.2 V), over the 0805/Zener ratings. Corrected to a
+  divider-dominant design: with Rg = 150 kΩ, R3 = 100 kΩ, DC
+  Vgs = V24·R3/(R3+Rg) = **11.7 V at 29.2 V full charge / 8.4 V at the
+  21 V UVLO floor** — both < ±20 V and fully enhancing (RDS spec'd from
+  −4.5 V). DZ1 (BZX84C12) sits above the 11.7 V DC point → draws
+  ≤ 0.2 mW continuously and conducts only on a surge (the ~53 V clamp
+  divides to 21.2 V would-be Vgs → DZ1 clamps to ~12 V). Standing
+  current 117 µA → **3.4 mW pack burden while Q1 is ON, zero in
+  hard-cut**; P_Rg = 2.05 mW, P_R3 = 1.36 mW — all far under 0805
+  ratings. Turn-on τ ≈ 12 µs (softens display inrush). Fail-safe
+  unchanged: Q2 off → R3 pulls gate to source → Q1 off. Exact SKUs:
+  Rg = RMCF0805FT150KCT-ND / 71-CRCW0805-150K-E3 (resolve-exact
+  2026-07-17). This ~3.4 mW active-only term is added to the State-1/2
+  budget; it does not touch the ~1 mW hard-cut floor.]*
 - **Surge coordination (DR-3).** U2 → **Recom R-78HB12-0.5** (17–72 V in,
   0.5 A). D1 → **60 V Schottky** (SS26/SK56). With U1 (65 V), Q1 (60 V),
   U2 (72 V), D1 (60 V) the whole protected rail out-rates the SMAJ33CA's
@@ -2083,9 +2102,11 @@ CP2/CP3 isolation-keepout contract (design §3).
 Connectors: 2× RJHSE-5380 RJ45 (mate the vendor pack-connector→RJ45
 cable; A/B on pins 7/8 — double-sourced: thread 2024-01-15 + photo
 label; **CAN domain resolved, F45 closed 2026-07-16** — the thread's
-"pin 1 and 2" is the battery-side connector, the RJ45 side is 4/5 per
-the label; consistent, different connectors; CAN pads follow the RJ45
-label if ever routed). Bus TVS footprints = SM712 + series R, **DNP /
+"pin 1 and 2" is the battery-side connector; the **in-service cable
+beeps out to RJ45 4/6** (2026-07-17), while the separate Pro-Series
+label prints 4/5 — a different cable product, **not** the same map
+(F63); CAN pads, if ever routed, follow the measured in-service map).
+Bus TVS footprints = SM712 + series R, **DNP /
 port intentionally unprotected (F44)** — see design §3.
 
 **Reserved, not chosen: CAN for reading.** CAN's role is a future
@@ -2158,11 +2179,12 @@ nothing is plugged in**.
 **Enforceable power-domain contract (F34/F39/F48/F51).** The expansion
 rail is **not** raw always-on 3V3, and — correcting the iter-30 wording —
 it is **not** current-limited either. It is an **on/off, default-OFF
-load switch** — a **direct-GPIO-driven DMG3415U** (F51 simplification:
-source = 3V3 = the GPIO domain, no level shifter; F56/F57 iter-38: the
-FET is DMG3415U, whose RDS(on) is **guaranteed 53 mΩ max at
-VGS = −2.5 V** — the prior ZXMP6A13F had no guaranteed RDS(on) below
-−4.5 V and is NRND; 100 kΩ gate pull-up to 3V3; `EXP_PWR_EN`
+load switch** — a **direct-GPIO-driven NTR4171P** (F51 simplification:
+source = 3V3 = the GPIO domain, no level shifter; **iter-40 F61: the
+FET is onsemi NTR4171P**, RDS(on) **guaranteed 150 mΩ max at
+VGS = −2.5 V**, Vgs ±12 V ≫ the 3.3 V drive — it replaced DMG3415U,
+NRND at the manufacturer despite distributor stock (which in turn
+replaced the NRND ZXMP6A13F); 100 kΩ gate pull-up to 3V3; `EXP_PWR_EN`
 **active-LOW**, high-Z/high = OFF) — **OFF at reset** (pull-up wins
 while the pin is high-Z) and **force-OFF in State 4**.
 F48 replaced the "rail is *dead*" wording with a **testable off-state
@@ -2178,18 +2200,18 @@ contract**:
    unpowered add-on through its protection diodes.
 3. **Discharge**: a bleed resistor **R_exp_bleed = 100 kΩ, EXP_3V3 →
    GND** (populated) discharges the switched node so switch leakage
-   cannot float it: against DMG3415U's IDSS bound (≤1 µA @ −20 V,
-   25 °C — pessimistic at our −3.3 V) the parked rail sits **≤ 100 mV
-   datasheet-bound**; the binding number is the measured limit in
+   cannot float it: against NTR4171P's IDSS bound (≤1 µA @ −24 V,
+   25 °C; ≤5 µA @ 85 °C — pessimistic at our −3.3 V) the parked rail
+   sits **≤ 100 mV datasheet-bound**; the binding number is the measured limit in
    item 5. On-state cost 33 µA (~110 µW) — active-mode only. If the
    bench exceeds the limit, drop R_exp_bleed to 10–33 kΩ (resistor
    swap).
 4. **Off-state budget — honestly bounded (F51; FET re-pinned iter-38
    F56/F57)**: with the 2N7002 removed (F51 direct drive) the only
-   semiconductor leak is the **DMG3415U**, whose IDSS ≤ 1 µA
-   (DS31735, V_DS = −20 V, 25 °C) is a **test point at a harsher
-   condition than ours (−3.3 V) — no full-temperature maximum is
-   published** (typical of small-signal FETs). Budget structure:
+   semiconductor leak is the **NTR4171P**, whose IDSS ≤ 1 µA
+   (NTR4171P/D, V_DS = −24 V, 25 °C) **and ≤ 5 µA @ 85 °C** are test
+   points at a harsher V_DS than ours (−3.3 V); unlike the prior parts
+   this one *does* publish an elevated-temp row. Budget structure:
    **datasheet-anchored 25 °C bound ≤ 1 µA; engineering allocation
    ≤ 5 µA (≈16 µW) at the ≤ 40 °C battery-box ambient** (stated as an
    *allocation*, not a datasheet fact); the **binding number is the

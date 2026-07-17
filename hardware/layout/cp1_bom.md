@@ -105,8 +105,8 @@ one complete monitor.
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | Q1  | **Si2309CDS** P-MOSFET (Vishay, Vds −60 V, −1.6 A) | SOT-23 | 1 | **SI2309CDS-T1-GE3CT-ND** (120k stock, Active, API 2026-07-17) | 781-SI2309CDS-GE3 (89k) | $1.39 | **Δ (D19/DR-4): AO3401A (30 V) → ZXMP6A13F (60 V); iter-38 (F57): ZXMP6A13F went NRND with unsubstantiated stock → Si2309CDS** (Vishay doc 68980, on file): RDS 0.345 Ω max @ VGS=−10 V (the DZ1-clamped drive), Vgs ±20 V, **IDSS ≤100 nA @25 °C / ≤1 µA @TJ=55 °C** (a rare specified elevated-temp leakage row). ~0.3 A load → ≤0.11 V drop |
 | Q2  | **2N7002LT1G** (onsemi) N-MOSFET (Vds 60 V) | SOT-23 | 1 | — (LT1G variants zero-stock at DK, API 2026-07-17) | **863-2N7002LT1G** (76k, API 2026-07-17) | $0.49 | **Δ (D19/DR-4): AO3400A (30 V) → 2N7002 (60 V)** — drain follows the V24 rail when Q1 is off |
-| DZ1 | BZX84C12 12 V Zener (Q1 gate–source clamp) | SOT-23 | 1 | BZX84C12LT1GOSCT-ND (71k stock, Active) | 863-BZX84C12LT1G (182k) | $0.10 | **NEW (D19/DR-4)** — holds Q1 Vgs ≤ 12 V (was driven to −29 V) |
-| Rg  | ~1 kΩ 0805 1 % (series gate, Q2 drain → Q1 gate) | 0805 | 1 | _verify_ | _verify_ | $0.10 | **NEW (D19/DR-4)** — works with DZ1 to clamp the gate |
+| DZ1 | BZX84C12 12 V Zener (Q1 gate–source **transient backstop**) | SOT-23 | 1 | BZX84C12LT1GOSCT-ND (71k stock, Active) | 863-BZX84C12LT1G (182k) | $0.10 | **NEW (D19/DR-4); role clarified iter-40 (F60):** with Rg raised to 150 kΩ the R3/Rg divider sets DC Vgs ≈ 11.7 V (full charge) — **below the Zener knee, so DZ1 draws ≤0.2 mW continuously**; DZ1 conducts only on a surge (>±20 V would-be Vgs → clamps to ~12 V). BZX84C12LT1G Vz 11.4–12.9 V @20 mA (onsemi doc, on file), 250 mW/25 °C derating to 200 mW/50 °C — met with vast margin |
+| Rg  | **150 kΩ** 0805 1 % (series gate, Q2 drain → Q1 gate) | 0805 | 1 | **RMCF0805FT150KCT-ND** | 71-CRCW0805-150K-E3 | $0.10 | **Δ iter-40 (F60): 1 kΩ → 150 kΩ.** The prior 1 kΩ made this a **continuous ~0.30 W** path when Q1 is ON (17 mA through Rg and DZ1 at 29.2 V) — far over the 0805/Zener ratings and ~0.5 W of unbudgeted pack draw. At 150 kΩ the R3(100k)/Rg divider sets Vgs and standing current is **117 µA → 3.4 mW pack burden (Q1-ON only; zero in hard-cut)**, P_Rg = 2.05 mW, P_DZ1 ≤ 0.2 mW. Full derivation: decisions.md D19 (F60). Turn-on τ≈12 µs (softens display inrush) |
 | R3  | 100 kΩ 0805 1 % (Q1 gate pull-up to V24_FUSED) | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805-100K-E3 | $0.10 | Default-OFF load switch |
 | R4  | 100 kΩ 0805 1 % (Q2 gate pull-down to GND) | 0805 | 1 | (same as R3) | (same) | $0.10 | Brown-out failsafe-off |
 | U4  | **TI TPS3808G01DBVR** voltage supervisor (~2.4 µA, adj SENSE, OD RESET, prog CT delay, +MR) | **SOT-23-6 (leaded ✓)** | 1 | 296-17188-2-ND | 595-TPS3808G01DBVR | $0.90 | **D28/DR-16; repackaged D33/DR-24 (2026-07-01): WSON→SOT-23-6 for solderability at ~zero power cost (Iq 2.4 µA vs the old part's 2.1 µA).** Adjustable **VIT = 0.405 V**; ISENSE ±25 nA max; built-in VHYS 1.5 %. Divider **release-sized** R1≈5.16 MΩ/R2≈100 kΩ + R_hys≈11.5 MΩ → trip ~20.0 V / release ~21.7–21.8 V (RESET active-low → positive feedback; F01 polarity + F04 release value; see R_uv/R_hys rows; final E96 at CP2). Active, DK 149k. Datasheet: hardware/datasheets/TPS3808G01DBVR.pdf |
@@ -172,7 +172,7 @@ one complete monitor.
 | J4  | 2-pin 2.54 mm header, RS-485 term lift jumper | THT | 1 | S1011EC-02-ND | 200-TSW10206TS | $0.20 | NEW |
 | J5  | 4-pin 2.54 mm header, debug UART | THT | 1 | (same as J3) | (same) | $0.30 | NEW — dev only |
 | J_EXP | **Molex PicoBlade 1.25 mm, 8-ckt, SMT** expansion header, **vertical 53398-0871** | SMT | 1 | **WM7612CT-ND** | 538-53398-0871 (42.6k) | $1.40 | **NEW (D37):** future-expansion — dedicated I2C1 (SDA/SCL, pull-ups on **switched EXP_3V3**, F48) + 2× ADC1/RTC-wake AIO + 1 generic DIO + **load-switched EXP_3V3** + GND×2. Datasheet on file (customer drawing). **F33 fix:** DK SKU corrected WM7626 (=r/a 53261) → WM7612CT-ND (=53398-0871). **F38/F49/F53 (mate/rating — CLOSED iter-36):** drawing = **MATE WITH: 51021 SERIES**; exact header-system spec **PS-51021-024 Rev AD now on file** (owner upload 2026-07-17, sha b7d3ec9b74b9) — its scope lists **53398\*\*71 vertical headers (ours)**, and ratings give **1.0 A max (AWG 26/28/30), 125 V, −40…+105 °C** (8-ckt derating ref 1.5 A @ AWG 26/28, 30 °C rise, reference-only) — our loads (logic + one power pin whose upstream ceiling is the shared LM5166 500 mA) are within it. PS-51021-009 stays scoped to the wire-to-wire mate side (F53). Qty-1 mate = **OTS pre-built cable assembly 0151340801** (DK **WM15273-ND**, 8,199 stock, Active, $10.53, API 2026-07-16 — optional, order with the add-on; loose 50079-8000 terminals have a 25k MOQ, not a qty-1 path). R/A alt 53261-0871. Pinout/power: decisions.md **D37** |
-| Q_exp | Expansion-rail **on/off** load switch — **direct-GPIO-driven DMG3415U** P-FET high-side, **default-OFF** (F51: source = 3V3 = the GPIO domain, no level shifter; **F56/F57 iter-38: FET = DMG3415U — RDS(on) guaranteed 53 mΩ max @ VGS=−2.5 V** (DS31735), unlike the NRND ZXMP6A13F which had no guaranteed row below −4.5 V; gate ← 100 kΩ pull-up to 3V3 + ESP `EXP_PWR_EN`: high-Z/high = OFF, low = ON) — **F34/F39/F48/F51/F56** | SOT-23 | 1 | **DMG3415UDICT-ND** (136k stock, Active, API 2026-07-17) | 621-DMG3415U-7 (7.5k) | $0.72 | **NEW:** gates EXP_3V3; **OFF at reset + force-OFF in State 4**. **F48/F51 off-state contract (decisions.md D37):** I2C pull-ups on the switched rail; all 5 signals high-Z before/while rail-off; R_exp_bleed parks the rail **≤100 mV datasheet-bound** (DMG3415U IDSS ≤1 µA @ −20 V/25 °C — pessimistic at our −3.3 V); allocation ≤ 5 µA/switch @ ≤40 °C; **binding limit = bring-up acceptance: ≤50 mV measured** (fail → drop R_exp_bleed to 10–33 kΩ, resistor swap). **F39: a switch, not a current limiter** — upstream limit is F1 (1 A) + LM5166 (500 mA). Optional series PPTC (~75 mA hold) — noted, DNP |
+| Q_exp | Expansion-rail **on/off** load switch — **direct-GPIO-driven NTR4171P** P-FET high-side, **default-OFF** (F51: source = 3V3 = the GPIO domain, no level shifter; **F61 iter-40: FET = onsemi NTR4171P — RDS(on) guaranteed 150 mΩ max @ VGS=−2.5 V**, Vgs ±12 V ≫ the 3.3 V drive; replaced DMG3415U, which was NRND at the manufacturer despite distributor stock; gate ← 100 kΩ pull-up to 3V3 + ESP `EXP_PWR_EN`: high-Z/high = OFF, low = ON) — **F34/F39/F48/F51/F56/F61** | SOT-23 | 1 | **NTR4171PT1GOSCT-ND** (11k stock, Active, API 2026-07-17) | 863-NTR4171PT1G (30k) | $1.13 | **NEW:** gates EXP_3V3; **OFF at reset + force-OFF in State 4**. **F48/F51 off-state contract (decisions.md D37):** I2C pull-ups on the switched rail; all 5 signals high-Z before/while rail-off; R_exp_bleed parks the rail **≤100 mV datasheet-bound** (NTR4171P IDSS ≤1 µA @ −24 V/25 °C, ≤5 µA @85 °C — pessimistic at our −3.3 V); allocation ≤ 5 µA/switch @ ≤40 °C; **binding limit = bring-up acceptance: ≤50 mV measured** (fail → drop R_exp_bleed to 10–33 kΩ, resistor swap). **F39: a switch, not a current limiter** — upstream limit is F1 (1 A) + LM5166 (500 mA). Optional series PPTC (~75 mA hold) — noted, DNP |
 | R_exp_bleed | 100 kΩ 0805, EXP_3V3 → GND discharge | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805-100K-E3 | $0.10 | **NEW (F48):** discharges/parks the switched rail (≤0.5 µA IDSS × 100 kΩ = ≤50 mV); draws 33 µA (~110 µW) only while EXP is ON |
 
 ### Enclosure & mounting
@@ -308,16 +308,16 @@ U2 R-78HB12-0.5 = CA$27.95 (was $8) and BTN1 8125SHZBE = CA$18.47
 | Cable & shared connectors | ~$10 |
 | Bare PCBs from JLCPCB (qty 5 of each board, 2-layer FR-4 HASL, DHL shipping) | ~$30 |
 | **iter-27 core total** | **~$192** |
-| **+ D36/D37 delta (pending CP1-delta review)** — see below | **+ ~$57.4** |
-| **Single-monitor total (with pending delta)** | **~$249.4** |
+| **+ D36/D37 delta (pending CP1-delta review)** — see below | **+ ~$58.6** |
+| **Single-monitor total (with pending delta)** | **~$250.6** |
 
 **D36/D37 delta (recomputed iter-36 after the F51 switch simplification;
 iter-34 F50 fixed the earlier mis-sums $0.40/$0.20):** 2× ADM2587E @
 $22.90 = $45.80; 2× RJHSE-5380 battery-read jacks @ $2.30 = $4.60; 2×
 isoPower support networks ~$3.00; 2× channel load-switches — now
-**direct-GPIO-driven DMG3415U, no 2N7002 (F51; FET re-pinned F56/F57)** — @ $0.72 = **$1.44**;
-J_EXP $1.40; Q_exp (same class) **$0.72**; expansion passives
-incl. R_exp_bleed + gate pull-ups ~$0.40 → **~$57.4** (recomputed
+**direct-GPIO-driven NTR4171P, no 2N7002 (F51; FET re-pinned F56/F57→F61)** — @ $1.13 = **$2.26**;
+J_EXP $1.40; Q_exp (same NTR4171P class) **$1.13**; expansion passives
+incl. R_exp_bleed + gate pull-ups ~$0.40 → **~$58.6** (recomputed iter-40 after the F61 NTR4171P swap;
 iter-38 after the F56/F57 FET replacement; SM712 ×2 +
 series-R + PPTC all DNP = $0). *Optional, not in the sum:* PicoBlade
 mate cable assembly 0151340801 (**$10.53**, DK WM15273-ND) — order
@@ -349,7 +349,7 @@ so the extras are not wasted.
 - Phoenix MSTB pluggable terminal block + plug
 - 5×20 mm cartridge fuse + 2× PCB-mount fuse clips
 - TVS1 = SMAJ33CA on V24_FUSED (D19/DR-2)
-- Q1 gate-source Zener clamp DZ1 (BZX84C12) + series gate Rg (D19/DR-4)
+- Q1 gate-source Zener DZ1 (BZX84C12, transient backstop) + series gate Rg **150 kΩ** (D19/DR-4; F60: Rg sized so the divider sets Vgs, standing burden 3.4 mW not ~0.5 W)
 - ESP EN cap (C8) + pull-up (R7)
 - Maintenance: J3 = **USB-C** (native USB, D22) + USB ESD array; J5 (UART) for bring-up
 - **Removed** battery-side RS-485 idle bias (now display-end only, D19/DR-4)

@@ -135,14 +135,14 @@ unless the CP2 pin map demands it.)
 Remaining §2 wiring notes:
 
 - **Power-gate** each ADM2587E's VCC with a discrete **P-FET high-side
-  switch** — a **direct-GPIO-driven DMG3415U** (F51: source is 3V3, the
-  same domain as the ESP pin — no level shifter; **F56/F57: DMG3415U's
-  RDS(on) is guaranteed 53 mΩ max @ VGS=−2.5 V**, so the 3.3 V drive is
-  a qualified operating point — the prior ZXMP6A13F had no guaranteed
-  row below −4.5 V and is NRND; 100 kΩ gate pull-up to 3V3 gives
-  default-OFF while the pin is high-Z), enabled by **active-LOW**
-  `CH_x_PWR`. isoPower settles in ≈ 1 ms; firmware waits before the
-  first byte.
+  switch** — a **direct-GPIO-driven NTR4171P** (F51: source is 3V3, the
+  same domain as the ESP pin — no level shifter; **F61 iter-40:
+  NTR4171P (onsemi) RDS(on) guaranteed 150 mΩ max @ VGS=−2.5 V**, Vgs
+  ±12 V ≫ the 3.3 V drive, so the drive is a qualified operating point;
+  it replaced DMG3415U, which was NRND at the manufacturer despite
+  distributor stock; 100 kΩ gate pull-up to 3V3 gives default-OFF while
+  the pin is high-Z), enabled by **active-LOW** `CH_x_PWR`. isoPower
+  settles in ≈ 1 ms; firmware waits before the first byte.
 
 ---
 
@@ -154,7 +154,7 @@ Every SKU/stock figure below was resolved against the parts API on
 | Ref (per ch.) | Part | Why | Sourcing (2026-07-15) |
 |---------------|------|-----|-----------------------|
 | U_iso1 / U_iso2 | **ADM2587E BRWZ** — isolated RS-485 w/ **integrated isolated DC-DC** (isoPower), 3.3 V, slew-limited **500 kbps**, ±15 kV ESD on bus pins, open/short fail-safe RX | One chip = isolation + transceiver + isolated supply → fewest solder joints for a qty-1 hand build. 500 kbps ≫ our 9600 baud, and slew-limiting *lowers* EMI. | Mouser **584-ADM2587EBRWZ**, 3,848 stock, $22.90. (ADM2582E is 16 Mbps overkill and DK-OOS.) **Datasheet on file** (Rev H, sha 77a52a9e6036): 2500 Vrms iso, CMTI >25 kV/µs, **ICC 90 mA @ 3.3 V/100 Ω** (Table 1; corrected iter-30 F28 — was mis-cited 72 mA, which is the 5 V row) — see §6. |
-| Q_ls (×1 per ch.) | **Direct-GPIO-driven DMG3415U** P-FET high-side switch + 100 kΩ gate pull-up to 3V3 (**F51: no 2N7002** — source = 3V3 = the GPIO domain; **F56/F57: RDS(on) guaranteed 53 mΩ max @ −2.5 V**, DS31735 — the NRND ZXMP6A13F had no guaranteed row at this drive; `CHx_PWR` **active-LOW**: high-Z/high = OFF, low = ON) | Power-gate VCC so isoPower runs only during a poll (see §5). Default-OFF at reset. ~90 mA channel load → ≤5 mV drop. Off-leakage = IDSS ≤ 1 µA (−20 V/25 °C test point — pessimistic at −3.3 V); bring-up acceptance enforces the real bound. | DK **DMG3415UDICT-ND** (136k, Active) / Mouser 621-DMG3415U-7, $0.72 (API 2026-07-17) |
+| Q_ls (×1 per ch.) | **Direct-GPIO-driven NTR4171P** P-FET high-side switch + 100 kΩ gate pull-up to 3V3 (**F51: no 2N7002** — source = 3V3 = the GPIO domain; **F61: RDS(on) guaranteed 150 mΩ max @ −2.5 V**, onsemi NTR4171P/D — replaced DMG3415U, NRND at the manufacturer; `CHx_PWR` **active-LOW**: high-Z/high = OFF, low = ON) | Power-gate VCC so isoPower runs only during a poll (see §5). Default-OFF at reset. ~90 mA channel load → ≤14 mV drop. Off-leakage = IDSS ≤ 1 µA @25 °C / ≤5 µA @85 °C (−24 V test point — pessimistic at −3.3 V); bring-up acceptance enforces the real bound. | DK **NTR4171PT1GOSCT-ND** (11k, Active) / Mouser 863-NTR4171PT1G, $1.13 (API 2026-07-17) |
 | J_bat1 / J_bat2 | **Amphenol RJHSE-5380** RJ45 jack, shielded, magnetics-free | Mates the owner's purchased vendor cable **directly — its client end is an RJ45 *male* plug** (photo on file: `docs/vendor/images/volthium-cable-m12-to-rj45male-full.jpg`), no patch cable (the email's "RJ45-female + patch" chain described the $10 variant, not the cable in hand). RS-485 A/B on RJ45 **pins 7/8** — verified in the committed transcript (2024-01-15), the on-file adapter-label photo, *and* the owner's **2026-07-17 continuity beep-out of the in-service cable**. **Full measured map (rung-1):** battery 1→RJ45 4, 2→6, 3→7, 4→8 ⇒ battery **1 = CAN-H (RJ45 4), 2 = CAN-L (RJ45 6), 3 = A (RJ45 7), 4 = B (RJ45 8)**. Note CAN-L lands on RJ45 **6** in this cable — the Pro-Series label's 4/5 describes a different product (the F45 caution validated). CAN unused in D36; any future pad routing follows the measured map of the cable in service. **Identical/interchangeable — either pack on either jack.** | Mouser **523-RJHSE-5380**, 8,697 stock, $2.30; datasheet on file (RJHSE-5380.pdf) |
 | TVS_bus + R_ser (**DNP footprints**) | **Semtech SM712** asymmetric RS-485 TVS (VRWM 12/7 V) + per-line series R footprints between the TVS node and the ADM2587E A/B | **F36/F44 — no coordinated protection exists in this design; the port is unprotected.** SM712 clamps **VC = 20 V @ 5 A** positive (Semtech Rev 6.0 p.2), above the ADM2587E bus abs-max of **−9/+14 V** (Rev H p.7), and a series R **does not fix that by itself**: the A/B pins are high-impedance, draw no defined current below their (unpublished) internal clamp, and so see the TVS-node voltage — with no published ADM2587E injection/clamp-current rating there is nothing to size the R against (F44 accepted; the iter-32 "populate as a coordinated pair, residual <14 V" claim is **withdrawn**). The ADM2587E's ±15 kV is **HBM (handling)**, *not* IEC 61000-4-2. **Status: DNP, intentionally unprotected** — accepted risk for a short (~1 m) inside-enclosure link that never leaves the battery box. If field-cable surge/ESD ever becomes a requirement, the fix is a **properly coordinated network chosen then** — a lower-clamp TVS/steering-diode stage whose *documented* residual < 14 V, or a two-stage clamp with the series element sized from a *published* downstream clamp-current rating — not the current footprints. | DK **SM712CT-ND** / Mouser **947-SM712.TCT** (Semtech), 99k+ stock. **Datasheet on file** (Semtech Final Rev 6.0, sha 6deb75310ebe): VRWM 12/7 V, VBR 13.3/7.5 V, VC 20/10 V @ 5 A, SOT-23. |
 | R_bias | fail-safe bias A/B → local iso-rails (**idle-noise margin only** — F52/F58: *not* a common-mode fix; the old "~1 MΩ iso-GND↔bus bleed" is deleted) | Defines the idle differential locally. DNP by default (ADM2587E has internal fail-safe, p.15); populate only if the §7 bench shows idle chatter | high-value; per §7 |

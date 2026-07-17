@@ -58,7 +58,7 @@ distributor PN behind a search URL may change.
 > design-discussion calls, 2026-06). The MCU is on an always-on µA-Iq rail
 > (U1 LM5166); the load switch (Q1) sheds only the 12 V/display feed (U2).
 > Parts changed from the pre-D19 design: U1 (TPS62933→LM5165→**LM5166** 500 mA,
-> for WiFi — D25), U2 (R-78E12→R-78HB12), Q1 (AO3401A→ZXMP6A13F), Q2
+> for WiFi — D25), U2 (R-78E12→R-78HB12), Q1 (AO3401A→ZXMP6A13F→**Si2309CDS**, iter-38 F57), Q2
 > (AO3400A→2N7002), D1 (SS24→SS26), input bulk caps →100 V, sense divider
 > →1.2 M/100 k (DR-6), gate-clamp Zener (DZ1), **RTC DS3231→RV-3028-C7 +
 > backup cap** (D23/DR-8), **MOD1 −1U→−1 PCB antenna** (D21), **USB-OTG

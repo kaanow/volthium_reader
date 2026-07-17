@@ -21,10 +21,14 @@ themselves — copy relevant excerpts into our own docs (`reliability_failure_mo
 > end, and the purchased cable's client end is an **RJ45 male** that
 > plugs into our jack directly).
 > (2) the **CAN "pin 1 and 2" is the battery-side connector domain** (the
-> thread context is explicit), so it **does not conflict** with this
-> directory's photographed label putting CAN-H/L on RJ45 4/5 — one cable
-> maps one to the other. RS-485 A/B on RJ45 **7/8** and "standard RS-485
-> adapter, 2-wire, no ground, not raw TTL" are verified in the transcript.
+> thread context is explicit). The owner's 2026-07-17 continuity beep-out
+> of the **in-service cable** maps battery 1/2 (CAN-H/L) to **RJ45 4/6**.
+> This directory's photographed Pro-Series *label* prints CAN on RJ45
+> **4/5** — that is a **different cable product**, not the in-service
+> cable; the maps are **not** the same and should not be called
+> consistent (F63). RS-485 A/B on RJ45 **7/8** and "standard RS-485
+> adapter, 2-wire, no ground, not raw TTL" are verified in the transcript
+> and by the beep-out.
 
 ## The picture these files paint together
 

@@ -144,15 +144,27 @@ a hard constraint: **any substitution on this node must hold ≥ 60 V.**
 Note 53.3 V is the TVS's *full* 7.5 A pulse; the actual transient on a
 1 A-fused battery tap is far smaller, so this is a conservative ceiling.
 
-**Gate-source clamp (Q1 Vgs).** Q1 Si2309CDS Vgs abs-max = **±20 V** (Vishay doc 68980; identical limit to the replaced ZXMP6A13F, so the clamp scheme is unchanged)
-(Diodes DS32014). Without a clamp, turning Q1 on pulls the gate toward
-(source − bus) and would drive Vgs to ~−29 V at full charge — destroying
-the gate (DR-4). **DZ1 = BZX84C12** across gate↔source clamps |Vgs| to the
-Zener voltage **~12 V** (11.4–12.7 V) regardless of bus voltage → **~36 %
-margin** under the ±20 V max across the whole range. The same 12 V fully
-enhances the FET: RDS(on) is specified at Vgs = −4.5 V (600 mΩ) and −10 V
-(400 mΩ), so −12 V sits in the fully-on region. The clamp therefore both
-protects the gate **and** guarantees turn-on.
+**Gate-source drive + clamp (Q1 Vgs) — divider-set, Zener-backstopped
+(F60, iter-40).** Q1 = **Si2309CDS**, Vgs abs-max **±20 V** (Vishay doc
+68980), RDS(on) specified **450 mΩ @ −4.5 V / 345 mΩ @ −10 V**. Without
+any network, turning Q1 on would pull the gate to ground and drive Vgs
+to ~−29 V at full charge (−53 V under surge) — past ±20 V, destroying
+the gate. The gate network sets a **safe DC operating point by division
+and uses the Zener only for transients**:
+- **R3 = 100 kΩ (gate→source) and Rg = 150 kΩ (gate→Q2→gnd)** form a
+  divider: DC Vgs = V24·R3/(R3+Rg) = **11.7 V at 29.2 V full charge**,
+  **8.4 V at the 21 V UVLO floor** — both comfortably below ±20 V and
+  well into full enhancement (RDS spec'd from −4.5 V).
+- **DZ1 = BZX84C12 (12 V)** sits *above* the 11.7 V DC point, so it draws
+  ≤ 0.2 mW continuously; it conducts only on a surge (the ~53 V clamp
+  would divide to 21.2 V Vgs → DZ1 clamps it to ~12 V). Transient
+  backstop, not the DC clamp.
+- **Standing burden 3.4 mW when Q1 is ON** (117 µA at 29.2 V), zero in
+  hard-cut (Q1 off). This replaces the prior 1 kΩ Rg, which drew ~17 mA
+  / ~0.5 W continuously and exceeded the 0805/Zener power ratings.
+The network therefore protects the gate, guarantees turn-on across the
+pack range, and costs single-digit mW only while the display feed is
+live.
 
 ## 4. Component list
 
@@ -231,7 +243,7 @@ foldback explicitly. The 530 mA "driver-active + WiFi-peak" case is
 |-----|-------------------------------------|----------------|-----|-----------|
 | Q1  | **Si2309CDS** (Vishay P-MOSFET, Vds −60 V, −1.6 A, SOT-23) | SOT-23 | 1 | Load switch for the 12 V/display feed (~0.3 A). **60 V** Vds survives the ~53 V clamp when open (D19/DR-4); AO3401A (30 V) did not. **Iter-38 (F57): ZXMP6A13F went NRND → Si2309CDS-T1-GE3** (DK 120k stock, Active, API 2026-07-17); RDS 0.345 Ω max @ −10 V (our Zener-clamped drive), IDSS ≤100 nA @25 °C / ≤1 µA @55 °C |
 | Q2  | 2N7002 (N-MOSFET, Vds 60 V, drives Q1 gate) | SOT-23 | 1 | **60 V** because its drain follows the V24 rail (up to the clamp) when Q1 is off (D19/DR-4); AO3400A (30 V) did not |
-| DZ1 | BZX84C12 (12 V Zener, Q1 gate–source clamp) | SOT-23 | 1 | Holds Q1 Vgs ≤ 12 V regardless of bus voltage — without it, turning Q1 on drove Vgs to −29 V (D19/DR-4) |
+| DZ1 | BZX84C12 (12 V Zener, Q1 gate–source **transient backstop**) | SOT-23 | 1 | Divider R3/Rg sets DC Vgs ~11.7 V; DZ1 clamps only surges (F60/D19/DR-4) |
 | Rg  | ~1 kΩ series gate (Q2 drain → Q1 gate) | 0805    | 1   | Limits gate transient current; works with DZ1 |
 | R3  | 100 kΩ pull-up: Q1 gate → V24_FUSED | 0805          | 1   | Default-OFF behavior — pack-safe on MCU lockup |
 | R4  | 100 kΩ pull-down: Q2 gate → GND     | 0805          | 1   | Defines Q2 state when MCU GPIO floats (boot / brown-out) |
@@ -582,9 +594,10 @@ V24_FUSED ──┬──── ALWAYS-ON: U1 (LM5166 → 3V3 MCU rail), TVS1, R
 - Q1 sheds only the sheddable load (U2 → 12 V → display). At < 10 % SOC the
   ESP opens Q1 to drop the display, then stays awake in deep-sleep to
   monitor recovery and re-engage — it is its own supervisor.
-- **Vgs is clamped** by DZ1 to ≤ 12 V; without it, pulling Q1's gate toward
-  GND drove Vgs to −V24 ≈ −29 V (vs the FET's ±12 V) — a latent gate-oxide
-  failure in the old design.
+- **Vgs is bounded** by the R3/Rg divider to ~11.7 V (DZ1 backstops
+  transients — F60); without any network, pulling Q1's gate toward GND
+  drove Vgs to −V24 ≈ −29 V (vs the Si2309CDS ±20 V max) — a latent
+  gate-oxide failure in the old design.
 - 60 V Q1/Q2 survive the ~53 V clamp; the old 30 V AO340x parts did not.
 
 **V12 (Cat5e/display) policy**:

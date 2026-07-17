@@ -4334,3 +4334,92 @@ remaining 4/5 interpretation forms. Preserve the label's actual 4/5 content as
 artifact history, not routing guidance.
 
 **REVIEW COMPLETE**: NEEDS CHANGES - 0 blockers, 4 important. (See findings 60, 61, 62, 63.)
+
+---
+
+## 34. Designer responses — iteration 40 (F60–F63)
+
+All four addressed. F60 required real re-derivation; F61 is the
+manufacturer-lifecycle lesson landing on my own replacement part. D35
+gate exit 0 after changes; all four new registry patterns verified to
+FIRE on pre-fix text (29 old hits); the gate caught two D19-narrative
+stragglers mid-pass.
+
+### F60 (Q1 gate clamp: continuous dissipation not rated) — ACCEPTED; re-derived
+Your arithmetic reproduces exactly: with Rg = 1 kΩ, I_Rg = (29.2−12)/1k
+= 17.2 mA → P_Rg ≈ 0.30 W (on an 0805, 125 mW) and P_DZ1 ≈ 0.20 W
+(against 250 mW derating to 200 mW @ 50 °C), plus ~0.5 W of unbudgeted
+pack draw whenever Q1 is on. The 1 kΩ was sized as a transient gate
+resistor and nobody computed its steady state — the same
+"under-derived-at-birth" pattern as the FET itself. Fixed by making the
+network **divider-dominant**: **Rg → 150 kΩ** with the existing R3 =
+100 kΩ.
+- DC Vgs = V24·R3/(R3+Rg) = **11.7 V @ 29.2 V full charge**, **8.4 V @
+  the 21 V UVLO floor** — both < ±20 V abs-max and fully enhancing
+  (Si2309CDS RDS spec'd from −4.5 V).
+- DZ1 (12 V) now sits **above** the 11.7 V DC point → ≤ 0.2 mW
+  continuous (worst-case Zener low-tolerance), conducting only on a
+  surge (the ~53 V clamp divides to 21.2 V would-be Vgs → DZ1 clamps to
+  ~12 V). It is now a transient backstop, not the DC clamp.
+- Standing current **117 µA → 3.4 mW pack burden while Q1 is ON, zero
+  in hard-cut**; P_Rg 2.05 mW, P_R3 1.36 mW — all far under 0805.
+  Turn-on τ ≈ 12 µs (softens display inrush). Fail-safe unchanged.
+Exact SKU resolved: Rg = RMCF0805FT150KCT-ND / 71-CRCW0805-150K-E3
+(resolve-exact 2026-07-17). The 3.4 mW active-only term is added to the
+State-1/2 budget; it does not touch the ~1 mW hard-cut floor. Full
+derivation in decisions.md D19 (F60).
+
+### F61 (DMG3415U itself NRND) — ACCEPTED; and it's the lesson biting me
+You're right, and the irony isn't lost: I added "manufacturer lifecycle
+outranks the distributor field" to my own review skill an hour before
+this pass, then didn't apply it to the F57 *replacement*. DMG3415U shows
+distributor Active + 136k stock but Diodes marks it NRND. Replaced the
+three 3V3-domain switches with **onsemi NTR4171P** — and this time I
+verified lifecycle at the manufacturer, honestly caveated:
+- **NTR4171P/D Rev 3 (Feb 2026)** on file (sha 9ce711ff393d): −30 V,
+  **RDS(on) 150 mΩ max guaranteed @ VGS = −2.5 V** (my exact operating
+  point), **Vgs ±12 V** (≫ 3.3 V drive), **IDSS ≤ 1 µA @ 25 °C / ≤ 5 µA
+  @ 85 °C** — it *publishes* the elevated-temp leakage row the prior two
+  parts lacked.
+- Lifecycle: onsemi's product page shows **Active** (WebSearch of the
+  manufacturer page, 2026-07-17). Honest caveat: onsemi.com WAF-blocks
+  the fetcher, so I could not open the page directly — the Active call
+  rests on the search summary of the mfr page + the Rev 3 Feb-2026
+  datasheet (active maintenance) + onsemi-channel stock (11k DK / 30k
+  Mouser). Materially better footing than DMG3415U, where the
+  manufacturer explicitly said NRND. Flagged for a direct manufacturer
+  re-confirm at BOM-lock.
+- SKUs resolve-exact: DK NTR4171PT1GOSCT-ND / Mouser 863-NTR4171PT1G,
+  $1.13. DMG3415U retired + registered. Q1's Si2309CDS is unaffected by
+  F61 (you cleared it at F57); I re-checked it too — distributor Active
+  (Future/Octopart), Vishay page not independently fetchable, so it
+  carries the same BOM-lock re-confirm flag.
+- **Delta recomputed: ~$58.6 / total ~$250.6** (NTR4171P $1.13 ×3 vs
+  DMG3415U $0.72 ×3).
+
+### F62 (live baseline retains ZXMP ratings/identity) — ACCEPTED, fixed
+`cp1_battery_side.md` §3 gate-clamp paragraph rewritten to Si2309CDS
+values (450/345 mΩ, ±20 V, Vishay 68980) and the new divider design;
+the DS32014 citation, the 600/400 mΩ ZXMP numbers, and the "FET's
+±12 V" are gone. Its DZ1 row and the "why this topology" bullet (line
+~597) updated. `docs/hardware/bom.md` change banner extended
+AO3401A→ZXMP6A13F→**Si2309CDS**. Two new registry patterns (the ZXMP
+RDS/citation/±12 V forms, and the "1 kΩ Rg" form) now fail the gate on
+recurrence.
+
+### F63 (cable map: live summaries keep 4/5-consistent) — ACCEPTED, fixed
+The three passages that called the label's 4/5 "consistent" with battery
+1/2 (DR-26 line ~805, README banner, correspondence CAN row) are
+rewritten: the **in-service cable measures RJ45 4/6** (beep-out), the
+Pro-Series **label** prints 4/5 as a **different cable product**, and
+the two are explicitly **not** the same map. The decisions.md D36 line
+matched too and was fixed. New registry pattern covers the "4/5 …
+consistent / one cable maps one to the other" forms. Your note that the
+photos verify the connector face + RJ45-male mate but *not* the
+continuity (which is the multimeter result) is correct and preserved in
+the labels.
+
+**Handing back for iteration 41 re-verify.** Remaining open by design:
+the F47/F52 on-site two-domain matrix (~2 weeks) gating D36/DR-26; and
+the standing BOM-lock manufacturer-lifecycle re-confirm on the FETs
+(NTR4171P, Si2309CDS) now that lifecycle rigor is explicit.
