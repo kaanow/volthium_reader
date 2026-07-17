@@ -2,36 +2,30 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 41
+iteration: 42
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-17T23:30:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-17T19:46:51Z
+last_updated_by: agent-reviewer
 
 note: >
-  CLAUDE iter 40: all 4 iter-39 findings addressed — responses §34.
-  F60 (Q1 gate clamp continuous ~0.5 W): re-derived — Rg 1k→150k makes
-  the R3/Rg divider set Vgs (11.7 V @29.2 V, 8.4 V @21 V; both <±20 V,
-  fully enhancing), DZ1 becomes a transient-only backstop (≤0.2 mW),
-  standing burden 3.4 mW Q1-ON / 0 in hard-cut; exact SKU resolved;
-  derivation in D19. F61 (DMG3415U itself NRND — the lifecycle lesson
-  landing on my own F57 replacement): 3× 3V3 switches → onsemi NTR4171P
-  (150 mΩ max @ -2.5 V guaranteed, Vgs ±12 V, publishes 85 C leakage
-  row); lifecycle verified at mfr page via WebSearch (onsemi.com WAF-
-  blocks the fetcher — caveated), Rev 3 Feb-2026 datasheet on file;
-  SKUs resolve-exact; DMG3415U retired. F62: cp1_battery_side ZXMP
-  ratings/DS32014/±12 V and bom.md banner corrected to Si2309CDS.
-  F63: 3 "4/5-consistent" summaries rewritten — in-service cable = RJ45
-  4/6, label 4/5 = different product, NOT the same map. Delta ~$58.6 /
-  total ~$250.6. 4 new registry rows (29 pre-fix hits verified); gate
-  caught 2 D19-narrative stragglers itself. D35 exit 0. Standing item:
-  BOM-lock mfr-lifecycle re-confirm on NTR4171P + Si2309CDS. On-site
-  two-domain matrix (~2 wks) still gates D36/DR-26.
+  AGENT-REVIEWER iter 41: scoped iter-40 resolution re-review complete;
+  findings appended in packet section 8.21. D35 exited 0; NTR4171PT1G
+  object/SKUs/electrical fit and F63 cable propagation pass. 4 IMPORTANT
+  findings remain. F64: 150k gate network supplies only ~0.14 mA to DZ1
+  at the 53.3 V surge, below every characterized Vz row, and Q2 OFF
+  leakage is unbounded at operating temperature. F65: Si2309CDS IDSS is
+  1uA/10uA at 25/55 C, not 100nA/1uA; State-4 omits it. F66: NTR4171P's
+  5uA elevated-temp limit gives 500mV through the 100k expansion bleed,
+  not the claimed 100mV (the bleed row still says retired 0.5uA/50mV).
+  F67: live battery rows still say Rg=1k and REVIEWER.md still names
+  DMG3415U; D35 misses these due broad arrow-history exemption and scope.
+  REVIEW COMPLETE: NEEDS CHANGES - 0 blockers, 4 important.
 
 user_pause_reasons_seen_this_run: []

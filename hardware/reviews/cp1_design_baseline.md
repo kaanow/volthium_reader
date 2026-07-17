@@ -4423,3 +4423,134 @@ the labels.
 the F47/F52 on-site two-domain matrix (~2 weeks) gating D36/DR-26; and
 the standing BOM-lock manufacturer-lifecycle re-confirm on the FETs
 (NTR4171P, Si2309CDS) now that lifecycle rigor is explicit.
+
+---
+
+## 8.21 Reviewer findings (iteration 41 - iter-40 resolution re-review)
+
+This pass independently re-verified only the iteration-40 response and did not
+start CP2. The mandatory D35 consistency checker ran first and exited 0 (31
+manifest parts; 38 `_verify_` BOM cells). F61's exact NTR4171PT1G object,
+changed SKU cells, ratings, stock, lifecycle evidence, and cost delta pass.
+F63's cable-map corrections pass. F60 is not yet coordinated for the surge or
+OFF-state cases, and the exact-PDF checks plus manual G5 sweep exposed three
+additional live defects.
+
+### Delta gate record
+
+| Gate / check | Independent result |
+|---|---|
+| D35 scripted gate | **PASS as implemented, but incomplete** - exit 0. It misses the live 1 kOhm Rg row and does not scan `REVIEWER.md`; see Finding 67. |
+| F60 normal-state divider arithmetic | **PASS** - with R3=100 kOhm and Rg=150 kOhm, `abs(VGS)=VS*100/250`: 11.68 V at 29.2 V and 8.4 V at 21 V. Divider current at 29.2 V is 116.8 uA and total burden is 3.41 mW. At the minimum operating rail, the guaranteed 0.450 Ohm RDS(on) row at -4.5 V applies; the 0.345 Ohm row at -10 V is not the conservative bound. |
+| F60 surge / OFF-state coordination | **FAIL** - the divider cannot drive DZ1 at a characterized current under the 53.3 V surge, and Q2 leakage is not bounded over the operating range; see Finding 64. |
+| F61 NTR4171PT1G object identity | **PASS** - local `NTR4171P_onsemi.pdf` SHA-256 is `9ce711ff393d...`, matching the manifest. Rev. 3 p.1 lists selected `NTR4171PT1G` in normal ordering information; the adjacent discontinued block applies to `NTR4171PT3G`, not the selected object. |
+| F61 changed-SKU reverse resolve | **PASS, 4/4 exact** - canonical `/resolve` on 2026-07-17 maps `NTR4171PT1GOSCT-ND` and `863-NTR4171PT1G` exactly to onsemi `NTR4171PT1G`; the two 150 kOhm cells map exactly to Stackpole `RMCF0805FT150K` and Vishay `CRCW0805150KFKEA`. |
+| F61 live stock / lifecycle | **PASS with the stated BOM-lock recheck retained** - API results show 11,032 DigiKey cut-tape and 30,583 Mouser onsemi parts; DigiKey says Active. The current manufacturer Rev. 3 ordering table and onsemi recommendation tool still carry PT1G, while explicitly distinguishing discontinued PT3G. |
+| F61 electrical fit | **PASS for ON resistance and gate rating** - NTR4171P/D pp.1-2 gives +/-12 V VGS and 150 mOhm max at VGS=-2.5 V. Its leakage rows are correctly quoted, but the parked-rail conclusion is not; see Finding 66. |
+| F62 Q1 narrative | **FAIL G5 only** - the primary gate-drive paragraph has the Si2309CDS values, but the live component row and topology drawing still say Rg is approximately 1 kOhm; see Finding 67. |
+| F63 cable-map propagation | **PASS** - the live summaries now distinguish the measured in-service 4/6 map from the separate label's 4/5 map and do not treat them as the same cable. |
+| Delta arithmetic | **PASS** - `45.80 + 4.60 + 3.00 + 2.26 + 1.40 + 1.13 + 0.40 = 58.59`, supporting the rounded approximately $58.6 delta and approximately $250.6 total. |
+
+Citation spot-check quota was met against four exact on-file manufacturer
+documents. Onsemi NTR4171P/D Rev. 3 pp.1-2 contains the selected PT1G ordering
+row, 150 mOhm at -2.5 V, +/-12 V VGS, and 1/5 uA IDSS at 25/85 C.
+Onsemi BZX84C12LT1G pp.2-3 gives 250 mW with 2 mW/C derating and specifies
+its C12 voltage only at 1, 5, and 20 mA. Vishay document 68980 pp.1-2 gives
+the Si2309CDS ordering/rating rows and the actual 1/10 uA IDSS limits at
+25/55 C. Onsemi 2N7002L/D Rev. 11 pp.1-2 lists selected 2N7002LT1G and
+specifies IDSS only as 1 uA at 25 C and 500 uA at 125 C. Local hashes for
+the first three begin `9ce711ff393d`, `f9818d9dfc03`, and `feb0974dd371`,
+matching the manifest.
+
+### Finding 64 - IMPORTANT - F60 / Q1 gate network: surge clamp and OFF-state fail-safe remain unproved
+**Issue**: The 150 kOhm correction fixes normal-state power, but it makes DZ1
+too weakly driven to establish the claimed surge clamp from production-limit
+data. The same re-derivation also omits Q2's temperature-dependent OFF leakage,
+which develops Q1 gate drive across R3 and can defeat the hard-cut claim.
+
+**Evidence**: At the documented 53.3 V rail clamp, the unloaded divider would
+produce `VTH=53.3*100/(100+150)=21.32 V` across Q1 gate-source, above its
+20 V absolute maximum. The network's Thevenin resistance is
+`100k || 150k = 60 kOhm`. Even assuming DZ1 at its 12.7 V maximum from the
+1 mA row, the available current is only `(21.32-12.7)/60k=0.144 mA`; at
+VGS=20 V it is only 22 uA. BZX84C12LT1G p.3 specifies voltage at 1, 5,
+and 20 mA, with no maximum clamp voltage at 22-144 uA. Therefore
+`clamps to approximately 12 V` is not a guaranteed coordination bracket.
+For hard-cut, Q2 is off and its leakage flows through Rg/R3; 2N7002L/D p.2
+specifies 1 uA only at 25 C and 500 uA at 125 C, with no maximum at the
+project's upper operating temperature. Because `abs(VGS_Q1)=Ileak*R3`, only
+10 uA produces 1 V, equal to the Si2309CDS minimum threshold test value. The
+response's `fail-safe unchanged` conclusion does not account for this path.
+
+**Suggested fix**: Re-design the gate drive so a production-limit Zener row
+proves `abs(VGS)<20 V` at the maximum rail clamp, or select a clamp specified
+at the actually available current. Independently bracket Q2 leakage over the
+declared ambient range and prove Q1 remains off, replacing the driver if that
+cannot be done. Then re-derive normal burden, surge pulse power, minimum-rail
+RDS(on) using the -4.5 V row, and turn-on/off timing from the final values.
+
+### Finding 65 - IMPORTANT - Si2309CDS citation / hard-cut budget: IDSS rows are misread by 10x
+**Issue**: The manifest and two binding Q1 rows conflate gate leakage with
+drain-source leakage. They quote Q1 IDSS as 100 nA at 25 C and 1 uA at 55 C,
+and the State-4 budget treats the entire switched branch as zero.
+
+**Evidence**: Vishay document 68980 p.2 gives `IGSS` (gate-source leakage) as
+100 nA. The separate `IDSS` rows are 1 uA at 25 C and **10 uA at TJ=55 C**.
+The incorrect 100 nA / 1 uA pair appears in
+`hardware/datasheets/manifest.md`, `hardware/layout/cp1_bom.md` Q1, and
+`hardware/layout/cp1_battery_side.md` Q1. At 29.2 V, the exact elevated-temp
+IDSS limit alone represents up to 0.292 mW entering the nominally shed branch,
+about 27% of the current 1.08 mW hard-cut headline, before the Q2 path in
+Finding 64. `docs/hardware/power_budget.md` instead assigns zero to the whole
+Q1-off display branch.
+
+**Suggested fix**: Correct every Si2309CDS leakage citation and add the
+production-limit Q1/Q2 OFF paths to the State-4 budget. Bound what U2 does with
+that leakage rather than equating Q1 OFF to zero input current; if the revised
+hard-cut or OFF-voltage contract fails, select a switch/driver with guaranteed
+temperature-range leakage.
+
+### Finding 66 - IMPORTANT - D37 expansion OFF state: 100 mV bound is only a 25 C result
+**Issue**: The NTR4171P replacement publishes a useful elevated-temperature
+leakage row, but the design does not use it in the parked-rail calculation. It
+calls 100 mV a datasheet bound while separately allocating the 5 uA value that
+would produce 500 mV through the populated 100 kOhm bleed.
+
+**Evidence**: NTR4171P/D p.2 specifies IDSS maximum 1 uA at 25 C and 5 uA at
+85 C. Therefore the selected 100 kOhm bleed gives `Vpark <=100 mV` only at
+the 25 C test point; the published elevated-temperature bracket is
+`5 uA*100 kOhm=500 mV`. `hardware/layout/decisions.md` D37 states both
+limits but still calls 100 mV datasheet-bound. `hardware/layout/cp1_bom.md`
+Q_exp repeats that contradiction, while its `R_exp_bleed` row is staler still:
+it uses the retired 0.5 uA premise to claim 50 mV. A room-temperature bring-up
+measurement cannot establish the 40 C operating bound or qualify an arbitrary
+future daughterboard.
+
+**Suggested fix**: Use the elevated-temperature maximum for the architecture
+contract. Either populate a bleed value that meets the required parked voltage
+at 5 uA (10 kOhm for 50 mV), or specify a temperature-qualified acceptance
+test and make the interface conditional on it. Update the Q_exp, R_exp_bleed,
+D37, and power-budget text to one consistent worst-case bound.
+
+### Finding 67 - IMPORTANT - D35 / G5: live 1 kOhm Rg and retired DMG3415U escape the checker
+**Issue**: F62 is not mechanically closed. The battery component table and
+topology drawing still specify the hazardous 1 kOhm Rg, and the reviewer entry
+point still names retired DMG3415U as a current load switch. D35 exits 0 because
+its history exemption and file scope hide both defects.
+
+**Evidence**: `hardware/layout/cp1_battery_side.md` line 247 says
+`Rg | approximately 1 kOhm series gate`, and its topology drawing near line
+577 says `Rg [approximately 1k]`; both conflict with the new 150 kOhm design.
+The line-247 superseded-token regex does match, but `_allowed()` accepts any
+line containing the generic history marker `->`/arrow; here that arrow merely
+describes the live net direction `Q2 drain -> Q1 gate`. Separately,
+`hardware/reviews/REVIEWER.md` still lists `Si2309CDS / DMG3415U /
+2N7002LT1G` as the current load-switch set, but `REVIEWER.md` is absent from
+`LIVE_DOCS`, so the DMG registry row never scans it.
+
+**Suggested fix**: Change both live Rg forms to 150 kOhm and update the reviewer
+part list to NTR4171P. Include `REVIEWER.md` in D35 scope and narrow the history
+exemption so a signal-flow arrow alone cannot legalize a stale value; require
+an actual supersession word or a same-line old-to-current token pair.
+
+**REVIEW COMPLETE**: NEEDS CHANGES - 0 blockers, 4 important. (See findings 64, 65, 66, 67.)
