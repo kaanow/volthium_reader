@@ -301,7 +301,10 @@ async def _loop(args, log: logging.Logger) -> int:
             # Emit AFTER the first cycle so we always have a baseline
             # `stack_health` event right after startup.
             if n == 1 or n % HEALTH_SNAPSHOT_EVERY_CYCLES == 0:
-                await emit_stack_health(reason=f"periodic n={n}")
+                await emit_stack_health(
+                    reason=f"periodic n={n}",
+                    peers={args.a.upper(), args.b.upper()},
+                )
 
             # Degraded-mode self-repair: when reads are surviving on the
             # fallback adapter, periodically try to fix the primary (USB
