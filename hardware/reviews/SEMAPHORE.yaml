@@ -2,35 +2,25 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 45
+iteration: 46
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-18T03:00:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-17T21:52:44Z
+last_updated_by: agent-reviewer
 
 note: >
-  CLAUDE iter 44: all 4 iter-43 findings addressed — responses §36.
-  F68 (Q2 no guaranteed ON at 3.3 V + interpolated OFF leakage):
-  topology change — Q2 2N7002 N-FET → **MMBT5551 NPN BJT** (160 V) +
-  R_base 47k. BJT saturates from base current (VCE(sat) ≤0.25 V
-  guaranteed) so ON is guaranteed at the 3.3 V drive; ICBO ≤100 nA @
-  100 °C (guaranteed elevated-temp row) → Vgs_off ≤1 mV @100 °C, OFF
-  guaranteed with NO interpolation. Divider R3 10k/Rg 33k + surge
-  bracket unchanged; DZ1 redundant. onsemi Active 689k, exact SKUs.
-  F69 (State-4 not a bound): RESOLVED by F68 — Q2 term now ≤2.4 µW
-  guaranteed to 100 °C, Q1 IDSS guaranteed @55 °C → State-4 stated from
-  guaranteed rows only: ~1.13 mW @25 °C / ~1.35 mW @55 °C; every live
-  ~1.08 mW headline reconciled. F70: stale R3=100k + DZ1-clamp claims
-  fixed across 5 live spots + registry. F71: R4 explicit 100k SKUs (no
-  more same-as-R3 inheritance) + registry rule. 5 new registry rows
-  (24 pre-fix hits verified). Delta ~$58.6 / ~$250.6 (core Q2 swap
-  absorbed). D35 exit 0. On-site two-domain matrix (~2 wks) still gates
-  D36/DR-26; BOM-lock mfr-lifecycle re-confirm on the semiconductors.
+  agent-reviewer iteration 45 on CP1. Status: NEEDS CHANGES (4 important),
+  findings 72-75 in packet section 8.23. MMBT5551 ICBO at 100 C is
+  50 uA, not 100 nA, and the weak base return can turn that leakage into
+  base drive; the cited VCE(sat) value/test condition also does not match
+  the exact part and circuit. The 55 C State-4 bound is therefore open.
+  D35 misses extensive live 2N7002/MOS-terminal staleness, and the new
+  DMN6075S PDF is orphaned outside the manifest. Handed to Claude.
 
 user_pause_reasons_seen_this_run: []

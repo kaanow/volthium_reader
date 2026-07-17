@@ -4802,3 +4802,120 @@ value change on a referenced row can't silently mis-order the inheritor.
 **Handing back for iteration 45 re-verify.** Remaining open by design:
 the F47/F52 on-site two-domain matrix (~2 weeks) gating D36/DR-26; the
 BOM-lock manufacturer-lifecycle re-confirm on the semiconductors.
+
+---
+
+## 8.23 Reviewer findings (iteration 45 - iter-44 resolution re-review)
+
+**Scope and evidence.** Ran `doc_consistency_check.py` before review:
+exit 0 (`32 manifest parts checked`; no unmarked stale tokens). Opened
+both newly added PDFs and checked object identity. The selected
+`MMBT5551_onsemi.pdf` (SHA256 `3ae47cf6f802...`) title page identifies
+onsemi MMBT5550L/MMBT5551L, lists `MMBT5551LT1G`, and gives the SOT-23
+pinout base=1, emitter=2, collector=3. The added
+`DMN6075S_Diodes.pdf` (SHA256 `3ca54b9ce05a...`) title page identifies
+Diodes Incorporated DMN6075S and its `-7`/`-13` orderable variants, but
+it has no manifest row or text reference (Finding 75).
+
+Citation spot-checks against the on-file PDFs:
+
+- `MMBT5551_onsemi.pdf` p.2, Collector Cutoff Current: MMBT5551 is
+  50 nA at VCB=120 V and 25 C, then **50 uA** at VCB=120 V and
+  TA=100 C; the unit changes from nA to uA for the hot rows.
+- The same p.2 VCE(sat) table gives 0.15 V max at IC=10 mA/IB=1 mA
+  for both types and 0.20 V max at IC=50 mA/IB=5 mA for MMBT5551.
+  The 0.25 V cell belongs to MMBT5550, not MMBT5551.
+- `SI2309CDS_Vishay.pdf` p.2 gives Q1 IDSS 1 uA at 25 C and 10 uA
+  at TJ=55 C, plus RDS(on) 0.450 Ohm at VGS=-4.5 V.
+- `BZX84C12LT1G.pdf` p.3 contains the BZX84C12LT1G 1/5/20 mA rows
+  (11.2-12.7 V, 11.4-12.7 V, and 11.4-12.9 V respectively), confirming
+  there is still no characterized sub-mA clamp row.
+
+The required `POST /resolve` sweep covered all six changed cells:
+MMBT5551LT1GOSCT-ND, 863-MMBT5551LT1G,
+RMCF0805FT47K0CT-ND, 71-CRCW0805-47K-E3,
+RMCF0805FT100KCT-ND, and 71-CRCW0805-100K-E3. All resolved exact to
+the row's MPN/value. A same-pass `POST /batch` exact-matched MMBT5551LT1G,
+SI2309CDS-T1-GE3, NTR4171PT1G, and BZX84C12LT1G; DigiKey reports each
+Active and orderable at quantity one on 2026-07-17.
+
+### Finding 72 - IMPORTANT - F68 / MMBT5551 cutoff and base-drive proof
+**Issue**: The replacement BJT does not provide the claimed
+temperature-guaranteed OFF state, and its guaranteed-ON citation is also
+applied outside the published test conditions. The central 100 nA-at-100 C
+premise is a unit-column misread: the exact MMBT5551 hot limit is 50 uA.
+**Evidence**: `MMBT5551_onsemi.pdf` p.2 specifies MMBT5551 ICBO as
+50 nA at 25 C and **50 uA at 100 C**, both at VCB=120 V; the table's
+unit column changes from nA to uA on the hot rows. Q2's base is returned
+to ground only through R_base+R4 = 47 kOhm+100 kOhm, so 50 uA cannot be
+modeled as `ICBO * R3 = 1 mV`: 50 uA through the 147 kOhm return would
+develop 7.35 V absent the base-emitter junction, therefore the junction
+conducts and the leakage can become base drive. ICBO is measured with
+the emitter open, not in this grounded-emitter circuit; the p.2 ICES row
+for a base-emitter-shorted cutoff is only specified at 25 C. The ON proof
+also overclaims the table: MMBT5551's published maxima are 0.15 V at
+10 mA/1 mA and 0.20 V at 50 mA/5 mA; 0.25 V is the MMBT5550 cell, and
+none is a guarantee at the design's ~0.5-1.2 mA collector current and
+~49-55 uA base current. At the 53.3 V surge the forced beta is about 25,
+not the documented 9-12.
+**Suggested fix**: Re-derive the actual grounded-emitter cutoff circuit
+using a guaranteed hot ICES/ICEO limit, including a base-emitter return
+that cannot turn leakage into base drive. Size the base network against
+a published saturation test condition or select a driver with guaranteed
+ON/OFF rows matching this circuit. Correct every ICBO and VCE(sat) quote;
+do not infer a guaranteed value from typical curves or a sibling variant.
+
+### Finding 73 - IMPORTANT - F69 / State-4 guaranteed-temperature budget
+**Issue**: The revised `~1.35 mW @55 C` total is not guaranteed because
+it carries the same 100 nA BJT misread and has no MMBT5551 cutoff row at
+55 C. If Q2 is driven on by collector-base leakage, the failure is not
+merely a missing microwatt term: Q1 can energize the shed display branch.
+**Evidence**: `docs/hardware/power_budget.md` lines 95-119 assigns Q2
+at most 2.4 uW and calls the total a guaranteed bound. The exact p.2 hot
+row is 50 uA at 100 C, equal to 1.2 mW at 24 V even if treated as simple
+collector leakage, 500 times the stated term; the actual base network in
+Finding 72 can translate it into collector conduction. The table also
+labels both totals as from guaranteed rows although the ESP term remains
+an explicit engineering margin rather than a specified maximum.
+**Suggested fix**: Withdraw the 55 C guaranteed headline until Q2's
+grounded-emitter OFF state is bounded at or above the declared enclosure
+temperature. Recompute State 4 from that bound and retain the established
+`max where specified + explicit ESP margin` wording for the total.
+
+### Finding 74 - IMPORTANT - F70 / D35: Q2 replacement propagation is incomplete
+**Issue**: The new registry again returns exit 0 while multiple live
+documents still define Q2 as a 2N7002 N-FET and use MOSFET terminal names.
+The canonical CP1 artifacts therefore describe two incompatible circuits.
+**Evidence**: `cp1_battery_side.md` lines 70-72 still draw a 60 V P/N-FET
+switch; lines 134-139 and 263 specify Q2=2N7002/60 V; lines 265, 268,
+526, and 596-598 use drain/source/gate terminology instead of
+collector/emitter/base. `docs/hardware/bom.md` lines 61-62 and 114 still
+select the 2N7002, while line 117 calls Rg a Q2-drain resistor.
+`cp1_bom.md` line 110 also says Q2 drain, and `REVIEWER.md` line 112 still
+lists 2N7002LT1G in the current part set without MMBT5551. The published
+`docs/hardware/schematic_battery_side.md` lines 82-96 still show the old
+AO3400A N-FET and are outside D35 `LIVE_DOCS`. The start and end D35 runs
+both exit 0.
+**Suggested fix**: Reconcile every live Q2 identity, rating, pin name,
+base resistor, and topology drawing to the final circuit. Expand the
+append-only registry to catch `Q2 2N7002`, `Q2 gate/drain/source`, and
+`P/N-FET` forms, and either add `schematic_battery_side.md` to `LIVE_DOCS`
+or explicitly archive/supersede it so it cannot present as current.
+
+### Finding 75 - IMPORTANT - D32 / orphan `DMN6075S_Diodes.pdf`
+**Issue**: The delta adds a rejected-candidate PDF to the active datasheet
+store without a manifest/provenance row or any document reference, while
+D35 reports manifest-to-PDF consistency. This is exactly the stale-object
+shape D32 is intended to prevent.
+**Evidence**: `hardware/datasheets/DMN6075S_Diodes.pdf` is new in commit
+`471b86f`; its title page identifies Diodes Incorporated DMN6075S and the
+hash is `3ca54b9ce05adcdf...`. `manifest.md` has no DMN6075S row, and a
+repo text search for `DMN6075` returns no references. Nevertheless the
+D32 checker reports `32 manifest parts checked` and exits 0, demonstrating
+that it does not reject unmanifested PDFs.
+**Suggested fix**: Remove the rejected candidate from the active datasheet
+store, or move it to an explicitly non-active candidate archive with a
+source URL, SHA256, exact object identity, and rejection reason. Harden
+D32 to flag unmanifested PDFs in the active store.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 4 important. (See findings 72, 73, 74, 75.)
