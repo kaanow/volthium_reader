@@ -941,15 +941,21 @@ async def replug_usb_adapter() -> str:
     return f"usb replug of {target.name} (authorized 0→1)"
 
 
-async def _dmesg_bt_tail(since: str = "5min", limit: int = 40) -> list[str]:
-    """Kernel-log tail filtered to lines relevant to a BLE / USB wedge.
+async def _dmesg_bt_tail(
+    since_seconds: int = 300, limit: int = 40,
+) -> list[str]:
+    """Kernel-log tail filtered to lines relevant to a BLE / USB wedge,
+    bounded to the last `since_seconds` seconds so a wedge from 2 hours
+    ago can't false-positive a classifier check.
+
     Widened beyond just BT/hci to also catch USB bus events, hub errors,
     power/current spikes, and thermal warnings — any of these can be the
     proximate cause of a chip firmware hang.
 
-    `journalctl -k` is readable without sudo on Ubuntu; falls back to
-    `sudo -n dmesg` if not. Best-effort — returns [] on any failure so
-    callers get an empty snapshot, not an exception."""
+    Prefers `journalctl -k` (readable without sudo on Ubuntu, with proper
+    time filtering); falls back to `sudo -n dmesg -T` and parses the
+    `[Thu Jul 16 …]` timestamps to enforce the same window client-side.
+    Best-effort — returns [] on any failure."""
     interesting = (
         "Bluetooth:", "hci0", "hci1", "hci2",
         "usb ", "Resetting usb", "Frame reassembly",
@@ -958,24 +964,52 @@ async def _dmesg_bt_tail(since: str = "5min", limit: int = 40) -> list[str]:
         "thermal", "throttl", "hub_port_status",
         "btusb", "brcm",
     )
-    for cmd in (
-        ["journalctl", "-k", "-q", "--no-pager", f"--since={since} ago"],
-        ["sudo", "-n", "dmesg", "-T", "--nopager"],
-    ):
-        try:
-            out = await _run(cmd, timeout=3.0)
-        except Exception:
-            continue
-        if not out or "not found" in out.lower() and cmd[0] != "sudo":
-            continue
-        lines = [ln for ln in out.splitlines()
-                 if any(tok in ln for tok in interesting)]
-        if lines:
+    # journalctl accepts "N minutes ago" with a space — the earlier form
+    # "5min ago" silently failed to parse, sending us to the fallback path
+    # which had no time filter.
+    minutes = max(1, int(round(since_seconds / 60)))
+    since_expr = f"{minutes} minutes ago"
+    try:
+        out = await _run(
+            ["journalctl", "-k", "-q", "--no-pager", f"--since={since_expr}"],
+            timeout=3.0,
+        )
+        if out and "not found" not in out.lower():
+            lines = [ln for ln in out.splitlines()
+                     if any(tok in ln for tok in interesting)]
             return lines[-limit:]
-        # Empty match but command worked — return [] rather than trying next
-        if out.strip():
-            return []
-    return []
+    except Exception:
+        pass
+    # Fallback: `dmesg -T` returns everything since boot. Parse the
+    # `[Thu Jul 16 18:14:18 2026]` prefix to enforce the window.
+    try:
+        out = await _run(
+            ["sudo", "-n", "dmesg", "-T", "--nopager"], timeout=3.0,
+        )
+    except Exception:
+        return []
+    if not out:
+        return []
+    import re as _re
+    import datetime as _dt
+    cutoff = _dt.datetime.now() - _dt.timedelta(seconds=since_seconds)
+    prefix_re = _re.compile(r"^\[([A-Za-z]{3} [A-Za-z]{3} +\d+ \d+:\d+:\d+ \d+)\]")
+    kept = []
+    for ln in out.splitlines():
+        if not any(tok in ln for tok in interesting):
+            continue
+        m = prefix_re.match(ln)
+        if not m:
+            kept.append(ln)  # no parseable timestamp — keep (rare)
+            continue
+        try:
+            ts = _dt.datetime.strptime(m.group(1), "%a %b %d %H:%M:%S %Y")
+        except ValueError:
+            kept.append(ln)
+            continue
+        if ts >= cutoff:
+            kept.append(ln)
+    return kept[-limit:]
 
 
 async def _hciconfig_snapshot(hci: str) -> dict:
