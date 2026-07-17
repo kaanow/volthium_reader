@@ -219,6 +219,31 @@ def section_events(since_iso: str) -> tuple[bool, list[str]]:
             for e in evs[:3]:
                 lines.append(f"    {e['ts']}  {json.dumps(e['data'])[:140]}")
             notable = True
+    # Phase 2A: ambient-gated recovery skips — highlight prominently
+    # because they represent the gate doing its job (preventing wasted
+    # destructive recovery when the wedge is peer-side).
+    skipped = fetch_events("recovery_skipped", since_iso, limit=500)
+    if skipped:
+        lines.append(f"  recovery_skipped: {len(skipped)}  ← ambient gate prevented "
+                     f"pointless recovery escalation")
+        for e in skipped[:5]:
+            d = e['data']
+            lines.append(
+                f"    {e['ts']}  reason={d.get('reason')}  "
+                f"would_have={d.get('would_have', 'escalate')}  "
+                f"scan_errors={d.get('scan_errors','?')}"
+            )
+        notable = True
+    # peer-silent classifications: these are the Iter-12 class that
+    # motivated Phase 2A. Callers can now cleanly see which wedges are
+    # in this bucket vs the reader-side (Family B) ones.
+    peer_silent = [
+        w for w in wedges
+        if w["data"].get("classification") == "peer_silent_ambient_corroborated"
+    ]
+    if peer_silent:
+        lines.append(f"  wedges classified peer_silent_ambient_corroborated: "
+                     f"{len(peer_silent)}")
     return notable, lines
 
 
