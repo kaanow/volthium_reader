@@ -1093,6 +1093,54 @@ async def _usb_dongle_stats() -> dict:
     return out
 
 
+async def _wifi_stats() -> dict:
+    """Sample WiFi link quality + traffic counters. Motivation for Phase 2C
+    (Iter 12 hypothesis): if Family C wedges are actually RF blasts on
+    the 2.4 GHz band, WiFi metrics should also degrade — retries climb,
+    beacon losses spike, signal quality dips. All-passive read; no probe
+    packets sent.
+
+    Reads /proc/net/wireless (link quality / signal / discarded counters)
+    and /sys/class/net/wlan0/statistics/{tx,rx}_bytes for traffic volume.
+    Sudo-free. On non-wireless hosts (e.g. macOS dev rig) returns {}."""
+    out: dict = {}
+    try:
+        with open("/proc/net/wireless") as f:
+            content = f.read()
+        # Third line onward has data — format is fixed-column ASCII:
+        #   wlan0: 0000  70.  -40.  -256  0  0  0  0  0  0
+        # Fields: iface status link level noise
+        #         nwid crypt frag retry misc missed_beacon
+        for line in content.splitlines()[2:]:
+            parts = line.split()
+            if not parts or not parts[0].endswith(":"):
+                continue
+            iface = parts[0].rstrip(":")
+            try:
+                out[iface] = {
+                    "link_quality": float(parts[2].rstrip(".")),
+                    "signal_dbm": float(parts[3].rstrip(".")),
+                    "noise_dbm": float(parts[4].rstrip(".")),
+                    "disc_retry": int(parts[8]),
+                    "missed_beacon": int(parts[10]),
+                }
+            except (ValueError, IndexError):
+                continue
+            # Traffic volume for this interface
+            try:
+                with open(f"/sys/class/net/{iface}/statistics/tx_bytes") as fx:
+                    out[iface]["tx_bytes"] = int(fx.read().strip())
+                with open(f"/sys/class/net/{iface}/statistics/rx_bytes") as fx:
+                    out[iface]["rx_bytes"] = int(fx.read().strip())
+            except OSError:
+                pass
+    except OSError:
+        return out
+    except Exception as exc:
+        out["error"] = f"{type(exc).__name__}: {exc}"
+    return out
+
+
 async def _power_and_thermal() -> dict:
     """Sample the Pi's throttled register and SoC temperature. The throttled
     register is a bit-mask that latches under-voltage / freq-cap / temp-cap
@@ -1208,7 +1256,8 @@ async def _collect_stack_evidence(
     can distinguish "hci0 alone can't see them" (Family B) from "neither
     radio can see them" (peer-silent / environmental)."""
     hci = await _default_adapter()
-    dmesg, hci_state, bctl, ub500, hcicon, ptherm, bluez_macs, usb_stats = await asyncio.gather(
+    (dmesg, hci_state, bctl, ub500, hcicon, ptherm,
+     bluez_macs, usb_stats, wifi) = await asyncio.gather(
         _dmesg_bt_tail(),
         _hciconfig_snapshot(hci),
         _bluetoothctl_snapshot(),
@@ -1217,6 +1266,7 @@ async def _collect_stack_evidence(
         _power_and_thermal(),
         _bluez_controllers(),
         _usb_dongle_stats(),
+        _wifi_stats(),
         return_exceptions=True,
     )
     dmesg = dmesg if isinstance(dmesg, list) else []
@@ -1226,6 +1276,7 @@ async def _collect_stack_evidence(
     ptherm = ptherm if isinstance(ptherm, dict) else {}
     bluez_macs = bluez_macs if isinstance(bluez_macs, (set, type(None))) else None
     usb_stats = usb_stats if isinstance(usb_stats, dict) else {}
+    wifi = wifi if isinstance(wifi, dict) else {}
     # Kernel-vs-D-Bus comparison for the pinned adapter (see _classify_wedge).
     pinned_raw = os.environ.get(_ADAPTER_ENV, "").strip()
     pinned_in_kernel: Optional[str] = None
@@ -1274,6 +1325,7 @@ async def _collect_stack_evidence(
         "hcitool_con": hcicon.strip()[:500],
         "power_thermal": ptherm,
         "usb_dongle": usb_stats,
+        "wifi": wifi,
         "bluez_controllers": sorted(bluez_macs) if bluez_macs is not None else None,
         "pinned_adapter": pinned_raw or None,
         "pinned_in_kernel": pinned_in_kernel,
