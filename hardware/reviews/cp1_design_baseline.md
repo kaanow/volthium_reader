@@ -3975,3 +3975,125 @@ their call.)
 **Handing back for iteration 37 re-verify.** Remaining open by design:
 the F47/F52 on-site matrix (~2 weeks) gates D36/DR-26; everything else
 on the D36/D37 delta is, to my knowledge, closed.
+
+---
+
+## 8.19 Reviewer findings (iteration 37 — iter-36 resolution re-review)
+
+This pass independently re-verified only the iteration-36 response and did not
+start CP2. The mandatory D35 consistency checker ran first and exited 0 (30
+manifest parts; 40 `_verify_` BOM cells). F51's exact onsemi object correction,
+F53's exact connector document, F54's two changed SKU classes, and F55's
+evidence labels verify. The direct-drive simplification introduced an
+unqualified switch operating point, and the mechanical consistency sweep found
+live text that the new registry pattern missed.
+
+### Delta gate record
+
+| Gate / check | Independent result |
+|---|---|
+| D35 scripted gate | **PASS as implemented** — exit 0. The manual G5 sweep still found three live forms of the withdrawn 1 Mohm bus-line bleed; see Finding 58. |
+| F51 2N7002 object identity | **PASS** — local `2N7002_onsemi.pdf` SHA-256 begins `11eb3cde5ed5`; onsemi 2N7002L-D p.1 explicitly lists orderable 2N7002LT1G, and p.2 gives the cited 1 uA at 25 C / 500 uA at 125 C rows. Canonical `/resolve` on 2026-07-17 maps Mouser `863-2N7002LT1G` exactly to onsemi `2N7002LT1G`. |
+| F51 revised 3V3 switch topology | **FAIL** — direct drive supplies only approximately -3.3 V VGS, below every guaranteed on-resistance test point for ZXMP6A13F. See Finding 56. |
+| F52 two-domain matrix | **PASS in section 7** — reader TX is now measured against active-pack B-minus and pack TX against `ISO_BUS_GND`; the fallback includes a real per-channel reference conductor. Live contradictory legacy text remains; see Finding 58. |
+| F53 connector object identity | **PASS electrically** — local PS-51021-024 SHA-256 begins `b7d3ec9b74b9`; exact Molex p.1 scope includes 53398/53261 headers, 51021 housing, and 50079/50058 terminals, and p.2 ratings match the docs. Manifest source provenance remains malformed; see Finding 59. |
+| F54 changed-SKU sweep | **PASS, 2/2 exact** — `/resolve` maps `863-2N7002LT1G` to onsemi `2N7002LT1G` and `71-CRCW0805-100K-E3` to Vishay `CRCW0805100KFKEA`. All live changed cells use those exact forms. |
+| F55 evidence labels | **PASS** — live vendor/design text now distinguishes the owner-supplied redacted transcript from owner-reported, uncommitted pack/cable photographs. The separately committed adapter-label image remains valid on-file evidence. |
+| G3 ZXMP6A13FTA lifecycle / availability | **FAIL** — manufacturer marks the part NRND; distributor data does not substantiate the BOM's current-stock claim. See Finding 57. |
+| Delta arithmetic | **PASS only against the stale $0.40 input** — `45.80 + 4.60 + 3.00 + 0.80 + 1.40 + 0.40 + 0.40 = 56.40`; current sourcing returns $1.43 for ZXMP6A13FTA, so the documented cost must follow the replacement in Finding 57. |
+
+Citation spot-check quota was met against three exact manufacturer documents:
+onsemi 2N7002L-D pp.1-2 (ordering and IDSS rows), Molex PS-51021-024
+pp.1-2 (system scope and ratings), and Diodes ZXMP6A13F pp.1/4 (RDS(on),
+threshold, and leakage test conditions). Local hashes match the manifest for
+all three stored PDFs.
+
+### Finding 56 — IMPORTANT — D36/D37 direct-GPIO ZXMP6A13F switches: no guaranteed ON state at 3.3 V
+**Issue**: Removing the N-FET level shifters is topologically reasonable, but
+ZXMP6A13F is not qualified as a load switch at the resulting approximately
+-3.3 V gate drive. The design uses typical curves as though they guaranteed
+the channel and expansion loads.
+
+**Evidence**: With source at 3.3 V and an ESP low output at ground, the most
+negative available VGS is approximately -3.3 V. The exact Diodes
+ZXMP6A13F datasheet p.1/p.4 guarantees RDS(on) only at VGS=-10 V
+(0.4 ohm max) and -4.5 V (0.6 ohm max). Its VGS(th) range is -1 to -3 V
+at only ID=-250 uA; threshold is not a load-current rating. The p.5 curves at
+3.0/3.5 V are typical, not production limits. Each channel must start an
+ADM2587E whose documented 3.3 V supply current is 90 mA at the reviewed load,
+and EXP_3V3 has a shared upstream ceiling of 500 mA, so neither use may rely on
+the threshold row.
+
+**Suggested fix**: Replace the three 3V3-domain P-FETs with a current-production
+logic-level P-FET whose RDS(on) is guaranteed at VGS=-2.5 V or -3.0 V and whose
+off leakage supports the stated ambient allocation. Re-derive voltage drop,
+dissipation, startup margin, and parked-rail leakage from that exact part. Do
+not defer this to a post-build IC swap unless a compatible alternate footprint
+is deliberately reserved at CP2.
+
+### Finding 57 — IMPORTANT — G3 / cp1_bom.md ZXMP6A13FTA: NRND and no confirmed on-hand stock
+**Issue**: The BOM still describes ZXMP6A13FTA as Active, approximately 75k in
+stock, and $0.40 while the manufacturer now marks the device NRND and the live
+distributor result does not show quantity-one stock on hand. Iteration 36 also
+increased the design's dependence on this part to four devices total.
+
+**Evidence**: Diodes Incorporated's current
+[`ZXMP6A13F product page`](https://www.diodes.com/part/view/ZXMP6A13F)
+states **Not Recommended for New Design (NRND)**. Canonical `/resolve` maps
+Mouser `522-ZXMP6A13FTA` exactly to the Diodes orderable, but the 2026-07-17
+MPN query reports Mouser availability as `74376 On Order` (the incoming lots
+sum to that figure) at CAD $1.43 and DigiKey cut-tape/Digi-Reel stock as zero.
+This does not substantiate the BOM's `Mouser stock ~75k` statement, and the
+manufacturer lifecycle status outranks DigiKey's stale `Active` field.
+
+**Suggested fix**: Replace ZXMP6A13FTA with current-production, presently
+orderable parts: one 60 V P-FET appropriate for Q1's 24 V/clamped domain and a
+logic-level part for the three 3V3 switches (one part may serve both only if
+its exact ratings satisfy both jobs). Resolve the new SKU cells, store exact
+datasheets, add the superseded part token to D35, and recompute the BOM cost.
+
+### Finding 58 — IMPORTANT — F52 / G5: withdrawn 1 Mohm bus-line bleed remains live
+**Issue**: F52 is not consistently closed. Three live architecture locations
+still prescribe the rejected bus-line bleed and say no battery-negative
+reference is required, while revised section 7 correctly says that topology
+cannot control receiver common-mode. The new registry regex is too narrow to
+catch these forms.
+
+**Evidence**: `cp1_rs485_battery_read.md` near the opening architecture says an
+optional approximately 1 Mohm bleed to a bus line keeps the island referenced
+and that nothing lands on battery negative; its component table still lists
+`optional ~1 MΩ iso-GND↔bus bleed`. `decisions.md` D36 likewise says no
+reference wire is required and retains the optional bleed. In contrast,
+section 7 withdraws that fallback and specifies a dedicated REF conductor to
+pack B-minus. The added checker pattern matches only longer `bleed from ... B
+line` forms, so D35 exits 0 despite the contradiction. Section 7 additionally
+says the new REF may be through approximately 100 kohm while claiming
+offset approximately zero; no current bound is provided from which that drop
+can be derived.
+
+**Suggested fix**: Rewrite all live architecture/component rows to describe
+the no-REF two-wire topology as conditional on the two-domain matrix passing,
+remove every bus-line-bleed option, and expand the superseded-token regex to
+cover the shorthand forms above. Define the failed-matrix fallback as a direct
+REF conductor, or independently bound the reference current and calculate a
+maximum series resistance that still keeps both receiver common-mode limits.
+
+### Finding 59 — IMPORTANT — manifest PS-51021-024 row: source URL is not reproducible
+**Issue**: The exact connector PDF and hash are correct, but the manifest does
+not contain the exact official URL that iteration 36 says was recorded. The
+source field uses an ellipsis, so it cannot be opened or independently
+re-fetched.
+
+**Evidence**: The new manifest row records
+`molex.com/content/dam/…/PS-51021-024-001.pdf`. The verified manufacturer URL
+is
+[`https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/productspecificationpdf/510/51021/PS-51021-024-001.pdf?inline=`](https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/productspecificationpdf/510/51021/PS-51021-024-001.pdf?inline=).
+The committed file hashes to
+`b7d3ec9b74b9d7c57a56cf85362ff575dddd9af3f1f3ab10382d8ed257248736`,
+so this is a provenance-record defect, not an object-content dispute.
+
+**Suggested fix**: Put the complete official URL in the manifest row, retain
+the owner-upload date and full SHA-256, and keep the explicit note that the
+stored file came from the owner when direct fetch was blocked.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 4 important. (See findings 56, 57, 58, 59.)

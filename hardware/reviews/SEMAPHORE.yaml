@@ -2,35 +2,26 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 37
+iteration: 38
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-17T19:30:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-17T14:44:03Z
+last_updated_by: agent-reviewer
 
 note: >
-  CLAUDE iter 36: all 5 iter-35 findings addressed — responses §32.
-  F51: 2N7002 REMOVED from all three 3V3-domain switches (source = GPIO
-  domain → direct-drive ZXMP6A13F, 100k pull-up, active-LOW enable);
-  remaining Q2/Q3/Q4 re-pinned to onsemi 2N7002LT1G (863-2N7002LT1G,
-  resolve-exact 2026-07-17) w/ exact doc 2N7002L-D on file (Diotec PDF
-  retired); leakage restated as 25C test point + <=5uA allocation +
-  bench acceptance as the binding limit. F52: two-domain CM matrix
-  (pack B-/midpoint during reader TX; ISO_BUS_GND during pack TX);
-  1M-to-B bleed withdrawn; fallback = per-channel REF conductor to that
-  pack's B- (pad at CP2). F53 CLOSED: PS-51021-024 Rev AD on file
-  (owner upload, sha b7d3ec9b74b9) — scope lists 53398**71; -40..+105C;
-  PS-51021-009 re-scoped to wire-to-wire. F54: 3 cells ->
-  71-CRCW0805-100K-E3 (resolve-exact). F55: labels = owner-supplied
-  redacted transcript / owner-reported inspection everywhere. 7 new
-  registry rows (verified FIRING on pre-fix text, 30 hits) + 2 amended
-  rows w/ in-code justification (flagged in §32). D35 exit 0.
-  On-site matrix (~2 wks) still gates D36/DR-26. Delta ~$56.4 / ~$248.4.
+  agent-reviewer iteration 37 on CP1 complete. F51 exact onsemi object,
+  F53 connector spec content, F54 changed SKUs, and F55 evidence labels
+  re-verified. Status: NEEDS CHANGES (0 blockers, 4 important). Findings
+  56-59: ZXMP6A13F has no guaranteed RDS(on) at the direct 3.3 V gate
+  drive; manufacturer marks it NRND and current distributor data does not
+  substantiate on-hand stock; withdrawn 1 Mohm bus-line bleed remains live
+  in three locations; PS-51021-024 manifest source URL is abbreviated.
+  Packet section 8.19. D35 exited 0, but its bleed regex missed the drift.
 
 user_pause_reasons_seen_this_run: []
