@@ -2,25 +2,35 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 36
+iteration: 37
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-17T13:28:57Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-17T19:30:00Z
+last_updated_by: claude
 
 note: >
-  agent-reviewer iteration 35 on CP1 complete. Iter-34 grounding,
-  protection wording, consistency fixes, and cost arithmetic re-verified.
-  Status: NEEDS CHANGES (0 blockers, 4 important, 1 nit). Findings 51-54:
-  wrong-manufacturer/25 C-only 2N7002 leakage bound; one-sided D36
-  common-mode test and insufficient two-wire fallback; exact Molex
-  PS-51021-024 header spec must be committed; ambiguous Mouser resistor SKU.
-  Finding 55 corrects transcript/photo evidence labels. Packet section 8.18.
+  CLAUDE iter 36: all 5 iter-35 findings addressed — responses §32.
+  F51: 2N7002 REMOVED from all three 3V3-domain switches (source = GPIO
+  domain → direct-drive ZXMP6A13F, 100k pull-up, active-LOW enable);
+  remaining Q2/Q3/Q4 re-pinned to onsemi 2N7002LT1G (863-2N7002LT1G,
+  resolve-exact 2026-07-17) w/ exact doc 2N7002L-D on file (Diotec PDF
+  retired); leakage restated as 25C test point + <=5uA allocation +
+  bench acceptance as the binding limit. F52: two-domain CM matrix
+  (pack B-/midpoint during reader TX; ISO_BUS_GND during pack TX);
+  1M-to-B bleed withdrawn; fallback = per-channel REF conductor to that
+  pack's B- (pad at CP2). F53 CLOSED: PS-51021-024 Rev AD on file
+  (owner upload, sha b7d3ec9b74b9) — scope lists 53398**71; -40..+105C;
+  PS-51021-009 re-scoped to wire-to-wire. F54: 3 cells ->
+  71-CRCW0805-100K-E3 (resolve-exact). F55: labels = owner-supplied
+  redacted transcript / owner-reported inspection everywhere. 7 new
+  registry rows (verified FIRING on pre-fix text, 30 hits) + 2 amended
+  rows w/ in-code justification (flagged in §32). D35 exit 0.
+  On-site matrix (~2 wks) still gates D36/DR-26. Delta ~$56.4 / ~$248.4.
 
 user_pause_reasons_seen_this_run: []

@@ -2083,7 +2083,7 @@ common-mode range is worse for a series stack and it carries less
 per-cell detail than the serial protocol. The ESP has a native TWAI/CAN
 controller if that bridge is ever built.
 
-**Interface premise — ORIGINAL THREAD ON FILE (F45 closed 2026-07-16;
+**Interface premise — REDACTED TRANSCRIPT ON FILE (F45 closed 2026-07-16; F55 label: owner-supplied redaction, original off-file;
 F37/F47;** see design §7 + the transcript
 [`vendor/Voltage_monitoring_thread_2023-2024_redacted_transcript.txt`](../../docs/vendor/Voltage_monitoring_thread_2023-2024_redacted_transcript.txt)
 + dated fact table in
@@ -2091,8 +2091,8 @@ F37/F47;** see design §7 + the transcript
 verified verbatim, 2024-03-28 — *"Use a Standard RS485 adapter with
 A & B. No ground need. Don't use a TTL 3.3V adapter directly."* So:
 RS-485 (not TTL), 2-wire/no-ground, A/B on RJ45 **7/8** (double-sourced);
-socket closest to the negative terminal (2024-01-15). Pack connector
-**photographed** (owner, 2026-07-16): 4-pin circular threaded-collar
+socket closest to the negative terminal (2024-01-15). Pack connector per
+**owner-reported inspection** (2026-07-16, photos not committed): 4-pin circular threaded-collar
 aviation-style, two per pack — vendor's "XLR" is colloquial; exact PN
 never supplied by the vendor, caliper on-site; not load-bearing (we mate
 at the RJ45). The ADM2587E isolated front-end is the correct circuit
@@ -2142,11 +2142,14 @@ nothing is plugged in**.
   future add-on can't break the ~1 mW low-SOC budget. A hungry add-on
   taps the pack elsewhere.
 
-**Enforceable power-domain contract (F34/F39/F48).** The expansion rail
-is **not** raw always-on 3V3, and — correcting the iter-30 wording — it
-is **not** current-limited either. It is an **on/off, default-OFF load
-switch** (Q_exp: ZXMP6A13F high-side + 2N7002 gate drive, gate pull-up
-to the 3V3 source) that is **OFF at reset** and **force-OFF in State 4**.
+**Enforceable power-domain contract (F34/F39/F48/F51).** The expansion
+rail is **not** raw always-on 3V3, and — correcting the iter-30 wording —
+it is **not** current-limited either. It is an **on/off, default-OFF
+load switch** — a **direct-GPIO-driven ZXMP6A13F** (F51 simplification:
+the source is 3V3 = the GPIO domain, so the earlier 2N7002 level shifter
+is removed; 100 kΩ gate pull-up to 3V3; `EXP_PWR_EN` **active-LOW**,
+high-Z/high = OFF) — **OFF at reset** (pull-up wins while the pin is
+high-Z) and **force-OFF in State 4**.
 F48 replaced the "rail is *dead*" wording with a **testable off-state
 contract**:
 
@@ -2163,16 +2166,24 @@ contract**:
    cannot float it: with the P-FET's ≤0.5 µA IDSS worst case into
    100 kΩ, the parked rail sits ≤ 50 mV. On-state cost 33 µA
    (~110 µW) — an active-mode cost only, acceptable.
-4. **Off-state budget (worst-case datasheet bounds, not typicals)**:
-   ZXMP6A13F IDSS ≤ 0.5 µA (p.4, V_DS = −60 V, V_GS = 0) **+** 2N7002
-   IDSS ≤ 1 µA (on-file p.2, 60 V/25 °C) through the gate pull-up when
-   parked off → **≤ 1.5 µA ≈ ≤ 5 µW from always-on 3V3** in *every*
-   state incl. State 4 (supersedes the F39 "≤1.65 µW" figure, which
-   counted only the P-FET). Real leakage at 3.3 V ≪ these 60 V test
-   bounds; the budget uses the bound.
-5. **Acceptance test (bench, at bring-up)**: with an add-on plugged and
-   rail off — V(EXP_3V3) ≤ 50 mV, and total always-on-3V3 draw
-   attributable to the expansion block ≤ 1.5 µA.
+4. **Off-state budget — honestly bounded (F51 supersedes the iter-34
+   "≤1.5 µA/≤5 µW worst-case" framing, which mixed manufacturers and
+   treated a 25 °C row as a range max)**: with the 2N7002 removed
+   (F51 direct drive) the only semiconductor leak is the ZXMP6A13F,
+   whose IDSS ≤ 0.5 µA (p.4, V_DS = −60 V, V_GS = 0) is a **TJ=25 °C
+   test point — no full-temperature maximum is published** (typical of
+   small-signal FETs; same is true of the onsemi 2N7002L doc now on
+   file). Budget structure: **datasheet-anchored 25 °C figure ≤ 0.5 µA;
+   engineering allocation ≤ 5 µA (≈16 µW) at the ≤ 40 °C battery-box
+   ambient** (10× headroom over the 25 °C point — stated as an
+   *allocation*, not a datasheet fact); the **binding number is the
+   measured acceptance limit in item 5**. If the bench measurement
+   exceeds the allocation, swap in a specified-over-temperature
+   load-switch IC (noted alternative) — a part swap, not a respin.
+5. **Acceptance test (bench, at bring-up — the enforceable bound)**:
+   with an add-on plugged and rail off, at working ambient —
+   V(EXP_3V3) ≤ 50 mV, and total always-on-3V3 draw attributable to the
+   expansion block ≤ 5 µA (the item-4 allocation).
 6. **Arbitrary daughterboards**: series-R footprints on all five signal
    lines (DNP by default) as partial-power-down isolation if a future
    add-on proves back-power-prone; a controlled add-on designed to this
@@ -2197,27 +2208,27 @@ spec — the reviewer/gate checks the CP2 pin map against them.
 
 Customer drawings on file (manifest: Molex_53398-0871_PicoBlade_vert.pdf
 sha 642bc09ea605; RA sha 6e1b0968c9ed) — 1.25 mm pitch, 8-ckt, tin.
-**F38/F49 (mate/rating) — closed at mate-side, iter-34:** the drawing
-states **MATE WITH: 51021 SERIES**. Product spec **PS-51021-009 is now on
-file** (fetched via the API datasheet proxy from
-molex.com/pdm_docs/ps/PS-51021-009.pdf, sha 1213f6f542…): its scope table
-covers exactly our mate — **receptacle housing 51021-\*\*00 + female
-terminal 50079-8\*00 (AWG 26–28)** — and its §3 ratings table gives
-**Rated Current 1.0 A max (AWG 26/28/30; 0.8 A at AWG 32), 125 V max,
-−40…+85 °C**, temp-rise ≤30 °C at rated current. **Mating hardware
-(sourced, orderable at qty 1):** loose 50079-8000 terminals have a
-**25,000-piece MOQ** (DK WM1142TR-ND / Mouser 538-50079-8000, API
-2026-07-16) — not a qty-1 answer; instead order the **off-the-shelf
-pre-built 8-ckt PicoBlade↔PicoBlade cable assembly Molex 0151340801
-(100 mm)** — DK **WM15273-ND**, 8,199 stock, Active, $10.53 CAD (API
-2026-07-16) — one assembly cut in half = two single-ended pigtails, no
-crimping. Header-side spec **PS-51021-024** (referenced by the 53398
-drawing) is still not proxy-fetchable — **requested from the owner**;
-until then the documented rating is the mate-side 1.0 A, far above our
-loads (logic signals + a rail whose upstream ceiling is the shared
-LM5166 500 mA through the single power pin — within the 1.0 A pin
-rating). The prior "≤50 mA rail" phrasing is retired (no such limiter
-exists — F39/F49). **F33 fix:** the first draft put the r/a DK SKU
+**F38/F49/F53 (mate/rating) — CLOSED iter-36, exact header spec on
+file:** the drawing states **MATE WITH: 51021 SERIES**, and the
+header-system product spec **PS-51021-024 (Rev AD, 2022-06-03) is now on
+file** (owner upload 2026-07-17, sha b7d3ec9b74b9; official molex.com
+URL cited by the iter-35 reviewer — direct fetch WAF-blocked). Its scope
+p.1 explicitly lists **vertical headers 53398\*\*71 (ours)**, r/a 53261,
+housing 51021\*\*00, terminals 500798\*00/500588\*00; ratings p.2:
+**1.0 A max (AWG 26/28/30; 0.8 A at AWG 32), 125 V, −40…+105 °C**, plus
+an 8-circuit derating reference of 1.5 A (AWG 26/28) / 1.0 A (AWG 30/32)
+at 30 °C rise, marked reference-only. Our loads (logic signals + one
+power pin whose upstream ceiling is the shared LM5166 500 mA) sit inside
+the 1.0 A rating. (PS-51021-009, the wire-to-wire sibling, is retained
+in the manifest scoped to the cable-assembly mate side only — F53.)
+**Mating hardware (sourced, orderable at qty 1):** loose 50079-8000
+terminals have a **25,000-piece MOQ** (DK WM1142TR-ND / Mouser
+538-50079-8000, API 2026-07-16) — not a qty-1 answer; instead the
+**off-the-shelf pre-built 8-ckt PicoBlade↔PicoBlade cable assembly Molex
+0151340801 (100 mm)** — DK **WM15273-ND**, 8,199 stock, Active, $10.53
+CAD (API 2026-07-16) — one assembly cut in half = two single-ended
+pigtails, no crimping. The prior "≤50 mA rail" phrasing is retired (no
+such limiter exists — F39/F49). **F33 fix:** the first draft put the r/a DK SKU
 (WM7626) in the vertical row — corrected to WM7612CT-ND.
 
 **Protection.** Series-R footprints (DNP) on **all five** signal lines

@@ -3887,3 +3887,91 @@ owner-reported inspection unless redacted image artifacts are committed. The
 dated RS-485/no-ground and pin-domain content may remain transcript-verified.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 4 important. (See findings 51, 52, 53, 54.)
+
+---
+
+## 32. Designer responses — iteration 36 (F51–F55)
+
+All five addressed. The owner delivered **PS-51021-024** (F53's ask)
+same-day. D35 gate exit 0 after changes; all seven new registry patterns
+verified to FIRE on the pre-fix text (30 old hits). Two registry rows
+were *amended* with in-code comments explaining why (the "$56/$248"
+value-alternates now sit next to legitimately-correct values after the
+F51 simplification; "owner-reported" became the F55-correct label) —
+flagging the amendments here for your review rather than silently.
+
+### F51 (2N7002 off-state bound + wrong-manufacturer doc) — ACCEPTED, and it simplified the design
+Confirmed independently: `POST /resolve` 512-2N7002 → **onsemi** exact
+(2026-07-17), while the on-file PDF was Diotec's. Fixes go further than
+relabeling:
+- **The 2N7002 is REMOVED from all three 3V3-domain switches** (Q_exp +
+  both channel switches): their P-FET source is 3V3 — the same domain as
+  the ESP pin — so the level shifter never had a function there. Gate is
+  driven directly (100 kΩ pull-up to 3V3; enable active-LOW; high-Z at
+  reset = OFF). One fewer leakage path, three fewer parts, and the
+  off-state analysis now has a single semiconductor term per switch.
+  (Q1/Q2 on the 24 V domain legitimately keep their level shifter.)
+- **Remaining 2N7002 uses (Q2/Q3/Q4) re-pinned to the exact orderable
+  onsemi 2N7002LT1G** — Mouser **863-2N7002LT1G** (76k stock, API
+  2026-07-17; DK LT1G variants zero-stock same query, cell = "—"),
+  $0.49 ea. Its exact doc **2N7002L-D Rev 11** fetched via the proxy
+  (onsemi.com source header, sha 11eb3cde5ed5) replaces the Diotec PDF;
+  manifest row rewritten.
+- **The leakage claim is restated honestly** (your suggested interim,
+  made structural): IDSS ≤0.5 µA (ZXMP6A13F p.4) is a **TJ=25 °C test
+  point — no full-range max exists** (true of the onsemi doc too, as
+  you noted). The budget now has three labeled layers: datasheet 25 °C
+  anchor ≤0.5 µA → engineering **allocation ≤5 µA @ ≤40 °C** (explicitly
+  an allocation, not a datasheet fact) → **binding limit = the bring-up
+  acceptance measurement** (V(EXP_3V3) ≤50 mV, block draw ≤5 µA).
+  Documented fallback if the bench exceeds the allocation: a
+  specified-over-temperature load-switch IC — part swap, not respin.
+
+### F52 (one-sided common-mode test + insufficient fallback) — ACCEPTED
+Correct on both counts; the acceptance matrix in design §7 is now
+**two-domain**: row 2a measures A/B against **the active pack's B−**
+(top pack = series midpoint, isolated differential probe) during
+*reader TX* — the direction that validates the pack receiver; row 2b
+against the channel's isolated ground during *pack TX*. Both must stay
+within −7…+12 V; functional/differential/idle rows and the
+packs-swapped repeat retained. The 1 MΩ-to-B "fallback" is **withdrawn
+with your reasoning recorded** (the reader drives B relative to
+ISO_BUS_GND — a bleed to it references nothing during reader TX).
+Replacement fallback: a per-channel **REF pad tying ISO_BUS_GND to that
+pack's B− by a dedicated conductor** — a real reference that pins both
+domains (offset ≈0 by construction), preserves channel symmetry (each
+island refs its own pack), and costs a wire + a CP2 pad on failure.
+D36/DR-26 remain gated on the matrix passing.
+
+### F53 (header spec) — CLOSED, exact object on file
+**PS-51021-024 Rev AD committed** (owner upload 2026-07-17, sha
+b7d3ec9b74b9; your molex.com URL recorded as the official source —
+direct fetch is WAF-blocked from here). Read and verified: scope p.1
+lists **53398**71 vertical headers (ours)**, 53261 r/a, 51021 housings,
+500798*00/500588*00 terminals; ratings p.2 exactly as you stated —
+1.0 A max AWG 26/28/30, 0.8 A AWG 32, 125 V, **−40…+105 °C**, 8-ckt
+derating reference 1.5/1.0 A @30 °C rise marked reference-only. All
+header-rating claims now cite -024; **PS-51021-009 re-scoped in the
+manifest to the wire-to-wire mate side only** (its actual scope).
+
+### F54 (ambiguous Mouser SKU) — ACCEPTED, fixed
+Reproduced your result independently: `/resolve` 71-CRCW0805-100K-E3 →
+Vishay CRCW0805100KFKEA **exact**; MPN query shows 296k Mouser stock
+(2026-07-17). All three cells (R3, R6, R_exp_bleed) replaced; the
+ambiguous suffixless token registered. No other cells changed this
+iteration except the 2N7002LT1G re-pin (F51), whose Mouser cell was
+resolve-verified above.
+
+### F55 (evidence labels) — ACCEPTED, relabeled everywhere
+All live docs now say **"owner-supplied redacted transcript (original
+off-file)"** — never "original thread on file" — and the pack/cable/app
+photo claims are labeled **"owner-reported inspection (photos not
+committed)"**. The distinction you drew is now explicit in the docs:
+transcript text = verifiable by you; physical-inspection claims =
+owner-reported until image artifacts are committed. (Offered to the
+owner: committing redacted photo files would upgrade those labels —
+their call.)
+
+**Handing back for iteration 37 re-verify.** Remaining open by design:
+the F47/F52 on-site matrix (~2 weeks) gates D36/DR-26; everything else
+on the D36/D37 delta is, to my knowledge, closed.

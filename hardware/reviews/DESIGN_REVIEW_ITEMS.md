@@ -792,7 +792,7 @@ the front-end must float to each pack's reference → **two isolated
 channels** (ADM2587E), **symmetric/interchangeable**, addressed by
 protocol address. Reuses the `ej_bms` parser.
 
-**Interface premise — ORIGINAL THREAD ON FILE (F45 closed 2026-07-16);
+**Interface premise — REDACTED TRANSCRIPT ON FILE (F45 closed 2026-07-16; F55: owner-supplied redaction, original off-file);
 on-site test is TOPOLOGY-GATING (F47).** The owner supplied the original
 `.eml`; a redacted transcript with headers is committed
 ([`../../docs/vendor/Voltage_monitoring_thread_2023-2024_redacted_transcript.txt`](../../docs/vendor/Voltage_monitoring_thread_2023-2024_redacted_transcript.txt),
@@ -803,7 +803,7 @@ adapter directly."* → RS-485 (not TTL), 2-wire/no-ground, A/B on RJ45
 closest to the negative terminal. **CAN pin-domain resolved**: the
 thread's "pin 1 and 2" is the battery-side connector (owner's 2023-12-27
 question is explicit); RJ45 side is 4/5 per the label — consistent.
-**Connector photographed** (owner, 2026-07-16): 4-pin circular
+**Connector per owner-reported inspection** (2026-07-16, photos not committed): 4-pin circular
 threaded-collar aviation-style ×2 per pack; vendor never supplied the
 PN — caliper on-site; not load-bearing. The isolated ADM2587E front-end
 is the correct circuit class under this premise.
@@ -848,25 +848,33 @@ GND×2, dedicated **I2C1** (SDA/SCL, isolates the RV-3028 timekeeping bus),
 2× **ADC1+RTC-wake** AIO, 1 generic DIO. Rationale/pinout: decisions.md
 **D37**.
 
-**Power domain (iter-34, F48 — supersedes the iter-31 wording):** the
-EXP_3V3 pin is a **load-switched, default-OFF** rail (Q_exp), **force-OFF
-in State 4**, with a **testable off-state contract** (decisions.md D37):
-I2C pull-ups powered from the **switched** rail; all 5 signals **high-Z
-before/while rail-off** (firmware, binding); **R_exp_bleed 100 kΩ**
-parks the rail ≤ 50 mV; worst-case off-leakage **≤ 1.5 µA ≈ ≤ 5 µW**
-(ZXMP6A13F ≤0.5 µA **+ 2N7002 ≤1 µA**, on-file datasheet bounds —
-supersedes the P-FET-only ≤1.65 µW figure); acceptance test at bring-up
-(V(EXP_3V3) ≤ 50 mV with add-on plugged, rail off). It is **on/off
-gating, not a current limiter** (real ceiling = F1 1 A + LM5166 500 mA).
-*(The first draft's "series ferrite / budget-counting always-on 3V3" is
-retired — a ferrite is not a DC limit.)*
+**Power domain (iter-36, F48/F51 — supersedes the iter-34 wording):**
+the EXP_3V3 pin is a **load-switched, default-OFF** rail — a
+**direct-GPIO-driven ZXMP6A13F** (F51: no 2N7002 level shifter — source
+= 3V3 = the GPIO domain; 100 kΩ gate pull-up; `EXP_PWR_EN` active-LOW),
+**force-OFF in State 4**, with a **testable off-state contract**
+(decisions.md D37): I2C pull-ups powered from the **switched** rail; all
+5 signals **high-Z before/while rail-off** (firmware, binding);
+**R_exp_bleed 100 kΩ** parks the rail ≤ 50 mV. Off-leakage bound stated
+honestly (F51): ZXMP6A13F IDSS ≤ 0.5 µA is a **TJ=25 °C test point, not
+a full-range max**; engineering **allocation ≤ 5 µA @ ≤40 °C ambient**,
+with the **bring-up acceptance measurement as the binding limit**
+(V(EXP_3V3) ≤ 50 mV, block draw ≤ 5 µA, add-on plugged, rail off);
+fallback if exceeded = specified-over-temp load-switch IC (part swap,
+no respin). It is **on/off gating, not a current limiter** (real ceiling
+= F1 1 A + LM5166 500 mA). *(The first draft's "series ferrite /
+budget-counting always-on 3V3" is retired — a ferrite is not a DC
+limit.)*
 
-**Mate/rating (iter-34, F49 — closed mate-side):** product spec
-**PS-51021-009 on file** (sha 1213f6f54215): housing 51021-\*\*00 +
-terminal 50079-8\*00, **1.0 A max @ AWG 26–28**, 125 V, −40…+85 °C.
-Qty-1 mating = OTS cable assembly **0151340801** (DK WM15273-ND, Active,
-$10.53 — optional, with the add-on); loose terminals have 25k MOQ.
-**Still owed: header-side spec PS-51021-024 (requested from owner).**
+**Mate/rating (iter-36, F49/F53 — CLOSED):** exact header-system spec
+**PS-51021-024 Rev AD on file** (owner upload 2026-07-17, sha
+b7d3ec9b74b9): scope lists **53398\*\*71 vertical headers (ours)** +
+51021 housing + 50079/50058 terminals; ratings **1.0 A max (AWG
+26/28/30), 125 V, −40…+105 °C**; 8-ckt derating reference 1.5 A
+(AWG 26/28) @ 30 °C rise, reference-only. PS-51021-009 retained scoped
+to the wire-to-wire mate side only. Qty-1 mating = OTS cable assembly
+**0151340801** (DK WM15273-ND, Active, $10.53 — optional, with the
+add-on); loose terminals have 25k MOQ.
 
 **Review asks:**
 - Pin map (CP2): each expansion pin on a GPIO with the required

@@ -5,15 +5,16 @@ truth doesn't rot on a laptop somewhere. Do NOT edit the vendor files
 themselves — copy relevant excerpts into our own docs (`reliability_failure_modes.md`,
 `cloud_architecture.md`, etc.) with attribution.
 
-> ✅ **Evidence status 2026-07-16 (second revision — original thread now on
-> file, F45 closed).** The full support-email thread is committed:
+> ✅ **Evidence status 2026-07-16 (second revision — redacted transcript now on
+> file, F45 closed).** The support-email thread is committed as an
+> owner-supplied redacted transcript (original .eml retained off-file):
 > [`Voltage_monitoring_thread_2023-2024_redacted_transcript.txt`](Voltage_monitoring_thread_2023-2024_redacted_transcript.txt)
 > (headers + complete bodies; see
 > [`volthium-rs485-correspondence-2024.md`](volthium-rs485-correspondence-2024.md)
 > for the dated fact table). Resolutions of the two earlier ambiguities:
 > (1) the pack connector is a **4-pin circular threaded-collar
-> aviation-style socket** (owner photographs of the actual Loon Lake packs +
-> the vendor cable, 2026-07-16) — the vendor's "XLR" is colloquial and the
+> aviation-style socket** (owner-reported inspection of the actual Loon Lake packs +
+> vendor cable, 2026-07-16 — photos not committed) — the vendor's "XLR" is colloquial and the
 > earlier "M12" reading of the Pro-Series photo was the same shape guessed
 > differently; exact PN = on-site caliper (vendor never supplied it).
 > (2) the **CAN "pin 1 and 2" is the battery-side connector domain** (the
@@ -133,7 +134,8 @@ Not currently used by our reader — but if we ever build a cabin-side
 Product photo of the Volthium "Pro Series" adapter cable — a **4-pin
 circular threaded aviation-style plug** on the battery end (the earlier
 "M12" wording here was a mis-family of the same shape; superseded by the
-owner's 2026-07-16 photos of the actual packs and cable), **RJ45 female**
+owner's 2026-07-16 inspection of the actual packs and cable — photos
+not committed, hence owner-reported), **RJ45 female**
 on the client end. The label on the cable gives only the RJ45 pinout
 (the battery-end pin layout is not published by the vendor):
 

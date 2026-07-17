@@ -214,23 +214,67 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "F49: no 50 mA limiter exists; rating now sourced from PS-51021-009 "
      "(on file); loose 50079-8000 has 25k MOQ — qty-1 mate is the OTS "
      "cable assembly 0151340801 (DK WM15273-ND)"),
-    (r"Q_exp \$0\.20|~\$55\.7|\+~\$56\b|(?<!\d)\$248\b",
-     "~$57 delta / ~$249 total",
-     "F50: delta recomputed from populated BOM rows — two full FET pairs "
-     "$1.00 + Q_exp $0.50 (+R_exp_bleed) → ~$56.7 ≈ $57"),
+    # (Amended iter-36: the "$56"/"$248" value-alternates were removed from
+    # this row — after the F51 switch simplification the CURRENT correct
+    # totals are ~$56.4 / ~$248.4, adjacent to the old wrong values; the
+    # error-specific tokens below still guard the original F50 mistake.)
+    (r"Q_exp \$0\.20|~\$55\.7",
+     "recompute mechanically from populated BOM rows",
+     "F50: delta had mis-summed switch lines ($0.40 for two pairs, Q_exp "
+     "$0.20); always recompute from the canonical rows"),
     # 2026-07-16 same-day: owner committed the original thread (.eml) +
     # pack/cable photographs — the F45 interim "unresolved" forms resolve:
-    (r"CAN (RJ45 )?mapping (is )?UNRESOLVED|owner-reported|"
-     r"owner-supplied summary(?!\)? of an email thread — selected)",
-     "transcript-verified (thread on file)",
-     "F45 closed: original thread committed (redacted transcript, orig "
-     "sha 37df1ab1…); 'pin 1 and 2' = battery-side connector domain — "
-     "consistent with the label's RJ45 4/5"),
+    # (Amended iter-36 per F55: the "owner-reported" alternate was removed
+    # from this row — F55 makes "owner-reported" the CORRECT label for the
+    # uncommitted photo evidence, so it is no longer a stale token.)
+    (r"CAN (RJ45 )?mapping (is )?UNRESOLVED",
+     "battery-side pins 1/2 (thread) / RJ45 4/5 (label) — two domains",
+     "F45 closed: transcript committed (orig .eml sha 37df1ab1…); "
+     "'pin 1 and 2' = battery-side connector domain — consistent with "
+     "the label's RJ45 4/5"),
     (r"connector family unresolved|4-socket M12-style|M12[- ]style plug",
      "4-pin circular threaded-collar aviation-style (photographed)",
      "Owner photos 2026-07-16 (rung-1): two 4-pin threaded sockets per "
      "pack; vendor cable = mating 4-pin threaded plug → RJ45 female; "
      "vendor 'XLR' is colloquial; exact PN = on-site caliper"),
+    # iter-35 reviewer findings (F51-F55, addressed iter-36):
+    (r"512-2N7002|_verify_ 2N7002",
+     "2N7002LT1G / 863-2N7002LT1G",
+     "F51: ordered-object identity — Q2/Q3/Q4 re-pinned to onsemi "
+     "2N7002LT1G (Mouser 863-2N7002LT1G, exact /resolve 2026-07-17); the "
+     "Diotec 2N7002.pdf was the wrong manufacturer's doc → 2N7002_onsemi.pdf"),
+    (r"ZXMP6A13F( P-FET)? \+ 2N7002|2N7002 gate (pull|drive)",
+     "direct-GPIO-driven ZXMP6A13F (no level shifter on 3V3-source switches)",
+     "F51: Q_exp + both channel switches have source = 3V3 = GPIO domain — "
+     "the 2N7002 level shifter is removed; gate pull-up 100k, active-LOW "
+     "enable (Q1/Q2 on the 24 V domain still legitimately use a 2N7002)"),
+    (r"≤ ?1\.5 µA ≈ ≤ ?5 µW|both on-file datasheet bounds, 60 V test points",
+     "25 °C test point + ≤5 µA allocation + bench acceptance limit",
+     "F51: IDSS rows are TJ=25 °C test points, not full-range maxima — "
+     "the binding off-state number is the bring-up acceptance measurement"),
+    (r"71-CRCW0805100KFKEA",
+     "71-CRCW0805-100K-E3",
+     "F54: the suffixless Mouser cell resolves ambiguously "
+     "(CRCW0805100KFKEAC vs -EAHP); exact SKU = 71-CRCW0805-100K-E3 "
+     "(resolve 2026-07-17, 296k stock)"),
+    (r"mate-side product spec PS-51021-009|closed (at )?mate-side|"
+     r"PS-51021-024.{0,40}(requested from( the)? owner|not proxy-fetchable)",
+     "PS-51021-024 Rev AD on file (header-system spec)",
+     "F53: PS-51021-009 is the wire-to-wire sibling and does not list "
+     "53398 — the header rating claim must cite PS-51021-024 "
+     "(sha b7d3ec9b74b9, owner upload 2026-07-17)"),
+    (r"A and B measured w\.r\.t\. the adapter's|"
+     r"1 MΩ bleed from\s+ISO_BUS_GND to that pack's B line|"
+     r"bleed from ISO_BUS_GND to .{0,25}B line",
+     "two-domain CM matrix + per-channel REF conductor fallback",
+     "F52: common-mode is defined at each receiver against ITS OWN local "
+     "ground (pack B− during reader TX; ISO_BUS_GND during pack TX); a "
+     "bleed to a signal wire the reader drives references nothing"),
+    (r"ORIGINAL THREAD ON FILE|original (email )?thread (is )?now\s+committed|"
+     r"committed original thread",
+     "owner-supplied redacted transcript (original off-file)",
+     "F55: the committed artifact is a derivative redacted transcript; "
+     "uncommitted photo evidence is labeled owner-reported inspection"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -251,6 +295,10 @@ MANIFEST_TO_BOM_ALIAS = {
     "ZXMP6A13FTA": "ZXMP6A13F",
     "BZX84C12LT1G": "BZX84C12",
     "0215001.MXP": "0215001",
+    "2N7002LT1G (onsemi)": "2N7002LT1G",
+    # PS-51021-024 covers the whole PicoBlade W/B system; the BOM row is
+    # the header (J_EXP) which cites the spec by document number:
+    "53398/53261 + 51021/50079/50058 system": "PS-51021-024",
 }
 
 

@@ -104,10 +104,10 @@ one complete monitor.
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | Q1  | ZXMP6A13F P-MOSFET (Vds −60 V, 0.9 A) | SOT-23 | 1 | ZXMP6A13F**TA** (orderable tape&reel; Mouser stock ~75k, API-verified 2026-06-25 — bare ZXMP6A13F shows 0 stock) | 522-ZXMP6A13FTA | $0.40 | **Δ (D19/DR-4): AO3401A (30 V) → ZXMP6A13F (60 V)** to survive the ~53 V clamp when open (~0.3 A load) |
-| Q2  | 2N7002 N-MOSFET (Vds 60 V) | SOT-23 | 1 | _verify_ 2N7002 | 512-2N7002 | $0.10 | **Δ (D19/DR-4): AO3400A (30 V) → 2N7002 (60 V)** — drain follows the V24 rail when Q1 is off |
+| Q2  | **2N7002LT1G** (onsemi) N-MOSFET (Vds 60 V) | SOT-23 | 1 | — (LT1G variants zero-stock at DK, API 2026-07-17) | **863-2N7002LT1G** (76k, API 2026-07-17) | $0.49 | **Δ (D19/DR-4): AO3400A (30 V) → 2N7002 (60 V)** — drain follows the V24 rail when Q1 is off |
 | DZ1 | BZX84C12 12 V Zener (Q1 gate–source clamp) | SOT-23 | 1 | BZX84C12LT1GOSCT-ND (71k stock, Active) | 863-BZX84C12LT1G (182k) | $0.10 | **NEW (D19/DR-4)** — holds Q1 Vgs ≤ 12 V (was driven to −29 V) |
 | Rg  | ~1 kΩ 0805 1 % (series gate, Q2 drain → Q1 gate) | 0805 | 1 | _verify_ | _verify_ | $0.10 | **NEW (D19/DR-4)** — works with DZ1 to clamp the gate |
-| R3  | 100 kΩ 0805 1 % (Q1 gate pull-up to V24_FUSED) | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805100KFKEA | $0.10 | Default-OFF load switch |
+| R3  | 100 kΩ 0805 1 % (Q1 gate pull-up to V24_FUSED) | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805-100K-E3 | $0.10 | Default-OFF load switch |
 | R4  | 100 kΩ 0805 1 % (Q2 gate pull-down to GND) | 0805 | 1 | (same as R3) | (same) | $0.10 | Brown-out failsafe-off |
 | U4  | **TI TPS3808G01DBVR** voltage supervisor (~2.4 µA, adj SENSE, OD RESET, prog CT delay, +MR) | **SOT-23-6 (leaded ✓)** | 1 | 296-17188-2-ND | 595-TPS3808G01DBVR | $0.90 | **D28/DR-16; repackaged D33/DR-24 (2026-07-01): WSON→SOT-23-6 for solderability at ~zero power cost (Iq 2.4 µA vs the old part's 2.1 µA).** Adjustable **VIT = 0.405 V**; ISENSE ±25 nA max; built-in VHYS 1.5 %. Divider **release-sized** R1≈5.16 MΩ/R2≈100 kΩ + R_hys≈11.5 MΩ → trip ~20.0 V / release ~21.7–21.8 V (RESET active-low → positive feedback; F01 polarity + F04 release value; see R_uv/R_hys rows; final E96 at CP2). Active, DK 149k. Datasheet: hardware/datasheets/TPS3808G01DBVR.pdf |
 | R_uv1 (top), R_uv2 (bottom) | UVLO pack divider → U4 SENSE. **VIT = 0.405 V** (TPS3808G01). Plain divider threshold is the *lower bound* on the release (see R_hys for the R_hys-leg + VHYS lift): sizing to ~21.3 V → **R1 ≈ 5.16 MΩ, R2 ≈ 100 kΩ** (E96) → actual release ~21.7–21.8 V, trip ~20.0 V | 0805 ×2 | 2 | _verify_ | _verify_ | $0.10 ea | **D28; re-derived for 0.405 V + polarity fix (D33/F01) + release refinement (F04).** ISENSE ±25 nA max → I_div ≥ 2.5 µA; 0.405 V/100 kΩ = 4.05 µA at threshold ✓ (~4.6 µA at 24 V, lower than the old 2.89 V part). Add small SENSE filter cap; final E96 at CP2 |
@@ -119,7 +119,7 @@ one complete monitor.
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | R5  | 1.2 MΩ 0805 1 % (top of divider) | 0805 | 1 | RMCF0805FT1M20CT-ND | 71-CRCW08051M20FKEA | $0.10 | **Δ (DR-6): 1 MΩ → 1.2 MΩ** — full charge → 2.25 V, inside the ESP ADC linear band; also current-limits a surge to ~41 µA |
-| R6  | 100 kΩ 0805 1 % (bottom of divider) | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805100KFKEA | $0.10 | **Δ (DR-6): 110 kΩ → 100 kΩ** (sets the ratio with R5) |
+| R6  | 100 kΩ 0805 1 % (bottom of divider) | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805-100K-E3 | $0.10 | **Δ (DR-6): 110 kΩ → 100 kΩ** (sets the ratio with R5) |
 | C5  | 100 nF X7R 50 V (KEMET C0603C104K5RACTU) | 0603 | 1 | 399-C0603C104K5RACTUCT-ND (7.3M stock) | — | $0.05 | ADC filter. **SKUs corrected 2026-07-14 (SKU sweep): prior DK 311-1141-1-ND was an 0805 part on this 0603 row; prior Mouser Murata GRM188R71H104KA93D is Obsolete** |
 
 ### MCU & support
@@ -136,8 +136,8 @@ one complete monitor.
 | U-ESD | USB ESD array (**USBLC6-2SC6Y**) | SOT-23-6 | 1 | 497-11882-2-ND | 511-USBLC6-2SC6Y | $0.30 | **NEW**: ESD clamp on the external USB-C D+/D−/VBUS (D22). **API-verified 2026-06-25: the original SC6 is out of stock at all sources → use the `-2SC6Y` variant** (DK ~30k, Mouser ~15k; pin-compatible) |
 | U5  | 3.3 V LDO (AP2112K-3.3, ~600 mA) | SOT-23-5 | 1 | _verify_ AP2112K-3.3 | _verify_ | $0.20 | **NEW (D29):** VBUS→3V3_USB for USB maintenance power; VBUS-referenced (0 pack draw unplugged) |
 | U6  | **TI TPS2116DRLR** priority power mux (~1.3 µA Iq, 2.5 A, reverse-blocking) | **SOT-583 (leadless ⚠)** | 1 | _verify_ TPS2116DRLR | 595-TPS2116DRLR | $0.70 | **NEW (D29):** VIN1=USB-LDO (priority), VIN2=U1 buck, OUT=V3V3. USB present → buck idles. Only ~1.3 µA always-on. **Package SOT-23-6 → SOT-583 (API 2026-06-25)** |
-| Q3  | small signal N-FET, series in U4 RESET→EN (UVLO bypass) | SOT-23 | 1 | _verify_ 2N7002 | 512-2N7002 | $0.10 | **NEW (D29); default-ON via R_byp1→V3V3 (fail-safe, reviewer F03)** — conducts when VBUS absent (UVLO active); opened by Q4 when VBUS present |
-| Q4  | small signal N-FET, VBUS-driven Q3-gate pulldown | SOT-23 | 1 | _verify_ 2N7002 | 512-2N7002 | $0.10 | **NEW (reviewer F03):** VBUS present → Q4 ON → Q3 gate to GND → bypass. VBUS-referenced |
+| Q3  | small signal N-FET **2N7002LT1G** (onsemi), series in U4 RESET→EN (UVLO bypass) | SOT-23 | 1 | — | **863-2N7002LT1G** | $0.49 | **NEW (D29); default-ON via R_byp1→V3V3 (fail-safe, reviewer F03)** — conducts when VBUS absent (UVLO active); opened by Q4 when VBUS present |
+| Q4  | small signal N-FET **2N7002LT1G** (onsemi), VBUS-driven Q3-gate pulldown | SOT-23 | 1 | — | **863-2N7002LT1G** | $0.49 | **NEW (reviewer F03):** VBUS present → Q4 ON → Q3 gate to GND → bypass. VBUS-referenced |
 | C_usb1, C_usb2 | LDO in/out 1 µF X7R | 0603 ×2 | 2 | _verify_ | _verify_ | $0.05 ea | **NEW (D29):** AP2112 in/out caps |
 | C_mux | ~47 µF on TPS2116 OUT (V3V3) | 0805/1206 | 1 | _verify_ | _verify_ | $0.10 | **NEW (reviewer F11):** OUT bulk for reverse-current-blocking on USB hot-plug |
 | R_byp1 | Q3 gate pull-up to **V3V3** (100 kΩ) | 0805 | 1 | _verify_ | _verify_ | $0.05 | **NEW (reviewer F03):** sets fail-safe default-ON |
@@ -171,9 +171,9 @@ one complete monitor.
 | J3  | **USB-C receptacle** (native ESP32-S3 USB) | SMD | 1 | _verify_ | | $0.50 | **Δ (D22): was a USB-OTG pin header** — now a board-edge maintenance port (flash/console/JTAG), accessible without opening. ESD-protected by U-ESD |
 | J4  | 2-pin 2.54 mm header, RS-485 term lift jumper | THT | 1 | S1011EC-02-ND | 200-TSW10206TS | $0.20 | NEW |
 | J5  | 4-pin 2.54 mm header, debug UART | THT | 1 | (same as J3) | (same) | $0.30 | NEW — dev only |
-| J_EXP | **Molex PicoBlade 1.25 mm, 8-ckt, SMT** expansion header, **vertical 53398-0871** | SMT | 1 | **WM7612CT-ND** | 538-53398-0871 (42.6k) | $1.40 | **NEW (D37):** future-expansion — dedicated I2C1 (SDA/SCL, pull-ups on **switched EXP_3V3**, F48) + 2× ADC1/RTC-wake AIO + 1 generic DIO + **load-switched EXP_3V3** + GND×2. Datasheet on file (customer drawing). **F33 fix:** DK SKU corrected WM7626 (=r/a 53261) → WM7612CT-ND (=53398-0871). **F38/F49 (mate/rating — closed mate-side iter-34):** drawing = **MATE WITH: 51021 SERIES**; product spec **PS-51021-009 now on file** (sha 1213f6f54215) covers housing 51021-\*\*00 + terminal 50079-8\*00 (AWG 26–28) and rates **1.0 A max/ckt** — our loads (logic + one power pin whose upstream ceiling is the shared LM5166 500 mA) are within it. Qty-1 mate = **OTS pre-built cable assembly 0151340801** (DK **WM15273-ND**, 8,199 stock, Active, $10.53, API 2026-07-16 — optional, order with the add-on; loose 50079-8000 terminals have a 25k MOQ, not a qty-1 path). Header-side spec PS-51021-024 requested from owner. R/A alt 53261-0871. Pinout/power: decisions.md **D37** |
-| Q_exp | Expansion-rail **on/off** load switch (P-FET high-side, **default-OFF**; ZXMP6A13F + 2N7002, already qualified) — **F34/F39/F48** | SOT-23 ×2 | 1 | (as Q1/Q3 class) | — | $0.50 (F50: ZXMP $0.40 + 2N7002 $0.10) | **NEW:** gates EXP_3V3; **OFF at reset + force-OFF in State 4**. **F48 — testable off-state contract (decisions.md D37):** I2C pull-ups on the switched rail; all 5 signals high-Z before/while rail-off; R_exp_bleed parks the rail ≤ 50 mV; worst-case off-leakage = ZXMP6A13F IDSS ≤ 0.5 µA **+ 2N7002 IDSS ≤ 1 µA** (both on-file datasheet bounds, 60 V test points) → **≤ 5 µW always-on term (budgeted; supersedes the F39 P-FET-only ≤1.65 µW)**. **F39: a switch, not a current limiter** — upstream limit is F1 (1 A) + LM5166 (500 mA). Optional series PPTC (~75 mA hold) — noted, DNP. Enable = ESP `EXP_PWR_EN` |
-| R_exp_bleed | 100 kΩ 0805, EXP_3V3 → GND discharge | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805100KFKEA | $0.10 | **NEW (F48):** discharges/parks the switched rail (≤0.5 µA IDSS × 100 kΩ = ≤50 mV); draws 33 µA (~110 µW) only while EXP is ON |
+| J_EXP | **Molex PicoBlade 1.25 mm, 8-ckt, SMT** expansion header, **vertical 53398-0871** | SMT | 1 | **WM7612CT-ND** | 538-53398-0871 (42.6k) | $1.40 | **NEW (D37):** future-expansion — dedicated I2C1 (SDA/SCL, pull-ups on **switched EXP_3V3**, F48) + 2× ADC1/RTC-wake AIO + 1 generic DIO + **load-switched EXP_3V3** + GND×2. Datasheet on file (customer drawing). **F33 fix:** DK SKU corrected WM7626 (=r/a 53261) → WM7612CT-ND (=53398-0871). **F38/F49/F53 (mate/rating — CLOSED iter-36):** drawing = **MATE WITH: 51021 SERIES**; exact header-system spec **PS-51021-024 Rev AD now on file** (owner upload 2026-07-17, sha b7d3ec9b74b9) — its scope lists **53398\*\*71 vertical headers (ours)**, and ratings give **1.0 A max (AWG 26/28/30), 125 V, −40…+105 °C** (8-ckt derating ref 1.5 A @ AWG 26/28, 30 °C rise, reference-only) — our loads (logic + one power pin whose upstream ceiling is the shared LM5166 500 mA) are within it. PS-51021-009 stays scoped to the wire-to-wire mate side (F53). Qty-1 mate = **OTS pre-built cable assembly 0151340801** (DK **WM15273-ND**, 8,199 stock, Active, $10.53, API 2026-07-16 — optional, order with the add-on; loose 50079-8000 terminals have a 25k MOQ, not a qty-1 path). R/A alt 53261-0871. Pinout/power: decisions.md **D37** |
+| Q_exp | Expansion-rail **on/off** load switch — **direct-GPIO-driven ZXMP6A13F** P-FET high-side, **default-OFF** (F51 simplification: source = 3V3 = the GPIO domain, so the previous 2N7002 level-shifter is unnecessary — removed; gate ← 100 kΩ pull-up to 3V3 + ESP `EXP_PWR_EN` drives it: high-Z/high = OFF, low = ON) — **F34/F39/F48/F51** | SOT-23 | 1 | (as Q1 class ZXMP6A13FTA) | — | $0.40 | **NEW:** gates EXP_3V3; **OFF at reset (gate pull-up wins while the ESP pin is high-Z) + force-OFF in State 4**. **F48/F51 off-state contract (decisions.md D37):** I2C pull-ups on the switched rail; all 5 signals high-Z before/while rail-off; R_exp_bleed parks the rail ≤ 50 mV; off-leakage = ZXMP6A13F IDSS ≤ 0.5 µA — **a TJ=25 °C test point (p.4), not a full-range max (F51)**; engineering allocation ≤ 5 µA/switch at the ≤ 40 °C battery-box ambient, **enforced by the bring-up acceptance test** (≤ 50 mV parked, block draw within allocation). **F39: a switch, not a current limiter** — upstream limit is F1 (1 A) + LM5166 (500 mA). Optional series PPTC (~75 mA hold) — noted, DNP |
+| R_exp_bleed | 100 kΩ 0805, EXP_3V3 → GND discharge | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805-100K-E3 | $0.10 | **NEW (F48):** discharges/parks the switched rail (≤0.5 µA IDSS × 100 kΩ = ≤50 mV); draws 33 µA (~110 µW) only while EXP is ON |
 
 ### Enclosure & mounting
 
@@ -308,21 +308,23 @@ U2 R-78HB12-0.5 = CA$27.95 (was $8) and BTN1 8125SHZBE = CA$18.47
 | Cable & shared connectors | ~$10 |
 | Bare PCBs from JLCPCB (qty 5 of each board, 2-layer FR-4 HASL, DHL shipping) | ~$30 |
 | **iter-27 core total** | **~$192** |
-| **+ D36/D37 delta (pending CP1-delta review)** — see below | **+~$57** |
-| **Single-monitor total (with pending delta)** | **~$249** |
+| **+ D36/D37 delta (pending CP1-delta review)** — see below | **+ ~$56.4** |
+| **Single-monitor total (with pending delta)** | **~$248.4** |
 
-**D36/D37 delta (recomputed iter-34 F50 from populated canonical-row
-unit prices):** 2× ADM2587E @ $22.90 = $45.80; 2× RJHSE-5380
-battery-read jacks @ $2.30 = $4.60; 2× isoPower support networks ~$3.00;
-2× channel load-switches @ (ZXMP6A13F $0.40 + 2N7002 $0.10) = **$1.00**
-(F50: was mis-summed $0.40); J_EXP $1.40; Q_exp = same FET pair =
-**$0.50** (F50: was $0.20); expansion passives incl. R_exp_bleed ~$0.40 →
-**~$56.7 ≈ $57** (SM712 ×2 + series-R + PPTC all DNP = $0). *Optional,
-not in the sum:* PicoBlade mate cable assembly 0151340801 (**$10.53**,
-DK WM15273-ND) — order if/when an add-on is actually built. The core
-sums above are dated 2026-07-14 and do **not** yet include these; when
-the CP1-delta is approved they fold into the battery-side line and the
-whole column is mechanically recomputed. *(F25: display enclosure/mounting was $5→$10.
+**D36/D37 delta (recomputed iter-36 after the F51 switch simplification;
+iter-34 F50 fixed the earlier mis-sums $0.40/$0.20):** 2× ADM2587E @
+$22.90 = $45.80; 2× RJHSE-5380 battery-read jacks @ $2.30 = $4.60; 2×
+isoPower support networks ~$3.00; 2× channel load-switches — now
+**direct-GPIO-driven ZXMP6A13F, no 2N7002 (F51)** — @ $0.40 = **$0.80**;
+J_EXP $1.40; Q_exp (same simplification) **$0.40**; expansion passives
+incl. R_exp_bleed + gate pull-ups ~$0.40 → **~$56.4** (SM712 ×2 +
+series-R + PPTC all DNP = $0). *Optional, not in the sum:* PicoBlade
+mate cable assembly 0151340801 (**$10.53**, DK WM15273-ND) — order
+if/when an add-on is actually built. The core sums above are dated
+2026-07-14 (plus the 2N7002LT1G re-pin, iter-36: 3 × $0.49 vs $0.10,
+absorbed in the battery-side "~$83") and do **not** yet include the
+delta; when the CP1-delta is approved it folds into the battery-side
+line and the whole column is mechanically recomputed. *(F25: display enclosure/mounting was $5→$10.
 Prior ~$145/~$154 predated the U2/BTN1/TVS corrections.)*
 
 Spares for the 4× extra PCBs are essentially free at JLC's minimum-order
