@@ -1450,12 +1450,41 @@ async def ambient_scanner_loop(targets: set[str]) -> None:
     try:
         await scanner.start()
     except Exception as exc:
+        # `[org.bluez.Error.InProgress] Operation already in progress` means
+        # bluetoothd already has a discovery session going on this adapter
+        # (or a stale one from a previous incarnation). A single hciconfig
+        # reset clears the session; retry once. This has been the sole
+        # blocker to the ambient scanner starting on kwpi 3-4 times so far.
+        first_err = f"{type(exc).__name__}: {exc}"
+        if "InProgress" not in first_err:
+            _event(
+                "ambient_scanner_unavailable",
+                resolved=hci,
+                reason=f"start failed: {first_err}",
+            )
+            return
         _event(
-            "ambient_scanner_unavailable",
+            "ambient_scanner_retrying",
             resolved=hci,
-            reason=f"start failed: {type(exc).__name__}: {exc}",
+            reason=f"first start failed: {first_err}; resetting hci and retrying",
         )
-        return
+        try:
+            await _run(["sudo", "-n", "hciconfig", hci, "reset"], timeout=15.0)
+            await asyncio.sleep(2.0)
+            await _power_on_adapter(hci)
+            await asyncio.sleep(2.0)
+            scanner = BleakScanner(detection_callback=cb, adapter=hci)
+            await scanner.start()
+        except Exception as exc2:
+            _event(
+                "ambient_scanner_unavailable",
+                resolved=hci,
+                reason=(
+                    f"start failed twice — first: {first_err}; "
+                    f"retry after reset: {type(exc2).__name__}: {exc2}"
+                ),
+            )
+            return
     _event(
         "ambient_scanner_started",
         adapter=hci,
