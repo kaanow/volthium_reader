@@ -4626,3 +4626,122 @@ the 5 µA @85 °C limit consistently.
 **Handing back for iteration 43 re-verify.** Remaining open by design:
 the F47/F52 on-site two-domain matrix (~2 weeks) gating D36/DR-26; the
 BOM-lock manufacturer-lifecycle re-confirm on NTR4171P + Si2309CDS.
+
+---
+
+## 8.22 Reviewer findings (iteration 43 - iter-42 resolution re-review)
+
+**Scope and evidence.** Ran `doc_consistency_check.py` first: exit 0
+(`31 manifest parts checked`; no unmarked stale tokens). Re-derived the
+F64 divider and dissipation rather than inheriting the response: nominal
+Vgs is 6.79 V at 29.2 V, 4.88 V at 21 V, and 12.40 V at 53.3 V;
+standing current is 679 uA and dissipation is 15.2 mW in Rg plus 4.6 mW
+in R3. The F66 expansion fix also reproduces: 5 uA x 10 kOhm = 50 mV
+at 85 C and 330 uA / 1.09 mW when enabled.
+
+Grounding-rule citation checks against the on-file exact-object PDFs:
+
+- `SI2309CDS_Vishay.pdf` (SHA256 `feb0974dd371...`) p.1 identifies
+  Vishay Siliconix Si2309CDS and lists both `-T1-E3` and `-T1-GE3`;
+  p.2 gives IGSS 100 nA, IDSS 1 uA at 25 C / 10 uA at 55 C, VGS(th)
+  -1 to -3 V at 25 C, and RDS(on) 0.450 Ohm at VGS=-4.5 V.
+- `2N7002_onsemi.pdf` (SHA256 `11eb3cde5ed5...`) p.1 identifies onsemi
+  2N7002L and the `2N7002LT1G` ordering row; p.2 gives IDSS 1 uA at
+  25 C / 500 uA at 125 C and publishes on-state rows only at VGS=5 V
+  and 10 V.
+- `NTR4171P_onsemi.pdf` (SHA256 `9ce711ff393d...`) p.1 identifies onsemi
+  NTR4171P and the active `NTR4171PT1G` ordering row; p.2 gives IDSS
+  1 uA at 25 C / 5 uA at 85 C and RDS(on) 150 mOhm at VGS=-2.5 V.
+- `BZX84C12LT1G.pdf` (SHA256 `f9818d9dfc03...`) p.3 contains the exact
+  BZX84C12LT1G row: Vz 11.4-12.7 V at 5 mA, 11.2-12.7 V at 1 mA,
+  and 11.4-12.9 V at 20 mA. There is no characterized 0.14 mA row.
+
+G3 full changed-cell sweep used `POST /resolve` on 2026-07-17. All four
+unique changed cells resolved exact to the stated resistor value:
+`RMCF0805FT33K0CT-ND`, `71-CRCW0805-33K-E3`,
+`RMCF0805FT10K0CT-ND`, and `71-CRCW0805-10K-E3`. A same-pass
+`POST /batch` exact-matched the four affected semiconductor MPNs
+(Si2309CDS-T1-GE3, 2N7002LT1G, NTR4171PT1G, BZX84C12LT1G) and found
+orderable distributor stock; object identity was checked on the title
+pages above. The inherited R4 cells fail separately in Finding 71.
+
+### Finding 68 - IMPORTANT - F64 / `cp1_bom.md` Q2-Rg-R3 gate driver
+**Issue**: The ideal 10 kOhm / 33 kOhm divider arithmetic is correct, but
+the claimed guaranteed ON and OFF states are not supported by the exact
+Q2/Q1 datasheets. The 0.42 V-at-85 C OFF result is an unstated log-linear
+interpolation, and the 3.3 V-driven Q2 has no guaranteed on-state row at
+the sink current now required by the lower resistor values.
+**Evidence**: At the 21 V floor, retaining Q1's guaranteed 4.5 V RDS(on)
+row requires at least 450 uA through R3 and permits Q2 VDS no greater
+than `21 V - 450 uA * 43 kOhm = 1.65 V`. On-file
+`2N7002_onsemi.pdf` p.2 guarantees VDS(on)/RDS(on) only at VGS=5 V and
+10 V; its threshold test is only 250 uA, so it does not guarantee the
+required 450 uA sink at VGS=3.3 V. The same page specifies IDSS only as
+1 uA at 25 C and 500 uA at 125 C. The response's 41.6 uA at 85 C
+(`500^(60/100)`) and 8.8 uA at 60 C (`500^(35/100)`) are interpolations,
+not maximum rows. `SI2309CDS_Vishay.pdf` p.2 specifies Q1's -1 V minimum
+threshold at 25 C only and gives a typical, not maximum, threshold
+temperature coefficient; comparing a hot interpolated Vgs to the 25 C
+threshold does not close the fail-safe contract.
+**Suggested fix**: Select a 60 V gate-driver device whose exact PDF
+guarantees the needed sub-mA sink at 3.3 V and bounds IDSS at or above
+the declared enclosure temperature, then re-derive both states with
+resistor tolerance. Alternatively change the driver topology so neither
+state depends on unguaranteed 2N7002 behavior; do not label an
+interpolation as a `<=` bound.
+
+### Finding 69 - IMPORTANT - F65 / `power_budget.md` State 4 temperature bound
+**Issue**: The new 25 C leakage accounting is directionally correct, but
+the advertised `~1.5 mW @ 60 C` is not a datasheet bound and the live
+battery-side total still reports the pre-leakage 1.08 mW arithmetic.
+**Evidence**: `docs/hardware/power_budget.md` lines 95-111 call the hot
+result a bound. Q2's 9 uA at 60 C is the unsupported interpolation in
+Finding 68; `SI2309CDS_Vishay.pdf` p.2 guarantees Q1 IDSS at 55 C, not
+60 C. At 25 C the table's own numbers are `0.36 + 0.44 + 0.11 + 0.17 +
+0.024 + 0.024 = 1.128 mW`, consistent with a 1.1 mW headline but not
+the `~1.08 mW` retained in `cp1_battery_side.md` lines 310-314,
+353-355, and 560-565. That State-4 row simultaneously adds `~0.05 mW`
+leakage and leaves the result at 1.08 mW.
+**Suggested fix**: State a binding battery-enclosure temperature range,
+use guaranteed leakage rows at or above that temperature (or explicitly
+separate an engineering estimate from the guaranteed budget), and
+recompute every live State-4 summary from the same native-domain sum.
+Until the part bounds are closed, remove `bounded` / `max where spec'd`
+from the 60 C result.
+
+### Finding 70 - IMPORTANT - F67 / D35: stale R3 and DZ1 claims still pass exit 0
+**Issue**: The content and checker halves of F67 remain incomplete. The
+live baseline still contains four 100 kOhm R3 decisions and two obsolete
+DZ1-clamp claims, yet the revised checker exits 0.
+**Evidence**: `cp1_battery_side.md` line 257 lists R3 as 100 kOhm, line
+582 draws R3 as 100 kOhm and says DZ1 clamps Vgs, line 729 resolves
+D-OPEN-6 to 100 kOhm, and line 768 calls 100 kOhm the final power-saving
+value. `cp1_bom.md` line 369 also says the gate pull-up changed from
+10 kOhm to 100 kOhm. `docs/hardware/bom.md` line 115 says DZ1 holds Vgs
+at or below 12 V regardless of bus voltage, and `manifest.md` line 31
+says the DZ1 clamp scheme is unchanged; both contradict the new
+divider-only bracket and the on-file BZX84C12 p.3 current rows. The
+start-of-pass D35 run nevertheless returned exit 0 because the new
+patterns do not cover the value split across Markdown cells or these
+alternative live phrasings.
+**Suggested fix**: Reconcile all seven live statements to R3=10 kOhm,
+Rg=33 kOhm, and DZ1 as an uncredited redundant backstop. Add registry
+patterns or explicit assertions for the split table/drawing/open-decision
+forms and for the retired `holds Vgs <=12 V` claim, with pre-fix fixtures
+that prove each cited line fires.
+
+### Finding 71 - IMPORTANT - `cp1_bom.md` R4 distributor cells
+**Issue**: R4 is a 100 kOhm part, but both distributor cells say `(same
+as R3)` after R3 changed to 10 kOhm. Following the canonical BOM now
+orders the wrong value for R4.
+**Evidence**: `cp1_bom.md` lines 110-111 define R3 as 10 kOhm and R4 as
+100 kOhm while inheriting R3's cells. The required changed-cell sweep
+resolved R3's cells exactly to 10 kOhm. A same-pass `POST /resolve`
+independently resolved the explicit 100 kOhm candidates
+`RMCF0805FT100KCT-ND` and `71-CRCW0805-100K-E3` exactly to 100 kOhm
+parts, confirming that the current inherited cells are not equivalent.
+**Suggested fix**: Replace both inherited R4 cells with explicit,
+reverse-resolved 100 kOhm SKUs and add a consistency rule forbidding
+`same as` inheritance when the referenced row's value changes.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 4 important. (See findings 68, 69, 70, 71.)
