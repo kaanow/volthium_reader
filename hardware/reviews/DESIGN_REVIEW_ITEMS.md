@@ -850,13 +850,13 @@ GND×2, dedicated **I2C1** (SDA/SCL, isolates the RV-3028 timekeeping bus),
 
 **Power domain (iter-36, F48/F51 — supersedes the iter-34 wording):**
 the EXP_3V3 pin is a **load-switched, default-OFF** rail — a
-**direct-GPIO-driven ZXMP6A13F** (F51: no 2N7002 level shifter — source
+**direct-GPIO-driven DMG3415U** (F51: no 2N7002 level shifter — source
 = 3V3 = the GPIO domain; 100 kΩ gate pull-up; `EXP_PWR_EN` active-LOW),
 **force-OFF in State 4**, with a **testable off-state contract**
 (decisions.md D37): I2C pull-ups powered from the **switched** rail; all
 5 signals **high-Z before/while rail-off** (firmware, binding);
 **R_exp_bleed 100 kΩ** parks the rail ≤ 50 mV. Off-leakage bound stated
-honestly (F51): ZXMP6A13F IDSS ≤ 0.5 µA is a **TJ=25 °C test point, not
+honestly (F51; FET = DMG3415U per F56/F57 — RDS(on) guaranteed 53 mΩ @ −2.5 V, the NRND ZXMP6A13F was not): IDSS ≤ 1 µA (−20 V) is a **25 °C test point, not
 a full-range max**; engineering **allocation ≤ 5 µA @ ≤40 °C ambient**,
 with the **bring-up acceptance measurement as the binding limit**
 (V(EXP_3V3) ≤ 50 mV, block draw ≤ 5 µA, add-on plugged, rail off);

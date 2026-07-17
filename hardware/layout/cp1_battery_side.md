@@ -130,7 +130,7 @@ node is rated against that ceiling:
 | Part on the protected node | Voltage rating        | Margin over 53.3 V |
 |----------------------------|-----------------------|--------------------|
 | D1  SS26 (Schottky)        | VRRM **60 V**         | +6.7 V (**13 %**)  |
-| Q1  ZXMP6A13F (P-FET)      | Vds **−60 V**         | +6.7 V (**13 %**)  |
+| Q1  Si2309CDS (P-FET; iter-38 F57 swap, was ZXMP6A13F) | Vds **−60 V**         | +6.7 V (**13 %**)  |
 | Q2  2N7002 (N-FET)         | Vds **60 V**          | +6.7 V (**13 %**)  |
 | U1  LM5166Y buck           | VIN abs-max **65 V**  | +11.7 V (22 %)     |
 | U2  R-78HB12               | VIN max **72 V**      | +18.7 V (35 %)     |
@@ -144,7 +144,7 @@ a hard constraint: **any substitution on this node must hold ≥ 60 V.**
 Note 53.3 V is the TVS's *full* 7.5 A pulse; the actual transient on a
 1 A-fused battery tap is far smaller, so this is a conservative ceiling.
 
-**Gate-source clamp (Q1 Vgs).** Q1 ZXMP6A13F Vgs abs-max = **±20 V**
+**Gate-source clamp (Q1 Vgs).** Q1 Si2309CDS Vgs abs-max = **±20 V** (Vishay doc 68980; identical limit to the replaced ZXMP6A13F, so the clamp scheme is unchanged)
 (Diodes DS32014). Without a clamp, turning Q1 on pulls the gate toward
 (source − bus) and would drive Vgs to ~−29 V at full charge — destroying
 the gate (DR-4). **DZ1 = BZX84C12** across gate↔source clamps |Vgs| to the
@@ -229,7 +229,7 @@ foldback explicitly. The 530 mA "driver-active + WiFi-peak" case is
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| Q1  | ZXMP6A13F (P-MOSFET, Vds −60 V, 0.9 A, SOT-23) | SOT-23 | 1 | Load switch for the 12 V/display feed (~0.3 A). **60 V** Vds survives the ~53 V clamp when open (D19/DR-4); AO3401A (30 V) did not. In stock @ DigiKey, Active (2026-06-17) |
+| Q1  | **Si2309CDS** (Vishay P-MOSFET, Vds −60 V, −1.6 A, SOT-23) | SOT-23 | 1 | Load switch for the 12 V/display feed (~0.3 A). **60 V** Vds survives the ~53 V clamp when open (D19/DR-4); AO3401A (30 V) did not. **Iter-38 (F57): ZXMP6A13F went NRND → Si2309CDS-T1-GE3** (DK 120k stock, Active, API 2026-07-17); RDS 0.345 Ω max @ −10 V (our Zener-clamped drive), IDSS ≤100 nA @25 °C / ≤1 µA @55 °C |
 | Q2  | 2N7002 (N-MOSFET, Vds 60 V, drives Q1 gate) | SOT-23 | 1 | **60 V** because its drain follows the V24 rail (up to the clamp) when Q1 is off (D19/DR-4); AO3400A (30 V) did not |
 | DZ1 | BZX84C12 (12 V Zener, Q1 gate–source clamp) | SOT-23 | 1 | Holds Q1 Vgs ≤ 12 V regardless of bus voltage — without it, turning Q1 on drove Vgs to −29 V (D19/DR-4) |
 | Rg  | ~1 kΩ series gate (Q2 drain → Q1 gate) | 0805    | 1   | Limits gate transient current; works with DZ1 |
@@ -550,7 +550,7 @@ judged the extra part not worth it.
 
 **Topology** (D19/DR-4): a P-FET high-side load switch on the **switched
 branch only** — it gates U2 (the 12 V/display feed), **not** the MCU. The
-MCU rail (U1 LM5166) is always-on and never behind Q1. Q1 (ZXMP6A13F,
+MCU rail (U1 LM5166) is always-on and never behind Q1. Q1 (Si2309CDS,
 60 V P-FET) passes V24_FUSED → V24_SW; Q2 (2N7002, 60 V N-FET) drives Q1's
 gate from ESP GPIO4 (`PWR_EN`, active-HIGH); DZ1 (12 V Zener) + Rg clamp
 Q1's gate-source voltage.
@@ -716,7 +716,7 @@ margin.
 2. **R-78HB12 SIP3 + LM5166 VSON-10 footprints** — Recom provides KiCad
    libraries at recom-power.com/design-tools; the LM5166 VSON-10 is in
    TI's library. Pulling/verifying these is part of CP2. **Candidate MPNs
-   (LM5166 fixed-3.3 V, R-78HB12-0.5, ZXMP6A13F, RV-3028-C7) need a final availability check
+   (LM5166 fixed-3.3 V, R-78HB12-0.5, Si2309CDS, RV-3028-C7) need a final availability check
    before BOM lock** (D-OPEN-6).
 3. **ESP32-S3-WROOM-1 antenna keepout violations** are easy to make
    by accident. CP3 layout review must verify visually.
@@ -739,7 +739,7 @@ margin.
 | 24 V TVS                         | Not specified                              | TVS1 = SMAJ33CA across V24_FUSED ↔ GND (D19/DR-2) |
 | 3.3 V regulator + domain         | TPS62933 on the *switched* rail (MCU died at hard-cut → couldn't boot) | LM5166 µA-Iq buck on the **always-on** rail; MCU always powered (D19/DR-4) |
 | 12 V regulator                   | R-78E12 (34 V — under-rated behind the ~53 V clamp) | R-78HB12 (72 V), switched behind Q1 (D19/DR-3) |
-| Load switch FETs                 | AO3401A/AO3400A (30 V), no Vgs clamp       | 60 V ZXMP6A13F/2N7002 + 12 V Vgs Zener clamp (D19/DR-4) |
+| Load switch FETs                 | AO3401A/AO3400A (30 V), no Vgs clamp       | 60 V Si2309CDS/2N7002LT1G + 12 V Vgs Zener clamp (D19/DR-4; FETs re-pinned iter-36/38 — F51/F57) |
 | Reverse-polarity diode           | SS24 (40 V)                                | SS26 (60 V) — out-rates the clamp (D19/DR-3) |
 | RS-485 idle bias                 | Both ends (battery bias always-on → ~8 mW leak) | Display end only, ~330 Ω (battery rail draws 0; D19/DR-4) |
 | Sense divider                    | 100 kΩ / 11 kΩ (220 µA idle)              | 1.2 MΩ / 100 kΩ (~19 µA idle; full charge → 2.25 V, in ADC linear band — DR-6) |

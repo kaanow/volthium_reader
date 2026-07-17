@@ -4097,3 +4097,80 @@ the owner-upload date and full SHA-256, and keep the explicit note that the
 stored file came from the owner when direct fetch was blocked.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 4 important. (See findings 56, 57, 58, 59.)
+
+---
+
+## 33. Designer responses — iteration 38 (F56–F59)
+
+All four addressed. F56+F57 together forced (and improved) a FET
+replacement across the board. D35 gate exit 0 after changes; all five
+new registry patterns verified to FIRE on the pre-fix text (44 old
+hits); the gate itself caught three stragglers mid-pass (a
+cp1_battery_side comparison row, the decisions part-sourcing note, and
+REVIEWER.md's own part list) — including one that required updating the
+old AO3401A registry row's *current* token to the new part (chain
+supersession, noted in-code).
+
+### F56 (no guaranteed ON state at −3.3 V) — ACCEPTED; one honest note
+Correct: ZXMP6A13F guarantees RDS(on) only at −10 V / −4.5 V, and
+VGS(th) at −250 µA is not a load rating. One point of record: **the
+−3.3 V operating point predates iter-36** — the earlier 2N7002
+level-shifter also only ever pulled the gate to ground with the source
+at 3V3, i.e. the same −3.3 V VGS. F51's simplification exposed an
+operating point that had been unqualified since the channel switches
+were first drawn, rather than creating it. The fix (with F57) replaces
+the device, not the topology: **DMG3415U** carries a **production-limit
+RDS(on) row at VGS = −2.5 V (53 mΩ max, DS31735)** — the 3.3 V direct
+drive is now a *qualified* operating point with margin below even the
+−2.5 V row. Loads re-derived: ~90 mA channel start-up → ≤5 mV drop /
+≈0.4 mW; EXP up to the 500 mA shared ceiling → ≤27 mV / ≤14 mW.
+Dissipation and start-up margin are non-issues at 53 mΩ.
+
+### F57 (ZXMP6A13F NRND, stock unsubstantiated) — ACCEPTED, replaced everywhere
+Independently reproduced your sourcing result and replaced all four
+uses with two current-production parts (both API-verified 2026-07-17,
+datasheets proxy-fetched and read this pass):
+- **Q1 (24 V/clamped domain): Vishay Si2309CDS-T1-GE3** — −60 V,
+  ID −1.6 A, VGS ±20 V (the DZ1 12 V clamp scheme carries over
+  unchanged), RDS(on) 0.345 Ω max at the −10 V clamped drive → ≤0.11 V
+  drop at the ~0.3 A load. Bonus: **IDSS has a specified elevated-temp
+  row (≤100 nA @25 °C, ≤1 µA @TJ=55 °C)** — the F51-class
+  "25 °C-only" complaint is answered by the datasheet itself for this
+  domain. DK SI2309CDS-T1-GE3CT-ND 120k stock Active / Mouser
+  781-SI2309CDS-GE3 89k, $1.39.
+- **3V3 switches ×3 (2× channel + Q_exp): Diodes DMG3415U-7** — the
+  F56 fix; DK DMG3415UDICT-ND 136k stock Active / Mouser 621-DMG3415U-7
+  7.5k, $0.72. IDSS ≤1 µA (−20 V/25 °C — pessimistic at our −3.3 V);
+  the allocation-plus-acceptance budget structure from iter-36 stands,
+  with the parked-rail datasheet bound restated **≤100 mV** (1 µA ×
+  100 kΩ) and the measured ≤50 mV limit binding (fail → bleed drops to
+  10–33 kΩ, resistor swap).
+Both datasheets manifested (feb0974dd371 / 3863b974014c); ZXMP PDF
+retired and deleted; ZXMP registered as a superseded token (33 pre-fix
+hits across live docs — all now marked or replaced). Delta recomputed:
+**~$57.4 / total ~$249.4**; the Q1 + 2N7002LT1G re-pins add ≈$2.2 to
+the core, absorbed in the battery-side "~$83".
+
+### F58 (withdrawn bleed still live ×3; unbounded 100 kΩ) — ACCEPTED, fixed
+All three locations rewritten (design §1 architecture text, §3 R_bias
+row, decisions D36): the 2-wire no-reference property is now stated as
+**conditional on the §7 matrix passing**, every bus-line-bleed option is
+deleted (with a supersession note carrying your reasoning), and a new
+**REF_pad row** appears in §3 (per channel: ISO_BUS_GND → that pack's
+B−, **direct 0 Ω link by default** — the "optionally through ~100 kΩ"
+phrase is withdrawn per your point that no resistance can be claimed
+without a bounded reference current; a series-R footprint exists for
+bench flexibility only). The registry regex is expanded to four
+shorthand families (bleed forms, "no battery-negative", "no reference
+wire is required", the 100 kΩ phrase) — all verified firing on the old
+text. You were right that my iter-36 pattern was too narrow; the three
+misses were exactly the shorthand forms.
+
+### F59 (abbreviated manifest URL) — ACCEPTED, fixed
+The manifest row now carries the complete official URL
+(molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/productspecificationpdf/510/51021/PS-51021-024-001.pdf?inline=)
+plus the owner-upload provenance and full-prefix SHA — reproducible by
+anyone.
+
+**Handing back for iteration 39 re-verify.** Still open by design: the
+F47/F52 on-site two-domain matrix (~2 weeks) gating D36/DR-26.

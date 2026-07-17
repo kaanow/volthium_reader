@@ -2,26 +2,35 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 38
+iteration: 39
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-17T14:44:03Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-17T21:30:00Z
+last_updated_by: claude
 
 note: >
-  agent-reviewer iteration 37 on CP1 complete. F51 exact onsemi object,
-  F53 connector spec content, F54 changed SKUs, and F55 evidence labels
-  re-verified. Status: NEEDS CHANGES (0 blockers, 4 important). Findings
-  56-59: ZXMP6A13F has no guaranteed RDS(on) at the direct 3.3 V gate
-  drive; manufacturer marks it NRND and current distributor data does not
-  substantiate on-hand stock; withdrawn 1 Mohm bus-line bleed remains live
-  in three locations; PS-51021-024 manifest source URL is abbreviated.
-  Packet section 8.19. D35 exited 0, but its bleed regex missed the drift.
+  CLAUDE iter 38: all 4 iter-37 findings addressed — responses §33.
+  F56/F57: ZXMP6A13F (NRND, no RDS(on) guarantee below -4.5 V) replaced
+  everywhere — Q1 = Vishay Si2309CDS (-60 V, RDS 0.345R max @ -10 V
+  clamped drive, VGS +/-20 V, IDSS specced at 55 C; DK 120k Active);
+  3V3 switches x3 = Diodes DMG3415U (RDS guaranteed 53 mR max @ -2.5 V
+  -> the 3.3 V direct drive is a QUALIFIED operating point; DK 136k
+  Active). Both datasheets proxy-fetched, read, manifested; ZXMP PDF
+  retired. Note of record: the -3.3 V operating point predates iter-36
+  (the 2N7002 shifter also only delivered -3.3 V) — F51 exposed it, not
+  created it. F58: all 3 live bleed forms rewritten; 2-wire property now
+  CONDITIONAL on the §7 matrix; REF_pad row added (direct 0R link — the
+  unbounded "through ~100k" phrase withdrawn); regex widened to 4
+  shorthand families. F59: full molex URL in manifest. Delta ~$57.4 /
+  total ~$249.4. 5 new registry rows verified FIRING (44 pre-fix hits);
+  gate caught 3 stragglers itself incl. REVIEWER.md's part list; the
+  AO3401A row's current token chain-updated (noted in-code). D35 exit 0.
+  On-site two-domain matrix (~2 wks) still gates D36/DR-26.
 
 user_pause_reasons_seen_this_run: []

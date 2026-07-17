@@ -84,7 +84,7 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
     (r"LM5166X", "LM5166Y", "buck → LM5166YDRCR — 3.3 V, never X=5 V (F01)"),
     (r"TPS3890", "TPS3808", "UVLO → TPS3808G01DBVR (D33/DR-24)"),
     (r"\bSS24\b", "SS26", "reverse diode → SS26-E3/52T (DR-3)"),
-    (r"AO3401A", "ZXMP6A13F", "Q1 → ZXMP6A13F 60 V (D19/DR-4)"),
+    (r"AO3401A", "Si2309CDS", "Q1 → ZXMP6A13F 60 V (D19/DR-4) → Si2309CDS (iter-38 F57)"),
     (r"AO3400A", "2N7002", "Q2 → 2N7002 60 V (D19/DR-4)"),
     (r"R-78E12", "R-78HB12", "12 V buck → R-78HB12-0.5 72 V-in (D19/DR-3)"),
     (r"SMAJ30CA", "SMAJ33CA", "24 V TVS → SMAJ33CA (D19/DR-2)"),
@@ -275,6 +275,31 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "owner-supplied redacted transcript (original off-file)",
      "F55: the committed artifact is a derivative redacted transcript; "
      "uncommitted photo evidence is labeled owner-reported inspection"),
+    # iter-37 reviewer findings (F56-F59, addressed iter-38):
+    (r"ZXMP6A13F",
+     "Si2309CDS (Q1) / DMG3415U (3V3-domain switches)",
+     "F56/F57: Diodes marks ZXMP6A13F NRND, distributor stock "
+     "unsubstantiated, and no RDS(on) is guaranteed below VGS=-4.5 V — "
+     "replaced iter-38 (Si2309CDS has a -10 V guaranteed row + 55 C "
+     "leakage row; DMG3415U has a -2.5 V guaranteed row)"),
+    (r"1 ?MΩ[^\n|]{0,25}bleed|bleed to a bus line|iso-GND↔bus|"
+     r"bleeds barrier leakage",
+     "per-channel REF conductor to pack B- (fallback)",
+     "F52/F58: a bleed to a signal line the reader drives references "
+     "nothing during reader TX — every bus-line-bleed form is retired"),
+    (r"[Nn]o battery-negative|[Nn]othing lands on a battery negative|"
+     r"no reference wire is required",
+     "2-wire primary CONDITIONAL on the §7 matrix; fallback = REF wire",
+     "F58: the no-reference property is the §7 matrix's conclusion, not "
+     "a premise — state it as conditional"),
+    (r"optionally through ~?100 kΩ",
+     "direct REF link (0 Ω default; series-R footprint DNP)",
+     "F58: no series resistance may be claimed without a bounded "
+     "reference current"),
+    (r"~\$56\.4|~\$248\.4",
+     "~$57.4 delta / ~$249.4 total",
+     "F57 repricing: DMG3415U $0.72 x3 + Si2309CDS $1.39 replaced the "
+     "NRND ZXMP6A13F lines"),
 ]
 
 # ---------------------------------------------------------------------------

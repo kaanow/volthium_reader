@@ -1175,6 +1175,11 @@ coordination defects together.
 - **Load switch (Q1) done right.** Q1 = **Diodes ZXMP6A13F** (−60 V,
   0.9 A, SOT-23-3) so its Vds survives the ~53 V clamp when open. (The
   ZXMP6A17 is only SOT-23-6/SOT-223; the A13F is the clean 3-pin part.)
+  *[Superseded iter-38 (F56/F57): Diodes marks ZXMP6A13F NRND and no
+  RDS(on) is guaranteed at a 3.3 V gate drive → Q1 = Vishay
+  **Si2309CDS** (−60 V, ±20 V Vgs, RDS 0.345 Ω max @ −10 V — same Zener
+  clamp scheme applies) and the three 3V3-domain switches = Diodes
+  **DMG3415U** (53 mΩ max guaranteed @ VGS = −2.5 V). See cp1_bom.]*
   Add a **gate-source Zener clamp (~12 V) + series gate resistor**
   so Vgs stays in range regardless of bus voltage (AO3401A's ±12 V was
   driven to −29 V). The gate-driver N-FET also sees the high rail, so
@@ -1200,7 +1205,8 @@ coordination defects together.
   CP5 bench testing reveals an EMI need.]*
 
 **Part-sourcing note.** LM5165YDRCR, R-78HB12-0.5, ZXMP6A13F were
-DigiKey stock/lifecycle-checked 2026-06-17 (all in stock, Active); final
+DigiKey stock/lifecycle-checked 2026-06-17 (then in stock/Active — the
+ZXMP6A13F has since gone NRND and is superseded iter-38, F57); final
 confirmation at BOM-lock ([[D-OPEN-6]]). 2N7002, SS26, and a 12 V Zener
 (BZX84C12) are jellybeans.
 
@@ -2047,11 +2053,16 @@ is tighter still → reserved for a future inverter bridge.)
 **identical and interchangeable — either pack on either jack**; firmware
 distinguishes packs by protocol address (`0x01`/`0x02`), not by channel.
 Each isolated front-end references **locally** (its own iso-supply ground
-+ fail-safe bias to local rails, Ethernet-style), connecting to the pack
-only through the 2-wire A/B pair — **no battery-negative / midpoint
-reference wire is required** (an optional ~1 MΩ iso-GND↔bus bleed is
-belt-and-suspenders). The asymmetric option (isolate only the top pack)
-was rejected in favor of swappable channels.
++ fail-safe bias to local rails, Ethernet-style). The **primary topology
+connects to each pack only through the 2-wire A/B pair — and that
+topology is conditional on the §7 two-domain acceptance matrix passing
+(F52/F58)**; the qualified fallback is a per-channel **REF conductor**
+from that channel's ISO_BUS_GND to its own pack's B− (direct; pad placed
+at CP2). *[The earlier "no reference wire is required + optional ~1 MΩ
+iso-GND↔bus bleed" wording is superseded (F52/F58): a bleed to a signal
+line the reader itself drives references nothing during reader TX, so it
+cannot bound the pack receiver's common-mode.]* The asymmetric option
+(isolate only the top pack) was rejected in favor of swappable channels.
 
 **Shape.** Shared ESP **UART2** (free — ESP32-S3 has 3 UART controllers;
 UART0 console, UART1 display) fanned to two **ADM2587E** isolated RS-485
@@ -2145,11 +2156,13 @@ nothing is plugged in**.
 **Enforceable power-domain contract (F34/F39/F48/F51).** The expansion
 rail is **not** raw always-on 3V3, and — correcting the iter-30 wording —
 it is **not** current-limited either. It is an **on/off, default-OFF
-load switch** — a **direct-GPIO-driven ZXMP6A13F** (F51 simplification:
-the source is 3V3 = the GPIO domain, so the earlier 2N7002 level shifter
-is removed; 100 kΩ gate pull-up to 3V3; `EXP_PWR_EN` **active-LOW**,
-high-Z/high = OFF) — **OFF at reset** (pull-up wins while the pin is
-high-Z) and **force-OFF in State 4**.
+load switch** — a **direct-GPIO-driven DMG3415U** (F51 simplification:
+source = 3V3 = the GPIO domain, no level shifter; F56/F57 iter-38: the
+FET is DMG3415U, whose RDS(on) is **guaranteed 53 mΩ max at
+VGS = −2.5 V** — the prior ZXMP6A13F had no guaranteed RDS(on) below
+−4.5 V and is NRND; 100 kΩ gate pull-up to 3V3; `EXP_PWR_EN`
+**active-LOW**, high-Z/high = OFF) — **OFF at reset** (pull-up wins
+while the pin is high-Z) and **force-OFF in State 4**.
 F48 replaced the "rail is *dead*" wording with a **testable off-state
 contract**:
 
@@ -2163,27 +2176,30 @@ contract**:
    unpowered add-on through its protection diodes.
 3. **Discharge**: a bleed resistor **R_exp_bleed = 100 kΩ, EXP_3V3 →
    GND** (populated) discharges the switched node so switch leakage
-   cannot float it: with the P-FET's ≤0.5 µA IDSS worst case into
-   100 kΩ, the parked rail sits ≤ 50 mV. On-state cost 33 µA
-   (~110 µW) — an active-mode cost only, acceptable.
-4. **Off-state budget — honestly bounded (F51 supersedes the iter-34
-   "≤1.5 µA/≤5 µW worst-case" framing, which mixed manufacturers and
-   treated a 25 °C row as a range max)**: with the 2N7002 removed
-   (F51 direct drive) the only semiconductor leak is the ZXMP6A13F,
-   whose IDSS ≤ 0.5 µA (p.4, V_DS = −60 V, V_GS = 0) is a **TJ=25 °C
-   test point — no full-temperature maximum is published** (typical of
-   small-signal FETs; same is true of the onsemi 2N7002L doc now on
-   file). Budget structure: **datasheet-anchored 25 °C figure ≤ 0.5 µA;
-   engineering allocation ≤ 5 µA (≈16 µW) at the ≤ 40 °C battery-box
-   ambient** (10× headroom over the 25 °C point — stated as an
+   cannot float it: against DMG3415U's IDSS bound (≤1 µA @ −20 V,
+   25 °C — pessimistic at our −3.3 V) the parked rail sits **≤ 100 mV
+   datasheet-bound**; the binding number is the measured limit in
+   item 5. On-state cost 33 µA (~110 µW) — active-mode only. If the
+   bench exceeds the limit, drop R_exp_bleed to 10–33 kΩ (resistor
+   swap).
+4. **Off-state budget — honestly bounded (F51; FET re-pinned iter-38
+   F56/F57)**: with the 2N7002 removed (F51 direct drive) the only
+   semiconductor leak is the **DMG3415U**, whose IDSS ≤ 1 µA
+   (DS31735, V_DS = −20 V, 25 °C) is a **test point at a harsher
+   condition than ours (−3.3 V) — no full-temperature maximum is
+   published** (typical of small-signal FETs). Budget structure:
+   **datasheet-anchored 25 °C bound ≤ 1 µA; engineering allocation
+   ≤ 5 µA (≈16 µW) at the ≤ 40 °C battery-box ambient** (stated as an
    *allocation*, not a datasheet fact); the **binding number is the
    measured acceptance limit in item 5**. If the bench measurement
    exceeds the allocation, swap in a specified-over-temperature
    load-switch IC (noted alternative) — a part swap, not a respin.
 5. **Acceptance test (bench, at bring-up — the enforceable bound)**:
    with an add-on plugged and rail off, at working ambient —
-   V(EXP_3V3) ≤ 50 mV, and total always-on-3V3 draw attributable to the
-   expansion block ≤ 5 µA (the item-4 allocation).
+   **V(EXP_3V3) ≤ 50 mV measured**, and total always-on-3V3 draw
+   attributable to the expansion block ≤ 5 µA (the item-4 allocation).
+   The measured 50 mV limit binds even though the item-3 datasheet
+   bound is 100 mV — failing it triggers the bleed-resistor swap.
 6. **Arbitrary daughterboards**: series-R footprints on all five signal
    lines (DNP by default) as partial-power-down isolation if a future
    add-on proves back-power-prone; a controlled add-on designed to this

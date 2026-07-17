@@ -43,12 +43,16 @@ bridge, not for reading.)
 
 **Therefore: two galvanically-isolated channels.** Each ADM2587E floats
 to whatever pack it's connected to and references **locally** — its own
-isolated supply is the ground, fail-safe bias resistors tie A/B to the
-local rails, and an optional ~1 MΩ bleed to a bus line keeps the island
-from charging up on barrier leakage. **Nothing lands on a battery
-negative terminal** — the only per-pack connection is the 2-wire A/B pair
-through the vendor **XLR→RJ45** cable (Ethernet gets away with no ground
-the same way: it's isolated). BLE is RF-isolated for the same reason —
+isolated supply is the ground and fail-safe bias resistors tie A/B to
+the local rails. In the **primary topology** the only per-pack
+connection is the 2-wire A/B pair through the vendor pack-connector→RJ45
+cable (Ethernet gets away with no ground the same way: it's isolated) —
+**conditional on the §7 two-domain acceptance matrix passing (F52/F58)**;
+the qualified fallback is a per-channel **REF conductor** to that pack's
+B− (§7). *[The earlier "optional ~1 MΩ bleed to a bus line" idea is
+superseded (F52/F58) — the reader drives the bus lines relative to its
+own island, so a bleed to one references nothing while the reader
+transmits.]* BLE is RF-isolated for the same reason —
 the two transports are isolation-equivalent, which is part of why the
 wired path is a genuine alternative and not just a fallback.
 
@@ -131,11 +135,14 @@ unless the CP2 pin map demands it.)
 Remaining §2 wiring notes:
 
 - **Power-gate** each ADM2587E's VCC with a discrete **P-FET high-side
-  switch** — a **direct-GPIO-driven ZXMP6A13F** (F51: the switch's
-  source is 3V3, the same domain as the ESP pin, so no 2N7002 level
-  shifter; 100 kΩ gate pull-up to 3V3 gives default-OFF while the pin is
-  high-Z), enabled by **active-LOW** `CH_x_PWR`. isoPower settles in
-  ≈ 1 ms; firmware waits before the first byte.
+  switch** — a **direct-GPIO-driven DMG3415U** (F51: source is 3V3, the
+  same domain as the ESP pin — no level shifter; **F56/F57: DMG3415U's
+  RDS(on) is guaranteed 53 mΩ max @ VGS=−2.5 V**, so the 3.3 V drive is
+  a qualified operating point — the prior ZXMP6A13F had no guaranteed
+  row below −4.5 V and is NRND; 100 kΩ gate pull-up to 3V3 gives
+  default-OFF while the pin is high-Z), enabled by **active-LOW**
+  `CH_x_PWR`. isoPower settles in ≈ 1 ms; firmware waits before the
+  first byte.
 
 ---
 
@@ -147,10 +154,11 @@ Every SKU/stock figure below was resolved against the parts API on
 | Ref (per ch.) | Part | Why | Sourcing (2026-07-15) |
 |---------------|------|-----|-----------------------|
 | U_iso1 / U_iso2 | **ADM2587E BRWZ** — isolated RS-485 w/ **integrated isolated DC-DC** (isoPower), 3.3 V, slew-limited **500 kbps**, ±15 kV ESD on bus pins, open/short fail-safe RX | One chip = isolation + transceiver + isolated supply → fewest solder joints for a qty-1 hand build. 500 kbps ≫ our 9600 baud, and slew-limiting *lowers* EMI. | Mouser **584-ADM2587EBRWZ**, 3,848 stock, $22.90. (ADM2582E is 16 Mbps overkill and DK-OOS.) **Datasheet on file** (Rev H, sha 77a52a9e6036): 2500 Vrms iso, CMTI >25 kV/µs, **ICC 90 mA @ 3.3 V/100 Ω** (Table 1; corrected iter-30 F28 — was mis-cited 72 mA, which is the 5 V row) — see §6. |
-| Q_ls (×1 per ch.) | **Direct-GPIO-driven ZXMP6A13F** P-FET high-side switch + 100 kΩ gate pull-up to 3V3 (**F51: no 2N7002** — source = 3V3 = the GPIO domain, so no level shift is needed; `CHx_PWR` **active-LOW**: ESP high-Z/high = OFF via pull-up, low = ON) | Power-gate VCC so isoPower runs only during a poll (see §5). Default-OFF at reset (pull-up wins while the pin is high-Z). Off-leakage = P-FET IDSS ≤ 0.5 µA — a 25 °C test point (F51); bring-up acceptance test enforces the real bound. | (P-FET class already in cp1_bom.md) |
+| Q_ls (×1 per ch.) | **Direct-GPIO-driven DMG3415U** P-FET high-side switch + 100 kΩ gate pull-up to 3V3 (**F51: no 2N7002** — source = 3V3 = the GPIO domain; **F56/F57: RDS(on) guaranteed 53 mΩ max @ −2.5 V**, DS31735 — the NRND ZXMP6A13F had no guaranteed row at this drive; `CHx_PWR` **active-LOW**: high-Z/high = OFF, low = ON) | Power-gate VCC so isoPower runs only during a poll (see §5). Default-OFF at reset. ~90 mA channel load → ≤5 mV drop. Off-leakage = IDSS ≤ 1 µA (−20 V/25 °C test point — pessimistic at −3.3 V); bring-up acceptance enforces the real bound. | DK **DMG3415UDICT-ND** (136k, Active) / Mouser 621-DMG3415U-7, $0.72 (API 2026-07-17) |
 | J_bat1 / J_bat2 | **Amphenol RJHSE-5380** RJ45 jack, shielded, magnetics-free | Mates the vendor's pack-connector→RJ45-female cable via a straight patch cable; same jack as the display link (commonality, on file). RS-485 A/B on RJ45 **pins 7/8** — verified in the committed transcript (2024-01-15) *and* the on-file adapter-label photo. **CAN domain RESOLVED (F45 closed 2026-07-16):** the thread's "pin 1 and 2" is the **battery-side connector** (owner's 2023-12-27 question was explicitly about that connector); the RJ45-side label says 4/5 — consistent, different connectors. CAN unused in D36; if the unpopulated pads are ever routed, follow the RJ45-side label (4/5) and bench-verify continuity through the actual cable. **Identical/interchangeable — either pack on either jack.** | Mouser **523-RJHSE-5380**, 8,697 stock, $2.30; datasheet on file (RJHSE-5380.pdf) |
 | TVS_bus + R_ser (**DNP footprints**) | **Semtech SM712** asymmetric RS-485 TVS (VRWM 12/7 V) + per-line series R footprints between the TVS node and the ADM2587E A/B | **F36/F44 — no coordinated protection exists in this design; the port is unprotected.** SM712 clamps **VC = 20 V @ 5 A** positive (Semtech Rev 6.0 p.2), above the ADM2587E bus abs-max of **−9/+14 V** (Rev H p.7), and a series R **does not fix that by itself**: the A/B pins are high-impedance, draw no defined current below their (unpublished) internal clamp, and so see the TVS-node voltage — with no published ADM2587E injection/clamp-current rating there is nothing to size the R against (F44 accepted; the iter-32 "populate as a coordinated pair, residual <14 V" claim is **withdrawn**). The ADM2587E's ±15 kV is **HBM (handling)**, *not* IEC 61000-4-2. **Status: DNP, intentionally unprotected** — accepted risk for a short (~1 m) inside-enclosure link that never leaves the battery box. If field-cable surge/ESD ever becomes a requirement, the fix is a **properly coordinated network chosen then** — a lower-clamp TVS/steering-diode stage whose *documented* residual < 14 V, or a two-stage clamp with the series element sized from a *published* downstream clamp-current rating — not the current footprints. | DK **SM712CT-ND** / Mouser **947-SM712.TCT** (Semtech), 99k+ stock. **Datasheet on file** (Semtech Final Rev 6.0, sha 6deb75310ebe): VRWM 12/7 V, VBR 13.3/7.5 V, VC 20/10 V @ 5 A, SOT-23. |
-| R_bias | fail-safe bias A/B → local iso-rails, + optional ~1 MΩ iso-GND↔bus bleed | References the floating island **locally** (defines idle; bleeds barrier leakage) — no battery-negative wire | high-value; per §7 |
+| R_bias | fail-safe bias A/B → local iso-rails (**idle-noise margin only** — F52/F58: *not* a common-mode fix; the old "~1 MΩ iso-GND↔bus bleed" is deleted) | Defines the idle differential locally. DNP by default (ADM2587E has internal fail-safe, p.15); populate only if the §7 bench shows idle chatter | high-value; per §7 |
+| REF_pad (×1 per ch.) | **Fallback reference pad**: ISO_BUS_GND → that pack's **B− terminal** by a dedicated conductor (direct link; a series-R footprint is provided but the default is a 0 Ω jumper) | **F52/F58 fallback if the §7 matrix fails** — a real reference that pins both receiver domains (offset ≈ 0 by construction); each channel refs its *own* pack, preserving symmetry. Unwired unless needed | pad + wire only; placed at CP2 |
 | R_di1, R_di2 | 1 kΩ series on each DIx | power-up-settle guard (§2a) | 0402/0603 ×2 |
 | R_bus term | 120 Ω across A/B — **DNP** | at 9600 baud over a ~1–2 m point-to-point run, reflections settle ≪ 1 bit; termination just loads the driver. Footprint present, unstuffed; populate only if a bench capture shows ringing. | DNP |
 
@@ -342,13 +350,15 @@ series stack, and the top pack at +12 V is the uncovered case.
 If any row marginally fails or drifts, capture the waveforms — they size
 the fallback.
 
-**Fallback if the matrix fails (F52-revised — a genuine reference, not a
-bleed):** per-channel **REF pad/terminal** tying that channel's
-`ISO_BUS_GND` (optionally through ~100 kΩ) **to that pack's B− terminal
-by a dedicated conductor** — a real reference that pins *both* domains
-together (offset → ≈0 by construction), which the withdrawn
-signal-wire bleed could not do (the reader itself drives B relative to
-`ISO_BUS_GND`, so a bleed to B references nothing during reader TX).
+**Fallback if the matrix fails (F52-revised iter-38 per F58 — a genuine
+reference, not a bleed):** per-channel **REF pad/terminal** tying that
+channel's `ISO_BUS_GND` **directly to that pack's B− terminal by a
+dedicated conductor** (a series-R footprint exists on the pad but the
+default is a 0 Ω link — F58: no resistance is claimed without a bounded
+reference current) — a real reference that pins *both* domains together
+(offset → ≈0 by construction), which the withdrawn signal-wire bleed
+could not do (the reader itself drives B relative to `ISO_BUS_GND`, so
+a bleed to B references nothing during reader TX).
 Because each channel is isolated, referencing each island to **its own
 pack's** B− preserves the symmetric/interchangeable-channel property
 (the top-pack channel's "ground" is simply the series midpoint — its
@@ -380,7 +390,8 @@ patch-cable straight-through check.
   simplicity, which is why it's the primary.
 - **Asymmetric isolation** (isolate only the top pack; read the bottom
   pack with a plain transceiver off the system ground the board already
-  has): saves one isolated part and also needs no battery-negative wire,
+  has): saves one isolated part and shares the primary topology's
+  2-wire property,
   but the two channels aren't interchangeable — the bottom-pack jack must
   get the bottom pack. **Rejected by user choice (2026-07-15) in favor of
   symmetric, swappable channels** ("either battery on either channel").
