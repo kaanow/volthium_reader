@@ -4745,3 +4745,60 @@ reverse-resolved 100 kOhm SKUs and add a consistency rule forbidding
 `same as` inheritance when the referenced row's value changes.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 4 important. (See findings 68, 69, 70, 71.)
+
+---
+
+## 36. Designer responses — iteration 44 (F68–F71)
+
+All four addressed. F68 required a topology change (and it resolved F69
+along the way). D35 gate exit 0 after changes; all five new registry
+patterns verified to FIRE on pre-fix text (24 old hits).
+
+### F68 (Q2 gate driver: no guaranteed ON at 3.3 V; OFF leakage interpolated) — ACCEPTED; changed the topology
+You're right on both counts, and I confirmed from the on-file PDF that
+the 2N7002 guarantees its on-state only at VGS = 5/10 V and bounds IDSS
+only at 25/125 °C — so both my ON claim (at the 3.3 V ESP drive) and my
+OFF claim (0.42 V @85 °C interpolated) rested on un-guaranteed behavior.
+No 60 V *true* logic-level FET with a temperature-bounded leakage row is
+in stock (the logic-level parts I found are all ≤30 V). So I took your
+second suggested path — **change the driver topology**: Q2 is now an
+**NPN BJT (onsemi MMBT5551, 160 V)**, base ← new R_base = 47 kΩ.
+- **ON is guaranteed:** the BJT saturates from base current (Ib 55 µA,
+  forced β 9–12 ≪ hFE 60), **VCE(sat) ≤ 0.25 V datasheet-guaranteed**
+  (<0.1 V at our ~0.5–0.7 mA divider sink) — the divider reaches its
+  computed Vgs with no dependence on an unspecified FET RDS at 3.3 V.
+- **OFF is guaranteed with no interpolation:** MMBT5551 specs
+  **ICBO ≤ 100 nA at TA = 100 °C** (a genuine elevated-temperature
+  row — the exact spec the FETs lacked). Vgs_off = ICBO·R3 ≤ **1 mV at
+  100 °C**, 1000× below the 1 V min Vth.
+- Divider (R3 10 kΩ / Rg 33 kΩ) and the surge bracket (12.4 V @53.3 V)
+  are unchanged. 160 V Vceo ≫ the 53 V collector surge. DZ1 stays a
+  redundant backstop. SKUs resolve-exact; onsemi Active, 689k stock,
+  $0.24 (net core cost ≈ flat — cheaper Q2 + R_base). D19 re-derived.
+
+### F69 (State-4 hot figure not a bound; live totals inconsistent) — RESOLVED by F68
+The "~1.5 mW @60 °C" rested on the same Q2 interpolation. With the BJT,
+Q2's State-4 term is **≤2.4 µW, guaranteed to 100 °C**, and Q1's IDSS is
+guaranteed at 55 °C (10 µA → 0.24 mW). So State-4 is now stated from
+**guaranteed rows only: ~1.13 mW @25 °C / ~1.35 mW @55 °C** — no
+interpolation, no "estimate." Reconciled every live headline
+(power_budget.md, cp1_battery_side.md ×5, decisions.md ×3, DR log,
+rs485 §6) to that figure; the "~1.08 mW" pre-leakage number is retired.
+
+### F70 (stale R3=100 k and DZ1-clamp claims still pass exit 0) — ACCEPTED, fixed both
+Reconciled all live statements to R3 = 10 kΩ / Rg = 33 kΩ / DZ1 =
+redundant backstop: cp1_battery_side lines 257 (component row), 582
+(topology drawing), 729 (D-OPEN-6 resolution); cp1_bom "10 kΩ→100 kΩ"
+change note (it was backwards); docs/hardware/bom.md DZ1 "holds Vgs
+≤12 V"; manifest Si2309 "DZ1 clamp scheme unchanged." Added registry
+patterns for the split-cell / drawing / "holds Vgs ≤12 V" forms.
+
+### F71 (R4 inherits R3's changed cells) — ACCEPTED, fixed
+R4 (100 kΩ) now carries explicit reverse-resolved SKUs
+(RMCF0805FT100KCT-ND / 71-CRCW0805-100K-E3) instead of "(same as R3)."
+Added a registry rule forbidding "same as" inheritance so a future
+value change on a referenced row can't silently mis-order the inheritor.
+
+**Handing back for iteration 45 re-verify.** Remaining open by design:
+the F47/F52 on-site two-domain matrix (~2 weeks) gating D36/DR-26; the
+BOM-lock manufacturer-lifecycle re-confirm on the semiconductors.

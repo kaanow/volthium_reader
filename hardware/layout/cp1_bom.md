@@ -104,11 +104,12 @@ one complete monitor.
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | Q1  | **Si2309CDS** P-MOSFET (Vishay, Vds −60 V, −1.6 A) | SOT-23 | 1 | **SI2309CDS-T1-GE3CT-ND** (120k stock, Active, API 2026-07-17) | 781-SI2309CDS-GE3 (89k) | $1.39 | **Δ (D19/DR-4): AO3401A (30 V) → ZXMP6A13F (60 V); iter-38 (F57): ZXMP6A13F went NRND with unsubstantiated stock → Si2309CDS** (Vishay doc 68980, on file): RDS 0.45 Ω max @ VGS=−4.5 V (the divider drive is ~4.9–6.8 V — F64), Vgs ±20 V, **IGSS ≤100 nA; IDSS ≤1 µA @25 °C / ≤10 µA @TJ=55 °C** (Vishay 68980 p.2 — F65 corrected iter-42; the earlier 100 nA/1 µA conflated IGSS with IDSS). Min-rail RDS(on) = **0.45 Ω max @ VGS=−4.5 V** (the conservative row at Vgs≈4.9 V); ~0.3 A load → ≤0.135 V drop. Q1-OFF IDSS is a State-4 term (power_budget.md) |
-| Q2  | **2N7002LT1G** (onsemi) N-MOSFET (Vds 60 V) | SOT-23 | 1 | — (LT1G variants zero-stock at DK, API 2026-07-17) | **863-2N7002LT1G** (76k, API 2026-07-17) | $0.49 | **Δ (D19/DR-4): AO3400A (30 V) → 2N7002 (60 V)** — drain follows the V24 rail when Q1 is off |
+| Q2  | **MMBT5551LT1G** (onsemi) NPN BJT (Vceo 160 V) — Q1 gate driver | SOT-23 | 1 | **MMBT5551LT1GOSCT-ND** (689k, Active, API 2026-07-17) | 863-MMBT5551LT1G (158k) | $0.24 | **Δ iter-44 (F68): 2N7002 N-FET → MMBT5551 BJT.** A 2N7002 has **no guaranteed on-state at the 3.3 V gate drive** (RDS spec'd only at Vgs 5/10 V) and OFF leakage bounded only at 25/125 °C. The BJT **saturates from base current** (VCE(sat) ≤0.25 V guaranteed, <0.1 V at our ~0.7 mA) — ON guaranteed at any drive >~0.7 V; **ICBO ≤100 nA @ TA=100 °C guaranteed** → Vgs_off = ICBO·R3 ≤ **1 mV @100 °C** (1000× below the 1 V min Vth) — OFF guaranteed, no interpolation. 160 V Vceo ≫ the 53 V collector surge. Base ← R_base |
+| R_base | **47 kΩ** 0805 1 % (ESP PWR_EN → Q2 base) | 0805 | 1 | **RMCF0805FT47K0CT-ND** | 71-CRCW0805-47K-E3 | $0.10 | **NEW (F68):** base drive for MMBT5551. Ib = (3.3−0.7)/47 kΩ = 55 µA; at the ~0.5–0.7 mA divider sink the forced β ≈ 9–12 ≪ hFE 60 → deep saturation. 55 µA GPIO load (active only) |
 | DZ1 | BZX84C12 12 V Zener (Q1 gate–source **redundant backstop**) | SOT-23 | 1 | BZX84C12LT1GOSCT-ND (71k stock, Active) | 863-BZX84C12LT1G (182k) | $0.10 | **NEW (D19/DR-4); role finalized iter-42 (F64):** the **R3(10k)/Rg(33k) divider is the safety bracket** — it holds Vgs ≤ **12.4 V even at the 53.3 V surge** (<±20 V, 38 % margin) with *no* reliance on the Zener. DZ1 is a pure backstop: at the ~6.8 V DC point it is fully off, and at the surge the divider already guarantees <20 V. (This retires the iter-40 claim that DZ1 clamps at ~12 V — at the network's ≤0.14 mA surge current the Zener is below its 1 mA-characterized row, so its clamp voltage is not a bracket, per F64.) |
 | Rg  | **33 kΩ** 0805 1 % (series gate, Q2 drain → Q1 gate) | 0805 | 1 | **RMCF0805FT33K0CT-ND** | 71-CRCW0805-33K-E3 | $0.10 | **Δ (F60→F64): 1 kΩ → 150 kΩ → 33 kΩ.** With R3=10 kΩ the divider sets Vgs = **6.8 V @29.2 V / 4.9 V @21 V floor / 12.4 V @53.3 V surge (all <±20 V — divider is the bracket, not DZ1)**. Standing **679 µA → 19.8 mW pack burden (Q1-ON only; ~0 in hard-cut)**; P_Rg 15.2 mW, P_R3 4.6 mW (0805 = 125 mW). Full derivation: decisions.md D19 (F64) |
-| R3  | **10 kΩ** 0805 1 % (Q1 gate pull-up to V24_FUSED) | 0805 | 1 | **RMCF0805FT10K0CT-ND** | 71-CRCW0805-10K-E3 | $0.10 | **Δ (F64): 100 kΩ → 10 kΩ.** Default-OFF pull-up **and** Q2-leakage immunity: Vgs_off = I_L(Q2)·R3 ≤ **0.42 V @85 °C** (2N7002L IDSS envelope) < the 1 V min Vth → Q1 stays OFF across the operating range. Also sets the ON-state divider ratio with Rg |
-| R4  | 100 kΩ 0805 1 % (Q2 gate pull-down to GND) | 0805 | 1 | (same as R3) | (same) | $0.10 | Brown-out failsafe-off |
+| R3  | **10 kΩ** 0805 1 % (Q1 gate pull-up to V24_FUSED) | 0805 | 1 | **RMCF0805FT10K0CT-ND** | 71-CRCW0805-10K-E3 | $0.10 | **Δ (F64): 100 kΩ → 10 kΩ.** Default-OFF pull-up + sets the ON-state divider ratio with Rg. **OFF immunity (F68):** with the BJT Q2, Vgs_off = ICBO·R3 ≤ **1 mV @100 °C** (MMBT5551 ICBO ≤100 nA guaranteed) ≪ the 1 V min Vth → Q1 stays OFF across temperature |
+| R4  | 100 kΩ 0805 1 % (PWR_EN pull-down to GND) | 0805 | 1 | **RMCF0805FT100KCT-ND** | 71-CRCW0805-100K-E3 | $0.10 | Brown-out failsafe-off. **F71: explicit 100 kΩ SKUs** — the earlier same-as-R3 inheritance broke when R3 → 10 kΩ (F64). Holds the PWR_EN/base node low when the ESP is off/high-Z |
 | U4  | **TI TPS3808G01DBVR** voltage supervisor (~2.4 µA, adj SENSE, OD RESET, prog CT delay, +MR) | **SOT-23-6 (leaded ✓)** | 1 | 296-17188-2-ND | 595-TPS3808G01DBVR | $0.90 | **D28/DR-16; repackaged D33/DR-24 (2026-07-01): WSON→SOT-23-6 for solderability at ~zero power cost (Iq 2.4 µA vs the old part's 2.1 µA).** Adjustable **VIT = 0.405 V**; ISENSE ±25 nA max; built-in VHYS 1.5 %. Divider **release-sized** R1≈5.16 MΩ/R2≈100 kΩ + R_hys≈11.5 MΩ → trip ~20.0 V / release ~21.7–21.8 V (RESET active-low → positive feedback; F01 polarity + F04 release value; see R_uv/R_hys rows; final E96 at CP2). Active, DK 149k. Datasheet: hardware/datasheets/TPS3808G01DBVR.pdf |
 | R_uv1 (top), R_uv2 (bottom) | UVLO pack divider → U4 SENSE. **VIT = 0.405 V** (TPS3808G01). Plain divider threshold is the *lower bound* on the release (see R_hys for the R_hys-leg + VHYS lift): sizing to ~21.3 V → **R1 ≈ 5.16 MΩ, R2 ≈ 100 kΩ** (E96) → actual release ~21.7–21.8 V, trip ~20.0 V | 0805 ×2 | 2 | _verify_ | _verify_ | $0.10 ea | **D28; re-derived for 0.405 V + polarity fix (D33/F01) + release refinement (F04).** ISENSE ±25 nA max → I_div ≥ 2.5 µA; 0.405 V/100 kΩ = 4.05 µA at threshold ✓ (~4.6 µA at 24 V, lower than the old 2.89 V part). Add small SENSE filter cap; final E96 at CP2 |
 | R_hys | UVLO external hysteresis, U4 RESET → SENSE (**~11.5 MΩ**) | 0805 | 1 | _verify_ | _verify_ | $0.05 | **F01 (iter-5) + F04 (iter-6)/D28.** RESET is open-drain **active-low** → R_hys is *positive* feedback: healthy (RESET≈3.3 V) pulls SENSE up → drops the falling trip; asserted (VOL = 0–0.2 V) still sources a small current from SENSE → RESET, so release lands ~0.4–0.5 V *above* the plain divider threshold. ΔV = R1·(V_RESET_H−VIT)/R_hys ≈ **1.5 V** → trip ~20.0 / release ~21.7–21.8 V. Built-in VHYS (~6 mV) too small alone. Final E96 at CP2 |
@@ -322,8 +323,9 @@ iter-38 after the F56/F57 FET replacement; SM712 ×2 +
 series-R + PPTC all DNP = $0). *Optional, not in the sum:* PicoBlade
 mate cable assembly 0151340801 (**$10.53**, DK WM15273-ND) — order
 if/when an add-on is actually built. The core sums above are dated
-2026-07-14 (plus the 2N7002LT1G re-pin iter-36 and the Q1 Si2309CDS swap iter-38
-— together ≈ +$2.2, absorbed in the battery-side "~$83") and do **not** yet include the
+2026-07-14 (plus the 2N7002LT1G re-pin iter-36, the Q1 Si2309CDS swap iter-38,
+and the Q2 2N7002→MMBT5551 BJT swap + R_base iter-44 — net ≈ +$2.1, absorbed in
+the battery-side "~$83") and do **not** yet include the
 delta; when the CP1-delta is approved it folds into the battery-side
 line and the whole column is mechanically recomputed. *(F25: display enclosure/mounting was $5→$10.
 Prior ~$145/~$154 predated the U2/BTN1/TVS corrections.)*
@@ -349,7 +351,7 @@ so the extras are not wasted.
 - Phoenix MSTB pluggable terminal block + plug
 - 5×20 mm cartridge fuse + 2× PCB-mount fuse clips
 - TVS1 = SMAJ33CA on V24_FUSED (D19/DR-2)
-- Q1 gate-source Zener DZ1 (BZX84C12, **redundant** backstop) + divider **R3 10 kΩ / Rg 33 kΩ** (D19/DR-4; F60→F64: the divider is the safety bracket, Vgs ≤12.4 V at the 53.3 V surge; standing burden 19.8 mW Q1-ON, ~0 hard-cut)
+- Q1 gate-drive: **MMBT5551 BJT (Q2) + R_base 47 kΩ** pulls the gate through **divider R3 10 kΩ / Rg 33 kΩ**; DZ1 (BZX84C12) redundant backstop (D19/DR-4; F60→F64→F68: divider is the safety bracket, Vgs ≤12.4 V at 53.3 V surge; BJT guarantees ON (saturation) + OFF (ICBO ≤100 nA@100 °C); burden 19.8 mW Q1-ON, ~0 hard-cut)
 - ESP EN cap (C8) + pull-up (R7)
 - Maintenance: J3 = **USB-C** (native USB, D22) + USB ESD array; J5 (UART) for bring-up
 - **Removed** battery-side RS-485 idle bias (now display-end only, D19/DR-4)
@@ -366,7 +368,7 @@ so the extras are not wasted.
 - D1: SS24 (40 V) → **SS26** (60 V) — DR-3
 - Input bulk C1/C3 → **100 V** (behind the ~53 V clamp)
 - RS-485 bias → **display-end only, ~330 Ω** (battery rail draws 0) — DR-4
-- Q1 gate pull-up: 10 kΩ → 100 kΩ (10× lower idle current)
+- Q1 gate pull-up R3: was 100 kΩ, now **10 kΩ** (F64 — the divider ratio with Rg 33 kΩ sets Vgs; OFF immunity via the BJT Q2's ICBO, not R3 size)
 - 24 V sense divider: 100 kΩ/11 kΩ → 1.2 MΩ/100 kΩ (10× lower idle current; full charge in ADC linear band — DR-6)
 - E-paper: 8-pin Waveshare Module (B), J2 → 8-pin header (was 24-pin FFC) — DR-7
 - BTN pull-ups: 10 kΩ → 1 MΩ (both sides — Iq reduction)

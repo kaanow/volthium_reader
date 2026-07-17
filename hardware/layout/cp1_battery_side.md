@@ -98,7 +98,7 @@ downstream MCU can't gate its own supply (nor boot if it starts unpowered).
 At < 10 % SOC the ESP deep-sleeps (~µA), periodically reads V24_SENSE, and
 sheds the display by opening Q1; the RS-485 transceiver enters real
 shutdown via DE=0+/RE=1 (D34; iter-8 F06), not power-switched. All-in
-trickle at hard-cut ≈ **~1.08 mW** (~1.1 mW headline) using
+trickle at hard-cut ≈ **~1.13 mW @25 °C / ~1.35 mW @55 °C** (guaranteed rows, incl. Q1/Q2 OFF leakage — F65/F68) using
 **datasheet max where spec'd** for all 3.3 V loads + explicit ESP
 engineering margin (native-domain sum per `docs/hardware/power_budget.md`
 State 4: LM5166 input Iq max 0.36 mW + V24 sense divider 0.44 mW +
@@ -144,31 +144,40 @@ a hard constraint: **any substitution on this node must hold ≥ 60 V.**
 Note 53.3 V is the TVS's *full* 7.5 A pulse; the actual transient on a
 1 A-fused battery tap is far smaller, so this is a conservative ceiling.
 
-**Gate-source drive (Q1 Vgs) — divider is the safety bracket, Zener is a
-redundant backstop (F60→F64).** Q1 = **Si2309CDS**, Vgs abs-max **±20 V**
+**Gate-source drive (Q1 Vgs) — BJT driver + divider bracket, Zener
+redundant (F60→F64→F68).** Q1 = **Si2309CDS**, Vgs abs-max **±20 V**
 (Vishay doc 68980), RDS(on) specified **450 mΩ @ −4.5 V / 345 mΩ @
 −10 V**. Without any network, turning Q1 on would pull the gate to ground
 and drive Vgs to ~−29 V at full charge (−53 V under surge) — past ±20 V,
-destroying the gate. The gate network sets a **safe operating point by
-division alone**, so the bracket does not depend on the Zener (F64 — at
-the sub-mA surge current the BZX84C12 sits below its characterized rows,
-so its clamp voltage is not a bracket):
-- **R3 = 10 kΩ (gate→source) and Rg = 33 kΩ (gate→Q2→gnd)** form the
-  divider: DC Vgs = V24·R3/(R3+Rg) = **6.8 V @ 29.2 V full charge**,
+destroying the gate. **The gate is pulled by an NPN BJT (Q2 = MMBT5551)
+through the divider** — a BJT because a 3.3 V-driven 2N7002 had no
+guaranteed on-state and no temperature-bounded off-leakage (F68); a BJT
+guarantees both:
+- **R3 = 10 kΩ (gate→source) and Rg = 33 kΩ (gate→Q2 collector)** form
+  the divider: DC Vgs = V24·R3/(R3+Rg) = **6.8 V @ 29.2 V full charge**,
   **4.9 V @ the 21 V UVLO floor**, and **12.4 V @ the 53.3 V surge** —
   all below ±20 V (38 % margin at surge) and at/above the −4.5 V RDS
-  spec point (min-rail RDS 0.45 Ω → ≤0.135 V drop @ 0.3 A).
-- **Q2 OFF-leakage immunity (F64):** with Q1 commanded off, Q2's
-  temperature-dependent drain leakage develops Vgs across R3:
-  Vgs_off = I_L(Q2)·R3. On the 2N7002L IDSS envelope (1 µA @25 °C →
-  500 µA @125 °C) this is ≤ **0.42 V @ 85 °C** — below the 1 V min Vth,
-  so Q1 stays off across the operating range. The small R3 is what buys
-  this margin.
-- **DZ1 = BZX84C12 (12 V)** is now a **pure redundant backstop**: at the
+  spec point (min-rail RDS 0.45 Ω → ≤0.135 V drop @ 0.3 A). The bracket
+  is the divider *ratio*, not the Zener (F64 — at the sub-mA surge
+  current the BZX84C12 sits below its characterized rows).
+- **ON guaranteed (F68):** Q2 (MMBT5551, Vceo 160 V) saturates from base
+  current (Ib = 55 µA via R_base = 47 kΩ; forced β ≈ 9–12 ≪ hFE 60),
+  **VCE(sat) ≤ 0.25 V guaranteed** (<0.1 V at our ~0.5–0.7 mA divider
+  sink) — so the divider reaches its computed Vgs. Unlike the 2N7002,
+  whose RDS(on) is spec'd only at Vgs 5/10 V, the BJT on-state is
+  datasheet-guaranteed at any drive above ~0.7 V.
+- **OFF guaranteed (F68):** Q2 off → collector cutoff **ICBO ≤ 100 nA
+  @ VCB=100 V, TA=100 °C** (a *guaranteed elevated-temperature* row) →
+  Vgs_off = ICBO·R3 ≤ **1 mV @ 100 °C**, 1000× below the 1 V min Vth →
+  Q1 stays off across the whole temperature range with no interpolation.
+  (The prior 2N7002 only bounded IDSS at 25/125 °C, forcing an
+  interpolation the reviewer rightly rejected.)
+- **DZ1 = BZX84C12 (12 V)** is a **pure redundant backstop**: at the
   6.8 V DC point it is fully off, and at the surge the divider already
   holds Vgs < 20 V without it.
 - **Standing burden 19.8 mW when Q1 is ON** (679 µA at 29.2 V), ~0 in
-  hard-cut (Q1 off — only Q2 leakage flows, a State-4 term). This
+  hard-cut (Q1 off — only Q2's ICBO ≤100 nA flows, a negligible State-4
+  term). This
   replaces the prior 1 kΩ Rg, which drew ~17 mA / ~0.5 W continuously
   and exceeded the 0805/Zener power ratings.
 The network protects the gate, guarantees turn-on across the pack range,
@@ -254,7 +263,8 @@ foldback explicitly. The 530 mA "driver-active + WiFi-peak" case is
 | Q2  | 2N7002 (N-MOSFET, Vds 60 V, drives Q1 gate) | SOT-23 | 1 | **60 V** because its drain follows the V24 rail (up to the clamp) when Q1 is off (D19/DR-4); AO3400A (30 V) did not |
 | DZ1 | BZX84C12 (12 V Zener, Q1 gate–source **redundant backstop**) | SOT-23 | 1 | The R3(10k)/Rg(33k) divider is the bracket (Vgs ≤12.4 V @53.3 V surge); DZ1 is redundant (F64/D19/DR-4) |
 | Rg  | **33 kΩ** series gate (Q2 drain → Q1 gate) | 0805    | 1   | Δ (F60→F64) 1 kΩ→33 kΩ: sets the divider ratio with R3=10 kΩ; the old 1 kΩ was a continuous ~0.5 W path |
-| R3  | 100 kΩ pull-up: Q1 gate → V24_FUSED | 0805          | 1   | Default-OFF behavior — pack-safe on MCU lockup |
+| R3  | **10 kΩ** pull-up: Q1 gate → V24_FUSED (Δ F64) | 0805          | 1   | Default-OFF behavior — pack-safe on MCU lockup; sets the divider ratio with Rg |
+| R_base | **47 kΩ**: ESP PWR_EN → Q2 (MMBT5551) base (F68) | 0805 | 1 | BJT base drive; guarantees ON (saturation) + OFF (ICBO) |
 | R4  | 100 kΩ pull-down: Q2 gate → GND     | 0805          | 1   | Defines Q2 state when MCU GPIO floats (boot / brown-out) |
 
 **Power-first note on R3 sizing**: a 10 kΩ pull-up (as in the original
@@ -307,7 +317,7 @@ single re-engage (no oscillation).
 **Power (F02/D33; corrected per iter-6 F03, iter-10 F08, iter-12 F13).**
 UVLO divider ~4.6 µA at 24 V ≈ **~0.11 mW** at pack + U4 Iq max
 5 µA @ 3.3 V ≈ 17 µW at load (~33 µW referred through U1 at η ≈ 50 %).
-**Hard-cut hits ~1.08 mW total** (~1.1 mW headline, using datasheet
+**Hard-cut hits ~1.13 mW @25 °C / ~1.35 mW @55 °C** (incl. Q1 IDSS + Q2 BJT ICBO, guaranteed rows — F65/F68; using datasheet
 max where spec'd + explicit ESP engineering margin — native-domain
 sum in `docs/hardware/power_budget.md` State 4); the EN-asserted floor
 drops the ESP ~99 µW referred term and lands at ~0.98 mW — only
@@ -350,7 +360,7 @@ EN → V3V3 and the UVLO behave **exactly as without this circuit**.
 Q4 pulls it low, i.e. VBUS present); U6 adds only **~1.3 µA** always-on
 (~4 µW at load). With the D33 UVLO part/divider (0.405 V) and D34's
 real-shutdown RS-485 transceiver (THVD1400, 1 µA max shutdown Iq per
-F08), **hard-cut ≈ ~1.08 mW** (~1.1 mW headline, native-domain sum
+F08), **hard-cut ≈ ~1.13 mW @25 °C / ~1.35 mW @55 °C** (native-domain sum
 per §7 and `docs/hardware/power_budget.md`; iter-6 F03 + iter-8
 F05/F06/F07 + iter-10 F08 + iter-12 F13 corrections — now built on
 datasheet max Iq where spec'd). UVLO protects the *unattended* (always USB-absent) system fully;
@@ -557,9 +567,9 @@ deep-sleep (alive) and hard-cut (off) — see [§13 D-OPEN-7a/7b](#13-open-decis
 | 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 THVD1400 ~0.7 mA typ / ~0.9 mA max RX-only (D34) + RTC <100 µA + display side ~5 mA at 24 V conv. + sense 22 µA ≈ 43.5 mA × 24 V | **~1.05 W** | ±5 % vs power_budget.md (~1.0 W table / 1.1 W daily headline). **No idle bias anywhere by default** — battery-side removed (DR-4b), display-side R3/R4 DNP (iter-12 F12; THVD1400 Full Fail-Safe RX needs none) |
 | 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + display unchanged (~5 mA at 24 V conv.) + sense 22 µA | **~0.30 W** | vs power_budget.md 0.31 W. No bias term (R3/R4 DNP per iter-12 F12) |
 | 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + RV-3028 ~45 nA (negligible; D23) + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Display still up (Q1 ON) |
-| 4 — Hard cut | < 10 % | **Native-domain sum with datasheet max where spec'd + explicit engineering margin where max isn't published (iter-6 F03 + iter-10 F08 + iter-12 F13 + iter-14 F16 wording sweep).** V24-side: LM5166 Iq **15 µA max** × 24 V = **0.36 mW** + V24 sense divider 24²/1.3 MΩ = **0.44 mW** + UVLO divider 4.6 µA × 24 V = **0.11 mW**. 3.3 V-side (load): ESP deep-sleep 10 µA typ + **5 µA engineering margin** (Espressif ES Table 6-7 lists 7-8 µA typ, no spec max; citation corrected 2026-07-14) + U4 TPS3808 **5 µA max** + U6 TPS2116 **4.5 µA max** + U3 THVD1400 shutdown **1 µA max** + RV-3028 RTC 45 nA typ / 60 nA max @ 3 V per its EC table (D23; prior off-file-AN citation corrected 2026-07-14; well under µW floor) ≈ **25.6 µA** at load × 3.3 V = 84 µW → **~0.17 mW referred through U1 at η ≈ 50 %** conservative. Display shed (Q1 OFF), **but Q1-OFF is not zero (F64/F65):** Q1 IDSS + the Q2 gate-net leakage add ~0.05 mW @25 °C, rising to ~0.45 mW @60 °C (power_budget.md State 4). | **~1.08 mW** (~1.1 mW headline, max where spec'd) | Uses **datasheet max where spec'd** (U1/U4/U6/U3); **typ + explicit engineering margin** where no max is published (ESP32-S3 Deep-sleep); **typ** for RTC (datasheet max 60 nA is under the µW floor). Iter-12 F13 caught that my prior "max throughout" claim was actually mixing typ + max; iter-14 F16 tightened this wording across D34 / DR-25 / power_budget.md so all four sites match. Full native+referred table in `docs/hardware/power_budget.md`. |
+| 4 — Hard cut | < 10 % | **Native-domain sum with datasheet max where spec'd + explicit engineering margin where max isn't published (iter-6 F03 + iter-10 F08 + iter-12 F13 + iter-14 F16 wording sweep).** V24-side: LM5166 Iq **15 µA max** × 24 V = **0.36 mW** + V24 sense divider 24²/1.3 MΩ = **0.44 mW** + UVLO divider 4.6 µA × 24 V = **0.11 mW**. 3.3 V-side (load): ESP deep-sleep 10 µA typ + **5 µA engineering margin** (Espressif ES Table 6-7 lists 7-8 µA typ, no spec max; citation corrected 2026-07-14) + U4 TPS3808 **5 µA max** + U6 TPS2116 **4.5 µA max** + U3 THVD1400 shutdown **1 µA max** + RV-3028 RTC 45 nA typ / 60 nA max @ 3 V per its EC table (D23; prior off-file-AN citation corrected 2026-07-14; well under µW floor) ≈ **25.6 µA** at load × 3.3 V = 84 µW → **~0.17 mW referred through U1 at η ≈ 50 %** conservative. Display shed (Q1 OFF), **but Q1-OFF is not zero (F65/F68):** Q1 IDSS (10 µA max @55 °C guaranteed → 0.24 mW) + Q2 (MMBT5551 BJT) ICBO (≤100 nA @100 °C guaranteed → negligible) (power_budget.md State 4). | **~1.13 mW @25 °C / ~1.35 mW @55 °C** (guaranteed rows) | Uses **datasheet max where spec'd** (U1/U4/U6/U3); **typ + explicit engineering margin** where no max is published (ESP32-S3 Deep-sleep); **typ** for RTC (datasheet max 60 nA is under the µW floor). Iter-12 F13 caught that my prior "max throughout" claim was actually mixing typ + max; iter-14 F16 tightened this wording across D34 / DR-25 / power_budget.md so all four sites match. Full native+referred table in `docs/hardware/power_budget.md`. |
 
-State 4 budget: at **~1.08 mW** deep-sleep (~1.1 mW headline, using
+State 4 budget: at **~1.13 mW @25 °C / ~1.35 mW @55 °C** deep-sleep (using
 datasheet-max Iq where spec'd + explicit ESP engineering margin per
 iter-12 F13); the EN-asserted hardware floor (U4 tripped + MCU in
 reset) is only marginally lower at **~0.98 mW** since V24-side terms
@@ -572,18 +582,18 @@ judged the extra part not worth it.
 **Topology** (D19/DR-4): a P-FET high-side load switch on the **switched
 branch only** — it gates U2 (the 12 V/display feed), **not** the MCU. The
 MCU rail (U1 LM5166) is always-on and never behind Q1. Q1 (Si2309CDS,
-60 V P-FET) passes V24_FUSED → V24_SW; Q2 (2N7002, 60 V N-FET) drives Q1's
+60 V P-FET) passes V24_FUSED → V24_SW; Q2 (MMBT5551, 160 V NPN BJT — F68) drives Q1's
 gate from ESP GPIO4 (`PWR_EN`, active-HIGH); the R3/Rg divider (+ DZ1 backstop) bounds Vgs
 Q1's gate-source voltage.
 
 ```
 V24_FUSED ──┬──── ALWAYS-ON: U1 (LM5166 → 3V3 MCU rail), TVS1, R5/R6, R3
             │
-            │  R3 [100 kΩ gate pull-up → source]   DZ1 [12V] clamps Vgs
+            │  R3 [10 kΩ gate pull-up → source]   DZ1 [12V] redundant backstop
             ▼
          Q1 [P-FET 60V] ──── V24_SW ──► U2 (R-78HB12 → 12V → Cat5e → display)
               │
-              gate ◄── Rg [33k] ◄── Q2 [N-FET 60V] drain
+              gate ◄── Rg [33k] ◄── Q2 [MMBT5551 NPN 160V] collector
                                         source ── GND
                                         gate   ◄── PWR_EN (ESP IO4) + R4 [100 kΩ pulldown]
 ```
@@ -607,7 +617,7 @@ V24_FUSED ──┬──── ALWAYS-ON: U1 (LM5166 → 3V3 MCU rail), TVS1, R
   transients — F60); without any network, pulling Q1's gate toward GND
   drove Vgs to −V24 ≈ −29 V (vs the Si2309CDS ±20 V max) — a latent
   gate-oxide failure in the old design.
-- 60 V Q1/Q2 survive the ~53 V clamp; the old 30 V AO340x parts did not.
+- Q1 (60 V) and Q2 (MMBT5551, 160 V) survive the ~53 V clamp; the old 30 V AO340x parts did not.
 
 **V12 (Cat5e/display) policy**:
 - **State 3 (deep-sleep, 10–15 % SOC)**: Q1 ON — display up at a slower
@@ -726,7 +736,7 @@ margin.
 | ~~**D-OPEN-2**~~ (**closed by D34, 2026-07-02**) | ~~SN65HVD3082E vs lower-Iq alternative (ISL3175E)?~~ Superseded: **SN65HVD3082E was a 5 V part** (reviewer iter-8 F05); iter-8 first cut picked ISL3175EIBZ but iter-10 F08 caught its 12 µA max shutdown (typ-vs-max misquote); reselected to **THVD1400DR** on max-to-max comparison (1 µA max shutdown, 12× better). See D34. |
 | **D-OPEN-3**  | Internal ESP32 ADC vs external supervisor IC (TPS3839) for ULP voltage monitoring? | **Internal ADC** — saves $1.50 + footprint; ULP draws ~10 µA which dominates over the regulator Iq anyway |
 | ~~D-OPEN-5~~  | ~~Hard-cut topology~~ — **RESOLVED 2026-05-23 (post-CP1 agent-reviewer Finding 01)**: original P-FET in the 24 V path. Topology described in §8. No EN-pin alternative |
-| **D-OPEN-6**  | Q1 gate pull-up value — 10 kΩ (~2.4 mA) vs 100 kΩ (~240 µA) vs 1 MΩ (~24 µA)? | **100 kΩ** — balance of fast turn-OFF (RC ~33 µs) and low idle current |
+| **D-OPEN-6**  | Q1 gate pull-up (R3) value | **10 kΩ** (resolved iter-42/44, F64/F68): with the BJT driver the divider ratio R3/Rg sets Vgs, and R3 = 10 kΩ keeps the divider well-defined; idle current is active-only (19.8 mW Q1-ON, ~0 hard-cut). Superseded the earlier 100 kΩ tentative pick. |
 | **D-OPEN-7a** | **Deep-sleep V12 policy** — should the 12 V Cat5e rail be kept alive in State 3 (10–15 % SOC, deep-sleep)? | **Yes** — Q1 stays ON in deep-sleep; display side sees slow-cadence frames and can show "LOW PACK" banner. Cost: ~5 mA × 24 V continuous via V24_SW |
 | **D-OPEN-7b** | **Hard-cut V12 policy** — should the 12 V Cat5e rail die in State 4 (<10 % SOC, hard-cut)? | **Yes (forced OFF)** — Q1 OFF kills V24_SW which kills V12. Required to preserve the State 4 ≤5 mW pack-draw target. Display side goes dark; ESP NVS preserves its last-rendered screen for the next State-1 recovery |
 

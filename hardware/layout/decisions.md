@@ -1183,9 +1183,10 @@ coordination defects together.
   also found NRND. See cp1_bom.]*
   Add a **gate-source divider (R3 10 kΩ / Rg 33 kΩ) + Zener backstop
   (~12 V)** so Vgs stays in range regardless of bus voltage (the superseded
-  AO3401A's ±12 V Vgs was driven to −29 V — the pre-clamp defect). The gate-driver N-FET also sees the high
-  rail, so Q2 = **60 V N-FET** (2N7002). Q1 now switches only U2/the
-  display feed.
+  AO3401A's ±12 V Vgs was driven to −29 V — the pre-clamp defect). The gate driver's collector also sees the high
+  rail, so Q2 = **160 V NPN BJT** (MMBT5551; iter-44 F68 — was a 60 V
+  2N7002 until the BJT replaced it for guaranteed ON/OFF, below). Q1 now
+  switches only U2/the display feed.
 
   *[Gate-network derivation, iter-40→iter-42 (F60→F64) — the superseded
   1 kΩ Rg made the Zener clamp a **continuous ~0.5 W path** whenever Q1
@@ -1202,16 +1203,25 @@ coordination defects together.
     Vgs = V24·R3/(R3+Rg) = **6.8 V @29.2 V / 4.9 V @21 V floor /
     12.4 V @53.3 V surge** — all < ±20 V (38 % margin at surge), at/above
     the −4.5 V RDS spec point.
-  - **Q2 OFF-leakage immunity:** Vgs_off = I_L(Q2)·R3 ≤ **0.42 V @85 °C**
-    (2N7002L IDSS 1 µA@25 °C → 500 µA@125 °C envelope) < the 1 V min Vth
-    → Q1 stays off across the operating range; the small R3 buys this.
-  - DZ1 (BZX84C12) is now a **pure redundant backstop** — off at the
-    6.8 V DC point, and not needed for the surge bracket.
+  - **Guaranteed ON/OFF via a BJT driver (iter-44 F68 — supersedes the
+    iter-42 2N7002 analysis, whose 3.3 V on-state and 85 °C off-leakage
+    were both un-guaranteed interpolations):** Q2 = **MMBT5551 NPN**,
+    base ← R_base 47 kΩ ← ESP PWR_EN. **ON:** the BJT saturates from
+    base current (Ib 55 µA, forced β 9–12 ≪ hFE 60), **VCE(sat) ≤0.25 V
+    guaranteed**, so the divider reaches its computed Vgs — no reliance
+    on an unspecified FET RDS at 3.3 V. **OFF:** collector cutoff **ICBO
+    ≤100 nA @ TA=100 °C guaranteed** → Vgs_off = ICBO·R3 ≤ **1 mV @100 °C**
+    (1000× below the 1 V min Vth), no interpolation, guaranteed across
+    temperature.
+  - DZ1 (BZX84C12) is a **pure redundant backstop** — off at the 6.8 V
+    DC point, not needed for the surge bracket.
   - Standing **679 µA → 19.8 mW pack burden while Q1 is ON, ~0 in
-    hard-cut** (only Q2 leakage flows when Q1 off — a State-4 term,
-    power_budget.md); P_Rg 15.2 mW, P_R3 4.6 mW — far under 0805.
-    Turn-on τ ≈ 1.5 µs. Fail-safe unchanged: Q2 off → R3 pulls gate to
-    source → Q1 off. Exact SKUs: R3 = RMCF0805FT10K0CT-ND /
+    hard-cut** (only Q2's ICBO ≤100 nA flows when Q1 off — a negligible
+    State-4 term, power_budget.md); P_Rg 15.2 mW, P_R3 4.6 mW — far
+    under 0805. Fail-safe unchanged: PWR_EN low → Q2 off → R3 pulls gate
+    to source → Q1 off. Exact SKUs: Q2 = MMBT5551LT1GOSCT-ND /
+    863-MMBT5551LT1G, R_base = RMCF0805FT47K0CT-ND / 71-CRCW0805-47K-E3,
+    R3 = RMCF0805FT10K0CT-ND /
     71-CRCW0805-10K-E3, Rg = RMCF0805FT33K0CT-ND / 71-CRCW0805-33K-E3
     (resolve-exact 2026-07-17). The 19.8 mW is active-only (States 1–3);
     it does not touch the hard-cut floor.]*
@@ -1482,7 +1492,7 @@ high-Z node; final E96 values + bench hysteresis check at CP2.
 Iq max 15 µA × 24 V = **~0.36 mW** + V24 sense divider **~0.44 mW** +
 ESP32-S3 Deep-sleep 10 µA typ + **5 µA engineering margin** (Espressif
 does not publish a spec max) + D29 mux max 4.5 µA + U3 THVD1400
-shutdown max 1 µA gives **hard-cut ≈ ~1.08 mW** total from pack
+shutdown max 1 µA gives **hard-cut ≈ ~1.13 mW @25 °C / ~1.35 mW @55 °C** total from pack
 (~1.1 mW headline; see `docs/hardware/power_budget.md` State 4 for the
 full table with per-row typ vs max annotations). The EN-asserted floor
 state (chip in reset, ESP off) drops the ESP ~99 µW referred term and
@@ -1911,7 +1921,7 @@ margin where no max is published** (iter-12 F13 caught that my earlier
 "max throughout" claim was still using typical values for U1/U4/U6, and
 iter-14 F16 flagged one remaining "throughout" phrasing here; this is
 the corrected convention used everywhere in the CP1 documents):
-**~1.08 mW total (~1.1 mW headline)** with LM5166 **15 µA max** +
+**~1.13 mW @25 °C / ~1.35 mW @55 °C total** with LM5166 **15 µA max** +
 TPS3808 **5 µA max** + TPS2116 **4.5 µA max** + THVD1400 **1 µA max**
 + ESP32-S3 Deep-sleep 10 µA typ + 5 µA engineering margin (Espressif
 does not publish a spec max for Deep-sleep in ES Table 6-7 [citation corrected 2026-07-14]). ([[power-first]])
@@ -2104,7 +2114,7 @@ the transport differs from BLE. **ADM2587E ICC = 90 mA @ 3.3 V/100 Ω**
 (Rev H Table 1; **iter-30 F28 corrected the first draft's 72 mA**, which
 is the 5 V row — isoPower dominates whenever VCC is applied) → gating is
 essential; gated ~0.5 % duty → **~1.5 mW average** in polling states
-(~0.17 % of State-1). States 3–4 unpowered → **hard-cut ~1.08 mW
+(~0.17 % of State-1). States 3–4 unpowered → **hard-cut ~1.13 mW @25 °C / ~1.35 mW @55 °C
 unchanged**, contingent on the §2a off-state contract (F30) + a
 default-off load switch. **Shared-UART off-state (F30):** per-channel
 dedicated DI/DE/RO on the ESP, matrix-muxed, inactive pins held high-Z —

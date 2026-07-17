@@ -375,6 +375,32 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "REVIEWER part list = NTR4171P; State-4 Q1-OFF ≠ 0",
      "F67: REVIEWER.md still named DMG3415U; State-4 treated Q1-OFF as "
      "zero (it has Q1/Q2 leakage terms)"),
+    # iter-43 reviewer findings (F68-F71, addressed iter-44):
+    (r"gate-driver N-FET|Q2 = \*\*60 V N-FET|Q2 \(2N7002, 60|"
+     r"Q2 \[N-FET|60 V N-FET.{0,10}\(2N7002",
+     "Q2 = MMBT5551 NPN BJT (F68)",
+     "F68: the 2N7002 gate driver had no guaranteed on-state at 3.3 V and "
+     "no temp-bounded off-leakage → MMBT5551 BJT (VCE(sat) guaranteed, "
+     "ICBO ≤100 nA@100 °C). (2N7002 stays LIVE for Q3/Q4 — do not "
+     "blanket-replace.)"),
+    (r"Vgs_off = I_L\(Q2\)·R3.{0,40}2N7002L|0\.42 V @ ?85 °C.{0,20}2N7002|"
+     r"2N7002L IDSS envelope",
+     "BJT ICBO ≤100 nA@100 °C (F68)",
+     "F68: the 2N7002 OFF-leakage interpolation is retired; the BJT's "
+     "ICBO is a guaranteed 100 °C row"),
+    (r"100 kΩ pull-up: Q1 gate|R3 \[100 kΩ|DZ1 \[12V\] clamps|"
+     r"DZ1 clamps Vgs|holds (Q1 )?Vgs ≤ ?12 V|DZ1 12 V clamp scheme unchanged",
+     "R3 10 kΩ; DZ1 redundant backstop (F64/F70)",
+     "F70: stale R3=100k and DZ1-clamps-Vgs claims across battery-side/"
+     "bom/manifest → R3 10 kΩ, DZ1 is a redundant backstop"),
+    (r"~?1\.08 mW|~?1\.5 mW @ ?60 °C|~?0\.45 mW @ ?60 °C",
+     "~1.13 mW @25 °C / ~1.35 mW @55 °C (guaranteed rows)",
+     "F69: the ~1.08 mW headline predated the Q1/Q2 leakage rows; the "
+     "'~1.5 mW @60 °C' was an interpolation → guaranteed 55 °C bound"),
+    (r"\(same as R3\)|R4.{0,20}same as R3",
+     "explicit reverse-resolved SKU",
+     "F71: forbid same-as inheritance when the referenced row's value "
+     "changed (R4 100k inherited R3's new 10k cells)"),
 ]
 
 # ---------------------------------------------------------------------------

@@ -92,10 +92,10 @@ convention used everywhere in the CP1 documents.)*
 | U6 TPS2116 mux Iq (Vout = 3.3 V, `IQ,VIN2`) | 1.35 µA typ / **4.5 µA max** over -40 to 105 °C (~15 µW at max) | ~0.03 mW (η ≈ 50 %) |
 | U3 THVD1400DR RS-485 xcvr (D34, shutdown via DE=0+/RE=1) | 100 nA typ / **1 µA max** @ 3.3 V (~3.3 µW at max) | ~7 µW (η ≈ 50 %; below rounding) |
 | RV-3028-C7 RTC (D23; VDD on V3V3)         | 45 nA typ / **60 nA max** @ 3 V, 25 °C (datasheet EC table; prior "≤200 nA per AN" cited an off-file document — corrected 2026-07-14); ~150 nW at typ | ~0.3 µW (η ≈ 50 %; below rounding) |
-| Q1 (Si2309CDS) OFF **drain** leakage IDSS into the shed U2 branch (F65) | 1 µA **max @25 °C** / 10 µA @TJ=55 °C (68980 p.2) | ~0.02 mW @25 °C (→ ~0.24 mW @55 °C) |
-| Q1 gate network: Q2 (2N7002L) OFF leakage through R3+Rg from the pack (F64) | 1 µA **max @25 °C** / ~9 µA @60 °C (500 µA @125 °C envelope) | ~0.02 mW @25 °C (→ ~0.21 mW @60 °C) |
+| Q1 (Si2309CDS) OFF **drain** leakage IDSS into the shed U2 branch (F65) | 1 µA **max @25 °C** / **10 µA max @TJ=55 °C** (68980 p.2, guaranteed) | ~0.02 mW @25 °C / **~0.24 mW @55 °C** |
+| Q1 gate driver: Q2 (MMBT5551 BJT) OFF collector cutoff ICBO (F68) | **≤100 nA @ TA=100 °C** (guaranteed row) | ≤0.0024 mW (negligible, guaranteed to 100 °C) |
 | Rest of display side (U2 shed)           | 0                                        | 0                       |
-| **Total from pack (max Iq where spec'd + ESP margin)** |                                | **~1.1 mW @25 °C** |
+| **Total from pack** |  | **~1.13 mW @25 °C · ~1.35 mW @55 °C (both guaranteed rows)** |
 
 The 3.3 V load-referred conversion uses a deliberately conservative
 **η ≈ 50 %** light-load efficiency for the LM5166 at ~25 µA of output
@@ -103,16 +103,19 @@ load — LM5166's datasheet plots hit ~60–80 % at this current, so this
 row is upper-bound. Even at η = 65 % the total is **~1.05 mW**; at
 η = 80 % it drops to ~1.02 mW. Call it **~1.1 mW** headline honestly.
 
-**Temperature dependence of the Q1/Q2 OFF-leakage terms (F64/F65).**
-The two new leakage rows are ~1 µA each at 25 °C (negligible, folded into
-the ~1.1 mW headline) but rise with junction temperature: at a ~55–60 °C
-enclosure worst case they reach ~0.24 mW (Q1 IDSS) + ~0.21 mW (Q2
-gate-net) ≈ **0.45 mW**, so the honest **elevated-temperature bound is
-~1.5 mW @ 60 °C**. This is bounded, not eliminated, and its absolute
-battery impact is nil — even 2 mW continuous on the 24 V/200 Ah
-(≈4.8 kWh) stack is centuries of runtime; the value matters as a
-power-first discipline (every µA accounted), not as a life-limiter.
-Q1 OFF ≠ 0 (the earlier "display side 0" row was wrong — F65).
+**Temperature dependence of the OFF-leakage terms — now a guaranteed
+bound (F65/F68/F69).** Q1's OFF drain leakage rises with temperature but
+Vishay guarantees the elevated-temp row (**10 µA max @55 °C**), so
+~0.24 mW @55 °C is a *datasheet* bound, not an interpolation. The Q2
+term used to be the interpolation problem (a 2N7002 with IDSS bounded
+only at 25/125 °C); **F68 replaced Q2 with an MMBT5551 BJT whose ICBO is
+guaranteed ≤100 nA at 100 °C**, so its contribution is ≤2.4 µW,
+negligible and guaranteed well above any enclosure temperature. Result:
+State-4 is **~1.13 mW @25 °C, ~1.35 mW @55 °C — both from guaranteed
+datasheet rows** (no interpolation, no "60 °C estimate"). Absolute
+battery impact is nil (even 2 mW on the ≈4.8 kWh stack is centuries);
+the value matters as power-first discipline. Q1 OFF ≠ 0 (the earlier
+"display side 0" row was wrong — F65).
 
 **Honesty about typ vs max (reviewer iter-12 F13).** Prior versions of
 this table claimed "max throughout" but several rows were actually
@@ -186,7 +189,7 @@ Assuming a fully charged 200 Ah pack with no other loads:
 | Normal (state 1)                   | 1.1 W      | ~340 days           |
 | Low (state 2)                      | 0.31 W     | ~1,200 days         |
 | Deep sleep (state 3)               | 0.13 W     | ~2,800 days         |
-| Hard cut (state 4)                 | ~1.08 mW (max Iq + ESP margin per iter-12 F13) | decades (self-discharge dominates first) |
+| Hard cut (state 4)                 | ~1.13 mW @25 °C / ~1.35 mW @55 °C (guaranteed rows incl. Q1 IDSS + Q2 BJT ICBO — F65/F68) | decades (self-discharge dominates first) |
 
 These are upper bounds — in reality the inverter idle is dozens of watts,
 the cabin's fridge is ~5 A intermittent, etc. The monitor is rounding
