@@ -803,9 +803,12 @@ adapter directly."* → RS-485 (not TTL), 2-wire/no-ground, A/B on RJ45
 closest to the negative terminal. **CAN pin-domain resolved**: the
 thread's "pin 1 and 2" is the battery-side connector (owner's 2023-12-27
 question is explicit); RJ45 side is 4/5 per the label — consistent.
-**Connector per owner-reported inspection** (2026-07-16, photos not committed): 4-pin circular
-threaded-collar aviation-style ×2 per pack; vendor never supplied the
-PN — caliper on-site; not load-bearing. The isolated ADM2587E front-end
+**Connector measured 2026-07-17** (cable photos on file): 4-position
+M12-pattern screw coupling, ~12.3 mm thread ID, numbered 1→4 CCW; full
+conductor map beeped out (battery 1/2 = CAN-H/L → RJ45 4/6; battery
+3/4 = RS-485 A/B → RJ45 7/8); purchased cable ends RJ45-male → direct
+mate. Vendor PN never supplied — not load-bearing. On-site side-item
+remaining: which socket per pack. The isolated ADM2587E front-end
 is the correct circuit class under this premise.
 **DR-26 stays OPEN and GATING on the ~2-week on-site test** — the test
 decides whether the floating island needs a local reference/bleed;

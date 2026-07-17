@@ -12,11 +12,14 @@ themselves — copy relevant excerpts into our own docs (`reliability_failure_mo
 > (headers + complete bodies; see
 > [`volthium-rs485-correspondence-2024.md`](volthium-rs485-correspondence-2024.md)
 > for the dated fact table). Resolutions of the two earlier ambiguities:
-> (1) the pack connector is a **4-pin circular threaded-collar
-> aviation-style socket** (owner-reported inspection of the actual Loon Lake packs +
-> vendor cable, 2026-07-16 — photos not committed) — the vendor's "XLR" is colloquial and the
-> earlier "M12" reading of the Pro-Series photo was the same shape guessed
-> differently; exact PN = on-site caliper (vendor never supplied it).
+> (1) the pack connector is a **4-position M12-pattern screw-coupling
+> interface** — measured 2026-07-17 (coupling-thread ID ≈ 12.3 mm =
+> M12×1; insert numbered 1→4 CCW, notch between 1/4; cable photos ON
+> FILE in [`images/`](images/)) — the vendor's "XLR" was colloquial and
+> this directory's original "4-socket M12" description was closest all
+> along; vendor PN never supplied (curiosity only — we mate at the RJ45
+> end, and the purchased cable's client end is an **RJ45 male** that
+> plugs into our jack directly).
 > (2) the **CAN "pin 1 and 2" is the battery-side connector domain** (the
 > thread context is explicit), so it **does not conflict** with this
 > directory's photographed label putting CAN-H/L on RJ45 4/5 — one cable
@@ -36,9 +39,11 @@ files cover them end-to-end:
 
 The pack can even do the last two simultaneously via the RJ45 adapter —
 the photographed Pro-Series label puts RS-485-A/B on pins 7/8 (verified
-in the thread too) and CAN-H/L on RJ45 pins 4/5 (consistent with the
-thread's battery-side "pin 1 and 2" — different connector domains; see
-the banner above).
+in the thread AND by the owner's 2026-07-17 continuity beep-out) and
+CAN-H/L on RJ45 pins 4/5 — **label-specific: the owner's purchased cable
+measures CAN-L to RJ45 6, not 5** (battery 1→RJ45 4, 2→6, 3→7, 4→8;
+different cable products differ — use the measured map of the cable in
+service).
 
 ## Files
 

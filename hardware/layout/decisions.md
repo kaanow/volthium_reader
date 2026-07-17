@@ -2102,11 +2102,13 @@ F37/F47;** see design §7 + the transcript
 verified verbatim, 2024-03-28 — *"Use a Standard RS485 adapter with
 A & B. No ground need. Don't use a TTL 3.3V adapter directly."* So:
 RS-485 (not TTL), 2-wire/no-ground, A/B on RJ45 **7/8** (double-sourced);
-socket closest to the negative terminal (2024-01-15). Pack connector per
-**owner-reported inspection** (2026-07-16, photos not committed): 4-pin circular threaded-collar
-aviation-style, two per pack — vendor's "XLR" is colloquial; exact PN
-never supplied by the vendor, caliper on-site; not load-bearing (we mate
-at the RJ45). The ADM2587E isolated front-end is the correct circuit
+socket closest to the negative terminal (2024-01-15). Pack connector
+**measured 2026-07-17 (cable photos on file, docs/vendor/images/)**:
+4-position **M12-pattern** screw coupling (~12.3 mm thread ID), insert
+numbered 1→4 CCW; full conductor map beeped out — battery 1/2 = CAN-H/L
+→ RJ45 4/6, battery 3/4 = RS-485 A/B → RJ45 7/8; the purchased cable
+ends in an **RJ45 male** (mates our jack directly, no patch cable).
+Vendor PN never supplied — not load-bearing (we mate at the RJ45). The ADM2587E isolated front-end is the correct circuit
 class under this premise. **The ~2-week on-site test remains
 TOPOLOGY-GATING (F47):** it decides whether the floating island needs a
 local reference/bleed — pass limits and the DNP fallback circuit are

@@ -4174,3 +4174,33 @@ anyone.
 
 **Handing back for iteration 39 re-verify.** Still open by design: the
 F47/F52 on-site two-domain matrix (~2 weeks) gating D36/DR-26.
+
+### 33.1 Out-of-band evidence addendum (2026-07-17, owner bench work — pre-iter-39)
+
+The owner purchased and bench-characterized the actual vendor cables.
+Folded in before your pass so no known-stale statement survives review:
+
+- **Connector identified (family level): 4-position M12-pattern
+  screw-coupling** — coupling-thread ID ≈ 12.3 mm (M12×1), molded
+  cordset, insert numbered 1→4 CCW, keying notch between 1/4. **Two
+  photos committed** (`docs/vendor/images/`) — these connector claims
+  upgrade from owner-reported to on-file (the pack-face photos remain
+  uncommitted/owner-reported). The repo's *original* "4-socket M12"
+  reading was the closest description; the vendor's "XLR" was colloquial.
+- **Full conductor map measured (multimeter continuity, rung-1):**
+  battery 1→RJ45 4, 2→6, 3→7, 4→8. With the thread's battery-side
+  CAN-1/2: battery 1 = CAN-H (RJ45 4), 2 = CAN-L (RJ45 **6**),
+  3 = RS-485 A (RJ45 7), 4 = RS-485 B (RJ45 8). **The in-service cable
+  contradicts the Pro-Series label's CAN 4/5** — your F45 refusal to
+  generalize one artifact's mapping is now empirically vindicated; live
+  docs now say "follow the measured map of the cable in service."
+  RS-485 on 7/8 gains a third independent confirmation.
+- **The purchased cable ends in an RJ45 *male* plug** → mates our
+  RJHSE-5380 directly; the "straight patch cable" link in the chain is
+  deleted from live docs (it described the email's $10 RJ45-female
+  variant).
+- On-site list shrinks to: the §7 two-domain matrix (gating) + which
+  socket carries RS-485 per pack (side-item). Connector caliper/ID and
+  the patch-cable check are closed. Four new registry rows cover the
+  superseded forms (label-4/5 guidance, patch-cable chain, on-site
+  caliper, "aviation-style"); all verified firing on pre-fix text.

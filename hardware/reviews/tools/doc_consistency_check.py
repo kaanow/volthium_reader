@@ -300,6 +300,25 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "~$57.4 delta / ~$249.4 total",
      "F57 repricing: DMG3415U $0.72 x3 + Si2309CDS $1.39 replaced the "
      "NRND ZXMP6A13F lines"),
+    # 2026-07-17 owner bench measurements (cable in hand — post-iter-38):
+    (r"follow the RJ45-side label \(4/5\)",
+     "measured map of the in-service cable (battery 1/2=CAN-H/L -> RJ45 4/6)",
+     "Owner beep-out 2026-07-17: the purchased cable wires CAN-L to RJ45 6, "
+     "not 5 — the Pro-Series label describes a different product"),
+    (r"via a straight patch cable|patch-cable straight-through|"
+     r"RJ45 patch → our",
+     "vendor cable ends in an RJ45 MALE plug — direct mate, no patch",
+     "Owner cable photos 2026-07-17: the purchased cable's client end is "
+     "RJ45 male; the email's RJ45-female description was the $10 variant"),
+    (r"caliper( the pack connector|/ID)? on-site|on-site caliper|"
+     r"caliper on-site",
+     "measured 2026-07-17: M12-pattern, ~12.3 mm coupling-thread ID",
+     "Connector family/dimensions closed on the bench; only "
+     "which-socket-per-pack remains an on-site item"),
+    (r"threaded[- ]collar aviation[- ]style|aviation-style (metal )?plug",
+     "M12-pattern screw-coupling (measured; photos on file)",
+     "The 12.3 mm thread + numbered molded insert identify the M12 "
+     "pattern; 'aviation-style' was the interim family guess"),
 ]
 
 # ---------------------------------------------------------------------------

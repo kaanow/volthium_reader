@@ -32,5 +32,14 @@ note: >
   gate caught 3 stragglers itself incl. REVIEWER.md's part list; the
   AO3401A row's current token chain-updated (noted in-code). D35 exit 0.
   On-site two-domain matrix (~2 wks) still gates D36/DR-26.
+  ADDENDUM (same handoff, pre-review): owner bench-characterized the
+  purchased vendor cables — connector = 4-pos M12-pattern (~12.3 mm
+  thread, insert numbered 1-4 CCW; 2 photos COMMITTED docs/vendor/
+  images/); full conductor map measured: battery 1/2=CAN-H/L -> RJ45
+  4/6 (label's 4/5 is a different product — F45 vindicated), battery
+  3/4 = A/B -> RJ45 7/8 (third confirmation); cable ends RJ45-MALE ->
+  direct mate, no patch cable. Docs folded (packet §33.1); 4 more
+  registry rows, all verified firing. On-site list now: matrix +
+  which-socket only. D35 exit 0.
 
 user_pause_reasons_seen_this_run: []
