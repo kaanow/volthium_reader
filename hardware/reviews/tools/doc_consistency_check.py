@@ -51,6 +51,10 @@ LIVE_DOCS = [
     "docs/firmware/architecture.md",
     "docs/firmware/state_machine.md",
     "docs/firmware/ble_flap_recovery.md",
+    # iter-34 F46: the vendor docs carried live M12/CAN-4-5 drift the
+    # checker couldn't see — they are live interface references, scan them.
+    "docs/vendor/README.md",
+    "docs/vendor/volthium-rs485-correspondence-2024.md",
 ]
 
 # Files that are history-bearing records end-to-end: hits allowed.
@@ -173,6 +177,47 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
     (r"VISOIN pin 11|VISOOUT pin 12 ↔ VISOIN",
      "GND2 pin 11 / VISOIN pin 19",
      "F35: pin 11 is GND2 (not VISOIN); VISOIN is pin 19"),
+    # iter-33 reviewer findings (F43-F50, addressed iter-34):
+    (r"11\+14 → PCB isolated ground|GND2 isoPower return \(Fig 35\)",
+     "GND2_DCDC / ISO_BUS_GND",
+     "F43: isolated grounds are TWO nets — GND2_DCDC (11+14) and "
+     "ISO_BUS_GND (16+20 + plane), L2 the only tie (Rev H p.8/p.17)"),
+    (r"series R as a coordinated pair|re-verify residual < ?14 V|"
+     r"needs series R to protect",
+     "DNP / intentionally unprotected",
+     "F44: a series R cannot coordinate into a high-Z pin (no published "
+     "ADM2587E injection rating); port is DNP + honestly unprotected"),
+    (r"correspondence.{0,60}\(authoritative\)|authoritative vendor statement",
+     "owner-supplied summary",
+     "F45: the vendor-email Markdown is an owner-written summary — "
+     "'owner-reported' evidence until the original thread is committed"),
+    (r"CAN[- ]?H/L on (pins )?4/5(?!.{0,80}unresolved)|"
+     r"pins? 1/2 \(vendor-confirmed|CAN is on pins 1 \(H\)",
+     "CAN mapping UNRESOLVED",
+     "F45/F46: photo label says RJ45 4/5; email says 'pin 1 and 2' with "
+     "the connector unnamed — neither is a confirmed fact yet"),
+    (r"4-socket M12(?![- ]style)|two M12 sockets",
+     "connector family unresolved (on-site ID)",
+     "F46: email says XLR, photo shows M12-style — describe as "
+     "'M12-style (photographed)' and keep the family open until on-site"),
+    (r"no longer topology-gating|no circuit change (is )?expected",
+     "TOPOLOGY-GATING on-site test",
+     "F47: the on-site top-pack/common-mode test decides the reference/"
+     "bleed question — D36/DR-26 stay gated until it passes (design §7)"),
+    (r"≤ ?1\.65 µW|rail is \*?dead\*? in (State 4|hard-cut)",
+     "≤5 µW testable off-state contract",
+     "F48: budget must count 2N7002 IDSS (≤1 µA) + P-FET (≤0.5 µA); "
+     "'dead' replaced by pull-ups-on-switched-rail + high-Z + bleed + "
+     "≤50 mV/≤1.5 µA acceptance contract"),
+    (r"≤ ?50 mA rail|1 A/ckt|50079-class pre-crimp",
+     "PS-51021-009: 1.0 A @ AWG 26-28; mate = 0151340801 OTS assembly",
+     "F49: no 50 mA limiter exists; rating now sourced from PS-51021-009 "
+     "(on file); loose 50079-8000 has 25k MOQ — qty-1 mate is the OTS "
+     "cable assembly 0151340801 (DK WM15273-ND)"),
+    (r"Q_exp \$0\.20|~\$55\.7|\+~\$56\b|(?<!\d)\$248\b",
+     "~$57 delta / ~$249 total",
+     "F50: delta recomputed from populated BOM rows — two full FET pairs "
+     "$1.00 + Q_exp $0.50 (+R_exp_bleed) → ~$56.7 ≈ $57"),
 ]
 
 # ---------------------------------------------------------------------------

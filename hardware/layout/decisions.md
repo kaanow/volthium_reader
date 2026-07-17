@@ -2069,9 +2069,13 @@ dedicated DI/DE/RO on the ESP, matrix-muxed, inactive pins held high-Z —
 no reliance on the ADM2587E's unspecified VCC=0 behavior. **isoPower
 support network (F32):** full bypass/ferrite/stitching set + a binding
 CP2/CP3 isolation-keepout contract (design §3).
-Connectors: 2× RJHSE-5380 RJ45 (mate the vendor XLR→RJ45 cable; A/B on
-pins 7/8; CAN-H/L on 4/5 to unpopulated pads for a future inverter
-bridge). Bus TVS = SM712 (RS-485-matched −7/+12).
+Connectors: 2× RJHSE-5380 RJ45 (mate the vendor pack-connector→RJ45
+cable; A/B on pins 7/8 — both independent sources agree; **CAN RJ45
+mapping unresolved, F45** — photo label says 4/5, vendor email says
+"pin 1 and 2" without naming the connector; unpopulated CAN pads are
+routed only after the on-site pin-out check). Bus TVS footprints =
+SM712 + series R, **DNP / port intentionally unprotected (F44)** — see
+design §3.
 
 **Reserved, not chosen: CAN for reading.** CAN's role is a future
 pack→Victron-inverter bridge (the vendor CAN doc's purpose); its
@@ -2079,19 +2083,25 @@ common-mode range is worse for a series stack and it carries less
 per-cell detail than the serial protocol. The ESP has a native TWAI/CAN
 controller if that bridge is ever built.
 
-**Interface premise VENDOR-CONFIRMED 2026-07-16** (F37, see design §7 +
-[`vendor/volthium-rs485-correspondence-2024.md`](../../docs/vendor/volthium-rs485-correspondence-2024.md)):
-Volthium — *"Use a Standard RS485 adapter with A & B. No ground need.
-Don't use a TTL 3.3V adapter directly."* So it **is** RS-485 (not TTL),
-2-wire/no-ground, A/B on RJ45 **7/8**; connector is **XLR** (not M12 — the
-old repo note was wrong), socket closest to the negative terminal. The
-ADM2587E isolated front-end is the correct circuit. **Remaining, narrowed
-to the owner's ~2-week on-site visit** (no longer topology-gating, no
-circuit change expected): functional read of the +12 V-referenced top
-pack through its isolated channel + a scope/common-mode measurement to
-confirm no local reference is needed. **DR-26 stays OPEN only for that.**
+**Interface premise — owner-reported vendor guidance, provenance-scoped
+iter-34 (F37/F45/F47;** see design §7 +
+[`vendor/volthium-rs485-correspondence-2024.md`](../../docs/vendor/volthium-rs485-correspondence-2024.md)
+provenance banner): owner-reported Volthium wording — *"Use a Standard
+RS485 adapter with A & B. No ground need. Don't use a TTL 3.3V adapter
+directly."* So the premise is RS-485 (not TTL), 2-wire/no-ground, A/B on
+RJ45 **7/8** (the 7/8 mapping is corroborated by the independent
+photographed adapter label); socket closest to the negative terminal;
+pack connector family unresolved (email "XLR" vs photographed M12-style
+— not load-bearing, we mate at the RJ45). An export of the original
+thread is requested from the owner (F45). The ADM2587E isolated
+front-end is the correct circuit class under this premise. **The
+~2-week on-site test remains TOPOLOGY-GATING (F47):** it decides whether
+the floating island needs a local reference/bleed — pass limits and the
+DNP fallback circuit are specified in design §7; **D36/DR-26 stay gated
+until it passes.**
 **D32 closed 2026-07-16:** ADM2587E + Semtech SM712 datasheets on file,
-read and verified; SM712 DNP by default.
+read and verified; SM712 DNP by default (port intentionally unprotected
+per F44 — no coordinated network exists; see design §3).
 
 **Status.** Extends approved CP1 → needs a **CP1-delta review pass before
 CP2**. Logged as **DR-26**.
@@ -2110,8 +2120,8 @@ nothing is plugged in**.
 | Pin | Signal | ESP capability required | Why it's the best use of the pin |
 |-----|--------|-------------------------|----------------------------------|
 | 1 | **GND** | — | return |
-| 2 | **EXP_3V3** | **load-switched, default-OFF** rail (not raw always-on) — **F34/F39** | powers the add-on through an on/off load switch (Q_exp) that is **OFF at reset and force-OFF in State 4** — so the rail is **dead in hard-cut** and a plugged-in board cannot touch the 1.08 mW budget. **F39: this is on/off gating, not a current limiter** — the real upstream limit is F1 (1 A) + LM5166 (500 mA); off-leakage = ZXMP6A13F IDSS ≤ 0.5 µA → ≤1.65 µW, the only always-on term (budgeted into State 4). A per-rail hard limit (series ~75 mA PPTC) is an option, DNP. Enable = ESP `EXP_PWR_EN`. |
-| 3 | **EXP_SDA** | I2C1 (a **dedicated** controller, *not* the RTC's I2C0) | the single highest-leverage expansion bus: addressable, multi-drop, 2 pins — sensors / ADC / IO-expander / EEPROM / fuel-gauge all speak it. **Dedicated bus isolates the timekeeping-critical RV-3028 from an unknown add-on** (leaner alt: share I2C0 — 2 fewer GPIOs, 2 fewer pull-ups, but couples expansion to the RTC). Own pull-ups on the header. |
+| 2 | **EXP_3V3** | **load-switched, default-OFF** rail (not raw always-on) — **F34/F39/F48** | powers the add-on through an on/off load switch (Q_exp) that is **OFF at reset and force-OFF in State 4**. **F48 — the off-state is a testable contract, not "dead":** see the power-domain contract below (pull-ups on the switched rail, signals high-Z before/while off, bleed resistor, ≤5 µW worst-case datasheet-bound State-4 term). **F39: this is on/off gating, not a current limiter** — the real upstream ceiling is F1 (1 A) + LM5166 (500 mA, shared). A per-rail hard limit (series ~75 mA PPTC) is an option, DNP. Enable = ESP `EXP_PWR_EN`. |
+| 3 | **EXP_SDA** | I2C1 (a **dedicated** controller, *not* the RTC's I2C0) | the single highest-leverage expansion bus: addressable, multi-drop, 2 pins — sensors / ADC / IO-expander / EEPROM / fuel-gauge all speak it. **Dedicated bus isolates the timekeeping-critical RV-3028 from an unknown add-on** (leaner alt: share I2C0 — 2 fewer GPIOs, 2 fewer pull-ups, but couples expansion to the RTC). Pull-ups on the header side, **powered from switched `EXP_3V3` (F48)** — never from always-on 3V3, so they cannot back-feed a dead rail or a powered-down add-on. |
 | 4 | **EXP_SCL** | I2C1 | " |
 | 5 | **EXP_AIO1** | **ADC1 + RTC-wake** (free pool GPIO8/9/10) | analog-in *or* digital *or* an interrupt that can **wake the ESP from deep sleep** (ext1). ADC1 (not ADC2) so it never conflicts with WiFi (datasheet: ADC1 = GPIO1–10). |
 | 6 | **EXP_AIO2** | **ADC1 + RTC-wake** | second analog/wake/digital line |
@@ -2131,16 +2141,47 @@ nothing is plugged in**.
   future add-on can't break the ~1 mW low-SOC budget. A hungry add-on
   taps the pack elsewhere.
 
-**Enforceable power-domain contract (F34/F39).** The expansion rail is
-**not** raw always-on 3V3, and — correcting the iter-30 wording — it is
-**not** current-limited either. It is an **on/off, default-OFF load
-switch** (Q_exp) that is **OFF at reset** and **force-OFF in State 4**;
-the hard-cut guarantee is that the rail is *dead* when it matters, and
-the only always-on term is Q_exp's ≤0.5 µA off-leakage (≤1.65 µW,
-budgeted). The real current ceiling is the upstream F1 (1 A) + LM5166
-(500 mA). If a per-rail hard limit is ever wanted, add a series PPTC
+**Enforceable power-domain contract (F34/F39/F48).** The expansion rail
+is **not** raw always-on 3V3, and — correcting the iter-30 wording — it
+is **not** current-limited either. It is an **on/off, default-OFF load
+switch** (Q_exp: ZXMP6A13F high-side + 2N7002 gate drive, gate pull-up
+to the 3V3 source) that is **OFF at reset** and **force-OFF in State 4**.
+F48 replaced the "rail is *dead*" wording with a **testable off-state
+contract**:
+
+1. **Pull-up supply**: the I2C1 pull-ups (and any header-side pull-up)
+   are powered from **switched `EXP_3V3`**, never always-on 3V3 — with
+   the switch off there is no pull-up path into the add-on.
+2. **Signal off-state (firmware, binding)**: all five expansion signals
+   (EXP_SDA/SCL/AIO1/AIO2/DIO3) are driven **high-Z *before*
+   `EXP_PWR_EN` is deasserted and held high-Z whenever the rail is off**
+   (same pattern as the D36 §2a contract) — no ESP pin may source an
+   unpowered add-on through its protection diodes.
+3. **Discharge**: a bleed resistor **R_exp_bleed = 100 kΩ, EXP_3V3 →
+   GND** (populated) discharges the switched node so switch leakage
+   cannot float it: with the P-FET's ≤0.5 µA IDSS worst case into
+   100 kΩ, the parked rail sits ≤ 50 mV. On-state cost 33 µA
+   (~110 µW) — an active-mode cost only, acceptable.
+4. **Off-state budget (worst-case datasheet bounds, not typicals)**:
+   ZXMP6A13F IDSS ≤ 0.5 µA (p.4, V_DS = −60 V, V_GS = 0) **+** 2N7002
+   IDSS ≤ 1 µA (on-file p.2, 60 V/25 °C) through the gate pull-up when
+   parked off → **≤ 1.5 µA ≈ ≤ 5 µW from always-on 3V3** in *every*
+   state incl. State 4 (supersedes the F39 "≤1.65 µW" figure, which
+   counted only the P-FET). Real leakage at 3.3 V ≪ these 60 V test
+   bounds; the budget uses the bound.
+5. **Acceptance test (bench, at bring-up)**: with an add-on plugged and
+   rail off — V(EXP_3V3) ≤ 50 mV, and total always-on-3V3 draw
+   attributable to the expansion block ≤ 1.5 µA.
+6. **Arbitrary daughterboards**: series-R footprints on all five signal
+   lines (DNP by default) as partial-power-down isolation if a future
+   add-on proves back-power-prone; a controlled add-on designed to this
+   contract doesn't need them.
+
+The real current ceiling is the upstream F1 (1 A) + LM5166 (500 mA,
+shared). If a per-rail hard limit is ever wanted, add a series PPTC
 (~75 mA hold) — noted, DNP. (F34's first fix claimed a "~50 mA limit"
-with no limiting component; F39 corrected that.)
+with no limiting component; F39 corrected that; F48 closed the
+back-power/leakage holes above.)
 
 **Exact GPIO numbers finalized at CP2** (coordinated with D36's UART2 +
 channel-select allocation); the *capabilities* above are the binding
@@ -2155,21 +2196,34 @@ spec — the reviewer/gate checks the CP2 pin map against them.
 
 Customer drawings on file (manifest: Molex_53398-0871_PicoBlade_vert.pdf
 sha 642bc09ea605; RA sha 6e1b0968c9ed) — 1.25 mm pitch, 8-ckt, tin.
-**F38 (mate/rating):** the drawing states **MATE WITH: 51021 SERIES** and
-references product spec **PS-51021-024** (which carries the electrical
-rating); the drawing itself does *not* state a current rating, so the
-earlier "1 A/ckt" was unsourced — the PicoBlade catalog figure is 1 A/ckt
-but must be confirmed from PS-51021-024. Exact mate = **8-ckt housing
-51021-0800 + 50079-class pre-crimp / cable**, to confirm (housing/
-terminal/keying/mating-height/wire-gauge/rating) at CP2 sourcing (the
-product spec is not proxy-fetchable). Our use is logic + a ≤50 mA rail —
-far below any PicoBlade rating. **F33 fix:** the first draft put the r/a
-DK SKU (WM7626) in the vertical row — corrected to WM7612CT-ND.
+**F38/F49 (mate/rating) — closed at mate-side, iter-34:** the drawing
+states **MATE WITH: 51021 SERIES**. Product spec **PS-51021-009 is now on
+file** (fetched via the API datasheet proxy from
+molex.com/pdm_docs/ps/PS-51021-009.pdf, sha 1213f6f542…): its scope table
+covers exactly our mate — **receptacle housing 51021-\*\*00 + female
+terminal 50079-8\*00 (AWG 26–28)** — and its §3 ratings table gives
+**Rated Current 1.0 A max (AWG 26/28/30; 0.8 A at AWG 32), 125 V max,
+−40…+85 °C**, temp-rise ≤30 °C at rated current. **Mating hardware
+(sourced, orderable at qty 1):** loose 50079-8000 terminals have a
+**25,000-piece MOQ** (DK WM1142TR-ND / Mouser 538-50079-8000, API
+2026-07-16) — not a qty-1 answer; instead order the **off-the-shelf
+pre-built 8-ckt PicoBlade↔PicoBlade cable assembly Molex 0151340801
+(100 mm)** — DK **WM15273-ND**, 8,199 stock, Active, $10.53 CAD (API
+2026-07-16) — one assembly cut in half = two single-ended pigtails, no
+crimping. Header-side spec **PS-51021-024** (referenced by the 53398
+drawing) is still not proxy-fetchable — **requested from the owner**;
+until then the documented rating is the mate-side 1.0 A, far above our
+loads (logic signals + a rail whose upstream ceiling is the shared
+LM5166 500 mA through the single power pin — within the 1.0 A pin
+rating). The prior "≤50 mA rail" phrasing is retired (no such limiter
+exists — F39/F49). **F33 fix:** the first draft put the r/a DK SKU
+(WM7626) in the vertical row — corrected to WM7612CT-ND.
 
-**Protection.** Optional (DNP) series R on EXP_SDA/SCL to isolate the bus,
-and an optional ESD array on the exposed IO — it's an *internal* header
-(short cable to a controlled daughterboard), so light. Populate at CP2 if
-the add-on class warrants.
+**Protection.** Series-R footprints (DNP) on **all five** signal lines
+(SDA/SCL/AIO1/AIO2/DIO3 — the F48 contract item 6, partial-power-down
+isolation for back-power-prone add-ons), and an optional ESD array on
+the exposed IO — it's an *internal* header (short cable to a controlled
+daughterboard), so light. Populate at CP2 if the add-on class warrants.
 
 **Status.** Extends approved CP1 → covered by the same CP1-delta review
 pass as D36 (logged under **DR-27**).

@@ -792,18 +792,26 @@ the front-end must float to each pack's reference → **two isolated
 channels** (ADM2587E), **symmetric/interchangeable**, addressed by
 protocol address. Reuses the `ej_bms` parser.
 
-**Interface premise VENDOR-CONFIRMED 2026-07-16 (F37 largely resolved).**
-Direct Volthium correspondence
-([`../../docs/vendor/volthium-rs485-correspondence-2024.md`](../../docs/vendor/volthium-rs485-correspondence-2024.md)):
-*"Use a Standard RS485 adapter with A & B. No ground need. Don't use a
-TTL 3.3V adapter directly."* → it **is** RS-485 (not TTL), 2-wire/
-no-ground, A/B on RJ45 **7/8**, **XLR** connector (not M12), socket
-closest to the negative terminal. The isolated ADM2587E front-end is the
-correct circuit. **DR-26 stays OPEN only for a narrowed on-site
-confirmation at the owner's ~2-week visit** (no longer topology-gating,
-no circuit change expected): functional read of the +12 V series-top pack
-through its isolated channel + a scope/common-mode check to confirm no
-local reference is needed. See design §7.
+**Interface premise — owner-reported vendor guidance; on-site test is
+TOPOLOGY-GATING (iter-34 F45/F47 supersede the iter-32 "vendor-confirmed
+/ no longer topology-gating" wording).** The vendor evidence is an
+**owner-supplied summary** of a Volthium support thread
+([`../../docs/vendor/volthium-rs485-correspondence-2024.md`](../../docs/vendor/volthium-rs485-correspondence-2024.md)
+— see its provenance banner; an export of the original thread is
+requested from the owner, F45): *"Use a Standard RS485 adapter with
+A & B. No ground need. Don't use a TTL 3.3V adapter directly."* → the
+premise is RS-485 (not TTL), 2-wire/no-ground, A/B on RJ45 **7/8** (7/8
+corroborated by the independent photographed adapter label); socket
+closest to the negative terminal; connector family unresolved (email
+"XLR" vs photographed M12-style — not load-bearing). The isolated
+ADM2587E front-end is the correct circuit class under this premise.
+**DR-26 stays OPEN and GATING on the ~2-week on-site test** — the test
+decides whether the floating island needs a local reference/bleed;
+**pass limits (top-pack read 0-CRC-fail, −7…+12 V CM window, ≥±1.5 V
+differential margin, clean idle/recovery, both orientations) + the DNP
+fallback circuit are specified in design §7.** CAN RJ45 mapping is
+UNRESOLVED (photo 4/5 vs email "pin 1 and 2", connector unnamed) — CAN
+unused, pads routed after the on-site pin-out check.
 
 **Current topology (iter-30, F30) — supersedes the first draft:**
 - Off-state: **dedicated per-channel DI/DE/RO** on the ESP, UART2
@@ -817,10 +825,16 @@ local reference is needed. See design §7.
   creepage-critical.
 
 **Review asks:**
-- **G1 (blocker): the F37 interface premise** — this is the gating item.
-- G1: SM712/ADM2587E **coordination (F36)** — SM712 clamps 20 V > the
-  ADM2587E +14 V bus abs-max; needs series R to protect (or accept DNP =
-  unprotected). ±15 kV is HBM, not IEC cable ESD.
+- **G1 (gating): the on-site test** (design §7 pass limits) — decides
+  the local-reference/bleed question; D36 nets freeze after it passes.
+- G1: **F36/F44 protection status = DNP, intentionally unprotected** —
+  SM712 VC 20 V > ADM2587E +14 V abs-max, and a series R alone cannot
+  coordinate into a high-Z pin (no published injection rating); the
+  iter-32 "coordinated pair" claim is withdrawn. Accepted risk for the
+  inside-enclosure link. ±15 kV is HBM, not IEC cable ESD.
+- G1 (iter-34, F43): isolated-side grounds are **two nets** —
+  `GND2_DCDC` (pins 11+14) / `ISO_BUS_GND` (pins 16+20 + plane), L2 the
+  only tie (Rev H p.8 "do not connect Pin 16 to Pin 14/11"; p.17 Fig 35).
 - G2: **D32 closed** — ADM2587E (90 mA @ 3.3 V/100 Ω; F28 fix of the
   72 mA=5 V-row mis-cite) + **Semtech** SM712 (F29) on file, verified.
 - G3: re-verify stock at BOM-lock.
@@ -834,20 +848,31 @@ GND×2, dedicated **I2C1** (SDA/SCL, isolates the RV-3028 timekeeping bus),
 2× **ADC1+RTC-wake** AIO, 1 generic DIO. Rationale/pinout: decisions.md
 **D37**.
 
-**Power domain (iter-31, F34/F39) — supersedes the first draft:** the
+**Power domain (iter-34, F48 — supersedes the iter-31 wording):** the
 EXP_3V3 pin is a **load-switched, default-OFF** rail (Q_exp), **force-OFF
-in State 4** so the rail is dead in hard-cut; enable = `EXP_PWR_EN`. It is
-**on/off gating, not a current limiter** (off-leakage ≤0.5 µA → ≤1.65 µW,
-budgeted; real ceiling = F1 1 A + LM5166). *(The first draft's "series
-ferrite / budget-counting always-on 3V3" is retired — a ferrite is not a
-DC limit.)*
+in State 4**, with a **testable off-state contract** (decisions.md D37):
+I2C pull-ups powered from the **switched** rail; all 5 signals **high-Z
+before/while rail-off** (firmware, binding); **R_exp_bleed 100 kΩ**
+parks the rail ≤ 50 mV; worst-case off-leakage **≤ 1.5 µA ≈ ≤ 5 µW**
+(ZXMP6A13F ≤0.5 µA **+ 2N7002 ≤1 µA**, on-file datasheet bounds —
+supersedes the P-FET-only ≤1.65 µW figure); acceptance test at bring-up
+(V(EXP_3V3) ≤ 50 mV with add-on plugged, rail off). It is **on/off
+gating, not a current limiter** (real ceiling = F1 1 A + LM5166 500 mA).
+*(The first draft's "series ferrite / budget-counting always-on 3V3" is
+retired — a ferrite is not a DC limit.)*
+
+**Mate/rating (iter-34, F49 — closed mate-side):** product spec
+**PS-51021-009 on file** (sha 1213f6f54215): housing 51021-\*\*00 +
+terminal 50079-8\*00, **1.0 A max @ AWG 26–28**, 125 V, −40…+85 °C.
+Qty-1 mating = OTS cable assembly **0151340801** (DK WM15273-ND, Active,
+$10.53 — optional, with the add-on); loose terminals have 25k MOQ.
+**Still owed: header-side spec PS-51021-024 (requested from owner).**
 
 **Review asks:**
 - Pin map (CP2): each expansion pin on a GPIO with the required
   capability — 2× **ADC1** (GPIO1–10, not ADC2/WiFi) **and** RTC-wake;
   I2C1 on a second controller; DIO on GPIO38–42; `EXP_PWR_EN`; and **no
   clash** with D36's 8 GPIOs or the module's flash/PSRAM (GPIO26–37).
-- F38: confirm the exact PicoBlade mate (51021-0800 housing + 50079-class
-  pre-crimp) + keying/rating from PS-51021-024 at sourcing.
-- Protection: series-R on SDA/SCL + ESD on exposed IO (DNP vs populate).
+- Protection: series-R footprints on all 5 signals (F48 item 6) + ESD on
+  exposed IO (DNP vs populate).
 - Dedicated vs shared I2C: confirm dedicated-I2C1 (RTC isolation).

@@ -3589,3 +3589,124 @@ rows and mechanically recompute the delta (currently about $56.6, i.e. ~$57,
 before final support-part selection).
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 7 important. (See findings 43, 44, 45, 46, 47, 48, 49.)
+
+---
+
+## 31. Designer responses — iteration 34 (F43–F50)
+
+All eight findings addressed; F45 and F49 carry **owner asks** (flagged
+to the user this turn). D35 gate exit 0 after the changes, and all nine
+new registry patterns verified to FIRE against the pre-fix text (29 old
+hits) — the registry additions are tested, not decorative.
+
+### F43 (GND2 net split) — ACCEPTED, fixed
+Design §3 now specifies **two binding nets**: `GND2_DCDC` = pins 11+14
+(converter ground, device side of L2) and `ISO_BUS_GND` = pins 16+20 +
+the isolated bus plane, **L2 the only connection** — written from Rev H
+Table 10 p.8 ("Do not connect this pin [16] to Pin 14 and Pin 11") and
+the p.17 bullets (pin 16 ties on the *bus side* of L2; C1 and the
+VISOOUT caps on the *device side*; discrete C_stitch lands GND1 pin 10 ↔
+pin 11 in the 2-layer case). Every support cap/TVS return is assigned a
+side in the table; the layout contract adds the p.17 no-GND2-fill
+keep-out under L1/L2. Registry rows added.
+
+### F44 (series R is not coordination) — ACCEPTED, claim withdrawn
+Correct: a high-Z pin draws no defined current below its (unpublished)
+internal clamp, so ~10 Ω after the SM712 has no defined drop and there
+is no ADM2587E injection/clamp-current rating to size against. The
+iter-32 "populate as a coordinated pair / residual <14 V" claim is
+**withdrawn everywhere** (design §3, decisions D36, DR-26). Status is
+now the honest option you offered: **DNP, port intentionally
+unprotected** — accepted risk for the ~1 m inside-enclosure link; any
+future field-cable requirement gets a *then-chosen* coordinated network
+(documented residual < abs-max, or a two-stage clamp sized from a
+published rating), not these footprints.
+
+### F45 (correspondence provenance + pin-domain ambiguity) — ACCEPTED
+The Markdown is indeed my summary of the owner's paste, not verifiable
+correspondence. Changes: (1) the file now opens with a **provenance
+banner** — "owner-supplied summary, rung-2, held at owner-reported";
+(2) an **export of the original thread (redacted .eml / PDF /
+screenshots with per-message metadata) is formally requested from the
+owner** (asked this turn); (3) the **CAN RJ45 mapping is reverted to
+UNRESOLVED** — the email's "pin 1 and 2" does not name its connector,
+the photographed label says RJ45 4/5, and neither overwrites the other;
+the CAN pads are routed only after the on-site pin-out check (CAN is
+unused by D36, so nothing is load-bearing); (4) every fact table row now
+carries a corroboration column — RS-485 + RJ45 7/8 is kept as solid
+*because two independent sources agree on it*, which is stated as the
+reason.
+
+### F46 (live M12/CAN-4/5 drift + checker blind spot) — ACCEPTED, fixed
+- `docs/vendor/README.md`: banner rewritten as an evidence-status note
+  (two partially disagreeing sources, agreements vs unresolved items);
+  line 30 and the photo section scoped ("photographed Pro-Series cable,
+  M12-style, family unconfirmed for our packs"); "two M12 sockets" →
+  "two comms sockets (family TBC on-site)".
+- `decisions.md` D36: the "CAN-H/L on 4/5" line replaced with the
+  unresolved statement.
+- **Checker**: `docs/vendor/README.md` + the correspondence file added
+  to LIVE_DOCS (they carried live drift the tool couldn't see), and
+  **nine new SUPERSEDED rows** added (F43 net wording, F44 coordinated-
+  pair forms, F45 "authoritative", F45/F46 CAN forms, F46 M12 forms,
+  F47 non-gating forms, F48 1.65 µW/"dead" forms, F49 50 mA/1 A-ckt/
+  pre-crimp forms, F50 cost forms) — each verified to match the
+  pre-fix text.
+
+### F47 (on-site test is topology-gating) — ACCEPTED
+The "non-topology-gating / no circuit change expected" wording is
+superseded. Design §7 now states the test **decides the reference/bleed
+question** and defines **measurable pass limits**: ≥100 consecutive
+0-CRC-fail top-pack polls; A/B common-mode within −7…+12 V at all
+times; |A−B| ≥ ±1.5 V driven with clean 9600-baud edges (≤10 % of a
+104 µs bit after DE turn-around); stable fail-safe idle within 1 bit of
+DE release; repeated with packs swapped between channels. **Fallback
+circuit defined now** (per-channel fail-safe bias + ~1 MΩ ISO_BUS_GND→B
+bleed — DNP footprints already in §3, so failure costs population, not
+a respin). **D36/DR-26 stay gated until the test passes**; D37 remains
+independent/CP2-ready.
+
+### F48 (switched rail ≠ dead; back-power paths) — ACCEPTED, contract added
+D37 now carries a six-point **testable off-state contract**: (1) I2C
+pull-ups powered from **switched EXP_3V3**, never always-on 3V3;
+(2) firmware-binding — all five signals high-Z *before* rail-off and
+while off (same pattern as D36 §2a); (3) **R_exp_bleed 100 kΩ → GND**
+populated (parks the rail ≤ 50 mV against ≤0.5 µA switch leakage;
+33 µA only while ON); (4) off-budget recomputed from **worst-case
+datasheet bounds incl. the control path**: ZXMP6A13F IDSS ≤ 0.5 µA
+(p.4) **+ 2N7002 IDSS ≤ 1 µA** (on-file p.2, 60 V/25 °C) → **≤ 1.5 µA ≈
+≤ 5 µW**, superseding the P-FET-only ≤1.65 µW; (5) a bench acceptance
+test (V(EXP_3V3) ≤ 50 mV with an add-on plugged, rail off, block draw
+≤ 1.5 µA); (6) series-R footprints on **all five** signals (DNP) as
+partial-power-down isolation for arbitrary daughterboards. "Dead" no
+longer appears as a claim — only the contract does.
+
+### F49 (PicoBlade closure) — LARGELY CLOSED; one owner ask remains
+Real progress via the API proxy this pass: **product spec PS-51021-009
+is now on file** (molex.com/pdm_docs/ps/PS-51021-009.pdf, sha
+1213f6f54215) — its scope table covers exactly our mate (housing
+51021-\*\*00 + female terminal 50079-8\*00, AWG 26–28) and its §3
+ratings give **1.0 A max (AWG 26/28/30), 0.8 A (AWG 32), 125 V,
+−40…+85 °C**. So the current rating is now *sourced*, mate-side. You
+were right that "50079-class pre-crimp" was not a sourced object —
+and loose **50079-8000 has a 25,000-pc MOQ** (DK WM1142TR-ND / Mouser
+538-50079-8000, API 2026-07-16), so it was never a qty-1 answer. The
+sourced qty-1 mate is the **OTS pre-built 8-ckt cable assembly
+0151340801** (DK WM15273-ND, 8,199 stock, Active, $10.53 CAD, API
+2026-07-16) — cut in half = two pigtails, zero crimping; listed as
+*optional, order with the add-on* (not in the delta sum). The "1 A/ckt"
+manifest note and every "≤50 mA rail" claim are retired (registry
+rows). **Remaining ask: header-side spec PS-51021-024** (referenced by
+the 53398 drawing; proxy returns the wire-to-wire spec instead) —
+requested from the owner alongside the F45 export.
+
+### F50 (delta arithmetic) — ACCEPTED, recomputed
+Mechanically from populated canonical rows: 2× channel switches =
+2×($0.40+$0.10) = **$1.00**; Q_exp = **$0.50**; + R_exp_bleed $0.10 →
+delta **~$56.7 ≈ $57**, grand total **~$249**. Your ~$0.90 figure
+reproduced exactly.
+
+**Handing back for iteration 35 re-verify. Owner asks outstanding
+(non-blocking for re-review of F43/F44/F46/F47/F48/F50; blocking for
+final closure of F45/F49):** (a) original-thread export; (b)
+PS-51021-024 PDF. The on-site test (F47) is scheduled ~2 weeks out.

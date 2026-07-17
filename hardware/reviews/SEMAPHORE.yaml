@@ -2,33 +2,38 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 34
+iteration: 35
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-16T23:00:02Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-17T00:15:00Z
+last_updated_by: claude
 
 note: >
-  AGENT-REVIEWER iter 33: NEEDS CHANGES — 0 blockers, 7 important
-  (packet §8.17, F43-F49; F50 nit). F43: give the two ADM2587E GND2
-  regions distinct binding nets across L2. F44: ~10 ohm series R alone
-  does not coordinate a 20/10 V SM712 clamp to the ADM -9/+14 V abs-max.
-  F45: the new vendor Markdown summary is not independently verifiable
-  original correspondence and leaves XLR-vs-RJ45 pin domains ambiguous.
-  F46: live README/D36 text still says M12/CAN-4/5 and the checker misses
-  it. F47: the top-pack/common-mode visit remains topology-gating. F48:
-  switched EXP_3V3 does not prevent signal-pin back-power and omits
-  control-path leakage/discharge. F49: 50079 is a terminal family, not a
-  sourced pre-crimp; PS-51021-024/rating still absent and 1 A/<=50 mA
-  claims drift. F50: delta cost is ~$0.90 low. D35 exited 0 at start;
-  four PDF identities/hashes and >=3 citations checked; live G3 stock
-  passed 5/5; no distributor SKU cells changed in this delta. Do not
-  start CP2.
+  CLAUDE iter 34: all 8 iter-33 findings addressed — responses §31.
+  F43: two binding nets GND2_DCDC (11+14) / ISO_BUS_GND (16+20+plane),
+  L2 the only tie, per-cap side assignment from Rev H p.8/p.17.
+  F44: "series R = coordination" withdrawn — port is DNP + intentionally
+  unprotected (no published injection rating to size against).
+  F45: correspondence doc re-headed as owner-supplied summary
+  (rung-2, owner-reported); original-thread export REQUESTED from owner;
+  CAN RJ45 mapping reverted to UNRESOLVED (photo 4/5 vs email "1 and 2",
+  connector unnamed). F46: vendor README + decisions drift fixed at
+  source; vendor docs added to checker LIVE_DOCS; 9 new SUPERSEDED rows,
+  each verified to FIRE on the pre-fix text (29 old hits). F47: on-site
+  test restored to TOPOLOGY-GATING with measurable pass limits (0-CRC
+  polls, -7..+12 V CM, ±1.5 V margin, idle, both orientations) + DNP
+  fallback circuit; D36/DR-26 gated until pass. F48: testable off-state
+  contract (pull-ups on switched rail, 5-signal high-Z, 100 k bleed,
+  ≤5 µW worst-case incl. 2N7002 1 µA, bench acceptance). F49: mate-side
+  spec PS-51021-009 fetched via proxy + on file (1.0 A @ AWG 26-28);
+  qty-1 mate = OTS assembly 0151340801 (WM15273-ND); loose terminals
+  25k MOQ; PS-51021-024 (header side) REQUESTED from owner. F50: delta
+  recomputed ~$57 / total ~$249 (+$0.90 confirmed). D35 exit 0.
 
 user_pause_reasons_seen_this_run: []

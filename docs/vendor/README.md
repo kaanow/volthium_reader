@@ -5,15 +5,19 @@ truth doesn't rot on a laptop somewhere. Do NOT edit the vendor files
 themselves — copy relevant excerpts into our own docs (`reliability_failure_modes.md`,
 `cloud_architecture.md`, etc.) with attribution.
 
-> ⚠ **Corrected 2026-07-16 by direct vendor correspondence** —
+> ⚠ **Evidence status 2026-07-16 (revised iter-34, F45/F46)** — two sources
+> describe the pack comms interface and they **partially disagree**:
 > [`volthium-rs485-correspondence-2024.md`](volthium-rs485-correspondence-2024.md)
-> (Volthium support email thread, authoritative for the Loon Lake packs).
-> Two descriptions below predate it and are **wrong** for these batteries:
-> (1) the comms connector is an **XLR** port (vendor ships an **XLR→RJ45-female**
-> cable), **not** a "4-socket M12"; (2) the pack's **CAN is on pins 1 (H) / 2 (L)**,
-> **not** "4/5". RS-485 A/B on RJ45 **7/8** is confirmed correct. The vendor's
-> explicit guidance: *"Use a standard RS-485 adapter with A & B. No ground
-> needed. Don't use a TTL 3.3V adapter directly."*
+> (an **owner-supplied summary** of a Volthium support thread — see its
+> provenance banner) and the **photographed Pro-Series adapter label** below.
+> Where they agree — **RS-485 A/B on RJ45 7/8; use a standard RS-485 adapter,
+> 2-wire, no ground, not a raw TTL adapter** — treat as solid. Where they
+> diverge, treat as **unresolved pending the on-site visit**: (1) the pack
+> connector family (email says "XLR"; the photo shows a 4-socket M12-style
+> plug — possibly different pack generations); (2) the **CAN pin mapping**
+> (photo label: RJ45 **4/5**; email: "pin 1 and 2" *with the connector
+> unnamed*). CAN is unused by the current design, so nothing is load-bearing
+> on (2).
 
 ## The picture these files paint together
 
@@ -26,8 +30,10 @@ files cover them end-to-end:
 | **RS-485 / RS-232 / raw TTL** | Any wired serial client; the RJ45 adapter breaks these out | Serial protocol doc + cable pinout |
 | **CAN (2.0A, 250/500 kbps)** | Victron GX device / inverter / charger | Victron CANbus protocol + cable pinout |
 
-The pack can even do the last two simultaneously via the RJ45 adapter,
-which carries CAN-H/L on pins 4/5 and RS-485-A/B on pins 7/8.
+The pack can even do the last two simultaneously via the RJ45 adapter —
+the photographed Pro-Series label puts RS-485-A/B on pins 7/8 (both
+sources agree) and CAN-H/L on pins 4/5 (**unresolved** — the vendor email
+says "pin 1 and 2" without naming the connector; see the banner above).
 
 ## Files
 
@@ -120,10 +126,14 @@ Not currently used by our reader — but if we ever build a cabin-side
 
 ### `volthium-pro-series-rj45-adapter-pinout.png`
 
-Product photo of the Volthium "Pro Series" adapter cable — **4-socket M12
-plug** on the battery end, **RJ45 female** on the client end. The label
-on the cable gives only the RJ45 pinout (the M12 pin layout is not
-published by the vendor):
+Product photo of the Volthium "Pro Series" adapter cable — a **4-socket
+M12-style plug** on the battery end, **RJ45 female** on the client end.
+**Scope (F46):** this documents *the photographed Pro-Series cable*; the
+vendor email calls the Loon Lake packs' port "XLR", so whether this exact
+cable/connector matches our packs is **unconfirmed until the on-site
+visit** (possibly a different pack generation). The label on the cable
+gives only the RJ45 pinout (the battery-end pin layout is not published
+by the vendor):
 
 | RJ45 pin | Signal |
 |---|---|
@@ -139,8 +149,8 @@ published by the vendor):
 Both CAN and RS-485 come out on the same RJ45, so a single adapter cable
 supports both integration paths at once.
 
-**Field wiring note** — the SC-series packs have **two M12 sockets**. Per
-vendor guidance, for RS-485 communication use the M12 socket **closer to
-the negative battery post**. The function of the second M12 is not
-documented here (likely CAN or a daisy-chain, but confirm with the
-vendor before assuming).
+**Field wiring note** — the packs have **two comms sockets** (family per
+the scope note above — to be identified on-site). Per vendor guidance,
+for RS-485 communication use the socket **closer to the negative battery
+post**. The function of the second socket is not documented here (likely
+CAN or a daisy-chain, but confirm with the vendor before assuming).

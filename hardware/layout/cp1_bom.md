@@ -171,8 +171,9 @@ one complete monitor.
 | J3  | **USB-C receptacle** (native ESP32-S3 USB) | SMD | 1 | _verify_ | | $0.50 | **Δ (D22): was a USB-OTG pin header** — now a board-edge maintenance port (flash/console/JTAG), accessible without opening. ESD-protected by U-ESD |
 | J4  | 2-pin 2.54 mm header, RS-485 term lift jumper | THT | 1 | S1011EC-02-ND | 200-TSW10206TS | $0.20 | NEW |
 | J5  | 4-pin 2.54 mm header, debug UART | THT | 1 | (same as J3) | (same) | $0.30 | NEW — dev only |
-| J_EXP | **Molex PicoBlade 1.25 mm, 8-ckt, SMT** expansion header, **vertical 53398-0871** | SMT | 1 | **WM7612CT-ND** | 538-53398-0871 (42.6k) | $1.40 | **NEW (D37):** future-expansion — dedicated I2C1 (SDA/SCL) + 2× ADC1/RTC-wake AIO + 1 generic DIO + **load-switched EXP_3V3 (F34)** + GND×2. Datasheet on file (customer drawing). **F33 fix:** DK SKU corrected WM7626 (=r/a 53261) → WM7612CT-ND (=53398-0871). **F38 (mate/rating):** drawing confirms **MATE WITH: 51021 SERIES** (ref product spec PS-51021-024) — exact 8-ckt housing **51021-0800** + terminal/pre-crimp (50079-class) + current rating to confirm from PS-51021-024 at CP2 sourcing (product spec not proxy-fetchable; our use is logic + a ≤50 mA rail, far below the PicoBlade catalog 1 A/ckt). R/A alt 53261-0871. Pinout/power: decisions.md **D37** |
-| Q_exp | Expansion-rail **on/off** load switch (P-FET high-side, **default-OFF**; ZXMP6A13F + 2N7002, already qualified) — **F34/F39** | SOT-23 | 1 | (as Q1/Q3 class) | — | $0.20 | **NEW:** gates EXP_3V3; **OFF at reset + force-OFF in State 4** (that is the hard-cut guarantee — the rail is *dead* in State 4, not current-limited). **F39: this is a switch, not a current limiter** — the real upstream limit is F1 (1 A) + LM5166 (500 mA); off-leakage = ZXMP6A13F IDSS ≤ 0.5 µA → **≤1.65 µW State-4 term (budgeted)**. If a hard per-rail limit is wanted, add a series PPTC (e.g. ~75 mA hold) — noted, DNP. Enable = ESP `EXP_PWR_EN` |
+| J_EXP | **Molex PicoBlade 1.25 mm, 8-ckt, SMT** expansion header, **vertical 53398-0871** | SMT | 1 | **WM7612CT-ND** | 538-53398-0871 (42.6k) | $1.40 | **NEW (D37):** future-expansion — dedicated I2C1 (SDA/SCL, pull-ups on **switched EXP_3V3**, F48) + 2× ADC1/RTC-wake AIO + 1 generic DIO + **load-switched EXP_3V3** + GND×2. Datasheet on file (customer drawing). **F33 fix:** DK SKU corrected WM7626 (=r/a 53261) → WM7612CT-ND (=53398-0871). **F38/F49 (mate/rating — closed mate-side iter-34):** drawing = **MATE WITH: 51021 SERIES**; product spec **PS-51021-009 now on file** (sha 1213f6f54215) covers housing 51021-\*\*00 + terminal 50079-8\*00 (AWG 26–28) and rates **1.0 A max/ckt** — our loads (logic + one power pin whose upstream ceiling is the shared LM5166 500 mA) are within it. Qty-1 mate = **OTS pre-built cable assembly 0151340801** (DK **WM15273-ND**, 8,199 stock, Active, $10.53, API 2026-07-16 — optional, order with the add-on; loose 50079-8000 terminals have a 25k MOQ, not a qty-1 path). Header-side spec PS-51021-024 requested from owner. R/A alt 53261-0871. Pinout/power: decisions.md **D37** |
+| Q_exp | Expansion-rail **on/off** load switch (P-FET high-side, **default-OFF**; ZXMP6A13F + 2N7002, already qualified) — **F34/F39/F48** | SOT-23 ×2 | 1 | (as Q1/Q3 class) | — | $0.50 (F50: ZXMP $0.40 + 2N7002 $0.10) | **NEW:** gates EXP_3V3; **OFF at reset + force-OFF in State 4**. **F48 — testable off-state contract (decisions.md D37):** I2C pull-ups on the switched rail; all 5 signals high-Z before/while rail-off; R_exp_bleed parks the rail ≤ 50 mV; worst-case off-leakage = ZXMP6A13F IDSS ≤ 0.5 µA **+ 2N7002 IDSS ≤ 1 µA** (both on-file datasheet bounds, 60 V test points) → **≤ 5 µW always-on term (budgeted; supersedes the F39 P-FET-only ≤1.65 µW)**. **F39: a switch, not a current limiter** — upstream limit is F1 (1 A) + LM5166 (500 mA). Optional series PPTC (~75 mA hold) — noted, DNP. Enable = ESP `EXP_PWR_EN` |
+| R_exp_bleed | 100 kΩ 0805, EXP_3V3 → GND discharge | 0805 | 1 | RMCF0805FT100KCT-ND | 71-CRCW0805100KFKEA | $0.10 | **NEW (F48):** discharges/parks the switched rail (≤0.5 µA IDSS × 100 kΩ = ≤50 mV); draws 33 µA (~110 µW) only while EXP is ON |
 
 ### Enclosure & mounting
 
@@ -307,17 +308,21 @@ U2 R-78HB12-0.5 = CA$27.95 (was $8) and BTN1 8125SHZBE = CA$18.47
 | Cable & shared connectors | ~$10 |
 | Bare PCBs from JLCPCB (qty 5 of each board, 2-layer FR-4 HASL, DHL shipping) | ~$30 |
 | **iter-27 core total** | **~$192** |
-| **+ D36/D37 delta (pending CP1-delta review)** — see below | **+~$56** |
-| **Single-monitor total (with pending delta)** | **~$248** |
+| **+ D36/D37 delta (pending CP1-delta review)** — see below | **+~$57** |
+| **Single-monitor total (with pending delta)** | **~$249** |
 
-**D36/D37 delta (F41, iter-31 — populated adds to the battery board):**
-2× ADM2587E @ $22.90 = $45.80; 2× RJHSE-5380 battery-read jacks @ $2.30 =
-$4.60; 2× isoPower support networks ~$3.0; 2× channel load-switches
-$0.40; J_EXP $1.40; Q_exp $0.20; expansion passives ~$0.30 → **~$55.7**
-(SM712 ×2 + series-R + PPTC all DNP = $0). The core sums above are dated
-2026-07-14 and do **not** yet include these; when the CP1-delta is
-approved they fold into the battery-side line and the whole column is
-mechanically recomputed. *(F25: display enclosure/mounting was $5→$10.
+**D36/D37 delta (recomputed iter-34 F50 from populated canonical-row
+unit prices):** 2× ADM2587E @ $22.90 = $45.80; 2× RJHSE-5380
+battery-read jacks @ $2.30 = $4.60; 2× isoPower support networks ~$3.00;
+2× channel load-switches @ (ZXMP6A13F $0.40 + 2N7002 $0.10) = **$1.00**
+(F50: was mis-summed $0.40); J_EXP $1.40; Q_exp = same FET pair =
+**$0.50** (F50: was $0.20); expansion passives incl. R_exp_bleed ~$0.40 →
+**~$56.7 ≈ $57** (SM712 ×2 + series-R + PPTC all DNP = $0). *Optional,
+not in the sum:* PicoBlade mate cable assembly 0151340801 (**$10.53**,
+DK WM15273-ND) — order if/when an add-on is actually built. The core
+sums above are dated 2026-07-14 and do **not** yet include these; when
+the CP1-delta is approved they fold into the battery-side line and the
+whole column is mechanically recomputed. *(F25: display enclosure/mounting was $5→$10.
 Prior ~$145/~$154 predated the U2/BTN1/TVS corrections.)*
 
 Spares for the 4× extra PCBs are essentially free at JLC's minimum-order
