@@ -1212,7 +1212,7 @@ coordination defects together.
     Removed 7 parts (Q1/Q2/R3/Rg/R_base/R_be/DZ1) for 2 (SSR1 + R_opto).
     Exact SKUs: SSR1 = AQY212EH (DK 255-2963-ND / Mouser 769-AQY212EH),
     R_opto = RMCF0805FT390RCT-ND / 71-CRCW0805390RFKEA (resolve-exact
-    2026-07-17). Datasheet on file (Panasonic GU-E, sha 71c9b77a7bed).
+    2026-07-17). Datasheet on file (Panasonic GU-E, sha d329b9729322).
     Fail-safe unchanged: PWR_EN low/Hi-Z → LED off → SSR open → display
     shed. Q1's Si2309CDS, Q2's MMBT5551, and DZ1's BZX84C12 are retired
     (manifest Retired section).]*

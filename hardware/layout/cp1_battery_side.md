@@ -168,7 +168,7 @@ problem class.*
   it passes the surge to U2 (R-78HB12, rated 72 V — survives).
 - **Cost:** LED ~16 mW **active only** (States 1–3), **0 in hard-cut**
   (LED off). Removed 7 parts (Q1/Q2/R3/Rg/R_base/R_be/DZ1) for 2
-  (SSR1 + R_opto). Datasheet on file (Panasonic GU-E, sha 71c9b77a7bed).
+  (SSR1 + R_opto). Datasheet on file (Panasonic GU-E, sha d329b9729322).
 
 ## 4. Component list
 
@@ -245,7 +245,7 @@ foldback explicitly. The 530 mA "driver-active + WiFi-peak" case is
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| SSR1 | **Panasonic AQY212EH** PhotoMOS SSR (1-Form-A, 60 V / 550 mA, Ron 0.25 Ω) — display-feed load switch (F76: replaced Q1 P-FET + Q2 BJT + gate network) | DIP-4 SMD | 1 | In series V24_FUSED→V24_SW. **OFF = open MOSFET, ≤1 µA leakage (spec), rated −40…+85 °C, opto-isolated → cannot self-turn-on.** ON = LED via R_opto. Blocks the 53 V surge open (<60 V); passes it to the 72 V U2 closed |
+| SSR1 | **Panasonic AQY212EH** PhotoMOS SSR (1-Form-A, 60 V / 550 mA, Ron 0.25 Ω) — display-feed load switch (F76: replaced Q1 P-FET + Q2 BJT + gate network) | DIP-4 (THT) | 1 | In series V24_FUSED→V24_SW. **OFF = open MOSFET, ≤1 µA leakage (spec), rated −40…+85 °C, opto-isolated → cannot self-turn-on.** ON = LED via R_opto. Blocks the 53 V surge open (<60 V); passes it to the 72 V U2 closed |
 | R_opto | **390 Ω** (ESP PWR_EN → SSR1 LED anode; cathode → GND) | 0805 | 1 | SSR LED current limit; I_F ≈ 5 mA (operate 1.2 mA typ). ~16 mW active, 0 in hard-cut |
 | R4  | 100 kΩ pull-down: PWR_EN → GND     | 0805          | 1   | Holds PWR_EN low (SSR LED off → open) when the MCU GPIO floats (boot / brown-out) |
 

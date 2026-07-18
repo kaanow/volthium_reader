@@ -28,8 +28,10 @@ note: >
   {guaranteed 3.3 V on-state + guaranteed hot leakage grounded + 29 V/53 V
   rating}. F78 propagation done across all live docs; Si2309CDS/MMBT5551/
   BZX84C12 retired (manifest). State-4 now a clean ~1.1 mW (SSR ≤1 µA).
-  Core ~$193. Datasheet on file (Panasonic GU-E, octopart mirror — host
-  WAF-blocks the proxy; user-provide if a manufacturer copy is wanted).
+  Core ~$193. Datasheet on file: **manufacturer-direct Panasonic GE DIP4 catalog**
+  (user upload 2026-07-18, sha d329b9729322, replaced the octopart
+  mirror). Part is AQY212EH = through-hole DIP4 (package label corrected
+  from SMD).
   New registry rows (45 pre-fix hits verified). D35 exit 0. Packet §39.
   On-site two-domain matrix (~2 wks) still gates D36/DR-26; BOM-lock
   mfr-lifecycle re-confirm on the semiconductors.
