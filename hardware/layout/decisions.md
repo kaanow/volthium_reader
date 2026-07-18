@@ -1172,67 +1172,52 @@ coordination defects together.
   voltage-supervisor IC.** All-in low-SOC trickle ≈ U1 Iq (~0.5 mW) +
   sense divider (~0.5 mW) ≈ **~1 mW**. (Full-cut + supervisor would reach
   ~0.7 mW but adds a part and "smart" failure modes — not worth it.)
-- **Load switch (Q1) done right.** Q1 = **Diodes ZXMP6A13F** (−60 V,
-  0.9 A, SOT-23-3) so its Vds survives the ~53 V clamp when open. (The
-  ZXMP6A17 is only SOT-23-6/SOT-223; the A13F is the clean 3-pin part.)
-  *[Superseded iter-38 (F56/F57): Diodes marks ZXMP6A13F NRND and no
-  RDS(on) is guaranteed at a 3.3 V gate drive → Q1 = Vishay
-  **Si2309CDS** (−60 V, ±20 V Vgs, RDS 0.345 Ω max @ −10 V — same gate
-  network applies). The three 3V3-domain switches went to Diodes
-  DMG3415U, then **iter-40 (F61) to onsemi NTR4171P** when DMG3415U was
-  also found NRND. See cp1_bom.]*
-  Add a **gate-source divider (R3 6.8 kΩ / Rg 22 kΩ) + Zener backstop
-  (~12 V)** so Vgs stays in range regardless of bus voltage (the superseded
-  AO3401A's ±12 V Vgs was driven to −29 V — the pre-clamp defect). The gate driver's collector also sees the high
-  rail, so Q2 = **160 V NPN BJT** (MMBT5551; iter-44 F68 — was a 60 V
-  2N7002 until the BJT replaced it for guaranteed ON/OFF, below). Q1 now
-  switches only U2/the display feed.
+- **Load switch done right — PhotoMOS SSR (iter-48, F76 resolution).**
+  The display-feed switch is a **Panasonic AQY212EH PhotoMOS solid-state
+  relay** (1-Form-A, 60 V / 550 mA, Ron 0.25 Ω) in series V24_FUSED →
+  V24_SW, LED-driven from ESP `PWR_EN` through **R_opto 390 Ω** (~5 mA).
+  It switches only U2/the display feed; the MCU rail stays always-on.
 
-  *[Gate-network derivation, iter-40→iter-42 (F60→F64) — the superseded
-  1 kΩ Rg made the Zener clamp a **continuous ~0.5 W path** whenever Q1
-  is ON (17 mA at 29.2 V), over the 0805/Zener ratings. The iter-40 fix
-  (Rg 150 kΩ, R3 100 kΩ) cut the power but F64 showed two holes: (a) at
-  the 53.3 V surge the divider would put 21.3 V across Vgs and rely on
-  DZ1 to clamp it, but the network only supplies ~0.14 mA — below the
-  BZX84C12's 1 mA-characterized row — so the clamp voltage is not a
-  guaranteed bracket; (b) Q2's temperature-dependent OFF leakage develops
-  Vgs across R3 and, with R3 = 100 kΩ, could exceed the min Vth at high
-  temp and partially turn Q1 on. **Final values (iter-44→45, F68/F72):
-  a BJT driver + base-emitter bleeder, R3 = 6.8 kΩ, Rg = 22 kΩ.**
-  - **The divider alone is the surge bracket** (no reliance on DZ1):
-    Vgs = V24·R3/(R3+Rg) = **6.9 V @29.2 V / 5.0 V @21 V floor /
-    12.6 V @53.3 V surge** — all < ±20 V, at/above the −4.5 V RDS spec
-    point.
-  - **Guaranteed ON via a saturated BJT (F68):** Q2 = **MMBT5551 NPN**,
-    base ← R_base 10 kΩ ← ESP PWR_EN, plus **R_be 10 kΩ base→emitter**.
-    The BJT saturates from base current (Ib ≈ 190 µA after the R_be
-    bleed; forced β ≈ 10 ≪ hFE 60). The ON state does **not** hinge on
-    the exact VCE(sat) — Q1 enhances (Vgs ≥ 4.5 V) even at a pessimistic
-    VCE(sat) = 0.5 V (Vgs@21 V = 4.84 V). (Datasheet VCE(sat) maxima:
-    0.15 V @10 mA/1 mA, 0.20 V @50 mA/5 mA — our ~1–2 mA saturates
-    deeper.) A 2N7002 at 3.3 V had no guaranteed on-state at all.
-  - **Guaranteed OFF (F72 — corrects the F68 misread):** collector
-    cutoff **ICBO ≤ 50 µA @ VCB=120 V, TA=100 °C** (guaranteed hot row;
-    the earlier "100 nA" was a nA→µA unit-column misread). A
-    grounded-emitter BJT *amplifies* collector leakage into base drive,
-    so **R_be sinks it** — at 50 µA the base sits ≤0.46 V < 0.6 V, the
-    junction stays off, and the leakage flows as raw ICBO. Then
-    Vgs_off = ICBO·R3 ≤ **0.34 V @100 °C**, 3× below the 1 V min Vth,
-    guaranteed, no interpolation.
-  - DZ1 (BZX84C12) is a **pure redundant backstop** — off at the 6.9 V
-    DC point, not needed for the surge bracket.
-  - Standing **1.01 mA → 30 mW pack burden while Q1 is ON, ~0 in
-    hard-cut** (only Q2's ICBO ≤50 µA@100 °C flows when Q1 off — a
-    bounded State-4 term ≤1.2 mW@100 °C / ~0.02 mW@≤60 °C,
-    power_budget.md). Fail-safe unchanged: PWR_EN low → Q2 off → R3
-    pulls gate to source → Q1 off. Exact SKUs: Q2 = MMBT5551LT1GOSCT-ND /
-    863-MMBT5551LT1G, R_base = R_be = RMCF0805FT10K0CT-ND /
-    71-CRCW0805-10K-E3, R3 = RMCF0805FT6K80CT-ND / 71-CRCW0805-6.8K-E3,
-    Rg = RMCF0805FT22K0CT-ND / 71-CRCW0805-22K-E3 (resolve-exact
-    2026-07-17). The 30 mW is active-only (States 1–3); it does not
-    touch the hard-cut floor.]*
+  *[Why an SSR — the discrete gate-driver saga, F60→F76. A high-side
+  P-FET (Q1) switched from 3.3 V logic needs a level-shifting pulldown
+  (Q2) + a gate network, and across **five** review iterations every
+  discrete version had a datasheet-spec gap: F60/F64 the Zener clamp
+  wasn't a characterized bracket at the sub-mA surge current; F68 a
+  2N7002 had no guaranteed on-state at 3.3 V; F72/F76 a BJT (MMBT5551)
+  had no guaranteed grounded-emitter cutoff hot (a silicon BJT conducts
+  below 0.4 V VBE at 125 °C, so a base-emitter bleeder can't *prove*
+  cutoff). Root cause (verified iter-48): **no single discrete
+  transistor** in the catalog has, simultaneously, a guaranteed on-state
+  at a 3.3 V drive, a guaranteed hot leakage in the actual grounded
+  configuration, and a rating for the 29 V (53 V-surge) node — 30 V
+  logic-level FETs have the hot-IDSS row but can't take the node; 60 V
+  FETs aren't logic-level and lack a hot-IDSS row; BJTs lack a grounded
+  cutoff spec. **Escalated to the user (packet §38); user chose the
+  PhotoMOS SSR.**]*
+
+  *[Why it resolves the finding cleanly:*
+  - **OFF is bounded and cannot self-turn-on.** The SSR output is an
+    opto-isolated MOSFET; LED off → **open MOSFET, ≤1 µA off-leakage
+    (spec), device rated −40…+85 °C**. There is **no gate divider** for
+    leakage to develop a turn-on voltage across, so the discrete failure
+    mode (leakage → Vgs → self-turn-on) is *architecturally impossible*.
+    The OFF state is a bounded, non-amplifying ≤1 µA leakage from V24 into
+    U2 → ≤0.024 mW State-4.
+  - **ON is guaranteed by LED current.** I_F = (3.3−1.3)/390 ≈ 5 mA;
+    datasheet LED operate current is 1.2 mA typ — ample margin. Ron
+    0.25 Ω typ → ≤0.08 V drop at U2's ~0.3 A max input.
+  - **Surge:** open, it blocks the 53 V clamp (60 V rating); closed, it
+    passes the surge to U2 (R-78HB12, 72 V — survives).
+  - **Power:** LED ~16 mW **active only** (States 1–3), **0 in hard-cut**.
+    Removed 7 parts (Q1/Q2/R3/Rg/R_base/R_be/DZ1) for 2 (SSR1 + R_opto).
+    Exact SKUs: SSR1 = AQY212EH (DK 255-2963-ND / Mouser 769-AQY212EH),
+    R_opto = RMCF0805FT390RCT-ND / 71-CRCW0805390RFKEA (resolve-exact
+    2026-07-17). Datasheet on file (Panasonic GU-E, sha 71c9b77a7bed).
+    Fail-safe unchanged: PWR_EN low/Hi-Z → LED off → SSR open → display
+    shed. Q1's Si2309CDS, Q2's MMBT5551, and DZ1's BZX84C12 are retired
+    (manifest Retired section).]*
 - **Surge coordination (DR-3).** U2 → **Recom R-78HB12-0.5** (17–72 V in,
-  0.5 A). D1 → **60 V Schottky** (SS26/SK56). With U1 (65 V), Q1 (60 V),
+  0.5 A). D1 → **60 V Schottky** (SS26/SK56). With U1 (65 V), SSR1 (60 V),
   U2 (72 V), D1 (60 V) the whole protected rail out-rates the SMAJ33CA's
   ~53 V clamp — completing DR-2's logic.
 - **RS-485 idle bias moves to the display end only** (consequence of the
@@ -1498,7 +1483,7 @@ high-Z node; final E96 values + bench hysteresis check at CP2.
 Iq max 15 µA × 24 V = **~0.36 mW** + V24 sense divider **~0.44 mW** +
 ESP32-S3 Deep-sleep 10 µA typ + **5 µA engineering margin** (Espressif
 does not publish a spec max) + D29 mux max 4.5 µA + U3 THVD1400
-shutdown max 1 µA gives **hard-cut ≈ ~1.13 mW @25 °C guaranteed / ≤~2.3 mW @100 °C ceiling** total from pack
+shutdown max 1 µA gives **hard-cut ≈ ~1.1 mW** total from pack (SSR1 open ≤1 µA; F76 removed the Q1/Q2 gate-network terms)
 (~1.1 mW headline; see `docs/hardware/power_budget.md` State 4 for the
 full table with per-row typ vs max annotations). The EN-asserted floor
 state (chip in reset, ESP off) drops the ESP ~99 µW referred term and
@@ -1927,7 +1912,7 @@ margin where no max is published** (iter-12 F13 caught that my earlier
 "max throughout" claim was still using typical values for U1/U4/U6, and
 iter-14 F16 flagged one remaining "throughout" phrasing here; this is
 the corrected convention used everywhere in the CP1 documents):
-**~1.13 mW @25 °C guaranteed / ≤~2.3 mW @100 °C ceiling total** with LM5166 **15 µA max** +
+**~1.1 mW total** with LM5166 **15 µA max** +
 TPS3808 **5 µA max** + TPS2116 **4.5 µA max** + THVD1400 **1 µA max**
 + ESP32-S3 Deep-sleep 10 µA typ + 5 µA engineering margin (Espressif
 does not publish a spec max for Deep-sleep in ES Table 6-7 [citation corrected 2026-07-14]). ([[power-first]])
@@ -2120,7 +2105,7 @@ the transport differs from BLE. **ADM2587E ICC = 90 mA @ 3.3 V/100 Ω**
 (Rev H Table 1; **iter-30 F28 corrected the first draft's 72 mA**, which
 is the 5 V row — isoPower dominates whenever VCC is applied) → gating is
 essential; gated ~0.5 % duty → **~1.5 mW average** in polling states
-(~0.17 % of State-1). States 3–4 unpowered → **hard-cut ~1.13 mW @25 °C guaranteed / ≤~2.3 mW @100 °C ceiling
+(~0.17 % of State-1). States 3–4 unpowered → **hard-cut ~1.1 mW
 unchanged**, contingent on the §2a off-state contract (F30) + a
 default-off load switch. **Shared-UART off-state (F30):** per-channel
 dedicated DI/DE/RO on the ESP, matrix-muxed, inactive pins held high-Z —

@@ -753,7 +753,7 @@ uses **max** for LM5166 (15 µA), TPS3808 (5 µA), TPS2116 (4.5 µA), and
 THVD1400 (1 µA); **typ + margin** for ESP32-S3 Deep-sleep (10 µA typ
 + 5 µA margin, since Espressif publishes no spec max in ES §5.4) and
 RV-3028-C7 RTC (45 nA typ, ≤200 nA per Micro Crystal AN — well under
-the µW floor) → **~1.13 mW @25 °C guaranteed / ≤~2.3 mW @100 °C ceiling** headline (incl. Q1/Q2 OFF leakage, F65/F68; was ~1.08 mW pre-leakage, and ~1.0 mW iter-6,
+the µW floor) → **~1.1 mW** headline (iter-48 F76: the discrete Q1/Q2 gate driver → AQY212EH SSR, whose ≤1 µA off-leakage removed the gate-network terms; was ~1.08 mW pre-leakage, and ~1.0 mW iter-6,
 then claimed "max throughout" iter-10 with typ still buried, corrected
 iter-12 F13, wording tightened iter-14 F16 across power_budget.md /
 D34 / DR-25 / cp1_battery_side.md §7 State-4 row). Order-of-magnitude

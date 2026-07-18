@@ -103,14 +103,9 @@ one complete monitor.
 
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
-| Q1  | **Si2309CDS** P-MOSFET (Vishay, Vds −60 V, −1.6 A) | SOT-23 | 1 | **SI2309CDS-T1-GE3CT-ND** (120k stock, Active, API 2026-07-17) | 781-SI2309CDS-GE3 (89k) | $1.39 | **Δ (D19/DR-4): AO3401A (30 V) → ZXMP6A13F (60 V); iter-38 (F57): ZXMP6A13F went NRND with unsubstantiated stock → Si2309CDS** (Vishay doc 68980, on file): RDS 0.45 Ω max @ VGS=−4.5 V (the divider drive is ~4.9–6.8 V — F64), Vgs ±20 V, **IGSS ≤100 nA; IDSS ≤1 µA @25 °C / ≤10 µA @TJ=55 °C** (Vishay 68980 p.2 — F65 corrected iter-42; the earlier 100 nA/1 µA conflated IGSS with IDSS). Min-rail RDS(on) = **0.45 Ω max @ VGS=−4.5 V** (the conservative row at Vgs≈4.9 V); ~0.3 A load → ≤0.135 V drop. Q1-OFF IDSS is a State-4 term (power_budget.md) |
-| Q2  | **MMBT5551LT1G** (onsemi) NPN BJT (Vceo 160 V) — Q1 gate driver | SOT-23 | 1 | **MMBT5551LT1GOSCT-ND** (689k, Active, API 2026-07-17) | 863-MMBT5551LT1G (158k) | $0.24 | **Δ iter-44 (F68): 2N7002 N-FET → MMBT5551 BJT** (a 2N7002 has no guaranteed on-state at the 3.3 V drive; RDS spec'd only at Vgs 5/10 V). **ON guaranteed:** the BJT saturates from base current (Ib 190 µA via R_base 10 kΩ after the R_be bleed; forced β ≈ 10 ≪ hFE 60) — Q1 enhances even at a pessimistic VCE(sat) = 0.5 V (Vgs@21 V = 4.84 V ≥ 4.5 V). **OFF guaranteed (F72 corrected):** collector cutoff **ICBO ≤ 50 µA @ TA=100 °C** (VCB=120 V; the earlier '100 nA' was a nA→µA unit-column misread) — **R_be (base→emitter) prevents the leakage becoming base drive** — so Vgs_off = ICBO·R3 ≤ **0.34 V @100 °C**, 3× below the 1 V min Vth, guaranteed with no interpolation. 160 V Vceo ≫ the 53 V collector surge. Base ← R_base + R_be |
-| R_base | **10 kΩ** 0805 1 % (ESP PWR_EN → Q2 base) | 0805 | 1 | **RMCF0805FT10K0CT-ND** | 71-CRCW0805-10K-E3 | $0.10 | **NEW (F68), value F72:** base drive for MMBT5551. GPIO 3.3 V → base; minus the R_be bleed, Ib ≈ 190 µA → deep saturation (forced β ≈ 10). 260 µA GPIO load (active only) |
-| R_be | **10 kΩ** 0805 1 % (Q2 base → emitter/GND) | 0805 | 1 | **RMCF0805FT10K0CT-ND** | 71-CRCW0805-10K-E3 | $0.10 | **NEW (F72):** base-emitter bleeder. Sinks the collector cutoff current so ICBO (≤50 µA @100 °C) can't forward-bias the base and get amplified into turn-on (Vbe ≤ 0.46 V at 50 µA). Also holds Q2 off with PWR_EN floating |
-| DZ1 | BZX84C12 12 V Zener (Q1 gate–source **redundant backstop**) | SOT-23 | 1 | BZX84C12LT1GOSCT-ND (71k stock, Active) | 863-BZX84C12LT1G (182k) | $0.10 | **NEW (D19/DR-4); role finalized iter-42 (F64):** the **R3(6.8k)/Rg(22k) divider is the safety bracket** — it holds Vgs ≤ **12.6 V even at the 53.3 V surge** (<±20 V, 38 % margin) with *no* reliance on the Zener. DZ1 is a pure backstop: at the ~6.9 V DC point it is fully off, and at the surge the divider already guarantees <20 V. (This retires the iter-40 claim that DZ1 clamps at ~12 V — at the network's ≤0.14 mA surge current the Zener is below its 1 mA-characterized row, so its clamp voltage is not a bracket, per F64.) |
-| Rg  | **22 kΩ** 0805 1 % (series gate, Q2 collector → Q1 gate) | 0805 | 1 | **RMCF0805FT22K0CT-ND** | 71-CRCW0805-22K-E3 | $0.10 | **Δ (F60→F64→F72): 1 kΩ → 150 kΩ → 33 kΩ → 22 kΩ.** With R3=6.8 kΩ the divider sets Vgs = **6.9 V @29.2 V / 5.0 V @21 V floor / 12.6 V @53.3 V surge (all <±20 V, ≥4.5 V — divider is the bracket)**. Standing **1.01 mA → 30 mW pack burden (Q1-ON only; ~0 in hard-cut)**; P_Rg ≈22 mW, P_R3 ≈7 mW (0805 = 125 mW). Full derivation: decisions.md D19 (F64/F72) |
-| R3  | **6.8 kΩ** 0805 1 % (Q1 gate pull-up to V24_FUSED) | 0805 | 1 | **RMCF0805FT6K80CT-ND** | 71-CRCW0805-6.8K-E3 | $0.10 | **Δ (F64→F72): 100 kΩ → 10 kΩ → 6.8 kΩ.** Default-OFF pull-up + sets the ON-state divider ratio with Rg. **OFF immunity (F72):** Vgs_off = ICBO·R3 ≤ **0.34 V @100 °C** (MMBT5551 ICBO ≤50 µA guaranteed, R_be prevents amplification) — 3× below the 1 V min Vth. Smaller R3 buys the OFF margin |
-| R4  | 100 kΩ 0805 1 % (PWR_EN pull-down to GND) | 0805 | 1 | **RMCF0805FT100KCT-ND** | 71-CRCW0805-100K-E3 | $0.10 | Brown-out failsafe-off. **F71: explicit 100 kΩ SKUs** — the earlier same-as-R3 inheritance broke when R3 → 10 kΩ (F64). Holds the PWR_EN/base node low when the ESP is off/high-Z |
+| SSR1 | **Panasonic AQY212EH** PhotoMOS SSR (1-Form-A, 60 V / 550 mA, Ron 0.25 Ω typ) — Q1 load switch **replacing the whole P-FET + gate-driver network** | DIP-4 SMD | 1 | **255-2963-ND** (2471 stock, Active, API 2026-07-17) | 769-AQY212EH (4195) | $2.81 | **Δ iter-48 (F76 resolution, user-approved):** the discrete high-side P-FET gate driver could not be *datasheet-guaranteed* OFF at temperature (5 iters, F60→F76). A PhotoMOS SSR is LED-controlled and opto-isolated: **OFF-state is an open MOSFET, off-leakage ≤1 µA (spec), rated −40…+85 °C, and cannot self-turn-on** (no gate divider) — the failure mode the reviewer flagged is eliminated. In series V24_FUSED→V24_SW; blocks the 53 V surge when open (<60 V rating), passes it to the 72 V-rated U2 when closed. Removes Q1/Q2/R3/Rg/R_base/R_be/DZ1 (7 parts → 2). Datasheet on file (Panasonic GU-E, sha 71c9b77a7bed) |
+| R_opto | **390 Ω** 0805 1 % (ESP PWR_EN → SSR1 LED anode; cathode → GND) | 0805 | 1 | RMCF0805FT390RCT-ND | 71-CRCW0805390RFKEA | $0.10 | **NEW (F76 resolution):** SSR LED current limit. I_F = (3.3−1.3)/390 ≈ 5 mA (LED operate 1.2 mA typ → ample margin); ~5 mA GPIO load, **active only, 0 in hard-cut**. Turn-off current min 0.4 mA → R4 keeps it off at float |
+| R4  | 100 kΩ 0805 1 % (PWR_EN pull-down to GND) | 0805 | 1 | **RMCF0805FT100KCT-ND** | 71-CRCW0805-100K-E3 | $0.10 | Brown-out failsafe-off: holds PWR_EN low (SSR LED off → open) when the ESP GPIO is high-Z/off |
 | U4  | **TI TPS3808G01DBVR** voltage supervisor (~2.4 µA, adj SENSE, OD RESET, prog CT delay, +MR) | **SOT-23-6 (leaded ✓)** | 1 | 296-17188-2-ND | 595-TPS3808G01DBVR | $0.90 | **D28/DR-16; repackaged D33/DR-24 (2026-07-01): WSON→SOT-23-6 for solderability at ~zero power cost (Iq 2.4 µA vs the old part's 2.1 µA).** Adjustable **VIT = 0.405 V**; ISENSE ±25 nA max; built-in VHYS 1.5 %. Divider **release-sized** R1≈5.16 MΩ/R2≈100 kΩ + R_hys≈11.5 MΩ → trip ~20.0 V / release ~21.7–21.8 V (RESET active-low → positive feedback; F01 polarity + F04 release value; see R_uv/R_hys rows; final E96 at CP2). Active, DK 149k. Datasheet: hardware/datasheets/TPS3808G01DBVR.pdf |
 | R_uv1 (top), R_uv2 (bottom) | UVLO pack divider → U4 SENSE. **VIT = 0.405 V** (TPS3808G01). Plain divider threshold is the *lower bound* on the release (see R_hys for the R_hys-leg + VHYS lift): sizing to ~21.3 V → **R1 ≈ 5.16 MΩ, R2 ≈ 100 kΩ** (E96) → actual release ~21.7–21.8 V, trip ~20.0 V | 0805 ×2 | 2 | _verify_ | _verify_ | $0.10 ea | **D28; re-derived for 0.405 V + polarity fix (D33/F01) + release refinement (F04).** ISENSE ±25 nA max → I_div ≥ 2.5 µA; 0.405 V/100 kΩ = 4.05 µA at threshold ✓ (~4.6 µA at 24 V, lower than the old 2.89 V part). Add small SENSE filter cap; final E96 at CP2 |
 | R_hys | UVLO external hysteresis, U4 RESET → SENSE (**~11.5 MΩ**) | 0805 | 1 | _verify_ | _verify_ | $0.05 | **F01 (iter-5) + F04 (iter-6)/D28.** RESET is open-drain **active-low** → R_hys is *positive* feedback: healthy (RESET≈3.3 V) pulls SENSE up → drops the falling trip; asserted (VOL = 0–0.2 V) still sources a small current from SENSE → RESET, so release lands ~0.4–0.5 V *above* the plain divider threshold. ΔV = R1·(V_RESET_H−VIT)/R_hys ≈ **1.5 V** → trip ~20.0 / release ~21.7–21.8 V. Built-in VHYS (~6 mV) too small alone. Final E96 at CP2 |
@@ -305,13 +300,13 @@ U2 R-78HB12-0.5 = CA$27.95 (was $8) and BTN1 8125SHZBE = CA$18.47
 
 | Item | Cost |
 |------|------|
-| Battery-side board — iter-27 core (qty 1, hand-assembled) | ~$83 |
+| Battery-side board — iter-27 core + iter-48 SSR swap (qty 1, hand-assembled) | ~$84 |
 | Display-side board (qty 1, hand-assembled) | ~$69 |
 | Cable & shared connectors | ~$10 |
 | Bare PCBs from JLCPCB (qty 5 of each board, 2-layer FR-4 HASL, DHL shipping) | ~$30 |
-| **iter-27 core total** | **~$192** |
+| **core total** | **~$193** |
 | **+ D36/D37 delta (pending CP1-delta review)** — see below | **+ ~$58.6** |
-| **Single-monitor total (with pending delta)** | **~$250.6** |
+| **Single-monitor total (with pending delta)** | **~$251.6** |
 
 **D36/D37 delta (recomputed iter-36 after the F51 switch simplification;
 iter-34 F50 fixed the earlier mis-sums $0.40/$0.20):** 2× ADM2587E @
@@ -324,9 +319,10 @@ iter-38 after the F56/F57 FET replacement; SM712 ×2 +
 series-R + PPTC all DNP = $0). *Optional, not in the sum:* PicoBlade
 mate cable assembly 0151340801 (**$10.53**, DK WM15273-ND) — order
 if/when an add-on is actually built. The core sums above are dated
-2026-07-14 (plus the 2N7002LT1G re-pin iter-36, the Q1 Si2309CDS swap iter-38,
-and the Q2 2N7002→MMBT5551 BJT swap + R_base + R_be iter-44/F72 — net ≈ +$2.2, absorbed
-in the battery-side "~$83") and do **not** yet include the
+2026-07-14 (plus the 2N7002LT1G re-pin iter-36 and the **iter-48
+gate-driver replacement: Q1 P-FET + Q2 BJT + 5 gate resistors + DZ1 →
+one AQY212EH PhotoMOS SSR + R_opto** — net ≈ +$0.7, absorbed in the
+battery-side "~$83") and do **not** yet include the
 delta; when the CP1-delta is approved it folds into the battery-side
 line and the whole column is mechanically recomputed. *(F25: display enclosure/mounting was $5→$10.
 Prior ~$145/~$154 predated the U2/BTN1/TVS corrections.)*
@@ -352,7 +348,7 @@ so the extras are not wasted.
 - Phoenix MSTB pluggable terminal block + plug
 - 5×20 mm cartridge fuse + 2× PCB-mount fuse clips
 - TVS1 = SMAJ33CA on V24_FUSED (D19/DR-2)
-- Q1 gate-drive: **MMBT5551 BJT (Q2) + R_base 10 kΩ + R_be 10 kΩ (bleeder)** pulls the gate through **divider R3 6.8 kΩ / Rg 22 kΩ**; DZ1 (BZX84C12) redundant backstop (D19/DR-4; F60→F64→F68→F72: divider is the bracket, Vgs ≤12.6 V at 53.3 V surge; BJT guarantees ON (saturation, robust to VCE(sat)) + OFF (ICBO ≤50 µA@100 °C, R_be blocks amplification); burden 30 mW Q1-ON, ~0 hard-cut)
+- Display-feed load switch: **Panasonic AQY212EH PhotoMOS SSR** (in series V24_FUSED→V24_SW), driven by ESP `PWR_EN` through **R_opto 390 Ω** (~5 mA LED). Replaced the discrete P-FET + gate-driver network (Q1/Q2/R3/Rg/R_base/R_be/DZ1) at iter-48 (F76 resolution) because no discrete driver could be datasheet-guaranteed OFF at temperature. SSR OFF-leakage ≤1 µA (spec), rated −40…+85 °C, opto-isolated → cannot self-turn-on. LED ~16 mW active, 0 in hard-cut.
 - ESP EN cap (C8) + pull-up (R7)
 - Maintenance: J3 = **USB-C** (native USB, D22) + USB ESD array; J5 (UART) for bring-up
 - **Removed** battery-side RS-485 idle bias (now display-end only, D19/DR-4)

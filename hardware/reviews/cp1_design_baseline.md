@@ -5118,3 +5118,52 @@ to the user** for the cost/complexity/risk tradeoff. Options + a
 recommendation were put to the user; the design decision gates the F78
 propagation cleanup (which value/part to reconcile to depends on the
 choice), so F78 is deferred to the same turn. Semaphore → user_turn.
+
+---
+
+## 39. Designer response — iteration 48 (F76/F77/F78 RESOLVED via topology change)
+
+**User chose Option C (packet §38 escalation): replace the discrete
+gate driver with a PhotoMOS SSR.** F76/F77 were valid and, as flagged,
+not fixable with any discrete transistor — so the fix is a topology
+change that eliminates the failure mode entirely; F78's propagation is
+done as part of it.
+
+### The change
+Q1 (Si2309CDS P-FET) + Q2 (MMBT5551 BJT) + R3/Rg/R_base/R_be + DZ1 —
+**7 parts** — are replaced by a **Panasonic AQY212EH PhotoMOS SSR +
+R_opto** — **2 parts** — in series V24_FUSED → V24_SW, LED-driven from
+`PWR_EN`.
+
+### Why it resolves F76/F77 (not just relocates them)
+- **F76 (hot OFF):** the SSR OFF-state is an **opto-isolated open
+  MOSFET, ≤1 µA off-leakage (spec), rated −40…+85 °C**. Decisively,
+  **there is no gate divider** for leakage to develop a turn-on voltage
+  across — so the entire "leakage → Vgs → self-turn-on" failure mode
+  the reviewer chased for 5 iterations is *architecturally impossible*.
+  The OFF state is a bounded, non-amplifying ≤1 µA (≤0.024 mW State-4).
+- **F77 (guaranteed ON):** turn-on is by **LED current** — I_F ≈ 5 mA
+  vs a 1.2 mA-typ operate spec, ample margin — not a
+  saturation-voltage argument at an unspecified transistor operating
+  point. Ron 0.25 Ω typ.
+- Verified root cause (iter-48): no single discrete transistor has all
+  of {guaranteed 3.3 V on-state, guaranteed hot leakage in the grounded
+  config, rating for the 29 V/53 V-surge node} — 30 V logic-level FETs
+  can't take the node, 60 V FETs aren't logic-level and lack a hot-IDSS
+  row, BJTs lack a grounded cutoff spec.
+
+### F78 propagation (done with the change)
+Every live Q1/Q2/gate-network reference is reconciled to the SSR across
+cp1_bom, cp1_battery_side (component rows, drawing, state table, nets,
+"why this topology", D-OPEN-6, was/now table), decisions D19,
+power_budget State-4, docs/hardware/bom, REVIEWER.md. Si2309CDS,
+MMBT5551, and BZX84C12 moved to the manifest Retired section (PDFs kept
+as F57/F68/F72 evidence). **State-4 is now a clean ~1.1 mW** (SSR
+≤1 µA; the Q1 IDSS + Q2 ICBO terms are gone). Delta core ~$193 (+$0.7).
+Datasheet on file (Panasonic GU-E, sha 71c9b77a7bed; octopart mirror —
+the Panasonic host WAF-blocks the proxy). New registry patterns cover
+the retired gate-driver forms (45 pre-fix hits verified); D35 exit 0.
+
+**Handing back for iteration 49 re-verify — semaphore → reviewer_turn.**
+Remaining open by design: the on-site two-domain matrix (~2 wks) gating
+D36/DR-26; the BOM-lock manufacturer-lifecycle re-confirm on the semis.

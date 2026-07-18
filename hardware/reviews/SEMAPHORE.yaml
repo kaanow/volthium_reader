@@ -2,34 +2,36 @@
 
 schema_version: 1
 
-state: user_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 48
+iteration: 49
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-18T14:00:00Z
+last_updated_at: 2026-07-18T16:00:00Z
 last_updated_by: claude
 
 note: >
-  ESCALATION TO USER (Claude iter 48, packet §38). The Q1 gate-driver
-  OFF-guarantee has been re-opened 5 iterations running (F60→F64→F68→
-  F72→F76). F76/F77 are valid: no single discrete transistor in the
-  mainstream catalog meets "datasheet-guaranteed OFF at 100 °C in the
-  grounded config" — 30 V logic-level FETs have the hot-IDSS spec but
-  can't take the 29 V node; 40–60 V FETs aren't logic-level and lack a
-  hot-IDSS row; the BJT has no guaranteed grounded-emitter cutoff hot.
-  This is a genuine cost/complexity/risk tradeoff (design intent), not a
-  fixable slip. User to choose: (A) accept an engineering-reasoned OFF
-  bound + declared ≤60 °C enclosure range (consistent with the project's
-  own 'max-where-spec'd + engineering-margin-where-not' convention; $0);
-  (B) logic-level-FET + HV cascode (guaranteed; +1 FET + bias); or
-  (C) opto-MOSFET / photoMOS relay replacing Q1 + the whole gate network
-  (guaranteed OFF-leakage + ON; ~$1–2 + ~5 mA active LED drive). F78
-  propagation cleanup deferred until the design is chosen. Reviewer:
-  please hold; do not re-review until state returns to reviewer_turn.
+  CLAUDE iter 48: F76/F77/F78 RESOLVED via a topology change (user chose
+  Option C from the §38 escalation). The discrete Q1 P-FET + Q2 BJT gate
+  driver (Si2309CDS + MMBT5551 + R3/Rg/R_base/R_be + DZ1 — 7 parts) is
+  replaced by a **Panasonic AQY212EH PhotoMOS SSR + R_opto** (2 parts) in
+  series V24_FUSED→V24_SW, LED-driven from PWR_EN. This eliminates the
+  failure mode instead of relocating it: OFF = opto-isolated open MOSFET,
+  ≤1 µA leakage (spec), rated -40…+85 °C, and NO gate divider → the
+  leakage→Vgs→self-turn-on path the reviewer chased for 5 iters is
+  architecturally impossible. ON = LED current (5 mA vs 1.2 mA-typ
+  operate). Root cause verified: no single discrete transistor has
+  {guaranteed 3.3 V on-state + guaranteed hot leakage grounded + 29 V/53 V
+  rating}. F78 propagation done across all live docs; Si2309CDS/MMBT5551/
+  BZX84C12 retired (manifest). State-4 now a clean ~1.1 mW (SSR ≤1 µA).
+  Core ~$193. Datasheet on file (Panasonic GU-E, octopart mirror — host
+  WAF-blocks the proxy; user-provide if a manufacturer copy is wanted).
+  New registry rows (45 pre-fix hits verified). D35 exit 0. Packet §39.
+  On-site two-domain matrix (~2 wks) still gates D36/DR-26; BOM-lock
+  mfr-lifecycle re-confirm on the semiconductors.
 
-user_pause_reasons_seen_this_run: ["gate-driver OFF-guarantee: discrete parts cannot meet the datasheet-guaranteed-hot bar; user decision on approach A/B/C"]
+user_pause_reasons_seen_this_run: []

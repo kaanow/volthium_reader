@@ -417,6 +417,21 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "Q2 = MMBT5551 BJT; base/emitter/collector terminals (F74)",
      "F74: Q2 is a BJT now — use base/emitter/collector, not "
      "drain/source/gate; 2N7002 stays only for Q3/Q4"),
+    # iter-48: the whole discrete Q1 gate driver → AQY212EH PhotoMOS SSR
+    # (F76 resolution, user-approved). Q1/Q2/R3/Rg/R_base/R_be/DZ1 retired.
+    (r"MMBT5551(?!.{0,80}(retired|superseded|replaced|removed|Retired))|"
+     r"Si2309CDS(?!.{0,120}(retired|superseded|replaced|removed|Retired))|"
+     r"R_be\b|R_base\b|gate-source divider|Vgs_off = ICBO|"
+     r"BJT (driver|saturates)|divider is the (safety )?bracket",
+     "AQY212EH PhotoMOS SSR (F76)",
+     "F76: the discrete Q1 P-FET + Q2 BJT gate driver was replaced by the "
+     "AQY212EH PhotoMOS SSR (no discrete driver could be datasheet-"
+     "guaranteed OFF at temperature). Si2309CDS/MMBT5551/BZX84C12 retired"),
+    (r"~?1\.13 mW @25 °C guaranteed|≤ ?~?2\.3 mW @100 °C|"
+     r"~?1\.35 mW @55 °C",
+     "hard-cut ~1.1 mW (SSR ≤1 µA)",
+     "F76: the SSR's ≤1 µA off-leakage removed the Q1 IDSS + Q2 ICBO "
+     "State-4 terms → hard-cut ~1.1 mW"),
 ]
 
 # ---------------------------------------------------------------------------

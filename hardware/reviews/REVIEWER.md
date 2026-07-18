@@ -109,7 +109,7 @@ PDF or a tool call made this pass (§3.5):
 - Datasheets: ESP32-S3-WROOM-1, **LM5166** (always-on µA-Iq buck),
   **TPS3808G01DBVR** (UVLO supervisor, D33), **TPS2116** (USB power-mux,
   D29), **RV-3028-C7** (RTC, D23), **R-78HB12** / **R-78E3.3** (Recom),
-  **Si2309CDS / NTR4171P / MMBT5551 (Q1 gate driver, F68) / 2N7002LT1G (Q3/Q4)** (load switches; ZXMP6A13F superseded by Si2309CDS iter-38 F57; DMG3415U superseded by NTR4171P iter-40 F61; 2N7002 Q2 superseded by MMBT5551 BJT iter-44 F68), **SS26**,
+  **AQY212EH PhotoMOS SSR (display-feed load switch, F76) / NTR4171P (channel + expansion switches) / 2N7002LT1G (Q3/Q4 UVLO bypass)** (the discrete Q1 P-FET + Q2 BJT gate driver was replaced by the SSR iter-48 F76 after 5 iters couldn't datasheet-guarantee it OFF at temp — Si2309CDS/MMBT5551/BZX84C12 retired), **SS26**,
   **SMAJ33CA/SMAJ15A/SMAJ12CA**, **THVD1400DR** (RS-485 transceiver,
   D34 — supersedes both `SN65HVD3082E` and the iter-8 ISL3175EIBZ pick),
   **USBLC6-2** (USB ESD), **AP2112K-3.3** (USB LDO), Waveshare 4.2"

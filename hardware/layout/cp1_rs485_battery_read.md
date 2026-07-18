@@ -276,7 +276,7 @@ per-channel and one-channel-at-a-time select.
 but *not* "below the µW floor" — that claim is **corrected** here (it was
 a first-draft error). In States 3–4
 (deep-sleep / hard-cut) both channels are **unpowered** → **hard-cut
-~1.13 mW @25 °C guaranteed / ≤~2.3 mW @100 °C ceiling unchanged (F65/F68)** — *contingent on the enforceable off-state
+~1.1 mW unchanged (F76: SSR load switch)** — *contingent on the enforceable off-state
 contract in §2a (F30) and no leakage path; the load switch defaults off
 at reset.* (Even as *primary*, State-3 reads are ~1/10 min → far lower
 duty; State-4 does no reads.)
