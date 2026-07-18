@@ -10,4 +10,11 @@
 # Scoped to this VID:PID only. Installed at /etc/udev/rules.d/ by
 # deploy/pi/install.sh; takes effect on device add (replug or reboot), and the
 # installer also applies it to the live device immediately.
+#
+# LIMITATION (found 2026-07-18): this fires only on ACTION=="add". A dwc2
+# reset-in-place (`usb 1-1.5: reset full-speed USB device`) does NOT re-fire
+# add, so power/control reverts to 'auto' after every reset and autosuspend
+# comes back — re-arming the very race that caused the reset. The
+# volthium-usb-keepawake.timer re-asserts power/control=on every 30 s to
+# cover that gap. See docs/investigations/2026-07-16-bt-wedge-causation.md.
 ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="2357", ATTR{idProduct}=="0604", TEST=="power/control", ATTR{power/control}="on"

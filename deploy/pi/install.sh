@@ -16,6 +16,9 @@ echo "== systemd units =="
 install -m 0644 "$HERE/systemd/volthium-logger.service"           "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-uploader.service"         "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-events-uploader.service"  "$SYSD/"
+install -m 0644 "$HERE/systemd/volthium-usb-keepawake.service"    "$SYSD/"
+install -m 0644 "$HERE/systemd/volthium-usb-keepawake.timer"      "$SYSD/"
+install -m 0755 "$HERE/bin/volthium-usb-keepawake.sh"             /usr/local/bin/
 install -d "$SYSD/volthium-logger.service.d"
 install -m 0644 "$HERE/systemd/volthium-logger.service.d/10-reader-env.conf" \
     "$SYSD/volthium-logger.service.d/"
@@ -37,6 +40,13 @@ for dev in /sys/bus/usb/devices/*; do
         echo "   autosuspend disabled on $(basename "$dev") (live)"
     fi
 done
+
+echo "== usb-keepawake timer =="
+# The udev rule above only fires on device ADD; a dwc2 reset-in-place reverts
+# power/control to 'auto' without re-firing it. This timer re-asserts every
+# 30 s so the reset cascade can't sustain itself. See the investigation doc.
+systemctl enable --now volthium-usb-keepawake.timer
+echo "   volthium-usb-keepawake.timer enabled"
 
 echo "== one-time migration: archive the pre-tmpfs event log =="
 # The event log moves back from tmpfs to data/. A stale data/ble_events.jsonl

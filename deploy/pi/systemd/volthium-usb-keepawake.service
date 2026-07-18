@@ -1,0 +1,7 @@
+[Unit]
+Description=Volthium — re-assert UB500 USB autosuspend-disable (survives dwc2 reset-in-place)
+Documentation=file:///srv/volthium_reader/docs/investigations/2026-07-16-bt-wedge-causation.md
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/volthium-usb-keepawake.sh

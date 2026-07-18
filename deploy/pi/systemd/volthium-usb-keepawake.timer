@@ -1,0 +1,15 @@
+[Unit]
+Description=Periodically re-assert UB500 USB autosuspend-disable
+Documentation=file:///srv/volthium_reader/docs/investigations/2026-07-16-bt-wedge-causation.md
+
+[Timer]
+# First run shortly after boot, then every 30 s. A dwc2 reset reverts
+# power/control to 'auto'; 30 s bounds how long autosuspend can be back
+# on before we disable it again — far shorter than the inter-reset time,
+# so the reset cascade can't sustain itself.
+OnBootSec=30
+OnUnitActiveSec=30
+AccuracySec=5
+
+[Install]
+WantedBy=timers.target
