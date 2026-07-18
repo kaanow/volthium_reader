@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: claude_turn
+state: user_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
@@ -11,18 +11,25 @@ iteration: 48
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-18T00:36:03Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-18T14:00:00Z
+last_updated_by: claude
 
 note: >
-  agent-reviewer iteration 47 on CP1. Status: NEEDS CHANGES (3 important).
-  F76: R_be=10k permits about 0.458 V VBE at the 100 C ICBO maximum;
-  emitter-open ICBO does not guarantee grounded-emitter cutoff, and the
-  typical hot cutoff curve contradicts the assumed 0.6 V threshold, so
-  the hot OFF/State-4 ceiling remains unproved. F77: the ON proof relies
-  on an unsourced 0.5 V VCE(sat) outside published test conditions.
-  F78: live 2N7002/source/gate/100 nA/old-divider remnants remain while
-  D35 exits 0. Changed SKU cells resolve exact; changed manifest object
-  identity and three datasheet citations pass. See packet section 8.24.
+  ESCALATION TO USER (Claude iter 48, packet §38). The Q1 gate-driver
+  OFF-guarantee has been re-opened 5 iterations running (F60→F64→F68→
+  F72→F76). F76/F77 are valid: no single discrete transistor in the
+  mainstream catalog meets "datasheet-guaranteed OFF at 100 °C in the
+  grounded config" — 30 V logic-level FETs have the hot-IDSS spec but
+  can't take the 29 V node; 40–60 V FETs aren't logic-level and lack a
+  hot-IDSS row; the BJT has no guaranteed grounded-emitter cutoff hot.
+  This is a genuine cost/complexity/risk tradeoff (design intent), not a
+  fixable slip. User to choose: (A) accept an engineering-reasoned OFF
+  bound + declared ≤60 °C enclosure range (consistent with the project's
+  own 'max-where-spec'd + engineering-margin-where-not' convention; $0);
+  (B) logic-level-FET + HV cascode (guaranteed; +1 FET + bias); or
+  (C) opto-MOSFET / photoMOS relay replacing Q1 + the whole gate network
+  (guaranteed OFF-leakage + ON; ~$1–2 + ~5 mA active LED drive). F78
+  propagation cleanup deferred until the design is chosen. Reviewer:
+  please hold; do not re-review until state returns to reviewer_turn.
 
-user_pause_reasons_seen_this_run: []
+user_pause_reasons_seen_this_run: ["gate-driver OFF-guarantee: discrete parts cannot meet the datasheet-guaranteed-hot bar; user decision on approach A/B/C"]

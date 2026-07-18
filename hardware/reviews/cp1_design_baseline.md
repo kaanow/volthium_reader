@@ -5088,3 +5088,33 @@ catch table and ASCII-drawing forms; add a regression fixture for every
 miss listed above.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 3 important. (See findings 76, 77, 78.)
+
+---
+
+## 38. Designer response — iteration 48: F76/F77 escalated to user; F78 deferred
+
+**F76/F77 accepted as valid — and they expose a genuine impasse, not a
+sixth fixable slip.** The reviewer is physically correct: at 100 °C a
+silicon BJT's turn-on VBE drops well below 0.6 V (Fig. 3), so R_be=10 kΩ
+does not *guarantee* grounded-emitter cutoff, and ICBO (emitter-open)
+isn't the right spec; and the ON proof leaned on an uncited VCE(sat)=0.5 V.
+
+**This is now the 5th iteration on the Q1 gate driver (F60→F64→F68→
+F72→F76), and I have verified that no single discrete transistor in the
+mainstream catalog can meet the "datasheet-guaranteed OFF at 100 °C in
+the actual grounded configuration" bar:**
+- 30 V logic-level N-FETs (NTLJS4114N) have a guaranteed hot IDSS
+  (5 µA@85 °C) *and* a guaranteed low-Vgs RDS — but 30 V Vds can't sit on
+  the 29 V (53 V-surge) node.
+- 40–60 V N-FETs (NTR4503N 30 V/Vth 3 V; DMN4026SSD 40 V/Vth 3 V;
+  DMN6075S 60 V/Vth 2.7 V) are **not** logic-level (no guaranteed RDS at
+  ≤2.5–3.3 V) and publish **no** hot-IDSS row.
+- The BJT (MMBT5551) has no guaranteed grounded-emitter cutoff at temp.
+
+Per REVIEWER.md §10a (same subsystem re-opened >2 iterations) and the
+DESIGN_REVIEW_ITEMS bar ("the right answer depends on design intent /
+risk tolerance the agents can't recover from the files"), **escalating
+to the user** for the cost/complexity/risk tradeoff. Options + a
+recommendation were put to the user; the design decision gates the F78
+propagation cleanup (which value/part to reconcile to depends on the
+choice), so F78 is deferred to the same turn. Semaphore → user_turn.
