@@ -5375,3 +5375,124 @@ fire on pre-fix HEAD.
 Open by design (unchanged): the on-site RS-485 two-domain common-mode
 matrix at the ~2-week battery visit (D36/DR-26), and BOM-lock
 manufacturer-lifecycle reconfirm on the semiconductors at CP5.
+
+---
+
+## 8.26 Reviewer findings (iteration 51 - iter-50 resolution re-review)
+
+**Scope and evidence.** Ran `doc_consistency_check.py` before review:
+exit 0 (`30 manifest parts checked`; `38 BOM cells still at _verify_`;
+no unmarked stale tokens; D32 manifest/PDF/BOM consistency clean). This
+was a CP1 delta re-review of F79-F82 only, not CP2.
+
+The AQY212EH object remains correctly grounded. I reopened the
+manufacturer-direct `AQY212EH_Panasonic.pdf` (SHA256
+`d329b97293228ccd6b5cce0b5622fbea1e18bda0df64fce606a5bb804f45fbf4`):
+Panasonic ASCTB126E identifies AQY212EH as the 60 V, 550 mA through-hole
+part, distinct from surface-mount AQY212EHA. The changed-SKU full sweep
+passes 4/4 using canonical `POST /resolve` on 2026-07-18:
+`RMCF0805FT330RCT-ND` -> Stackpole `RMCF0805FT330R`,
+`71-CRCW0805-330-E3` -> Vishay `CRCW0805330RFKEA`,
+`RMCF1206FT22R0CT-ND` -> Stackpole `RMCF1206FT22R0`, and
+`71-CRCW1206-22-E3` -> Vishay `CRCW120622R0FKEA`, all exact.
+
+Citation spot-checks against on-file manufacturer PDFs:
+
+- `AQY212EH_Panasonic.pdf` printed p.2/PDF p.3 confirms AQY212EH
+  Ron=0.85 Ohm typical/2.5 Ohm maximum and 1.5 A peak for 100 ms,
+  one shot; both tables are explicitly ambient 25 C.
+- Its printed p.3/PDF p.4 confirms the 5-30 mA recommended LED-current
+  range and the continuous-load derating to about 0.30 A at 85 C.
+- `R-78HB12-0.5.pdf` p.1 confirms the exact 17-72 V input, 12 V/0.5 A
+  output object and its 1 mA typical/5 mA maximum quiescent-current row.
+- `SMAJ_Diodes.pdf` pp.1-2 confirms Diodes document DS19005, the
+  `SMAJXXX(C)A-13-F` ordering form, and the 12/15/33 V variant rows.
+- `0215001.MXP.pdf` p.1 confirms the exact 1 A 215-series time-lag fuse
+  does not open before 60 minutes at 150% rating and has a 30-minute
+  maximum opening time only at 210% rating.
+
+Independent arithmetic confirms the R_opto correction: with 330 Ohm
++1%, 3.3 V, and VF(max)=1.5 V, IF(min)=5.40 mA. Even the conservative
+VF=0 bound is only 10.1 mA, below the 30 mA recommendation maximum.
+
+### Finding 83 — IMPORTANT — F79 hot-OFF budget remains presented as a bound
+**Issue**: The topology no longer has the discrete self-turn-on path,
+but the claimed hot State-4 power ceiling still uses the AQY212EH's
+25 C leakage maximum as though it covered the full operating range.
+The F79 response corrected some prose but not the load-bearing budget.
+**Evidence**: `docs/hardware/power_budget.md` State 4 still lists
+`<=1 uA (spec), rated -40...+85 C`, converts it to a `<=0.024 mW
+(bounded)` term, and calls the total a clean ~1.1 mW with a bounded SSR
+term. `cp1_battery_side.md` likewise retains ~1.1 mW headlines based on
+`SSR1 open <=1 uA`, then inserts an unsourced `a few uA` 85 C estimate.
+`cp1_bom.md` says leakage at 85 C rises `modestly but is bounded` without
+a numeric source. The Panasonic electrical-characteristics heading is
+ambient 25 C and publishes no elevated-temperature leakage maximum.
+**Suggested fix**: Keep the architectural no-self-turn-on conclusion,
+but label the <=1 uA and ~1.1 mW totals as 25 C results only. For the
+declared hot range, either obtain a guaranteed leakage maximum, carry an
+explicitly identified engineering estimate without `<=`/`bounded`
+language and add a temperature leakage acceptance test with a <5 mW
+pass criterion, or select a part with the required hot bound.
+
+### Finding 84 — BLOCKER — F80 inrush part is not repetitive- or fault-safe
+**Issue**: R_inrush lowers the normal turn-on peak below a one-shot
+absolute maximum, but normal SOC recovery is a recurring event and the
+new 1206 is not coordinated with the upstream fuse for a downstream
+short. The fix therefore neither establishes repetitive PhotoMOS safety
+nor a safe fault response.
+**Evidence**: At 29.2 V and R_inrush -1%, initial current is 1.34 A, not
+1.33 A, and peak resistor power is about 39 W; C3 stores 9.38 mJ. The
+Panasonic row authorizing 1.5 A is ambient 25 C and explicitly `100 ms
+(1 shot)`, while `cp1_battery_side.md` says the event recurs on SOC
+recovery. No repetitive AQY212EH pulse curve or hot pulse rating is
+published in the on-file catalog. The exact Stackpole 22 Ohm alternative
+was resolved and fetched through the parts API this pass
+(`SEI-RMCF_RMCP.pdf`, SHA256 `4d6acb3f523debbe80200f9b5d57494233400a1bea76e569b0927a56fb8c2af5`):
+its p.5 calls all repetitive-pulse information reference-only and not
+guaranteed. The exact Vishay alternative (`dcrcwe3.pdf`, SHA256
+`bbf7db46e24cfb633aa5ff1b4438df23626f7c9c54f90ec4be16922f0a1cceb7`)
+has single/continuous pulse curves on p.5, but the design does not check
+its waveform or repetition against them.
+
+A V24_SW/C3/U2 input short is worse: the 22 Ohm path limits current to
+only about 1.1 A at 24 V or 1.34 A at 29.2 V while dissipating roughly
+26-39 W in a standard 0.25 W thick-film resistor. That current is below
+the 1 A time-lag fuse's 150% point; the exact fuse datasheet guarantees
+no opening before 60 minutes even at 1.5 A and provides no clearing-time
+maximum below 210%. The generic 1206, not F1, is therefore the designed
+first failure, with no fusible/flameproof behavior established. Also,
+`<1 ms completes` is not an RC charge bound: 22 Ohm * 22 uF is a
+0.484 ms time constant and approximately 2.4 ms is required for 5 tau.
+**Suggested fix**: Use a manufacturer-qualified repetitive capacitive-
+load/current-limiting solution and prove it across voltage, temperature,
+component tolerance, and recovery cadence. Coordinate every downstream
+short so a rated protective device clears before R_inrush is damaged,
+or use an explicitly pulse-rated, fusible/flameproof element with a
+documented safe-open fault envelope. Recheck C3 pulse energy, exact
+resistor pulse curves, AQY212EH SOA, F1 clearing, and U2 minimum input as
+one coordinated network.
+
+### Finding 85 — IMPORTANT — F81/D35 still suppresses live stale facts
+**Issue**: The claimed comprehensive propagation and scoped history
+exemption are incomplete. Current BOM/decision facts remain stale, and
+the checker exits 0 because its history allowance is still broader than
+the matched fact.
+**Evidence**: `docs/hardware/bom.md` current SSR1 row still says
+AQY212EH Ron=0.25 Ohm and presents <=1 uA beside the -40...+85 C rating.
+`decisions.md` D19 still says seven parts were replaced by two (omitting
+R_inrush) and lists the retired 390 Ohm SKUs
+`RMCF0805FT390RCT-ND / 71-CRCW0805390RFKEA`. Instrumenting D35 on the
+current tree shows its F79 regex does match the stale BOM Ron, but
+`_allowed()` returns true because the same long row contains the
+unrelated word `replaced` in the Q1/Q2 history clause. The old exact
+390 Ohm SKU line does not match the distance-limited F79 pattern at all.
+Thus exit 0 does not support the response's `EVERY live` claim.
+**Suggested fix**: Correct the current BOM row and D19 part count/SKUs.
+Make a history exemption apply to the matched token's explicit
+old-vs-new clause, strikethrough, or history section rather than any
+history word elsewhere on a line/window. Add the retired exact SKU pair
+and these two current lines as regression fixtures; verify the pre-fix
+text fails and corrected text passes.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 1 blockers, 2 important. (See findings 83, 84, 85.)

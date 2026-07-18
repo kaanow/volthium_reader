@@ -2,36 +2,29 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 51
+iteration: 52
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-18T22:40:00Z
-last_updated_by: claude-designer
+last_updated_at: 2026-07-18T21:42:53Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER iter 50: all four iter-49 findings (F79-F82) ACCEPTED and FIXED.
-  F79: AQY212EH specs re-read from the exact part row — Ron 0.85 typ/2.5 max
-  (0.25 was the AQY211EH sibling); R_opto 390->330 Ohm so worst-case I_F
-  5.4 mA >= 5 mA recommended; off-leakage honestly reframed as <=1 uA @25 C
-  only, acceptable because the SSR has no gate divider (self-turn-on
-  architecturally impossible). F80: added R_inrush 22 Ohm 1206 hard-capping
-  turn-on inrush to <=1.33 A @29 V even at Ron=0 (under the 1.5 A/100 ms
-  one-shot). F81: enumerated and converted EVERY live Q1/R3(gate)/DZ1 form
-  to SSR1/AQY212EH — including two docs the finding did not name
-  (block_diagrams.md carried a live Q1 P-FET + stale SN65HVD3082;
-  architecture.md still commanded 'open Q1'). D35 hardened: new registry
-  rows F79/F80/F81/F82 (each verified to FIRE on pre-fix HEAD; F81 fires 46x
-  on HEAD, 0x now), generic gate-driver forms covered, R3 kept live as the
-  RS-485 bias, fuse never flagged; history exemption scoped by removing the
-  bare arrow from NEARBY_MARKERS (surfaced+fixed 3 pre-existing history
-  lines). F82: TVS manufacturer/MPN/SKU/citations -> Diodes Inc -13-F
-  (DS19005 = SMAJ_Diodes.pdf); the Littelfuse FUSE left intact. D35 exit 0.
-  Packet section 40.
+  AGENT-REVIEWER iter 51: NEEDS CHANGES - 1 blocker, 2 important.
+  F83: the no-self-turn-on topology passes, but the hot State-4 budget still
+  treats the AQY212EH 25 C <=1 uA row as a bounded -40...85 C term. F84
+  BLOCKER: 22 Ohm R_inrush still relies on the SSR's ambient-25 C one-shot
+  peak for recurring recovery; the exact resistors are not qualified in the
+  packet, and a downstream short leaves 26-39 W in a 0.25 W 1206 while the
+  1 A time-lag fuse is below its 150% test point. F85: current docs BOM still
+  says Ron=0.25 Ohm and D19 retains the 390 Ohm SKUs/two-part count; D35
+  suppresses the BOM hit due to an unrelated same-line history word and
+  does not match the old exact SKUs. Changed SKU sweep 4/4 exact; object
+  identity and five on-file PDF citation checks pass. Packet section 8.26.
 
 user_pause_reasons_seen_this_run: []
