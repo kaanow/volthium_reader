@@ -5167,3 +5167,122 @@ the retired gate-driver forms (45 pre-fix hits verified); D35 exit 0.
 **Handing back for iteration 49 re-verify — semaphore → reviewer_turn.**
 Remaining open by design: the on-site two-domain matrix (~2 wks) gating
 D36/DR-26; the BOM-lock manufacturer-lifecycle re-confirm on the semis.
+
+---
+
+## 8.25 Reviewer findings (iteration 49 - iter-48 resolution re-review)
+
+**Scope and evidence.** Ran `doc_consistency_check.py` before review:
+exit 0 (`30 manifest parts checked`; `38 BOM cells still at _verify_`;
+no unmarked stale tokens; D32 manifest/PDF/BOM consistency clean). This
+was a delta re-review of the user-selected AQY212EH topology, not CP2.
+
+Object identity passes for the replacement switch. I opened the
+manufacturer-direct `AQY212EH_Panasonic.pdf` (SHA256
+`d329b97293228ccd6b5cce0b5622fbea1e18bda0df64fce606a5bb804f45fbf4`):
+Panasonic Industry catalog ASCTB126E 2026.1 identifies AQY212EH as the
+60 V, 550 mA, through-hole GE DIP4 1 Form A part; AQY212EHA is the
+surface-mount sibling. Same-pass parts-API `/resolve` checks returned
+exact matches for all four changed SKU cells: DigiKey 255-2963-ND and
+Mouser 769-AQY212EH resolve to AQY212EH, while DigiKey
+RMCF0805FT390RCT-ND and Mouser 71-CRCW0805390RFKEA resolve to the stated
+390 Ohm resistors. Distributor `/query` also returned the exact active
+AQY212EH with stock at both suppliers on 2026-07-18.
+
+Citation spot-checks against the on-file PDFs:
+
+- `AQY212EH_Panasonic.pdf` printed p.1/PDF p.2 gives the exact
+  AQY212EH package/rating identity above.
+- Its printed p.2/PDF p.3 gives AQY212EH output resistance as
+  0.85 Ohm typical and 2.5 Ohm maximum, not 0.25 Ohm; 0.25 Ohm belongs
+  to the AQY211EH sibling. It also limits peak load current to 1.5 A
+  for 100 ms, one shot, and specifies electrical characteristics at
+  25 C unless noted.
+- Its printed p.3/PDF p.4 recommends 5-30 mA LED current and shows the
+  AQY212EH allowable load current derating from 0.55 A at 25 C to about
+  0.30 A at 85 C.
+- `R-78HB12-0.5.pdf` p.1 independently confirms U2's 17-72 V input,
+  12 V output, and 0.5 A rating.
+- `SMAJ_Diodes.pdf` pp.1-2 identifies the `-13-F` Diodes Incorporated
+  ordering objects and gives the 12 V, 15 V, and 33 V variant clamp
+  rows used by CP1.
+
+### Finding 79 - IMPORTANT - AQY212EH limits are taken from the wrong column or condition
+**Issue**: The replacement is correctly identified, but its claimed
+ON resistance, guaranteed hot-OFF leakage, and LED-drive margin do not
+follow from the selected part's published limits.
+**Evidence**: The exact AQY212EH row is 0.85 Ohm typical/2.5 Ohm maximum;
+the cited 0.25 Ohm is AQY211EH. At 0.3 A that is 0.255 V/76.5 mW typical
+and 0.75 V/225 mW maximum, rather than the documented ~0.08 V. The
+1 uA OFF-leakage maximum is in the electrical-characteristics table
+whose heading is ambient 25 C. The separate -40...+85 C operating range
+does not extend that maximum to 85 C, so it cannot support the claimed
+guaranteed hot State-4 ceiling. Finally, with 3.3 V, VF(max)=1.5 V,
+R_opto=390 Ohm, and +1% resistor tolerance, minimum LED current is
+(3.3-1.5)/(390*1.01)=4.57 mA, below the catalog's 5 mA recommended
+minimum. It exceeds the 3 mA maximum operate current specified at 25 C,
+but no operate-current maximum across temperature is published here.
+**Suggested fix**: Correct every loss/drop calculation to the AQY212EH
+column; resize and tolerance-check R_opto to meet the intended LED
+condition; and either obtain a defensible elevated-temperature leakage
+bound or stop presenting the 85 C OFF budget as guaranteed. If hot
+leakage is a hard requirement, select a device with the needed bound.
+
+### Finding 80 - IMPORTANT - AQY212EH turn-on current into C3 is not bounded
+**Issue**: The design treats ~0.3 A as turn-on inrush, but the SSR closes
+onto an uncharged 22 uF C3 without a quantified current-limiting element.
+The selected SSR's peak rating is not a repetitive unrestricted surge
+rating.
+**Evidence**: The AQY212EH absolute-maximum table permits 1.5 A peak for
+only 100 ms, one shot. Holding initial current below 1.5 A at 29.2 V
+would require at least 19.5 Ohm total series resistance. The only
+quantified switch resistance is at most 2.5 Ohm, and the fuse, diode,
+wiring, and source have no documented minimum resistance that supplies
+the missing limit. C3 stores about 9.38 mJ at 29.2 V. At 85 C the
+catalog graph also derates allowable continuous load current to roughly
+0.30 A, leaving no margin for the asserted inrush value. The packet has
+not established peak amplitude, pulse duration, or safe repetition.
+**Suggested fix**: Add a deliberate resistor/current limiter or use a
+load switch/SSR with a repetitive capacitive-load rating, then calculate
+worst-case charge current, pulse energy, repetition, thermal derating,
+and the effect on U2's 17 V minimum input requirement. Do not credit the
+one-shot peak row as a repetitive inrush design.
+
+### Finding 81 - IMPORTANT - F78 / D35 still misses live retired-driver text
+**Issue**: The response says all live Q1/Q2/gate-network references were
+reconciled, but current CP1 instructions still mix the retired P-FET
+driver into the PhotoMOS topology. D35 exits 0 despite these misses.
+**Evidence**: `cp1_battery_side.md` retains the fragment `Q1's
+gate-source voltage`, an R3/DZ1/Q1 source/gate drawing beside the new
+SSR LED, a state-table Q2/Q1 column, instructions that the ESP opens Q1,
+and prose that Q1 stays ON; earlier routing text also says `via/behind
+Q1`. Current D19 text in `decisions.md` still draws and operates the Q1
+P-FET power tree. `docs/hardware/bom.md` still calls the load switch Q1,
+retains a DZ1 gate-clamp note, and says `behind Q1`; `cp1_display_side.md`
+retains Q1-shed references. The new registry does not cover these
+generic forms, and its history allowance can legalize a hit based on a
+history marker rather than the hit's actual context.
+**Suggested fix**: Reconcile every listed live instruction/drawing to
+AQY212EH and its LED/output terminals. Extend D35 to cover generic Q1,
+R3, and DZ1 topology forms, scope any history exemption to the matched
+line/section, and add regression fixtures for these exact misses.
+
+### Finding 82 - IMPORTANT - Live TVS citations name the wrong manufacturer
+**Issue**: The canonical exact TVS objects are Diodes Incorporated
+`-13-F` parts, but live BOM and design text identify them as Littelfuse.
+That is a wrong-object evidence chain even where a numerical clamp value
+happens to agree.
+**Evidence**: `cp1_bom.md` specifies SMAJ33CA-13-F,
+SMAJ15A-13-F, and SMAJ12CA-13-F with Diodes distributor SKUs. Same-pass
+`/resolve` checks returned exact Diodes Incorporated matches for all six
+DigiKey/Mouser cells. The active `SMAJ_Diodes.pdf` is Diodes document
+DS19005 and contains those `-13-F` ordering forms and their clamp rows.
+In contrast, `docs/hardware/bom.md` labels all three as Littelfuse, and
+`cp1_battery_side.md` explicitly attributes the 53.3 V row to a
+Littelfuse SMAJ datasheet.
+**Suggested fix**: Make the live manufacturer and citations Diodes
+Incorporated throughout, tied to `SMAJ_Diodes.pdf` and the exact
+`-13-F` MPNs, or deliberately select Littelfuse objects and replace all
+MPNs, distributor SKUs, manifest identities, and evidence together.
+
+**REVIEW COMPLETE**: NEEDS CHANGES - 0 blockers, 4 important. (See findings 79, 80, 81, 82.)

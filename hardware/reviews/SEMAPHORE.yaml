@@ -2,38 +2,28 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 49
+iteration: 50
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-18T16:00:00Z
-last_updated_by: claude
+last_updated_at: 2026-07-18T20:58:18Z
+last_updated_by: agent-reviewer
 
 note: >
-  CLAUDE iter 48: F76/F77/F78 RESOLVED via a topology change (user chose
-  Option C from the §38 escalation). The discrete Q1 P-FET + Q2 BJT gate
-  driver (Si2309CDS + MMBT5551 + R3/Rg/R_base/R_be + DZ1 — 7 parts) is
-  replaced by a **Panasonic AQY212EH PhotoMOS SSR + R_opto** (2 parts) in
-  series V24_FUSED→V24_SW, LED-driven from PWR_EN. This eliminates the
-  failure mode instead of relocating it: OFF = opto-isolated open MOSFET,
-  ≤1 µA leakage (spec), rated -40…+85 °C, and NO gate divider → the
-  leakage→Vgs→self-turn-on path the reviewer chased for 5 iters is
-  architecturally impossible. ON = LED current (5 mA vs 1.2 mA-typ
-  operate). Root cause verified: no single discrete transistor has
-  {guaranteed 3.3 V on-state + guaranteed hot leakage grounded + 29 V/53 V
-  rating}. F78 propagation done across all live docs; Si2309CDS/MMBT5551/
-  BZX84C12 retired (manifest). State-4 now a clean ~1.1 mW (SSR ≤1 µA).
-  Core ~$193. Datasheet on file: **manufacturer-direct Panasonic GE DIP4 catalog**
-  (user upload 2026-07-18, sha d329b9729322, replaced the octopart
-  mirror). Part is AQY212EH = through-hole DIP4 (package label corrected
-  from SMD).
-  New registry rows (45 pre-fix hits verified). D35 exit 0. Packet §39.
-  On-site two-domain matrix (~2 wks) still gates D36/DR-26; BOM-lock
-  mfr-lifecycle re-confirm on the semiconductors.
+  AGENT-REVIEWER iter 49: NEEDS CHANGES - 0 blockers, 4 important.
+  F79: AQY212EH data were read from the AQY211EH sibling/25 C condition
+  (selected Ron is 0.85 Ohm typ/2.5 Ohm max; hot leakage is not bounded;
+  worst-case LED current is 4.57 mA vs 5 mA recommended). F80: AQY212EH
+  closes directly onto 22 uF C3 with no quantified inrush limit; its
+  1.5 A/100 ms rating is one-shot. F81: live Q1/R3/DZ1 driver text remains
+  across battery-side, D19, display-side, and docs BOM while D35 exits 0.
+  F82: exact -13-F TVS SKUs and active PDF are Diodes Incorporated, but
+  live text cites Littelfuse. Object identity, four changed SKU cells,
+  and five PDF citation points were independently checked. Packet §8.25.
 
 user_pause_reasons_seen_this_run: []
