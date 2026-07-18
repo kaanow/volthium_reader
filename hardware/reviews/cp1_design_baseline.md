@@ -4985,3 +4985,106 @@ retired-transceiver evidence records + the PicoBlade R/A alternate).
 **Handing back for iteration 47 re-verify.** Remaining open by design:
 the F47/F52 on-site two-domain matrix (~2 weeks) gating D36/DR-26; the
 BOM-lock manufacturer-lifecycle re-confirm on the semiconductors.
+
+---
+
+## 8.24 Reviewer findings (iteration 47 - iter-46 resolution re-review)
+
+**Scope and evidence.** Ran `doc_consistency_check.py` before review:
+exit 0 (`32 manifest parts checked`; no unmarked stale tokens). The only
+changed manifest row is MMBT5551LT1G. I opened
+`MMBT5551_onsemi.pdf` (SHA256 `3ae47cf6f802...`): its title page identifies
+onsemi MMBT5550L/MMBT5551L, lists MMBT5551LT1G, and gives the SOT-23
+base/emitter/collector pinout. The removed DMN6075S PDF is no longer in
+the active store, and the new reverse orphan-PDF check passes.
+
+Citation spot-checks against the on-file PDFs:
+
+- `MMBT5551_onsemi.pdf` p.2 gives MMBT5551 ICBO as 50 nA at 25 C and
+  50 uA at 100 C, both at VCB=120 V with the emitter open. Its VCE(sat)
+  maxima are 0.15 V at IC=10 mA/IB=1 mA and 0.20 V at
+  IC=50 mA/IB=5 mA.
+- `SI2309CDS_Vishay.pdf` pp.1-2 gives VGS absolute maximum +/-20 V,
+  RDS(on) maximum 0.450 Ohm at VGS=-4.5 V, and IDSS maxima of 1 uA at
+  25 C and 10 uA at TJ=55 C.
+- `BZX84C12LT1G.pdf` p.3 gives the exact BZX84C12LT1G rows only at
+  1 mA, 5 mA, and 20 mA; this supports retaining it as a backstop rather
+  than crediting an uncharacterized sub-mA clamp.
+
+The required same-pass `POST /resolve` sweep covered all eight changed
+resistor SKU cells: DigiKey/Mouser pairs for R_base, R_be, R3, and Rg.
+All eight returned `matched: exact`; the two 10 kOhm pairs resolve to
+RMCF0805FT10K0 / CRCW080510K0FKEA, the 6.8 kOhm pair to
+RMCF0805FT6K80 / CRCW08056K80FKEA, and the 22 kOhm pair to
+RMCF0805FT22K0 / CRCW080522K0FKEA (parts API `/resolve`, 2026-07-17).
+
+### Finding 76 - IMPORTANT - F72 / MMBT5551 hot-OFF proof
+**Issue**: R_be=10 kOhm does not establish the claimed guaranteed hot
+OFF state. The proof assumes that 0.46 V cannot forward-bias Q2 and that
+collector current therefore remains raw ICBO, but neither assertion is a
+guaranteed datasheet condition; the resulting 100 C State-4 ceiling is
+not established.
+**Evidence**: With PWR_EN high-Z, the base sees R_be in parallel with
+R_base+R4: 10 kOhm || 110 kOhm = 9.17 kOhm. Applying the p.2 hot ICBO
+maximum gives VBE=50 uA*9.17 kOhm=0.458 V before transistor action.
+ICBO is specified with the emitter open, whereas this circuit grounds
+the emitter. The only p.2 base-emitter-shorted cutoff rows (ICES) are at
+25 C. Moreover, the p.3 Figure 3 typical cutoff curve at TJ=125 C is
+already above its 10 uA plot ceiling by about VBE=0.25 V, directly
+contradicting the prose premise that 0.46 V is a hot "junction off"
+condition. Once Q2 conducts, `ICBO*R3=0.34 V` is no longer the gate-node
+solution and Q1 may energize the shed branch. The same unsupported
+premise underlies the `<=~2.3 mW @100 C` and `~0.02 mW at <=60 C`
+claims in `power_budget.md`.
+**Suggested fix**: Do not use an assumed 0.6 V cutoff threshold. Select
+a driver with a guaranteed elevated-temperature OFF-leakage limit in
+the actual grounded-emitter/base-return configuration, or change the
+topology so its OFF state can be bounded from published limits. Then
+solve the complete node currents and rebuild State 4 from that bound.
+
+### Finding 77 - IMPORTANT - F72 / MMBT5551 guaranteed-ON proof
+**Issue**: The revised network is likely to turn on, but the document
+still labels it guaranteed by inserting an uncited "pessimistic"
+VCE(sat)=0.5 V and extrapolating production limits to different currents
+and temperature. The small min-rail gate-drive margin therefore has no
+guaranteed source.
+**Evidence**: At the design's assumed VBE=0.7 V, the new network supplies
+about 190 uA net base current; using the p.2 published 1.0 V maximum
+VBE(sat) test value would leave only about 130 uA nominal, so 190 uA is
+not itself a guaranteed minimum. With VCE=0.5 V, the collector divider requires 0.712 mA at
+21 V, 0.997 mA at 29.2 V, and 1.83 mA at 53.3 V, so forced beta ranges
+from 3.75 to 9.65. The nominal 21 V result is VGS=4.84 V; with R3 -1%
+and Rg +1% it is about 4.77 V, only 0.27 V above Q1's -4.5 V RDS(on)
+test point. `MMBT5551_onsemi.pdf` p.2 guarantees VCE(sat) only at
+10 mA/1 mA and 50 mA/5 mA, with electrical characteristics at 25 C
+unless noted; it does not publish a 0.5 V maximum at this circuit's
+current or across temperature. The statement that lower current
+"saturates deeper still" is an engineering inference, not a datasheet
+guarantee.
+**Suggested fix**: Anchor the min-rail ON proof to a published maximum
+whose test conditions cover the implemented circuit and declared
+temperature range, or increase/rework the drive so the requirement is
+met under a defensible worst-case transistor model. Keep the forced-beta
+calculation, but label it engineering reasoning rather than a production
+guarantee unless the bound is sourced.
+
+### Finding 78 - IMPORTANT - F74 / D35 propagation remains incomplete
+**Issue**: The response says every live Q2 identity, terminal, and old
+divider value was reconciled, but multiple live CP1 artifacts still
+describe the retired MOSFET circuit or obsolete values. D35 exits 0
+despite patterns intended to catch exactly these forms.
+**Evidence**: `cp1_battery_side.md` lines 134 and 268 still select Q2 as
+a 2N7002 N-MOSFET; line 576 still states `ICBO <=100 nA @100 C`; and its
+topology at lines 603-604 calls the BJT terminals `source` and `gate`.
+`cp1_bom.md` line 372 says R3 is now 10 kOhm with Rg 33 kOhm.
+`docs/hardware/bom.md` line 115 retains the old 12.4 V surge value, while
+line 116 labels R3 as 6.8 kOhm but both distributor search links still
+query 10 kOhm. These are current rows, not merely the append-only review
+history. The pre-review checker nevertheless reported clean.
+**Suggested fix**: Reconcile these live rows and drawings to the chosen
+BJT and 6.8 kOhm/22 kOhm network. Tighten D35 so history markers do not
+legalize a stale "now" value, and so the Q2 identity/terminal patterns
+catch table and ASCII-drawing forms; add a regression fixture for every
+miss listed above.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 3 important. (See findings 76, 77, 78.)
