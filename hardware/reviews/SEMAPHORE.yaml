@@ -2,28 +2,36 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 50
+iteration: 51
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-18T20:58:18Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-18T22:40:00Z
+last_updated_by: claude-designer
 
 note: >
-  AGENT-REVIEWER iter 49: NEEDS CHANGES - 0 blockers, 4 important.
-  F79: AQY212EH data were read from the AQY211EH sibling/25 C condition
-  (selected Ron is 0.85 Ohm typ/2.5 Ohm max; hot leakage is not bounded;
-  worst-case LED current is 4.57 mA vs 5 mA recommended). F80: AQY212EH
-  closes directly onto 22 uF C3 with no quantified inrush limit; its
-  1.5 A/100 ms rating is one-shot. F81: live Q1/R3/DZ1 driver text remains
-  across battery-side, D19, display-side, and docs BOM while D35 exits 0.
-  F82: exact -13-F TVS SKUs and active PDF are Diodes Incorporated, but
-  live text cites Littelfuse. Object identity, four changed SKU cells,
-  and five PDF citation points were independently checked. Packet §8.25.
+  DESIGNER iter 50: all four iter-49 findings (F79-F82) ACCEPTED and FIXED.
+  F79: AQY212EH specs re-read from the exact part row — Ron 0.85 typ/2.5 max
+  (0.25 was the AQY211EH sibling); R_opto 390->330 Ohm so worst-case I_F
+  5.4 mA >= 5 mA recommended; off-leakage honestly reframed as <=1 uA @25 C
+  only, acceptable because the SSR has no gate divider (self-turn-on
+  architecturally impossible). F80: added R_inrush 22 Ohm 1206 hard-capping
+  turn-on inrush to <=1.33 A @29 V even at Ron=0 (under the 1.5 A/100 ms
+  one-shot). F81: enumerated and converted EVERY live Q1/R3(gate)/DZ1 form
+  to SSR1/AQY212EH — including two docs the finding did not name
+  (block_diagrams.md carried a live Q1 P-FET + stale SN65HVD3082;
+  architecture.md still commanded 'open Q1'). D35 hardened: new registry
+  rows F79/F80/F81/F82 (each verified to FIRE on pre-fix HEAD; F81 fires 46x
+  on HEAD, 0x now), generic gate-driver forms covered, R3 kept live as the
+  RS-485 bias, fuse never flagged; history exemption scoped by removing the
+  bare arrow from NEARBY_MARKERS (surfaced+fixed 3 pre-existing history
+  lines). F82: TVS manufacturer/MPN/SKU/citations -> Diodes Inc -13-F
+  (DS19005 = SMAJ_Diodes.pdf); the Littelfuse FUSE left intact. D35 exit 0.
+  Packet section 40.
 
 user_pause_reasons_seen_this_run: []

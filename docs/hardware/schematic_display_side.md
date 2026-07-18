@@ -9,7 +9,7 @@
 > (USB-OTG header → native USB-C, board-edge + pop-faceplate — D27), the
 > enclosure (single-gang → recessed **double-gang** box with a custom
 > 3D-printed faceplate the e-paper module mounts to — D27/DR-10), RS-485 bias
-> (now the bus's only fail-safe bias, ~390 Ω display-end; TVS1 corrected —
+> (now the bus's only fail-safe bias, ~330 Ω display-end; TVS1 corrected —
 > DR-1), and field update (OTA over RS-485 — D27). Even the GPIO *assignments*
 > below should be re-verified, not trusted. **Authoritative:**
 > [`../../hardware/layout/cp1_display_side.md`](../../hardware/layout/cp1_display_side.md),

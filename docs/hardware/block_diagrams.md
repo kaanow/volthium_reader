@@ -65,8 +65,8 @@ an **always-on** rail that powers the MCU in every state, and a
         ┌─────┴─────────── V24_FUSED ─────────────────────┐
         │ (always-on)                                      │ (switched)
         ▼                                                  ▼
-  ┌──────────────────┐                          Q1 P-FET load switch (60 V)
-  │ U1 LM5166 buck   │── 3.3 V always-on ─┐     gate-clamped, ESP-controlled
+  ┌──────────────────┐                       SSR1 AQY212EH PhotoMOS SSR (60 V)
+  │ U1 LM5166 buck   │── 3.3 V always-on ─┐  + R_inrush 22 Ω, ESP-controlled
   │ 24 → 3.3 V        │                    │            │
   │ (Iq ~10 µA)    │                    │            ▼  V24_SW
   └──────────────────┘                    │     ┌──────────────────┐
@@ -77,11 +77,11 @@ an **always-on** rail that powers the MCU in every state, and a
             │ ULP+BLE+WiFi  │   ◄── 24 V ADC sense (1.2 MΩ/100 k divider, ~19 µA)
             │  GPIO bank    │   ──► WiFi log-push to Starlink server (duty-cycled, D25)
             │               │   ◄── override button (RTC-wake GPIO)
-            └──┬────────────┘   ──► drives Q1: sheds the 12 V/display feed
+            └──┬────────────┘   ──► drives SSR1 LED (via R_opto): sheds the 12 V/display feed
                │                       when SOC < 10 % (ESP stays alive,
                ▼                       deep-sleeps, re-engages on recovery)
       ┌──────────────────┐
-      │  SN65HVD3082      │ ◄────► RS-485 A/B  (Cat5e pair 1); ESP gates it
+      │  THVD1400         │ ◄────► RS-485 A/B  (Cat5e pair 1); ESP gates it
       │  RS-485 xceiver  │          off via DE/RE when idle (no power switch)
       └──────────────────┘
                     ▲
@@ -96,8 +96,8 @@ Two power domains worth keeping clear in your head:
    (~µA) and periodically reads the sense divider. All-in trickle at
    hard-cut ≈ ~1 mW (U1 Iq + divider). The MCU is its own supervisor;
    there is no separate voltage-supervisor IC.
-2. **Switched** (Q1 load switch, MCU-controlled): U2 → 12 V → Cat5e → the
-   *entire display side*. Opening Q1 at < 10 % SOC cuts the display
+2. **Switched** (SSR1 AQY212EH load switch + R_inrush, MCU-controlled): U2 → 12 V → Cat5e → the
+   *entire display side*. Opening SSR1 at < 10 % SOC cuts the display
    completely (it has no other power source). RS-485 isn't power-switched —
    the ESP disables the transceiver via DE/RE (µA) when there's nothing to
    talk to.
@@ -121,13 +121,13 @@ that D19 fixes (see DESIGN_REVIEW_ITEMS.md DR-4).
                                                 │               │  ┌─ button: refresh-now
                                                 │  GPIO bank ──┼──┼─ button: change-screen
                                                 │               │  └─ button: release-BLE
-        ┌─── e-paper 24-pin FFC ──────► SPI ───┤               │
+        ┌─── e-paper 8-pin PH2.0 ─────► SPI ───┤               │
         │   (CS, DC, RST, BUSY, MOSI, SCK)     │               │
         │                                       └──────┬────────┘
         │                                              │
         ▼                                              ▼
   4.2" e-paper                              ┌───────────────────┐
-  (tri-color, B-version)                    │  SN65HVD3082       │ ◄──► RS-485 A/B
+  (tri-color, B-version)                    │  THVD1400          │ ◄──► RS-485 A/B
                                             └───────────────────┘
                                                        ▲
                                                        │

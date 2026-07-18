@@ -764,7 +764,7 @@ was false and must not be reused.
   ~11.6 mm-radius milled cutout about the anchor. Left → cutout off the
   board edge; down → off the bottom edge; right → the cutout swallows
   MOD1's pads. Confirmed empirically (invalid-outline / new errors).
-- **MOD1 is boxed on all four sides** — Q1/R3/R4 immediately left, J2
+- **MOD1 is boxed on all four sides** — SSR1/R_opto/R_inrush immediately left, J2
   immediately right, F1 fuse above, RTC1 immediately below. A 2 mm
   downward shift collides MOD1's bottom pads with RTC1's top pads
   (8 new errors). MOD1 cannot move either.
@@ -1149,7 +1149,7 @@ coordination defects together.
 
     J1 → F1 → D1(60V Schottky) → V24_FUSED {TVS1 SMAJ33CA ~53V clamp, R5/R6 sense}
        ├─ ALWAYS-ON:  U1 wide-Vin µA-Iq buck → 3V3 (ESP32 + RTC + sense)
-       └─ Q1 (60V P-FET load switch) → V24_SW → U2 (R-78HB12, 72V) → 12V → Cat5e → display
+       └─ SSR1 (AQY212EH PhotoMOS load switch, F76) → R_inrush → V24_SW → U2 (R-78HB12, 72V) → 12V → Cat5e → display
 
 - **Always-on rail (U1).** Carries the ESP in *all* states — active
   (~75 mA BLE) at high SOC, deep-sleep (~µA) at low SOC. It must be
@@ -1165,7 +1165,7 @@ coordination defects together.
   adjustable DRCR — same package, no FB-divider scaffolding.)
 - **Hard-cut behavior (Option 1 "done right", user call 2026-06-17).**
   The ESP stays powered always; at <10 % SOC it deep-sleeps in ULP,
-  periodically reads V24_SENSE, and **sheds the display** by opening Q1
+  periodically reads V24_SENSE, and **sheds the display** by opening SSR1
   (which kills U2 → 12 V → the entire display board, since the display is
   powered only from the battery side over Cat5e). It re-engages on
   voltage recovery. The ESP is its own supervisor — **no separate
@@ -1174,8 +1174,11 @@ coordination defects together.
   ~0.7 mW but adds a part and "smart" failure modes — not worth it.)
 - **Load switch done right — PhotoMOS SSR (iter-48, F76 resolution).**
   The display-feed switch is a **Panasonic AQY212EH PhotoMOS solid-state
-  relay** (1-Form-A, 60 V / 550 mA, Ron 0.25 Ω) in series V24_FUSED →
-  V24_SW, LED-driven from ESP `PWR_EN` through **R_opto 390 Ω** (~5 mA).
+  relay** (1-Form-A, 60 V / 550 mA, Ron 0.85 Ω typ / 2.5 Ω max) in series
+  V24_FUSED → **R_inrush 22 Ω** → V24_SW, LED-driven from ESP `PWR_EN`
+  through **R_opto 330 Ω** (worst-case I_F ≥ 5 mA ≥ datasheet-recommended
+  5 mA). R_inrush hard-caps the turn-on inrush into C3 (22 µF) to
+  ≤1.33 A @ 29 V even at Ron = 0 — under the 1.5 A/100 ms one-shot peak.
   It switches only U2/the display feed; the MCU rail stays always-on.
 
   *[Why an SSR — the discrete gate-driver saga, F60→F76. A high-side
@@ -1198,17 +1201,20 @@ coordination defects together.
   *[Why it resolves the finding cleanly:*
   - **OFF is bounded and cannot self-turn-on.** The SSR output is an
     opto-isolated MOSFET; LED off → **open MOSFET, ≤1 µA off-leakage
-    (spec), device rated −40…+85 °C**. There is **no gate divider** for
-    leakage to develop a turn-on voltage across, so the discrete failure
-    mode (leakage → Vgs → self-turn-on) is *architecturally impossible*.
-    The OFF state is a bounded, non-amplifying ≤1 µA leakage from V24 into
-    U2 → ≤0.024 mW State-4.
-  - **ON is guaranteed by LED current.** I_F = (3.3−1.3)/390 ≈ 5 mA;
-    datasheet LED operate current is 1.2 mA typ — ample margin. Ron
-    0.25 Ω typ → ≤0.08 V drop at U2's ~0.3 A max input.
+    (spec @ 25 °C; device rated −40…+85 °C, leakage rising but
+    non-amplifying hot)**. There is **no gate divider** for leakage to
+    develop a turn-on voltage across, so the discrete failure mode
+    (leakage → Vgs → self-turn-on) is *architecturally impossible* — the
+    hot-leakage bound the discrete saga could never satisfy is *not
+    load-bearing here*. At 25 °C the OFF state is a bounded ≤1 µA leakage
+    from V24 into U2 → ≤0.024 mW State-4.
+  - **ON is guaranteed by LED current.** Worst-case I_F = (3.3−1.5)/330 ≈
+    5.4 mA (VF max 1.5 V), ≥ the datasheet-recommended 5 mA and well above
+    the 3 mA max operate current — ample margin. Ron 0.85 Ω typ / 2.5 Ω
+    max → ≤0.11 V (typ) / ≤0.75 V (max) drop at U2's ~0.3 A max input.
   - **Surge:** open, it blocks the 53 V clamp (60 V rating); closed, it
     passes the surge to U2 (R-78HB12, 72 V — survives).
-  - **Power:** LED ~16 mW **active only** (States 1–3), **0 in hard-cut**.
+  - **Power:** LED ~20 mW **active only** (States 1–3: 3.3 V × ~6 mA through R_opto 330 Ω), **0 in hard-cut**.
     Removed 7 parts (Q1/Q2/R3/Rg/R_base/R_be/DZ1) for 2 (SSR1 + R_opto).
     Exact SKUs: SSR1 = AQY212EH (DK 255-2963-ND / Mouser 769-AQY212EH),
     R_opto = RMCF0805FT390RCT-ND / 71-CRCW0805390RFKEA (resolve-exact
@@ -1222,9 +1228,9 @@ coordination defects together.
   ~53 V clamp — completing DR-2's logic.
 - **RS-485 idle bias moves to the display end only** (consequence of the
   always-on rail). With the battery 3V3 now always-on, a battery-side
-  idle bias (~2.3 mA through 680 Ω) would draw *continuously* and blow
-  the ~1 mW hard-cut budget by ~8×. So the bus's fail-safe bias lives on
-  the **display** end (resized to ~390 Ω for >200 mV idle across the two
+  idle bias (~2.3 mA through 680 Ω) was **removed** (DR-4b) — it would
+  otherwise draw *continuously* and blow the ~1 mW hard-cut budget by ~8×. So the bus's fail-safe bias lives on
+  the **display** end (~330 Ω for >200 mV idle across the two
   120 Ω terminators) — sourced from the display 3V3, which is shed with
   the display at low SOC. The battery keeps only the terminator (no static
   draw) and the transceiver (~µA in DE/RE shutdown), so the always-on rail
@@ -1417,7 +1423,7 @@ No separate config radio (config is via the 3 buttons + on-screen labels).
 TPS3808G01DBVR**, ~2.4 µA Iq, adjustable threshold via SENSE, open-drain
 RESET, programmable CT deglitch) as an **independent backstop** to the firmware's
 low-SOC load-shed. This closes the gap that D19's always-on MCU created:
-the firmware-only shed protects against a *dead* MCU (R3 defaults Q1 OFF)
+the firmware-only shed protects against a *dead* MCU (R4 defaults the SSR LED off → SSR open)
 but **not** a *hung-but-powered* MCU, which keeps drawing ~38 mA at low SOC
 — the dominant low-SOC load (the display is only ~5 mA) and exactly the
 failure "must not finish off a low pack" exists to prevent.
@@ -1436,7 +1442,7 @@ failure "must not finish off a low pack" exists to prevent.
 open-drain RESET pulls the **ESP EN** node low. That (a) drops the MCU to
 its ~µA reset state — killing the ~38 mA hung drain — and (b) **auto-sheds
 the display for free**: a reset MCU floats GPIO4 (PWR_EN) Hi-Z → R4 holds
-Q2 off → R3 holds Q1 off → display dark. No separate Q1-override part
+PWR_EN low → SSR LED off → SSR open → display dark. No separate override part
 needed; it reuses the existing default-OFF chain. Because it asserts **EN**
 (not power), the MCU stays powered on the always-on rail; on recovery U4
 releases EN → the MCU **cold-boots fresh** (which also un-hangs it) and
@@ -1578,9 +1584,9 @@ refresh won't reliably complete on a collapsing rail. **Both rejected.**
    screen with a stale timestamp is unmistakably dead — covers **both** modes
    (the frozen image carries the old time). This is the primary indicator.
 2. **Graceful pre-shed render (mode b, the common case).** The battery side
-   *controls* the shed (it opens Q1), so before cutting it sends a final
+   *controls* the shed (it opens SSR1), so before cutting it sends a final
    RS-485 "low-battery / sleeping" frame, waits for the display to render it,
-   *then* opens Q1. The bistable screen **holds that correct message** after
+   *then* opens SSR1. The bistable screen **holds that correct message** after
    power is cut — zero stored energy needed.
 3. **Battery-side heartbeat detection.** The battery side already expects
    display acks over RS-485; on heartbeat loss it flags the display dead via
@@ -1622,7 +1628,7 @@ ratings).
 the parts-sourcing API's `/datasheet` proxy — has repeatedly caught errors
 that were invisible at the "model of the part" level and that both designer
 and reviewer missed: connector pitch (e-paper JST-PH 2.0 vs an assumed
-2.54 mm header), package (TPS3890 = WSON 1.5×1.5 not SOT-23; TPS2116 =
+2.54 mm header), package (TPS3890, the superseded UVLO candidate, = WSON 1.5×1.5 not SOT-23; TPS2116 =
 SOT-583; SS26 = SMB not SMA → DR-24 leadless assembly concern), threshold
 (TPS389030 VITN = 2.89 V not the 1.15 V carried from the -01 variant),
 **Ethernet magnetics** that would have blocked our DC + RS-485 (both RJ45s
@@ -1714,7 +1720,7 @@ State-4 draw, not typical) after reviewer iter-10 F08:
 | **THVD1400DR** (TI) | 3.0 – 5.5 V | 900 µA | **1 µA** | 500 kbps | Yes (open/short/idle bus) | 32635 / 2381 | ~$1.38 | **Yes** — DE 2 MΩ pull-DOWN, /RE 2 MΩ pull-UP → defaults to shutdown when both float |
 | MAX3485ESA (Maxim/ADI) | 3.0 – 3.6 V | 500 µA | 1 µA | 10 Mbps | Not spec'd fail-safe | 3508 / 729 | ~$11.22 | No |
 | SN65HVD75DR (TI) | 3.0 – 3.6 V | 950 µA | 2 µA | 20 Mbps | Not spec'd fail-safe | 0 / 0 | ~$3.58 | No (stock = 0 disqualifies anyway) |
-| ISL3175EIBZ (Renesas) | 3.0 – 3.6 V | 700 µA | **12 µA** | 200 kbps | Yes | 889 / 2757 | ~$3.10 | No |
+| ISL3175EIBZ (Renesas) | 3.0 – 3.6 V | 700 µA | **12 µA** | 200 kbps | Yes | 889 / 2757 | ~$3.10 | No — superseded by THVD1400 (F08) |
 | SP3485EN-L (Exar/MaxLinear) | 3.0 – 3.6 V | 2000 µA | not spec'd (implied ~1 µA "50 nA" text) | 10 Mbps | No | 0 / 3534 | ~$1.38 | No |
 
 **THVD1400DR** wins on the axes this project ranks:
@@ -1774,7 +1780,7 @@ DE/RE-enable transceiver in this class) enters shutdown when
 GPIO gives only two states — receive (both low) or transmit (both high) —
 so shutdown is topologically unreachable. The prior CP1 design tied both
 enables to ESP GPIO2; F06 correctly identifies that this means the
-transceiver is *always active* in every state that isn't Q1-shed, so its
+transceiver is *always active* in every state that isn't SSR1-shed, so its
 worst-case active current (RX-only ~900 µA at 3.3 V = **~3.0 mW at load,
 ~6.0 mW referred through U1 at η ≈ 50 %**) was silently absent from the
 State-4 hard-cut budget for the battery side. That's a real,
@@ -1883,7 +1889,7 @@ load-bearing miss.
   size correctness around the ~10 ms boot assumption. The transceiver draws its
   **RX-only Iq (~900 µA max)** continuously in this state — a real
   cost that appears in the display-side State B budget (§7), but the
-  display is on the Q1-shed rail so this term is *not* in the
+  display is on the SSR1-shed rail so this term is *not* in the
   battery-side hard-cut budget. Alternative rejected: **Light-sleep +
   UART wake** (revised iter-14 F15 numbers). Module datasheet
   ESP32-S3-WROOM-1 Table 6 lists Light-sleep at **240 µA typ** plus

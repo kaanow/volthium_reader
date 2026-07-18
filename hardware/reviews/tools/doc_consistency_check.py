@@ -41,6 +41,12 @@ LIVE_DOCS = [
     "docs/hardware/bom.md",
     "docs/hardware/power_budget.md",
     "docs/hardware/cat5e_pinout.md",
+    # F81 (iter-49): block_diagrams carried a live Q1 P-FET load switch +
+    # a stale SN65HVD3082 the checker never saw — it was out of scope.
+    # It is a current block-level doc now, so scan it. (schematic_*.md stay
+    # OUT: they carry end-to-end SUPERSEDED banners — pure history, like
+    # /archive/ and the review packet.)
+    "docs/hardware/block_diagrams.md",
     "hardware/layout/cp1_bom.md",
     "hardware/layout/cp1_battery_side.md",
     "hardware/layout/cp1_display_side.md",
@@ -70,12 +76,20 @@ NEARBY_WINDOW = 5
 # new part explicitly), not via the arrow itself.
 HISTORY_MARKERS = re.compile(
     r"(supersed|was\b|Δ|retired?|retain|history|erratum|evidence|"
-    r"first[- ]cut|mistakenly|earlier|prior|previously|replace[sd]?\b|instead of|not the|"
-    r"caught|flagged|regressed|never\b|pivot|swap|corrected|removed|"
-    r"un-sourceable)",
+    r"first[- ]cut|mistakenly|earlier|prior|previously|replace[sd]?\b|replacement|"
+    r"instead of|not the|caught|flagged|regressed|never\b|pivot|swap|corrected|"
+    r"removed|un-sourceable|~~)",  # ~~ = strikethrough: struck text is by definition superseded
     re.IGNORECASE,
 )
-NEARBY_MARKERS = re.compile(r"(\[Supersed|supersed|revised|Δ|→)", re.IGNORECASE)
+# F81 (iter-49): the bare arrow → was REMOVED here too. A nearby signal-flow
+# or "F60→F76" arrow must not legalize a stale gate-driver token five lines
+# away — the exemption is now scoped to an actual supersession word in the
+# window, not any arrow. (Parallels F67's removal of → from HISTORY_MARKERS.)
+NEARBY_MARKERS = re.compile(
+    r"(\[Supersed|supersed|revised|Δ|replaced?\b|retired?\b|was\b|"
+    r"removed|corrected|prior|earlier|instead of|history|saga)",
+    re.IGNORECASE,
+)
 
 # ---------------------------------------------------------------------------
 # Persistent superseded-token registry. APPEND-ONLY: every swap this project
@@ -432,6 +446,62 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "hard-cut ~1.1 mW (SSR ≤1 µA)",
      "F76: the SSR's ≤1 µA off-leakage removed the Q1 IDSS + Q2 ICBO "
      "State-4 terms → hard-cut ~1.1 mW"),
+    # iter-49 reviewer findings (F79-F82, addressed iter-50):
+    # F79 — AQY212EH data were read off the AQY211EH sibling / 25 °C-only.
+    # NOTE: bare "390 Ω" is LIVE (the RS-485 idle-bias resistor), so the
+    # R_opto 390 form is scoped to opto/LED/PWR_EN context only.
+    (r"Ron[^|]{0,6}0\.25|0\.25 ?Ω[^|]{0,12}(typ|SSR|AQY|Ron)|"
+     r"R_opto[^|]{0,8}390|390 ?Ω[^|]{0,20}(opto|LED|PWR_EN|I_F)|"
+     r"(opto|LED|PWR_EN|I_F)[^|]{0,20}390 ?Ω|4\.57 ?mA|"
+     # SSR off-leakage claimed guaranteed/bounded at a HOT temp (85/100 °C):
+     # scoped to SSR/off-leakage context so the saga's generic "a guaranteed
+     # hot leakage [that discrete FETs lack]" (decisions.md) is NOT flagged.
+     r"(AQY212|SSR|opto-?isolat|off-?leakage|off-?state)[^|]{0,45}"
+     r"(guaranteed|bounded|≤ ?1 ?µA)[^|]{0,25}(85|100) ?°C",
+     "Ron 0.85/2.5 Ω; R_opto 330 Ω; leakage ≤1 µA @25 °C (F79)",
+     "F79: AQY212EH Ron is 0.85 typ / 2.5 max (0.25 Ω was the AQY211EH "
+     "sibling row); R_opto 390→330 Ω for worst-case I_F ≥5 mA; hot "
+     "off-leakage is NOT bounded — the spec is ≤1 µA @25 °C only "
+     "(non-amplifying because there is no gate divider)"),
+    # F80 — the SSR closes onto 22 µF C3; its 1.5 A/100 ms peak is one-shot.
+    # Structural guard: the CURRENT series path is
+    # "V24_FUSED → R_inrush → V24_SW"; the direct (pre-fix) path is stale.
+    (r"V24_FUSED\s*→\s*(\*\*)?V24_SW|"
+     r"1\.5 ?A ?/ ?100 ?ms[^|]{0,25}(continuous|steady|rating)(?![^|]{0,20}one-shot)|"
+     r"closes? directly onto[^|]{0,20}(22 ?µF|C3)(?![^|]{0,40}R_inrush)",
+     "V24_FUSED → R_inrush (22 Ω) → V24_SW; inrush ≤1.33 A (F80)",
+     "F80: R_inrush 22 Ω 1206 hard-caps SSR turn-on inrush into C3 to "
+     "≤1.33 A @29 V even at Ron=0, under the 1.5 A/100 ms one-shot peak; "
+     "the direct V24_FUSED→V24_SW path (no limiter) is retired"),
+    # F81 — generic discrete gate-driver topology forms. R3 stays LIVE as
+    # the RS-485 idle-bias resistor, so ONLY R3-in-gate-context is stale;
+    # DZ1 and the Q2 gate transistor are fully removed (bare forms safe).
+    (r"\bQ1\b[^|]{0,30}(P-?FET|P-?MOSFET|load switch|gate)|"
+     r"(P-?FET|P-?MOSFET|load switch)[^|]{0,12}\(?Q1\)?|"
+     r"(drives|opens?|holds?|via|behind|re-?engages?|closes?|switched behind)\s+Q1\b|"
+     r"\bQ1\b\s+(ON|OFF|is OFF|conducts|stays)|"
+     r"Q2\s+(drain|source|gate|base|collector|pulls)|"
+     r"\bQ2\b[^|]{0,30}(BJT|N-?FET|MMBT|gate driver)|"
+     r"\bDZ1\b|"
+     r"gate[- ]?clamp[^|]{0,10}(Zener|DZ1)|"
+     r"(Q1 )?gate pull-?up[^|]{0,10}R3|R3[^|]{0,15}(Q1 )?gate",
+     "SSR1 / AQY212EH PhotoMOS SSR (F81)",
+     "F81: generic discrete gate-driver topology forms — Q1 as a "
+     "P-FET/load switch, its ON/OFF operating state, the Q2 gate "
+     "transistor terminals, the DZ1 gate-clamp Zener, and R3-as-gate-"
+     "pullup — must read SSR1/AQY212EH. R3 remains LIVE as the RS-485 "
+     "idle bias, so only R3-in-gate-context is flagged"),
+    # F82 — the ordered SMAJ TVS objects are Diodes Inc -13-F, not
+    # Littelfuse. The FUSE (0215001.MXP) IS Littelfuse — do NOT flag it,
+    # so the pattern is scoped to "Littelfuse" adjacent to a TVS token.
+    (r"Littelfuse\s+SMAJ|SMAJ\w*\s*[—-]\s*Littelfuse|"
+     r"Littelfuse[^|]{0,18}(TVS|bidirectional|clamp)|"
+     r"(TVS|bidirectional)[^|]{0,18}Littelfuse",
+     "Diodes Incorporated SMAJxx-13-F (DS19005 = SMAJ_Diodes.pdf)",
+     "F82: the ordered SMAJ TVS parts are Diodes Inc -13-F "
+     "(SMAJ_Diodes.pdf = DS19005), not Littelfuse. The FUSE 0215001.MXP "
+     "IS genuinely Littelfuse — this pattern is scoped to SMAJ/TVS "
+     "context so the fuse row is never flagged"),
 ]
 
 # ---------------------------------------------------------------------------

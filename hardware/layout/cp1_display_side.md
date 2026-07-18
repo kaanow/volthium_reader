@@ -218,7 +218,7 @@ THVD1400 has **datasheet-guaranteed internal pulls** (DE 2 MΩ pull-DOWN,
 /RE 2 MΩ pull-UP) that default the transceiver to shutdown whenever both
 GPIOs float — no external R_DE / R_RE needed. Reset / crash / brown-out
 land in shutdown safely. Display-side power is shed with the display at
-hard-cut (Q1 OFF via battery-side), so the display's transceiver is
+hard-cut (SSR1 OPEN via battery-side), so the display's transceiver is
 unpowered in State 4 regardless — but the topology still matters for
 State 3/B (deep-sleep waiting for the next RS-485 frame).
 
@@ -313,7 +313,7 @@ to toggle on a start-bit, otherwise the wake path is impossible. So:
 - **Transceiver draws its RX-only Iq (~900 µA max, ~700 µA typ)
   continuously** in this state — a real cost that appears in the
   display-side State B budget (§7). Not in the battery-side hard-cut
-  budget because the display is on the Q1-shed rail; at hard-cut Q1 is
+  budget because the display is on the SSR1-shed rail; at hard-cut SSR1 is
   off and the whole display side is dark.
 - **Alternative considered and rejected: Light-sleep + UART wake** (F15,
   corrected iter-15). ESP32-S3-WROOM-1-N16R8 module
@@ -342,7 +342,7 @@ external bias, so **R3/R4 are DNP by default** (iter-12 F12) — the
 problem. If populated at CP5 at the previously-computed ~330 Ω (a
 single bias point that clears 200 mV idle across both terminators),
 the 15 mW is sourced from the display 3V3 rail, which is **shed with
-the display** when the battery opens Q1 at low SOC — so the cost is
+the display** when the battery opens SSR1 at low SOC — so the cost is
 zero in State 4 regardless of stuff status.
 
 ### 4.6 User input (3 tactile buttons, software-defined labels)
@@ -376,7 +376,7 @@ dead?" is solved in firmware/sequencing per **D30**:
   showing a stale time is the unmistakable tell (covers both comms-loss and
   power-loss, since the bistable image keeps the old time).
 - **Graceful pre-shed render** — the battery side sends a "sleeping" frame
-  and waits for the display to draw it *before* opening Q1; the bistable
+  and waits for the display to draw it *before* opening SSR1; the bistable
   screen then holds "Monitor sleeping — low battery."
 - **Battery-side heartbeat detection** — missing display acks → flagged via
   the WiFi push (D25).
@@ -492,7 +492,7 @@ edge and force the display back to Light-sleep + higher ESP Iq — deferred
 to a future revision if this ~3 mW ever becomes load-bearing vs the
 display's ~29 mW State A average.
 
-State C — Hard cut (no V12 from battery side because Q1 is OFF over
+State C — Hard cut (no V12 from battery side because SSR1 is OPEN over
 there): **board is off**. No draw. R3/R4 bias contributes nothing here
 regardless of stuff status.
 

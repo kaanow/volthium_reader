@@ -16,7 +16,7 @@ Conversion efficiency assumptions (per decisions.md D19):
   costs almost nothing at idle, which keeps the low-SOC trickle ~1 mW
   (the RV-3028-C7 RTC adds only 45 nA — D23).
 - **U2 R-78HB12** (24 V → 12 V, *switched*, display feed), ~80 % over the
-  relevant range. Behind the Q1 load switch, so it draws **zero** when
+  relevant range. Behind the SSR1 load switch, so it draws **zero** when
   the display is shed at < 10 % SOC.
 
 ### State 1 — Normal (> 25 % SOC, persistent BLE)
@@ -52,15 +52,15 @@ load. Way under the budget.
 |----------------------|----------------------------------|
 | ESP32-S3 ULP+RTC     | ~50 µA (RTC slow-clock + ULP wake every 10 min) |
 | RV-3028-C7 RTC       | 45 nA (negligible)               |
-| Q1/Q2 path off       | ~10 µA (pull-up leakage)         |
+| SSR1 output (closed) | Ron 0.85 Ω typ — negligible dissipation at ~5 mA display load |
 | Display side         | still receiving 12 V; ESP32 + e-paper light-sleep ≈ ~5 mA at 24 V conv. |
 | **Total**            | **~5.4 mA at 24 V ≈ 0.13 W**      |
 
 ### State 4 — Hard cut (< 10 % SOC)
 
-Q1 is OFF — the 12 V/display feed (U2) is shed, so the entire display
+SSR1 is OPEN — the 12 V/display feed (U2) is shed, so the entire display
 side is dark. The **ESP stays powered** on the always-on rail (U1) and
-deep-sleeps, waking briefly to read the sense divider and re-engage Q1
+deep-sleeps, waking briefly to read the sense divider and re-engage SSR1
 when the pack recovers. No full power-down, no separate supervisor IC
 (D19 / DR-4: a fully-unpowered MCU couldn't wake itself).
 
@@ -106,7 +106,7 @@ row is upper-bound. Even at η = 65 % the total is **~1.05 mW**; at
 gate-driver's temperature-dependent OFF leakage was the recurring
 problem (a FET IDSS or BJT ICBO that could develop a turn-on voltage).
 The AQY212EH SSR eliminates it: its OFF state is an opto-isolated open
-MOSFET with a **≤1 µA off-leakage spec**, device rated to +85 °C, and —
+MOSFET with a **≤1 µA off-leakage spec @ 25 °C**, device rated to +85 °C (leakage rises but is non-amplifying) and —
 crucially — **no gate divider**, so the leakage cannot cascade into
 turn-on. State-4 is a clean **~1.1 mW** with a bounded ≤0.024 mW SSR
 term; the old Q1 IDSS + Q2 ICBO rows are gone (Q1/Q2 removed).

@@ -47,7 +47,7 @@ firmware/
 |-----------------|----------|-------------------------------|--------------------------------------------|
 | `ble_task`      | 5        | event-driven; runs while connected | Holds persistent BLE central to both BMS. Handles polite-disconnect on `release` event from RS-485. |
 | `tx_task`       | 4        | every 30 s (state 1) / 60 s (state 2) | Builds WireFrame from latest BLE samples, emits RS-485 frame |
-| `power_task`    | 6        | every 5 s + on SOC threshold crossings | Implements the 4-tier state machine; commands MOSFET; manages light/deep sleep. **Graceful display shed (D30):** before opening Q1 at low SOC, send the RS-485 "sleeping" frame, wait ~1 frame for the display to render it, *then* open Q1 — the e-paper holds the "sleeping" message after power is cut. **Heartbeat (D30):** track the display's RS-485 acks; on heartbeat loss flag "display dead" in the WiFi log-push (D25). |
+| `power_task`    | 6        | every 5 s + on SOC threshold crossings | Implements the 4-tier state machine; commands the SSR1 load switch; manages light/deep sleep. **Graceful display shed (D30):** before opening SSR1 at low SOC, send the RS-485 "sleeping" frame, wait ~1 frame for the display to render it, *then* open SSR1 — the e-paper holds the "sleeping" message after power is cut. **Heartbeat (D30):** track the display's RS-485 acks; on heartbeat loss flag "display dead" in the WiFi log-push (D25). |
 | `adc_task`      | 3        | every 2 s                     | Reads 24V sense; provides voltage-based SOC fallback when BLE is down |
 | `cli_task`      | 2        | USB serial available          | Optional debug shell over native USB-C (D22) |
 
@@ -62,7 +62,7 @@ because newer readings supersede older ones.
 | `rx_task`       | 5        | RS-485 frame arrived          | Validates CRC, parses WireFrame, posts to render queue |
 | `render_task`   | 4        | on new frame OR button press OR 30 s tick | Decides what to draw, kicks e-paper. **Always renders a "last updated HH:MM" timestamp (D30)** — a frozen e-paper showing a stale time is the primary "display is dead" tell (covers both comms-loss and power-loss, since the bistable image keeps the old time). |
 | `input_task`    | 3        | GPIO interrupts (debounced)   | Maps buttons to events; sends "release BLE" over RS-485 |
-| `watchdog_task` | 2        | every 10 s                    | If no frame in 90 s, draws "LINK DOWN" overlay (D30 mode-a: comms dead, display powered). Also handles the **"sleeping" frame**: on a low-battery/shutdown command from the battery side, render "Monitor sleeping — low battery" so the bistable screen holds that correct message after the battery opens Q1 (D30 graceful pre-shed). |
+| `watchdog_task` | 2        | every 10 s                    | If no frame in 90 s, draws "LINK DOWN" overlay (D30 mode-a: comms dead, display powered). Also handles the **"sleeping" frame**: on a low-battery/shutdown command from the battery side, render "Monitor sleeping — low battery" so the bistable screen holds that correct message after the battery opens SSR1 (D30 graceful pre-shed). |
 
 ## State machine (battery-side `power_task`)
 

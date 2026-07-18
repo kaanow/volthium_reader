@@ -9,8 +9,7 @@
 > later. Do not cite this file for any current part, value, or topology.
 > **Do not treat any part number, component value, connector, or enclosure
 > here as current.** Re-architected since: the power tree (TPS62933→LM5166 on
-> the *always-on* rail; R-78E12→R-78HB12; AO340x→ZXMP6A13F/2N7002 + Vgs
-> clamp; SS24→SS26; both-end→display-only RS-485 bias — D19/DR-3/DR-4), the
+> the *always-on* rail; R-78E12→R-78HB12; the discrete load switch AO340x→ZXMP6A13F/2N7002+Vgs-clamp was ultimately **replaced by the AQY212EH PhotoMOS SSR** (iter-48 F76); SS24→SS26; both-end→display-only RS-485 bias — D19/DR-3/DR-4), the
 > RTC (DS3231+CR2032 → RV-3028-C7 + backup cap — D23), the sense divider
 > (100k/11k → 1.2 MΩ/100 kΩ — DR-6), the dev port (USB-OTG header → native
 > USB-C — D22), and the enclosure (3D-printed IP5x, outline deferred — D20).

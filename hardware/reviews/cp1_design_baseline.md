@@ -5286,3 +5286,92 @@ Incorporated throughout, tied to `SMAJ_Diodes.pdf` and the exact
 MPNs, distributor SKUs, manifest identities, and evidence together.
 
 **REVIEW COMPLETE**: NEEDS CHANGES - 0 blockers, 4 important. (See findings 79, 80, 81, 82.)
+
+---
+
+## 40. Designer responses — iteration 50 (F79–F82)
+
+All four findings **ACCEPTED and FIXED**. F79 was the third datasheet
+column/sibling misread of this project's SSR saga (after F65 Si2309 and
+F72 MMBT5551) — the recurring failure is reading a value off the wrong
+row; every number below was re-read from the exact **AQY212EH** row of
+the on-file `AQY212EH_Panasonic.pdf` (doc ASCTB126E, sha `d329b972…`).
+
+**F79 — AQY212EH data read off the AQY211EH sibling / 25 °C-only. FIXED.**
+Re-read datasheet p.2/p.3 for the **AQY212EH** row specifically:
+- **Ron = 0.85 Ω typ / 2.5 Ω max** (the 0.25 Ω I had was the AQY211EH
+  sibling row). Corrected everywhere: `cp1_bom.md`, `cp1_battery_side.md`,
+  `decisions.md` D19 (both the summary line and the "why it resolves"
+  bracket), `manifest.md`. Drop at U2's ~0.3 A max input = ≤0.11 V typ /
+  ≤0.75 V max — still leaves U2 ≥ its 17 V min.
+- **LED drive**: R_opto **390 → 330 Ω**. Worst-case I_F = (3.3 − V_F max
+  1.5)/(330·1.01) = **5.4 mA ≥ the 5 mA datasheet-recommended min**
+  (nom 6.2, max 6.6 mA, all < 30 mA; and > the 3 mA max operate spec).
+  The old 390 Ω gave only 4.57 mA worst-case — under the recommendation.
+  SKU: DK `RMCF0805FT330RCT-ND` / Mouser `71-CRCW0805-330-E3`.
+- **Off-leakage honestly reframed**: the ≤1 µA spec is **@ 25 °C only**;
+  it rises (non-amplifying) toward +85 °C. This is acceptable *here* and
+  was not acceptable for the discrete driver **because the SSR has no
+  gate divider** — leakage cannot develop a turn-on Vgs, so the discrete
+  self-turn-on failure mode is architecturally impossible. The hot-leakage
+  bound that killed every discrete candidate is simply **not load-bearing**
+  for the SSR. Written that way in D19 and `power_budget.md`.
+
+**F80 — inrush into C3 not bounded (1.5 A/100 ms is one-shot). FIXED.**
+Added **R_inrush = 22 Ω 1206** in the series path
+(V24_FUSED → **R_inrush** → V24_SW). At turn-on it hard-caps inrush to
+**≤1.33 A @ 29 V even at Ron = 0** (29/22 = 1.32 A) — under the 1.5 A one-shot
+peak — and 1.09 A @ 24 V. Steady drop at ≤45 mA display load ≤1.1 V, so
+U2 stays ≥21.9 V (≫ 17 V min); dissipation ≤45 mW → 1206.
+SKU: DK `RMCF1206FT22R0CT-ND` / Mouser `71-CRCW1206-22-E3`. Added to the
+BOM, the battery-side narrative + drawing, D19, and the block diagram.
+
+**F81 — live Q1/R3/DZ1 driver text still present. FIXED (comprehensively).**
+Enumerated every surviving live gate-driver reference and converted it to
+SSR1/AQY212EH — not just the four docs named in the finding but **also
+`docs/hardware/block_diagrams.md`** (a live Q1 P-FET load-switch box +
+a stale SN65HVD3082 transceiver the checker never saw) **and
+`docs/firmware/architecture.md`** (the firmware graceful-shed task still
+commanded "open Q1"). The `schematic_battery_side.md` Q1/Q2 AO340x text
+was left as-is — it sits under an explicit end-to-end SUPERSEDED banner
+(pure history, like `/archive/`), and I extended that banner's evolution
+note to the SSR endpoint. Note: **R3 is now a live refdes** (the RS-485
+idle-bias resistor) — distinct from the removed gate-driver R3 — so live
+R3/R4 bias text was correctly left intact.
+- **D35 hardened per the finding's second ask.** New registry rows for
+  F79/F80/F81/F82; each **verified to fire on the pre-fix HEAD text**
+  (F81 fires 46× on HEAD, 0× now). The generic-form F81 pattern covers Q1
+  as P-FET/load-switch, its ON/OFF operating state, Q2 gate-transistor
+  terminals, the DZ1 gate-clamp Zener, and **R3-only-in-gate-context**
+  (bare R3 is deliberately not flagged — it's the live bias resistor).
+  F82 is scoped to `Littelfuse`-adjacent-to-a-TVS-token so the genuinely
+  Littelfuse **fuse** (0215001.MXP) is never flagged. F80 is a structural
+  guard on the `V24_FUSED → R_inrush → V24_SW` path.
+- **History-exemption scoped (the finding's explicit request).** Removed
+  the bare `→` from `NEARBY_MARKERS` (parallel to F67's removal from
+  `HISTORY_MARKERS`) so a coincidental signal-flow/"F60→F76" arrow can no
+  longer legalize a stale token five lines away. This surfaced three
+  pre-existing decisions.md history lines (a removed 680 Ω bias, a
+  superseded TPS3890 package note, a rejected ISL3175E candidate row) that
+  had been riding on a nearby arrow — each was reworded to carry a real
+  supersession word. Added `replacement` and `~~` (strikethrough = struck =
+  superseded) as history markers.
+- `block_diagrams.md` added to `LIVE_DOCS`; `schematic_*.md` deliberately
+  kept out (end-to-end superseded banners).
+
+**F82 — TVS live manufacturer is Diodes Inc, text cites Littelfuse. FIXED.**
+Made the manufacturer, MPNs, SKUs, and citations **Diodes Incorporated
+`-13-F`** throughout (`docs/hardware/bom.md` TVS1/TVS2/TVS3;
+`cp1_battery_side.md` the 53.3 V clamp citation → **Diodes DS19005 =
+`SMAJ_Diodes.pdf`**). The **fuse** row (`0215001.MXP`) is genuinely
+Littelfuse and was left untouched — the F82 registry pattern is scoped so
+it can never flag the fuse.
+
+**D35 consistency gate: exit 0** (30 manifest parts checked; manifest ↔
+PDF ↔ BOM consistent; no unmarked stale tokens). All new rows verified to
+fire on pre-fix HEAD.
+
+**Handing back for iteration 51 re-verify — semaphore → reviewer_turn.**
+Open by design (unchanged): the on-site RS-485 two-domain common-mode
+matrix at the ~2-week battery visit (D36/DR-26), and BOM-lock
+manufacturer-lifecycle reconfirm on the semiconductors at CP5.
