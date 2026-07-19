@@ -55,6 +55,8 @@ SYMBOLS = {
     "TPS2116DRL":       (f"{STOCK}/Power_Management.kicad_sym",    "TPS2116DRL"),
     "R-78HB12-0.5":     (f"{STOCK}/Converter_DCDC.kicad_sym",      "R-78HB12-0.5"),
     "ESP32-S3-WROOM-1": (f"{STOCK}/RF_Module.kicad_sym",           "ESP32-S3-WROOM-1"),
+    "AP2112K-3.3":      (f"{STOCK}/Regulator_Linear.kicad_sym",    "AP2112K-3.3"),
+    "2N7002":           (f"{STOCK}/Transistor_FET.kicad_sym",      "2N7002"),
 }
 
 def _uuid(): return str(uuid.uuid4())
@@ -547,6 +549,64 @@ def blk_u2(s, cx, cy):
     s.label("GND", (xgl, yg), justify_h="right")
 
 
+def blk_mcu(s, cx, cy):
+    """MOD1 ESP32-S3-WROOM-1-N16R8 — the hub. 3V3 (C6/C7 decoupling), EN network
+    (R7 pull-up + C8 + MCU_EN from the UVLO/Q3 gate), I2C pull-ups R8/R9. GPIO
+    map per cp1: IO1=V24_SENSE(ADC), IO2=RS485_DE, IO15=RS485_nRE, IO4=PWR_EN,
+    IO7=BTN, IO8/9=I2C, IO17/18=RS485 DI/RO, USB_D±. Unused GPIOs no-connected.
+    (cx,cy)=module centre."""
+    mod = s.place("ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
+                  "RF_Module:ESP32-S3-WROOM-1", (cx, cy), angle=0, tanchor="u", tgap=3.0)
+    # pin number -> global net (side inferred from pin x)
+    NETS = {"3": "MCU_EN", "39": "V24_SENSE", "38": "RS485_DE", "4": "PWR_EN",
+            "7": "BTN_OVERRIDE", "12": "I2C_SDA", "17": "I2C_SCL", "8": "RS485_nRE",
+            "10": "RS485_DI", "11": "RS485_RO", "13": "USB_DM", "14": "USB_DP"}
+    for num, net in NETS.items():
+        pin = mod[num]
+        if pin[0] < cx:
+            lbl = (snap(pin[0] - 16.51), pin[1]); s.label(net, lbl, justify_h="right")
+        else:
+            lbl = (snap(pin[0] + 16.51), pin[1]); s.label(net, lbl, justify_h="left")
+        s.wire(lbl, pin)
+    # 3V3 (top) -> V3V3, C6/C7 decoupling
+    v3 = mod["2"]; yv = snap(v3[1] - 5.08)
+    s.wire(v3, (v3[0], yv))
+    xc6, xc7, xv3 = snap(cx - 7.62), snap(cx + 7.62), snap(cx - 20.32)
+    s.wire((v3[0], yv), (xc6, yv)); s.wire((xc6, yv), (xv3, yv))
+    s.wire((v3[0], yv), (xc7, yv))
+    s.label("V3V3", (xv3, yv), justify_h="right")
+    for xc, ref, val in ((xc6, "C6", "10µF"), (xc7, "C7", "100nF")):
+        c = s.place("C", ref, val, "C_0805_2012Metric", (xc, snap(yv - 3.81)), tanchor="r")
+        s.wire(c["1"], (xc, snap(c["1"][1] - 2.54)))
+        s.label("GND", (xc, snap(c["1"][1] - 2.54)), justify_h="right")
+    # GND (bottom pins) -> GND
+    gpin = mod["1"]; yg = snap(gpin[1] + 5.08)
+    for num in ("1", "40", "41"):
+        s.wire(mod[num], (mod[num][0], yg))
+    s.wire((snap(gpin[0] - 5.08), yg), (mod["41"][0], yg))
+    s.label("GND", (snap(gpin[0] - 5.08), yg), justify_h="right")
+    # ---- support cluster below the module: EN + I2C pull-ups to V3V3, C8 ----
+    yrail = snap(cy + 43.18); ylbl = snap(yrail + 11.43)
+    xs = [snap(cx - 22.86), snap(cx - 7.62), snap(cx + 7.62)]
+    s.label("V3V3", (snap(xs[0] - 8.89), yrail), justify_h="right")
+    s.wire((snap(xs[0] - 8.89), yrail), (xs[-1], yrail))
+    for x, (ref, val, net) in zip(xs, (("R7", "10k", "MCU_EN"), ("R8", "4.7k", "I2C_SDA"),
+                                       ("R9", "4.7k", "I2C_SCL"))):
+        r = s.place("R", ref, val, "R_0805_2012Metric", (x, snap((yrail + ylbl) / 2)), tanchor="l")
+        s.wire(r["1"], (x, yrail))
+        s.wire(r["2"], (x, ylbl)); s.label(net, (x, ylbl), justify_h="left")
+    # C8: EN filter, MCU_EN -> GND (own column, right of the pull-ups)
+    xc8 = snap(cx + 22.86)
+    c8 = s.place("C", "C8", "1µF", "C_0603_1608Metric", (xc8, snap((yrail + ylbl) / 2)), tanchor="l")
+    s.wire(c8["1"], (xc8, yrail)); s.label("MCU_EN", (xc8, yrail), justify_h="left")
+    s.wire(c8["2"], (xc8, ylbl)); s.label("GND", (xc8, ylbl), justify_h="left")
+    # unused GPIOs -> no-connect
+    used = set(NETS) | {"2", "1", "40", "41"}
+    for num, pin in mod.items():
+        if num not in used:
+            s.no_connect(pin)
+
+
 def blk_uvlo(s, cx, cy):
     """Hardware UVLO backstop (U4 TPS3808G01, D28/DR-16). Pack divider R_uv1/R_uv2
     -> SENSE (VIT 0.405V); R_hys (RESET->SENSE) = positive-feedback hysteresis;
@@ -727,6 +787,9 @@ def main():
     ok &= render(sheet("Battery-side — Supervisor & USB power",
                        (blk_uvlo, 82, 82),
                        (blk_sense, 210, 68)), "sheet_super")
+    # Sheet — MCU
+    ok &= render(sheet("Battery-side — MCU (ESP32-S3)",
+                       (blk_mcu, 145, 105)), "sheet_mcu")
     return 0 if ok else 2
 
 if __name__ == "__main__":
