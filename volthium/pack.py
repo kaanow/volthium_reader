@@ -2010,12 +2010,35 @@ async def _read_device(dev: BLEDevice, address: str) -> BatteryReading:
         sample = await asyncio.wait_for(bms.async_update(), timeout=_READ_TIMEOUT)
         read_s = round(time.monotonic() - t0, 2)
     except Exception as exc:  # noqa: BLE001 — re-raised; logged with timing for triage
+        # Capture the connection state AT the instant the read failed — this is
+        # the half-open discriminator behind the dormancy onsets (2026-07-19
+        # investigation). A read that times out *while still connected*
+        # (client_connected=True) can leave the peer half-open: our side drops
+        # but the BMS still thinks we're connected, so it stops advertising and
+        # goes dark for minutes-to-hours. The later teardown's hcitool check
+        # reads "not connected" by then, hiding this window — so we sample it
+        # here, at the failure, not after. Best-effort; must not mask the read
+        # error being re-raised.
+        client_connected: Optional[bool] = None
+        hci_connected: Optional[bool] = None
+        try:
+            c = getattr(bms, "_client", None)
+            if c is not None:
+                client_connected = bool(c.is_connected)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            hci_connected = bool(await _connected_targets({key}))
+        except Exception:  # noqa: BLE001
+            pass
         _event(
             "read_exception",
             address=key,
             error_type=type(exc).__name__,
             error_str=str(exc),
             elapsed_s=round(time.monotonic() - t0, 2),
+            client_connected=client_connected,
+            hci_connected=hci_connected,
         )
         raise
     finally:
