@@ -5753,3 +5753,65 @@ exit 0.
 independently and confirmed each margin — 2.87 W < 4.69 W (F86); 19.1 % ≤
 20 % (F87); 246 %/214 %-cold clearing > 200 %; inrush 0.66× SSR continuous.
 Handing back for iteration 55 re-verify — semaphore → reviewer_turn.
+
+## 8.28 Reviewer findings (iteration 55 - iter-54 resolution re-review)
+
+### Required checks
+
+| Check | Verdict | Independent evidence |
+|-------|---------|----------------------|
+| D35 consistency gate | **PASS** | Start-of-pass `doc_consistency_check.py` exited 0: 32 manifest parts checked, 38 `_verify_` cells reported, no unmarked stale tokens, and D32 consistency clean. The iter-54 F86-F89 fixtures pass. |
+| Changed distributor cells | **PASS (4/4 exact)** | Canonical `POST /resolve` on 2026-07-19 returned exact matches: DigiKey `541-75.0UTR-ND` and Mouser `71-CRCW120675R0FKEAH` → Vishay `CRCW120675R0FKEAHP`; DigiKey `F3649TR-ND` and Mouser `576-0451.080MRL` → Littelfuse `0451.080MRL`. A same-turn `/batch` found the resistor Active at DigiKey with 150,000 reel stock (plus cut-tape variants) and the fuse Active with 1,000 reel / 2,144 cut-tape stock; Mouser also reports 46,642 resistors and 687 fuses. |
+| Citation spot-check quota | **PASS (7 facts across 2 exact PDFs)** | Visually opened the on-file manufacturer PDFs. `Vishay_CRCW_HP.pdf` p.1 gives CRCW1206-HP `P70=0.75 W`, the separate 1.5 W at terminal-part temperature 105 C, and 1 Ohm to 1 MOhm range; p.3 constructs the `CRCW1206...HP` ordering code; p.8 section 8.1 uses `2.5*sqrt(P70*R)` for 5 s. `Littelfuse_451_453.pdf` p.1 gives 5 s maximum opening at 200 %; p.2 `.080` gives 125 V, nominal 4.0500 Ohm cold resistance and 0.00033 A^2s melting I^2t; p.3 contains the temperature rerating and explicitly average time-current curves; p.4 gives the physical dimensions and recommended pad layout (Finding 91). |
+| Changed manifest object identity | **PASS (2/2)** | Vishay's title page is the CRCW-HP resistor family and its ordering table supports exact MPN `CRCW120675R0FKEAHP`. Littelfuse's title page is the 451/453 very-fast fuse family and its exact `.080` electrical row and `0451...MRL` part-number construction are present. On-file SHA256 values match the manifest. |
+| F86 resistor fault coordination | **PASS** | With both 75 Ohm parts at -1 %, `R_total=148.5 Ohm`, `I=29.2/148.5=0.196633 A`, total resistor power is 5.7417 W and each equal part dissipates 2.8708 W. This is below each part's p.8 section 8.1 limit of `6.25*P70=4.6875 W` for 5 s. |
+| F88/F89 sourcing and D35 corrections | **PASS** | The bad 150 Ohm Mouser cell resolves none as previously found, is retired from live BOMs, and is now guarded along with the 220 Ohm/single-150/62 mA intermediate designs. The final 2x75 Ohm + 80 mA fixture passes and old-design fixtures fail. |
+
+### Finding 90 — IMPORTANT — F87 / C3 tolerance and pulse-cycle acceptance
+**Issue**: F87 is not closed: the claimed 100,000-cycle fuse margin is
+calculated with C3's nominal 22 uF value even though the exact capacitor and
+its maximum capacitance are still unselected. DR-28 also still does not define
+the requested test sample size, cycle count per sample, or measurable
+degradation criterion.
+**Evidence**: `cp1_bom.md` line 100 leaves C3 as a generic 22 uF / 100 V X7R
+1210 with both cells `_verify_`. At 29.2 V and `R_min=2*75*0.99=148.5 Ohm`,
+the nominal calculation is `C*V^2/(2R)=6.3159e-5 A^2s`, or 19.139 % of the
+exact `.080` fuse's nominal 3.3e-4 A^2s. Littelfuse's official
+[Fuseology Selection Guide](https://m.littelfuse.com/~/media/electronics/product_catalogs/littelfuse_fuseology_selection_guide.pdf%20.pdf)
+uses 22 % for 100,000 pulses and recommends application life/overload testing.
+That limit permits only `C <= 25.289 uF`, 14.95 % above nominal. A +20 % C3
+would produce `7.5790e-5 A^2s`, or 22.967 %, above the 100,000-pulse line;
+voltage, temperature, and TCR effects are not yet included. Therefore
+`cp1_battery_side.md` line 199's “F2 is rated for >=100 000 recovery cycles”
+does not follow from the present BOM. DR-28 lines 917-925 bounds field events
+and cooling but asks only for an undefined “representative cycle sample” and
+“no degradation.”
+**Suggested fix**: Select exact C3 first and use its maximum effective
+capacitance over initial tolerance, DC bias, temperature, and aging in the
+pulse I^2t calculation. Re-pick the fuse/resistor network if needed while
+preserving both the cold 200 %-opening margin and resistor/SSR fault envelope.
+Describe the guide result as a selection basis rather than a part-specific
+rating, and make DR-28 actionable with units tested, cycles per unit,
+temperatures, cooling interval, and numerical pre/post degradation limits.
+
+### Finding 91 — IMPORTANT — G2/G4 / F2 package and land pattern
+**Issue**: The exact fuse is repeatedly specified and counted as a 1206 part,
+but its manufacturer dimensions require a substantially larger dedicated land
+pattern. Carrying the current package label into CP2 would select the wrong
+footprint.
+**Evidence**: Exact-object `Littelfuse_451_453.pdf` (SHA256
+`399d3cc9da991aa3192638f807fb568f137407d10a4b0d35d106a82b5c2bace2`)
+p.4 specifies a `6.10 +/- 0.20 mm` by `2.69 +/- 0.25 mm` body and a recommended
+pad layout 6.86 mm overall by 3.15 mm wide, with 1.96 mm pads and a 2.95 mm
+gap. The same page's part-number diagram constructs `0451...MRL`. In contrast,
+`cp1_bom.md` line 109, `cp1_battery_side.md` line 315, and
+`docs/hardware/bom.md` line 115 put F2 in package `1206`; battery-side line 551
+also counts it among “3x 1206.” The live parts API describes the exact SKU as
+`2-SMD, Square End Block`, not 1206.
+**Suggested fix**: Replace every live F2 package/count reference with the exact
+manufacturer body and land-pattern dimensions, reserve the corresponding
+board area, and require the p.4 recommended footprint at CP2. Add a scoped
+F2/451-as-1206 token and regression fixture to D35 so the wrong package cannot
+return without flagging; do not alter the legitimate 1206 R_inrush labels.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings 90, 91.)
