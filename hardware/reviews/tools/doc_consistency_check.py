@@ -522,12 +522,23 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      r"R_inrush[^|]{0,4}=?\s?22 ?Ω|22 ?Ω[^|]{0,12}(1206|R_inrush|inrush)|"
      r"(inrush|SSR turn-on)[^|]{0,15}22 ?Ω|"
      r"≤ ?1\.33 A|1\.33 A @ ?29|1\.09 A @ ?24",
-     "R_inrush 220 Ω pulse-proof (CRCW1206220RFKEAHP) + F2 62 mA fuse "
-     "0451.062MRL (F84)",
+     "R_inrush = 2× 75 Ω 1206-HP series (=150 Ω) + F2 80 mA (F84/F86/F87)",
      "F84: R_inrush 22 Ω limited inrush only against the SSR's one-shot "
      "1.5 A/100 ms peak (a recurring event) and had no fault coordination "
-     "→ 220 Ω pulse-proof (inrush 0.134 A < SSR continuous, repetition-"
-     "safe) + a 62 mA fuse F2 that clears a downstream short"),
+     "→ the coordinated 2× 75 Ω 1206-HP series + 80 mA fuse network"),
+    # F86/F87/F88/F89 (iter-53) — the 220 Ω and single-150 Ω R_inrush, the
+    # 62 mA fuse, and the non-resolving Mouser SKU were superseded iter-54.
+    # Guard the exact retired MPNs/SKUs (unambiguous — no bare "62 mA",
+    # which is live as F87 history like "not the 62 mA I first used").
+    (r"CRCW1206220RFKEAHP|CRCW1206150RFKEAHP|71-CRCW1206150RFKEAHP|"
+     r"541-150UTR-ND|R_inrush[^|]{0,6}220 ?Ω|220 ?Ω[^|]{0,12}(pulse|R_inrush|1206-HP)|"
+     r"0451\.062MRL|F3153TR-ND|576-0451\.062MRL|"
+     r"single 1206-HP (survives|is guaranteed)|9\.4 W/5 s at (the )?1\.5 W",
+     "2× 75 Ω 1206-HP (CRCW120675R0FKEAHP, 541-75.0UTR-ND / "
+     "71-CRCW120675R0FKEAH) + 80 mA fuse 0451.080MRL (F86-F89)",
+     "F89: 220 Ω/single-150 Ω R_inrush + 62 mA fuse were intermediate; "
+     "F86: §8.1 uses P70=0.75 W (4.69 W), a single 1206-HP fails → 2× 75 Ω; "
+     "F88: 71-CRCW1206150RFKEAHP resolves none → 71-CRCW120675R0FKEAH"),
     # F85 — the retired 390 Ω R_opto SKUs (F79 value change left the exact
     # old SKU pair live in D19). Distance-limited F79 pattern missed them.
     (r"RMCF0805FT390RCT-ND|71-CRCW0805390RFKEA|CRCW0805390",
@@ -708,8 +719,17 @@ FIXTURES: list[tuple[str, bool]] = [
     # F84: the retired 22 Ω R_inrush + its one-shot-referenced inrush claim.
     ("R_inrush = 22 Ω hard-caps the turn-on inrush to ≤1.33 A @29 V — "
      "under the 1.5 A/100 ms one-shot", True),
+    # F89: the retired 220 Ω and single-150 Ω intermediate designs must FLAG.
     ("R_inrush 220 Ω limits the recurring turn-on inrush to 0.134 A — "
-     "below the SSR 0.30 A@85 °C continuous", False),
+     "below the SSR 0.30 A@85 °C continuous", True),
+    ("R_inrush 150 Ω 1206-HP; single 1206-HP survives 5.2 W under 9.4 W/5 s "
+     "at the 1.5 W rating", True),
+    # F88: the non-resolving Mouser SKU must FLAG.
+    ("R_inrush 71-CRCW1206150RFKEAHP 541-150UTR-ND", True),
+    # The FINAL iter-54 design must PASS (no flag).
+    ("R_inrush = 2× 75 Ω 1206-HP (CRCW120675R0FKEAHP, 541-75.0UTR-ND / "
+     "71-CRCW120675R0FKEAH) series = 150 Ω; each 2.87 W < 4.69 W/5 s at "
+     "P70=0.75 W; F2 80 mA 0451.080MRL clears at 246 %", False),
 ]
 
 

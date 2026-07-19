@@ -906,17 +906,24 @@ the reviewer, post-iter-52):
    swap to an SSR with a guaranteed hot-leakage max (the no-self-turn-on
    architecture is unaffected either way).
 
-2. **Fault/inrush coordination (F84).** R_inrush 150 Ω + F2 62 mA are
-   coordinated by analysis, over the branch series R ≈ R_inrush 150 Ω + F2
-   cold 5.5 Ω + SSR Ron ≈ 156 Ω (inrush/short ≈ 0.19 A < SSR continuous;
-   short = ~300 % of F2, ≈260 % at −40 °C, clears within 200 %→5 s; R_inrush
-   ~5.2 W under the §8.1 short-term-overload at 1.5 W). **Acceptance tests:**
-   (a) confirm the turn-on inrush peak ≤ ~0.2 A and that repeated
-   SOC-recovery cycling shows
-   no SSR/R_inrush/F2 degradation; (b) apply a deliberate V24_SW short at
-   the temperature extremes (esp. −40 °C) and confirm **F2 opens** and
-   R_inrush is undamaged. Fail cold → the fuse/R_inrush multiple needs
-   re-picking (lower R or a lower-rated fuse family).
+2. **Fault/inrush coordination (F84, re-coordinated iter-54 for F86/F87).**
+   R_inrush = **2× 75 Ω 1206-HP in series (=150 Ω)** + F2 = **80 mA**.
+   Worst case (29.2 V, R−1 %, no fuse/SSR credit): I=0.197 A. Analysis:
+   inrush 0.197 A < SSR 0.30 A@85 °C continuous (0.66×); short 0.197 A =
+   246 % of F2 (214 % at −40 °C) clears within 200 %→5 s; fault power 5.74 W
+   total = **2.87 W each < the CRCW-HP §8.1 guarantee 4.69 W/5 s at P70**;
+   turn-on I²t 6.3e-5 = 19.1 % of F2 melt I²t (≤20 %/100 k-pulse limit).
+   **Acceptance tests & quantified criteria:**
+   (a) *Cycle life:* bound the lifetime SOC-hard-cut→recovery count at
+   **≤ 100 000 events** (realistic ≪ that); verify no F2/R_inrush/SSR
+   degradation over a representative cycle sample with **≥ 10 s cooling**
+   between events (Littelfuse pulse-cycle basis). If the field cycle rate
+   could exceed 100 k over life, re-derate F2.
+   (b) *Inrush:* confirm turn-on peak ≤ ~0.2 A across temperature.
+   (c) *Fault clear:* apply a deliberate V24_SW short at the temperature
+   extremes (esp. −40 °C) and confirm **F2 opens** within 5 s and both
+   R_inrush halves + the SSR are undamaged. Fail cold → the fuse/R_inrush
+   multiple needs re-picking (lower R or lower-rated fuse).
 
 **Why OPEN:** these are physical measurements deferred to CP5 hardware
 bring-up; the design is complete and analysis-backed, but the claims are

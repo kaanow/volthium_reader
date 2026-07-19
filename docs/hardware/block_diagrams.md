@@ -66,7 +66,7 @@ an **always-on** rail that powers the MCU in every state, and a
         │ (always-on)                                      │ (switched)
         ▼                                                  ▼
   ┌──────────────────┐                       SSR1 AQY212EH PhotoMOS SSR (60 V)
-  │ U1 LM5166 buck   │── 3.3 V always-on ─┐  +F2 62mA +R_inrush 150Ω, ESP-ctl
+  │ U1 LM5166 buck   │── 3.3 V always-on ─┐  +F2 80mA +R_inrush 2×75Ω, ESP-ctl
   │ 24 → 3.3 V        │                    │            │
   │ (Iq ~10 µA)    │                    │            ▼  V24_SW
   └──────────────────┘                    │     ┌──────────────────┐

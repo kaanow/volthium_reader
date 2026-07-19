@@ -5698,3 +5698,58 @@ and value, add Finding 88's bad SKU, and demonstrate that the pre-fix strings
 fail while the corrected strings pass.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 1 blockers, 3 important. (See findings 86, 87, 88, 89.)
+
+---
+
+## 42. Designer responses — iteration 54 (F86–F89)
+
+All four **ACCEPTED and FIXED**. F86 was a datasheet-reading assumption my
+own six-pass self-review missed — I *assumed* the §8.1 overload test used
+the 1.5 W rating; p.8 actually uses **P70 = 0.75 W** (the 1.5 W is only at
+105 °C terminal-part temp). That's the exact class the reviewer keeps
+catching, and it drove the re-coordination below.
+
+**F86 (BLOCKER) — §8.1 uses P70; a single 1206-HP fails the fault. FIXED.**
+Re-read `Vishay_CRCW_HP.pdf` p.1/p.8: §8.1 short-term-overload = 2.5·√(**P70**·R),
+so the 5 s guarantee is 6.25·0.75 = **4.69 W**, not 9.4 W. Using the
+reviewer's conservative worst case (29.2 V, R−1 %, **no** credit for the
+fuse's nominal 5.5 Ω or SSR Ron), the fault current is 0.197 A and a single
+150 Ω 1206-HP would dissipate **5.74 W > 4.69 W** — not guaranteed for the
+fuse's worst-case 5 s clear. Fix: **R_inrush = 2× 75 Ω 1206-HP in series
+(=150 Ω)** so each half sees **2.87 W < 4.69 W** (guaranteed at P70). The
+single-part 2512-HP (9.4 W) would also do it but is not stocked at 150 Ω; the
+2× 75 Ω parts are Active with 150k stock (541-75.0UTR-ND).
+
+**F87 (important) — F2 repetitive-pulse endurance. FIXED.** At 62 mA the
+turn-on I²t was **31.6 %** of the fuse's nominal melting I²t, over
+Littelfuse's ≤20 % general-practice and their pulse-cycle table (22 %@100 k,
+29 %@10 k). Fix: **F2 = 80 mA** (0451.080, melt I²t 3.3e-4), dropping the
+ratio to **19.1 %** — under the ≤20 % guideline and the 22 %@100 k limit, so
+F2 is rated ≥100 k recovery cycles (realistic lifetime ≪ that). DR-28 now
+carries a **quantified** cycle/cooling acceptance criterion (≤100 k events,
+≥10 s cooling), not "every turn-on." The 80 mA fuse still clears the fault:
+0.197 A = 246 % (214 % at −40 °C) > the 200 % guaranteed-open threshold.
+
+**F88 (important) — R_inrush Mouser SKU resolved none. FIXED (moot + guarded).**
+The part change retires the bad cell; the new R_inrush Mouser SKU is
+**71-CRCW120675R0FKEAH** (`/resolve` exact → `CRCW120675R0FKEAHP`; Mouser
+drops the trailing P). Added the non-resolving `71-CRCW1206150RFKEAHP` to the
+D35 registry + a failing fixture.
+
+**F89 (important) — D35 encoded the retired 220 Ω. FIXED.** Updated the F84
+registry row's current-token/hint to the final 2× 75 Ω + 80 mA design;
+changed the passing fixture to the final design; **added failing fixtures**
+for the retired 220 Ω value, the retired single-150 Ω/9.4 W-at-1.5 W claim,
+and F88's bad SKU. A new F86-F89 registry row guards every retired
+MPN/SKU/claim — **verified to fire 11× on pre-fix HEAD, 0× now**; fixtures
+pass (pre-fix flags, corrected passes).
+
+All numbers re-derived by the reviewer's worst-case method and propagated
+across cp1_bom, cp1_battery_side, decisions D19, docs BOM, block diagram,
+manifest (MPN rows → the new parts, same on-file PDFs), and DR-28. D35 gate
+exit 0.
+
+**Self-review before hand-off** (per standard): re-derived the coordination
+independently and confirmed each margin — 2.87 W < 4.69 W (F86); 19.1 % ≤
+20 % (F87); 246 %/214 %-cold clearing > 200 %; inrush 0.66× SSR continuous.
+Handing back for iteration 55 re-verify — semaphore → reviewer_turn.
