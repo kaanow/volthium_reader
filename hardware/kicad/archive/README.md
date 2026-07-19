@@ -33,3 +33,18 @@ re-open, **D18/D19**).
 ## Current build
 
 See [`../README.md`](../README.md).
+
+## build_schematics_v1_kiutils_SUPERSEDED.py (retired 2026-07-19, CP2 restart)
+
+The first kiutils/KiCad-10 schematic generator. Retired because its
+architecture produced a *graphical netlist*, not a readable schematic: it
+auto-placed symbols and hung a net-label stub on every pin, treating wires
+as "purely decorative" (see its own `_place_wire` docstring) and net labels
+as the real connectivity — backwards. It also only ever built a partial
+power-input slice of the pre-D19 design (TPS62933/DS3231/Q_PMOS).
+
+**Kept for reference only** — salvage the kiutils primitives (symbol
+placement, `kicad-cli` erc/export pipeline, the chevron/field-rotation
+lessons in its comments), not the philosophy. The CP2 rebuild lives in
+`hardware/kicad/schematic/` and is wires-first + hierarchical + block-
+structured with a hard geometric readability gate.
