@@ -316,8 +316,8 @@ principle that errors are cheapest to catch at CP1. Each item below is the
 
 **Issue.** F1 (1 A fast-blow, 5×20 mm) sees inrush charging low-ESR ceramic
 bulk on each power event: ~22 µF (C1, LM5166 input on V24_FUSED) at
-cold-start, and again ~22 µF (C3, U2 input on V24_SW) when Q1 enables the
-display. With ceramic ESR + SS26 + trace ≈ 0.1–0.5 Ω, single-event
+cold-start, and **~3.3 µF** (C3, U2 input on V24_SW; was 22 µF — F90) when
+**SSR1 closes** the display feed. With ceramic ESR + SS26 + trace ≈ 0.1–0.5 Ω, single-event
 I²t ≈ **0.06–0.13 A²s** — the same order as a 1 A **fast-blow**'s melting
 I²t. Risk: nuisance trip / fuse fatigue over repeated cold-starts.
 **Mitigation already present:** Q1's 1 kΩ gate resistor soft-starts the C3
@@ -912,18 +912,24 @@ the reviewer, post-iter-52):
    inrush 0.197 A < SSR 0.30 A@85 °C continuous (0.66×); short 0.197 A =
    246 % of F2 (214 % at −40 °C) clears within 200 %→5 s; fault power 5.74 W
    total = **2.87 W each < the CRCW-HP §8.1 guarantee 4.69 W/5 s at P70**;
-   turn-on I²t 6.3e-5 = 19.1 % of F2 melt I²t (≤20 %/100 k-pulse limit).
-   **Acceptance tests & quantified criteria:**
-   (a) *Cycle life:* bound the lifetime SOC-hard-cut→recovery count at
-   **≤ 100 000 events** (realistic ≪ that); verify no F2/R_inrush/SSR
-   degradation over a representative cycle sample with **≥ 10 s cooling**
-   between events (Littelfuse pulse-cycle basis). If the field cycle rate
-   could exceed 100 k over life, re-derate F2.
-   (b) *Inrush:* confirm turn-on peak ≤ ~0.2 A across temperature.
-   (c) *Fault clear:* apply a deliberate V24_SW short at the temperature
-   extremes (esp. −40 °C) and confirm **F2 opens** within 5 s and both
-   R_inrush halves + the SSR are undamaged. Fail cold → the fuse/R_inrush
-   multiple needs re-picking (lower R or lower-rated fuse).
+   turn-on I²t 9.5e-6 = 2.9 % of F2 melt I²t at C3=3.3 µF (≤4.3 % at the
+   5 µF max-effective ceiling; ≤20 %/100 k Littelfuse *selection basis*).
+   **C3 selection gate (F90):** the exact C3 chosen at CP5 must have
+   **max-effective capacitance ≤ 5 µF** over initial tolerance + X7R
+   temperature + aging (DC bias only reduces it); otherwise re-derive.
+
+   **Quantified bring-up acceptance test plan (F90):**
+   | Test | Units | Cycles/unit | Temperatures | Cooling | Pass criterion |
+   |------|-------|-------------|--------------|---------|----------------|
+   | (a) F2 turn-on pulse-cycle endurance | **≥ 3** | **1 000** turn-on cycles (10 % of the ≤100 k life bound, accelerated) | 25 °C + **85 °C** (hot = worst for fuse fatigue) | **≥ 10 s** between cycles | F2 cold resistance rise **≤ 10 %** and no open; R_inrush value within ±1 %; SSR Ron within spec |
+   | (b) Turn-on inrush peak | ≥ 3 | 1 | −40 / 25 / 85 °C | — | measured peak **≤ 0.22 A** (≤ SSR 0.30 A@85 °C continuous) |
+   | (c) Fault clear | **≥ 2** (sacrificial) | 1 deliberate V24_SW short | **−40 °C** (worst) + 85 °C | — | **F2 opens ≤ 5 s**; both R_inrush 75 Ω halves and the SSR measure undamaged afterward |
+   | (d) State-4 leakage (F83) | ≥ 3 | — | 25 / 85 °C | — | total pack-referred hard-cut power **< 5 mW** |
+
+   **Lifetime bound:** SOC-hard-cut→recovery is a rare event; bound it at
+   **≤ 100 000** over life (≫ realistic — daily for 27 yr ≈ 10 000). If the
+   field rate could exceed that, re-derate F2 or add cooling headroom. Any
+   test failure → re-pick the fuse/R_inrush/C3 network.
 
 **Why OPEN:** these are physical measurements deferred to CP5 hardware
 bring-up; the design is complete and analysis-backed, but the claims are

@@ -191,16 +191,19 @@ AQY212EH column, corrected iter-50 per F79 — the earlier 0.25 Ω /
   - *Recurring turn-on:* the 0.197 A peak is **below the SSR's 0.30 A @85 °C
     *continuous* rating (0.66×)**, so the event that recurs on every SOC
     recovery sits within continuous ratings and needs **no** one-shot pulse
-    rating. τ = 150 Ω · 22 µF = **3.3 ms**; ~17 ms (5τ) to full charge.
-  - *F2 survives every turn-on — with a bounded cycle life (F87):* per-turn-on
-    I²t = ½CV²/R = **6.3e-5 A²s** = **19.1 %** of F2's nominal melting I²t
-    (3.3e-4 A²s, datasheet p.2 .080 row). That is under Littelfuse's ≤20 %
-    general-practice guideline and under the pulse-cycle table's **22 % for
-    100 000 pulses**, so F2 is rated for ≥100 000 recovery cycles — vs a
-    realistic lifetime count ≪ that (SOC hard-cut→recovery is rare; even
-    daily for 27 yr ≈ 10 000). **80 mA, not the 62 mA I first used**, whose
-    31.6 % exceeded these limits (F87). DR-28 carries the quantified
-    cycle/cooling acceptance criterion.
+    rating. τ = 150 Ω · 3.3 µF = **0.5 ms**; ~2.5 ms (5τ) to full charge.
+  - *F2 survives every turn-on — with margin robust to C3 tolerance (F87/F90):*
+    per-turn-on I²t = ½C·V²/R. **C3 is right-sized to 3.3 µF/100 V** (the
+    R-78HB12 datasheet p.4 value for Vin>50 V — the old 22 µF was ~7×
+    oversized), so I²t = **9.5e-6 A²s = 2.9 %** of F2's nominal melting I²t
+    (3.3e-4 A²s, datasheet p.2 .080 row) at nominal C3, and **≤4.3 % even at
+    a 5 µF max-effective-C ceiling** (initial tol +20 % + X7R temp +15 % +
+    aging; DC bias only *reduces* it). Littelfuse's **22 %/100 000-pulse**
+    figure is used here as a *selection basis* (not a part-specific rating):
+    ≤4.3 % is far under it, so F2 clears ≥100 000 recovery cycles with large
+    margin, **independent of the exact C3 part** (constrained to ≤5 µF
+    max-effective at CP5). **80 mA, not the 62 mA I first used** (F87). DR-28
+    carries the quantified units/cycles/temperature/cooling/degradation test.
   - *R_inrush survives the fault — split across two parts (F86):* under a
     V24_SW/C3/U2 short the 0.197 A dissipates 5.74 W *total*, i.e.
     **2.87 W in each 75 Ω** — under the CRCW1206-HP **§8.1
@@ -258,7 +261,7 @@ so the protected rail out-rates the clamp (D19/DR-3).
 | L1  | 10–47 µH ≥0.3 A shielded SMD inductor | per datasheet | 1 | LM5166 buck inductor; low-Iq COT mode favors a larger L than a fast buck |
 | C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210      | 2   | LM5166 input (C1 on V24_FUSED, behind the ~53 V clamp → 100 V) / output (C2, 3.3 V) |
 | U2  | Recom R-78HB12-0.5 (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1   | **Switched** (behind SSR1 + R_inrush) — drives the Cat5e/display. 72 V in tolerates the ~53 V clamp (D19/DR-3). Was R-78E12 (34 V, under-rated) |
-| C3, C4 | C3 22 µF / **100 V**, C4 22 µF / 25 V X7R | 1210      | 2   | U2 input (C3 on V24_SW, behind the clamp → 100 V) / 12 V output (C4) |
+| C3, C4 | C3 **3.3 µF** / **100 V** (R-78HB12 p.4; was 22 µF, oversized — F90), C4 22 µF / 25 V X7R | 1210      | 2   | U2 input (C3 on V24_SW, behind the clamp → 100 V) / 12 V output (C4) |
 | TVS3 | SMAJ15A unidirectional TVS, V12_CAT5E ↔ GND (at J2) | SMA | 1 | **DR-15:** clamps surges induced on the long in-wall Cat5e **12 V power pair** at the **battery** end — matches the display-end SMAJ15A so both ends of the exposed pair are protected (standard for long DC runs). Standoff 15 V > 12 V; zero static draw (conducts only on a transient). U2's 72 V VIN and the always-on rail are upstream/unaffected |
 
 **Regulator thermals (worst case, no heatsink).** Both converters are
@@ -312,7 +315,7 @@ foldback explicitly. The 530 mA "driver-active + WiFi-peak" case is
 | SSR1 | **Panasonic AQY212EH** PhotoMOS SSR (1-Form-A, 60 V / 550 mA, **Ron 0.85 Ω typ / 2.5 Ω max** — F79) — display-feed load switch (F76) | DIP-4 (THT) | 1 | In the switched branch V24_FUSED→F2→SSR1→R_inrush→V24_SW. **OFF = open MOSFET, ≤1 µA @25 °C leakage (spec; no hot max published — est. + acceptance test, F83), rated −40…+85 °C, opto-isolated → cannot self-turn-on.** ON = LED via R_opto. Blocks the 53 V surge open (<60 V); passes it to the 72 V U2 closed |
 | R_opto | **330 Ω** (ESP PWR_EN → SSR1 LED anode; cathode → GND) | 0805 | 1 | SSR LED current limit; worst-case I_F 5.4 mA ≥ the 5 mA recommended min (F79). ~20 mW active, 0 in hard-cut |
 | R_inrush (×2) | **2× 75 Ω 1206 pulse-proof (Vishay CRCW-HP) in series = 150 Ω** — switched branch | 1206 | 2 | 541-75.0UTR-ND / 71-CRCW120675R0FKEAH. Worst-case fault 5.74 W total = **2.87 W each < the §8.1 4.69 W/5 s guarantee (P70=0.75 W)** — a single 1206-HP fails (5.74 W), F86. Inrush 0.197 A < SSR continuous (F84) |
-| F2 | **80 mA very-fast SMD fuse** (Littelfuse 451 Nano2 SMF) — switched branch | 1206 | 1 | F3649TR-ND / 576-0451.080MRL. Coordinated fault clear (F84): worst-case short 0.197 A (R_inrush-limited) = 246 % (214 % at −40 °C) → clears within 200 %→5 s; turn-on I²t 19.1 % of melt (≤20 %, F87); normal ~5 mA ≪ 80 mA. 125 V/50 A interrupt; melt I²t 3.3e-4 A²s |
+| F2 | **80 mA very-fast SMD fuse** (Littelfuse 451 Nano2 SMF) — switched branch | **451 SMF, 6.10×2.69 mm** (p.4 land pattern, not 1206) | 1 | F3649TR-ND / 576-0451.080MRL. Coordinated fault clear (F84): worst-case short 0.197 A (R_inrush-limited) = 246 % (214 % at −40 °C) → clears within 200 %→5 s; turn-on I²t 2.9 % of melt at C3=3.3 µF (≤4.3 % at 5 µF max-eff; ≤20 %/100 k selection basis, F87/F90); normal ~5 mA ≪ 80 mA. 125 V/50 A interrupt; melt I²t 3.3e-4 A²s |
 | R4  | 100 kΩ pull-down: PWR_EN → GND     | 0805          | 1   | Holds PWR_EN low (SSR LED off → open) when the MCU GPIO floats (boot / brown-out) |
 
 **Power-first note (SSR)**: the PhotoMOS draws pack current only through
@@ -548,7 +551,7 @@ could add an LED on a GPIO that the firmware pulses (e.g. 50 ms ON every
 
 Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 (decoupling + debounce + sense filter), 10–12 resistors mostly 0805,
-1× 0805 (R3, R4, R5, R6, R10, R_opto) + 3× 1206 (R_inrush ×2 + F2 fuse) and 0603 (RTC pull-ups, EN, button).
+1× 0805 (R3, R4, R5, R6, R10, R_opto) + 2× 1206 (R_inrush ×2) + 1× **451 SMF 6.10×2.69 mm** (F2 fuse — its own land pattern, p.4) and 0603 (RTC pull-ups, EN, button).
 
 ## 5. Net list
 
@@ -687,7 +690,7 @@ populated. **Idle bias is NOT here** — it lives on the display end only
 |-------|--------|----------|------------------------------|----------------|
 | C1    | 22 µF/100 V | V24_FUSED | LM5166 VIN < 2 mm       | Bulk input (behind ~53 V clamp → 100 V) |
 | C2    | 22 µF/25 V  | V3V3  | LM5166 VOUT < 2 mm          | Bulk output (3.3 V) |
-| C3    | 22 µF/100 V | V24_SW | R-78HB12 (U2) VIN < 5 mm    | U2 input bulk (behind clamp → 100 V) |
+| C3    | 3.3 µF/100 V | V24_SW | R-78HB12 (U2) VIN < 5 mm   | U2 input (R-78HB12 p.4 rec; was 22 µF — F90) (behind clamp → 100 V) |
 | C4    | 22 µF/25 V  | V12_CAT5E | R-78HB12 (U2) VOUT < 5 mm | Bulk output to Cat5e |
 | C5    | 100 nF | V24_SENSE | ADC1_CH0 < 3 mm            | Sense filter   |
 | C6    | 10 µF  | V3V3  | ESP 3V3 pin < 2 mm           | ESP module bulk |

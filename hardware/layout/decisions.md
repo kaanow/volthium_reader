@@ -1179,7 +1179,7 @@ coordination defects together.
   **R_inrush (2× 75 Ω 1206-HP in series = 150 Ω)** → V24_SW, LED-driven from
   ESP `PWR_EN` through **R_opto 330 Ω** (worst-case I_F ≥ 5 mA ≥
   datasheet-recommended 5 mA). R_inrush limits the recurring turn-on inrush
-  into C3 (22 µF) to **0.197 A — below the SSR's 0.30 A @85 °C continuous
+  into C3 (3.3 µF) to **0.197 A — below the SSR's 0.30 A @85 °C continuous
   rating** (no reliance on the 1.5 A/100 ms one-shot), and F2 clears a
   downstream short the R_inrush limits to that same 0.197 A (coordinated
   network, F84; re-coordinated iter-54 for F86/F87 — see below).
@@ -1224,7 +1224,8 @@ coordination defects together.
     F86/F87).** R_inrush = **2× 75 Ω 1206-HP in series (=150 Ω)** + F2 =
     **80 mA**. Worst case (29.2 V, R−1 %, no fuse/SSR series credit — the
     reviewer's max-stress method): I = 0.197 A. Recurring inrush 0.197 A <
-    SSR 0.30 A@85 °C continuous (0.66×) → no one-shot reliance; τ = 3.3 ms.
+    SSR 0.30 A@85 °C continuous (0.66×) → no one-shot reliance; τ = 150 Ω·
+    C3 (3.3 µF) = 0.5 ms.
     A downstream short is limited to that same 0.197 A: **246 % of F2 (214 %
     at −40 °C** with the ~15 % cold fuse re-rating**)** → clears within the
     200 %→5 s bound; fault power 5.74 W total = **2.87 W each < the
@@ -1232,8 +1233,9 @@ coordination defects together.
     P70 = 0.75 W → 6.25·P70 = 4.69 W/5 s** (a *single* 150 Ω 1206-HP sees
     5.74 W > 4.69 W and is not guaranteed — the F86 gap; the series pair
     fixes it, and a 2512-HP would too but is not stocked at 150 Ω). F2's
-    turn-on I²t is 19.1 % of its melt I²t (≤20 %/100 k-pulse limit — F87;
-    62 mA's 31.6 % failed it). F2 is the designed first-fault element; F1 the
+    turn-on I²t is **2.9 %** of its melt I²t (at the right-sized C3 = 3.3 µF;
+    ≤4.3 % at the 5 µF max-effective ceiling — the old 22 µF gave 19.1 %,
+    F90) — far under Littelfuse's ≤20 %/100 k-pulse *selection basis* (F87). F2 is the designed first-fault element; F1 the
     upstream backstop. Datasheets: Vishay_CRCW_HP.pdf (bdd4e4b9, §8.1 p.8),
     Littelfuse_451_453.pdf (399d3cc9).
   - **Surge:** open, it blocks the 53 V clamp (60 V rating); closed, it

@@ -2,27 +2,35 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 56
+iteration: 57
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-19T13:58:09Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-19T15:30:00Z
+last_updated_by: claude-designer
 
 note: >
-  agent-reviewer iteration 55 on CP1. Re-reviewed designer iteration 54 and
-  the 2x75 Ohm / 80 mA redesign. Status: NEEDS CHANGES (0 blockers, 2
-  important). F90: the 100k pulse-life calculation uses nominal 22 uF while
-  exact C3 remains unselected; only +14.95% capacitance consumes the 22%
-  allowance, and DR-28 still lacks a quantified sample/cycle/degradation test
-  plan. F91: exact Littelfuse 0451.080MRL is 6.10 x 2.69 mm with a dedicated
-  p.4 land pattern, not the 1206 package stated in three live BOM/layout rows
-  and the battery-side package count. The resistor fault split, four changed
-  SKU cells, object identities, F88 sourcing correction, and F89 D35 fixtures
-  pass. See packet section 8.28 findings 90-91. CP2 not started.
+  DESIGNER iter 56: both iter-55 findings (F90, F91) ACCEPTED and FIXED, then
+  self-reviewed to a clean pass. No blockers this round.
+  F90: fixed at the root — the R-78HB12 datasheet p.4/p.6 external input cap
+  is only 1 uF/100 V (3.3 uF/100 V for Vin>50 V), so C3 = 22 uF was ~7x
+  oversized. Right-sized C3 to 3.3 uF/100 V, which drops the F2 turn-on I2t
+  from 19.1% to 2.9% of melt (<=4.3% at a bounded <=5 uF max-effective-C
+  ceiling; DC bias only reduces it) -> the >=100k-cycle margin now holds
+  independent of the exact C3 part; Littelfuse 22%/100k reframed as a
+  selection basis. Added a C3 <=5 uF max-eff selection gate and rewrote DR-28
+  as a quantified test-plan table (units/cycles/temps/cooling/degradation).
+  F91: the 0451.080MRL is a 2-SMD Square-End-Block 6.10x2.69 mm with its own
+  p.4 land pattern, NOT 1206 -> corrected the package in all 3 live F2 rows +
+  the count (2x1206 R_inrush + 1x 451-SMF F2), reserved the CP2 footprint,
+  added a scoped D35 token + fixtures (fires 3x on pre-fix HEAD; leaves the
+  legit 1206 R_inrush untouched). Also caught+fixed a stale 'Q1 enables' +
+  C3=22uF in RESOLVED DR-12. Five self-review passes; passes 1-2 caught two
+  stale tau=3.3ms (now 0.5 ms at C3=3.3 uF), passes 3-5 clean. D35 exit 0,
+  fixtures pass. Packet section 43.
 
 user_pause_reasons_seen_this_run: []

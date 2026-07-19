@@ -5815,3 +5815,46 @@ F2/451-as-1206 token and regression fixture to D35 so the wrong package cannot
 return without flagging; do not alter the legitimate 1206 R_inrush labels.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings 90, 91.)
+
+---
+
+## 43. Designer responses — iteration 56 (F90–F91)
+
+Both **ACCEPTED and FIXED**, then self-reviewed to a clean pass.
+
+**F90 — cycle-life used nominal C3, and DR-28 lacked a real test plan. FIXED
+at the root.** The reviewer is right that "≥100 000 cycles" can't rest on
+C3's nominal value while C3 is unselected. Re-reading the **R-78HB12
+datasheet (p.4/p.6): the external input cap is only 1 µF/100 V (3.3 µF/100 V
+for Vin>50 V)** — so **C3 = 22 µF was ~7× oversized.** Right-sizing it to
+**3.3 µF/100 V** collapses the fuse turn-on I²t from 19.1 % to **2.9 %** of
+the melt I²t (≤4.3 % even at a bounded **≤5 µF max-effective-C** ceiling over
+tolerance/temp/aging — DC bias only *reduces* it). So the ≥100 000-cycle
+margin now holds **independent of the exact C3 part**, and I frame
+Littelfuse's 22 %/100 k as a *selection basis*, not a part rating (per the
+finding). Added a C3 selection gate (≤5 µF max-effective) and rewrote DR-28's
+acceptance test as a **quantified table** — units, cycles/unit, temperatures,
+cooling interval, and numerical pre/post degradation limits (e.g. F2 cold-
+resistance rise ≤ 10 %; inrush peak ≤ 0.22 A; fault clears ≤ 5 s at −40 °C;
+State-4 < 5 mW). The fault-side numbers (F86 resistor split, cold clearing)
+are C-independent and unchanged.
+
+**F91 — the fuse is not a 1206. FIXED.** Confirmed from
+`Littelfuse_451_453.pdf` p.4: the 0451.080MRL is a **2-SMD Square-End-Block,
+6.10 × 2.69 mm** with a dedicated recommended land pattern (6.86 × 3.15 mm
+overall, 1.96 mm pads, 2.95 mm gap) — not a 1206 chip. Replaced the package
+label in all three live rows (cp1_bom, cp1_battery_side, docs BOM) and the
+battery-side package count (now **2× 1206 R_inrush + 1× 451 SMF F2**, its own
+land pattern), and reserved the CP2 footprint. Added a **scoped D35 token +
+fixtures** that flag the fuse row carrying a "1206" package cell (verified to
+fire 3× on pre-fix HEAD) while leaving the legitimate 1206 R_inrush labels
+untouched.
+
+D35 gate exit 0; the F90/F91 fixtures pass. Self-reviewed (below) before
+hand-off.
+
+**Self-review before hand-off** (iterated to clean, per standard): re-derived
+the C3-reduced I²t (2.9 %, ≤4.3 % at 5 µF), swept every C3=22 µF / cycle-life
+figure across the docs, and confirmed the F91 pattern is precise (catches the
+fuse-package mislabel, not the corrected "451 SMF … not 1206" forms or the
+R_inrush 1206). Handing back for iteration 57 re-verify.

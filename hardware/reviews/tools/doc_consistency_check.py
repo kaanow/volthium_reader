@@ -539,6 +539,18 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "F89: 220 Ω/single-150 Ω R_inrush + 62 mA fuse were intermediate; "
      "F86: §8.1 uses P70=0.75 W (4.69 W), a single 1206-HP fails → 2× 75 Ω; "
      "F88: 71-CRCW1206150RFKEAHP resolves none → 71-CRCW120675R0FKEAH"),
+    # F91 (iter-55) — the Littelfuse 0451.080MRL fuse is a 2-SMD Square-End-
+    # Block 6.10×2.69 mm body with its own p.4 land pattern, NOT a 1206 chip.
+    # Scoped to F2/451/fuse context so the legitimate 1206 R_inrush is not hit.
+    # Precise: the fuse's Part cell (…451 Nano2 SMF… / 0451.0xx) immediately
+    # followed by a Pkg cell that is exactly "1206" (one | crossing). This
+    # catches the mislabel without hitting the corrected "451 SMF … not 1206"
+    # forms (Pkg cell is not "1206") or the F2→R_inrush-1206 flow lines.
+    (r"(451 Nano2 SMF|0451\.0[0-9]{2})[^|]{0,35}\|\s*1206\s*\|",
+     "F2 = Littelfuse 451 SMF, 6.10×2.69 mm dedicated land pattern (NOT 1206)",
+     "F91: the 0451.080MRL is a 2-SMD Square-End-Block ~6.10×2.69 mm body "
+     "with its own recommended land pattern (datasheet p.4), not a 1206 "
+     "chip — using the 1206 footprint at CP2 would be wrong"),
     # F85 — the retired 390 Ω R_opto SKUs (F79 value change left the exact
     # old SKU pair live in D19). Distance-limited F79 pattern missed them.
     (r"RMCF0805FT390RCT-ND|71-CRCW0805390RFKEA|CRCW0805390",
@@ -730,6 +742,14 @@ FIXTURES: list[tuple[str, bool]] = [
     ("R_inrush = 2× 75 Ω 1206-HP (CRCW120675R0FKEAHP, 541-75.0UTR-ND / "
      "71-CRCW120675R0FKEAH) series = 150 Ω; each 2.87 W < 4.69 W/5 s at "
      "P70=0.75 W; F2 80 mA 0451.080MRL clears at 246 %", False),
+    # F91: the fuse mislabeled as 1206 must FLAG; the real land pattern passes;
+    # the legitimate 1206 R_inrush must NOT flag.
+    ("| F2 | 80 mA very-fast SMD fuse (Littelfuse 451 Nano2 SMF) | 1206 | 1 |",
+     True),
+    ("| F2 | 80 mA (Littelfuse 451 Nano2 SMF) | 451 SMF, 6.10×2.69 mm "
+     "(p.4 land pattern, not 1206) | 1 |", False),
+    ("| R_inrush (×2) | 2× 75 Ω 1206 pulse-proof (Vishay CRCW-HP) | 1206 | 2 |",
+     False),
 ]
 
 
