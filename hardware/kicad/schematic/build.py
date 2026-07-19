@@ -57,6 +57,11 @@ SYMBOLS = {
     "ESP32-S3-WROOM-1": (f"{STOCK}/RF_Module.kicad_sym",           "ESP32-S3-WROOM-1"),
     "AP2112K-3.3":      (f"{STOCK}/Regulator_Linear.kicad_sym",    "AP2112K-3.3"),
     "2N7002":           (f"{STOCK}/Transistor_FET.kicad_sym",      "2N7002"),
+    "Conn_01x02":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x02"),
+    "Conn_01x08":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x08"),
+    "RJ45_Shielded":    (f"{STOCK}/Connector.kicad_sym",           "RJ45_Shielded"),
+    "SW_SPDT":          (f"{STOCK}/Switch.kicad_sym",              "SW_SPDT"),
+    "USB_C_Receptacle_USB2.0_16P": (f"{STOCK}/Connector.kicad_sym", "USB_C_Receptacle_USB2.0_16P"),
 }
 
 def _uuid(): return str(uuid.uuid4())
@@ -467,6 +472,112 @@ def blk_rs485(s, cx, cy):
     s.wire((xbr2, yA), tvT); s.wire((xbr2, yB), tvB)                  # TVS2 across A-B
     s.label("RS485_A", (xlblB, yA), justify_h="left")
     s.label("RS485_B", (xlblB, yB), justify_h="left")
+
+
+def blk_usbc(s, cx, cy):
+    """USB-C maintenance port (D22/D29): VBUS, GND, D± -> native ESP USB; CC1/CC2
+    5.1k pull-downs (UFP/device mode); SBU unused; shield -> GND. (cx,cy)=J3."""
+    yg = snap(cy + 30.48)
+    j = s.place("USB_C_Receptacle_USB2.0_16P", "J3", "USB-C 16P",
+                "Connector_USB:USB_C_Receptacle_GCT_USB4085", (cx, cy), angle=0, tanchor="u", tgap=3.0)
+    def out(pin, net, dx=10.16):
+        p = j[pin]; s.wire(p, (snap(p[0] + dx), p[1])); s.label(net, (snap(p[0] + dx), p[1]), justify_h="left")
+    out("A4", "VBUS")                                    # VBUS (stacked A4/A9/B4/B9)
+    # D- (A7,B7) tied -> USB_DM ; D+ (A6,B6) tied -> USB_DP
+    dm1, dm2 = j["A7"], j["B7"]; s.wire(dm2, (snap(dm2[0] + 5.08), dm2[1])); s.wire((snap(dm2[0] + 5.08), dm2[1]), (snap(dm2[0] + 5.08), dm1[1])); s.wire((snap(dm2[0] + 5.08), dm1[1]), dm1)
+    s.wire(dm1, (snap(dm1[0] + 12.7), dm1[1])); s.label("USB_DM", (snap(dm1[0] + 12.7), dm1[1]), justify_h="left")
+    dp1, dp2 = j["A6"], j["B6"]; s.wire(dp1, (snap(dp1[0] + 5.08), dp1[1])); s.wire((snap(dp1[0] + 5.08), dp1[1]), (snap(dp1[0] + 5.08), dp2[1])); s.wire((snap(dp1[0] + 5.08), dp2[1]), dp2)
+    s.wire(dp2, (snap(dp2[0] + 12.7), dp2[1])); s.label("USB_DP", (snap(dp2[0] + 12.7), dp2[1]), justify_h="left")
+    # CC1/CC2 -> 5.1k -> GND (far right, staggered; clear of the D± labels)
+    for pin, ref, dx in (("A5", "R_cc1", 30.48), ("B5", "R_cc2", 43.18)):
+        p = j[pin]; xr = snap(p[0] + dx)
+        s.wire(p, (xr, p[1]))
+        r = s.place("R", ref, "5.1k", "R_0805_2012Metric", (xr, snap(p[1] + 6.35)), tanchor="l")
+        s.wire((xr, p[1]), r["1"]); s.wire(r["2"], (xr, snap(r["2"][1] + 2.54)))
+        s.label("GND", (xr, snap(r["2"][1] + 2.54)), justify_h="right")
+    s.no_connect(j["A8"]); s.no_connect(j["B8"])         # SBU unused
+    # GND + shield (bottom-left)
+    g = j["A1"]; s.wire(g, (g[0], yg)); s.label("GND", (g[0], yg), justify_h="left")
+    sh = j["SH"]; s.wire(sh, (sh[0], yg)); s.label("GND", (snap(sh[0] - 7.62), yg), justify_h="right")
+    s.wire((snap(sh[0] - 7.62), yg), (g[0], yg))
+
+
+def blk_exp(s, cx, cy):
+    """Expansion header J_EXP (Molex PicoBlade 53398-0871) on the switched
+    EXP_3V3 rail. Q_exp NTR4171P high-side P-FET (default-OFF: gate pulled to
+    V3V3 via R_exp_pu 100k; EXP_PWR_EN low = ON). R_exp_bleed 10k parks the rail
+    (F66). D37 pinout: 1/8=GND, 2=EXP_3V3, 3=SDA, 4=SCL, 5=AIO1, 6=AIO2, 7=DIO3."""
+    # Q_exp high-side switch: S=V3V3, D=EXP_3V3, G=EXP_PWR_EN + R_exp_pu->V3V3
+    q = s.place("Q_PMOS_GSD", "Q_exp", "NTR4171P", "Package_TO_SOT_SMD:SOT-23",
+                (cx, cy), angle=0, tanchor="r")
+    G, S, D = q["1"], q["2"], q["3"]
+    s.wire(S, (S[0], snap(S[1] + 3.81))); s.label("V3V3", (snap(S[0] + 10.16), snap(S[1] + 3.81)), justify_h="left")
+    s.wire((S[0], snap(S[1] + 3.81)), (snap(S[0] + 10.16), snap(S[1] + 3.81)))
+    s.wire(D, (D[0], snap(D[1] - 3.81)))
+    xe = snap(D[0] + 15.24)
+    s.wire((D[0], snap(D[1] - 3.81)), (xe, snap(D[1] - 3.81))); s.label("EXP_3V3", (xe, snap(D[1] - 3.81)), justify_h="left")
+    # gate: EXP_PWR_EN + R_exp_pu pull-up to V3V3
+    xg = snap(G[0] - 10.16)
+    s.wire(G, (xg, G[1])); s.label("EXP_PWR_EN", (snap(xg - 12.7), G[1]), justify_h="right")
+    s.wire((snap(xg - 12.7), G[1]), (xg, G[1]))
+    rpu = s.place("R", "R_exp_pu", "100k", "R_0805_2012Metric", (xg, snap(G[1] - 6.35)), tanchor="l")
+    s.wire(rpu["2"], (xg, G[1])); s.wire(rpu["1"], (xg, snap(rpu["1"][1] - 2.54)))
+    s.label("V3V3", (xg, snap(rpu["1"][1] - 2.54)), justify_h="right")
+    # R_exp_bleed 10k: EXP_3V3 -> GND
+    rb = s.place("R", "R_exp_bleed", "10k", "R_0805_2012Metric", (xe, snap(D[1] - 3.81 + 6.35)), tanchor="l")
+    s.wire((xe, snap(D[1] - 3.81)), rb["1"]); s.wire(rb["2"], (xe, snap(rb["2"][1] + 2.54)))
+    s.label("GND", (xe, snap(rb["2"][1] + 2.54)), justify_h="right")
+    # J_EXP header
+    jy = snap(cy + 3.81)
+    j = s.place("Conn_01x08", "J_EXP", "Molex_PicoBlade_53398-0871",
+                "Connector_Molex:Molex_PicoBlade_53398-0871_1x08-1MP_P1.25mm_Vertical",
+                (snap(cx + 45.72), jy), angle=0, tanchor="u")
+    NET = {"1": "GND", "2": "EXP_3V3", "3": "EXP_SDA", "4": "EXP_SCL", "5": "EXP_AIO1",
+           "6": "EXP_AIO2", "7": "EXP_DIO3", "8": "GND"}
+    for num, net in NET.items():
+        p = j[num]; s.wire(p, (snap(p[0] - 10.16), p[1])); s.label(net, (snap(p[0] - 10.16), p[1]), justify_h="right")
+
+
+def blk_j1_btn(s, cx, cy):
+    """Pack input J1 (Phoenix MSTBA 2,5/2-G-5,08) + override button BTN1 (C&K
+    8125SHZBE SPDT wired COM-NO, R13 1M pull-up + C11 debounce). (cx,cy)=J1."""
+    j1 = s.place("Conn_01x02", "J1", "Phoenix_MSTBA_2,5-2-G-5,08",
+                 "Connector_Phoenix_MSTB:PhoenixContact_MSTBA_2,5-2-G-5,08_1x02_P5.08mm_Horizontal",
+                 (cx, cy), angle=0, tanchor="u")
+    for num, net in (("1", "V24_RAW"), ("2", "GND")):
+        p = j1[num]; s.wire(p, (snap(p[0] - 10.16), p[1]))
+        s.label(net, (snap(p[0] - 10.16), p[1]), justify_h="right")
+    # BTN1 below J1
+    by = snap(cy + 25.4)
+    bt = s.place("SW_SPDT", "BTN1", "C&K_8125SHZBE", "Button_Switch_Panel:SW_CK_8125",
+                 (cx, by), angle=0, tanchor="u")
+    COM, NO, NC = bt["2"], bt["1"], bt["3"]
+    s.no_connect(NC)
+    s.wire(NO, (snap(NO[0] + 7.62), NO[1])); s.label("GND", (snap(NO[0] + 7.62), NO[1]), justify_h="left")
+    s.wire((NO[0], NO[1]), (snap(NO[0] + 7.62), NO[1]))
+    # COM = BTN_OVERRIDE node: R13 pull-up to V3V3, C11 debounce to GND, label to MCU
+    xn = snap(COM[0] - 10.16)
+    s.wire(COM, (xn, COM[1])); s.label("BTN_OVERRIDE", (snap(xn - 10.16), COM[1]), justify_h="right")
+    s.wire((snap(xn - 10.16), COM[1]), (xn, COM[1]))
+    r13 = s.place("R", "R13", "1M", "R_0805_2012Metric", (xn, snap(COM[1] - 6.35)), tanchor="l")
+    s.wire(r13["2"], (xn, COM[1])); s.wire(r13["1"], (xn, snap(r13["1"][1] - 2.54)))
+    s.label("V3V3", (xn, snap(r13["1"][1] - 2.54)), justify_h="right")
+    c11 = s.place("C", "C11", "100nF", "C_0603_1608Metric", (xn, snap(COM[1] + 6.35)), tanchor="l")
+    s.wire((xn, COM[1]), c11["1"]); s.wire(c11["2"], (xn, snap(c11["2"][1] + 2.54)))
+    s.label("GND", (xn, snap(c11["2"][1] + 2.54)), justify_h="right")
+
+
+def blk_j2_rj45(s, cx, cy):
+    """J2 RJ45 to the display side (Amphenol RJHSE-538X, shielded). T568B per
+    cat5e_pinout: 1-3=V12_CAT5E, 4=RS485_A, 5=RS485_B, 6-8=GND, shield->GND at
+    this (battery) end only (DR-19). (cx,cy)=J2 centre."""
+    j2 = s.place("RJ45_Shielded", "J2", "Amphenol_RJHSE-538X",
+                 "Connector_RJ:RJ45_Amphenol_RJHSE-538X", (cx, cy), angle=0, tanchor="u", tgap=6.35)
+    NET = {"1": "V12_CAT5E", "2": "V12_CAT5E", "3": "V12_CAT5E", "4": "RS485_A",
+           "5": "RS485_B", "6": "GND", "7": "GND", "8": "GND", "SH": "GND"}
+    for num, net in NET.items():
+        p = j2[num]; s.wire(p, (snap(p[0] + 10.16), p[1]))
+        s.label(net, (snap(p[0] + 10.16), p[1]), justify_h="left")
 
 
 def blk_usb(s, cx, cy):
@@ -883,6 +994,12 @@ def main():
     # Sheet — MCU
     ok &= render(sheet("Battery-side — MCU (ESP32-S3)",
                        (blk_mcu, 145, 105)), "sheet_mcu")
+    # Sheet — connectors & I/O
+    ok &= render(sheet("Battery-side — Connectors & I/O",
+                       (blk_j1_btn, 55, 52),
+                       (blk_j2_rj45, 210, 52),
+                       (blk_usbc, 60, 120),
+                       (blk_exp, 150, 145)), "sheet_conn")
     return 0 if ok else 2
 
 if __name__ == "__main__":
