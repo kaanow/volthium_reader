@@ -88,11 +88,11 @@ class Sheet:
             position=Position(X=pos[0], Y=pos[1], angle=angle),
             unit=1, inBom=True, onBoard=True, fieldsAutoplaced=False, uuid=_uuid())
         le = lambda: Effects(justify=Justify(horizontally="left"))
-        # KiCad composes a field's angle with the symbol's rotation, so on a
-        # 90°-rotated part a field at angle 0 renders VERTICAL (and overlaps).
-        # Counter-rotate to keep field text horizontal — which also makes the
-        # horizontal box gate below accurate.
-        fa = (-angle) % 360
+        # Field angle to keep ref/value HORIZONTAL + upright regardless of the
+        # symbol's rotation. KiCad's readable-text handling is non-obvious
+        # (not a simple counter-rotate — 180° needs 0, not 180); values below
+        # are empirically verified against the render.
+        fa = {0: 0, 90: 270, 180: 0, 270: 90}[int(round(angle)) % 360]
         inst.properties = [
             Property(key="Reference", value=ref, position=Position(X=rp[0], Y=rp[1], angle=fa), effects=le()),
             Property(key="Value", value=value, position=Position(X=vp[0], Y=vp[1], angle=fa), effects=le()),
@@ -181,15 +181,21 @@ def build_input_protection(lib):
     s = Sheet(lib, "Battery-side — input protection (CP2 slice)")
     yr, yg = snap(88.9), snap(113.03)
     xin, xf1, xd1, xnod, xc1 = map(snap, (46.99, 63.5, 78.74, 93.98, 109.22))
+    # pin selectors by geometry (orientation-independent wiring)
+    leftp  = lambda pp: min(pp.values(), key=lambda xy: xy[0])
+    rightp = lambda pp: max(pp.values(), key=lambda xy: xy[0])
+    topp   = lambda pp: min(pp.values(), key=lambda xy: xy[1])
+    botp   = lambda pp: max(pp.values(), key=lambda xy: xy[1])
     f1 = s.place("Fuse", "F1", "1A T", "", (xf1, yr), angle=90, tanchor="ud")
-    d1 = s.place("D", "D1", "SS26", "D_SMA", (xd1, yr), tanchor="ud")
+    # D1 = SERIES reverse-polarity protector: anode toward the source
+    # (V24_RAW), cathode toward the load — forward-biased in normal operation.
+    # The `D` symbol is cathode(pin1)-left by default, so rotate 180°.
+    d1 = s.place("D", "D1", "SS26", "D_SMA", (xd1, yr), angle=180, tanchor="ud")
     tv = s.place("D_TVS", "TVS1", "SMAJ33CA", "D_SMA", (xnod, snap(yr+12.7)), angle=90, tanchor="r")
     c1 = s.place("C", "C1", "22µF 100V", "C_1210_3225Metric", (xc1, snap(yr+12.7)), tanchor="r")
     s.label("V24_RAW", (xin, yr), justify_h="right")     # wire exits right
-    s.wire((xin, yr), f1["1"]); s.wire(f1["2"], d1["1"])
-    s.wire(d1["2"], (xnod, yr)); s.wire((xnod, yr), (xc1, yr))
-    topp = lambda pp: min(pp.values(), key=lambda xy: xy[1])
-    botp = lambda pp: max(pp.values(), key=lambda xy: xy[1])
+    s.wire((xin, yr), f1["1"]); s.wire(f1["2"], leftp(d1))       # F1 → D1 anode
+    s.wire(rightp(d1), (xnod, yr)); s.wire((xnod, yr), (xc1, yr))  # D1 cathode → V24_FUSED
     s.wire((xnod, yr), topp(tv)); s.wire((xc1, yr), topp(c1))
     s.wire(botp(tv), (xnod, yg)); s.wire((xnod, yg), (xc1, yg)); s.wire(botp(c1), (xc1, yg))
     s.label("GND", (snap(xnod-10.16), yg), justify_h="right")  # wire exits right → body left
