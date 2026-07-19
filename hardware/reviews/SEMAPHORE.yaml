@@ -11,7 +11,7 @@ iteration: 53
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-18T23:55:00Z
+last_updated_at: 2026-07-19T00:40:00Z
 last_updated_by: claude-designer
 
 note: >
@@ -38,5 +38,14 @@ note: >
   fixtures + self-test (pre-fix flags, corrected passes) and F83/F84/F85
   registry rows (verified to fire on pre-fix HEAD). D35 exit 0. Packet
   section 41.
+  SELF-CAUGHT follow-up (designer adversarial self-review, before reviewer
+  picked up iter 53): the F84 R_inrush value I first committed (220 Ohm)
+  gave the fuse only a 216% fault multiple, which falls to ~188% (< the
+  200% guaranteed-open threshold) at -40 C because a fuse carries more when
+  cold (DR-22 sub-zero cabin) -> the fuse might not clear and R_inrush would
+  cook. Re-picked 150 Ohm (317%, ~276% at -40 C; better stocked) across all
+  docs + packet. Also captured the two bring-up acceptance tests this branch
+  rests on (F83 State-4 leakage <5 mW; F84 cold short clears F2) as DR-28
+  (OPEN) instead of leaving them as prose. D35 still exit 0.
 
 user_pause_reasons_seen_this_run: []

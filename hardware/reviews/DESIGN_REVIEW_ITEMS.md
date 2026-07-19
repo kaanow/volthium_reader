@@ -889,3 +889,33 @@ add-on); loose terminals have 25k MOQ.
 - Protection: series-R footprints on all 5 signals (F48 item 6) + ESD on
   exposed IO (DNP vs populate).
 - Dedicated vs shared I2C: confirm dedicated-I2C1 (RTC isolation).
+
+## DR-28 — SSR switched-branch bring-up acceptance tests (F83 hot leakage + F84 fault coordination)  [OPEN — tests defined, run at CP5 bring-up]
+
+Two design claims on the AQY212EH switched branch rest on **bring-up
+measurements**, not on guaranteed datasheet maxima, and must be captured as
+actionable acceptance tests rather than left as prose (self-caught before
+the reviewer, post-iter-52):
+
+1. **State-4 leakage (F83).** The AQY212EH off-leakage is a **25 °C ≤1 µA
+   spec with no published hot maximum**. State-4 is guaranteed ~1.1 mW at
+   25 °C; the 85 °C figure is an *engineering estimate* (~30–60 µA →
+   est. ceiling ~2.5 mW). **Acceptance test:** with SSR1 open (hard-cut),
+   measure total pack-referred State-4 power across the operating
+   temperature range (or at the 85 °C worst case). **Pass: < 5 mW.** Fail →
+   swap to an SSR with a guaranteed hot-leakage max (the no-self-turn-on
+   architecture is unaffected either way).
+
+2. **Fault/inrush coordination (F84).** R_inrush 150 Ω + F2 62 mA are
+   coordinated by analysis (inrush 0.197 A < SSR continuous; short 0.197 A =
+   317 %, ≈276 % at −40 °C, clears F2 within 200 %→5 s; R_inrush 5.8 W under
+   the §8.1 short-term-overload). **Acceptance tests:** (a) confirm the
+   turn-on inrush peak ≤ ~0.2 A and that repeated SOC-recovery cycling shows
+   no SSR/R_inrush/F2 degradation; (b) apply a deliberate V24_SW short at
+   the temperature extremes (esp. −40 °C) and confirm **F2 opens** and
+   R_inrush is undamaged. Fail cold → the fuse/R_inrush multiple needs
+   re-picking (lower R or a lower-rated fuse family).
+
+**Why OPEN:** these are physical measurements deferred to CP5 hardware
+bring-up; the design is complete and analysis-backed, but the claims are
+not closed until measured. Neither gates CP1 architecture.

@@ -1149,7 +1149,7 @@ coordination defects together.
 
     J1 → F1 → D1(60V Schottky) → V24_FUSED {TVS1 SMAJ33CA ~53V clamp, R5/R6 sense}
        ├─ ALWAYS-ON:  U1 wide-Vin µA-Iq buck → 3V3 (ESP32 + RTC + sense)
-       └─ F2 (62mA) → SSR1 (AQY212EH PhotoMOS load switch, F76) → R_inrush 220Ω → V24_SW → U2 (R-78HB12, 72V) → 12V → Cat5e → display
+       └─ F2 (62mA) → SSR1 (AQY212EH PhotoMOS load switch, F76) → R_inrush 150Ω → V24_SW → U2 (R-78HB12, 72V) → 12V → Cat5e → display
 
 - **Always-on rail (U1).** Carries the ESP in *all* states — active
   (~75 mA BLE) at high SOC, deep-sleep (~µA) at low SOC. It must be
@@ -1176,12 +1176,12 @@ coordination defects together.
   The display-feed switch is a **Panasonic AQY212EH PhotoMOS solid-state
   relay** (1-Form-A, 60 V / 550 mA, Ron 0.85 Ω typ / 2.5 Ω max) in the
   switched branch V24_FUSED → **F2 (62 mA fuse)** → SSR1 →
-  **R_inrush 220 Ω (pulse-proof)** → V24_SW, LED-driven from ESP `PWR_EN`
+  **R_inrush 150 Ω (pulse-proof)** → V24_SW, LED-driven from ESP `PWR_EN`
   through **R_opto 330 Ω** (worst-case I_F ≥ 5 mA ≥ datasheet-recommended
   5 mA). R_inrush limits the recurring turn-on inrush into C3 (22 µF) to
-  **0.134 A — below the SSR's 0.30 A @85 °C continuous rating** (no
+  **0.197 A — below the SSR's 0.30 A @85 °C continuous rating** (no
   reliance on the 1.5 A/100 ms one-shot), and F2 clears a downstream short
-  the R_inrush limits to that same 0.134 A (coordinated network, F84).
+  the R_inrush limits to that same 0.197 A (coordinated network, F84).
   It switches only U2/the display feed; the MCU rail stays always-on.
 
   *[Why an SSR — the discrete gate-driver saga, F60→F76. A high-side
@@ -1219,14 +1219,17 @@ coordination defects together.
     the 3 mA max operate current — ample margin. Ron 0.85 Ω typ / 2.5 Ω
     max → ≤13 mV drop at the ~5 mA display draw (≤0.75 V even at the SSR's
     0.3 A@85 °C continuous rating).
-  - **Inrush + fault coordinated (F80/F84).** R_inrush 220 Ω (pulse-proof
-    Vishay CRCW-HP) limits the recurring turn-on inrush to **0.134 A —
+  - **Inrush + fault coordinated (F80/F84).** R_inrush 150 Ω (pulse-proof
+    Vishay CRCW-HP) limits the recurring turn-on inrush to **0.197 A —
     below the SSR 0.30 A@85 °C continuous rating**, so the repetitive event
-    needs no one-shot pulse rating; τ = 4.84 ms (~24 ms to full charge). A
-    downstream V24_SW/C3/U2 short is limited to that same 0.134 A: below
-    the SSR continuous (SSR safe), 216 % of the **62 mA very-fast fuse F2**
-    (clears within its 200 %→5 s bound), and 3.95 W in R_inrush — under the
-    CRCW1206-HP §8.1 short-term-overload guarantee (9.4 W/5 s at 1.5 W).
+    needs no one-shot pulse rating; τ = 3.3 ms (~17 ms to full charge). A
+    downstream V24_SW/C3/U2 short is limited to that same 0.197 A: below
+    the SSR continuous (SSR safe), 317 % of the **62 mA very-fast fuse F2**
+    (≫ its 200 % guaranteed-open threshold — and 150 Ω not 220 Ω *because*
+    a fuse holds more when cold, so at −40 °C the 220 Ω option's 216 % fell
+    to ~188 % < 200 % and might not clear; 150 Ω keeps ≈276 % at −40 °C),
+    and 5.8 W in R_inrush for the brief fast clear — under the CRCW1206-HP
+    §8.1 short-term-overload guarantee (9.4 W/5 s at the 1.5 W rating).
     F2 is the designed first-fault element; F1 the upstream backstop.
     Datasheets: Vishay_CRCW_HP.pdf (bdd4e4b9), Littelfuse_451_453.pdf
     (399d3cc9).
@@ -1238,7 +1241,7 @@ coordination defects together.
     Exact SKUs: SSR1 = AQY212EH (DK 255-2963-ND / Mouser 769-AQY212EH),
     R_opto = **RMCF0805FT330RCT-ND / 71-CRCW0805-330-E3** (330 Ω, F79 —
     the earlier 390 Ω `RMCF0805FT390RCT-ND / 71-CRCW0805390RFKEA` are
-    retired), R_inrush = **541-220UCT-ND / 71-CRCW1206220RFKEAHP**,
+    retired), R_inrush = **541-150UTR-ND / 71-CRCW1206150RFKEAHP**,
     F2 = **F3153TR-ND / 576-0451.062MRL** (resolve-exact 2026-07-18).
     Datasheet on file (Panasonic GU-E, sha d329b9729322).
     Fail-safe unchanged: PWR_EN low/Hi-Z → LED off → SSR open → display

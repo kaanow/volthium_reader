@@ -5525,28 +5525,39 @@ downstream short left 26–39 W in a 0.25 W part below the 1 A fuse's trip.
 Rebuilt the branch as **V24_FUSED → F2 → SSR1 → R_inrush → V24_SW** with two
 new, on-file, Active parts and proved coordination from their datasheets
 (both fetched via the parts API this pass):
-- **R_inrush = 220 Ω pulse-proof (Vishay CRCW1206220RFKEAHP, 1.5 W;
+- **R_inrush = 150 Ω pulse-proof (Vishay CRCW1206150RFKEAHP, 1.5 W;
   Vishay_CRCW_HP.pdf sha bdd4e4b9).** Limits the recurring turn-on inrush to
-  **0.134 A @29.2 V — below the SSR's 0.30 A @85 °C *continuous* rating**
-  (0.45×), so the repeating event sits within continuous ratings and needs
-  **no** one-shot pulse rating. Corrected the RC claim: τ = 220·22 µF =
-  **4.84 ms**, ~24 ms to full charge (the old "<1 ms" was wrong; even 22 Ω
+  **0.197 A @29.2 V — below the SSR's 0.30 A @85 °C *continuous* rating**
+  (0.66×), so the repeating event sits within continuous ratings and needs
+  **no** one-shot pulse rating. Corrected the RC claim: τ = 150·22 µF =
+  **3.3 ms**, ~17 ms to full charge (the old "<1 ms" was wrong; even 22 Ω
   was 0.48 ms).
 - **F2 = 62 mA very-fast fuse (Littelfuse 0451.062MRL; Littelfuse_451_453.pdf
-  sha 399d3cc9).** Per-turn-on inrush I²t = ½CV²/R = **4.3e-5 A²s** < F2
+  sha 399d3cc9).** Per-turn-on inrush I²t = ½CV²/R = **6.3e-5 A²s** < F2
   nominal melting I²t **1.9e-4 A²s** (p.2) → survives every turn-on. A
-  V24_SW/C3/U2 short is R_inrush-limited to **0.134 A**: below the SSR
-  continuous (SSR safe for any duration), and 216 % of F2 → clears within
-  its **200 %→5 s** bound. During that ≤5 s R_inrush dissipates
-  0.134²·220 = **3.95 W**, under the CRCW1206-HP **§8.1 short-term-overload
-  guarantee** (2.5·√(P·R)/5 s = 9.4 W at 1.5 W; 4.68 W even at the
-  conservative P70). So F2 is the *designed* first-fault element and both
-  the SSR and R_inrush survive to the clear; F1 stays the upstream backstop.
-- SKUs (resolve-exact 2026-07-18): R_inrush 541-220UCT-ND /
-  71-CRCW1206220RFKEAHP (Active); F2 F3153TR-ND / 576-0451.062MRL (Active).
+  V24_SW/C3/U2 short is R_inrush-limited to **0.197 A**: below the SSR
+  continuous (SSR safe for any duration), and **317 % of F2 — comfortably
+  above the 200 % guaranteed-open threshold**, so it clears reliably and
+  fast. R_inrush's 0.197²·150 = **5.8 W** exposure is brief, and even at the
+  fuse's worst-case 5 s bound is under the CRCW1206-HP **§8.1
+  short-term-overload guarantee at the part's 1.5 W rating** (9.4 W/5 s). F2
+  is the *designed* first-fault element; F1 the upstream backstop.
+- **Self-caught after the initial fix (before this hand-off): the value is
+  150 Ω, not the 220 Ω I first wrote.** 220 Ω put the fault at only 216 %,
+  which — because a fuse carries *more* current before opening when cold —
+  falls to ~188 % (< the 200 % guaranteed-open threshold) at −40 °C (DR-22:
+  sub-zero cabin). The fuse might then fail to clear, leaving R_inrush at
+  ~4 W continuously in a 1.5 W part. That is the *same* fault-coordination
+  gap across temperature that F84 is about — I'd re-introduced it. 150 Ω
+  gives 317 % (≈276 % even at −40 °C), a temperature-robust clearing margin,
+  and is better stocked (541-150UTR-ND, 20k). **The two bring-up acceptance
+  tests this branch rests on (F83 State-4 leakage < 5 mW; F84 cold short
+  clears F2) are now tracked as DR-28 (OPEN), not left as prose.**
+- SKUs (resolve-exact 2026-07-18): R_inrush 541-150UTR-ND /
+  71-CRCW1206150RFKEAHP (Active); F2 F3153TR-ND / 576-0451.062MRL (Active).
   Updated across cp1_bom, cp1_battery_side (narrative + drawing + rows +
   state), decisions D19, docs BOM, block diagram, manifest (+2 datasheet
-  rows). U2 headroom re-checked: ≤3.3 V drop at 15 mA peak → ≥20.7 V ≫ 17 V.
+  rows). U2 headroom re-checked: ≤2.3 V drop at 15 mA peak → ≥21.7 V ≫ 17 V.
 
 **F85 — D35 suppressed live stale facts; BOM/D19 still stale. FIXED.**
 - **Content:** `docs/hardware/bom.md` SSR1 row → Ron **0.85/2.5 Ω** + 25 °C
