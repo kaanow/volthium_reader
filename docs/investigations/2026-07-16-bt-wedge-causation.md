@@ -177,7 +177,23 @@ restarts all wedged within 22 s). One wedge of a different class at
 17:03:49Z (`adapter_rx_deaf`, see observation log) — not an InProgress
 event, so the primary metric is still clean.
 
-### Phase 2B — burst-mode ambient (built 2026-07-17, deploy after experiment)
+### Phase 2B — burst-mode ambient (built 2026-07-17, ✅ DEPLOYED 2026-07-19T03:51Z)
+
+**DEPLOYED 2026-07-19T03:51Z.** Single-adapter experiment concluded (≥24 h,
+0 InProgress wedges vs ~8 expected — dual-adapter operation confirmed as
+the InProgress cause). Pi pulled to current `main`; set
+`VOLTHIUM_AMBIENT_MODE=burst` + re-enabled `VOLTHIUM_AMBIENT_ADAPTER` in
+the logger drop-in; restarted. **Validation on the restart itself:** emitted
+`ambient_scanner_unavailable: mode=burst` (continuous scan correctly
+disabled), NO `ambient_scanner_started`, and **NO InProgress wedge** — where
+all prior continuous-ambient restarts wedged within ~22 s. B flashed a
+momentary FM-8 leaked-link on restart that self-cleared in 9 s; both
+batteries reading, no `wedge_snapshot`/`recovery_skipped`. First live
+`ambient_burst` will fire on the next wedge/recovery decision. Deploy note:
+the Pi checkout has mixed ownership (`claude` owns code, `kaan` owns root/
+`data`), so pulls must run as root — flagged as deploy-hygiene debt.
+
+
 
 Ambient as an on-demand instrument instead of an always-on second radio
 (operator-proposed; converges with the "burst-mode ambient" option above).
