@@ -270,6 +270,21 @@ class Sheet:
                     continue  # a part's own ref vs its own value: allowed adjacent
                 if ov(a, b):
                     bad.append(f"[overlap] {ka}:{a[4]} × {kb}:{b[4]}")
+        # a label flag body overlapping a symbol body or ref/value text — the
+        # defect that slips past a pierce-only check (e.g. a decoupling cap's GND
+        # label printed over an IC's pins).
+        for i, (lx1, ly1, lx2, ly2, text, anch) in enumerate(self.lbl_boxes):
+            lb = (lx1, ly1, lx2, ly2)
+            for (sx1, sy1, sx2, sy2, ref) in self.sym_boxes:
+                if ov(lb, (sx1, sy1, sx2, sy2)):
+                    bad.append(f"[label-overlap] label '{text}' × body {ref}")
+            for (tx1, ty1, tx2, ty2, tref) in self.txt_boxes:
+                if ov(lb, (tx1, ty1, tx2, ty2)):
+                    bad.append(f"[label-overlap] label '{text}' × text {tref}")
+            for j in range(i+1, len(self.lbl_boxes)):
+                ob = self.lbl_boxes[j]
+                if ov(lb, (ob[0], ob[1], ob[2], ob[3])):
+                    bad.append(f"[label-overlap] label '{text}' × label '{ob[4]}'")
         # wire piercing a label flag body (crossing its interior, not just the anchor)
         for (lx1, ly1, lx2, ly2, text, anch) in self.lbl_boxes:
             for (p, q) in self.wires:
@@ -482,6 +497,67 @@ def blk_u2(s, cx, cy):
     s.label("GND", (xgl, yg), justify_h="right")
 
 
+def blk_sense(s, cx, cy):
+    """24V sense divider (always-on): V24_FUSED -> R5 1.2M -> V24_SENSE -> R6
+    100k -> GND; C5 100nF ADC tank. Full charge 29.2V -> ~2.25V (DR-6).
+    V24_SENSE -> ESP GPIO1/ADC1_CH0. (cx,cy)=divider node."""
+    yg = snap(cy + 13.97)
+    r5 = s.place("R", "R5", "1.2M", "R_0805_2012Metric", (cx, snap(cy - 6.35)), tanchor="l")
+    r6 = s.place("R", "R6", "100k", "R_0805_2012Metric", (cx, snap(cy + 6.35)), tanchor="l")
+    node = (cx, cy)
+    s.wire(r5["2"], node); s.wire(node, r6["1"])
+    yt = r5["1"][1]
+    s.wire(r5["1"], (cx, snap(yt - 2.54)))
+    s.wire((cx, snap(yt - 2.54)), (snap(cx - 12.7), snap(yt - 2.54)))
+    s.label("V24_FUSED", (snap(cx - 12.7), snap(yt - 2.54)), justify_h="right")
+    s.wire(r6["2"], (cx, yg))
+    xc, xlbl = snap(cx + 10.16), snap(cx + 20.32)
+    s.wire(node, (xc, cy)); s.wire((xc, cy), (xlbl, cy))
+    s.label("V24_SENSE", (xlbl, cy), justify_h="left")
+    c5 = s.place("C", "C5", "100nF", "C_0603_1608Metric", (xc, snap(cy + 3.81)), tanchor="r")
+    s.wire(c5["2"], (xc, yg))
+    s.wire((snap(cx - 7.62), yg), (xc, yg)); s.wire((cx, yg), (cx, yg))
+    s.label("GND", (snap(cx - 7.62), yg), justify_h="right")
+
+
+def blk_rtc(s, cx, cy):
+    """RV-3028-C7 ultra-low-power I2C RTC (45 nA, D23). VDD on always-on V3V3;
+    C-bk backup cap on VBACKUP (rides a pack disconnect); C9 decoupling; I2C to
+    MCU (R8/R9 pull-ups live on the MCU sheet). EVI->GND (unused), CLKOUT/INT
+    unused. (cx,cy)=RTC centre."""
+    yg = snap(cy + 16.51)
+    rtc = s.place("RV-3028-C7", "RTC1", "RV-3028-C7", "Package_SON:Micro_Crystal_C7_3.7x2.5mm",
+                  (cx, cy), angle=0, tanchor="u", tgap=6.35)
+    CLK, INT, SCL, SDA = rtc["1"], rtc["2"], rtc["3"], rtc["4"]
+    VSS, VBK, VDD, EVI = rtc["5"], rtc["6"], rtc["7"], rtc["8"]
+    # VDD (top-left) -> V3V3 rail + C9 decoupling
+    yv = snap(VDD[1] - 3.81)
+    s.wire(VDD, (VDD[0], yv))
+    xc9, xv3 = snap(cx - 22.86), snap(cx - 33.02)
+    s.wire((VDD[0], yv), (xc9, yv)); s.wire((xc9, yv), (xv3, yv))
+    s.label("V3V3", (xv3, yv), justify_h="right")
+    # C9 hangs UP off the V3V3 rail (SCL/SDA are just below VDD — keep clear)
+    c9 = s.place("C", "C9", "100nF", "C_0603_1608Metric", (xc9, snap(yv - 3.81)), tanchor="r")
+    yc = snap(c9["1"][1] - 2.54)
+    s.wire(c9["1"], (xc9, yc)); s.label("GND", (xc9, yc), justify_h="right")
+    # VBACKUP (top) -> C-bk to GND (backup-only cap)
+    yb = snap(VBK[1] - 6.35)
+    s.wire(VBK, (VBK[0], yb))
+    cbk = s.place("C", "C-bk", "22mF", "C_1210_3225Metric", (snap(cx + 12.7), snap(yb)), angle=90, tanchor="ud", bw=7.62)
+    cbkL = min(cbk.values(), key=lambda p: p[0]); cbkR = max(cbk.values(), key=lambda p: p[0])
+    s.wire((VBK[0], yb), cbkL)
+    s.wire(cbkR, (cbkR[0], yb)); s.wire((cbkR[0], yb), (cbkR[0], snap(yb + 4.0)))
+    s.label("GND", (cbkR[0], snap(yb + 4.0)), justify_h="left")
+    # VSS -> GND
+    s.wire(VSS, (VSS[0], yg)); s.label("GND", (VSS[0], yg), justify_h="left")
+    # I2C left; EVI -> GND
+    s.label("I2C_SCL", (snap(SCL[0] - 12.7), SCL[1]), justify_h="right"); s.wire((snap(SCL[0] - 12.7), SCL[1]), SCL)
+    s.label("I2C_SDA", (snap(SDA[0] - 12.7), SDA[1]), justify_h="right"); s.wire((snap(SDA[0] - 12.7), SDA[1]), SDA)
+    s.wire(EVI, (snap(EVI[0] - 10.16), EVI[1])); s.label("GND", (snap(EVI[0] - 10.16), EVI[1]), justify_h="right")
+    # unused outputs
+    s.no_connect(CLK); s.no_connect(INT)
+
+
 # ---- sheet composition: several functional blocks per US-Letter sheet --------
 def sheet(title, *placements):
     """Compose blocks onto one sheet: each placement is (blk_fn, cx, cy)."""
@@ -532,9 +608,13 @@ def main():
                        (blk_input_protection, 78, 62),
                        (blk_always_on_power, 205, 62),
                        (blk_u2, 205, 140)), "sheet_power")
-    # Sheet — comms/peripherals (RS-485; RTC + sense to come)
+    # Sheet — comms/peripherals (RS-485 + RTC)
     ok &= render(sheet("Battery-side — Peripherals & comms",
-                       (blk_rs485, 90, 62)), "sheet_periph")
+                       (blk_rs485, 90, 62),
+                       (blk_rtc, 95, 140)), "sheet_periph")
+    # Sheet — supervisor & USB power (UVLO + USB to come; sense divider)
+    ok &= render(sheet("Battery-side — Supervisor & USB power",
+                       (blk_sense, 70, 62)), "sheet_super")
     return 0 if ok else 2
 
 if __name__ == "__main__":
