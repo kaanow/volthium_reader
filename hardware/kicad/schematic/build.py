@@ -142,22 +142,24 @@ class Sheet:
             self.sch.libSymbols.append(_copy.deepcopy(resolve_symbol(name)))
 
     def place(self, name, ref, value, footprint, pos, angle=0.0,
-              tanchor="r", bw=None, bh=None):
+              tanchor="r", bw=None, bh=None, tgap=0.0):
         """tanchor picks where ref/value sit relative to the real body:
              'ud' ref above / value below   'u' both stacked above
              'l'  both to the left          'r' both to the right
-           bw/bh default to the true body half-extents (from the graphics)."""
+           bw/bh default to the true body half-extents (from the graphics).
+           tgap adds vertical clearance for 'u'/'ud' — use it when a top pin's
+           wire would otherwise run up through the ref/value text."""
         self._copy_lib_symbol(name)
         box = body_box(name, pos, angle)
         hw = max(bw, box[2]-box[0]) / 2 if bw else (box[2]-box[0]) / 2
         hh = max(bh, box[3]-box[1]) / 2 if bh else (box[3]-box[1]) / 2
         # ref/value anchors + boxes (left-justified so the box is predictable)
         if tanchor == "ud":
-            rp = (snap(pos[0] - _tw(ref)/2), snap(pos[1] - (hh + 1.9)))
-            vp = (snap(pos[0] - _tw(value)/2), snap(pos[1] + (hh + 1.9)))
+            rp = (snap(pos[0] - _tw(ref)/2), snap(pos[1] - (hh + 1.9 + tgap)))
+            vp = (snap(pos[0] - _tw(value)/2), snap(pos[1] + (hh + 1.9 + tgap)))
         elif tanchor == "u":                     # both above (ICs)
-            rp = (snap(pos[0] - _tw(ref)/2), snap(pos[1] - (hh + 4.2)))
-            vp = (snap(pos[0] - _tw(value)/2), snap(pos[1] - (hh + 1.9)))
+            rp = (snap(pos[0] - _tw(ref)/2), snap(pos[1] - (hh + 4.2 + tgap)))
+            vp = (snap(pos[0] - _tw(value)/2), snap(pos[1] - (hh + 1.9 + tgap)))
         elif tanchor == "l":                     # text to the LEFT (right-edge aligned)
             rp = (snap(pos[0] - hw - 1.3 - _tw(ref)), snap(pos[1] - 1.6))
             vp = (snap(pos[0] - hw - 1.3 - _tw(value)), snap(pos[1] + 1.6))
@@ -401,6 +403,62 @@ def build_always_on_power():
     return s
 
 
+def build_rs485():
+    """RS-485 half-duplex transceiver to the display side (U3 THVD1400, D34).
+    Control (RO/nRE/DE/DI) -> MCU; differential A/B -> Cat5e, with the 120 Ohm
+    terminator R10 and differential TVS2 across A-B; C10 decoupling. No idle
+    bias (THVD1400 full fail-safe RX; DR-4b/F12). VCC = V3V3."""
+    s = Sheet("Battery-side — RS-485 transceiver (U3 THVD1400)")
+    cx, cy = snap(152.4), snap(104.14)
+    u3 = s.place("THVD1400D", "U3", "THVD1400DR", "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+                 (cx, cy), angle=0, tanchor="u", tgap=5.08)
+    RO, nRE, DE, DI = u3["1"], u3["2"], u3["3"], u3["4"]
+    GND, A, B, VCC = u3["5"], u3["6"], u3["7"], u3["8"]
+
+    # ---- control signals -> MCU (left) ----
+    xlbl = snap(cx - 25.4)
+    for pin, net in ((RO, "RS485_RO"), (nRE, "RS485_nRE"), (DE, "RS485_DE"), (DI, "RS485_DI")):
+        s.label(net, (xlbl, pin[1]), justify_h="right")
+        s.wire((xlbl, pin[1]), pin)
+
+    # ---- VCC (top) -> V3V3 rail; C10 decoupling hangs off it, clear of the body ----
+    yv = snap(VCC[1] - 3.81)                          # VCC rail just above the pin
+    xc10 = snap(cx - 20.32)                           # left of the body (clear)
+    xv3 = snap(cx - 27.94)
+    s.wire(VCC, (VCC[0], yv))
+    s.wire((VCC[0], yv), (xc10, yv)); s.wire((xc10, yv), (xv3, yv))
+    s.label("V3V3", (xv3, yv), justify_h="right")
+    c10 = s.place("C", "C10", "100nF", "C_0603_1608Metric",
+                  (xc10, snap(yv + 3.81)), angle=0, tanchor="l")   # top pin on VCC rail
+    ygc = snap(c10["2"][1] + 2.54)
+    s.wire(c10["2"], (xc10, ygc)); s.label("GND", (xc10, ygc), justify_h="right")
+
+    # ---- GND (bottom) -> local GND ----
+    ygp = snap(GND[1] + 2.54)
+    s.wire(GND, (GND[0], ygp)); s.label("GND", (GND[0], ygp), justify_h="left")
+
+    # ---- A/B bus (right): term R10 + TVS2 bridge A-B, then to Cat5e ----
+    yA, yB = A[1], snap(A[1] + 7.62)                  # spread B down to a 7.62 bridge span
+    xstep = snap(cx + 12.7)
+    xbr1, xbr2, xlblB = snap(cx + 17.78), snap(cx + 30.48), snap(cx + 43.18)
+    s.wire(A, (xbr1, yA))                             # A rail
+    s.wire(B, (xstep, B[1]))                          # B out, then step down to yB
+    s.wire((xstep, B[1]), (xstep, yB)); s.wire((xstep, yB), (xbr1, yB))
+    ymid = snap((yA + yB) / 2)
+    r10 = s.place("R", "R10", "120", "R_0805_2012Metric",
+                  (xbr1, ymid), angle=0, tanchor="r", bw=2.0)
+    tvs = s.place("D_TVS", "TVS2", "SMAJ12CA", "D_SMA", (xbr2, ymid), angle=90, tanchor="r")
+    tvT = min(tvs.values(), key=lambda p: p[1]); tvB = max(tvs.values(), key=lambda p: p[1])
+    s.wire((xbr1, yA), (xbr2, yA)); s.wire((xbr2, yA), (xlblB, yA))   # A -> label
+    s.wire((xbr1, yB), (xbr2, yB)); s.wire((xbr2, yB), (xlblB, yB))   # B -> label
+    s.wire((xbr2, yA), tvT); s.wire((xbr2, yB), tvB)                  # TVS2 across A-B
+    s.label("RS485_A", (xlblB, yA), justify_h="left")
+    s.label("RS485_B", (xlblB, yB), justify_h="left")
+
+    s.add_junctions()
+    return s
+
+
 def kcli(*a): return subprocess.run(["kicad-cli", *a], capture_output=True, text=True)
 
 MM = 2.8346   # schematic mm -> PDF points
@@ -441,6 +499,7 @@ def main():
     ok = True
     ok &= render(build_input_protection(), "input_protection", (40, 80, 122, 120))
     ok &= render(build_always_on_power(), "always_on_power", (108, 82, 192, 126))
+    ok &= render(build_rs485(), "rs485", (120, 82, 208, 126))
     return 0 if ok else 2
 
 if __name__ == "__main__":
