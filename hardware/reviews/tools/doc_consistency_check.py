@@ -502,6 +502,38 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "(SMAJ_Diodes.pdf = DS19005), not Littelfuse. The FUSE 0215001.MXP "
      "IS genuinely Littelfuse — this pattern is scoped to SMAJ/TVS "
      "context so the fuse row is never flagged"),
+    # iter-51 reviewer findings (F83-F85, addressed iter-52):
+    # F83 — the SSR 25 °C ≤1 µA leakage was carried as a temperature-bounded
+    # State-4 term. Catch the specific "(bounded" framing and the un-caveated
+    # "≤1 µA (spec) … −40…+85 °C" that presents 25 °C data as a hot bound.
+    (r"≤ ?0\.024 mW \(bounded|bounded[,;]? ≤ ?0\.024 mW|"
+     r"clean \*{0,2}~?1\.1 mW\*{0,2} with a bounded|"
+     r"rises modestly but is bounded|"
+     r"≤ ?1 µA \(spec\)\*{0,2}, rated −40",
+     "≤1 µA @25 °C only; hot = estimate + <5 mW acceptance test (F83)",
+     "F83: the SSR 25 °C ≤1 µA / ≤0.024 mW leakage was framed as a "
+     "temperature-bounded State-4 term; the datasheet publishes no hot "
+     "max → label 25 °C-only + carry an explicit hot estimate (no "
+     "≤/bounded) + a <5 mW State-4 leakage acceptance test"),
+    # F84 — R_inrush 22 Ω relied on the SSR one-shot for the recurring
+    # inrush and had no downstream-short coordination. Retired: the 22 Ω
+    # value/SKUs and the ≤1.33 A one-shot-referenced inrush claim.
+    (r"RMCF1206FT22R0|71-CRCW1206-22-E3|"
+     r"R_inrush[^|]{0,4}=?\s?22 ?Ω|22 ?Ω[^|]{0,12}(1206|R_inrush|inrush)|"
+     r"(inrush|SSR turn-on)[^|]{0,15}22 ?Ω|"
+     r"≤ ?1\.33 A|1\.33 A @ ?29|1\.09 A @ ?24",
+     "R_inrush 220 Ω pulse-proof (CRCW1206220RFKEAHP) + F2 62 mA fuse "
+     "0451.062MRL (F84)",
+     "F84: R_inrush 22 Ω limited inrush only against the SSR's one-shot "
+     "1.5 A/100 ms peak (a recurring event) and had no fault coordination "
+     "→ 220 Ω pulse-proof (inrush 0.134 A < SSR continuous, repetition-"
+     "safe) + a 62 mA fuse F2 that clears a downstream short"),
+    # F85 — the retired 390 Ω R_opto SKUs (F79 value change left the exact
+    # old SKU pair live in D19). Distance-limited F79 pattern missed them.
+    (r"RMCF0805FT390RCT-ND|71-CRCW0805390RFKEA|CRCW0805390",
+     "R_opto 330 Ω: RMCF0805FT330RCT-ND / 71-CRCW0805-330-E3 (F79/F85)",
+     "F85: the retired 390 Ω R_opto SKUs (worst-case 4.57 mA < the 5 mA "
+     "recommended min) → the 330 Ω pair"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -529,15 +561,61 @@ MANIFEST_TO_BOM_ALIAS = {
 }
 
 
+# F85 (iter-51): the history exemption must apply to the matched token's OWN
+# clause, not any history word elsewhere on the line. A table row's Part cell
+# can carry a stale "Ron 0.25 Ω" while the Notes cell (a different clause) says
+# "replaced …" — the old whole-line check wrongly exempted it. Clause = the
+# table cell (| … |) containing the match, further split by sentence/clause
+# delimiters (; and sentence-final ". ") so distinct statements in one cell
+# don't cross-exempt. NOT the em-dash — it joins a clause to its parenthetical
+# ("corrected to 330 Ω — 390 Ω gave 4.57 mA"), so splitting on it severs a
+# marker from the token it governs.
+CLAUSE_DELIM = re.compile(r";|\.\s")
+
+
+def _clause_around(line: str, start: int, end: int) -> str:
+    cs = line.rfind("|", 0, start) + 1          # table-cell left bound
+    ce = line.find("|", end)
+    if ce == -1:
+        ce = len(line)
+    cell = line[cs:ce]
+    s, e = start - cs, end - cs
+    left = 0                                     # sub-clause within the cell
+    for m in CLAUSE_DELIM.finditer(cell[:s]):
+        left = m.end()
+    m = CLAUSE_DELIM.search(cell, e)
+    right = m.start() if m else len(cell)
+    return cell[left:right]
+
+
+def _in_strikethrough(line: str, start: int, end: int) -> bool:
+    return any(m.start() <= start and end <= m.end()
+               for m in re.finditer(r"~~.+?~~", line))
+
+
 def _allowed(line: str, lines: list[str], idx: int, rel: str,
-             current: str | None) -> bool:
+             current: str | None, start: int, end: int) -> bool:
     if rel in HISTORY_FILES:
         return True
-    if HISTORY_MARKERS.search(line):
-        return True
+    if _in_strikethrough(line, start, end):
+        return True                              # struck text = superseded
+    clause = _clause_around(line, start, end)
+    if HISTORY_MARKERS.search(clause):
+        return True                              # marker in the MATCH's clause
+    # A bare history WORD must be in the token's clause (above) — but if the
+    # line literally names the CURRENT part token (a real "old → new"
+    # comparison / evolution chain), that is self-evident regardless of column,
+    # so the current-token check stays at LINE scope. This is the key F85
+    # distinction: "replaced" alone in another cell no longer exempts a stale
+    # value (the reviewer's Ron 0.25 bug — the row never named the right 0.85),
+    # but "R-78E12 … | R-78HB12" or "AO3401A → … → Si2309CDS" still does.
     if current and current in line:
-        return True  # names old AND new part → self-evident comparison
+        return True
     if rel.endswith("decisions.md"):
+        # decisions.md is an append-only narrative; a bracket-note's
+        # supersession marker may sit a few lines above the matched token
+        # (the "history section" allowance). Kept, but scoped to a real
+        # supersession word (NEARBY_MARKERS, F81) within the window.
         lo, hi = max(0, idx - NEARBY_WINDOW), min(len(lines), idx + NEARBY_WINDOW + 1)
         if any(NEARBY_MARKERS.search(lines[j]) for j in range(lo, hi) if j != idx):
             return True
@@ -554,12 +632,14 @@ def check_stale_tokens() -> list[str]:
         lines = path.read_text().splitlines()
         for idx, line in enumerate(lines):
             for pattern, current, hint in SUPERSEDED:
-                if re.search(pattern, line) and not _allowed(
-                        line, lines, idx, rel, current):
-                    findings.append(
-                        f"[stale] {rel}:{idx + 1}: /{pattern}/ live "
-                        f"(should be: {hint})\n    > {line.strip()[:140]}"
-                    )
+                for m in re.finditer(pattern, line):
+                    if not _allowed(line, lines, idx, rel, current,
+                                    m.start(), m.end()):
+                        findings.append(
+                            f"[stale] {rel}:{idx + 1}: /{pattern}/ live "
+                            f"(should be: {hint})\n    > {line.strip()[:140]}"
+                        )
+                        break  # one finding per (pattern, line) is enough
     return findings
 
 
@@ -607,8 +687,55 @@ def check_d32_manifest() -> list[str]:
     return findings
 
 
+# F85 (iter-51): regression fixtures — the gate fails if any regresses. This
+# locks the clause-scoping fix and the retired-SKU rows exactly the way the
+# reviewer asked: the pre-fix text must FAIL (flag) and the corrected text
+# must PASS (no flag). Each entry is (text, should_flag).
+FIXTURES: list[tuple[str, bool]] = [
+    # F85: a stale "Ron 0.25 Ω" in the Part cell while the Notes cell says
+    # "replaced" — the exact bug the old whole-line exemption suppressed.
+    ("| SSR1 | AQY212EH PhotoMOS SSR (60 V / 550 mA, Ron 0.25 Ω) | DIP-4 "
+     "| 1 | PCB | $2.81 | F76: replaced the discrete Q1 P-FET + Q2 BJT "
+     "gate driver |", True),
+    ("| SSR1 | AQY212EH PhotoMOS SSR (60 V / 550 mA, Ron 0.85 Ω typ / "
+     "2.5 Ω max) | DIP-4 | 1 | PCB | $2.81 | F76: replaced the discrete "
+     "Q1 P-FET + Q2 BJT gate driver |", False),
+    # F85: the retired 390 Ω R_opto SKU pair.
+    ("R_opto = RMCF0805FT390RCT-ND / 71-CRCW0805390RFKEA (resolve-exact "
+     "2026-07-17)", True),
+    ("R_opto = RMCF0805FT330RCT-ND / 71-CRCW0805-330-E3 (330 Ω, F79 — "
+     "the earlier 390 Ω pair retired)", False),
+    # F84: the retired 22 Ω R_inrush + its one-shot-referenced inrush claim.
+    ("R_inrush = 22 Ω hard-caps the turn-on inrush to ≤1.33 A @29 V — "
+     "under the 1.5 A/100 ms one-shot", True),
+    ("R_inrush 220 Ω limits the recurring turn-on inrush to 0.134 A — "
+     "below the SSR 0.30 A@85 °C continuous", False),
+]
+
+
+def run_fixtures() -> list[str]:
+    fails = []
+    for text, should_flag in FIXTURES:
+        flagged = False
+        for pattern, current, _hint in SUPERSEDED:
+            for m in re.finditer(pattern, text):
+                if not _allowed(text, [text], 0, "__fixture__", current,
+                                m.start(), m.end()):
+                    flagged = True
+                    break
+            if flagged:
+                break
+        if flagged != should_flag:
+            fails.append(
+                f"[fixture] expected flag={should_flag}, got {flagged}: "
+                f"{text[:72]}"
+            )
+    return fails
+
+
 def main() -> int:
-    findings = check_stale_tokens()
+    findings = run_fixtures()  # self-test first — a broken gate can't certify
+    findings += check_stale_tokens()
     findings += check_d32_manifest()
     if findings:
         print(f"\n{len(findings)} finding(s):\n")

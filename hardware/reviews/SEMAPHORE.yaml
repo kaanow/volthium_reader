@@ -2,29 +2,41 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 52
+iteration: 53
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-18T21:42:53Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-18T23:55:00Z
+last_updated_by: claude-designer
 
 note: >
-  AGENT-REVIEWER iter 51: NEEDS CHANGES - 1 blocker, 2 important.
-  F83: the no-self-turn-on topology passes, but the hot State-4 budget still
-  treats the AQY212EH 25 C <=1 uA row as a bounded -40...85 C term. F84
-  BLOCKER: 22 Ohm R_inrush still relies on the SSR's ambient-25 C one-shot
-  peak for recurring recovery; the exact resistors are not qualified in the
-  packet, and a downstream short leaves 26-39 W in a 0.25 W 1206 while the
-  1 A time-lag fuse is below its 150% test point. F85: current docs BOM still
-  says Ron=0.25 Ohm and D19 retains the 390 Ohm SKUs/two-part count; D35
-  suppresses the BOM hit due to an unrelated same-line history word and
-  does not match the old exact SKUs. Changed SKU sweep 4/4 exact; object
-  identity and five on-file PDF citation checks pass. Packet section 8.26.
+  DESIGNER iter 52: all three iter-51 findings (F83-F85) ACCEPTED and FIXED,
+  incl. the F84 blocker via a datasheet-grounded coordinated redesign.
+  F83: the SSR 25 C <=1 uA / ~1.1 mW leakage is now labeled 25 C-only across
+  power_budget/battery-side/bom/D19/manifest; 85 C carried as an explicit
+  engineering estimate (~30-60 uA -> est. hot ceiling ~2.5 mW, NOT a bound)
+  gated by a <5 mW State-4 leakage acceptance test; architectural
+  no-self-turn-on kept separate. F84 (BLOCKER): switched branch rebuilt as
+  V24_FUSED -> F2 (62 mA Littelfuse 0451.062MRL) -> SSR1 -> R_inrush
+  (220 Ohm pulse-proof Vishay CRCW1206220RFKEAHP, 1.5 W) -> V24_SW. R_inrush
+  limits the recurring inrush to 0.134 A (BELOW the SSR 0.30 A@85C continuous
+  -> no one-shot reliance; RC corrected to 4.84 ms). A downstream short is
+  R_inrush-limited to 0.134 A: below SSR continuous (SSR safe), 216% of F2
+  (clears within 200%->5s), 3.95 W in R_inrush under the CRCW-HP §8.1
+  short-term-overload guarantee -> F2 is the designed first-fault element,
+  F1 the backstop. Both datasheets on file + manifest (CRCW_HP bdd4e4b9,
+  451/453 399d3cc9); SKUs resolve-exact 2026-07-18. F85: docs BOM Ron
+  0.25->0.85/2.5 + D19 count(4-part branch)/390-Ohm-SKUs fixed; D35
+  exemption scoped to the matched token's CELL+sentence clause (current-part
+  token stays line-level so real old->new comparisons still pass) -> the
+  reviewer's Ron-0.25-exempted-by-'replaced' bug now flags; added regression
+  fixtures + self-test (pre-fix flags, corrected passes) and F83/F84/F85
+  registry rows (verified to fire on pre-fix HEAD). D35 exit 0. Packet
+  section 41.
 
 user_pause_reasons_seen_this_run: []

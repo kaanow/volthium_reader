@@ -92,9 +92,9 @@ convention used everywhere in the CP1 documents.)*
 | U6 TPS2116 mux Iq (Vout = 3.3 V, `IQ,VIN2`) | 1.35 µA typ / **4.5 µA max** over -40 to 105 °C (~15 µW at max) | ~0.03 mW (η ≈ 50 %) |
 | U3 THVD1400DR RS-485 xcvr (D34, shutdown via DE=0+/RE=1) | 100 nA typ / **1 µA max** @ 3.3 V (~3.3 µW at max) | ~7 µW (η ≈ 50 %; below rounding) |
 | RV-3028-C7 RTC (D23; VDD on V3V3)         | 45 nA typ / **60 nA max** @ 3 V, 25 °C (datasheet EC table; prior "≤200 nA per AN" cited an off-file document — corrected 2026-07-14); ~150 nW at typ | ~0.3 µW (η ≈ 50 %; below rounding) |
-| SSR1 (AQY212EH PhotoMOS) OFF-state leakage into the shed U2 branch (F76) | **≤1 µA (spec)**, rated −40…+85 °C | **≤0.024 mW** (bounded; opto-isolated, cannot self-turn-on) |
+| SSR1 (AQY212EH PhotoMOS) OFF-state leakage into the shed U2 branch (F76) | **≤1 µA (spec @ 25 °C only** — datasheet publishes **no** hot max**)** | **≤0.024 mW @ 25 °C**; at 85 °C an **engineering estimate ~0.7–1.4 mW** (~30–60 µA, leakage ≈ 2× per 10 °C — carried as an estimate, **not** a bound; opto-isolated, cannot self-turn-on), gated by acceptance test (F83) |
 | Rest of display side (U2 shed)           | 0                                        | 0                       |
-| **Total from pack** |  | **~1.1 mW (SSR1 open ≤1 µA; F76 removed the Q1/Q2 gate-network terms)** |
+| **Total from pack** |  | **~1.1 mW @ 25 °C (SSR1 open ≤1 µA); estimated hot ceiling ~2.5 mW @ 85 °C, gated by the State-4 leakage acceptance test — F83.** (F76 removed the Q1/Q2 gate-network terms.) |
 
 The 3.3 V load-referred conversion uses a deliberately conservative
 **η ≈ 50 %** light-load efficiency for the LM5166 at ~25 µA of output
@@ -105,11 +105,24 @@ row is upper-bound. Even at η = 65 % the total is **~1.05 mW**; at
 **OFF state (F76 — resolved by the PhotoMOS SSR).** The discrete
 gate-driver's temperature-dependent OFF leakage was the recurring
 problem (a FET IDSS or BJT ICBO that could develop a turn-on voltage).
-The AQY212EH SSR eliminates it: its OFF state is an opto-isolated open
-MOSFET with a **≤1 µA off-leakage spec @ 25 °C**, device rated to +85 °C (leakage rises but is non-amplifying) and —
-crucially — **no gate divider**, so the leakage cannot cascade into
-turn-on. State-4 is a clean **~1.1 mW** with a bounded ≤0.024 mW SSR
-term; the old Q1 IDSS + Q2 ICBO rows are gone (Q1/Q2 removed).
+The AQY212EH SSR eliminates the *self-turn-on* failure: its OFF state is
+an opto-isolated open MOSFET with **no gate divider**, so leakage cannot
+cascade into turn-on — architecturally, independent of temperature.
+
+On the *magnitude* of the OFF leakage, though, be honest (F83): the
+datasheet's **≤1 µA is a 25 °C spec** and it publishes **no
+elevated-temperature leakage maximum**. So:
+- **At 25 °C**, State-4 is a guaranteed **~1.1 mW** (SSR term ≤0.024 mW).
+- **At 85 °C**, the SSR leakage is an **engineering estimate** of
+  ~30–60 µA (leakage roughly doubles per 10 °C from the 25 °C ≤1 µA
+  spec) → ~0.7–1.4 mW, i.e. an **estimated hot ceiling ~2.5 mW** for
+  State-4. This is carried as an estimate — **not** a `≤`/`bounded`
+  number — and is gated at bring-up by a **State-4 leakage acceptance
+  test with a < 5 mW pass criterion**. If a unit failed it, the fix is a
+  part with a guaranteed hot-leakage max; the architectural
+  no-self-turn-on conclusion is unaffected either way.
+
+The old Q1 IDSS + Q2 ICBO rows are gone (Q1/Q2 removed).
 
 **Honesty about typ vs max (reviewer iter-12 F13).** Prior versions of
 this table claimed "max throughout" but several rows were actually

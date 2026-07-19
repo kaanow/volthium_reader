@@ -98,7 +98,7 @@ downstream MCU can't gate its own supply (nor boot if it starts unpowered).
 At < 10 % SOC the ESP deep-sleeps (~µA), periodically reads V24_SENSE, and
 sheds the display by opening SSR1; the RS-485 transceiver enters real
 shutdown via DE=0+/RE=1 (D34; iter-8 F06), not power-switched. All-in
-trickle at hard-cut ≈ **~1.1 mW** (SSR open, ≤1 µA leakage; F76 removed the Q1/Q2 gate-network terms) using
+trickle at hard-cut ≈ **~1.1 mW @25 °C** (SSR open, ≤1 µA leakage @25 °C spec; hot leakage is an estimate gated by a State-4 acceptance test — F83; F76 removed the Q1/Q2 gate-network terms) using
 **datasheet max where spec'd** for all 3.3 V loads + explicit ESP
 engineering margin (native-domain sum per `docs/hardware/power_budget.md`
 State 4: LM5166 input Iq max 0.36 mW + V24 sense divider 0.44 mW +
@@ -145,7 +145,8 @@ Note 53.3 V is the TVS's *full* 7.5 A pulse; the actual transient on a
 
 **Display-feed load switch — PhotoMOS SSR (iter-48, F76 resolution).**
 The switch that sheds U2/the display feed is a **Panasonic AQY212EH
-PhotoMOS solid-state relay** in series V24_FUSED → **R_inrush 22 Ω** →
+PhotoMOS solid-state relay** in the switched branch
+V24_FUSED → **F2 (62 mA fuse)** → SSR1 → **R_inrush 220 Ω (pulse-proof)** →
 V24_SW, driven by the ESP `PWR_EN` GPIO through **R_opto = 330 Ω**
 (~6 mA LED). *This replaced a discrete high-side P-FET (Q1) + transistor
 gate driver (Q2 + divider + Zener) after five review iterations
@@ -161,31 +162,57 @@ AQY212EH column, corrected iter-50 per F79 — the earlier 0.25 Ω /
   leakage ≤1 µA @25 °C (spec)**, device rated −40…+85 °C. There is
   **no gate divider** for leakage to develop a turn-on voltage across, so
   the discrete failure mode (leakage → Vgs → self-turn-on) is
-  *architecturally impossible* — the OFF state is a bounded,
-  non-amplifying leakage. At 25 °C ≤1 µA → ≤0.024 mW State-4; at 85 °C
-  the MOSFET leakage rises (not separately spec'd — engineering estimate
-  a few µA) but stays bounded and non-amplifying. So State-4 is ~1.1 mW,
-  and the *catastrophic* failure the reviewer chased is gone by
-  construction (this is why an unspec'd 85 °C leakage is acceptable here
-  but was not for the discrete driver).
+  *architecturally impossible* — the OFF state is non-amplifying and
+  cannot cascade. **Off-leakage is a guaranteed ≤1 µA at 25 °C only**
+  (→ ≤0.024 mW State-4); the datasheet publishes **no elevated-temperature
+  leakage maximum**. At 85 °C the leakage is an *engineering estimate* of
+  ~tens of µA (leakage roughly doubles per ~10 °C from the 25 °C ≤1 µA
+  spec → est. ~30–60 µA), which is carried explicitly as an estimate
+  (**not** a `≤`/`bounded` number) and confirmed by a **bring-up State-4
+  leakage acceptance test (<5 mW pass criterion; F83)**. So State-4 is a
+  guaranteed **~1.1 mW at 25 °C**, with an estimated hot ceiling of
+  **~2.5 mW** (SSR ~1.5 mW est. + ~1 mW trickle) that the acceptance test
+  gates. The *catastrophic* self-turn-on failure is gone by construction
+  regardless of temperature — which is why the unspec'd hot leakage is
+  tolerable here (it is a small linear term, not a runaway) but was not
+  for the discrete driver (there it fed a divider and could self-turn-on).
 - **ON is guaranteed by LED current (F79).** Worst-case
   I_F = (3.3 − V_F max 1.5)/(330·1.01) = **5.4 mA ≥ the 5 mA recommended
   minimum** (nom 6.2 mA), comfortably above the 3 mA operate spec. Ron
-  **0.85 Ω typ / 2.5 Ω max**; at the ≤45 mA display draw that is ≤0.11 V.
-- **Inrush bounded (F80).** The SSR would otherwise close onto C3
-  (22 µF) with only its ~2.5 Ω limiting current — the 1.5 A/100 ms peak
-  is a *one-shot* rating. **R_inrush = 22 Ω** hard-caps the turn-on
-  current to **≤1.33 A @29 V (≤1.09 A @24 V) even at Ron = 0** — under
-  the 1.5 A one-shot. The pulse (½·22 µF·29² = 9.3 mJ) completes in
-  <1 ms and recurs only on SOC recovery. At the ≤45 mA display load
-  R_inrush drops ≤1.1 V, leaving U2 ≥21.9 V ≫ its 17 V minimum input.
+  **0.85 Ω typ / 2.5 Ω max**; at the ~5 mA display draw that is ≤13 mV.
+- **Inrush + fault coordinated as one network (F80/F84).** The switched
+  branch is protected by **R_inrush = 220 Ω (pulse-proof Vishay CRCW-HP,
+  1.5 W)** and a **62 mA very-fast fuse F2** (Littelfuse 451):
+  - *Recurring turn-on:* R_inrush limits the C3 (22 µF) charge peak to
+    **0.134 A @29.2 V** — **below the SSR's 0.30 A @85 °C *continuous*
+    rating** (0.45×), so the event that recurs on every SOC recovery sits
+    within continuous ratings and needs **no** one-shot pulse rating
+    (which the datasheet only gives as 1.5 A/100 ms, 1-shot). τ = 220 Ω ·
+    22 µF = **4.84 ms**; ~24 ms (5τ) to full charge (corrects the earlier
+    "<1 ms" — 22 Ω·22 µF was already 0.48 ms, not <1 ms to settle).
+  - *F2 survives every turn-on:* per-turn-on I²t = ½CV²/R = **4.3e-5 A²s**
+    < F2 nominal melting I²t **1.9e-4 A²s** (datasheet p.2) — 4.4× margin.
+  - *Downstream short (V24_SW/C3/U2 input):* current is R_inrush-limited
+    to **0.134 A** — *below the SSR continuous rating* (SSR undamaged for
+    any duration, no pulse-rating reliance) and **216 % of F2**, so F2
+    clears within its **200 %→5 s** datasheet bound. During that ≤5 s
+    R_inrush dissipates 0.134²·220 = **3.95 W**, under the CRCW1206-HP
+    §8.1 short-term-overload guarantee (2.5·√(P·R) for 5 s = 9.4 W at
+    P = 1.5 W; 4.68 W even at the conservative P70 = 0.75 W). So R_inrush
+    survives to the clear and **F2 is the designed first-fault element**,
+    with F1 (1 A board fuse) the upstream backstop. Both new datasheets on
+    file: Vishay_CRCW_HP.pdf (sha bdd4e4b9), Littelfuse_451_453.pdf
+    (sha 399d3cc9).
+  - *U2 headroom:* steady drop ≤3.3 V @15 mA peak (1.1 V @5 mA typ) →
+    U2 input ≥20.7 V at low SOC ≫ its 17 V minimum.
 - **Load rating:** SSR continuous 0.55 A@25 °C, derating to 0.30 A@85 °C
-  — both ≫ the ≤45 mA display draw.
+  — both ≫ the ~5 mA (≤~15 mA at e-paper refresh) display draw.
 - **Surge.** Open, the SSR blocks the 53 V clamp (60 V rating). Closed,
   it passes the surge to U2 (R-78HB12, rated 72 V — survives).
 - **Cost:** LED ~20 mW **active only** (States 1–3), **0 in hard-cut**.
-  Removed 7 parts (Q1/Q2/R3/Rg/R_base/R_be/DZ1) for 3 (SSR1 + R_opto +
-  R_inrush). Datasheet on file (Panasonic GE DIP4, sha d329b9729322).
+  Removed 7 discrete gate-driver parts (Q1/Q2/R3/Rg/R_base/R_be/DZ1) for
+  the 4-part switched branch (SSR1 + R_opto + R_inrush + F2). Datasheet on
+  file (Panasonic GE DIP4, sha d329b9729322).
 
 ## 4. Component list
 
@@ -262,9 +289,10 @@ foldback explicitly. The 530 mA "driver-active + WiFi-peak" case is
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| SSR1 | **Panasonic AQY212EH** PhotoMOS SSR (1-Form-A, 60 V / 550 mA, **Ron 0.85 Ω typ / 2.5 Ω max** — F79) — display-feed load switch (F76) | DIP-4 (THT) | 1 | In series V24_FUSED→R_inrush→V24_SW. **OFF = open MOSFET, ≤1 µA @25 °C leakage (spec), rated −40…+85 °C, opto-isolated → cannot self-turn-on.** ON = LED via R_opto. Blocks the 53 V surge open (<60 V); passes it to the 72 V U2 closed |
+| SSR1 | **Panasonic AQY212EH** PhotoMOS SSR (1-Form-A, 60 V / 550 mA, **Ron 0.85 Ω typ / 2.5 Ω max** — F79) — display-feed load switch (F76) | DIP-4 (THT) | 1 | In the switched branch V24_FUSED→F2→SSR1→R_inrush→V24_SW. **OFF = open MOSFET, ≤1 µA @25 °C leakage (spec; no hot max published — est. + acceptance test, F83), rated −40…+85 °C, opto-isolated → cannot self-turn-on.** ON = LED via R_opto. Blocks the 53 V surge open (<60 V); passes it to the 72 V U2 closed |
 | R_opto | **330 Ω** (ESP PWR_EN → SSR1 LED anode; cathode → GND) | 0805 | 1 | SSR LED current limit; worst-case I_F 5.4 mA ≥ the 5 mA recommended min (F79). ~20 mW active, 0 in hard-cut |
-| R_inrush | **22 Ω 1206** (SSR1 output → V24_SW/C3) | 1206 | 1 | Hard-caps SSR turn-on inrush into C3 ≤1.33 A (<the 1.5 A one-shot peak — F80); ≤1.1 V drop at the ≤45 mA display load |
+| R_inrush | **220 Ω 1206 pulse-proof (Vishay CRCW-HP, 1.5 W)** — switched branch | 1206 | 1 | 541-220UCT-ND / 71-CRCW1206220RFKEAHP. Limits recurring turn-on inrush into C3 to **0.134 A** (below SSR 0.30 A@85 °C continuous → no one-shot reliance, F84); survives the fault power to F2's clear (§8.1) |
+| F2 | **62 mA very-fast SMD fuse** (Littelfuse 451 Nano2 SMF) — switched branch | 1206 | 1 | F3153TR-ND / 576-0451.062MRL. Coordinated fault clear (F84): a V24_SW/C3/U2 short pulls only 0.134 A (R_inrush-limited) = 216 % → clears within 200 %→5 s; normal ~5 mA ≪ 62 mA. 125 V/50 A interrupt; melt I²t 1.9e-4 A²s |
 | R4  | 100 kΩ pull-down: PWR_EN → GND     | 0805          | 1   | Holds PWR_EN low (SSR LED off → open) when the MCU GPIO floats (boot / brown-out) |
 
 **Power-first note (SSR)**: the PhotoMOS draws pack current only through
@@ -317,7 +345,7 @@ single re-engage (no oscillation).
 **Power (F02/D33; corrected per iter-6 F03, iter-10 F08, iter-12 F13).**
 UVLO divider ~4.6 µA at 24 V ≈ **~0.11 mW** at pack + U4 Iq max
 5 µA @ 3.3 V ≈ 17 µW at load (~33 µW referred through U1 at η ≈ 50 %).
-**Hard-cut hits ~1.1 mW** (SSR1 open → ≤1 µA leakage, F76; the old Q1 IDSS + gate-network terms were removed; using datasheet
+**Hard-cut hits ~1.1 mW @25 °C** (SSR1 open → ≤1 µA leakage @25 °C spec; hot leakage estimated + acceptance-tested, F83; the old Q1 IDSS + gate-network terms were removed; using datasheet
 max where spec'd + explicit ESP engineering margin — native-domain
 sum in `docs/hardware/power_budget.md` State 4); the EN-asserted floor
 drops the ESP ~99 µW referred term and lands at ~0.98 mW — only
@@ -360,7 +388,7 @@ EN → V3V3 and the UVLO behave **exactly as without this circuit**.
 Q4 pulls it low, i.e. VBUS present); U6 adds only **~1.3 µA** always-on
 (~4 µW at load). With the D33 UVLO part/divider (0.405 V) and D34's
 real-shutdown RS-485 transceiver (THVD1400, 1 µA max shutdown Iq per
-F08), **hard-cut ≈ ~1.1 mW** (SSR1 open ≤1 µA — F76; native-domain sum
+F08), **hard-cut ≈ ~1.1 mW @25 °C** (SSR1 open ≤1 µA @25 °C spec; hot est. + acceptance test, F83; F76; native-domain sum
 per §7 and `docs/hardware/power_budget.md`; iter-6 F03 + iter-8
 F05/F06/F07 + iter-10 F08 + iter-12 F13 corrections — now built on
 datasheet max Iq where spec'd). UVLO protects the *unattended* (always USB-absent) system fully;
@@ -500,7 +528,7 @@ could add an LED on a GPIO that the firmware pulses (e.g. 50 ms ON every
 
 Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 (decoupling + debounce + sense filter), 10–12 resistors mostly 0805,
-1× 0805 (R3, R4, R5, R6, R10, R_opto) + 1× 1206 (R_inrush) and 0603 (RTC pull-ups, EN, button).
+1× 0805 (R3, R4, R5, R6, R10, R_opto) + 1× 1206 (R_inrush, F2 fuse) and 0603 (RTC pull-ups, EN, button).
 
 ## 5. Net list
 
@@ -567,9 +595,9 @@ deep-sleep (alive) and hard-cut (off) — see [§13 D-OPEN-7a/7b](#13-open-decis
 | 1 — Normal | > 25 % | ESP active BLE ~38 mA + U3 THVD1400 ~0.7 mA typ / ~0.9 mA max RX-only (D34) + RTC <100 µA + display side ~5 mA at 24 V conv. + sense 22 µA ≈ 43.5 mA × 24 V | **~1.05 W** | ±5 % vs power_budget.md (~1.0 W table / 1.1 W daily headline). **No idle bias anywhere by default** — battery-side removed (DR-4b), display-side R3/R4 DNP (iter-12 F12; THVD1400 Full Fail-Safe RX needs none) |
 | 2 — Low SOC | 15–25 % | ESP polled BLE ~15 mA + display unchanged (~5 mA at 24 V conv.) + sense 22 µA | **~0.30 W** | vs power_budget.md 0.31 W. No bias term (R3/R4 DNP per iter-12 F12) |
 | 3 — Deep sleep | 10–15 % | ESP ULP+RTC ~50 µA + RV-3028 ~45 nA (negligible; D23) + display ~5 mA at 24 V conv. + sense 22 µA | **~0.13 W** | Display still up (SSR1 CLOSED) |
-| 4 — Hard cut | < 10 % | **Native-domain sum with datasheet max where spec'd + explicit engineering margin where max isn't published (iter-6 F03 + iter-10 F08 + iter-12 F13 + iter-14 F16 wording sweep).** V24-side: LM5166 Iq **15 µA max** × 24 V = **0.36 mW** + V24 sense divider 24²/1.3 MΩ = **0.44 mW** + UVLO divider 4.6 µA × 24 V = **0.11 mW**. 3.3 V-side (load): ESP deep-sleep 10 µA typ + **5 µA engineering margin** (Espressif ES Table 6-7 lists 7-8 µA typ, no spec max; citation corrected 2026-07-14) + U4 TPS3808 **5 µA max** + U6 TPS2116 **4.5 µA max** + U3 THVD1400 shutdown **1 µA max** + RV-3028 RTC 45 nA typ / 60 nA max @ 3 V per its EC table (D23; prior off-file-AN citation corrected 2026-07-14; well under µW floor) ≈ **25.6 µA** at load × 3.3 V = 84 µW → **~0.17 mW referred through U1 at η ≈ 50 %** conservative. Display shed (SSR1 open → ≤1 µA leakage, F76 — the old Q1 IDSS + gate-network terms were removed). | **~1.1 mW** | Uses **datasheet max where spec'd** (U1/U4/U6/U3); **typ + explicit engineering margin** where no max is published (ESP32-S3 Deep-sleep); **typ** for RTC (datasheet max 60 nA is under the µW floor). Iter-12 F13 caught that my prior "max throughout" claim was actually mixing typ + max; iter-14 F16 tightened this wording across D34 / DR-25 / power_budget.md so all four sites match. Full native+referred table in `docs/hardware/power_budget.md`. |
+| 4 — Hard cut | < 10 % | **Native-domain sum with datasheet max where spec'd + explicit engineering margin where max isn't published (iter-6 F03 + iter-10 F08 + iter-12 F13 + iter-14 F16 wording sweep).** V24-side: LM5166 Iq **15 µA max** × 24 V = **0.36 mW** + V24 sense divider 24²/1.3 MΩ = **0.44 mW** + UVLO divider 4.6 µA × 24 V = **0.11 mW**. 3.3 V-side (load): ESP deep-sleep 10 µA typ + **5 µA engineering margin** (Espressif ES Table 6-7 lists 7-8 µA typ, no spec max; citation corrected 2026-07-14) + U4 TPS3808 **5 µA max** + U6 TPS2116 **4.5 µA max** + U3 THVD1400 shutdown **1 µA max** + RV-3028 RTC 45 nA typ / 60 nA max @ 3 V per its EC table (D23; prior off-file-AN citation corrected 2026-07-14; well under µW floor) ≈ **25.6 µA** at load × 3.3 V = 84 µW → **~0.17 mW referred through U1 at η ≈ 50 %** conservative. Display shed (SSR1 open → ≤1 µA leakage **@25 °C spec**; the datasheet publishes no hot leakage max, so 85 °C is an engineering estimate (~30–60 µA) gated by a **State-4 leakage acceptance test, <5 mW pass — F83**; the old Q1 IDSS + gate-network terms were removed). | **~1.1 mW @25 °C** (est. hot ceiling ~2.5 mW, acceptance-tested) | Uses **datasheet max where spec'd** (U1/U4/U6/U3); **typ + explicit engineering margin** where no max is published (ESP32-S3 Deep-sleep); **typ** for RTC (datasheet max 60 nA is under the µW floor). Iter-12 F13 caught that my prior "max throughout" claim was actually mixing typ + max; iter-14 F16 tightened this wording across D34 / DR-25 / power_budget.md so all four sites match. Full native+referred table in `docs/hardware/power_budget.md`. |
 
-State 4 budget: at **~1.1 mW** deep-sleep (SSR1 open ≤1 µA — F76; using
+State 4 budget: at **~1.1 mW @25 °C** deep-sleep (SSR1 open ≤1 µA @25 °C spec; hot est. + acceptance test — F83; F76; using
 datasheet-max Iq where spec'd + explicit ESP engineering margin per
 iter-12 F13); the EN-asserted hardware floor (U4 tripped + MCU in
 reset) is only marginally lower at **~0.98 mW** since V24-side terms
@@ -579,17 +607,17 @@ judged the extra part not worth it.
 
 ## 8. Load switch (display-feed shed) behavior
 
-**Topology** (D19/DR-4): a P-FET high-side load switch on the **switched
-branch only** — it gates U2 (the 12 V/display feed), **not** the MCU. The
+**Topology** (D19/DR-4): a **PhotoMOS SSR** high-side load switch on the
+**switched branch only** — it gates U2 (the 12 V/display feed), **not** the MCU. The
 MCU rail (U1 LM5166) is always-on and never behind the load switch.
-**SSR1 (AQY212EH PhotoMOS)** passes V24_FUSED → R_inrush → V24_SW; its
+**SSR1 (AQY212EH PhotoMOS)** passes V24_FUSED → F2 → SSR1 → R_inrush → V24_SW; its
 LED is driven from ESP GPIO4 (`PWR_EN`, active-HIGH) through R_opto (F76).
 
 ```
 V24_FUSED ──┬──── ALWAYS-ON: U1 (LM5166 → 3V3 MCU rail), TVS1, R5/R6
             │
             ▼
-       SSR1 [AQY212EH PhotoMOS] ──[R_inrush 22Ω]── V24_SW ──► U2 (R-78HB12 → 12V → Cat5e → display)
+  [F2 62mA]── SSR1 [AQY212EH PhotoMOS] ──[R_inrush 220Ω pulse-proof]── V24_SW ──► U2 (R-78HB12 → 12V → Cat5e → display)
         │  output MOSFET (closes when LED lit)
         └─ LED ◄──[R_opto 330Ω]── PWR_EN (ESP IO4)  ── R4 [100 kΩ pulldown to GND]
                                    (PWR_EN HIGH → LED on → SSR closed → display fed)
@@ -613,7 +641,7 @@ V24_FUSED ──┬──── ALWAYS-ON: U1 (LM5166 → 3V3 MCU rail), TVS1, R
 - **OFF state is opto-isolated and can't self-turn-on** (F76 — replaced
   the discrete P-FET gate driver, whose leakage-develops-Vgs turn-on
   path could not be datasheet-guaranteed off across temperature). SSR1
-  open = ≤1 µA leakage (spec), rated −40…+85 °C.
+  open = ≤1 µA leakage (spec @25 °C; no hot max published — carried as an estimate + gated by a State-4 acceptance test, F83), rated −40…+85 °C.
 - SSR1 (60 V) blocks the ~53 V clamp when open; D1 (60 V) likewise. The old 30 V AO340x parts did not.
 
 **V12 (Cat5e/display) policy**:
@@ -768,7 +796,7 @@ margin.
 | 24 V TVS                         | Not specified                              | TVS1 = SMAJ33CA across V24_FUSED ↔ GND (D19/DR-2) |
 | 3.3 V regulator + domain         | TPS62933 on the *switched* rail (MCU died at hard-cut → couldn't boot) | LM5166 µA-Iq buck on the **always-on** rail; MCU always powered (D19/DR-4) |
 | 12 V regulator                   | R-78E12 (34 V — under-rated behind the ~53 V clamp) | R-78HB12 (72 V), switched behind SSR1 (D19/DR-3) |
-| Load switch                      | AO3401A/AO3400A (30 V), no Vgs clamp       | **AQY212EH PhotoMOS SSR** (iter-48 F76; replaced the discrete P-FET + gate driver that couldn't be guaranteed OFF at temp) |
+| Load switch                      | ~~AO3401A/AO3400A~~ (30 V), no Vgs clamp    | **AQY212EH PhotoMOS SSR** (iter-48 F76; replaced the discrete P-FET + gate driver that couldn't be guaranteed OFF at temp) |
 | Reverse-polarity diode           | SS24 (40 V)                                | SS26 (60 V) — out-rates the clamp (D19/DR-3) |
 | RS-485 idle bias                 | Both ends (battery bias always-on → ~8 mW leak) | Display end only, ~330 Ω (battery rail draws 0; D19/DR-4) |
 | Sense divider                    | 100 kΩ / 11 kΩ (220 µA idle)              | 1.2 MΩ / 100 kΩ (~19 µA idle; full charge → 2.25 V, in ADC linear band — DR-6) |

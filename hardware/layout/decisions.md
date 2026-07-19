@@ -764,7 +764,7 @@ was false and must not be reused.
   ~11.6 mm-radius milled cutout about the anchor. Left → cutout off the
   board edge; down → off the bottom edge; right → the cutout swallows
   MOD1's pads. Confirmed empirically (invalid-outline / new errors).
-- **MOD1 is boxed on all four sides** — SSR1/R_opto/R_inrush immediately left, J2
+- **MOD1 is boxed on all four sides** — SSR1/R_opto/R_inrush/F2 immediately left, J2
   immediately right, F1 fuse above, RTC1 immediately below. A 2 mm
   downward shift collides MOD1's bottom pads with RTC1's top pads
   (8 new errors). MOD1 cannot move either.
@@ -1149,7 +1149,7 @@ coordination defects together.
 
     J1 → F1 → D1(60V Schottky) → V24_FUSED {TVS1 SMAJ33CA ~53V clamp, R5/R6 sense}
        ├─ ALWAYS-ON:  U1 wide-Vin µA-Iq buck → 3V3 (ESP32 + RTC + sense)
-       └─ SSR1 (AQY212EH PhotoMOS load switch, F76) → R_inrush → V24_SW → U2 (R-78HB12, 72V) → 12V → Cat5e → display
+       └─ F2 (62mA) → SSR1 (AQY212EH PhotoMOS load switch, F76) → R_inrush 220Ω → V24_SW → U2 (R-78HB12, 72V) → 12V → Cat5e → display
 
 - **Always-on rail (U1).** Carries the ESP in *all* states — active
   (~75 mA BLE) at high SOC, deep-sleep (~µA) at low SOC. It must be
@@ -1174,11 +1174,14 @@ coordination defects together.
   ~0.7 mW but adds a part and "smart" failure modes — not worth it.)
 - **Load switch done right — PhotoMOS SSR (iter-48, F76 resolution).**
   The display-feed switch is a **Panasonic AQY212EH PhotoMOS solid-state
-  relay** (1-Form-A, 60 V / 550 mA, Ron 0.85 Ω typ / 2.5 Ω max) in series
-  V24_FUSED → **R_inrush 22 Ω** → V24_SW, LED-driven from ESP `PWR_EN`
+  relay** (1-Form-A, 60 V / 550 mA, Ron 0.85 Ω typ / 2.5 Ω max) in the
+  switched branch V24_FUSED → **F2 (62 mA fuse)** → SSR1 →
+  **R_inrush 220 Ω (pulse-proof)** → V24_SW, LED-driven from ESP `PWR_EN`
   through **R_opto 330 Ω** (worst-case I_F ≥ 5 mA ≥ datasheet-recommended
-  5 mA). R_inrush hard-caps the turn-on inrush into C3 (22 µF) to
-  ≤1.33 A @ 29 V even at Ron = 0 — under the 1.5 A/100 ms one-shot peak.
+  5 mA). R_inrush limits the recurring turn-on inrush into C3 (22 µF) to
+  **0.134 A — below the SSR's 0.30 A @85 °C continuous rating** (no
+  reliance on the 1.5 A/100 ms one-shot), and F2 clears a downstream short
+  the R_inrush limits to that same 0.134 A (coordinated network, F84).
   It switches only U2/the display feed; the MCU rail stays always-on.
 
   *[Why an SSR — the discrete gate-driver saga, F60→F76. A high-side
@@ -1199,26 +1202,45 @@ coordination defects together.
   PhotoMOS SSR.**]*
 
   *[Why it resolves the finding cleanly:*
-  - **OFF is bounded and cannot self-turn-on.** The SSR output is an
-    opto-isolated MOSFET; LED off → **open MOSFET, ≤1 µA off-leakage
-    (spec @ 25 °C; device rated −40…+85 °C, leakage rising but
-    non-amplifying hot)**. There is **no gate divider** for leakage to
-    develop a turn-on voltage across, so the discrete failure mode
-    (leakage → Vgs → self-turn-on) is *architecturally impossible* — the
-    hot-leakage bound the discrete saga could never satisfy is *not
-    load-bearing here*. At 25 °C the OFF state is a bounded ≤1 µA leakage
-    from V24 into U2 → ≤0.024 mW State-4.
+  - **OFF cannot self-turn-on (architectural), leakage magnitude gated by
+    test (F83).** The SSR output is an opto-isolated MOSFET; LED off →
+    **open MOSFET with no gate divider**, so leakage can never develop a
+    turn-on Vgs — the discrete self-turn-on failure is *architecturally
+    impossible regardless of temperature*. On the *magnitude*: off-leakage
+    is a guaranteed **≤1 µA at 25 °C only** (≤0.024 mW State-4); the
+    datasheet publishes **no hot maximum**, so 85 °C is an **engineering
+    estimate** ~30–60 µA (~0.7–1.4 mW; est., **not** a bound) → estimated
+    hot State-4 ceiling ~2.5 mW, gated by a **bring-up State-4 leakage
+    acceptance test, <5 mW pass**. The hot-leakage *bound* the discrete
+    saga could never satisfy is not load-bearing here (it fed no divider);
+    only its *magnitude* matters, and the test covers it.
   - **ON is guaranteed by LED current.** Worst-case I_F = (3.3−1.5)/330 ≈
     5.4 mA (VF max 1.5 V), ≥ the datasheet-recommended 5 mA and well above
     the 3 mA max operate current — ample margin. Ron 0.85 Ω typ / 2.5 Ω
-    max → ≤0.11 V (typ) / ≤0.75 V (max) drop at U2's ~0.3 A max input.
+    max → ≤13 mV drop at the ~5 mA display draw (≤0.75 V even at the SSR's
+    0.3 A@85 °C continuous rating).
+  - **Inrush + fault coordinated (F80/F84).** R_inrush 220 Ω (pulse-proof
+    Vishay CRCW-HP) limits the recurring turn-on inrush to **0.134 A —
+    below the SSR 0.30 A@85 °C continuous rating**, so the repetitive event
+    needs no one-shot pulse rating; τ = 4.84 ms (~24 ms to full charge). A
+    downstream V24_SW/C3/U2 short is limited to that same 0.134 A: below
+    the SSR continuous (SSR safe), 216 % of the **62 mA very-fast fuse F2**
+    (clears within its 200 %→5 s bound), and 3.95 W in R_inrush — under the
+    CRCW1206-HP §8.1 short-term-overload guarantee (9.4 W/5 s at 1.5 W).
+    F2 is the designed first-fault element; F1 the upstream backstop.
+    Datasheets: Vishay_CRCW_HP.pdf (bdd4e4b9), Littelfuse_451_453.pdf
+    (399d3cc9).
   - **Surge:** open, it blocks the 53 V clamp (60 V rating); closed, it
     passes the surge to U2 (R-78HB12, 72 V — survives).
   - **Power:** LED ~20 mW **active only** (States 1–3: 3.3 V × ~6 mA through R_opto 330 Ω), **0 in hard-cut**.
-    Removed 7 parts (Q1/Q2/R3/Rg/R_base/R_be/DZ1) for 2 (SSR1 + R_opto).
+    Removed 7 discrete gate-driver parts (Q1/Q2/R3/Rg/R_base/R_be/DZ1) for
+    the 4-part switched branch (SSR1 + R_opto + R_inrush + F2).
     Exact SKUs: SSR1 = AQY212EH (DK 255-2963-ND / Mouser 769-AQY212EH),
-    R_opto = RMCF0805FT390RCT-ND / 71-CRCW0805390RFKEA (resolve-exact
-    2026-07-17). Datasheet on file (Panasonic GU-E, sha d329b9729322).
+    R_opto = **RMCF0805FT330RCT-ND / 71-CRCW0805-330-E3** (330 Ω, F79 —
+    the earlier 390 Ω `RMCF0805FT390RCT-ND / 71-CRCW0805390RFKEA` are
+    retired), R_inrush = **541-220UCT-ND / 71-CRCW1206220RFKEAHP**,
+    F2 = **F3153TR-ND / 576-0451.062MRL** (resolve-exact 2026-07-18).
+    Datasheet on file (Panasonic GU-E, sha d329b9729322).
     Fail-safe unchanged: PWR_EN low/Hi-Z → LED off → SSR open → display
     shed. Q1's Si2309CDS, Q2's MMBT5551, and DZ1's BZX84C12 are retired
     (manifest Retired section).]*
@@ -1694,7 +1716,7 @@ wrong-VCC part)**, **F06 (IMPORTANT, tied enables can't shutdown)**, and
 **F08 (IMPORTANT, max-vs-typ shutdown accounting)**, and closes the
 long-open **D-OPEN-2**. **F09 (display deep-sleep RX wake regression)** is
 addressed by the split sleep policy below. **Note:** the iter-8 first cut
-picked `ISL3175EIBZ`; reviewer iter-10 F08 correctly flagged that its
+earlier picked `ISL3175EIBZ`; reviewer iter-10 F08 correctly flagged that its
 worst-case shutdown Iq is 12 µA max, not the 10 nA typ I quoted. Redoing
 the candidate table max-to-max shifted the winner to THVD1400DR.
 

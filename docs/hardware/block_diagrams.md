@@ -66,7 +66,7 @@ an **always-on** rail that powers the MCU in every state, and a
         │ (always-on)                                      │ (switched)
         ▼                                                  ▼
   ┌──────────────────┐                       SSR1 AQY212EH PhotoMOS SSR (60 V)
-  │ U1 LM5166 buck   │── 3.3 V always-on ─┐  + R_inrush 22 Ω, ESP-controlled
+  │ U1 LM5166 buck   │── 3.3 V always-on ─┐  +F2 62mA +R_inrush 220Ω, ESP-ctl
   │ 24 → 3.3 V        │                    │            │
   │ (Iq ~10 µA)    │                    │            ▼  V24_SW
   └──────────────────┘                    │     ┌──────────────────┐
@@ -96,7 +96,7 @@ Two power domains worth keeping clear in your head:
    (~µA) and periodically reads the sense divider. All-in trickle at
    hard-cut ≈ ~1 mW (U1 Iq + divider). The MCU is its own supervisor;
    there is no separate voltage-supervisor IC.
-2. **Switched** (SSR1 AQY212EH load switch + R_inrush, MCU-controlled): U2 → 12 V → Cat5e → the
+2. **Switched** (SSR1 AQY212EH load switch + F2 fuse + R_inrush, MCU-controlled): U2 → 12 V → Cat5e → the
    *entire display side*. Opening SSR1 at < 10 % SOC cuts the display
    completely (it has no other power source). RS-485 isn't power-switched —
    the ESP disables the transceiver via DE/RE (µA) when there's nothing to

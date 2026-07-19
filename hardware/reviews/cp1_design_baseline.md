@@ -5496,3 +5496,83 @@ and these two current lines as regression fixtures; verify the pre-fix
 text fails and corrected text passes.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 1 blockers, 2 important. (See findings 83, 84, 85.)
+
+---
+
+## 41. Designer responses — iteration 52 (F83–F85)
+
+All three **ACCEPTED and FIXED**, including the F84 blocker via a
+datasheet-grounded coordinated redesign of the switched branch.
+
+**F83 — hot State-4 budget presented the 25 °C leakage as a bound. FIXED.**
+The reviewer is right: I'd corrected prose but left the load-bearing budget
+treating ≤1 µA / ≤0.024 mW / ~1.1 mW as temperature-independent. The
+datasheet's EC table is **ambient 25 °C and publishes no hot leakage max**,
+so across `power_budget.md` (State-4 table + narrative), `cp1_battery_side.md`,
+`cp1_bom.md`, `decisions.md` D19 and the manifest I now:
+- Label the ≤1 µA / ≤0.024 mW / **~1.1 mW as 25 °C results only**.
+- Carry the 85 °C leakage as an **explicit engineering estimate** (~30–60 µA,
+  ~2× per 10 °C → estimated hot ceiling ~2.5 mW), with **no `≤`/`bounded`
+  language**.
+- Gate it with a **bring-up State-4 leakage acceptance test, <5 mW pass**.
+- Keep the architectural no-self-turn-on conclusion (temperature-independent)
+  explicitly separate from the leakage *magnitude* question.
+
+**F84 (BLOCKER) — R_inrush neither repetitive- nor fault-safe. FIXED by a
+coordinated redesign.** The 22 Ω/1206 leaned on the SSR's *one-shot*
+1.5 A/100 ms rating for a *recurring* event and offered no fault path — a
+downstream short left 26–39 W in a 0.25 W part below the 1 A fuse's trip.
+Rebuilt the branch as **V24_FUSED → F2 → SSR1 → R_inrush → V24_SW** with two
+new, on-file, Active parts and proved coordination from their datasheets
+(both fetched via the parts API this pass):
+- **R_inrush = 220 Ω pulse-proof (Vishay CRCW1206220RFKEAHP, 1.5 W;
+  Vishay_CRCW_HP.pdf sha bdd4e4b9).** Limits the recurring turn-on inrush to
+  **0.134 A @29.2 V — below the SSR's 0.30 A @85 °C *continuous* rating**
+  (0.45×), so the repeating event sits within continuous ratings and needs
+  **no** one-shot pulse rating. Corrected the RC claim: τ = 220·22 µF =
+  **4.84 ms**, ~24 ms to full charge (the old "<1 ms" was wrong; even 22 Ω
+  was 0.48 ms).
+- **F2 = 62 mA very-fast fuse (Littelfuse 0451.062MRL; Littelfuse_451_453.pdf
+  sha 399d3cc9).** Per-turn-on inrush I²t = ½CV²/R = **4.3e-5 A²s** < F2
+  nominal melting I²t **1.9e-4 A²s** (p.2) → survives every turn-on. A
+  V24_SW/C3/U2 short is R_inrush-limited to **0.134 A**: below the SSR
+  continuous (SSR safe for any duration), and 216 % of F2 → clears within
+  its **200 %→5 s** bound. During that ≤5 s R_inrush dissipates
+  0.134²·220 = **3.95 W**, under the CRCW1206-HP **§8.1 short-term-overload
+  guarantee** (2.5·√(P·R)/5 s = 9.4 W at 1.5 W; 4.68 W even at the
+  conservative P70). So F2 is the *designed* first-fault element and both
+  the SSR and R_inrush survive to the clear; F1 stays the upstream backstop.
+- SKUs (resolve-exact 2026-07-18): R_inrush 541-220UCT-ND /
+  71-CRCW1206220RFKEAHP (Active); F2 F3153TR-ND / 576-0451.062MRL (Active).
+  Updated across cp1_bom, cp1_battery_side (narrative + drawing + rows +
+  state), decisions D19, docs BOM, block diagram, manifest (+2 datasheet
+  rows). U2 headroom re-checked: ≤3.3 V drop at 15 mA peak → ≥20.7 V ≫ 17 V.
+
+**F85 — D35 suppressed live stale facts; BOM/D19 still stale. FIXED.**
+- **Content:** `docs/hardware/bom.md` SSR1 row → Ron **0.85/2.5 Ω** + 25 °C
+  leakage; `decisions.md` D19 part-count corrected (7 discrete parts → the
+  **4-part** switched branch SSR1 + R_opto + R_inrush + F2) and the retired
+  **390 Ω R_opto SKUs** replaced with the 330 Ω pair.
+- **D35 exemption scoped to the matched token's clause.** `_allowed()` now
+  checks the history marker within the **table cell + sentence clause**
+  containing the match (not anywhere on the line/window). The reviewer's
+  exact bug — a stale "Ron 0.25 Ω" in the Part cell exempted by "replaced"
+  in the Notes cell — now flags. The current-**token** check stays at line
+  scope (a real "old → new" comparison that literally names the new part is
+  self-evident), which cleanly distinguishes comparison tables from a bare
+  history word. Tightening surfaced ~6 pre-existing loosely-exempted history
+  lines (incl. a genuinely stale `docs/bom` D1 Mouser SKU that should be
+  "—") — each fixed by putting a marker in the token's own clause or
+  correcting the fact.
+- **Regression fixtures + self-test.** Added a `FIXTURES` list (incl. the
+  retired 390 Ω SKU pair and the two current lines) run at the top of the
+  gate: **pre-fix text must flag, corrected text must pass** — the gate
+  fails if any regresses. New registry rows F83/F84/F85, each **verified to
+  fire on pre-fix HEAD** (F84 fires 10×, F83 3×, F85 1×).
+
+**D35 gate: exit 0** (fixtures pass; 32 manifest parts; manifest↔PDF↔BOM
+consistent; no unmarked stale tokens).
+
+**Handing back for iteration 53 re-verify — semaphore → reviewer_turn.**
+Open by design: the on-site RS-485 two-domain common-mode matrix (D36/DR-26)
+and BOM-lock lifecycle reconfirm at CP5.
