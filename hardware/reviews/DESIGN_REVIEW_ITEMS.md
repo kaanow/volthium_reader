@@ -921,7 +921,7 @@ the reviewer, post-iter-52):
    **Quantified bring-up acceptance test plan (F90):**
    | Test | Units | Cycles/unit | Temperatures | Cooling | Pass criterion |
    |------|-------|-------------|--------------|---------|----------------|
-   | (a) F2 turn-on pulse-cycle endurance | **≥ 3** | **1 000** turn-on cycles (10 % of the ≤100 k life bound, accelerated) | 25 °C + **85 °C** (hot = worst for fuse fatigue) | **≥ 10 s** between cycles | F2 cold resistance rise **≤ 10 %** and no open; R_inrush value within ±1 %; SSR Ron within spec |
+   | (a) F2 turn-on pulse-cycle endurance | **≥ 3** | **1 000** turn-on cycles (a **1 %** engineering screen of the ≤100 k life bound — **not** a full life test, and no acceleration factor is claimed; the ≥100 k margin rests on the Littelfuse 22 %/100 k **selection basis**, F90) | 25 °C + **85 °C** (hot = worst for fuse fatigue) | **≥ 10 s** between cycles | F2 cold resistance rise **≤ 10 %** and no open; R_inrush value within ±1 %; SSR Ron within spec |
    | (b) Turn-on inrush peak | ≥ 3 | 1 | −40 / 25 / 85 °C | — | measured peak **≤ 0.22 A** (≤ SSR 0.30 A@85 °C continuous) |
    | (c) Fault clear | **≥ 2** (sacrificial) | 1 deliberate V24_SW short | **−40 °C** (worst) + 85 °C | — | **F2 opens ≤ 5 s**; both R_inrush 75 Ω halves and the SSR measure undamaged afterward |
    | (d) State-4 leakage (F83) | ≥ 3 | — | 25 / 85 °C | — | total pack-referred hard-cut power **< 5 mW** |

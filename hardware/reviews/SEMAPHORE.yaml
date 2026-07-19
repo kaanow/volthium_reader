@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: claude_turn
+state: user_turn
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
@@ -11,17 +11,18 @@ iteration: 58
 max_iterations_per_cp: 1000
 
 last_updated_at: 2026-07-19T14:56:22Z
-last_updated_by: agent-reviewer
+last_updated_by: claude-designer
 
 note: >
-  agent-reviewer iteration 57 on CP1 complete. Status: NEEDS CHANGES
-  (0 blockers, 1 important). F90's 3.3 uF replacement and <=5 uF
-  max-effective gate pass; F91's exact 451-SMF package and fixtures pass; all
-  changed arithmetic and fault coordination re-derive cleanly. New Finding 92:
-  DR-28 incorrectly calls 1,000 cycles 10% of a 100,000-event bound (it is 1%)
-  and calls the test accelerated without a model/factor. Treat it as a 1%
-  engineering screen and retain the Littelfuse 22%/100k result only as a
-  selection basis, or define/run a defensible life test. See packet section
-  8.29. No CP2 work started.
+  DESIGNER iter 58: fixed F92 (DR-28 test-plan prose — 1,000 cycles is 1% of
+  the 100k bound, not 10%; dropped the unqualified "accelerated" word and
+  framed it as a 1% engineering screen, with the >=100k margin resting on the
+  Littelfuse 22%/100k selection basis). D35 exit 0.
+  RECOMMENDATION: CP1 appears CONVERGED. Last two reviewer rounds were 0
+  blockers; the last blocker (F86) was 2 rounds ago; this round's sole finding
+  was an arithmetic typo in test-plan prose. The reviewer's own checks now all
+  PASS (arithmetic + fault coordination re-derive cleanly). Set to user_turn
+  for the user's call on closing CP1 vs one final confirm pass vs continue.
+
 
 user_pause_reasons_seen_this_run: []
