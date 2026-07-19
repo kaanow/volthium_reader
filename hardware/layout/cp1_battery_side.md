@@ -257,9 +257,10 @@ so the protected rail out-rates the clamp (D19/DR-3).
 
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
-| U1  | **LM5166YDRCR** (24 V→3.3 V sync buck, **always-on**, **fixed-3.3 V** variant — FB→VOUT, no divider) | VSON-10 | 1 | **IQ-SLEEP 9.7 µA typ / 15 µA max** (§6.5; the earlier "~14 µA" was unsourced — 2026-07-14 PDF audit), 3–65 V in (65 V out-rates the 53.3 V clamp, §3.1), **500 mA** — enough to power a **WiFi session** (D25); a brick can't be both µA-Iq *and* surge-tolerant (D19/DR-4). **Suffix trap (reviewer Finding 01): `LM5166Y` = 3.3 V, `LM5166X` = 5 V** — order **Y**DRCR; the X variant would force the ESP rail to ~5 V (destructive). FB→VOUT, no divider. TI Active; **confirm live stock at BOM-lock** (TI.com showed YDRCR out-of-stock on 2026-06-21 — fallback `LM5166YDRCT` cut-tape, else adjustable `LM5166DRCR` + high-Z divider; never XDRCR) |
-| L1  | 10–47 µH ≥0.3 A shielded SMD inductor | per datasheet | 1 | LM5166 buck inductor; low-Iq COT mode favors a larger L than a fast buck |
-| C1, C2 | C1 22 µF / **100 V**, C2 22 µF / 25 V X7R | 1210      | 2   | LM5166 input (C1 on V24_FUSED, behind the ~53 V clamp → 100 V) / output (C2, 3.3 V) |
+| U1  | **LM5166YDRCR** (24 V→3.3 V sync buck, **always-on**, **fixed-3.3 V** variant — FB→VOUT, no divider) | VSON-10 | 1 | **IQ-SLEEP 9.7 µA typ / 15 µA max** (§6.5; the earlier "~14 µA" was unsourced — 2026-07-14 PDF audit), 3–65 V in (65 V out-rates the 53.3 V clamp, §3.1), **500 mA** — enough to power a **WiFi session** (D25); a brick can't be both µA-Iq *and* surge-tolerant (D19/DR-4). **Suffix trap (reviewer Finding 01): `LM5166Y` = 3.3 V, `LM5166X` = 5 V** — order **Y**DRCR; the X variant would force the ESP rail to ~5 V (destructive). FB→VOUT, no divider. **CP2 config (DR-29):** RT→GND selects **PFM** (lowest light-load Iq); **EN→VIN direct** (self-start, rec-op 65 V ≥ 53.3 V clamp; no UVLO divider — that's U4's job); HYS/SS/PGOOD open. TI Active; **confirm live stock at BOM-lock** (TI.com showed YDRCR out-of-stock on 2026-06-21 — fallback `LM5166YDRCT` cut-tape, else adjustable `LM5166DRCR` + high-Z divider; never XDRCR) |
+| L1  | **4.7 µH**, Isat ≥ 2.2 A, low DCR, shielded SMD | 1210 | 1 | LM5166 buck inductor. **PFM mode (CP2/DR-29)**: L_min ≈ 3.3 µH worst-case (datasheet Eq 29); 4.7 µH per TI Design 3 (24 V→3.3 V). *(Was "10–47 µH" assuming COT; PFM peak-current sets a smaller L.)* |
+| C1, C2 | C1 22 µF / **100 V**, C2 **47 µF** / 25 V X7R | 1210      | 2   | LM5166 input (C1 on V24_FUSED, behind the ~53 V clamp → 100 V) / output (C2). **C2 47 µF (CP2/DR-29)**: 22 µF derates to ~18 µF eff < the ~22 µF Eq-31 minimum at peak-current overshoot; 47 µF gives margin (Design 3 uses 47 µF) |
+| R_ILIM | **56.2 kΩ 1 %**, ILIM → GND | 0805 | 1 | **CP2/DR-29:** sets PFM 750 mA peak / 300 mA IOUT (datasheet Table 3). Covers 250 mA sustained Wi-Fi; 500 mA sub-ms peaks buffered by C2 |
 | U2  | Recom R-78HB12-0.5 (24 V→12 V, 0.5 A, 17–72 V in) | SIP3 THT | 1   | **Switched** (behind SSR1 + R_inrush) — drives the Cat5e/display. 72 V in tolerates the ~53 V clamp (D19/DR-3). Was R-78E12 (34 V, under-rated) |
 | C3, C4 | C3 **3.3 µF** / **100 V** (R-78HB12 p.4; was 22 µF, oversized — F90), C4 22 µF / 25 V X7R | 1210      | 2   | U2 input (C3 on V24_SW, behind the clamp → 100 V) / 12 V output (C4) |
 | TVS3 | SMAJ15A unidirectional TVS, V12_CAT5E ↔ GND (at J2) | SMA | 1 | **DR-15:** clamps surges induced on the long in-wall Cat5e **12 V power pair** at the **battery** end — matches the display-end SMAJ15A so both ends of the exposed pair are protected (standard for long DC runs). Standoff 15 V > 12 V; zero static draw (conducts only on a transient). U2's 72 V VIN and the always-on rail are upstream/unaffected |
@@ -300,8 +301,8 @@ exclusive** — during the ~2–6 s WiFi session the firmware holds U3 in
 **driver-disable / receive-idle** (DE low), so the transceiver is never
 sourcing bus-drive current while WiFi peaks. Net simultaneous load is then
 **ESP-dominated and within the 500 mA rating**; the only excursions above it
-are **sub-millisecond** TX peaks, which **C2 (22 µF)** buffers (size per the
-LM5166 datasheet at CP2). Even if a peak briefly hits the LM5166 current
+are **sub-millisecond** TX peaks, which **C2 (47 µF)** buffers (sized per the
+LM5166 datasheet Eq 31 at CP2, DR-29). Even if a peak briefly hits the LM5166 current
 limit, foldback on a duty-cycled, seconds-long session is benign (the rail
 sags momentarily, not a fault). **CP2 action:** scope the combined peak and
 confirm ≤ 500 mA with the policy active; if margin < 10 %, document the
@@ -700,7 +701,7 @@ populated. **Idle bias is NOT here** — it lives on the display end only
 | C10   | 100 nF | V3V3  | U3 (THVD1400) VCC < 2 mm      | RS-485 decoupling |
 | C11   | 100 nF | BTN_OVERRIDE | -                       | Button RC debounce |
 | C12   | 1 µF   | 3V3_USB | U5 (LDO) in/out < 2 mm       | AP2112 in/out (D29) |
-| C13   | **~47 µF** | V3V3 | TPS2116 OUT < 5 mm          | **CP2/reviewer F11:** TI recommends ~100 µF on the mux OUT when reverse-current-blocking is exercised (USB hot-plug holds the buck output high). Design bulk on V3V3 is C2 22 µF + C6 10 µF ≈ 32 µF; add ~47 µF (→ ~79 µF) **or** scope USB hot-plug at CP2 to confirm VOUT stays < 5.5 V on the mux/buck pins |
+| C13   | **~47 µF** | V3V3 | TPS2116 OUT < 5 mm          | **CP2/reviewer F11:** TI recommends ~100 µF on the mux OUT when reverse-current-blocking is exercised (USB hot-plug holds the buck output high). Design bulk on V3V3 is C2 47 µF (DR-29) + C6 10 µF ≈ 57 µF; add ~47 µF (→ ~104 µF ≈ the ~100 µF TI recommends) **or** scope USB hot-plug at CP2 to confirm VOUT stays < 5.5 V on the mux/buck pins |
 
 **CP2 schematic TODOs surfaced by the iter-2 review:**
 - **LM5166 support network (F10):** document the **EN** strap (recommend EN→V24_FUSED via the part's enable threshold network for always-on start), the **SS** pin (open = 900 µs default, or a soft-start cap), and **ILIM** (default unless a lower limit is wanted). These are required-support pins not yet enumerated in CP1.

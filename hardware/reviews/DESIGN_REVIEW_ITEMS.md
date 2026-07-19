@@ -935,7 +935,7 @@ the reviewer, post-iter-52):
 bring-up; the design is complete and analysis-backed, but the claims are
 not closed until measured. Neither gates CP1 architecture.
 
-## DR-29 — U1 LM5166 CP2 component network: PFM (not COT) + concretized L/C/ILIM  [OPEN — designed 2026-07-19, datasheet-backed; needs user nod (reverses a CP1 assumption)]
+## DR-29 — U1 LM5166 CP2 component network: PFM (not COT) + concretized L/C/ILIM  [RESOLVED 2026-07-19 — user approved PFM ("no real downside to PFM"); CP1 §4.2 reconciled]
 
 CP2 schematic capture required valuing U1's support network, which CP1
 (`cp1_battery_side.md` §4.2) left partly deferred. The values below are
