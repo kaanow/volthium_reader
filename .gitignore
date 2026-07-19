@@ -48,3 +48,6 @@ hardware/outputs/*/*.ses
 # Freerouting log/state
 logs/
 freerouting.json
+
+# CP2 code-generated schematics + review renders (regenerate: schematic/build.py)
+hardware/kicad/schematic/build/

@@ -934,3 +934,31 @@ the reviewer, post-iter-52):
 **Why OPEN:** these are physical measurements deferred to CP5 hardware
 bring-up; the design is complete and analysis-backed, but the claims are
 not closed until measured. Neither gates CP1 architecture.
+
+## DR-29 — U1 LM5166 CP2 component network: PFM (not COT) + concretized L/C/ILIM  [OPEN — designed 2026-07-19, datasheet-backed; needs user nod (reverses a CP1 assumption)]
+
+CP2 schematic capture required valuing U1's support network, which CP1
+(`cp1_battery_side.md` §4.2) left partly deferred. The values below are
+derived from the LM5166 datasheet (`LM5166YDRCR.pdf`), cross-checked
+against TI's own **Design 3** (24 V→3.3 V fixed, the near-exact match to
+this instance). One choice **reverses a CP1 assumption** and is flagged
+for a user nod:
+
+| Pin/part | CP2 value | CP1 said | Basis |
+|----------|-----------|----------|-------|
+| **Mode (RT pin)** | **PFM** (RT→GND) | "low-Iq **COT** mode favors a larger L" (§4.2 L1 row) | PFM sleep Iq = COT sleep Iq (9.7 µA typ/15 µA max), but PFM **active** Iq 205 µA vs COT 320 µA and PFM has longer sleep intervals at light load (§6.5, §7.3.2.2). For an always-on light-load rail, PFM is the lower-Iq choice — and it's TI's pick for the 24 V/3.3 V Design 3. **This is the reversal to confirm.** |
+| **L1** | **4.7 µH**, Isat ≥ 2.2 A, low DCR | 10–47 µH ≥0.3 A | L_min ≈ 3.3 µH at worst case (Eq 29); Design 3 uses 4.7 µH/2.2 A. The "10–47 µH" guess assumed COT; PFM peak-current sets a smaller L. |
+| **R_ILIM** | **56.2 kΩ** → 750 mA peak / 300 mA IOUT (PFM) | (unspecified) | Table 3 (§7.3.5). Covers 250 mA sustained Wi-Fi; 500 mA sub-ms peaks buffered by C2 (consistent with CP1 §4.2 "C2 buffers sub-ms peaks"). 24.9 kΩ (→500 mA IOUT) is the higher-margin alt if sustained load hardens — not needed for the 250 mA sustained case. |
+| **C2 (VOUT)** | **47 µF / 25 V** X7R 1210 | 22 µF / 25 V | Eq 31 needs ~22 µF at peak-current overshoot; 22 µF/25 V derates to ~18 µF effective → under. 47 µF gives margin (Design 3 uses 47 µF). Voltage rating unchanged. |
+| **EN** | tie **direct to VIN** (no divider) | (implied always-on) | "connect EN directly to VIN" (§7.3.6); EN rec-op max **65 V** ≥ 53.3 V clamp ceiling. A UVLO divider here would only add continuous bleed — pack-UVLO is the separate U4 supervisor's job. HYS/SS/PGOOD left open (Design 3). |
+| **C1 (VIN)** | 22 µF / 100 V (unchanged) | 22 µF / 100 V | Confirmed ≥ CIN min, rating ≥ 2×VIN behind the clamp. |
+
+**Iq impact:** EN→VIN, HYS/PGOOD/SS/RT all open-or-short → **zero added
+continuous bleed** beyond the IC's 9.7 µA typ / 15 µA max sleep Iq — fully
+preserves the CP1 hard-cut budget.
+
+**Why OPEN:** the PFM-vs-COT reversal is the one judgment where CP1 leaned
+the other way; the rest are datasheet concretizations of deferred values.
+All are analysis-backed and the schematic is built with them (ERC-clean,
+readable). Non-gating for the block's structure — only the values would
+change if the user prefers COT (then L1→larger, R_ILIM/C2 re-pick).
