@@ -497,6 +497,66 @@ def blk_u2(s, cx, cy):
     s.label("GND", (xgl, yg), justify_h="right")
 
 
+def blk_uvlo(s, cx, cy):
+    """Hardware UVLO backstop (U4 TPS3808G01, D28/DR-16). Pack divider R_uv1/R_uv2
+    -> SENSE (VIT 0.405V); R_hys (RESET->SENSE) = positive-feedback hysteresis;
+    C_sense filter; C_ct deglitch; C_uvdd bypass. RESET (open-drain, active-low)
+    -> UVLO_RESET -> ESP EN gating. MR floats (internal 90k pull-up). Falling
+    trip ~20.0V / release ~21.7V. (cx,cy)=U4 centre."""
+    yg = snap(cy + 15.24)
+    u4 = s.place("TPS3808DBV", "U4", "TPS3808G01DBVR", "Package_TO_SOT_SMD:SOT-23-6",
+                 (cx, cy), angle=0, tanchor="u", tgap=15.24)
+    SENSE, MR, CT = u4["5"], u4["3"], u4["4"]
+    RESET, VDD, GND = u4["1"], u4["6"], u4["2"]
+    s.no_connect(MR)                                  # internal 90k pull-up to VDD
+    ys = SENSE[1]                                     # SENSE rail y (cy-2.54)
+
+    # ---- pack divider: V24_FUSED -> R_uv1 -> SENSE -> R_uv2 -> GND ----
+    xd = snap(cx - 33.02)
+    r1 = s.place("R", "R_uv1", "5.16M", "R_0805_2012Metric", (xd, snap(ys - 3.81)), tanchor="l")
+    r2 = s.place("R", "R_uv2", "100k", "R_0805_2012Metric", (xd, snap(ys + 3.81)), tanchor="l")
+    yvf = snap(r1["1"][1] - 2.54)
+    s.wire(r1["1"], (xd, yvf)); s.wire((xd, yvf), (snap(xd - 10.16), yvf))
+    s.label("V24_FUSED", (snap(xd - 10.16), yvf), justify_h="right")
+    s.wire(r2["2"], (xd, yg))
+    xcs = snap(xd + 11.43)                            # C_sense column
+    cse = s.place("C", "C_sense", "1nF", "C_0603_1608Metric", (xcs, snap(ys + 3.81)), tanchor="ud")
+    s.wire(cse["2"], (xcs, yg))
+    s.wire((xd, ys), (xcs, ys)); s.wire((xcs, ys), SENSE)          # SENSE rail
+
+    # ---- R_hys wrap: SENSE-rail -> up -> over the top -> down to RESET ----
+    yh = snap(cy - 16.51)
+    rh = s.place("R", "R_hys", "11.5M", "R_0805_2012Metric", (snap(cx - 16.51), yh),
+                 angle=90, tanchor="ud", bw=7.62)
+    hL = min(rh.values(), key=lambda p: p[0]); hR = max(rh.values(), key=lambda p: p[0])
+    s.wire(hL, (hL[0], ys))                                        # left leg down onto SENSE rail
+    s.wire(hR, (RESET[0], hR[1])); s.wire((RESET[0], hR[1]), RESET)  # right leg over to RESET
+
+    # ---- RESET -> UVLO_RESET label (right) ----
+    xr = snap(cx + 22.86)
+    s.wire(RESET, (xr, RESET[1])); s.label("UVLO_RESET", (xr, RESET[1]), justify_h="left")
+
+    # ---- CT -> C_ct -> GND (routed out left, clear of the body) ----
+    xct = snap(cx - 13.97)
+    s.wire(CT, (xct, CT[1]))
+    cct = s.place("C", "C_ct", "10nF", "C_0603_1608Metric", (xct, snap(CT[1] + 3.81)), tanchor="ud")
+    s.wire(cct["2"], (xct, yg))
+
+    # ---- VDD -> V3V3 + C_uvdd bypass (kept off the RESET column) ----
+    yv = snap(VDD[1] - 3.81)
+    s.wire(VDD, (VDD[0], yv))
+    xcu, xv3 = snap(cx + 16.51), snap(cx + 26.67)
+    s.wire((VDD[0], yv), (xcu, yv)); s.wire((xcu, yv), (xv3, yv))
+    s.label("V3V3", (xv3, yv), justify_h="left")
+    cuv = s.place("C", "C_uvdd", "100nF", "C_0603_1608Metric", (xcu, snap(yv - 3.81)), tanchor="r")
+    s.wire(cuv["1"], (xcu, snap(cuv["1"][1] - 2.54)))
+    s.label("GND", (xcu, snap(cuv["1"][1] - 2.54)), justify_h="right")
+
+    # ---- GND rail (R_uv2, C_sense, C_ct, U4 GND) ----
+    s.wire((snap(xd - 7.62), yg), (cx, yg)); s.wire(GND, (cx, yg))
+    s.label("GND", (snap(xd - 7.62), yg), justify_h="right")
+
+
 def blk_sense(s, cx, cy):
     """24V sense divider (always-on): V24_FUSED -> R5 1.2M -> V24_SENSE -> R6
     100k -> GND; C5 100nF ADC tank. Full charge 29.2V -> ~2.25V (DR-6).
@@ -612,9 +672,10 @@ def main():
     ok &= render(sheet("Battery-side — Peripherals & comms",
                        (blk_rs485, 90, 62),
                        (blk_rtc, 95, 140)), "sheet_periph")
-    # Sheet — supervisor & USB power (UVLO + USB to come; sense divider)
+    # Sheet — supervisor & USB power (UVLO + sense; USB to come)
     ok &= render(sheet("Battery-side — Supervisor & USB power",
-                       (blk_sense, 70, 62)), "sheet_super")
+                       (blk_uvlo, 82, 82),
+                       (blk_sense, 210, 68)), "sheet_super")
     return 0 if ok else 2
 
 if __name__ == "__main__":
