@@ -5858,3 +5858,45 @@ the C3-reduced I²t (2.9 %, ≤4.3 % at 5 µF), swept every C3=22 µF / cycle-li
 figure across the docs, and confirmed the F91 pattern is precise (catches the
 fuse-package mislabel, not the corrected "451 SMF … not 1206" forms or the
 R_inrush 1206). Handing back for iteration 57 re-verify.
+
+## 8.29 Reviewer findings (iteration 57 - iter-56 resolution re-review)
+
+### Required checks
+
+| Check | Verdict | Independent evidence |
+|-------|---------|----------------------|
+| D35 consistency gate | **PASS** | Start-of-pass `doc_consistency_check.py` exited 0: 32 manifest parts checked, 38 `_verify_` cells reported, no unmarked stale tokens, and D32 manifest/PDF/BOM consistency clean. The new F91 fuse-package fixtures pass while the legitimate 1206 R_inrush fixture remains accepted. |
+| Changed SKU cells / manifest rows | **N/A** | Iteration 56 changes no distributor SKU cell and no datasheet-manifest row. The exact R_inrush and F2 orderable objects are unchanged from the iteration-55 full `/resolve` sweep; C3 remains an explicitly unselected `_verify_` row, so there is no new SKU claim to reverse-resolve. |
+| Citation spot-check quota | **PASS (10 facts across 4 manufacturer documents)** | Visually opened exact-object PDFs this pass. Recom `R-78HB12-0.5.pdf` (SHA256 `457ccbb2825f...`) p.1 identifies the R-78HB-0.5 family and its R-78HB12-0.5 selection row; p.4 specifies `C1=3.3 µF/100 V if Vin>50 V`. Littelfuse `Littelfuse_451_453.pdf` (SHA256 `399d3cc9da99...`) p.1 specifies 5 s maximum opening at 200%; p.2 `.080` specifies 125 V, 4.0500 Ohm nominal cold resistance, and 0.00033 A²s nominal melting I²t; p.4 specifies the 6.10×2.69 mm body and dedicated pad layout. Vishay `Vishay_CRCW_HP.pdf` (SHA256 `bdd4e4b9b924...`) p.1 specifies CRCW1206-HP `P70=0.75 W`; p.8 §8.1 defines the 5 s short-term overload from `2.5*sqrt(P70*R)`. Littelfuse's official [*Fuseology Design Guide*](https://www.littelfuse.com/assetdocs/fuseology-selection-guide?assetguid=d812dff2-1c47-4dc3-bce7-07a4001ddc32) p.8 gives 22% for 100,000 pulses with 10 s between pulses and separately calls for application life and overload testing. |
+| F90 replacement-cap sanity | **PASS** | The selected architecture value 3.3 µF/100 V is the Recom p.4 protection value and is conservative for the 29.2 V maximum normal input. With `Rmin=2*75*0.99=148.5 Ohm`, independently re-derived turn-on I²t is `C*V²/(2R)=9.4738e-6 A²s`, 2.8708% of F2 nominal melting I²t. At the binding 5 µF max-effective ceiling it is `1.4354e-5 A²s`, 4.3498%, far below the guide's 22% selection line. C3 remains a CP5 exact-part selection, correctly gated rather than represented by a fabricated MPN/SKU. |
+| F91 package / land pattern | **PASS** | All three live BOM/component rows now identify the exact 451 SMF 6.10×2.69 mm body and dedicated p.4 land pattern, and the package count separates the two legitimate 1206 resistors from F2. The scoped D35 rule and all three positive/negative fixtures behave as intended. |
+| Fault coordination re-derivation | **PASS** | At 29.2 V and 148.5 Ohm, `I=0.196633 A`, total resistor power is 5.7417 W, and each equal resistor dissipates 2.8708 W, below its 4.6875 W/5 s §8.1 limit. Fault current is 245.8% of the 80 mA fuse rating before conservative cold rerating, above the exact fuse's 200%/5 s opening gate. No changed electrical premise reopens the SSR or upstream coordination. |
+| G1-G7 delta sweep | **NEEDS CHANGES** | Electrical ratings, replacement-cap fit, footprint identity, assembly fit, and cross-document value propagation pass for the iteration-56 delta. G7 remains open only on the qualification-plan overclaim in Finding 92. No CP2 artifact was reviewed or started. |
+
+### Finding 92 — IMPORTANT — DESIGN_REVIEW_ITEMS.md:DR-28 pulse-cycle qualification
+**Issue**: The new test plan misstates 1,000 cycles as 10% of a 100,000-event
+life bound and calls the test "accelerated" without an acceleration model or
+factor. A 1,000-cycle screen can add useful evidence, but it cannot be
+presented as validating 100,000 cycles on that basis.
+**Evidence**: `DESIGN_REVIEW_ITEMS.md` DR-28 says `1 000` cycles are "10 % of
+the ≤100 k life bound, accelerated"; arithmetic gives `1000/100000 = 1%`.
+The official Littelfuse [*Fuseology Design Guide*](https://www.littelfuse.com/assetdocs/fuseology-selection-guide?assetguid=d812dff2-1c47-4dc3-bce7-07a4001ddc32)
+p.8 uses 22% of nominal
+melting I²t as its 100,000-pulse **selection** line with 10 s cooling, then
+separately instructs the designer to verify the selection with samples and
+include life tests under normal conditions plus overload tests under fault
+conditions. The design's worst-case 4.3498% ratio provides large selection
+margin, but neither that margin nor a same-stress 1,000-cycle run defines an
+acceleration factor. `cp1_battery_side.md` also says "F2 clears ≥100 000
+recovery cycles"; this should say the fuse is *selected to survive* the bounded
+events, not imply a part-specific guarantee (and an intact fuse does not
+"clear" a normal recovery event).
+**Suggested fix**: Correct 10% to 1% and label the 1,000-cycle run as an
+engineering screen, with pre/post measurements made at the same stated
+temperature. Remove "accelerated" unless a documented stress/life model and
+acceleration factor are supplied. State the architecture conclusion as
+"selected per the Littelfuse guide for ≤100,000 events with ≥10 s cooling, to
+be screened on hardware" rather than a validated or guaranteed 100,000-cycle
+claim; alternatively, run the full claimed life test.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 92.)
