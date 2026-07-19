@@ -450,6 +450,38 @@ def blk_rs485(s, cx, cy):
     s.label("RS485_B", (xlblB, yB), justify_h="left")
 
 
+def blk_u2(s, cx, cy):
+    """Switched 12V converter (behind SSR1): V24_SW -> U2 R-78HB12 -> V12_CAT5E.
+    C3 in (3.3µF/100V, behind the clamp; F90), C4 out (22µF/25V), TVS3 SMAJ15A
+    on the Cat5e 12V pair at this end (DR-15). (cx,cy)=U2 centre."""
+    yg = snap(cy + 13.97)
+    u2 = s.place("R-78HB12-0.5", "U2", "R-78HB12-0.5",
+                 "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT",
+                 (cx, cy), angle=0, tanchor="u", tgap=2.0)
+    IN, GND, OUT = u2["1"], u2["2"], u2["3"]
+    # input: V24_SW -> IN, C3 tap to GND
+    xin, xc3 = snap(cx - 27.94), snap(cx - 15.24)
+    c3 = s.place("C", "C3", "3.3µF 100V", "C_1210_3225Metric",
+                 (xc3, snap(IN[1] + 3.81)), tanchor="l")
+    s.label("V24_SW", (xin, IN[1]), justify_h="right")
+    s.wire((xin, IN[1]), c3["1"]); s.wire(c3["1"], IN); s.wire(c3["2"], (xc3, yg))
+    # output: OUT -> node -> V12_CAT5E; C4 + TVS3 taps to GND
+    xc4, xtv, xout = snap(cx + 15.24), snap(cx + 33.02), snap(cx + 43.18)
+    s.wire(OUT, (xc4, OUT[1]))
+    c4 = s.place("C", "C4", "22µF 25V", "C_1210_3225Metric",
+                 (xc4, snap(OUT[1] + 3.81)), tanchor="r")
+    tv3 = s.place("D_TVS", "TVS3", "SMAJ15A", "D_SMA",
+                  (xtv, snap(OUT[1] + 6.35)), angle=90, tanchor="r")
+    t3T = min(tv3.values(), key=lambda p: p[1]); t3B = max(tv3.values(), key=lambda p: p[1])
+    s.wire((xc4, OUT[1]), (xtv, OUT[1])); s.wire((xtv, OUT[1]), (xout, OUT[1]))
+    s.label("V12_CAT5E", (xout, OUT[1]), justify_h="left")
+    s.wire(c4["2"], (xc4, yg)); s.wire(t3T, (xtv, OUT[1])); s.wire(t3B, (xtv, yg))
+    # GND rail
+    xgl = snap(cx - 20.32)
+    s.wire((xgl, yg), (xtv, yg)); s.wire(GND, (GND[0], yg))
+    s.label("GND", (xgl, yg), justify_h="right")
+
+
 # ---- sheet composition: several functional blocks per US-Letter sheet --------
 def sheet(title, *placements):
     """Compose blocks onto one sheet: each placement is (blk_fn, cx, cy)."""
@@ -495,10 +527,11 @@ def render(s, name, crops=()):
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     ok = True
-    # Sheet 1 — power path (protection + always-on buck; SSR + U2 to come)
+    # Sheet 1 — power path (protection + always-on buck + 12V conv; SSR to come)
     ok &= render(sheet("Battery-side — Power path",
                        (blk_input_protection, 78, 62),
-                       (blk_always_on_power, 205, 62)), "sheet_power")
+                       (blk_always_on_power, 205, 62),
+                       (blk_u2, 205, 140)), "sheet_power")
     # Sheet — comms/peripherals (RS-485; RTC + sense to come)
     ok &= render(sheet("Battery-side — Peripherals & comms",
                        (blk_rs485, 90, 62)), "sheet_periph")
