@@ -2,71 +2,26 @@
 
 schema_version: 1
 
-state: reviewer_turn
-
+state: claude_turn
 current_cp: cp1-architecture
 current_branch: hw/cp1-architecture
 active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 53
+iteration: 54
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-19T00:40:00Z
-last_updated_by: claude-designer
+last_updated_at: 2026-07-19T04:39:18Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER iter 52: all three iter-51 findings (F83-F85) ACCEPTED and FIXED,
-  incl. the F84 blocker via a datasheet-grounded coordinated redesign.
-  F83: the SSR 25 C <=1 uA / ~1.1 mW leakage is now labeled 25 C-only across
-  power_budget/battery-side/bom/D19/manifest; 85 C carried as an explicit
-  engineering estimate (~30-60 uA -> est. hot ceiling ~2.5 mW, NOT a bound)
-  gated by a <5 mW State-4 leakage acceptance test; architectural
-  no-self-turn-on kept separate. F84 (BLOCKER): switched branch rebuilt as
-  V24_FUSED -> F2 (62 mA Littelfuse 0451.062MRL) -> SSR1 -> R_inrush
-  (220 Ohm pulse-proof Vishay CRCW1206220RFKEAHP, 1.5 W) -> V24_SW. R_inrush
-  limits the recurring inrush to 0.134 A (BELOW the SSR 0.30 A@85C continuous
-  -> no one-shot reliance; RC corrected to 4.84 ms). A downstream short is
-  R_inrush-limited to 0.134 A: below SSR continuous (SSR safe), 216% of F2
-  (clears within 200%->5s), 3.95 W in R_inrush under the CRCW-HP §8.1
-  short-term-overload guarantee -> F2 is the designed first-fault element,
-  F1 the backstop. Both datasheets on file + manifest (CRCW_HP bdd4e4b9,
-  451/453 399d3cc9); SKUs resolve-exact 2026-07-18. F85: docs BOM Ron
-  0.25->0.85/2.5 + D19 count(4-part branch)/390-Ohm-SKUs fixed; D35
-  exemption scoped to the matched token's CELL+sentence clause (current-part
-  token stays line-level so real old->new comparisons still pass) -> the
-  reviewer's Ron-0.25-exempted-by-'replaced' bug now flags; added regression
-  fixtures + self-test (pre-fix flags, corrected passes) and F83/F84/F85
-  registry rows (verified to fire on pre-fix HEAD). D35 exit 0. Packet
-  section 41.
-  SELF-CAUGHT follow-up (designer adversarial self-review, before reviewer
-  picked up iter 53): the F84 R_inrush value I first committed (220 Ohm)
-  gave the fuse only a 216% fault multiple, which falls to ~188% (< the
-  200% guaranteed-open threshold) at -40 C because a fuse carries more when
-  cold (DR-22 sub-zero cabin) -> the fuse might not clear and R_inrush would
-  cook. Re-picked 150 Ohm (317%, ~276% at -40 C; better stocked) across all
-  docs + packet. Also captured the two bring-up acceptance tests this branch
-  rests on (F83 State-4 leakage <5 mW; F84 cold short clears F2) as DR-28
-  (OPEN) instead of leaving them as prose. D35 still exit 0.
-  SECOND self-review pass (user: "consider running another self review
-  before hand-off"): re-derived every F84 number independently and caught
-  that the inrush/fault currents ignored the F2 fuse's own 5.5 Ohm cold
-  resistance + SSR Ron in series -> R_branch ~156 Ohm, honest figures
-  ~0.19 A / ~300% (~260% cold) / ~5.3 W, not 0.197 A / 317% / 5.8 W.
-  Conclusion unchanged; corrected consistently across all docs + packet
-  (the same accounting makes the rejected 220 Ohm case ~208%/~181% cold,
-  reinforcing 150). Verified holds: SSR LED I_F ~5.1 mA >= 5 mA at -40 C;
-  F2 covers U2-input faults while U2 foldback + the display PTC (F1_disp
-  ~0.25 A, DR-11) cover U2-output faults (both zones, no redundancy).
-  D35 exit 0.
-  ITERATED self-review to a clean pass before handing off (user: hand back
-  only once my own reviews come back clean). Six passes; each fix, then
-  re-review, until a full pass found nothing: (1) inrush/fault ignored the
-  F2 fuse's 5.5 Ohm cold resistance + SSR Ron -> R_branch ~156 Ohm, honest
-  ~0.19 A / ~300% (~260% cold) / ~5.2 W; (2) fuse I2t margin 3.2x not 4.4x,
-  and 0.19^2*150 rewritten to true 5.2 W; (3) DR-28 + docs-BOM R_inrush
-  price ($0.40->$0.08) were stale; (4/5) I first mis-corrected the cost
-  delta to +$3 by dropping the SSR $2.81 -> a later pass caught it, honest
-  net ~+$6; (6) clean. Conclusions unchanged throughout. D35 exit 0,
-  fixtures pass. Packet section 41.
+  agent-reviewer iteration 53 on CP1. Re-reviewed designer iteration 52 and
+  the F84 fuse/R_inrush redesign. Status: NEEDS CHANGES (1 blocker, 3
+  important). F86: Vishay section 8.1 uses P70=0.75 W, so its 5 s guarantee
+  is 4.69 W, below the 5.74 W worst-case resistor fault stress. F87: the
+  turn-on pulse is 31.6% of nominal fuse melting I2t and lacks a defined
+  repetitive-cycle life. F88: Mouser SKU 71-CRCW1206150RFKEAHP resolves none;
+  exact cell is 71-CRCW1206150RFKEAH. F89: D35 registry and passing fixture
+  still encode the retired 220 Ohm intermediate design. F83 hot-leakage
+  correction passes. See packet section 8.27 findings 86-89. CP2 not started.
 
 user_pause_reasons_seen_this_run: []

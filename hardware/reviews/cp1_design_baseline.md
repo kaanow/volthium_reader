@@ -5611,3 +5611,90 @@ consistent; no unmarked stale tokens).
 **Handing back for iteration 53 re-verify — semaphore → reviewer_turn.**
 Open by design: the on-site RS-485 two-domain common-mode matrix (D36/DR-26)
 and BOM-lock lifecycle reconfirm at CP5.
+
+## 8.27 Reviewer findings (iteration 53 - iter-52 resolution re-review)
+
+### Required checks
+
+| Check | Verdict | Independent evidence |
+|-------|---------|----------------------|
+| D35 consistency gate | **PASS at start, but incomplete** | `python3 hardware/reviews/tools/doc_consistency_check.py` exited 0: 32 manifest parts checked, 38 `_verify_` cells reported, no unmarked stale tokens, and D32 consistency clean. Manual inspection found the stale F84 registry/fixture in Finding 89. |
+| Changed distributor cells | **FAIL (3/4 exact)** | Canonical `POST /resolve` on 2026-07-18 covered both new rows. DigiKey `541-150UTR-ND`, DigiKey `F3153TR-ND`, and Mouser `576-0451.062MRL` resolve exactly. Mouser `71-CRCW1206150RFKEAHP` returns `matched:none` with no error; `71-CRCW1206150RFKEAH` resolves exactly to `CRCW1206150RFKEAHP` (Finding 88). |
+| Citation spot-check quota | **PASS (6 facts across 3 PDFs)** | Opened the exact on-file PDFs this pass. `Littelfuse_451_453.pdf` p.1 gives 5 s maximum opening at 200 %, and p.2 gives the `.062` row's nominal 5.5000 Ohm cold resistance and nominal 0.00019 A^2s melting I^2t. `Vishay_CRCW_HP.pdf` p.1 gives CRCW1206-HP `P70 = 0.75 W` and 1.5 W only at terminal-part temperature 105 C; p.8 section 8.1 explicitly uses `P70` in the 5 s short-term-overload equation. `AQY212EH_Panasonic.pdf` p.2 gives 0.85/2.5 Ohm on-resistance and the 1.5 A/100 ms one-shot condition; p.3 gives the 0.30 A at 85 C continuous derating point. |
+| Changed manifest object identity | **PASS (2/2)** | `Littelfuse_451_453.pdf` title page is Littelfuse's 451/453 fuse family and includes 0.062 A; `Vishay_CRCW_HP.pdf` title page is Vishay's CRCW-HP family and its ordering table constructs the exact `CRCW1206150RFKEAHP` MPN. Both SHA256 values match the new manifest rows. |
+| F83 hot-leakage correction | **PASS** | Live docs now distinguish the AQY212EH 25 C leakage maximum from an explicitly labeled 85 C estimate and gate the latter with DR-28's `<5 mW` State-4 acceptance test. No temperature-independent leakage bound remains in the reviewed delta. |
+
+### Finding 86 — BLOCKER — F84 / R_inrush short-term overload coordination
+**Issue**: The revised branch still does not prove that F2 clears before
+R_inrush exceeds its guaranteed fault envelope. The response applies the
+Vishay overload equation to the wrong power rating and uses nominal-only
+series resistance to reduce the alleged worst-case fault current.
+**Evidence**: Exact-object `Vishay_CRCW_HP.pdf` (SHA256
+`bdd4e4b9b92466999bf1dc270767c228b0dc6a30b97e6890d7843c7492de1126`)
+p.1 specifies CRCW1206-HP `P70 = 0.75 W`; the separate 1.5 W figure is
+conditioned on terminal-part temperature 105 C. Section 8.1 on p.8 defines
+the 5 s short-term-overload voltage as `2.5*sqrt(P70*R)`, so the guaranteed
+power is `6.25*0.75 = 4.6875 W`, not 9.4 W. At the documented 29.2 V
+maximum and the 150 Ohm part's -1 % tolerance, a conservative maximum-current
+short calculation must not credit the fuse's explicitly **nominal** 5.5 Ohm
+or an unspecified SSR minimum resistance: `I = 29.2/148.5 = 0.1966 A` and
+`P_R = I^2*148.5 = 5.74 W`. The exact fuse PDF p.1 permits up to 5 s to open
+at its guaranteed 200 % point. Thus 5.74 W is above the resistor's 4.69 W / 5 s
+guarantee during the protection device's stated maximum interval. The wrong
+9.4 W claim is live in `decisions.md` D19, `cp1_battery_side.md`, `cp1_bom.md`,
+`DESIGN_REVIEW_ITEMS.md` DR-28, `docs/hardware/bom.md`, and the manifest.
+**Suggested fix**: Re-coordinate F2 and R_inrush using maximum pack voltage,
+all resistance tolerances in the direction that maximizes resistor stress,
+the fuse's guaranteed maximum clearing envelope, `P70`, and the actual PCB
+thermal boundary. Select a resistor/network or current-limiting topology with
+a guaranteed envelope above that result, then propagate the corrected rating
+and arithmetic everywhere.
+
+### Finding 87 — IMPORTANT — F84 / F2 repetitive pulse endurance
+**Issue**: Comparing one turn-on pulse only with nominal melting I^2t does not
+support the live claim that F2 “survives every turn-on.” Fuse fatigue and the
+required recovery-cycle life remain unbounded.
+**Evidence**: `Littelfuse_451_453.pdf` p.2 labels 0.00019 A^2s **nominal**
+melting I^2t; it is not a repetitive-pulse guarantee. The design's own
+`6.0e-5 A^2s` pulse is 31.6 % of that nominal value. Littelfuse's official
+[Fuseology Selection Guide](https://www.littelfuse.com/assetdocs/fuseology-selection-guide?assetguid=d812dff2-1c47-4dc3-bce7-07a4001ddc32)
+p.4 recommends pulse I^2t no greater than 20 % of nominal as general practice,
+and its pulse-cycle table gives 22 % for 100,000 pulses and 29 % for 10,000
+pulses (10 s cooling). The present ratio exceeds both. DR-28 asks for repeated
+recovery testing but defines no cycle count, sample plan, or life criterion.
+**Suggested fix**: Define the maximum lifetime recovery-event count and minimum
+cooling interval, apply Littelfuse's pulse-cycle derating plus voltage and
+component tolerances, and select a fuse/inrush network that passes both that
+life requirement and Finding 86's fault-clearing coordination. Give DR-28 a
+quantified cycle/sample/temperature acceptance criterion; do not retain
+“every turn-on” unless the resulting guarantee supports it.
+
+### Finding 88 — IMPORTANT — G3 / R_inrush Mouser SKU
+**Issue**: The new Mouser cell is not an orderable SKU resolved to the selected
+MPN, so the claimed changed-cell sweep and Active status are false for that
+cell.
+**Evidence**: Canonical `POST /resolve` on 2026-07-18 returns `matched:none`
+with no provider error for `71-CRCW1206150RFKEAHP`. In the same batch,
+`71-CRCW1206150RFKEAH` returns `matched:exact`, manufacturer Vishay, MPN
+`CRCW1206150RFKEAHP`. The bad cell is live in both BOMs, D19, the packet
+response, and `docs/hardware/bom.md`.
+**Suggested fix**: Replace every live Mouser cell for R_inrush with
+`71-CRCW1206150RFKEAH`, re-run `/resolve`, and add the superseded bad token to
+D35's registry and fixtures.
+
+### Finding 89 — IMPORTANT — D35 / stale F84 registry and regression fixture
+**Issue**: The consistency gate exits 0 while its F84 correction text and
+passing fixture still encode the designer's superseded intermediate 220 Ohm
+design. The regression floor therefore contradicts the current 150 Ohm design
+and would accept reintroduction of that stale correction.
+**Evidence**: `doc_consistency_check.py` lines 525-530 name
+`CRCW1206220RFKEAHP`, a 220 Ohm R_inrush, and 0.134 A as the required current
+facts. Its passing fixture at lines 711-712 likewise states that 220 Ohm is the
+corrected value. The checker does not inspect its own source, so these stale
+facts survive the exit-0 run.
+**Suggested fix**: Update the registry's current token/hint and passing fixture
+to the final 150 Ohm design, add a failing fixture for the retired 220 Ohm MPN
+and value, add Finding 88's bad SKU, and demonstrate that the pre-fix strings
+fail while the corrected strings pass.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 1 blockers, 3 important. (See findings 86, 87, 88, 89.)
