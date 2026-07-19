@@ -58,5 +58,15 @@ note: >
   F2 covers U2-input faults while U2 foldback + the display PTC (F1_disp
   ~0.25 A, DR-11) cover U2-output faults (both zones, no redundancy).
   D35 exit 0.
+  ITERATED self-review to a clean pass before handing off (user: hand back
+  only once my own reviews come back clean). Six passes; each fix, then
+  re-review, until a full pass found nothing: (1) inrush/fault ignored the
+  F2 fuse's 5.5 Ohm cold resistance + SSR Ron -> R_branch ~156 Ohm, honest
+  ~0.19 A / ~300% (~260% cold) / ~5.2 W; (2) fuse I2t margin 3.2x not 4.4x,
+  and 0.19^2*150 rewritten to true 5.2 W; (3) DR-28 + docs-BOM R_inrush
+  price ($0.40->$0.08) were stale; (4/5) I first mis-corrected the cost
+  delta to +$3 by dropping the SSR $2.81 -> a later pass caught it, honest
+  net ~+$6; (6) clean. Conclusions unchanged throughout. D35 exit 0,
+  fixtures pass. Packet section 41.
 
 user_pause_reasons_seen_this_run: []

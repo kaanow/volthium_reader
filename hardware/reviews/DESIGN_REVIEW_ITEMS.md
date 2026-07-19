@@ -907,10 +907,12 @@ the reviewer, post-iter-52):
    architecture is unaffected either way).
 
 2. **Fault/inrush coordination (F84).** R_inrush 150 Ω + F2 62 mA are
-   coordinated by analysis (inrush 0.197 A < SSR continuous; short 0.197 A =
-   317 %, ≈276 % at −40 °C, clears F2 within 200 %→5 s; R_inrush 5.8 W under
-   the §8.1 short-term-overload). **Acceptance tests:** (a) confirm the
-   turn-on inrush peak ≤ ~0.2 A and that repeated SOC-recovery cycling shows
+   coordinated by analysis, over the branch series R ≈ R_inrush 150 Ω + F2
+   cold 5.5 Ω + SSR Ron ≈ 156 Ω (inrush/short ≈ 0.19 A < SSR continuous;
+   short = ~300 % of F2, ≈260 % at −40 °C, clears within 200 %→5 s; R_inrush
+   ~5.2 W under the §8.1 short-term-overload at 1.5 W). **Acceptance tests:**
+   (a) confirm the turn-on inrush peak ≤ ~0.2 A and that repeated
+   SOC-recovery cycling shows
    no SSR/R_inrush/F2 degradation; (b) apply a deliberate V24_SW short at
    the temperature extremes (esp. −40 °C) and confirm **F2 opens** and
    R_inrush is undamaged. Fail cold → the fuse/R_inrush multiple needs

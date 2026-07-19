@@ -5538,7 +5538,7 @@ new, on-file, Active parts and proved coordination from their datasheets
   V24_SW/C3/U2 short is R_inrush-limited to **~0.19 A**: below the SSR
   continuous (SSR safe for any duration), and **~300 % of F2 — comfortably
   above the 200 % guaranteed-open threshold**, so it clears reliably and
-  fast. R_inrush's 0.19²·150 ≈ **5.3 W** exposure is brief, and even at the
+  fast. R_inrush's 0.187²·150 ≈ **5.2 W** exposure is brief, and even at the
   fuse's worst-case 5 s bound is under the CRCW1206-HP **§8.1
   short-term-overload guarantee at the part's 1.5 W rating** (9.4 W/5 s). F2
   is the *designed* first-fault element; F1 the upstream backstop.
@@ -5553,20 +5553,30 @@ new, on-file, Active parts and proved coordination from their datasheets
   and is better stocked (541-150UTR-ND, 20k). **The two bring-up acceptance
   tests this branch rests on (F83 State-4 leakage < 5 mW; F84 cold short
   clears F2) are now tracked as DR-28 (OPEN), not left as prose.**
-- **Second self-review pass (user asked for another before hand-off) — one
-  more correction.** My inrush/fault currents had used R_inrush alone; they
-  ignored the **F2 fuse's own 5.5 Ω cold resistance** (datasheet p.2) + SSR
-  Ron in series. Including them, R_branch ≈ 156 Ω, so the honest figures are
-  **~0.19 A / ~300 % of F2 (≈260 % at −40 °C) / ~5.3 W**, not the 0.197 A /
-  317 % / 5.8 W I first wrote. Conclusion unchanged (still ≫ 200 % with cold
-  margin; R_inrush under the §8.1 1.5 W guarantee), but the numbers are now
-  conservative and were corrected consistently across all docs + this packet.
-  The same series-R accounting makes the *rejected* 220 Ω case worse still
-  (~208 % → ~181 % cold), reinforcing 150 Ω. Also verified (holds): SSR LED
-  drive stays ≥ 5 mA at −40 °C (VF rises ~0.1 V, I_F ~5.1 mA ≥ operate); and
-  F2/R_inrush protect U2's *input* while U2 foldback + the display-side PTC
-  (F1_disp ~0.25 A, DR-11) cover U2's *output* — the two fault zones are both
-  covered, no redundancy.
+- **Iterated self-review to a clean pass before hand-off (user standard:
+  "hand it back once your reviews come back clean").** Ran repeated
+  adversarial passes on my own work, fixing everything each surfaced, until
+  a full pass found nothing:
+  - *Series resistance:* the inrush/fault currents had used R_inrush alone —
+    ignoring the **F2 fuse's own 5.5 Ω cold resistance** (datasheet p.2) +
+    SSR Ron. Over R_branch ≈ 156 Ω the honest figures are **~0.19 A / ~300 %
+    of F2 (≈260 % at −40 °C) / ~5.2 W**, not the 0.197 A / 317 % / 5.8 W I
+    first wrote. (The same accounting makes the *rejected* 220 Ω case
+    ~208 % → ~181 % cold, reinforcing 150 Ω.)
+  - *Derived numbers:* the fuse-survival I²t margin is **3.2×** (with the
+    corrected 6.0e-5), not the 4.4× I'd left; "0.19²·150" was rewritten to
+    the true 0.187 A → **~5.2 W** (the literal square gave 5.4).
+  - *Cost:* I first mis-"corrected" the branch delta to +$3 by dropping the
+    SSR's own $2.81 — a later pass caught it; the honest net is **~+$6**
+    (SSR $2.81 + R_opto + R_inrush + F2 $4.57 = $7.56, less the ~$1.9 gate
+    network), raising the battery-side ~$83 snapshot toward ~$89.
+  - *Stale propagation:* DR-28 and the docs-BOM R_inrush price ($0.40→$0.08)
+    still had pre-correction values; fixed.
+  - *Verified and holds:* SSR LED drive ≥5 mA at −40 °C (VF +0.1 V →
+    I_F ~5.1 mA ≥ operate); F2/R_inrush protect U2's *input* while U2
+    foldback + the display-side PTC (F1_disp ~0.25 A, DR-11) cover U2's
+    *output* (both zones, no redundancy); §8.1 (9.4 W/5 s at 1.5 W) covers
+    the 5.2 W fault for the full worst-case clear.
 - SKUs (resolve-exact 2026-07-18): R_inrush 541-150UTR-ND /
   71-CRCW1206150RFKEAHP (Active); F2 F3153TR-ND / 576-0451.062MRL (Active).
   Updated across cp1_bom, cp1_battery_side (narrative + drawing + rows +

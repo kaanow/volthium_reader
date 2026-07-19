@@ -178,7 +178,8 @@ AQY212EH column, corrected iter-50 per F79 — the earlier 0.25 Ω /
   for the discrete driver (there it fed a divider and could self-turn-on).
 - **ON is guaranteed by LED current (F79).** Worst-case
   I_F = (3.3 − V_F max 1.5)/(330·1.01) = **5.4 mA ≥ the 5 mA recommended
-  minimum** (nom 6.2 mA), comfortably above the 3 mA operate spec. Ron
+  minimum** (nom 6.2 mA); the true worst case is **−40 °C** where V_F rises
+  ~0.1 V → I_F ~5.1 mA, still ≥ 5 mA and ≫ the 3 mA operate spec. Ron
   **0.85 Ω typ / 2.5 Ω max**; at the ~5 mA display draw that is ≤13 mV.
 - **Inrush + fault coordinated as one network (F80/F84).** The switched
   branch is protected by **R_inrush = 150 Ω (pulse-proof Vishay CRCW-HP,
@@ -195,7 +196,7 @@ AQY212EH column, corrected iter-50 per F79 — the earlier 0.25 Ω /
     22 µF = **3.3 ms**; ~17 ms (5τ) to full charge (corrects the earlier
     "<1 ms" — 22 Ω·22 µF was already 0.48 ms, not <1 ms to settle).
   - *F2 survives every turn-on:* per-turn-on I²t = ½CV²/R = **6.0e-5 A²s**
-    < F2 nominal melting I²t **1.9e-4 A²s** (datasheet p.2) — 4.4× margin.
+    < F2 nominal melting I²t **1.9e-4 A²s** (datasheet p.2) — **3.2×** margin (melting I²t is adiabatic → holds across temperature).
   - *Downstream short (V24_SW/C3/U2 input):* current is R_inrush-limited
     to **~0.19 A** — *below the SSR continuous rating* (SSR undamaged for
     any duration, no pulse-rating reliance) and **~300 % of the 62 mA F2**,
@@ -208,8 +209,8 @@ AQY212EH column, corrected iter-50 per F79 — the earlier 0.25 Ω /
     threshold: the fuse might not clear and R_inrush would then hold ~4 W
     *continuously* in a 1.5 W part → cook. 150 Ω keeps a temperature-robust
     clearing margin. Because the clear is fast (~300 % ⇒ ≪5 s), R_inrush's
-    0.19²·150 ≈ **5.3 W** exposure is brief; and even at the fuse's
-    worst-case 5 s bound, 5.3 W is under the CRCW1206-HP §8.1
+    0.187²·150 ≈ **5.2 W** exposure is brief; and even at the fuse's
+    worst-case 5 s bound, 5.2 W is under the CRCW1206-HP §8.1
     short-term-overload guarantee at the part's **1.5 W rating**
     (2.5·√(P·R)/5 s = 9.4 W). So **F2 is the designed first-fault
     element**, with F1 (1 A board fuse) the upstream backstop. Datasheets

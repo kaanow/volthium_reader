@@ -1228,7 +1228,7 @@ coordination defects together.
     (≫ its 200 % guaranteed-open threshold — and 150 Ω not 220 Ω *because*
     a fuse holds more when cold, so at −40 °C the 220 Ω option's ~208 % fell
     to ~188 % < 200 % and might not clear; 150 Ω keeps ≈260 % at −40 °C),
-    and 5.3 W in R_inrush for the brief fast clear — under the CRCW1206-HP
+    and 5.2 W in R_inrush for the brief fast clear — under the CRCW1206-HP
     §8.1 short-term-overload guarantee (9.4 W/5 s at the 1.5 W rating).
     F2 is the designed first-fault element; F1 the upstream backstop.
     Datasheets: Vishay_CRCW_HP.pdf (bdd4e4b9), Littelfuse_451_453.pdf
