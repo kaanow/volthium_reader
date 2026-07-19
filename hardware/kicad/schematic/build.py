@@ -307,10 +307,12 @@ class Sheet:
         return False
 
 
-def build_input_protection():
-    s = Sheet("Battery-side — input protection (CP2 slice)")
-    yr, yg = snap(88.9), snap(113.03)
-    xin, xf1, xd1, xnod, xc1 = map(snap, (46.99, 63.5, 78.74, 93.98, 109.22))
+def blk_input_protection(s, cx, cy):
+    """J1 -> F1 (1A T) -> D1 (SS26 reverse-polarity) -> V24_FUSED, TVS1 + C1 to
+    GND. Translated onto (cx,cy) = block centre."""
+    ox, oy = cx - snap(78.1), cy - snap(100.97)      # translate the validated layout
+    yr, yg = snap(88.9 + oy), snap(113.03 + oy)
+    xin, xf1, xd1, xnod, xc1 = [snap(v + ox) for v in (46.99, 63.5, 78.74, 93.98, 109.22)]
     # pin selectors by geometry (orientation-independent wiring)
     leftp  = lambda pp: min(pp.values(), key=lambda xy: xy[0])
     rightp = lambda pp: max(pp.values(), key=lambda xy: xy[0])
@@ -330,21 +332,17 @@ def build_input_protection():
     s.wire(botp(tv), (xnod, yg)); s.wire((xnod, yg), (xc1, yg)); s.wire(botp(c1), (xc1, yg))
     s.label("GND", (snap(xnod-10.16), yg), justify_h="right")  # wire exits right → body left
     s.wire((snap(xnod-10.16), yg), (xnod, yg))
-    s.add_junctions()
-    return s
 
 
-def build_always_on_power():
+def blk_always_on_power(s, cx, cy):
     """Always-on 3V3 rail: U1 LM5166Y (24V->3V3 sync buck, PFM, ultra-low Iq).
     Design verified against LM5166 datasheet (Design 3, 24V/3.3V PFM):
       EN->VIN direct tie (rec-op 65V >= 53.3V clamp; 'connect EN directly to
       VIN', p.21); RT->GND selects PFM (lowest light-load Iq); R_ILIM 56.2k =>
       750mA peak / 300mA IOUT (Table 3); SS/HYS/PGOOD open; L1 4.7uH Isat>=2.2A;
       C1 22uF/100V (Vin, behind clamp); C2 47uF/25V (Eq 31 margin). Net in:
-      V24_FUSED; net out: V3V3 (always-on); GND."""
-    s = Sheet("Battery-side — always-on 3V3 rail (U1 LM5166Y buck)")
-    cx, cy = snap(152.4), snap(104.14)
-    y_gnd = snap(118.11)
+      V24_FUSED; net out: V3V3 (always-on); GND. (cx,cy) = U1 centre."""
+    y_gnd = snap(cy + 13.97)
     u1 = s.place("LM5166Y", "U1", "LM5166YDRCR", "Package_SON:Texas_S-PVSON-N10_ThermalVias",
                  (cx, cy), angle=0, tanchor="u")
     VIN, EN, PGOOD, HYS = u1["2"], u1["7"], u1["6"], u1["9"]
@@ -399,17 +397,13 @@ def build_always_on_power():
     # ---- intentionally-open pins ----
     for p in (PGOOD, HYS, SS):
         s.no_connect(p)
-    s.add_junctions()
-    return s
 
 
-def build_rs485():
+def blk_rs485(s, cx, cy):
     """RS-485 half-duplex transceiver to the display side (U3 THVD1400, D34).
     Control (RO/nRE/DE/DI) -> MCU; differential A/B -> Cat5e, with the 120 Ohm
     terminator R10 and differential TVS2 across A-B; C10 decoupling. No idle
-    bias (THVD1400 full fail-safe RX; DR-4b/F12). VCC = V3V3."""
-    s = Sheet("Battery-side — RS-485 transceiver (U3 THVD1400)")
-    cx, cy = snap(152.4), snap(104.14)
+    bias (THVD1400 full fail-safe RX; DR-4b/F12). VCC = V3V3. (cx,cy)=U3 centre."""
     u3 = s.place("THVD1400D", "U3", "THVD1400DR", "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
                  (cx, cy), angle=0, tanchor="u", tgap=5.08)
     RO, nRE, DE, DI = u3["1"], u3["2"], u3["3"], u3["4"]
@@ -455,6 +449,13 @@ def build_rs485():
     s.label("RS485_A", (xlblB, yA), justify_h="left")
     s.label("RS485_B", (xlblB, yB), justify_h="left")
 
+
+# ---- sheet composition: several functional blocks per US-Letter sheet --------
+def sheet(title, *placements):
+    """Compose blocks onto one sheet: each placement is (blk_fn, cx, cy)."""
+    s = Sheet(title)
+    for fn, cx, cy in placements:
+        fn(s, snap(cx), snap(cy))
     s.add_junctions()
     return s
 
@@ -463,8 +464,8 @@ def kcli(*a): return subprocess.run(["kicad-cli", *a], capture_output=True, text
 
 MM = 2.8346   # schematic mm -> PDF points
 
-def render(s, name, clip_mm):
-    """gate -> ERC -> PDF -> full PNG + high-zoom crop. clip_mm=(x1,y1,x2,y2)."""
+def render(s, name, crops=()):
+    """gate -> ERC -> PDF -> full-page PNG (+ optional per-region crops)."""
     bad = s.gate()
     if bad:
         print(f"[{name}] READABILITY GATE FAILED:"); [print("  "+b) for b in bad]
@@ -473,11 +474,8 @@ def render(s, name, clip_mm):
     schf = OUT / f"{name}.kicad_sch"; s.sch.to_file(str(schf))
     kcli("sch", "erc", "-o", str(OUT/f"{name}.erc.rpt"), str(schf))
     rpt = open(OUT/f"{name}.erc.rpt").read() if (OUT/f"{name}.erc.rpt").exists() else ""
-    # Classify ERC: real defects vs standalone-expected. power_pin_not_driven is
-    # expected for a block whose supply/ground enter from an adjacent sheet
-    # (a PWR_FLAG is added once at hierarchical assembly, not per block).
-    real = [ln for ln in ("dangling", "pin_not_connected", "endpoint_off_grid",
-                          "no_connect_connected") if ln in rpt]
+    # power_pin_not_driven is expected for a sheet whose supply/ground enter from
+    # an adjacent sheet (a PWR_FLAG is added once at hierarchical assembly).
     nd = rpt.count("dangling") + rpt.count("[pin_not_connected]")
     exp = rpt.count("power_pin_not_driven")
     print(f"[{name}] ERC real-defects={nd} (standalone-expected power-flag={exp})")
@@ -487,19 +485,23 @@ def render(s, name, clip_mm):
     kcli("sch", "export", "pdf", "-o", str(OUT/f"{name}.pdf"), str(schf))
     import fitz
     doc = fitz.open(str(OUT/f"{name}.pdf"))
-    doc[0].get_pixmap(matrix=fitz.Matrix(6, 6)).save(str(OUT/f"{name}.png"))
-    x1, y1, x2, y2 = clip_mm
-    clip = fitz.Rect(x1*MM, y1*MM, x2*MM, y2*MM)
-    doc[0].get_pixmap(matrix=fitz.Matrix(11, 11), clip=clip).save(str(OUT/f"{name}.crop.png"))
-    print(f"[{name}] PNG + crop written")
+    doc[0].get_pixmap(matrix=fitz.Matrix(7, 7)).save(str(OUT/f"{name}.png"))
+    for i, (x1, y1, x2, y2) in enumerate(crops):
+        clip = fitz.Rect(x1*MM, y1*MM, x2*MM, y2*MM)
+        doc[0].get_pixmap(matrix=fitz.Matrix(11, 11), clip=clip).save(str(OUT/f"{name}.crop{i}.png"))
+    print(f"[{name}] PNG{' + '+str(len(crops))+' crops' if crops else ''} written")
     return nd == 0
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     ok = True
-    ok &= render(build_input_protection(), "input_protection", (40, 80, 122, 120))
-    ok &= render(build_always_on_power(), "always_on_power", (108, 82, 192, 126))
-    ok &= render(build_rs485(), "rs485", (120, 82, 208, 126))
+    # Sheet 1 — power path (protection + always-on buck; SSR + U2 to come)
+    ok &= render(sheet("Battery-side — Power path",
+                       (blk_input_protection, 78, 62),
+                       (blk_always_on_power, 205, 62)), "sheet_power")
+    # Sheet — comms/peripherals (RS-485; RTC + sense to come)
+    ok &= render(sheet("Battery-side — Peripherals & comms",
+                       (blk_rs485, 90, 62)), "sheet_periph")
     return 0 if ok else 2
 
 if __name__ == "__main__":
