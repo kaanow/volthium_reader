@@ -45,6 +45,8 @@ SYMBOLS = {
     "L":       (str(LIB), "L"),      "Fuse":  (str(LIB), "Fuse"),
     "D":       (str(LIB), "D"),      "D_TVS": (str(LIB), "D_TVS"),
     "LED":     (str(LIB), "LED"),    "Polyfuse": (str(LIB), "Polyfuse"),
+    "AQY212EH": (str(LIB), "AQY212EH"),          # custom PhotoMOS SSR symbol
+    "Q_PMOS_GSD": (str(LIB), "Q_PMOS_GSD"),      # NTR4171P (std SOT-23 GSD)
     # -- KiCad stock ICs (exact entry names verified 2026-07) --
     "LM5166Y":          (f"{STOCK}/Regulator_Switching.kicad_sym", "LM5166Y"),
     "THVD1400D":        (f"{STOCK}/Interface_UART.kicad_sym",      "THVD1400D"),
@@ -465,6 +467,54 @@ def blk_rs485(s, cx, cy):
     s.label("RS485_B", (xlblB, yB), justify_h="left")
 
 
+def blk_ssr(s, cx, cy):
+    """Display-feed load switch (F76): V24_FUSED -> F2 (80mA) -> SSR1 (AQY212EH
+    PhotoMOS) -> R_inrush (2x75R = 150R) -> V24_SW. SSR LED driven by PWR_EN via
+    R_opto (330R); R4 100k pull-down holds the LED OFF when PWR_EN floats
+    (reset/brown-out). (cx,cy)=SSR1 centre."""
+    yg = snap(cy + 13.97)
+    ssr = s.place("AQY212EH", "SSR1", "AQY212EH", "Relay_SolidState:Panasonic_DIP-4_LongPin",
+                  (cx, cy), angle=0, tanchor="u")
+    A, K, OUT3, OUT4 = ssr["1"], ssr["2"], ssr["3"], ssr["4"]
+
+    # ---- input LED: PWR_EN -> R_opto -> A(anode); K(cathode) -> GND; R4 pulldown ----
+    ropto = s.place("R", "R_opto", "330", "R_0805_2012Metric", (snap(cx - 17.78), A[1]),
+                    angle=90, tanchor="ud", bw=7.62)
+    roL = min(ropto.values(), key=lambda p: p[0]); roR = max(ropto.values(), key=lambda p: p[0])
+    s.wire(roR, A)
+    xen, xn = snap(cx - 40.64), snap(cx - 27.94)      # PWR_EN label, R4 tap node
+    s.label("PWR_EN", (xen, A[1]), justify_h="right")
+    s.wire((xen, A[1]), (xn, A[1])); s.wire((xn, A[1]), roL)
+    r4 = s.place("R", "R4", "100k", "R_0805_2012Metric", (xn, snap(A[1] + 3.81)), tanchor="l")
+    s.wire(r4["2"], (xn, yg))                          # R4 top sits on the PWR_EN node
+    s.wire(K, (K[0], yg))                             # cathode -> GND rail
+
+    # ---- output: OUT4/OUT3 fanned to separated rows for label room ----
+    yF, yR = snap(cy - 8.89), snap(cy + 8.89)         # F2 row / R_inrush row
+    xf = snap(cx + 13.97)
+    s.wire(OUT4, (xf, OUT4[1])); s.wire((xf, OUT4[1]), (xf, yF))
+    s.wire(OUT3, (xf, OUT3[1])); s.wire((xf, OUT3[1]), (xf, yR))
+    # V24_FUSED -> F2 -> OUT4 (top row)
+    f2 = s.place("Fuse", "F2", "80mA", "Fuse:Fuse_0451_SMF", (snap(cx + 22.86), yF),
+                 angle=90, tanchor="ud", bw=7.62)
+    f2L = min(f2.values(), key=lambda p: p[0]); f2R = max(f2.values(), key=lambda p: p[0])
+    s.wire((xf, yF), f2L); s.wire(f2R, (snap(cx + 38.1), yF))
+    s.label("V24_FUSED", (snap(cx + 38.1), yF), justify_h="left")
+    # OUT3 -> R_inrush x2 -> V24_SW (bottom row)
+    ri1 = s.place("R", "R_inrush1", "75", "R_1206_3216Metric", (snap(cx + 22.86), yR),
+                  angle=90, tanchor="ud", bw=7.62)
+    ri2 = s.place("R", "R_inrush2", "75", "R_1206_3216Metric", (snap(cx + 35.56), yR),
+                  angle=90, tanchor="ud", bw=7.62)
+    r1L = min(ri1.values(), key=lambda p: p[0]); r1R = max(ri1.values(), key=lambda p: p[0])
+    r2L = min(ri2.values(), key=lambda p: p[0]); r2R = max(ri2.values(), key=lambda p: p[0])
+    s.wire((xf, yR), r1L); s.wire(r1R, r2L); s.wire(r2R, (snap(cx + 48.26), yR))
+    s.label("V24_SW", (snap(cx + 48.26), yR), justify_h="left")
+
+    # ---- GND rail ----
+    s.wire((snap(xn - 7.62), yg), (K[0], yg))
+    s.label("GND", (snap(xn - 7.62), yg), justify_h="right")
+
+
 def blk_u2(s, cx, cy):
     """Switched 12V converter (behind SSR1): V24_SW -> U2 R-78HB12 -> V12_CAT5E.
     C3 in (3.3µF/100V, behind the clamp; F90), C4 out (22µF/25V), TVS3 SMAJ15A
@@ -667,6 +717,7 @@ def main():
     ok &= render(sheet("Battery-side — Power path",
                        (blk_input_protection, 78, 62),
                        (blk_always_on_power, 205, 62),
+                       (blk_ssr, 78, 140),
                        (blk_u2, 205, 140)), "sheet_power")
     # Sheet — comms/peripherals (RS-485 + RTC)
     ok &= render(sheet("Battery-side — Peripherals & comms",
