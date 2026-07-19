@@ -182,30 +182,34 @@ AQY212EH column, corrected iter-50 per F79 — the earlier 0.25 Ω /
   **0.85 Ω typ / 2.5 Ω max**; at the ~5 mA display draw that is ≤13 mV.
 - **Inrush + fault coordinated as one network (F80/F84).** The switched
   branch is protected by **R_inrush = 150 Ω (pulse-proof Vishay CRCW-HP,
-  1.5 W)** and a **62 mA very-fast fuse F2** (Littelfuse 451):
+  1.5 W)** and a **62 mA very-fast fuse F2** (Littelfuse 451). The
+  current-limiting element is the **branch series resistance**
+  R_branch ≈ R_inrush 150 Ω + **F2 cold resistance 5.5 Ω** (datasheet p.2)
+  + SSR Ron ≈ **156 Ω** — the fuse's own 5.5 Ω is *not* negligible against
+  150 Ω and is included below (it lowers the current ~4 %):
   - *Recurring turn-on:* R_inrush limits the C3 (22 µF) charge peak to
-    **0.197 A @29.2 V** — **below the SSR's 0.30 A @85 °C *continuous*
-    rating** (0.66×), so the event that recurs on every SOC recovery sits
+    29.2 V / 156 Ω ≈ **~0.19 A** — **below the SSR's 0.30 A @85 °C *continuous*
+    rating** (0.63×), so the event that recurs on every SOC recovery sits
     within continuous ratings and needs **no** one-shot pulse rating
     (which the datasheet only gives as 1.5 A/100 ms, 1-shot). τ = 150 Ω ·
     22 µF = **3.3 ms**; ~17 ms (5τ) to full charge (corrects the earlier
     "<1 ms" — 22 Ω·22 µF was already 0.48 ms, not <1 ms to settle).
-  - *F2 survives every turn-on:* per-turn-on I²t = ½CV²/R = **6.3e-5 A²s**
+  - *F2 survives every turn-on:* per-turn-on I²t = ½CV²/R = **6.0e-5 A²s**
     < F2 nominal melting I²t **1.9e-4 A²s** (datasheet p.2) — 4.4× margin.
   - *Downstream short (V24_SW/C3/U2 input):* current is R_inrush-limited
-    to **0.197 A** — *below the SSR continuous rating* (SSR undamaged for
-    any duration, no pulse-rating reliance) and **317 % of the 62 mA F2**,
+    to **~0.19 A** — *below the SSR continuous rating* (SSR undamaged for
+    any duration, no pulse-rating reliance) and **~300 % of the 62 mA F2**,
     comfortably above the fuse's **200 % guaranteed-open threshold**, so
     F2 clears reliably and fast. **Why 150 Ω and not 220 Ω (cold-temp
     coordination):** a fuse carries *more* current before opening when
     cold, so at −40 °C (DR-22 — the off-grid cabin can go sub-zero) the
-    effective multiple drops ~15 % to ≈276 % — still ≫ 200 %. At 220 Ω the
-    fault was only 216 % → ~188 % at −40 °C, **below** the guaranteed-open
+    effective multiple drops ~15 % to ≈260 % — still ≫ 200 %. At 220 Ω the
+    fault was only ~208 % → ~181 % at −40 °C, **below** the guaranteed-open
     threshold: the fuse might not clear and R_inrush would then hold ~4 W
     *continuously* in a 1.5 W part → cook. 150 Ω keeps a temperature-robust
-    clearing margin. Because the clear is fast (317 % ⇒ ≪5 s), R_inrush's
-    0.197²·150 = **5.8 W** exposure is brief; and even at the fuse's
-    worst-case 5 s bound, 5.8 W is under the CRCW1206-HP §8.1
+    clearing margin. Because the clear is fast (~300 % ⇒ ≪5 s), R_inrush's
+    0.19²·150 ≈ **5.3 W** exposure is brief; and even at the fuse's
+    worst-case 5 s bound, 5.3 W is under the CRCW1206-HP §8.1
     short-term-overload guarantee at the part's **1.5 W rating**
     (2.5·√(P·R)/5 s = 9.4 W). So **F2 is the designed first-fault
     element**, with F1 (1 A board fuse) the upstream backstop. Datasheets
@@ -213,6 +217,12 @@ AQY212EH column, corrected iter-50 per F79 — the earlier 0.25 Ω /
     (399d3cc9).
   - *U2 headroom:* steady drop ≤2.3 V @15 mA peak (0.75 V @5 mA typ) →
     U2 input ≥21.7 V at low SOC ≫ its 17 V minimum.
+  - *Fault-domain completeness:* F2 + R_inrush protect only U2's **input**
+    node (V24_SW/C3). A short on U2's **output** — the 12 V Cat5e run or the
+    display — is a different zone, cleared by U2's own ~0.5 A foldback plus
+    the **display-side PTC polyfuse** (F1_disp, ~0.25 A hold, DR-11). So the
+    two ends cover the two fault zones; F2 is not redundant with the PTC (it
+    sits on the opposite side of U2).
 - **Load rating:** SSR continuous 0.55 A@25 °C, derating to 0.30 A@85 °C
   — both ≫ the ~5 mA (≤~15 mA at e-paper refresh) display draw.
 - **Surge.** Open, the SSR blocks the 53 V clamp (60 V rating). Closed,
@@ -299,8 +309,8 @@ foldback explicitly. The 530 mA "driver-active + WiFi-peak" case is
 |-----|-------------------------------------|----------------|-----|-----------|
 | SSR1 | **Panasonic AQY212EH** PhotoMOS SSR (1-Form-A, 60 V / 550 mA, **Ron 0.85 Ω typ / 2.5 Ω max** — F79) — display-feed load switch (F76) | DIP-4 (THT) | 1 | In the switched branch V24_FUSED→F2→SSR1→R_inrush→V24_SW. **OFF = open MOSFET, ≤1 µA @25 °C leakage (spec; no hot max published — est. + acceptance test, F83), rated −40…+85 °C, opto-isolated → cannot self-turn-on.** ON = LED via R_opto. Blocks the 53 V surge open (<60 V); passes it to the 72 V U2 closed |
 | R_opto | **330 Ω** (ESP PWR_EN → SSR1 LED anode; cathode → GND) | 0805 | 1 | SSR LED current limit; worst-case I_F 5.4 mA ≥ the 5 mA recommended min (F79). ~20 mW active, 0 in hard-cut |
-| R_inrush | **150 Ω 1206 pulse-proof (Vishay CRCW-HP, 1.5 W)** — switched branch | 1206 | 1 | 541-150UTR-ND / 71-CRCW1206150RFKEAHP. Limits recurring turn-on inrush into C3 to **0.197 A** (below SSR 0.30 A@85 °C continuous → no one-shot reliance, F84); survives the fault power to F2's clear (§8.1) |
-| F2 | **62 mA very-fast SMD fuse** (Littelfuse 451 Nano2 SMF) — switched branch | 1206 | 1 | F3153TR-ND / 576-0451.062MRL. Coordinated fault clear (F84): a V24_SW/C3/U2 short pulls only 0.197 A (R_inrush-limited) = 317 % → clears within 200 %→5 s; normal ~5 mA ≪ 62 mA. 125 V/50 A interrupt; melt I²t 1.9e-4 A²s |
+| R_inrush | **150 Ω 1206 pulse-proof (Vishay CRCW-HP, 1.5 W)** — switched branch | 1206 | 1 | 541-150UTR-ND / 71-CRCW1206150RFKEAHP. Limits recurring turn-on inrush into C3 to **~0.19 A** (below SSR 0.30 A@85 °C continuous → no one-shot reliance, F84); survives the fault power to F2's clear (§8.1) |
+| F2 | **62 mA very-fast SMD fuse** (Littelfuse 451 Nano2 SMF) — switched branch | 1206 | 1 | F3153TR-ND / 576-0451.062MRL. Coordinated fault clear (F84): a V24_SW/C3/U2 short pulls only ~0.19 A (R_inrush-limited) = ~300 % → clears within 200 %→5 s; normal ~5 mA ≪ 62 mA. 125 V/50 A interrupt; melt I²t 1.9e-4 A²s |
 | R4  | 100 kΩ pull-down: PWR_EN → GND     | 0805          | 1   | Holds PWR_EN low (SSR LED off → open) when the MCU GPIO floats (boot / brown-out) |
 
 **Power-first note (SSR)**: the PhotoMOS draws pack current only through

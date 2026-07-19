@@ -47,5 +47,16 @@ note: >
   docs + packet. Also captured the two bring-up acceptance tests this branch
   rests on (F83 State-4 leakage <5 mW; F84 cold short clears F2) as DR-28
   (OPEN) instead of leaving them as prose. D35 still exit 0.
+  SECOND self-review pass (user: "consider running another self review
+  before hand-off"): re-derived every F84 number independently and caught
+  that the inrush/fault currents ignored the F2 fuse's own 5.5 Ohm cold
+  resistance + SSR Ron in series -> R_branch ~156 Ohm, honest figures
+  ~0.19 A / ~300% (~260% cold) / ~5.3 W, not 0.197 A / 317% / 5.8 W.
+  Conclusion unchanged; corrected consistently across all docs + packet
+  (the same accounting makes the rejected 220 Ohm case ~208%/~181% cold,
+  reinforcing 150). Verified holds: SSR LED I_F ~5.1 mA >= 5 mA at -40 C;
+  F2 covers U2-input faults while U2 foldback + the display PTC (F1_disp
+  ~0.25 A, DR-11) cover U2-output faults (both zones, no redundancy).
+  D35 exit 0.
 
 user_pause_reasons_seen_this_run: []

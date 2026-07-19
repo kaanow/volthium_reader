@@ -1179,9 +1179,9 @@ coordination defects together.
   **R_inrush 150 Ω (pulse-proof)** → V24_SW, LED-driven from ESP `PWR_EN`
   through **R_opto 330 Ω** (worst-case I_F ≥ 5 mA ≥ datasheet-recommended
   5 mA). R_inrush limits the recurring turn-on inrush into C3 (22 µF) to
-  **0.197 A — below the SSR's 0.30 A @85 °C continuous rating** (no
+  **~0.19 A — below the SSR's 0.30 A @85 °C continuous rating** (no
   reliance on the 1.5 A/100 ms one-shot), and F2 clears a downstream short
-  the R_inrush limits to that same 0.197 A (coordinated network, F84).
+  the R_inrush limits to that same ~0.19 A (coordinated network, F84).
   It switches only U2/the display feed; the MCU rail stays always-on.
 
   *[Why an SSR — the discrete gate-driver saga, F60→F76. A high-side
@@ -1220,15 +1220,15 @@ coordination defects together.
     max → ≤13 mV drop at the ~5 mA display draw (≤0.75 V even at the SSR's
     0.3 A@85 °C continuous rating).
   - **Inrush + fault coordinated (F80/F84).** R_inrush 150 Ω (pulse-proof
-    Vishay CRCW-HP) limits the recurring turn-on inrush to **0.197 A —
+    Vishay CRCW-HP) limits the recurring turn-on inrush to **~0.19 A —
     below the SSR 0.30 A@85 °C continuous rating**, so the repetitive event
     needs no one-shot pulse rating; τ = 3.3 ms (~17 ms to full charge). A
-    downstream V24_SW/C3/U2 short is limited to that same 0.197 A: below
-    the SSR continuous (SSR safe), 317 % of the **62 mA very-fast fuse F2**
+    downstream V24_SW/C3/U2 short is limited to that same ~0.19 A: below
+    the SSR continuous (SSR safe), ~300 % of the **62 mA very-fast fuse F2**
     (≫ its 200 % guaranteed-open threshold — and 150 Ω not 220 Ω *because*
-    a fuse holds more when cold, so at −40 °C the 220 Ω option's 216 % fell
-    to ~188 % < 200 % and might not clear; 150 Ω keeps ≈276 % at −40 °C),
-    and 5.8 W in R_inrush for the brief fast clear — under the CRCW1206-HP
+    a fuse holds more when cold, so at −40 °C the 220 Ω option's ~208 % fell
+    to ~188 % < 200 % and might not clear; 150 Ω keeps ≈260 % at −40 °C),
+    and 5.3 W in R_inrush for the brief fast clear — under the CRCW1206-HP
     §8.1 short-term-overload guarantee (9.4 W/5 s at the 1.5 W rating).
     F2 is the designed first-fault element; F1 the upstream backstop.
     Datasheets: Vishay_CRCW_HP.pdf (bdd4e4b9), Littelfuse_451_453.pdf

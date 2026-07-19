@@ -5527,32 +5527,46 @@ new, on-file, Active parts and proved coordination from their datasheets
 (both fetched via the parts API this pass):
 - **R_inrush = 150 Ω pulse-proof (Vishay CRCW1206150RFKEAHP, 1.5 W;
   Vishay_CRCW_HP.pdf sha bdd4e4b9).** Limits the recurring turn-on inrush to
-  **0.197 A @29.2 V — below the SSR's 0.30 A @85 °C *continuous* rating**
-  (0.66×), so the repeating event sits within continuous ratings and needs
+  **~0.19 A @29.2 V — below the SSR's 0.30 A @85 °C *continuous* rating**
+  (0.63×), so the repeating event sits within continuous ratings and needs
   **no** one-shot pulse rating. Corrected the RC claim: τ = 150·22 µF =
   **3.3 ms**, ~17 ms to full charge (the old "<1 ms" was wrong; even 22 Ω
   was 0.48 ms).
 - **F2 = 62 mA very-fast fuse (Littelfuse 0451.062MRL; Littelfuse_451_453.pdf
-  sha 399d3cc9).** Per-turn-on inrush I²t = ½CV²/R = **6.3e-5 A²s** < F2
+  sha 399d3cc9).** Per-turn-on inrush I²t = ½CV²/R = **6.0e-5 A²s** < F2
   nominal melting I²t **1.9e-4 A²s** (p.2) → survives every turn-on. A
-  V24_SW/C3/U2 short is R_inrush-limited to **0.197 A**: below the SSR
-  continuous (SSR safe for any duration), and **317 % of F2 — comfortably
+  V24_SW/C3/U2 short is R_inrush-limited to **~0.19 A**: below the SSR
+  continuous (SSR safe for any duration), and **~300 % of F2 — comfortably
   above the 200 % guaranteed-open threshold**, so it clears reliably and
-  fast. R_inrush's 0.197²·150 = **5.8 W** exposure is brief, and even at the
+  fast. R_inrush's 0.19²·150 ≈ **5.3 W** exposure is brief, and even at the
   fuse's worst-case 5 s bound is under the CRCW1206-HP **§8.1
   short-term-overload guarantee at the part's 1.5 W rating** (9.4 W/5 s). F2
   is the *designed* first-fault element; F1 the upstream backstop.
 - **Self-caught after the initial fix (before this hand-off): the value is
-  150 Ω, not the 220 Ω I first wrote.** 220 Ω put the fault at only 216 %,
+  150 Ω, not the 220 Ω I first wrote.** 220 Ω put the fault at only ~208 %,
   which — because a fuse carries *more* current before opening when cold —
   falls to ~188 % (< the 200 % guaranteed-open threshold) at −40 °C (DR-22:
   sub-zero cabin). The fuse might then fail to clear, leaving R_inrush at
   ~4 W continuously in a 1.5 W part. That is the *same* fault-coordination
   gap across temperature that F84 is about — I'd re-introduced it. 150 Ω
-  gives 317 % (≈276 % even at −40 °C), a temperature-robust clearing margin,
+  gives ~300 % (≈260 % even at −40 °C), a temperature-robust clearing margin,
   and is better stocked (541-150UTR-ND, 20k). **The two bring-up acceptance
   tests this branch rests on (F83 State-4 leakage < 5 mW; F84 cold short
   clears F2) are now tracked as DR-28 (OPEN), not left as prose.**
+- **Second self-review pass (user asked for another before hand-off) — one
+  more correction.** My inrush/fault currents had used R_inrush alone; they
+  ignored the **F2 fuse's own 5.5 Ω cold resistance** (datasheet p.2) + SSR
+  Ron in series. Including them, R_branch ≈ 156 Ω, so the honest figures are
+  **~0.19 A / ~300 % of F2 (≈260 % at −40 °C) / ~5.3 W**, not the 0.197 A /
+  317 % / 5.8 W I first wrote. Conclusion unchanged (still ≫ 200 % with cold
+  margin; R_inrush under the §8.1 1.5 W guarantee), but the numbers are now
+  conservative and were corrected consistently across all docs + this packet.
+  The same series-R accounting makes the *rejected* 220 Ω case worse still
+  (~208 % → ~181 % cold), reinforcing 150 Ω. Also verified (holds): SSR LED
+  drive stays ≥ 5 mA at −40 °C (VF rises ~0.1 V, I_F ~5.1 mA ≥ operate); and
+  F2/R_inrush protect U2's *input* while U2 foldback + the display-side PTC
+  (F1_disp ~0.25 A, DR-11) cover U2's *output* — the two fault zones are both
+  covered, no redundancy.
 - SKUs (resolve-exact 2026-07-18): R_inrush 541-150UTR-ND /
   71-CRCW1206150RFKEAHP (Active); F2 F3153TR-ND / 576-0451.062MRL (Active).
   Updated across cp1_bom, cp1_battery_side (narrative + drawing + rows +
