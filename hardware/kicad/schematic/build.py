@@ -360,7 +360,7 @@ def blk_always_on_power(s, cx, cy):
       VIN', p.21); RT->GND selects PFM (lowest light-load Iq); R_ILIM 56.2k =>
       750mA peak / 300mA IOUT (Table 3); SS/HYS/PGOOD open; L1 4.7uH Isat>=2.2A;
       C1 22uF/100V (Vin, behind clamp); C2 47uF/25V (Eq 31 margin). Net in:
-      V24_FUSED; net out: V3V3 (always-on); GND. (cx,cy) = U1 centre."""
+      V24_FUSED; net out: V3V3_BUCK (-> USB mux U6 VIN2); GND. (cx,cy)=U1."""
     y_gnd = snap(cy + 13.97)
     u1 = s.place("LM5166Y", "U1", "LM5166YDRCR", "Package_SON:Texas_S-PVSON-N10_ThermalVias",
                  (cx, cy), angle=0, tanchor="u")
@@ -392,8 +392,8 @@ def blk_always_on_power(s, cx, cy):
     xlbl_out = snap(cx + 33.02)
     s.wire(lR, (xsense, y_in))                         # L1 -> sense node
     s.wire((xsense, y_in), (xc2, y_in))                # -> C2 tap
-    s.wire((xc2, y_in), (xlbl_out, y_in))              # -> V3V3 label
-    s.label("V3V3", (xlbl_out, y_in), justify_h="left")
+    s.wire((xc2, y_in), (xlbl_out, y_in))              # -> V3V3_BUCK (into the USB mux U6 VIN2)
+    s.label("V3V3_BUCK", (xlbl_out, y_in), justify_h="left")
     c2 = s.place("C", "C2", "47µF 25V", "C_1210_3225Metric",
                  (xc2, snap(y_in + 3.81)), angle=0, tanchor="r")
     s.wire(c2["2"], (xc2, y_gnd))                      # C2 bottom -> GND rail
@@ -467,6 +467,92 @@ def blk_rs485(s, cx, cy):
     s.wire((xbr2, yA), tvT); s.wire((xbr2, yB), tvB)                  # TVS2 across A-B
     s.label("RS485_A", (xlblB, yA), justify_h="left")
     s.label("RS485_B", (xlblB, yB), justify_h="left")
+
+
+def blk_usb(s, cx, cy):
+    """USB maintenance power (D29). U5 AP2112 LDO: VBUS->3V3_USB. U6 TPS2116
+    priority mux: VIN1=3V3_USB (priority), VIN2=V3V3_BUCK, OUT=V3V3; MODE->VIN1
+    (priority mode, datasheet). Fail-safe bypass (F03): Q3 (series in
+    UVLO_RESET->MCU_EN) default-ON via R_byp1(100k->V3V3); Q4 (VBUS-driven via
+    R_byp2 divider) pulls Q3 gate low when USB present -> MCU boots off USB on a
+    dead pack. (cx,cy) = U5 centre."""
+    yg = snap(cy + 15.24)
+    # ---- U5 AP2112 LDO: VBUS -> 3V3_USB ----
+    u5 = s.place("AP2112K-3.3", "U5", "AP2112K-3.3", "Package_TO_SOT_SMD:SOT-23-5",
+                 (cx, cy), angle=0, tanchor="u", tgap=3.0)
+    VIN, GND5, EN5, VOUT5 = u5["1"], u5["2"], u5["3"], u5["5"]
+    s.no_connect(u5["4"])
+    # VBUS -> C_usb1 -> VIN ; EN tied to VIN
+    xcu1, xvbus = snap(cx - 15.24), snap(cx - 25.4)
+    cu1 = s.place("C", "C_usb1", "1µF", "C_0603_1608Metric", (xcu1, snap(VIN[1] + 3.81)), tanchor="l")
+    s.label("VBUS", (xvbus, VIN[1]), justify_h="right")
+    s.wire((xvbus, VIN[1]), cu1["1"]); s.wire(cu1["1"], VIN); s.wire(cu1["2"], (xcu1, yg))
+    s.wire(EN5, VIN)                                   # EN tied to VIN (on whenever VBUS present)
+    s.wire(GND5, (GND5[0], yg))
+    # VOUT -> 3V3_USB ; C_usb2 output cap
+    xcu2 = snap(cx + 12.7)
+    cu2 = s.place("C", "C_usb2", "1µF", "C_0603_1608Metric", (xcu2, snap(VOUT5[1] + 3.81)), tanchor="r")
+    s.wire(VOUT5, cu2["1"]); s.wire(cu2["1"], (snap(cx + 20.32), VOUT5[1]))
+    s.label("3V3_USB", (snap(cx + 20.32), VOUT5[1]), justify_h="left")
+    s.wire(cu2["2"], (xcu2, yg))
+    # GND rail (U5 region)
+    s.wire((snap(xcu1 - 5.08), yg), (xcu2, yg))
+    s.label("GND", (snap(xcu1 - 5.08), yg), justify_h="right")
+
+
+def blk_usb_mux(s, cx, cy):
+    """U6 TPS2116 priority mux + Q3/Q4 fail-safe bypass (see blk_usb)."""
+    yg = snap(cy + 17.78)
+    u6 = s.place("TPS2116DRL", "U6", "TPS2116DRLR", "Package_SON:Texas_SOT-563",
+                 (cx, cy), angle=0, tanchor="u", tgap=3.0)
+    GND6, VOUT, VIN1, PR1, MODE, VIN2, ST = u6["1"], u6["2"], u6["3"], u6["4"], u6["5"], u6["6"], u6["8"]
+    s.no_connect(ST); s.no_connect(u6["7"])           # 2nd VOUT pin (tied internally)
+    # inputs (left)
+    for pin, net in ((VIN1, "3V3_USB"), (VIN2, "V3V3_BUCK")):
+        s.label(net, (snap(pin[0] - 15.24), pin[1]), justify_h="right"); s.wire((snap(pin[0] - 15.24), pin[1]), pin)
+    # MODE -> VIN1 (priority mode), PR1 -> VIN1 (prefer USB)
+    for pin in (MODE, PR1):
+        s.label("3V3_USB", (snap(pin[0] - 15.24), pin[1]), justify_h="right"); s.wire((snap(pin[0] - 15.24), pin[1]), pin)
+    # OUT -> V3V3
+    s.wire(VOUT, (snap(VOUT[0] + 8.89), VOUT[1])); s.label("V3V3", (snap(VOUT[0] + 15.24), VOUT[1]), justify_h="left")
+    s.wire((snap(VOUT[0] + 8.89), VOUT[1]), (snap(VOUT[0] + 15.24), VOUT[1]))
+    s.wire(GND6, (GND6[0], yg)); s.label("GND", (GND6[0], yg), justify_h="left")
+
+    # ---- Q3/Q4 fail-safe bypass (below U6): default-ON Q3, VBUS-driven Q4 ----
+    # Q3: series UVLO_RESET(S) -> MCU_EN(D); gate default-ON via R_byp1->V3V3.
+    qx, qy = snap(cx - 5.08), snap(cy + 33.02)
+    q3 = s.place("2N7002", "Q3", "2N7002", "Package_TO_SOT_SMD:SOT-23", (qx, qy), tanchor="r")
+    q3G, q3S, q3D = q3["1"], q3["2"], q3["3"]
+    s.wire(q3D, (q3D[0], snap(q3D[1] - 5.08)))
+    s.label("MCU_EN", (snap(q3D[0] + 7.62), snap(q3D[1] - 5.08)), justify_h="left")
+    s.wire((q3D[0], snap(q3D[1] - 5.08)), (snap(q3D[0] + 7.62), snap(q3D[1] - 5.08)))
+    s.wire(q3S, (q3S[0], snap(q3S[1] + 5.08)))
+    s.label("UVLO_RESET", (snap(q3S[0] + 7.62), snap(q3S[1] + 5.08)), justify_h="left")
+    s.wire((q3S[0], snap(q3S[1] + 5.08)), (snap(q3S[0] + 7.62), snap(q3S[1] + 5.08)))
+    # R_byp1: Q3 gate -> V3V3 (pull-up = default ON)
+    xg = snap(q3G[0] - 10.16)
+    rb1 = s.place("R", "R_byp1", "100k", "R_0805_2012Metric", (xg, snap(q3G[1] - 6.35)), tanchor="l")
+    s.wire(q3G, (xg, q3G[1])); s.wire((xg, q3G[1]), rb1["2"])
+    s.wire(rb1["1"], (xg, snap(rb1["1"][1] - 2.54)))
+    s.label("V3V3", (xg, snap(rb1["1"][1] - 2.54)), justify_h="right")
+    # Q4: gate <- VBUS divider (R_byp2 / R_byp2b); D -> Q3 gate node; S -> GND
+    q4 = s.place("2N7002", "Q4", "2N7002", "Package_TO_SOT_SMD:SOT-23", (qx, snap(qy + 25.4)), tanchor="r")
+    q4G, q4S, q4D = q4["1"], q4["2"], q4["3"]
+    s.wire(q4D, (q4D[0], snap(q4D[1] - 5.08))); s.wire((q4D[0], snap(q4D[1] - 5.08)), (xg, snap(q4D[1] - 5.08)))
+    s.wire((xg, snap(q4D[1] - 5.08)), (xg, q3G[1]))    # Q4 drain -> Q3 gate node (xg column)
+    s.wire(q4S, (q4S[0], snap(q4S[1] + 5.08)))
+    s.label("GND", (snap(q4S[0] + 7.62), snap(q4S[1] + 5.08)), justify_h="left")
+    s.wire((q4S[0], snap(q4S[1] + 5.08)), (snap(q4S[0] + 7.62), snap(q4S[1] + 5.08)))
+    # R_byp2 (VBUS -> Q4 gate) + R_byp2b (Q4 gate -> GND) divider — its own column,
+    # kept clear of the Q3-gate column (xg) so VBUS never touches the reset net.
+    xg4 = snap(q4G[0] - 20.32)
+    rb2 = s.place("R", "R_byp2", "100k", "R_0805_2012Metric", (xg4, snap(q4G[1] - 6.35)), tanchor="l")
+    s.wire(q4G, (xg4, q4G[1])); s.wire((xg4, q4G[1]), rb2["2"])
+    s.wire(rb2["1"], (xg4, snap(rb2["1"][1] - 2.54)))
+    s.label("VBUS", (xg4, snap(rb2["1"][1] - 2.54)), justify_h="right")
+    rb2b = s.place("R", "R_byp2b", "1M", "R_0805_2012Metric", (xg4, snap(q4G[1] + 6.35)), tanchor="l")
+    s.wire((xg4, q4G[1]), rb2b["1"]); s.wire(rb2b["2"], (xg4, snap(rb2b["2"][1] + 2.54)))
+    s.label("GND", (xg4, snap(rb2b["2"][1] + 2.54)), justify_h="right")
 
 
 def blk_ssr(s, cx, cy):
@@ -560,7 +646,10 @@ def blk_mcu(s, cx, cy):
     # pin number -> global net (side inferred from pin x)
     NETS = {"3": "MCU_EN", "39": "V24_SENSE", "38": "RS485_DE", "4": "PWR_EN",
             "7": "BTN_OVERRIDE", "12": "I2C_SDA", "17": "I2C_SCL", "8": "RS485_nRE",
-            "10": "RS485_DI", "11": "RS485_RO", "13": "USB_DM", "14": "USB_DP"}
+            "10": "RS485_DI", "11": "RS485_RO", "13": "USB_DM", "14": "USB_DP",
+            # expansion header (D37): dedicated I2C1 + 2x ADC1/RTC-wake AIO + DIO + PWR_EN
+            "15": "EXP_AIO1", "5": "EXP_AIO2", "18": "EXP_SDA", "19": "EXP_SCL",
+            "20": "EXP_PWR_EN", "31": "EXP_DIO3"}
     for num, net in NETS.items():
         pin = mod[num]
         if pin[0] < cx:
@@ -784,9 +873,13 @@ def main():
                        (blk_rs485, 90, 62),
                        (blk_rtc, 95, 140)), "sheet_periph")
     # Sheet — supervisor & USB power (UVLO + sense; USB to come)
-    ok &= render(sheet("Battery-side — Supervisor & USB power",
+    ok &= render(sheet("Battery-side — Supervisor",
                        (blk_uvlo, 82, 82),
                        (blk_sense, 210, 68)), "sheet_super")
+    # Sheet — USB maintenance power (LDO + priority mux + fail-safe bypass)
+    ok &= render(sheet("Battery-side — USB maintenance power",
+                       (blk_usb, 78, 62),
+                       (blk_usb_mux, 190, 62)), "sheet_usb")
     # Sheet — MCU
     ok &= render(sheet("Battery-side — MCU (ESP32-S3)",
                        (blk_mcu, 145, 105)), "sheet_mcu")
