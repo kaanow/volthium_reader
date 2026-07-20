@@ -148,6 +148,29 @@ class AsyncpgReadingsDAO:
             )
         return [dict(r) for r in rows]
 
+    async def recent_since(
+        self, source_id: Optional[str], since: datetime, limit: int
+    ) -> list[dict]:
+        """Rows STRICTLY AFTER `since`, OLDEST-first, capped at `limit`.
+        Powers the dashboard's incremental poll and status_check's windowed
+        fetch — both previously re-downloaded the whole history every call
+        (the 9 GB/day egress). Resolves source_id=None like recent()."""
+        async with self.pool.acquire() as conn:
+            if source_id is None:
+                src = await conn.fetchval(
+                    "SELECT source_id FROM readings ORDER BY ts DESC LIMIT 1"
+                )
+                if src is None:
+                    return []
+                source_id = src
+            rows = await conn.fetch(
+                """SELECT * FROM readings
+                   WHERE source_id = $1 AND ts > $2
+                   ORDER BY ts ASC LIMIT $3""",
+                source_id, since, limit,
+            )
+        return [dict(r) for r in rows]
+
     async def sources(self) -> list[str]:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(

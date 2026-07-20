@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -109,6 +110,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Volthium Cloud", lifespan=lifespan)
+# Gzip all responses over 500 B. The JSON telemetry compresses ~13× (measured:
+# a 720-row /api/readings response is 538 KB raw → 40 KB gzipped), so this one
+# line cuts dashboard + API egress by an order of magnitude across every client.
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 
 def get_dao() -> ReadingsDAO:
@@ -258,11 +263,25 @@ async def api_sources(dao: ReadingsDAO = Depends(get_dao)) -> dict:
 async def api_readings(
     source_id: Optional[str] = Query(default=None),
     limit: int = Query(default=720, ge=1, le=10000),   # 720 = 2h @ 10 s
+    since: Optional[str] = Query(
+        default=None,
+        description="ISO timestamp; return only readings STRICTLY AFTER it, "
+        "oldest-first. Lets the dashboard poll incrementally (fetch only new "
+        "rows) and status_check fetch just its window instead of the full "
+        "history — the fix for the 9 GB/day egress from full re-downloads.",
+    ),
     dao: ReadingsDAO = Depends(get_dao),
 ) -> dict:
-    rows = await dao.recent(source_id, limit)
-    # Newest-first from DAO; the dashboard wants oldest-first for charting.
-    rows = list(reversed(rows))
+    if since is not None and isinstance(dao, AsyncpgReadingsDAO):
+        try:
+            since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
+        except ValueError:
+            raise HTTPException(422, "since: not an ISO datetime")
+        rows = await dao.recent_since(source_id, since_dt, limit)  # oldest-first
+    else:
+        rows = await dao.recent(source_id, limit)
+        # Newest-first from DAO; the dashboard wants oldest-first for charting.
+        rows = list(reversed(rows))
     # Render datetimes as the wire's UTC-Z format so the browser parses cleanly.
     for r in rows:
         ts = r.get("ts")

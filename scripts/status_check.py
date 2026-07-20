@@ -55,10 +55,17 @@ def fetch_events(kind: str, since_iso: str, limit: int = 10_000) -> list[dict]:
     return [e for e in d.get("events", []) if e["ts"] >= since_iso]
 
 
-def fetch_readings(source: str, limit: int = 10_000) -> list[dict]:
-    """Returns newest-first. API caps `limit` at 10 000 — at ~10 s cadence
-    that's about 27 h of data, comfortably more than the default 24 h window."""
-    d = _get_json(f"/api/readings?source_id={source}&limit={limit}")
+def fetch_readings(
+    source: str, since: str | None = None, limit: int = 10_000
+) -> list[dict]:
+    """Fetch readings. With `since` (ISO ts) the server returns only rows
+    after it — we only ever analyze a bounded window, so passing `since`
+    avoids re-downloading the full history every run (was ~7.5 MB/call; the
+    windowed fetch is a fraction of that, and the server now gzips too)."""
+    q = f"/api/readings?source_id={source}&limit={limit}"
+    if since:
+        q += f"&since={since}"
+    d = _get_json(q)
     # API returns rows under either "readings" or "rows" depending on version
     return d.get("readings") or d.get("rows") or []
 
@@ -126,7 +133,8 @@ def find_partial_runs(
 # ---- Sections ------------------------------------------------------------
 
 def section_readings(source: str, since_iso: str) -> tuple[bool, list[str]]:
-    rows = [r for r in fetch_readings(source) if r["ts"] >= since_iso]
+    # Fetch only the window (server-side `since`) instead of the full history.
+    rows = [r for r in fetch_readings(source, since=since_iso) if r["ts"] >= since_iso]
     # Enforce ordering rather than trusting the API's default — we care about
     # "which row was actually newest" for the freshness computation.
     rows.sort(key=lambda r: r["ts"], reverse=True)

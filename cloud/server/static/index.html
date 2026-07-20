@@ -254,12 +254,29 @@ const labelOf = (name, fallback) => {
   return fallback;
 };
 
+// Incremental buffer: fetch the full window once, then poll only rows newer
+// than the last timestamp we hold and append them, trimming back to the window.
+// Keeps the 5 s refresh feel while dropping per-poll egress from ~538 KB to a
+// few hundred bytes (one new reading). See /api/readings?since=.
+let _buf = [];
+let _lastTs = null;
+const _WINDOW = 720;
+
 async function tick() {
   try {
-    const r = await fetch("/api/readings?limit=720");
+    const url = (_buf.length && _lastTs)
+      ? "/api/readings?since=" + encodeURIComponent(_lastTs) + "&limit=" + _WINDOW
+      : "/api/readings?limit=" + _WINDOW;
+    const r = await fetch(url);
     if (!r.ok) throw new Error("fetch failed: " + r.status);
     const j = await r.json();
-    const rows = j.readings || [];
+    const fresh = j.readings || [];
+    if (fresh.length) {
+      _buf = _buf.length ? _buf.concat(fresh) : fresh;
+      if (_buf.length > _WINDOW) _buf = _buf.slice(_buf.length - _WINDOW);
+      _lastTs = _buf[_buf.length - 1].ts;
+    }
+    const rows = _buf;
     if (!rows.length) {
       setText("state-value", "no data yet");
       updateStale(null);
