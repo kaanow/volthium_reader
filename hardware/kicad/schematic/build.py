@@ -98,6 +98,14 @@ def resolve_symbol(name):
     for u in flat.units:
         u.entryName = name                      # -> unit ids name_0_1 / name_1_1
     flat.properties = _copy.deepcopy(top.properties)  # keep ref prefix / value
+    if name == "ESP32-S3-WROOM-1":
+        # the module's 3 GND pins (1/40/41) are STACKED at one point -> their
+        # numbers overprint illegibly. Spread them along the bottom edge (the
+        # footprint maps by pin number, so pad assignment is unaffected).
+        gnd = sorted((p for u in flat.units for p in getattr(u, "pins", [])
+                      if p.number in ("1", "40", "41")), key=lambda p: int(p.number))
+        for k, p in enumerate(gnd):
+            p.position.X = (k - 1) * 5.08         # -5.08 / 0 / +5.08
     _SYMCACHE[name] = flat
     return flat
 
@@ -175,6 +183,9 @@ class Sheet:
         elif tanchor == "u":                     # both above (ICs)
             rp = (snap(pos[0] - _tw(ref)/2), snap(pos[1] - (hh + 4.2 + tgap)))
             vp = (snap(pos[0] - _tw(value)/2), snap(pos[1] - (hh + 1.9 + tgap)))
+        elif tanchor == "d":                     # both below (small caps in tight spots)
+            rp = (snap(pos[0] - _tw(ref)/2), snap(pos[1] + (hh + 1.9)))
+            vp = (snap(pos[0] - _tw(value)/2), snap(pos[1] + (hh + 4.2)))
         elif tanchor == "l":                     # text to the LEFT (right-edge aligned)
             rp = (snap(pos[0] - hw - 1.3 - _tw(ref)), snap(pos[1] - 1.6))
             vp = (snap(pos[0] - hw - 1.3 - _tw(value)), snap(pos[1] + 1.6))
@@ -509,8 +520,9 @@ def blk_usbc(s, cx, cy):
     s.wire(dm1, (snap(dm1[0] + 12.7), dm1[1])); s.label("USB_DM", (snap(dm1[0] + 12.7), dm1[1]), justify_h="left")
     dp1, dp2 = j["A6"], j["B6"]; s.wire(dp1, (snap(dp1[0] + 5.08), dp1[1])); s.wire((snap(dp1[0] + 5.08), dp1[1]), (snap(dp1[0] + 5.08), dp2[1])); s.wire((snap(dp1[0] + 5.08), dp2[1]), dp2)
     s.wire(dp2, (snap(dp2[0] + 12.7), dp2[1])); s.label("USB_DP", (snap(dp2[0] + 12.7), dp2[1]), justify_h="left")
-    # CC1/CC2 -> 5.1k -> GND (far right, staggered; clear of the D± labels)
-    for pin, ref, dx in (("A5", "R_cc1", 30.48), ("B5", "R_cc2", 43.18)):
+    # CC1/CC2 -> 5.1k -> GND. The HIGHER pin (CC1/A5) routes to the FARTHER
+    # column so no wire crosses another (a crossover reads as a false short).
+    for pin, ref, dx in (("A5", "R_cc1", 43.18), ("B5", "R_cc2", 27.94)):
         p = j[pin]; xr = snap(p[0] + dx)
         s.wire(p, (xr, p[1]))
         r = s.place("R", ref, "5.1k", "R_0805_2012Metric", (xr, snap(p[1] + 6.35)), tanchor="l")
@@ -601,58 +613,51 @@ def blk_j2_rj45(s, cx, cy):
         s.label(net, (snap(p[0] + 10.16), p[1]), justify_h="left")
 
 
-def blk_usb(s, cx, cy):
-    """USB maintenance power (D29). U5 AP2112 LDO: VBUS->3V3_USB. U6 TPS2116
-    priority mux: VIN1=3V3_USB (priority), VIN2=V3V3_BUCK, OUT=V3V3; MODE->VIN1
-    (priority mode, datasheet). Fail-safe bypass (F03): Q3 (series in
-    UVLO_RESET->MCU_EN) default-ON via R_byp1(100k->V3V3); Q4 (VBUS-driven via
-    R_byp2 divider) pulls Q3 gate low when USB present -> MCU boots off USB on a
-    dead pack. (cx,cy) = U5 centre."""
-    yg = snap(cy + 15.24)
-    # ---- U5 AP2112 LDO: VBUS -> 3V3_USB ----
+def blk_usb_power(s, cx, cy):
+    """USB maintenance power (D29). U5 AP2112 LDO (VBUS->3V3_USB) wired DIRECTLY
+    into U6 TPS2116 priority mux — 3V3_USB is local to this sheet so it's a wire,
+    not a label. MODE->VIN1 (priority mode, USB preferred); PR1->VIN1; VIN2 =
+    V3V3_BUCK (from the buck); OUT = V3V3 rail. (cx,cy) = U5 centre."""
+    yg = snap(cy + 20.32)
+    # ---- U5 AP2112 LDO ----
     u5 = s.place("AP2112K-3.3", "U5", "AP2112K-3.3", "Package_TO_SOT_SMD:SOT-23-5",
                  (cx, cy), angle=0, tanchor="u", tgap=3.0)
     VIN, GND5, EN5, VOUT5 = u5["1"], u5["2"], u5["3"], u5["5"]
     s.no_connect(u5["4"])
-    # VBUS -> C_usb1 -> VIN ; EN tied to VIN
     xcu1, xvbus = snap(cx - 15.24), snap(cx - 25.4)
     cu1 = s.place("C", "C_usb1", "1µF", "C_0603_1608Metric", (xcu1, snap(VIN[1] + 3.81)), tanchor="l")
     s.label("VBUS", (xvbus, VIN[1]), justify_h="right")
     s.wire((xvbus, VIN[1]), cu1["1"]); s.wire(cu1["1"], VIN); s.wire(cu1["2"], (xcu1, yg))
-    s.wire(EN5, VIN)                                   # EN tied to VIN (on whenever VBUS present)
-    s.wire(GND5, (GND5[0], yg))
-    # VOUT -> 3V3_USB ; C_usb2 output cap
-    xcu2 = snap(cx + 12.7)
-    cu2 = s.place("C", "C_usb2", "1µF", "C_0603_1608Metric", (xcu2, snap(VOUT5[1] + 3.81)), tanchor="r")
-    s.wire(VOUT5, cu2["1"]); s.wire(cu2["1"], (snap(cx + 20.32), VOUT5[1]))
-    s.label("3V3_USB", (snap(cx + 20.32), VOUT5[1]), justify_h="left")
-    s.wire(cu2["2"], (xcu2, yg))
-    # GND rail (U5 region)
-    s.wire((snap(xcu1 - 5.08), yg), (xcu2, yg))
+    s.wire(EN5, VIN); s.wire(GND5, (GND5[0], yg))
+    # ---- U6 mux to the right ----
+    u6 = s.place("TPS2116DRL", "U6", "TPS2116DRLR", "Package_SON:Texas_SOT-563",
+                 (snap(cx + 40.64), cy), angle=0, tanchor="u", tgap=3.0)
+    GND6, VOUT6, VIN1, PR1, MODE, VIN2, ST = u6["1"], u6["2"], u6["3"], u6["4"], u6["5"], u6["6"], u6["8"]
+    s.no_connect(ST); s.no_connect(u6["7"])
+    # 3V3_USB bus: U5 VOUT + C_usb2 -> U6 VIN1/PR1/MODE (all wired, local net)
+    xb = snap(cx + 17.78)
+    s.wire(VOUT5, (xb, VOUT5[1]))
+    s.wire((xb, VIN1[1]), (xb, MODE[1]))              # vertical bus
+    s.wire((xb, VIN1[1]), VIN1); s.wire((xb, PR1[1]), PR1); s.wire((xb, MODE[1]), MODE)
+    cu2 = s.place("C", "C_usb2", "1µF", "C_0603_1608Metric", (snap(cx + 10.16), snap(VOUT5[1] + 3.81)), tanchor="r")
+    s.wire(cu2["1"], (cu2["1"][0], VOUT5[1])); s.wire(cu2["2"], (cu2["1"][0], yg))
+    # VIN2 <- V3V3_BUCK (down to a label, clear of the bus) ; OUT -> V3V3
+    s.wire(VIN2, (VIN2[0], snap(VIN2[1] + 6.35))); s.label("V3V3_BUCK", (VIN2[0], snap(VIN2[1] + 6.35)), justify_h="left")
+    s.wire(VOUT6, (snap(VOUT6[0] + 8.89), VOUT6[1])); s.label("V3V3", (snap(VOUT6[0] + 15.24), VOUT6[1]), justify_h="left")
+    s.wire((snap(VOUT6[0] + 8.89), VOUT6[1]), (snap(VOUT6[0] + 15.24), VOUT6[1]))
+    s.wire(GND6, (GND6[0], yg))
+    # shared GND rail
+    s.wire((snap(xcu1 - 5.08), yg), (GND6[0], yg))
     s.label("GND", (snap(xcu1 - 5.08), yg), justify_h="right")
 
 
-def blk_usb_mux(s, cx, cy):
-    """U6 TPS2116 priority mux + Q3/Q4 fail-safe bypass (see blk_usb)."""
-    yg = snap(cy + 17.78)
-    u6 = s.place("TPS2116DRL", "U6", "TPS2116DRLR", "Package_SON:Texas_SOT-563",
-                 (cx, cy), angle=0, tanchor="u", tgap=3.0)
-    GND6, VOUT, VIN1, PR1, MODE, VIN2, ST = u6["1"], u6["2"], u6["3"], u6["4"], u6["5"], u6["6"], u6["8"]
-    s.no_connect(ST); s.no_connect(u6["7"])           # 2nd VOUT pin (tied internally)
-    # inputs (left)
-    for pin, net in ((VIN1, "3V3_USB"), (VIN2, "V3V3_BUCK")):
-        s.label(net, (snap(pin[0] - 15.24), pin[1]), justify_h="right"); s.wire((snap(pin[0] - 15.24), pin[1]), pin)
-    # MODE -> VIN1 (priority mode), PR1 -> VIN1 (prefer USB)
-    for pin in (MODE, PR1):
-        s.label("3V3_USB", (snap(pin[0] - 15.24), pin[1]), justify_h="right"); s.wire((snap(pin[0] - 15.24), pin[1]), pin)
-    # OUT -> V3V3
-    s.wire(VOUT, (snap(VOUT[0] + 8.89), VOUT[1])); s.label("V3V3", (snap(VOUT[0] + 15.24), VOUT[1]), justify_h="left")
-    s.wire((snap(VOUT[0] + 8.89), VOUT[1]), (snap(VOUT[0] + 15.24), VOUT[1]))
-    s.wire(GND6, (GND6[0], yg)); s.label("GND", (GND6[0], yg), justify_h="left")
-
-    # ---- Q3/Q4 fail-safe bypass (below U6): default-ON Q3, VBUS-driven Q4 ----
+def blk_usb_failsafe(s, cx, cy):
+    """Fail-safe USB bypass (F03): Q3 (series UVLO_RESET->MCU_EN) default-ON via
+    R_byp1(100k->V3V3); Q4 (VBUS-driven via R_byp2/R_byp2b divider) pulls Q3 gate
+    low when USB is present, so the MCU boots off USB even on a dead pack.
+    (cx,cy) = Q3 centre."""
     # Q3: series UVLO_RESET(S) -> MCU_EN(D); gate default-ON via R_byp1->V3V3.
-    qx, qy = snap(cx - 5.08), snap(cy + 33.02)
+    qx, qy = cx, cy
     q3 = s.place("2N7002", "Q3", "2N7002", "Package_TO_SOT_SMD:SOT-23", (qx, qy), tanchor="r")
     q3G, q3S, q3D = q3["1"], q3["2"], q3["3"]
     s.wire(q3D, (q3D[0], snap(q3D[1] - 5.08)))
@@ -774,7 +779,7 @@ def blk_mcu(s, cx, cy):
     IO7=BTN, IO8/9=I2C, IO17/18=RS485 DI/RO, USB_D±. Unused GPIOs no-connected.
     (cx,cy)=module centre."""
     mod = s.place("ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
-                  "RF_Module:ESP32-S3-WROOM-1", (cx, cy), angle=0, tanchor="u", tgap=3.0)
+                  "RF_Module:ESP32-S3-WROOM-1", (cx, cy), angle=0, tanchor="u", tgap=9.0)
     # pin number -> global net (side inferred from pin x)
     NETS = {"3": "MCU_EN", "39": "V24_SENSE", "38": "RS485_DE", "4": "PWR_EN",
             "7": "BTN_OVERRIDE", "12": "I2C_SDA", "17": "I2C_SCL", "8": "RS485_nRE",
@@ -789,23 +794,24 @@ def blk_mcu(s, cx, cy):
         else:
             lbl = (snap(pin[0] + 16.51), pin[1]); s.label(net, lbl, justify_h="left")
         s.wire(lbl, pin)
-    # 3V3 (top) -> V3V3, C6/C7 decoupling
-    v3 = mod["2"]; yv = snap(v3[1] - 5.08)
+    # 3V3 (top-centre) -> up -> V3V3 rail routed LEFT; C6/C7 decoupling hang off
+    # it (keeps the top-centre clear of the ref/value text).
+    v3 = mod["2"]; yv = snap(v3[1] - 7.62)
     s.wire(v3, (v3[0], yv))
-    xc6, xc7, xv3 = snap(cx - 7.62), snap(cx + 7.62), snap(cx - 20.32)
-    s.wire((v3[0], yv), (xc6, yv)); s.wire((xc6, yv), (xv3, yv))
-    s.wire((v3[0], yv), (xc7, yv))
+    xc6, xc7, xv3 = snap(cx - 15.24), snap(cx - 27.94), snap(cx - 38.1)
+    s.wire((v3[0], yv), (xc6, yv)); s.wire((xc6, yv), (xc7, yv)); s.wire((xc7, yv), (xv3, yv))
     s.label("V3V3", (xv3, yv), justify_h="right")
     for xc, ref, val in ((xc6, "C6", "10µF"), (xc7, "C7", "100nF")):
-        c = s.place("C", ref, val, "C_0805_2012Metric", (xc, snap(yv - 3.81)), tanchor="r")
+        c = s.place("C", ref, val, "C_0805_2012Metric", (xc, snap(yv - 3.81)), tanchor="l")
         s.wire(c["1"], (xc, snap(c["1"][1] - 2.54)))
         s.label("GND", (xc, snap(c["1"][1] - 2.54)), justify_h="right")
-    # GND (bottom pins) -> GND
-    gpin = mod["1"]; yg = snap(gpin[1] + 5.08)
-    for num in ("1", "40", "41"):
-        s.wire(mod[num], (mod[num][0], yg))
-    s.wire((snap(gpin[0] - 5.08), yg), (mod["41"][0], yg))
-    s.label("GND", (snap(gpin[0] - 5.08), yg), justify_h="right")
+    # GND: the 3 bottom pins (1/40/41, spread in the symbol) -> a short GND rail
+    yg = snap(mod["1"][1] + 6.35)
+    gxs = sorted(mod[n][0] for n in ("1", "40", "41"))
+    for n in ("1", "40", "41"):
+        s.wire(mod[n], (mod[n][0], yg))
+    s.wire((snap(gxs[0] - 7.62), yg), (gxs[-1], yg))
+    s.label("GND", (snap(gxs[0] - 7.62), yg), justify_h="right")
     # ---- support cluster below the module: EN + I2C pull-ups to V3V3, C8 ----
     yrail = snap(cy + 43.18); ylbl = snap(yrail + 11.43)
     xs = [snap(cx - 22.86), snap(cx - 7.62), snap(cx + 7.62)]
@@ -851,7 +857,7 @@ def blk_uvlo(s, cx, cy):
     s.label("V24_FUSED", (snap(xd - 10.16), yvf), justify_h="right")
     s.wire(r2["2"], (xd, yg))
     xcs = snap(xd + 11.43)                            # C_sense column
-    cse = s.place("C", "C_sense", "1nF", "C_0603_1608Metric", (xcs, snap(ys + 3.81)), tanchor="ud")
+    cse = s.place("C", "C_sense", "1nF", "C_0603_1608Metric", (xcs, snap(ys + 3.81)), tanchor="r")
     s.wire(cse["2"], (xcs, yg))
     s.wire((xd, ys), (xcs, ys)); s.wire((xcs, ys), SENSE)          # SENSE rail
 
@@ -870,7 +876,7 @@ def blk_uvlo(s, cx, cy):
     # ---- CT -> C_ct -> GND (routed out left, clear of the body) ----
     xct = snap(cx - 13.97)
     s.wire(CT, (xct, CT[1]))
-    cct = s.place("C", "C_ct", "10nF", "C_0603_1608Metric", (xct, snap(CT[1] + 3.81)), tanchor="ud")
+    cct = s.place("C", "C_ct", "10nF", "C_0603_1608Metric", (xct, snap(CT[1] + 3.81)), tanchor="l")
     s.wire(cct["2"], (xct, yg))
 
     # ---- VDD -> V3V3 + C_uvdd bypass (kept off the RESET column) ----
@@ -972,7 +978,7 @@ SHEETS = [
     ("sheet_super", "Battery — Supervisor", [
         (blk_uvlo, 82, 82), (blk_sense, 210, 68)]),
     ("sheet_usb", "Battery — USB maintenance power", [
-        (blk_usb, 78, 62), (blk_usb_mux, 190, 62)]),
+        (blk_usb_power, 75, 62), (blk_usb_failsafe, 190, 62)]),
     ("sheet_mcu", "Battery — MCU (ESP32-S3)", [(blk_mcu, 145, 105)]),
     ("sheet_conn", "Battery — Connectors & I/O", [
         (blk_j1_btn, 55, 52), (blk_j2_rj45, 210, 52),
@@ -985,7 +991,7 @@ def build_root(defs):
     won't load in KiCad 10). One hierarchical-sheet box per child; shared nets
     (V3V3, GND, V24_*, RS485_*, I2C_*, EXP_*, …) connect across the hierarchy via
     their GLOBAL labels, so no sheet pins are needed."""
-    x0, y0, dx, dy, w, h = 40, 35, 118, 58, 92, 42
+    x0, y0, dx, dy, w, h = 38, 28, 120, 50, 92, 34
     blocks = []
     for i, (name, title, hu) in enumerate(defs):
         r, c = divmod(i, 2); px, py = x0 + c*dx, y0 + r*dy
@@ -995,10 +1001,10 @@ def build_root(defs):
             f'\t\t(fields_autoplaced yes)\n'
             f'\t\t(stroke (width 0.1524) (type solid))\n\t\t(fill (color 0 0 0 0.0000))\n'
             f'\t\t(uuid "{hu}")\n'
-            f'\t\t(property "Sheetname" "{title}" (at {px} {py-1} 0)\n'
-            f'\t\t\t(effects (font (size 1.27 1.27)) (justify left bottom)))\n'
-            f'\t\t(property "Sheetfile" "{name}.kicad_sch" (at {px} {py+h+1} 0)\n'
-            f'\t\t\t(effects (font (size 1.27 1.27)) (justify left top)))\n'
+            f'\t\t(property "Sheetname" "{title}" (at {px+3} {py+h/2-2} 0)\n'
+            f'\t\t\t(effects (font (size 3.0 3.0) (bold yes)) (justify left)))\n'
+            f'\t\t(property "Sheetfile" "{name}.kicad_sch" (at {px+3} {py+h/2+3} 0)\n'
+            f'\t\t\t(effects (font (size 2.0 2.0)) (justify left)))\n'
             f'\t\t(instances (project "{PROJECT}" (path "/" (page "{i+2}"))))\n\t)')
     return (f'(kicad_sch\n\t(version 20250114)\n\t(generator "eeschema")\n'
             f'\t(generator_version "10.0")\n\t(uuid "{_uuid()}")\n\t(paper "USLetter")\n'
