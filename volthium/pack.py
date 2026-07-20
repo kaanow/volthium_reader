@@ -351,6 +351,24 @@ async def _connected_targets(targets: set[str]) -> set[str]:
     return {t for t in targets if t.upper() in up}
 
 
+async def _bluez_connected(addr: str) -> Optional[bool]:
+    """BlueZ's *managed* view of whether we hold a connection to `addr`
+    (`bluetoothctl info` → `Connected: yes/no`). Distinct from
+    `_connected_targets` (raw `hcitool con` / controller view): after a
+    cancelled read BlueZ can still hold a Device object + connection handle
+    even when the controller shows none — the half-open window we suspect
+    behind the dormancy onsets (2026-07-19 investigation). A stale
+    `Connected=yes` persisting THROUGH a dormancy would be the smoking gun
+    that a `Device.Disconnect()` (not an adapter reset) is the graceful cure.
+    `None` if the device isn't in BlueZ's object list at all."""
+    out = await _run(["bluetoothctl", "info", addr], timeout=6.0)
+    for ln in out.splitlines():
+        s = ln.strip()
+        if s.startswith("Connected:"):
+            return s.split(":", 1)[1].strip().lower() == "yes"
+    return None
+
+
 async def _force_disconnect(addr: str) -> str:
     """Best-effort release of a wedged battery's radio from the Pi side. Clears
     a BlueZ-level lingering connection; an in-process leaked client may re-grab
@@ -2021,6 +2039,7 @@ async def _read_device(dev: BLEDevice, address: str) -> BatteryReading:
         # error being re-raised.
         client_connected: Optional[bool] = None
         hci_connected: Optional[bool] = None
+        bluez_connected: Optional[bool] = None
         try:
             c = getattr(bms, "_client", None)
             if c is not None:
@@ -2031,6 +2050,16 @@ async def _read_device(dev: BLEDevice, address: str) -> BatteryReading:
             hci_connected = bool(await _connected_targets({key}))
         except Exception:  # noqa: BLE001
             pass
+        # The three views can disagree — that disagreement IS the diagnosis:
+        #   bleak (client) / controller (hcitool) / bluetoothd (bluez).
+        # If bluez shows Connected=yes here while hcitool shows nothing, a
+        # Device.Disconnect() is the graceful cure (H2). If all three are
+        # False, the handle is already gone at the timeout instant and the
+        # fix must be upstream — a graceful close before the cancel (H1).
+        try:
+            bluez_connected = await _bluez_connected(key)
+        except Exception:  # noqa: BLE001
+            pass
         _event(
             "read_exception",
             address=key,
@@ -2039,6 +2068,7 @@ async def _read_device(dev: BLEDevice, address: str) -> BatteryReading:
             elapsed_s=round(time.monotonic() - t0, 2),
             client_connected=client_connected,
             hci_connected=hci_connected,
+            bluez_connected=bluez_connected,
         )
         raise
     finally:
@@ -2125,15 +2155,30 @@ async def _discover_addresses(
         await scanner.stop()
     scan_s = round(time.monotonic() - t0, 2)
     for key in sorted(wanted):
+        seen = key in found
+        # For a battery we could NOT hear this cycle, probe BlueZ's managed
+        # connection state. Logged every dormant cycle, this reconstructs the
+        # WHOLE dormancy: a stale `Connected=yes` persisting while the peer is
+        # silent is the half-open smoking gun (→ Device.Disconnect() is the
+        # cure); `Connected=no` throughout means the handle is gone (firmware
+        # wedge → prevention/reconnect). Only probed on a miss, so it adds no
+        # latency to healthy cycles. See 2026-07-19 dormancy investigation.
+        bluez_conn: Optional[bool] = None
+        if not seen:
+            try:
+                bluez_conn = await _bluez_connected(key)
+            except Exception:  # noqa: BLE001
+                bluez_conn = None
         _event(
             "scan_result",
             address=key,
-            seen=key in found,
+            seen=seen,
             rssi=rssi.get(key),
             adv_name=names.get(key),
             adv_packets=packets.get(key, 0),
             ambient_adv=ambient,
             scan_s=scan_s,
+            bluez_connected=bluez_conn,
         )
     return found, ambient
 
