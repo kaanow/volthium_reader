@@ -98,14 +98,27 @@ def resolve_symbol(name):
     for u in flat.units:
         u.entryName = name                      # -> unit ids name_0_1 / name_1_1
     flat.properties = _copy.deepcopy(top.properties)  # keep ref prefix / value
+    # Stacked multi-pins (same net at one point) overprint their numbers
+    # illegibly. Spread them out — the footprint maps by pin number, so pad
+    # assignment is unaffected.
+    allpins = [p for u in flat.units for p in getattr(u, "pins", [])]
     if name == "ESP32-S3-WROOM-1":
-        # the module's 3 GND pins (1/40/41) are STACKED at one point -> their
-        # numbers overprint illegibly. Spread them along the bottom edge (the
-        # footprint maps by pin number, so pad assignment is unaffected).
-        gnd = sorted((p for u in flat.units for p in getattr(u, "pins", [])
-                      if p.number in ("1", "40", "41")), key=lambda p: int(p.number))
+        gnd = sorted((p for p in allpins if p.number in ("1", "40", "41")), key=lambda p: int(p.number))
         for k, p in enumerate(gnd):
-            p.position.X = (k - 1) * 5.08         # -5.08 / 0 / +5.08
+            p.position.X = (k - 1) * 5.08         # -5.08 / 0 / +5.08 along the bottom
+    if name == "USB_C_Receptacle_USB2.0_16P":
+        vbus = sorted((p for p in allpins if p.name == "VBUS"), key=lambda p: p.number)
+        for k, p in enumerate(vbus):
+            p.position.Y = 12.7 + k * 2.54        # 4 VBUS pins spread up the right edge
+        gnd = sorted((p for p in allpins if p.name == "GND"), key=lambda p: p.number)
+        for k, p in enumerate(gnd):
+            p.position.X = -5.08 + k * 3.81       # 4 GND pins spread along the bottom (on-grid)
+        for p in allpins:
+            if p.name == "SHIELD": p.position.X = -12.7   # shield clear of the GND group
+    if name in ("Conn_01x02", "Conn_01x08"):
+        # the generic "Pin_N" names are meaningless noise that render cramped
+        # inside the small body — hide them (the net labels carry the meaning).
+        for p in allpins: p.name = "~"
     _SYMCACHE[name] = flat
     return flat
 
@@ -512,9 +525,13 @@ def blk_usbc(s, cx, cy):
     yg = snap(cy + 30.48)
     j = s.place("USB_C_Receptacle_USB2.0_16P", "J3", "USB-C 16P",
                 "Connector_USB:USB_C_Receptacle_GCT_USB4085", (cx, cy), angle=0, tanchor="u", tgap=3.0)
-    def out(pin, net, dx=10.16):
-        p = j[pin]; s.wire(p, (snap(p[0] + dx), p[1])); s.label(net, (snap(p[0] + dx), p[1]), justify_h="left")
-    out("A4", "VBUS")                                    # VBUS (stacked A4/A9/B4/B9)
+    # VBUS: 4 pins (spread up the right edge) -> vertical bus -> VBUS label
+    vp = [j[n] for n in ("A4", "A9", "B4", "B9")]
+    xvb = snap(max(p[0] for p in vp) + 10.16)
+    for p in vp: s.wire(p, (xvb, p[1]))
+    ys0, ys1 = min(p[1] for p in vp), max(p[1] for p in vp)
+    s.wire((xvb, ys0), (xvb, ys1))
+    s.wire((xvb, ys0), (snap(xvb + 7.62), ys0)); s.label("VBUS", (snap(xvb + 7.62), ys0), justify_h="left")
     # D- (A7,B7) tied -> USB_DM ; D+ (A6,B6) tied -> USB_DP
     dm1, dm2 = j["A7"], j["B7"]; s.wire(dm2, (snap(dm2[0] + 5.08), dm2[1])); s.wire((snap(dm2[0] + 5.08), dm2[1]), (snap(dm2[0] + 5.08), dm1[1])); s.wire((snap(dm2[0] + 5.08), dm1[1]), dm1)
     s.wire(dm1, (snap(dm1[0] + 12.7), dm1[1])); s.label("USB_DM", (snap(dm1[0] + 12.7), dm1[1]), justify_h="left")
@@ -529,10 +546,12 @@ def blk_usbc(s, cx, cy):
         s.wire((xr, p[1]), r["1"]); s.wire(r["2"], (xr, snap(r["2"][1] + 2.54)))
         s.label("GND", (xr, snap(r["2"][1] + 2.54)), justify_h="right")
     s.no_connect(j["A8"]); s.no_connect(j["B8"])         # SBU unused
-    # GND + shield (bottom-left)
-    g = j["A1"]; s.wire(g, (g[0], yg)); s.label("GND", (g[0], yg), justify_h="left")
-    sh = j["SH"]; s.wire(sh, (sh[0], yg)); s.label("GND", (snap(sh[0] - 7.62), yg), justify_h="right")
-    s.wire((snap(sh[0] - 7.62), yg), (g[0], yg))
+    # GND: 4 GND pins + SHIELD (spread along the bottom) -> GND rail -> label
+    gp = [j[n] for n in ("A1", "A12", "B1", "B12", "SH")]
+    for p in gp: s.wire(p, (p[0], yg))
+    gxs = sorted(p[0] for p in gp)
+    s.wire((snap(gxs[0] - 7.62), yg), (gxs[-1], yg))
+    s.label("GND", (snap(gxs[0] - 7.62), yg), justify_h="right")
 
 
 def blk_exp(s, cx, cy):
