@@ -13,14 +13,16 @@ Philosophy (opposite of the retired v1 graphical netlist):
 First slice: battery-side input protection. Run: ../../.venv/bin/python build.py
 """
 from __future__ import annotations
-import copy as _copy, math, subprocess, sys, uuid
+import copy as _copy, math, os, subprocess, sys, uuid
 from pathlib import Path
 
 from kiutils.symbol import SymbolLib
 from kiutils.schematic import Schematic
 from kiutils.items.schitems import (SchematicSymbol, GlobalLabel, Connection,
-    SymbolProjectPath, SymbolProjectInstance)
-from kiutils.items.common import Position, Property, Effects, Stroke, Justify, TitleBlock
+    SymbolProjectPath, SymbolProjectInstance, HierarchicalSheet,
+    HierarchicalSheetInstance, HierarchicalSheetProjectInstance,
+    HierarchicalSheetProjectPath)
+from kiutils.items.common import Position, Property, Effects, Stroke, Justify, TitleBlock, Fill
 
 PROJECT = "volthium_reader"
 
@@ -62,6 +64,7 @@ SYMBOLS = {
     "RJ45_Shielded":    (f"{STOCK}/Connector.kicad_sym",           "RJ45_Shielded"),
     "SW_SPDT":          (f"{STOCK}/Switch.kicad_sym",              "SW_SPDT"),
     "USB_C_Receptacle_USB2.0_16P": (f"{STOCK}/Connector.kicad_sym", "USB_C_Receptacle_USB2.0_16P"),
+    "PWR_FLAG":         (f"{STOCK}/power.kicad_sym",                "PWR_FLAG"),
 }
 
 def _uuid(): return str(uuid.uuid4())
@@ -132,10 +135,13 @@ def body_box(name, pos, angle, margin=0.8):
 
 
 class Sheet:
-    def __init__(self, title):
+    def __init__(self, title, hier_uuid=None):
         self.sch = Schematic.create_new()
         if not self.sch.uuid:
-            self.sch.uuid = _uuid()          # root-sheet path for instances
+            self.sch.uuid = _uuid()          # this sheet's own uuid
+        # instance path: standalone = "/<own uuid>"; as a hierarchy child =
+        # "/<sheet-symbol uuid in the root>" (KiCad's per-instance path).
+        self.hier = hier_uuid or self.sch.uuid
         self.sch.paper.paperSize = "USLetter"
         self.sch.titleBlock = TitleBlock(title=title, company="Volthium reader")
         self.sym_boxes = []    # (x1,y1,x2,y2,ref)  symbol bodies
@@ -195,7 +201,7 @@ class Sheet:
         # The (instances …) block is REQUIRED for pin-to-pin connectivity —
         # without it KiCad marks wires between two component pins dangling.
         inst.instances = [SymbolProjectInstance(name=PROJECT,
-            paths=[SymbolProjectPath(sheetInstancePath="/" + self.sch.uuid,
+            paths=[SymbolProjectPath(sheetInstancePath="/" + self.hier,
                                      reference=ref, unit=1)])]
         self.sch.schematicSymbols.append(inst)
         self.sym_boxes.append((box[0], box[1], box[2], box[3], ref))
@@ -271,7 +277,11 @@ class Sheet:
         bad = []
         def ov(a, b):  # rectangle overlap (strict interiors)
             return a[0] < b[2]-1e-6 and b[0] < a[2]-1e-6 and a[1] < b[3]-1e-6 and b[1] < a[3]-1e-6
-        allb = [("sym", x) for x in self.sym_boxes] + [("txt", x) for x in self.txt_boxes]
+        # annotation symbols (PWR_FLAG etc., ref "#…") carry auto-refs over tiny
+        # bodies — not a readability concern; skip them.
+        def anon(box): return box[4].split(":")[0].startswith("#")
+        allb = [("sym", x) for x in self.sym_boxes if not anon(x)] + \
+               [("txt", x) for x in self.txt_boxes if not anon(x)]
         for i in range(len(allb)):
             for j in range(i+1, len(allb)):
                 (ka, a), (kb, b) = allb[i], allb[j]
@@ -288,6 +298,7 @@ class Sheet:
                 if ov(lb, (sx1, sy1, sx2, sy2)):
                     bad.append(f"[label-overlap] label '{text}' × body {ref}")
             for (tx1, ty1, tx2, ty2, tref) in self.txt_boxes:
+                if tref.split(":")[0].startswith("#"): continue   # annotation symbol text
                 if ov(lb, (tx1, ty1, tx2, ty2)):
                     bad.append(f"[label-overlap] label '{text}' × text {tref}")
             for j in range(i+1, len(self.lbl_boxes)):
@@ -331,30 +342,40 @@ class Sheet:
         return False
 
 
+def blk_pwr_flags(s, cx, cy):
+    """PWR_FLAGs: tell ERC these nets ARE driven, even though their local source
+    is passive (V24_FUSED past D1, V24_SW past the SSR) or a board-input
+    connector (VBUS from USB-C), plus the global GND reference."""
+    for i, net in enumerate(("V24_FUSED", "V24_SW", "VBUS", "GND")):
+        x = snap(cx + i*17.78)
+        pf = s.place("PWR_FLAG", f"#FLG{i+1}", "PWR_FLAG", "", (x, cy), angle=0, tanchor="ud")
+        pin = pf["1"]
+        s.wire(pin, (pin[0], snap(pin[1] + 5.08)))
+        s.label(net, (pin[0], snap(pin[1] + 5.08)), justify_h="left")
+
+
 def blk_input_protection(s, cx, cy):
-    """J1 -> F1 (1A T) -> D1 (SS26 reverse-polarity) -> V24_FUSED, TVS1 + C1 to
-    GND. Translated onto (cx,cy) = block centre."""
+    """V24_RAW (from J1) -> F1 (1A T) -> D1 (SS26 reverse-polarity) -> V24_FUSED;
+    TVS1 (SMAJ33CA) clamp to GND. The input-bulk/buck-input cap is C1 in the
+    buck block (same V24_FUSED net). Translated onto (cx,cy) = block centre."""
     ox, oy = cx - snap(78.1), cy - snap(100.97)      # translate the validated layout
     yr, yg = snap(88.9 + oy), snap(113.03 + oy)
-    xin, xf1, xd1, xnod, xc1 = [snap(v + ox) for v in (46.99, 63.5, 78.74, 93.98, 109.22)]
-    # pin selectors by geometry (orientation-independent wiring)
+    xin, xf1, xd1, xnod, xout = [snap(v + ox) for v in (46.99, 63.5, 78.74, 93.98, 111.76)]
     leftp  = lambda pp: min(pp.values(), key=lambda xy: xy[0])
     rightp = lambda pp: max(pp.values(), key=lambda xy: xy[0])
     topp   = lambda pp: min(pp.values(), key=lambda xy: xy[1])
     botp   = lambda pp: max(pp.values(), key=lambda xy: xy[1])
     f1 = s.place("Fuse", "F1", "1A T", "", (xf1, yr), angle=90, tanchor="ud")
-    # D1 = SERIES reverse-polarity protector: anode toward the source
-    # (V24_RAW), cathode toward the load — forward-biased in normal operation.
-    # The `D` symbol is cathode(pin1)-left by default, so rotate 180°.
+    # D1 = SERIES reverse-polarity protector: anode toward the source (V24_RAW),
+    # cathode toward the load. The `D` symbol is cathode(pin1)-left, so rotate 180°.
     d1 = s.place("D", "D1", "SS26", "D_SMA", (xd1, yr), angle=180, tanchor="ud")
     tv = s.place("D_TVS", "TVS1", "SMAJ33CA", "D_SMA", (xnod, snap(yr+12.7)), angle=90, tanchor="r")
-    c1 = s.place("C", "C1", "22µF 100V", "C_1210_3225Metric", (xc1, snap(yr+12.7)), tanchor="r")
-    s.label("V24_RAW", (xin, yr), justify_h="right")     # wire exits right
+    s.label("V24_RAW", (xin, yr), justify_h="right")     # input from J1
     s.wire((xin, yr), f1["1"]); s.wire(f1["2"], leftp(d1))       # F1 → D1 anode
-    s.wire(rightp(d1), (xnod, yr)); s.wire((xnod, yr), (xc1, yr))  # D1 cathode → V24_FUSED
-    s.wire((xnod, yr), topp(tv)); s.wire((xc1, yr), topp(c1))
-    s.wire(botp(tv), (xnod, yg)); s.wire((xnod, yg), (xc1, yg)); s.wire(botp(c1), (xc1, yg))
-    s.label("GND", (snap(xnod-10.16), yg), justify_h="right")  # wire exits right → body left
+    s.wire(rightp(d1), (xnod, yr))                                # D1 cathode = V24_FUSED node
+    s.wire((xnod, yr), (xout, yr)); s.label("V24_FUSED", (xout, yr), justify_h="left")  # output
+    s.wire((xnod, yr), topp(tv)); s.wire(botp(tv), (xnod, yg))    # TVS1 clamp to GND
+    s.label("GND", (snap(xnod-10.16), yg), justify_h="right")
     s.wire((snap(xnod-10.16), yg), (xnod, yg))
 
 
@@ -929,13 +950,76 @@ def blk_rtc(s, cx, cy):
 
 
 # ---- sheet composition: several functional blocks per US-Letter sheet --------
-def sheet(title, *placements):
-    """Compose blocks onto one sheet: each placement is (blk_fn, cx, cy)."""
-    s = Sheet(title)
+def sheet(title, placements, hier_uuid=None, page="1"):
+    """Compose blocks onto one sheet: each placement is (blk_fn, cx, cy).
+    hier_uuid ties this sheet into the root hierarchy (else it's standalone)."""
+    s = Sheet(title, hier_uuid=hier_uuid)
     for fn, cx, cy in placements:
         fn(s, snap(cx), snap(cy))
     s.add_junctions()
+    if hier_uuid:
+        s.sch.sheetInstances = [HierarchicalSheetInstance(instancePath="/" + hier_uuid, page=page)]
     return s
+
+
+# ---- the battery-side hierarchy: one child .kicad_sch per functional sheet ----
+SHEETS = [
+    ("sheet_power", "Battery — Power path", [
+        (blk_input_protection, 78, 62), (blk_always_on_power, 205, 62),
+        (blk_ssr, 78, 140), (blk_u2, 205, 140), (blk_pwr_flags, 120, 105)]),
+    ("sheet_periph", "Battery — Peripherals & comms", [
+        (blk_rs485, 90, 62), (blk_rtc, 95, 140)]),
+    ("sheet_super", "Battery — Supervisor", [
+        (blk_uvlo, 82, 82), (blk_sense, 210, 68)]),
+    ("sheet_usb", "Battery — USB maintenance power", [
+        (blk_usb, 78, 62), (blk_usb_mux, 190, 62)]),
+    ("sheet_mcu", "Battery — MCU (ESP32-S3)", [(blk_mcu, 145, 105)]),
+    ("sheet_conn", "Battery — Connectors & I/O", [
+        (blk_j1_btn, 55, 52), (blk_j2_rj45, 210, 52),
+        (blk_usbc, 60, 120), (blk_exp, 150, 145)]),
+]
+
+
+def build_root(defs):
+    """Root sheet text (KiCad-10 format — kiutils' KiCad-6 sheet serialization
+    won't load in KiCad 10). One hierarchical-sheet box per child; shared nets
+    (V3V3, GND, V24_*, RS485_*, I2C_*, EXP_*, …) connect across the hierarchy via
+    their GLOBAL labels, so no sheet pins are needed."""
+    x0, y0, dx, dy, w, h = 40, 35, 118, 58, 92, 42
+    blocks = []
+    for i, (name, title, hu) in enumerate(defs):
+        r, c = divmod(i, 2); px, py = x0 + c*dx, y0 + r*dy
+        blocks.append(
+            f'\t(sheet\n\t\t(at {px} {py}) (size {w} {h})\n'
+            f'\t\t(exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no)\n'
+            f'\t\t(fields_autoplaced yes)\n'
+            f'\t\t(stroke (width 0.1524) (type solid))\n\t\t(fill (color 0 0 0 0.0000))\n'
+            f'\t\t(uuid "{hu}")\n'
+            f'\t\t(property "Sheetname" "{title}" (at {px} {py-1} 0)\n'
+            f'\t\t\t(effects (font (size 1.27 1.27)) (justify left bottom)))\n'
+            f'\t\t(property "Sheetfile" "{name}.kicad_sch" (at {px} {py+h+1} 0)\n'
+            f'\t\t\t(effects (font (size 1.27 1.27)) (justify left top)))\n'
+            f'\t\t(instances (project "{PROJECT}" (path "/" (page "{i+2}"))))\n\t)')
+    return (f'(kicad_sch\n\t(version 20250114)\n\t(generator "eeschema")\n'
+            f'\t(generator_version "10.0")\n\t(uuid "{_uuid()}")\n\t(paper "USLetter")\n'
+            f'\t(title_block (title "Volthium reader — battery-side (root)") '
+            f'(company "Volthium reader"))\n\t(lib_symbols)\n'
+            + "\n".join(blocks)
+            + '\n\t(sheet_instances (path "/" (page "1")))\n)\n')
+
+
+def write_project():
+    """Minimal .kicad_pro + sym-lib-table so KiCad opens the hierarchy cleanly."""
+    import json
+    (OUT / f"{PROJECT}.kicad_pro").write_text(json.dumps({
+        "board": {}, "boards": [], "libraries": {"pinned_footprint_libs": [], "pinned_symbol_libs": []},
+        "meta": {"filename": f"{PROJECT}.kicad_pro", "version": 1},
+        "schematic": {"legacy_lib_list": [], "legacy_lib_dir": ""},
+        "sheets": [], "text_variables": {},
+    }, indent=2))
+    rel = os.path.relpath(str(LIB), str(OUT))
+    (OUT / "sym-lib-table").write_text(
+        f'(sym_lib_table\n  (version 7)\n  (lib (name "volthium")(type "KiCad")(uri "{rel}")(options "")(descr ""))\n)\n')
 
 
 def kcli(*a): return subprocess.run(["kicad-cli", *a], capture_output=True, text=True)
@@ -943,23 +1027,15 @@ def kcli(*a): return subprocess.run(["kicad-cli", *a], capture_output=True, text
 MM = 2.8346   # schematic mm -> PDF points
 
 def render(s, name, crops=()):
-    """gate -> ERC -> PDF -> full-page PNG (+ optional per-region crops)."""
+    """Per-child: readability gate -> write .kicad_sch -> PDF -> PNG (+ crops).
+    ERC is run once on the ROOT (children are hierarchy members; their instance
+    paths only resolve through the root, so a standalone child ERC is moot)."""
     bad = s.gate()
     if bad:
         print(f"[{name}] READABILITY GATE FAILED:"); [print("  "+b) for b in bad]
         return False
     print(f"[{name}] readability gate: clean")
     schf = OUT / f"{name}.kicad_sch"; s.sch.to_file(str(schf))
-    kcli("sch", "erc", "-o", str(OUT/f"{name}.erc.rpt"), str(schf))
-    rpt = open(OUT/f"{name}.erc.rpt").read() if (OUT/f"{name}.erc.rpt").exists() else ""
-    # power_pin_not_driven is expected for a sheet whose supply/ground enter from
-    # an adjacent sheet (a PWR_FLAG is added once at hierarchical assembly).
-    nd = rpt.count("dangling") + rpt.count("[pin_not_connected]")
-    exp = rpt.count("power_pin_not_driven")
-    print(f"[{name}] ERC real-defects={nd} (standalone-expected power-flag={exp})")
-    if nd:
-        for ln in rpt.splitlines():
-            if any(k in ln for k in ("dangling", "pin_not_connected")): print("   "+ln.strip())
     kcli("sch", "export", "pdf", "-o", str(OUT/f"{name}.pdf"), str(schf))
     import fitz
     doc = fitz.open(str(OUT/f"{name}.pdf"))
@@ -968,38 +1044,25 @@ def render(s, name, crops=()):
         clip = fitz.Rect(x1*MM, y1*MM, x2*MM, y2*MM)
         doc[0].get_pixmap(matrix=fitz.Matrix(11, 11), clip=clip).save(str(OUT/f"{name}.crop{i}.png"))
     print(f"[{name}] PNG{' + '+str(len(crops))+' crops' if crops else ''} written")
-    return nd == 0
+    return True
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
+    defs = [(name, title, _uuid()) for (name, title, _) in SHEETS]
     ok = True
-    # Sheet 1 — power path (protection + always-on buck + 12V conv; SSR to come)
-    ok &= render(sheet("Battery-side — Power path",
-                       (blk_input_protection, 78, 62),
-                       (blk_always_on_power, 205, 62),
-                       (blk_ssr, 78, 140),
-                       (blk_u2, 205, 140)), "sheet_power")
-    # Sheet — comms/peripherals (RS-485 + RTC)
-    ok &= render(sheet("Battery-side — Peripherals & comms",
-                       (blk_rs485, 90, 62),
-                       (blk_rtc, 95, 140)), "sheet_periph")
-    # Sheet — supervisor & USB power (UVLO + sense; USB to come)
-    ok &= render(sheet("Battery-side — Supervisor",
-                       (blk_uvlo, 82, 82),
-                       (blk_sense, 210, 68)), "sheet_super")
-    # Sheet — USB maintenance power (LDO + priority mux + fail-safe bypass)
-    ok &= render(sheet("Battery-side — USB maintenance power",
-                       (blk_usb, 78, 62),
-                       (blk_usb_mux, 190, 62)), "sheet_usb")
-    # Sheet — MCU
-    ok &= render(sheet("Battery-side — MCU (ESP32-S3)",
-                       (blk_mcu, 145, 105)), "sheet_mcu")
-    # Sheet — connectors & I/O
-    ok &= render(sheet("Battery-side — Connectors & I/O",
-                       (blk_j1_btn, 55, 52),
-                       (blk_j2_rj45, 210, 52),
-                       (blk_usbc, 60, 120),
-                       (blk_exp, 150, 145)), "sheet_conn")
+    for i, ((name, title, placements), (_, _, hu)) in enumerate(zip(SHEETS, defs)):
+        s = sheet(title, placements, hier_uuid=hu, page=str(i + 2))
+        ok &= render(s, name)
+    # root + project
+    rootf = OUT / f"{PROJECT}.kicad_sch"; rootf.write_text(build_root(defs))
+    write_project()
+    r = kcli("sch", "erc", "-o", str(OUT / "root.erc.rpt"), str(rootf))
+    rpt = open(OUT / "root.erc.rpt").read() if (OUT / "root.erc.rpt").exists() else ""
+    nd = rpt.count("dangling") + rpt.count("[pin_not_connected]")
+    npd = rpt.count("power_pin_not_driven")
+    print(f"[ROOT hierarchy] ERC rc={r.returncode}; dangling/unconn={nd}; power_pin_not_driven={npd}")
+    kcli("sch", "export", "pdf", "-o", str(OUT / f"{PROJECT}.pdf"), str(rootf))
+    print(f"[ROOT] wrote {PROJECT}.kicad_sch + .kicad_pro + full {PROJECT}.pdf")
     return 0 if ok else 2
 
 if __name__ == "__main__":
