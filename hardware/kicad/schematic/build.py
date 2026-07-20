@@ -48,6 +48,7 @@ SYMBOLS = {
     "D":       (str(LIB), "D"),      "D_TVS": (str(LIB), "D_TVS"),
     "LED":     (str(LIB), "LED"),    "Polyfuse": (str(LIB), "Polyfuse"),
     "AQY212EH": (str(LIB), "AQY212EH"),          # custom PhotoMOS SSR symbol
+    "USB_C_16P": (str(LIB), "USB_C_16P"),        # custom USB-C (all pins one-per-row)
     "Q_PMOS_GSD": (str(LIB), "Q_PMOS_GSD"),      # NTR4171P (std SOT-23 GSD)
     # -- KiCad stock ICs (exact entry names verified 2026-07) --
     "LM5166Y":          (f"{STOCK}/Regulator_Switching.kicad_sym", "LM5166Y"),
@@ -520,38 +521,38 @@ def blk_rs485(s, cx, cy):
 
 
 def blk_usbc(s, cx, cy):
-    """USB-C maintenance port (D22/D29): VBUS, GND, D± -> native ESP USB; CC1/CC2
-    5.1k pull-downs (UFP/device mode); SBU unused; shield -> GND. (cx,cy)=J3."""
+    """USB-C maintenance port (D22/D29). Custom one-pin-per-row symbol (no
+    stacked pins). VBUS/GND are 4 pads each; D± -> native ESP USB; CC1/CC2 5.1k
+    pull-downs (UFP/device mode); SBU unused; shield -> GND. (cx,cy)=J3."""
     yg = snap(cy + 30.48)
-    j = s.place("USB_C_Receptacle_USB2.0_16P", "J3", "USB-C 16P",
+    j = s.place("USB_C_16P", "J3", "USB-C 2.0",
                 "Connector_USB:USB_C_Receptacle_GCT_USB4085", (cx, cy), angle=0, tanchor="u", tgap=3.0)
-    # VBUS: 4 pins (spread up the right edge) -> vertical bus -> VBUS label
-    vp = [j[n] for n in ("A4", "A9", "B4", "B9")]
-    xvb = snap(max(p[0] for p in vp) + 10.16)
-    for p in vp: s.wire(p, (xvb, p[1]))
-    ys0, ys1 = min(p[1] for p in vp), max(p[1] for p in vp)
-    s.wire((xvb, ys0), (xvb, ys1))
-    s.wire((xvb, ys0), (snap(xvb + 7.62), ys0)); s.label("VBUS", (snap(xvb + 7.62), ys0), justify_h="left")
-    # D- (A7,B7) tied -> USB_DM ; D+ (A6,B6) tied -> USB_DP
-    dm1, dm2 = j["A7"], j["B7"]; s.wire(dm2, (snap(dm2[0] + 5.08), dm2[1])); s.wire((snap(dm2[0] + 5.08), dm2[1]), (snap(dm2[0] + 5.08), dm1[1])); s.wire((snap(dm2[0] + 5.08), dm1[1]), dm1)
-    s.wire(dm1, (snap(dm1[0] + 12.7), dm1[1])); s.label("USB_DM", (snap(dm1[0] + 12.7), dm1[1]), justify_h="left")
-    dp1, dp2 = j["A6"], j["B6"]; s.wire(dp1, (snap(dp1[0] + 5.08), dp1[1])); s.wire((snap(dp1[0] + 5.08), dp1[1]), (snap(dp1[0] + 5.08), dp2[1])); s.wire((snap(dp1[0] + 5.08), dp2[1]), dp2)
-    s.wire(dp2, (snap(dp2[0] + 12.7), dp2[1])); s.label("USB_DP", (snap(dp2[0] + 12.7), dp2[1]), justify_h="left")
-    # CC1/CC2 -> 5.1k -> GND. The HIGHER pin (CC1/A5) routes to the FARTHER
-    # column so no wire crosses another (a crossover reads as a false short).
-    for pin, ref, dx in (("A5", "R_cc1", 43.18), ("B5", "R_cc2", 27.94)):
-        p = j[pin]; xr = snap(p[0] + dx)
-        s.wire(p, (xr, p[1]))
-        r = s.place("R", ref, "5.1k", "R_0805_2012Metric", (xr, snap(p[1] + 6.35)), tanchor="l")
+
+    def bus(pins, net, dx=10.16):        # tie N same-net pins, one label
+        xb = snap(max(p[0] for p in pins) + dx)
+        for p in pins: s.wire(p, (xb, p[1]))
+        y0, y1 = min(p[1] for p in pins), max(p[1] for p in pins)
+        s.wire((xb, y0), (xb, y1))
+        s.wire((xb, y0), (snap(xb + 7.62), y0)); s.label(net, (snap(xb + 7.62), y0), justify_h="left")
+    bus([j[n] for n in ("A4", "A9", "B4", "B9")], "VBUS")
+    bus([j["A7"], j["B7"]], "USB_DM", 7.62)
+    bus([j["A6"], j["B6"]], "USB_DP", 7.62)
+    # CC1/CC2 -> 5.1k -> GND (far right, clear of the D± labels; CC1 higher ->
+    # farther column so no wire crosses another)
+    for pin, ref, dx in (("A5", "R_cc1", 40.64), ("B5", "R_cc2", 27.94)):
+        p = j[pin]; xr = snap(p[0] + dx); s.wire(p, (xr, p[1]))
+        r = s.place("R", ref, "5.1k", "R_0805_2012Metric", (xr, snap(p[1] + 6.35)), tanchor="r")
         s.wire((xr, p[1]), r["1"]); s.wire(r["2"], (xr, snap(r["2"][1] + 2.54)))
-        s.label("GND", (xr, snap(r["2"][1] + 2.54)), justify_h="right")
+        s.label("GND", (xr, snap(r["2"][1] + 2.54)), justify_h="left")
     s.no_connect(j["A8"]); s.no_connect(j["B8"])         # SBU unused
-    # GND: 4 GND pins + SHIELD (spread along the bottom) -> GND rail -> label
-    gp = [j[n] for n in ("A1", "A12", "B1", "B12", "SH")]
+    # GND x4 (bottom) -> GND rail ; shield -> GND (left)
+    gp = [j[n] for n in ("A1", "A12", "B1", "B12")]
     for p in gp: s.wire(p, (p[0], yg))
     gxs = sorted(p[0] for p in gp)
     s.wire((snap(gxs[0] - 7.62), yg), (gxs[-1], yg))
     s.label("GND", (snap(gxs[0] - 7.62), yg), justify_h="right")
+    sh = j["SH"]; s.wire(sh, (snap(sh[0] - 7.62), sh[1]))
+    s.label("GND", (snap(sh[0] - 7.62), sh[1]), justify_h="right")
 
 
 def blk_exp(s, cx, cy):
