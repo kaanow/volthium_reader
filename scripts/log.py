@@ -270,6 +270,9 @@ async def _loop(args, log: logging.Logger) -> int:
     wedge_streak: dict[str, int] = {}   # address → consecutive wedged cycles
     charger_on = False                  # external charger on one battery?
     chg_hi = chg_lo = 0                 # debounce counters for charger detection
+    # address → (alarms tuple, heater, balancing-active bool). Edge-triggered
+    # so BMS flags are logged only on change, never per cycle (data bloat).
+    prev_flags: dict[str, tuple] = {}
 
     while True:
         t0 = time.monotonic()
@@ -321,6 +324,35 @@ async def _loop(args, log: logging.Logger) -> int:
                                 "(i_a=%+.1f i_b=%+.1f)", ia, ib)
                     _event("charger_state", state="off",
                            i_a=round(ia, 2), i_b=round(ib, 2))
+
+            # BMS flags — logged EDGE-TRIGGERED only (never per cycle). We track
+            # the active alarm set, the heater, and whether the internal cell
+            # balancer is engaged (non-zero status word). Balancer is collapsed
+            # to active/inactive so per-cell toggling near full charge doesn't
+            # spam the log; the alarm SET and heater log on any change.
+            for br in (pack.a, pack.b):
+                if not _present(br):
+                    continue
+                key = br.address.upper()
+                bal_on = bool(br.balancer)
+                cur = (tuple(br.alarms), br.heater, bal_on)
+                prev = prev_flags.get(key)
+                # Emit on any change, and on first sighting only if noteworthy
+                # (an active alarm) — a clean first read shouldn't log.
+                if (prev is not None and cur != prev) or (
+                    prev is None and br.alarms
+                ):
+                    if br.alarms and (prev is None or set(br.alarms) - set(prev[0])):
+                        log.warning("BMS alarm on %s: %s", key, br.alarms)
+                    _event(
+                        "bms_flags",
+                        address=key,
+                        alarms=br.alarms or None,
+                        heater=br.heater,
+                        balancing=bal_on,
+                        balancer_raw=br.balancer,
+                    )
+                prev_flags[key] = cur
 
             # Wedge escalation (FM-8): read_pack flags any battery that's absent
             # from discovery but still controller-connected — a leaked link that

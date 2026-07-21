@@ -2118,10 +2118,6 @@ async def _read_device(dev: BLEDevice, address: str) -> BatteryReading:
         soc=reading.soc,
         temp=reading.temperature,
         problem_code=reading.problem_code,
-        alarms=reading.alarms or None,
-        balancer=reading.balancer,
-        heater=reading.heater,
-        design_capacity=reading.design_capacity,
     )
     return reading
 
