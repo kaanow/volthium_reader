@@ -428,6 +428,32 @@ async def api_history_gaps(
     return {"gaps": _rows_out(gaps), "source_id": src}
 
 
+@app.get("/api/history/charger_intervals")
+async def api_history_charger_intervals(
+    source_id: Optional[str] = Query(default=None),
+    hours: float = Query(default=24.0, gt=0, le=24 * 400),
+    before: Optional[str] = Query(default=None),
+    dao: ReadingsDAO = Depends(get_dao),
+) -> dict:
+    """Absolute [start, end, battery] charger sessions for the imbalance-chart
+    overlay — resolution-independent, so a short balance session shades at any
+    zoom level (the bucketed charger_frac dilutes below threshold when coarse)."""
+    until = datetime.now(timezone.utc)
+    if before:
+        try:
+            until = datetime.fromisoformat(before.replace("Z", "+00:00"))
+            if until.tzinfo is None:
+                until = until.replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(422, "before: not an ISO datetime")
+    src = await _resolve_source(dao, source_id)
+    if src is None or not isinstance(dao, AsyncpgReadingsDAO):
+        return {"intervals": []}
+    since = max(until - timedelta(hours=hours), SYSTEM_EPOCH)
+    intervals = await dao.history_charger_intervals(src, since, until)
+    return {"intervals": _rows_out(intervals), "source_id": src}
+
+
 @app.get("/api/history/stats")
 async def api_history_stats(
     source_id: Optional[str] = Query(default=None),

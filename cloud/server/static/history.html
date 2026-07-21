@@ -368,10 +368,24 @@ function bucketFor(hours) {
 }
 async function loadSeries(hours, before) {
   const b = bucketFor(hours);
-  let url = `/api/history/series?hours=${hours}&bucket_s=${b}`;
-  if (before) url += `&before=${encodeURIComponent(before)}`;
-  const j = await (await fetch(url)).json();
-  const rows = (j.series || []).map(r => ({
+  const bMs = b * 1000;
+  const bef = before ? `&before=${encodeURIComponent(before)}` : "";
+  // Fetch the bucketed series AND the absolute charger intervals in parallel.
+  const [sr, ir] = await Promise.all([
+    fetch(`/api/history/series?hours=${hours}&bucket_s=${b}${bef}`),
+    fetch(`/api/history/charger_intervals?hours=${hours}${bef}`),
+  ]);
+  const j = await sr.json();
+  // Charger shading now comes from real session INTERVALS, not the per-bucket
+  // fraction — so a short balance session shades at any zoom (the fraction
+  // dilutes below threshold in coarse 2-4 h buckets, e.g. the ~1 h Jul 1
+  // session vanished at 30 d / 90 d). Shade any bucket that overlaps a session.
+  const intervals = ((await ir.json()).intervals || [])
+    .map(v => ({s: P(v.start), e: P(v.end), bat: v.battery}));
+  const chgAt = t => intervals.find(v => t < v.e && (t + bMs) > v.s);
+  const rows = (j.series || []).map(r => {
+    const iv = chgAt(P(r.bucket));
+    return {
     t: P(r.bucket), n: r.n,
     p_avg: r.p_avg, p_min: r.p_min, p_max: r.p_max,
     soc_a: r.soc_a, soc_b: r.soc_b, t_a: r.t_a, t_b: r.t_b,
@@ -379,14 +393,9 @@ async function loadSeries(hours, before) {
     dv_b: r.dv_b != null ? r.dv_b * 1000 : null,
     ia: r.i_a, ib: r.i_b,
     div: (r.soc_a != null && r.soc_b != null) ? r.soc_a - r.soc_b : null,
-    // Charger session = most of the bucket had instantaneous |i_a-i_b| ≥ 2.5 A
-    // (server-computed charger_frac). This replaced a |di_avg|>0.8 rule that
-    // false-tripped at high load: the two BMS shunts have a ~2-3% systematic
-    // offset that scales with current, so the bucket-mean di_avg alone hit
-    // ~1.2 A at 40 A with no charger. di_avg is now used ONLY for direction.
-    chgA: r.charger_frac != null && Number(r.charger_frac) > 0.5 && r.di_avg > 0,
-    chgB: r.charger_frac != null && Number(r.charger_frac) > 0.5 && r.di_avg < 0,
-  }));
+    chgA: !!iv && iv.bat === "A",
+    chgB: !!iv && iv.bat === "B",
+  }; });
   chart("ch-p", "tip-p", rows, [
     {kind: "band", lo: "p_min", hi: "p_max", color: GRN},
     {key: "p_avg", color: GRN},

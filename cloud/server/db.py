@@ -366,6 +366,48 @@ class AsyncpgReadingsDAO:
             )
         return [dict(r) for r in rows]
 
+    async def history_charger_intervals(
+        self, source_id: str, since: datetime, until: datetime,
+        threshold: float = 2.5, min_dur_s: float = 180.0,
+    ) -> list[dict]:
+        """Contiguous runs where |i_a - i_b| >= threshold for >= min_dur_s —
+        i.e. an external per-battery charger on the series pack. Returns absolute
+        [start, end, battery] intervals, so the imbalance-chart overlay renders
+        a real balancing session at ANY zoom (unlike the bucketed charger_frac,
+        which dilutes a short session below the shade threshold when zoomed out).
+        Gaps-and-islands: number the on/off transitions, keep the on-runs."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                WITH f AS (
+                    SELECT ts,
+                           (i_a IS NOT NULL AND i_b IS NOT NULL
+                            AND abs(i_a - i_b) >= $4) AS on,
+                           (i_b - i_a) AS di
+                    FROM readings
+                    WHERE source_id = $1 AND ts >= $2 AND ts < $3
+                ),
+                m AS (SELECT ts, on, di, LAG(on) OVER (ORDER BY ts) AS prev FROM f),
+                g AS (
+                    SELECT ts, on, di,
+                           SUM(CASE WHEN on IS DISTINCT FROM prev THEN 1 ELSE 0 END)
+                               OVER (ORDER BY ts) AS grp
+                    FROM m
+                )
+                SELECT MIN(ts) AS start, MAX(ts) AS "end", AVG(di) AS di_avg
+                FROM g WHERE on
+                GROUP BY grp
+                HAVING EXTRACT(EPOCH FROM (MAX(ts) - MIN(ts))) >= $5
+                ORDER BY start""",
+                source_id, since, until, float(threshold), float(min_dur_s),
+            )
+        out = []
+        for r in rows:
+            d = dict(r)
+            d["battery"] = "B" if (d.get("di_avg") or 0) > 0 else "A"
+            out.append(d)
+        return out
+
     async def history_stats(self, source_id: str) -> dict:
         """Lifetime records for the stats strip. Extremes carry their
         timestamps so the page can say WHEN, not just how much."""
