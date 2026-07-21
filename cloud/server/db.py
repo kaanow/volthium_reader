@@ -382,20 +382,20 @@ class AsyncpgReadingsDAO:
                 WITH f AS (
                     SELECT ts,
                            (i_a IS NOT NULL AND i_b IS NOT NULL
-                            AND abs(i_a - i_b) >= $4) AS on,
+                            AND abs(i_a - i_b) >= $4) AS chg,
                            (i_b - i_a) AS di
                     FROM readings
                     WHERE source_id = $1 AND ts >= $2 AND ts < $3
                 ),
-                m AS (SELECT ts, on, di, LAG(on) OVER (ORDER BY ts) AS prev FROM f),
+                m AS (SELECT ts, chg, di, LAG(chg) OVER (ORDER BY ts) AS prev FROM f),
                 g AS (
-                    SELECT ts, on, di,
-                           SUM(CASE WHEN on IS DISTINCT FROM prev THEN 1 ELSE 0 END)
+                    SELECT ts, chg, di,
+                           SUM(CASE WHEN chg IS DISTINCT FROM prev THEN 1 ELSE 0 END)
                                OVER (ORDER BY ts) AS grp
                     FROM m
                 )
                 SELECT MIN(ts) AS start, MAX(ts) AS "end", AVG(di) AS di_avg
-                FROM g WHERE on
+                FROM g WHERE chg
                 GROUP BY grp
                 HAVING EXTRACT(EPOCH FROM (MAX(ts) - MIN(ts))) >= $5
                 ORDER BY start""",
