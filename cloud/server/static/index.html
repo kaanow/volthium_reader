@@ -210,20 +210,31 @@ function updateStale(latestTs) {
 function spark(id, values, includeZero, color, opts) {
   opts = opts || {};
   const svg = document.getElementById(id);
-  if (values.length < 2) { svg.innerHTML = ""; return null; }
+  // A missing reading (null) is a gap, not a zero — exclude it from the range
+  // and break the line across it, so a one-battery dropout doesn't dive to 0.
+  const present = values.filter(v => v != null && isFinite(v));
+  if (present.length < 2) { svg.innerHTML = ""; return null; }
   const W = 600, H = 80, PAD = 4;
-  const rawLo = Math.min(...values), rawHi = Math.max(...values);
+  const rawLo = Math.min(...present), rawHi = Math.max(...present);
   let lo = rawLo, hi = rawHi;
   if (includeZero) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
   const pad = (hi - lo) * 0.05 || 1;
   lo -= pad; hi += pad;
   const range = hi - lo || 1;
   const zeroY = H - PAD - ((0 - lo) / range) * (H - 2 * PAD);
-  const pts = values.map((p, i) => {
+  // Split into contiguous non-null segments; each becomes its own polyline.
+  const segs = [];
+  let seg = [];
+  values.forEach((p, i) => {
+    if (p == null || !isFinite(p)) { if (seg.length) { segs.push(seg); seg = []; } return; }
     const x = PAD + (i / (values.length - 1)) * (W - 2 * PAD);
     const y = H - PAD - ((p - lo) / range) * (H - 2 * PAD);
-    return x.toFixed(1) + "," + y.toFixed(1);
-  }).join(" ");
+    seg.push(x.toFixed(1) + "," + y.toFixed(1));
+  });
+  if (seg.length) segs.push(seg);
+  const lines = segs.filter(s => s.length > 1)
+    .map(s => `<polyline points="${s.join(" ")}" fill="none" stroke="${color}" stroke-width="1.5"/>`)
+    .join("");
   const zeroLine = (includeZero && lo <= 0 && hi >= 0)
     ? `<line x1="0" y1="${zeroY}" x2="${W}" y2="${zeroY}" stroke="#30363d" stroke-width="1"/>`
     : "";
@@ -243,8 +254,7 @@ function spark(id, values, includeZero, color, opts) {
   const loTxt = `<text x="${W - 3}" y="${H - 3}" fill="#6e7681" font-size="10" `
               + `text-anchor="end" font-family="ui-monospace,monospace" `
               + `font-variant-numeric="tabular-nums">${fmt(rawLo)}${unit}</text>`;
-  svg.innerHTML = zeroLine + hiTxt + loTxt +
-    `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/>`;
+  svg.innerHTML = zeroLine + hiTxt + loTxt + lines;
   return { lo: rawLo, hi: rawHi };
 }
 
@@ -398,9 +408,10 @@ async function tick() {
       cells[5 + i].textContent = cb[i] != null ? Number(cb[i]).toFixed(3) : "—";
     }
 
-    const ps = rows.map(r => r.pack_p == null ? 0 : Number(r.pack_p));
+    const ps = rows.map(r => r.pack_p == null ? null : Number(r.pack_p));
+    const lastP = ps.reduce((a, v) => v != null ? v : a, null);
     const pRange = spark("spark-p", ps, true,
-                         ps[ps.length - 1] >= 0 ? "var(--grn)" : "var(--ylw)",
+                         (lastP == null || lastP >= 0) ? "var(--grn)" : "var(--ylw)",
                          { unit: " W" });
     // SOC sparkline: track the WEAKEST battery over time — same rule as the
     // headline. Falls back to the sole present battery when only one is up.
