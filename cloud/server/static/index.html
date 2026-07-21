@@ -113,6 +113,8 @@
   <div class="grid">
     <div class="panel">
       <span id="state-value" class="state-badge">…</span>
+      <span id="charger-badge" class="state-badge state-charging"
+            style="display:none; margin-left:8px">⚡ balancing</span>
       <div class="headline-pair">
         <div class="cell">
           <div class="h" id="soc-headline">—<span class="u">%</span></div>
@@ -283,6 +285,26 @@ async function tick() {
       return;
     }
     const x = rows[rows.length - 1];
+
+    // Charger / balancing badge — mirrors the reader's debounced detection:
+    // show only when the last few readings ALL have wildly-divergent per-
+    // battery current (a charger clamped on one battery breaks the series-
+    // string symmetry). Debounced so high-load transient skew can't flicker
+    // it. Keep THR/N in step with CHARGER_* in scripts/log.py.
+    (function () {
+      const el = document.getElementById("charger-badge");
+      const N = 5, THR = 2.5;
+      const last = rows.slice(-N);
+      const on = last.length >= N && last.every(
+        r => r.i_a != null && r.i_b != null && Math.abs(r.i_a - r.i_b) >= THR);
+      if (on) {
+        const r = last[last.length - 1];
+        el.textContent = "⚡ balancing " + (r.i_b > r.i_a ? "B" : "A");
+        el.style.display = "";
+      } else {
+        el.style.display = "none";
+      }
+    })();
 
     updateStale(x.ts);
 

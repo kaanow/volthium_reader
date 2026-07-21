@@ -93,6 +93,22 @@ CONSEC_ERR_SNAPSHOT_AT = 5
 # becomes visible from Railway the moment it starts.
 HEALTH_SNAPSHOT_EVERY_CYCLES = 60
 
+# Charger / manual-balance detection. In the series pack both batteries carry
+# the same current, so |i_a - i_b| ≈ 0; a charger clamped across one battery
+# drives them apart (the operator's "tell").
+#
+# Threshold + debounce are empirical (2026-07-20, ~8400 charger-off samples).
+# The SUSTAINED off-state mismatch stays under ~1.8 A even at 10 A+ loads
+# (it's just per-BMS sensor tolerance) — but high-load current STEPS produce
+# brief read-timing-skew spikes up to ~65 A (A and B sampled seconds apart
+# across a load switch, pack peaks ~68 A). The debounce, not the threshold,
+# is what rejects those: a charger sustains its offset for hours, a transient
+# lasts a reading or two. So the threshold need only clear the sustained
+# floor (2.5 A > 1.8 A p99, well under a real charger's ~6.6 A), and the
+# debounce demands the offset persist ~30-50 s.
+CHARGER_DIVERGENCE_A = 2.5
+CHARGER_DEBOUNCE_CYCLES = 5
+
 
 CSV_FIELDS = [
     "ts", "state",
@@ -252,6 +268,8 @@ async def _loop(args, log: logging.Logger) -> int:
     n = 0
     prev_present: tuple[bool, bool] | None = None
     wedge_streak: dict[str, int] = {}   # address → consecutive wedged cycles
+    charger_on = False                  # external charger on one battery?
+    chg_hi = chg_lo = 0                 # debounce counters for charger detection
 
     while True:
         t0 = time.monotonic()
@@ -274,6 +292,35 @@ async def _loop(args, log: logging.Logger) -> int:
                             "  (partial row — pack totals unavailable)"
                             if not (present[0] and present[1]) else "")
                 prev_present = present
+
+            # Charger / manual-balance detection. In the series pack the SAME
+            # current flows through both batteries, so i_a ≈ i_b. A charger
+            # clamped across ONE battery breaks that symmetry (one reads several
+            # amps, the other ~0) — the operator's "tell" for an external
+            # charger doing a manual top-balance. Debounced so sensor noise
+            # can't flip it; logs a charger_state event on each on/off edge.
+            ia, ib = pack.a.current, pack.b.current
+            if ia is not None and ib is not None:
+                if abs(ia - ib) >= CHARGER_DIVERGENCE_A:
+                    chg_hi += 1
+                    chg_lo = 0
+                else:
+                    chg_lo += 1
+                    chg_hi = 0
+                if not charger_on and chg_hi >= CHARGER_DEBOUNCE_CYCLES:
+                    charger_on = True
+                    target = "B" if ib > ia else "A"
+                    log.warning("charger detected — balancing %s (i_a=%+.1f "
+                                "i_b=%+.1f)", target, ia, ib)
+                    _event("charger_state", state="on", charging=target,
+                           i_a=round(ia, 2), i_b=round(ib, 2),
+                           divergence_a=round(abs(ia - ib), 2))
+                elif charger_on and chg_lo >= CHARGER_DEBOUNCE_CYCLES:
+                    charger_on = False
+                    log.warning("charger removed — currents symmetric again "
+                                "(i_a=%+.1f i_b=%+.1f)", ia, ib)
+                    _event("charger_state", state="off",
+                           i_a=round(ia, 2), i_b=round(ib, 2))
 
             # Wedge escalation (FM-8): read_pack flags any battery that's absent
             # from discovery but still controller-connected — a leaked link that
