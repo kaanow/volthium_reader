@@ -271,9 +271,11 @@ class AsyncpgReadingsDAO:
                        -- without a charger and near 1 with one. Random load-
                        -- transient skew (±60 A momentary) is a handful of
                        -- readings, so it never pushes the fraction over ~0.5.
+                       -- cast to float8 so it serializes as a JSON number
+                       -- (AVG of numeric literals is `numeric` → JSON string).
                        AVG(CASE WHEN i_a IS NOT NULL AND i_b IS NOT NULL
                                  AND abs(i_a - i_b) >= 2.5
-                                THEN 1.0 ELSE 0.0 END) AS charger_frac
+                                THEN 1.0 ELSE 0.0 END)::float8 AS charger_frac
                    FROM readings
                    WHERE source_id = $1 AND ts >= $2 AND ts < $3
                    GROUP BY 1 ORDER BY 1""",

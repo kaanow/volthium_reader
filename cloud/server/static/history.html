@@ -359,8 +359,8 @@ async function loadSeries(hours, before) {
     // false-tripped at high load: the two BMS shunts have a ~2-3% systematic
     // offset that scales with current, so the bucket-mean di_avg alone hit
     // ~1.2 A at 40 A with no charger. di_avg is now used ONLY for direction.
-    chgA: r.charger_frac != null && r.charger_frac > 0.5 && r.di_avg > 0,
-    chgB: r.charger_frac != null && r.charger_frac > 0.5 && r.di_avg < 0,
+    chgA: r.charger_frac != null && Number(r.charger_frac) > 0.5 && r.di_avg > 0,
+    chgB: r.charger_frac != null && Number(r.charger_frac) > 0.5 && r.di_avg < 0,
   }));
   chart("ch-p", "tip-p", rows, [
     {kind: "band", lo: "p_min", hi: "p_max", color: GRN},
