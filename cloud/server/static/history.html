@@ -322,10 +322,31 @@ async function loadStats() {
     ["peak charge", s.peak_in_w != null ? Math.round(s.peak_in_w) + " W" : "—", dTs(s.peak_in_ts), null],
     ["coldest cell", s.coldest_c != null ? Math.round(s.coldest_c) + " °C" : "—", dTs(s.coldest_ts), null],
     ["hottest cell", s.hottest_c != null ? Math.round(s.hottest_c) + " °C" : "—", dTs(s.hottest_ts), null],
-    ["worst imbalance", s.worst_delta_v != null ? Math.round(s.worst_delta_v * 1000) + " mV" : "—",
-      dTs(s.worst_delta_v_ts), null],
     ["telemetry uptime", avail != null ? avail.toFixed(1) + "%" : "—", "of elapsed time", null],
   ];
+  // Per-battery records — only where A and B genuinely differ. Capacity is
+  // the headline: the two BMSes report different effective Ah, the likely
+  // root of the persistent A>B imbalance.
+  const pb = s.per_battery;
+  const AB = (a, b, u) => (a != null ? a : "—") + " / " + (b != null ? b : "—") + (u || "");
+  if (pb) {
+    const capGap = (pb.a.capacity_ah != null && pb.b.capacity_ah != null)
+      ? Math.abs(pb.a.capacity_ah - pb.b.capacity_ah) : 0;
+    cards.push(
+      ["capacity  A / B",
+        AB(pb.a.capacity_ah != null ? Math.round(pb.a.capacity_ah) : null,
+           pb.b.capacity_ah != null ? Math.round(pb.b.capacity_ah) : null, " Ah"),
+        "effective, per BMS", capGap >= 10 ? YLW : null],
+      ["deepest SOC  A / B",
+        AB(pb.a.soc_min != null ? Math.round(pb.a.soc_min) : null,
+           pb.b.soc_min != null ? Math.round(pb.b.soc_min) : null, "%"),
+        "lowest each reached", null],
+      ["worst cell Δ  A / B",
+        AB(pb.a.worst_delta_v != null ? Math.round(pb.a.worst_delta_v * 1000) : null,
+           pb.b.worst_delta_v != null ? Math.round(pb.b.worst_delta_v * 1000) : null, " mV"),
+        "spread within each", null],
+    );
+  }
   $("cards").innerHTML = cards.map(([k, v, d, col]) =>
     `<div class="card"><div class="ck">${k}</div>
      <div class="cv"${col ? ` style="color:${col}"` : ""}>${v}</div>

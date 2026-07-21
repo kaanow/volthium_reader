@@ -435,6 +435,21 @@ class AsyncpgReadingsDAO:
                    LIMIT 1""",
                 source_id,
             )
+            # Per-battery records — only the stats where A and B genuinely
+            # differ and the split is informative. MAX(remaining_ah) is each
+            # BMS's effective capacity (its reading at 100% SOC); the two
+            # differ (~228 vs ~209 Ah), which is the likely root of the
+            # persistent A>B imbalance.
+            perbat = await conn.fetchrow(
+                """SELECT MAX(remaining_ah_a) AS cap_a,
+                          MAX(remaining_ah_b) AS cap_b,
+                          MIN(soc_a) AS soc_min_a, MIN(soc_b) AS soc_min_b,
+                          MIN(t_a)   AS t_min_a,   MAX(t_a)   AS t_max_a,
+                          MIN(t_b)   AS t_min_b,   MAX(t_b)   AS t_max_b,
+                          MAX(delta_v_a) AS dv_a,  MAX(delta_v_b) AS dv_b
+                   FROM readings WHERE source_id = $1""",
+                source_id,
+            )
         out = {
             "first_ts": base["first_ts"], "last_ts": base["last_ts"],
             "samples": base["n"],
@@ -459,6 +474,19 @@ class AsyncpgReadingsDAO:
         if worst_dv:
             out["worst_delta_v"] = worst_dv["dv"]
             out["worst_delta_v_ts"] = worst_dv["ts"]
+        if perbat:
+            out["per_battery"] = {
+                "a": {
+                    "capacity_ah": perbat["cap_a"], "soc_min": perbat["soc_min_a"],
+                    "t_min": perbat["t_min_a"], "t_max": perbat["t_max_a"],
+                    "worst_delta_v": perbat["dv_a"],
+                },
+                "b": {
+                    "capacity_ah": perbat["cap_b"], "soc_min": perbat["soc_min_b"],
+                    "t_min": perbat["t_min_b"], "t_max": perbat["t_max_b"],
+                    "worst_delta_v": perbat["dv_b"],
+                },
+            }
         return out
 
 
