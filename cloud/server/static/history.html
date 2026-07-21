@@ -164,6 +164,13 @@
     <div id="gaps-box"></div>
   </div>
 
+  <!-- BMS alarm log -->
+  <div class="panel">
+    <div class="label">BMS alarm log
+      <span class="sub">protection flags the BMS raised, decoded from stored status words</span></div>
+    <div id="alarms-box"></div>
+  </div>
+
   <div class="note" style="margin-top:14px">
     Aggregates are computed server-side from every sample ever uploaded
     (one reading ≈ every 8 s). Energy figures integrate power over time with
@@ -590,6 +597,27 @@ document.querySelectorAll("#chips .chip[data-h]").forEach(c => {
   });
 });
 
+async function loadAlarms() {
+  const rows = ((await (await fetch("/api/history/alarms")).json()).alarms) || [];
+  const box = $("alarms-box");
+  if (!rows.length) {
+    box.innerHTML = '<div class="sub" style="padding:6px 2px">no BMS alarms on record — all clear.</div>';
+    return;
+  }
+  const dur = (s, e) => {
+    const m = Math.max(1, Math.round((P(e) - P(s)) / 60000));
+    return m >= 60 ? (m / 60).toFixed(1) + " h" : m + " min";
+  };
+  const when = ts => new Date(P(ts)).toLocaleString(
+    [], {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"});
+  box.innerHTML = '<table class="gaps"><tr><th>when</th><th>battery</th>'
+    + '<th>duration</th><th>flag(s)</th></tr>'
+    + rows.map(r => `<tr><td>${when(r.start)}</td><td>${r.bat}</td>`
+        + `<td>${dur(r.start, r.end)}</td>`
+        + `<td class="cls">${(r.flags || []).join(", ") || "—"}</td></tr>`).join("")
+    + '</table>';
+}
+
 // --- boot -----------------------------------------------------------------------------
 (async () => {
   const s = await loadStats().catch(e => (console.error(e), null));
@@ -599,6 +627,7 @@ document.querySelectorAll("#chips .chip[data-h]").forEach(c => {
   setRange(168, null);
   loadDaily().catch(console.error);
   loadProfile().catch(console.error);
+  loadAlarms().catch(console.error);
 })();
 </script>
 </body>

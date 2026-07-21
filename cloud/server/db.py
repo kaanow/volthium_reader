@@ -408,6 +408,46 @@ class AsyncpgReadingsDAO:
             out.append(d)
         return out
 
+    async def history_alarms(
+        self, source_id: str, since: datetime,
+    ) -> list[dict]:
+        """Alarm EPISODES per battery: contiguous runs where problem_code != 0.
+        Returns [start, end, battery, codes] where `codes` is the bitwise-OR of
+        every problem_code seen in the run (so an episode captures all flags
+        that fired). Retroactive decode of stored data — the reader only names
+        alarms going forward, but the raw code was always logged."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                WITH long AS (
+                    SELECT ts, problem_code_a AS pc, 'A' AS bat
+                    FROM readings
+                    WHERE source_id = $1 AND ts >= $2 AND problem_code_a IS NOT NULL
+                    UNION ALL
+                    SELECT ts, problem_code_b, 'B'
+                    FROM readings
+                    WHERE source_id = $1 AND ts >= $2 AND problem_code_b IS NOT NULL
+                ),
+                m AS (
+                    SELECT ts, bat, pc, (pc <> 0) AS active,
+                           LAG(pc <> 0) OVER (PARTITION BY bat ORDER BY ts) AS prev
+                    FROM long
+                ),
+                g AS (
+                    SELECT ts, bat, pc, active,
+                           SUM(CASE WHEN active IS DISTINCT FROM prev THEN 1 ELSE 0 END)
+                               OVER (PARTITION BY bat ORDER BY ts) AS grp
+                    FROM m
+                )
+                SELECT bat, MIN(ts) AS start, MAX(ts) AS "end",
+                       bit_or(pc) AS codes, COUNT(*) AS samples
+                FROM g WHERE active
+                GROUP BY bat, grp
+                ORDER BY start""",
+                source_id, since,
+            )
+        return [dict(r) for r in rows]
+
     async def history_stats(self, source_id: str) -> dict:
         """Lifetime records for the stats strip. Extremes carry their
         timestamps so the page can say WHEN, not just how much."""

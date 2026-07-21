@@ -310,6 +310,22 @@ async def api_latest(
 # here so the "90 d" / "all" spans aren't padded with a ~6-week empty gap.
 SYSTEM_EPOCH = datetime(2026, 6, 29, tzinfo=timezone.utc)
 
+# Alarm bit map — mirrors volthium/pack.py::_ALARM_BITS (the server can't import
+# the reader package). problem_code carries status-word bits 2-11.
+_ALARM_BITS: tuple[tuple[int, str], ...] = (
+    (0x004, "cell_overvoltage"), (0x008, "cell_undervoltage"),
+    (0x010, "charge_overcurrent"), (0x020, "short_circuit"),
+    (0x040, "discharge_overcurrent_1"), (0x080, "discharge_overcurrent_2"),
+    (0x100, "charge_overtemp"), (0x200, "charge_undertemp"),
+    (0x400, "discharge_overtemp"), (0x800, "discharge_undertemp"),
+)
+
+
+def _decode_alarms(code: Optional[int]) -> list[str]:
+    if not code:
+        return []
+    return [name for bit, name in _ALARM_BITS if code & bit]
+
 
 # --- history / analytics ----------------------------------------------------
 # Read-only aggregate endpoints behind the /history page. All follow the
@@ -452,6 +468,27 @@ async def api_history_charger_intervals(
     since = max(until - timedelta(hours=hours), SYSTEM_EPOCH)
     intervals = await dao.history_charger_intervals(src, since, until)
     return {"intervals": _rows_out(intervals), "source_id": src}
+
+
+@app.get("/api/history/alarms")
+async def api_history_alarms(
+    source_id: Optional[str] = Query(default=None),
+    hours: float = Query(default=24.0 * 400, gt=0, le=24 * 400),
+    dao: ReadingsDAO = Depends(get_dao),
+) -> dict:
+    """Alarm episodes (decoded from stored problem_code), newest first."""
+    src = await _resolve_source(dao, source_id)
+    if src is None or not isinstance(dao, AsyncpgReadingsDAO):
+        return {"alarms": []}
+    since = max(datetime.now(timezone.utc) - timedelta(hours=hours), SYSTEM_EPOCH)
+    episodes = await dao.history_alarms(src, since)
+    out = []
+    for e in episodes:
+        d = dict(e)
+        d["flags"] = _decode_alarms(d.get("codes"))
+        out.append(d)
+    out.reverse()  # newest first
+    return {"alarms": _rows_out(out), "source_id": src}
 
 
 @app.get("/api/history/stats")
