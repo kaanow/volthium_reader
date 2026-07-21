@@ -335,6 +335,10 @@ async function loadStats() {
 
 // --- range explorer -----------------------------------------------------------
 let firstTs = null;
+// Current logger/hardware went live 2026-06-29; stray older readings exist.
+// Floor "all"/reliability spans here so they don't show a ~6-week empty gap.
+// Keep in step with SYSTEM_EPOCH in cloud/server/main.py.
+const SYSTEM_EPOCH_MS = Date.parse("2026-06-29T00:00:00Z");
 function bucketFor(hours) {
   const target = hours * 3600 / 450;   // ~450 buckets on screen
   for (const b of [60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 43200, 86400])
@@ -395,7 +399,9 @@ async function loadSeries(hours, before) {
 // --- reliability ---------------------------------------------------------------
 async function loadGaps(hours, before) {
   const now = before ? P(before) : Date.now();
-  const t0 = now - hours * 3600e3;
+  // Floor at the system epoch so the availability % and gap bar are computed
+  // over the real data span, not the empty pre-launch stretch (90 d / all).
+  const t0 = Math.max(now - hours * 3600e3, SYSTEM_EPOCH_MS);
   // The endpoint windows back from the server's NOW — when zoomed to a past
   // day, widen the fetch so it still reaches t0.
   const fetchHours = Math.max(hours, (Date.now() - t0) / 3.6e6);
@@ -557,7 +563,9 @@ document.querySelectorAll("#chips .chip[data-h]").forEach(c => {
 // --- boot -----------------------------------------------------------------------------
 (async () => {
   const s = await loadStats().catch(e => (console.error(e), null));
-  if (s) firstTs = s.first_ts;
+  // Floor the first-ever timestamp to the system epoch so "all" spans the
+  // real deployment, not the empty pre-launch gap.
+  if (s) firstTs = new Date(Math.max(P(s.first_ts), SYSTEM_EPOCH_MS)).toISOString();
   setRange(168, null);
   loadDaily().catch(console.error);
   loadProfile().catch(console.error);

@@ -305,6 +305,12 @@ async def api_latest(
     return {"latest": r}
 
 
+# The current logger/hardware went live 2026-06-29; a handful of stray
+# readings predate it (an old bring-up rig). History views floor their range
+# here so the "90 d" / "all" spans aren't padded with a ~6-week empty gap.
+SYSTEM_EPOCH = datetime(2026, 6, 29, tzinfo=timezone.utc)
+
+
 # --- history / analytics ----------------------------------------------------
 # Read-only aggregate endpoints behind the /history page. All follow the
 # /api/events pattern: real SQL lives on AsyncpgReadingsDAO; with any other
@@ -351,7 +357,7 @@ async def api_history_series(
     src = await _resolve_source(dao, source_id)
     if src is None or not isinstance(dao, AsyncpgReadingsDAO):
         return {"series": [], "bucket_s": bucket_s}
-    since = until - timedelta(hours=hours)
+    since = max(until - timedelta(hours=hours), SYSTEM_EPOCH)
     rows = await dao.history_series(src, since, until, bucket_s)
     return {"series": _rows_out(rows), "bucket_s": bucket_s, "source_id": src}
 
@@ -399,7 +405,7 @@ async def api_history_gaps(
     src = await _resolve_source(dao, source_id)
     if src is None or not isinstance(dao, AsyncpgReadingsDAO):
         return {"gaps": []}
-    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    since = max(datetime.now(timezone.utc) - timedelta(hours=hours), SYSTEM_EPOCH)
     gaps = await dao.history_gaps(src, since, min_gap_s)
     wedges = await dao.recent_events(src, "wedge_snapshot", since, limit=500)
     for g in gaps:
