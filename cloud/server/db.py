@@ -255,14 +255,25 @@ class AsyncpgReadingsDAO:
                        MAX(delta_v_b)  AS dv_b,
                        AVG(i_a)        AS i_a,
                        AVG(i_b)        AS i_b,
-                       -- Mean current asymmetry: in a series string i_a = i_b,
-                       -- so a bucket whose AVERAGE differs means the operator's
-                       -- per-battery charger was hooked up for a meaningful
-                       -- part of it. The mean (not min/max) matters: the two
-                       -- BMSes sample at slightly different instants, so load
-                       -- transients produce huge momentary skew (±60 A seen
-                       -- live) that averages back out.
-                       AVG(i_a - i_b)  AS di_avg
+                       -- Signed mean asymmetry — used ONLY for DIRECTION (which
+                       -- battery is being charged), not the on/off decision.
+                       AVG(i_a - i_b)  AS di_avg,
+                       -- Robust charger detection: the FRACTION of readings in
+                       -- the bucket whose INSTANTANEOUS |i_a - i_b| clears the
+                       -- empirical 2.5 A bar (same threshold the reader uses).
+                       -- Threshold-then-average, NOT average-then-threshold:
+                       -- the two BMS current shunts carry a ~2-3% SYSTEMATIC
+                       -- offset that SCALES with load, so at ~40 A a bucket's
+                       -- mean di_avg reaches ~1.2 A with NO charger present —
+                       -- which false-tripped the old |di_avg|>0.8 shading rule
+                       -- (2026-07-21). Instantaneous divergence at high load
+                       -- still sits ~1 A (< 2.5), so this fraction stays near 0
+                       -- without a charger and near 1 with one. Random load-
+                       -- transient skew (±60 A momentary) is a handful of
+                       -- readings, so it never pushes the fraction over ~0.5.
+                       AVG(CASE WHEN i_a IS NOT NULL AND i_b IS NOT NULL
+                                 AND abs(i_a - i_b) >= 2.5
+                                THEN 1.0 ELSE 0.0 END) AS charger_frac
                    FROM readings
                    WHERE source_id = $1 AND ts >= $2 AND ts < $3
                    GROUP BY 1 ORDER BY 1""",

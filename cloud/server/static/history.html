@@ -354,10 +354,13 @@ async function loadSeries(hours, before) {
     dv_b: r.dv_b != null ? r.dv_b * 1000 : null,
     ia: r.i_a, ib: r.i_b,
     div: (r.soc_a != null && r.soc_b != null) ? r.soc_a - r.soc_b : null,
-    // Mean asymmetry ≥ ~0.8 A across a whole bucket = charger session
-    // (momentary sampling skew between the two BMSes averages out).
-    chgA: r.di_avg != null && r.di_avg > 0.8,
-    chgB: r.di_avg != null && r.di_avg < -0.8,
+    // Charger session = most of the bucket had instantaneous |i_a-i_b| ≥ 2.5 A
+    // (server-computed charger_frac). This replaced a |di_avg|>0.8 rule that
+    // false-tripped at high load: the two BMS shunts have a ~2-3% systematic
+    // offset that scales with current, so the bucket-mean di_avg alone hit
+    // ~1.2 A at 40 A with no charger. di_avg is now used ONLY for direction.
+    chgA: r.charger_frac != null && r.charger_frac > 0.5 && r.di_avg > 0,
+    chgB: r.charger_frac != null && r.charger_frac > 0.5 && r.di_avg < 0,
   }));
   chart("ch-p", "tip-p", rows, [
     {kind: "band", lo: "p_min", hi: "p_max", color: GRN},
