@@ -337,11 +337,10 @@ async def _loop(args, log: logging.Logger) -> int:
                 bal_on = bool(br.balancer)
                 cur = (tuple(br.alarms), br.heater, bal_on)
                 prev = prev_flags.get(key)
-                # Emit on any change, and on first sighting only if noteworthy
-                # (an active alarm) — a clean first read shouldn't log.
-                if (prev is not None and cur != prev) or (
-                    prev is None and br.alarms
-                ):
+                # Emit a baseline on first sighting (per battery, per logger
+                # start — 2 events, negligible) so the current flag state is
+                # always known, then only on change thereafter.
+                if prev is None or cur != prev:
                     if br.alarms and (prev is None or set(br.alarms) - set(prev[0])):
                         log.warning("BMS alarm on %s: %s", key, br.alarms)
                     _event(
@@ -351,6 +350,7 @@ async def _loop(args, log: logging.Logger) -> int:
                         heater=br.heater,
                         balancing=bal_on,
                         balancer_raw=br.balancer,
+                        baseline=prev is None or None,
                     )
                 prev_flags[key] = cur
 
