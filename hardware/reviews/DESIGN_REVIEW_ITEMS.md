@@ -962,3 +962,45 @@ the other way; the rest are datasheet concretizations of deferred values.
 All are analysis-backed and the schematic is built with them (ERC-clean,
 readable). Non-gating for the block's structure — only the values would
 change if the user prefers COT (then L1→larger, R_ILIM/C2 re-pick).
+
+## DR-30 — CP2 schematic capture of the isolated RS-485 read (DR-26) + remaining battery-side elements  [OPEN — drawn + self-verified 2026-07-20; DR-26 test still gates population]
+
+CP2 drew the DR-26 isolated RS-485 subsystem (2× ADM2587E channels, one
+sheet each) plus the battery-side elements that were BOM-listed but not yet
+captured. All 8 battery sheets are readability-gate-clean and per-sheet
+ERC-clean; the assembled hierarchy is ERC-clean (only the known headless
+dangling artifact + the 1 pre-existing power-flag baseline).
+
+**Added this pass:** the 2 iso channels (U10/U11 + isoPower network + power-
+gates + DNP protection cluster + J10/J11 RJ45 + the 8 MCU GPIOs, itemized in
+the new BOM subsection); **C_mux** (47 µF mux-OUT bulk, reviewer F11 — was
+missing); **U-ESD** (USBLC6-2SC6 on J3, was missing); **J4** (RS-485 term-
+lift jumper in series with R10); **J5** (debug/console UART header on
+U0TXD/U0RXD). MCU pins re-checked: the 8 iso GPIOs (IO6/16/13/14/21/47/48/39)
+avoid all strapping/PSRAM/console pins.
+
+**Defects caught + fixed during self-review (evidence the pass worked):**
+- **Critical net-name disconnect:** the iso power-gate source + default-OFF
+  pull-up were wired to `3V3`, but the whole design's rail is `V3V3` → the
+  ADM2587E VCC would never have been powered and default-OFF would not hold.
+  Fixed (both channels). Caught by a full-schematic net-name reconciliation
+  (all nets now appear on ≥2 sheets except the 2 intentional `PACKn_Bminus`
+  REF pads).
+- **RJ45 footprint typo:** `RJ45_Amphenol_RJHSE-5380`/`-538X` (hyphen) don't
+  exist in KiCad's `Connector_RJ` lib — corrected to the no-hyphen names on
+  J2 (pre-existing) **and** J10/J11.
+- **isoPower ferrites** were placeholder `"ferrite"` → specified TDK
+  MPZ2012S601 (600 Ω/2 A/0805), now a BOM line item (L10–L13).
+
+**Still OPEN (needs a call / BOM-lock task):**
+- **C28/C38 (C_stitch HV Y-cap):** must be a safety-agency-rated Y1/Y2 part
+  to the *working* voltage (VIORM 524 Vpk / 396 Vrms, IEC 60747-17) — not the
+  2500 Vrms 1-min proof. No live SKU yet; pick a rated Murata DE/GA-class cap
+  at BOM-lock. Left `_verify_` in the BOM.
+- **EXP I2C pull-ups:** DR-27/D37/F48 says the expansion I2C (EXP_SDA/EXP_SCL)
+  gets pull-ups on the *switched* EXP_3V3 rail; the current `blk_exp` has the
+  rail + Q_exp + bleed but no dedicated EXP-side I2C pull-up resistors. Verify
+  whether those live on-board or on the (optional) daughterboard before CP5.
+- DR-26 itself stays OPEN and **gating on the ~2-week on-site two-domain
+  test**; the schematic/BOM are drawn so the test can run, but population of
+  the isolated front-end is not committed until it passes.

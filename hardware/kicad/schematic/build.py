@@ -60,6 +60,11 @@ SYMBOLS = {
     "ESP32-S3-WROOM-1": (f"{STOCK}/RF_Module.kicad_sym",           "ESP32-S3-WROOM-1"),
     "AP2112K-3.3":      (f"{STOCK}/Regulator_Linear.kicad_sym",    "AP2112K-3.3"),
     "2N7002":           (f"{STOCK}/Transistor_FET.kicad_sym",      "2N7002"),
+    "ADM2587E":         (f"{STOCK}/Interface_UART.kicad_sym",      "ADM2587E"),
+    "SM712_SOT23":      (f"{STOCK}/Diode.kicad_sym",               "SM712_SOT23"),
+    "FerriteBead":      (f"{STOCK}/Device.kicad_sym",              "FerriteBead"),
+    "USBLC6-2SC6":      (f"{STOCK}/Power_Protection.kicad_sym",    "USBLC6-2SC6"),
+    "Conn_01x04":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x04"),
     "Conn_01x02":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x02"),
     "Conn_01x08":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x08"),
     "RJ45_Shielded":    (f"{STOCK}/Connector.kicad_sym",           "RJ45_Shielded"),
@@ -179,7 +184,7 @@ class Sheet:
             self.sch.libSymbols.append(_copy.deepcopy(resolve_symbol(name)))
 
     def place(self, name, ref, value, footprint, pos, angle=0.0,
-              tanchor="r", bw=None, bh=None, tgap=0.0):
+              tanchor="r", bw=None, bh=None, tgap=0.0, dnp=False):
         """tanchor picks where ref/value sit relative to the real body:
              'ud' ref above / value below   'u' both stacked above
              'l'  both to the left          'r' both to the right
@@ -210,7 +215,8 @@ class Sheet:
             self.txt_boxes.append((tx, ty-TXTH/2, tx+_tw(txt), ty+TXTH/2, f"{ref}:{txt}"))
         inst = SchematicSymbol(libraryNickname="volthium", entryName=name,
             position=Position(X=pos[0], Y=pos[1], angle=angle),
-            unit=1, inBom=True, onBoard=True, fieldsAutoplaced=False, uuid=_uuid())
+            unit=1, inBom=True, onBoard=True, dnp=(True if dnp else None),
+            fieldsAutoplaced=False, uuid=_uuid())
         le = lambda: Effects(justify=Justify(horizontally="left"))
         # Field angle to keep ref/value HORIZONTAL + upright regardless of the
         # symbol's rotation. KiCad's readable-text handling is non-obvious
@@ -501,23 +507,177 @@ def blk_rs485(s, cx, cy):
     ygp = snap(GND[1] + 2.54)
     s.wire(GND, (GND[0], ygp)); s.label("GND", (GND[0], ygp), justify_h="left")
 
-    # ---- A/B bus (right): term R10 + TVS2 bridge A-B, then to Cat5e ----
-    yA, yB = A[1], snap(A[1] + 7.62)                  # spread B down to a 7.62 bridge span
+    # ---- A/B bus (right): term (R10 in series with J4 term-lift jumper) + TVS2
+    #      bridge A-B, then to Cat5e. J4 open = 120R termination lifted. ----
+    yA, yB = A[1], snap(A[1] + 15.24)                 # wide bridge for R10 + J4 in series
     xstep = snap(cx + 12.7)
-    xbr1, xbr2, xlblB = snap(cx + 17.78), snap(cx + 30.48), snap(cx + 43.18)
+    xbr1, xbr2, xlblB = snap(cx + 17.78), snap(cx + 33.02), snap(cx + 45.72)
     s.wire(A, (xbr1, yA))                             # A rail
     s.wire(B, (xstep, B[1]))                          # B out, then step down to yB
     s.wire((xstep, B[1]), (xstep, yB)); s.wire((xstep, yB), (xbr1, yB))
-    ymid = snap((yA + yB) / 2)
+    nT = snap(yA + 7.62)                              # R10 <-> J4 term node
     r10 = s.place("R", "R10", "120", "R_0805_2012Metric",
-                  (xbr1, ymid), angle=0, tanchor="r", bw=2.0)
-    tvs = s.place("D_TVS", "TVS2", "SMAJ12CA", "D_SMA", (xbr2, ymid), angle=90, tanchor="r")
+                  (xbr1, snap(yA + 3.81)), angle=0, tanchor="r", bw=2.0)   # top=yA rail, bot=nT
+    j4 = s.place("Conn_01x02", "J4", "TERM",
+                 "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+                 (snap(xbr1 + 5.08), snap(yA + 10.16)), angle=0, tanchor="r")
+    j4t = min(j4.values(), key=lambda p: p[1]); j4b = max(j4.values(), key=lambda p: p[1])
+    s.wire((xbr1, nT), j4t); s.wire(j4b, (xbr1, yB))             # R10 bot -> J4 -> B rail
+    tvs = s.place("D_TVS", "TVS2", "SMAJ12CA", "D_SMA", (xbr2, snap((yA + yB) / 2)), angle=90, tanchor="r")
     tvT = min(tvs.values(), key=lambda p: p[1]); tvB = max(tvs.values(), key=lambda p: p[1])
     s.wire((xbr1, yA), (xbr2, yA)); s.wire((xbr2, yA), (xlblB, yA))   # A -> label
     s.wire((xbr1, yB), (xbr2, yB)); s.wire((xbr2, yB), (xlblB, yB))   # B -> label
     s.wire((xbr2, yA), tvT); s.wire((xbr2, yB), tvB)                  # TVS2 across A-B
     s.label("RS485_A", (xlblB, yA), justify_h="left")
     s.label("RS485_B", (xlblB, yB), justify_h="left")
+
+
+def blk_iso_ch(s, cx, cy, n):
+    """Isolated RS-485 battery-read channel n (D36/DR-26) — one channel per sheet.
+    U_iso ADM2587E = isolated transceiver + integrated isoPower. VCC power-gated
+    by Q_ls (NTR4171P P-FET, gate=CHn_PWR active-LOW + 100k pull-up to 3V3 =
+    default-OFF). isoPower per Rev H Fig 35 / p.17: L1 in the VISOOUT->VISOIN
+    line; the four GND2 pins are NOT one net — 11/14 = GND2_DCDC{n} (converter,
+    device side of L2), 16/20 = ISO_BUS_GND{n} (bus side); L2 is the ONLY tie;
+    C_stitch (HV Y-cap) is the only GND1<->GND2_DCDC bridge. Bus A+Y / B+Z ->
+    J_bat RJ45 pins 7/8. TVS(SM712)+R_ser+R_bias+term+REF are DNP provisioning
+    (F36/F44: intentionally unprotected short in-box link). Both isolated grounds
+    are per-channel-unique nets so the two packs never share a floating ground.
+    Dense isoPower network -> connected by short labelled stubs (wires here would
+    be excessive clutter); (cx,cy) = U_iso centre."""
+    dnp = True
+    # short conventional refdes (per-channel bands: ch1 20s, ch2 30s) — keeps the
+    # dense network readable; functional names live in the spec + net labels.
+    U, Q, Dt, Jr = f"U{9+n}", f"Q{9+n}", f"D{9+n}", f"J{9+n}"    # ch1->U10.. ch2->U11..
+    La, Lb = f"L{8+2*n}", f"L{9+2*n}"                            # ch1->L10/L11 ch2->L12/L13
+    rb = 20 + (n-1)*10; cb = 20 + (n-1)*10                       # R/C bands
+    u = s.place("ADM2587E", U, "ADM2587EBRWZ", "Package_SO:SOIC-20W_7.5x12.8mm_P1.27mm",
+                (cx, cy), angle=0, tanchor="u", tgap=8.0)
+    VCC, GDC, GBUS = f"VCC{n}", f"GND2_DCDC{n}", f"ISO_BUS_GND{n}"
+    VOUT, VIN, BA, BB = f"V_ISOOUT{n}", f"V_ISOIN{n}", f"BUS_A{n}", f"BUS_B{n}"
+
+    def stub(pin, net, dx, dy=0.0):
+        """route a pin out by (dx,dy) to a global label; horizontal exit."""
+        end = (snap(pin[0] + dx), snap(pin[1] + dy))
+        if dy: s.wire(pin, (pin[0], end[1]), end)
+        else:  s.wire(pin, end)
+        s.label(net, end, justify_h=("right" if dx < 0 else "left"))
+
+    def hpart(name, ref, val, fp, x, y, netL, netR, _dnp=False):
+        """2-terminal part placed horizontal; each pin -> a labelled stub."""
+        p = s.place(name, ref, val, fp, (x, y), angle=90, tanchor="ud", bw=7.62, dnp=_dnp)
+        L = min(p.values(), key=lambda q: q[0]); R = max(p.values(), key=lambda q: q[0])
+        s.wire(L, (snap(L[0] - 3.81), y)); s.label(netL, (snap(L[0] - 3.81), y), justify_h="right")
+        s.wire(R, (snap(R[0] + 3.81), y)); s.label(netR, (snap(R[0] + 3.81), y), justify_h="left")
+        return p
+
+    def bank(items, x0, ytop, ybot, netTop, netBot, pitch=15.24):
+        """Cap/part bank: vertical parts in a row between a top rail (netTop) and
+        bottom rail (netBot). One label per rail (not per part) -> compact +
+        readable for shared-net decoupling groups. Text left of each part."""
+        ymid = snap((ytop + ybot) / 2)
+        xs = [snap(x0 + i * pitch) for i in range(len(items))]
+        for (name, ref, val, fp, d), x in zip(items, xs):
+            p = s.place(name, ref, val, fp, (x, ymid), angle=0, tanchor="l", dnp=d)
+            top = min(p.values(), key=lambda q: q[1]); bot = max(p.values(), key=lambda q: q[1])
+            s.wire(top, (x, ytop)); s.wire(bot, (x, ybot))
+        s.wire((snap(x0 - 3.81), ytop), (xs[-1], ytop))
+        s.wire((snap(x0 - 3.81), ybot), (xs[-1], ybot))
+        s.label(netTop, (snap(x0 - 3.81), ytop), justify_h="right")
+        s.label(netBot, (snap(x0 - 3.81), ybot), justify_h="right")
+
+    # ---- ADM2587E pin stubs ------------------------------------------------
+    # logic side (left): VCC (2/8 joined), control, GND1 (1/3/9/10 joined)
+    s.wire(u["2"], u["8"])                                       # VCC2 & VCC8 (same x)
+    stub(u["8"], VCC, -6.35)
+    stub(u["4"], f"RS485B_RO{n}", -6.35)                         # RxD
+    stub(u["5"], "GND", -6.35)                                   # /RE tied low
+    stub(u["6"], f"RS485B_DE{n}", -6.35)                         # DE
+    stub(u["7"], f"TXD{n}", -6.35)                               # TxD -> local net (R_di below)
+    s.wire(u["1"], u["3"]); s.wire(u["3"], u["9"]); s.wire(u["9"], u["10"])  # GND1 rail
+    stub(u["10"], "GND", -6.35)
+    # isolated side (right): VISO, bus (A+Y / B+Z), GND2 split (11/14 vs 16/20)
+    stub(u["12"], VOUT, 5.08)                                    # VISOOUT
+    stub(u["19"], VIN, 5.08)                                     # VISOIN
+    stub(u["18"], BA, 5.08); stub(u["13"], BA, 5.08)            # A + Y  -> BUS_A
+    stub(u["17"], BB, 5.08); stub(u["15"], BB, 5.08)           # B + Z  -> BUS_B
+    s.wire(u["11"], u["14"]); stub(u["14"], GDC, 5.08)          # GND2_DCDC (11/14)
+    s.wire(u["16"], u["20"]); stub(u["20"], GBUS, 5.08)         # ISO_BUS_GND (16/20)
+
+    # ---- power gate (upper-left) : 3V3 -[Q_ls]-> VCC, gate = CHn_PWR + pull-up
+    fx, fy = snap(cx - 44.45), snap(cy - 27.94)
+    q = s.place("Q_PMOS_GSD", Q, "NTR4171P", "Package_TO_SOT_SMD:SOT-23",
+                (fx, fy), angle=0, tanchor="l")
+    stub(q["1"], f"CH{n}_PWR", -7.62)                            # gate
+    stub(q["2"], "V3V3", 7.62)                                   # source (main 3V3 rail)
+    stub(q["3"], VCC, 7.62)                                      # drain -> VCC
+    hpart("R", f"R{rb}", "100k", "R_0805_2012Metric", fx, snap(fy - 12.7), f"CH{n}_PWR", "V3V3")
+
+    # ---- DI series R (below IC, out of the crowded control column) ------------
+    hpart("R", f"R{rb+1}", "1k", "R_0805_2012Metric", snap(cx - 33.02), snap(cy + 22.86), f"RS485B_DI{n}", f"TXD{n}")
+
+    # ---- VCC decoupling bank (4) : C_vcc1a/b (0.1u/0.01u), C_vcc2a/b (0.1u/10u)
+    bank([("C", f"C{cb}", "0.1µF", "C_0603_1608Metric", False),
+          ("C", f"C{cb+1}", "0.01µF", "C_0603_1608Metric", False),
+          ("C", f"C{cb+2}", "0.1µF", "C_0603_1608Metric", False),
+          ("C", f"C{cb+3}", "10µF", "C_0805_2012Metric", False)],
+         snap(cx - 67.31), snap(cy + 27.94), snap(cy + 40.64), VCC, "GND")
+
+    # ---- isoPower support (right) : C_vout/C_vin banks + L1/L2 + C_stitch -----
+    bank([("C", f"C{cb+4}", "10µF", "C_0805_2012Metric", False),
+          ("C", f"C{cb+5}", "0.1µF", "C_0603_1608Metric", False)],
+         snap(cx + 46.99), snap(cy - 27.94), snap(cy - 15.24), VOUT, GDC)
+    bank([("C", f"C{cb+6}", "0.1µF", "C_0603_1608Metric", False),
+          ("C", f"C{cb+7}", "0.01µF", "C_0603_1608Metric", False)],
+         snap(cx + 46.99), snap(cy + 15.24), snap(cy + 27.94), VIN, GBUS)
+    hpart("FerriteBead", La, "600Ω 2A", "Inductor_SMD:L_0805_2012Metric", snap(cx + 85.09), snap(cy - 22.86), VOUT, VIN)
+    hpart("C", f"C{cb+8}", "1nF", "C_1206_3216Metric", snap(cx + 85.09), cy, "GND", GDC)
+    hpart("FerriteBead", Lb, "600Ω 2A", "Inductor_SMD:L_0805_2012Metric", snap(cx + 85.09), snap(cy + 22.86), GDC, GBUS)
+
+    # ---- battery jack : RJ45 (A=pin7, B=pin8, shield=ISO_BUS_GND). Pins face
+    #      right -> stub A/B/shield rightward into their labels (clear of body).
+    j = s.place("RJ45_Shielded", Jr, "Amphenol_RJHSE-5380", "Connector_RJ:RJ45_Amphenol_RJHSE5380",
+                (snap(cx + 116.84), cy), angle=0, tanchor="u", tgap=6.35)
+    stub(j["7"], BA, 7.62); stub(j["8"], BB, 7.62)
+    stub(j["SH"], GBUS, 0, 5.08)
+    for pn in ("1", "2", "3", "4", "5", "6"): s.no_connect(j[pn])
+
+    # ---- bus protection provisioning (DNP), 2-col grid below IC : TVS + R_ser
+    #      + R_bias + term + REF. All label-connected (F36/F44 unpopulated).
+    #      col1 = R_ser1/R_ser2/TVS (TVS last, room below for its GND stub).
+    c1, c2 = snap(cx + 2.54), snap(cx + 40.64)
+    yv = [snap(cy + 35.56 + k * 12.7) for k in range(4)]
+    hpart("R", f"R{rb+2}", "10", "R_0603_1608Metric", c1, yv[0], BA, f"TVA{n}", dnp)
+    hpart("R", f"R{rb+3}", "10", "R_0603_1608Metric", c1, yv[1], BB, f"TVB{n}", dnp)
+    tv = s.place("SM712_SOT23", Dt, "SM712", "Package_TO_SOT_SMD:SOT-23",
+                 (c1, yv[2]), angle=0, tanchor="u", dnp=dnp)
+    stub(tv["1"], f"TVA{n}", -6.35); stub(tv["2"], f"TVB{n}", 6.35); stub(tv["3"], GBUS, 0, 6.35)
+    # col2 rows offset by half-pitch so no col1/col2 part shares a Y (inward
+    # labels of adjacent columns then never collide across the gap).
+    yw = [snap(y + 6.35) for y in yv]
+    hpart("R", f"R{rb+5}", "560", "R_0603_1608Metric", c2, yw[0], BA, VIN, dnp)
+    hpart("R", f"R{rb+6}", "560", "R_0603_1608Metric", c2, yw[1], BB, GBUS, dnp)
+    hpart("R", f"R{rb+7}", "0", "R_0805_2012Metric", c2, yw[2], GBUS, f"PACK{n}_Bminus", dnp)
+    hpart("R", f"R{rb+4}", "120", "R_0805_2012Metric", c2, yw[3], BA, BB, dnp)
+
+    # ---- PWR_FLAGs: passively-driven isolated nets. VCC via the power-gate FET;
+    #      V_ISOIN fed through L1; the two floating grounds have no "driver". ----
+    for i, net in enumerate((VCC, VIN, GDC, GBUS)):
+        pf = s.place("PWR_FLAG", f"#FLG{n}{i}", "PWR_FLAG", "",
+                     (snap(cx - 7.62 + i * 17.78), snap(cy - 46.99)), angle=0, tanchor="ud")
+        s.wire(pf["1"], (pf["1"][0], snap(pf["1"][1] + 5.08)))
+        s.label(net, (pf["1"][0], snap(pf["1"][1] + 5.08)), justify_h="left")
+
+
+def blk_j5_dbg(s, cx, cy):
+    """J5 debug/console UART header — ESP U0TXD/U0RXD + V3V3 + GND for a
+    USB-serial adapter (flash fallback / console). (cx,cy) = J5 centre."""
+    j = s.place("Conn_01x04", "J5", "debug-UART",
+                "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+                (cx, cy), angle=0, tanchor="r")
+    for pn, net in (("1", "GND"), ("2", "V3V3"), ("3", "DBG_TXD"), ("4", "DBG_RXD")):
+        pin = j[pn]; e = (snap(pin[0] - 10.16), pin[1])
+        s.wire(pin, e); s.label(net, e, justify_h="right")
 
 
 def blk_usbc(s, cx, cy):
@@ -545,6 +705,20 @@ def blk_usbc(s, cx, cy):
         s.wire((xr, p[1]), r["1"]); s.wire(r["2"], (xr, snap(r["2"][1] + 2.54)))
         s.label("GND", (xr, snap(r["2"][1] + 2.54)), justify_h="left")
     s.no_connect(j["A8"]); s.no_connect(j["B8"])         # SBU unused
+    # U-ESD USBLC6-2SC6: ESD array on D+/D- (internal clamp diodes to VBUS/GND),
+    # placed near J3 (D22/D29 note). I/O1(1,6)=D+, I/O2(3,4)=D-, 5=VBUS, 2=GND.
+    ux, uy = snap(cx + 50.8), snap(cy - 40.64)
+    ue = s.place("USBLC6-2SC6", "U-ESD", "USBLC6-2SC6Y", "Package_TO_SOT_SMD:SOT-23-6",
+                 (ux, uy), angle=0, tanchor="r")
+    s.wire(ue["1"], (snap(ue["1"][0] - 7.62), ue["1"][1]))
+    s.label("USB_DP", (snap(ue["1"][0] - 7.62), ue["1"][1]), justify_h="right")
+    s.wire(ue["3"], (snap(ue["3"][0] - 7.62), ue["3"][1]))
+    s.label("USB_DM", (snap(ue["3"][0] - 7.62), ue["3"][1]), justify_h="right")
+    s.wire(ue["5"], (ue["5"][0], snap(ue["5"][1] - 5.08)))
+    s.label("VBUS", (ue["5"][0], snap(ue["5"][1] - 5.08)), justify_h="left")
+    s.wire(ue["2"], (ue["2"][0], snap(ue["2"][1] + 5.08)))
+    s.label("GND", (ue["2"][0], snap(ue["2"][1] + 5.08)), justify_h="left")
+    s.no_connect(ue["6"]); s.no_connect(ue["4"])         # I/O duplicate pins
     # GND x4 (bottom) -> GND rail ; shield -> GND (left)
     gp = [j[n] for n in ("A1", "A12", "B1", "B12")]
     for p in gp: s.wire(p, (p[0], yg))
@@ -625,7 +799,7 @@ def blk_j2_rj45(s, cx, cy):
     cat5e_pinout: 1-3=V12_CAT5E, 4=RS485_A, 5=RS485_B, 6-8=GND, shield->GND at
     this (battery) end only (DR-19). (cx,cy)=J2 centre."""
     j2 = s.place("RJ45_Shielded", "J2", "Amphenol_RJHSE-538X",
-                 "Connector_RJ:RJ45_Amphenol_RJHSE-538X", (cx, cy), angle=0, tanchor="u", tgap=6.35)
+                 "Connector_RJ:RJ45_Amphenol_RJHSE538X", (cx, cy), angle=0, tanchor="u", tgap=6.35)
     NET = {"1": "V12_CAT5E", "2": "V12_CAT5E", "3": "V12_CAT5E", "4": "RS485_A",
            "5": "RS485_B", "6": "GND", "7": "GND", "8": "GND", "SH": "GND"}
     for num, net in NET.items():
@@ -665,9 +839,14 @@ def blk_usb_power(s, cx, cy):
     s.wire(VIN2, (VIN2[0], snap(VIN2[1] + 6.35))); s.label("V3V3_BUCK", (VIN2[0], snap(VIN2[1] + 6.35)), justify_h="left")
     s.wire(VOUT6, (snap(VOUT6[0] + 8.89), VOUT6[1])); s.label("V3V3", (snap(VOUT6[0] + 15.24), VOUT6[1]), justify_h="left")
     s.wire((snap(VOUT6[0] + 8.89), VOUT6[1]), (snap(VOUT6[0] + 15.24), VOUT6[1]))
+    # C_mux: 47µF bulk on the mux OUT (V3V3) — reverse-current-blocking on USB
+    # hot-plug (reviewer F11). Hangs off the V3V3 node down to the GND rail.
+    xcm = snap(VOUT6[0] + 8.89)
+    cm = s.place("C", "C_mux", "47µF", "C_0805_2012Metric", (xcm, snap(VOUT6[1] + 6.35)), tanchor="l")
+    s.wire(cm["1"], (xcm, VOUT6[1])); s.wire(cm["2"], (xcm, yg))
     s.wire(GND6, (GND6[0], yg))
-    # shared GND rail
-    s.wire((snap(xcu1 - 5.08), yg), (GND6[0], yg))
+    # shared GND rail (extends to xcm so C_mux's bottom pin lands on it)
+    s.wire((snap(xcu1 - 5.08), yg), (xcm, yg))
     s.label("GND", (snap(xcu1 - 5.08), yg), justify_h="right")
 
 
@@ -806,7 +985,14 @@ def blk_mcu(s, cx, cy):
             "10": "RS485_DI", "11": "RS485_RO", "13": "USB_DM", "14": "USB_DP",
             # expansion header (D37): dedicated I2C1 + 2x ADC1/RTC-wake AIO + DIO + PWR_EN
             "15": "EXP_AIO1", "5": "EXP_AIO2", "18": "EXP_SDA", "19": "EXP_SCL",
-            "20": "EXP_PWR_EN", "31": "EXP_DIO3"}
+            "20": "EXP_PWR_EN", "31": "EXP_DIO3",
+            # isolated RS-485 battery read (D36): 2 ch x (DI/RO/DE) on the shared
+            # matrix-mapped UART2 + per-ch power-gate. All plain GPIO; strapping
+            # (IO0/45/46), octal-PSRAM (IO35/36/37) and console UART0 avoided.
+            "6": "RS485B_DI1", "9": "RS485B_RO1", "21": "RS485B_DE1", "22": "CH1_PWR",
+            "23": "RS485B_DI2", "24": "RS485B_RO2", "25": "RS485B_DE2", "32": "CH2_PWR",
+            # console UART0 -> J5 debug header
+            "37": "DBG_TXD", "36": "DBG_RXD"}
     for num, net in NETS.items():
         pin = mod[num]
         if pin[0] < cx:
@@ -999,10 +1185,14 @@ SHEETS = [
         (blk_uvlo, 82, 82), (blk_sense, 210, 68)]),
     ("sheet_usb", "Battery — USB maintenance power", [
         (blk_usb_power, 75, 62), (blk_usb_failsafe, 190, 62)]),
+    ("sheet_isors485_1", "Battery — Isolated RS-485 read (ch.1)",
+        [(lambda s, cx, cy: blk_iso_ch(s, cx, cy, 1), 95, 115)]),
+    ("sheet_isors485_2", "Battery — Isolated RS-485 read (ch.2)",
+        [(lambda s, cx, cy: blk_iso_ch(s, cx, cy, 2), 95, 115)]),
     ("sheet_mcu", "Battery — MCU (ESP32-S3)", [(blk_mcu, 145, 105)]),
     ("sheet_conn", "Battery — Connectors & I/O", [
         (blk_j1_btn, 55, 52), (blk_j2_rj45, 210, 52),
-        (blk_usbc, 60, 120), (blk_exp, 150, 145)]),
+        (blk_usbc, 60, 120), (blk_exp, 150, 145), (blk_j5_dbg, 175, 60)]),
 ]
 
 
