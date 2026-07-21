@@ -631,7 +631,7 @@ def blk_iso_ch(s, cx, cy, n):
           ("C", f"C{cb+7}", "0.01µF", "C_0603_1608Metric", False)],
          snap(cx + 46.99), snap(cy + 15.24), snap(cy + 27.94), VIN, GBUS)
     hpart("FerriteBead", La, "600Ω 2A", "Inductor_SMD:L_0805_2012Metric", snap(cx + 85.09), snap(cy - 22.86), VOUT, VIN)
-    hpart("C", f"C{cb+8}", "1nF", "C_1206_3216Metric", snap(cx + 85.09), cy, "GND", GDC)
+    hpart("C", f"C{cb+8}", "1nF 1kV", "C_1206_3216Metric", snap(cx + 85.09), cy, "GND", GDC)
     hpart("FerriteBead", Lb, "600Ω 2A", "Inductor_SMD:L_0805_2012Metric", snap(cx + 85.09), snap(cy + 22.86), GDC, GBUS)
 
     # ---- battery jack : RJ45 (A=pin7, B=pin8, shield=ISO_BUS_GND). Pins face
@@ -754,6 +754,17 @@ def blk_exp(s, cx, cy):
     rb = s.place("R", "R_exp_bleed", "10k", "R_0805_2012Metric", (xe, snap(D[1] - 3.81 + 6.35)), tanchor="l")
     s.wire((xe, snap(D[1] - 3.81)), rb["1"]); s.wire(rb["2"], (xe, snap(rb["2"][1] + 2.54)))
     s.label("GND", (xe, snap(rb["2"][1] + 2.54)), justify_h="right")
+    # EXP I2C pull-ups (DNP, footprint-only): SDA/SCL -> switched EXP_3V3.
+    # Populate here OR on the expansion daughterboard if/when one is built
+    # (user call 2026-07-20). 4.7k to match R8/R9.
+    for i, (ref, net) in enumerate((("R_exp_sda", "EXP_SDA"), ("R_exp_scl", "EXP_SCL"))):
+        yp = snap(cy - 20.32 - i * 10.16)
+        rp = s.place("R", ref, "4.7k", "R_0805_2012Metric", (snap(cx + 7.62), yp),
+                     angle=90, tanchor="ud", bw=7.62, dnp=True)
+        L = min(rp.values(), key=lambda p: p[0]); R = max(rp.values(), key=lambda p: p[0])
+        s.wire(L, (snap(L[0] - 3.81), yp)); s.label("EXP_3V3", (snap(L[0] - 3.81), yp), justify_h="right")
+        s.wire(R, (snap(R[0] + 3.81), yp)); s.label(net, (snap(R[0] + 3.81), yp), justify_h="left")
+
     # J_EXP header
     jy = snap(cy + 3.81)
     j = s.place("Conn_01x08", "J_EXP", "Molex_PicoBlade_53398-0871",
