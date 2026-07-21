@@ -1885,6 +1885,31 @@ async def recover_adapter(level: int) -> str:
     return action
 
 
+# Alarm flags packed into the real-time frame's 2-byte status word (vendor
+# protocol rev 1.1, Cmd 0x82). `problem_code` = that word masked to bits 2-11,
+# i.e. the ten alarm flags below (bits 0-1 are CING/DING charge/discharge
+# activity; bits 12-15 are FET states). Names/meanings are the vendor's.
+_ALARM_BITS: tuple[tuple[int, str], ...] = (
+    (0x004, "cell_overvoltage"),        # VoltH
+    (0x008, "cell_undervoltage"),       # VoltL (over-discharge)
+    (0x010, "charge_overcurrent"),      # CurrC
+    (0x020, "short_circuit"),           # CurrS
+    (0x040, "discharge_overcurrent_1"), # CurrD1
+    (0x080, "discharge_overcurrent_2"), # CurrD2
+    (0x100, "charge_overtemp"),         # TempCH
+    (0x200, "charge_undertemp"),        # TempCL
+    (0x400, "discharge_overtemp"),      # TempDH
+    (0x800, "discharge_undertemp"),     # TempDL
+)
+
+
+def decode_alarms(problem_code: Optional[int]) -> list[str]:
+    """Active alarm flag names from a `problem_code`. Empty list = all clear."""
+    if not problem_code:
+        return []
+    return [name for bit, name in _ALARM_BITS if problem_code & bit]
+
+
 @dataclass
 class BatteryReading:
     """One battery's snapshot. None on any field means the BMS didn't send it."""
@@ -1901,6 +1926,10 @@ class BatteryReading:
     charging_fet: Optional[bool]
     discharging_fet: Optional[bool]
     problem_code: Optional[int]
+    balancer: Optional[int] = None           # internal cell-balancer status word
+    heater: Optional[bool] = None            # BMS heater active
+    design_capacity: Optional[int] = None    # BMS's configured nameplate Ah
+    alarms: list[str] = field(default_factory=list)  # active alarm flags
 
     @property
     def label(self) -> str:
@@ -1932,6 +1961,10 @@ class BatteryReading:
             charging_fet=s.get("chrg_mosfet"),
             discharging_fet=s.get("dischrg_mosfet"),
             problem_code=s.get("problem_code"),
+            balancer=s.get("balancer"),
+            heater=s.get("heater"),
+            design_capacity=s.get("design_capacity"),
+            alarms=decode_alarms(s.get("problem_code")),
         )
 
 
@@ -2085,6 +2118,10 @@ async def _read_device(dev: BLEDevice, address: str) -> BatteryReading:
         soc=reading.soc,
         temp=reading.temperature,
         problem_code=reading.problem_code,
+        alarms=reading.alarms or None,
+        balancer=reading.balancer,
+        heater=reading.heater,
+        design_capacity=reading.design_capacity,
     )
     return reading
 
