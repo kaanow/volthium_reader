@@ -1006,9 +1006,28 @@ avoid all strapping/PSRAM/console pins.
   pin-name/number glyphs** — so it can't catch name-over-art / name-over-
   refdes, and the visual pass that *would* have caught it was shortcut. A full
   8-sheet symbol-zoom re-sweep confirmed no other instances.
-  **KNOWN GATE LIMITATION / follow-up:** teach the gate to model visible pin-
-  name glyph geometry and overlap-check it (fiddly for rotated names — deferred
-  as its own task rather than shipped half-done).
+  **RESOLVED 2026-07-22 — gate limitation closed + deeper root cause found:**
+  the true root cause was **kiutils (KiCad-6 era) failing to parse KiCad-10's
+  nested `(pin_names … (hide yes))`** — the flatten silently UN-hid pin names
+  the library author explicitly hid (USBLC6, SM712, Conn_01x0N, 2N7002's
+  G/D/S, SW_SPDT's A/B/C, PWR_FLAG). Fixes, all in build.py:
+  (1) `_raw_pin_names_hidden()` reads the RAW library (following `extends`)
+  and restores the intended hide by blanking names — replaces the hand-kept
+  blank list; (2) the readability gate now models symbol-own pin-name/number
+  glyph geometry (`pin_glyph_boxes`/`art_boxes`) and collides it against body
+  art, outline edges, ref/value text, labels, and other glyphs — regression-
+  proven (un-hiding SM712 fails the gate; restored = 0 flags); (3) the glyph
+  gate immediately caught real defects on sheets previously passed as clean:
+  **U1 stacked pins 10/11** (pad "11" overprinting "10" — spread + wired) and
+  **U6 stacked VOUT 2/7** (the twin was no_connect'd ON the driven wire —
+  spread + both wired); (4) a **footprint hard gate in place()** (existence +
+  lib-prefix normalization) after 6 phantom footprints surfaced: U6
+  "Package_SON:Texas_SOT-563" → SOT-583-8 (BOM already said SOT-583), J1
+  MSTBA name typo, RTC1 invented C7 name → MicroCrystal_C7_SON-8, BTN1
+  fictional lib → 1x03 THT holes for the panel-button flying leads, SSR1
+  nonexistent Relay_SolidState lib → Package_DIP:DIP-4_W7.62mm, F1/F2 →
+  Keystone-3517 clip / NANO2-451 patterns; bare `R_/C_/L_/D_*` names now
+  auto-prefixed (they would all have failed footprint resolution at CP3).
 
 **Still OPEN (needs a call / BOM-lock task):**
 - **C28/C38 (C_stitch HV Y-cap):** must be a safety-agency-rated Y1/Y2 part

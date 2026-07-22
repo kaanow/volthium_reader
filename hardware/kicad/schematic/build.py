@@ -13,7 +13,7 @@ Philosophy (opposite of the retired v1 graphical netlist):
 First slice: battery-side input protection. Run: ../../.venv/bin/python build.py
 """
 from __future__ import annotations
-import copy as _copy, math, os, subprocess, sys, uuid
+import copy as _copy, math, os, re, subprocess, sys, uuid
 from pathlib import Path
 
 from kiutils.symbol import SymbolLib
@@ -77,6 +77,37 @@ def _uuid(): return str(uuid.uuid4())
 def snap(v): return round(v / GRID) * GRID
 def _tw(s): return len(s) * CHARW + 0.4      # text width estimate
 
+_RAWHIDE_CACHE = {}
+def _raw_pin_names_hidden(libfile, entry):
+    """True if the RAW library marks `entry`'s pin names hidden — following the
+    `extends` chain, since derived symbols inherit the parent's pin_names block.
+
+    Why raw text: kiutils (KiCad-6 era) does not parse KiCad-10's NESTED
+    `(pin_names (offset X) (hide yes))` — pinNamesHide stays False — so our
+    flatten silently UN-hid names the library author explicitly hid. That was
+    the root cause of the illegible USBLC6/SM712/Conn_01x0N bodies (DR-30) and
+    of stray G/D/S / A/B/C letters on the FETs and BTN1."""
+    key = (libfile, entry)
+    if key in _RAWHIDE_CACHE:
+        return _RAWHIDE_CACHE[key]
+    txt = open(libfile, encoding="utf-8").read()
+    cur = entry
+    hidden = False
+    for _ in range(6):                          # extends chains are short
+        i = txt.find(f'(symbol "{cur}"')
+        if i < 0: break
+        head = txt[i:i + 400]                   # pin_names/extends live up top
+        m = re.search(r'\(pin_names\s*(?:\(offset\s+[0-9.]+\)\s*)?(\(hide yes\))?\s*\)', head)
+        if m:
+            hidden = m.group(1) is not None
+            break
+        e = re.search(r'\(extends "([^"]+)"\)', head)
+        if not e: break
+        cur = e.group(1)
+    _RAWHIDE_CACHE[key] = hidden
+    return hidden
+
+
 _SYMCACHE = {}
 def resolve_symbol(name):
     """Return a self-contained kiutils Symbol for `name`, flattened to its
@@ -121,12 +152,22 @@ def resolve_symbol(name):
             p.position.X = -5.08 + k * 3.81       # 4 GND pins spread along the bottom (on-grid)
         for p in allpins:
             if p.name == "SHIELD": p.position.X = -12.7   # shield clear of the GND group
-    # Small-body parts whose own pin-name glyphs render as illegible mush inside
-    # the body (overprinting internal art and/or the refdes/value). Blank the
-    # names — the net-label stubs carry the meaning; pin NUMBERS stay for the
-    # footprint map. Conn_01x0N: generic "Pin_N" noise. USBLC6: I/O1/I/O2/VBUS/GND
-    # over the diode array. SM712: A1/A2/"Common" (vertical) over D#/SM712.
-    if name in ("Conn_01x02", "Conn_01x04", "Conn_01x08", "USBLC6-2SC6", "SM712_SOT23"):
+    if name == "LM5166Y":
+        # stacked GND pin 10 + thermal pad pin 11 overprint their numbers
+        # (caught by the glyph gate). Blocks must wire pin 11 explicitly.
+        for p in allpins:
+            if p.number == "11": p.position.X = 2.54
+    if name == "TPS2116DRL":
+        # stacked VOUT pins 2/7: the twin was no_connect'd ON the driven wire.
+        # Spread pin 7 one grid below pin 2; blocks wire both to the output.
+        for p in allpins:
+            if p.number == "7": p.position.Y = 2.54
+    # Restore the library author's pin-name visibility. kiutils drops KiCad-10's
+    # nested `(hide yes)`, un-hiding names that were never meant to render (the
+    # USBLC6/SM712/Conn_01x0N mush, stray G/D/S on FETs). Blanking to "~" is the
+    # serialization-proof way to hide them: renders identically to stock KiCad,
+    # and pin NUMBERS stay for the footprint map.
+    if _raw_pin_names_hidden(libfile, entry):
         for p in allpins: p.name = "~"
     _SYMCACHE[name] = flat
     return flat
@@ -164,6 +205,152 @@ def body_box(name, pos, angle, margin=0.8):
     return (min(xs)-margin, min(ys)-margin, max(xs)+margin, max(ys)+margin)
 
 
+# ---- symbol-OWN glyph modelling (pin names/numbers the symbol renders itself) ----
+# The readability gate was structurally blind to this text: it modelled bodies,
+# ref/value, labels and wires, but not the glyphs a symbol draws from its own
+# definition — which is exactly what shipped three illegible symbols to the
+# user's review (DR-30). These helpers give the gate that geometry.
+
+_PIN_DIR = {0: (1, 0), 90: (0, 1), 180: (-1, 0), 270: (0, -1)}
+
+def _xf_nosnap(px, py, pos, angle):
+    """lib coords -> sheet, UNSNAPPED. Glyph/art boxes must not snap: TXTH/2 =
+    0.635 is exactly half the 1.27 grid, so snapping collapses a text box to a
+    degenerate line and shifts starts onto the outline (phantom flags)."""
+    a = math.radians(angle); ca, sa = math.cos(a), math.sin(a)
+    return (pos[0] + px*ca - py*sa, pos[1] - (px*sa + py*ca))
+
+def _quad(pos, angle, corners):
+    """lib-coord corner list -> sheet-coord axis-aligned bbox (unsnapped)."""
+    pts = [_xf_nosnap(x, y, pos, angle) for x, y in corners]
+    xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
+    return (min(xs), min(ys), max(xs), max(ys))
+
+def _twd(s):
+    """display width: overline markup ~{...} renders as bare glyphs."""
+    return _tw(re.sub(r"[~{}]", "", s))
+
+def pin_glyph_boxes(name, pos, angle):
+    """[(bbox, pin_number, kind, desc)] for every VISIBLE pin-name/number glyph.
+    Geometry mirrors eeschema: offset>0 -> name runs inward from the pin's
+    body-side end; offset==0 -> name rides alongside the stem (outside the
+    body, opposite side from the number). Numbers ride ~1 mm off the stem."""
+    sym = resolve_symbol(name)
+    off = getattr(sym, "pinNamesOffset", None)
+    off = 0.508 if off is None else off
+    names_on = not getattr(sym, "pinNamesHide", False)
+    nums_on = not getattr(sym, "hidePinNumbers", False)
+    out = []
+    for u in sym.units:
+        for p in getattr(u, "pins", []):
+            if getattr(p, "hide", False): continue
+            d = _PIN_DIR[int(p.position.angle) % 360]
+            nx, ny = -d[1], d[0]                      # stem-perpendicular
+            ax, ay = p.position.X, p.position.Y       # connect point
+            fx, fy = ax + p.length*d[0], ay + p.length*d[1]   # body-side end
+            if names_on and p.name not in ("~", ""):
+                w = _twd(p.name); h = TXTH/2
+                if off > 0:      # name continues inward past the body edge
+                    s0 = (fx + off*d[0], fy + off*d[1])
+                else:            # offset 0: name above the stem, outside the body
+                    m = (ax + p.length/2*d[0], ay + p.length/2*d[1])
+                    s0 = (m[0] - w/2*d[0] + 1.0*nx, m[1] - w/2*d[1] + 1.0*ny)
+                e0 = (s0[0] + w*d[0], s0[1] + w*d[1])
+                out.append((_quad(pos, angle,
+                                  [(s0[0]+nx*h, s0[1]+ny*h), (s0[0]-nx*h, s0[1]-ny*h),
+                                   (e0[0]+nx*h, e0[1]+ny*h), (e0[0]-nx*h, e0[1]-ny*h)]),
+                            p.number, "name", f"name'{p.name}'"))
+            if nums_on and p.number:
+                # KiCad offsets the number to one side of the stem; WHICH side
+                # follows conventions not worth mis-modelling. Centre it ON the
+                # stem midpoint instead — slightly conservative both ways, still
+                # catches stacked-number overprint and number-vs-text collisions.
+                w = _twd(p.number); h = TXTH/2
+                c = (ax + p.length/2*d[0], ay + p.length/2*d[1])
+                s0 = (c[0] - w/2*d[0], c[1] - w/2*d[1]); e0 = (c[0] + w/2*d[0], c[1] + w/2*d[1])
+                out.append((_quad(pos, angle,
+                                  [(s0[0]+nx*h, s0[1]+ny*h), (s0[0]-nx*h, s0[1]-ny*h),
+                                   (e0[0]+nx*h, e0[1]+ny*h), (e0[0]-nx*h, e0[1]-ny*h)]),
+                            p.number, "num", f"num{p.number}"))
+    return out
+
+def art_boxes(name, pos, angle):
+    """(solids, outline_edges) in sheet coords — the same-symbol collision
+    targets for glyphs. Non-rectangle graphics (diode/FET art, internal text)
+    are solid bboxes; large rectangles are treated as hollow OUTLINES (a glyph
+    fully inside an IC body is normal — straddling an edge is the defect), and
+    small rectangles (connector pad stubs, internal detail) as solid."""
+    sym = resolve_symbol(name)
+    solids, edges = [], []
+    T = 0.2                                        # edge-band half-thickness
+    for u in sym.units:
+        for g in getattr(u, "graphicItems", []):
+            cls = type(g).__name__.lower()
+            if "rect" in cls:
+                x1, y1, x2, y2 = _quad(pos, angle,
+                    [(g.start.X, g.start.Y), (g.end.X, g.start.Y),
+                     (g.end.X, g.end.Y), (g.start.X, g.end.Y)])
+                if (x2-x1) < 3.2 or (y2-y1) < 3.2:
+                    solids.append((x1, y1, x2, y2))
+                else:
+                    edges += [(x1-T, y1-T, x2+T, y1+T), (x1-T, y2-T, x2+T, y2+T),
+                              (x1-T, y1-T, x1+T, y2+T), (x2-T, y1-T, x2+T, y2+T)]
+                continue
+            if "circle" in cls:
+                c, r = g.center, g.radius
+                solids.append(_quad(pos, angle,
+                    [(c.X-r, c.Y-r), (c.X+r, c.Y+r)]))
+                continue
+            if "text" in cls:
+                v = getattr(g, "position", None)
+                if v is not None:
+                    t = getattr(g, "text", "") or ""
+                    fh = TXTH          # internal art text often uses a smaller
+                    try:               # font (ADM's ISOLATED DC-DC is 1.0 mm) —
+                        fh = g.effects.font.height or TXTH   # scale by its real
+                    except Exception:  # size or the box overhangs into pin names
+                        pass
+                    w = _tw(t) * (fh / TXTH)
+                    solids.append(_quad(pos, angle,
+                        [(v.X-w/2, v.Y-fh/2), (v.X+w/2, v.Y+fh/2)]))
+                continue
+            pts = []
+            for attr in ("start", "mid", "end"):
+                v = getattr(g, attr, None)
+                if v is not None: pts.append((v.X, v.Y))
+            for pt in (getattr(g, "points", None) or []): pts.append((pt.X, pt.Y))
+            if pts:
+                solids.append(_quad(pos, angle, pts))
+    return solids, edges
+
+
+_FP_DIRS = ["/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints"]
+_FP_SEEN = set()
+_FP_BARE_PREFIX = (("R_", "Resistor_SMD"), ("C_", "Capacitor_SMD"),
+                   ("L_", "Inductor_SMD"), ("D_", "Diode_SMD"))
+def _normalize_footprint(fp):
+    """Bare footprint names ('D_SMA', 'C_1210_3225Metric') don't resolve at
+    PCB-update time — KiCad needs 'Lib:Name'. Prefix the standard SMD libs;
+    anything else bare is an error (caught here, at CP2, not at CP3 layout)."""
+    if not fp or ":" in fp: return fp
+    for pre, lib in _FP_BARE_PREFIX:
+        if fp.startswith(pre):
+            return f"{lib}:{fp}"
+    raise SystemExit(f"[footprint-gate] bare footprint {fp!r}: no known library prefix")
+def _assert_footprint_exists(fp):
+    """Hard build gate: a footprint string that doesn't resolve to a real
+    .kicad_mod file kills the build. Added after 'footprint-existence: clean'
+    was asserted while 4 phantoms shipped (DR-30): U6 nonexistent SOT-563,
+    J1 name typo, RTC1 invented name, BTN1 fictional library. Enforcing at
+    place() makes the check impossible to skip. Extend _FP_DIRS if a repo-local
+    .pretty library is ever added."""
+    if fp in _FP_SEEN: return
+    lib, name = fp.split(":", 1)
+    if not any(os.path.exists(f"{d}/{lib}.pretty/{name}.kicad_mod") for d in _FP_DIRS):
+        raise SystemExit(f"[footprint-gate] {fp}: no {lib}.pretty/{name}.kicad_mod in {_FP_DIRS}")
+    _FP_SEEN.add(fp)
+
+
 class Sheet:
     def __init__(self, title, hier_uuid=None):
         self.sch = Schematic.create_new()
@@ -179,6 +366,8 @@ class Sheet:
         self.txt_boxes = []    # (x1,y1,x2,y2,ref)  ref/value text
         self.lbl_boxes = []    # (x1,y1,x2,y2,text,anchor_xy)  label flag bodies
         self.wires = []        # ((x1,y1),(x2,y2))
+        self.glyph_items = []  # (ref, [(bbox,pin,kind,desc)])  symbol-own pin glyphs
+        self.art_items = {}    # ref -> (solid_boxes, outline_edge_bands)
 
     def _copy_lib_symbol(self, name):
         if self.sch.libSymbols is None: self.sch.libSymbols = []
@@ -195,6 +384,9 @@ class Sheet:
            tgap adds vertical clearance for 'u'/'ud' — use it when a top pin's
            wire would otherwise run up through the ref/value text."""
         self._copy_lib_symbol(name)
+        footprint = _normalize_footprint(footprint)
+        if footprint:
+            _assert_footprint_exists(footprint)
         box = body_box(name, pos, angle)
         hw = max(bw, box[2]-box[0]) / 2 if bw else (box[2]-box[0]) / 2
         hh = max(bh, box[3]-box[1]) / 2 if bh else (box[3]-box[1]) / 2
@@ -241,6 +433,8 @@ class Sheet:
         self.sym_boxes.append((box[0], box[1], box[2], box[3], ref))
         pins = pin_points(name, pos, angle)
         self.sym_pins.append((frozenset(pins.values()), ref))
+        self.glyph_items.append((ref, pin_glyph_boxes(name, pos, angle)))
+        self.art_items[ref] = art_boxes(name, pos, angle)
         return pins
 
     def wire(self, *pts):
@@ -344,6 +538,43 @@ class Sheet:
             for (p, q) in self.wires:
                 if self._seg_crosses_box(p, q, (lx1, ly1, lx2, ly2), anch):
                     bad.append(f"[pierce] wire crosses label '{text}' body")
+        # -------- symbol-OWN glyphs (pin names/numbers) --------
+        # The gate used to be blind to text a symbol renders from its own
+        # definition; that blindness shipped three illegible symbols to the
+        # user's review (DR-30). Collide the modelled glyph boxes against
+        # same-symbol art, outline edges, ref/value text, labels, and each
+        # other. Thresholds are penetration depths (mm), calibrated so the
+        # eye-verified-clean build passes and an un-hidden SM712 fails
+        # (regression: comment out the _raw_pin_names_hidden blanking).
+        def pen(a, b, t):
+            return (min(a[2], b[2]) - max(a[0], b[0]) > t and
+                    min(a[3], b[3]) - max(a[1], b[1]) > t)
+        for ref, glyphs in self.glyph_items:
+            if ref.startswith("#"): continue
+            solids, edges = self.art_items.get(ref, ([], []))
+            for (gb, pnum, kind, desc) in glyphs:
+                if any(pen(gb, sb, 0.4) for sb in solids):
+                    bad.append(f"[glyph-art] {ref} {desc} over body art")
+                if kind == "name" and any(pen(gb, eb, 0.15) for eb in edges):
+                    bad.append(f"[glyph-edge] {ref} {desc} straddles outline")
+                for (tx1, ty1, tx2, ty2, tref) in self.txt_boxes:
+                    if tref.split(":")[0].startswith("#"): continue
+                    if pen(gb, (tx1, ty1, tx2, ty2), 0.3):
+                        bad.append(f"[glyph-text] {ref} {desc} × text {tref}")
+                for (lx1, ly1, lx2, ly2, ltext, anch) in self.lbl_boxes:
+                    if pen(gb, (lx1, ly1, lx2, ly2), 0.3):
+                        bad.append(f"[glyph-label] {ref} {desc} × label '{ltext}'")
+        # glyph × glyph — also catches stacked-pin number overprint (the
+        # ESP32/USB-C class that's currently handled by spreading in
+        # resolve_symbol; this makes the gate enforce it).
+        flat_g = [(r, g) for r, gs in self.glyph_items if not r.startswith("#")
+                  for g in gs]
+        for i in range(len(flat_g)):
+            for j in range(i+1, len(flat_g)):
+                (ra, (ba_, pa, ka, da)), (rb, (bb_, pb, kb, db)) = flat_g[i], flat_g[j]
+                if ra == rb and pa == pb: continue     # a pin's own name+number
+                if pen(ba_, bb_, 0.3):
+                    bad.append(f"[glyph-glyph] {ra} {da} × {rb} {db}")
         # wire routed THROUGH a symbol body it does NOT connect to — unreadable
         # on a dense IC sheet. A part's OWN axis/stub wires (endpoint == one of
         # its pins) legitimately enter the body region, so exclude those.
@@ -399,7 +630,11 @@ def blk_input_protection(s, cx, cy):
     rightp = lambda pp: max(pp.values(), key=lambda xy: xy[0])
     topp   = lambda pp: min(pp.values(), key=lambda xy: xy[1])
     botp   = lambda pp: max(pp.values(), key=lambda xy: xy[1])
-    f1 = s.place("Fuse", "F1", "1A T", "", (xf1, yr), angle=90, tanchor="ud")
+    # F1 = 5x20 cartridge (0215001.MXP) in Keystone 3517 clips — the clip
+    # footprint IS the PCB land (BOM row F1).
+    f1 = s.place("Fuse", "F1", "1A T",
+                 "Fuse:Fuseholder_Clip-5x20mm_Keystone_3517_Inline_P23.11x6.76mm_D1.70mm_Horizontal",
+                 (xf1, yr), angle=90, tanchor="ud")
     # D1 = SERIES reverse-polarity protector: anode toward the source (V24_RAW),
     # cathode toward the load. The `D` symbol is cathode(pin1)-left, so rotate 180°.
     d1 = s.place("D", "D1", "SS26", "D_SMA", (xd1, yr), angle=180, tanchor="ud")
@@ -471,6 +706,7 @@ def blk_always_on_power(s, cx, cy):
     xg_l = snap(cx - 29.21)
     s.wire((xg_l, y_gnd), (xc2, y_gnd))
     s.wire(GND, (GND[0], y_gnd))                       # U1 GND drop
+    s.wire(u1["11"], (u1["11"][0], y_gnd))             # thermal pad (pin 11) drop
     s.label("GND", (xg_l, y_gnd), justify_h="right")
 
     # ---- intentionally-open pins ----
@@ -783,14 +1019,18 @@ def blk_j1_btn(s, cx, cy):
     """Pack input J1 (Phoenix MSTBA 2,5/2-G-5,08) + override button BTN1 (C&K
     8125SHZBE SPDT wired COM-NO, R13 1M pull-up + C11 debounce). (cx,cy)=J1."""
     j1 = s.place("Conn_01x02", "J1", "Phoenix_MSTBA_2,5-2-G-5,08",
-                 "Connector_Phoenix_MSTB:PhoenixContact_MSTBA_2,5-2-G-5,08_1x02_P5.08mm_Horizontal",
+                 "Connector_Phoenix_MSTB:PhoenixContact_MSTBA_2,5_2-G-5,08_1x02_P5.08mm_Horizontal",
                  (cx, cy), angle=0, tanchor="u")
     for num, net in (("1", "V24_RAW"), ("2", "GND")):
         p = j1[num]; s.wire(p, (snap(p[0] - 10.16), p[1]))
         s.label(net, (snap(p[0] - 10.16), p[1]), justify_h="right")
     # BTN1 below J1
     by = snap(cy + 25.4)
-    bt = s.place("SW_SPDT", "BTN1", "C&K_8125SHZBE", "Button_Switch_Panel:SW_CK_8125",
+    # BTN1 is PANEL-mounted (solder lugs, flying leads — see its BOM row); the
+    # PCB side is a 1x03 THT hole pattern the leads solder into (pads 1..3
+    # match the SW_SPDT pin numbers; only 1=NO and 2=COM are actually wired).
+    bt = s.place("SW_SPDT", "BTN1", "C&K_8125SHZBE",
+                 "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical",
                  (cx, by), angle=0, tanchor="u")
     COM, NO, NC = bt["2"], bt["1"], bt["3"]
     s.no_connect(NC)
@@ -838,10 +1078,13 @@ def blk_usb_power(s, cx, cy):
     s.wire((xvbus, VIN[1]), cu1["1"]); s.wire(cu1["1"], VIN); s.wire(cu1["2"], (xcu1, yg))
     s.wire(EN5, VIN); s.wire(GND5, (GND5[0], yg))
     # ---- U6 mux to the right ----
-    u6 = s.place("TPS2116DRL", "U6", "TPS2116DRLR", "Package_SON:Texas_SOT-563",
+    # footprint: SOT-583-8 (8-pin DRL) — stock symbol's own suggestion; the
+    # previous "Package_SON:Texas_SOT-563" was a 6-pin package that doesn't
+    # exist in that library (caught while fixing the stacked VOUT pins).
+    u6 = s.place("TPS2116DRL", "U6", "TPS2116DRLR", "Package_TO_SOT_SMD:SOT-583-8",
                  (snap(cx + 40.64), cy), angle=0, tanchor="u", tgap=3.0)
     GND6, VOUT6, VIN1, PR1, MODE, VIN2, ST = u6["1"], u6["2"], u6["3"], u6["4"], u6["5"], u6["6"], u6["8"]
-    s.no_connect(ST); s.no_connect(u6["7"])
+    s.no_connect(ST)
     # 3V3_USB bus: U5 VOUT + C_usb2 -> U6 VIN1/PR1/MODE (all wired, local net)
     xb = snap(cx + 17.78)
     s.wire(VOUT5, (xb, VOUT5[1]))
@@ -858,6 +1101,7 @@ def blk_usb_power(s, cx, cy):
     xcm = snap(VOUT6[0] + 8.89)
     cm = s.place("C", "C_mux", "47µF", "C_0805_2012Metric", (xcm, snap(VOUT6[1] + 6.35)), tanchor="l")
     s.wire(cm["1"], (xcm, VOUT6[1])); s.wire(cm["2"], (xcm, yg))
+    s.wire(u6["7"], (xcm, u6["7"][1]))   # VOUT twin (pin 7) joins the output node
     s.wire(GND6, (GND6[0], yg))
     # shared GND rail (extends to xcm so C_mux's bottom pin lands on it)
     s.wire((snap(xcu1 - 5.08), yg), (xcm, yg))
@@ -911,7 +1155,9 @@ def blk_ssr(s, cx, cy):
     R_opto (330R); R4 100k pull-down holds the LED OFF when PWR_EN floats
     (reset/brown-out). (cx,cy)=SSR1 centre."""
     yg = snap(cy + 13.97)
-    ssr = s.place("AQY212EH", "SSR1", "AQY212EH", "Relay_SolidState:Panasonic_DIP-4_LongPin",
+    # AQY212EH = standard DIP-4 THT, 7.62 mm row (datasheet); the previous
+    # "Relay_SolidState:Panasonic_DIP-4_LongPin" library doesn't exist.
+    ssr = s.place("AQY212EH", "SSR1", "AQY212EH", "Package_DIP:DIP-4_W7.62mm",
                   (cx, cy), angle=0, tanchor="u")
     A, K, OUT3, OUT4 = ssr["1"], ssr["2"], ssr["3"], ssr["4"]
 
@@ -933,7 +1179,7 @@ def blk_ssr(s, cx, cy):
     s.wire(OUT4, (xf, OUT4[1])); s.wire((xf, OUT4[1]), (xf, yF))
     s.wire(OUT3, (xf, OUT3[1])); s.wire((xf, OUT3[1]), (xf, yR))
     # V24_FUSED -> F2 -> OUT4 (top row)
-    f2 = s.place("Fuse", "F2", "80mA", "Fuse:Fuse_0451_SMF", (snap(cx + 22.86), yF),
+    f2 = s.place("Fuse", "F2", "80mA", "Fuse:Fuse_Littelfuse-NANO2-451_453", (snap(cx + 22.86), yF),
                  angle=90, tanchor="ud", bw=7.62)
     f2L = min(f2.values(), key=lambda p: p[0]); f2R = max(f2.values(), key=lambda p: p[0])
     s.wire((xf, yF), f2L); s.wire(f2R, (snap(cx + 38.1), yF))
@@ -1143,7 +1389,7 @@ def blk_rtc(s, cx, cy):
     MCU (R8/R9 pull-ups live on the MCU sheet). EVI->GND (unused), CLKOUT/INT
     unused. (cx,cy)=RTC centre."""
     yg = snap(cy + 16.51)
-    rtc = s.place("RV-3028-C7", "RTC1", "RV-3028-C7", "Package_SON:Micro_Crystal_C7_3.7x2.5mm",
+    rtc = s.place("RV-3028-C7", "RTC1", "RV-3028-C7", "Package_SON:MicroCrystal_C7_SON-8_1.5x3.2mm_P0.9mm",
                   (cx, cy), angle=0, tanchor="u", tgap=6.35)
     CLK, INT, SCL, SDA = rtc["1"], rtc["2"], rtc["3"], rtc["4"]
     VSS, VBK, VDD, EVI = rtc["5"], rtc["6"], rtc["7"], rtc["8"]
