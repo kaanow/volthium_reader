@@ -991,6 +991,24 @@ avoid all strapping/PSRAM/console pins.
   J2 (pre-existing) **and** J10/J11.
 - **isoPower ferrites** were placeholder `"ferrite"` → specified TDK
   MPZ2012S601 (600 Ω/2 A/0805), now a BOM line item (L10–L13).
+- **Three symbol-readability defects (found on user review 2026-07-22, fixed):**
+  (1) **root sheet overflow** — the 8 hierarchical-sheet boxes were on a grid
+  sized for 6, so the bottom row (MCU + Connectors&I/O) ran off the bottom
+  frame and printed over the title block; regridded to a 2×4 that ends above
+  the title block. (2) **U-ESD (USBLC6-2SC6)** and (3) **D10/D11 (SM712)** each
+  rendered their *own* pin-name glyphs inside a small body — `I/O1/I/O2/VBUS/
+  GND` over the ESD diode array, and `A1/A2/`vertical-`Common` over the
+  `D#/SM712` text — as illegible mush. Fixed by blanking those pin names (net-
+  label stubs carry the meaning; pin numbers stay). J5's `Conn_01x04` had the
+  same generic-`Pin_N` issue and was added to the existing connector name-blank
+  list. **Root-cause of the miss:** the readability gate models bodies, ref/
+  value text, labels, and wires, but is **structurally blind to a symbol's own
+  pin-name/number glyphs** — so it can't catch name-over-art / name-over-
+  refdes, and the visual pass that *would* have caught it was shortcut. A full
+  8-sheet symbol-zoom re-sweep confirmed no other instances.
+  **KNOWN GATE LIMITATION / follow-up:** teach the gate to model visible pin-
+  name glyph geometry and overlap-check it (fiddly for rotated names — deferred
+  as its own task rather than shipped half-done).
 
 **Still OPEN (needs a call / BOM-lock task):**
 - **C28/C38 (C_stitch HV Y-cap):** must be a safety-agency-rated Y1/Y2 part

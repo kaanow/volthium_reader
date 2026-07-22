@@ -121,9 +121,12 @@ def resolve_symbol(name):
             p.position.X = -5.08 + k * 3.81       # 4 GND pins spread along the bottom (on-grid)
         for p in allpins:
             if p.name == "SHIELD": p.position.X = -12.7   # shield clear of the GND group
-    if name in ("Conn_01x02", "Conn_01x08"):
-        # the generic "Pin_N" names are meaningless noise that render cramped
-        # inside the small body — hide them (the net labels carry the meaning).
+    # Small-body parts whose own pin-name glyphs render as illegible mush inside
+    # the body (overprinting internal art and/or the refdes/value). Blank the
+    # names — the net-label stubs carry the meaning; pin NUMBERS stay for the
+    # footprint map. Conn_01x0N: generic "Pin_N" noise. USBLC6: I/O1/I/O2/VBUS/GND
+    # over the diode array. SM712: A1/A2/"Common" (vertical) over D#/SM712.
+    if name in ("Conn_01x02", "Conn_01x04", "Conn_01x08", "USBLC6-2SC6", "SM712_SOT23"):
         for p in allpins: p.name = "~"
     _SYMCACHE[name] = flat
     return flat
@@ -1212,7 +1215,9 @@ def build_root(defs):
     won't load in KiCad 10). One hierarchical-sheet box per child; shared nets
     (V3V3, GND, V24_*, RS485_*, I2C_*, EXP_*, …) connect across the hierarchy via
     their GLOBAL labels, so no sheet pins are needed."""
-    x0, y0, dx, dy, w, h = 38, 28, 120, 50, 92, 34
+    # 2 cols x 4 rows, kept entirely above the bottom-right title block
+    # (title block ~ x159+, y185+ on USLetter landscape). Boxes end by y170.
+    x0, y0, dx, dy, w, h = 38, 20, 120, 40, 92, 30
     blocks = []
     for i, (name, title, hu) in enumerate(defs):
         r, c = divmod(i, 2); px, py = x0 + c*dx, y0 + r*dy
