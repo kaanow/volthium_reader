@@ -262,24 +262,47 @@ function chart(svgId, tipId, data, series, opts) {
   el += `<text x="${W - 3}" y="${PADT + 8}" fill="${DIMC}" font-size="10" text-anchor="end" font-family="ui-monospace,monospace">${fmt(rawHi, opts.unit)}</text>`;
   el += `<text x="${W - 3}" y="${H - PADB}" fill="${DIMC}" font-size="10" text-anchor="end" font-family="ui-monospace,monospace">${fmt(rawLo, opts.unit)}</text>`;
 
+  // Break lines/bands across TIME gaps larger than ~2.5x the typical bucket
+  // spacing, so a stretch with NO buckets at all (e.g. a battery BLE outage)
+  // renders as a gap instead of a straight interpolated line bridging it. The
+  // null-value splits below handle missing FIELDS within existing buckets;
+  // this handles missing BUCKETS (no data for a whole time range).
+  let gapLimit = Infinity;
+  if (data.length > 2) {
+    const deltas = [];
+    for (let i = 1; i < data.length; i++) deltas.push(data[i].t - data[i - 1].t);
+    deltas.sort((a, b) => a - b);
+    const med = deltas[Math.floor(deltas.length / 2)];
+    if (med > 0) gapLimit = med * 2.5;
+  }
   for (const s of series) {
     if (s.kind === "band") {
-      let up = [], dn = [];
-      for (const d of data) if (d[s.lo] != null && d[s.hi] != null) {
+      let up = [], dn = [], prevT = null;
+      const flushBand = () => {
+        if (up.length > 1)
+          el += `<polygon points="${up.join(" ")} ${dn.join(" ")}" fill="${s.color}" opacity="0.16"/>`;
+        up = []; dn = [];
+      };
+      for (const d of data) {
+        if (d[s.lo] == null || d[s.hi] == null) { flushBand(); prevT = null; continue; }
+        if (prevT != null && (d.t - prevT) > gapLimit) flushBand();
         up.push(X(d.t).toFixed(1) + "," + Y(d[s.hi]).toFixed(1));
         dn.unshift(X(d.t).toFixed(1) + "," + Y(d[s.lo]).toFixed(1));
+        prevT = d.t;
       }
-      if (up.length > 1)
-        el += `<polygon points="${up.join(" ")} ${dn.join(" ")}" fill="${s.color}" opacity="0.16"/>`;
+      flushBand();
     } else {
-      // split on nulls so gaps show as gaps, not lies
-      let seg = [];
+      // split on nulls (missing field) AND on time gaps (missing buckets) so
+      // neither reads as a straight line across a period we had no data for.
+      let seg = [], prevT = null;
       const flush = () => { if (seg.length > 1)
         el += `<polyline points="${seg.join(" ")}" fill="none" stroke="${s.color}" stroke-width="1.6"/>`;
         seg = []; };
       for (const d of data) {
-        if (d[s.key] == null) { flush(); continue; }
+        if (d[s.key] == null) { flush(); prevT = null; continue; }
+        if (prevT != null && (d.t - prevT) > gapLimit) flush();
         seg.push(X(d.t).toFixed(1) + "," + Y(d[s.key]).toFixed(1));
+        prevT = d.t;
       }
       flush();
     }
