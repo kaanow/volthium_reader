@@ -176,6 +176,21 @@ one complete monitor.
 | R_exp_sda, R_exp_scl | **4.7 kΩ** expansion-I2C pull-ups (EXP_SDA/EXP_SCL → switched **EXP_3V3**) | 0805 | 2 (**DNP**) | generic | generic | — (DNP) | **DNP, footprint-only (user call 2026-07-20):** the D37/F48 pull-ups live on the switched rail; footprints on-board so they can be stuffed **here OR on the expansion daughterboard** if/when one is ever built. Value matches R8/R9 |
 | R_exp_bleed | **10 kΩ** 0805, EXP_3V3 → GND discharge | 0805 | 1 | **RMCF0805FT10K0CT-ND** | 71-CRCW0805-10K-E3 | $0.10 | **Δ (F66): 100 kΩ → 10 kΩ.** Parks the switched rail against the **NTR4171P elevated-temp leakage**: ≤5 µA IDSS @85 °C × 10 kΩ = **≤50 mV @85 °C** (the earlier 0.5 µA/50 mV cited the retired ZXMP6A13F; at 100 kΩ the NTR4171P bound would have been 500 mV @85 °C). Draws 330 µA (~1.1 mW) only while EXP is ON |
 
+### Xanbus CAN read (DR-31 — user-approved 2026-07-22; population default-yes, J7 shunt only at chain end)
+
+| Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
+|-----|------|-----|-----|-------------|------------|-------|-------|
+| U7 | **TI TCAN332DR** — 3.3 V CAN transceiver, ±12 V CM, ±14 V bus fault, 12 kV IEC ESD, **bus high-Z when unpowered** | SOIC-8 (leaded) | 1 | 296-43711-1-ND (6.3k stock, Active; API 2026-07-22) | 595-TCAN332DR | CA$3.69 | Listens to the Schneider **Xanbus** (CAN 250 kbps) via the ESP32-S3 native TWAI (IO40/41). Unpowered-high-Z + power gate ⇒ the parked reader never loads the live network. Datasheet on file (TCAN332.pdf, SLLSEQ7F) |
+| Q5 | **onsemi NTR4171P** P-FET high-side gate, CAN_PWR (IO42) active-LOW, 100k default-OFF pull-up (R14) | SOT-23 | 1 | NTR4171PT1GOSCT-ND | 863-NTR4171PT1G | $1.13 | Same part/pattern as Q10/Q11/Q_exp — zero draw parked (power-first) |
+| D2 | **onsemi NUP2105L** dual-line CAN TVS (24 V standoff) | SOT-23 | 1 | NUP2105LT1GOSCT-ND (132k stock, Active; API 2026-07-22) | 863-NUP2105LT1G | CA$0.66 | Belt-and-braces on the field cable (U7 already has 12 kV IEC) |
+| J6 | **Amphenol RJHSE-5380** RJ45, shielded (3rd instance — same SKU/line as J2/J10/J11) | THT shielded | 1 | 664-RJHSE5380-ND | 523-RJHSE-5380 | $2.50 | **Xanbus: CAN_L = pin 4, CAN_H = pin 5, no ground pin** (LYNK II 805-0052 §4.2.1 — same battery-side topology). Xanbus NET-power pins left unconnected |
+| J7 | 2-pin 2.54 mm header + shunt, **CAN termination lift** (fitted = 120 Ω in circuit) | THT | 1 | (same as J4) | (same) | $0.20 | User call: easy on/off termination — the reader terminates only when it's a chain END |
+| R14 | 100 kΩ gate pull-up (default-OFF) | 0805 | 1 | generic | generic | $0.02 | |
+| R15 | 120 Ω CAN termination (in series with J7) | 0805 | 1 | generic | generic | $0.02 | |
+| C12 | 100 nF X7R decoupling on the gated VCC | 0603 | 1 | generic | generic | $0.05 | |
+
+**Subtotal ≈ CA$8.3.** GPIO note: IO40/41/42 were the last free safe pins — **MCU GPIO budget now exhausted** (JTAG forfeited; debug = J5 UART).
+
 ### Isolated RS-485 battery read (D36 — PENDING DR-26)
 
 > **Status: PENDING — CP1-delta / DR-26 gated.** This whole subsection is

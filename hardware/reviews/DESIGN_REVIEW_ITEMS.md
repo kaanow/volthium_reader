@@ -1041,3 +1041,44 @@ avoid all strapping/PSRAM/console pins.
 - DR-26 itself stays OPEN and **gating on the ~2-week on-site two-domain
   test**; the schematic/BOM are drawn so the test can run, but population of
   the isolated front-end is not committed until it passes.
+
+---
+
+## DR-31 — Xanbus CAN read (provisioned)  [OPEN — drawn + verified 2026-07-22; population gated on the Xanbus software work]
+
+**User-approved requirements change (2026-07-22):** add a CAN transceiver so
+the reader can listen to the **Xanbus** network of the Schneider stack
+(XW+-class inverter + MPPT charge controller + optional InsightHome). The
+protocol work is a software project outside this repo; the hardware is
+provisioned now because adding it at CP2 costs ~$6 of parts while adding it
+later costs a respin.
+
+**Verified interface facts (COTS interface-reality):**
+- Xanbus physical layer = CAN 2.0 @ 250 kbps over RJ45 daisy-chain.
+- **CAN_L = RJ45 pin 4, CAN_H = pin 5, no ground pin** — per the LYNK II
+  gateway manual for exactly this Schneider stack (Discover 805-0052 Rev B,
+  §4.2.1 "Xanbus Pin Assignments"; PDF reviewed 2026-07-22). The LYNK II is
+  a battery-side Xanbus device relying on the shared DC bank for common-mode
+  reference — the same topology as this reader (user-confirmed: all devices
+  on the 24 V bank; batteries not on the Xanbus; no battery center tap).
+- Other RJ45 pins carry Xanbus **network power** — left NC, never touched.
+- 120 Ω termination required only at chain ends → **R15 in series with the
+  J7 jumper: fitted = terminated, pulled = mid-chain** (user asked for easy
+  on/off).
+
+**Design (sheet_periph, blk_can):** U7 **TCAN332DR** (3.3 V CAN, ±12 V CM,
+±14 V bus fault, 12 kV IEC ESD integrated; SOIC-8 leaded; DK 296-43711-1-ND,
+6.3k stock, CA$3.69, Active; datasheet TCAN332.pdf on file, SLLSEQ7F) —
+key property: **bus pins high-Z when unpowered**, so the default-OFF power
+gate (Q5 NTR4171P, CAN_PWR active-LOW + 100 k pull-up — the CH1/CH2 pattern,
+zero parked draw, power-first) also guarantees the sleeping reader never
+loads the live Xanbus. D2 **NUP2105L** dual CAN TVS (belt-and-braces for the
+field cable; CA$0.66). MCU: TWAI (native CAN controller) on **IO40=TXD,
+IO41=RXD, IO42=CAN_PWR** — the last free safe GPIOs (JTAG forfeited; debug
+stays on J5 UART). **GPIO budget is now exhausted.**
+
+**Still open:** bench-verify pin 4/5 polarity on the actual Schneider port
+before first live attach (measure recessive ~2.5 V bias / dominant split with
+the pack on); decide populated-vs-DNP at BOM-lock once the software project
+firms up (parts are cheap — default: populate U7/Q5/D2/R14/R15/C12/J6/J7,
+leave J7's shunt off unless the reader is a chain end).
