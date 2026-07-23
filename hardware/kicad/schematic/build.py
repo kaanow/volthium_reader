@@ -64,6 +64,8 @@ SYMBOLS = {
     "SM712_SOT23":      (f"{STOCK}/Diode.kicad_sym",               "SM712_SOT23"),
     "FerriteBead":      (f"{STOCK}/Device.kicad_sym",              "FerriteBead"),
     "USBLC6-2SC6":      (f"{STOCK}/Power_Protection.kicad_sym",    "USBLC6-2SC6"),
+    "TCAN332":          (f"{STOCK}/Interface_CAN_LIN.kicad_sym",   "TCAN332"),
+    "NUP2105L":         (f"{STOCK}/Power_Protection.kicad_sym",    "NUP2105L"),
     "Conn_01x04":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x04"),
     "Conn_01x02":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x02"),
     "Conn_01x08":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x08"),
@@ -352,13 +354,21 @@ def _assert_footprint_exists(fp):
 
 
 class Sheet:
-    def __init__(self, title, hier_uuid=None):
+    def __init__(self, title, hier_uuid=None, root_uuid=None):
         self.sch = Schematic.create_new()
         if not self.sch.uuid:
             self.sch.uuid = _uuid()          # this sheet's own uuid
         # instance path: standalone = "/<own uuid>"; as a hierarchy child =
-        # "/<sheet-symbol uuid in the root>" (KiCad's per-instance path).
-        self.hier = hier_uuid or self.sch.uuid
+        # "/<ROOT FILE uuid>/<sheet-symbol uuid in the root>". The root prefix
+        # is NOT optional: without it kicad-cli still resolves refs and LABELED
+        # nets, but silently DROPS every unlabeled local net from the netlist
+        # and flags their wires dangling — that was the entire 19-item
+        # "dangling baseline" (19 real pin-to-pin nets missing from the
+        # exported netlist, invisible in the render).
+        if hier_uuid and root_uuid:
+            self.hier = f"{root_uuid}/{hier_uuid}"
+        else:
+            self.hier = hier_uuid or self.sch.uuid
         self.sch.paper.paperSize = "USLetter"
         self.sch.titleBlock = TitleBlock(title=title, company="Volthium reader")
         self.sym_boxes = []    # (x1,y1,x2,y2,ref)  symbol bodies
@@ -368,6 +378,8 @@ class Sheet:
         self.wires = []        # ((x1,y1),(x2,y2))
         self.glyph_items = []  # (ref, [(bbox,pin,kind,desc)])  symbol-own pin glyphs
         self.art_items = {}    # ref -> (solid_boxes, outline_edge_bands)
+        self.pin_map = {}      # ref -> {pin_number: (x,y)}   for the netlist gate
+        self.nc_pts = set()    # no_connect marker positions  for the netlist gate
 
     def _copy_lib_symbol(self, name):
         if self.sch.libSymbols is None: self.sch.libSymbols = []
@@ -435,10 +447,13 @@ class Sheet:
         self.sym_pins.append((frozenset(pins.values()), ref))
         self.glyph_items.append((ref, pin_glyph_boxes(name, pos, angle)))
         self.art_items[ref] = art_boxes(name, pos, angle)
+        self.pin_map[ref] = dict(pins)
         return pins
 
     def wire(self, *pts):
         for a, b in zip(pts, pts[1:]):
+            if abs(a[0]-b[0]) < 1e-6 and abs(a[1]-b[1]) < 1e-6:
+                continue                    # zero-length: KiCad noise, poisons the netlist gate
             self.sch.graphicalItems.append(Connection(type="wire",
                 points=[Position(X=a[0], Y=a[1]), Position(X=b[0], Y=b[1])],
                 stroke=Stroke(width=0.1524, type="default"), uuid=_uuid()))
@@ -462,6 +477,14 @@ class Sheet:
             for a, b in self.wires:
                 if p == a or p == b: continue
                 if self._interior(p, a, b): pts.add(p); break
+        # (3) a PIN landing on the interior of a wire (a cap tapped onto a bus
+        # rail at a non-endpoint). KiCad does NOT connect that without a
+        # junction — caught by the netlist gate (C_usb2 on the 3V3_USB bus).
+        for ref, pins in self.pin_map.items():
+            for num, p in pins.items():
+                for a, b in self.wires:
+                    if p == a or p == b: continue
+                    if self._interior(p, a, b): pts.add(p); break
         for (x, y) in pts:
             self.sch.junctions.append(Junction(position=Position(X=x, Y=y), uuid=_uuid()))
 
@@ -483,6 +506,7 @@ class Sheet:
         from kiutils.schematic import Schematic as _S
         from kiutils.items.schitems import NoConnect
         self.sch.noConnects.append(NoConnect(position=Position(X=pos[0], Y=pos[1]), uuid=_uuid()))
+        self.nc_pts.add((pos[0], pos[1]))
 
     def label(self, text, pos, justify_h="right"):
         """justify_h='right' → chevron on the right, flag body to the LEFT of
@@ -611,7 +635,7 @@ def blk_pwr_flags(s, cx, cy):
     """PWR_FLAGs: tell ERC these nets ARE driven, even though their local source
     is passive (V24_FUSED past D1, V24_SW past the SSR) or a board-input
     connector (VBUS from USB-C), plus the global GND reference."""
-    for i, net in enumerate(("V24_FUSED", "V24_SW", "VBUS", "GND")):
+    for i, net in enumerate(("V24_FUSED", "V24_SW", "VBUS", "GND", "V3V3_BUCK")):
         x = snap(cx + i*17.78)
         pf = s.place("PWR_FLAG", f"#FLG{i+1}", "PWR_FLAG", "", (x, cy), angle=0, tanchor="ud")
         pin = pf["1"]
@@ -769,6 +793,108 @@ def blk_rs485(s, cx, cy):
     s.wire((xbr2, yA), tvT); s.wire((xbr2, yB), tvB)                  # TVS2 across A-B
     s.label("RS485_A", (xlblB, yA), justify_h="left")
     s.label("RS485_B", (xlblB, yB), justify_h="left")
+
+
+def blk_can(s, cx, cy):
+    """Xanbus CAN read (DR-31, provisioned). U7 TCAN332 3.3 V CAN transceiver
+    (±12 V CM, 12 kV IEC ESD, bus high-Z when unpowered — TCAN33x DS SLLSEQ7F);
+    TWAI on the ESP32-S3 (CAN_TXD/CAN_RXD = IO40/41). Q5 P-FET power gate
+    (CAN_PWR = IO42, active-LOW, 100k default-OFF pull-up) -> zero draw parked
+    AND high-Z bus pins, so the sleeping reader never loads the live Xanbus.
+    Termination: R15 120R in series with J7 jumper (fitted = terminated) — the
+    reader is only a chain END when it's at an end. D2 NUP2105L dual CAN TVS.
+    J6 RJ45: Xanbus CAN_L = pin 4, CAN_H = pin 5, no ground pin — the network
+    and reader already share the 24 V bank negative (LYNK II manual 805-0052
+    §4.2.1, same battery-side-gateway topology). NET-power pins NC — Xanbus
+    carries its own supply, never touch it. (cx,cy) = U7 centre."""
+    u7 = s.place("TCAN332", "U7", "TCAN332DR", "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+                 (cx, cy), angle=0, tanchor="u", tgap=8.89)   # text above the gated rail
+    TXD, GND2, VCC3, RXD = u7["1"], u7["2"], u7["3"], u7["4"]
+    CANL, CANH = u7["6"], u7["7"]
+    s.no_connect(u7["5"]); s.no_connect(u7["8"])
+
+    # ---- MCU signals (left) ----
+    xlbl = snap(cx - 25.4)
+    for pin, net in ((TXD, "CAN_TXD"), (RXD, "CAN_RXD")):
+        s.label(net, (xlbl, pin[1]), justify_h="right")
+        s.wire((xlbl, pin[1]), pin)
+
+    # ---- power gate (top right): V3V3 -> Q5 S(right)..D(left) -> VCC drop ----
+    yv = snap(cy - 17.78)                              # gated-rail row
+    xq = snap(cx + 17.78)
+    q5 = s.place("Q_PMOS_GSD", "Q5", "NTR4171P", "Package_TO_SOT_SMD:SOT-23",
+                 (xq, snap(yv - 2.54)), angle=270, tanchor="l", bw=9.0)
+    qS, qD, qG = q5["2"], q5["3"], q5["1"]             # 270: S right, D left, G top
+    xv3 = snap(xq + 17.78)
+    s.wire(qS, (xv3, yv)); s.label("V3V3", (xv3, yv), justify_h="left")
+    s.wire(qD, (cx, yv)); s.wire((cx, yv), VCC3)       # gated rail -> VCC pin
+    # gate line above: CAN_PWR (MCU) ---+--- R14 100k pull-up -> V3V3 (default-OFF)
+    ygate = snap(cy - 27.94)
+    xr14 = snap(xq + 12.7)
+    s.wire(qG, (qG[0], ygate))
+    xpw = snap(cx - 20.32)
+    s.wire((xpw, ygate), (xr14, ygate))
+    s.label("CAN_PWR", (xpw, ygate), justify_h="right")
+    r14 = s.place("R", "R14", "100k", "R_0805_2012Metric",
+                  (xr14, snap((ygate + yv) / 2)), angle=0, tanchor="l", bw=2.0)
+    s.wire(r14["1"], (xr14, ygate)); s.wire(r14["2"], (xr14, yv))   # to the V3V3 feed
+    # C12 decoupling on the GATED rail: own drop column left of the body
+    xcc = snap(cx - 12.7)
+    s.wire((cx, yv), (xcc, yv))
+    c12 = s.place("C", "C12", "100nF", "C_0603_1608Metric",
+                  (xcc, snap(yv + 3.81)), angle=0, tanchor="l")
+    xgc = snap(cx - 20.32)
+    s.wire(c12["2"], (xgc, c12["2"][1]))
+    s.label("GND", (xgc, c12["2"][1]), justify_h="right")
+
+    # ---- GND (bottom) ----
+    ygp = snap(GND2[1] + 2.54)
+    s.wire(GND2, (GND2[0], ygp)); s.label("GND", (GND2[0], ygp), justify_h="left")
+
+    # ---- bus (right): H/L rails, R15+J7 term-lift bridge, D2 TVS, J6 RJ45 ----
+    yH = CANH[1]; yL = CANL[1]; yLo = snap(yH + 15.24)  # widened L rail (term bridge)
+    xstep = snap(cx + 17.78)
+    xbr = snap(cx + 25.4)
+    s.wire(CANH, (xbr, yH))                            # H rail
+    s.wire(CANL, (xstep, yL)); s.wire((xstep, yL), (xstep, yLo))
+    s.wire((xstep, yLo), (xbr, yLo))                   # L rail (stepped down)
+    nT = snap(yH + 7.62)                               # R15 <-> J7 node
+    r15 = s.place("R", "R15", "120", "R_0805_2012Metric",
+                  (xbr, snap(yH + 3.81)), angle=0, tanchor="l", bw=2.0)
+    j7 = s.place("Conn_01x02", "J7", "TERM",
+                 "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+                 (snap(xbr + 5.08), snap(yH + 10.16)), angle=0, tanchor="r")
+    j7t = min(j7.values(), key=lambda p: p[1]); j7b = max(j7.values(), key=lambda p: p[1])
+    s.wire((xbr, nT), j7t); s.wire(j7b, (xbr, yLo))    # R15 -> J7 -> L rail
+    # D2 TVS (angle 90: K pins exit left onto the rails, A exits right)
+    xtv = snap(xbr + 17.78)
+    dv = s.place("NUP2105L", "D2", "NUP2105L", "Package_TO_SOT_SMD:SOT-23",
+                 (xtv, snap((yH + yLo) / 2)), angle=90, tanchor="ud", tgap=1.27)
+    kU = min((dv["1"], dv["2"]), key=lambda p: p[1]); kD = max((dv["1"], dv["2"]), key=lambda p: p[1])
+    s.wire((xbr, yH), (kU[0], yH)); s.wire((kU[0], yH), kU)        # H -> upper K
+    s.wire((xbr, yLo), (kD[0], yLo)); s.wire((kD[0], yLo), kD)     # L -> lower K
+    xa = snap(dv["3"][0] + 2.54)
+    s.wire(dv["3"], (xa, dv["3"][1]))
+    s.label("GND", (xa, dv["3"][1]), justify_h="left") # A -> GND, level (no rail crossing)
+    # J6 RJ45 mirrored (angle 180 -> pins face the incoming rails).
+    # CAN_H -> pin 5, CAN_L -> pin 4 (Xanbus). The pins interleave with the
+    # rail order (top rail H -> LOWER pin 5, bottom rail L -> UPPER pin 4), so
+    # orthogonal routing has exactly one conventional X-crossing (no junction
+    # = no connection).
+    xj = snap(cx + 71.12)
+    j6 = s.place("RJ45_Shielded", "J6", "Amphenol_RJHSE-5380",
+                 "Connector_RJ:RJ45_Amphenol_RJHSE5380", (xj, cy),
+                 angle=180, tanchor="d", bh=30.48)
+    jp5, jp4 = j6["5"], j6["4"]
+    xjh = snap(jp5[0] - 5.08)
+    s.wire((kU[0], yH), (xjh, yH)); s.wire((xjh, yH), (xjh, jp5[1])); s.wire((xjh, jp5[1]), jp5)
+    xjog = snap(jp4[0] - 2.54)
+    s.wire((kD[0], yLo), (xjog, yLo)); s.wire((xjog, yLo), (xjog, jp4[1])); s.wire((xjog, jp4[1]), jp4)
+    for pn in ("1", "2", "3", "6", "7", "8"):
+        s.no_connect(j6[pn])                           # incl. Xanbus NET power pins
+    sh = j6["SH"]
+    ysh = snap(sh[1] - 5.08)                           # SH exits the top when mirrored
+    s.wire(sh, (sh[0], ysh)); s.label("GND", (sh[0], ysh), justify_h="left")
 
 
 def blk_iso_ch(s, cx, cy, n):
@@ -1252,7 +1378,11 @@ def blk_mcu(s, cx, cy):
             "6": "RS485B_DI1", "9": "RS485B_RO1", "21": "RS485B_DE1", "22": "CH1_PWR",
             "23": "RS485B_DI2", "24": "RS485B_RO2", "25": "RS485B_DE2", "32": "CH2_PWR",
             # console UART0 -> J5 debug header
-            "37": "DBG_TXD", "36": "DBG_RXD"}
+            "37": "DBG_TXD", "36": "DBG_RXD",
+            # Xanbus CAN read (DR-31): native TWAI on matrix-mapped IO40/41 +
+            # power gate on IO42 (last free safe GPIOs; JTAG forfeited, debug
+            # stays on the J5 UART)
+            "33": "CAN_TXD", "34": "CAN_RXD", "35": "CAN_PWR"}
     for num, net in NETS.items():
         pin = mod[num]
         if pin[0] < cx:
@@ -1403,14 +1533,22 @@ def blk_rtc(s, cx, cy):
     c9 = s.place("C", "C9", "100nF", "C_0603_1608Metric", (xc9, snap(yv - 3.81)), tanchor="r")
     yc = snap(c9["1"][1] - 2.54)
     s.wire(c9["1"], (xc9, yc)); s.label("GND", (xc9, yc), justify_h="right")
-    # VBACKUP (top) -> C-bk to GND (backup-only cap)
-    yb = snap(VBK[1] - 6.35)
+    # VBACKUP (top) -> C-bk to GND (backup-only cap). Rail sits ABOVE the
+    # ref/value text (at -6.35 it ran straight through "RV-3028-C7").
+    yb = snap(VBK[1] - 11.43)
     s.wire(VBK, (VBK[0], yb))
     cbk = s.place("C", "C-bk", "22mF", "C_1210_3225Metric", (snap(cx + 12.7), snap(yb)), angle=90, tanchor="ud", bw=7.62)
     cbkL = min(cbk.values(), key=lambda p: p[0]); cbkR = max(cbk.values(), key=lambda p: p[0])
     s.wire((VBK[0], yb), cbkL)
     s.wire(cbkR, (cbkR[0], yb)); s.wire((cbkR[0], yb), (cbkR[0], snap(yb + 4.0)))
     s.label("GND", (cbkR[0], snap(yb + 4.0)), justify_h="left")
+    # PWR_FLAG: VBACKUP is fed by C-bk + the RTC's internal trickle charger —
+    # declare the node driven (netlist-gate fix made this net REAL, so ERC
+    # started judging it).
+    xpf = snap(VBK[0] + 2.54)
+    pf = s.place("PWR_FLAG", "#FLG_VBK", "PWR_FLAG", "", (xpf, snap(yb - 7.62)),
+                 angle=0, tanchor="u")
+    s.wire(pf["1"], (xpf, yb))
     # VSS -> GND
     s.wire(VSS, (VSS[0], yg)); s.label("GND", (VSS[0], yg), justify_h="left")
     # I2C left; EVI -> GND
@@ -1422,15 +1560,19 @@ def blk_rtc(s, cx, cy):
 
 
 # ---- sheet composition: several functional blocks per US-Letter sheet --------
-def sheet(title, placements, hier_uuid=None, page="1"):
+def sheet(title, placements, hier_uuid=None, page="1", root_uuid=None):
     """Compose blocks onto one sheet: each placement is (blk_fn, cx, cy).
-    hier_uuid ties this sheet into the root hierarchy (else it's standalone)."""
-    s = Sheet(title, hier_uuid=hier_uuid)
+    hier_uuid + root_uuid tie this sheet into the root hierarchy (else it's
+    standalone). Both the symbol instance paths and the sheet_instances entry
+    must carry the FULL "/<root uuid>/<sheet-symbol uuid>" path — see
+    Sheet.__init__ for what silently breaks otherwise."""
+    s = Sheet(title, hier_uuid=hier_uuid, root_uuid=root_uuid)
     for fn, cx, cy in placements:
         fn(s, snap(cx), snap(cy))
     s.add_junctions()
     if hier_uuid:
-        s.sch.sheetInstances = [HierarchicalSheetInstance(instancePath="/" + hier_uuid, page=page)]
+        s.sch.sheetInstances = [HierarchicalSheetInstance(
+            instancePath="/" + s.hier, page=page)]
     return s
 
 
@@ -1440,7 +1582,7 @@ SHEETS = [
         (blk_input_protection, 78, 62), (blk_always_on_power, 205, 62),
         (blk_ssr, 78, 140), (blk_u2, 205, 140), (blk_pwr_flags, 120, 105)]),
     ("sheet_periph", "Battery — Peripherals & comms", [
-        (blk_rs485, 90, 62), (blk_rtc, 95, 140)]),
+        (blk_rs485, 90, 62), (blk_rtc, 95, 140), (blk_can, 165, 105)]),
     ("sheet_super", "Battery — Supervisor", [
         (blk_uvlo, 82, 82), (blk_sense, 210, 68)]),
     ("sheet_usb", "Battery — USB maintenance power", [
@@ -1456,7 +1598,7 @@ SHEETS = [
 ]
 
 
-def build_root(defs):
+def build_root(defs, root_uuid):
     """Root sheet text (KiCad-10 format — kiutils' KiCad-6 sheet serialization
     won't load in KiCad 10). One hierarchical-sheet box per child; shared nets
     (V3V3, GND, V24_*, RS485_*, I2C_*, EXP_*, …) connect across the hierarchy via
@@ -1479,7 +1621,7 @@ def build_root(defs):
             f'\t\t\t(effects (font (size 2.0 2.0)) (justify left)))\n'
             f'\t\t(instances (project "{PROJECT}" (path "/" (page "{i+2}"))))\n\t)')
     return (f'(kicad_sch\n\t(version 20250114)\n\t(generator "eeschema")\n'
-            f'\t(generator_version "10.0")\n\t(uuid "{_uuid()}")\n\t(paper "USLetter")\n'
+            f'\t(generator_version "10.0")\n\t(uuid "{root_uuid}")\n\t(paper "USLetter")\n'
             f'\t(title_block (title "Volthium reader — battery-side (root)") '
             f'(company "Volthium reader"))\n\t(lib_symbols)\n'
             + "\n".join(blocks)
@@ -1524,16 +1666,179 @@ def render(s, name, crops=()):
     print(f"[{name}] PNG{' + '+str(len(crops))+' crops' if crops else ''} written")
     return True
 
+# ---------------- netlist gate: generator intent vs KiCad ground truth -------
+# The readability/glyph gates judge the DRAWING; nothing verified that KiCad's
+# CONNECTIVITY matches what the generator meant — a wire missing a pin by one
+# grid step renders as "basically touching", ships past every visual pass, and
+# was being absorbed into an accepted "dangling baseline". This gate derives
+# the intended netlist from the generator's own wire graph (union-find over
+# wire endpoints, T-junctions, pins and labels — X-crossings do NOT join) and
+# diffs it against `kicad-cli sch export netlist` on the assembled hierarchy.
+
+def _uf_make():
+    parent = {}
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]; x = parent[x]
+        return x
+    def union(a, b):
+        parent[find(a)] = find(b)
+    return find, union
+
+def _on_seg(p, a, b, eps=0.01):
+    """p strictly on segment ab (incl. endpoints). Degenerate (zero-length)
+    segments match NOTHING — one such wire would otherwise union every point
+    on the sheet into a single blob (found the hard way)."""
+    ax, ay = a; bx, by = b; px, py = p
+    L2 = (bx-ax)**2 + (by-ay)**2
+    if L2 < eps*eps: return False
+    cross = (bx-ax)*(py-ay) - (by-ay)*(px-ax)
+    if abs(cross) > eps * max(1.0, abs(bx-ax)+abs(by-ay)): return False
+    dot = (px-ax)*(bx-ax) + (py-ay)*(by-ay)
+    return -eps <= dot <= L2 + eps
+
+def _key(p): return (round(p[0]*100), round(p[1]*100))
+
+def intended_nets(built):
+    """[(frozenset{(ref,pin)}, {label texts}, [nc-violations])] across sheets,
+    with same-text labels merging nets globally (global-label semantics)."""
+    find, union = _uf_make()
+    pin_at = []           # ((ref,pin), key)
+    lbl_at = []           # (text, key)
+    ncs = []
+    for name, s in built:
+        P = lambda p: ("pt", name, _key(p))     # coordinates are PER-SHEET —
+        wires = [(("w", name, i, 0), ("w", name, i, 1), a, b)
+                 for i, (a, b) in enumerate(s.wires)]
+        # wire endpoints by coordinate + T-junctions
+        for wid0, wid1, a, b in wires:
+            union(wid0, P(a)); union(wid1, P(b))
+            union(wid0, wid1)
+        for _, _, a, b in wires:
+            for wid0, wid1, c, d in wires:
+                if (a, b) == (c, d): continue
+                for p in (a, b):
+                    if _key(p) not in (_key(c), _key(d)) and _on_seg(p, c, d):
+                        union(P(p), wid0)
+        # pins + labels join at their exact point or on a wire segment
+        for ref, pins in s.pin_map.items():
+            for num, pt in pins.items():
+                node = ("pin", ref, num)
+                pin_at.append(((ref, num), node))
+                union(node, P(pt))
+                for wid0, _, a, b in wires:
+                    if _on_seg(pt, a, b): union(node, wid0)
+        for (lx1, ly1, lx2, ly2, text, anch) in s.lbl_boxes:
+            node = ("lbl", name, _key(anch), text)
+            lbl_at.append((text, node))
+            union(node, P(anch))
+            for wid0, _, a, b in wires:
+                if _on_seg(anch, a, b): union(node, wid0)
+        for pt in s.nc_pts:
+            ncs.append((name, _key(pt)))
+    # per-sheet alias check BEFORE the global merge — a false wire-graph merge
+    # shows up here with the sheet named, instead of as one design-wide blob
+    per_sheet = {}
+    for text, node in lbl_at:
+        sheetname = node[1]
+        per_sheet.setdefault((sheetname, find(node)), set()).add(text)
+    alias_errs = [f"[net-alias] {sn}: one net carries labels {sorted(ts)}"
+                  for (sn, _), ts in per_sheet.items() if len(ts) > 1]
+    # merge same-text labels across the hierarchy (global labels)
+    first_of = {}
+    for text, node in lbl_at:
+        if text in first_of: union(node, first_of[text])
+        else: first_of[text] = node
+    groups = {}
+    for (refpin, node) in pin_at:
+        groups.setdefault(find(node), {"pins": set(), "labels": set()})["pins"].add(refpin)
+    for (text, node) in lbl_at:
+        groups.setdefault(find(node), {"pins": set(), "labels": set()})["labels"].add(text)
+    return [(frozenset(g["pins"]), g["labels"]) for g in groups.values()], alias_errs
+
+def kicad_netlist(rootf):
+    """{netname: frozenset{(ref,pin)}} from kicad-cli (ground truth)."""
+    out = OUT / (Path(rootf).stem + ".net")
+    r = kcli("sch", "export", "netlist", "-o", str(out), str(rootf))
+    if r.returncode != 0:
+        raise SystemExit(f"[netlist-gate] export failed: {r.stderr[:300]}")
+    txt = out.read_text()
+    nets = {}
+    # paren-balanced scan (a regex-to-blank-line parse drops one-line nets)
+    i = 0
+    while True:
+        i = txt.find("(net", i)
+        if i < 0: break
+        if txt[i+4] not in " \n\t":      # skip "(nets" / "(netclass"
+            i += 4; continue
+        depth = 0; j = i
+        while j < len(txt):
+            if txt[j] == "(": depth += 1
+            elif txt[j] == ")":
+                depth -= 1
+                if depth == 0: break
+            j += 1
+        blk = txt[i:j+1]; i = j + 1
+        nm = re.search(r'\(name "([^"]*)"\)', blk)
+        if not nm: continue
+        nodes = frozenset(re.findall(r'\(node\s+\(ref "([^"]+)"\)\s+\(pin "([^"]+)"\)', blk))
+        nets[nm.group(1)] = nodes
+    return nets
+
+def verify_netlist(built, rootf):
+    """Every intended multi-pin net must be EXACTLY a KiCad net (and carry its
+    label's name); every multi-pin KiCad net must be intended. Returns issues."""
+    intent, bad = intended_nets(built)
+    knets = kicad_netlist(rootf)
+    real = lambda pins: frozenset(rp for rp in pins if not rp[0].startswith("#"))
+    kicad_by_member = {}
+    for kname, nodes in knets.items():
+        for rp in nodes: kicad_by_member[rp] = (kname, nodes)
+    for pins, labels in intent:
+        rp_pins = real(pins)
+        if len(rp_pins) < 2 and not labels:
+            continue                      # single-pin unlabeled: ERC's domain
+        if not rp_pins:
+            continue                      # power-flag-only nets
+        probe = sorted(rp_pins)[0]
+        hit = kicad_by_member.get(probe)
+        if hit is None:
+            bad.append(f"[net-missing] {probe} not in any KiCad net (intended {sorted(labels) or sorted(rp_pins)})")
+            continue
+        kname, nodes = hit
+        if nodes != rp_pins:
+            bad.append(f"[net-mismatch] intended {sorted(labels) or [probe]}: "
+                       f"kicad '{kname}' has {sorted(set(nodes) ^ set(rp_pins))} extra/missing")
+        if labels and kname.lstrip("/") not in labels:
+            bad.append(f"[net-name] intended label {sorted(labels)} but kicad named it '{kname}'")
+    intents = {real(p) for p, _ in intent}
+    for kname, nodes in knets.items():
+        if len(nodes) >= 2 and not kname.startswith("unconnected-") and nodes not in intents:
+            bad.append(f"[net-extra] kicad net '{kname}' {sorted(nodes)} not intended")
+    return bad
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
+    root_uuid = _uuid()                     # generated FIRST: children need it
     defs = [(name, title, _uuid()) for (name, title, _) in SHEETS]
     ok = True
+    built = []
     for i, ((name, title, placements), (_, _, hu)) in enumerate(zip(SHEETS, defs)):
-        s = sheet(title, placements, hier_uuid=hu, page=str(i + 2))
+        s = sheet(title, placements, hier_uuid=hu, page=str(i + 2), root_uuid=root_uuid)
         ok &= render(s, name)
+        built.append((name, s))
     # root + project
-    rootf = OUT / f"{PROJECT}.kicad_sch"; rootf.write_text(build_root(defs))
+    rootf = OUT / f"{PROJECT}.kicad_sch"; rootf.write_text(build_root(defs, root_uuid))
     write_project()
+    nbad = verify_netlist(built, rootf)
+    if nbad:
+        print(f"[NETLIST GATE FAILED] {len(nbad)} issue(s):")
+        for b in nbad: print("  " + b)
+        ok = False
+    else:
+        print("[NETLIST gate] generator intent == kicad-cli netlist: clean")
     r = kcli("sch", "erc", "-o", str(OUT / "root.erc.rpt"), str(rootf))
     rpt = open(OUT / "root.erc.rpt").read() if (OUT / "root.erc.rpt").exists() else ""
     nd = rpt.count("dangling") + rpt.count("[pin_not_connected]")
