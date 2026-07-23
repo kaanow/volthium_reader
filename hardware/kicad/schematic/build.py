@@ -823,25 +823,37 @@ def blk_can(s, cx, cy):
         s.label(net, (xlbl, pin[1]), justify_h="right")
         s.wire((xlbl, pin[1]), pin)
 
-    # ---- power gate (top right): V3V3 -> Q5 S(right)..D(left) -> VCC drop ----
+    # ---- power gate (top right): V3V3 -> Q5 S..D -> VCC drop.
+    # PROBE-VERIFIED pin sides (angle 90): S=pin2 RIGHT, D=pin3 LEFT, G=pin1
+    # BOTTOM. (The first cut hand-derived the 270-degree sides, got S/D
+    # swapped, and both rail wires spanned across both pins — the pin-interior
+    # junction rule then fused source to drain and U7 VCC sat permanently on
+    # V3V3. User-caught: 'is that how its wired?'. The [part-short] netlist
+    # rule now fails the build on any FET with two pins sharing a net.) ----
     yv = snap(cy - 17.78)                              # gated-rail row
     xq = snap(cx + 17.78)
     q5 = s.place("Q_PMOS_GSD", "Q5", "NTR4171P", "Package_TO_SOT_SMD:SOT-23",
-                 (xq, snap(yv - 2.54)), angle=270, tanchor="l", bw=9.0)
-    qS, qD, qG = q5["2"], q5["3"], q5["1"]             # 270: S right, D left, G top
+                 (xq, snap(yv + 2.54)), angle=90, tanchor="l", bw=9.0)
+    qS, qD, qG = q5["2"], q5["3"], q5["1"]             # 90: S right, D left, G bottom
     xv3 = snap(xq + 17.78)
     s.wire(qS, (xv3, yv)); s.label("V3V3", (xv3, yv), justify_h="left")
     s.wire(qD, (cx, yv)); s.wire((cx, yv), VCC3)       # gated rail -> VCC pin
-    # gate line above: CAN_PWR (MCU) ---+--- R14 100k pull-up -> V3V3 (default-OFF)
-    ygate = snap(cy - 27.94)
+    # PWR_FLAG: the gated rail is fed through Q5 (passive per ERC) — declare it
+    xpf = snap(cx + 7.62)
+    pf = s.place("PWR_FLAG", "#FLG_CAN", "PWR_FLAG", "", (xpf, snap(yv - 7.62)),
+                 angle=0, tanchor="u")
+    s.wire(pf["1"], (xpf, yv))
+    # gate line BELOW (G exits bottom): G --- R14 bottom --- CAN_PWR label.
+    # R14 100k hangs from the V3V3 rail down to the gate line (default-OFF).
+    ygl = qG[1]
     xr14 = snap(xq + 12.7)
-    s.wire(qG, (qG[0], ygate))
-    xpw = snap(cx - 20.32)
-    s.wire((xpw, ygate), (xr14, ygate))
-    s.label("CAN_PWR", (xpw, ygate), justify_h="right")
     r14 = s.place("R", "R14", "100k", "R_0805_2012Metric",
-                  (xr14, snap((ygate + yv) / 2)), angle=0, tanchor="l", bw=2.0)
-    s.wire(r14["1"], (xr14, ygate)); s.wire(r14["2"], (xr14, yv))   # to the V3V3 feed
+                  (xr14, snap((yv + ygl) / 2)), angle=0, tanchor="l", bw=2.0)
+    s.wire(r14["1"], (xr14, yv))                       # top -> V3V3 rail (junction)
+    s.wire(r14["2"], (xr14, ygl))                      # bottom -> gate line
+    xpw = snap(xv3 + 5.08)
+    s.wire(qG, (xr14, ygl)); s.wire((xr14, ygl), (xpw, ygl))
+    s.label("CAN_PWR", (xpw, ygl), justify_h="left")
     # C12 decoupling on the GATED rail: own drop column left of the body
     xcc = snap(cx - 12.7)
     s.wire((cx, yv), (xcc, yv))
@@ -1820,6 +1832,24 @@ def verify_netlist(built, rootf):
     for kname, nodes in knets.items():
         if len(nodes) >= 2 and not kname.startswith("unconnected-") and nodes not in intents:
             bad.append(f"[net-extra] kicad net '{kname}' {sorted(nodes)} not intended")
+    # [part-short]: a 2-3 pin discrete (R/C/L/D/Q) with two pins on the SAME
+    # net is a drawing error, not a circuit. This is the spec-level rule the
+    # intent==actual diff cannot express: it caught nothing until Q5's S/D
+    # were fused to V3V3 by a swapped-pin-side wire pattern (user-caught).
+    # Multi-unit ICs (U/MOD refs) legitimately stack same-named pins - exempt.
+    net_of = {}
+    for kname, nodes in knets.items():
+        for rp in nodes: net_of[rp] = kname
+    for name_, s in built:
+        for ref, pins in s.pin_map.items():
+            if not re.match(r"^(R|C|L|D|Q|TVS|F)[0-9_]", ref) and                not re.match(r"^(R|C|L|D|Q|TVS|F)_", ref): continue
+            seen = {}
+            for num in pins:
+                kn = net_of.get((ref, num))
+                if kn is None or kn.startswith("unconnected-"): continue
+                if kn in seen:
+                    bad.append(f"[part-short] {ref} pins {seen[kn]}+{num} both on net '{kn}'")
+                seen[kn] = num
     return bad
 
 

@@ -1077,6 +1077,19 @@ field cable; CA$0.66). MCU: TWAI (native CAN controller) on **IO40=TXD,
 IO41=RXD, IO42=CAN_PWR** — the last free safe GPIOs (JTAG forfeited; debug
 stays on J5 UART). **GPIO budget is now exhausted.**
 
+**Defect caught by the user (2026-07-23, "is that how its wired?"):** the
+first-cut Q5 wiring hand-derived the 270-degree pin sides, got S/D swapped,
+and both rail wires spanned across both pins — the junction rules fused
+source to drain and **U7 VCC sat permanently on V3V3** (gate did nothing; and
+had the wires not fused, the body diode would have back-powered U7 at ~2.6 V
+with the gate off). All mechanical gates passed because they prove
+intent==drawn, not that the intent is right. Fixes: probe-verified pin sides
+(angle 90: S right / D left / G bottom), rewired + PWR_FLAG on the gated
+rail; NEW **[part-short] netlist rule** — any R/C/L/D/Q discrete with two
+pins on the same net fails the build (regression-proven: reverting the swap
+trips 3 flags). Netlist ground truth now: Net-(Q5-D) = {Q5.3, U7.3, C12.1};
+V3V3 = {Q5.2, R14.1, ...}; CAN_PWR = {MOD1.35, Q5.1, R14.2}.
+
 **Still open:** bench-verify pin 4/5 polarity on the actual Schneider port
 before first live attach (measure recessive ~2.5 V bias / dominant split with
 the pack on); decide populated-vs-DNP at BOM-lock once the software project
