@@ -1090,6 +1090,17 @@ pins on the same net fails the build (regression-proven: reverting the swap
 trips 3 flags). Netlist ground truth now: Net-(Q5-D) = {Q5.3, U7.3, C12.1};
 V3V3 = {Q5.2, R14.1, ...}; CAN_PWR = {MOD1.35, Q5.1, R14.2}.
 
+**Iso-sheet interpretability redraw (user-requested, done 2026-07-23):**
+both channels redrawn as signal flow with real wires — power gate -> ADM ->
+dashed ISOLATION BARRIER (drawn + titled, C28 visibly bridging it) -> isoPower
+chain per fig 35 -> per-island ground rails with L2 called out as the only tie
+-> bus joins -> RJ45; DNP provisioning in a boxed annex. Netlist gate + 140+
+golden contracts held identical connectivity through the redraw (same refdes,
+same nets; TXD{n} became real wires). New gate: title-block keep-out (the
+first redraw draft drifted the annex into the title block — no gate modelled
+page furniture). BOM two-way diff then caught 5 never-itemized passives
+(R_cc1/2, C_uvdd, C_sense, R_byp2b, R_exp_pu) — rows added.
+
 **Still open:** bench-verify pin 4/5 polarity on the actual Schneider port
 before first live attach (measure recessive ~2.5 V bias / dominant split with
 the pack on); decide populated-vs-DNP at BOM-lock once the software project

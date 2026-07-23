@@ -529,6 +529,27 @@ class Sheet:
         self.lbl_boxes.append((*box, text, tuple(pos)))
 
     # -------- readability gate (sees symbols, TEXT, and label-pierce) --------
+    def text(self, txt, pos, justify="left"):
+        """Free annotation text (interpretability notes, region titles)."""
+        from kiutils.items.schitems import Text as SchText
+        t = SchText(text=txt, position=Position(X=pos[0], Y=pos[1], angle=0),
+                    effects=Effects(justify=Justify(horizontally=justify)), uuid=_uuid())
+        self.sch.texts.append(t)
+
+    def dashed_line(self, a, b):
+        """Sheet-level dashed line (isolation-barrier demarcation)."""
+        from kiutils.items.schitems import PolyLine
+        self.sch.shapes.append(PolyLine(
+            points=[Position(X=a[0], Y=a[1]), Position(X=b[0], Y=b[1])],
+            stroke=Stroke(width=0.254, type="dash"), uuid=_uuid()))
+
+    def dashed_rect(self, a, b):
+        """Sheet-level dashed rectangle (provisioning-region box)."""
+        from kiutils.items.schitems import Rectangle as SchRect
+        self.sch.shapes.append(SchRect(
+            start=Position(X=a[0], Y=a[1]), end=Position(X=b[0], Y=b[1]),
+            stroke=Stroke(width=0.254, type="dash"), uuid=_uuid()))
+
     def gate(self):
         bad = []
         def ov(a, b):  # rectangle overlap (strict interiors)
@@ -566,6 +587,23 @@ class Sheet:
             for (p, q) in self.wires:
                 if self._seg_crosses_box(p, q, (lx1, ly1, lx2, ly2), anch):
                     bad.append(f"[pierce] wire crosses label '{text}' body")
+        # -------- title-block keep-out --------
+        # The page title block (bottom-right of USLetter landscape) is page
+        # furniture no box list models — an annex drifted into it and every
+        # gate passed while the sheet was unreadable. Nothing drawn may enter.
+        TB = (144.8, 167.6, 260.0, 200.0)
+        for kind, boxes in (("sym", self.sym_boxes), ("txt", self.txt_boxes)):
+            for bx in boxes:
+                if ov(bx[:4], TB) and not bx[4].split(":")[0].startswith("#"):
+                    bad.append(f"[title-block] {kind}:{bx[4]} enters the title block")
+        for (lx1, ly1, lx2, ly2, text, anch) in self.lbl_boxes:
+            if ov((lx1, ly1, lx2, ly2), TB):
+                bad.append(f"[title-block] label '{text}' enters the title block")
+        for (p, q) in self.wires:
+            for t in [i/24 for i in range(25)]:
+                x = p[0] + (q[0]-p[0])*t; y = p[1] + (q[1]-p[1])*t
+                if TB[0] < x < TB[2] and TB[1] < y < TB[3]:
+                    bad.append(f"[title-block] wire {p}->{q} enters the title block"); break
         # -------- symbol-OWN glyphs (pin names/numbers) --------
         # The gate used to be blind to text a symbol renders from its own
         # definition; that blindness shipped three illegible symbols to the
@@ -612,6 +650,10 @@ class Sheet:
             own = pinsets.get(ref, frozenset())
             for (p, q) in self.wires:
                 if tuple(p) in own or tuple(q) in own:
+                    continue
+                # a rail that TAPS one of this part's pins mid-segment (pin-
+                # interior junction) legitimately grazes the body's top edge
+                if any(_on_seg(op, p, q) for op in own):
                     continue
                 for t in [i/24 for i in range(1, 24)]:
                     x = p[0] + (q[0]-p[0])*t; y = p[1] + (q[1]-p[1])*t
@@ -914,140 +956,225 @@ def blk_can(s, cx, cy):
 
 
 def blk_iso_ch(s, cx, cy, n):
-    """Isolated RS-485 battery-read channel n (D36/DR-26) — one channel per sheet.
-    U_iso ADM2587E = isolated transceiver + integrated isoPower. VCC power-gated
-    by Q_ls (NTR4171P P-FET, gate=CHn_PWR active-LOW + 100k pull-up to 3V3 =
-    default-OFF). isoPower per Rev H Fig 35 / p.17: L1 in the VISOOUT->VISOIN
-    line; the four GND2 pins are NOT one net — 11/14 = GND2_DCDC{n} (converter,
-    device side of L2), 16/20 = ISO_BUS_GND{n} (bus side); L2 is the ONLY tie;
-    C_stitch (HV Y-cap) is the only GND1<->GND2_DCDC bridge. Bus A+Y / B+Z ->
-    J_bat RJ45 pins 7/8. TVS(SM712)+R_ser+R_bias+term+REF are DNP provisioning
-    (F36/F44: intentionally unprotected short in-box link). Both isolated grounds
-    are per-channel-unique nets so the two packs never share a floating ground.
-    Dense isoPower network -> connected by short labelled stubs (wires here would
-    be excessive clutter); (cx,cy) = U_iso centre."""
+    """Isolated RS-485 battery-read channel n (D36/DR-26) — one channel per
+    sheet, drawn as SIGNAL FLOW with real wires (v2, user-requested redraw of
+    the label-stub 'graphical netlist'): MCU signals in from the left ->
+    power gate -> ADM2587E -> [dashed ISOLATION BARRIER] -> isoPower chain
+    (VISOOUT -> C bank -> L1 -> C bank -> VISOIN, Rev H fig 35) -> bus A/B ->
+    RJ45. GND2 pins are NOT one net: 11/14 = GND2_DCDC{n} rail, 16/20 =
+    ISO_BUS_GND{n} rail, L2 the ONLY tie, C_stitch the only GND1 bridge.
+    DNP provisioning (TVS/R_ser/bias/term/REF, F36/F44) lives in a boxed
+    annex, label-connected by design. Nets keep their names via labels so
+    the GOLDEN contracts stay checkable. (cx,cy) = U_iso centre."""
     dnp = True
-    # short conventional refdes (per-channel bands: ch1 20s, ch2 30s) — keeps the
-    # dense network readable; functional names live in the spec + net labels.
-    U, Q, Dt, Jr = f"U{9+n}", f"Q{9+n}", f"D{9+n}", f"J{9+n}"    # ch1->U10.. ch2->U11..
-    La, Lb = f"L{8+2*n}", f"L{9+2*n}"                            # ch1->L10/L11 ch2->L12/L13
-    rb = 20 + (n-1)*10; cb = 20 + (n-1)*10                       # R/C bands
-    u = s.place("ADM2587E", U, "ADM2587EBRWZ", "Package_SO:SOIC-20W_7.5x12.8mm_P1.27mm",
-                (cx, cy), angle=0, tanchor="u", tgap=8.0)
+    U, Q, Dt, Jr = f"U{9+n}", f"Q{9+n}", f"D{9+n}", f"J{9+n}"
+    La, Lb = f"L{8+2*n}", f"L{9+2*n}"
+    rb = 20 + (n-1)*10; cb = 20 + (n-1)*10
     VCC, GDC, GBUS = f"VCC{n}", f"GND2_DCDC{n}", f"ISO_BUS_GND{n}"
     VOUT, VIN, BA, BB = f"V_ISOOUT{n}", f"V_ISOIN{n}", f"BUS_A{n}", f"BUS_B{n}"
 
+    u = s.place("ADM2587E", U, "ADM2587EBRWZ", "Package_SO:SOIC-20W_7.5x12.8mm_P1.27mm",
+                (cx, cy), angle=0, tanchor="u", tgap=8.0)
+
     def stub(pin, net, dx, dy=0.0):
-        """route a pin out by (dx,dy) to a global label; horizontal exit."""
         end = (snap(pin[0] + dx), snap(pin[1] + dy))
         if dy: s.wire(pin, (pin[0], end[1]), end)
         else:  s.wire(pin, end)
         s.label(net, end, justify_h=("right" if dx < 0 else "left"))
 
     def hpart(name, ref, val, fp, x, y, netL, netR, _dnp=False):
-        """2-terminal part placed horizontal; each pin -> a labelled stub."""
         p = s.place(name, ref, val, fp, (x, y), angle=90, tanchor="ud", bw=7.62, dnp=_dnp)
         L = min(p.values(), key=lambda q: q[0]); R = max(p.values(), key=lambda q: q[0])
         s.wire(L, (snap(L[0] - 3.81), y)); s.label(netL, (snap(L[0] - 3.81), y), justify_h="right")
         s.wire(R, (snap(R[0] + 3.81), y)); s.label(netR, (snap(R[0] + 3.81), y), justify_h="left")
         return p
 
-    def bank(items, x0, ytop, ybot, netTop, netBot, pitch=15.24):
-        """Cap/part bank: vertical parts in a row between a top rail (netTop) and
-        bottom rail (netBot). One label per rail (not per part) -> compact +
-        readable for shared-net decoupling groups. Text left of each part."""
-        ymid = snap((ytop + ybot) / 2)
-        xs = [snap(x0 + i * pitch) for i in range(len(items))]
-        for (name, ref, val, fp, d), x in zip(items, xs):
-            p = s.place(name, ref, val, fp, (x, ymid), angle=0, tanchor="l", dnp=d)
-            top = min(p.values(), key=lambda q: q[1]); bot = max(p.values(), key=lambda q: q[1])
-            s.wire(top, (x, ytop)); s.wire(bot, (x, ybot))
-        s.wire((snap(x0 - 3.81), ytop), (xs[-1], ytop))
-        s.wire((snap(x0 - 3.81), ybot), (xs[-1], ybot))
-        s.label(netTop, (snap(x0 - 3.81), ytop), justify_h="right")
-        s.label(netBot, (snap(x0 - 3.81), ybot), justify_h="right")
-
-    # ---- ADM2587E pin stubs ------------------------------------------------
-    # logic side (left): VCC (2/8 joined), control, GND1 (1/3/9/10 joined)
-    s.wire(u["2"], u["8"])                                       # VCC2 & VCC8 (same x)
-    stub(u["8"], VCC, -6.35)
-    stub(u["4"], f"RS485B_RO{n}", -6.35)                         # RxD
-    stub(u["5"], "GND", -6.35)                                   # /RE tied low
-    stub(u["6"], f"RS485B_DE{n}", -6.35)                         # DE
-    stub(u["7"], f"TXD{n}", -6.35)                               # TxD -> local net (R_di below)
-    s.wire(u["1"], u["3"]); s.wire(u["3"], u["9"]); s.wire(u["9"], u["10"])  # GND1 rail
-    stub(u["10"], "GND", -6.35)
-    # isolated side (right): VISO, bus (A+Y / B+Z), GND2 split (11/14 vs 16/20)
-    stub(u["12"], VOUT, 5.08)                                    # VISOOUT
-    stub(u["19"], VIN, 5.08)                                     # VISOIN
-    stub(u["18"], BA, 5.08); stub(u["13"], BA, 5.08)            # A + Y  -> BUS_A
-    stub(u["17"], BB, 5.08); stub(u["15"], BB, 5.08)           # B + Z  -> BUS_B
-    s.wire(u["11"], u["14"]); stub(u["14"], GDC, 5.08)          # GND2_DCDC (11/14)
-    s.wire(u["16"], u["20"]); stub(u["20"], GBUS, 5.08)         # ISO_BUS_GND (16/20)
-
-    # ---- power gate (upper-left) : 3V3 -[Q_ls]-> VCC, gate = CHn_PWR + pull-up
-    fx, fy = snap(cx - 44.45), snap(cy - 27.94)
+    # ================= LOGIC DOMAIN (left of the barrier) =================
+    # gated VCC rail across the top-left, feeding ADM VCC pins 2/8
+    yv = snap(cy - 20.32)
+    xvb = snap(cx - 20.32)
+    s.wire((xvb, yv), (xvb, u["2"][1]))
+    s.wire((xvb, u["8"][1]), u["8"]); s.wire((xvb, u["2"][1]), u["2"])
+    # power gate: V3V3 -> S(left)..D(right) -> rail. PROBE-VERIFIED at angle
+    # 270: S=pin2 LEFT, D=pin3 RIGHT, G=pin1 TOP (the Q5 lesson).
+    xq = snap(cx - 58.42)
+    # angle 270: pins sit at yq+2.54 (probe: S=pin2 LEFT, D=pin3 RIGHT, G TOP)
     q = s.place("Q_PMOS_GSD", Q, "NTR4171P", "Package_TO_SOT_SMD:SOT-23",
-                (fx, fy), angle=0, tanchor="l")
-    stub(q["1"], f"CH{n}_PWR", -7.62)                            # gate
-    stub(q["2"], "V3V3", 7.62)                                   # source (main 3V3 rail)
-    stub(q["3"], VCC, 7.62)                                      # drain -> VCC
-    hpart("R", f"R{rb}", "100k", "R_0805_2012Metric", fx, snap(fy - 12.7), f"CH{n}_PWR", "V3V3")
+                (xq, snap(yv - 2.54)), angle=270, tanchor="u", bw=9.0)
+    qG, qS, qD = q["1"], q["2"], q["3"]
+    xlV = snap(xq - 12.7)
+    s.wire((xlV, yv), qS); s.label("V3V3", (xlV, yv), justify_h="right")
+    s.wire(qD, (xvb, yv))
+    # gate line above: CHn_PWR ----+---- R_pu -> V3V3 feed
+    ygt = snap(yv - 10.16)
+    xr = snap(xq - 7.62)
+    s.wire(qG, (qG[0], ygt))
+    rpu = s.place("R", f"R{rb}", "100k", "R_0805_2012Metric",
+                  (xr, snap((ygt + yv) / 2)), angle=0, tanchor="l", bw=2.0)
+    s.wire(rpu["1"], (xr, ygt)); s.wire(rpu["2"], (xr, yv))
+    xpw = snap(xq - 22.86)
+    s.wire((xpw, ygt), (qG[0], ygt))
+    s.label(f"CH{n}_PWR", (xpw, ygt), justify_h="right")
+    s.text("power gate (default OFF)", (snap(xpw), snap(ygt - 5.08)))
+    # VCC1 net-name tag + PWR_FLAG on the rail
+    xtag = snap(cx - 24.13)
+    s.wire((xtag, yv), (xtag, snap(yv - 3.81)))
+    s.label(VCC, (xtag, snap(yv - 3.81)), justify_h="left")
+    pfv = s.place("PWR_FLAG", f"#FLG{n}V", "PWR_FLAG", "", (snap(cx - 33.02), snap(yv - 7.62)),
+                  angle=0, tanchor="u")
+    s.wire(pfv["1"], (snap(cx - 33.02), yv))
+    # VCC decoupling bank: tops on the gated rail, bottoms on a GND collector
+    ygc = snap(cy - 10.16)
+    xcs = [snap(cx - 49.53 + k * 7.62) for k in range(4)]
+    for (ref, val, fp), xc in zip(
+            [(f"C{cb}", "0.1µF", "C_0603_1608Metric"),
+             (f"C{cb+1}", "0.01µF", "C_0603_1608Metric"),
+             (f"C{cb+2}", "0.1µF", "C_0603_1608Metric"),
+             (f"C{cb+3}", "10µF", "C_0805_2012Metric")], xcs):
+        c = s.place("C", ref, val, fp, (xc, snap(yv + 3.81)), angle=0, tanchor="d")
+        s.wire(c["2"], (xc, ygc))
+    s.wire((xcs[0], ygc), (xcs[-1], ygc))
+    xgl = snap(xcs[0] - 5.08)
+    s.wire((xgl, ygc), (xcs[0], ygc))
+    s.label("GND", (xgl, ygc), justify_h="right")
+    # control signals (cross-sheet -> labels), DI series R drawn IN the path
+    xlbl = snap(cx - 38.1)
+    for pn, net in (("4", f"RS485B_RO{n}"), ("6", f"RS485B_DE{n}")):
+        s.wire((xlbl, u[pn][1]), u[pn])
+        s.label(net, (xlbl, u[pn][1]), justify_h="right")
+    stub(u["5"], "GND", -6.35)                       # /RE tied low
+    rdi = s.place("R", f"R{rb+1}", "1k", "R_0603_1608Metric",
+                  (snap(cx - 27.94), u["7"][1]), angle=90, tanchor="d", bw=7.62)
+    rL = min(rdi.values(), key=lambda p: p[0]); rR = max(rdi.values(), key=lambda p: p[0])
+    s.wire(rR, u["7"])
+    s.wire((xlbl, u["7"][1]), rL)
+    s.label(f"RS485B_DI{n}", (xlbl, u["7"][1]), justify_h="right")
+    # GND1 pins 1/3/9/10 chained; down to the stitch row; C_stitch -> GND2_DCDC
+    s.wire(u["1"], u["3"]); s.wire(u["3"], u["9"]); s.wire(u["9"], u["10"])
+    yst = snap(cy + 21.59)
+    s.wire(u["10"], (u["10"][0], yst))
+    xgnd = snap(cx - 22.86)
+    s.wire((u["10"][0], yst), (xgnd, yst))
+    s.label("GND", (xgnd, yst), justify_h="right")
+    cst = s.place("C", f"C{cb+8}", "1nF 1kV", "C_1206_3216Metric",
+                  (snap(cx - 2.54), yst), angle=90, tanchor="d", bw=7.62)
+    cL = min(cst.values(), key=lambda p: p[0]); cR = max(cst.values(), key=lambda p: p[0])
+    s.wire((u["10"][0], yst), cL)                    # GND1 side
+    xg2 = snap(cx + 19.05)
+    s.wire(cR, (xg2, yst))                           # -> GND2_DCDC rail left end
 
-    # ---- DI series R (below IC, out of the crowded control column) ------------
-    hpart("R", f"R{rb+1}", "1k", "R_0805_2012Metric", snap(cx - 33.02), snap(cy + 22.86), f"RS485B_DI{n}", f"TXD{n}")
-
-    # ---- VCC decoupling bank (4) : C_vcc1a/b (0.1u/0.01u), C_vcc2a/b (0.1u/10u)
-    bank([("C", f"C{cb}", "0.1µF", "C_0603_1608Metric", False),
-          ("C", f"C{cb+1}", "0.01µF", "C_0603_1608Metric", False),
-          ("C", f"C{cb+2}", "0.1µF", "C_0603_1608Metric", False),
-          ("C", f"C{cb+3}", "10µF", "C_0805_2012Metric", False)],
-         snap(cx - 67.31), snap(cy + 27.94), snap(cy + 40.64), VCC, "GND")
-
-    # ---- isoPower support (right) : C_vout/C_vin banks + L1/L2 + C_stitch -----
-    bank([("C", f"C{cb+4}", "10µF", "C_0805_2012Metric", False),
-          ("C", f"C{cb+5}", "0.1µF", "C_0603_1608Metric", False)],
-         snap(cx + 46.99), snap(cy - 27.94), snap(cy - 15.24), VOUT, GDC)
-    bank([("C", f"C{cb+6}", "0.1µF", "C_0603_1608Metric", False),
-          ("C", f"C{cb+7}", "0.01µF", "C_0603_1608Metric", False)],
-         snap(cx + 46.99), snap(cy + 15.24), snap(cy + 27.94), VIN, GBUS)
-    hpart("FerriteBead", La, "600Ω 2A", "Inductor_SMD:L_0805_2012Metric", snap(cx + 85.09), snap(cy - 22.86), VOUT, VIN)
-    hpart("C", f"C{cb+8}", "1nF 1kV", "C_1206_3216Metric", snap(cx + 85.09), cy, "GND", GDC)
-    hpart("FerriteBead", Lb, "600Ω 2A", "Inductor_SMD:L_0805_2012Metric", snap(cx + 85.09), snap(cy + 22.86), GDC, GBUS)
-
-    # ---- battery jack : RJ45 (A=pin7, B=pin8, shield=ISO_BUS_GND). Pins face
-    #      right -> stub A/B/shield rightward into their labels (clear of body).
-    j = s.place("RJ45_Shielded", Jr, "Amphenol_RJHSE-5380", "Connector_RJ:RJ45_Amphenol_RJHSE5380",
-                (snap(cx + 116.84), cy), angle=0, tanchor="u", tgap=6.35)
-    stub(j["7"], BA, 7.62); stub(j["8"], BB, 7.62)
-    stub(j["SH"], GBUS, 0, 5.08)
+    # ================= ISO DOMAIN (right of the barrier) =================
+    # isoPower chain on the VISOOUT row; return one row above; caps drop to rails
+    ych = u["12"][1]                                  # cy-15.24
+    yret = snap(cy - 22.86)
+    xa1, xa2 = snap(cx + 27.94), snap(cx + 35.56)     # C_vout bank columns
+    xb1, xb2 = snap(cx + 53.34), snap(cx + 60.96)     # C_vin bank columns
+    xn3 = snap(cx + 64.77)
+    l10 = s.place("FerriteBead", La, "600Ω 2A", "Inductor_SMD:L_0805_2012Metric",
+                  (snap(cx + 43.18), ych), angle=90, tanchor="ud", bw=7.62)
+    lL = min(l10.values(), key=lambda p: p[0]); lR = max(l10.values(), key=lambda p: p[0])
+    s.wire(u["12"], lL)                               # VISOOUT -> L1
+    s.wire(lR, (xn3, ych))                            # L1 -> VISOIN side
+    s.wire((xn3, ych), (xn3, yret))
+    xj19 = snap(cx + 17.78)
+    s.wire((xn3, yret), (xj19, yret))                 # return row (one X-cross)
+    s.wire((xj19, yret), (xj19, u["19"][1])); s.wire((xj19, u["19"][1]), u["19"])
+    # rails: GND2_DCDC (upper) + ISO_BUS_GND (lower); L2 the only tie
+    yr1, yr2 = yst, snap(cy + 29.21)
+    xr1e, xr2e = snap(cx + 46.99), snap(cx + 60.96)
+    s.wire((xg2, yr1), (xr1e, yr1))
+    s.wire((snap(cx + 38.1), yr2), (xr2e, yr2))
+    l11 = s.place("FerriteBead", Lb, "600Ω 2A", "Inductor_SMD:L_0805_2012Metric",
+                  (snap(cx + 38.1), snap((yr1 + yr2) / 2)), angle=0, tanchor="l", bw=7.62)
+    s.wire(min(l11.values(), key=lambda p: p[1]), (snap(cx + 38.1), yr1))
+    s.wire(max(l11.values(), key=lambda p: p[1]), (snap(cx + 38.1), yr2))
+    # GND2 pin groups onto their rails
+    s.wire(u["11"], u["14"])
+    s.wire(u["14"], (xg2, u["14"][1])); s.wire((xg2, u["14"][1]), (xg2, yr1))
+    s.wire(u["16"], u["20"])
+    xg3 = snap(cx + 16.51)
+    s.wire(u["20"], (xg3, u["20"][1])); s.wire((xg3, u["20"][1]), (xg3, snap(yr2 + 2.54)))
+    s.wire((xg3, snap(yr2 + 2.54)), (snap(cx + 38.1), snap(yr2 + 2.54)))
+    s.wire((snap(cx + 38.1), snap(yr2 + 2.54)), (snap(cx + 38.1), yr2))
+    # isoPower caps: tops tap the chain, bottoms drop to their rails
+    for (ref, val, fp), xc, yrail in (
+            ((f"C{cb+4}", "10µF", "C_0805_2012Metric"), xa1, yr1),
+            ((f"C{cb+5}", "0.1µF", "C_0603_1608Metric"), xa2, yr1),
+            ((f"C{cb+6}", "0.1µF", "C_0603_1608Metric"), xb1, yr2),
+            ((f"C{cb+7}", "0.01µF", "C_0402_1005Metric"), xb2, yr2)):
+        c = s.place("C", ref, val, fp, (xc, snap(ych + 3.81)), angle=0, tanchor="u", tgap=1.27)
+        s.wire(c["2"], (xc, yrail))
+    # net-name tags + PWR_FLAGs (VIN on the return; GDC on its rail stub)
+    xvt = snap(cx + 30.48)
+    s.wire((xvt, yret), (xvt, snap(yret - 3.81)))
+    s.label(VIN, (xvt, snap(yret - 3.81)), justify_h="left")
+    pfi = s.place("PWR_FLAG", f"#FLG{n}I", "PWR_FLAG", "", (xvt, snap(yret - 6.35)),
+                  angle=0, tanchor="u")
+    s.wire(pfi["1"], (xvt, snap(yret - 3.81)))
+    s.label(VOUT, (snap(cx + 19.05), snap(ych - 6.35)), justify_h="left")
+    s.wire((snap(cx + 19.05), ych), (snap(cx + 19.05), snap(ych - 6.35)))
+    xgt2 = snap(cx + 46.99)
+    s.wire((xgt2, yr1), (xgt2, snap(yr1 - 3.81)))
+    s.label(GDC, (xgt2, snap(yr1 - 3.81)), justify_h="right")
+    pfg = s.place("PWR_FLAG", f"#FLG{n}G", "PWR_FLAG", "", (xgt2, snap(yr1 - 6.35)),
+                  angle=0, tanchor="u")
+    s.wire(pfg["1"], (xgt2, snap(yr1 - 3.81)))
+    # bus: A+Y and B+Z join, then run under the rails into the jack
+    # A joins on the RIGHT column, B on the LEFT — this frees both bottom
+    # corners for the net-name tags (verified corner-box geometry).
+    xab, xbb = snap(cx + 25.4), snap(cx + 22.86)
+    yA, yB = snap(cy + 33.02), snap(cy + 35.56)
+    s.wire(u["18"], (xab, u["18"][1])); s.wire((xab, u["18"][1]), (xab, yA))
+    s.wire(u["13"], (xab, u["13"][1]))                # Y joins A's vertical
+    s.wire(u["17"], (xbb, u["17"][1])); s.wire((xbb, u["17"][1]), (xbb, yB))
+    s.wire(u["15"], (xbb, u["15"][1]))                # Z joins B's vertical
+    xj = snap(cx + 85.09)
+    j = s.place("RJ45_Shielded", Jr, "Amphenol_RJHSE-5380",
+                "Connector_RJ:RJ45_Amphenol_RJHSE5380", (xj, snap(cy + 25.4)),
+                angle=180, tanchor="d", bh=33.02)
+    s.wire((xab, yA), j["7"])                         # A -> RJ45 pin 7 (vendor-measured)
+    s.wire((xbb, yB), j["8"])                         # B -> RJ45 pin 8
+    # net-name spurs in gate-verified clear zones (rail2 shortened above)
+    xsa = snap(cx + 63.5)
+    s.wire((xsa, yA), (xsa, snap(yA - 2.54)))
+    s.label(BA, (xsa, snap(yA - 2.54)), justify_h="left")
+    xsb = snap(cx + 55.88)
+    s.wire((xsb, yB), (xsb, snap(yB + 2.54)))
+    s.label(BB, (xsb, snap(yB + 2.54)), justify_h="left")
     for pn in ("1", "2", "3", "4", "5", "6"): s.no_connect(j[pn])
+    sh = j["SH"]
+    s.wire(sh, (sh[0], snap(sh[1] - 3.81)))
+    s.label(GBUS, (sh[0], snap(sh[1] - 3.81)), justify_h="left")
+    pfb = s.place("PWR_FLAG", f"#FLG{n}B", "PWR_FLAG", "", (sh[0], snap(sh[1] - 6.35)),
+                  angle=0, tanchor="u")
+    s.wire(pfb["1"], (sh[0], snap(sh[1] - 3.81)))
+    s.label(GBUS, (xg3, snap(yr2 + 2.54)), justify_h="right")   # names the rail
+    s.text("isoPower (ADM2587E fig 35)", (snap(cx + 40.64), snap(cy - 31.75)))
+    s.text(f"{Lb} = the ONLY {GDC}-to-{GBUS} tie", (snap(cx + 17.78), snap(cy + 41.91)))
 
-    # ---- bus protection provisioning (DNP), 2-col grid below IC : TVS + R_ser
-    #      + R_bias + term + REF. All label-connected (F36/F44 unpopulated).
-    #      col1 = R_ser1/R_ser2/TVS (TVS last, room below for its GND stub).
-    c1, c2 = snap(cx + 2.54), snap(cx + 40.64)
-    yv = [snap(cy + 35.56 + k * 12.7) for k in range(4)]
-    hpart("R", f"R{rb+2}", "10", "R_0603_1608Metric", c1, yv[0], BA, f"TVA{n}", dnp)
-    hpart("R", f"R{rb+3}", "10", "R_0603_1608Metric", c1, yv[1], BB, f"TVB{n}", dnp)
+    # ---- barrier demarcation (continues the symbol's own dashed art) ----
+    s.dashed_line((cx, snap(cy - 33.02)), (cx, snap(cy - 29.21)))
+    s.dashed_line((cx, snap(cy + 17.78)), (cx, snap(cy + 77.47)))
+    s.text("ISOLATION BARRIER", (snap(cx - 16.51), snap(cy - 35.56)))
+
+    # ---- DNP provisioning annex (boxed, bottom-left; label-connected BY
+    # DESIGN — a deliberately set-apart provisioning region referencing the
+    # bus by net name; the names anchor at the A/B join corners above). ----
+    c1a, c2a = snap(cx - 72.39), snap(cx - 36.83)
+    yv1 = [snap(cy + 35.56 + k * 12.7) for k in range(3)]
+    yw1 = [snap(y + 6.35) for y in yv1]
+    hpart("R", f"R{rb+2}", "10", "R_0603_1608Metric", c1a, yv1[0], BA, f"TVA{n}", dnp)
+    hpart("R", f"R{rb+3}", "10", "R_0603_1608Metric", c1a, yv1[1], BB, f"TVB{n}", dnp)
     tv = s.place("SM712_SOT23", Dt, "SM712", "Package_TO_SOT_SMD:SOT-23",
-                 (c1, yv[2]), angle=0, tanchor="u", dnp=dnp)
-    stub(tv["1"], f"TVA{n}", -6.35); stub(tv["2"], f"TVB{n}", 6.35); stub(tv["3"], GBUS, 0, 6.35)
-    # col2 rows offset by half-pitch so no col1/col2 part shares a Y (inward
-    # labels of adjacent columns then never collide across the gap).
-    yw = [snap(y + 6.35) for y in yv]
-    hpart("R", f"R{rb+5}", "560", "R_0603_1608Metric", c2, yw[0], BA, VIN, dnp)
-    hpart("R", f"R{rb+6}", "560", "R_0603_1608Metric", c2, yw[1], BB, GBUS, dnp)
-    hpart("R", f"R{rb+7}", "0", "R_0805_2012Metric", c2, yw[2], GBUS, f"PACK{n}_Bminus", dnp)
-    hpart("R", f"R{rb+4}", "120", "R_0805_2012Metric", c2, yw[3], BA, BB, dnp)
-
-    # ---- PWR_FLAGs: passively-driven isolated nets. VCC via the power-gate FET;
-    #      V_ISOIN fed through L1; the two floating grounds have no "driver". ----
-    for i, net in enumerate((VCC, VIN, GDC, GBUS)):
-        pf = s.place("PWR_FLAG", f"#FLG{n}{i}", "PWR_FLAG", "",
-                     (snap(cx - 7.62 + i * 17.78), snap(cy - 46.99)), angle=0, tanchor="ud")
-        s.wire(pf["1"], (pf["1"][0], snap(pf["1"][1] + 5.08)))
-        s.label(net, (pf["1"][0], snap(pf["1"][1] + 5.08)), justify_h="left")
+                 (c1a, yv1[2]), angle=0, tanchor="u", dnp=dnp)
+    stub(tv["1"], f"TVA{n}", -6.35); stub(tv["2"], f"TVB{n}", 6.35)
+    stub(tv["3"], GBUS, 0, 6.35)
+    hpart("R", f"R{rb+5}", "560", "R_0603_1608Metric", c2a, yw1[0], BA, VIN, dnp)
+    hpart("R", f"R{rb+6}", "560", "R_0603_1608Metric", c2a, yw1[1], BB, GBUS, dnp)
+    hpart("R", f"R{rb+7}", "0", "R_0805_2012Metric", c2a, yw1[2], GBUS, f"PACK{n}_Bminus", dnp)
+    hpart("R", f"R{rb+4}", "120", "R_0805_2012Metric", c2a, snap(yw1[2] + 12.7), BA, BB, dnp)
+    s.dashed_rect((snap(cx - 85.09), snap(cy + 30.48)), (snap(cx - 21.59), snap(cy + 88.9)))
+    s.text("BUS PROTECTION - PROVISIONING (ALL DNP, F36/F44)", (snap(cx - 83.82), snap(cy + 29.21)))
 
 
 def blk_j5_dbg(s, cx, cy):
@@ -1604,9 +1731,9 @@ SHEETS = [
     ("sheet_usb", "Battery — USB maintenance power", [
         (blk_usb_power, 75, 62), (blk_usb_failsafe, 190, 62)]),
     ("sheet_isors485_1", "Battery — Isolated RS-485 read (ch.1)",
-        [(lambda s, cx, cy: blk_iso_ch(s, cx, cy, 1), 95, 115)]),
+        [(lambda s, cx, cy: blk_iso_ch(s, cx, cy, 1), 125, 100)]),
     ("sheet_isors485_2", "Battery — Isolated RS-485 read (ch.2)",
-        [(lambda s, cx, cy: blk_iso_ch(s, cx, cy, 2), 95, 115)]),
+        [(lambda s, cx, cy: blk_iso_ch(s, cx, cy, 2), 125, 100)]),
     ("sheet_mcu", "Battery — MCU (ESP32-S3)", [(blk_mcu, 145, 105)]),
     ("sheet_conn", "Battery — Connectors & I/O", [
         (blk_j1_btn, 55, 52), (blk_j2_rj45, 210, 52),
@@ -1864,9 +1991,11 @@ GOLDEN = [
     ("on",   ("J11", "8"), "BUS_B2",    "ch2 same"),
     ("on",   ("R27", "1"), "ISO_BUS_GND1", "DNP REF jumper island side"),
     ("on",   ("R27", "2"), "PACK1_Bminus", "DNP REF jumper pad side"),
-    ("on",   ("U10", "7"), "TXD1",      "DI series R: ADM TxD side"),
+    ("same", ("R21", "2"), ("U10", "7"), "DI series R feeds ADM TxD (real wire)"),
     ("on",   ("R21", "1"), "RS485B_DI1", "DI series R: MCU side"),
-    ("on",   ("R21", "2"), "TXD1",      "DI series R in the path"),
+    ("diff", ("R21", "1"), ("U10", "7"), "R21 is IN the path, not across it"),
+    ("same", ("R31", "2"), ("U11", "7"), "ch2 DI series R feeds ADM TxD"),
+    ("on",   ("R31", "1"), "RS485B_DI2", "ch2 DI series R: MCU side"),
     # -- buck + input protection (LM5166: 1=SW 2=VIN 3=ILIM 8=VOUT 10=GND)
     ("on",   ("F1", "1"), "V24_RAW",    "fuse from the input stud"),
     ("same", ("F1", "2"), ("D1", "2"),  "fuse -> reverse diode ANODE (series)"),
@@ -2060,6 +2189,11 @@ def main():
     # root + project
     rootf = OUT / f"{PROJECT}.kicad_sch"; rootf.write_text(build_root(defs, root_uuid))
     write_project()
+    if not ok:
+        print("[NETLIST gate] SKIPPED — a sheet failed its readability gate, so"
+              " the files on disk are STALE (render() refuses to write a failed"
+              " sheet); netlist comparison would judge the OLD drawing.")
+        return 2
     nbad = verify_netlist(built, rootf)
     if nbad:
         print(f"[NETLIST GATE FAILED] {len(nbad)} issue(s):")
