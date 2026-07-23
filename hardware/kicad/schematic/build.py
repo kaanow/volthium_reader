@@ -169,7 +169,11 @@ def resolve_symbol(name):
     # USBLC6/SM712/Conn_01x0N mush, stray G/D/S on FETs). Blanking to "~" is the
     # serialization-proof way to hide them: renders identically to stock KiCad,
     # and pin NUMBERS stay for the footprint map.
-    if _raw_pin_names_hidden(libfile, entry):
+    # Per-instance readability override: the 2N7002 NMOS pair (Q3/Q4 fail-safe
+    # bypass) reads better WITH its S/G/D pin letters (user call 2026-07-23) —
+    # the stock lib hides them; keep them visible for this symbol only. The
+    # P-FETs (Q_PMOS_GSD) already show theirs.
+    if _raw_pin_names_hidden(libfile, entry) and name not in ("2N7002",):
         for p in allpins: p.name = "~"
     _SYMCACHE[name] = flat
     return flat
