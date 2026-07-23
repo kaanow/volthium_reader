@@ -1802,6 +1802,199 @@ def kicad_netlist(rootf):
         nets[nm.group(1)] = nodes
     return nets
 
+# ---- GOLDEN connectivity contracts — the standing "is that how it's wired?"
+# Hand-written FROM THE DESIGN DOCS (datasheet pinouts, DR items, vendor
+# facts), independently of the drawing code, and checked against kicad-cli's
+# exported netlist every build. The intent==drawn diff proves consistency;
+# THIS table proves the circuit — it exists because a consistent-but-wrong
+# power gate (Q5 S/D swap) sailed through every other check until the user
+# asked the question. Forms: ("on", (ref,pin), netname), ("same", a, b),
+# ("diff", a, b). Each carries its why.
+GOLDEN = [
+    # -- CAN power gate (DR-31; NTR4171P: 1=G 2=S 3=D; TCAN332: 1=TXD 3=VCC 4=RXD 6=CANL 7=CANH)
+    ("on",   ("Q5", "2"), "V3V3",       "CAN gate: source on the always-on rail"),
+    ("on",   ("Q5", "1"), "CAN_PWR",    "CAN gate: gate = IO42 + R14 pull-up"),
+    ("same", ("Q5", "3"), ("U7", "3"),  "CAN gate: drain feeds U7 VCC"),
+    ("same", ("Q5", "3"), ("C12", "1"), "C12 decouples the GATED rail, not V3V3"),
+    ("diff", ("U7", "3"), ("Q5", "2"),  "U7 VCC must NOT sit directly on V3V3"),
+    ("on",   ("R14", "2"), "CAN_PWR",   "pull-up bottom on the gate line"),
+    ("on",   ("U7", "1"), "CAN_TXD",    "TWAI TX -> transceiver TXD"),
+    ("on",   ("U7", "4"), "CAN_RXD",    "transceiver RXD -> TWAI RX"),
+    # -- Xanbus port polarity (LYNK II 805-0052 §4.2.1: CAN_L=4, CAN_H=5)
+    ("same", ("U7", "7"), ("J6", "5"),  "Xanbus: CAN_H on RJ45 pin 5"),
+    ("same", ("U7", "6"), ("J6", "4"),  "Xanbus: CAN_L on RJ45 pin 4"),
+    ("diff", ("U7", "7"), ("J6", "4"),  "no H/L swap"),
+    ("same", ("R15", "1"), ("U7", "7"), "termination top on CAN_H"),
+    ("same", ("R15", "2"), ("J7", "1"), "termination in SERIES with the J7 lift"),
+    ("same", ("J7", "2"), ("U7", "6"),  "J7 returns to CAN_L"),
+    ("diff", ("R15", "2"), ("U7", "6"), "term must go THROUGH the jumper"),
+    # -- iso channel power gates (DR-26; ADM2587E: 2/8=VCC 7=TxD 11=GND2dcdc 12=VISOOUT 16=ISObusGND 17=B 18=A 19=VISOIN)
+    ("on",   ("Q10", "2"), "V3V3",      "ch1 gate: source on rail"),
+    ("on",   ("Q10", "1"), "CH1_PWR",   "ch1 gate: gate net"),
+    ("on",   ("Q10", "3"), "VCC1",      "ch1 gate: drain -> gated VCC1"),
+    ("on",   ("U10", "2"), "VCC1",      "ADM ch1 VCC on the gated rail"),
+    ("diff", ("U10", "2"), ("Q10", "2"), "ADM ch1 VCC must NOT sit on V3V3"),
+    ("on",   ("Q11", "2"), "V3V3",      "ch2 gate: source on rail"),
+    ("on",   ("Q11", "1"), "CH2_PWR",   "ch2 gate: gate net"),
+    ("on",   ("Q11", "3"), "VCC2",      "ch2 gate: drain -> gated VCC2"),
+    ("on",   ("U11", "2"), "VCC2",      "ADM ch2 VCC on the gated rail"),
+    ("diff", ("U11", "2"), ("Q11", "2"), "ADM ch2 VCC must NOT sit on V3V3"),
+    # -- isolation barrier integrity (ch1 + ch2)
+    ("on",   ("U10", "12"), "V_ISOOUT1", "isoPower out"),
+    ("on",   ("U10", "19"), "V_ISOIN1",  "isoPower in (through L10)"),
+    ("on",   ("L10", "1"), "V_ISOOUT1",  "L10 in series VISOOUT->VISOIN"),
+    ("on",   ("L10", "2"), "V_ISOIN1",   "L10 in series VISOOUT->VISOIN"),
+    ("on",   ("U10", "11"), "GND2_DCDC1", "DC-DC ground island"),
+    ("on",   ("U10", "16"), "ISO_BUS_GND1", "bus ground island"),
+    ("diff", ("U10", "11"), ("U10", "16"), "iso grounds tie ONLY through L11"),
+    ("on",   ("L11", "1"), "GND2_DCDC1",  "L11 = the only iso-ground tie"),
+    ("on",   ("L11", "2"), "ISO_BUS_GND1", "L11 = the only iso-ground tie"),
+    ("diff", ("U10", "1"), ("U10", "11"), "BARRIER: GND1 never meets GND2"),
+    ("on",   ("C28", "1"), "GND",         "C_stitch bridges GND1 side..."),
+    ("on",   ("C28", "2"), "GND2_DCDC1",  "...to GND2_DCDC only"),
+    ("on",   ("U11", "11"), "GND2_DCDC2", "ch2 island"),
+    ("on",   ("U11", "16"), "ISO_BUS_GND2", "ch2 island"),
+    ("diff", ("U11", "1"), ("U11", "11"), "BARRIER ch2"),
+    ("diff", ("U10", "16"), ("U11", "16"), "ch1/ch2 islands stay separate"),
+    ("on",   ("U10", "18"), "BUS_A1",    "ADM A -> bus A"),
+    ("on",   ("U10", "17"), "BUS_B1",    "ADM B -> bus B"),
+    ("on",   ("J10", "7"), "BUS_A1",    "vendor: A on RJ45 pin 7 (measured)"),
+    ("on",   ("J10", "8"), "BUS_B1",    "vendor: B on RJ45 pin 8 (measured)"),
+    ("on",   ("J11", "7"), "BUS_A2",    "ch2 same"),
+    ("on",   ("J11", "8"), "BUS_B2",    "ch2 same"),
+    ("on",   ("R27", "1"), "ISO_BUS_GND1", "DNP REF jumper island side"),
+    ("on",   ("R27", "2"), "PACK1_Bminus", "DNP REF jumper pad side"),
+    ("on",   ("U10", "7"), "TXD1",      "DI series R: ADM TxD side"),
+    ("on",   ("R21", "1"), "RS485B_DI1", "DI series R: MCU side"),
+    ("on",   ("R21", "2"), "TXD1",      "DI series R in the path"),
+    # -- buck + input protection (LM5166: 1=SW 2=VIN 3=ILIM 8=VOUT 10=GND)
+    ("on",   ("F1", "1"), "V24_RAW",    "fuse from the input stud"),
+    ("same", ("F1", "2"), ("D1", "2"),  "fuse -> reverse diode ANODE (series)"),
+    ("on",   ("D1", "1"), "V24_FUSED",  "diode cathode -> protected rail"),
+    ("on",   ("TVS1", "2"), "V24_FUSED", "clamp on the protected rail"),
+    ("on",   ("TVS1", "1"), "GND",      "clamp return"),
+    ("on",   ("U1", "2"), "V24_FUSED",  "buck VIN"),
+    ("same", ("U1", "2"), ("U1", "7"),  "EN tied to VIN (self-start)"),
+    ("same", ("U1", "1"), ("L1", "1"),  "SW -> inductor"),
+    ("on",   ("L1", "2"), "V3V3_BUCK",  "inductor -> output rail"),
+    ("on",   ("U1", "8"), "V3V3_BUCK",  "VOUT sense on the output"),
+    ("same", ("U1", "3"), ("R_ILIM", "1"), "ILIM programming R"),
+    # -- SSR switched branch
+    ("on",   ("R_opto", "1"), "PWR_EN", "opto drive from MCU"),
+    ("same", ("R_opto", "2"), ("SSR1", "1"), "series R -> LED anode"),
+    ("on",   ("SSR1", "2"), "GND",      "LED cathode"),
+    ("same", ("SSR1", "4"), ("F2", "1"), "switched side: fuse first"),
+    ("on",   ("F2", "2"), "V24_FUSED",  "fed from the protected rail"),
+    ("same", ("SSR1", "3"), ("R_inrush1", "1"), "inrush pair after the switch"),
+    ("same", ("R_inrush1", "2"), ("R_inrush2", "1"), "series inrush pair"),
+    ("on",   ("R_inrush2", "2"), "V24_SW", "switched output"),
+    ("on",   ("U2", "1"), "V24_SW",     "R-78HB12 IN"),
+    ("on",   ("U2", "3"), "V12_CAT5E",  "R-78HB12 OUT"),
+    # -- supervisor (TPS3808: 1=RESET 2=GND 3=MR 4=CT 5=SENSE 6=VDD)
+    ("on",   ("U4", "1"), "UVLO_RESET", "supervisor output"),
+    ("on",   ("U4", "6"), "V3V3",       "supervisor VDD"),
+    ("on",   ("R_uv1", "1"), "V24_FUSED", "UVLO divider top"),
+    ("same", ("R_uv1", "2"), ("U4", "5"), "UVLO divider mid -> SENSE"),
+    ("same", ("R_uv2", "1"), ("U4", "5"), "UVLO divider mid -> SENSE"),
+    ("on",   ("R_uv2", "2"), "GND",     "UVLO divider bottom"),
+    ("on",   ("R5", "1"), "V24_FUSED",  "ADC divider top"),
+    ("on",   ("R5", "2"), "V24_SENSE",  "ADC divider mid"),
+    ("on",   ("R6", "2"), "GND",        "ADC divider bottom"),
+    # -- USB power mux (TPS2116: 1=GND 2/7=VOUT 3=VIN1 6=VIN2)
+    ("on",   ("U5", "1"), "VBUS",       "LDO from USB"),
+    ("same", ("U5", "5"), ("U6", "3"),  "LDO out -> mux VIN1 (local wire)"),
+    ("same", ("U6", "3"), ("U6", "4"),  "PR1 tied to VIN1"),
+    ("same", ("U6", "3"), ("U6", "5"),  "MODE tied to VIN1"),
+    ("on",   ("U6", "6"), "V3V3_BUCK",  "mux VIN2 from the buck"),
+    ("on",   ("U6", "2"), "V3V3",       "mux OUT = the system rail"),
+    ("same", ("U6", "2"), ("U6", "7"),  "both VOUT pins joined"),
+    ("diff", ("U6", "2"), ("U6", "6"),  "mux must separate VIN2 from OUT"),
+    ("diff", ("U6", "2"), ("U6", "3"),  "mux must separate VIN1 from OUT"),
+    # -- fail-safe USB bypass (2N7002: 1=G 2=S 3=D)
+    ("on",   ("Q3", "3"), "MCU_EN",     "series switch to EN"),
+    ("on",   ("Q3", "2"), "UVLO_RESET", "series switch from supervisor"),
+    ("same", ("Q3", "1"), ("Q4", "3"),  "Q4 pulls Q3 gate"),
+    ("same", ("Q3", "1"), ("R_byp1", "2"), "default-ON pull-up"),
+    ("on",   ("R_byp1", "1"), "V3V3",   "pull-up source"),
+    ("on",   ("Q4", "2"), "GND",        "Q4 source grounded"),
+    ("same", ("Q4", "1"), ("R_byp2", "2"), "VBUS divider -> Q4 gate"),
+    ("same", ("Q4", "1"), ("R_byp2b", "1"), "divider bottom leg"),
+    ("on",   ("R_byp2", "1"), "VBUS",   "divider top"),
+    ("on",   ("R_byp2b", "2"), "GND",   "divider bottom"),
+    # -- display RS-485 (THVD1400: 5=GND 6=A 7=B 8=VCC) + J2 (D34 wiring)
+    ("on",   ("U3", "6"), "RS485_A",    "A line"),
+    ("on",   ("U3", "7"), "RS485_B",    "B line"),
+    ("on",   ("U3", "8"), "V3V3",       "always-on transceiver"),
+    ("same", ("R10", "1"), ("U3", "6"), "term top on A"),
+    ("same", ("R10", "2"), ("J4", "1"), "term in SERIES with J4 lift"),
+    ("same", ("J4", "2"), ("U3", "7"),  "J4 returns to B"),
+    ("diff", ("R10", "2"), ("U3", "7"), "term must go THROUGH the jumper"),
+    ("on",   ("J2", "4"), "RS485_A",    "Cat5e: A on 4"),
+    ("on",   ("J2", "5"), "RS485_B",    "Cat5e: B on 5"),
+    ("on",   ("J2", "1"), "V12_CAT5E",  "remote 12V on 1-3"),
+    ("on",   ("J2", "8"), "GND",        "grounds on 6-8"),
+    # -- RTC (RV-3028: 3=SCL 4=SDA 5=VSS 6=VBACKUP 7=VDD 8=EVI)
+    ("on",   ("RTC1", "7"), "V3V3",     "RTC VDD always-on"),
+    ("on",   ("RTC1", "5"), "GND",      "RTC VSS"),
+    ("same", ("RTC1", "6"), ("C-bk", "1"), "backup cap on VBACKUP"),
+    ("on",   ("RTC1", "3"), "I2C_SCL",  "shared bus"),
+    ("on",   ("RTC1", "4"), "I2C_SDA",  "shared bus"),
+    ("on",   ("RTC1", "8"), "GND",      "EVI unused -> tied low"),
+    # -- expansion (D37)
+    ("on",   ("Q_exp", "2"), "V3V3",    "EXP gate: source on rail"),
+    ("on",   ("Q_exp", "1"), "EXP_PWR_EN", "EXP gate: gate net"),
+    ("on",   ("Q_exp", "3"), "EXP_3V3", "EXP gate: drain -> switched rail"),
+    ("diff", ("Q_exp", "3"), ("Q_exp", "2"), "switched rail is not V3V3"),
+    ("on",   ("R_exp_bleed", "1"), "EXP_3V3", "bleed parks the rail"),
+    ("on",   ("R_exp_bleed", "2"), "GND", "bleed return"),
+    ("on",   ("J_EXP", "2"), "EXP_3V3", "header power = switched rail"),
+    ("on",   ("J_EXP", "1"), "GND",     "header ground"),
+    # -- connectors / misc
+    ("on",   ("J1", "1"), "V24_RAW",    "battery input +"),
+    ("on",   ("J1", "2"), "GND",        "battery input -"),
+    ("on",   ("BTN1", "2"), "BTN_OVERRIDE", "button signal"),
+    ("on",   ("BTN1", "1"), "GND",      "button to ground when pressed"),
+    ("on",   ("R13", "1"), "V3V3",      "button pull-up"),
+    ("same", ("J3", "A5"), ("R_cc1", "1"), "CC1 5.1k"),
+    ("same", ("J3", "B5"), ("R_cc2", "1"), "CC2 5.1k"),
+    ("on",   ("R_cc1", "2"), "GND",     "UFP advertisement"),
+    ("on",   ("U-ESD", "1"), "USB_DP",  "ESD on D+"),
+    ("on",   ("U-ESD", "3"), "USB_DM",  "ESD on D-"),
+    ("on",   ("U-ESD", "5"), "VBUS",    "ESD rail clamp"),
+    ("on",   ("U-ESD", "2"), "GND",     "ESD return"),
+    ("on",   ("J5", "1"), "GND",        "debug header"),
+    ("on",   ("J5", "2"), "V3V3",       "debug header"),
+    ("on",   ("J5", "3"), "DBG_TXD",    "console out"),
+    ("on",   ("J5", "4"), "DBG_RXD",    "console in"),
+    ("on",   ("MOD1", "3"), "MCU_EN",   "EN from the fail-safe chain"),
+]
+
+def check_golden(knets):
+    """Read-back check: every GOLDEN contract against kicad's netlist."""
+    bad = []
+    net_of = {}
+    for kname, nodes in knets.items():
+        for rp in nodes: net_of[rp] = kname
+    for entry in GOLDEN:
+        kind, a = entry[0], entry[1]
+        if kind == "on":
+            netname, why = entry[2], entry[3]
+            got = net_of.get(a)
+            if got != netname:
+                bad.append(f"[golden] {a} expected on '{netname}' but on '{got}' — {why}")
+        elif kind == "same":
+            b, why = entry[2], entry[3]
+            na, nb = net_of.get(a), net_of.get(b)
+            if na is None or na != nb:
+                bad.append(f"[golden] {a} ({na}) should share a net with {b} ({nb}) — {why}")
+        elif kind == "diff":
+            b, why = entry[2], entry[3]
+            na, nb = net_of.get(a), net_of.get(b)
+            if na is not None and na == nb:
+                bad.append(f"[golden] {a} and {b} both on '{na}' but must differ — {why}")
+    return bad
+
+
 def verify_netlist(built, rootf):
     """Every intended multi-pin net must be EXACTLY a KiCad net (and carry its
     label's name); every multi-pin KiCad net must be intended. Returns issues."""
@@ -1850,6 +2043,7 @@ def verify_netlist(built, rootf):
                 if kn in seen:
                     bad.append(f"[part-short] {ref} pins {seen[kn]}+{num} both on net '{kn}'")
                 seen[kn] = num
+    bad += check_golden(knets)
     return bad
 
 
