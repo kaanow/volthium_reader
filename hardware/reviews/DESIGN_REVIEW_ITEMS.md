@@ -1106,3 +1106,33 @@ before first live attach (measure recessive ~2.5 V bias / dominant split with
 the pack on); decide populated-vs-DNP at BOM-lock once the software project
 firms up (parts are cheap — default: populate U7/Q5/D2/R14/R15/C12/J6/J7,
 leave J7's shunt off unless the reader is a chain end).
+
+---
+
+## DR-32 — Bring-up & programming path  [CLOSED 2026-07-23 — provisioned at CP2]
+
+**Question (user):** can the board do its INITIAL firmware load, and is USB
+enough for it?
+
+**Analysis:** yes — a blank ESP32-S3 enters ROM download mode by itself (empty
+flash) and the USB-Serial/JTAG peripheral is ROM-resident, so first flash =
+USB-C + esptool, no buttons. The USB maintenance path (D29/F03) was designed
+for exactly this: VBUS → U5 → U6 → V3V3, Q4 opens Q3 to release the
+supervisor's EN hold-down, R7 pulls EN up — boots with packs absent.
+Subsequent flashing + JTAG debugging both ride the native USB peripheral
+(real JTAG pins were spent on CAN, DR-31).
+
+**Gap found & closed:** there was NO way to FORCE download mode — IO0 was
+NC'd and EN unreachable. That is a real bricking risk for THIS design
+specifically: power-first firmware deep-sleeps aggressively, and a sleeping
+chip has no USB for esptool to catch; a bad image that kills USB is
+equally unrecoverable. Fix: **J5 grew 4→6 pins in the exact ESP-Prog
+"Program" order (EN/VDD/TXD/RXD/IO0/GND)** — one ribbon gives auto-program
+AND manual force-download (IO0→GND, blip EN), fully independent of the USB
+stack. IO0 (module pin 27) now routes to J5.5 as net BOOT (internal WPU
+keeps the strap high when the header is open); golden contracts pin all six
+positions.
+
+**Recommended first-power sequence (CP5):** USB only, packs disconnected →
+verify V3V3/rails → first flash over USB → then introduce pack power and
+bring up the gated subsystems one CHn_PWR at a time.

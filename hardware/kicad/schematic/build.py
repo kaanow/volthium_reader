@@ -67,6 +67,7 @@ SYMBOLS = {
     "TCAN332":          (f"{STOCK}/Interface_CAN_LIN.kicad_sym",   "TCAN332"),
     "NUP2105L":         (f"{STOCK}/Power_Protection.kicad_sym",    "NUP2105L"),
     "Conn_01x04":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x04"),
+    "Conn_01x06":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x06"),
     "Conn_01x02":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x02"),
     "Conn_01x08":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x08"),
     "RJ45_Shielded":    (f"{STOCK}/Connector.kicad_sym",           "RJ45_Shielded"),
@@ -1178,12 +1179,16 @@ def blk_iso_ch(s, cx, cy, n):
 
 
 def blk_j5_dbg(s, cx, cy):
-    """J5 debug/console UART header — ESP U0TXD/U0RXD + V3V3 + GND for a
-    USB-serial adapter (flash fallback / console). (cx,cy) = J5 centre."""
-    j = s.place("Conn_01x04", "J5", "debug-UART",
-                "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+    """J5 debug/programming header — 6-pin, EXACT ESP-Prog "Program" order
+    (EN/VDD/TXD/RXD/IO0/GND) so one ribbon gives esptool auto-program AND a
+    manual force-download path (IO0 low + EN blip) that works even when the
+    firmware deep-sleeps or the USB stack is dead — the recovery path the
+    native USB-Serial/JTAG cannot provide by itself. (cx,cy) = J5 centre."""
+    j = s.place("Conn_01x06", "J5", "prog-UART",
+                "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical",
                 (cx, cy), angle=0, tanchor="r")
-    for pn, net in (("1", "GND"), ("2", "V3V3"), ("3", "DBG_TXD"), ("4", "DBG_RXD")):
+    for pn, net in (("1", "MCU_EN"), ("2", "V3V3"), ("3", "DBG_TXD"),
+                    ("4", "DBG_RXD"), ("5", "BOOT"), ("6", "GND")):
         pin = j[pn]; e = (snap(pin[0] - 10.16), pin[1])
         s.wire(pin, e); s.label(net, e, justify_h="right")
 
@@ -1522,6 +1527,9 @@ def blk_mcu(s, cx, cy):
             "23": "RS485B_DI2", "24": "RS485B_RO2", "25": "RS485B_DE2", "32": "CH2_PWR",
             # console UART0 -> J5 debug header
             "37": "DBG_TXD", "36": "DBG_RXD",
+            # bring-up: IO0 strap to the J5 programming header (force-download
+            # fallback; internal WPU keeps it high/unstrapped when open)
+            "27": "BOOT",
             # Xanbus CAN read (DR-31): native TWAI on matrix-mapped IO40/41 +
             # power gate on IO42 (last free safe GPIOs; JTAG forfeited, debug
             # stays on the J5 UART)
@@ -2091,10 +2099,13 @@ GOLDEN = [
     ("on",   ("U-ESD", "3"), "USB_DM",  "ESD on D-"),
     ("on",   ("U-ESD", "5"), "VBUS",    "ESD rail clamp"),
     ("on",   ("U-ESD", "2"), "GND",     "ESD return"),
-    ("on",   ("J5", "1"), "GND",        "debug header"),
-    ("on",   ("J5", "2"), "V3V3",       "debug header"),
-    ("on",   ("J5", "3"), "DBG_TXD",    "console out"),
-    ("on",   ("J5", "4"), "DBG_RXD",    "console in"),
+    ("on",   ("J5", "1"), "MCU_EN",     "prog header: EN (ESP-Prog order)"),
+    ("on",   ("J5", "2"), "V3V3",       "prog header: VDD"),
+    ("on",   ("J5", "3"), "DBG_TXD",    "prog header: ESP TXD"),
+    ("on",   ("J5", "4"), "DBG_RXD",    "prog header: ESP RXD"),
+    ("on",   ("J5", "5"), "BOOT",       "prog header: IO0 force-download"),
+    ("on",   ("J5", "6"), "GND",        "prog header: GND"),
+    ("on",   ("MOD1", "27"), "BOOT",    "IO0 strap reaches the header"),
     ("on",   ("MOD1", "3"), "MCU_EN",   "EN from the fail-safe chain"),
 ]
 
