@@ -2132,8 +2132,19 @@ async def read_battery(address: str, *, timeout: float = 20.0) -> BatteryReading
     return await _read_device(dev, address)
 
 
+# Once the FIRST target battery is heard, wait at most this long for the rest
+# before returning — so a single dormant battery can't force the full `timeout`
+# on every cycle and starve the present battery's scan/read cadence. Observed
+# 2026-07-23 (partner-following): A dormant → each cycle waited the full 20 s
+# for A → B's effective cadence fell ~3× and B's reads began timing out, then B
+# followed A into dormancy. A scan that hears NOTHING still runs the full
+# timeout, so FM-11 deaf-receiver detection is unaffected.
+_SCAN_SETTLE_GRACE_S = 4.0
+
+
 async def _discover_addresses(
-    addresses: set[str], *, timeout: float = 20.0
+    addresses: set[str], *, timeout: float = 20.0,
+    settle_grace: float = _SCAN_SETTLE_GRACE_S,
 ) -> tuple[dict[str, BLEDevice], int]:
     """Resolve several addresses to BLEDevices in a *single* discovery scan.
 
@@ -2157,9 +2168,10 @@ async def _discover_addresses(
     ambient = 0
     done = asyncio.Event()
     t0 = time.monotonic()
+    first_found_at: Optional[float] = None
 
     def cb(dev: BLEDevice, adv) -> None:
-        nonlocal ambient
+        nonlocal ambient, first_found_at
         ambient += 1
         key = dev.address.upper()
         if key not in wanted:
@@ -2175,15 +2187,28 @@ async def _discover_addresses(
         packets[key] = packets.get(key, 0) + 1
         if key not in found:
             found[key] = dev
+            if first_found_at is None:
+                first_found_at = time.monotonic()
             if wanted <= set(found):
                 done.set()
 
     scanner = BleakScanner(detection_callback=cb, **(await _adapter_kwargs()))
     await scanner.start()
+    # Return when every target is seen, OR `settle_grace` after the first is
+    # heard, OR at the hard timeout — whichever comes first. This only ever
+    # SHORTENS a scan: with all targets present `done` fires exactly as before;
+    # with none present `first_found_at` stays None and the full timeout runs
+    # (FM-11 deaf-scan detection intact); only the one-present-one-absent case
+    # is bounded to first-seen + grace instead of the full timeout.
+    deadline = t0 + timeout
     try:
-        await asyncio.wait_for(done.wait(), timeout=timeout)
-    except asyncio.TimeoutError:
-        pass
+        while True:
+            now = time.monotonic()
+            if done.is_set() or now >= deadline:
+                break
+            if first_found_at is not None and (now - first_found_at) >= settle_grace:
+                break
+            await asyncio.sleep(min(0.1, max(0.0, deadline - now)))
     finally:
         await scanner.stop()
     scan_s = round(time.monotonic() - t0, 2)

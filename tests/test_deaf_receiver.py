@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+import time
 import types
 import unittest
 from pathlib import Path
@@ -154,6 +155,60 @@ class DeafReceiverTests(unittest.TestCase):
             hci_state={"up": True}, bctl="", ub500_present=True,
         )
         self.assertEqual(cls, "kernel_usb_reset_chip_hung")
+
+
+class DiscoverySettleGraceTests(unittest.TestCase):
+    """A dormant battery must not force the full scan timeout every cycle
+    (2026-07-23 partner-following). Once the first target is heard, the scan
+    returns after a short grace instead of waiting the full timeout for the
+    absent one — but a fully-silent scan still runs the full timeout so FM-11
+    deaf detection is preserved."""
+
+    def setUp(self):
+        d = TemporaryDirectory()
+        self.addCleanup(d.cleanup)
+        pack_mod._reset_writer_for_tests(Path(d.name) / "ev.jsonl")
+        self.addCleanup(lambda: pack_mod._writer.close())
+        self._orig_scanner = pack_mod.BleakScanner
+        self.addCleanup(setattr, pack_mod, "BleakScanner", self._orig_scanner)
+
+    def test_one_present_one_absent_returns_after_grace(self):
+        # A advertises, B is silent: return ~grace after A is heard, NOT the
+        # full 5 s timeout — that starvation is what dragged B down.
+        pack_mod.BleakScanner = _fake_scanner_class([
+            (_Dev(ADDR_A, "V-A"), _Adv("V-A", -70)),
+        ])
+        t0 = time.monotonic()
+        found, ambient = _run(pack_mod._discover_addresses(
+            {ADDR_A, ADDR_B}, timeout=5.0, settle_grace=0.05))
+        elapsed = time.monotonic() - t0
+        self.assertIn(ADDR_A, found)
+        self.assertNotIn(ADDR_B, found)
+        self.assertLess(elapsed, 1.0)  # grace-bounded, not the 5 s timeout
+
+    def test_both_present_returns_immediately(self):
+        pack_mod.BleakScanner = _fake_scanner_class([
+            (_Dev(ADDR_A, "V-A"), _Adv("V-A", -70)),
+            (_Dev(ADDR_B, "V-B"), _Adv("V-B", -72)),
+        ])
+        t0 = time.monotonic()
+        found, _ = _run(pack_mod._discover_addresses(
+            {ADDR_A, ADDR_B}, timeout=5.0, settle_grace=4.0))
+        elapsed = time.monotonic() - t0
+        self.assertEqual(set(found), {ADDR_A, ADDR_B})
+        self.assertLess(elapsed, 1.0)  # `done` fired; grace never consulted
+
+    def test_none_present_runs_full_timeout(self):
+        # Regression: a silent scan must still burn the full timeout so the
+        # ambient==0 FM-11 signal and the recovery ladder stay intact.
+        pack_mod.BleakScanner = _fake_scanner_class([])
+        t0 = time.monotonic()
+        found, ambient = _run(pack_mod._discover_addresses(
+            {ADDR_A, ADDR_B}, timeout=0.3, settle_grace=0.05))
+        elapsed = time.monotonic() - t0
+        self.assertEqual(found, {})
+        self.assertEqual(ambient, 0)
+        self.assertGreaterEqual(elapsed, 0.3)  # full timeout, not grace
 
 
 if __name__ == "__main__":
