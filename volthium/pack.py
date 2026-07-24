@@ -2288,6 +2288,30 @@ async def _discover_on(hci: Optional[str], addr: str, timeout: float) -> Optiona
     return found.get(key)
 
 
+async def _resolve_persist_adapter(spec: Optional[str]) -> Optional[str]:
+    """Map VOLTHIUM_PERSIST_HCI (an hci name OR a BD address — prefer the address
+    so a reboot that reindexes adapters still targets the right chip) to a live
+    hci index, powering it up if it's down. None => bleak's default adapter.
+
+    NOTE: the chosen adapter must NOT also be VOLTHIUM_FALLBACK_ADAPTER, or the
+    AdapterManager will power it down under the held connection (an ungraceful
+    drop — the wedge trigger). The experiment config frees it from fallback duty."""
+    if not spec:
+        return None
+    hci = spec
+    if _looks_like_mac(spec):
+        hci = await _hci_owning_mac(spec)
+        if not hci:
+            _event("persist_adapter_unresolved", spec=spec)
+            return None
+    try:
+        if not await _adapter_is_up(hci):
+            await _power_on_adapter(hci)
+    except Exception:  # noqa: BLE001 — best-effort power-up; discovery will report if still down
+        pass
+    return hci
+
+
 async def persistent_read(
     addr: str, hci: Optional[str], *, timeout: float = _READ_TIMEOUT
 ) -> Optional[BatteryReading]:
@@ -2300,6 +2324,7 @@ async def persistent_read(
     key = addr.upper()
     bms = _persistent_bms.get(key)
     if bms is None:
+        hci = await _resolve_persist_adapter(hci)   # BD-addr -> live hci, powered up
         dev = await _discover_on(hci, key, timeout)
         if dev is None:
             _event("persist_absent", address=key, hci=hci or "default",
