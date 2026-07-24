@@ -258,6 +258,120 @@ venv commands and make a clean-clone rebuild part of CI.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 2 blockers, 2 important. (See findings F01, F02, F03, F04.)
 
+## 8.2 Reviewer findings (iteration 2)
+
+### Review evidence
+
+The delta fixes themselves re-verify. A final clean rebuild with the two
+Windows workarounds (`KICAD_SHARE` and `PYTHONUTF8=1`) passed all eight child
+readability gates, the generator-intent versus exported-netlist gate, and root
+ERC with zero dangling/unconnected and zero power-pin-not-driven findings.
+With `PYTHONUTF8=1`, `doc_consistency_check.py` exited 0 and
+`check_requirements.py` returned 29/29 PASS. The documented commands without
+those environment workarounds fail; see F07.
+
+G8 was re-run from the fresh exported netlist. Q5/Q10/Q11/Q_exp each have
+source pin 2 on `V3V3`, gate pin 1 on the intended distinct control, and
+drain pin 3 on a distinct gated load. J6 is CANL=4/CANH=5, J10/J11 are
+A=7/B=8, and J2 is A=4/B=5. J5 reads
+1=`MCU_EN`, 2=`V3V3`, 3=`DBG_TXD`, 4=`GND`, 5=`DBG_RXD`, 6=`BOOT`;
+D2 remains wired across the two bus legs to GND but is visibly and
+electrically marked DNP. An independent 98-discrete scan found zero same-net
+pin pairs.
+
+The corrected J5 target-perspective map is grounded in the on-file
+`ESP-Prog_SCH_V2.1.pdf`: page 1 shows
+`FT_TXD -> R20 -> ESP_RXD0`, `FT_RXD -> R21 -> ESP_TXD0`, and Program
+headers 1=EN, 2=VDD, 3=target TXD, 4=GND, 5=target RXD, 6=IO0. Both changed
+SKU cells reverse-resolved exactly through `POST /resolve` on 2026-07-24:
+`732-5394-ND` and `710-61200621621` both map to Wurth `61200621621`.
+The NUP2105L page-2 electrical table, TCAN332 page-5 absolute-maximum table,
+TDK MPZ2012 pages 1-2, and the Wurth page-1 order/dimension block were also
+opened and matched the cited values. Title/order-page checks on all five
+new manifest objects matched their stated manufacturers and object levels.
+
+The golden and requirements gates both fail when poisoned: an in-memory false
+Q5 golden produced exactly one `[golden]` failure, and an in-memory false R9
+assertion produced 28 PASS/1 FAIL. The committed files were not changed and
+the final clean build was run afterward.
+
+G9 used the generator gate, `label_body_audit.py`'s independent box model
+(zero findings on all eight child sheets), and reviewer eyes on nine final
+300-DPI pages plus 54 fixed-box zoom crops. No visual collision, clipping,
+ambiguous junction, or unreadable pin field was found. Evidence is under
+`hardware/reviews/visual_inspections/cp2-schematic/iter2/reviewer/`.
+
+### Finding F05 — IMPORTANT — `build.py:1366-1370`, `cp1_bom.md:173`
+
+**Issue**: J2 still instantiates the retired `Amphenol_RJHSE-538X` value and
+`Connector_RJ:RJ45_Amphenol_RJHSE538X` footprint, while the canonical BOM
+orders the LED-less `RJHSE-5380`. This is not a spelling-only difference:
+KiCad's `RJHSE538X` footprint is described as "Shielded, 2 LED" and includes
+extra pads 9-12; `RJHSE5380` omits those LED pads. A wrong-but-existing
+footprint has therefore passed the existence gate.
+
+**Evidence**: `hardware/kicad/schematic/build.py:1366-1370`; fresh exported
+netlist component J2 value/footprint; `hardware/layout/cp1_bom.md:173`
+explicitly says `RJHSE-5380` and records `RJHSE-538X` as the retired
+placeholder; `hardware/layout/cp1_battery_side.md:546` still repeats the
+placeholder; `hardware/reviews/DESIGN_REVIEW_ITEMS.md:989-991` claims J2 was
+already corrected. A same-turn diff of the installed KiCad 10
+`RJ45_Amphenol_RJHSE538X.kicad_mod` and `...RJHSE5380.kicad_mod` confirms the
+LED-pad difference.
+
+**Suggested fix**: set J2's value and footprint to the exact `RJHSE-5380` /
+`Connector_RJ:RJ45_Amphenol_RJHSE5380`, retire the live placeholder in
+`cp1_battery_side.md`, and add `RJHSE-538X` to the superseded-token registry.
+Add a contract that all four instances J2/J6/J10/J11 carry the exact selected
+value and footprint, so footprint existence cannot certify a sibling variant.
+
+### Finding F06 — IMPORTANT — `requirements.md:R9`, `check_requirements.py:124`
+
+**Issue**: R9 still says its mechanical verification is
+`J5.3/J5.4 + MOD1.37/36`, but corrected J5 pin 4 is GND and UART RX is pin 5.
+The runner's R9 check only tests the two MOD1 pins, so it reports PASS without
+checking that the console reaches J5 at all.
+
+**Evidence**: `hardware/layout/requirements.md:25`;
+`hardware/tools/check_requirements.py:124`; fresh netlist J5.3=`DBG_TXD`,
+J5.4=`GND`, J5.5=`DBG_RXD`; `docs/hardware/bringup_guide.md:31-34` correctly
+uses J5.3/J5.5. This is a requirements-register contradiction and a
+traceability hole, not a wiring error in the corrected schematic.
+
+**Suggested fix**: change R9 to J5.3/J5.5 and extend the runner to prove
+J5.3 shares MOD1.37's net and J5.5 shares MOD1.36's net. Poison that J5-side
+assertion, not only the module pin.
+
+### Finding F07 — IMPORTANT — `build.py:42-52`, Windows review commands
+
+**Issue**: F04's clean-Windows resolution is incomplete. The documented
+Windows build command fails on this standard per-user KiCad installation in
+two independent ways: auto-discovery does not search
+`%LOCALAPPDATA%/Programs/KiCad/10.0/share/kicad`, and after supplying
+`KICAD_SHARE`, `kiutils.SymbolLib.from_file()` still decodes the UTF-8 symbol
+library as cp1252 unless Python UTF-8 mode is set before startup. The two
+other mandatory Python gates also fail on bare Windows because their
+`Path.read_text()` calls omit an encoding.
+
+**Evidence**: default rebuild first exited
+`[env] KiCad share dir not found`; the actual installed CLI is KiCad 10.0.5
+under `%LOCALAPPDATA%/Programs/KiCad/10.0`. With only `KICAD_SHARE`, the build
+raised `UnicodeDecodeError` in `kiutils/symbol.py:523`. Bare
+`doc_consistency_check.py` fails at its line 675 and bare
+`check_requirements.py` fails at its line 52 with the same cp1252 decode
+class. With `KICAD_SHARE` plus `PYTHONUTF8=1`, all three commands pass.
+Packet section 1 and the F04 response claim the Windows command works without
+those workarounds.
+
+**Suggested fix**: add the per-user KiCad root using `LOCALAPPDATA`, make all
+repo `read_text()` calls explicit UTF-8, and remove the `kiutils.from_file()`
+locale dependency (parse explicitly opened UTF-8 text, or provide a checked
+Windows launcher that enables Python UTF-8 mode before interpreter startup).
+Re-test exactly the documented commands without inherited environment
+overrides.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 3 important. (See findings F05, F06, F07.)
+
 ## 9 Designer responses (iteration 1) — 2026-07-24
 
 ### F01 — RESOLVED (accepted, with one premise correction)

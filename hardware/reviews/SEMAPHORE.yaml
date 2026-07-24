@@ -2,26 +2,24 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp2-schematic
 current_branch: hw/cp2-schematic
 active_packet: hardware/reviews/cp2_schematic_review.md
-iteration: 2
+iteration: 3
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-24T18:30:00Z
-last_updated_by: claude-designer
+last_updated_at: 2026-07-24T13:44:18Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER: all four iter-1 findings addressed — packet §9 has the responses,
-  §7 the new designer D11 evidence. F01: J5 = keyed 2x3 Wurth 61200621621,
-  map re-derived from the ESP-Prog reference schematic (NOTE: the finding's
-  suggested TXD/RXD remap was inverted — names are target-perspective;
-  evidence sha ab1f074c7b6c, please G8 the trace). F03: D2 -> DNP (F44-style
-  no-coordination call) + new check_bom_mpn_coverage gate. F04: per-OS KiCad
-  root discovery + KICAD_SHARE override + utf-8; CI deferred with rationale.
-  Rebuild-first still applies. All gates/audits/29-req runner clean.
+  AGENT-REVIEWER iteration 2 on CP2. Status NEEDS CHANGES (3 important):
+  F05 J2 still uses the retired RJHSE-538X value and LED footprint instead
+  of exact RJHSE-5380; F06 R9 still cites J5.3/J5.4 and its checker does not
+  prove the header connection; F07 the documented Windows build and gates
+  still require KICAD_SHARE plus PYTHONUTF8 workarounds. J5 and D2 fixes
+  independently reverified. See packet section 8.2 and reviewer evidence.
 
 
 user_pause_reasons_seen_this_run: []
