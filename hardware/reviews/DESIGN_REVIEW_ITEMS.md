@@ -988,7 +988,12 @@ avoid all strapping/PSRAM/console pins.
   REF pads).
 - **RJ45 footprint typo:** `RJ45_Amphenol_RJHSE-5380`/`-538X` (hyphen) don't
   exist in KiCad's `Connector_RJ` lib — corrected to the no-hyphen names on
-  J2 (pre-existing) **and** J10/J11.
+  J2 (pre-existing) **and** J10/J11. *(Iter-2 F05 correction 2026-07-24: the
+  hyphen fix left J2 on the no-hyphen `RJHSE538X` — the 2-LED sibling with
+  pads 9–12 — while the BOM orders the LED-less RJHSE-5380. J2 value +
+  footprint now exact `RJHSE-5380`/`RJHSE5380`; a new `[exact-part]` build
+  contract pins value+footprint for all four RJ45s + J5, because footprint
+  EXISTENCE cannot certify the right VARIANT.)*
 - **isoPower ferrites** were placeholder `"ferrite"` → specified TDK
   MPZ2012S601 (600 Ω/2 A/0805), now a BOM line item (L10–L13).
 - **Three symbol-readability defects (found on user review 2026-07-22, fixed):**

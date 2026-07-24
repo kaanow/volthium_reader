@@ -117,6 +117,16 @@ Changed-region evidence, actually read:
 
   ![D2 DNP](visual_inspections/cp2-schematic/iter2/designer/periph_d2_dnp_crop.png)
 
+### 7.1 D11 addendum — iter 3 (designer)
+
+Full rebuild after the iter-2 fixes; fresh 300 DPI page set under
+`visual_inspections/cp2-schematic/iter3/designer/` (`page-1..9.png`), all
+nine read by the designer. Only sheet_conn changed visually (J2 value text).
+Verdict unchanged: readable throughout, no collisions. Changed-region
+evidence, actually read — J2 now the exact LED-less part:
+
+![J2 RJHSE-5380](visual_inspections/cp2-schematic/iter3/designer/conn_j2_rjhse5380_crop.png)
+
 ## 8 Reviewer findings (iteration 1)
 
 ### Review evidence
@@ -451,3 +461,52 @@ rebuild-first precondition (review skill v1.2.0) makes every review pass a
 clean-clone rebuild on a second OS, which is the check CI would buy. If a
 third platform enters the loop, revisit. Flag if you disagree — happy to
 stand up a KiCad container job instead.
+
+## 9.2 Designer responses (iteration 2) — 2026-07-24
+
+### F05 — RESOLVED (accepted; exact-variant contract added)
+
+Accepted — and independently re-verified before fixing: the installed
+`RJ45_Amphenol_RJHSE538X.kicad_mod` has **16 pads** ("Shielded, 2 LED") vs
+**12** for `RJHSE5380`. J2's value and footprint are now the exact
+`Amphenol_RJHSE-5380` / `Connector_RJ:RJ45_Amphenol_RJHSE5380` (J6/J10/J11
+were already correct). The suggested structural fix is implemented as a new
+**`[exact-part]` build contract** (`EXACT_PARTS` in build.py): value +
+footprint for all four RJ45s **and J5** are read back from the *exported
+netlist* and must match the selected variant exactly — footprint existence
+can no longer certify a sibling. Poison-tested: requiring the 538X variant
+for J2 fails the build with exactly one `[exact-part]` finding.
+Docs propagated: `cp1_battery_side.md` J2 row now names the exact part;
+the DR-30 record's "corrected on J2 (pre-existing)" claim is annotated with
+the truth (the hyphen fix had legalized the wrong pre-existing variant);
+`RJHSE-?538X` added to the SUPERSEDED registry.
+
+### F06 — RESOLVED
+
+`requirements.md` R9 re-worded to the corrected pins and, more importantly,
+to the *net contract* rather than pin numbers; the runner now proves the
+header connection end-to-end — `same(J5.3, MOD1.37)` and
+`same(J5.5, MOD1.36)` on top of the module-pin net names. Poison-tested on
+the **J5-side** assertion as asked (J5.3→J5.4 flip → 28 PASS / 1 FAIL,
+exit 1).
+
+### F07 — RESOLVED (all three observed failure sites; please re-verify bare)
+
+1. **Discovery**: `%LOCALAPPDATA%/Programs/KiCad/10.0/share/kicad` added to
+   the candidate list (per-user installer default).
+2. **kiutils locale decode**: kiutils' `from_file`/`to_file` accept an
+   `encoding` parameter — every call site now pins `utf-8`
+   (`SymbolLib.from_file` in build.py, `Schematic.to_file` in render(),
+   and both `from_file` calls in `label_body_audit.py`). This removes the
+   `PYTHONUTF8=1` requirement at its root rather than documenting it.
+3. **Gate tools**: every `read_text()` in `doc_consistency_check.py` and
+   `check_requirements.py` now declares `encoding="utf-8"`, and both tools
+   pin stdout/stderr to UTF-8 (`reconfigure(..., errors="replace")`) so
+   redirected output on a cp1252 console cannot crash either.
+
+Honest caveat: this host is macOS, so the "bare documented commands on
+Windows" acceptance run is yours — each of the three cited failure sites
+(env discovery, `kiutils/symbol.py` decode, checker `read_text`) now has an
+explicit-UTF-8/explicit-path fix at the exact line class you reported, but
+please re-run the §1 commands with **no** inherited `KICAD_SHARE`/
+`PYTHONUTF8` and treat any residual failure as a fresh finding.

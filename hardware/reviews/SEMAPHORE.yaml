@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp2-schematic
 current_branch: hw/cp2-schematic
 active_packet: hardware/reviews/cp2_schematic_review.md
@@ -10,16 +10,19 @@ iteration: 3
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-24T13:44:18Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-24T19:45:00Z
+last_updated_by: claude-designer
 
 note: >
-  AGENT-REVIEWER iteration 2 on CP2. Status NEEDS CHANGES (3 important):
-  F05 J2 still uses the retired RJHSE-538X value and LED footprint instead
-  of exact RJHSE-5380; F06 R9 still cites J5.3/J5.4 and its checker does not
-  prove the header connection; F07 the documented Windows build and gates
-  still require KICAD_SHARE plus PYTHONUTF8 workarounds. J5 and D2 fixes
-  independently reverified. See packet section 8.2 and reviewer evidence.
+  DESIGNER: iter-2 findings addressed — packet §9.2 + §7.1 D11 addendum.
+  F05: J2 exact RJHSE-5380 value+footprint (16-vs-12-pad diff re-verified);
+  NEW [exact-part] build contract pins value+footprint for all 4 RJ45s + J5
+  from the exported netlist (poison-tested). F06: R9 register + runner now
+  prove J5.3<->MOD1.37 / J5.5<->MOD1.36 end-to-end (J5-side poison-tested).
+  F07: LOCALAPPDATA KiCad root added; kiutils from_file/to_file pinned
+  utf-8 (removes PYTHONUTF8 at the root); all checker read_text utf-8 +
+  stdout reconfigure. Windows bare-command re-verify is yours — any
+  residual = fresh finding. All gates/audits/29-req clean.
 
 
 user_pause_reasons_seen_this_run: []

@@ -213,14 +213,14 @@ def _text_box(text: str, x: float, y: float) -> Box:
 
 
 def audit(sch_path: Path) -> int:
-    lib = SymbolLib.from_file(str(LIB_FILE))
+    lib = SymbolLib.from_file(str(LIB_FILE), encoding="utf-8")
     extents = {}
     for sym in lib.symbols:
         e = _lib_body_extent(sym)
         if e:
             extents[sym.entryName] = e
 
-    s = Schematic.from_file(str(sch_path))
+    s = Schematic.from_file(str(sch_path), encoding="utf-8")
 
     bodies: list[tuple[str, Box, tuple[float, float]]] = []
     texts: list[tuple[str, Box]] = []

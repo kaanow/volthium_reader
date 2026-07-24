@@ -10,13 +10,20 @@ Usage: python3 hardware/tools/check_requirements.py
 """
 import re, sys, pathlib
 
+# F07: Windows redirected output defaults to cp1252, which cannot encode the
+# Ω/↔/— glyphs this tool prints. Pin stdout/stderr to UTF-8 where supported.
+for _s in (sys.stdout, sys.stderr):
+    if hasattr(_s, "reconfigure"):
+        _s.reconfigure(encoding="utf-8", errors="replace")
+
+
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 NET = ROOT / "hardware/kicad/schematic/build/volthium_reader.net"
 BOM = ROOT / "hardware/layout/cp1_bom.md"
 
 
 def parse_netlist(path):
-    txt = path.read_text()
+    txt = path.read_text(encoding="utf-8")
     nets, i = {}, 0
     while True:
         i = txt.find("(net", i)
@@ -49,7 +56,7 @@ def main():
     for nm, nodes in nets.items():
         for rp in nodes:
             net_of[rp] = nm
-    bom = BOM.read_text()
+    bom = BOM.read_text(encoding="utf-8")
     results = []
 
     def check(req, desc, ok):
@@ -120,8 +127,11 @@ def main():
           on("J5", "1", "MCU_EN") and on("J5", "2", "V3V3") and on("J5", "3", "DBG_TXD")
           and on("J5", "4", "GND") and on("J5", "5", "DBG_RXD") and on("J5", "6", "BOOT")
           and on("MOD1", "27", "BOOT"))
-    # R9 console
-    check("R9", "UART0 console on J5", on("MOD1", "37", "DBG_TXD") and on("MOD1", "36", "DBG_RXD"))
+    # R9 console — prove the HEADER connection end-to-end, not just the module
+    # pins (F06: a MOD1-only check passes even if the console never reaches J5)
+    check("R9", "UART0 console reaches J5: J5.3<->MOD1.37, J5.5<->MOD1.36",
+          same(("J5", "3"), ("MOD1", "37")) and same(("J5", "5"), ("MOD1", "36"))
+          and on("MOD1", "37", "DBG_TXD") and on("MOD1", "36", "DBG_RXD"))
     # R10 Xanbus
     check("R10", "Xanbus polarity CAN_L=4 CAN_H=5",
           same(("U7", "6"), ("J6", "4")) and same(("U7", "7"), ("J6", "5"))

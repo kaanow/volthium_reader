@@ -33,6 +33,13 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 
+# F07: Windows redirected output defaults to cp1252, which cannot encode the
+# Ω/↔/— glyphs this tool prints. Pin stdout/stderr to UTF-8 where supported.
+for _s in (sys.stdout, sys.stderr):
+    if hasattr(_s, "reconfigure"):
+        _s.reconfigure(encoding="utf-8", errors="replace")
+
+
 # ---------------------------------------------------------------------------
 # Scope: docs whose CURRENT prose must not contain unmarked stale tokens.
 # /archive/ and the review packet (pure history) are out of scope.
@@ -577,6 +584,15 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "F03: NUP2105L (VBR 26.2–32 V, clamp to 40/44 V) cannot bracket the "
      "TCAN332 ±14 V bus abs-max → DNP footprint, protection = on-chip ESD "
      "(same call as the RS-485 ports, F44)"),
+    # CP2 iter-2 F05 — the RJHSE-538X placeholder (and its no-hyphen KiCad
+    # footprint name) is the 2-LED sibling with pads 9-12; the ordered part
+    # is the LED-less RJHSE-5380. Footprint existence passed the wrong
+    # variant → [exact-part] contract in build.py + this token guard.
+    (r"RJHSE-?538X",
+     "RJHSE-5380 / Connector_RJ:RJ45_Amphenol_RJHSE5380 (F05)",
+     "F05: RJHSE-538X is the 2-LED variant (16 pads); the selected part is "
+     "the LED-less RJHSE-5380 (12 pads) — exact value+footprint pinned by "
+     "the [exact-part] build contract on J2/J6/J10/J11"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -672,7 +688,7 @@ def check_stale_tokens() -> list[str]:
         if not path.exists():
             findings.append(f"[scope] {rel}: file missing — update LIVE_DOCS")
             continue
-        lines = path.read_text().splitlines()
+        lines = path.read_text(encoding="utf-8").splitlines()
         for idx, line in enumerate(lines):
             for pattern, current, hint in SUPERSEDED:
                 for m in re.finditer(pattern, line):
@@ -690,10 +706,10 @@ def check_d32_manifest() -> list[str]:
     findings = []
     if not MANIFEST.exists():
         return [f"[d32] manifest missing: {MANIFEST}"]
-    text = MANIFEST.read_text()
+    text = MANIFEST.read_text(encoding="utf-8")
     active_section = text.split("## Still needed")[0]
     rows = re.findall(r"^\| ([^|]+?) \| ([^|]+?) \|", active_section, re.M)
-    bom_text = CANONICAL_BOM.read_text()
+    bom_text = CANONICAL_BOM.read_text(encoding="utf-8")
     n = 0
     for mpn, pdf_cell in rows:
         mpn, pdf_cell = mpn.strip(), pdf_cell.strip()
@@ -754,7 +770,7 @@ NO_DATASHEET_OK: list[tuple[str, str]] = [
 
 def check_bom_mpn_coverage() -> list[str]:
     findings = []
-    man_text = MANIFEST.read_text()
+    man_text = MANIFEST.read_text(encoding="utf-8")
     # Coverage tokens: manifest MPN cells (full + head token) + BOM aliases.
     toks: set[str] = set()
     for m in re.finditer(r"^\| ([^|]+?) \|", man_text, re.M):
@@ -766,7 +782,7 @@ def check_bom_mpn_coverage() -> list[str]:
         if len(head) > 3:
             toks.add(head)
     toks |= set(MANIFEST_TO_BOM_ALIAS.values())
-    for lineno, line in enumerate(CANONICAL_BOM.read_text().splitlines(), 1):
+    for lineno, line in enumerate(CANONICAL_BOM.read_text(encoding="utf-8").splitlines(), 1):
         if not line.startswith("|") or not re.search(r"\b[\w.]+-ND\b", line):
             continue                          # not a chosen-DK-SKU table row
         if "~~" in line or "_verify_" in line or "DNP" in line \

@@ -42,9 +42,11 @@ TXTH = 1.27
 def _find_kicad_share():
     """KiCad data root, cross-platform (CP2 review F04). Override order:
     KICAD_SHARE env var, then the default install root per OS."""
+    lad = os.environ.get("LOCALAPPDATA")
     cands = [os.environ.get("KICAD_SHARE"),
              "/Applications/KiCad/KiCad.app/Contents/SharedSupport",   # macOS
-             "C:/Program Files/KiCad/10.0/share/kicad",                # Windows
+             "C:/Program Files/KiCad/10.0/share/kicad",                # Windows (all-users)
+             f"{lad}/Programs/KiCad/10.0/share/kicad" if lad else None,  # Windows (per-user, F07)
              "/usr/share/kicad"]                                       # Linux
     for c in cands:
         if c and os.path.isdir(os.path.join(c, "symbols")):
@@ -135,7 +137,7 @@ def resolve_symbol(name):
     if name not in SYMBOLS:
         raise KeyError(f"symbol {name!r} not in SYMBOLS registry")
     libfile, entry = SYMBOLS[name]
-    sl = SymbolLib.from_file(libfile)
+    sl = SymbolLib.from_file(libfile, encoding="utf-8")   # F07: never locale-decode
     byname = {s.entryName: s for s in sl.symbols}
     cur, base = entry, None
     while cur:                                  # walk `extends` to the pins
@@ -1363,11 +1365,12 @@ def blk_j1_btn(s, cx, cy):
 
 
 def blk_j2_rj45(s, cx, cy):
-    """J2 RJ45 to the display side (Amphenol RJHSE-538X, shielded). T568B per
-    cat5e_pinout: 1-3=V12_CAT5E, 4=RS485_A, 5=RS485_B, 6-8=GND, shield->GND at
-    this (battery) end only (DR-19). (cx,cy)=J2 centre."""
-    j2 = s.place("RJ45_Shielded", "J2", "Amphenol_RJHSE-538X",
-                 "Connector_RJ:RJ45_Amphenol_RJHSE538X", (cx, cy), angle=0, tanchor="u", tgap=6.35)
+    """J2 RJ45 to the display side (Amphenol RJHSE-5380, shielded, LED-less —
+    F05: the RJHSE538X footprint is the 2-LED sibling with pads 9-12). T568B
+    per cat5e_pinout: 1-3=V12_CAT5E, 4=RS485_A, 5=RS485_B, 6-8=GND,
+    shield->GND at this (battery) end only (DR-19). (cx,cy)=J2 centre."""
+    j2 = s.place("RJ45_Shielded", "J2", "Amphenol_RJHSE-5380",
+                 "Connector_RJ:RJ45_Amphenol_RJHSE5380", (cx, cy), angle=0, tanchor="u", tgap=6.35)
     NET = {"1": "V12_CAT5E", "2": "V12_CAT5E", "3": "V12_CAT5E", "4": "RS485_A",
            "5": "RS485_B", "6": "GND", "7": "GND", "8": "GND", "SH": "GND"}
     for num, net in NET.items():
@@ -1849,7 +1852,7 @@ def render(s, name, crops=()):
         print(f"[{name}] READABILITY GATE FAILED:"); [print("  "+b) for b in bad]
         return False
     print(f"[{name}] readability gate: clean")
-    schf = OUT / f"{name}.kicad_sch"; s.sch.to_file(str(schf))
+    schf = OUT / f"{name}.kicad_sch"; s.sch.to_file(str(schf), encoding="utf-8")
     kcli("sch", "export", "pdf", "-o", str(OUT/f"{name}.pdf"), str(schf))
     import fitz
     doc = fitz.open(str(OUT/f"{name}.pdf"))
@@ -2230,6 +2233,41 @@ def verify_netlist(built, rootf):
                     bad.append(f"[part-short] {ref} pins {seen[kn]}+{num} both on net '{kn}'")
                 seen[kn] = num
     bad += check_golden(knets)
+    bad += check_exact_parts(rootf)
+    return bad
+
+
+# ---- exact-variant contract (CP2 iter-2 F05) -------------------------------
+# The footprint-existence gate certifies "a footprint by this name exists" -
+# it cannot catch a sibling variant (J2 shipped with the 2-LED RJHSE538X
+# footprint, 16 pads, while the BOM orders the LED-less RJHSE-5380, 12 pads).
+# For parts where the project selected an EXACT variant, pin value+footprint
+# here and verify from the exported netlist, not the generator's intent.
+EXACT_PARTS = {
+    "J2":  ("Amphenol_RJHSE-5380", "Connector_RJ:RJ45_Amphenol_RJHSE5380"),
+    "J6":  ("Amphenol_RJHSE-5380", "Connector_RJ:RJ45_Amphenol_RJHSE5380"),
+    "J10": ("Amphenol_RJHSE-5380", "Connector_RJ:RJ45_Amphenol_RJHSE5380"),
+    "J11": ("Amphenol_RJHSE-5380", "Connector_RJ:RJ45_Amphenol_RJHSE5380"),
+    "J5":  ("ESP-Prog", "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical"),
+}
+
+
+def check_exact_parts(rootf):
+    """Read (ref, value, footprint) from the exported netlist and require the
+    EXACT_PARTS variants. Returns issues."""
+    txt = (OUT / (Path(rootf).stem + ".net")).read_text(encoding="utf-8")
+    comps = dict()
+    for m in re.finditer(r'\(ref "([^"]+)"\)\s*\(value "([^"]*)"\)\s*'
+                         r'\(footprint "([^"]*)"\)', txt):
+        comps.setdefault(m.group(1), (m.group(2), m.group(3)))
+    bad = []
+    for ref, (val, fp) in EXACT_PARTS.items():
+        got = comps.get(ref)
+        if got is None:
+            bad.append(f"[exact-part] {ref}: not found in exported netlist")
+        elif got != (val, fp):
+            bad.append(f"[exact-part] {ref}: netlist has value/footprint "
+                       f"{got}, contract requires ({val!r}, {fp!r})")
     return bad
 
 
