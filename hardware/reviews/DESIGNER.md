@@ -1,7 +1,7 @@
 # Designer instructions (Claude) — read this first
 
 > **The standing standard is [`SOP.md`](SOP.md)** — governing principles + the
-> gates (G1–G7) + tooling, distilled and forward-looking. This file is the
+> gates + tooling, distilled and forward-looking. This file is the
 > *operational playbook* (wake loop, packet mechanics, KiCad specifics); SOP.md
 > is *what "good" means*. Read SOP.md before any CP.
 
