@@ -229,7 +229,7 @@ one complete monitor.
 | R27, R37 | **0 Ω** REF jumper — ISO_BUS_GND → pack B− (fallback reference pad) | 0805 | 2 (**DNP**) | generic | generic | — (DNP) | **DNP, footprint-only.** §7 fallback if the two-domain matrix fails: 0 Ω link pins each island to its own pack's B−, preserving symmetry. Default unwired |
 | D10, D11 | **Semtech SM712** asymmetric RS-485 TVS (VRWM 12/7 V, VC 20/10 V @5 A) | SOT-23 | 2 (**DNP**) | SM712CT-ND | 947-SM712.TCT | — (DNP) | **DNP, footprint-only — port intentionally unprotected** (F36/F44). SM712 VC 20 V > ADM bus abs-max −9/+14 V and a bare series-R can't coordinate it. Accepted risk: short in-enclosure link |
 
-**Subtotal (populated parts only):** 2× ADM2587E $45.80 + 2× NTR4171P $2.26 + 2× RJHSE-5380 $5.00 + 4× bead $0.72 + isoPower passives (8× 0.1 µF, 4× 0.01 µF, 4× 10 µF, 2× R100k, 2× R1k ≈ $1.5) + 2× HV Y-cap ~$0.60 ≈ **~$55.5**. All **DNP protection/bias/term/ref parts add $0** (footprint-only: R22–R27/R32–R37 ×12 + D10/D11). Folds into the battery-side line only when DR-26 clears. *(Consistent with the existing D36 delta ~$55.7.)*
+**Subtotal (populated parts only), recomputed from the canonical rows above (2026-07-23):** 2× ADM2587E $45.80 + 2× NTR4171P $2.26 + 2× RJHSE-5380 $5.00 + 4× bead $0.72 + isoPower passives (8× 0.1 µF $0.40, 4× 0.01 µF $0.20, 4× 10 µF $0.40, 2× R100k $0.04, 2× R1k $0.04) + 2× C_stitch (KEMET 1 nF/1 kV) $0.40 ≈ **$55.3** (mixed CAD/USD per the column convention — reconcile at BOM-lock). All DNP protection/bias/term/ref parts add $0 (footprint-only: R22–R27/R32–R37 ×12 + D10/D11).
 
 ### Enclosure & mounting
 

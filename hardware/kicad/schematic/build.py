@@ -1018,26 +1018,28 @@ def blk_iso_ch(s, cx, cy, n):
     s.label(f"CH{n}_PWR", (xpw, ygt), justify_h="right")
     s.text("power gate (default OFF)", (snap(xpw), snap(ygt - 5.08)))
     # VCC1 net-name tag + PWR_FLAG on the rail
-    xtag = snap(cx - 24.13)
+    xtag = snap(cx - 22.86)
     s.wire((xtag, yv), (xtag, snap(yv - 3.81)))
     s.label(VCC, (xtag, snap(yv - 3.81)), justify_h="left")
-    pfv = s.place("PWR_FLAG", f"#FLG{n}V", "PWR_FLAG", "", (snap(cx - 33.02), snap(yv - 7.62)),
+    pfv = s.place("PWR_FLAG", f"#FLG{n}V", "PWR_FLAG", "", (snap(cx - 45.72), snap(yv - 7.62)),
                   angle=0, tanchor="u")
-    s.wire(pfv["1"], (snap(cx - 33.02), yv))
-    # VCC decoupling bank: tops on the gated rail, bottoms on a GND collector
-    ygc = snap(cy - 10.16)
+    s.wire(pfv["1"], (snap(cx - 45.72), yv))   # taps in the gap BETWEEN cap texts
+    # VCC decoupling bank: tops tap the gated rail; bottoms chain at the pin
+    # row straight to a GND label (no drops/collector = nothing under the
+    # texts, nothing through the flag tap — the audit-vs-eyes lesson)
     xcs = [snap(cx - 49.53 + k * 7.62) for k in range(4)]
+    caps = []
     for (ref, val, fp), xc in zip(
             [(f"C{cb}", "0.1µF", "C_0603_1608Metric"),
              (f"C{cb+1}", "0.01µF", "C_0603_1608Metric"),
              (f"C{cb+2}", "0.1µF", "C_0603_1608Metric"),
              (f"C{cb+3}", "10µF", "C_0805_2012Metric")], xcs):
-        c = s.place("C", ref, val, fp, (xc, snap(yv + 3.81)), angle=0, tanchor="d")
-        s.wire(c["2"], (xc, ygc))
-    s.wire((xcs[0], ygc), (xcs[-1], ygc))
-    xgl = snap(xcs[0] - 5.08)
-    s.wire((xgl, ygc), (xcs[0], ygc))
-    s.label("GND", (xgl, ygc), justify_h="right")
+        caps.append(s.place("C", ref, val, fp, (xc, snap(yv + 3.81)), angle=0, tanchor="u", tgap=5.08))
+    ybot = caps[0]["2"][1]
+    s.wire((xcs[0], ybot), (xcs[-1], ybot))
+    xgl = snap(xcs[0] - 6.35)
+    s.wire((xgl, ybot), (xcs[0], ybot))
+    s.label("GND", (xgl, ybot), justify_h="right")
     # control signals (cross-sheet -> labels), DI series R drawn IN the path
     xlbl = snap(cx - 38.1)
     for pn, net in (("4", f"RS485B_RO{n}"), ("6", f"RS485B_DE{n}")):
@@ -1098,28 +1100,38 @@ def blk_iso_ch(s, cx, cy, n):
     s.wire((xg3, snap(yr2 + 2.54)), (snap(cx + 38.1), snap(yr2 + 2.54)))
     s.wire((snap(cx + 38.1), snap(yr2 + 2.54)), (snap(cx + 38.1), yr2))
     # isoPower caps: tops tap the chain, bottoms drop to their rails
-    for (ref, val, fp), xc, yrail in (
-            ((f"C{cb+4}", "10µF", "C_0805_2012Metric"), xa1, yr1),
-            ((f"C{cb+5}", "0.1µF", "C_0603_1608Metric"), xa2, yr1),
-            ((f"C{cb+6}", "0.1µF", "C_0603_1608Metric"), xb1, yr2),
-            ((f"C{cb+7}", "0.01µF", "C_0402_1005Metric"), xb2, yr2)):
-        c = s.place("C", ref, val, fp, (xc, snap(ych + 3.81)), angle=0, tanchor="u", tgap=1.27)
-        s.wire(c["2"], (xc, yrail))
+    cbank = {}
+    for (ref, val, fp), xc in (
+            ((f"C{cb+4}", "10µF", "C_0805_2012Metric"), xa1),
+            ((f"C{cb+5}", "0.1µF", "C_0603_1608Metric"), xa2),
+            ((f"C{cb+6}", "0.1µF", "C_0603_1608Metric"), xb1),
+            ((f"C{cb+7}", "0.01µF", "C_0402_1005Metric"), xb2)):
+        cbank[ref] = s.place("C", ref, val, fp, (xc, snap(ych + 3.81)), angle=0, tanchor="u", tgap=1.27)
+    # bottoms joined per bank -> ONE drop per bank (fewer verticals = the
+    # label windows the audit demanded)
+    s.wire(cbank[f"C{cb+4}"]["2"], cbank[f"C{cb+5}"]["2"])
+    s.wire(cbank[f"C{cb+5}"]["2"], (xa2, yr1))
+    s.wire(cbank[f"C{cb+6}"]["2"], cbank[f"C{cb+7}"]["2"])
+    s.wire(cbank[f"C{cb+7}"]["2"], (xb2, yr2))
     # net-name tags + PWR_FLAGs (VIN on the return; GDC on its rail stub)
     xvt = snap(cx + 30.48)
     s.wire((xvt, yret), (xvt, snap(yret - 3.81)))
     s.label(VIN, (xvt, snap(yret - 3.81)), justify_h="left")
-    pfi = s.place("PWR_FLAG", f"#FLG{n}I", "PWR_FLAG", "", (xvt, snap(yret - 6.35)),
+    xpfi = snap(cx + 22.86)
+    pfi = s.place("PWR_FLAG", f"#FLG{n}I", "PWR_FLAG", "", (xpfi, snap(yret - 6.35)),
                   angle=0, tanchor="u")
-    s.wire(pfi["1"], (xvt, snap(yret - 3.81)))
+    s.wire(pfi["1"], (xpfi, yret))
     s.label(VOUT, (snap(cx + 19.05), snap(ych - 6.35)), justify_h="left")
     s.wire((snap(cx + 19.05), ych), (snap(cx + 19.05), snap(ych - 6.35)))
-    xgt2 = snap(cx + 46.99)
-    s.wire((xgt2, yr1), (xgt2, snap(yr1 - 3.81)))
-    s.label(GDC, (xgt2, snap(yr1 - 3.81)), justify_h="right")
-    pfg = s.place("PWR_FLAG", f"#FLG{n}G", "PWR_FLAG", "", (xgt2, snap(yr1 - 6.35)),
+    # flag + name separated (audit: co-anchored flag wire pierced the label)
+    xpfg = snap(cx + 30.48)
+    pfg = s.place("PWR_FLAG", f"#FLG{n}G", "PWR_FLAG", "", (xpfg, snap(yr1 - 6.35)),
                   angle=0, tanchor="u")
-    s.wire(pfg["1"], (xgt2, snap(yr1 - 3.81)))
+    s.wire(pfg["1"], (xpfg, yr1))
+    xgt2 = snap(cx + 46.99)
+    s.wire((xgt2, yr1), (xgt2, snap(yr1 - 2.54)))
+    s.wire((xgt2, snap(yr1 - 2.54)), (snap(xgt2 + 1.27), snap(yr1 - 2.54)))
+    s.label(GDC, (snap(xgt2 + 1.27), snap(yr1 - 2.54)), justify_h="left")
     # bus: A+Y and B+Z join, then run under the rails into the jack
     # A joins on the RIGHT column, B on the LEFT — this frees both bottom
     # corners for the net-name tags (verified corner-box geometry).
@@ -1146,9 +1158,11 @@ def blk_iso_ch(s, cx, cy, n):
     sh = j["SH"]
     s.wire(sh, (sh[0], snap(sh[1] - 3.81)))
     s.label(GBUS, (sh[0], snap(sh[1] - 3.81)), justify_h="left")
-    pfb = s.place("PWR_FLAG", f"#FLG{n}B", "PWR_FLAG", "", (sh[0], snap(sh[1] - 6.35)),
+    xpfb = snap(sh[0] - 2.54)
+    s.wire((sh[0], snap(sh[1] - 3.81)), (xpfb, snap(sh[1] - 3.81)))
+    pfb = s.place("PWR_FLAG", f"#FLG{n}B", "PWR_FLAG", "", (xpfb, snap(sh[1] - 6.35)),
                   angle=0, tanchor="u")
-    s.wire(pfb["1"], (sh[0], snap(sh[1] - 3.81)))
+    s.wire(pfb["1"], (xpfb, snap(sh[1] - 3.81)))
     s.label(GBUS, (xg3, snap(yr2 + 2.54)), justify_h="right")   # names the rail
     s.text("isoPower (ADM2587E fig 35)", (snap(cx + 40.64), snap(cy - 31.75)))
     s.text(f"{Lb} = the ONLY {GDC}-to-{GBUS} tie", (snap(cx + 17.78), snap(cy + 41.91)))
@@ -1282,7 +1296,7 @@ def blk_exp(s, cx, cy):
     jy = snap(cy + 3.81)
     j = s.place("Conn_01x08", "J_EXP", "Molex_PicoBlade_53398-0871",
                 "Connector_Molex:Molex_PicoBlade_53398-0871_1x08-1MP_P1.25mm_Vertical",
-                (snap(cx + 45.72), jy), angle=0, tanchor="u")
+                (snap(cx + 45.72), jy), angle=0, tanchor="d", bh=26.0)
     NET = {"1": "GND", "2": "EXP_3V3", "3": "EXP_SDA", "4": "EXP_SCL", "5": "EXP_AIO1",
            "6": "EXP_AIO2", "7": "EXP_DIO3", "8": "GND"}
     for num, net in NET.items():
@@ -1367,7 +1381,9 @@ def blk_usb_power(s, cx, cy):
     cu2 = s.place("C", "C_usb2", "1µF", "C_0603_1608Metric", (snap(cx + 10.16), snap(VOUT5[1] + 3.81)), tanchor="r")
     s.wire(cu2["1"], (cu2["1"][0], VOUT5[1])); s.wire(cu2["2"], (cu2["1"][0], yg))
     # VIN2 <- V3V3_BUCK (down to a label, clear of the bus) ; OUT -> V3V3
-    s.wire(VIN2, (VIN2[0], snap(VIN2[1] + 6.35))); s.label("V3V3_BUCK", (VIN2[0], snap(VIN2[1] + 6.35)), justify_h="left")
+    s.wire(VIN2, (VIN2[0], snap(VIN2[1] + 6.35)))
+    s.wire((VIN2[0], snap(VIN2[1] + 6.35)), (snap(VIN2[0] - 2.54), snap(VIN2[1] + 6.35)))
+    s.label("V3V3_BUCK", (snap(VIN2[0] - 2.54), snap(VIN2[1] + 6.35)), justify_h="right")
     s.wire(VOUT6, (snap(VOUT6[0] + 8.89), VOUT6[1])); s.label("V3V3", (snap(VOUT6[0] + 15.24), VOUT6[1]), justify_h="left")
     s.wire((snap(VOUT6[0] + 8.89), VOUT6[1]), (snap(VOUT6[0] + 15.24), VOUT6[1]))
     # C_mux: 47µF bulk on the mux OUT (V3V3) — reverse-current-blocking on USB
