@@ -1038,6 +1038,11 @@ avoid all strapping/PSRAM/console pins.
   gets pull-ups on the *switched* EXP_3V3 rail; the current `blk_exp` has the
   rail + Q_exp + bleed but no dedicated EXP-side I2C pull-up resistors. Verify
   whether those live on-board or on the (optional) daughterboard before CP5.
+- **Ferrite bead impedance (L10–L13) vs DS guidance (user Q 2026-07-23):** the
+  ADM2587E DS (Rev H p.17) sizes the GND2/VISO beads at "about 2 kΩ between
+  100 MHz and 1 GHz"; the chosen generic 600 Ω@100 MHz bead may be under that
+  at 180/360 MHz. Verify the |Z| curve or substitute per AN-1349 at BOM-lock.
+  Emissions-mitigation only — no compliance target on this one-off.
 - DR-26 itself stays OPEN and **gating on the ~2-week on-site two-domain
   test**; the schematic/BOM are drawn so the test can run, but population of
   the isolated front-end is not committed until it passes.
