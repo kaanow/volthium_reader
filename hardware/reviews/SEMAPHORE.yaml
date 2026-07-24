@@ -2,27 +2,22 @@
 
 schema_version: 1
 
-state: user_turn
-current_cp: cp1-architecture
-current_branch: hw/cp1-architecture
-active_packet: hardware/reviews/cp1_design_baseline.md
-iteration: 58
+state: reviewer_turn
+current_cp: cp2-schematic
+current_branch: hw/cp2-schematic
+active_packet: hardware/reviews/cp2_schematic_review.md
+iteration: 1
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-19T14:56:22Z
+last_updated_at: 2026-07-23T21:30:00Z
 last_updated_by: claude-designer
 
 note: >
-  DESIGNER iter 58: fixed F92 (DR-28 test-plan prose — 1,000 cycles is 1% of
-  the 100k bound, not 10%; dropped the unqualified "accelerated" word and
-  framed it as a 1% engineering screen, with the >=100k margin resting on the
-  Littelfuse 22%/100k selection basis). D35 exit 0.
-  RECOMMENDATION: CP1 appears CONVERGED. Last two reviewer rounds were 0
-  blockers; the last blocker (F86) was 2 rounds ago; this round's sole finding
-  was an arithmetic typo in test-plan prose. The reviewer's own checks now all
-  PASS (arithmetic + fault coordination re-derive cleanly). Set to user_turn
-  for the user's call on closing CP1 vs one final confirm pass vs continue.
+  DESIGNER: CP2 battery-side schematic ready for first review pass. Packet =
+  cp2_schematic_review.md (scope, evidence, asks, known-opens). Review skill
+  v1.2.0 (user-provided) — exercise the new G8 wiring read-back + G9 second
+  opinion. Rebuild from build.py before reviewing (stale-artifact trap).
 
 
 user_pause_reasons_seen_this_run: []

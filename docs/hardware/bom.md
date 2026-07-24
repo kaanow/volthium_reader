@@ -1,5 +1,9 @@
 # Bill of Materials
 
+> **CP2 note (2026-07-23):** the CP2 additions (Xanbus CAN read DR-31, J5
+> 6-pin programming header DR-32, iso-read itemization, audit-caught passive
+> rows) exist ONLY in the canonical file — this view has not been re-synced.
+>
 > **NON-NORMATIVE (D35, 2026-07-14).** The canonical BOM is
 > [`hardware/layout/cp1_bom.md`](../../hardware/layout/cp1_bom.md); on any
 > disagreement, that file wins. This procurement/shopping view (proto

@@ -56,7 +56,7 @@ reviewer-approved. The **user must explicitly clear** entry into the next CP.
 | CP  | Phase                        | Advance gate (must pass) |
 |-----|------------------------------|--------------------------|
 | CP1 | Architecture / baseline      | G1 (architecture) · G2 · G3 · G4-flag · G5 · G7 |
-| CP2 | Schematic capture            | G1 (per-part) · G3/G2 re-verify · G6 |
+| CP2 | Schematic capture            | G1 (per-part) · G3/G2 re-verify · G6 · G8/G9 (skill v1.2.0: wiring read-back, independent-geometry second opinion) |
 | CP3 | Placement (battery)          | G4 (footprints/thermal-pad/vias) · G6 · mechanical re-verify |
 | CP4 | Placement (display)          | as CP3 |
 | CP5 | Routing + DRC                | DRC ground-truth clean (G-tools) · G6 |

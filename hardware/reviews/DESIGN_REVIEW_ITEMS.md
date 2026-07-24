@@ -963,7 +963,7 @@ All are analysis-backed and the schematic is built with them (ERC-clean,
 readable). Non-gating for the block's structure — only the values would
 change if the user prefers COT (then L1→larger, R_ILIM/C2 re-pick).
 
-## DR-30 — CP2 schematic capture of the isolated RS-485 read (DR-26) + remaining battery-side elements  [OPEN — drawn + self-verified 2026-07-20; DR-26 test still gates population]
+## DR-30 — CP2 schematic capture of the isolated RS-485 read (DR-26) + remaining battery-side elements  [OPEN — self-audit clean 2026-07-23 (all gates + independent audits + 29/29 requirements); remaining opens are bench-gated (DR-26 §7) + the bead-impedance BOM-lock check]
 
 CP2 drew the DR-26 isolated RS-485 subsystem (2× ADM2587E channels, one
 sheet each) plus the battery-side elements that were BOM-listed but not yet
@@ -1030,19 +1030,15 @@ avoid all strapping/PSRAM/console pins.
   auto-prefixed (they would all have failed footprint resolution at CP3).
 
 **Still OPEN (needs a call / BOM-lock task):**
-- **C28/C38 (C_stitch HV Y-cap):** must be a safety-agency-rated Y1/Y2 part
-  to the *working* voltage (VIORM 524 Vpk / 396 Vrms, IEC 60747-17) — not the
-  2500 Vrms 1-min proof. No live SKU yet; pick a rated Murata DE/GA-class cap
-  at BOM-lock. Left `_verify_` in the BOM.
-- **EXP I2C pull-ups:** DR-27/D37/F48 says the expansion I2C (EXP_SDA/EXP_SCL)
-  gets pull-ups on the *switched* EXP_3V3 rail; the current `blk_exp` has the
-  rail + Q_exp + bleed but no dedicated EXP-side I2C pull-up resistors. Verify
-  whether those live on-board or on the (optional) daughterboard before CP5.
-- **Ferrite bead impedance (L10–L13) vs DS guidance (user Q 2026-07-23):** the
-  ADM2587E DS (Rev H p.17) sizes the GND2/VISO beads at "about 2 kΩ between
-  100 MHz and 1 GHz"; the chosen generic 600 Ω@100 MHz bead may be under that
-  at 180/360 MHz. Verify the |Z| curve or substitute per AN-1349 at BOM-lock.
-  Emissions-mitigation only — no compliance target on this one-off.
+- **C28/C38 (C_stitch): RESOLVED 2026-07-20 (user call).** This 24 V system
+  needs *functional*, not safety, isolation — an agency-rated Y-class part is
+  not required. Picked **KEMET C1206C102KDGACTU** (1 nF / 1 kV C0G, 1206;
+  DK 399-C1206C102KDGACTU-ND) — BOM row carries the SKU. The earlier
+  "must be agency Y1/Y2" framing was over-spec for this application.
+- **EXP I2C pull-ups: RESOLVED 2026-07-20 (user call).** R_exp_sda/R_exp_scl
+  4.7 k drawn as **DNP footprints on-board** (EXP_SDA/EXP_SCL -> switched
+  EXP_3V3) so they can be stuffed here OR on a future daughterboard; BOM row
+  + goldens cover them.
 - DR-26 itself stays OPEN and **gating on the ~2-week on-site two-domain
   test**; the schematic/BOM are drawn so the test can run, but population of
   the isolated front-end is not committed until it passes.
