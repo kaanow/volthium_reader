@@ -211,5 +211,88 @@ class DiscoverySettleGraceTests(unittest.TestCase):
         self.assertGreaterEqual(elapsed, 0.3)  # full timeout, not grace
 
 
+class PrefetchedAndPersistentTests(unittest.TestCase):
+    """Persistent-connection experiment: one battery read over a held link on a
+    dedicated adapter (passed to read_pack via `prefetched`), the other on/off.
+    Verifies the prefetched battery is excluded from the primary adapter's
+    discovery, that the off-path is unchanged, and the held-connection lifecycle."""
+
+    def setUp(self):
+        d = TemporaryDirectory()
+        self.addCleanup(d.cleanup)
+        pack_mod._reset_writer_for_tests(Path(d.name) / "ev.jsonl")
+        self.addCleanup(lambda: pack_mod._writer.close())
+        self.events_path = Path(d.name) / "ev.jsonl"
+        self._orig_scanner = pack_mod.BleakScanner
+        self.addCleanup(setattr, pack_mod, "BleakScanner", self._orig_scanner)
+        pack_mod._persistent_bms.clear()
+        self.addCleanup(pack_mod._persistent_bms.clear)
+
+    def _events(self):
+        try:
+            return self.events_path.read_text()
+        except OSError:
+            return ""
+
+    def _reading(self, addr):
+        return pack_mod.BatteryReading(
+            address=addr, name="X", voltage=13.2, current=-1.0, soc=80,
+            remaining_ah=None, temperature=20, cycles=None, cell_voltages=None,
+            delta_voltage=None, charging_fet=None, discharging_fet=None,
+            problem_code=0)
+
+    def test_prefetched_battery_is_not_discovered(self):
+        # A is prefetched (read on the dedicated adapter); the primary scanner
+        # hears only an unrelated device (not deaf) and not B. A's reading must
+        # be used verbatim, B marked absent, and A never scanned for.
+        pack_mod.BleakScanner = _fake_scanner_class([
+            (_Dev("EE:B3:03:C6:38:40", "Govee"), _Adv("Govee", -90)),
+        ])
+        a = self._reading(ADDR_A)
+        pack = _run(pack_mod.read_pack(ADDR_A, ADDR_B, timeout=0.05,
+                                       prefetched={ADDR_A: a}))
+        self.assertIs(pack.a, a)              # prefetched used verbatim
+        self.assertIsNone(pack.b.voltage)     # B absent -> missing reading
+        import json
+        for ln in self._events().splitlines():
+            e = json.loads(ln)
+            if e.get("event") == "scan_result":
+                self.assertNotEqual(e.get("address"), ADDR_A)  # A never scanned
+
+    def test_prefetched_none_is_legacy_behaviour(self):
+        # Regression: with the feature off (no prefetched), nothing-found still
+        # raises the both-down RuntimeError exactly as before.
+        pack_mod.BleakScanner = _fake_scanner_class([
+            (_Dev("EE:B3:03:C6:38:40", "Govee"), _Adv("Govee", -90)),
+        ])
+        with self.assertRaises(RuntimeError):
+            _run(pack_mod.read_pack(ADDR_A, ADDR_B, timeout=0.05))
+
+    def test_persistent_read_absent_returns_none(self):
+        # Target not advertising -> can't (re)connect -> None + persist_absent,
+        # and nothing cached (next cycle retries cleanly).
+        pack_mod.BleakScanner = _fake_scanner_class([])
+        r = _run(pack_mod.persistent_read(ADDR_A, "hci1", timeout=0.05))
+        self.assertIsNone(r)
+        self.assertIn('"event": "persist_absent"', self._events())
+        self.assertNotIn(ADDR_A, pack_mod._persistent_bms)
+
+    def test_persistent_shutdown_releases_held(self):
+        # A held connection must be disconnected + forgotten on shutdown (the
+        # SIGTERM graceful-release path that keeps deploys from wedging the BMS).
+        class _Held:
+            def __init__(self):
+                self.disconnected = False
+
+            async def disconnect(self, reset=False):
+                self.disconnected = True
+
+        held = _Held()
+        pack_mod._persistent_bms[ADDR_A] = held
+        _run(pack_mod.persistent_shutdown())
+        self.assertEqual(pack_mod._persistent_bms, {})
+        self.assertTrue(held.disconnected)
+
+
 if __name__ == "__main__":
     unittest.main()

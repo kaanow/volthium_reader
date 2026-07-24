@@ -2253,7 +2253,102 @@ def _missing_reading(address: str) -> BatteryReading:
     )
 
 
-async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackReading:
+# --- Experiment: persistent per-battery connection (dual-adapter A/B test) ----
+# One battery can be read over a HELD connection on a dedicated adapter (default
+# hci1) instead of the connect/read/disconnect churn on the primary adapter — a
+# within-pack controlled test of "does our churn wedge the BMS?": run one battery
+# persistent and the other on/off, compare dormancy. Same-pack series current +
+# a role-swap crossover control for battery/adapter asymmetry (2026-07-24 design).
+# Gated entirely by the caller passing `prefetched` into read_pack; with the
+# feature off, none of this runs and read_pack is byte-for-byte the old path.
+_persistent_bms: dict[str, object] = {}       # addr -> held BMS (keep_alive=True)
+
+
+async def _discover_on(hci: Optional[str], addr: str, timeout: float) -> Optional[BLEDevice]:
+    """Single-address discovery on a SPECIFIC adapter (the persistent reader must
+    not share the primary adapter's discovery — that shared session is FM-2/FM-3
+    territory). Returns the BLEDevice or None."""
+    key = addr.upper()
+    found: dict[str, BLEDevice] = {}
+    done = asyncio.Event()
+
+    def cb(dev: BLEDevice, adv) -> None:
+        if dev.address.upper() == key:
+            found[key] = dev
+            done.set()
+
+    scanner = BleakScanner(detection_callback=cb, **({"adapter": hci} if hci else {}))
+    await scanner.start()
+    try:
+        await asyncio.wait_for(done.wait(), timeout=timeout)
+    except asyncio.TimeoutError:
+        pass
+    finally:
+        await scanner.stop()
+    return found.get(key)
+
+
+async def persistent_read(
+    addr: str, hci: Optional[str], *, timeout: float = _READ_TIMEOUT
+) -> Optional[BatteryReading]:
+    """Read one battery over a HELD connection on `hci`. Connects + caches on the
+    first cycle, then reuses the cached client every cycle with NO teardown —
+    collapsing thousands of connect/disconnect cycles/day to ~zero. On any read
+    failure the link is torn down + evicted so the next cycle reconnects (which
+    needs the battery advertising again). Returns None when unreadable — the
+    caller logs that as a dormant cycle. Never raises."""
+    key = addr.upper()
+    bms = _persistent_bms.get(key)
+    if bms is None:
+        dev = await _discover_on(hci, key, timeout)
+        if dev is None:
+            _event("persist_absent", address=key, hci=hci or "default",
+                   note="not advertising — cannot (re)connect")
+            return None
+        bms = _make_bms(dev, key, keep_alive=True)
+        _persistent_bms[key] = bms
+        _event("persist_connect", address=key, hci=hci or "default")
+    t0 = time.monotonic()
+    try:
+        sample = await asyncio.wait_for(bms.async_update(), timeout=timeout)
+    except Exception as exc:  # noqa: BLE001 — one battery's failure must not sink the loop
+        _event("persist_read_fail", address=key, hci=hci or "default",
+               error_type=type(exc).__name__, error_str=str(exc)[:120],
+               elapsed_s=round(time.monotonic() - t0, 2))
+        await _persistent_evict(key)          # drop the (possibly stalled) link
+        return None
+    name = getattr(getattr(bms, "_ble_device", None), "name", "") or ""
+    reading = BatteryReading.from_sample(key, name, sample)
+    _event("persist_read_ok", address=key, hci=hci or "default",
+           read_s=round(time.monotonic() - t0, 2), soc=reading.soc,
+           voltage=reading.voltage, problem_code=reading.problem_code)
+    return reading
+
+
+async def _persistent_evict(addr: str) -> None:
+    """Tear down + forget the held connection for one battery (best-effort)."""
+    bms = _persistent_bms.pop(addr.upper(), None)
+    if bms is not None:
+        try:
+            await _teardown(bms, addr.upper())
+        except Exception:  # noqa: BLE001
+            pass
+
+
+async def persistent_shutdown() -> None:
+    """Gracefully release every held connection. MUST be called on SIGTERM: a
+    routine restart that just exits would drop the held links ungracefully —
+    exactly the half-open teardown we hypothesise wedges the BMS. Draining them
+    cleanly first is what keeps deploys from wedging the persistent battery."""
+    for key in list(_persistent_bms):
+        _event("persist_shutdown_disconnect", address=key)
+        await _persistent_evict(key)
+
+
+async def read_pack(
+    addr_a: str, addr_b: str, *, timeout: float = 20.0,
+    prefetched: Optional[dict] = None,
+) -> PackReading:
     """Read both batteries, tolerating a single-battery dropout.
 
     A single shared discovery resolves both addresses (BlueZ allows only one
@@ -2270,8 +2365,17 @@ async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackR
     # bump _writer through raw_frame events, but we only advance the pack-cycle
     # counter once per read_pack call so the cap counts pack cycles, not batteries.
     capture_was_active = _capture_active()
+    # Persistent-reader integration: any address in `prefetched` was read
+    # elsewhere (a held connection on a dedicated adapter), so exclude it from
+    # THIS adapter's discovery/read/wedge path. Empty/None => classic
+    # both-batteries-on-one-adapter behaviour, unchanged.
+    pf = {k.upper(): v for k, v in (prefetched or {}).items()}
+    to_discover = {a for a in (addr_a, addr_b) if a.upper() not in pf}
     try:
-        devs, ambient = await _discover_addresses({addr_a, addr_b}, timeout=timeout)
+        devs, ambient = (
+            await _discover_addresses(to_discover, timeout=timeout)
+            if to_discover else ({}, 0)
+        )
     except Exception as exc:  # noqa: BLE001 — log then re-raise; keeps FM-3 self-diagnosing
         # A discovery that throws (classically org.bluez.Error.InProgress — a
         # stuck adapter-level discovery session, FM-3) never reaches the per-
@@ -2286,7 +2390,7 @@ async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackR
             "needs adapter reset, not a process restart)",
         )
         raise DiscoveryWedgeError(f"{type(exc).__name__}: {exc}") from exc
-    if not devs and ambient == 0:
+    if to_discover and not devs and ambient == 0:
         # FM-11: the scan ran without error yet heard NOTHING — not the
         # batteries, not the neighbors' gadgets, nothing. A live 2.4 GHz
         # environment is never actually silent for a whole scan window, so
@@ -2308,6 +2412,9 @@ async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackR
         )
     readings: dict[str, Optional[BatteryReading]] = {}
     for addr in (addr_a, addr_b):
+        if addr.upper() in pf:
+            readings[addr] = pf[addr.upper()]     # read on the dedicated adapter
+            continue
         dev = devs.get(addr.upper())
         if dev is None:
             readings[addr] = None
@@ -2330,7 +2437,7 @@ async def read_pack(addr_a: str, addr_b: str, *, timeout: float = 20.0) -> PackR
     # (the proven FM-8 failure). Record the raw evidence, try to free its radio,
     # and surface the address so the logger can escalate to a self-restart (the
     # cure we verified) if a force-disconnect won't shake an in-process leak.
-    unread = {addr_a.upper(), addr_b.upper()} - {
+    unread = ({addr_a.upper(), addr_b.upper()} - set(pf)) - {
         addr.upper() for addr, r in readings.items() if r is not None
     }
     wedged: list[str] = []

@@ -13,6 +13,8 @@ import argparse
 import asyncio
 import csv
 import logging
+import os
+import signal
 import sys
 import time
 from datetime import datetime
@@ -31,6 +33,8 @@ from volthium.pack import (
     emit_stack_health,
     invalidate_adapter_cache,
     maybe_repair_primary,
+    persistent_read,
+    persistent_shutdown,
     read_pack,
     recover_adapter,
     seal_event_log,
@@ -222,6 +226,13 @@ async def main() -> int:
     ap.add_argument("--csv", type=Path, required=True)
     ap.add_argument("--log", type=Path, help="human-readable progress log")
     args = ap.parse_args()
+    # Persistent-connection experiment (2026-07-24): read ONE battery over a held
+    # connection on a dedicated adapter (VOLTHIUM_PERSIST_HCI, default hci1) while
+    # the other keeps the normal on/off path — a within-pack test of whether our
+    # connect/disconnect churn is what wedges the BMS. Unset VOLTHIUM_PERSIST_ADDR
+    # => feature OFF, both batteries on the primary adapter exactly as before.
+    args.persist_addr = os.environ.get("VOLTHIUM_PERSIST_ADDR", "").strip().upper() or None
+    args.persist_hci = os.environ.get("VOLTHIUM_PERSIST_HCI", "hci1").strip() or None
 
     handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
     if args.log:
@@ -235,6 +246,24 @@ async def main() -> int:
     log.info("starting: csv=%s interval=%.1fs a=%s b=%s",
              args.csv, args.interval, args.a, args.b)
     _archive_if_schema_drift(args.csv, log)
+
+    if args.persist_addr:
+        onoff = args.b if args.persist_addr == args.a.upper() else args.a
+        log.info("PERSIST experiment ON: %s held on %s; %s on/off on primary",
+                 args.persist_addr, args.persist_hci, onoff)
+
+    # Graceful shutdown: on SIGTERM/SIGINT (e.g. `systemctl restart`), cancel the
+    # main task so the `finally` can release a held persistent connection cleanly.
+    # An ungraceful drop of a held link is exactly the half-open teardown we think
+    # wedges the BMS — a routine deploy must not leave the persistent battery
+    # dangling. Best-effort: platforms without add_signal_handler just skip it.
+    main_task = asyncio.current_task()
+    try:
+        loop = asyncio.get_running_loop()
+        for _sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(_sig, main_task.cancel)
+    except (NotImplementedError, RuntimeError):
+        pass
 
     # Passive "second opinion" scanner on the ambient adapter (env-gated;
     # unset = no-op). See docs/investigations/2026-07-16-bt-wedge-causation.md
@@ -253,6 +282,13 @@ async def main() -> int:
             pass
         except Exception as exc:  # noqa: BLE001 — must not mask the real exit reason
             log.warning("ambient scanner cleanup raised: %s", exc)
+        # Release any held persistent connection BEFORE exit — graceful disconnect
+        # so a restart can't leave the BMS half-open (the wedge trigger). No-op
+        # when the experiment is off (nothing held).
+        try:
+            await persistent_shutdown()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("persistent shutdown raised: %s", exc)
         # Whatever way we exit — wedge restart, total-read-failure restart,
         # crash — seal the live event segment so the events uploader ships the
         # evidence NOW. Without this, a crash-looping logger resets the
@@ -277,7 +313,14 @@ async def _loop(args, log: logging.Logger) -> int:
     while True:
         t0 = time.monotonic()
         try:
-            pack = await read_pack(args.a, args.b)
+            if args.persist_addr:
+                # One battery over a held connection on a dedicated adapter; the
+                # other via the normal on/off discovery on the primary adapter.
+                pr = await persistent_read(args.persist_addr, args.persist_hci)
+                pack = await read_pack(args.a, args.b,
+                                       prefetched={args.persist_addr: pr})
+            else:
+                pack = await read_pack(args.a, args.b)
             estimate = est.update(pack)
             append_csv(args.csv, pack, estimate)
             n += 1
