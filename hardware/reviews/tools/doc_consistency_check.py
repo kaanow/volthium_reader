@@ -61,6 +61,9 @@ LIVE_DOCS = [
     # checker couldn't see — they are live interface references, scan them.
     "docs/vendor/README.md",
     "docs/vendor/volthium-rs485-correspondence-2024.md",
+    # CP2 iter-1: new living docs created at CP2 — scan from day one.
+    "hardware/layout/requirements.md",
+    "docs/hardware/bringup_guide.md",
 ]
 
 # Files that are history-bearing records end-to-end: hits allowed.
@@ -557,6 +560,23 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "R_opto 330 Ω: RMCF0805FT330RCT-ND / 71-CRCW0805-330-E3 (F79/F85)",
      "F85: the retired 390 Ω R_opto SKUs (worst-case 4.57 mA < the 5 mA "
      "recommended min) → the 330 Ω pair"),
+    # CP2 iter-1 F01 — J5 was a 1×6 pin strip claiming "exact ESP-Prog
+    # order"; the real Program interface is a keyed 2×3 with GND on pin 4
+    # and target-perspective TXD/RXD (ESP-Prog SCH V2.1 on file).
+    (r"EN/VDD/TXD/RXD/IO0/GND|1×6.{0,25}ESP-Prog|ESP-Prog.{0,25}1×6|"
+     r"PinHeader_1x06.{0,20}J5|J5.{0,30}6-pin 2\.54 mm header(?!.{0,40}(keyed|2×3))",
+     "keyed 2×3: EN/VDD/TXD/GND/RXD/IO0 (F01)",
+     "F01: the J5 1×6 'exact ESP-Prog order' claim was wrong — the Program "
+     "interface is a keyed 2×3 (1 EN / 2 VDD / 3 TXD / 4 GND / 5 RXD / "
+     "6 IO0, target-perspective TXD/RXD per ESP-Prog SCH V2.1)"),
+    # CP2 iter-1 F03 — D2 CAN TVS populated-by-default with a protection
+    # claim; the NUP2105L clamps far above the TCAN332 ±14 V abs-max.
+    (r"Belt-and-braces on the field cable|"
+     r"NUP2105L[^|]{0,40}(coordinat|brackets? U7|protects U7)",
+     "D2 = DNP, no coordination claimed (F03)",
+     "F03: NUP2105L (VBR 26.2–32 V, clamp to 40/44 V) cannot bracket the "
+     "TCAN332 ±14 V bus abs-max → DNP footprint, protection = on-chip ESD "
+     "(same call as the RS-485 ports, F44)"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -710,6 +730,67 @@ def check_d32_manifest() -> list[str]:
     return findings
 
 
+# ---------------------------------------------------------------------------
+# CP2 iter-1 F03 (reviewer): the D32 check above only validates manifest rows
+# that EXIST — a chosen BOM MPN with no manifest row at all (the NUP2105L)
+# sailed through. Reverse direction: every canonical-BOM table row carrying a
+# chosen distributor SKU must be covered by a manifest datasheet row, or carry
+# an explicit jellybean exemption here. APPEND-ONLY, reason required.
+# (ref-cell regex, reason)
+# ---------------------------------------------------------------------------
+NO_DATASHEET_OK: list[tuple[str, str]] = [
+    (r"^(R_opto|R4|R5|R6|R7|R10|R13|R_exp_bleed|R8, R9|R5, R6, R7)$",
+     "precision chip resistor — value/tolerance/size commodity; no "
+     "interface or abs-max contract beyond the value itself; SKUs "
+     "API-resolved 2026-07-14 sweep"),
+    (r"^(C5|C6|C7|C8|C9)$",
+     "standard X7R MLCC — value/size commodity; SKUs API-resolved "
+     "2026-07-14 sweep (the HV C_stitch C28/C38 is NOT exempt — manifested)"),
+    (r"^J4$",
+     "commodity 2.54 mm 2-pin header + shunt (term-lift jumper) — no "
+     "interface contract"),
+]
+
+
+def check_bom_mpn_coverage() -> list[str]:
+    findings = []
+    man_text = MANIFEST.read_text()
+    # Coverage tokens: manifest MPN cells (full + head token) + BOM aliases.
+    toks: set[str] = set()
+    for m in re.finditer(r"^\| ([^|]+?) \|", man_text, re.M):
+        cell = m.group(1).strip()
+        if cell in ("MPN", "Ref", "Part") or cell.startswith((":-", "--")):
+            continue
+        toks.add(cell)
+        head = cell.split()[0].rstrip(",(")
+        if len(head) > 3:
+            toks.add(head)
+    toks |= set(MANIFEST_TO_BOM_ALIAS.values())
+    for lineno, line in enumerate(CANONICAL_BOM.read_text().splitlines(), 1):
+        if not line.startswith("|") or not re.search(r"\b[\w.]+-ND\b", line):
+            continue                          # not a chosen-DK-SKU table row
+        if "~~" in line or "_verify_" in line or "DNP" in line \
+                or "(same as" in line:
+            continue                          # struck / unchosen / no-pop rows
+        cells = [c.strip() for c in line.split("|")]
+        ref = cells[1] if len(cells) > 1 else ""
+        if not ref or ref in ("Ref",) or ref.startswith((":-", "--")):
+            continue
+        if any(tok and tok in line for tok in toks):
+            continue                          # covered by a manifest row
+        for pat, _reason in NO_DATASHEET_OK:
+            if re.match(pat, ref):
+                break
+        else:
+            findings.append(
+                f"[bom-cov] {CANONICAL_BOM.name}:{lineno}: chosen-SKU row "
+                f"'{ref}' has no manifest datasheet row and no "
+                f"NO_DATASHEET_OK exemption (F03 class)\n"
+                f"    > {line.strip()[:120]}"
+            )
+    return findings
+
+
 # F85 (iter-51): regression fixtures — the gate fails if any regresses. This
 # locks the clause-scoping fix and the retired-SKU rows exactly the way the
 # reviewer asked: the pre-fix text must FAIL (flag) and the corrected text
@@ -777,6 +858,7 @@ def main() -> int:
     findings = run_fixtures()  # self-test first — a broken gate can't certify
     findings += check_stale_tokens()
     findings += check_d32_manifest()
+    findings += check_bom_mpn_coverage()
     if findings:
         print(f"\n{len(findings)} finding(s):\n")
         for f in findings:

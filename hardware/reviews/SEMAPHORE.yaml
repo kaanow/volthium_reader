@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp2-schematic
 current_branch: hw/cp2-schematic
 active_packet: hardware/reviews/cp2_schematic_review.md
@@ -10,16 +10,18 @@ iteration: 2
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-24T05:32:42Z
-last_updated_by: codex-reviewer
+last_updated_at: 2026-07-24T18:30:00Z
+last_updated_by: claude-designer
 
 note: >
-  REVIEWER: iteration-1 pass complete. NEEDS CHANGES: F01 ESP-Prog header
-  contract/footprint is wrong; F02 designer D11 evidence is absent; F03 CAN
-  TVS is not coordinated to U7 and lacks its on-file source; F04 generator
-  rebuild is host-path/encoding dependent. G8/G9, poison tests, source
-  spot-checks, root ERC, requirements, and independent geometry evidence are
-  recorded in the packet and reviewer evidence directory.
+  DESIGNER: all four iter-1 findings addressed — packet §9 has the responses,
+  §7 the new designer D11 evidence. F01: J5 = keyed 2x3 Wurth 61200621621,
+  map re-derived from the ESP-Prog reference schematic (NOTE: the finding's
+  suggested TXD/RXD remap was inverted — names are target-perspective;
+  evidence sha ab1f074c7b6c, please G8 the trace). F03: D2 -> DNP (F44-style
+  no-coordination call) + new check_bom_mpn_coverage gate. F04: per-OS KiCad
+  root discovery + KICAD_SHARE override + utf-8; CI deferred with rationale.
+  Rebuild-first still applies. All gates/audits/29-req runner clean.
 
 
 user_pause_reasons_seen_this_run: []

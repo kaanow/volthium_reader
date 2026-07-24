@@ -39,7 +39,21 @@ TXTH = 1.27
 # the .kicad_sch needs no external lib table). Sources: the project lib for
 # custom/generic parts, KiCad's stock libs for the ICs. Derived (extends)
 # stock symbols are FLATTENED to their pin-bearing ancestor on embed.
-STOCK = "/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols"
+def _find_kicad_share():
+    """KiCad data root, cross-platform (CP2 review F04). Override order:
+    KICAD_SHARE env var, then the default install root per OS."""
+    cands = [os.environ.get("KICAD_SHARE"),
+             "/Applications/KiCad/KiCad.app/Contents/SharedSupport",   # macOS
+             "C:/Program Files/KiCad/10.0/share/kicad",                # Windows
+             "/usr/share/kicad"]                                       # Linux
+    for c in cands:
+        if c and os.path.isdir(os.path.join(c, "symbols")):
+            return c
+    raise SystemExit("[env] KiCad share dir not found - set KICAD_SHARE to the"
+                     " directory that contains symbols/ and footprints/")
+
+KICAD_SHARE = _find_kicad_share()
+STOCK = os.environ.get("KICAD10_SYMBOL_DIR", f"{KICAD_SHARE}/symbols")
 SYMBOLS = {
     # name -> (lib file, entry name in that lib)
     # -- project lib (generic passives + custom parts) --
@@ -67,7 +81,7 @@ SYMBOLS = {
     "TCAN332":          (f"{STOCK}/Interface_CAN_LIN.kicad_sym",   "TCAN332"),
     "NUP2105L":         (f"{STOCK}/Power_Protection.kicad_sym",    "NUP2105L"),
     "Conn_01x04":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x04"),
-    "Conn_01x06":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x06"),
+    "Conn_02x03_Odd_Even": (f"{STOCK}/Connector_Generic.kicad_sym", "Conn_02x03_Odd_Even"),
     "Conn_01x02":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x02"),
     "Conn_01x08":       (f"{STOCK}/Connector_Generic.kicad_sym",   "Conn_01x08"),
     "RJ45_Shielded":    (f"{STOCK}/Connector.kicad_sym",           "RJ45_Shielded"),
@@ -331,7 +345,7 @@ def art_boxes(name, pos, angle):
     return solids, edges
 
 
-_FP_DIRS = ["/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints"]
+_FP_DIRS = [os.environ.get("KICAD10_FOOTPRINT_DIR", f"{KICAD_SHARE}/footprints")]
 _FP_SEEN = set()
 _FP_BARE_PREFIX = (("R_", "Resistor_SMD"), ("C_", "Capacitor_SMD"),
                    ("L_", "Inductor_SMD"), ("D_", "Diode_SMD"))
@@ -849,7 +863,8 @@ def blk_can(s, cx, cy):
     (CAN_PWR = IO42, active-LOW, 100k default-OFF pull-up) -> zero draw parked
     AND high-Z bus pins, so the sleeping reader never loads the live Xanbus.
     Termination: R15 120R in series with J7 jumper (fitted = terminated) — the
-    reader is only a chain END when it's at an end. D2 NUP2105L dual CAN TVS.
+    reader is only a chain END when it's at an end. D2 = DNP TVS footprint
+    (F03: no clamp can bracket TCAN332's ±14 V abs-max — see D2 comment).
     J6 RJ45: Xanbus CAN_L = pin 4, CAN_H = pin 5, no ground pin — the network
     and reader already share the 24 V bank negative (LYNK II manual 805-0052
     §4.2.1, same battery-side-gateway topology). NET-power pins NC — Xanbus
@@ -925,10 +940,15 @@ def blk_can(s, cx, cy):
                  (snap(xbr + 5.08), snap(yH + 10.16)), angle=0, tanchor="r")
     j7t = min(j7.values(), key=lambda p: p[1]); j7b = max(j7.values(), key=lambda p: p[1])
     s.wire((xbr, nT), j7t); s.wire(j7b, (xbr, yLo))    # R15 -> J7 -> L rail
-    # D2 TVS (angle 90: K pins exit left onto the rails, A exits right)
+    # D2 TVS footprint — DNP (CP2 F03): NUP2105L is a 24 V-system CAN
+    # protector (VBR 26.2-32 V, clamp to 40-44 V) and cannot bracket the
+    # TCAN332's +/-14 V bus abs-max; no TVS both stands off the +/-12 V CM
+    # and clamps <14 V. Protection = TCAN332 on-chip 12 kV IEC contact ESD
+    # (same no-coordination-claimed call as the RS-485 ports, F44).
     xtv = snap(xbr + 17.78)
-    dv = s.place("NUP2105L", "D2", "NUP2105L", "Package_TO_SOT_SMD:SOT-23",
-                 (xtv, snap((yH + yLo) / 2)), angle=90, tanchor="ud", tgap=1.27)
+    dv = s.place("NUP2105L", "D2", "DNP (F03)", "Package_TO_SOT_SMD:SOT-23",
+                 (xtv, snap((yH + yLo) / 2)), angle=90, tanchor="ud", tgap=1.27,
+                 dnp=True)
     kU = min((dv["1"], dv["2"]), key=lambda p: p[1]); kD = max((dv["1"], dv["2"]), key=lambda p: p[1])
     s.wire((xbr, yH), (kU[0], yH)); s.wire((kU[0], yH), kU)        # H -> upper K
     s.wire((xbr, yLo), (kD[0], yLo)); s.wire((kD[0], yLo), kD)     # L -> lower K
@@ -1193,18 +1213,24 @@ def blk_iso_ch(s, cx, cy, n):
 
 
 def blk_j5_dbg(s, cx, cy):
-    """J5 debug/programming header — 6-pin, EXACT ESP-Prog "Program" order
-    (EN/VDD/TXD/RXD/IO0/GND) so one ribbon gives esptool auto-program AND a
-    manual force-download path (IO0 low + EN blip) that works even when the
-    firmware deep-sleeps or the USB stack is dead — the recovery path the
-    native USB-Serial/JTAG cannot provide by itself. (cx,cy) = J5 centre."""
-    j = s.place("Conn_01x06", "J5", "prog-UART",
-                "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical",
-                (cx, cy), angle=0, tanchor="r")
-    for pn, net in (("1", "MCU_EN"), ("2", "V3V3"), ("3", "DBG_TXD"),
-                    ("4", "DBG_RXD"), ("5", "BOOT"), ("6", "GND")):
+    """J5 debug/programming header — keyed 2x3 IDC, the REAL ESP-Prog
+    "Program" connector (CP2 review F01): 1=ESP_EN, 2=VDD, 3=ESP_TXD, 4=GND,
+    5=ESP_RXD, 6=ESP_IO0 (esp-dev-kits ESP-Prog user guide). Signal names are
+    TARGET-perspective — the ESP-Prog schematic (SCH V2.1, on file) routes
+    FT_TXD->0R->ESP_RXD0 and FT_RXD->0R->ESP_TXD0, so pin 3 takes the
+    target's own TXD (DBG_TXD) and pin 5 its RXD. One ribbon gives esptool
+    auto-program AND a manual force-download path (IO0 low + EN blip) that
+    works even when firmware deep-sleeps or the USB stack is dead — the
+    recovery path native USB-Serial/JTAG cannot provide. (cx,cy) = J5 centre."""
+    j = s.place("Conn_02x03_Odd_Even", "J5", "ESP-Prog",
+                "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical",
+                (cx, cy), angle=0, tanchor="u", tgap=3.0)
+    for pn, net in (("1", "MCU_EN"), ("3", "DBG_TXD"), ("5", "DBG_RXD")):
         pin = j[pn]; e = (snap(pin[0] - 10.16), pin[1])
         s.wire(pin, e); s.label(net, e, justify_h="right")
+    for pn, net in (("2", "V3V3"), ("4", "GND"), ("6", "BOOT")):
+        pin = j[pn]; e = (snap(pin[0] + 10.16), pin[1])
+        s.wire(pin, e); s.label(net, e, justify_h="left")
 
 
 def blk_usbc(s, cx, cy):
@@ -1803,10 +1829,11 @@ def write_project():
         "meta": {"filename": f"{PROJECT}.kicad_pro", "version": 1},
         "schematic": {"legacy_lib_list": [], "legacy_lib_dir": ""},
         "sheets": [], "text_variables": {},
-    }, indent=2))
+    }, indent=2), encoding="utf-8")
     rel = os.path.relpath(str(LIB), str(OUT))
     (OUT / "sym-lib-table").write_text(
-        f'(sym_lib_table\n  (version 7)\n  (lib (name "volthium")(type "KiCad")(uri "{rel}")(options "")(descr ""))\n)\n')
+        f'(sym_lib_table\n  (version 7)\n  (lib (name "volthium")(type "KiCad")(uri "{rel}")(options "")(descr ""))\n)\n',
+        encoding="utf-8")
 
 
 def kcli(*a): return subprocess.run(["kicad-cli", *a], capture_output=True, text=True)
@@ -1930,7 +1957,7 @@ def kicad_netlist(rootf):
     r = kcli("sch", "export", "netlist", "-o", str(out), str(rootf))
     if r.returncode != 0:
         raise SystemExit(f"[netlist-gate] export failed: {r.stderr[:300]}")
-    txt = out.read_text()
+    txt = out.read_text(encoding="utf-8")
     nets = {}
     # paren-balanced scan (a regex-to-blank-line parse drops one-line nets)
     i = 0
@@ -2115,12 +2142,15 @@ GOLDEN = [
     ("on",   ("U-ESD", "3"), "USB_DM",  "ESD on D-"),
     ("on",   ("U-ESD", "5"), "VBUS",    "ESD rail clamp"),
     ("on",   ("U-ESD", "2"), "GND",     "ESD return"),
-    ("on",   ("J5", "1"), "MCU_EN",     "prog header: EN (ESP-Prog order)"),
-    ("on",   ("J5", "2"), "V3V3",       "prog header: VDD"),
-    ("on",   ("J5", "3"), "DBG_TXD",    "prog header: ESP TXD"),
-    ("on",   ("J5", "4"), "DBG_RXD",    "prog header: ESP RXD"),
-    ("on",   ("J5", "5"), "BOOT",       "prog header: IO0 force-download"),
-    ("on",   ("J5", "6"), "GND",        "prog header: GND"),
+    # ESP-Prog Program pinout (user guide + SCH V2.1 on file; names are
+    # TARGET-perspective: FT_TXD->ESP_RXD0, FT_RXD->ESP_TXD0 via 0R on the
+    # programmer, so pin 3 carries the target's TXD, pin 5 its RXD).
+    ("on",   ("J5", "1"), "MCU_EN",     "ESP-Prog 1 = ESP_EN"),
+    ("on",   ("J5", "2"), "V3V3",       "ESP-Prog 2 = VDD"),
+    ("on",   ("J5", "3"), "DBG_TXD",    "ESP-Prog 3 = ESP_TXD (target TX out)"),
+    ("on",   ("J5", "4"), "GND",        "ESP-Prog 4 = GND"),
+    ("on",   ("J5", "5"), "DBG_RXD",    "ESP-Prog 5 = ESP_RXD (target RX in)"),
+    ("on",   ("J5", "6"), "BOOT",       "ESP-Prog 6 = ESP_IO0 force-download"),
     ("on",   ("MOD1", "27"), "BOOT",    "IO0 strap reaches the header"),
     ("on",   ("MOD1", "3"), "MCU_EN",   "EN from the fail-safe chain"),
 ]
@@ -2214,7 +2244,7 @@ def main():
         ok &= render(s, name)
         built.append((name, s))
     # root + project
-    rootf = OUT / f"{PROJECT}.kicad_sch"; rootf.write_text(build_root(defs, root_uuid))
+    rootf = OUT / f"{PROJECT}.kicad_sch"; rootf.write_text(build_root(defs, root_uuid), encoding="utf-8")
     write_project()
     if not ok:
         print("[NETLIST gate] SKIPPED — a sheet failed its readability gate, so"
@@ -2229,7 +2259,8 @@ def main():
     else:
         print("[NETLIST gate] generator intent == kicad-cli netlist: clean")
     r = kcli("sch", "erc", "-o", str(OUT / "root.erc.rpt"), str(rootf))
-    rpt = open(OUT / "root.erc.rpt").read() if (OUT / "root.erc.rpt").exists() else ""
+    rpt = (open(OUT / "root.erc.rpt", encoding="utf-8").read()
+           if (OUT / "root.erc.rpt").exists() else "")
     nd = rpt.count("dangling") + rpt.count("[pin_not_connected]")
     npd = rpt.count("power_pin_not_driven")
     print(f"[ROOT hierarchy] ERC rc={r.returncode}; dangling/unconn={nd}; power_pin_not_driven={npd}")

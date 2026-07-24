@@ -114,10 +114,11 @@ def main():
     # R7 native USB to the module
     check("R7", "USB D+/D- reach MOD1 pins 14/13",
           on("MOD1", "14", "USB_DP") and on("MOD1", "13", "USB_DM"))
-    # R8 ESP-Prog header order
-    check("R8", "J5 = EN/VDD/TXD/RXD/IO0/GND, IO0 strap wired",
+    # R8 ESP-Prog Program pinout (keyed 2x3; target-perspective TXD/RXD —
+    # ESP-Prog SCH V2.1: FT_TXD->ESP_RXD0, FT_RXD->ESP_TXD0)
+    check("R8", "J5 = ESP-Prog Program: EN/VDD/TXD/GND/RXD/IO0, IO0 strap wired",
           on("J5", "1", "MCU_EN") and on("J5", "2", "V3V3") and on("J5", "3", "DBG_TXD")
-          and on("J5", "4", "DBG_RXD") and on("J5", "5", "BOOT") and on("J5", "6", "GND")
+          and on("J5", "4", "GND") and on("J5", "5", "DBG_RXD") and on("J5", "6", "BOOT")
           and on("MOD1", "27", "BOOT"))
     # R9 console
     check("R9", "UART0 console on J5", on("MOD1", "37", "DBG_TXD") and on("MOD1", "36", "DBG_RXD"))

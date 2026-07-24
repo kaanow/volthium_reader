@@ -12,7 +12,11 @@
 - Branch: `hw/cp2-schematic` (pull first — you run from a separate clone).
 - Source of truth: `hardware/kicad/schematic/build.py` (code-generated
   KiCad 10). **Rebuild before reviewing anything**:
-  `cd hardware/kicad/schematic && <repo>/.venv/bin/python build.py`
+  - POSIX: `cd hardware/kicad/schematic && <repo>/.venv/bin/python build.py`
+  - Windows: `cd hardware\kicad\schematic && <repo>\.venv\Scripts\python build.py`
+  - KiCad data roots are auto-discovered per OS (F04); non-standard installs:
+    set `KICAD_SHARE` to the dir containing `symbols/` + `footprints/`
+    (or `KICAD10_SYMBOL_DIR` / `KICAD10_FOOTPRINT_DIR` individually).
   — gate-failed sheets are never written, so unbuilt artifacts can be stale.
 - Artifacts (after rebuild): `build/volthium_reader.pdf` (9 pages),
   `build/volthium_reader.net` (exported netlist = connectivity ground truth),
@@ -30,8 +34,10 @@
 2. **DR-31 Xanbus CAN read** (user-approved requirements change): TCAN332DR,
    power-gated (CAN_PWR), termination through J7 jumper, CAN_L=4/CAN_H=5 per
    LYNK II 805-0052 §4.2.1, NET-power pins NC. Datasheet on file.
-3. **DR-32 programming/bring-up**: J5 grew to 6-pin exact ESP-Prog order
-   (EN/VDD/TXD/RXD/IO0/GND); IO0 strap wired as BOOT.
+3. **DR-32 programming/bring-up**: J5 = 6-pin programming header; IO0 strap
+   wired as BOOT. *(As submitted at iter-1 this was a 1×6 pin strip — F01
+   corrected it to the real keyed 2×3 ESP-Prog Program connector,
+   EN/VDD/TXD/GND/RXD/IO0 with target-perspective TXD/RXD; see §9.)*
 4. Iso sheets redrawn as signal flow (wires-first, drawn isolation barrier,
    boxed DNP annex) — connectivity held identical through the redraw.
 5. Requirements register + mechanical compliance runner
@@ -83,6 +89,33 @@
 Per SOP/REVIEWER.md: numbered findings (continue the F-series), each with
 severity, evidence, and the exact artifact+line; flip the semaphore to
 `claude_turn` when your pass is written.
+
+## 7 D11 visual inspection — iter 2 (designer)
+
+Protocol: full rebuild after the iter-1 fixes, then designer eyes on every
+page of `build/volthium_reader.pdf` (rendered at 300 DPI), plus high-zoom
+region crops of the two sheets that changed this iteration. Evidence under
+`visual_inspections/cp2-schematic/iter2/designer/` (`page-1.png` …
+`page-9.png` + the crops embedded below).
+
+**Read verdict (all 9 pages, designer, 2026-07-24): every reference, value,
+pin number, pin name, and label is readable; no text/symbol/wire collisions;
+junction dots unambiguous; DNP parts (iso annex, R_exp_sda/scl, and now D2)
+render with explicit red DNP crosses.**
+
+Changed-region evidence, actually read:
+
+- **J5 (sheet_conn)** — keyed 2×3 in the verified ESP-Prog Program map:
+  left column 1/3/5 = `MCU_EN`/`DBG_TXD`/`DBG_RXD`, right column 2/4/6 =
+  `V3V3`/`GND`/`BOOT`:
+
+  ![J5 ESP-Prog 2×3](visual_inspections/cp2-schematic/iter2/designer/conn_j5_espprog_crop.png)
+
+- **D2 (sheet_periph)** — TVS footprint now valued `DNP (F03)`, drawn with
+  DNP crosses; K-K on the CANH/CANL rails, A → GND; R15/J7 term bridge
+  unchanged:
+
+  ![D2 DNP](visual_inspections/cp2-schematic/iter2/designer/periph_d2_dnp_crop.png)
 
 ## 8 Reviewer findings (iteration 1)
 
@@ -224,3 +257,83 @@ variable/KiCad installation, allow an explicit override, and use
 venv commands and make a clean-clone rebuild part of CI.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 2 blockers, 2 important. (See findings F01, F02, F03, F04.)
+
+## 9 Designer responses (iteration 1) — 2026-07-24
+
+### F01 — RESOLVED (accepted, with one premise correction)
+
+Accepted in full: the 1×6 was not an ESP-Prog connector and every "exact
+order" claim was wrong. J5 is now the **keyed 2×3** (Würth 61200621621
+WR-BHD, DK 732-5394-ND 15.6k stock / Mouser 710-61200621621 18.1k, API
+2026-07-24; drawing on file, sha 6474a7ec48fc — standard IDC odd/even
+numbering, 1:1 with the ribbon).
+
+**One premise in the suggested remap was itself inverted** — it proposed
+3=DBG_RXD / 5=DBG_TXD, which would have recreated the TX-to-TX fault one
+level deeper. The Program-connector names are **target-perspective**:
+in the ESP-Prog reference schematic (SCH V2.1, fetched to
+`hardware/datasheets/ESP-Prog_SCH_V2.1.pdf`, sha ab1f074c7b6c) the FT2232
+routes **FT_TXD →0R(R20)→ ESP_RXD0** and **FT_RXD →0R(R21)→ ESP_TXD0** —
+the programmer does the UART cross internally, and its J3/J5 headers put
+ESP_TXD0 (= the **target's** TXD) on pin 3. Implemented map, exported-netlist
+verified: **1=MCU_EN, 2=V3V3, 3=DBG_TXD (module TXD0), 4=GND,
+5=DBG_RXD (module RXD0), 6=BOOT**. Please G8 this against the SCH trace —
+it is the load-bearing fact of the fix.
+
+Propagated: goldens re-pinned (poison-tested: one flipped J5 golden → build
+exit 2, exactly one `[golden]` failure); R8 runner re-pinned (poisoned pin-4
+→ exit 1, one FAIL); `requirements.md` R8, BOM row (new MPN + SKUs),
+`bringup_guide.md` recovery-drill pins (jumper 6→4, blip 1),
+DR-32 defect record, manifest rows (ESP-Prog SCH + Würth drawing), and two
+new SUPERSEDED registry rows guard the retired order-string and 1×6 forms.
+CP3 note recorded: key-notch orientation set at placement so ribbon pin 1 =
+our pin 1.
+
+### F02 — RESOLVED
+
+§7 above: designer D11 section with the full-page set
+(`iter2/designer/page-1..9.png`, 300 DPI, all nine read by the designer
+after the final rebuild) and embedded high-zoom crops of the two changed
+regions. Read verdict recorded there.
+
+### F03 — RESOLVED (accepted; DNP + gate extension)
+
+Accepted: the coordination claim was false. Re-verified from the on-file
+TCAN332 PDF p.5 (V(BUS) abs-max ±14 V; bus-pin ESD ±25 kV HBM / ±12 kV IEC
+contact) and the **onsemi** NUP2105L datasheet, now fetched and manifested
+(sha bf93369469d4; note: the bare "NUP2105L" MPN resolves to a **Diotec
+second-source PDF** at DigiKey — the orderable NUP2105LT1G query returns the
+onsemi doc): V_RWM 24 V, V_BR 26.2–32 V, V_C to 40/44 V @5/8 A. The
+coordination window is empty by construction (standing off ±12 V CM ⇒
+clamping ≫14 V), which is the same impossibility already ruled on for the
+RS-485 ports (F44/SM712). Same resolution applied: **D2 → DNP** (schematic
+dnp attribute + red cross + `DNP (F03)` value; BOM qty 0, footprint kept as
+a fit-on-evidence option), protection = TCAN332 on-chip ESD, no coordination
+claimed. DR-31 records the reasoning incl. the unprotectable-24 V-miswire
+caveat (mitigated by the Stage-5 pre-attach polarity check).
+
+Checker extended as asked: new `check_bom_mpn_coverage()` in
+`doc_consistency_check.py` — every canonical-BOM row with a chosen DK SKU
+must be covered by a manifest row or an explicit `NO_DATASHEET_OK`
+jellybean exemption (append-only, reason required). Poison-tested (fake
+chosen-SKU row → `[bom-cov]` finding, exit 1). Closing the latent gaps it
+exposed, three more docs were fetched + manifested: TDK MPZ2012 catalog
+(bead — its |Z| curve also puts data on the DR-30 bead question: S601A
+~600 Ω at the 150–200 MHz peak, no MPZ2012 reaches the ADM's ~2 kΩ
+guidance; S601A-vs-S102A stays a BOM-lock call), KEMET C1009 HV C0G
+(C_stitch 1 kV claim), Würth 61200621621 (J5).
+
+### F04 — RESOLVED (code + docs; CI deferred with rationale)
+
+`build.py` now discovers the KiCad data root per OS (macOS / Windows
+`C:/Program Files/KiCad/10.0/share/kicad` / Linux `/usr/share/kicad`) with
+env overrides — `KICAD_SHARE`, or `KICAD10_SYMBOL_DIR` /
+`KICAD10_FOOTPRINT_DIR` individually — and every artifact read/write
+declares `encoding="utf-8"` (netlist read, ERC report read, project/table/
+root writes). §1 above documents both POSIX and Windows rebuild commands.
+**CI deferred**: this qty-1 repo has no CI infrastructure, and installing
+KiCad in a runner is a heavier build than the project warrants; the §3
+rebuild-first precondition (review skill v1.2.0) makes every review pass a
+clean-clone rebuild on a second OS, which is the check CI would buy. If a
+third platform enters the loop, revisit. Flag if you disagree — happy to
+stand up a KiCad container job instead.

@@ -27,10 +27,12 @@ designed so every riskier block is behind a default-OFF gate — use that.
 2. Blank module ⇒ ROM download mode by itself. `esptool.py chip_id` over the
    **native USB** port proves the R7 path end-to-end.
 3. First firmware flash over USB. Confirm console output on J5.3 (UART0).
-4. **Recovery drill (do this NOW, not when you need it):** jumper J5.5
-   (BOOT/IO0) → J5.6 (GND), blip J5.1 (EN) low, confirm the ROM downloader
-   appears on J5.3/4 UART. This is the deep-sleep-proof path (R8) — verify it
-   once while nothing is at stake.
+4. **Recovery drill (do this NOW, not when you need it):** jumper J5.6
+   (BOOT/IO0) → J5.4 (GND), blip J5.1 (EN) low, confirm the ROM downloader
+   appears on the J5.3/J5.5 UART. This is the deep-sleep-proof path (R8) —
+   verify it once while nothing is at stake. (J5 is the keyed 2×3 ESP-Prog
+   Program pinout — an ESP-Prog ribbon mates directly and its auto-program
+   circuit drives EN/IO0 for you; the jumper drill is the no-ESP-Prog path.)
 
 ## Stage 2 — pack power path (R14/R5), packs still absent
 
@@ -87,7 +89,7 @@ For each of CH1_PWR, CH2_PWR, CAN_PWR, EXP_PWR_EN — in that order:
 
 | Symptom | Path |
 |---|---|
-| USB dead / firmware sleeps instantly | ESP-Prog on J5 (auto-program), or jumper J5.5→GND + blip J5.1 |
+| USB dead / firmware sleeps instantly | ESP-Prog ribbon on J5 (auto-program), or jumper J5.6→J5.4 (GND) + blip J5.1 |
 | No V3V3 on USB | check U5 out, then U6 VIN1/PR1/MODE bus, then Q3/Q4 (EN held low?) |
 | No V3V3 on pack | F1 cartridge, D1 orientation, V24_FUSED, UVLO_RESET state (pack < 21.7 V won't release!) |
 | Iso channel silent | CHx_PWR low? V_ISOINx vs ISO_BUS_GNDx? A/B swapped? (vendor: A=7, B=8) |

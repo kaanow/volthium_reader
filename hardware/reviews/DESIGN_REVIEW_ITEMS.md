@@ -1039,6 +1039,15 @@ avoid all strapping/PSRAM/console pins.
   4.7 k drawn as **DNP footprints on-board** (EXP_SDA/EXP_SCL -> switched
   EXP_3V3) so they can be stuffed here OR on a future daughterboard; BOM row
   + goldens cover them.
+- **Bead impedance (L10–L13): curve read 2026-07-24 (iter-1 pass) — data on
+  file, final pick stays a BOM-lock line item.** TDK MPZ2012 catalog
+  (sha c8b428baaacf) p.2: the chosen S601A measures **~600 Ω near its
+  150–200 MHz peak, ~300–400 Ω by ~400 MHz** — below the ADM2587E p.17
+  "about 2 kΩ, 100 MHz–1 GHz" guidance, and **no MPZ2012-size bead reaches
+  2 kΩ** (family max S102A = 1 kΩ @100 MHz, 1.5 A, 0.15 Ω DCR — a drop-in
+  step-up; our loads are ≤~100 mA either way). Emissions-only concern for
+  this one-off in-enclosure build → decide S601A (keep) vs S102A (closer to
+  guidance) at BOM-lock; functional either way.
 - DR-26 itself stays OPEN and **gating on the ~2-week on-site two-domain
   test**; the schematic/BOM are drawn so the test can run, but population of
   the isolated front-end is not committed until it passes.
@@ -1102,10 +1111,23 @@ first redraw draft drifted the annex into the title block — no gate modelled
 page furniture). BOM two-way diff then caught 5 never-itemized passives
 (R_cc1/2, C_uvdd, C_sense, R_byp2b, R_exp_pu) — rows added.
 
+**Iter-1 F03 (2026-07-24): D2 TVS → DNP, no coordination claimed.** The
+NUP2105L is a 24 V-system CAN protector — onsemi DS (on file, sha
+bf93369469d4): V_RWM 24 V, V_BR 26.2–32 V, clamp to 40/44 V @5/8 A. It can
+never hold CANH/CANL below U7's ±14 V abs-max (TCAN332 DS p.5, verified),
+and the coordination window is empty by construction: any TVS standing off
+the ±12 V CAN common-mode clamps well above 14 V. This is the same
+situation as the RS-485 ports (F44/SM712, also DNP for an impossible
+bracket) — the design now makes the same explicit call: bus protection = the
+TCAN332's on-chip ±25 kV HBM / ±12 kV IEC contact ESD; the SOT-23 footprint
+stays for a fit-on-evidence option. A 24 V-miswire onto pins 4/5 is not
+protectable at this transceiver class either way — mitigated by the
+bring-up polarity check before first attach (bringup_guide Stage 5).
+
 **Still open:** bench-verify pin 4/5 polarity on the actual Schneider port
 before first live attach (measure recessive ~2.5 V bias / dominant split with
-the pack on); decide populated-vs-DNP at BOM-lock once the software project
-firms up (parts are cheap — default: populate U7/Q5/D2/R14/R15/C12/J6/J7,
+the pack on); decide final population at BOM-lock once the software project
+firms up (default: populate U7/Q5/R14/R15/C12/J6/J7 — D2 stays DNP per F03 —
 leave J7's shunt off unless the reader is a chain end).
 
 ---
@@ -1127,12 +1149,25 @@ Subsequent flashing + JTAG debugging both ride the native USB peripheral
 NC'd and EN unreachable. That is a real bricking risk for THIS design
 specifically: power-first firmware deep-sleeps aggressively, and a sleeping
 chip has no USB for esptool to catch; a bad image that kills USB is
-equally unrecoverable. Fix: **J5 grew 4→6 pins in the exact ESP-Prog
-"Program" order (EN/VDD/TXD/RXD/IO0/GND)** — one ribbon gives auto-program
-AND manual force-download (IO0→GND, blip EN), fully independent of the USB
-stack. IO0 (module pin 27) now routes to J5.5 as net BOOT (internal WPU
-keeps the strap high when the header is open); golden contracts pin all six
-positions.
+equally unrecoverable. Fix: J5 carries EN + IO0 alongside the UART — one
+ESP-Prog gives auto-program AND manual force-download (IO0→GND, blip EN),
+fully independent of the USB stack. IO0 (module pin 27) routes to J5 as net
+BOOT (internal WPU keeps the strap high when the header is open); golden
+contracts pin all six positions.
+
+**Iter-1 F01 correction (2026-07-24):** the first cut drew J5 as a 1×6 pin
+strip labeled "exact ESP-Prog order" — but the real ESP-Prog Program
+interface is a **keyed 2×3 IDC** (1=ESP_EN, 2=VDD, 3=ESP_TXD, 4=GND,
+5=ESP_RXD, 6=ESP_IO0), so the ribbon could not mate and GND/IO0 sat on the
+wrong pins. J5 is now that keyed 2×3 (Würth 61200621621). One premise in the
+reviewer's suggested remap was itself wrong, in the direction that would
+have made a TX-to-TX fault: the Program-connector TXD/RXD names are
+**target-perspective**. Traced in the ESP-Prog reference schematic (SCH
+V2.1, on file, sha ab1f074c…): FT2232 **FT_TXD →0R→ ESP_RXD0** and
+**FT_RXD →0R→ ESP_TXD0** — the programmer does the cross internally, so
+header pin 3 must carry the target's own TXD (net DBG_TXD, module TXD0) and
+pin 5 the target's RXD. Goldens + R8 runner re-pinned to the verified map
+and poison-tested.
 
 **Recommended first-power sequence (CP5):** USB only, packs disconnected →
 verify V3V3/rails → first flash over USB → then introduce pack power and
