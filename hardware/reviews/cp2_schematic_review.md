@@ -83,3 +83,144 @@
 Per SOP/REVIEWER.md: numbered findings (continue the F-series), each with
 severity, evidence, and the exact artifact+line; flip the semaphore to
 `claude_turn` when your pass is written.
+
+## 8 Reviewer findings (iteration 1)
+
+### Review evidence
+
+The committed generator was rebuilt before review and again after poison
+testing. Final transcript: all eight sheet readability gates clean; exported
+netlist intent match clean; root ERC rc=0 with 0 dangling/unconnected and 0
+power-pin-not-driven. `doc_consistency_check.py` exited 0 and the requirements
+runner returned 29/29 PASS.
+
+G8 was performed from `build/volthium_reader.net`, not the drawing. Q5/Q10/
+Q11/Q_exp all read back source=V3V3, distinct gated drains, and the intended
+active-low control nets. J6 reads CAN_L=4/CAN_H=5; J10/J11 read A=7/B=8; J2
+reads A=4/B=5. The two ADM2587E channels retain separate logic, converter,
+and bus grounds; L11/L13 are the only converter-to-bus-ground ties and
+C28/C38 are the only logic-to-converter-ground bridges. An independent
+symbol probe reproduced all three PMOS rotations. A 96-discrete netlist scan
+found zero same-net pin shorts. The full block-by-block read-back is in
+`visual_inspections/cp2-schematic/iter1/reviewer/REPORT.md`.
+
+Six golden/source groups were visually spot-checked against the on-file PDFs:
+TCAN332 pp.4/5/8, NTR4171P p.1, ADM2587E pp.8/17, TPS3808 p.4, C&K 8020
+pp.2/26, and ESP32-S3-WROOM p.13. The Discover 805-0052 Schneider/Xanbus
+manual was independently opened at the manufacturer URL: section 4.2.1
+does specify CAN_L=RJ45 4, CAN_H=RJ45 5, and no CAN ground. That third-party
+inference is sound for this Xanbus interface; the pre-live-attach polarity
+measurement remains an appropriate bench gate.
+
+Poison tests were effective. A temporary false Q5 golden made the complete
+build exit 2 with exactly one `[golden]` failure; a temporary false R16
+requirement made the requirements runner exit 1 with exactly one failed row.
+Both temporary copies were removed and the committed generator/checker were
+run clean afterward.
+
+G9 used three independent layers: the designer build gate; all eight child
+sheets through `label_body_audit.py` (0 geometry findings); and reviewer eyes
+on nine 300-DPI full pages plus 54 fixed-box zoom crops. No visible collision,
+clipping, unreadable pin field, or ambiguous junction was found. Reviewer
+evidence and hashes are under
+`hardware/reviews/visual_inspections/cp2-schematic/iter1/reviewer/`.
+
+The ADM2587E Figure-35 implementation is electrically faithful: VISOOUT caps
+are on the device side of L10/L12, VISOIN caps are on the bus side, L11/L13
+split converter and bus grounds, and C28/C38 return GND1 to converter GND2.
+The 600-ohm-vs-about-2-kohm bead question is already logged for BOM lock and
+is not duplicated here. BTN1 also passes the dry-circuit check: the netlist
+uses terminals 1-2 and the C&K p.2 function table makes that pair open at
+rest/closed momentarily; p.26 qualifies B contacts for dry-circuit service.
+
+### Finding F01 — BLOCKER — `build.py:1195-1206`, `requirements.md:R8`
+
+**Issue**: J5 is not an ESP-Prog Program connector despite every repo contract
+calling it the "exact ESP-Prog order." The exported netlist confirms the
+drawn 1x6 header is 1=EN, 2=VDD, 3=target TXD, 4=target RXD, 5=IO0, 6=GND.
+Espressif's Program interface is a keyed 2x3 connector with 1=ESP_EN, 2=VDD,
+3=ESP_TXD, 4=GND, 5=ESP_RXD, 6=ESP_IO0. A standard ribbon cannot mate to the
+1x6 footprint; if adapted pin-for-pin, it puts GND/IO0/UART on the wrong pins
+and connects TX-to-TX rather than programmer TX to target RX.
+
+**Evidence**: `hardware/kicad/schematic/build.py:1195-1206` and
+`:2118-2123`; `hardware/tools/check_requirements.py:117-122`;
+`hardware/layout/requirements.md:24`; `hardware/layout/cp1_bom.md:177`;
+`docs/hardware/bringup_guide.md:29-32,90`; exported-netlist read-back in the
+reviewer `REPORT.md`. Manufacturer source:
+https://docs.espressif.com/projects/esp-dev-kits/en/latest/other/esp-prog/user_guide.html
+and its Program-interface/reference section (DC3-6P keyed connector).
+
+**Suggested fix**: either (preferred) draw a keyed 2x3 ESP-Prog-compatible
+header and map target nets 1=MCU_EN, 2=V3V3, 3=DBG_RXD, 4=GND,
+5=DBG_TXD, 6=BOOT, or explicitly make J5 a generic flying-lead header and
+remove every direct-ribbon/"exact order"/auto-program claim. Update the
+goldens, R8/R9 runner, BOM, and bring-up pin numbers from the manufacturer
+contract, then poison the corrected R8 check.
+
+### Finding F02 — BLOCKER — `cp2_schematic_review.md:D11 evidence`
+
+**Issue**: The packet has no `D11 visual inspection — iter 1` section and no
+designer-owned embedded screenshots. A scripted readability claim without
+that section is not a valid D11 sign-off under the binding reviewer protocol.
+
+**Evidence**: this packet ended at section 6 before this reviewer append;
+`hardware/reviews/REVIEWER.md:221-229` explicitly makes a missing D11 section
+a finding. No CP2 designer visual-inspection artifacts exist in the committed
+tree.
+
+**Suggested fix**: after fixing F01 and rebuilding, add the required designer
+D11 section with full-page and dense-region screenshots from the final PDF,
+and record the manual 100%-zoom reading verdict.
+
+- **Agent-reviewer visual evidence**:
+  `hardware/reviews/visual_inspections/cp2-schematic/iter1/reviewer/battery_p1_full_300dpi.png`
+  through `battery_p9_full_300dpi.png`, and each page's
+  `battery_pN_eye_crop_01.png` through `_06.png`; reviewer verdict is visually
+  clean, but it does not substitute for designer sign-off.
+
+### Finding F03 — IMPORTANT — `cp1_bom.md:D2`, `manifest.md:remaining gaps`
+
+**Issue**: The populated-by-default NUP2105L does not form a coordinated
+protection bracket around U7. U7 permits only +/-14 V at CANH/CANL, while the
+NUP2105L does not start breakdown until 26.2-32 V and is specified to clamp
+as high as 40 V at 5 A / 44 V at 8 A. It therefore cannot guarantee the bus
+pins stay below U7 absolute maximum. The exact NUP2105L PDF is also absent
+from `hardware/datasheets/`, despite the manifest claiming no chosen-MPN
+gaps; the current consistency checker only checks rows that already exist.
+
+**Evidence**: `hardware/layout/cp1_bom.md:188,190`;
+`hardware/kicad/schematic/build.py:930`;
+`hardware/datasheets/TCAN332.pdf` p.5 (reviewer render
+`source_spotchecks/TCAN332_p5.png`); `hardware/datasheets/manifest.md:52,82`.
+Manufacturer NUP2105L electrical table:
+https://www.onsemi.com/download/data-sheet/pdf/nup2105l-d.pdf.
+
+**Suggested fix**: since TCAN332 already guarantees 12 kV IEC contact ESD,
+the cleanest resolution is likely to omit/DNP D2 and stop claiming external
+coordination. Otherwise select a low-capacitance CAN protector whose
+guaranteed clamp stays below +/-14 V at the declared threat current. Store
+and manifest the exact PDF, and extend `doc_consistency_check.py` to compare
+all chosen BOM MPNs against manifest coverage rather than only validating
+present rows.
+
+### Finding F04 — IMPORTANT — `build.py:42,334,1933`
+
+**Issue**: The mandatory rebuild is not reproducible from a clean Windows
+clone. The generator hardcodes the macOS KiCad symbol and footprint roots and
+reads UTF-8 artifacts without declaring an encoding. On this reviewer host,
+the packet command required an OS-specific interpreter path, temporary
+filesystem junctions that impersonated `/Applications/...`, and
+`PYTHONUTF8=1`; without those workarounds it failed before the review gates.
+
+**Evidence**: `hardware/kicad/schematic/build.py:42,334,1933`; packet section
+1's only rebuild command is the Unix `.venv/bin/python` form. The final clean
+build did pass after provisioning those external workarounds, so this is a
+reproducibility defect rather than an allegation against the final netlist.
+
+**Suggested fix**: discover KiCad data roots from a documented environment
+variable/KiCad installation, allow an explicit override, and use
+`encoding="utf-8"` for source/netlist reads. Document both POSIX and Windows
+venv commands and make a clean-clone rebuild part of CI.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 2 blockers, 2 important. (See findings F01, F02, F03, F04.)

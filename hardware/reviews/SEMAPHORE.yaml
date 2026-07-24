@@ -2,22 +2,24 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp2-schematic
 current_branch: hw/cp2-schematic
 active_packet: hardware/reviews/cp2_schematic_review.md
-iteration: 1
+iteration: 2
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-23T21:30:00Z
-last_updated_by: claude-designer
+last_updated_at: 2026-07-24T05:32:42Z
+last_updated_by: codex-reviewer
 
 note: >
-  DESIGNER: CP2 battery-side schematic ready for first review pass. Packet =
-  cp2_schematic_review.md (scope, evidence, asks, known-opens). Review skill
-  v1.2.0 (user-provided) — exercise the new G8 wiring read-back + G9 second
-  opinion. Rebuild from build.py before reviewing (stale-artifact trap).
+  REVIEWER: iteration-1 pass complete. NEEDS CHANGES: F01 ESP-Prog header
+  contract/footprint is wrong; F02 designer D11 evidence is absent; F03 CAN
+  TVS is not coordinated to U7 and lacks its on-file source; F04 generator
+  rebuild is host-path/encoding dependent. G8/G9, poison tests, source
+  spot-checks, root ERC, requirements, and independent geometry evidence are
+  recorded in the packet and reviewer evidence directory.
 
 
 user_pause_reasons_seen_this_run: []
