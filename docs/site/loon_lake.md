@@ -72,6 +72,15 @@ exists to backstop nights / overcast days when the west-facing array
 doesn't restore the pack on its own. Designed use: **bridge the morning
 gap when the pack is at its daily low and solar isn't yet contributing.**
 
+## Power-system equipment (owner-identified on-site 2026-07-25)
+
+- Inverter/charger: **Schneider Conext SW 4024 120/240** (Xanbus network
+  power source — its port measures 12 V NET_S; see DR-31 field table).
+- Solar charge controller: **Schneider Conext MPPT 60 150**.
+- Optional/planned: InsightHome gateway (user 2026-07-22).
+- Both sit on the Xanbus network the battery-side reader will listen to
+  (DR-31); batteries are NOT on the Xanbus (user 2026-07-22).
+
 ## Observed load signatures (pack-side, DC)
 
 These are real-world step changes we've seen in the pack current, after

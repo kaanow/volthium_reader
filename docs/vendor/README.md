@@ -167,3 +167,18 @@ the scope note above — to be identified on-site). Per vendor guidance,
 for RS-485 communication use the socket **closer to the negative battery
 post**. The function of the second socket is not documented here (likely
 CAN or a daisy-chain, but confirm with the vendor before assuming).
+
+### `xanbus-system-installation-guide-975-0136.pdf`
+
+Xantrex **Xanbus System Installation Guide** (975-0136-01-01), fetched
+2026-07-25 from xantrex.com (sha256 0a99b0ebcb6c…). First-party source for
+the Xanbus RJ45 pinout (Table 3, T568A): **NET_S (network power) = pins
+1/2/7, NET_C (common) = pins 3/6/8, CAN_L = 4, CAN_H = 5** — no dedicated
+CAN ground. Supersedes the third-party LYNK II 805-0052 §4.2.1 inference as
+the DR-31 pinout authority (the two agree on 4/5).
+
+**Field-confirmed 2026-07-25** on the site's live **Conext SW 4024
+120/240** port (ref pin 8): 1/2/7 = 12 V (this SW sources 12 V; spec
+nominal 15 V), 3/6 = 0 V, 4 = 2.2 V / 5 = 2.4 V (CAN recessive, H > L).
+Site MPPT: **Conext MPPT 60 150**. Measurement table + implications in
+`DESIGN_REVIEW_ITEMS.md` DR-31.

@@ -846,6 +846,35 @@ fallback circuit are specified in design §7.**
 - Power: gated ~0.5 % → ~1.5 mW avg; States 3–4 unpowered → hard-cut
   unchanged (contingent on the F30 off-state + default-off switch).
 
+**Field observations 2026-07-25 (owner on-site, DMM, both pack RS-485
+ports live and unloaded):**
+
+| Measurement | Low pack | High pack |
+|---|---|---|
+| pin 7 → pin 8 (differential) | −0.4 V steady | −0.4 V steady |
+| own bat− → pin 7 | 0…+20 mV varying | −15…−30 mV varying |
+| own bat− → pin 8 | −200…+200 mV varying | −25…−60 mV varying |
+| pack↔pack pin 7↔7 | 40–70 mV | |
+| pack↔pack pin 8↔8 | 40–50 mV | |
+
+Two readings, both provisional:
+1. **Idle bias present and consistent on both ports** (−0.4 V with red on
+   7) — i.e. **pin 8 sits ~0.4 V above pin 7 at idle**. Under the TI-style
+   convention (A biased high at idle) that is the signature of pin 8 = A —
+   the opposite of the vendor's stated 7=A/8=B. RS-485 A/B naming is
+   vendor-inconsistent, so this is a *caution, not a finding*: resolve at
+   the Stage-4 first poll (no reply → mirror A/B; wiring change is two
+   labels in build.py; the iso channel doesn't care electrically).
+2. **The mV-scale everything-else is the floating-port signature.** The
+   series stack puts the two packs' B− 12 V apart, yet port-to-port
+   same-pin offsets measure only 40–70 mV — consistent with the BMS comm
+   ports being **galvanically isolated (or very high-impedance) from the
+   cell stack**, with the 10 MΩ DMM itself the only current path. If it
+   holds, the ±12 V common-mode this architecture defends against may not
+   appear at all. NOT conclusive (a DMM cannot distinguish isolated from
+   weakly-referenced) — the §7 two-domain matrix keeps its gate role; this
+   just raises the prior that the 2-wire float configuration passes.
+
 ## DR-27 — Battery-side PicoBlade expansion header (D37)  [OPEN — design 2026-07-15; folds into the same CP1-delta review as DR-26]
 
 8-ckt Molex PicoBlade (53398-0871 vert / 53261-0871 r-a). Signals: 3V3,
@@ -1129,11 +1158,39 @@ stays for a fit-on-evidence option. A 24 V-miswire onto pins 4/5 is not
 protectable at this transceiver class either way — mitigated by the
 bring-up polarity check before first attach (bringup_guide Stage 5).
 
-**Still open:** bench-verify pin 4/5 polarity on the actual Schneider port
-before first live attach (measure recessive ~2.5 V bias / dominant split with
-the pack on); decide final population at BOM-lock once the software project
-firms up (default: populate U7/Q5/R14/R15/C12/J6/J7 — D2 stays DNP per F03 —
-leave J7's shunt off unless the reader is a chain end).
+**FIELD-VERIFIED 2026-07-25 (owner on-site, DMM, live Schneider port).**
+Site equipment identified: **Conext SW 4024 120/240** inverter + **Conext
+MPPT 60 150** charge controller (+ optional InsightHome per user
+2026-07-22). Full port measurement, referenced to pin 8:
+
+| RJ45 pin | measured | Xanbus signal (Xantrex 975-0136-01-01 Table 3) |
+|---|---|---|
+| 1 | 12 V | NET_S (network power) |
+| 2 | 12 V | NET_S |
+| 3 | 0 V | NET_C (common) |
+| 4 | 2.2 V | **CAN_L** |
+| 5 | 2.4 V | **CAN_H** |
+| 6 | 0 V | NET_C |
+| 7 | 12 V | NET_S |
+| 8 | ref | NET_C |
+
+Three conclusions: (1) **the R10 pre-attach polarity check is banked** —
+CAN levels in the recessive band with H(5) > L(4) under traffic averaging,
+exactly the drawn polarity; (2) the pinout source upgraded from the
+third-party LYNK-II inference to **first-party Xantrex** (Xanbus System
+Installation Guide 975-0136-01-01 Table 3, on file at
+`docs/vendor/xanbus-system-installation-guide-975-0136.pdf`, sha
+0a99b0ebcb6c — full map NET_S 1/2/7, NET_C 3/6/8, CAN 4/5), field-confirmed
+pin-for-pin; (3) **the worst credible miswire is 12 V, not 24 V** — this
+site's NET_S measures 12 V (spec nominal 15 V), and both are *within* the
+TCAN332's ±14 V bus abs-max at 12 V, so the earlier "unprotectable 24 V
+miswire" caveat is retired: a power-pin-to-CAN-pin miswire at this site is
+survivable by the transceiver.
+
+**Still open:** decide final population at BOM-lock once the software
+project firms up (default: populate U7/Q5/R14/R15/C12/J6/J7 — D2 stays DNP
+per F03 — leave J7's shunt off unless the reader is a chain end); listen
+test (frames received in TWAI listen-only) at CP5.
 
 ---
 

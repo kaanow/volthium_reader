@@ -62,6 +62,10 @@ For each of CH1_PWR, CH2_PWR, CAN_PWR, EXP_PWR_EN — in that order:
    isoPower: V_ISOOUT1/V_ISOIN1 ≈ 3.3 V measured **against ISO_BUS_GND1**
    (floating — use a battery DMM, not a grounded scope).
 2. Poll the BMS (9600 8N1 per vendor protocol) — first real data.
+   **A/B caution (field 2026-07-25):** both packs idle with pin 8 ~0.4 V
+   *above* pin 7 — under TI naming that suggests 8=A, opposite the vendor's
+   7=A/8=B. If the first poll gets no reply, mirror A/B before debugging
+   anything else.
 3. Both packs, both channels: run the §7 **two-domain matrix** (float vs
    REF-pad reference). R27/R37 stay DNP unless the float fails (user call:
    populate only on evidence).
@@ -70,10 +74,13 @@ For each of CH1_PWR, CH2_PWR, CAN_PWR, EXP_PWR_EN — in that order:
 
 ## Stage 5 — Xanbus CAN listen (R10, DR-31)
 
-1. **Before first attach:** on the live Schneider port, verify pins 4/5
-   polarity per LYNK II §4.2.1 — recessive both ≈ 2.5 V vs network reference,
-   differential ≈ 0; dominant pulses split H up / L down. Confirm NO voltage
-   on pins 4/5 beyond CAN levels (NET power lives on other pins we left NC).
+1. **Before first attach: ✅ DONE 2026-07-25 (owner field measurement,
+   live port, ref pin 8):** 1/2/7 = 12 V (NET_S — this SW4024 sources
+   12 V, spec nominal 15 V), 3/6 = 0 V (NET_C), **4 = 2.2 V (CAN_L),
+   5 = 2.4 V (CAN_H)** — recessive band, H > L under traffic averaging,
+   matching the drawn polarity and the first-party Xantrex table
+   (975-0136-01-01 Table 3, on file in docs/vendor/). Repeat only if the
+   port or cabling changes before attach.
 2. CAN_PWR on, TWAI in **listen-only** (no ACK — stays a pure observer),
    250 kbps. Expect Xanbus frames. J7 shunt only if the reader is a chain end.
 3. Gate off → confirm the bus is unloaded (TCAN332 high-Z unpowered).
