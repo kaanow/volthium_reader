@@ -182,3 +182,22 @@ the DR-31 pinout authority (the two agree on 4/5).
 nominal 15 V), 3/6 = 0 V, 4 = 2.2 V / 5 = 2.4 V (CAN recessive, H > L).
 Site MPPT: **Conext MPPT 60 150**. Measurement table + implications in
 `DESIGN_REVIEW_ITEMS.md` DR-31.
+
+### `insighthome-owners-guide-990-91410.pdf`
+
+Schneider **InsightHome Owner's Guide** (990-91410B), fetched 2026-07-25
+(sha256 0d14fe2849b6…). On file for the site's incoming **InsightHome
+PN 865-0330** (install imminent). Load-bearing facts:
+- **12-pin rear terminal block** (Figure 4, p.14): 1 = digital out
+  (0–40 VDC), 2/4 = digital in 1/2 (12 VDC), 3 = GND, 5/6 = Do Not
+  Connect, 7/8 = GND ISO, **9/11 = RS-485 A/B ISO (Modbus)**,
+  **10/12 = CAN L/H ISO**.
+- **Network position (p.21): the InsightHome MUST be one end of the
+  Xanbus daisy chain**; the supplied terminator goes at the far end; no
+  closed loops; never bridge two Xanbus networks. ⇒ When the reader
+  joins, the only free port is the far end — the reader displaces the
+  terminator and **J7's shunt is fitted** (expected config at this site,
+  DR-31/R10).
+- The isolated Modbus RS-485 (9/11) can serve aggregated system data —
+  candidate structured-data source / cross-check for the Xanbus
+  listen-only software project.
