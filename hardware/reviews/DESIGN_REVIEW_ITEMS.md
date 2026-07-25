@@ -1160,8 +1160,8 @@ bring-up polarity check before first attach (bringup_guide Stage 5).
 
 **FIELD-VERIFIED 2026-07-25 (owner on-site, DMM, live Schneider port).**
 Site equipment identified: **Conext SW 4024 120/240** inverter + **Conext
-MPPT 60 150** charge controller (+ optional InsightHome per user
-2026-07-22). Full port measurement, referenced to pin 8:
+MPPT 60 150** charge controller (+ **InsightHome PN 865-0330**, owner
+2026-07-25, install imminent). Full port measurement, referenced to pin 8:
 
 | RJ45 pin | measured | Xanbus signal (Xantrex 975-0136-01-01 Table 3) |
 |---|---|---|

@@ -77,7 +77,10 @@ gap when the pack is at its daily low and solar isn't yet contributing.**
 - Inverter/charger: **Schneider Conext SW 4024 120/240** (Xanbus network
   power source — its port measures 12 V NET_S; see DR-31 field table).
 - Solar charge controller: **Schneider Conext MPPT 60 150**.
-- Optional/planned: InsightHome gateway (user 2026-07-22).
+- Planned (owner, 2026-07-25 — "hooking it up soon"): **Schneider
+  InsightHome gateway, PN 865-0330** — joins the Xanbus network when
+  installed (another NET_S-powered node; no wiring impact on the reader,
+  but expect more Xanbus traffic/IDs once it's on).
 - Both sit on the Xanbus network the battery-side reader will listen to
   (DR-31); batteries are NOT on the Xanbus (user 2026-07-22).
 
