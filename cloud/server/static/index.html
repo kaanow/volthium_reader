@@ -355,27 +355,35 @@ async function tick() {
       document.getElementById("soc-headline").innerHTML = `—<span class="u">%</span>`;
     }
 
-    setText("pv", fixed(x.pack_v, 2));
-    // Headline A/W use the *smoothed* current/power so their sign always
-    // agrees with the (smoothed) state badge above. The instantaneous
-    // pack_i lags the EMA across a charge↔discharge crossing, which used to
-    // show e.g. "+1.2 A" under a "DISCHARGING" badge for minutes. Per-battery
-    // rows below stay instantaneous (they have no state word to contradict).
+    // Headline A uses the *smoothed* current so its sign agrees with the state
+    // badge. Current is exact even during a single-battery dormancy — a series
+    // pack shares one current, so the present battery's current IS the pack's.
     const headlineI = x.smoothed_i != null ? x.smoothed_i : x.pack_i;
-    // Pack current is knowable from one battery (series), so headlineI stays
-    // live during a single-battery dormancy. Pack POWER needs BOTH battery
-    // voltages — during a dormancy pack_p is null and the smoothed value is
-    // STALE (frozen at the last real reading before the dropout; it can even
-    // show the wrong sign, e.g. "-251 W discharging" while the live current is
-    // charging). Only trust smoothed_p when there's a live pack_p confirming
-    // both batteries are present; otherwise blank it, exactly like pack V.
-    const headlineP = x.pack_p != null
-        ? (x.smoothed_p != null ? x.smoothed_p : x.pack_p)
-        : null;
     setText("pi", headlineI == null
         ? "—"
         : (headlineI > 0 ? "+" : "") + Number(headlineI).toFixed(2));
-    setText("pp", headlineP == null ? "—" : Math.round(headlineP));
+    // Pack V and P need BOTH battery voltages. Measured when both are present.
+    // During a single-battery dormancy, ESTIMATE from the present battery: a
+    // series pack shares one current, and pack V ≈ 2× the present battery's V
+    // (the two track within ~1–2 %). Shown with a leading ~ so it reads as an
+    // estimate, not a measurement — replaces the earlier stale-ghost/blank.
+    const vPresent = (x.v_a != null && x.v_b == null) ? x.v_a
+                   : (x.v_b != null && x.v_a == null) ? x.v_b : null;
+    let headlineP, ppEst = false;
+    if (x.pack_v != null) {                       // both present → measured
+      setText("pv", fixed(x.pack_v, 2));
+      headlineP = x.pack_p != null
+          ? (x.smoothed_p != null ? x.smoothed_p : x.pack_p) : null;
+    } else if (vPresent != null) {                // one battery → estimate
+      setText("pv", "~" + (2 * vPresent).toFixed(2));
+      headlineP = (headlineI != null) ? 2 * vPresent * headlineI : null;
+      ppEst = headlineP != null;
+    } else {                                       // nothing → blank
+      setText("pv", "—");
+      headlineP = null;
+    }
+    setText("pp", headlineP == null ? "—"
+        : (ppEst ? "~" : "") + Math.round(headlineP));
 
     const rA = document.getElementById("rowA").children;
     const rB = document.getElementById("rowB").children;
