@@ -362,7 +362,16 @@ async function tick() {
     // show e.g. "+1.2 A" under a "DISCHARGING" badge for minutes. Per-battery
     // rows below stay instantaneous (they have no state word to contradict).
     const headlineI = x.smoothed_i != null ? x.smoothed_i : x.pack_i;
-    const headlineP = x.smoothed_p != null ? x.smoothed_p : x.pack_p;
+    // Pack current is knowable from one battery (series), so headlineI stays
+    // live during a single-battery dormancy. Pack POWER needs BOTH battery
+    // voltages — during a dormancy pack_p is null and the smoothed value is
+    // STALE (frozen at the last real reading before the dropout; it can even
+    // show the wrong sign, e.g. "-251 W discharging" while the live current is
+    // charging). Only trust smoothed_p when there's a live pack_p confirming
+    // both batteries are present; otherwise blank it, exactly like pack V.
+    const headlineP = x.pack_p != null
+        ? (x.smoothed_p != null ? x.smoothed_p : x.pack_p)
+        : null;
     setText("pi", headlineI == null
         ? "—"
         : (headlineI > 0 ? "+" : "") + Number(headlineI).toFixed(2));
