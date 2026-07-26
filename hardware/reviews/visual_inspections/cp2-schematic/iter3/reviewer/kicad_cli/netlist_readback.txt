@@ -1,0 +1,15 @@
+﻿OBJECT J2 value=Amphenol_RJHSE-5380
+CONNECTORS
+J2: 1=V12_CAT5E, 2=V12_CAT5E, 3=V12_CAT5E, 4=RS485_A, 5=RS485_B, 6=GND, 7=GND, 8=GND, SH=GND
+J5: 1=MCU_EN, 2=V3V3, 3=DBG_TXD, 4=GND, 5=DBG_RXD, 6=BOOT
+J6: 1=unconnected-(J6-Pad1), 2=unconnected-(J6-Pad2), 3=unconnected-(J6-Pad3), 4=Net-(U7-CANL), 5=Net-(U7-CANH), 6=unconnected-(J6-Pad6), 7=unconnected-(J6-Pad7), 8=unconnected-(J6-Pad8), SH=GND
+J10: 1=unconnected-(J10-Pad1), 2=unconnected-(J10-Pad2), 3=unconnected-(J10-Pad3), 4=unconnected-(J10-Pad4), 5=unconnected-(J10-Pad5), 6=unconnected-(J10-Pad6), 7=BUS_A1, 8=BUS_B1, SH=ISO_BUS_GND1
+J11: 1=unconnected-(J11-Pad1), 2=unconnected-(J11-Pad2), 3=unconnected-(J11-Pad3), 4=unconnected-(J11-Pad4), 5=unconnected-(J11-Pad5), 6=unconnected-(J11-Pad6), 7=BUS_A2, 8=BUS_B2, SH=ISO_BUS_GND2
+TRANSISTORS
+Q10 NTR4171P: 1=CH1_PWR, 2=V3V3, 3=VCC1
+Q11 NTR4171P: 1=CH2_PWR, 2=V3V3, 3=VCC2
+Q3 2N7002: 1=Net-(Q3-G), 2=UVLO_RESET, 3=MCU_EN
+Q4 2N7002: 1=Net-(Q4-G), 2=GND, 3=Net-(Q3-G)
+Q5 NTR4171P: 1=CAN_PWR, 2=V3V3, 3=Net-(Q5-D)
+Q_exp NTR4171P: 1=EXP_PWR_EN, 2=V3V3, 3=EXP_3V3
+DISCRETE_SHORT_SCAN refs=98 same_net_pairs=0

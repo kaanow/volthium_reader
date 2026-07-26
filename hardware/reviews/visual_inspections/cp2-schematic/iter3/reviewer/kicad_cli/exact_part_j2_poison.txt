@@ -1,0 +1,1 @@
+[exact-part] J2: netlist has value/footprint ('Amphenol_RJHSE-5380', 'Connector_RJ:RJ45_Amphenol_RJHSE5380'), contract requires ('Amphenol_RJHSE-538X', 'Connector_RJ:RJ45_Amphenol_RJHSE538X')

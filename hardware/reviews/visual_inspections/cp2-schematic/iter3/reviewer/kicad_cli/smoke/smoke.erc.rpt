@@ -1,0 +1,452 @@
+ERC report (2026-07-25T22:22:15, Encoding UTF8)
+Report includes: Errors, Warnings, Exclusions
+
+***** Sheet /
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(49.53 mm, 140.97 mm): Symbol R4 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(59.69 mm, 137.16 mm): Symbol R_opto [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(63.50 mm, 49.53 mm): Symbol F1 [Fuse]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(77.47 mm, 139.70 mm): Symbol SSR1 [AQY212EH]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(78.74 mm, 49.53 mm): Symbol D1 [D]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(93.98 mm, 62.23 mm): Symbol TVS1 [D_TVS]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(100.33 mm, 130.81 mm): Symbol F2 [Fuse]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(100.33 mm, 148.59 mm): Symbol R_inrush1 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(113.03 mm, 148.59 mm): Symbol R_inrush2 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(119.38 mm, 105.41 mm): Symbol #FLG1 [PWR_FLAG]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(137.16 mm, 105.41 mm): Symbol #FLG2 [PWR_FLAG]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(154.94 mm, 105.41 mm): Symbol #FLG3 [PWR_FLAG]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(172.72 mm, 105.41 mm): Symbol #FLG4 [PWR_FLAG]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(179.07 mm, 58.42 mm): Symbol C1 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(189.23 mm, 143.51 mm): Symbol C3 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(190.50 mm, 105.41 mm): Symbol #FLG5 [PWR_FLAG]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(204.47 mm, 62.23 mm): Symbol U1 [LM5166Y]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(204.47 mm, 139.70 mm): Symbol U2 [R-78HB12-0.5]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(217.17 mm, 54.61 mm): Symbol L1 [L]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(219.71 mm, 143.51 mm): Symbol C4 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(220.98 mm, 71.12 mm): Symbol R_ILIM [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(228.60 mm, 58.42 mm): Symbol C2 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(237.49 mm, 146.05 mm): Symbol TVS3 [D_TVS]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(49.53 mm, 76.20 mm): Symbol R_uv1 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(49.53 mm, 83.82 mm): Symbol R_uv2 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(60.96 mm, 83.82 mm): Symbol C_sense [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(66.04 mm, 66.04 mm): Symbol R_hys [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(68.58 mm, 88.90 mm): Symbol C_ct [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(82.55 mm, 82.55 mm): Symbol U4 [TPS3808DBV]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(99.06 mm, 67.31 mm): Symbol C_uvdd [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(209.55 mm, 62.23 mm): Symbol R5 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(209.55 mm, 74.93 mm): Symbol R6 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(219.71 mm, 72.39 mm): Symbol C5 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(52.07 mm, 135.89 mm): Symbol R22 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(52.07 mm, 148.59 mm): Symbol R23 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(52.07 mm, 161.29 mm): Symbol D10 [SM712_SOT23]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(58.42 mm, 74.93 mm): Symbol R20 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(66.04 mm, 77.47 mm): Symbol Q10 [Q_PMOS_GSD]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(74.93 mm, 83.82 mm): Symbol C20 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(78.74 mm, 72.39 mm): Symbol #FLG1V [PWR_FLAG]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(82.55 mm, 83.82 mm): Symbol C21 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(87.63 mm, 142.24 mm): Symbol R25 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(87.63 mm, 154.94 mm): Symbol R26 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(87.63 mm, 167.64 mm): Symbol R27 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(87.63 mm, 180.34 mm): Symbol R24 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(90.17 mm, 83.82 mm): Symbol C22 [C]
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(95.25 mm, 167.64 mm): Global Label 'PACK1_Bminus'
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(96.52 mm, 100.33 mm): Symbol R21 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(97.79 mm, 83.82 mm): Symbol C23 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(121.92 mm, 121.92 mm): Symbol C28 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(124.46 mm, 100.33 mm): Symbol U10 [ADM2587E]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(147.32 mm, 71.12 mm): Symbol #FLG1I [PWR_FLAG]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(152.40 mm, 88.90 mm): Symbol C24 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(154.94 mm, 115.57 mm): Symbol #FLG1G [PWR_FLAG]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(160.02 mm, 88.90 mm): Symbol C25 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(162.56 mm, 125.73 mm): Symbol L11 [FerriteBead]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(167.64 mm, 85.09 mm): Symbol L10 [FerriteBead]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(177.80 mm, 88.90 mm): Symbol C26 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(185.42 mm, 88.90 mm): Symbol C27 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(207.01 mm, 106.68 mm): Symbol #FLG1B [PWR_FLAG]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(209.55 mm, 125.73 mm): Symbol J10 [RJ45_Shielded]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(116.84 mm, 66.04 mm): Symbol C7 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(121.92 mm, 154.94 mm): Symbol R7 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(129.54 mm, 66.04 mm): Symbol C6 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(137.16 mm, 154.94 mm): Symbol R8 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(144.78 mm, 105.41 mm): Symbol MOD1 [ESP32-S3-WROOM-1]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(152.40 mm, 154.94 mm): Symbol R9 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(167.64 mm, 154.94 mm): Symbol C8 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(69.85 mm, 46.99 mm): Symbol C10 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(72.39 mm, 121.92 mm): Symbol C9 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(90.17 mm, 62.23 mm): Symbol U3 [THVD1400D]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(95.25 mm, 139.70 mm): Symbol RTC1 [RV-3028-C7]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(97.79 mm, 110.49 mm): Symbol #FLG_VBK [PWR_FLAG]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(107.95 mm, 58.42 mm): Symbol R10 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(107.95 mm, 118.11 mm): Symbol C-bk [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(113.03 mm, 64.77 mm): Symbol J4 [Conn_01x02]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(123.19 mm, 62.23 mm): Symbol TVS2 [D_TVS]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(152.40 mm, 91.44 mm): Symbol C12 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(165.10 mm, 105.41 mm): Symbol U7 [TCAN332]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(172.72 mm, 80.01 mm): Symbol #FLG_CAN [PWR_FLAG]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(182.88 mm, 90.17 mm): Symbol Q5 [Q_PMOS_GSD]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(190.50 mm, 106.68 mm): Symbol R15 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(195.58 mm, 91.44 mm): Symbol R14 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(195.58 mm, 113.03 mm): Symbol J7 [Conn_01x02]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(208.28 mm, 110.49 mm): Symbol D2 [NUP2105L]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(236.22 mm, 105.41 mm): Symbol J6 [RJ45_Shielded]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(59.69 mm, 63.50 mm): Symbol C_usb1 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(74.93 mm, 62.23 mm): Symbol U5 [AP2112K-3.3]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(85.09 mm, 63.50 mm): Symbol C_usb2 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(115.57 mm, 62.23 mm): Symbol U6 [TPS2116DRL]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(134.62 mm, 63.50 mm): Symbol C_mux [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(165.10 mm, 81.28 mm): Symbol R_byp2 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(165.10 mm, 93.98 mm): Symbol R_byp2b [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(175.26 mm, 55.88 mm): Symbol R_byp1 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(190.50 mm, 62.23 mm): Symbol Q3 [2N7002]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(190.50 mm, 87.63 mm): Symbol Q4 [2N7002]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(52.07 mm, 135.89 mm): Symbol R32 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(52.07 mm, 148.59 mm): Symbol R33 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(52.07 mm, 161.29 mm): Symbol D11 [SM712_SOT23]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(58.42 mm, 74.93 mm): Symbol R30 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(66.04 mm, 77.47 mm): Symbol Q11 [Q_PMOS_GSD]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(74.93 mm, 83.82 mm): Symbol C30 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(78.74 mm, 72.39 mm): Symbol #FLG2V [PWR_FLAG]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(82.55 mm, 83.82 mm): Symbol C31 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(87.63 mm, 142.24 mm): Symbol R35 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(87.63 mm, 154.94 mm): Symbol R36 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(87.63 mm, 167.64 mm): Symbol R37 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(87.63 mm, 180.34 mm): Symbol R34 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(90.17 mm, 83.82 mm): Symbol C32 [C]
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(95.25 mm, 167.64 mm): Global Label 'PACK2_Bminus'
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(96.52 mm, 100.33 mm): Symbol R31 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(97.79 mm, 83.82 mm): Symbol C33 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(121.92 mm, 121.92 mm): Symbol C38 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(124.46 mm, 100.33 mm): Symbol U11 [ADM2587E]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(147.32 mm, 71.12 mm): Symbol #FLG2I [PWR_FLAG]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(152.40 mm, 88.90 mm): Symbol C34 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(154.94 mm, 115.57 mm): Symbol #FLG2G [PWR_FLAG]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(160.02 mm, 88.90 mm): Symbol C35 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(162.56 mm, 125.73 mm): Symbol L13 [FerriteBead]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(167.64 mm, 85.09 mm): Symbol L12 [FerriteBead]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(177.80 mm, 88.90 mm): Symbol C36 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(185.42 mm, 88.90 mm): Symbol C37 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(207.01 mm, 106.68 mm): Symbol #FLG2B [PWR_FLAG]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(209.55 mm, 125.73 mm): Symbol J11 [RJ45_Shielded]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(39.37 mm, 71.12 mm): Symbol R13 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(39.37 mm, 83.82 mm): Symbol C11 [C]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(54.61 mm, 52.07 mm): Symbol J1 [Conn_01x02]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(54.61 mm, 77.47 mm): Symbol BTN1 [SW_SPDT]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(59.69 mm, 119.38 mm): Symbol J3 [USB_C_16P]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(97.79 mm, 123.19 mm): Symbol R_cc2 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(110.49 mm, 78.74 mm): Symbol U-ESD [USBLC6-2SC6]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(110.49 mm, 120.65 mm): Symbol R_cc1 [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(134.62 mm, 138.43 mm): Symbol R_exp_pu [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(149.86 mm, 144.78 mm): Symbol Q_exp [Q_PMOS_GSD]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(157.48 mm, 114.30 mm): Symbol R_exp_scl [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(157.48 mm, 124.46 mm): Symbol R_exp_sda [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(167.64 mm, 142.24 mm): Symbol R_exp_bleed [R]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(175.26 mm, 59.69 mm): Symbol J5 [Conn_02x03_Odd_Even]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(195.58 mm, 148.59 mm): Symbol J_EXP [Conn_01x08]
+[lib_symbol_issues]: The symbol library 'volthium' was not found at '..\..\libraries\volthium.kicad_sym'
+    ; warning
+    @(209.55 mm, 52.07 mm): Symbol J2 [RJ45_Shielded]
+
+***** Sheet /Battery — Power path/
+
+***** Sheet /Battery — Supervisor/
+
+***** Sheet /Battery — Isolated RS-485 read (ch.1)/
+
+***** Sheet /Battery — MCU (ESP32-S3)/
+
+***** Sheet /Battery — Peripherals & comms/
+
+***** Sheet /Battery — USB maintenance power/
+[pin_to_pin]: Pins of type Power output and Power output are connected
+    ; error
+    @(125.73 mm, 57.15 mm): Symbol U6 Pin 2 [VOUT, Power output, Line]
+    @(125.73 mm, 59.69 mm): Symbol U6 Pin 7 [VOUT, Power output, Line]
+
+***** Sheet /Battery — Isolated RS-485 read (ch.2)/
+
+***** Sheet /Battery — Connectors & I/O/
+
+ ** ERC messages: 141  Errors 1  Warnings 140
+
+ ** Ignored checks:
+    - Global label only appears once in the schematic
+    - Four connection points are joined together
+    - SPICE model issue
+    - Assigned footprint doesn't match footprint filters

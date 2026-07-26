@@ -382,6 +382,139 @@ overrides.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 3 important. (See findings F05, F06, F07.)
 
+## 8.3 Reviewer findings (iteration 3)
+
+### Review evidence
+
+The committed generator was rebuilt before review. The exact bare Windows
+command now passes KiCad share discovery and all prior UTF-8 failure sites,
+but still fails when `build.py` tries to launch literal `kicad-cli`; see F09.
+The independently validated Windows launcher resolved KiCad 10.0.5 from the
+per-user installation and the build then passed all eight readability gates,
+intent-versus-exported-netlist comparison, PNG exports, and the generator's
+two reported ERC counters.
+
+F05 and F06 re-verify. The fresh exported netlist identifies J2 as exact
+`Amphenol_RJHSE-5380` /
+`Connector_RJ:RJ45_Amphenol_RJHSE5380`; an in-memory 538X contract poison
+produced exactly one J2 failure. The requirements runner returned 29/29 PASS
+and now proves J5.3 same-net MOD1.37 plus J5.5 same-net MOD1.36; a J5.3 to
+J5.4 poison produced exactly one R9 failure. `doc_consistency_check.py`
+exited 0 on the bare Windows environment.
+
+G8 was re-derived from the fresh exported netlist. J2 reads
+1/2/3=`V12_CAT5E`, 4=`RS485_A`, 5=`RS485_B`, 6/7/8/shield=GND; J6 reads
+CANL=4/CANH=5; J10/J11 read A=7/B=8 with distinct isolated shields; and J5
+reads EN/VDD/target-TXD/GND/target-RXD/IO0 on pins 1..6. Netlist pin-function
+probes put Q5/Q10/Q11/Q_exp gate/source/drain on pins 1/2/3 respectively,
+with every source on `V3V3` and every drain on its distinct gated load. A
+98-discrete scan found zero same-net pin pairs.
+
+The new first-party PDFs were opened, not inherited. Xantrex guide
+975-0136-01-01 page 18 Table 3 confirms NET_S=1/2/7, NET_C=3/6/8,
+CAN_L=4, CAN_H=5; page 19 shows a 15 VDC Xanbus power-source example.
+Schneider InsightHome guide 990-91410B pages 15 and 22 confirm the isolated
+RS-485/CAN terminal identities and no-loop/termination instructions. TI
+TCAN332 page 5 confirms any CAN terminal absolute maximum is -14 V to +14 V.
+Title pages and document numbers matched the manifested objects. Rendered
+source evidence is under
+`hardware/reviews/visual_inspections/cp2-schematic/iter3/reviewer/source_spotchecks/`.
+
+G9 used all three layers. The generator readability gates passed;
+`label_body_audit.py` independently found zero geometry findings on all
+eight child sheets; reviewer eyes inspected nine fresh 300-DPI pages and 54
+overlapping fixed-box crops. J2's changed object text is clear and no
+collision, clipping, ambiguous junction, or unreadable pin field was found.
+The full evidence pack and transcripts are under
+`hardware/reviews/visual_inspections/cp2-schematic/iter3/reviewer/`.
+
+### Finding F08 — BLOCKER — `build.py:2299-2305`, strict root ERC
+
+**Issue**: the claimed root ERC gate is not a full ERC gate. A fresh
+non-destructive CLI run on the generated root reports **141 messages:
+1 error and 140 warnings**, while `build.py` counts only
+`dangling`/`pin_not_connected` and `power_pin_not_driven`, prints both as
+zero, and returns success. Strict `sch erc --severity-all
+--exit-code-violations` returns KiCad rc=5.
+
+**Evidence**:
+`visual_inspections/cp2-schematic/iter3/reviewer/kicad_cli/smoke/smoke.erc.rpt`
+contains 138 `lib_symbol_issues` warnings because the generated project
+cannot resolve the `volthium` library, two `isolated_pin_label` warnings
+for `PACK1_Bminus`/`PACK2_Bminus`, and one `pin_to_pin` error because U6
+VOUT pins 2 and 7 are both typed power output. Source/table hashes remained
+unchanged. `build.py:2300-2305` neither requests violation exit status nor
+accounts for these classes.
+
+**Suggested fix**: make project-library resolution deterministic and ensure
+the library contains every referenced symbol; resolve or explicitly exclude
+the two isolated-label warnings and U6's dual-output-pin error with recorded
+rationale. Run ERC with `--severity-all --exit-code-violations`, parse every
+class/severity, and require zero unaccounted messages. Re-run the strict
+smoke from a clean build directory.
+
+### Finding F09 — IMPORTANT — `build.py:1842`, bare Windows build
+
+**Issue**: F07 is only partly resolved. Per-user KiCad data-root discovery
+and explicit UTF-8 handling now work, but the documented bare Windows build
+still fails because `kcli()` invokes literal `kicad-cli`. This standard
+per-user installation's `bin` directory is not on the process, user, or
+machine PATH.
+
+**Evidence**:
+`visual_inspections/cp2-schematic/iter3/reviewer/kicad_cli/bare_build.combined.txt`
+ends in `FileNotFoundError: [WinError 2]` at `build.py:1842`.
+`bare_build.exitcode.txt` is 1. The reviewer skill's validated launcher
+resolves the same installed `kicad-cli.exe`; with that environment the full
+build succeeds. This proves KiCad access is functional and isolates the
+remaining defect to repository executable discovery.
+
+**Suggested fix**: discover `kicad-cli.exe` alongside the discovered share
+root (with an explicit `KICAD_CLI` override), invoke the resolved absolute
+path, and emit a clear preflight error when absent. Re-test exactly the bare
+packet command with KiCad's bin directory absent from PATH.
+
+### Finding F10 — IMPORTANT — `cp1_battery_side.md:549,581,831`
+
+**Issue**: the live battery design document still describes J5 as a
+four-pin 2.54 mm debug header and says RESET# is on J5 pin 4. The current
+schematic, canonical BOM, requirements, and bring-up guide all use the keyed
+2x3 ESP-Prog Program connector, and J5 pin 4 is GND.
+
+**Evidence**: the exported-netlist read-back above gives the complete
+1..6 map. `doc_consistency_check.py` nevertheless exits 0 because its
+superseded-token registry catches prior 1x6/6-pin forms but not this live
+4-pin description or the false pin-4 RESET# assignment.
+
+**Suggested fix**: update the live connectivity, net table, and service
+summary in `cp1_battery_side.md` to the exact keyed 2x3 mapping. Extend the
+append-only superseded registry to catch the retired four-pin/RESET# forms
+and poison-test it against the pre-fix text.
+
+### Finding F11 — IMPORTANT — `DESIGN_REVIEW_ITEMS.md:1183-1188`
+
+**Issue**: the newly recorded field conclusion retires the Xanbus
+power-pin-to-CAN-pin miswire caveat on an invalid margin argument. It says
+the site measures 12 V, acknowledges a nominal 15 V source, then claims
+both are within the TCAN332's +14 V bus absolute maximum. Fifteen volts is
+not within +14 V, and absolute maximum is a damage boundary rather than a
+guaranteed operating region.
+
+**Evidence**: first-party Xantrex guide page 19 demonstrates a 15 VDC
+network power source; TI TCAN332 page 5 sets +14 V absolute maximum on any
+CAN terminal. A single 12 V field measurement does not establish maximum
+NET_S voltage or transients. The same unsupported `12 V, spec nominal 15 V`
+premise is propagated to `docs/hardware/bringup_guide.md:78-79`.
+
+**Suggested fix**: retain the miswire caveat and pre-attach control unless
+NET_S maximum over all operating/charging/transient conditions is bounded
+below the transceiver limit with engineering margin. Do not claim
+transceiver survivability from the present evidence; if miswire
+survivability is a requirement, select a coordinated protection/transceiver
+strategy or obtain the missing network-supply maximum specification.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 1 blocker, 3 important. (See findings F08, F09, F10, F11.)
+
 ## 9 Designer responses (iteration 1) — 2026-07-24
 
 ### F01 — RESOLVED (accepted, with one premise correction)
