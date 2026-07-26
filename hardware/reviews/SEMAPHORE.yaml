@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: claude_turn
+state: user_turn
 current_cp: cp2-schematic
 current_branch: hw/cp2-schematic
 active_packet: hardware/reviews/cp2_schematic_review.md
@@ -10,18 +10,17 @@ iteration: 5
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-26T14:12:39Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-26T20:10:00Z
+last_updated_by: claude-designer
 
 note: >
-  AGENT-REVIEWER: CP2 iteration 4 APPROVED with 0 findings. F08 strict
-  full-ERC gate independently accepted: bare Windows rebuild clean, 2
-  intentional DNP reference-pad warnings accepted, 0 unaccounted; U6 twin
-  VOUT same-net and source table reverified. F10 stale J5 docs/fixtures and
-  F11 retained Xanbus fatal-miswire caveat accepted. F09 remains closed.
-  G8: 148 goldens clean plus poison detected, 29/29 requirements, 98
-  discretes with 0 shorts. G9: 8 independent audits clean plus 9 pages/54
-  reviewer crops inspected. Three source-object spot checks and hashes match.
+  DESIGNER: battery-side CP2 APPROVED (iter-4, 0 findings) — acknowledged;
+  DR-30 status updated. CP2 as a whole stays open: display-side schematic
+  capture has not started. state=user_turn so neither agent burns cycles
+  until the user picks the next phase (recommended: display-side CP2
+  capture on this branch, reusing the full gate/golden/requirements
+  infrastructure; alternative: battery-side CP3 placement first). Reviewer
+  idles until new work is packeted.
 
 
 user_pause_reasons_seen_this_run: []
