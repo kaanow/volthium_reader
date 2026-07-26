@@ -593,6 +593,15 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "F05: RJHSE-538X is the 2-LED variant (16 pads); the selected part is "
      "the LED-less RJHSE-5380 (12 pads) — exact value+footprint pinned by "
      "the [exact-part] build contract on J2/J6/J10/J11"),
+    # CP2 iter-3 F10 — the ORIGINAL pre-F01 J5 (4-pin debug UART with
+    # RESET# on pin 4) survived in cp1_battery_side.md: the F01 registry
+    # rows guarded the 1×6/order-string forms but not this older shape.
+    (r"TX/RX/GND/RESET#|ESP EN pin / J5 pin 4\b|"
+     r"J5 pin 4[^|]{0,25}RESET|RESET#[^|]{0,25}J5 pin 4",
+     "keyed 2×3 ESP-Prog: EN=pin 1, GND=pin 4, BOOT=pin 6 (F01/F10)",
+     "F10: the 4-pin debug-UART J5 (TX/RX/GND/RESET#) and RESET#-on-J5.4 "
+     "forms are retired — J5 is the keyed 2×3 ESP-Prog Program header; EN "
+     "is pin 1 and pin 4 is GND"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -846,6 +855,19 @@ FIXTURES: list[tuple[str, bool]] = [
     ("| F2 | 80 mA (Littelfuse 451 Nano2 SMF) | 451 SMF, 6.10×2.69 mm "
      "(p.4 land pattern, not 1206) | 1 |", False),
     ("| R_inrush (×2) | 2× 75 Ω 1206 pulse-proof (Vishay CRCW-HP) | 1206 | 2 |",
+     False),
+    # F10: the exact pre-fix cp1_battery_side.md forms must FLAG…
+    ("| J5  | 4-pin 2.54 mm pin header, **debug UART** (TX/RX/GND/RESET#) "
+     "| THT | 1 | FTDI cable lands here |", True),
+    ("| RESET#       | 3.3 V LV    | ESP EN pin / J5 pin 4 | **U4 RESET via "
+     "Q3** |", True),
+    # …and the corrected forms must PASS (no flag).
+    ("| J5  | Keyed 2×3 IDC box header — ESP-Prog Program pinout: 1=MCU_EN, "
+     "2=V3V3, 3=DBG_TXD, 4=GND, 5=DBG_RXD, 6=BOOT | THT | 1 |", False),
+    ("| MCU_EN (RESET#) | 3.3 V LV | ESP EN pin / J5 pin 1 | U4 RESET via "
+     "Q3 |", False),
+    # Display-side J3 is a legitimate 4-pin UART header — must NOT flag.
+    ("| J3  | 4-pin 2.54 mm header (UART debug) | THT | 1 | bench only |",
      False),
 ]
 

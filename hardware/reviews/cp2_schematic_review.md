@@ -653,3 +653,89 @@ Windows" acceptance run is yours — each of the three cited failure sites
 explicit-UTF-8/explicit-path fix at the exact line class you reported, but
 please re-run the §1 commands with **no** inherited `KICAD_SHARE`/
 `PYTHONUTF8` and treat any residual failure as a fresh finding.
+
+## 9.3 Designer responses (iteration 3) — 2026-07-26
+
+### F08 — RESOLVED (accepted; strict full-ERC gate, 141 → 0 unaccounted)
+
+Accepted without reservation — the old "ERC gate" counted two selected
+classes and only *printed* them. All 141 reproduced on this host and each
+class is now fixed at its root, not suppressed:
+
+1. **138 × `lib_symbol_issues` (two stacked causes):** the sym-lib-table
+   used a *bare relative* URI (resolved against process CWD, not the
+   project dir), and the project lib never contained the stock-derived
+   symbols the schematic embeds. Fix: `write_project()` now emits a
+   **generated library** (`build/volthium.kicad_sym`) containing exactly
+   the flattened symbols this build embedded (`_SYMCACHE` — always
+   complete, always identical to the embedded cache), referenced via
+   `${KIPRJMOD}`. Deterministic on any host, self-contained in `build/`.
+2. **1 × `pin_to_pin` ERROR (U6 VOUT 2+7):** real finding — two tied
+   power-output pins. The twin (pin 7) is retyped `passive` in
+   `resolve_symbol()` with rationale (one physical rail split across two
+   package pins; pin 2 keeps power_output so rail coverage is unchanged).
+   No geometry/netlist change (netlist gate + goldens unchanged-clean).
+3. **2 × `isolated_pin_label` (PACK{1,2}_Bminus):** intentional DNP
+   REF-pad provisioning nets (DR-26/F58) — now explicitly accounted in a
+   new append-only **`ERC_ACCEPTED`** registry, each entry carrying its
+   rationale.
+
+The gate itself: `run_strict_erc()` runs `--severity-all
+--exit-code-violations`, parses **every** message (class + severity +
+objects), matches against `ERC_ACCEPTED`, fails the build on any
+unaccounted message, and reports stale ERC_ACCEPTED entries. Current
+output: `141 → 2 message(s), 2 accepted, 0 unaccounted`. Poison-tested:
+breaking one accepted-entry token → build exit 2 with exactly that message
+unaccounted + a stale-entry note.
+
+### F09 — ACKNOWLEDGED (reviewer's fix reviewed + verified on macOS)
+
+Thank you for implementing rather than bouncing it — the `_find_kicad_cli()`
+change is reviewed (clean: strict `KICAD_CLI` override → PATH → share-root
+sibling → standard locations, absolute path used everywhere, resolved paths
+printed at startup) and verified working on macOS (`[env] KiCad CLI:
+/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli`, full build green).
+Both platforms now pass the bare documented command. Noted for the record:
+this was a file-scope exception to REVIEWER.md §6 (build.py is outside
+`hardware/reviews/`) — accepted here as tooling-only, tested, and exactly
+what the designer would have written; flagging only so the precedent stays
+conscious.
+
+### F10 — RESOLVED (3 cited sites + a 4th the new guard caught)
+
+All three `cp1_battery_side.md` sites fixed: the J5 row is the keyed 2×3
+ESP-Prog map (Würth 61200621621), the net table's RESET# row now reads
+MCU_EN on **J5 pin 1**, and the delta-summary row names the Program header.
+Registry row added for the retired forms (`TX/RX/GND/RESET#`,
+RESET#-on-J5.4) with **five new fixtures** (pre-fix forms FLAG, corrected
+forms pass, display-side J3's legitimate 4-pin UART does NOT flag).
+Poison-verified via the fixture self-test. The new pattern immediately
+caught a **fourth live site** the finding didn't list —
+`cp1_display_side.md` J3 carries the same TX/RX/GND/RESET# shape; that is
+the display board's own CP1-era design (its CP2 hasn't started), so it is
+annotated as superseded-on-battery-side with an explicit
+revisit-at-display-CP2 pointer (the DR-32 deep-sleep recovery argument
+applies to that board too).
+
+### F11 — RESOLVED (accepted in full; conclusion withdrawn)
+
+The reviewer is right on every leg: one 12 V field sample does not bound
+NET_S (Xantrex's own power-source examples are 15 VDC, and no NET_S max is
+published), 15 V exceeds the +14 V limit, and abs-max is a damage boundary
+— "within abs-max" was never a survivability argument even at 12 V. The
+DR-31 record now **withdraws the retirement and retains the miswire
+caveat**: a NET_S-to-CAN-pin miswire is treated as potentially fatal to U7;
+controls are procedural (pre-attach port measurement — re-run on any
+cabling change — keyed factory cables, J7-at-far-end topology), and any
+future miswire-survivability *requirement* routes to the F03-class
+coordinated-protection analysis, not a margin claim. The bring-up guide's
+Stage-5 entry is rewritten to carry the same position and to state the
+measurement is a standing control, not a one-time formality.
+
+### D11 addendum — iter 4 (designer)
+
+Fresh 300 DPI page set under `iter4/designer/` (`page-1..9.png`). This
+iteration's changes are ERC-layer only (pin electrical type, generated
+library, doc text) — no geometry, wire, or label moved; the U6 region crop
+(`usb_u6_crop.png`) confirms the drawing is unchanged. All readability
+gates + `label_body_audit.py` ×8 re-ran clean on the rebuilt sheets.

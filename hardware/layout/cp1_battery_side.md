@@ -546,7 +546,7 @@ could add an LED on a GPIO that the firmware pulses (e.g. 50 ms ON every
 | J2  | RJ45 modular jack, shielded — **exact Amphenol RJHSE-5380** (LED-less; the RJHSE-538X placeholder was retired — F05: 538X is the 2-LED sibling) | THT shielded | 1 | T568B straight-through pinout (see [`cat5e_pinout.md`](../../docs/hardware/cat5e_pinout.md)); shield drain to chassis ground at this end |
 | J3  | **USB-C receptacle** on native ESP32-S3 USB (D+/D−, VBUS, GND, CC) | SMD | 1 | **D22:** board-edge maintenance port — flash + console + JTAG over native USB, accessible without opening (IP5x dust cap). Replaces the old dev-only pin header |
 | J4  | 2-pin 2.54 mm jumper (RS-485 term lift) | THT | 1 | Allows R10 to be lifted via removable jumper if the board ever sits mid-bus instead of at the terminus |
-| J5  | 4-pin 2.54 mm pin header, **debug UART** (TX/RX/GND/RESET#) | THT | 1 | FTDI cable lands here; ESP-IDF console at 115200 8N1 |
+| J5  | **Keyed 2×3 IDC box header (Würth 61200621621) — ESP-Prog "Program" pinout: 1=MCU_EN, 2=V3V3, 3=DBG_TXD(target TX), 4=GND, 5=DBG_RXD(target RX), 6=BOOT(IO0)** | THT | 1 | ESP-Prog ribbon mates directly (auto-program); jumper 6→4 + blip pin 1 = manual force-download; ESP-IDF console at 115200 8N1 on pins 3/5 (F01/F10 — earlier 4-pin TX/RX/GND/RESET# form retired) |
 
 ### 4.9 Passives summary
 
@@ -578,7 +578,7 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | PWR_EN       | 3.3 V LV    | ESP IO4              | SSR1 LED (via R_opto), R4 pull-down to GND                  | **Active-HIGH**: HIGH = rails ON; LOW or Hi-Z = rails OFF. Canonical truth table in §8 |
 | BTN_OVERRIDE | 3.3 V LV    | BTN1 + R13           | ESP IO7 (RTC-wake capable)                    | Active-LOW; pulled HIGH by 1 MΩ |
 | RTC_BACKUP   | ~3.0 V      | C-bk (backup cap)    | RTC1 VBACKUP                                  | RTC ride-through (trickle-charged by RV-3028) |
-| RESET#       | 3.3 V LV    | ESP EN pin / J5 pin 4 | **U4 RESET via Q3**                           | Pulled HIGH via R7 + C8 (RC soft-start); **U4 (UVLO, D28) pulls it LOW below the ~20 V floor** → ESP reset → display auto-sheds. **Q3 (D29) opens this path when VBUS present** → UVLO bypassed so the MCU boots off USB on the bench |
+| MCU_EN (RESET#) | 3.3 V LV | ESP EN pin / **J5 pin 1** | **U4 RESET via Q3**                           | Pulled HIGH via R7 + C8 (RC soft-start); **U4 (UVLO, D28) pulls it LOW below the ~20 V floor** → ESP reset → display auto-sheds. **Q3 (D29) opens this path when VBUS present** → UVLO bypassed so the MCU boots off USB on the bench |
 
 ## 6. ESP32-S3 pin assignment
 
@@ -828,7 +828,7 @@ margin.
 | Debug LED                        | LED1 + R_led (always available, GPIO-controlled) | **Removed** per D4                       |
 | RS-485 numbering                 | TVS1 (RS-485), TVS2 (12 V), TVS3 (24 V) confused | TVS1 (24 V), TVS2 (RS-485) — display side has its own TVS3/TVS4 |
 | Mounting holes                   | Not specified                              | 4× M3 corner standoffs to the 3D-printed enclosure; exact coordinates set at CP3 placement once the outline is fixed (D20) |
-| Dev headers                      | Not in original BOM                        | J3 (USB-C breakout), J4 (term-lift jumper), J5 (UART debug) added for bring-up |
+| Dev headers                      | Not in original BOM                        | J3 (USB-C breakout), J4 (term-lift jumper), J5 (keyed 2×3 ESP-Prog Program header) added for bring-up |
 | Mechanical board outline         | "60 × 38 mm" (Hammond 1556B2GY)            | **Deferred** (D20): no fixed outline at CP1; routed-area dictates size, then a custom 3D-printed IP5x enclosure is designed against the PCB STEP. No COTS box. |
 
 ## 16. What's NOT in CP1 (defers to later checkpoints)

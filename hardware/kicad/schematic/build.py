@@ -219,8 +219,14 @@ def resolve_symbol(name):
     if name == "TPS2116DRL":
         # stacked VOUT pins 2/7: the twin was no_connect'd ON the driven wire.
         # Spread pin 7 one grid below pin 2; blocks wire both to the output.
+        # F08: two tied power_output pins trip KiCad's [pin_to_pin] ERROR —
+        # they are ONE physical rail split across two package pins. Retype
+        # the twin (7) passive; pin 2 keeps power_output, so
+        # power_pin_not_driven coverage of the rail is unchanged.
         for p in allpins:
-            if p.number == "7": p.position.Y = 2.54
+            if p.number == "7":
+                p.position.Y = 2.54
+                p.electricalType = "passive"
     # Restore the library author's pin-name visibility. kiutils drops KiCad-10's
     # nested `(hide yes)`, un-hiding names that were never meant to render (the
     # USBLC6/SM712/Conn_01x0N mush, stray G/D/S on FETs). Blanking to "~" is the
@@ -1873,9 +1879,22 @@ def write_project():
         "schematic": {"legacy_lib_list": [], "legacy_lib_dir": ""},
         "sheets": [], "text_variables": {},
     }, indent=2), encoding="utf-8")
-    rel = os.path.relpath(str(LIB), str(OUT))
+    # F08: the old table pointed at the PROJECT lib with a BARE relative URI —
+    # resolved against process CWD (not the project dir), and the project lib
+    # anyway lacks the stock-derived symbols we embed (138 [lib_symbol_issues]
+    # of the 141 strict-ERC messages, in two layers). Deterministic fix:
+    # write a GENERATED library of exactly the flattened symbols this build
+    # embedded (_SYMCACHE) next to the project, referenced via ${KIPRJMOD}.
+    # Self-contained in build/, host-independent, always complete and always
+    # identical to the embedded cache.
+    gen = SymbolLib()
+    gen.generator = "volthium_build"
+    gen.symbols = [_SYMCACHE[k] for k in sorted(_SYMCACHE)]
+    gen.filePath = str(OUT / "volthium.kicad_sym")
+    gen.to_file(encoding="utf-8")
     (OUT / "sym-lib-table").write_text(
-        f'(sym_lib_table\n  (version 7)\n  (lib (name "volthium")(type "KiCad")(uri "{rel}")(options "")(descr ""))\n)\n',
+        '(sym_lib_table\n  (version 7)\n  (lib (name "volthium")(type "KiCad")'
+        '(uri "${KIPRJMOD}/volthium.kicad_sym")(options "")(descr ""))\n)\n',
         encoding="utf-8")
 
 
@@ -2312,6 +2331,65 @@ def check_exact_parts(rootf):
     return bad
 
 
+# ---- strict full ERC gate (CP2 iter-3 F08) ---------------------------------
+# The old gate counted two selected message classes and only PRINTED them; a
+# strict run reported 141 messages (138 broken-lib-URI warnings, one real
+# pin_to_pin ERROR on U6's stacked VOUTs, two intentional REF-pad labels).
+# Now: run --severity-all --exit-code-violations, parse EVERY message, and
+# fail on anything not explicitly accounted for below. Append-only; every
+# entry carries its engineering rationale.
+ERC_ACCEPTED = {
+    ("isolated_pin_label", "PACK1_Bminus"):
+        "intentional one-pin net: DNP R27 REF-pad provisioning (DR-26/F58) —"
+        " the label names the pad-side net that only exists if R27 is fitted",
+    ("isolated_pin_label", "PACK2_Bminus"):
+        "same, channel 2 (DNP R37)",
+}
+
+
+def _parse_erc(rptfile):
+    """[(class, severity, object-text)] from a kicad-cli ERC report."""
+    out, cur = [], None
+    for line in open(rptfile, encoding="utf-8"):
+        m = re.match(r"\[(\w+)\]: (.*)", line.strip())
+        if m:
+            cur = [m.group(1), "?", m.group(2)]
+            out.append(cur)
+        elif cur is not None:
+            s = line.strip()
+            if s.startswith(";"):
+                cur[1] = s.lstrip("; ").strip()
+            elif s.startswith("@"):
+                cur[2] += " | " + s
+    return out
+
+
+def run_strict_erc(rootf):
+    """Full-severity ERC; returns count of UNACCOUNTED messages (0 = pass)."""
+    r = kcli("sch", "erc", "--severity-all", "--exit-code-violations",
+             "-o", str(OUT / "root.erc.rpt"), str(rootf))
+    if not (OUT / "root.erc.rpt").exists():
+        print(f"[ROOT ERC strict] report missing (rc={r.returncode}) — FAIL")
+        return 1
+    viol = _parse_erc(OUT / "root.erc.rpt")
+    unacc, used = [], set()
+    for cls, sev, obj in viol:
+        for (acls, tok), _why in ERC_ACCEPTED.items():
+            if cls == acls and tok in obj:
+                used.add((acls, tok))
+                break
+        else:
+            unacc.append((cls, sev, obj))
+    print(f"[ROOT ERC strict] rc={r.returncode}; {len(viol)} message(s), "
+          f"{len(viol) - len(unacc)} accepted (ERC_ACCEPTED), "
+          f"{len(unacc)} unaccounted")
+    for cls, sev, obj in unacc[:25]:
+        print(f"  [{cls}] {sev}: {obj[:120]}")
+    for key in ERC_ACCEPTED.keys() - used:
+        print(f"  note: ERC_ACCEPTED entry {key} matched nothing (stale?)")
+    return len(unacc)
+
+
 def main():
     print(f"[env] KiCad share: {KICAD_SHARE}")
     print(f"[env] KiCad CLI: {KICAD_CLI}")
@@ -2339,12 +2417,9 @@ def main():
         ok = False
     else:
         print("[NETLIST gate] generator intent == kicad-cli netlist: clean")
-    r = kcli("sch", "erc", "-o", str(OUT / "root.erc.rpt"), str(rootf))
-    rpt = (open(OUT / "root.erc.rpt", encoding="utf-8").read()
-           if (OUT / "root.erc.rpt").exists() else "")
-    nd = rpt.count("dangling") + rpt.count("[pin_not_connected]")
-    npd = rpt.count("power_pin_not_driven")
-    print(f"[ROOT hierarchy] ERC rc={r.returncode}; dangling/unconn={nd}; power_pin_not_driven={npd}")
+    nerc = run_strict_erc(rootf)
+    if nerc:
+        ok = False
     kcli("sch", "export", "pdf", "-o", str(OUT / f"{PROJECT}.pdf"), str(rootf))
     print(f"[ROOT] wrote {PROJECT}.kicad_sch + .kicad_pro + full {PROJECT}.pdf")
     return 0 if ok else 2

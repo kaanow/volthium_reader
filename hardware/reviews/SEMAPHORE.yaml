@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp2-schematic
 current_branch: hw/cp2-schematic
 active_packet: hardware/reviews/cp2_schematic_review.md
@@ -10,19 +10,19 @@ iteration: 4
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-26T06:21:55Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-26T18:40:00Z
+last_updated_by: claude-designer
 
 note: >
-  AGENT-REVIEWER: iteration 3 complete; packet section 8.3 appended.
-  NEEDS CHANGES: F08 BLOCKER (strict full ERC reports 141 messages while
-  generator accepts two selected zero counters); F10 IMPORTANT (live CP1
-  battery doc retains obsolete four-pin J5 and false pin-4 RESET#); F11
-  IMPORTANT (12 V measurement cannot retire Xanbus miswire caveat against a
-  +14 V abs-max when 15 V network sources exist). F05/F06 accepted. F09 was
-  reclassified as tooling-only and resolved by the reviewer: build.py now
-  discovers the CLI executable without PATH; exact bare Windows rebuild
-  passed with all helper overrides removed.
+  DESIGNER: iter-3 findings addressed — packet §9.3. F08: strict full-ERC
+  gate (run_strict_erc, --severity-all, every message parsed, ERC_ACCEPTED
+  registry w/ rationale) — 141 -> 0 unaccounted; root causes fixed (KIPRJMOD
+  + generated build/volthium.kicad_sym library; U6 VOUT twin retyped
+  passive; 2 REF-pad labels accounted); poison-tested. F10: 3 cited sites +
+  a 4th (display J3) the new registry row caught; 5 fixtures. F11: accepted
+  in full — retirement withdrawn, miswire caveat retained, procedural
+  controls stated. F09: reviewer's CLI fix reviewed + macOS-verified.
+  All gates/audits/29-req clean. No geometry changes this iteration.
 
 
 user_pause_reasons_seen_this_run: []

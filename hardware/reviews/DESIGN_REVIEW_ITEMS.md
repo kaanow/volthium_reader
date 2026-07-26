@@ -1181,11 +1181,25 @@ third-party LYNK-II inference to **first-party Xantrex** (Xanbus System
 Installation Guide 975-0136-01-01 Table 3, on file at
 `docs/vendor/xanbus-system-installation-guide-975-0136.pdf`, sha
 0a99b0ebcb6c — full map NET_S 1/2/7, NET_C 3/6/8, CAN 4/5), field-confirmed
-pin-for-pin; (3) **the worst credible miswire is 12 V, not 24 V** — this
-site's NET_S measures 12 V (spec nominal 15 V), and both are *within* the
-TCAN332's ±14 V bus abs-max at 12 V, so the earlier "unprotectable 24 V
-miswire" caveat is retired: a power-pin-to-CAN-pin miswire at this site is
-survivable by the transceiver.
+pin-for-pin; (3) the miswire threat is bounded tighter than the earlier
+"24 V" phrasing — NET_S, not the battery bus, is what a mis-pinned cable
+puts on the CAN pins.
+
+**Iter-3 F11 correction (2026-07-26): the miswire caveat is RETAINED — the
+iter-2 "retired, survivable at 12 V" conclusion was invalid and is
+withdrawn.** Reviewer is right on all three legs: (a) the single 12 V field
+reading does not bound NET_S — the Xantrex guide's own power-source
+examples are **15 VDC** (975-0136-01-01 p.19; there is no published NET_S
+min/max, only examples), and 15 V exceeds the TCAN332's +14 V bus limit;
+(b) that limit is an **absolute maximum — a damage boundary, not an
+operating region** — so "within abs-max" was never a survivability
+argument even at 12 V; (c) transients/charging conditions are unbounded by
+one DMM sample. Standing position: **a NET_S-to-CAN-pin miswire must be
+treated as potentially fatal to U7**; the controls are procedural — the
+banked pre-attach port measurement (repeat if cabling changes), keyed
+factory cables, and the J7-at-far-end topology. If miswire survivability
+ever becomes a requirement, that is a coordinated-protection/transceiver
+selection problem (same impossibility analysis as F03), not a margin claim.
 
 **Still open:** decide final population at BOM-lock once the software
 project firms up (default: populate U7/Q5/R14/R15/C12/J6/J7 — D2 stays DNP

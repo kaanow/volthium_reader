@@ -389,7 +389,7 @@ nothing about the power-loss case. See D30.
 
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
-| J3  | 4-pin 2.54 mm header (UART debug: TX/RX/GND/RESET#) | THT | 1 | FTDI for ESP-IDF console |
+| J3  | 4-pin 2.54 mm header (UART debug: TX/RX/GND/RESET# — battery-side equivalent superseded by the keyed 2×3 ESP-Prog J5 per F01/F10, and the same deep-sleep recovery argument (DR-32) applies to this board: revisit at display CP2) | THT | 1 | FTDI for ESP-IDF console |
 | J4  | _(removed — superseded by the USB-C maintenance port, D27)_ | — | 0 | Native USB now exits J-USB (USB-C); keep one UART header (below) for bench bring-up. |
 | J5  | 2-pin 2.54 mm jumper (RS-485 term lift, R2 bypass) | THT | 1 | Same as battery-side |
 

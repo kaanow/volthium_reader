@@ -75,12 +75,14 @@ For each of CH1_PWR, CH2_PWR, CAN_PWR, EXP_PWR_EN — in that order:
 ## Stage 5 — Xanbus CAN listen (R10, DR-31)
 
 1. **Before first attach: ✅ DONE 2026-07-25 (owner field measurement,
-   live port, ref pin 8):** 1/2/7 = 12 V (NET_S — this SW4024 sources
-   12 V, spec nominal 15 V), 3/6 = 0 V (NET_C), **4 = 2.2 V (CAN_L),
-   5 = 2.4 V (CAN_H)** — recessive band, H > L under traffic averaging,
-   matching the drawn polarity and the first-party Xantrex table
-   (975-0136-01-01 Table 3, on file in docs/vendor/). Repeat only if the
-   port or cabling changes before attach.
+   live port, ref pin 8):** 1/2/7 = 12 V (NET_S — one measurement; NET_S
+   has NO published max, Xantrex examples run 15 VDC > U7's +14 V abs-max,
+   so a NET_S-to-CAN miswire stays treated as fatal to U7 — F11), 3/6 =
+   0 V (NET_C), **4 = 2.2 V (CAN_L), 5 = 2.4 V (CAN_H)** — recessive band,
+   H > L under traffic averaging, matching the drawn polarity and the
+   first-party Xantrex table (975-0136-01-01 Table 3, on file in
+   docs/vendor/). **Repeat this measurement whenever the port or cabling
+   changes** — it is the standing miswire control, not a one-time formality.
 2. CAN_PWR on, TWAI in **listen-only** (no ACK — stays a pure observer),
    250 kbps. Expect Xanbus frames. J7 shunt only if the reader is a chain end.
 3. Gate off → confirm the bus is unloaded (TCAN332 high-Z unpowered).
