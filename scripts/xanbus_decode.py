@@ -22,6 +22,7 @@ import glob
 import gzip
 import json
 import math
+import time
 from collections import defaultdict
 
 # Registers we've already identified, for nicer labels in the output.
@@ -99,43 +100,77 @@ def catalog(can):
     print()
 
 
-def _load(pattern_glob: str, cur: str):
-    files = sorted(glob.glob(pattern_glob)) + [cur]
-    for fn in files:
-        op = gzip.open if fn.endswith(".gz") else open
-        try:
-            with op(fn, "rt") as f:
-                for ln in f:
-                    try:
-                        yield json.loads(ln)
-                    except (ValueError, json.JSONDecodeError):
-                        continue
-        except OSError:
-            continue
+def _files_newest_first(pattern_glob: str, cur: str):
+    # Live file first, then rotated gz newest -> oldest, so a windowed load reads
+    # only as far back as it needs and stops early.
+    return [cur] + sorted(glob.glob(pattern_glob), reverse=True)
 
 
-def load_can():
-    """id -> sorted [(t, bytes)]."""
+def _read_rows(fn: str):
+    op = gzip.open if fn.endswith(".gz") else open
+    try:
+        with op(fn, "rt") as f:
+            for ln in f:
+                try:
+                    yield json.loads(ln)
+                except (ValueError, json.JSONDecodeError):
+                    continue
+    except OSError:
+        return
+
+
+def load_can(cutoff: float, max_frames: int):
+    """id -> sorted [(t, bytes)], newest-first, time-windowed and hard-capped.
+
+    CRITICAL: this may run on the 1 GB Pi 3B. Loading the *entire* rotated
+    capture (a day+ at ~160 fps is millions of frames) exhausts RAM, OOMs the
+    Pi, and takes telemetry down with it — this exact scenario caused a live
+    outage on 2026-07-26. So: read newest files first, keep only frames at/after
+    `cutoff`, stop once a whole file is pre-cutoff, and hard-cap at
+    `max_frames`. Returns (by_id, total_kept, capped)."""
     by_id: dict[str, list] = defaultdict(list)
-    for e in _load("data/xanbus/xanbus-*.jsonl.gz", "data/xanbus/xanbus.jsonl"):
-        try:
-            by_id[e["id"]].append((e["t"], bytes.fromhex(e["d"])))
-        except (KeyError, ValueError):
-            continue
+    total = 0
+    capped = False
+    for fn in _files_newest_first("data/xanbus/xanbus-*.jsonl.gz", "data/xanbus/xanbus.jsonl"):
+        kept_here = 0
+        for e in _read_rows(fn):
+            t = e.get("t")
+            if t is None or t < cutoff:
+                continue
+            try:
+                by_id[e["id"]].append((t, bytes.fromhex(e["d"])))
+            except (KeyError, ValueError):
+                continue
+            total += 1
+            kept_here += 1
+            if total >= max_frames:
+                capped = True
+                break
+        if capped:
+            break
+        if kept_here == 0 and total > 0:
+            break            # newest-first: an all-old file means the rest are older
     for v in by_id.values():
         v.sort()
-    return by_id
+    return by_id, total, capped
 
 
-def load_modbus():
-    """(slave, reg) -> sorted [(t, value_u16)] for registers that appear."""
+def load_modbus(cutoff: float):
+    """(slave, reg) -> sorted [(t, value)] within the window. Modbus is light
+    (~1 poll/10 s), so no frame cap is needed — but honour the same time cutoff
+    so it aligns with the CAN side."""
     series: dict[tuple, list] = defaultdict(list)
-    for e in _load("data/modbus/modbus-*.jsonl.gz", "data/modbus/modbus.jsonl"):
-        t, slave, regs = e.get("t"), e.get("slave"), e.get("regs", {})
-        if t is None:
-            continue
-        for r, v in regs.items():
-            series[(slave, int(r))].append((t, v))
+    for fn in _files_newest_first("data/modbus/modbus-*.jsonl.gz", "data/modbus/modbus.jsonl"):
+        kept_here = 0
+        for e in _read_rows(fn):
+            t, slave, regs = e.get("t"), e.get("slave"), e.get("regs", {})
+            if t is None or t < cutoff:
+                continue
+            for r, v in regs.items():
+                series[(slave, int(r))].append((t, v))
+            kept_here += 1
+        if kept_here == 0 and series:
+            break
     for v in series.values():
         v.sort()
     return series
@@ -235,12 +270,22 @@ def main() -> int:
     ap.add_argument("--min-r", type=float, default=0.95)
     ap.add_argument("--max-lag", type=float, default=2.0)
     ap.add_argument("--min-samples", type=int, default=20)
+    ap.add_argument("--hours", type=float, default=6.0,
+                    help="only load the last N hours of capture (default 6)")
+    ap.add_argument("--max-frames", type=int, default=300_000,
+                    help="hard cap on CAN frames loaded — protects the 1 GB Pi "
+                         "from OOM (default 300k ≈ 30 min at 160 fps). Raise it "
+                         "only when running OFF the Pi.")
     args = ap.parse_args()
 
-    can = load_can()
-    modbus = load_modbus()
-    print(f"loaded: {sum(len(v) for v in can.values())} CAN frames across {len(can)} IDs; "
-          f"{len(modbus)} modbus register-series\n")
+    cutoff = time.time() - args.hours * 3600
+    can, total, capped = load_can(cutoff, args.max_frames)
+    modbus = load_modbus(cutoff)
+    note = (f", CAPPED at {args.max_frames} frames — run off-Pi or lower --hours "
+            f"for wider coverage" if capped else "")
+    print(f"loaded: {total} CAN frames across {len(can)} IDs; "
+          f"{len(modbus)} modbus register-series  "
+          f"(window: last {args.hours:g}h{note})\n")
 
     catalog(can)
     channels = build_channels(can)
