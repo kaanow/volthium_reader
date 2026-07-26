@@ -1,0 +1,15 @@
+[Unit]
+Description=Volthium Insight Home Modbus/TCP poller
+After=network.target
+
+[Service]
+Type=simple
+User=claude
+Group=users
+WorkingDirectory=/srv/volthium_reader
+ExecStart=/srv/volthium_reader/.venv/bin/python scripts/modbus_poll.py
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target

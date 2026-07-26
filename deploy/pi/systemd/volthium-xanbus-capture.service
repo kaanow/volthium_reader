@@ -1,0 +1,19 @@
+[Unit]
+Description=Volthium Xanbus (CAN) raw capture
+After=network.target
+
+[Service]
+Type=simple
+# Runs as root: brings up can0 and opens a raw AF_CAN socket (CAP_NET_RAW).
+WorkingDirectory=/srv/volthium_reader
+# Bring up can0 listen-only @ 250 kbit/s (Xanbus). '-' on the down line ignores
+# "not up yet"; the reconfigure needs the link down first.
+ExecStartPre=-/sbin/ip link set can0 down
+ExecStartPre=/sbin/ip link set can0 type can bitrate 250000 listen-only on
+ExecStartPre=/sbin/ip link set can0 up
+ExecStart=/srv/volthium_reader/.venv/bin/python scripts/can_capture.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
