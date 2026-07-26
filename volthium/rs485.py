@@ -91,6 +91,12 @@ def decode_sample(rt: Optional[bytes], cap: Optional[bytes]) -> Optional[dict]:
         "cell_voltages": cells or None,
         "delta_voltage": round(max(cells) - min(cells), 3) if cells else None,
     }
+    # Single-frame variants (our Volthium): the capacity data is embedded in the
+    # RT frame tail, not a separate CAP response. Mirror ej_bms exactly, which on
+    # a 0x45-length RT sets raw_data[CAP] = bytes(7) + rt[62:] and never sends the
+    # CAP query (the BMS doesn't answer Cmd 0x10 on the wire — returns 0 bytes).
+    if cap is None and len(rt) == 0x45:
+        cap = bytes(7) + rt[62:]
     if cap is not None and len(cap) >= 9:
         sample["cycle_charge"] = _u(cap, 7, 2) / 10.0
     return sample
@@ -104,8 +110,10 @@ def read_battery(ser: serial.Serial, address: str, name: str) -> Optional[Batter
     rt = read_frame(ser, QUERY_RT)
     if rt is None:
         return None
-    time.sleep(0.1)                                  # vendor: ≥ ~1 s between queries; RT then CAP
-    cap = read_frame(ser, QUERY_CAP)
+    cap = None
+    if len(rt) != 0x45:                              # multi-frame variant: fetch CAP separately
+        time.sleep(0.1)                              # vendor: ≥ ~1 s between queries; RT then CAP
+        cap = read_frame(ser, QUERY_CAP)             # single-frame BMS synthesizes CAP in decode
     sample = decode_sample(rt, cap)
     if sample is None:
         return None
