@@ -9,6 +9,7 @@
     color-scheme: dark;
     --bg: #0e1116; --panel: #161b22; --ink: #e6edf3; --dim: #8b949e;
     --grn: #3fb950; --ylw: #d29922; --red: #f85149; --blu: #58a6ff;
+    --vio: #bc8cff;
   }
   body { font-family: -apple-system, BlinkMacSystemFont, sans-serif;
          background: var(--bg); color: var(--ink); margin: 0; padding: 24px;
@@ -76,6 +77,12 @@
   table.batt td, table.batt th { padding: 6px 4px; text-align: right; }
   table.batt th { color: var(--dim); font-weight: 500; font-size: 12px; }
   table.batt td:first-child, table.batt th:first-child { text-align: left; }
+  /* One visual language across both pages: battery A is always blue, B always
+     violet (same as every history chart/card). Carry the identity on the row
+     label and the cell-voltage column groups; leave data cells neutral so the
+     numbers stay easy to read. */
+  .bat-a { color: var(--blu); font-weight: 600; }
+  .bat-b { color: var(--vio); font-weight: 600; }
   .problem-pill { font-size: 10px; padding: 2px 6px; border-radius: 6px;
                   font-family: ui-monospace, monospace;
                   background: rgba(248,81,73,.12); color: var(--red); }
@@ -159,14 +166,14 @@
           <tr><th>id</th><th>SOC</th><th>V</th><th>A</th><th>T</th><th title="Spread between the highest and lowest cell voltage in this battery's 4-cell stack (max − min). ~5–20 mV under load is healthy; sustained 50 mV+ indicates cell imbalance and is an early aging signal.">ΔmV</th><th>prob</th></tr>
         </thead>
         <tbody>
-          <tr id="rowA"><td>A</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-          <tr id="rowB"><td>B</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr id="rowA"><td class="bat-a">A</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr id="rowB"><td class="bat-b">B</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
         </tbody>
       </table>
       <div class="label" style="margin-top:18px">cell voltages</div>
       <table class="batt">
         <thead>
-          <tr><th>cell</th><th>A1</th><th>A2</th><th>A3</th><th>A4</th><th>B1</th><th>B2</th><th>B3</th><th>B4</th></tr>
+          <tr><th>cell</th><th class="bat-a">A1</th><th class="bat-a">A2</th><th class="bat-a">A3</th><th class="bat-a">A4</th><th class="bat-b">B1</th><th class="bat-b">B2</th><th class="bat-b">B3</th><th class="bat-b">B4</th></tr>
         </thead>
         <tbody>
           <tr id="cellRow"><td>V</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
@@ -442,7 +449,9 @@ async function tick() {
         return null;
       })
       .filter(v => v != null);
-    const socRange = spark("spark-soc", socs, false, "var(--blu)",
+    // Neutral ink, not blue: this line is the WEAKEST battery's SOC, which
+    // flips between A and B — so it shouldn't wear either battery's colour.
+    const socRange = spark("spark-soc", socs, false, "var(--ink)",
                            { unit: "%" });
     // Range chips in the section labels — quick "how zoomed am I" cue.
     const fmtRange = (r, unit) => {
