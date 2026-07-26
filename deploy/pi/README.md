@@ -28,6 +28,32 @@ It never touches network, ZeroTier, or boot config.
 | `systemd/volthium-events-uploader.service` | sealed event segments → Railway (drains `data/`, not tmpfs) |
 | `udev/50-volthium-ub500-usb-power.rules` | **Disables USB autosuspend for the UB500** — the root-cause fix for the FM-9 firmware hangs |
 
+## Transport: RS485 primary, BLE dormant fallback (2026-07-26)
+
+Telemetry now comes over **wired RS485** (`volthium-rs485-logger.service`),
+which sidesteps the whole BLE dormancy/wedge failure class. The BLE logger
+(`volthium-logger.service`) is **disabled but intact** — a latent fallback, not
+deleted. `Conflicts=volthium-logger.service` on the RS485 unit guarantees the
+two never run at once, so the flip is a clean two-liner.
+
+**If an RS485 adapter dies — fall back to BLE:**
+```
+sudo systemctl disable --now volthium-rs485-logger
+sudo systemctl enable  --now volthium-logger
+```
+
+**Back to the wired primary:**
+```
+sudo systemctl disable --now volthium-logger
+sudo systemctl enable  --now volthium-rs485-logger
+```
+
+Both write the identical `pack.csv` → the same uploader → Railway, so the flip
+is transparent downstream (the only visible tell is `read_ok`'s `transport`
+field flipping between `rs485` and `ble`, which `scripts/status_check.py` now
+surfaces). Also running: `volthium-xanbus-capture` and `volthium-modbus-poll`
+(Insight Home decode — see `docs/xanbus-decode.md`).
+
 ## tmpfs retirement (2026-07-13)
 
 The `/run/volthium` tmpfs existed for the old SU16G SD card's write-rate
