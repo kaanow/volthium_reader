@@ -343,30 +343,37 @@ async function loadStats() {
   $("since-note").textContent = "— monitored since "
     + new Date(P(s.first_ts)).toLocaleDateString([], {month: "long", day: "numeric"})
     + " (" + Math.floor(days) + " days, " + Number(s.samples).toLocaleString() + " samples)";
+  // Lifetime totals + extremes. This is a "for the record" panel — these are
+  // facts and achievements, not live alarms, so values render in clean ink and
+  // colour is reserved for meaning (the A/B split below), never for warning.
   const cards = [
     ["energy drawn", fmtWh(s.wh_out), "lifetime consumption", null],
     ["energy charged", fmtWh(s.wh_in), "lifetime intake", null],
-    ["deepest discharge", s.deepest_soc != null ? Math.round(s.deepest_soc) + "%" : "—",
-      dTs(s.deepest_soc_ts), s.deepest_soc != null && s.deepest_soc < 20 ? YLW : null],
     ["peak load", s.peak_out_w != null ? Math.round(-s.peak_out_w) + " W" : "—", dTs(s.peak_out_ts), null],
     ["peak charge", s.peak_in_w != null ? Math.round(s.peak_in_w) + " W" : "—", dTs(s.peak_in_ts), null],
     ["coldest cell", s.coldest_c != null ? Math.round(s.coldest_c) + " °C" : "—", dTs(s.coldest_ts), null],
     ["hottest cell", s.hottest_c != null ? Math.round(s.hottest_c) + " °C" : "—", dTs(s.hottest_ts), null],
     ["telemetry uptime", avail != null ? avail.toFixed(1) + "%" : "—", "of elapsed time", null],
   ];
-  // Per-battery records — only where A and B genuinely differ. Capacity is
-  // the headline: the two BMSes report different effective Ah, the likely
-  // root of the persistent A>B imbalance.
+  // Per-battery records — rendered in the page's own A/B palette (A = blue,
+  // B = violet, same as every chart below) so the split reads at a glance.
+  // Capacity is the headline: MAX(remaining_ah) is each BMS's own effective
+  // capacity at 100%, and the two differ — the likely root of the persistent
+  // A>B imbalance. Stated as fact (spread in the subtitle), not flagged as a
+  // fault, because it's a property of the batteries, not an incident.
   const pb = s.per_battery;
-  const AB = (a, b, u) => (a != null ? a : "—") + " / " + (b != null ? b : "—") + (u || "");
+  const AB = (a, b, u) =>
+    `<span style="color:${BLU}">${a != null ? a : "—"}</span>`
+    + ` <span style="color:var(--dim)">/</span> `
+    + `<span style="color:${VIO}">${b != null ? b : "—"}</span>` + (u || "");
   if (pb) {
     const capGap = (pb.a.capacity_ah != null && pb.b.capacity_ah != null)
-      ? Math.abs(pb.a.capacity_ah - pb.b.capacity_ah) : 0;
+      ? Math.round(Math.abs(pb.a.capacity_ah - pb.b.capacity_ah)) : null;
     cards.push(
       ["capacity  A / B",
         AB(pb.a.capacity_ah != null ? Math.round(pb.a.capacity_ah) : null,
            pb.b.capacity_ah != null ? Math.round(pb.b.capacity_ah) : null, " Ah"),
-        "effective, per BMS", capGap >= 10 ? YLW : null],
+        capGap ? `effective per BMS · ${capGap} Ah spread` : "effective, per BMS", null],
       ["deepest SOC  A / B",
         AB(pb.a.soc_min != null ? Math.round(pb.a.soc_min) : null,
            pb.b.soc_min != null ? Math.round(pb.b.soc_min) : null, "%"),
