@@ -13,7 +13,7 @@ Philosophy (opposite of the retired v1 graphical netlist):
 First slice: battery-side input protection. Run: ../../.venv/bin/python build.py
 """
 from __future__ import annotations
-import copy as _copy, math, os, re, subprocess, sys, uuid
+import copy as _copy, math, os, re, shutil, subprocess, sys, uuid
 from pathlib import Path
 
 from kiutils.symbol import SymbolLib
@@ -56,6 +56,46 @@ def _find_kicad_share():
 
 KICAD_SHARE = _find_kicad_share()
 STOCK = os.environ.get("KICAD10_SYMBOL_DIR", f"{KICAD_SHARE}/symbols")
+
+
+def _find_kicad_cli():
+    """Resolve kicad-cli without requiring an installer-modified PATH."""
+    override = os.environ.get("KICAD_CLI")
+    if override:
+        cli = Path(override).expanduser()
+        if cli.is_file():
+            return cli.resolve()
+        raise SystemExit(f"[env] KICAD_CLI does not name a file: {cli}")
+
+    exe = "kicad-cli.exe" if os.name == "nt" else "kicad-cli"
+    share = Path(KICAD_SHARE)
+    cands = [shutil.which("kicad-cli")]
+
+    # Default layouts place share/kicad and bin under one install root.
+    if len(share.parents) >= 2:
+        cands.append(share.parents[1] / "bin" / exe)
+    if sys.platform == "darwin":
+        cands.append(share.parent / "MacOS" / exe)
+
+    lad = os.environ.get("LOCALAPPDATA")
+    pf = os.environ.get("ProgramFiles")
+    pfx86 = os.environ.get("ProgramFiles(x86)")
+    cands.extend([
+        Path(lad) / "Programs/KiCad/10.0/bin" / exe if lad else None,
+        Path(pf) / "KiCad/10.0/bin" / exe if pf else None,
+        Path(pfx86) / "KiCad/10.0/bin" / exe if pfx86 else None,
+        Path("/Applications/KiCad/KiCad.app/Contents/MacOS") / exe,
+        Path("/usr/bin") / exe,
+    ])
+    for candidate in cands:
+        if candidate and Path(candidate).is_file():
+            return Path(candidate).resolve()
+    raise SystemExit(
+        "[env] kicad-cli executable not found - set KICAD_CLI to its full path"
+    )
+
+
+KICAD_CLI = _find_kicad_cli()
 SYMBOLS = {
     # name -> (lib file, entry name in that lib)
     # -- project lib (generic passives + custom parts) --
@@ -1839,7 +1879,8 @@ def write_project():
         encoding="utf-8")
 
 
-def kcli(*a): return subprocess.run(["kicad-cli", *a], capture_output=True, text=True)
+def kcli(*a):
+    return subprocess.run([str(KICAD_CLI), *a], capture_output=True, text=True)
 
 MM = 2.8346   # schematic mm -> PDF points
 
@@ -2272,6 +2313,8 @@ def check_exact_parts(rootf):
 
 
 def main():
+    print(f"[env] KiCad share: {KICAD_SHARE}")
+    print(f"[env] KiCad CLI: {KICAD_CLI}")
     OUT.mkdir(parents=True, exist_ok=True)
     root_uuid = _uuid()                     # generated FIRST: children need it
     defs = [(name, title, _uuid()) for (name, title, _) in SHEETS]

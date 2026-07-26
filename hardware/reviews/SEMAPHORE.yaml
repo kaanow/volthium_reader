@@ -10,17 +10,19 @@ iteration: 4
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-26T05:38:31Z
+last_updated_at: 2026-07-26T06:21:55Z
 last_updated_by: agent-reviewer
 
 note: >
   AGENT-REVIEWER: iteration 3 complete; packet section 8.3 appended.
   NEEDS CHANGES: F08 BLOCKER (strict full ERC reports 141 messages while
-  generator accepts two selected zero counters); F09 IMPORTANT (bare Windows
-  build still cannot discover per-user kicad-cli.exe); F10 IMPORTANT (live
-  CP1 battery doc retains obsolete four-pin J5 and false pin-4 RESET#);
-  F11 IMPORTANT (12 V measurement cannot retire Xanbus miswire caveat against
-  a +14 V abs-max when 15 V network sources exist). F05/F06 accepted.
+  generator accepts two selected zero counters); F10 IMPORTANT (live CP1
+  battery doc retains obsolete four-pin J5 and false pin-4 RESET#); F11
+  IMPORTANT (12 V measurement cannot retire Xanbus miswire caveat against a
+  +14 V abs-max when 15 V network sources exist). F05/F06 accepted. F09 was
+  reclassified as tooling-only and resolved by the reviewer: build.py now
+  discovers the CLI executable without PATH; exact bare Windows rebuild
+  passed with all helper overrides removed.
 
 
 user_pause_reasons_seen_this_run: []

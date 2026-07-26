@@ -5,11 +5,15 @@
 - Bare Windows `doc_consistency_check.py` passed: 32 manifest parts and 40
   `_verify_` BOM cells checked, clean. Bare `check_requirements.py` returned
   29/29 PASS.
-- The exact documented bare Windows build got through KiCad data discovery
-  and all prior UTF-8 failure sites, then failed at `build.py:1842` because
-  it invokes literal `kicad-cli` and the per-user KiCad installation is not
-  on PATH. `bare_build.combined.txt` and `bare_build.exitcode.txt` preserve
-  that run.
+- The exact documented bare Windows build initially got through KiCad data
+  discovery and all prior UTF-8 failure sites, then failed because it invoked
+  literal `kicad-cli` and the per-user KiCad installation was not on PATH.
+  `bare_build.combined.txt` and `bare_build.exitcode.txt` preserve that run.
+- The reviewer implemented executable discovery in `build.py`, then removed
+  every KiCad/Python helper override, stripped KiCad from PATH, and re-ran the
+  exact command. It auto-resolved the per-user KiCad 10.0.5 CLI and rebuilt
+  all nine pages with exit 0. See `bare_build_resolved.txt` and
+  `bare_build_resolved.exitcode.txt`.
 - The validated Windows launcher from `kicad-cli` skill v1.0.1 resolved
   KiCad 10.0.5 under `%LOCALAPPDATA%`, then the committed generator rebuilt
   all sheets successfully. All eight readability gates, intent-versus-CLI
@@ -29,9 +33,9 @@
 - F06 is resolved. The requirements runner now proves
   J5.3 same-net MOD1.37 and J5.5 same-net MOD1.36. An in-memory J5.3-to-J5.4
   poison produced exactly one R9 failure and exit 1.
-- F07 is only partly resolved. Per-user share-root discovery and explicit
-  UTF-8 handling work, but bare executable discovery does not; see the packet
-  finding.
+- F07/F09 is resolved. Per-user share-root discovery, explicit UTF-8 handling,
+  and bare executable discovery all pass on Windows without helper variables
+  or an installer-modified PATH.
 
 ## G8 wiring read-back
 

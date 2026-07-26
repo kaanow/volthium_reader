@@ -17,6 +17,8 @@
   - KiCad data roots are auto-discovered per OS (F04); non-standard installs:
     set `KICAD_SHARE` to the dir containing `symbols/` + `footprints/`
     (or `KICAD10_SYMBOL_DIR` / `KICAD10_FOOTPRINT_DIR` individually).
+    The CLI executable is independently auto-discovered; set `KICAD_CLI`
+    to its full path only for a non-standard executable location.
   — gate-failed sheets are never written, so unbuilt artifacts can be stale.
 - Artifacts (after rebuild): `build/volthium_reader.pdf` (9 pages),
   `build/volthium_reader.net` (exported netlist = connectivity ground truth),
@@ -386,11 +388,12 @@ overrides.
 
 ### Review evidence
 
-The committed generator was rebuilt before review. The exact bare Windows
-command now passes KiCad share discovery and all prior UTF-8 failure sites,
-but still fails when `build.py` tries to launch literal `kicad-cli`; see F09.
-The independently validated Windows launcher resolved KiCad 10.0.5 from the
-per-user installation and the build then passed all eight readability gates,
+The committed generator was rebuilt before review. It initially passed KiCad
+share discovery and all prior UTF-8 failure sites but failed when `build.py`
+tried to launch literal `kicad-cli`. The reviewer implemented and tested F09's
+repository fix in a follow-up: with KiCad absent from PATH and all KiCad/Python
+helper overrides removed, the exact bare Windows command now resolves KiCad
+10.0.5 from the per-user installation and passes all eight readability gates,
 intent-versus-exported-netlist comparison, PNG exports, and the generator's
 two reported ERC counters.
 
@@ -453,26 +456,33 @@ rationale. Run ERC with `--severity-all --exit-code-violations`, parse every
 class/severity, and require zero unaccounted messages. Re-run the strict
 smoke from a clean build directory.
 
-### Finding F09 — IMPORTANT — `build.py:1842`, bare Windows build
+### Finding F09 — NIT (RESOLVED BY REVIEWER) — `build.py:59-98,1882-1884`
 
-**Issue**: F07 is only partly resolved. Per-user KiCad data-root discovery
-and explicit UTF-8 handling now work, but the documented bare Windows build
-still fails because `kcli()` invokes literal `kicad-cli`. This standard
-per-user installation's `bin` directory is not on the process, user, or
-machine PATH.
+**Original issue**: F07's per-user data-root discovery and explicit UTF-8
+handling worked, but the documented bare Windows build still failed because
+`kcli()` invoked literal `kicad-cli`. This standard per-user installation's
+`bin` directory is not on the process, user, or machine PATH. This was a
+repository-portability defect, not a schematic defect.
 
-**Evidence**:
+**Original evidence**:
 `visual_inspections/cp2-schematic/iter3/reviewer/kicad_cli/bare_build.combined.txt`
 ends in `FileNotFoundError: [WinError 2]` at `build.py:1842`.
-`bare_build.exitcode.txt` is 1. The reviewer skill's validated launcher
-resolves the same installed `kicad-cli.exe`; with that environment the full
-build succeeds. This proves KiCad access is functional and isolates the
-remaining defect to repository executable discovery.
+`bare_build.exitcode.txt` is 1.
 
-**Suggested fix**: discover `kicad-cli.exe` alongside the discovered share
-root (with an explicit `KICAD_CLI` override), invoke the resolved absolute
-path, and emit a clear preflight error when absent. Re-test exactly the bare
-packet command with KiCad's bin directory absent from PATH.
+**Resolution (agent-reviewer, Windows acceptance tested 2026-07-25)**:
+`build.py` now honors a strict full-path `KICAD_CLI` override, falls back to
+PATH, derives the sibling `bin/kicad-cli[.exe]` from the already-discovered
+share root, and checks the standard Windows/macOS/Linux locations. Every CLI
+call uses the resolved absolute path and startup prints both resolved paths.
+An invalid override fails immediately with the bad path in the message.
+
+The acceptance run removed `KICAD_CLI`, `KICAD_SHARE`,
+`KICAD10_SYMBOL_DIR`, `KICAD10_FOOTPRINT_DIR`, and `PYTHONUTF8`, stripped
+all KiCad directories from PATH, confirmed `where kicad-cli` found nothing,
+then ran the exact packet command. It exited 0 and rebuilt all nine pages in
+35 seconds. Evidence:
+`visual_inspections/cp2-schematic/iter3/reviewer/kicad_cli/bare_build_resolved.txt`
+and `bare_build_resolved.exitcode.txt`. F09 is closed and does not gate CP2.
 
 ### Finding F10 — IMPORTANT — `cp1_battery_side.md:549,581,831`
 
@@ -513,7 +523,7 @@ transceiver survivability from the present evidence; if miswire
 survivability is a requirement, select a coordinated protection/transceiver
 strategy or obtain the missing network-supply maximum specification.
 
-**REVIEW COMPLETE**: NEEDS CHANGES — 1 blocker, 3 important. (See findings F08, F09, F10, F11.)
+**REVIEW COMPLETE**: NEEDS CHANGES — 1 blocker, 2 important. (See findings F08, F10, F11; F09 is resolved.)
 
 ## 9 Designer responses (iteration 1) — 2026-07-24
 
