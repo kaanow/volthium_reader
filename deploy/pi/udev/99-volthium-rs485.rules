@@ -1,0 +1,14 @@
+# Volthium wired adapters. Install to /etc/udev/rules.d/, then:
+#   sudo udevadm control --reload && sudo udevadm trigger
+#
+# Stable names for the two battery RS-485 adapters by USB *port path* — ttyUSB
+# numbering is not stable across reboot/replug, so the RS-485 logger targets
+# these symlinks (/dev/ttyRS485-a = battery A on port 1-1.3.4, -b = B on 1-1.3.3).
+SUBSYSTEM=="tty", KERNELS=="1-1.3.3:1.0", SYMLINK+="ttyRS485-b"
+SUBSYSTEM=="tty", KERNELS=="1-1.3.4:1.0", SYMLINK+="ttyRS485-a"
+
+# Keep the wired USB adapters awake (the FM-9 autosuspend-drop lesson): the two
+# PL2303 battery adapters, the CH340, and the candleLight CAN adapter.
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="067b", ATTR{idProduct}=="23a3", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="1a86", ATTR{idProduct}=="7523", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="1d50", ATTR{idProduct}=="606f", TEST=="power/control", ATTR{power/control}="on"

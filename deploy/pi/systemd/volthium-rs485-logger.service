@@ -1,0 +1,23 @@
+[Unit]
+Description=Volthium battery RS-485 logger (writes data/pack.csv over the wire)
+# No bluetooth dependency — this is the wired path. Mutually exclusive with
+# volthium-logger.service (both write data/pack.csv); run exactly one.
+Conflicts=volthium-logger.service
+After=network.target
+
+[Service]
+Type=simple
+User=claude
+Group=users
+SupplementaryGroups=dialout
+WorkingDirectory=/srv/volthium_reader
+# Events go to the same log the BLE logger used, so the events uploader is unchanged.
+Environment=VOLTHIUM_BLE_EVENT_LOG=/srv/volthium_reader/data/ble_events.jsonl
+ExecStart=/srv/volthium_reader/.venv/bin/python scripts/rs485_log.py \
+  --a-port /dev/ttyRS485-a --b-port /dev/ttyRS485-b \
+  --interval 5 --csv data/pack.csv --log data/pack.log
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
