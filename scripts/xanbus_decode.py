@@ -141,6 +141,48 @@ def load_modbus():
     return series
 
 
+def _reassemble(seq):
+    """NMEA2000 fast-packet reassembly for one CAN id's time-ordered frames.
+
+    Frame byte0 = (sequence_counter << 5) | frame_index. frame_index 0 carries
+    the total size in byte1 then 6 data bytes; later frames carry 7 data bytes.
+    Returns [(t_of_frame0, full_data_bytes)] for each completed message; drops
+    messages with a missing/out-of-order frame."""
+    msgs = []
+    cur = None            # (t, bytearray)
+    counter = expected = size = 0
+    for t, p in seq:
+        if not p:
+            continue
+        idx, ctr = p[0] & 0x1F, p[0] >> 5
+        if idx == 0:
+            size = p[1]
+            cur = (t, bytearray(p[2:]))
+            counter, expected = ctr, 1
+        elif cur is not None and ctr == counter and idx == expected:
+            cur[1].extend(p[1:])
+            expected += 1
+        else:
+            cur = None
+            continue
+        if cur is not None and len(cur[1]) >= size:
+            msgs.append((cur[0], bytes(cur[1][:size])))
+            cur = None
+    return msgs
+
+
+def build_channels(can):
+    """Uniform correlation inputs: single-frame ids raw, fast-packet ids reassembled."""
+    channels = {}
+    for cid, seq in can.items():
+        msgs = _reassemble(seq)
+        if msgs and max((len(m) for _, m in msgs), default=0) > 8:
+            channels[cid] = msgs          # multi-frame PGN -> full reassembled buffer
+        else:
+            channels[cid] = seq           # single-frame PGN -> raw payloads
+    return channels
+
+
 def _nearest_before(seq, t, max_lag):
     """Latest (t', payload) with t' <= t and t - t' <= max_lag, via a moving cursor."""
     lo, hi = 0, len(seq)
@@ -201,6 +243,7 @@ def main() -> int:
           f"{len(modbus)} modbus register-series\n")
 
     catalog(can)
+    channels = build_channels(can)
 
     # Only bother with Modbus registers that actually move.
     varying = {}
@@ -214,7 +257,7 @@ def main() -> int:
     for (slave, reg), mseq in varying.items():
         mvals = [v for _, v in mseq]
         best = None
-        for cid, cseq in can.items():
+        for cid, cseq in channels.items():
             # align: modbus value at time t vs latest CAN payload for this id <= t
             xs, ys, payload_len = [], [], 0
             aligned = []
