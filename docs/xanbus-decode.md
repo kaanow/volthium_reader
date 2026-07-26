@@ -24,19 +24,22 @@ Priority 6 for most; 127005 is priority 2. Several are NMEA2000 **fast-packet**
 (multi-frame): 126998, 127166, 127172. Highest-rate: 126998 (~48/s), 127005
 (~20/s), 127173 (~16/s), 127172 (~12/s each node).
 
-## Confirmed field (by eye, pending correlation confirmation)
+## Confirmed field — PGN 127172 DC status (reassembly proven on live data)
 
-**PGN 127172 = per-node DC status; DC bus voltage at reassembled data offset 2,
-u16 little-endian ×0.001 V.**
+**PGN 127172 = per-node DC status. DC bus voltage = u16 little-endian ×0.001 V
+at reassembled offset 2.** Verified after fast-packet reassembly:
 
-Fast-packet frame 0 for 127172 src 0: `20 24 03 03 70 67 00 00`
-- `20` = fast-packet sequence/frame counter
-- `24` = total payload size (36 bytes)
-- data[0:6] = `03 03 70 67 00 00` → data offset 2–3 = `0x6770` LE = 26480 → **26.48 V**
+    127172 src 0: 0303 8467 0000 18fcffff 1a000000 ffffffff00ffff64...  -> 0x6784 = 26.500 V
+    127172 src 1: 0303 c067 0000 00000000 00000000 ffffffff00ffff64...  -> 0x67c0 = 26.560 V
 
-Node 1 (src 1) reads `0x67c0` = 26.56 V. Both track the ~26.5 V bus that Modbus
-SW-inverter reg 79 reports (26.51 V). This is the inverter and MPPT each
-broadcasting their measured DC bus voltage.
+Both track the ~26.5 V bus that Modbus SW-inverter reg 79 reports (26.51 V) —
+the inverter (src 0) and MPPT (src 1) each broadcast their measured DC voltage.
+
+**Lead (unconfirmed):** in src 0's buffer, offset 6 = `18 fc ff ff` = s32 LE
+−1000, plausibly DC current (×0.001 → −1.0 A, or a per-node current); offset 10
+= `1a 00 00 00` = 26. src 1's buffer is all-zero there (MPPT idle at night), which
+is consistent with these being live current/power fields. Correlation across
+daytime load swings will confirm the scale and sign.
 
 ## Key limitation — fast-packet reassembly needed before correlating multi-frame PGNs
 
