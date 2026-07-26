@@ -27,6 +27,77 @@ from collections import defaultdict
 # Registers we've already identified, for nicer labels in the output.
 KNOWN = {(90, 79): "SW DC bus voltage (x0.001)", (1, 157): "gateway DC voltage (x0.001)"}
 
+# Standard NMEA2000 PGNs relevant to a Conext power system. Schneider also uses
+# manufacturer-proprietary PGNs (126720 / 61184) that won't be named here — those
+# get decoded by correlation against Modbus. Names are advisory labels only.
+KNOWN_PGN = {
+    59904: "ISO Request", 60928: "ISO Address Claim", 126720: "Manufacturer Proprietary",
+    126992: "System Time", 126996: "Product Information", 126998: "Config Information",
+    127500: "Load Controller Conn State", 127501: "Binary Status Report",
+    127502: "Switch Bank Control", 127505: "Fluid Level", 127506: "DC Detailed Status",
+    127507: "Charger Status", 127508: "Battery Status", 127509: "Inverter Status",
+    127510: "Charger Config", 127511: "Inverter Config", 127513: "Battery Config",
+    61184: "Manufacturer Proprietary (PDU1)", 65280: "Manufacturer Proprietary (PDU2)",
+    130306: "Wind Data",
+}
+
+
+def _parse_id(arb: int):
+    """29-bit J1939/NMEA2000 arbitration id -> (priority, pgn, src, dest)."""
+    priority = (arb >> 26) & 0x7
+    src = arb & 0xFF
+    pf = (arb >> 16) & 0xFF
+    ps = (arb >> 8) & 0xFF
+    dp = (arb >> 24) & 0x3            # data page + reserved bit
+    if pf < 240:                     # PDU1: ps is the destination address
+        pgn = (dp << 16) | (pf << 8)
+        dest = ps
+    else:                            # PDU2: broadcast, ps folds into the pgn
+        pgn = (dp << 16) | (pf << 8) | ps
+        dest = 0xFF
+    return priority, pgn, src, dest
+
+
+def catalog(can):
+    """Print the bus map: distinct PGN/source, frame rate, fast-packet, payload."""
+    groups = {}
+    span = [None, None]
+    for cid, seq in can.items():
+        try:
+            arb = int(cid, 16)
+        except ValueError:
+            continue
+        pri, pgn, src, dest = _parse_id(arb)
+        g = groups.setdefault((pgn, src), {"n": 0, "pri": pri, "dest": dest, "ids": set(),
+                                           "samples": [], "fp": False, "t0": None, "t1": None})
+        g["n"] += len(seq)
+        g["ids"].add(cid)
+        for t, payload in seq:
+            g["t0"] = t if g["t0"] is None else min(g["t0"], t)
+            g["t1"] = t if g["t1"] is None else max(g["t1"], t)
+            span[0] = t if span[0] is None else min(span[0], t)
+            span[1] = t if span[1] is None else max(span[1], t)
+            if payload and payload[0] < 0x20 and len(payload) == 8:
+                pass  # heuristic only; leave fast-packet flag to the sequence check below
+            if len(g["samples"]) < 3:
+                g["samples"].append(payload.hex())
+        # fast-packet: a PGN whose first data byte increments 0x00,0x01,... across frames
+        firsts = [p[0] for _, p in seq[:6] if p]
+        if firsts and firsts == list(range(firsts[0], firsts[0] + len(firsts))):
+            g["fp"] = True
+
+    dur = (span[1] - span[0]) if span[0] is not None else 0.0
+    print(f"=== Xanbus bus map ({len(groups)} PGN/source groups over {dur/60:.1f} min) ===")
+    print(f"{'PGN':>7} {'src':>3} {'dest':>4} {'pri':>3} {'rate/s':>7}  fp  name / sample payloads")
+    for (pgn, src), g in sorted(groups.items(), key=lambda kv: -kv[1]["n"]):
+        rate = g["n"] / dur if dur > 0 else 0.0
+        name = KNOWN_PGN.get(pgn, "proprietary/unknown")
+        print(f"{pgn:>7} {src:>3} {'0x%02X'%g['dest']:>4} {g['pri']:>3} {rate:>7.2f}  "
+              f"{'Y' if g['fp'] else ' '}   {name}")
+        for s in g["samples"]:
+            print(f"{'':>30}   {s}")
+    print()
+
 
 def _load(pattern_glob: str, cur: str):
     files = sorted(glob.glob(pattern_glob)) + [cur]
@@ -127,7 +198,9 @@ def main() -> int:
     can = load_can()
     modbus = load_modbus()
     print(f"loaded: {sum(len(v) for v in can.values())} CAN frames across {len(can)} IDs; "
-          f"{len(modbus)} modbus register-series")
+          f"{len(modbus)} modbus register-series\n")
+
+    catalog(can)
 
     # Only bother with Modbus registers that actually move.
     varying = {}
