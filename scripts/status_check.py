@@ -8,7 +8,9 @@ triangulating three data sources so a narrow grep can't hide an incident:
      silent while the other keeps reporting)
   2. Railway /api/events   — wedge_snapshot classifications, stack_health
      with non-clean classification, adapter pin/fallback/restored events
-  3. (optional --with-pi)  — SSHs to kwpi.zt for logger WARNING/ERROR
+  3. Railway /api/events   — wired RS485 path (primary since the 2026-07-26
+     BLE retirement): read_fail rate, rs485_port_error/restart, live transport
+  4. (optional --with-pi)  — SSHs to kwpi.zt for logger WARNING/ERROR
      line counts + last-24h restart counters + throttled register
 
 Prints one section per source and a bottom-line "notable events" summary.
@@ -259,6 +261,45 @@ def section_events(since_iso: str) -> tuple[bool, list[str]]:
     return notable, lines
 
 
+def section_wired(since_iso: str) -> tuple[bool, list[str]]:
+    """Wired RS485 path health — the PRIMARY telemetry path since the BLE
+    retirement (2026-07-26). Watches serial read failures, port errors/reopens
+    and logger restarts, and confirms telemetry is still actually sourced from
+    RS485 (a silent revert to another transport would otherwise hide here)."""
+    lines = ["Wired RS485 path (primary since BLE retirement):"]
+    notable = False
+    # read_fail: a serial read that returned nothing. The odd single-cycle
+    # timeout self-heals next poll (benign, like the BLE dormancy blips); a
+    # steady stream means a flaky adapter / loose USB worth investigating.
+    fails = fetch_events("read_fail", since_iso, limit=2000)
+    if fails:
+        by_addr = Counter(f["data"].get("address", "neither-answered") for f in fails)
+        lines.append(f"  read_fail: {len(fails)} in window   by_addr={dict(by_addr)}")
+        if len(fails) >= 10:
+            notable = True
+            lines.append("    ← elevated read-failure rate; check the adapter/USB")
+    else:
+        lines.append("  read_fail: none")
+    # Port errors force a serial reopen; logger stop/start bracket a restart.
+    for kind in ("rs485_port_error", "rs485_stop", "rs485_start"):
+        evs = fetch_events(kind, since_iso, limit=500)
+        if evs:
+            lines.append(f"  {kind}: {len(evs)}")
+            for e in evs[:3]:
+                lines.append(f"    {e['ts']}  {json.dumps(e['data'])[:140]}")
+            if kind == "rs485_port_error":
+                notable = True
+    # Confirm the live transport is still RS485 (not silently degraded).
+    recent = fetch_events("read_ok", since_iso, limit=1)
+    if recent:
+        tr = recent[0]["data"].get("transport", "?")
+        lines.append(f"  latest read_ok transport: {tr}")
+        if tr != "rs485":
+            lines.append("    ← telemetry NOT sourced from RS485 — path degraded!")
+            notable = True
+    return notable, lines
+
+
 def section_pi(ssh_target: str, hours: int) -> tuple[bool, list[str]]:
     """Optional — SSH into the Pi for logger warnings / throttled / uptime."""
     lines = [f"Pi diagnostics (ssh {ssh_target}):"]
@@ -322,6 +363,9 @@ def main() -> int:
         any_notable |= n
         print("\n".join(lines) + "\n")
         n, lines = section_events(since_iso)
+        any_notable |= n
+        print("\n".join(lines) + "\n")
+        n, lines = section_wired(since_iso)
         any_notable |= n
         print("\n".join(lines) + "\n")
     except (urllib.error.URLError, urllib.error.HTTPError) as exc:
