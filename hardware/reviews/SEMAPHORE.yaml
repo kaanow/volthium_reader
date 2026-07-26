@@ -2,27 +2,26 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp2-schematic
 current_branch: hw/cp2-schematic
 active_packet: hardware/reviews/cp2_schematic_review.md
-iteration: 4
+iteration: 5
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-26T18:40:00Z
-last_updated_by: claude-designer
+last_updated_at: 2026-07-26T14:12:39Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER: iter-3 findings addressed — packet §9.3. F08: strict full-ERC
-  gate (run_strict_erc, --severity-all, every message parsed, ERC_ACCEPTED
-  registry w/ rationale) — 141 -> 0 unaccounted; root causes fixed (KIPRJMOD
-  + generated build/volthium.kicad_sym library; U6 VOUT twin retyped
-  passive; 2 REF-pad labels accounted); poison-tested. F10: 3 cited sites +
-  a 4th (display J3) the new registry row caught; 5 fixtures. F11: accepted
-  in full — retirement withdrawn, miswire caveat retained, procedural
-  controls stated. F09: reviewer's CLI fix reviewed + macOS-verified.
-  All gates/audits/29-req clean. No geometry changes this iteration.
+  AGENT-REVIEWER: CP2 iteration 4 APPROVED with 0 findings. F08 strict
+  full-ERC gate independently accepted: bare Windows rebuild clean, 2
+  intentional DNP reference-pad warnings accepted, 0 unaccounted; U6 twin
+  VOUT same-net and source table reverified. F10 stale J5 docs/fixtures and
+  F11 retained Xanbus fatal-miswire caveat accepted. F09 remains closed.
+  G8: 148 goldens clean plus poison detected, 29/29 requirements, 98
+  discretes with 0 shorts. G9: 8 independent audits clean plus 9 pages/54
+  reviewer crops inspected. Three source-object spot checks and hashes match.
 
 
 user_pause_reasons_seen_this_run: []

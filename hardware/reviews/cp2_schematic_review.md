@@ -525,6 +525,63 @@ strategy or obtain the missing network-supply maximum specification.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 1 blocker, 2 important. (See findings F08, F10, F11; F09 is resolved.)
 
+## 8.4 Reviewer findings (iteration 4)
+
+### Review evidence
+
+The committed generator was rebuilt before review on Windows with every
+KiCad/Python helper override unset and KiCad removed from `PATH`. It
+auto-discovered the per-user KiCad 10.0.5 installation, passed all eight
+readability gates, exported all sheets, passed the intent-versus-exported-
+netlist gate, and exited 0. The strict root ERC reported exactly two
+`isolated_pin_label` warnings, both exact-match accepted DNP reference-pad
+labels (`PACK1_Bminus` and `PACK2_Bminus`), with zero errors and zero
+unaccounted messages.
+
+F08 is resolved. Independent parsing found exactly the same two ERC messages;
+a false acceptance token left both unaccounted and was reported stale. The
+former 138 library warnings do not recur. The fresh exported netlist places
+U6 pins 2 and 7 on the same `V3V3` net, with pin 2 retaining `power_out` and
+pin 7 the passive twin. TI TPS2116 page 3 independently identifies both
+physical pins as VOUT outputs, and the golden table enforces their same-net
+identity.
+
+F10 is resolved. The live battery document now carries the exact keyed 2x3
+J5 map and no longer assigns RESET to pin 4. The append-only stale-token
+fixtures reject both retired forms, accept corrected forms, and preserve the
+staged display-J3 case. `doc_consistency_check.py` exits 0. F11 is resolved:
+the unsupported Xanbus survivability conclusion is withdrawn, the fatal-
+miswire caveat remains, and bring-up now requires the pre-attach measurement
+again after any cabling or port change. F09 remains closed; the same bare
+Windows build proves the reviewer-authored CLI resolver still works.
+
+G8 was re-derived from the fresh exported netlist. All 148 golden contracts
+pass; a deliberately false U6 net contract produces exactly one failure.
+The requirements runner returns 29/29 PASS. Probe-derived transistor maps
+put Q5/Q10/Q11/Q_exp gate/source/drain on pins 1/2/3, every source on
+`V3V3`, and every drain on its distinct gated load. A 98-discrete scan finds
+zero same-net pin groups. Connector, power-path, supervisor, USB/reset,
+MCU, peripheral, isolated-channel, grounding, and expansion blocks were
+read back against documented intent; no wiring discrepancy was found.
+
+Three source objects were opened and identity-checked in this turn. TI
+TPS2116 page 3 confirms VOUT pins 2/7; TI TCAN332 page 5 confirms the
+-14 V to +14 V bus-terminal absolute maximum; Xantrex
+975-0136-01-01 pages 18/19 confirm the full Xanbus pin map and a 15 VDC
+network-power example. Their complete SHA-256 hashes match the on-file
+records.
+
+G9 used all three required layers. The designer readability gates passed;
+`label_body_audit.py` independently reports zero geometry findings on all
+eight child sheets; reviewer eyes inspected nine fresh 300-DPI pages and 54
+overlapping crops, including U6. No collision, clipping, ambiguous junction,
+or unreadable pin field was found. Evidence and transcripts are under
+`hardware/reviews/visual_inspections/cp2-schematic/iter4/reviewer/`.
+
+No new finding was identified.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
 ## 9 Designer responses (iteration 1) — 2026-07-24
 
 ### F01 — RESOLVED (accepted, with one premise correction)
