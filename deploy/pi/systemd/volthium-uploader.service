@@ -10,6 +10,8 @@ Group=users
 WorkingDirectory=/srv/volthium_reader
 EnvironmentFile=/etc/volthium-uploader.env
 ExecStart=/srv/volthium_reader/.venv/bin/python -m cloud.uploader.uploader --csv data/pack.csv --url https://volts.alti2.de --source-id pi-barge --log data/uploader.log
+# Protect telemetry upload from OOM (see CLAUDE.md / 2026-07-26 outage).
+OOMScoreAdjust=-900
 Restart=always
 RestartSec=5
 

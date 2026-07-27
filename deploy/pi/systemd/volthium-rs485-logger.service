@@ -16,6 +16,10 @@ Environment=VOLTHIUM_BLE_EVENT_LOG=/srv/volthium_reader/data/ble_events.jsonl
 ExecStart=/srv/volthium_reader/.venv/bin/python scripts/rs485_log.py \
   --a-port /dev/ttyRS485-a --b-port /dev/ttyRS485-b \
   --interval 5 --csv data/pack.csv --log data/pack.log
+# Telemetry is the mission: never let a rogue memory hog (e.g. an ad-hoc
+# analysis job) get this OOM-killed ahead of itself. See CLAUDE.md and the
+# 2026-07-26 outage — a heavy job on this 1 GB Pi took telemetry down.
+OOMScoreAdjust=-900
 Restart=always
 RestartSec=5
 
