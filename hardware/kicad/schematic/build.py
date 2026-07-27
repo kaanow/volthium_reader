@@ -69,13 +69,17 @@ def _find_kicad_cli():
 
     exe = "kicad-cli.exe" if os.name == "nt" else "kicad-cli"
     share = Path(KICAD_SHARE)
-    cands = [shutil.which("kicad-cli")]
-
-    # Default layouts place share/kicad and bin under one install root.
+    # SAME-ROOT pairing first (kicad skill v0.2.0, Windows reviewer's rule:
+    # never combine an executable from one KiCad install with share/ from
+    # another). A PATH-resolved kicad-cli may belong to a DIFFERENT install
+    # than the discovered share tree — prefer the discovered root's own
+    # bin, then fall back to PATH and the standard locations.
+    cands = []
     if len(share.parents) >= 2:
         cands.append(share.parents[1] / "bin" / exe)
     if sys.platform == "darwin":
         cands.append(share.parent / "MacOS" / exe)
+    cands.append(shutil.which("kicad-cli"))
 
     lad = os.environ.get("LOCALAPPDATA")
     pf = os.environ.get("ProgramFiles")
