@@ -2,7 +2,7 @@
 	(version "E")
 	(design
 		(source "/Users/pivot/Documents/repo/volthium_reader/hardware/kicad/schematic/build_display/volthium_display.kicad_sch")
-		(date "2026-07-28T06:33:39")
+		(date "2026-07-28T09:46:33")
 		(tool "Eeschema 10.0.3")
 		(sheet
 			(number "1")
@@ -55,7 +55,7 @@
 		(sheet
 			(number "2")
 			(name "/Display — Power path/")
-			(tstamps "/86bdac86-94a9-4145-97ab-c42fba98c28d/")
+			(tstamps "/a0ea2c45-2f5b-46e0-8b37-376497612746/")
 			(title_block
 				(title "Display — Power path")
 				(company "Volthium reader")
@@ -103,7 +103,7 @@
 		(sheet
 			(number "3")
 			(name "/Display — RS-485, e-paper, buttons/")
-			(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+			(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			(title_block
 				(title "Display — RS-485, e-paper, buttons")
 				(company "Volthium reader")
@@ -151,7 +151,7 @@
 		(sheet
 			(number "4")
 			(name "/Display — Connectors & I/O/")
-			(tstamps "/3453d4f8-8ed0-4517-a76d-25092b74968d/")
+			(tstamps "/135787a8-c17e-4b1d-be1c-5648be200a0e/")
 			(title_block
 				(title "Display — Connectors & I/O")
 				(company "Volthium reader")
@@ -199,7 +199,7 @@
 		(sheet
 			(number "5")
 			(name "/Display — MCU (ESP32-S3)/")
-			(tstamps "/3adf693f-845e-4b6f-a2fb-3e5b49a83b4b/")
+			(tstamps "/8d8ea0b1-6492-4c5e-aa67-9973d92bce75/")
 			(title_block
 				(title "Display — MCU (ESP32-S3)")
 				(company "Volthium reader")
@@ -283,9 +283,9 @@
 			)
 			(sheetpath
 				(names "/Display — Power path/")
-				(tstamps "/86bdac86-94a9-4145-97ab-c42fba98c28d/")
+				(tstamps "/a0ea2c45-2f5b-46e0-8b37-376497612746/")
 			)
-			(tstamps "a7814b69-b92b-4812-961a-6efe0aea4536")
+			(tstamps "a3b2b453-6fe5-4423-a8de-4d0a5ee6b939")
 			(units
 				(unit
 					(name "A")
@@ -337,9 +337,9 @@
 			)
 			(sheetpath
 				(names "/Display — Power path/")
-				(tstamps "/86bdac86-94a9-4145-97ab-c42fba98c28d/")
+				(tstamps "/a0ea2c45-2f5b-46e0-8b37-376497612746/")
 			)
-			(tstamps "78f1cc83-c006-43f1-ab5b-f06858898c64")
+			(tstamps "ae781a9a-51f1-439e-adf6-e2210c845e4e")
 			(units
 				(unit
 					(name "A")
@@ -391,9 +391,9 @@
 			)
 			(sheetpath
 				(names "/Display — Power path/")
-				(tstamps "/86bdac86-94a9-4145-97ab-c42fba98c28d/")
+				(tstamps "/a0ea2c45-2f5b-46e0-8b37-376497612746/")
 			)
-			(tstamps "e6013754-0001-4823-b2a5-8768df1bc2c3")
+			(tstamps "27d4c399-09d8-4c77-954a-999c4eaa9799")
 			(units
 				(unit
 					(name "A")
@@ -445,9 +445,9 @@
 			)
 			(sheetpath
 				(names "/Display — Power path/")
-				(tstamps "/86bdac86-94a9-4145-97ab-c42fba98c28d/")
+				(tstamps "/a0ea2c45-2f5b-46e0-8b37-376497612746/")
 			)
-			(tstamps "8d68645f-c9dc-4554-8c04-8c49422db72a")
+			(tstamps "43d77ea1-90d2-4e5f-8fb0-c6c8ff7a3040")
 			(units
 				(unit
 					(name "A")
@@ -499,9 +499,9 @@
 			)
 			(sheetpath
 				(names "/Display — Power path/")
-				(tstamps "/86bdac86-94a9-4145-97ab-c42fba98c28d/")
+				(tstamps "/a0ea2c45-2f5b-46e0-8b37-376497612746/")
 			)
-			(tstamps "29f8dbd7-02a6-4ba0-8e79-f164ac032b13")
+			(tstamps "112ac7db-e445-449b-90aa-b5907d953db1")
 			(units
 				(unit
 					(name "A")
@@ -553,9 +553,9 @@
 			)
 			(sheetpath
 				(names "/Display — Power path/")
-				(tstamps "/86bdac86-94a9-4145-97ab-c42fba98c28d/")
+				(tstamps "/a0ea2c45-2f5b-46e0-8b37-376497612746/")
 			)
-			(tstamps "cc96c7bf-2d19-425b-aa5f-408a77031930")
+			(tstamps "54b8d56e-6cdb-41d7-a2c1-279cac3a04aa")
 			(units
 				(unit
 					(name "A")
@@ -607,9 +607,9 @@
 			)
 			(sheetpath
 				(names "/Display — Power path/")
-				(tstamps "/86bdac86-94a9-4145-97ab-c42fba98c28d/")
+				(tstamps "/a0ea2c45-2f5b-46e0-8b37-376497612746/")
 			)
-			(tstamps "60bcfb79-fb1d-4bb7-8093-d06a7a8369b1")
+			(tstamps "85a58c3d-4852-47c5-84bc-6439e23e149f")
 			(units
 				(unit
 					(name "A")
@@ -661,9 +661,9 @@
 			)
 			(sheetpath
 				(names "/Display — Power path/")
-				(tstamps "/86bdac86-94a9-4145-97ab-c42fba98c28d/")
+				(tstamps "/a0ea2c45-2f5b-46e0-8b37-376497612746/")
 			)
-			(tstamps "378cece7-d46a-4024-9826-b34a6eb6b70d")
+			(tstamps "8ff2b60d-e2e4-401c-a35b-40bf1920594f")
 			(units
 				(unit
 					(name "A")
@@ -718,9 +718,9 @@
 			)
 			(sheetpath
 				(names "/Display — Power path/")
-				(tstamps "/86bdac86-94a9-4145-97ab-c42fba98c28d/")
+				(tstamps "/a0ea2c45-2f5b-46e0-8b37-376497612746/")
 			)
-			(tstamps "7db7c367-e279-4af7-888c-7c3ec2aba517")
+			(tstamps "8cfc0d59-1a8c-4434-9527-d2c83a2f8cba")
 			(units
 				(unit
 					(name "A")
@@ -781,9 +781,9 @@
 			)
 			(sheetpath
 				(names "/Display — Power path/")
-				(tstamps "/86bdac86-94a9-4145-97ab-c42fba98c28d/")
+				(tstamps "/a0ea2c45-2f5b-46e0-8b37-376497612746/")
 			)
-			(tstamps "d84099d9-deda-4377-a723-1c45afe84056")
+			(tstamps "76fbd7e2-3a1d-4249-aec8-640f307a9996")
 			(units
 				(unit
 					(name "A")
@@ -849,9 +849,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "f7927d1d-b7ee-4ff2-b389-274a8348105d")
+			(tstamps "74ca4982-ddf7-4ce4-b839-403871ba6d4d")
 			(units
 				(unit
 					(name "A")
@@ -899,9 +899,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "d25801d3-5301-49e4-8bc8-2ee53784f140")
+			(tstamps "f8385b13-0dcc-46d4-a4dc-dc35e1b757b7")
 			(units
 				(unit
 					(name "A")
@@ -949,9 +949,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "5c50260f-ad1e-42d8-9840-c07a6e35a34b")
+			(tstamps "61e37a97-bd36-461d-acf6-cbc7606edd56")
 			(units
 				(unit
 					(name "A")
@@ -1003,9 +1003,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "1f28c971-7db0-48eb-b259-0e5c455da207")
+			(tstamps "2dbfe1c1-49a3-43c0-9a30-795d8a073401")
 			(units
 				(unit
 					(name "A")
@@ -1057,9 +1057,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "666cb0c2-0297-483b-921b-0b5838bbbb8c")
+			(tstamps "f325552f-dbbf-4da1-a2b5-5159449d68a5")
 			(units
 				(unit
 					(name "A")
@@ -1111,9 +1111,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "4033a83c-5efc-4ace-9349-4c0a9d3e2672")
+			(tstamps "ad9ac950-fed2-489c-9774-ee33403fa9c0")
 			(units
 				(unit
 					(name "A")
@@ -1165,9 +1165,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "1889e5d5-c38a-4059-b763-a3512631fb92")
+			(tstamps "9aa0e90c-fb02-44ff-8f57-7d7d440fdc97")
 			(units
 				(unit
 					(name "A")
@@ -1219,9 +1219,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "ae0120f4-a3b5-4c9f-9782-dec6ae35cff5")
+			(tstamps "fe9353c8-0a55-4737-a4db-9c6087ced078")
 			(units
 				(unit
 					(name "A")
@@ -1273,9 +1273,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "14da3a02-1a0e-4acd-87d7-57822091b3b8")
+			(tstamps "b41e650d-93e3-4221-bb4d-2b91dda2e099")
 			(units
 				(unit
 					(name "A")
@@ -1345,9 +1345,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "bd21943f-234c-443a-9a3b-773fe30d2fff")
+			(tstamps "ec502c4f-dfba-481a-a703-e16a0a1ab58f")
 			(units
 				(unit
 					(name "A")
@@ -1399,9 +1399,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "d269f639-dcbd-406a-ab8f-4df28917319f")
+			(tstamps "a4ba21c3-f71a-4c43-8f23-1532b4f6d191")
 			(units
 				(unit
 					(name "A")
@@ -1456,9 +1456,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "3d584aa8-26dc-4f63-a9e9-d3ebb70968ba")
+			(tstamps "21195013-a390-4459-b23b-2339ae90b107")
 			(units
 				(unit
 					(name "A")
@@ -1513,9 +1513,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "b2effda9-bb8a-48cd-92b0-a2b3fa3ea4c5")
+			(tstamps "c76d535f-da17-4e8f-ba5a-4b54f38bfaa2")
 			(units
 				(unit
 					(name "A")
@@ -1567,9 +1567,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "d247c158-afc4-4620-91b5-a967632596fd")
+			(tstamps "1ffe55ac-78f8-4f74-9e75-1e6795862d91")
 			(units
 				(unit
 					(name "A")
@@ -1621,9 +1621,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "c12c6068-38ea-418a-89d0-328a1837740b")
+			(tstamps "cc21ee99-d47b-44fd-b575-e680396af51b")
 			(units
 				(unit
 					(name "A")
@@ -1675,9 +1675,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "d611f03f-1fb8-4215-a992-b13aedd04383")
+			(tstamps "e3d9da26-d900-4fd0-8e53-fe4f573b2912")
 			(units
 				(unit
 					(name "A")
@@ -1729,9 +1729,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "ca2e4d25-3189-46bc-8cf9-b7d256f10a71")
+			(tstamps "794cd8a8-56bb-426a-bb84-dae545ab56df")
 			(units
 				(unit
 					(name "A")
@@ -1783,9 +1783,9 @@
 			)
 			(sheetpath
 				(names "/Display — RS-485, e-paper, buttons/")
-				(tstamps "/49bbf263-a3fa-47da-89a3-a1cb51f6f5bd/")
+				(tstamps "/6e109f88-7c0f-44c0-8af2-4c6d661969de/")
 			)
-			(tstamps "578ef861-a021-493a-92d9-284562710ff7")
+			(tstamps "9f4f9bfa-9da8-4545-bc43-9280b5c41848")
 			(units
 				(unit
 					(name "A")
@@ -1847,9 +1847,9 @@
 			)
 			(sheetpath
 				(names "/Display — Connectors & I/O/")
-				(tstamps "/3453d4f8-8ed0-4517-a76d-25092b74968d/")
+				(tstamps "/135787a8-c17e-4b1d-be1c-5648be200a0e/")
 			)
-			(tstamps "14c7ae99-9890-41f8-bbd5-81448b96d485")
+			(tstamps "33bb9863-c6fe-4f6c-8ebc-2b39166dd7d8")
 			(units
 				(unit
 					(name "A")
@@ -1946,9 +1946,9 @@
 			)
 			(sheetpath
 				(names "/Display — Connectors & I/O/")
-				(tstamps "/3453d4f8-8ed0-4517-a76d-25092b74968d/")
+				(tstamps "/135787a8-c17e-4b1d-be1c-5648be200a0e/")
 			)
-			(tstamps "e5f56d74-cb76-48af-b5dc-db2d6ce49f80")
+			(tstamps "2335f478-a7d5-473c-a2d3-dbcb8ffc6eb7")
 			(units
 				(unit
 					(name "A")
@@ -2021,9 +2021,9 @@
 			)
 			(sheetpath
 				(names "/Display — Connectors & I/O/")
-				(tstamps "/3453d4f8-8ed0-4517-a76d-25092b74968d/")
+				(tstamps "/135787a8-c17e-4b1d-be1c-5648be200a0e/")
 			)
-			(tstamps "726fb2e3-e987-42aa-9e04-d465b489edb4")
+			(tstamps "927dbdc5-5a06-4b73-a551-7058a5ff7924")
 			(units
 				(unit
 					(name "A")
@@ -2087,9 +2087,9 @@
 			)
 			(sheetpath
 				(names "/Display — Connectors & I/O/")
-				(tstamps "/3453d4f8-8ed0-4517-a76d-25092b74968d/")
+				(tstamps "/135787a8-c17e-4b1d-be1c-5648be200a0e/")
 			)
-			(tstamps "310296f2-9d26-4963-acdc-b746015f4c03")
+			(tstamps "4ca14cfb-a5a3-4ebc-af6b-0b7edc3bab64")
 			(units
 				(unit
 					(name "A")
@@ -2141,9 +2141,9 @@
 			)
 			(sheetpath
 				(names "/Display — Connectors & I/O/")
-				(tstamps "/3453d4f8-8ed0-4517-a76d-25092b74968d/")
+				(tstamps "/135787a8-c17e-4b1d-be1c-5648be200a0e/")
 			)
-			(tstamps "8252a741-f177-4bbc-a51a-5c61d47a30ab")
+			(tstamps "f8498067-7e50-4a1d-8448-6bf26385837a")
 			(units
 				(unit
 					(name "A")
@@ -2195,9 +2195,9 @@
 			)
 			(sheetpath
 				(names "/Display — Connectors & I/O/")
-				(tstamps "/3453d4f8-8ed0-4517-a76d-25092b74968d/")
+				(tstamps "/135787a8-c17e-4b1d-be1c-5648be200a0e/")
 			)
-			(tstamps "34d7c505-8fd3-4265-a18f-98d8c179cd8e")
+			(tstamps "fcf2bcd5-25cb-44d0-a432-6485914bdf04")
 			(units
 				(unit
 					(name "A")
@@ -2261,9 +2261,9 @@
 			)
 			(sheetpath
 				(names "/Display — MCU (ESP32-S3)/")
-				(tstamps "/3adf693f-845e-4b6f-a2fb-3e5b49a83b4b/")
+				(tstamps "/8d8ea0b1-6492-4c5e-aa67-9973d92bce75/")
 			)
-			(tstamps "491f22f8-effd-40db-bb8a-cea06f9e45a3")
+			(tstamps "ddfaba3a-1cf9-45ec-aa20-eaeabd6351ef")
 			(units
 				(unit
 					(name "A")
@@ -2315,9 +2315,9 @@
 			)
 			(sheetpath
 				(names "/Display — MCU (ESP32-S3)/")
-				(tstamps "/3adf693f-845e-4b6f-a2fb-3e5b49a83b4b/")
+				(tstamps "/8d8ea0b1-6492-4c5e-aa67-9973d92bce75/")
 			)
-			(tstamps "231d500c-b268-4d55-9f7d-deb7c41e5ee3")
+			(tstamps "49ed88da-b975-48af-804c-17c6e87b9c24")
 			(units
 				(unit
 					(name "A")
@@ -2369,9 +2369,9 @@
 			)
 			(sheetpath
 				(names "/Display — MCU (ESP32-S3)/")
-				(tstamps "/3adf693f-845e-4b6f-a2fb-3e5b49a83b4b/")
+				(tstamps "/8d8ea0b1-6492-4c5e-aa67-9973d92bce75/")
 			)
-			(tstamps "885b182f-48f5-4ba0-9c59-138017b64a79")
+			(tstamps "c7710130-fe89-42ab-9159-5ffea0daed21")
 			(units
 				(unit
 					(name "A")
@@ -2423,9 +2423,9 @@
 			)
 			(sheetpath
 				(names "/Display — MCU (ESP32-S3)/")
-				(tstamps "/3adf693f-845e-4b6f-a2fb-3e5b49a83b4b/")
+				(tstamps "/8d8ea0b1-6492-4c5e-aa67-9973d92bce75/")
 			)
-			(tstamps "7654bf19-321b-4f32-807b-188efa0dc2a9")
+			(tstamps "4f5404ea-39e7-4131-9e6d-64025c4fac9a")
 			(units
 				(unit
 					(name "A")
@@ -2594,9 +2594,9 @@
 			)
 			(sheetpath
 				(names "/Display — MCU (ESP32-S3)/")
-				(tstamps "/3adf693f-845e-4b6f-a2fb-3e5b49a83b4b/")
+				(tstamps "/8d8ea0b1-6492-4c5e-aa67-9973d92bce75/")
 			)
-			(tstamps "bb0d2b80-9152-42f3-847a-28b806d64dcd")
+			(tstamps "88ba35a0-31b4-4411-83a3-043879bdc383")
 			(units
 				(unit
 					(name "A")

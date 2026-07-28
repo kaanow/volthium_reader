@@ -322,9 +322,20 @@ def _quad(pos, angle, corners):
     xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
     return (min(xs), min(ys), max(xs), max(ys))
 
+# Symbol-own glyph metrics, CALIBRATED FROM THE RENDER (display-iter2 F16):
+# fitz word boxes on the exported PDF measure KiCad's real stroke-font
+# advance at 1.10–1.29 mm/char and box height 1.91 mm for nominal 1.27 mm
+# text. The old 0.85 mm/char + 1.27 mm model under-sized "GND" by ~1 mm and
+# passed a real SHIELD×GND ink collision. Use the measured MAXIMA here
+# (conservative for catching); the pdf-text gate below is the ground truth.
+GLYPH_ADV = 1.29
+GLYPH_H = 1.91
+
+
 def _twd(s):
-    """display width: overline markup ~{...} renders as bare glyphs."""
-    return _tw(re.sub(r"[~{}]", "", s))
+    """display width of a pin-name/number glyph run (measured advance;
+    overline markup ~{...} renders as bare glyphs)."""
+    return len(re.sub(r"[~{}]", "", s)) * GLYPH_ADV
 
 def pin_glyph_boxes(name, pos, angle):
     """[(bbox, pin_number, kind, desc)] for every VISIBLE pin-name/number glyph.
@@ -345,7 +356,7 @@ def pin_glyph_boxes(name, pos, angle):
             ax, ay = p.position.X, p.position.Y       # connect point
             fx, fy = ax + p.length*d[0], ay + p.length*d[1]   # body-side end
             if names_on and p.name not in ("~", ""):
-                w = _twd(p.name); h = TXTH/2
+                w = _twd(p.name); h = GLYPH_H/2
                 if off > 0:      # name continues inward past the body edge
                     s0 = (fx + off*d[0], fy + off*d[1])
                 else:            # offset 0: name above the stem, outside the body
@@ -361,7 +372,7 @@ def pin_glyph_boxes(name, pos, angle):
                 # follows conventions not worth mis-modelling. Centre it ON the
                 # stem midpoint instead — slightly conservative both ways, still
                 # catches stacked-number overprint and number-vs-text collisions.
-                w = _twd(p.number); h = TXTH/2
+                w = _twd(p.number); h = GLYPH_H/2
                 c = (ax + p.length/2*d[0], ay + p.length/2*d[1])
                 s0 = (c[0] - w/2*d[0], c[1] - w/2*d[1]); e0 = (c[0] + w/2*d[0], c[1] + w/2*d[1])
                 out.append((_quad(pos, angle,
@@ -717,7 +728,13 @@ class Sheet:
             if ref.startswith("#"): continue
             solids, edges = self.art_items.get(ref, ([], []))
             for (gb, pnum, kind, desc) in glyphs:
-                if any(pen(gb, sb, 0.4) for sb in solids):
+                # glyph-vs-ART threshold 0.7: art solids are coarse OUTER
+                # bboxes (FET/diode triangles, the PSRAM bracket) whose ink
+                # sits well inside; with the F16-calibrated glyph metrics the
+                # eye-verified-clean contacts measure up to 0.59 mm while the
+                # boxes still never touch ink. Text-vs-text stays at 0.3
+                # (the real F16 ink collision measures 0.51 there).
+                if any(pen(gb, sb, 0.7) for sb in solids):
                     bad.append(f"[glyph-art] {ref} {desc} over body art")
                 if kind == "name" and any(pen(gb, eb, 0.15) for eb in edges):
                     bad.append(f"[glyph-edge] {ref} {desc} straddles outline")
@@ -863,10 +880,51 @@ def kcli(*a):
 
 MM = 2.8346   # schematic mm -> PDF points
 
+
+def _pdf_text_collisions(pdf, thresh_mm=0.5):
+    # thresh 0.5 mm: calibrated between the reviewer-eye-cleared benign
+    # box contact ('4'×'VOUT' on the AP2112, 0.42 mm min-axis — digits and
+    # name boxes touch, ink does not) and the real F16 ink collision
+    # (SHIELD×GND, 0.64 mm min-axis).
+    """GROUND-TRUTH text-collision gate (display-iter2 F16): extract every
+    rendered word box from the exported PDF via fitz and flag any pair that
+    overlaps by more than `thresh_mm` in BOTH axes. No font model at all —
+    this judges what KiCad actually drew, so it cannot drift from reality
+    the way an analytic glyph model can (the F16 SHIELD×GND ink collision
+    rendered while the modeled boxes sat ~1 mm apart). KiCad PDFs contain
+    duplicate text objects (reviewer's finding) — exact-duplicate boxes are
+    collapsed before the pairwise check."""
+    import fitz
+    doc = fitz.open(str(pdf))
+    seen, uw = set(), []
+    for w in doc[0].get_text("words"):
+        key = (round(w[0], 2), round(w[1], 2), round(w[2], 2), round(w[3], 2), w[4])
+        if key in seen:
+            continue
+        seen.add(key)
+        uw.append(w)
+    bad = []
+    T = thresh_mm * MM
+    for i in range(len(uw)):
+        for j in range(i + 1, len(uw)):
+            a, b = uw[i], uw[j]
+            ox = min(a[2], b[2]) - max(a[0], b[0])
+            oy = min(a[3], b[3]) - max(a[1], b[1])
+            if ox > T and oy > T:
+                bad.append(f"[pdf-text] '{a[4]}' × '{b[4]}' rendered boxes "
+                           f"overlap {ox/MM:.2f}×{oy/MM:.2f} mm at "
+                           f"({a[0]/MM:.0f},{a[1]/MM:.0f})")
+    return bad
+
+
 def render(s, name, crops=()):
-    """Per-child: readability gate -> write .kicad_sch -> PDF -> PNG (+ crops).
-    ERC is run once on the ROOT (children are hierarchy members; their instance
-    paths only resolve through the root, so a standalone child ERC is moot)."""
+    """Per-child: readability gate -> write .kicad_sch -> PDF -> pdf-text
+    ground-truth gate -> PNG (+ crops). ERC is run once on the ROOT (children
+    are hierarchy members; their instance paths only resolve through the
+    root, so a standalone child ERC is moot). Note the pdf-text gate needs
+    the PDF, so unlike the pre-write readability gate a failing sheet's
+    files DO land on disk — the build still fails and the netlist gate is
+    skipped as stale."""
     bad = s.gate()
     if bad:
         print(f"[{name}] READABILITY GATE FAILED:"); [print("  "+b) for b in bad]
@@ -874,6 +932,12 @@ def render(s, name, crops=()):
     print(f"[{name}] readability gate: clean")
     schf = OUT / f"{name}.kicad_sch"; s.sch.to_file(str(schf), encoding="utf-8")
     kcli("sch", "export", "pdf", "-o", str(OUT/f"{name}.pdf"), str(schf))
+    bad = _pdf_text_collisions(OUT / f"{name}.pdf")
+    if bad:
+        print(f"[{name}] PDF-TEXT GATE FAILED (rendered ground truth):")
+        [print("  " + b) for b in bad]
+        return False
+    print(f"[{name}] pdf-text gate: clean")
     import fitz
     doc = fitz.open(str(OUT/f"{name}.pdf"))
     doc[0].get_pixmap(matrix=fitz.Matrix(7, 7)).save(str(OUT/f"{name}.png"))

@@ -2432,7 +2432,7 @@
         (name "SBU2" (effects (font (size 1.27 1.27))))
         (number "B8" (effects (font (size 1.27 1.27))))
       )
-      (pin passive line (at -10.16 -15.24 0) (length 2.54)
+      (pin passive line (at -10.16 -12.7 0) (length 2.54)
         (name "SHIELD" (effects (font (size 1.27 1.27))))
         (number "SH" (effects (font (size 1.27 1.27))))
       )

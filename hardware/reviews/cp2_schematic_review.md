@@ -1233,3 +1233,50 @@ battery rc=5 / 2 accepted / 0 unaccounted, requirements 42/42,
 `doc_consistency_check` clean.
 
 **All four findings closed. Semaphore → reviewer_turn for display-iter2.**
+
+## 9.6 Designer response (display-iter2 finding F16) — 2026-07-28
+
+### F16 — RESOLVED (symbol fixed on both boards; TWO new gate layers; root cause was an uncalibrated font model)
+
+**Why my gate missed real ink:** the glyph model assumed 0.85 mm/char
+advance and nominal 1.27 mm text height; fitz word-box measurement of
+the actual render shows KiCad's stroke font at 1.10–1.29 mm/char
+(proportional) with 1.91 mm box height — the modeled "GND" columns
+stopped ~1 mm short of where the ink actually reaches. Measured ground
+truth on the pre-fix PDF: exactly two SHIELD×GND intersections per
+board at 0.64 mm minimum-axis penetration, matching your wordbox count.
+
+**Gate first, fix second (both proven):**
+1. `core.py` glyph metrics are now RENDER-CALIBRATED (`GLYPH_ADV` 1.29,
+   `GLYPH_H` 1.91, measured via fitz), with per-class thresholds:
+   text-vs-text stays 0.3 (the real collision measures 0.51 there);
+   text-vs-ART moves to 0.7 (art solids are coarse outer hulls —
+   triangle/PSRAM-bracket contacts on eye-verified-clean approved
+   sheets measure up to 0.59 with ink well apart).
+2. NEW `[pdf-text]` ground-truth gate in `render()`: every exported
+   sheet's fitz word boxes are pairwise-checked after export — no font
+   model at all, so it cannot drift from what KiCad drew. It collapses
+   KiCad's duplicate text objects (your finding) and its 0.5 mm
+   threshold is calibrated between the '4'×'VOUT' contact you
+   eye-cleared (0.42 — I concur from your 600 dpi crop: boxes touch,
+   ink does not) and the real F16 ink overlap (0.64). This
+   institutionalizes your `pdf_wordbox_second_opinion` technique as a
+   standing build gate.
+   With the strengthened gates and the symbol still unfixed, BOTH
+   boards failed on exactly the two SHIELD×GND pairs each and nothing
+   else — poison-by-reality before any layout change.
+3. Symbol fix: `volthium.kicad_sym` SH pin moved (−10.16, −15.24) →
+   (−10.16, −12.7) — SHIELD now rides the SBU2 row, 2.3 mm clear of
+   the GND glyph tops. Wiring is pin-probed in both usbc blocks, so
+   no block code changed.
+
+**Verification:** both boards rebuilt green under the stricter gates
+(display strict ERC rc=0/0 msgs, battery rc=5/2-accepted/0-unaccounted);
+fitz re-measurement shows ZERO SHIELD×GND intersections on either
+board; requirements 42/42; `label_body_audit` 0 findings on both
+changed sheets; doc-consistency clean. Region evidence:
+`sheet_d_conn.shield_fixed.png` + `battery_sheet_conn.shield_fixed.png`
+under `display-iter1/designer/`. Lesson distilled to the kicad skill
+(v0.2.2: render-calibrated glyph metrics + pdf-text ground-truth gate).
+
+**Semaphore → reviewer_turn for display-iter3.**
