@@ -262,6 +262,18 @@ def _pearson(xs, ys):
     return sxy / math.sqrt(sxx * syy)
 
 
+def _pearson_delta(xs, ys):
+    """Pearson of first differences (rates of change). A real linear encoding
+    tracks its Modbus register when the value MOVES; two signals that merely
+    drift the same direction all day (energy counters, uptime) correlate at the
+    level but their deltas don't — this gate rejects those spurious matches."""
+    if len(xs) < 21:
+        return 0.0
+    dx = [xs[i] - xs[i - 1] for i in range(1, len(xs))]
+    dy = [ys[i] - ys[i - 1] for i in range(1, len(ys))]
+    return _pearson(dx, dy)
+
+
 def _fit(xs, ys):
     """Least-squares ys ~ a*xs + b -> (a, b)."""
     n = len(xs)
@@ -277,6 +289,9 @@ def main() -> int:
     ap.add_argument("--min-r", type=float, default=0.95)
     ap.add_argument("--max-lag", type=float, default=2.0)
     ap.add_argument("--min-samples", type=int, default=20)
+    ap.add_argument("--min-dr", type=float, default=0.4,
+                    help="min |correlation of first differences| — rejects "
+                         "spurious 'both drift over the day' matches (default 0.4)")
     ap.add_argument("--hours", type=float, default=6.0,
                     help="only load the last N hours of capture (default 6)")
     ap.add_argument("--max-frames", type=int, default=300_000,
@@ -351,9 +366,13 @@ def main() -> int:
                             if not xs or (max(xs) - min(xs)) == 0:
                                 continue
                             r = _pearson(xs, ys)
-                            if abs(r) >= args.min_r and (best is None or abs(r) > abs(best[0])):
-                                a, b = _fit(xs, ys)
-                                best = (r, cid, off, width, big, signed, a, b, len(xs))
+                            if abs(r) < args.min_r or (best is not None and abs(r) <= abs(best[0])):
+                                continue
+                            rd = _pearson_delta(xs, ys)
+                            if abs(rd) < args.min_dr:
+                                continue          # drifts together but doesn't track — spurious
+                            a, b = _fit(xs, ys)
+                            best = (r, cid, off, width, big, signed, a, b, len(xs), rd)
         if best:
             matches.append(((slave, reg), best))
 
@@ -362,14 +381,14 @@ def main() -> int:
         print("no confident CAN<->Modbus correlations yet — need more time-varying data "
               "(re-run after a few hours, ideally spanning daytime solar/load swings).")
         return 0
-    print(f"{len(matches)} decode candidates (|r| >= {args.min_r}):\n")
-    for (slave, reg), (r, cid, off, width, big, signed, a, b, n) in matches:
+    print(f"{len(matches)} decode candidates (|r|>={args.min_r}, |rΔ|>={args.min_dr}):\n")
+    for (slave, reg), (r, cid, off, width, big, signed, a, b, n, rd) in matches:
         label = KNOWN.get((slave, reg), "")
         endian = "BE" if big else "LE"
         sgn = "s" if signed else "u"
         print(f"  modbus[{slave}:{reg}]{' '+label if label else '':<28} "
               f"<- CAN {cid} byte {off} {sgn}{width*8}{endian}  "
-              f"r={r:+.3f}  modbus≈{a:.4g}*can+{b:.4g}  (n={n})")
+              f"r={r:+.3f} rΔ={rd:+.2f}  modbus≈{a:.4g}*can+{b:.4g}  (n={n})")
     return 0
 
 
