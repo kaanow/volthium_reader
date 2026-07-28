@@ -46,7 +46,7 @@ little-endian. Voltage/current raw ÷1000; power raw = W; temp = raw ÷100 − 2
 |---|---|---|---|
 | **127172** | BattSts2 (battery DC) | `<BBIii`: status u8@0, **assoc u8@1**, **V u32@2 ÷1000**, **I s32@6 ÷1000**, **P s32@10** | HIGH — validated |
 | **127173** | DcSrcSts2 (DC source) | same `<BBIii`; **assoc@1 = 0x03 battery / 0x15 PV array** | HIGH — validated |
-| **126990** | ChgSts | `<BB…HB`: **chg_mode u16@13** (768 base: 769 bulk / 770 absorb / 773 float) | HIGH |
+| **126990** | ChgSts | **chg_setpoint_V i32@2 ÷1000, chg_limit_I i32@6 ÷1000** (charger config setpoints — MPPT reads 29.80 V / 60.00 A; source: CANaconda Xanbus.xml, validated 2026-07-28), **chg_mode u16@12** (768 base: 769 bulk / 770 absorb / 773 float; NB offset is 12, not 13 as previously written) | HIGH |
 | **127165** | InvSts2 | `<BBHBB`: **inverter_status u16@2** (1024 base: 1024 invert / 1025 AC-passthru) | HIGH |
 | **129033** | DateTimeSts | `<BIhx`: epoch-seconds u32@1, tz-offset-min s16@5 | HIGH |
 | **127003** | BattMonSts | `<BBIiHHHbbH`: V u32@2, I s32@6, temp u16@10, cap_removed u16@12, cap_remain u16@14, **SOC s8@16**, ttd-min u16@18 | HIGH (only if a BattMon exists — ours doesn't) |
@@ -85,6 +85,36 @@ PGN 127166**, which sends >16 frames. Our decoder uses the **standard NMEA2000
 split** (`seq = b0>>5`, `frame = b0&0x1F`, up to 32 frames), which handles 127166.
 For the short priority PGNs (127172/127173, ≤16 frames) both splits reassemble
 identically — verified. See `docs/xanbus-berrybms-contribution.md`.
+
+## Association IDs — officially confirmed (2026-07-28)
+
+The `assoc` byte in DcSrcSts2/BattSts2/AcStsRms/ChgSts is Xantrex's official
+association-ID enum, leaked via the Freedom SW-RVC DGN Reference Guide
+(976-0452-01-01, which documents the shared XanBus library's `XB_eAC_SRC_ID` /
+`XB_eDC_SRC_ID` tables). Our empirically-observed values match it exactly:
+
+| assoc | enum | our usage |
+|---|---|---|
+| 0x03 (3) | HOUSE_BAT_BANK1 / SHORE1 | battery DC channel |
+| 0x13 (19) | GEN1 | generator AC input (so the gen fields are official, not inferred) |
+| 0x15 (21) | SOLAR_ARRAY1 | PV array channel |
+| 0x33 (51) | AC_LOAD1 | AC output / loads |
+| 0x43 (67) | GRID1 | AC1 grid input (dead on our barge) |
+
+Full enums (SHORE1..16=3..18, GEN1..16=19..34, AC1..16=35..50, AC_LOAD=51..66,
+GRID=67..82; DC: HOUSE_BAT 3..8, START_BAT 9..14, SOLAR_ARRAY 21..36) in the
+guide, along with the NAME-seeded CRC-CCITT that protects *writes* (we only
+listen). Key research refs:
+
+- Freedom SW-RVC DGN Guide: xantrex.com/wp-content/uploads/2022/09/Freedom-SW-RVC-DGN-Reference-Guide-976-0452-01-01_Rev-B_ENG.pdf
+- FXCC NMEA2000 PGN list (DD/DF-coded proprietary PGN tables): xantrex.com/wp-content/uploads/2021/12/976-0422-01-01_Rev-ANMEA2000-PGN-List-for-FXCC_ENG.pdf
+- CANaconda Xanbus.xml (ChgSts control V/I definition): github.com/xela144/CANaconda
+- Unexhausted lead for the remaining unknowns (127005/126991/127166/127167/
+  127174/127177 — no public source defines them): XWConfig / Conext Config Tool
+  installer or InsightHome/ComBox firmware likely embeds the machine-readable
+  PGN dictionary ("PyXanBus" lineage, per tomlightfoot.ca/engineering/xantrex/).
+- Known bad source: cod-xio/XanBus2Can on GitHub is AI-fabricated (claims
+  Xanbus is RS485, invents PGNs). Ignore it.
 
 ## Modbus ground-truth register map (anchors)
 
