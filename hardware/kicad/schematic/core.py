@@ -666,7 +666,14 @@ class Sheet:
                 if ov(lb, (sx1, sy1, sx2, sy2)):
                     bad.append(f"[label-overlap] label '{text}' × body {ref}")
             for (tx1, ty1, tx2, ty2, tref) in self.txt_boxes:
-                if tref.split(":")[0].startswith("#"): continue   # annotation symbol text
+                # Annotation symbols (#FLG…): their auto REF text is page
+                # furniture, but their VALUE text ("PWR_FLAG") renders just
+                # like any other text and a net-label flag printed over it is
+                # a real readability defect (display-iter1 F15) — so skip
+                # only the ref text, keep the value in the check.
+                pref, _, ptxt = tref.partition(":")
+                if pref.startswith("#") and ptxt.startswith("#"):
+                    continue                                  # "#FLG1:#FLG1"
                 if ov(lb, (tx1, ty1, tx2, ty2)):
                     bad.append(f"[label-overlap] label '{text}' × text {tref}")
             for j in range(i+1, len(self.lbl_boxes)):

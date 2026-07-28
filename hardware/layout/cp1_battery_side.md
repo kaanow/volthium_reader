@@ -544,7 +544,7 @@ could add an LED on a GPIO that the firmware pulses (e.g. 50 ms ON every
 | Ref | Part                                | Pkg            | Qty | Rationale |
 |-----|-------------------------------------|----------------|-----|-----------|
 | J2  | RJ45 modular jack, shielded — **exact Amphenol RJHSE-5380** (LED-less; the RJHSE-538X placeholder was retired — F05: 538X is the 2-LED sibling) | THT shielded | 1 | T568B straight-through pinout (see [`cat5e_pinout.md`](../../docs/hardware/cat5e_pinout.md)); shield drain to chassis ground at this end |
-| J3  | **USB-C receptacle** on native ESP32-S3 USB (D+/D−, VBUS, GND, CC) | SMD | 1 | **D22:** board-edge maintenance port — flash + console + JTAG over native USB, accessible without opening (IP5x dust cap). Replaces the old dev-only pin header |
+| J3  | **USB-C receptacle** on native ESP32-S3 USB (D+/D−, VBUS, GND, CC) | THT top-mount (F13) | 1 | **D22:** board-edge maintenance port — flash + console + JTAG over native USB, accessible without opening (IP5x dust cap). Replaces the old dev-only pin header |
 | J4  | 2-pin 2.54 mm jumper (RS-485 term lift) | THT | 1 | Allows R10 to be lifted via removable jumper if the board ever sits mid-bus instead of at the terminus |
 | J5  | **Keyed 2×3 IDC box header (Würth 61200621621) — ESP-Prog "Program" pinout: 1=MCU_EN, 2=V3V3, 3=DBG_TXD(target TX), 4=GND, 5=DBG_RXD(target RX), 6=BOOT(IO0)** | THT | 1 | ESP-Prog ribbon mates directly (auto-program); jumper 6→4 + blip pin 1 = manual force-download; ESP-IDF console at 115200 8N1 on pins 3/5 (F01/F10 — earlier 4-pin TX/RX/GND/RESET# form retired) |
 

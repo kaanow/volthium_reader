@@ -1039,8 +1039,15 @@ independently, a designer PASS is not evidence).
   12 V pins (1-3) on GND pins (6-8) → dead short cleared by F1 (PTC,
   resettable) + battery-side foldback; in no standard miswire does 12 V
   reach A/B — worst case the bus pins see GND or each other, inside
-  THVD1400's ±18 V bus rating. No reverse-polarity source exists (the
-  far end is a regulated + rail, not a battery terminal).
+  THVD1400's **−16 V to +16 V bus-terminal absolute maximum** (TI
+  datasheet p.4 Absolute Maximum Ratings; abs-max is a damage boundary,
+  not an operating rating — the separate §5.4 Recommended Operating
+  Conditions row "Input voltage at any bus terminal" is **−7 V to
+  +12 V**). *(F12 correction: this line originally said ±18 V, a
+  from-memory number. Both figures now re-derived from the on-file
+  PDF pages 4/5.)* No
+  reverse-polarity source exists (the far end is a regulated + rail,
+  not a battery terminal).
 - TVS2 SMAJ12CA across A-B: surge clamp only, no abs-max bracketing
   claimed — the same F44-pattern position approved for the battery's
   identical arrangement.
@@ -1089,3 +1096,71 @@ All four `sheet_d_*.full.png` pages + `root.full.png` read end-to-end
 (designer) in addition to the 13 region crops: no inter-block
 collisions, nothing enters any title block, root hierarchy boxes
 correct. Verdict unchanged: readable throughout.
+
+## 9.5 Designer responses (display-iter1 findings F12–F15) — 2026-07-28
+
+### F12 — RESOLVED (accepted; the exact failure class the doctrine names)
+
+±18 V was a from-memory number — re-derived from the on-file
+`THVD1400DR.pdf`: p.4 abs-max "Voltage at bus terminals: **−16 V to
+16 V**"; and while correcting it I nearly committed a second recalled
+number for the operating range, which the same PDF check caught — §5.4
+"Input voltage at any bus terminal" is **−7 V to +12 V** (not the
+−14/+14 I first typed). §15.6 now carries both figures with page cites
+and keeps the no-bracketing statement for TVS2. Repo-swept: the ±18
+appeared nowhere else.
+
+### F13 — RESOLVED (accepted in full: docs + exact object + guard)
+
+- All five live "SMD" cells → **THT top-mount**: `cp1_bom.md` (battery
+  J3 + display J-USB), `cp1_display_side.md`, `cp1_battery_side.md`,
+  and the parallel `docs/hardware/bom.md` (the doc-sites-must-agree
+  class).
+- **Exact object on file:** `USB4085_drawing.pdf` (sha `39afb82c5104`,
+  fetched direct with a browser UA — gct.co serves HTML to bare curl)
+  — independently re-verified: "Dip Type, PCB Top Mount", ordering grid
+  `GF = Gold Flash (Standard)`, `A = Tape & Reel`; footprint counted at
+  20 THT / 0 SMD pads. Manifest now carries BOTH objects, with the
+  family-spec row re-worded to say it does NOT establish the -GF-A
+  identity (that claim was mine and wrong).
+- **Checker extended** exactly as suggested: a SUPERSEDED pattern
+  rejects any USB4085/USB-C-receptacle row classified SMD (3 new
+  fixtures; poison-proven against the live BOM → 1 finding, restored
+  clean), plus a new `[exact-object]` check requiring the drawing row +
+  PDF whenever the BOM pins USB4085.
+- Process note: the iteration-5 reviewer evidence directory
+  (`display-iter1/reviewer/`) is cited in §8.5 but was not in the
+  pushed commit (63285de touches only the packet + semaphore) — please
+  push it so the record is complete.
+
+### F14 — RESOLVED (accepted; R18/R21 now executable)
+
+`bringup_guide.md` Stage 6 rewritten: pre-attach J1 pin-map
+verification (T568B beep-out, 12 V=1-3/A=4/B=5/GND=6-8), **display J5
+shunt FITTED** as the bus terminus (R18), exactly-two-ends termination
+rule, R3/R4 stay DNP absent CP5 evidence. New appendix section
+"Display-board recovery (R21)": J3 ESP-Prog map with the manual
+force-download sequence (J3.6→J3.4, blip J3.1), J-USB
+USB-only bench power path (R20 chain), no-V3V3 triage for both feeds,
+and a wake-path checklist (J5 fitted / ≥50 ms BREAK / gpio_hold on
+IO15 / RO→IO18).
+
+### F15 — RESOLVED (fixed, machine-guarded, and back-ported)
+
+Gate first: `core.py`'s label-overlap check now includes annotation
+symbols' VALUE text (only their auto-ref text stays exempt) — rebuilt
+display and the gate reproduced exactly the reviewer's four
+`[label-overlap] … × #FLGn:PWR_FLAG` defects before any layout change
+(the extension is self-poison-tested by reality). Then both flag
+blocks moved ref+value above the glyph (`tanchor="u"`): display
+`sheet_d_power` fixed, and the identical latent defect on the APPROVED
+battery `sheet_power` fixed under the same gate (the only battery
+drawing change in this iteration; region evidence
+`battery_sheet_power.flags_fixed.png` + display
+`sheet_d_power.flags_fixed.png` under `display-iter1/designer/`).
+Both boards rebuilt green: display strict ERC rc=0 / 0 messages,
+battery rc=5 / 2 accepted / 0 unaccounted, requirements 42/42,
+`label_body_audit` 0 findings on both changed sheets,
+`doc_consistency_check` clean.
+
+**All four findings closed. Semaphore → reviewer_turn for display-iter2.**

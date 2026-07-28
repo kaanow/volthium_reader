@@ -602,6 +602,13 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
      "F10: the 4-pin debug-UART J5 (TX/RX/GND/RESET#) and RESET#-on-J5.4 "
      "forms are retired — J5 is the keyed 2×3 ESP-Prog Program header; EN "
      "is pin 1 and pin 4 is GND"),
+    # CP2 display-iter1 F13 — the GCT USB4085 is a THT ("Dip Type, PCB Top
+    # Mount") connector; every BOM/design row that classifies the USB-C
+    # receptacle as SMD is wrong (the KiCad footprint has 20 THT pads).
+    (r"USB.?4085[^\n]{0,60}\|\s*SMD\s*\||USB-C receptacle[^\n]{0,80}\|\s*SMD\s*\|",
+     "THT top-mount",
+     "F13: USB4085 is through-hole (GCT exact drawing p.1: Dip Type, PCB "
+     "Top Mount; footprint = 20 THT pads) — 'SMD' package cells are wrong"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -623,6 +630,7 @@ MANIFEST_TO_BOM_ALIAS = {
     "BZX84C12LT1G": "BZX84C12",
     "0215001.MXP": "0215001",
     "2N7002LT1G (onsemi)": "2N7002LT1G",
+    "USB4085-GF-A (exact drawing)": "USB4085-GF-A",
     # PS-51021-024 covers the whole PicoBlade W/B system; the BOM row is
     # the header (J_EXP) which cites the spec by document number:
     "53398/53261 + 51021/50079/50058 system": "PS-51021-024",
@@ -813,6 +821,25 @@ def check_bom_mpn_coverage() -> list[str]:
                 f"NO_DATASHEET_OK exemption (F03 class)\n"
                 f"    > {line.strip()[:120]}"
             )
+    # F13: parts whose family-level datasheet cannot establish the exact
+    # ordered object need the manufacturer's EXACT drawing on file too
+    # (the USB4085 family spec has no ordering grid; only the drawing
+    # decodes -GF-A). Require both the manifest row and the PDF.
+    EXACT_OBJECT_DRAWING = {
+        "USB4085": "USB4085_drawing.pdf",
+    }
+    bom_text = CANONICAL_BOM.read_text(encoding="utf-8")
+    for token, drawing in EXACT_OBJECT_DRAWING.items():
+        if token in bom_text:
+            if drawing not in man_text:
+                findings.append(
+                    f"[exact-object] BOM pins {token} but the manifest has "
+                    f"no {drawing} row (F13: family spec alone cannot "
+                    f"identify the exact ordered variant)")
+            if not (DATASHEET_DIR / drawing).exists():
+                findings.append(
+                    f"[exact-object] {drawing} missing from "
+                    f"hardware/datasheets/ (F13)")
     return findings
 
 
@@ -866,9 +893,20 @@ FIXTURES: list[tuple[str, bool]] = [
      "2=V3V3, 3=DBG_TXD, 4=GND, 5=DBG_RXD, 6=BOOT | THT | 1 |", False),
     ("| MCU_EN (RESET#) | 3.3 V LV | ESP EN pin / J5 pin 1 | U4 RESET via "
      "Q3 |", False),
-    # Display-side J3 is a legitimate 4-pin UART header — must NOT flag.
+    # A bare 4-pin UART row with no RESET#/J5-pin-4 token must NOT flag
+    # (scope test; the display J3 row this once modeled is now itself a
+    # keyed 2×3 ESP-Prog per display-CP2 DR-32).
     ("| J3  | 4-pin 2.54 mm header (UART debug) | THT | 1 | bench only |",
      False),
+    # F13: a USB4085 (or generic USB-C receptacle) row classified SMD must
+    # FLAG; the corrected THT rows must PASS.
+    ("| J-USB | **USB-C receptacle GCT USB4085-GF-A** (native ESP32-S3 USB, "
+     "board edge) | SMD | 1 |", True),
+    ("| J-USB     | **USB-C receptacle** (native ESP32-S3 USB, board edge) "
+     "| SMD | 1 | PCB |", True),
+    ("| J3  | **USB-C receptacle GCT USB4085-GF-A** (native ESP32-S3 USB) "
+     "| THT top-mount (F13: GCT drawing = \"Dip Type, PCB Top Mount\"; 20 "
+     "THT pads) | 1 |", False),
 ]
 
 

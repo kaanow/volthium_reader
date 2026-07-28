@@ -126,7 +126,9 @@ def blk_d_pwr_flags(s, cx, cy):
     (V12_CAT5E from J1, V12_PROT past the PTC, VBUS from USB-C) + GND ref."""
     for i, net in enumerate(("V12_CAT5E", "V12_PROT", "VBUS", "GND")):
         x = snap(cx + i * 17.78)
-        pf = s.place("PWR_FLAG", f"#FLG{i+1}", "PWR_FLAG", "", (x, cy), angle=0, tanchor="ud")
+        # tanchor="u": ref + value both ABOVE the glyph so the net-label flag
+        # below can't print over the "PWR_FLAG" value text (F15).
+        pf = s.place("PWR_FLAG", f"#FLG{i+1}", "PWR_FLAG", "", (x, cy), angle=0, tanchor="u")
         pin = pf["1"]
         s.wire(pin, (pin[0], snap(pin[1] + 5.08)))
         s.label(net, (pin[0], snap(pin[1] + 5.08)), justify_h="left")

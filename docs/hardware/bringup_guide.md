@@ -87,11 +87,22 @@ For each of CH1_PWR, CH2_PWR, CAN_PWR, EXP_PWR_EN — in that order:
    250 kbps. Expect Xanbus frames. J7 shunt only if the reader is a chain end.
 3. Gate off → confirm the bus is unloaded (TCAN332 high-Z unpowered).
 
-## Stage 6 — display link + system soak
+## Stage 6 — display link + system soak (R17/R18)
 
-1. J2/Cat5e to the display node: 12 V feed present (SSR1 path, PWR_EN),
-   RS-485 comms up, J4 termination per final topology.
-2. Full-system soak: duty-cycled polling, deep-sleep floor re-measured,
+1. **Before attaching the Cat5e at the display end (F14):** verify the
+   cable is a T568B straight-through and beep the J1 pin map at the
+   display plug — 12 V on 1/2/3, A on 4, B on 5, GND on 6/7/8 (R17).
+   A crossover/rolled cable shorts 12 V to GND (resettable: F1 PTC +
+   battery-side foldback) but must not be left in place.
+2. **Display termination: J5 shunt FITTED** — the display end is the bus
+   terminus, so R2's 120 Ω must be in circuit by default (R18). Battery
+   end: J4 per final topology (its terminator lifts only if the battery
+   node is mid-bus). Exactly the two physical bus ends carry termination.
+   R3/R4 idle bias stay **DNP** unless CP5 link testing shows RO
+   glitches (F12).
+3. J2/Cat5e link up: 12 V feed present (SSR1 path, PWR_EN), RS-485
+   comms up; confirm display ACK-on-BREAK wake (D34 §turnaround).
+4. Full-system soak: duty-cycled polling, deep-sleep floor re-measured,
    [CP5: 24 h log against power_budget.md].
 
 ## Appendix — recovery cheat-sheet
@@ -103,3 +114,16 @@ For each of CH1_PWR, CH2_PWR, CAN_PWR, EXP_PWR_EN — in that order:
 | No V3V3 on pack | F1 cartridge, D1 orientation, V24_FUSED, UVLO_RESET state (pack < 21.7 V won't release!) |
 | Iso channel silent | CHx_PWR low? V_ISOINx vs ISO_BUS_GNDx? A/B swapped? (vendor: A=7, B=8) |
 | No CAN frames | polarity (L=4/H=5), listen-only mode?, 250 kbps?, gate on? |
+
+### Display-board recovery (R21 — F14)
+
+The display Deep-sleeps between frames, so a sleeping/bricked unit is
+often uncatchable over USB — same argument as battery J5. Pop the
+faceplate (no wall removal) for both ports:
+
+| Symptom | Path |
+|---|---|
+| Display USB dead / firmware sleeps instantly | ESP-Prog ribbon on **J3** (keyed 2×3, same map as battery J5: 1=EN, 2=VDD, 3=TXD, 4=GND, 5=RXD, 6=IO0). Auto-program via esptool, or manual force-download: **jumper J3.6→J3.4 (IO0 to GND), blip J3.1 (EN)**, then flash; confirm on the J3 console (115200) |
+| Display alive but no 12 V (bench work) | **J-USB (USB-C)** powers the board alone: AP2112 → TPS2116 VIN1 priority → V3V3 (R20). Flash/console over native USB |
+| No V3V3 on display | USB path: U3-LDO out → U4-MUX VIN1/PR1/MODE, C_mux; 12 V path: J1 pins 1-3 → F1 (PTC tripped? clears on power-off) → TVS1/V12_PROT → U1 |
+| Display never wakes on bus traffic | J5 shunt fitted? (terminus, R18) · master BREAK ≥50 ms? · /RE latched LOW via `gpio_hold_en(GPIO15)`? · RO reaching IO18 (ext1 mask)? |

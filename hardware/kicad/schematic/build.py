@@ -21,7 +21,9 @@ def blk_pwr_flags(s, cx, cy):
     connector (VBUS from USB-C), plus the global GND reference."""
     for i, net in enumerate(("V24_FUSED", "V24_SW", "VBUS", "GND", "V3V3_BUCK")):
         x = snap(cx + i*17.78)
-        pf = s.place("PWR_FLAG", f"#FLG{i+1}", "PWR_FLAG", "", (x, cy), angle=0, tanchor="ud")
+        # tanchor="u" (display-iter1 F15 class): value text above the glyph,
+        # clear of the net-label flag below.
+        pf = s.place("PWR_FLAG", f"#FLG{i+1}", "PWR_FLAG", "", (x, cy), angle=0, tanchor="u")
         pin = pf["1"]
         s.wire(pin, (pin[0], snap(pin[1] + 5.08)))
         s.label(net, (pin[0], snap(pin[1] + 5.08)), justify_h="left")
