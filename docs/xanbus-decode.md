@@ -57,16 +57,25 @@ little-endian. Voltage/current raw ÷1000; power raw = W; temp = raw ÷100 − 2
 - **Battery voltage — confirmed exact.** CAN 127172 vs Modbus `90:79` match on
   both peak (27.66 / 27.55 V) and daytime median (27.04 / 27.02 V), **r = +0.98**.
   Decode airtight.
-- **PV array voltage — decode is physically correct, Modbus cross-check pending.**
-  CAN 127173 `assoc 0x15` decodes a real array voltage peaking at **119.6 V**
-  (daytime median 112.6 V) — exactly right for a 60/150 MPPT; that value can only
-  come from decoding the PV field correctly. The candidate Modbus register I
-  checked (`30:76`) reads ~0, so the register match still needs pinning.
-- **PV current/power — not yet validatable.** The 46 h corpus was a low-solar
-  window (PV current peaked at 0.04 A — essentially no production), so I/P sat at
-  0. **One clear sunny-daytime capture** finalizes their scale and pins the
-  Modbus PV registers. The already-running continuous capture will grab it; then
-  pull + re-validate. No capture campaign needed.
+- **PV array voltage — confirmed.** CAN 127173 `assoc 0x15` decodes a real array
+  voltage (dawn peak ~99–119 V, pulled down toward the MPP as the MPPT loads it).
+  Modbus mirror: `30:76/77` = u32 mV (76 = high word) — tracked the same 0→65 V
+  dawn ramp on 2026-07-28.
+- **PV-input current/power — DO NOT EXIST on this hardware (resolved 2026-07-28).**
+  During a morning that peaked at **134 W / 5 A delivered to the battery**, the
+  `assoc 0x15` I/P fields stayed hard-zero on the wire (raw bytes `00`), and the
+  Insight Home's own Modbus PV-current regs `30:78/79` were zero too. The
+  **MPPT 60 150 does not measure PV-side current on any interface** (berrybms's
+  unit that populates these is a bigger MPPT; ours also sends a 21-byte 0x15
+  payload vs their 27). **Solar production = the MPPT output channel**: 127173
+  `assoc 0x03` from src 1 — self-consistent (V×I=W ✓, e.g. 26.54 V × 1.43 A ≈ 37 W)
+  and pure CAN. Drop `pv_I/pv_W` from the field list; keep `pv_V` for array
+  diagnostics; `mppt_out_I/W` is *the* production field.
+- **Bonus (Modbus, for reference only): MPPT energy counters.** `30:131/135/139/143`
+  are cumulative Wh counters at different epochs (all ticked +115 Wh across the
+  2026-07-28 morning); `30:133/137` count operating-seconds; `30:127` ≈ output W.
+  These label the CAN 127166 correlation if we ever bother — or just integrate
+  `mppt_out_W`.
 
 ## Fast-packet reassembly — a note (and our contribution to berrybms)
 
@@ -90,10 +99,11 @@ well-known ±1 addressing quirk. Empirically on our reader:
 
 ## What's left
 
-1. **Finalize PV I/P scale** against one clean daytime window (0→peak sweep).
+1. ~~Finalize PV I/P scale~~ **Resolved 2026-07-28**: the fields don't exist on
+   this MPPT; production comes from the `assoc 0x03` output channel instead.
 2. **Correlation-decode 127166** cumulative energy (daily/lifetime kWh yield),
-   labelled via the Modbus energy registers — nice-to-have; can also be had by
-   integrating PV power.
+   labelled via the Modbus energy registers (`30:131` +siblings) — nice-to-have;
+   can also be had by integrating `mppt_out_W`.
 3. **Build the live reader path** (`xanbus_reader.py` live mode reads can0
    directly, streaming — safe to run on the Pi) and cut telemetry over to it.
 4. **Retire the Insight Home** once the reader is trusted.
