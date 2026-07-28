@@ -32,7 +32,9 @@ INTERVAL = 10.0
 OUTDIR = Path("data/modbus")
 CUR = OUTDIR / "modbus.jsonl"
 ROTATE_BYTES = 10 * 1024 * 1024
-KEEP_GZ = 60
+# Match the CAN capture's generous retention (~months here; modbus is small).
+# 1000 gz × ≤1 MB ≈ 1 GB worst case — trivial vs the 49 GB free.
+KEEP_GZ = 1000
 
 _stop = False
 _tid = 0

@@ -22,8 +22,15 @@ import glob
 import gzip
 import json
 import math
+import socket
 import time
 from collections import defaultdict
+
+# Hostnames of hosts we must NEVER decode on. Correlation loads a large, growing
+# corpus into RAM; on the 1 GB barge Pi that OOMs the box and takes telemetry
+# down (the 2026-07-26 outage). This tool is meant to run OFF the Pi against a
+# pulled corpus — see scripts/pull_captures.sh and CLAUDE.md.
+FORBIDDEN_HOSTS = {"kwpi"}
 
 # Registers we've already identified, for nicer labels in the output.
 KNOWN = {(90, 79): "SW DC bus voltage (x0.001)", (1, 157): "gateway DC voltage (x0.001)"}
@@ -119,7 +126,7 @@ def _read_rows(fn: str):
         return
 
 
-def load_can(cutoff: float, max_frames: int):
+def load_can(cutoff: float, max_frames: int, data_dir: str = "data"):
     """id -> sorted [(t, bytes)], newest-first, time-windowed and hard-capped.
 
     CRITICAL: this may run on the 1 GB Pi 3B. Loading the *entire* rotated
@@ -131,7 +138,7 @@ def load_can(cutoff: float, max_frames: int):
     by_id: dict[str, list] = defaultdict(list)
     total = 0
     capped = False
-    for fn in _files_newest_first("data/xanbus/xanbus-*.jsonl.gz", "data/xanbus/xanbus.jsonl"):
+    for fn in _files_newest_first(f"{data_dir}/xanbus/xanbus-*.jsonl.gz", f"{data_dir}/xanbus/xanbus.jsonl"):
         kept_here = 0
         for e in _read_rows(fn):
             t = e.get("t")
@@ -155,12 +162,12 @@ def load_can(cutoff: float, max_frames: int):
     return by_id, total, capped
 
 
-def load_modbus(cutoff: float):
+def load_modbus(cutoff: float, data_dir: str = "data"):
     """(slave, reg) -> sorted [(t, value)] within the window. Modbus is light
     (~1 poll/10 s), so no frame cap is needed — but honour the same time cutoff
     so it aligns with the CAN side."""
     series: dict[tuple, list] = defaultdict(list)
-    for fn in _files_newest_first("data/modbus/modbus-*.jsonl.gz", "data/modbus/modbus.jsonl"):
+    for fn in _files_newest_first(f"{data_dir}/modbus/modbus-*.jsonl.gz", f"{data_dir}/modbus/modbus.jsonl"):
         kept_here = 0
         for e in _read_rows(fn):
             t, slave, regs = e.get("t"), e.get("slave"), e.get("regs", {})
@@ -276,11 +283,27 @@ def main() -> int:
                     help="hard cap on CAN frames loaded — protects the 1 GB Pi "
                          "from OOM (default 300k ≈ 30 min at 160 fps). Raise it "
                          "only when running OFF the Pi.")
+    ap.add_argument("--data-dir", default="data",
+                    help="root holding xanbus/ and modbus/ (default 'data'); "
+                         "point at a corpus pulled off the Pi by pull_captures.sh")
+    ap.add_argument("--force-on-pi", action="store_true",
+                    help="override the refuse-to-run-on-the-barge-Pi safety guard "
+                         "(you almost never want this — decode off the Pi)")
     args = ap.parse_args()
 
+    host = socket.gethostname().split(".")[0]
+    if host in FORBIDDEN_HOSTS and not args.force_on_pi:
+        print(f"REFUSING to run on '{host}': decoding loads a large, growing corpus "
+              f"into RAM and can OOM this box (the 2026-07-26 outage). Pull the "
+              f"capture to another machine and run it there:\n"
+              f"    scripts/pull_captures.sh   # on the laptop\n"
+              f"    python3 scripts/xanbus_decode.py --data-dir <pulled-dir> --hours 24\n"
+              f"If you truly must, re-run with --force-on-pi (keeps the frame cap).")
+        return 2
+
     cutoff = time.time() - args.hours * 3600
-    can, total, capped = load_can(cutoff, args.max_frames)
-    modbus = load_modbus(cutoff)
+    can, total, capped = load_can(cutoff, args.max_frames, args.data_dir)
+    modbus = load_modbus(cutoff, args.data_dir)
     note = (f", CAPPED at {args.max_frames} frames — run off-Pi or lower --hours "
             f"for wider coverage" if capped else "")
     print(f"loaded: {total} CAN frames across {len(can)} IDs; "

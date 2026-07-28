@@ -24,7 +24,11 @@ CAN_FRAME = "=IB3x8s"                 # can_id(4), dlc(1), pad(3), data(8)
 OUTDIR = Path("data/xanbus")
 CUR = OUTDIR / "xanbus.jsonl"
 ROTATE_BYTES = 20 * 1024 * 1024       # 20 MB per raw file (~10x smaller gzip'd)
-KEEP_GZ = 60                          # rotated files to retain
+# Retain ~2 weeks so a missed off-Pi pull (scripts/pull_captures.sh) doesn't lose
+# the correlation corpus. Disk math: ~1.3 MB/gz, one rotation per ~24 min at
+# 160 fps -> ~60/day. 1000 files ≈ 16 days ≈ 1.3 GB, trivial vs the 49 GB free.
+# This bounds disk absolutely; it adds NO memory cost (prune just sorts names).
+KEEP_GZ = 1000                        # rotated files to retain
 
 _stop = False
 

@@ -30,6 +30,11 @@ hardware/kicad/projects/
 /skidl_REPL.log
 /test_smoke.log
 
+# Off-Pi capture corpus pulled by scripts/pull_captures.sh for Xanbus decoding.
+# This is decode *tooling* input, not telemetry — it lives local-only, never
+# in git or Railway. (See CLAUDE.md.)
+captures/
+
 # Claude Code state
 .claude/
 
