@@ -1,0 +1,29 @@
+build_returncode=0
+forced_pdf_export_failures=5
+child_pdf_text_clean_markers=4
+stale_conn_pdf_hash_unchanged=True
+stale_pdf_failure_accepted=True
+----- stdout -----
+[env] KiCad share: C:\Users\kaanw\AppData\Local/Programs/KiCad/10.0/share/kicad
+[env] KiCad CLI: C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli.exe
+[sheet_d_power] readability gate: clean
+[poison] forced PDF export failure: sch export pdf -o C:\Users\kaanw\AppData\Local\Temp\pdf-export-poison-fthaw22y\kicad\schematic\build_display\sheet_d_power.pdf C:\Users\kaanw\AppData\Local\Temp\pdf-export-poison-fthaw22y\kicad\schematic\build_display\sheet_d_power.kicad_sch
+[sheet_d_power] pdf-text gate: clean
+[sheet_d_power] PNG written
+[sheet_d_conn] readability gate: clean
+[poison] forced PDF export failure: sch export pdf -o C:\Users\kaanw\AppData\Local\Temp\pdf-export-poison-fthaw22y\kicad\schematic\build_display\sheet_d_conn.pdf C:\Users\kaanw\AppData\Local\Temp\pdf-export-poison-fthaw22y\kicad\schematic\build_display\sheet_d_conn.kicad_sch
+[sheet_d_conn] pdf-text gate: clean
+[sheet_d_conn] PNG written
+[sheet_d_periph] readability gate: clean
+[poison] forced PDF export failure: sch export pdf -o C:\Users\kaanw\AppData\Local\Temp\pdf-export-poison-fthaw22y\kicad\schematic\build_display\sheet_d_periph.pdf C:\Users\kaanw\AppData\Local\Temp\pdf-export-poison-fthaw22y\kicad\schematic\build_display\sheet_d_periph.kicad_sch
+[sheet_d_periph] pdf-text gate: clean
+[sheet_d_periph] PNG written
+[sheet_d_mcu] readability gate: clean
+[poison] forced PDF export failure: sch export pdf -o C:\Users\kaanw\AppData\Local\Temp\pdf-export-poison-fthaw22y\kicad\schematic\build_display\sheet_d_mcu.pdf C:\Users\kaanw\AppData\Local\Temp\pdf-export-poison-fthaw22y\kicad\schematic\build_display\sheet_d_mcu.kicad_sch
+[sheet_d_mcu] pdf-text gate: clean
+[sheet_d_mcu] PNG written
+[NETLIST gate] generator intent == kicad-cli netlist: clean
+[ROOT ERC strict] rc=0; 0 message(s), 0 accepted (ERC_ACCEPTED), 0 unaccounted
+[poison] forced PDF export failure: sch export pdf -o C:\Users\kaanw\AppData\Local\Temp\pdf-export-poison-fthaw22y\kicad\schematic\build_display\volthium_display.pdf C:\Users\kaanw\AppData\Local\Temp\pdf-export-poison-fthaw22y\kicad\schematic\build_display\volthium_display.kicad_sch
+[ROOT] wrote volthium_display.kicad_sch + .kicad_pro + full volthium_display.pdf
+----- stderr -----

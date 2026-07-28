@@ -1,0 +1,9 @@
+
+
+TimeCreated : 2026-07-28 7:32:47 AM
+Id          : 26
+Message     : Application popup: kicad-cli.exe - Application Error : The instruction at 0x0000000000000000 referenced
+              memory at 0x0000000000000000. The memory could not be written.
+
+              Click on OK to terminate the program
+              Click on CANCEL to debug the program

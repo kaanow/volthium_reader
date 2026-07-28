@@ -1,0 +1,18 @@
+command_returncode=2
+----- stdout -----
+[env] KiCad share: C:\Users\kaanw\AppData\Local/Programs/KiCad/10.0/share/kicad
+[env] KiCad CLI: C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli.exe
+[sheet_d_power] readability gate: clean
+[sheet_d_power] pdf-text gate: clean
+[sheet_d_power] PNG written
+[sheet_d_conn] READABILITY GATE FAILED:
+  [glyph-glyph] J-USB name'SHIELD' × J-USB name'GND'
+  [glyph-glyph] J-USB name'SHIELD' × J-USB name'GND'
+[sheet_d_periph] readability gate: clean
+[sheet_d_periph] pdf-text gate: clean
+[sheet_d_periph] PNG written
+[sheet_d_mcu] readability gate: clean
+[sheet_d_mcu] pdf-text gate: clean
+[sheet_d_mcu] PNG written
+[NETLIST gate] SKIPPED — a sheet failed its readability gate, so the files on disk are STALE (render() refuses to write a failed sheet); netlist comparison would judge the OLD drawing.
+----- stderr -----

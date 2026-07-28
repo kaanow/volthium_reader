@@ -768,6 +768,101 @@ and poison-test this exact class so the shared-symbol twin cannot recur.
 
 **REVIEW COMPLETE**: NEEDS CHANGES - 0 blockers, 1 important. (F12-F15 closed; see finding F16.)
 
+## 8.7 Reviewer findings (iteration 7 - display iteration 3)
+
+### Review evidence
+
+The committed battery and display generators were rebuilt before review with
+normal Windows user-folder access, no KiCad CLI on `PATH`, and no KiCad
+environment overrides. Both found the paired per-user KiCad 10.0.5 install
+and exited 0. The battery retained two accepted ERC messages and zero
+unaccounted messages; display strict ERC and a separate direct ERC both
+reported zero violations. No new Windows `kicad-cli.exe` application-error
+popup was recorded. The starting doc-consistency check exited 0.
+
+The fresh exported display netlist passed all 110 golden contracts, exact-part
+contracts, the discrete-short invariant, and independent false-net and
+wrong-footprint poisons. The requirements runner passed all 42 checks. G8
+read-back confirms that moving the shared symbol's SH pin did not change
+connectivity: display J-USB SH remains on GND, and its four GND pins remain on
+GND. No SKU cell or manifest row changed in this geometry/gate delta.
+
+The current F16 drawing fix itself is clean. Both designer crops and
+reviewer-owned 1200-DPI crops show SHIELD on the SBU2 row with visible
+clearance from all four vertical GND names. The generator's analytic gate,
+the independent de-duplicated PDF word-box audit, the source-native
+label/body audit, and crop-zoom inspection agree. The independent PDF audit
+finds no current GND x SHIELD intersection on either board. Thus F16's board
+geometry is closed.
+
+The new gates were poison-tested separately rather than only in series. With
+the exact old SH coordinate restored, the calibrated analytic gate correctly
+fails on exactly two SHIELD x GND pairs per board and skips netlist judgment.
+When the analytic model is deliberately returned to permissive pre-F16
+metrics, however, the new PDF-text gate accepts the visibly colliding exports.
+That exposed F17. A separate forced-export-failure poison exposed F18.
+
+Citation spot-checks opened the on-file PDFs: TI THVD1400 page 4 gives A/B
+absolute maximum as -16 V to +16 V; page 5 gives the recommended bus-terminal
+range as -7 V to +12 V. GCT USB4085 drawing page 1 identifies the exact object
+as Dip Type, PCB Top Mount and decodes `GF`/`A`; page 2 shows the 16 x 0.65 mm
+contact-hole layout. Full hashes match the manifest prefixes, and the
+installed exact footprint has 20 THT and zero SMD pads.
+
+Reviewer evidence, scripts, source renders, poisoned PDFs, and integrity
+inputs are under
+`hardware/reviews/visual_inspections/cp2-schematic/display-iter3/reviewer/`.
+
+### Finding F17 - IMPORTANT - the PDF-text threshold misses the known F16 poison
+
+**Issue**: `_pdf_text_collisions()` uses a strict greater-than 0.5 mm
+minimum-axis threshold, but the old, visibly overlapping SHIELD/GND geometry
+measures 1.791 x **0.489 mm** in both independently generated child PDFs.
+Consequently, with the analytic gate made permissive, both poisoned builds
+exit 0, print `pdf-text gate: clean`, and report zero PDF-text findings. The
+packet's 0.64 mm calibration claim does not reproduce against the exact
+artifact that `render()` checks.
+
+**Evidence**:
+`hardware/kicad/schematic/core.py:_pdf_text_collisions`;
+`poison_f16_summary.txt`; the preserved
+`poison_pdf_{battery,display}_*_conn.pdf` files and 1200-DPI crops; and
+`pdf_threshold_sweep.txt`. The threshold sweep covers all 12 current child
+PDFs plus both poisons: 0.45 mm produces zero current findings and exactly
+four poison findings, whereas 0.49 and 0.50 miss all four.
+
+**Suggested fix**: lower the committed threshold to 0.45 mm (or replace the
+box threshold with a demonstrated ink-level test), correct the calibration
+comments/evidence, and add a permanent poison test that independently bypasses
+the analytic gate and requires exactly two PDF-text findings per board. Keep
+the clean 12-child-sheet control in that test so threshold tightening cannot
+silently create accepted false positives.
+
+### Finding F18 - IMPORTANT - failed PDF exports are accepted from stale files
+
+**Issue**: `render()` ignores the return code from `kicad-cli sch export pdf`
+before opening the target path. Because the build directory is not cleared,
+a failed export leaves the previous PDF in place; the PDF-text gate and PNG
+generation then judge that stale file and print clean. The root PDF export is
+also unchecked.
+
+**Evidence**:
+`hardware/kicad/schematic/core.py:render` and `core.py:run`;
+`poison_pdf_export_failure.txt`. In a temp copy containing the current
+generated outputs, the reviewer forced all five display PDF exports to return
+97 while allowing netlist/ERC commands to run normally. The build still
+exited 0, printed four child `pdf-text gate: clean` markers and the root
+`wrote ... full ...pdf` claim, and left the connection PDF hash unchanged.
+
+**Suggested fix**: remove or uniquely stage each target before export, require
+`returncode == 0`, require a newly produced non-empty PDF, and only then run
+the PDF-text/PNG steps. Apply the same checked-export contract to the root
+PDF. Add a stale-file poison test that pre-seeds a valid old PDF, forces the
+export to fail, and requires the build to fail before any clean PDF-gate
+claim.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings F17, F18.)
+
 ## 9 Designer responses (iteration 1) — 2026-07-24
 
 ### F01 — RESOLVED (accepted, with one premise correction)
