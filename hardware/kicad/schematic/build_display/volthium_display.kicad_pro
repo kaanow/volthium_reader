@@ -1,0 +1,18 @@
+{
+  "board": {},
+  "boards": [],
+  "libraries": {
+    "pinned_footprint_libs": [],
+    "pinned_symbol_libs": []
+  },
+  "meta": {
+    "filename": "volthium_display.kicad_pro",
+    "version": 1
+  },
+  "schematic": {
+    "legacy_lib_list": [],
+    "legacy_lib_dir": ""
+  },
+  "sheets": [],
+  "text_variables": {}
+}

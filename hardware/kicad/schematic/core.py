@@ -138,6 +138,8 @@ SYMBOLS = {
     "RV-3028-C7":       (f"{STOCK}/Timer_RTC.kicad_sym",           "RV-3028-C7"),
     "TPS2116DRL":       (f"{STOCK}/Power_Management.kicad_sym",    "TPS2116DRL"),
     "R-78HB12-0.5":     (f"{STOCK}/Converter_DCDC.kicad_sym",      "R-78HB12-0.5"),
+    "R-78E3.3-0.5":     (f"{STOCK}/Converter_DCDC.kicad_sym",      "R-78E3.3-0.5"),
+    "SW_Push":          (f"{STOCK}/Switch.kicad_sym",               "SW_Push"),
     "ESP32-S3-WROOM-1": (f"{STOCK}/RF_Module.kicad_sym",           "ESP32-S3-WROOM-1"),
     "AP2112K-3.3":      (f"{STOCK}/Regulator_Linear.kicad_sym",    "AP2112K-3.3"),
     "2N7002":           (f"{STOCK}/Transistor_FET.kicad_sym",      "2N7002"),
@@ -418,7 +420,8 @@ def art_boxes(name, pos, angle):
     return solids, edges
 
 
-_FP_DIRS = [os.environ.get("KICAD10_FOOTPRINT_DIR", f"{KICAD_SHARE}/footprints")]
+_FP_DIRS = [os.environ.get("KICAD10_FOOTPRINT_DIR", f"{KICAD_SHARE}/footprints"),
+            str(KROOT / "footprints")]   # repo-local volthium.pretty (see its README)
 _FP_SEEN = set()
 _FP_BARE_PREFIX = (("R_", "Resistor_SMD"), ("C_", "Capacitor_SMD"),
                    ("L_", "Inductor_SMD"), ("D_", "Diode_SMD"))
@@ -838,6 +841,13 @@ def write_project():
     (OUT / "sym-lib-table").write_text(
         '(sym_lib_table\n  (version 7)\n  (lib (name "volthium")(type "KiCad")'
         '(uri "${KIPRJMOD}/volthium.kicad_sym")(options "")(descr ""))\n)\n',
+        encoding="utf-8")
+    # Repo-local footprint library (vendored/authored parts absent from the
+    # stock libs — see hardware/kicad/footprints/README.md). Declared per
+    # project so kicad-cli ERC can resolve `volthium:` footprint links.
+    (OUT / "fp-lib-table").write_text(
+        '(fp_lib_table\n  (version 7)\n  (lib (name "volthium")(type "KiCad")'
+        '(uri "${KIPRJMOD}/../../footprints/volthium.pretty")(options "")(descr ""))\n)\n',
         encoding="utf-8")
 
 

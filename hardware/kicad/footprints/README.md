@@ -1,0 +1,31 @@
+# Repo-local footprint library (`volthium.pretty`)
+
+Footprints not present in the KiCad 10 stock libraries. The build gate
+(`core.py` `_FP_DIRS`) resolves the `volthium:` prefix here; at CP3 the
+layout's `fp-lib-table` must add this library under the same nickname.
+
+| Footprint | Part | Provenance |
+|-----------|------|------------|
+| `J_Wurth_WR-MJ_615008145521.kicad_mod` | Würth 615008145521 WR-MJ RJ45, horizontal shielded EMI-finger 8P8C tab-down (display J1) | **Manufacturer-official**, vendored verbatim from [WurthElektronik/KiCad-Library](https://github.com/WurthElektronik/KiCad-Library) `footprints/Connector_THT_Wurth.pretty/`, commit `fdbe2d0192`, fetched 2026-07-27. sha256 `38db7c97fd9b…899684`. License: Würth `License_Terms_WE_KiCad_library.pdf` (free use for designing with WE products). |
+
+## Why vendored, and the pin-map verification (2026-07-27)
+
+KiCad stock has no footprint for 615008145521. The datasheet's numbered
+top view is ambiguous to read (digits sit in the diagonal gaps of the
+staggered field), and this jack's tail fan-out is **non-monotone** — a
+hand-derived pattern was rejected in favor of the manufacturer's own:
+
+- far row (8.89 mm from the mounting posts): pins **1, 5, 6, 7** at
+  x = 0 / 2.54 / 5.08 / 7.62
+- near row (6.35 mm from posts): pins **2, 3, 4, 8** at
+  x = −1.27 / 1.27 / 3.81 / 6.35
+- x-order across both rows: `2, 1, 3, 5, 4, 6, 8, 7` — NOT the
+  monotone-alternating comb of e.g. the Amphenol RJHSE5380 or Würth's
+  own 7499010001A magjack.
+
+Cross-checks performed: every official pad coordinate matches the
+datasheet Recommended Hole Pattern (rows 2.54 apart, 1.27 stagger,
+posts Ø3.2 span 11.43 at 8.89, shield Ø1.7 span 15.50 at 5.84,
+signal drills 0.9), and the datasheet's numbered view agrees with the
+official map once the label convention is decoded (each digit sits
+~1.2 mm right of its own hole).
