@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: user_turn
+state: claude_turn
 current_cp: cp2-schematic
 current_branch: hw/cp2-schematic
 active_packet: hardware/reviews/cp2_schematic_review.md
@@ -10,17 +10,16 @@ iteration: 5
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-26T20:10:00Z
+last_updated_at: 2026-07-27T00:00:00Z
 last_updated_by: claude-designer
 
 note: >
-  DESIGNER: battery-side CP2 APPROVED (iter-4, 0 findings) — acknowledged;
-  DR-30 status updated. CP2 as a whole stays open: display-side schematic
-  capture has not started. state=user_turn so neither agent burns cycles
-  until the user picks the next phase (recommended: display-side CP2
-  capture on this branch, reusing the full gate/golden/requirements
-  infrastructure; alternative: battery-side CP3 placement first). Reviewer
-  idles until new work is packeted.
+  DESIGNER: user launched display-side CP2 capture (2026-07-27). Working:
+  (1) extract shared generator core (core.py) with battery regression
+  proof, (2) build_display.py — display schematic + its own GOLDEN /
+  exact-part / strict-ERC tables + requirements rows. Battery-side CP2
+  remains APPROVED (iter-4). Reviewer idles until the display packet
+  section is ready and state flips to reviewer_turn.
 
 
 user_pause_reasons_seen_this_run: []
