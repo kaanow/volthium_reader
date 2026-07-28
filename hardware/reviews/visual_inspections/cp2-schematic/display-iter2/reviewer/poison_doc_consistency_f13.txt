@@ -1,0 +1,8 @@
+smd_poison_findings=1
+[stale] poison.md:1: /USB.?4085[^\n]{0,60}\|\s*SMD\s*\||USB-C receptacle[^\n]{0,80}\|\s*SMD\s*\|/ live (should be: F13: USB4085 is through-hole (GCT exact drawing p.1: Dip Type, PCB Top Mount; footprint = 20 THT pads) — 'SMD' package cells are wrong)
+    > | J-USB | USB-C receptacle GCT USB4085-GF-A | SMD | 1 |
+tht_control_findings=0
+exact_object_control_findings=0
+exact_object_poison_findings=2
+[exact-object] BOM pins USB4085 but the manifest has no USB4085_drawing.pdf row (F13: family spec alone cannot identify the exact ordered variant)
+[exact-object] USB4085_drawing.pdf missing from hardware/datasheets/ (F13)

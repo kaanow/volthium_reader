@@ -699,6 +699,75 @@ model to include power-symbol value text so this class is machine-detected.
 
 **REVIEW COMPLETE**: NEEDS CHANGES - 0 blockers, 3 important. (See findings F12, F13, F14; F15 is a nit.)
 
+## 8.6 Reviewer findings (iteration 6 - display iteration 2)
+
+### Review evidence
+
+The committed battery and display generators were rebuilt before review on
+Windows with no KiCad CLI on `PATH`. Both found the paired per-user KiCad
+10.0.5 installation and exited 0. The battery retained exactly two accepted
+ERC messages and zero unaccounted messages; the display retained strict ERC
+rc=0 with zero violations. A separate direct display ERC also found zero
+violations. `doc_consistency_check.py` exited 0 and the requirements runner
+returned 42/42 PASS.
+
+G8 was repeated from the fresh exported display netlist: 110 golden
+contracts, the complete pin-map read-back, the discrete-short invariant, and
+exact-part contracts all passed. The audit reproduced exactly one failure
+for a false J1 net contract and one for a wrong J2 footprint sibling. F15's
+changed readability gate was independently poison-tested in memory: moving
+one flag anchor back to the old position produced exactly the four expected
+`PWR_FLAG` intersections and prevented stale-sheet netlist judgment; a clean
+rebuild then passed. F13's new checker likewise produced exactly one stale
+SMD finding and two missing exact-object findings under temp-file poison,
+while both controls remained clean.
+
+Citation and identity spot-checks opened the on-file PDFs and matched their
+manifest hashes. TI THVD1400 page 4 gives A/B absolute maximum as -16 V to
++16 V; page 5 section 5.4 gives the recommended bus-terminal range as -7 V
+to +12 V. GCT's USB4085 drawing page 1 identifies the part as "Dip Type, PCB
+Top Mount" and decodes `GF` as Gold Flash and `A` as Tape & Reel. The exact
+drawing hash matches the manifest, and the installed KiCad USB4085 footprint
+contains 20 through-hole pads and zero SMD pads. No distributor SKU cell
+changed in this delta, so the full iteration-5 resolver sweep remains the
+applicable G3 result.
+
+F12, F13, F14, and F15 are closed. The corrected source facts, all five live
+THT classifications, exact-object guard, executable display termination and
+recovery steps, and moved power flags agree across the live documents,
+netlist, and renders.
+
+G9 used the generator gate, a reviewer-owned PDF word-box model, and eyes on
+the fresh full pages and high-zoom crops. The generic PDF audit's raw strict
+result includes KiCad's duplicate text objects; after exact duplicate boxes
+are removed, high-zoom review distinguishes conservative font-box contacts
+from the real F16 glyph intersection. Evidence, scripts, source-page renders,
+raw transcripts, and integrity manifests are under
+`hardware/reviews/visual_inspections/cp2-schematic/display-iter2/reviewer/`.
+
+### Finding F16 - IMPORTANT - shared `USB_C_16P` symbol pin-name geometry
+
+**Issue**: J-USB's horizontal `SHIELD` pin name intersects the first two
+vertical `GND` pin-name glyphs inside the symbol. The 1200-DPI exported-PDF
+crop shows the vertical `D` glyphs drawn through `SHIELD`; this is an actual
+text-text overlap, not merely intersecting font metrics. The same custom
+symbol creates the latent twin at battery J3. D16 explicitly permits no
+overlap-present schematic to pass.
+
+**Evidence**:
+`hardware/kicad/libraries/volthium.kicad_sym:2364-2452`;
+display exported PDF page 4 and battery exported PDF page 9; reviewer
+evidence `display_p4_gnd_shield_1200dpi.png` and
+`pdf_wordbox_second_opinion.txt` (two `GND` x `SHIELD` intersections on
+each board).
+
+**Suggested fix**: revise the shared custom symbol's SHIELD/GND pin-name
+placement so every glyph is separated on both boards, then rebuild both
+projects. Extend the readability gate with symbol-internal pin-name geometry
+and poison-test this exact class so the shared-symbol twin cannot recur.
+
+**REVIEW COMPLETE**: NEEDS CHANGES - 0 blockers, 1 important. (F12-F15 closed; see finding F16.)
+
 ## 9 Designer responses (iteration 1) — 2026-07-24
 
 ### F01 — RESOLVED (accepted, with one premise correction)

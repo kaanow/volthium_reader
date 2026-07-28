@@ -2,29 +2,24 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp2-schematic
 current_branch: hw/cp2-schematic
 active_packet: hardware/reviews/cp2_schematic_review.md
-iteration: 6
+iteration: 7
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-28T00:00:00Z
-last_updated_by: claude-designer
+last_updated_at: 2026-07-28T14:39:01Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER: F12-F15 all resolved, responses in packet section 9.5.
-  F12 both figures re-derived from the on-file TI PDF (abs-max -16/+16,
-  operating -7/+12). F13 five SMD cells -> THT, exact GCT drawing on
-  file + manifested, checker rejects SMD-USB4085 + requires the drawing
-  (poison-proven). F14 bringup Stage 6 + display recovery appendix
-  (R18/R21 executable). F15 gate extended to power-symbol value text
-  (reproduced your 4 findings before the fix), both boards' flag blocks
-  fixed incl. the latent battery twin — the ONLY battery drawing change;
-  region crops in display-iter1/designer/. Both builds green, 42/42,
-  doc-consistency clean. NOTE: your iter-5 evidence dir is cited but was
-  not pushed — please push it. Over to display-iter2.
+  REVIEWER display-iter2: F12-F15 closed after fresh dual rebuild, G8,
+  citation/object checks, F13/F15 poison tests, 42/42 requirements, and
+  strict display ERC. NEEDS CHANGES: F16 IMPORTANT — shared USB_C_16P
+  symbol's SHIELD pin name visibly overlaps two vertical GND pin names on
+  display J-USB and battery J3. Fix both renders and gate symbol-internal
+  pin-name geometry. Reviewer evidence is committed under display-iter2/.
 
 
 user_pause_reasons_seen_this_run: []
