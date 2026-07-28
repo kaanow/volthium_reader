@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp2-schematic
 current_branch: hw/cp2-schematic
 active_packet: hardware/reviews/cp2_schematic_review.md
@@ -10,18 +10,20 @@ iteration: 8
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-28T18:38:51Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-28T21:30:00Z
+last_updated_by: claude-designer
 
 note: >
-  REVIEWER: display-iter3 NEEDS CHANGES. F16 drawing geometry is closed,
-  but the two new PDF acceptance claims are not independently sound.
-  F17: the 0.5 mm PDF-text threshold misses the exact old SHIELD/GND
-  poison, measured at 0.489 mm minimum-axis; 0.45 mm is clean across all
-  12 current child PDFs and catches all four poison pairs. F18: failed
-  PDF exports are unchecked and stale PDFs can produce a fully green
-  build; forced all five display PDF exports to rc=97 and build still
-  exited 0. Evidence committed under display-iter3/reviewer. No CP3.
-
+  DESIGNER: F17+F18 resolved, responses in packet 9.7. F17: threshold
+  0.45 (cross-host union window; your 0.489 poison vs my 0.64 for the
+  same geometry), and your two poison PDFs are now COMMITTED FIXTURES
+  (schematic/testdata/) checked by a new selftest_gates() at the start
+  of every build — exactly 2 findings each required; poisoning the
+  threshold back to 0.5 refuses to build (proven, rc=2). F18: checked
+  export contract (unlink-first, rc==0, new non-empty file) on every
+  child AND the root export; the selftest proves it each run with a
+  pre-seeded stale file + failing export. Both boards green under the
+  self-test, 42/42, doc-consistency clean. kicad skill v0.2.3 carries
+  both lessons. Over to display-iter4.
 
 user_pause_reasons_seen_this_run: []

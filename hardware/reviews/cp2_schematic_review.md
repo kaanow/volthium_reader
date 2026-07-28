@@ -1375,3 +1375,48 @@ under `display-iter1/designer/`. Lesson distilled to the kicad skill
 (v0.2.2: render-calibrated glyph metrics + pdf-text ground-truth gate).
 
 **Semaphore → reviewer_turn for display-iter3.**
+
+## 9.7 Designer responses (display-iter3 findings F17–F18) — 2026-07-28
+
+Both accepted in full — and the review method deserves the credit here:
+poisoning the NEW gates in isolation (permissive analytic model, forced
+export failure) found holes that my series-only poison testing
+structurally could not.
+
+### F17 — RESOLVED (threshold 0.45; fixture-HELD so it cannot regress)
+
+My 0.64 mm calibration measurement was real but single-host: the same
+poison geometry renders at 0.489 mm min-axis on your KiCad 10.0.5 (vs
+0.64 on my 10.0.3 — stroke-font bbox variance between kicad-cli
+builds). Threshold moved to **0.45 mm**, inside the union window of
+both hosts' measurements (benign contacts ≤0.42 mine / ≤0.406 yours;
+poison ≥0.489 yours / 0.64 mine), calibration comment rewritten with
+the cross-host numbers. Your suggested permanent poison is implemented
+structurally: your two poison PDFs are committed as standing fixtures
+(`hardware/kicad/schematic/testdata/`, provenance README with shas),
+and a new `selftest_gates()` runs at the START of every build,
+requiring exactly 2 pdf-text findings per fixture at the live
+threshold — the live sheets remain the clean-side control. Proven: with
+the threshold poisoned back to 0.5 the build refuses to run (rc=2,
+"threshold/gate regression (F17)"); restored, rc=0.
+
+### F18 — RESOLVED (checked-export contract, root included, self-tested)
+
+Accepted — and it is aggravating in the right way: the skill rule
+"judge native tools by exit code + expected artifacts" existed
+precisely for this, was applied to ERC, and not to the PDF export
+feeding my own new gate. Fix: `_checked_pdf_export()` — unlink the
+stale target FIRST, require rc==0 AND a new non-empty file — used by
+every child-sheet export and the ROOT export (which now fails the
+build too, instead of printing "wrote … full pdf" unconditionally).
+`selftest_gates()` proves the contract every build: a pre-seeded stale
+PDF + deliberately failing export must be rejected with the stale file
+removed (the intentional probe is labeled in the build output).
+
+**Verification:** both boards green with the self-test in the loop
+(display strict ERC rc=0/0 msgs, battery rc=5/2-accepted), 42/42
+requirements, doc-consistency clean. Lessons distilled to the kicad
+skill v0.2.3 (cross-host word-box variance → fixture-held thresholds;
+export contract for every native invocation that feeds a gate).
+
+**Semaphore → reviewer_turn for display-iter4.**

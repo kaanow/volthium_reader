@@ -881,11 +881,16 @@ def kcli(*a):
 MM = 2.8346   # schematic mm -> PDF points
 
 
-def _pdf_text_collisions(pdf, thresh_mm=0.5):
-    # thresh 0.5 mm: calibrated between the reviewer-eye-cleared benign
-    # box contact ('4'×'VOUT' on the AP2112, 0.42 mm min-axis — digits and
-    # name boxes touch, ink does not) and the real F16 ink collision
-    # (SHIELD×GND, 0.64 mm min-axis).
+def _pdf_text_collisions(pdf, thresh_mm=0.45):
+    # thresh 0.45 mm — CROSS-HOST calibration (display-iter3 F17: 0.5
+    # silently missed the F16 poison as the reviewer's KiCad renders it).
+    # The same geometry measures differently per host (stroke-font bbox
+    # deltas between kicad-cli builds): F16 SHIELD×GND poison = 0.489 mm
+    # min-axis on the reviewer's 10.0.5 vs 0.64 mm here; benign box
+    # contacts ('4'×'VOUT' 0.42 here; Q10/Q11×value 0.406 there). 0.45
+    # sits inside the combined window. The threshold is HELD by
+    # selftest_gates(): the committed poison fixtures must always yield
+    # exactly 2 findings each, and every live sheet is the clean control.
     """GROUND-TRUTH text-collision gate (display-iter2 F16): extract every
     rendered word box from the exported PDF via fitz and flag any pair that
     overlaps by more than `thresh_mm` in BOTH axes. No font model at all —
@@ -917,21 +922,38 @@ def _pdf_text_collisions(pdf, thresh_mm=0.5):
     return bad
 
 
+def _checked_pdf_export(schf, pdff):
+    """PDF export with the native-tool contract enforced (display-iter3
+    F18: an unchecked export left a STALE previous PDF in place for the
+    pdf-text gate and PNGs to judge — a forced rc=97 on every export still
+    produced a fully green build). Contract: remove the stale target FIRST,
+    require rc==0 AND a new non-empty file. Returns True on success."""
+    pdff = Path(pdff)
+    pdff.unlink(missing_ok=True)
+    r = kcli("sch", "export", "pdf", "-o", str(pdff), str(schf))
+    if r.returncode != 0 or not pdff.exists() or pdff.stat().st_size == 0:
+        print(f"[pdf-export] FAILED for {Path(schf).name}: rc={r.returncode}, "
+              f"exists={pdff.exists()} — stale/absent PDF must not be judged")
+        return False
+    return True
+
+
 def render(s, name, crops=()):
-    """Per-child: readability gate -> write .kicad_sch -> PDF -> pdf-text
-    ground-truth gate -> PNG (+ crops). ERC is run once on the ROOT (children
-    are hierarchy members; their instance paths only resolve through the
-    root, so a standalone child ERC is moot). Note the pdf-text gate needs
-    the PDF, so unlike the pre-write readability gate a failing sheet's
-    files DO land on disk — the build still fails and the netlist gate is
-    skipped as stale."""
+    """Per-child: readability gate -> write .kicad_sch -> checked PDF
+    export -> pdf-text ground-truth gate -> PNG (+ crops). ERC is run once
+    on the ROOT (children are hierarchy members; their instance paths only
+    resolve through the root, so a standalone child ERC is moot). Note the
+    pdf-text gate needs the PDF, so unlike the pre-write readability gate a
+    failing sheet's files DO land on disk — the build still fails and the
+    netlist gate is skipped as stale."""
     bad = s.gate()
     if bad:
         print(f"[{name}] READABILITY GATE FAILED:"); [print("  "+b) for b in bad]
         return False
     print(f"[{name}] readability gate: clean")
     schf = OUT / f"{name}.kicad_sch"; s.sch.to_file(str(schf), encoding="utf-8")
-    kcli("sch", "export", "pdf", "-o", str(OUT/f"{name}.pdf"), str(schf))
+    if not _checked_pdf_export(schf, OUT / f"{name}.pdf"):
+        return False
     bad = _pdf_text_collisions(OUT / f"{name}.pdf")
     if bad:
         print(f"[{name}] PDF-TEXT GATE FAILED (rendered ground truth):")
@@ -1209,12 +1231,57 @@ def run_strict_erc(rootf, erc_accepted):
     return len(unacc)
 
 
+def selftest_gates():
+    """Standing self-test, run at the START of every build (display-iter3
+    F17/F18: both new PDF-layer gates shipped with demonstrable holes the
+    series-only poison testing missed). A gate that cannot fail on a known
+    defect is not a gate — so the known defects are permanent fixtures:
+
+    1. THRESHOLD HOLD (F17): the reviewer's committed pre-F16 poison PDFs
+       (testdata/, provenance in its README) must yield EXACTLY 2 pdf-text
+       findings each at the live threshold. A future loosening past the
+       0.489 mm cross-host poison measurement fails here immediately. The
+       clean-side control is every live sheet checked later in this build.
+    2. EXPORT CONTRACT (F18): a deliberately failing export against a
+       pre-seeded stale PDF must be REJECTED (and the stale file removed),
+       never silently judged."""
+    td = HERE / "testdata"
+    for fx in ("poison_pdf_battery_sheet_conn.pdf", "poison_pdf_display_sheet_d_conn.pdf"):
+        f = td / fx
+        if not f.exists():
+            print(f"[selftest] FIXTURE MISSING: {f}"); return False
+        n = len(_pdf_text_collisions(f))
+        if n != 2:
+            print(f"[selftest] pdf-text gate: {fx} yielded {n} findings, "
+                  f"expected exactly 2 — threshold/gate regression (F17)")
+            return False
+    import tempfile
+    print("[selftest] probing export contract (the next [pdf-export] FAILED"
+          " line is the INTENTIONAL probe, not a build error):")
+    with tempfile.TemporaryDirectory() as tmp:
+        stale = Path(tmp) / "out.pdf"
+        stale.write_bytes(b"%PDF-stale-fixture")
+        ok = _checked_pdf_export(Path(tmp) / "no_such_schematic.kicad_sch", stale)
+        if ok or stale.exists():
+            print(f"[selftest] export contract: failing export was accepted "
+                  f"(ok={ok}, stale_left={stale.exists()}) — F18 regression")
+            return False
+    print("[selftest] gate self-tests: pdf-text fixtures 2+2, "
+          "export contract rejects stale — clean")
+    return True
+
+
 def run(sheets_def, golden, exact_parts, erc_accepted):
-    """The whole pipeline for one project (the old main()): build every child
-    sheet behind the readability gate, assemble root + project files, then the
-    netlist / GOLDEN / exact-part / strict-ERC gates. Returns the exit code."""
+    """The whole pipeline for one project (the old main()): gate self-tests,
+    then build every child sheet behind the readability gate, assemble root +
+    project files, then the netlist / GOLDEN / exact-part / strict-ERC gates.
+    Returns the exit code."""
     print(f"[env] KiCad share: {KICAD_SHARE}")
     print(f"[env] KiCad CLI: {KICAD_CLI}")
+    if not selftest_gates():
+        print("[selftest] GATE SELF-TEST FAILED — refusing to build with a"
+              " compromised gate layer")
+        return 2
     OUT.mkdir(parents=True, exist_ok=True)
     root_uuid = _uuid()                     # generated FIRST: children need it
     defs = [(name, title, _uuid()) for (name, title, _) in sheets_def]
@@ -1243,7 +1310,9 @@ def run(sheets_def, golden, exact_parts, erc_accepted):
     nerc = run_strict_erc(rootf, erc_accepted)
     if nerc:
         ok = False
-    kcli("sch", "export", "pdf", "-o", str(OUT / f"{PROJECT}.pdf"), str(rootf))
-    print(f"[ROOT] wrote {PROJECT}.kicad_sch + .kicad_pro + full {PROJECT}.pdf")
+    if not _checked_pdf_export(rootf, OUT / f"{PROJECT}.pdf"):
+        ok = False                       # F18: the root export obeys the same contract
+    else:
+        print(f"[ROOT] wrote {PROJECT}.kicad_sch + .kicad_pro + full {PROJECT}.pdf")
     return 0 if ok else 2
 
