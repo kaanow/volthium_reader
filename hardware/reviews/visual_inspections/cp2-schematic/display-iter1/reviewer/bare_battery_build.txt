@@ -1,0 +1,21 @@
+[env] KiCad share: C:\Users\kaanw\AppData\Local/Programs/KiCad/10.0/share/kicad
+[env] KiCad CLI: C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli.exe
+[sheet_power] readability gate: clean
+[sheet_power] PNG written
+[sheet_periph] readability gate: clean
+[sheet_periph] PNG written
+[sheet_super] readability gate: clean
+[sheet_super] PNG written
+[sheet_usb] readability gate: clean
+[sheet_usb] PNG written
+[sheet_isors485_1] readability gate: clean
+[sheet_isors485_1] PNG written
+[sheet_isors485_2] readability gate: clean
+[sheet_isors485_2] PNG written
+[sheet_mcu] readability gate: clean
+[sheet_mcu] PNG written
+[sheet_conn] readability gate: clean
+[sheet_conn] PNG written
+[NETLIST gate] generator intent == kicad-cli netlist: clean
+[ROOT ERC strict] rc=5; 2 message(s), 2 accepted (ERC_ACCEPTED), 0 unaccounted
+[ROOT] wrote volthium_reader.kicad_sch + .kicad_pro + full volthium_reader.pdf
