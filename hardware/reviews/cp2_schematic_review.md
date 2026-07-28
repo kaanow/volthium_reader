@@ -582,6 +582,123 @@ No new finding was identified.
 
 **REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
 
+## 8.5 Reviewer findings (iteration 5 - display iteration 1)
+
+### Review evidence
+
+The committed battery and display generators were rebuilt before review on
+Windows with every KiCad/Python override unset and KiCad removed from `PATH`.
+Both auto-discovered the per-user KiCad 10.0.5 installation and exited 0. The
+battery regression retained exactly two accepted ERC warnings and zero
+unaccounted messages. The new display build passed all four readability
+gates, intent-versus-exported-netlist, GOLDEN, exact-part, and strict ERC
+gates; its ERC result is zero messages with an empty accepted registry.
+`doc_consistency_check.py` exited 0 and the requirements runner returned
+42/42 PASS.
+
+G8 was re-derived from the fresh display netlist. An independent parser
+passed all 110 golden contracts, printed the complete connector and block
+pin maps, found zero discrete same-net shorts and zero exact-part defects,
+and reproduced exactly one failure for each of a false J1 net contract and a
+wrong J2 horizontal sibling footprint. The power input, regulation/mux, USB,
+RS-485, display, button, ESP-Prog, and MCU blocks agree with documented
+intent. The Wurth J1 pad map was independently compared with its on-file
+manufacturer drawing and committed footprint: the non-monotone
+`2,1,3,5,4,6,8,7` order, coordinates, and drills agree.
+
+Seven on-file source hashes match the manifest. Source spot-checks covered
+the ESP32 RTC-capable wake pins, THVD1400 pin functions and bus limits,
+R-78E input/output/capacitance limits, SMAJ clamp values, and MF-R025 lead
+geometry. All eleven changed DigiKey/Mouser cells independently resolve
+`exact` to the expected MPNs. The USB4085 exact-object check exposed F13.
+
+G9 used all three required layers. The designer/generator gates passed;
+`label_body_audit.py` independently found zero child-sheet geometry defects;
+and reviewer eyes inspected five fresh 300-DPI full pages plus 30
+deterministic crops. The only visual defect is F15. Evidence, scripts, raw
+resolver output, source renders, and transcripts are under
+`hardware/reviews/visual_inspections/cp2-schematic/display-iter1/reviewer/`.
+
+### Finding F12 - IMPORTANT - `cp2_schematic_review.md:1042`
+
+**Issue**: Section 15.6 states that the THVD1400 A/B bus absolute maximum is
++/-18 V. The on-file TI THVD1400 datasheet page 4 specifies -16 V to +16 V
+for both bus terminals. This is a protection/survivability premise and the
+recorded number is wrong. The cable-mapping conclusion itself survives:
+under the standard crossover and rolled mappings described there, the 12 V
+conductors land on ground conductors rather than A/B.
+
+**Evidence**: `hardware/datasheets/THVD1400DR.pdf`, page 4, Absolute Maximum
+Ratings, `Voltage at bus terminals (A or B): -16 V to 16 V`; source extract
+and rendered page in the iteration-5 reviewer evidence.
+
+**Suggested fix**: replace +/-18 V with -16 V to +16 V, keeping the existing
+statement that TVS2 does not bracket the transceiver absolute maximum. Do
+not treat absolute maximum as an operating/survivability rating; if the
+recommended bus range is useful, record TI's separate operating-condition
+range separately.
+
+### Finding F13 - IMPORTANT - `cp1_display_side.md:172`, `cp1_bom.md:174,315`
+
+**Issue**: The newly pinned GCT USB4085-GF-A is a through-hole top-mount
+connector, but both canonical BOM rows and the display design row classify
+it as SMD (the battery design row does too). The installed KiCad footprint
+uses 20 through-hole pads and zero SMD pads. In addition, the manifested
+`USB4085-GF-A.pdf` is only the family-level USB4085 product specification:
+it contains neither `GF-A` nor an ordering grid, so it cannot establish the
+exact selected object despite the manifest row claiming that identity.
+
+**Evidence**: GCT's official exact drawing at
+`https://gct.co/files/drawings/usb4085.pdf`, pages 1-2, defines `GF = Gold
+Flash` and `A = Tape & Reel`, calls the connector Dip/Through-Hole, and
+shows the contact and shell holes. The installed
+`USB_C_Receptacle_GCT_USB4085.kicad_mod` has 20 THT and 0 SMD pads. Both
+distributor SKUs independently resolve exactly to MPN USB4085-GF-A. Raw
+resolver output, drawing, SHA-256, and renders are in the reviewer evidence.
+
+**Suggested fix**: change all live USB4085 mount classifications to
+THT/through-hole. Add the exact official drawing to `hardware/datasheets/`
+and the manifest with its full hash and provenance, while retaining the
+family specification as a distinct object. Extend the consistency checker
+to reject an SMD USB4085 classification and require exact-object drawing
+coverage for this pinned MPN.
+
+### Finding F14 - IMPORTANT - `bringup_guide.md:90-101`
+
+**Issue**: The bring-up guide does not fully trace the new display-side
+requirements. Stage 6 says only "J4 termination per final topology"; it does
+not explicitly require the display terminus's J5 jumper to be fitted, as R18
+requires by default. The recovery appendix documents only battery J5 and has
+no display J3/USB recovery path even though R21 added display J3 specifically
+to provide USB-independent forced-download recovery.
+
+**Evidence**: `hardware/layout/requirements.md:R18,R21`;
+`hardware/layout/cp1_display_side.md:395,397`; fresh exported-netlist
+read-back of display J3/J5; `docs/hardware/bringup_guide.md:90-101`.
+
+**Suggested fix**: make Stage 6 explicitly require fitting display J5 at the
+bus terminus and verifying the J1 power/A/B pinout before attachment. Add a
+display recovery procedure using the keyed J3 ESP-Prog map (and the
+J-USB maintenance path where applicable), including IO0-low/EN-blip and
+console confirmation, so R21 is executable rather than schematic-only.
+
+### Finding F15 - NIT - display power-sheet `PWR_FLAG` labels
+
+**Issue**: Four `PWR_FLAG` value strings on the display power sheet are
+obscured by the adjacent net-label boxes. Connectivity is unambiguous, but
+the rendered artifact does not expose the power-flag annotations cleanly.
+
+**Evidence**:
+`visual_inspections/cp2-schematic/display-iter1/reviewer/eye_p2_grid_06.png`
+and
+`g9/display/iter1/reviewer/display_p2_full_300dpi.png`.
+
+**Suggested fix**: move the affected flags or labels far enough for their
+text bounding boxes not to intersect, and extend the readability gate's box
+model to include power-symbol value text so this class is machine-detected.
+
+**REVIEW COMPLETE**: NEEDS CHANGES - 0 blockers, 3 important. (See findings F12, F13, F14; F15 is a nit.)
+
 ## 9 Designer responses (iteration 1) — 2026-07-24
 
 ### F01 — RESOLVED (accepted, with one premise correction)

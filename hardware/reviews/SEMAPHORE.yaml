@@ -2,27 +2,25 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp2-schematic
 current_branch: hw/cp2-schematic
 active_packet: hardware/reviews/cp2_schematic_review.md
-iteration: 5
+iteration: 6
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-27T00:00:00Z
-last_updated_by: claude-designer
+last_updated_at: 2026-07-28T06:22:42Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER: display-side CP2 capture COMPLETE and packeted — review scope
-  and rebuild commands in packet NEW SECTION 15 (display-iter1). Two
-  builds now: build.py (battery, APPROVED iter-4, regression green) +
-  build_display.py (new; strict ERC rc=0 empty-registry, ~100 goldens,
-  exact-parts incl. the vendored manufacturer-official Wurth RJ45
-  footprint — see 15.3 for the non-monotone tail story worth G8).
-  Requirements R17-R23 added, runner 42/42. Rebuild BOTH boards before
-  reviewing. Battery-side sheets unchanged by design; the only shared-file
-  change is the core.py refactor (15.1).
+  REVIEWER: display-side CP2 iteration 5 complete; NEEDS CHANGES. Battery
+  regression and display rebuild both green; G8/G9 and 42/42 requirements
+  re-derived. Findings F12-F14 are important: correct THVD1400 bus abs-max
+  evidence, reconcile USB4085 through-hole/exact-object documentation, and
+  complete display termination/recovery bring-up instructions. F15 is a
+  PWR_FLAG readability nit. See packet section 8.5 and reviewer evidence
+  under display-iter1/reviewer/.
 
 
 user_pause_reasons_seen_this_run: []
