@@ -145,14 +145,22 @@ frequent.
 
 ## Debug visibility
 
-Each board exposes a 4-pin debug header on the PCB:
+Each board exposes a **keyed 2×3 ESP-Prog "Program" header** on the PCB
+(battery J5 per DR-32/F01; display J3 per the display-CP2 DR-32 parity
+call — both boards deep-sleep, so recovery must not depend on the USB
+stack). One ESP-Prog ribbon serves both boards:
 
-| Pin | Net           | Purpose                                   |
-|-----|---------------|-------------------------------------------|
-| 1   | GND           |                                           |
-| 2   | UART0_TX      | ESP-IDF console (firmware logs)           |
-| 3   | UART0_RX      | "                                         |
-| 4   | RESET#        | for emergency reset / reflashing          |
+| Pin | Net     | Purpose                                            |
+|-----|---------|----------------------------------------------------|
+| 1   | MCU_EN  | reset / auto-program                               |
+| 2   | V3V3    | target sense                                       |
+| 3   | DBG_TXD | ESP-IDF console out (target TXD0)                  |
+| 4   | GND     |                                                    |
+| 5   | DBG_RXD | console in (target RXD0)                           |
+| 6   | BOOT    | IO0 — force-download (hold low + blip EN)          |
+
+*(CP2 supersedes the original 4-pin GND/TX/RX/RESET# header described in
+earlier revisions of this doc.)*
 
 Use any FTDI cable. The console runs at 115200 8N1.
 

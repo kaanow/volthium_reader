@@ -569,8 +569,8 @@ Total: 4× 1210 caps (bulk), 2× 0805 caps (bulk + EN filter), 5× 0603 caps
 | V24_SENSE    | 0–2.3 V     | R5/R6 midpoint       | ESP IO1 (ADC1_CH0)                            | Always-alive; 1.2 M/100 k divider → ~2.25 V at full charge (DR-6) |
 | I2C_SDA      | 3.3 V LV    | ESP IO5 ↔ RTC SDA    | R8                                            | Pull-up R8 to V3V3 |
 | I2C_SCL      | 3.3 V LV    | ESP IO6 ↔ RTC SCL    | R9                                            | Pull-up R9 to V3V3 |
-| UART_TX_3V3  | 3.3 V LV    | ESP IO17             | U3 D pin                                       | UART1 TX → RS-485 driver input |
-| UART_RX_3V3  | 3.3 V LV    | U3 R pin             | ESP IO18                                       | UART1 RX ← RS-485 receiver output |
+| RS485_DI     | 3.3 V LV    | ESP IO17             | U3 D pin                                       | UART1 TX → RS-485 driver input *(net name as drawn in the approved CP2 schematic; earlier revisions said UART_TX_3V3 — reconciled at display CP2's spec-consistency sweep)* |
+| RS485_RO     | 3.3 V LV    | U3 R pin             | ESP IO18                                       | UART1 RX ← RS-485 receiver output *(was UART_RX_3V3, same reconciliation)* |
 | DE           | 3.3 V LV    | ESP IO2              | U3 DE pin (active-HIGH); THVD1400 internal 2 MΩ pull-DOWN → default 0 | **D34/F06:** split from tied DE_RE. Internal pull handles default-safe — no external R_DE needed. |
 | /RE          | 3.3 V LV    | ESP IO15             | U3 /RE pin (active-LOW); THVD1400 internal 2 MΩ pull-UP → default 1   | **D34/F06 + F09:** split from tied DE_RE. Internal pull defaults /RE = 1 → transceiver in ≤1 µA max shutdown (F08). Battery sleep policy: both Hi-Z → shutdown (RS-485 wake NOT used on battery side). |
 | RS485_A      | 0–5 V diff  | U3 A pin             | J2 pin 4 (blue), R10, TVS2                     | Differential pair (bias is display-end only) |

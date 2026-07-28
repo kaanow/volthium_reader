@@ -901,3 +901,74 @@ the Bourns dimension table (5.1 ± 0.7 mm lead spacing drawn at 5.08,
 
 **Iteration counter for this scope starts at display-iter1. Semaphore →
 reviewer_turn.**
+
+### 15.6 D17 engineering-correctness walk (designer, post-packet addendum)
+
+Run per `ENGINEERING_REVIEW.md` after the §15 handoff was written (the
+user's audit question caught that this gate + the full-page reads were
+not yet on record — both now closed; the reviewer should still re-derive
+independently, a designer PASS is not evidence).
+
+**Threat model & coordination (numbers on record):**
+- Input node sees the battery-side R-78HB12's regulated 12 V (not raw
+  pack 24 V) over ≤30 m Cat5e; source current is bounded by the battery
+  U2's ~0.5 A foldback. TVS1 SMAJ15A: Vrwm 15 V > 12 V rail; VC 24.4 V @
+  16.4 A < U1 R-78E VIN(max) 28 V ✓ bracketed. C1 rated 25 V ≥ VC (VC
+  reached only during a 10/1000 µs surge; steady state = 48 % of rating)
+  — the identical coordination approved on the battery board's TVS3/C4.
+- F1 MF-R025: Ihold 0.25 A ≥ load (~40 mA avg / ~150 mA refresh peak);
+  Vmax 60 V; trips below the battery U2 foldback (DR-11 rationale).
+- **Cable-miswire case walked:** a T568 crossover or rolled cable lands
+  12 V pins (1-3) on GND pins (6-8) → dead short cleared by F1 (PTC,
+  resettable) + battery-side foldback; in no standard miswire does 12 V
+  reach A/B — worst case the bus pins see GND or each other, inside
+  THVD1400's ±18 V bus rating. No reverse-polarity source exists (the
+  far end is a regulated + rail, not a battery terminal).
+- TVS2 SMAJ12CA across A-B: surge clamp only, no abs-max bracketing
+  claimed — the same F44-pattern position approved for the battery's
+  identical arrangement.
+
+**Regulation:** U1 VIN 7–28 V ✓; 0.5 A vs worst load ~0.35 A boot peak
+(RF disabled per D26), ~50 mA run ✓; output cap on V3V3_REG = 10 µF
+(within Recom's cap-load limit; the 58 µF V3V3 bank sits behind the
+mux). AP2112 600 mA / TPS2116 2.5 A ✓; priority mode (MODE=VIN1) per
+datasheet; C_mux 47 µF carries the battery F11 RCB analysis unchanged.
+
+**MCU:** decoupling + EN RC (10k/1 µF) mirror the approved battery
+values; straps IO0 (WPU + BOOT header), IO3/45/46 NC-with-internal-
+defaults (F05); brown-out = ESP internal BOD — no supervisor is a
+DESIGN decision (D29: this board is shed by the battery side).
+
+**Connectors (per-pin ratings):** WE RJ45 1.5 A/contact vs ≤15 mA per
+12 V pin; JST-PH 2 A vs ~25 mA panel refresh; IDC 1 A; USB4085 VBUS
+5 A collective. Keying: RJ45, PH (keyed by design), keyed IDC, USB-C.
+Mating-cable assumptions documented (T568B straight-through;
+in-box PH↔PH cable with pin-order check at assembly — CP1 §13.1).
+
+**Domain-complete:** mechanical/serviceability constraints are
+CP1-resolved and the schematic is consistent with them (right-angle J1,
+board-edge USB-C behind the pop-off faceplate, internal J3/J5, no
+antenna keepout per D26, plunger height deferred to CP3 by design);
+thermal is trivial (R-78E ~0.1 W worst part); RF n/a (radio disabled).
+
+**Spec-consistency sweep (mechanical grep, per the gate):** two live
+drifts found and FIXED in this addendum's commit — (1)
+`docs/firmware/architecture.md` still described the retired 4-pin
+GND/TX/RX/RESET# debug header (now the keyed 2×3 ESP-Prog on both
+boards); (2) `cp1_battery_side.md` §nets still named the display-link
+UART nets UART_TX/RX_3V3 while the APPROVED battery schematic labels
+them RS485_DI/RS485_RO (pre-existing drift that survived the battery
+review — reconciled). Class-(b) noted, not fixed (pre-CP1 original-
+intent docs, same treatment as the approved battery cycle):
+`docs/hardware/schematic_battery_side.md` / `schematic_display_side.md`.
+
+**Design-complete check:** every §15.5 ask re-read — each is a
+re-derivation request against a recorded answer, none an open design
+question. PASS.
+
+### D11 addendum — full-page reads
+
+All four `sheet_d_*.full.png` pages + `root.full.png` read end-to-end
+(designer) in addition to the 13 region crops: no inter-block
+collisions, nothing enters any title block, root hierarchy boxes
+correct. Verdict unchanged: readable throughout.
