@@ -54,13 +54,19 @@ little-endian. Voltage/current raw ÷1000; power raw = W; temp = raw ÷100 − 2
 
 ## Validation on our hardware (`xanbus_reader.py --validate`, 46 h corpus)
 
-- **Battery voltage — confirmed exact.** CAN 127172 → 26.52 V vs Modbus `90:79`
-  26.50 V, **r = +0.98**.
-- **PV array voltage — confirmed.** CAN 127173 `assoc 0x15` decodes a real
-  ~54 V array voltage, **r = +0.90** vs the MPPT PV-voltage register. (Day/night
-  sampling makes the all-sample medians differ; daytime peaks/sweep confirm it.)
-- PV current/power: layout identical to voltage; corpus skews nighttime so they
-  read ~0 — a clean daytime window finalizes their scale.
+- **Battery voltage — confirmed exact.** CAN 127172 vs Modbus `90:79` match on
+  both peak (27.66 / 27.55 V) and daytime median (27.04 / 27.02 V), **r = +0.98**.
+  Decode airtight.
+- **PV array voltage — decode is physically correct, Modbus cross-check pending.**
+  CAN 127173 `assoc 0x15` decodes a real array voltage peaking at **119.6 V**
+  (daytime median 112.6 V) — exactly right for a 60/150 MPPT; that value can only
+  come from decoding the PV field correctly. The candidate Modbus register I
+  checked (`30:76`) reads ~0, so the register match still needs pinning.
+- **PV current/power — not yet validatable.** The 46 h corpus was a low-solar
+  window (PV current peaked at 0.04 A — essentially no production), so I/P sat at
+  0. **One clear sunny-daytime capture** finalizes their scale and pins the
+  Modbus PV registers. The already-running continuous capture will grab it; then
+  pull + re-validate. No capture campaign needed.
 
 ## Fast-packet reassembly — a note (and our contribution to berrybms)
 
