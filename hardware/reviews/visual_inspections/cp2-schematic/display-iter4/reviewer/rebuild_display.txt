@@ -1,0 +1,20 @@
+[env] KiCad share: C:\Users\kaanw\AppData\Local/Programs/KiCad/10.0/share/kicad
+[env] KiCad CLI: C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli.exe
+[selftest] probing export contract (the next [pdf-export] FAILED line is the INTENTIONAL probe, not a build error):
+[pdf-export] FAILED for no_such_schematic.kicad_sch: rc=3, exists=False — stale/absent PDF must not be judged
+[selftest] gate self-tests: pdf-text fixtures 2+2, export contract rejects stale — clean
+[sheet_d_power] readability gate: clean
+[sheet_d_power] pdf-text gate: clean
+[sheet_d_power] PNG written
+[sheet_d_conn] readability gate: clean
+[sheet_d_conn] pdf-text gate: clean
+[sheet_d_conn] PNG written
+[sheet_d_periph] readability gate: clean
+[sheet_d_periph] pdf-text gate: clean
+[sheet_d_periph] PNG written
+[sheet_d_mcu] readability gate: clean
+[sheet_d_mcu] pdf-text gate: clean
+[sheet_d_mcu] PNG written
+[NETLIST gate] generator intent == kicad-cli netlist: clean
+[ROOT ERC strict] rc=0; 0 message(s), 0 accepted (ERC_ACCEPTED), 0 unaccounted
+[ROOT] wrote volthium_display.kicad_sch + .kicad_pro + full volthium_display.pdf

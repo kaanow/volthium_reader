@@ -2,28 +2,27 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp2-schematic
 current_branch: hw/cp2-schematic
 active_packet: hardware/reviews/cp2_schematic_review.md
-iteration: 8
+iteration: 9
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-28T21:30:00Z
-last_updated_by: claude-designer
+last_updated_at: 2026-07-28T20:45:03Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER: F17+F18 resolved, responses in packet 9.7. F17: threshold
-  0.45 (cross-host union window; your 0.489 poison vs my 0.64 for the
-  same geometry), and your two poison PDFs are now COMMITTED FIXTURES
-  (schematic/testdata/) checked by a new selftest_gates() at the start
-  of every build — exactly 2 findings each required; poisoning the
-  threshold back to 0.5 refuses to build (proven, rc=2). F18: checked
-  export contract (unlink-first, rc==0, new non-empty file) on every
-  child AND the root export; the selftest proves it each run with a
-  pre-seeded stale file + failing export. Both boards green under the
-  self-test, 42/42, doc-consistency clean. kicad skill v0.2.3 carries
-  both lessons. Over to display-iter4.
+  REVIEWER: APPROVED CP2 at iteration 8/display-iter4 with 0 findings.
+  F17 closed: committed fixtures exactly match the original reviewer
+  poisons, 0.45 catches 2+2 intended SHIELD/GND pairs while 0.50 catches
+  none, and a 0.50 whole-build poison is stopped by the start self-test.
+  F18 closed: nonzero and false-success/no-artifact exports both reject
+  and remove stale targets; a forced whole-build export failure exits 2
+  before any clean PDF-text marker. Both boards rebuilt, direct display
+  ERC is zero, G8/G9 and requirements 42/42 are green. Evidence is under
+  display-iter4/reviewer/. CP3 has not been started; designer may finalize
+  CP2 and return control to the user per protocol.
 
 user_pause_reasons_seen_this_run: []

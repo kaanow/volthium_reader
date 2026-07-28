@@ -1,0 +1,2 @@
+battery: clip=(137.68, 360.06, 201.93, 405.92) nearest_gnd=4
+display: clip=(137.68, 360.06, 201.93, 405.92) nearest_gnd=4

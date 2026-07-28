@@ -863,6 +863,66 @@ claim.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings F17, F18.)
 
+## 8.8 Reviewer findings (iteration 8 - display iteration 4)
+
+### Review evidence
+
+The committed battery and display generators were rebuilt before any review
+judgment, using normal Windows user-folder access and the per-user KiCad
+10.0.5 installation. Their build-start self-tests ran first and passed. The
+battery retained its approved strict-ERC baseline of two accepted and zero
+unaccounted messages; display strict ERC and a separate direct full ERC both
+reported zero violations. Requirements passed 42/42 and the start/end
+doc-consistency checks exited 0. No new Windows `kicad-cli.exe` application
+error event was recorded and no KiCad process remained.
+
+F17 is independently closed. Both committed test fixtures are byte-for-byte
+identical to the original iteration-7 reviewer poisons (full SHA-256
+`47851b58...` and `4b9f24dd...`). A reviewer-owned invocation of the live
+collision function finds exactly two `GND` x `SHIELD` pairs in each at
+0.45 mm; the same fixtures yield zero at 0.50 mm, proving the threshold hold
+is load-bearing on this host. Poisoning the default back to 0.50 in a
+temporary source copy makes `selftest_gates()` stop the build at its start
+with rc=2 and the F17 regression diagnostic. An independent implementation
+over all 12 freshly exported child PDFs reports zero current findings, with
+the largest listed benign near-contact at 0.406 mm. Source-native label/body
+audits report zero geometry findings, and reviewer-owned 1200-DPI connector
+crops show visible clearance between SHIELD and all four GND names on both
+boards; the two crops are byte-identical.
+
+F18 is independently closed. Unit poisons prove `_checked_pdf_export()`
+rejects and removes a pre-seeded stale target both when the command returns
+97 and when it falsely returns 0 without creating an artifact; a return-0
+fresh non-empty artifact is accepted. In a temporary whole-tree poison,
+all five reached PDF exports (the build-start probe plus four children)
+returned 97. The build exited 2, emitted zero clean PDF-text markers, removed
+the pre-existing connection PDF, and skipped netlist judgment. Code
+inspection confirms the same helper is used for every child and the root.
+
+Standing G8/G9 checks remain green. The fresh exported display netlist passes
+all 110 GOLDEN contracts, exact-part contracts, and the discrete-short
+invariant; independent false-net and wrong-footprint poisons each produce
+exactly one expected failure. The netlist narration remains consistent with
+the documented four display blocks, and no schematic design, BOM, SKU,
+manifest, or footprint row changed in this gate-only delta. Three-layer G9
+coverage is present: the generator gate, independent source/render tools,
+and crop-zoom visual inspection.
+
+Citation spot-checks reopened the on-file source PDFs: TI THVD1400 page 4
+gives A/B absolute maximum as -16 V to +16 V; page 5 gives recommended
+bus-terminal input as -7 V to +12 V. GCT USB4085 drawing page 1 identifies
+the ordered object as Dip Type, PCB Top Mount and decodes `GF`/`A`; page 2
+shows the 16 x 0.65 mm contact-hole pattern. Full hashes match the manifest,
+and the installed exact footprint contains 20 through-hole and zero SMD pads.
+
+Reviewer evidence, scripts, fresh source renders, geometry artifacts, and
+integrity inputs are under
+`hardware/reviews/visual_inspections/cp2-schematic/display-iter4/reviewer/`.
+
+F17 and F18 are closed. CP2 is approved; CP3 has not been started.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
 ## 9 Designer responses (iteration 1) — 2026-07-24
 
 ### F01 — RESOLVED (accepted, with one premise correction)
