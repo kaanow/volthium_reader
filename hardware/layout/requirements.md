@@ -1,4 +1,4 @@
-# Design requirements register (battery-side board)
+# Design requirements register (both boards)
 
 > **Living register, created 2026-07-23.** One numbered, testable requirement
 > per row. Sources: `docs/production_design.md` (vision), `decisions.md`
@@ -31,9 +31,28 @@
 | R15 | Hand-assembly buildability (qty 1): leaded packages preferred; leadless only where power costs forbid alternatives, reflowed with a paste stencil | D33/DR-24; user | [R] BOM package audit (TPS2116 SOT-583 sole waiver, documented) | ✅ |
 | R16 | One free GPIO margin is NOT required — budget may be fully allocated (JTAG forfeited; debug via USB + UART) | DR-31 note | [M] MCU pin map (IO40/41/42 = last free, now used) | ✅ (accepted) |
 
+## Display-side board (added at display CP2, 2026-07-27)
+
+| ID | Requirement | Source | Verification | Status |
+|----|-------------|--------|--------------|--------|
+| R17 | Display receives 12 V + RS-485 over the one Cat5e with the SAME pin map as battery J2 (12 V = 1-3, A = 4, B = 5, GND = 6-8); shield drain NC at the display end (single-point bond at battery, DR-19) | D34; cat5e_pinout.md | [M] goldens J1 pinout + SH no-connect | ✅ |
+| R18 | Display end is the bus terminus: 120 Ω termination in SERIES with a lift jumper (J5, fitted default); idle-bias R3/R4 footprints present at ~330 Ω but **DNP by default** (THVD1400 Full Fail-Safe RX; CP5 bench-stuff only if EMI shows a need) | iter-12 F12; D19/DR-4 | [M] goldens R2-through-J5 + netlist dnp markers on R3/R4 | ✅ |
+| R19 | Deep-sleep wake path MUST work: /RE on RTC-capable IO15 (gpio_hold LOW in sleep), RO on RTC-capable IO18, buttons on RTC-capable IO12/13/14 — one `ext1 ANY_LOW` mask over all four wake inputs; 1 MΩ button pull-ups (power-first) + 100 nF debounce | D34 F09/F15; ESP32-S3 DS Table 3-1 | [M] goldens MOD1 pin map + value checks · [B] CP5 BREAK-wake test | M ✅ / B pending |
+| R20 | Display USB-C maintenance port powers and boots the MCU without 12 V (AP2112 LDO → TPS2116 priority mux; no UVLO bypass — no supervisor on this board); ESD-clamped; 5.1 kΩ CC UFP advertisement | D27/D29 | [M] goldens LDO→mux chain, U-ESD, R_cc1/2, D± to MOD1 13/14 | ✅ |
+| R21 | Forced-download recovery independent of USB on the DISPLAY board too (it Deep-sleeps between frames): keyed 2×3 ESP-Prog "Program" header J3, same map as battery J5 | DR-32 (display CP2 decision) | [M] goldens J3.1-6 + MOD1.27 BOOT + end-to-end UART0 | ✅ |
+| R22 | E-paper interface exactly matches the Waveshare 4.2" (B) Module: PH2.0 8-pin, canonical order VCC/GND/DIN/CLK/CS/DC/RST/BUSY on the D31 GPIO map | DR-7/F21 evidence on file | [M] goldens J2 order + MOD1 pin map + [exact-part] B8B-PH-K-S | ✅ |
+| R23 | Display input protection: ~0.25 A PTC (resettable, DR-11) → SMAJ15A clamp + bulk → R-78E3.3; regulator output (V3V3_REG) reaches the system rail only through the mux | DR-11/DR-15; D29 | [M] goldens F1/TVS1/C1/U1 chain + V3V3_REG≠V3V3 | ✅ |
+
+Exact-variant contracts for the display board (J1 Würth 615008145521 with the
+manufacturer-official footprint — its tail fan-out is NON-monotone, see
+`hardware/kicad/footprints/README.md` — J2 B8B-PH-K-S, J3 IDC 2×3, J-USB
+USB4085-GF-A, U1 R-78E3.3-0.5, F1 MF-R025) are enforced by the build's
+[exact-part] gate in `build_display.py`, not listed as separate rows.
+
 ## Verification runner
 
 `python3 hardware/tools/check_requirements.py` re-derives every **[M]** row
-from the build artifacts (netlist + BOM + the build's own gate suite must be
-green) and prints a per-requirement PASS/FAIL table. Run it after any
+from the build artifacts of BOTH boards (`build/volthium_reader.net` +
+`build_display/volthium_display.net` + BOM; each build's own gate suite must
+be green) and prints a per-requirement PASS/FAIL table. Run it after any
 schematic change; it is the "does the design match the requirements" test.

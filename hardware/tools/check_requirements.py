@@ -19,6 +19,7 @@ for _s in (sys.stdout, sys.stderr):
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 NET = ROOT / "hardware/kicad/schematic/build/volthium_reader.net"
+DNET = ROOT / "hardware/kicad/schematic/build_display/volthium_display.net"
 BOM = ROOT / "hardware/layout/cp1_bom.md"
 
 
@@ -47,15 +48,27 @@ def parse_netlist(path):
         nodes = frozenset(re.findall(r'\(ref "([^"]+)"\)[\s\S]*?\(pin "([^"]+)"\)', blk))
         nets[nm] = nodes
     values = dict(re.findall(r'\(comp\s*\n\s*\(ref "([^"]+)"\)\s*\n\s*\(value "([^"]*)"\)', txt))
-    return nets, values
+    # DNP refs: comp blocks carrying a (property (name "dnp")) marker
+    dnp = set()
+    for m in re.finditer(r'\(comp\s*\n\s*\(ref "([^"]+)"\)([\s\S]*?)\n\t\t\)', txt):
+        if '(name "dnp")' in m.group(2):
+            dnp.add(m.group(1))
+    return nets, values, dnp
 
 
-def main():
-    nets, values = parse_netlist(NET)
+def _lookup(nets):
     net_of = {}
     for nm, nodes in nets.items():
         for rp in nodes:
             net_of[rp] = nm
+    return net_of
+
+
+def main():
+    nets, values, _ = parse_netlist(NET)
+    net_of = _lookup(nets)
+    dnets, dvalues, ddnp = parse_netlist(DNET)
+    dnet_of = _lookup(dnets)
     bom = BOM.read_text(encoding="utf-8")
     results = []
 
@@ -71,6 +84,18 @@ def main():
 
     def diff(a, b):
         na, nb = net_of.get(a), net_of.get(b)
+        return na is not None and nb is not None and na != nb
+
+    # display-board variants of the same helpers (volthium_display netlist)
+    def don(ref, pin, net):
+        return dnet_of.get((ref, pin)) == net
+
+    def dsame(a, b):
+        na = dnet_of.get(a)
+        return na is not None and na == dnet_of.get(b)
+
+    def ddiff(a, b):
+        na, nb = dnet_of.get(a), dnet_of.get(b)
         return na is not None and nb is not None and na != nb
 
     # R1 barrier integrity (both channels)
@@ -166,6 +191,66 @@ def main():
     # R16 GPIO budget note recorded
     check("R16", "GPIO-exhausted note recorded in BOM",
           "GPIO budget now exhausted" in bom)
+
+    # ---- display-side board (volthium_display netlist) ----
+    # R17 Cat5e link pinout mirrors the battery J2; shield NC at this end
+    check("R17", "display J1: 12V=1-3, A=4, B=5, GND=6-8",
+          all(don("J1", p, "V12_CAT5E") for p in ("1", "2", "3"))
+          and don("J1", "4", "RS485_A") and don("J1", "5", "RS485_B")
+          and all(don("J1", p, "GND") for p in ("6", "7", "8")))
+    check("R17", "display J1 shield drain NC (bond lives at battery end)",
+          ("J1", "SH") not in dnet_of
+          or dnet_of[("J1", "SH")].startswith("unconnected-"))
+    # R18 bus terminus: 120R through the lift jumper; idle bias DNP (F12)
+    check("R18", "display termination goes THROUGH J5, 120R",
+          dsame(("R2", "1"), ("U2", "6")) and dsame(("R2", "2"), ("J5", "1"))
+          and dsame(("J5", "2"), ("U2", "7")) and ddiff(("R2", "2"), ("U2", "7"))
+          and dvalues.get("R2") == "120")
+    check("R18", "idle-bias R3/R4 present at 330 but DNP by default",
+          dvalues.get("R3") == "330" and dvalues.get("R4") == "330"
+          and {"R3", "R4"} <= ddnp)
+    # R19 Deep-sleep wake architecture (F09/F15): /RE + RO + all 3 buttons on
+    # RTC-capable GPIOs (IO15=pin8, IO18=pin11, IO12/13/14=pins 20/21/22)
+    check("R19", "wake inputs on RTC GPIOs: nRE=IO15, RO=IO18, BTNs=IO12-14",
+          dsame(("MOD1", "8"), ("U2", "2")) and dsame(("MOD1", "11"), ("U2", "1"))
+          and don("MOD1", "20", "BTN1_IN") and don("MOD1", "21", "BTN2_IN")
+          and don("MOD1", "22", "BTN3_IN"))
+    check("R19", "button pull-ups 1M (power-first) + 100nF debounce",
+          all(dvalues.get(r) == "1M" for r in ("R5", "R6", "R7"))
+          and all(dvalues.get(c) == "100nF" for c in ("C8", "C9", "C10")))
+    # R20 USB maintenance power (D29) + ESD + CC advertisement
+    check("R20", "display USB chain U3-LDO -> U4-MUX, VIN2=V3V3_REG, OUT=V3V3",
+          don("U3-LDO", "1", "VBUS") and dsame(("U3-LDO", "5"), ("U4-MUX", "3"))
+          and don("U4-MUX", "6", "V3V3_REG") and don("U4-MUX", "2", "V3V3")
+          and ddiff(("U4-MUX", "2"), ("U4-MUX", "6")))
+    check("R20", "display ESD array on DP/DM/VBUS + 5.1k CC pull-downs",
+          don("U-ESD", "1", "USB_DP") and don("U-ESD", "3", "USB_DM")
+          and don("U-ESD", "5", "VBUS")
+          and dsame(("J-USB", "A5"), ("R_cc1", "1")) and don("R_cc1", "2", "GND")
+          and dsame(("J-USB", "B5"), ("R_cc2", "1")) and don("R_cc2", "2", "GND")
+          and dvalues.get("R_cc1") == "5.1k" and dvalues.get("R_cc2") == "5.1k")
+    check("R20", "display native USB D+/D- reach MOD1 pins 14/13",
+          don("MOD1", "14", "USB_DP") and don("MOD1", "13", "USB_DM"))
+    # R21 forced-download recovery parity with battery R8 (DR-32)
+    check("R21", "display J3 = ESP-Prog Program pinout, IO0 strap wired",
+          don("J3", "1", "MCU_EN") and don("J3", "2", "V3V3")
+          and don("J3", "3", "DBG_TXD") and don("J3", "4", "GND")
+          and don("J3", "5", "DBG_RXD") and don("J3", "6", "BOOT")
+          and don("MOD1", "27", "BOOT"))
+    check("R21", "display console reaches J3 end-to-end (TXD0/RXD0)",
+          dsame(("J3", "3"), ("MOD1", "37")) and dsame(("J3", "5"), ("MOD1", "36")))
+    # R22 e-paper interface: canonical Waveshare 8-pin order on the PH2.0 header
+    check("R22", "J2 pin order VCC/GND/DIN/CLK/CS/DC/RST/BUSY -> right GPIOs",
+          don("J2", "1", "V3V3") and don("J2", "2", "GND")
+          and dsame(("MOD1", "18"), ("J2", "3")) and dsame(("MOD1", "17"), ("J2", "4"))
+          and dsame(("MOD1", "5"), ("J2", "5")) and dsame(("MOD1", "6"), ("J2", "6"))
+          and dsame(("MOD1", "7"), ("J2", "7")) and dsame(("MOD1", "12"), ("J2", "8")))
+    # R23 input protection: PTC -> protected rail; clamp + bulk; reg chain
+    check("R23", "display input chain PTC->V12_PROT->R-78E->V3V3_REG",
+          don("F1", "1", "V12_CAT5E") and don("F1", "2", "V12_PROT")
+          and don("TVS1", "2", "V12_PROT") and don("TVS1", "1", "GND")
+          and don("U1", "1", "V12_PROT") and don("U1", "3", "V3V3_REG")
+          and ddiff(("U1", "3"), ("U4-MUX", "2")))
 
     width = max(len(d) for _, d, _ in results) + 2
     fails = 0

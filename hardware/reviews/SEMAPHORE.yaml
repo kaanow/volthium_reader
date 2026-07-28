@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp2-schematic
 current_branch: hw/cp2-schematic
 active_packet: hardware/reviews/cp2_schematic_review.md
@@ -14,12 +14,15 @@ last_updated_at: 2026-07-27T00:00:00Z
 last_updated_by: claude-designer
 
 note: >
-  DESIGNER: user launched display-side CP2 capture (2026-07-27). Working:
-  (1) extract shared generator core (core.py) with battery regression
-  proof, (2) build_display.py — display schematic + its own GOLDEN /
-  exact-part / strict-ERC tables + requirements rows. Battery-side CP2
-  remains APPROVED (iter-4). Reviewer idles until the display packet
-  section is ready and state flips to reviewer_turn.
+  DESIGNER: display-side CP2 capture COMPLETE and packeted — review scope
+  and rebuild commands in packet NEW SECTION 15 (display-iter1). Two
+  builds now: build.py (battery, APPROVED iter-4, regression green) +
+  build_display.py (new; strict ERC rc=0 empty-registry, ~100 goldens,
+  exact-parts incl. the vendored manufacturer-official Wurth RJ45
+  footprint — see 15.3 for the non-monotone tail story worth G8).
+  Requirements R17-R23 added, runner 42/42. Rebuild BOTH boards before
+  reviewing. Battery-side sheets unchanged by design; the only shared-file
+  change is the core.py refactor (15.1).
 
 
 user_pause_reasons_seen_this_run: []

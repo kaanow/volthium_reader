@@ -796,3 +796,108 @@ iteration's changes are ERC-layer only (pin electrical type, generated
 library, doc text) — no geometry, wire, or label moved; the U6 region crop
 (`usb_u6_crop.png`) confirms the drawing is unchanged. All readability
 gates + `label_body_audit.py` ×8 re-ran clean on the rebuilt sheets.
+
+---
+
+## 15. DISPLAY-SIDE CP2 — new scope for review (2026-07-27)
+
+Battery-side CP2 remains **APPROVED at iteration 4 (§8.4)** — none of its
+sheets, blocks, or contract tables changed in this phase beyond the
+refactor noted below. This section opens the second half of CP2: the
+display board (`volthium_display`).
+
+### 15.1 What to rebuild
+
+Two entry points now share one core (`hardware/kicad/schematic/`):
+
+- `core.py` — ALL mechanics + the full gate stack (readability/glyph/
+  title-block, netlist intent==actual, GOLDEN, [exact-part], strict full
+  ERC via `configure()` + `run()`). Board files hold only design content.
+- `build.py` — battery side, unchanged design. Regression: full gate
+  stack green, `[ROOT ERC strict] rc=5; 2 accepted, 0 unaccounted`
+  (identical to the approved state), `check_requirements.py` R1–R16 PASS,
+  GOLDEN gate poison-tested THROUGH the new `core.run()` path.
+- `build_display.py` — **the new work**: display board, 4 child sheets +
+  root, its own GOLDEN (~100 contracts), EXACT_PARTS (J1/J2/J3/J-USB/U1/
+  F1) and ERC_ACCEPTED (EMPTY — strict ERC is rc=0, zero messages).
+
+  - POSIX: `cd hardware/kicad/schematic && <repo>/.venv/bin/python build.py && <repo>/.venv/bin/python build_display.py`
+  - Windows: `cd hardware\kicad\schematic && <repo>\.venv\Scripts\python build.py && <repo>\.venv\Scripts\python build_display.py`
+
+  Artifacts land in `build_display/` (`volthium_display.pdf`, 5 pages;
+  `volthium_display.net`). Env discovery identical to §1. Note for the
+  Windows rebuild: the repo-local footprint library
+  `hardware/kicad/footprints/volthium.pretty` is resolved via each
+  project's generated `fp-lib-table` — no KiCad configuration needed.
+
+### 15.2 Design source + the four decisions taken at capture
+
+Authority: `cp1_display_side.md` (D26/D27/D29/D30/D34, F12, F15) — the
+schematic implements it 1:1 except four documented deltas (all edited
+into the CP1 doc + BOM + requirements register in this commit):
+
+1. **J3 debug header → keyed 2×3 ESP-Prog** (was 4-pin UART; CP1 carried
+   an explicit "revisit at display CP2" marker). Same DR-32 bricking
+   argument as battery J5: this board Deep-sleeps between frames. Same
+   Würth 61200621621 SKU. Requirement **R21**.
+2. **Net-name normalization** to the battery convention: UART_TX_3V3 →
+   RS485_DI, UART_RX_3V3 → RS485_RO, DE → RS485_DE, /RE → RS485_nRE
+   (leading slash is a KiCad hierarchy separator), RESET# → MCU_EN.
+3. **R_cc1/R_cc2 5.1 k CC pull-downs added** — CP1 gap, same class as
+   the battery's 2026-07-23 BOM-diff catch (no VBUS from a C-to-C cable
+   without them).
+4. **J-USB pinned to GCT USB4085-GF-A** (same SKU as battery J3, which
+   was also still `_verify_` — both cells filled, datasheet on file,
+   manifest row added).
+
+### 15.3 The J1 footprint story (please G8 this — it is load-bearing)
+
+KiCad stock has no footprint for the Würth 615008145521. Its datasheet
+pin-number view is ambiguous (digits sit in the diagonal gaps of the
+staggered field; two self-consistent readings exist), and the jack's tail
+fan-out is **non-monotone**: far row 1/5/6/7, near row 2/3/4/8, x-order
+`2,1,3,5,4,6,8,7` — unlike RJHSE5380 and Würth's own 7499 magjacks. I
+REFUSED to hand-derive it; the footprint is **Würth's own KiCad file**
+(`WurthElektronik/KiCad-Library` @ `fdbe2d0192`), vendored verbatim into
+`hardware/kicad/footprints/volthium.pretty/` with every pad coordinate
+cross-checked against the datasheet hole pattern (record:
+`hardware/kicad/footprints/README.md`, DR-33). [exact-part] pins J1 to
+it. The MF-R025 PTC footprint (also absent from stock) was authored from
+the Bourns dimension table (5.1 ± 0.7 mm lead spacing drawn at 5.08,
+Ø0.9 drills; sha ad20425ca080 on file).
+
+### 15.4 Self-audit battery already run (designer)
+
+- Full gate stack green both boards; display strict ERC **rc=0, zero
+  messages, empty ERC_ACCEPTED**.
+- Poison tests: display GOLDEN (J1 polarity) + [exact-part] (JST sibling
+  variant) each fail the build with exactly the injected finding; battery
+  GOLDEN poison re-verified through core.run().
+- `check_requirements.py` extended to the display netlist: **R17–R23, 42
+  checks, 0 FAIL** (register rows added to `requirements.md`), runner
+  poison-tested (R18 termination value).
+- `label_body_audit.py` ×4 display sheets: 0 geometry findings
+  (advisories = the same per-pin RJ45 label pattern approved on battery).
+- D11 designer visual pass: 13 region crops at Matrix-13 + 4 full pages
+  + root, ALL read individually, under
+  `visual_inspections/cp2-schematic/display-iter1/designer/`. Verdict:
+  readable throughout; DNP crosses render on R3/R4.
+- Availability (API 2026-07-27): all 8 display-critical MPNs exact-match,
+  Active, stocked (B8B-PH-K-S recovered 16 → 8,264).
+- `doc_consistency_check.py` clean after the doc edits.
+
+### 15.5 Suggested review focus
+
+- G8 wiring read-back of the display GOLDEN table against
+  `cp1_display_side.md` §5/§6 (esp. the F15 wake-path pins: nRE=IO15,
+  RO=IO18, BTNs=IO12/13/14 — all RTC-capable).
+- The §15.3 footprint provenance chain (independent re-derivation
+  welcome — the non-monotone claim is checkable against the vendored
+  file + datasheet page 1).
+- The four §15.2 deltas: is each properly reflected in CP1 doc + BOM +
+  requirements + schematic?
+- Anything the battery review's F-classes (F01–F11) would catch here:
+  exact variants, strict-ERC completeness, premise verification.
+
+**Iteration counter for this scope starts at display-iter1. Semaphore →
+reviewer_turn.**

@@ -132,6 +132,9 @@ TVS1 [SMAJ15A unidirectional, V12 ↔ GND]   ← inductive kick from cable
     ▼
 U1 [Recom R-78E3.3-0.5, 12 V → 3.3 V, 0.5 A] ← stocked module, no inductor BOM
     │
+    ▼  V3V3_REG (CP2: regulator output is NOT the system rail)
+U4-MUX [TPS2116, D29: VIN1 = USB-LDO (priority), VIN2 = V3V3_REG]
+    │
     ▼
 3V3 ──┬─── ESP32-S3 (MOD1)
       ├─── e-paper VCC (LCD1 module via 8-pin J2)
@@ -151,7 +154,7 @@ bistable display; the ESP32-S3 self-manages its sleep states).
 |-----|--------------------------------------------|----------------|-----|-----------|
 | J1  | **Würth 615008145521** WR-MJ RJ45 jack, right-angle (horizontal, tab-down), shielded, T568B | THT shielded   | 1   | **Right-angle (DR-10):** horizontal jack so the in-wall Cat5e enters from the side. **Datasheet-verified 2026-06-25: right-angle + shielded + MAGNETICS-FREE (plain CAT5e 8P8C — safe for our 12 V DC + RS-485) + ~13.6 mm above PCB (fits the depth stack).** Replaces the un-sourceable SUYIN 100362. Shield drain NOT bonded here (single-point bond at battery side, [`cat5e_pinout.md`](../../docs/hardware/cat5e_pinout.md)). Datasheet: [`../datasheets/615008145521.pdf`](../datasheets/615008145521.pdf). |
 | F1  | PTC polyfuse, **~0.25 A hold** (DR-11) | THT radial   | 1 | Resettable cable protection. 0.25 A covers the ~40 mA load + ~150 mA refresh/inrush peaks, and trips well below the battery-side U2's ~0.5 A foldback → real cable + upstream protection (was 0.5 A — too loose). |
-| TVS1 | SMAJ15A unidirectional TVS (Vrwm 15 V)    | SMA            | 1   | Clamps V12 transients (cable inrush, regulator turn-on) |
+| TVS1 | SMAJ15A**-13-F** unidirectional TVS (Vrwm 15 V) | SMA            | 1   | Clamps V12 transients (cable inrush, regulator turn-on). *(-13-F orderable variant per the iter-23 F20 sweep — the non-F is Obsolete)* |
 | C1  | 22 µF / 25 V X7R (V12 input bulk)          | 1210           | 1   | U1 input bulk; smooths cable inductive ringing |
 
 ### 4.2 Power conversion
@@ -166,7 +169,7 @@ bistable display; the ESP32-S3 self-manages its sleep states).
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
 | MOD1 | ESP32-S3-WROOM-1-N16R8 (`-1`)             | SMD module     | 1   | Matches battery-side (firmware + footprint commonality). **Radio unused** — RS-485 is the only link, so disable RF in firmware and **drop the antenna keepout** (D26). **D-OPEN-1 RESOLVED (D31): keep -N16R8 on both boards** — the $1.10 vs -N8 is moot at build qty 1; one SKU avoids mix-ups. PSRAM unused (30 KB framebuffer fits internal SRAM). |
-| J-USB | **USB-C receptacle** on native ESP32-S3 USB (board edge) | SMD | 1 | **D27:** bench/recovery port — reached by popping the faceplate (no front cutout). Routine firmware is OTA over RS-485, so it's rarely used. |
+| J-USB | **USB-C receptacle GCT USB4085-GF-A** on native ESP32-S3 USB (board edge) | SMD | 1 | **D27:** bench/recovery port — reached by popping the faceplate (no front cutout). Routine firmware is OTA over RS-485, so it's rarely used. *(CP2: pinned to the same GCT SKU as the battery board's J3; API-verified in stock 2026-07-27)* |
 | U-ESD | USB ESD array (USBLC6-2)                   | SOT-23-6       | 1   | ESD clamp on the USB-C D+/D−/VBUS (D27). |
 | U3-LDO | 3.3 V LDO (AP2112K-3.3, ~600 mA), VBUS→3V3_USB | SOT-23-5 | 1 | **USB maintenance power (D29):** run/program/troubleshoot the display MCU off USB **without 12 V**. VBUS-referenced → zero draw when unplugged. |
 | U4-MUX | **TI TPS2116DRLR** priority power mux (~1.3 µA Iq, reverse-blocking) | **SOT-583 (leadless ⚠)** | 1 | **D29:** VIN1=USB-LDO (priority), VIN2=R-78E3.3 output, OUT=V3V3. USB present → R-78E3.3 idles. **No UVLO bypass** — the display has no supervisor (it's shed by the battery side). No 5 V on V3V3 (LDO). **Package SOT-583, not SOT-23 (API 2026-06-25)** — leadless, see DR-24 |
@@ -389,9 +392,10 @@ nothing about the power-loss case. See D30.
 
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
-| J3  | 4-pin 2.54 mm header (UART debug: TX/RX/GND/RESET# — battery-side equivalent superseded by the keyed 2×3 ESP-Prog J5 per F01/F10, and the same deep-sleep recovery argument (DR-32) applies to this board: revisit at display CP2) | THT | 1 | FTDI for ESP-IDF console |
-| J4  | _(removed — superseded by the USB-C maintenance port, D27)_ | — | 0 | Native USB now exits J-USB (USB-C); keep one UART header (below) for bench bring-up. |
+| J3  | **Keyed 2×3 IDC box header — the real ESP-Prog "Program" connector** (Würth 61200621621, same SKU as battery J5): 1=EN, 2=VDD, 3=TXD(target), 4=GND, 5=RXD(target), 6=IO0 | THT 2×3 | 1 | **Δ display CP2 (resolves the CP1 "revisit" note):** DR-32's deep-sleep recovery argument applies to THIS board too — it Deep-sleeps between frames, so a USB-independent force-download path (IO0 low + EN blip) is required. Was a 4-pin UART header; now the keyed 2×3 ESP-Prog per F01/F10, ribbon-compatible with the same ESP-Prog as the battery board |
+| J4  | _(removed — superseded by the USB-C maintenance port, D27)_ | — | 0 | Native USB now exits J-USB (USB-C); J3 (above) covers bench console + recovery. |
 | J5  | 2-pin 2.54 mm jumper (RS-485 term lift, R2 bypass) | THT | 1 | Same as battery-side |
+| R_cc1, R_cc2 | 5.1 kΩ CC1/CC2 UFP pull-downs | 0805 ×2 | 2 | **Added at display CP2 (CP1 gap, same catch as the battery BOM-diff 2026-07-23):** required for a C-to-C cable's source to enable VBUS |
 
 ## 5. Net list
 
@@ -403,10 +407,10 @@ nothing about the power-loss case. See D30.
 | 3V3_USB      | 3.3 V       | U3-LDO (from VBUS)   | TPS2116 VIN1 (U4-MUX)                          | USB maintenance rail (D29); present only with a cable in; VBUS-referenced |
 | VBUS         | 5 V (USB)   | J-USB VBUS           | U-ESD, U3-LDO VIN                              | Present only with a USB cable; powers the USB-LDO (D29). **Never tied to V3V3** (LDO regulates — reviewer F04) |
 | GND          | 0 V         | (chassis)            | All IC GNDs, J1 pins 6/7/8                    | Single-point bond at battery side; J1 shield drain NC at this end |
-| UART_TX_3V3  | 3.3 V       | ESP IO17              | U2 D pin                                       | RS-485 driver input |
-| UART_RX_3V3  | 3.3 V       | U2 R pin              | ESP IO18                                       | RS-485 receiver output |
-| DE           | 3.3 V       | ESP IO2               | U2 DE pin (active-HIGH); THVD1400 internal 2 MΩ pull-DOWN → default 0 | **D34/F06:** split from tied DE_RE. Internal pull → default-safe (driver off). |
-| /RE          | 3.3 V       | ESP IO15              | U2 /RE pin (active-LOW); THVD1400 internal 2 MΩ pull-UP → default 1  | **D34/F06 + F09 + F15:** split from tied DE_RE. Internal pull defaults /RE = 1 (shutdown). **Display sleep policy latches GPIO15 LOW via RTC-GPIO (`gpio_hold_en`)** so the receiver stays on and RO can pull GPIO18 LOW when the master drives a sustained-LOW wake waveform (ext1 ANY_LOW mask over GPIO12/13/14/18). |
+| RS485_DI     | 3.3 V       | ESP IO17              | U2 D pin                                       | RS-485 driver input *(CP2 net-name normalization: was UART_TX_3V3 — matches the battery-side convention)* |
+| RS485_RO     | 3.3 V       | U2 R pin              | ESP IO18                                       | RS-485 receiver output *(was UART_RX_3V3)* |
+| RS485_DE     | 3.3 V       | ESP IO2               | U2 DE pin (active-HIGH); THVD1400 internal 2 MΩ pull-DOWN → default 0 | **D34/F06:** split from tied DE_RE. Internal pull → default-safe (driver off). *(CP2: was "DE")* |
+| RS485_nRE    | 3.3 V       | ESP IO15              | U2 /RE pin (active-LOW); THVD1400 internal 2 MΩ pull-UP → default 1  | **D34/F06 + F09 + F15:** split from tied DE_RE. Internal pull defaults /RE = 1 (shutdown). **Display sleep policy latches GPIO15 LOW via RTC-GPIO (`gpio_hold_en`)** so the receiver stays on and RO can pull GPIO18 LOW when the master drives a sustained-LOW wake waveform (ext1 ANY_LOW mask over GPIO12/13/14/18). *(CP2: was "/RE" — a leading slash is a hierarchy separator in KiCad net names)* |
 | RS485_A      | 0–5 V diff  | U2 A pin              | J1 pin 4, R2, R3 (opt), TVS2                   | Differential pair |
 | RS485_B      | 0–5 V diff  | U2 B pin              | J1 pin 5, R2, R4 (opt), TVS2                   | (paired with A) |
 | EPD_CS       | 3.3 V       | ESP IO5               | J2 (CS pin)                                | SPI chip select |
@@ -418,7 +422,7 @@ nothing about the power-loss case. See D30.
 | BTN1_IN      | 3.3 V LV    | BTN1 + R5             | ESP IO12                                       | Active-LOW |
 | BTN2_IN      | 3.3 V LV    | BTN2 + R6             | ESP IO13                                       | Active-LOW |
 | BTN3_IN      | 3.3 V LV    | BTN3 + R7             | ESP IO14                                       | Active-LOW |
-| RESET#       | 3.3 V LV    | ESP EN / J3 pin 4     | -                                              | Pulled HIGH via R1 + C5 |
+| MCU_EN       | 3.3 V LV    | ESP EN / **J3 pin 1** | -                                              | Pulled HIGH via R1 + C5 soft-start *(CP2: was "RESET# / J3 pin 4" — J3 is now the keyed 2×3 ESP-Prog, EN on pin 1, GND on pin 4)* |
 
 ## 6. ESP32-S3 pin assignment
 

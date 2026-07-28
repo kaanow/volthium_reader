@@ -1248,3 +1248,35 @@ and poison-tested.
 **Recommended first-power sequence (CP5):** USB only, packs disconnected →
 verify V3V3/rails → first flash over USB → then introduce pack power and
 bring up the gated subsystems one CHn_PWR at a time.
+
+**Display-side extension (display CP2, 2026-07-27):** the same argument
+applies verbatim to the display board — it Deep-sleeps between frames
+(D34/F15), so a sleeping chip has no USB for esptool to catch. The CP1
+4-pin UART debug header (J3) was upgraded to the same keyed 2×3 ESP-Prog
+"Program" header as battery J5 (same Würth 61200621621 SKU; net map
+MCU_EN/V3V3/DBG_TXD/GND/DBG_RXD/BOOT, target-perspective TXD/RXD).
+Requirement R21; goldens + [exact-part] enforce it. One ESP-Prog ribbon
+now serves both boards.
+
+## DR-33 — Display J1 RJ45 (Würth 615008145521): non-monotone tail fan-out; manufacturer footprint is the only safe source  [RESOLVED 2026-07-27 — official footprint vendored + dimension-verified]
+
+**Finding (display CP2):** KiCad stock has no footprint for the Würth
+615008145521. The datasheet's numbered pin view is genuinely ambiguous
+(digits sit in the diagonal gaps of the staggered hole field, two
+self-consistent readings), and the jack's tail fan-out turned out to be
+**non-monotone** — across the field the pin order is `2,1,3,5,4,6,8,7`
+(far row 1/5/6/7, near row 2/3/4/8) — unlike the monotone-alternating
+combs of the Amphenol RJHSE5380 and Würth's own 7499-series magjacks.
+Hand-deriving this footprint from the drawing would have been a coin-flip
+on 12 V-onto-RS-485-pair class miswires.
+
+**Resolution:** vendored Würth's OWN KiCad footprint
+(`WurthElektronik/KiCad-Library` @ `fdbe2d0192`,
+`J_Wurth_WR-MJ_615008145521.kicad_mod`) into the repo-local
+`hardware/kicad/footprints/volthium.pretty/`; every pad coordinate
+cross-checked against the datasheet Recommended Hole Pattern (rows
+2.54 mm apart, 1.27 stagger, posts Ø3.2 span 11.43 @ 8.89, shield Ø1.7
+span 15.50 @ 5.84, drills 0.9). The [exact-part] contract pins J1 to this
+footprint; `hardware/kicad/footprints/README.md` carries the full
+provenance + verification record. **CP3 note:** trust the official pad
+numbering, not visual intuition, when placing/routing J1.
