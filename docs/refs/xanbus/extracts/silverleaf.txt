@@ -1,0 +1,7705 @@
+Title: TM-102%20Application%20Document.pdf
+
+URL Source: https://library.mikesservers.com/S/SilverLeaf/TM-102%20Application%20Document.pdf
+
+Published Time: Wed, 24 Aug 2016 16:32:42 GMT
+
+Number of Pages: 93
+
+Markdown Content:
+SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+# TM-102 
+
+# Application Document 
+
+Confidential Page 1 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+## Feature Summary 
+
+The TM-102 includes the following features: 
+
+J1939 to RV-C Bridge 
+
+Automatically echoes J1939 data to the RV-C bus. It is partially bi-directional, as it also 
+
+transmits PGN Requests to bridged components from the RV-C to the J1939 buses. Source 
+
+addresses can be changed via a proprietary PGN. A special flag allows the bridging of all DM1 
+
+activity from the J1939 bus. 
+
+Chassis Motion Controller 
+
+Supports CHASSIS_MOBILITY_STATUS and CHASSIS_MOBILITY_COMMAND . A list of 
+
+chassis locks is available via a proprietary PGN. Note that the chassis mobility status and suport 
+
+for the J1939 genset are mutually exclusive features. 
+
+Generator RV-C Bridge 
+
+Acts as a bridge between an Onan QD Generator or a EPS J1939 genset and RV-C. 
+
+Supports all RV-C PGNs for generator status and starting, as well as diagnostic messages. 
+
+Supports most other generators, but with a reduced feature set. 
+
+SurgeGuard Transfer Switch RV-C Bridge 
+
+Acts as a bridge between a SurgeGuard transfer switch and RV-C. Supports most RV-C 
+
+PGNs for transfer switches, including AC Points and diagnostic messages. Does not allow 
+
+configuration of the SurgeGuard. 
+
+Tank Monitoring 
+
+Monitors water/waste tank levels using Barthtech pressure sensors. Supports configurable 
+
+tank geometries with up to four interpolation points. Also supports a “factory default” tank 
+
+geometry via a proprietary PGN. 
+
+LPG Tank Monitoring 
+
+Monitors LPG Tank level and reports via RV-C 
+
+Automatic Fresh Water Fill 
+
+Supports RV-C automatic fresh water fill, using one active-low discrete output. An optional 
+
+input allows a shore connection to be detected. 
+
+Water Pump 
+
+Supports RV-C water pump functions using one (active-low or active-high) discrete output 
+
+and a bypass detection input. Allows pump to be turned on or off. 
+
+Tile Heat Control 
+
+Supports RV-C floor heat functions. 
+
+Ambient Temperature and Thermostat 
+
+Broadcasts two ambient temperatures, based on internal and external sensors. The external 
+
+sensor may be configured to support a thermostatic output, for example, for a bay heater. 
+
+Remote Switches 
+
+Supports switch inputs for generator, water pump, and water fill. 
+
+Confidential Page 2 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Automatic Genstart 
+
+Supports RV-C automatic genstart for battery charging, discrete input (e.g. thermostat), 
+
+power loss, and scheduled runs. Supports quiet time and automatic disabling on coach 
+
+movement. Battery charging is based on voltage over time, not on RV-C state-of-charge or other 
+
+criteria. The 2010 RVIA standard for disabling the AGS on any manual activity is supported as an 
+
+option. 
+
+System Clock 
+
+Includes a real-time clock, and supports RV-C system time PGNs. 
+
+Xanbus Bridge 
+
+Serves as a bridge between Xantrex RS Series inverter/chargers and RV-C. This bridge is 
+
+specific to the inverter/charger, and is not a general purpose Xanbus node. If the J1939 Bridge 
+
+(see below) is not activated, the unit can use the second CAN port as a bridge to a second 
+
+Xanbus network. 
+
+Outback Bridge 
+
+Serves as a bridge between an Outback Inverter/Charger Monitor Panel and RV-C. The 
+
+bridge consolidates the data from all the inverters in the application and presents them as a single 
+
+device. 
+
+Chassis Battery Charging Bridge 
+
+Activates an output to drive a solenoid to connect the chassis and house batteries together 
+
+when the charger is active. The feature can be used in tandem with the AutoGenStart to start the 
+
+generator to recharge a low chassis battery. Requires a solenoid, e. g. Tyco KILOVAC EV200 
+
+Series 
+
+DC Source Monitor 
+
+Monitors a single DC Source (voltage only) 
+
+Awning Controller 
+
+Extends and retracts awning using discrete active high outputs. 
+
+Data Logging 
+
+Records certain events, which may be downloaded to a service tool via proprietary PGNs. 
+
+Among other things, the log includes a house battery level reading every hour. 
+
+Serial Monitor 
+
+A special-purpose serial monitor provides certain network monitoring and control capabilities 
+
+via an RS-232 serial port. The serial monitor is not available when the Onan Bridge is enabled. 
+
+Climate Control 
+
+Supports a dual-zone climate control system, with a single conventional furnace and two 
+
+conventional air conditioners. Supports automatic AC power management, alternative AC units 
+
+according to the availability of AC power. 
+
+Slide Control 
+
+Extends and retracts a simple slide room. Supports up to two slides, either electric or 
+
+hydraulic. 
+
+Water Heater 
+
+Confidential Page 3 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Manages a conventional water heater. Monitors the error light from the heater and provides 
+
+for automatic relighting as required. Support for a secondary electric element is included. 
+
+Water Pressure Sensor 
+
+Reports water pressure from a 200 PSI 0-5V sensor. 
+
+Battery Disconnect Solenoid Control 
+
+Controls a battery disconnect solenoid and monitors a main DC supply circuit. 
+
+EMS-to-RVC Bridge 
+
+Reads an input from an energy management system and sheds AC and Floor Heat loads 
+
+accordingly. 
+
+## General Specifications 
+
+Input Voltage 8 VDC - 18 VDC 
+
+Input Amperage sub 100 mA 
+
+Temperature Range -40 - 185 Deg F (Industrial) 
+
+External Dimensions 5.56” (L) x 3.8” (W) x 1.25” (H) 
+
+Environmental Limitations Not sealed for exterior mounting. 
+
+Source Address Static 250 (0xFA) 
+
+Default Source Address Broadcasts using multiple DSAs. 
+
+Internal errors are reported using 250 (0xFA) 
+
+internal Flash (code space) 256K 
+
+internal RAM 16K 
+
+external Flash (logging) 32 Mbit (4Mb x 8) 
+
+external SRAM 2 Mbit (128K x 16) 
+
+Non Volatile RAM (EEPROM) 512 bytes 
+
+## Product ID 
+
+The TM-102 transmit PRODUCT_ID PGN (0xFEEB) data upon request. Details on this PGN are 
+
+found in the RV-C Protocol Manual. The format of the data appears as: 
+
+SILVERLEAF*TM102-v.vv-V0*nnnnn*vin* 
+
+Where: 
+
+v.vv product version number 
+
+nnnnn product serial number (currently 00000 until we devise a method 
+
+to add the numbers) 
+
+vin vehicle identification number. This 17 byte field may be entered by 
+
+using PROP_SET_UNIT_NUMBER described elsewhere in this manual. 
+
+Note that the “-V0” part of the string was formerly “-CC” which is misleading since we use the 
+
+same code for all of our customers. This has been changed starting with version 1.19. 
+
+## Versions 
+
+TBA 
+
+Confidential Page 4 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Confidential Page 5 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+## Connectors 
+
+Connector Types 
+
+All diagrams are “wire-side” view. 
+
+Molex 12-Pin 
+
+Receptacle - Molex 5557 Series. Part #39-01-2120 
+
+Strain Relief - 41995 Series. Part #15-04-0345 
+
+Crimp-on Connectors - 5556 Series. Part #39-00-0039 
+
+Molex 4-Pin 
+
+Receptacle - Molex 5569 Series. Part #39-30-1040 
+
+Strain Relief - 41995 Series. Part #15-04-0294 
+
+Crimp-on Connectors - 5556 Series. Part #39-00-0039 
+
+RJ-12 
+
+RJ-12 Connector available from multiple sources. 
+
+Connector Pinouts 
+
+Main Connector (“Main”) 12-pin Molex 
+
+Pin Designation Type Notes 
+
+1 GROUND Ground 
+
+2 J1939 COMMON CAN Attach to Chassis Bus 
+
+3 J1939 DATA + CAN Attach to Chassis Bus or Elite Power Data+ 
+
+4 J1939 DATA - CAN Attach to Chassis Bus or Elite Power Data-
+
+5 RV-C DATA + CAN Attach to RV-C Bus, Also Xanbus 
+
+6 RV-C DATA - CAN Attach to RV-C Bus, Also Xanbus 
+
+7 POWER 12V Power Input Should be wired to always-hot house power source. 
+
+8
+
+GEN COM 
+
+TX /485+ 
+
+RS-232 Transmit or 
+
+RS-485 Data + 
+
+Attach to Onan Comm Receive/Data + or SurgeGuard 34520 Data+ 
+
+Jumper controls whether port is RS232 or RS485 
+
+9
+
+GEN COM 
+
+RX /485-
+
+RS-232 Receive or 
+
+RS-485 Data -
+
+Attach to Onan Comm Transmit/Data – or SurgeGuard 34520 Data-
+
+Jumper controls whether port is RS232 or RS485 
+
+Confidential Page 6 of 93 Modified 07/12/2016 
+
+1 2 3 4 5 6 
+
+4 3
+
+12
+
+12 11 10 9 8 7
+
+123456
+
+## Tanks 
+
+Serial 
+
+## LPG Out In 
+
+## Ext 
+
+## Main SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Pin Designation Type Notes 
+
+10 GEN COMMON RS-232 Common Attach to Onan Comm Common 
+
+11 Not Used 
+
+12 Not Used 
+
+Input Connector (“In”) 12-pin Molex 
+
+Pin Designation Type Notes 
+
+1 PARK BRAKE Active Low Input Attach to Park Brake Signal 
+
+2 GEN SWITCH Active Low Input Attach to Remote Gen Start Momentary 
+
+3 FILL SWITCH Active Low Input Attach to Remote AutoFill Momentary 
+
+4 PUMP SWITCH Active Low Input Attach to Remote Water Pump Switch 
+
+5 BYPASS DETECT Active Low Input Attach to Water Pump Ground 
+
+6 GEN DEMAND 1 Active Low Input Attach to Thermostat output or Gen Lock. 
+
+7
+
+PUMP SWITCH 
+
+or AC CURRENT 
+
+DETECT 
+
+Active High Input Attach to Remote Water Pump Switch or AC Current Switch 
+
+8 GEN RUNNING Active High Input Attach to Gen run signal (hourmeter) 
+
+9
+
+WATER HEATER 
+
+or BATTERY 
+
+DISCONNECT 
+
+SENSE 
+
+Active High Input Attach to water heater status or to the House DC Power (to detect 
+
+whether the disconnect has been bypassed) 
+
+10 
+
+WATER 
+
+PRESSURE 
+
+or LOAD_SHED 
+
+Active High Input Attach to water pressure switch or energy management system 
+
+11 
+
+ENGINE RUN or 
+
+CHARGEBRIDGE 
+
+SENSE 
+
+Active High Input Attach to Engine Run signal (“E” version only in v3.18+) or to the 
+
+Charge Bridge solenoid coil to determine if the charge bridge is active 
+
+or not (non “E” version v3.18+) 
+
+12 GEN DEMAND 2 Active High Input Secondary thermostat input or Gen Lock 
+
+Output Connector (“Out”) 12-pin Molex 
+
+Pin Designation Type Notes 
+
+1
+
+ENTRY DOOR 
+
+LOCK 
+
+or 
+
+THERMOSTAT 
+
+CONTROL 
+
+Active Low Output formerly SHIFT INHIBIT - discontinued and replaced with BLACK 
+
+TANK FULL in v3.06 
+
+BLACK TANK FULL discontinued in v3.14 
+
+THERMOSTAT CONTROL added to “E” version only in v3.13 
+
+ENTRY DOOR LOCK implemented to “A” versioin only in v3.26 
+
+2 FILL VALVE Active Low Output Attach to Fill Solenoid Valve Input 
+
+3 PUMP CONTROL Active Low Output Attach to Water Pump Relay Input 
+
+4
+
+THERMOSTAT 
+
+CONTROL 
+
+or 
+
+BATTERY 
+
+SOLENOID 
+
+Active Low Output Attach to Heat Device for Thermostatic Control 
+
+5 GEN START Active Low Output Attach to Generator Start Input 
+
+6 GEN STOP Active Low Output Attach to Generator Stop Input 
+
+Confidential Page 7 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Pin Designation Type Notes 
+
+7
+
+PRIMARY FLOOR 
+
+CONTROL or 
+
+AWNING EXTEND 
+
+or 
+
+DISCONNECT_CLO 
+
+SE 
+
+Active High 
+
+Output 
+
+Attach to Tile Heat Relay Input or Awning Extend Switch or Battery 
+
+Disconnect Solenoid 
+
+8
+
+SECONDARY 
+
+FLOOR CONTROL 
+
+or AWNING 
+
+RETRACT or 
+
+DISCONNECT_OP 
+
+EN 
+
+Active High 
+
+Output 
+
+Attach to Tile Heat Relay Input or Awning Retract Switch or Battery 
+
+Disconnect Solenoid 
+
+9 DC SENSE Analog Input 
+
+10 TILE TEMP Analog Input 4kOhm - 12 kOhm range. 0-250 Ohm version optional. 
+
+11 GROUND 
+
+12 
+
+RELAY PROTECT Attach to the 12V Input on any or all relays attached to Out#1 - Out#6. 
+
+Provides back-feed protection for the output driver. 
+
+LPG Sensor Connector (“LPG”) 4-pin Molex 
+
+Pin Designation Type Notes 
+
+1 EXCITE + Analog Input Attach to Sensor Output 
+
+2 EXCITE - Analog Input Attach to Sensor Ground 
+
+3 SIGNAL + Analog Input Attach to Sensor Output 
+
+4 SIGNAL - Analog Input Attach to Sensor Ground 
+
+External Bus Connector (“EXT”) 4-pin Molex 
+
+Pin Designation Type Notes 
+
+1 POWER 5V Power Output Attach to Sensor Power Input 
+
+2 GROUND Ground Attach to Sensor Ground 
+
+3 SCL I²C Communications Attach to Sensor SCL 
+
+4 SDA I²C Communications Attach to Sensor SDA 
+
+Tank Sensor Connector (“TANK1, TANK2, TANK3”) RJ-12 
+
+Pin Designation Type Notes 
+
+1
+
+2 GROUND Ground Attach to Sensor Ground 
+
+3 POWER 5V Power Output Attach to Sensor Power Input 
+
+4 SIGNAL Analog Input Attach to Sensor Signal Output 
+
+5
+
+6
+
+Tank 1 = Fresh 
+
+Confidential Page 8 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Tank 2 = Gray Waste 
+
+Tank 3 = Black Waste 
+
+Serial (SurgeGuard/Outback) Connector (“SERIAL”) RJ-12              
+
+> Pin Designation Type Notes
+> 1POWER OUT 5V Power Output
+> 2SERIAL TX TTL Serial Transmit RS-232 Transceiver Optional
+> 3SERIAL RX TTL Serial Receive RS-232 Transceiver Optional
+> 4
+> 5GROUND Ground
+> 6
+
+If attached to a Surgeguard, an isolator adapter (“SGIB”) is required between the TM-102 and 
+
+the Surgeguard. Note that there is a pair of internal jumpers (JP6) which select whether this port 
+
+operates at RS-232 or TTL signal levels. For Surgeguard, these jumpers must be set to TTL. 
+
+If attached to an Outback Inverter Panel, a serial adapter (“OIB”) is required to adapt the 
+
+wiring and provide the necessary power for the Outback port. For Outback the JP6 jumpers must 
+
+be set to RS-232. 
+
+This port can also be used for a PC Serial connection if set to RS-232 and the Surgeguard 
+
+feature is disabled. Although intended for SilverLeaf use, this port is also used as a diagnostic 
+
+port for outputs of debugging information and stack dumps when the unit crashes. 
+
+IS-160 Support 
+
+The IS-160 board is an I/O expander that allows 16 additional inputs/outputs. It is connected 
+
+to the External Bus Connector which uses the I ²C bus for data transfers. Additional thermometer 
+
+probes (up to 2) may be connected to the EXT ports on the IS-160 board. See the IS-160 
+
+Application Document for more details. 
+
+## PGN Summary                      
+
+> PGN Hex I/O
+> DM1 Diagnostics Out Reports each internal device with the same
+> SA, but different DSA within the PGN.
+> FLOOR_HEAT_STATUS 1FEFC Out
+> FLOOR_HEAT_COMMAND 1FEFB In
+> GENERATOR_DEMAND_STATUS 1FF80 Out
+> GENERATOR_DEMAND_COMMAND 1FFEF In
+> AGS_CRITERION_STATUS 1FEFE Out
+> AGS_CRITERION_COMMAND 1FEFD In
+> DATE_TIME_STATUS 1FFFF Out
+> SET_DATE_TIME_COMMAND 1FFFE In
+
+Confidential Page 9 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+PGN Hex I/O 
+
+DC_SOURCE_STATUS_1 1FFFD Both Serves as a DC Source monitor for a single 
+
+voltage input. Instance is configurable via 
+
+proprietary PGN. 
+
+The AGS features require an Instance to be 
+
+configured for battery autocharging. This 
+
+can be the internal Instance or any RV-C 
+
+source. 
+
+COMMUNICATION_STATUS_1 1FFFA Out 
+
+COMMUNICATION_STATUS_2 1FFF9 Out 
+
+COMMUNICATION_STATUS_3 1FFF8 Out 
+
+CHASSIS_MOBILITY_STATUS 1FFF4 Out 
+
+CHASSIS_MOBILITY_COMMAND 1FFF3 In 
+
+GENERATOR_AC_STATUS_1 1FFDF Out 
+
+GENERATOR_STATUS_1 1FFDC Out 
+
+GENERATOR_STATUS_2 1FFDB Out 
+
+GENERATOR_COMMAND 1FFDA In 
+
+GENERATOR_START_CONFIG_STATUS 1FFD9 Out 
+
+GENERATOR_START_CONFIG_COMMAND 1FFD8 In 
+
+TANK_STATUS 1FFB7 Out 
+
+TANK_CALIBRATION_COMMAND 1FFB6 In 
+
+TANK_GEOMETRY_STATUS 1FFB5 Out Allows up to four calibration points. 
+
+TANK_GEOMETRY_COMMAND 1FFB4 In 
+
+WATER_PUMP_STATUS 1FFB3 Out 
+
+WATER_PUMP_COMMAND 1FFB2 In 
+
+AUTOFILL_STATUS 1FFB1 Out 
+
+AUTOFILL_COMMAND 1FFB0 In 
+
+ATS_AC_STATUS_1 1FFAD Out 
+
+ATS_STATUS 1FFAA Out 
+
+THERMOSTAT_AMBIENT_STATUS 1FF9C Out Two Instances. Instance values 
+
+configurable via proprietary PGN. 
+
+THERMOSTAT_STATUS_1 1FFE2 Out Always uses same instance as external 
+
+temperature sensor 
+
+THERMOSTAT_COMMAND_1 1FEF9 In 
+
+FURNACE_STATUS 1FFE4 Out Reports status of 
+
+THERMOSTAT_CONTROL output. 
+
+GENERAL_RESET 17FFA In 
+
+## Propriety Operations Summary 
+
+PGN Hex I/O 
+
+Confidential Page 10 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Confidential Page 11 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+## Configuration Items 
+
+Date/Time Entire PGN Standard N/A 
+
+DC Source Instance Proprietary 250 
+
+Generator Start Configuration Entire PGN except Type. Standard TBA 
+
+(Reserved) DC SOC Instance Proprietary 1
+
+(Reserved) DC SOC Table Entire Table (Amp/Volt/SOC) Proprietary See Below 
+
+Tank Calibration Entire PGN. Only supports a dry calibration. 
+
+Precision is configurable for Barthtech 
+
+Sensors only. 
+
+Standard N/A 
+
+Tank Geometry Up to four calibration points. Standard 
+
+Proprietary “Reset 
+
+to Defaults”. 
+
+Per Model 
+
+MSC Tank Sensor Configuration Number of Sensors 
+
+Board Revision 
+
+Dry Calibration 
+
+Standard 
+
+Proprietary 
+
+Standard 
+
+4
+
+Rev B 
+
+See Text 
+
+AutoFill Configuration Fill Level, Run-After Time, Timeout Proprietary Per Model 
+
+Ambient Temperature Instances Proprietary Internal - 250 
+
+External - 249 
+
+Ambient Temperature Calibration Proprietary N/A 
+
+Thermostat Set Point Standard 38 Deg F 
+
+Floor Heat Day Mode Begin Time 
+
+Day Mode Set Point 
+
+Night Mode Begin Time 
+
+Night Mode Set Point 
+
+Primary Dwell 
+
+Secondary Dwell 
+
+Standard N/A 
+
+Automatic Genstart Entire PGN, including all Criteria 
+
+Max Run Time, Stop Criteria 
+
+Standard 
+
+Proprietary 
+
+TBA 
+
+Climate Control Configuration Number of Zones 
+
+50A Generator Installed 
+
+Genstart Enabled 
+
+Load Management Dwell Time 
+
+Minimum Cycle Time 
+
+Proprietary 
+
+Climate Control Set Points and 
+
+Schedule 
+
+Up to Four Schedule Settings (Day, Night, 
+
+Away, Store) 
+
+Standard 
+
+Slide Room Configuration Slide 1 Hydraulic/Electric 
+
+Slide 2 Hydraulic/Electric 
+
+Proprietary 
+
+Chassis Charge Bridge 
+
+Configuration 
+
+Min, Max Charger Voltage 
+
+Min Chassis Voltage 
+
+Bridge Run Time 
+
+Proprietary 12.5 - 15.0 V 
+
+12.5 V 
+
+30 Min 
+
+J1939 Bridge Source Addresses Bridged Proprietary SA 3, SA 16 
+
+Discrete Outputs Number of Outputs Supported 
+
+Base Internal Instance 
+
+Base Instance 
+
+Proprietary 80 
+
+0
+
+250 
+
+Confidential Page 12 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Features Enabled Enable/Disable Surgeguard Bridge 
+
+Enable/Disable Onan Bridge 
+
+Enable/Disable Autofill Support 
+
+Enable/Disable Water Pump Support 
+
+Enable/Disable BarthTech Tank Support 
+
+Enable/Disable Garnet Tank Support 
+
+Enable/Disable LPG Tank Support 
+
+Enable/Disable Floor Heat Support 
+
+Enable/Disable AutoGen Support 
+
+Enable/Disable Chassis Mobility Support 
+
+Enable/Disable Ambient Temp Support 
+
+Enable/Disable DC Source Support 
+
+Enable/Disable J1939 Bridge 
+
+Enable/Disable MSC Tank Support 
+
+Enable/Disable PowerTech Support 
+
+Enable/Disable Xanbus Support 
+
+Enable/Disable Awning Support 
+
+Enable/Disable Thermostat Output Support 
+
+Enable/Disable Serial Monitor 
+
+Enable/Disable Extended Serial Monitor 
+
+(Reserved) Enable/Disable Battery SOC 
+
+Meter 
+
+Enable/Disable Climate Control 
+
+Enable/Disable Slide Room Control 
+
+Enable/Disable Water Heater 
+
+Enable/Disable Outback Bridge 
+
+Enable/Disable Chassis Charging Bridge 
+
+Enable/Disable External AGS Activity 
+
+Detection 
+
+Enable/Disable Sec Water Pump 
+
+Enable/Disable Outback on Gen Port 
+
+Enable/Disable Water Pressure Sensor 
+
+Enable/Disable RVIA 2010 Compliance 
+
+Enable/Disable Water Pressure Switch Input 
+
+Enable/Disable Pin 6 Gen Lock 
+
+Enable/Disable Pin 12 Gen Lock 
+
+Enable/Disable Charge Bridge AGS 
+
+Enable/Disable DC Disconnect 
+
+Enable/Disable J1939 Genset. 
+
+Enable/Disable Load Shed Monitor 
+
+Enable/Disable SurgeGuard 34520 
+
+Enable/Disable Elite Power Li-ion Battery 
+
+Monitoring 
+
+Enable/Disable Outback Auto Battery Topoff 
+
+Enable/Disable Charge Bridge Sense 
+
+Enable/Disable Entry Door Lock Output 
+
+Proprietary Per Model 
+
+## Maintained States 
+
+In the case of a power cycling, the TM-102 will maintain certain internal states, including control 
+
+over external relays and devices. 
+
+Date/Time All data is maintained. 
+
+AutoFill All data is maintained. Valve condition is restored. 
+
+Water Pump Pump condition is restored. Both secondary and primary pump. 
+
+Floor Heat Operating Status, Operating Mode are maintained. 
+
+Automatic Genstart Entire Status PGN is maintained. 
+
+Confidential Page 13 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document   
+
+> Chassis Mobility Lock Tables are maintained.
+> Climate Control All Status PGNs are maintained.
+
+Confidential Page 14 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+## Coach Model Identifications 
+
+On some PGN and proprietary commands that involves setting certain values depending on 
+
+manufacturer's make and mode such as factory resets, etc. are listed here: 
+
+NOTE: Effective with TM102 version 1.20 and later, the coach specific factory reset will no 
+
+longer be handled by the various reset fields in some PGN's described in this manual. The 
+
+factory resets will be handled by the service tool such as Omniscope using scripts. Only the 
+
+general defaults are applied in some situations (see GENERAL_RESET ,
+
+PROP_RESET_AGS_DEFAULTS and PROP_RESET_TANK_GEOMETRY ). This table is for 
+
+information only on older versions (1.19 and before). 
+
+Manufacturer Model Value                             
+
+> Country Coach 2006 Intrigue 0
+> Western RV 2006 Alpine Limited 1
+> Country Coach Affinity 2
+> Country Coach 45 Ft. H3 3
+> Country Coach Lexa 4
+> Country Coach Magna 5
+> Country Coach 40 FT. XL2 6
+> Country Coach Allure 7
+> Country Coach Inspire 8
+> Foretravel All models 9
+> Newell All models 10
+> Royale All models 11
+> Country Coach Rhapsody 12
+> Outlaw Conversions All 13
+
+Confidential Page 15 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+## System Configuration 
+
+System configuration is through a series of proprietary PGNs following the general RV-C 
+
+guidelines. Certain PGNs are not supported when the unit is “Locked”. Attempting to use those 
+
+commands when the unit is “locked” will result in a NAK with response code 6 – Password 
+
+Required. 
+
+PGNs Supported 
+
+Proprietary - Lock/Unlock 
+
+Name: PROP_LOCK /PROP_UNLOCK 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0xD3 = Lock 
+
+0xD2 = Unlock 
+
+Byte 2-8: Password (ASCII Text) “LOCKIT!” to lock. “UNLOCK!” to unlock. 
+
+The unit will respond with a NAK with return code 6 if the data bytes are incorrect, or 0 if they are 
+
+correct. Responds with PROP_REPORT_LOCK_STATUS .
+
+General Reset 
+
+Name: GENERAL_RESET 
+
+PGN: 0x17FFA (0x17F00 + TM102 source address) 
+
+Bit 1.1-1.2: Reboot unit Supported per RV-C 
+
+Bit 1.3-1.4: Clear Faults Supported per RV-C 
+
+Bit 1.5-1.6: Reset to Factory Defaults Supported per RV-C, uses byte 2 below 
+
+Byte 2: Coach Model See “Coach Model Identification” above ( obsolete )
+
+Unit must be “unlocked” to allow reset to factory defaults. Effective versions 1.20 and later, flag 
+
+1.5-1.6 will rewrite the entire NVRAM with generic defaults. The user should avoid using this flag 
+
+as much as possible. Also Coach Model will no longer be used. 
+
+Proprietary - Configure DC Source and Ambient Temperature Instances 
+
+Name: PROP_CONFIGURE_INSTANCE 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0x02 = Set Instance 
+
+0xDD = Request Instance Report 
+
+Byte 2: Permanence Always 0xFD - Permanent Setting 
+
+Byte 3: Internal Instance 0 - DC Source 
+
+1 - Internal Temp Sensor 
+
+2 - External Temp Sensor #1 
+
+3 - External Temp Sensor #2 
+
+4 - External Temp Sensor #3 
+
+5 – Tile Temp Sensor 
+
+6 – Thermostat / Furnace Report (Bay Heat) 
+
+7 – Battery Temp Sensor (for Li-ion battery - uses 
+
+minimum cell temperature for battery heater) 
+
+Byte 4: Public Instance Desired Instance for reports 
+
+The Thermostat will operate based on whichever temperature sensor Instance matches the 
+
+Thermostat Instance. For example, to use the Tile Temp Sensor to control a basement vent, set 
+
+both Instances to the same value. If the Thermostat instance does not match any of the sensors 
+
+then it will look for a Ambient Temperature report on the RV-C bus with instance equal to the 
+
+Thermostat Target instance (see PROP_ENABLE_FEATURE_2). 
+
+Confidential Page 16 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Unit must be “unlocked” to accept this command. 
+
+Proprietary - Calibrate Ambient Temperature 
+
+Name: PROP_CALIBRATE_AMBIENT_TEMP 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation Always 0xF9 
+
+Byte 2: Internal Instance 1 - Internal Temp Sensor 
+
+2 - External Temp Sensor #1 
+
+3 - External Temp Sensor #2 
+
+4 - External Temp Sensor #3 
+
+5 – Tile Temp Sensor 
+
+Byte 3,4: Reference Temperature 
+
+Proprietary - Enable/Disable Features 
+
+Name: PROP_ENABLE_FEATURE 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0xF5 = Enable / Disable Feature 
+
+0xF4 = Request Feature Report 
+
+Byte 2-7: Features 00 = Disable 
+
+01 = Enable 
+
+11 = No Change                         
+
+> 2.1-2.2 Surgeguard Bridge
+> 2.3-2.4 Onan Bridge
+> 2.5-2.6 AutoFill
+> 2.7-2.8 Water Pump
+> 3.1-3.2 BarthTech Tank Support
+> 3.3-3.4 Reserved
+> 3.5-3.6 LPG Tank
+> 3.7-3.8 Floor Heat
+> 4.1-4.2 Automatic Genstart
+> 4.3-4.4 Chassis Mobility Control
+> 4.5-4.6 Ambient Temperature
+> 4.7-4.8 DC Source Monitor
+> 5.1-5.2 J1939 Bridge
+> 5.3-5.4 MSC Tank Monitor
+> 5.5-5.6 Non-RVC Generator
+> 5.7-5.8 Xanbus Bridge
+> 6.1-6.2 Awning
+> 6.3-6.4 Thermostat Output Support
+> 6.5-6.6 Serial Monitor
+> 6.7-6.8 Extended Serial Monitor
+> 7.1-7.2 Battery SOC Meter
+> 7.3-7.4 Climate Control
+> 7.5-7.6 Slide Room Control
+> 7.7-7.8 Water Heater
+
+Byte 8: Board Revision 0x00 = Rev A 
+
+0x01 = Rev B (MSC Sensor Resistor Change) 
+
+Name: PROP_ENABLE_FEATURE_2 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0xC3 = Enable / Disable Feature 
+
+0xC2 = Request Feature Report 
+
+Byte 2-6: Features 00 = Disable 
+
+01 = Enable 
+
+11 = No Change  
+
+> 2.1-2.2 Enable/Disable Outback Bridge
+
+Confidential Page 17 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document                   
+
+> 2.3-2.4 Enable/Disable Chassis Charging Bridge
+> 2.5-2.6 Enable/Disable AGS External Activity Detection
+> 2.7-2.8 Enable/Disable Secondary Water Pump
+> 3.1-3.2 Outback Uses Gen Port (00 = Outback on SERIAL port, 01 = Outback uses GEN COM port).
+> 3.3-3.4 Enable/Disable Water Pressure Sensor
+> 3.5-3.6 Enable/Disable RVIA 2010 Compliance
+> 3.7-3.8 Enable/Disable Water Pressure Switch Input
+> 4.1-4.2 Enable/Disable Pin 6 Gen Lock
+> 4.3-4.4 Enable/Disable Pin 12 Gen Lock
+> 4.5-4.6 Enable/Disable Charge Bridge AGS
+> 4.7-4.8 Enable/Disable DC Disconnect
+> 5.1-5.2 Enable/Disable J1939 Genset.
+> 5.3-5.4 Enable/Disable Load Shed Monitor
+> 5.5-5.6 Enable/Disable SurgeGuard 34520
+> 5.7-5.8 Enable/Disable Elite Power Li-ion Battery Monitoring
+> 6.1-6.2 Enable/Disable Outback Auto Battery Topoff
+> 6.3-6.4 Enable/Disable Charge Bridge Sense
+> 6.5-6.6 Enable/Disable Entry Door Lock Output
+
+Byte 7: Thermostat Target Zone 0-250. Target zone used for Thermostat 
+
+Byte 8: CAN Watchdog Timeout 0 = Not allowed 
+
+1 – 250 = 0.1 to 25.0 seconds.. 
+
+The CAN Watchdog triggers after the indicated number of seconds in which no activity is seen on 
+
+the 
+
+Note that the unit must be reset for configuration changes by PROP_ENABLE_FEATURE and 
+
+PROP_ENABLE_FEATURE_2 to take effect. Unit must be “unlocked” to accept these command. 
+
+Proprietary - Request ADC Counts 
+
+Name: PROP_REQUEST_ADC_COUNTS_1 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xEC = Request ADC Counts 1 Report 
+
+Name: PROP_REQUEST_ADC_COUNTS_2 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xEB = Request ADC Counts 2 Report 
+
+Proprietary – Configure NVRAM Contents 
+
+Name: PROP_NVRAM_CONFIGURE 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xCF = Configure NVRAM 
+
+Byte 2-3: Address Range from 0 to 0x1FF 
+
+Byte 4: Data byte to write 
+
+Unit must be “unlocked” to accept this command. 
+
+Proprietary – Request NVRAM Contents 
+
+Name: PROP_REQUEST_NVRAM 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xCE = Request NVRAM Data 
+
+Byte 2-3: Address Range from 0 to 0x1FF 
+
+Byte 4: Length number of bytes, can be up to 250 
+
+PROP_REPORT_NVRAM will send multiple packets for length greater than 4. 
+
+Proprietary – Report NVRAM Contents 
+
+Name: PROP_REPORT_NVRAM 
+
+Confidential Page 18 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xCD = Report NVRAM Data 
+
+Byte 2-3: Address Range from 0 to 0x1FF 
+
+Byte 4: Length Number of bytes (1 to 4) in next field 
+
+Byte 5-8: Data 
+
+Proprietary – Configure Output Pins 
+
+Name: PROP_CONFIGURE_OUTPUT_PIN 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xCC = Configure output pin 
+
+0xCB = Request output pin configuration 
+
+Format is identical to PROP_REPORT_OUTPUT_PIN . Unit must be “unlocked” to accept this 
+
+command. 
+
+Proprietary – Configure Input Pins 
+
+Name: PROP_CONFIGURE_INPUT_PIN 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xC9 = Configure input pin 
+
+0xC8 = Request input pin configuration 
+
+Format is identical to PROP_REPORT_INPUT_PIN . Unit must be “unlocked” to accept this 
+
+command. The unit may need to be power cycled for the updated configuration to take effect. 
+
+Proprietary – Configure DC Load PGN 
+
+Name: PROP_CONFIGURE_IOMANAGER 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xB5 = Configure DC Load PGN 
+
+Byte 2-4 See PROP_REPORT_IOMANAGER_CONFIG 
+
+Byte 5: Secondary Command 0x00 = Turn on/off all TM-102 outputs 
+
+0x01 = Turn on/off all IS160 #1 outputs 
+
+0x02 = Turn on/off all IS160 #2 outputs 
+
+0x03 = Turn on/off all IS160 #3 outputs 
+
+0x04 = Turn on/off all IS160 #4 outputs 
+
+0x10 = Turn on/off all outputs. 
+
+0x11 = Turn on/off all outputs in RV-C configured range. 
+
+Byte 6: Command Data 0x00 = Off 
+
+0x01 = On 
+
+Format is identical to PROP_REPORT_IOMANAGER_CONFIG , with the addition of the indicated 
+
+secondary command. The secondary command merely provides a quick way to turn on or off 
+
+every output for testing purposes. It does not enable or disable the outputs permanently. 
+
+PGNs Reported 
+
+Proprietary – Lock/Unlock Report 
+
+Name: PROP_REPORT_LOCK_STATUS 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xD0 = Lock Status Report 
+
+0xD1 = Request Lock Status 
+
+Byte 2: Status 0 = unlocked 
+
+Confidential Page 19 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+1 = locked 
+
+Proprietary - Report Features 
+
+Name: PROP_REPORT_ENABLE_FEATURES 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xF0 = Feature Report 
+
+Byte 2-8: Features As per PROP_ENABLE_FEATURE 
+
+Proprietary - Enable/Disable Features 
+
+Name: PROP_REPORT_ENABLE_FEATURE_2 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0xC1 = Report Features 
+
+Byte 2-8: Features As per PROP_ENABLE_FEATURE_2 
+
+Proprietary – Report Instances 
+
+Name: PROP_INSTANCE_REPORT 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xDE = Instance Report 
+
+Byte 2: DC Source Instance 
+
+Byte 3: Internal Ambient Temperature Instance 
+
+Byte 4: External Ambient Temperature #1 Instance 
+
+Byte 5: External Ambient Temperature #2 Instance 
+
+Byte 6: External Ambient Temperature #3 Instance 
+
+Byte 7: Tile Temp Sensor Instance 
+
+Byte 8: Thermostat (Bay Heater) Instance 
+
+See PROP_CONFIGURE_INSTANCE for more information 
+
+Name: PROP_INSTANCE_REPORT_2 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xAE = Instance Report 
+
+Byte 2: Battery Temp Instance 
+
+See PROP_CONFIGURE_INSTANCE for more information 
+
+Proprietary - Report ADC Counts 
+
+Name: PROP_REPORT_ADC_COUNTS_1 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xEA = ADC Counts 1 Report 
+
+Byte 2-3: Fresh Counts (ADC input 1) 
+
+Byte 4-5: Black Counts (ADC input 2) 
+
+Byte 6-7: Gray Counts (ADC input 3) 
+
+Name: PROP_REPORT_ADC_COUNTS_2 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xE9 = ADC Counts 2 Report 
+
+Byte 2-3: LPG Counts (ADC input 4) 
+
+Byte 4-5: Battery Counts (ADC input 5) 
+
+Byte 6-7: Floor Heat Counts (ADC input 6) 
+
+Proprietary – Report Output Pin Configuration 
+
+Name: PROP_REPORT_OUTPUT_PIN 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xCA = Report output pin configuration 
+
+Confidential Page 20 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Byte 2: Output type Sets output pins: 
+
+0 = Chassis shift inhibit 
+
+1 = Autofill 
+
+2 = Water Pump 
+
+3 = Thermostat, Chassis Battery Bridge 
+
+4 = Generator Start 
+
+5 = Generator Stop 
+
+6 = Floor Heat #1 
+
+7 = Floor Heat #2 
+
+8 = Awning Extend, DC Disconnect Close 
+
+9 = Awning Retract, DC Disconnect Open 
+
+10 = Slide #1 Extend 
+
+11 = Slide #1 Retract 
+
+12 = Slide #1 Pump 
+
+13 = Slide #2 Extend 
+
+14 = Slide #2 Retract 
+
+15 = Slide #2 Pump 
+
+16 = Water Heater 
+
+17 = A/C #1 Cool 
+
+18 = A/C #1 High Fan 
+
+19 = A/C #1 Low Fan 
+
+20 = A/C #2 Cool 
+
+21 = A/C #2 High Fan 
+
+22 = A/C #2 Low Fan 
+
+23 = LP Furnace 
+
+24 = Secondary Water Pump 
+
+25 = Water Heater AC Element 
+
+26 = AC #1 Heat Strip 
+
+27 = AC #2 Heat Strip 
+
+Byte 3: Output pin # 0x00 to 0x07 = TM102 outputs 
+
+0x10 to 0x4F = IS-160 outputs 
+
+Proprietary – Report Input Pin Configuration 
+
+Name: PROP_REPORT_INPUT_PIN 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xC7 = Report input pin configuration 
+
+Byte 2: Input type Sets input pins: 
+
+0 = Parking brake 
+
+1 = Autofill Manual Switch 
+
+2 = Water Pump Manual Switch 
+
+3 = Water Pump Bypass Detect 
+
+4 = reserved 
+
+5 = Generator Manual Switch 
+
+6 = Generator Demand #1 (i.e. thermostat) 
+
+7 = Generator Running (PowerTech) 
+
+8 = Water Heater Status 
+
+9 = Generator Demand #2 
+
+10 = Water Pressure Switch 
+
+11 = Engine Run / Charge Bridge Sense 
+
+Byte 3: Input pin # 0x00 to 0x0B = TM102 inputs 
+
+Proprietary – Report Output General Configuration 
+
+Confidential Page 21 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Name: PROP_REPORT_IOMANAGER_CONFIG 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xB4 = Report DC Load PGN configuration 
+
+Byte 2: Base RV-C Instance 1-250. 
+
+Byte 3: Base Internal Instance 0x00 = Internal TM-102 (Default) 
+
+0x10 = IS-160 Address 0, Pin 1 
+
+0x20 = IS-160 Address 1, Pin 1 
+
+0x30 = IS-160 Address 2, Pin 1 
+
+0x40 = IS-160 Address 3, Pin 1 
+
+Byte 4: Number of Outputs 0 = Ignore all DC_LOAD_COMMANDs 
+
+1-80 = Number of pins to be controlled. 
+
+This PGN establishes the mapping of the DC_LOAD_COMMAND PGN (See the Digital I/O 
+
+Manager section.) Output pin instances, whether internal or IS-160, can be controlled directly 
+
+through that PGN, and are mapped to RV-C instances using this PGN. These maps are direct to 
+
+the hardware, and are completely independent of the OUTPUT_PIN configurations detailed just 
+
+above, which allow the function of pins to be modified. This PGN establishes a direct map 
+
+between the RV-C instance and the hardware itself, with no regard to function. 
+
+Confidential Page 22 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+## Coach Serial Number 
+
+The coach serial number can be programmed into the TM-102 and is reported as the fourth 
+
+element of the PRODUCT_ID . (This string is defined as "Unit Number" in RV-C.) 
+
+Proprietary - Set Unit Number 
+
+Name: PROP_SET_UNIT_NUMBER 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation Always 0xE0 - Set Unit Number 
+
+Byte 2: Packet Number 0 - 2 
+
+Byte 3-8: Text 17-digit ASCII text string. 
+
+Packet 0 is characters 0-5. 
+
+Packet 1 is characters 6-11. 
+
+Packet 2 is characters 12-16. Last byte is 0xFF. 
+
+Note that no equivalent REPORT exists. The unit number is reported through the PRODUCT_ID 
+
+PGN. After each packet the TM-102 will respond with an ACK. After the third packet it will also 
+
+respond with a PRODUCT_ID .
+
+## System Clock 
+
+This module also includes the core functions of the TM-102. Whereas most faults shall be 
+
+reported using the Default Source Address of the appropriate software module - for example, an 
+
+error in the genstart configuration would be reported using DSA 65 - faults that are not specific to 
+
+a certain module shall be reported using DSA 250 (System Clock). 
+
+PGNs Supported 
+
+Set Date and Time 
+
+Name: SET_DATE_TIME_COMMAND 
+
+PGN: 0x1FFFE 
+
+The entire PGN is supported per RV-C 
+
+PGNs Reported 
+
+Date and Time 
+
+Name: DATE_TIME_STATUS 
+
+PGN: 0x1FFFF 
+
+The entire PGN is supported per RV-C. The TM-102 will serve as the “Time Master” unless a 
+
+device with a higher source address makes a time broadcast. If three seconds pass with no 
+
+higher priority clock detected, the TM-102 will resume being Time Master. 
+
+Communications Status 1, 2, 3 
+
+Name: COMMUNICATION_STATUS_1 
+
+COMMUNICATION_STATUS_2 
+
+COMMUNICATION_STATUS_3 
+
+PGN: 0x1FFFA, 0x1FFF9, 0x1FFF8 
+
+Supported on Request, per RV-C. Data field supported are TBA. 
+
+Confidential Page 23 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 250. The TM-102 reports both clock errors and general node 
+
+problems. Only standard RV-C SPNs are supported (RV-C Application Layer Table 4) 
+
+## J1939 to RV-C Bridge 
+
+The J1939 Bridge simply echoes messages with certain source addresses onto the RV-C 
+
+bus using DSA 253. All messages from the indicated device are echoed, without regard to 
+
+content. The exception is PGN 0x0000 (Torque Control), which is never echoed. Messages are 
+
+sent with source address of the J1939 device, not the source address of the TM-102. 
+
+The unit also echoes destination-specific PGN Requests from the RV-C bus to the J1939 bus 
+
+(for bridged addresses only). 
+
+When Bridge is enabled as a feature, it will also echo the Engine Idle Shutdown PGN 
+
+(0x0FEE4) and Particulate Trap Status (0x0FD7) PGNs received from the J1939 port. 
+
+PGNs Supported 
+
+Proprietary - Configure J1939 Bridge 
+
+Name: PROP_CONFIGURE_J1939_BRIDGE 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0xF8 = Start Bridging Indicated Address 
+
+0xF7 = Cancel Bridging Indicated Address 
+
+0xF6 = Request Bridge Report 
+
+Byte 2: Address to Bridge 0x00 = Engine 
+
+0x03 = Transmission 
+
+0x10 = Transmission Retarder 
+
+Bit 3,1-3.2 Bridge All DM1s 0x00 = Stop 
+
+0x01 = Start 
+
+Unit must be “unlocked” to change the address list. The addresses are not limited to the indicated 
+
+values. 
+
+If the Bridge All DM1s flag is set, the unit will echo all DM1 activity on the J1939 bus to the RV-C 
+
+bus. This setting is not kept in NVRAM. The unit will accept this command regardless of the 
+
+whether the unit is unlocked. The Operation must be set to 0xF8 to set this flag. 
+
+PGNs Reported 
+
+Proprietary - J1939 Bridge Report 
+
+Name: PROP_REPORT_J1939_BRIDGE 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xF1 = J1939 Report 
+
+Byte 2-8: Source Addresses Bridged 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 253. This module has just one diagnostic SPN defined. If no 
+
+J1939 data is available, an Yellow Lamp condition will be indicated. SPN = 9 - Node Network 
+
+Connection, and FMI = 11 - Failure Not Identifiable. 
+
+Confidential Page 24 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+## Chassis Motion Controller 
+
+The Chassis Motion Controller requires a discrete output (Out#1 - SHIFT INHIBIT ) to be 
+
+attached to the transmission Range Inhibit. When this pin is grounded, the transmission can 
+
+move. When the circuit is open, the transmission is immobilized. It requires a discrete input (In#1 
+
+- PARK BRAKE ) from the park brake. The Chassis Motion Controller also requires access to the 
+
+J1939 data stream from the engine and transmission. 
+
+No provisions for engine locking, ignition key status, or accessory switch status exist 
+
+therefore they are not supported. 
+
+As a special provision to support certain not-completely-RV-C compliant devices, the TM-102 
+
+also listens on the RV-C line for PGN 0xFFF4, and rebroadcasts the data as PGN 0x1FFF4 
+
+(CHASSIS_MOBILITY_STATUS). This occurs automatically, even if the Chassis Mobility 
+
+Controller is not enabled. Also, if this PGN is detected, or the unit sees a 
+
+CHASSIS_MOBILITY_STATUS broadcast from another product with Park Brake data, this unit 
+
+will not send the Park Brake status. (It will send the RPM / Speed data, if available.) 
+
+Starting in v2.11, an engine run input was added to the TM102. When it is active, the TM102 
+
+simulates 2000 RPMs with the CHASSIS_MOBILITY_STATUS message. The input has to be on 
+
+for 5 seconds before the RPMs are updated. The input is ignored if J1939 data is present. 
+
+Starting in v3.18 the engine run is only available in the “E” version. 
+
+PGNs Supported 
+
+Chassis Mobility Command 
+
+Name: CHASSIS_MOBILITY_COMMAND 
+
+PGN: 0x1FFF3 
+
+Bit 2.1-2.2: Transmission Command Supported per RV-C 
+
+Bit 2.3-2.4: Transmission Lock User Override Supported per RV-C 
+
+Byte 4: Default Source Address Address of device locking transmission 
+
+Park Brake Command, Park Brake Lock Override, Engine Lock Command, and Engine Lock 
+
+User Override are not supported. 
+
+The node shall request CHASSIS_MOBILITY_COMMAND before releasing the transmission 
+
+lock. If any node responds with a lock on the transmission, or if a product that previously locked 
+
+the transmission, has not subsequently unlocked it, and does not respond to the request - then 
+
+the lock remains in place. 
+
+PGNs Reported 
+
+The support for this PGN is determined by several configuration values. Engine RPM and 
+
+Vehicle Speed are provided if there is any data on the J1939 line and the J1939 Genset support is 
+
+not enabled. The J1939 Bridge does not have to be repeating any data. You may activate the 
+
+J1939 Bridge with no addresses enabled if you only want these two data items. The Park Brake 
+
+and Transmission Lock are provided if the Chassis Mobility is enabled. To completely suppress 
+
+the status, do not activate the Immobilizer and do not hook up the J1939 bus. 
+
+Chassis Mobility Status 
+
+Confidential Page 25 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Name: CHASSIS_MOBILITY_STATUS 
+
+PGN: 0x1FFF4 
+
+Byte 1-2: Engine RPMs Supported per RV-C. Derived from J1939 Data. 
+
+If J1939 Data unavailable, reports 0xFFFF. 
+
+Byte 3-4: Vehicle Speed Supported per RV-C. Derived from J1939 Data. 
+
+If J1939 Data unavailable, reports 0xFFFF. 
+
+Bit 5.1-5.2: Park Brake Status Supported per RV-C. Derived from discrete input. 
+
+Bit 5.3-5.4: Transmission Lock Status Supported per RV-C. 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 252. Specific SPNs are: 
+
+256 Engine RPMs 
+
+257 Vehicle Speed 
+
+258 Park Brake 
+
+259 Transmission Lock 
+
+If the unit detects motion despite the Park Brake or Transmission Lock, then a Red Lamp 
+
+condition will be reported with the appropriate SPN and FMI = 7 - Mechanical System Not 
+
+Responding. Lack of J1939 data will be an Yellow Lamp, SPN = 9 - Node Network Connection, 
+
+and FMI = 11 - Failure Not Identifiable. 
+
+## Generator RV-C Bridge 
+
+Currently, four generator bridges are supported in TM-102: The Onan QD Series, the 
+
+Generic RV-C and the Generic Non-RV-C (formerly “PowerTech”) generators, plus since v.2.17 ,
+
+the EPS J1939 genset controller. 
+
+The Onan generator is connected via the main RS-232 port (Main#8, Main#9, Main#10) and 
+
+two discrete outputs for Start and Stop activations (Out#5, Out#6). The bridge serves as a full-
+
+featured RV-C Generator, including Generator Start functions. 
+
+The Generic generators only uses the Start and Stop activations (Out#5, Out#6). The 
+
+Generic RV-C generator is mainly used with the Extended Serial Monitor to output generator data 
+
+via serial port. It also allows the use of the AGS. 
+
+The EPS genset support is automatic, if the Immobilizer is disabled. (If the Immobilizer is 
+
+enabled, it will interpret the genset J1939 data as engine data.) If no genset is attached to the 
+
+J1939, the unit will behave like a Non-RV-C genset. 
+
+It should be noted that the GENERATOR_AC_STATUS data is taken only from the generator 
+
+data. Additional data may be available from the Surgeguard transfer switch, but that data is 
+
+treated separately. 
+
+PGNs Supported 
+
+Generator Command 
+
+Name: GENERATOR_COMMAND 
+
+PGN: 0x1FFDA 
+
+Confidential Page 26 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Byte 1: Command Supported per RV-C 
+
+Most applications should start the generator by indicating demand to the automatic genstart 
+
+controller. This PGN is supported for troubleshooting only. 
+
+Generator Starter Configuration Command (Onan generators) 
+
+Name: GENERATOR_START_CONFIG_COMMAND 
+
+PGN: 0x1FFD8 
+
+Byte 1: Generator Type 1 = Crank / Run 
+
+2, 3 = Crank / Stop 
+
+4 = Run 
+
+5 = Crank / Stop w/ run input tied to crank. 
+
+Byte 2: Generator PreCrank Time Supported per RV-C. Default 10 sec 
+
+Byte 3: Generator Max Crank Time Supported per RV-C. Default 10 sec 
+
+Byte 4: Generator Stop Time Supported per RV-C. Default 10 sec 
+
+The Generator Type determines how the GEN START and GEN STOP outputs should be 
+
+connected. 
+
+Type GEN START GEN STOP Notes          
+
+> 1Crank Run “Run” is activated on a Start command, deactivated on a Stop command.
+> If the start fails, the Run is kept on to prime the fuel system.
+> 2, 3, 5 Crank Stop These are all implemented the same, except #5 ignores the run input
+> until the full cranking time has expired.
+> 4Run N/A “Run” is activated on a Start command, deactivated on a Stop command.
+> It remains on regardless of whether the genset starts.
+
+Proprietary - Reset Generator Runtime 
+
+Name: PROP_RESET_GENERATOR_RUNTIME 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0xE1 = Reset Engine Runtime 
+
+Byte 2-5: Engine Run Time Supported per RV-C 
+
+This will report as GENERATOR_STATUS_1 . Unit must be “unlocked” to accept this command. 
+
+PGNs Reported 
+
+Generator AC Status 
+
+Name: GENERATOR_AC_STATUS_1 
+
+PGN: 0x1FFDF 
+
+Byte 1: Instance Always 0x11 - Generator 1, Line 1 
+
+Onan QD and EPS 
+
+Byte 2-3: RMS Voltage Supported per RV-C 
+
+EPS 
+
+Byte 3-4: RMS Current Supported per RV-C 
+
+Onan QD and EPS 
+
+Byte 6-7: Frequency Supported per RV-C 
+
+RMS Current and the various Fault flags are not supported. 
+
+Name: GENERATOR_AC_STATUS_3 
+
+PGN: 0x1FFDD 
+
+Confidential Page 27 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Generator Status 
+
+Name: GENERATOR_STATUS_1 
+
+PGN: 0x1FFDC 
+
+Byte 1: Status Supported per RV-C 
+
+Byte 2-5: Engine Run Time Supported per RV-C 
+
+Onan QD 
+
+Byte 6: Engine Load Supported per RV-C. Onan Only 
+
+Onan QD and EPS 
+
+Byte 7-8: Start Battery Voltage Supported per RV-C 
+
+Name: GENERATOR_STATUS_2 
+
+PGN: 0x1FFDB 
+
+Onan QD 
+
+Bit 1.1-1.2 Temperature Shutdown Switch Supported per RV-C 
+
+Bit 1.3-1.4 Oil Pressure Shutdown Switch Supported per RV-C 
+
+Bit 1.7-1.8 Caution Light Supported per RV-C 
+
+Onan QD and EPS 
+
+Byte 2 Engine Coolant Temperature Supported per RV-C 
+
+Byte 4-5 Engine RPM Supported per RV-C 
+
+The various flags are derived from Onan diagnostic messages. In addition, these faults will 
+
+trigger a DM1 .
+
+Generator Starter Configuration Status 
+
+Name: GENERATOR_START_CONFIG_STATUS 
+
+PGN: 0x1FFD9 
+
+See GENERATOR_START_CONFIG_COMMAND for details. 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 64. Specific SPNs are per RV-C. Communications failure is 
+
+given by SPN=13, FMI=11. Onan generator also reports these additional DM1 messages based 
+
+on the fault codes received: 
+
+Onan Generator Faults                                                                 
+
+> Fault Description SPN FMI Notes
+> 1High Temperature 274 0Red Lamp
+> 2Low Oil Pressure 264 1Red Lamp
+> 3Service Check Fault 275 11 Red Lamp
+> 11 Overcurrent Fault 1-17-1 0Red Lamp
+> 12 Inverter Overvoltage 1-17-0 0Red Lamp
+> 13 Inverter Undervoltage 1-17-0 1Red Lamp
+> 14 Inverter Overfrequency 1-17-2 0Red Lamp
+> 15 Inverter Underfrequency 1-17-2 1Red Lamp
+> 17 Fuel Pump Fault 271 11 Red Lamp
+> 18 Glow Plug Fault 272 11 Red Lamp
+> 19 Actuator Fault 276 11 Red Lamp
+> 21 Solenoid Fault 277 11 Red Lamp
+> 22 Actuator Overload 278 11 Red Lamp
+> 23 Cutoff Switch Fault 279 11 Red Lamp
+> 24 Temperature Sender Fault 263 2Red Lamp
+
+Confidential Page 28 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Fault Description SPN FMI Notes 
+
+25 Speed Above Target 265 0 Red Lamp 
+
+26 Speed Below Target 265 1 Red Lamp 
+
+27 PMA Sense Fault 280 11 Red Lamp 
+
+28 DC Sense Fault 281 11 Red Lamp 
+
+29 Battery Volts High 258 0 Red Lamp 
+
+31 Overspeed Fault 265 0 Red Lamp 
+
+32 Cranking Speed Low 282 1 Red Lamp 
+
+33 Coolant Temperature High 263 0 Red Lamp 
+
+34 Inverter Temperature High 283 1 Red Lamp 
+
+35 EEPROM Error 4 12 Red Lamp 
+
+36 Engine Stop Fault 284 11 Red Lamp 
+
+37 Invalid Configuration 3 13 Red Lamp 
+
+38 Overcurrent Fault 1-17-1 0 Red Lamp 
+
+39 Battery Volts Low 258 1 Red Lamp 
+
+42 Processor Fault 1 12 Red Lamp 
+
+43 Processor Fault 1 12 Red Lamp 
+
+46 Power Supply Fault 5 11 Red Lamp 
+
+EPS Generator Faults 
+
+EPS SPN RV-C SPN FMA Lamp Description 
+
+100 264 1 RED Low Oil Pressure. (1L, 2S) 
+
+100 264 7 AMBER Oil Pressure Sender Open. 
+
+100 264 17 AMBER Oil Pressure < 20 PSI. 30s start lockout. 1 s delay 
+
+100 264 18 RED Oil Pressure < 7 PSI. 30s start lockout. 10 s delay 
+
+110 263 0 RED Coolant too hot – Coolant Switch. (1L, 4S) 
+
+110 263 5 RED Water temperature sensor error – break in circuit. (2L, 4S) 
+
+110 263 6 RED Water temperature sensor error – short in circuit. (2L, 5S) 
+
+110 263 7 AMBER Engine Coolant Temperature Sender Open. 
+
+110 263 15 RED Coolant too hot – Coolant Sensor. (1L, 6S) 
+
+110 263 15 AMBER Engine Coolant Temperature > 220 F 
+
+110 263 16 RED Engine Coolant Temperature > 225 F 
+
+111 289 1 AMBER Low Coolant Level Switch Closed. 
+
+111 289 1 RED Low Coolant Level Switch Closed. 90s delay. 
+
+158 258 16 AMBER Battery Voltage > 15 V 
+
+158 258 18 AMBER Battery Voltage <12.2 V. 30s start lockout. 
+
+167 290 2 RED Alternator charging signal fault. (2L, 6S) 
+
+167 290 31 RED Charging / Alternator fault. (1L, 3S) 
+
+190 265 1 RED Engine Stalled. 
+
+190 265 7 RED Speed sensor error. (2L, 1S) 
+
+190 265 8 RED Magnetic Speed Sensor Failure. 
+
+190 265 16 RED Overspeed -- Engine Speed > 2070 RPM. (1L, 1S) 
+
+190 265 16 AMBER Engine Speed >1950 RPM. 3s delay. 
+
+190 265 18 AMBER Engine Speed <1750 RPM. 30s start lockout. 3s delay. 
+
+190 265 31 RED Engine Failed to Start. 30s power-up lockout. 
+
+633 276 11 RED Actuator error. (2L, 2S) 
+
+701 284 14 RED Remote Stop Activated. (1L, 5S) 
+
+1675 273 31 RED Starter error. (1L, 7S) 
+
+2440 275 1 RED Possible Generator Failure. 10 min delay. 
+
+2440 275 18 AMBER Possible Generator Failure. ( RMS VOLT < 50 ) 
+
+## SurgeGuard Transfer Switch RV-C Bridge 
+
+The Transfer Switch Bridge features require connection to a Surgeguard transfer switch, 
+
+which is connected via the secondary RS-232 port (which in turn is connected to a SGIB isolator 
+
+board). The TM-102 can only read information from the Surgeguard, and thus only supports the 
+
+relevant status PGNs, but no configuration or commands. 
+
+PGNs Reported 
+
+Confidential Page 29 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+The AC status is reported only at the output point. The status is reported separately for each 
+
+output leg. 
+
+AC Status 
+
+Name: ATS_AC_STATUS_1 
+
+PGN: 0x1FFAD 
+
+Byte 1: Instance Leg 1 - 0x79 (01111001) 
+
+Leg 2 - 0xF9 (11111001) 
+
+ATS Instance 1, Output Only 
+
+Byte 2-3: RMS Voltage Supported per RV-C 
+
+Byte 4-5: RMS Current Supported per RV-C 
+
+Byte 6-7: Frequency Supported per RV-C 
+
+Bit 8.1-8.2: Fault - Open Ground Supported per RV-C 
+
+Bit 8.3-8.4: Fault - Open Neutral Supported per RV-C 
+
+Bit 8.5-8.6: Fault - Reverse Polarity Supported per RV-C 
+
+Bit 8.7-8.8: Fault - Ground Fault Supported per RV-C 
+
+Name: ATS_AC_STATUS_3 
+
+PGN: 0x1FFAB 
+
+Byte 1: Instance Leg 1 - 0x79 (01111001) 
+
+Leg 2 - 0xF9 (11111001) 
+
+ATS Instance 1, Output Only 
+
+Bit 2.1-2.2: Waveform Always 0 (Sinewave) 
+
+Bits 2.3-2.6: Phase Status Supported per RV-C 
+
+Byte 8.7-8.8: Complementary Leg Supported per RV-C 
+
+Name: ATS_AC_STATUS_4 
+
+PGN: 0x1FF85 
+
+Byte 1: Instance Leg 1 - 0x79 (01111001) 
+
+Leg 2 - 0xF9 (11111001) 
+
+ATS Instance 1, Output Only 
+
+Byte 2: Voltage Fault Supported per RV-C 
+
+Bit 3.1-3.2: Fault – Surge Protection Supported per RV-C 
+
+Bit 3.3-3.4: Fault – High Frequency Supported per RV-C 
+
+Bit 3.5-3.6: Fault – Low Frequency Supported per RV-C 
+
+Bit 3.7-3.8: Bypass Mode Active Supported per RV-C 
+
+ATS Status 
+
+Name: ATS_STATUS 
+
+PGN: 0x1FFAA 
+
+Byte 1: Instance Always 1 
+
+Byte 2: Source In Use 0 = Generator 
+
+1 = Shore Power 
+
+253 = No Source Active 
+
+Bit 3.1-3.2 Mode Always 00 = Automatic 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 79. Note that AC faults are not reported via DM1 , but only 
+
+with the PGNs listed above. Other faults are as follows: 
+
+Confidential Page 30 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Communication loss with the Surgeguard 
+
+SPN MSB = 1, ISB = 1, LSB = 1 Instance #1, Standard SPN 9 = Node Communications 
+
+FMI = 11 Failure Not Identifiable. 
+
+Note that this is only transmitted if no data from the SurgeGuard is detected, but the Inverter 
+
+shows an AC input. (The Surgeguard does not transmit when no AC power is available.) 
+
+Blown Fuse on Surgeguard 
+
+SPN MSB = 2, ISB = 1, LSB = 0 Leg 1 Output Fuse 
+
+LSB = 1 Leg 2 Output Fuse 
+
+FMI = 5 Open Circuit 
+
+## MSC Tank Sensor Manager 
+
+Allows the use of MSC non-contact tank sensors, in packages of up to 12 sensors. See also 
+
+the proprietary configuration for how to set the board revision. (The board revision affects the 
+
+calibration for MSC sensors.) MSC sensors require a dry calibration, and the Tank Calibration 
+
+Command sets the tank size, dry calibration, and the number of sensors in the package. The dry 
+
+offset can be done with the sensors not plugged in. (The TM-102 will automatically perform a dry 
+
+calibrate on its initial startup, and this is not usually necessary in the field.) 
+
+PGNs Supported 
+
+Tank Calibration Command 
+
+Name: TANK_CALIBRATION_COMMAND 
+
+PGN: 0x1FFB6 
+
+Byte 1: Instance Supported per RV-C. Always 0, 1, or 2. 
+
+Byte 2: Relative Level If 0, resets the Dry Calibrate value. 
+
+Byte 3: Relative Precision Number of Sensors in the Package. 1-12. 
+
+Byte 6-7: Tank Size Supported per RV-C 
+
+Proprietary - Reset Tank Defaults 
+
+Name: PROP_RESET_TANK_GEOMETRY 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0xF3 = Reset Tank Defaults 
+
+Byte 2: Coach Model See “Coach Model Identification” above ( obsolete ). 
+
+Effective versions 1.20 and above, this will rewrite the 
+
+NVRAM with generic defaults. The user should avoid 
+
+using this as much as possible. 
+
+Unit must be “unlocked” to accept this command. 
+
+PGNs Reported 
+
+Tank Status 
+
+Name: TANK_STATUS 
+
+PGN: 0x1FFB7 
+
+Byte 1: Instance Supported per RV-C. Always 0, 1, or 2. 
+
+Byte 2: Relative Level Supported per RV-C 
+
+Byte 3: Relative Precision Number of Sensors in the package. 1-20. 
+
+Byte 4-5: Absolute Level Supported per RV-C 
+
+Confidential Page 31 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Byte 6-7: Tank Size Supported per RV-C 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 72. 
+
+Sensor Failures 
+
+SPN MSB = 1, ISB = Instance, LSB = 0 Specific SPN 0 = Absolute Level 
+
+FMI = 3 (High) or 4 (Low) 
+
+Sensor Specifications 
+
+A MSC sensor string is essentially a bunch of resistors in parallel. When a sensor is active it 
+
+is 2Kohm. When it is not activated it is 250Kohm. 
+
+The following tables show the approximate ADC counts expected from the MSC sensors at 
+
+various levels. These tables assume no offset. Values will differ from this based on the dry 
+
+offset. A typical offset will change the values +/- 3 counts. 
+
+Rev. A 
+
+51.1 Ω
+
+Resistors 
+
+R4, R35, R86 
+
+Rev. B, C 
+
+18.2 Ω
+
+Resistors 
+
+R4, R35, R86 
+
+Sensor 
+
+Resistance 
+
+(ohms) 
+
+Rev. A 
+
+ADC Counts 
+
+Rev. B 
+
+ADC Counts 
+
+Rev. B 
+
+typical                         
+
+> Empty 62.5K 1023 - 988 1023 - 997 1002
+> 25 % 1.953K 987 - 964 996 - 988 992
+> 50 % 992 963 - 941 987 - 979 984
+> 75 % 665 940 - 920 978 - 971 975
+> Full 500 919 - 0 970 - 0 967
+> Minimum alarm 890 890
+> Maximum alarm None None
+
+Sensor 
+
+Resistance 
+
+(ohms) 
+
+Rev. A 
+
+ADC Counts 
+
+Rev. B 
+
+ADC Counts                   
+
+> Empty 25K N/A 1023 - 996
+> 10 % 1.866K N/A 995 - 988
+> 20 % 969 N/A 987 - 979
+> 30 % 654 N/A 978 - 970
+> 40 % 494 N/A 969 - 962
+> 50 % 397 N/A 961 - 954
+
+Confidential Page 32 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document                    
+
+> Sensor
+> Resistance
+> (ohms)
+> Rev. A
+> ADC Counts
+> Rev. B
+> ADC Counts
+> 60 % 332 N/A 953 - 946
+> 70 % 285 N/A 945 - 938
+> 80 % 250 N/A 937 - 930
+> 90 % 222 N/A 929 - 922
+> Full 200 N/A 921 - 0
+> Minimum alarm N/A 890
+> Maximum alarm None None
+
+## Catcon Tank Monitoring 
+
+Note that this feature should not be enabled at the same time as the MSC sensors. Both 
+
+features use the same PGNs, and no provisions are made to share. 
+
+PGNs Supported 
+
+Tank Calibration Command 
+
+Name: TANK_CALIBRATION_COMMAND 
+
+PGN: 0x1FFB6 
+
+Byte 1: Instance Supported per RV-C. Always 0, 1, or 2. 
+
+Byte 2: Relative Level Supported per RV-C 
+
+Byte 3: Relative Precision Supported per RV-C 
+
+Byte 4-5: Absolute Level Supported per RV-C 
+
+Byte 6-7: Tank Size Supported per RV-C 
+
+If Relative Precision is transmitted with Relative Level set to 0xFF, then the node shall update its 
+
+internal configuration to report using that Precision. If both Relative Level and Precision are 
+
+included, then the message is interpreted to mean the tank is currently exactly that full. 
+
+Tank Geometry Configuration 
+
+Name: TANK_GEOMETRY_COMMAND 
+
+PGN: 0x1FFB4 
+
+Byte 1: Instance Supported per RV-C. Always 0, 1, or 2. 
+
+Byte 2: Number of Entries Always 4 
+
+Byte 3: Point 1 - Relative Level Supported per RV-C 
+
+Byte 4: Point 1 - Relative Precision Always 100 
+
+Byte 5-6: Point 1 - Table Entry 0 = 0” from Empty 
+
+1 bit = 0.1” from Empty 
+
+Byte 7-10: Point 2 As for Point 1 
+
+Byte 11-14: Point 3 As for Point 1 
+
+Byte 15-18: Point 4 As for Point 1 
+
+Byte 19: Counts Per Inch Range 0 - 250 CPI 
+
+This is a slight deviation from the RV-C standard, which does not include the Counts Per Inch. 
+
+The points must be sent in order from lowest to highest, with the first point Zero and the last point 
+
+100. If fewer lookup points are desired, repeat the last point as required to fill the table. 
+
+Proprietary - Reset Tank Defaults 
+
+Name: PROP_RESET_TANK_GEOMETRY 
+
+Confidential Page 33 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0xF3 = Reset Tank Defaults 
+
+Byte 2: Coach Model See “Coach Model Identification” above ( obsolete ). 
+
+Effective versions 1.20 and above, this will rewrite the 
+
+NVRAM with generic defaults. The user should avoid 
+
+using this as much as possible. 
+
+Unit must be “unlocked” to accept this command. 
+
+Proprietary - Calibrate Tank ADC Counts 
+
+Name: PROP_CALIBRATE_TANK_ADC_COUNTS 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEFFA) 
+
+Byte 1: Operation 0x9F = Calibrate Tank ADC Counts 
+
+Byte 2: Tank Instance 0,1,2 (Fresh, Black, Gray) 
+
+Byte 3-4 Empty ADC Counts Raw ADC Value – Catcon limited to 0 - 250 
+
+Byte 5-6: Reserved for Full ADC Counts 
+
+Unit must be “unlocked” to accept this command. 
+
+PGNs Reported 
+
+Tank Status 
+
+Name: TANK_STATUS 
+
+PGN: 0x1FFB7 
+
+Byte 1: Instance Supported per RV-C. Always 0, 1, or 2. 
+
+Byte 2: Relative Level Supported per RV-C 
+
+Byte 3: Relative Precision Supported per RV-C 
+
+Byte 4-5: Absolute Level Supported per RV-C 
+
+Byte 6-7: Tank Size Supported per RV-C 
+
+Note that Relative Precision is configurable. 
+
+Tank Geometry Configuration 
+
+Name: TANK_GEOMETRY_STATUS 
+
+PGN: 0x1FFB5 
+
+See TANK_GEOMETRY_COMMAND for details. 
+
+Proprietary - Tank ADC Counts Report 
+
+Name: PROP_TANK_CALIBRATION_ADC_COUNTS_REPORT 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0x9E = Tank ADC Counts Report 
+
+Byte 2: Tank Instance 0,1,2 (Fresh, Black, Gray) 
+
+Byte 3-4: Empty ADC Counts Raw ADC Value – Catcon limited to 0 - 250 
+
+Byte 5-6: Reserved for Full ADC Counts 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 72. 
+
+Sensor Failures 
+
+SPN MSB = 1, ISB = Instance, LSB = 0 Specific SPN 0 = Absolute Level 
+
+FMI = 3 (High Voltage) or 4 (Low Voltage) 
+
+Confidential Page 34 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Sensor Specifications 
+
+Pressure Sensors 
+
+Catcon 
+
+Voltage 
+
+Catcon ADC 
+
+Counts 
+
+Kavlico 
+
+Voltage 
+
+Kavlico ADC 
+
+Counts         
+
+> Dry Offset 0.15 V 30 0.49 V 97
+> Resolution (counts/inch) 0.11 V 24 0.26 V 10
+
+Voltage Catcon ADC 
+
+Counts 
+
+Kavlico ADC 
+
+Counts             
+
+> Minimum Alarm .05 V 10 10
+> Maximum Alarm 4.8 V 982 982
+> Empty fail low .10 V 20 20
+> Empty fail high .25 V 51 51
+
+Garnet Sensors       
+
+> Dry Offset 0
+> Resolution (counts/inch) 98
+> Zero Level 0”
+> One-Quarter 2.5”
+> Three-Quarters 7.5”
+> Full 10.0”
+
+## LPG Tank Monitoring 
+
+The Low Pressure Gas (LPG) tank may be monitored with the following PGN's. The only 
+
+differences between the LPG and water tanks are the instances. LPG is assigned with instance 
+
+value of 3. 
+
+PGNs Supported 
+
+Tank Calibration Command 
+
+Name: TANK_CALIBRATION_COMMAND 
+
+PGN: 0x1FFB6 
+
+Byte 1: Instance Always 3. 
+
+Byte 2: Relative Level Supported per RV-C 
+
+Byte 3: Relative Precision Supported per RV-C 
+
+Byte 6-7: Tank Size Supported per RV-C 
+
+Relative Precision is not configurable. Absolute Level is ignored. The LPG Tank can only be 
+
+calibrated at Empty and Full. In either case Relative Precision can be any valid non-zero value, 
+
+and Relative Level is either zero (empty) or equal to the Relative Precision. Any other value will 
+
+abort the calibration, and the module will respond with a NAK (5 = Request Out of Range). 
+
+Confidential Page 35 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Proprietary - Reset Tank Defaults 
+
+Name: PROP_RESET_TANK_GEOMETRY 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0xF3 = Reset Tank Defaults 
+
+Byte 2: Coach Model See “Coach Model Identification” above ( obsolete ). 
+
+Effective versions 1.20 and above, this will rewrite the 
+
+NVRAM with generic defaults. The user should avoid 
+
+using this as much as possible. 
+
+Byte 3: Sensor Type 0 = 0-90 Ohm 
+
+1 = 35-240 Ohm 
+
+Unit must be “unlocked” to accept this command. 
+
+Proprietary - Calibrate Tank ADC Counts 
+
+Name: PROP_CALIBRATE_TANK_ADC_COUNTS 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEFFA) 
+
+Byte 1: Operation 0x9F = Calibrate Tank ADC Counts 
+
+Byte 2: Tank Instance 3 - LP 
+
+Byte 3-4 Empty ADC Counts Raw ADC Value 
+
+Byte 5-6: Full ADC Counts Raw ADC Value 
+
+Unit must be “unlocked” to accept this command. 
+
+PGNs Reported 
+
+Tank Status 
+
+Name: TANK_STATUS 
+
+PGN: 0x1FFB7 
+
+Byte 1: Instance Always 3. 
+
+Byte 2: Relative Level Supported per RV-C 
+
+Byte 3: Relative Precision Always 100 
+
+Byte 4-5: Absolute Level Supported per RV-C 
+
+Byte 6-7: Tank Size Supported per RV-C 
+
+Proprietary - Tank ADC Counts Report 
+
+Name: PROP_TANK_CALIBRATION_ADC_COUNTS_REPORT 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0x9E = Tank ADC Counts Report 
+
+Byte 2: Tank Instance 3 - LP 
+
+Byte 3-4: Empty ADC Counts Raw ADC Value 
+
+Byte 5-6: Full ADC Counts Raw ADC Value 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 73. 
+
+Sensor Failures 
+
+SPN MSB = 1, ISB = 3, LSB = 0 Specific SPN 0 = Absolute Level 
+
+FMI = 3 (High Voltage) or 4 (Low Voltage) 
+
+Sensor Specifications 
+
+Confidential Page 36 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+0 - 90 Ohm Sensor 
+
+Resistance Voltage ADC Counts         
+
+> Empty 0 ohms 0 V 0
+> Full 90 ohms 1.02 V 317
+> Minimum Alarm None
+> Maximum Alarm 1.13 V
+> 1.24V v2.20+
+> 350
+> 385 v2.20+
+
+35 - 240 Ohm Sensor 
+
+Resistance Voltage ADC Counts         
+
+> Empty 240 ohms 2.73 V 557
+> Full 35 ohms .74 V 152
+> Minimum Alarm 100
+> Maximum Alarm 600
+
+## Black Tank Full Warning 
+
+The Black Tank Full Warning is a discrete output (Out#1 – BLACK TANK FULL) that can be 
+
+connected to a smart toilet. The toilet can use this warning to prevent overfilling the black tank. 
+
+The warning output turns on based on a programmable black tank level. 
+
+PGNs Supported 
+
+Proprietary – AutoFill Configuration 
+
+Name: PROP_CONFIGURE_AUTOFILL 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation Always 0xEE - AutoFill Configuration 
+
+Byte 2-7: Reserved for Autofill (see Autofill feature for details) 
+
+Byte 8: Black Tank Warning Level Percent, per RV-C 
+
+PGNs Reported 
+
+Proprietary – Report AutoFill Configuration 
+
+Name: PROP_CONFIGURE_AUTOFILL_REPORT 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation Always 0xED - AutoFill Configuration Report 
+
+Byte 2-7: Reserved for Autofill (see Autofill feature for details) 
+
+Byte 8: Black Tank Warning Level Percent, per RV-C 
+
+## Automatic Fresh Water Fill 
+
+Automatic Fresh Water Fill requires a discrete output to be connected to an appropriate 
+
+Confidential Page 37 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+solenoid valve (to divert water from the shore to the tank), and a relay controlling the water pump. 
+
+(Out#2 - FILL VALVE , Out#3 - PUMP CONTROL ). When activated, the fill diverts water to the 
+
+tank and stops the water pump if it is on. It then reverses the process when the fill is complete. 
+
+A remote switch may be added to trigger the AutoFill. This should be a momentary switch, 
+
+attached to In#3 - FILL SWITCH .
+
+PGNs Supported 
+
+AutoFill Command 
+
+Name: AUTOFILL_COMMAND 
+
+PGN: 0x1FFB0 
+
+Bit 1.1-1.2: Command 00 = Stop, 01 = Start 
+
+Bit 1.3-1.4 Manual Valve Control 00 = Close, 01 = Open 
+
+Using the Manual Valve Control automatically ends the AutoFill process. 
+
+Proprietary – AutoFill Configuration 
+
+Name: PROP_CONFIGURE_AUTOFILL 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation Always 0xEE - AutoFill Configuration 
+
+Byte 2: Level Cutoff Percent, See RV-C Table 2.2 
+
+Byte 3: Run-After Time 0 = 0 secs. 1 bit = 1 sec. 
+
+Byte 4: Timeout 0 = 0 min. 1 bit = 1 min 
+
+Byte 5: Auto Start Level Percent, See RV-C Table 2.2 
+
+Byte 6.1-6.2: Pump On Cancels Fill 00 = Does not Cancel Fill, 01 = Cancels Fill 
+
+Byte 6.3-6.4: Pump Bypass Disables Fill 00 = Does not Disable Fill, 01 = Disables Fill 
+
+Byte 6.5-6.6: Ignore Pump 00 = Turns off pump before fill, 01 = Pump unaffected 
+
+Byte 6.7-6.8: Check water pressure 00 = Ignore water pressure, 01 = Check water pressure 
+
+Byte 7: Extended Run-After Time 0 = 0 min. 1 bit = 1 min. 
+
+Byte 8: Black Tank Warning Level Percent, per RV-C 
+
+The AutoFill will keep the valve open until the Cutoff Level is reached in the Fresh Tank. It 
+
+will continue to keep the valve open for the indicated Run-After and Extended Run-After Times. 
+
+Note that the run-after time is expressed in minutes and seconds, which the total delay is 
+
+60*minutes + seconds. (If the tank is already full, it will open the valve for the duration specified in 
+
+the Run-After Times.) If no change in the tank level is noted for the indicated Timeout minutes, 
+
+the fill operation is aborted. The Auto Fill will turn on if the level drops below the Auto Start Level. 
+
+If the Auto Start Level is zero, the auto start is disabled. This PGN should trigger a 
+
+PROP_CONFIGURE_AUTOFILL_REPORT .
+
+If the check water pressure setting is enabled, the autofill will only turn on if the water 
+
+pressure input has been active in the last 2 minutes. 
+
+PGNs Reported 
+
+AutoFill Status 
+
+Name: AUTOFILL_STATUS 
+
+PGN: 0x1FFB1 
+
+Bit 1.1, 1.2: Operating Status 00 = Off, 01 = On 
+
+Bit 1.3, 1.4: Valve Status 00 = Closed 01 = Open 
+
+Bit 1.5-1.8: Last Operation Supported per RV-C 
+
+Confidential Page 38 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Proprietary – Report AutoFill Configuration 
+
+Name: PROP_CONFIGURE_AUTOFILL_REPORT 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation Always 0xED - AutoFill Configuration Report 
+
+Byte 2: Level Cutoff Percent, See RV-C Table 2.2 
+
+Byte 3: Run-After Time 0 = 0 secs. 1 bit = 1 sec. 
+
+Byte 4: Timeout 0 = 0 min. 1 bit = 1 min 
+
+Byte 5: Auto Start Level Percent, See RV-C Table 2.2 
+
+Byte 6.1-6.2: Pump On Cancels Fill 00 = Does not Cancel Fill, 01 = Cancels Fill 
+
+Byte 6.3-6.4: Pump Bypass Disables Fill 00 = Does not Disable Fill, 01 = Disables Fill 
+
+Byte 6.5-6.6: Ignore Pump 00 = Turns off pump before fill, 01 = Pump unaffected 
+
+Byte 6.7-6.8: Check water pressure 00 = Ignore water pressure, 01 = Check water pressure 
+
+Byte 7: Extended Run-After Time 0 = 0 min. 1 bit = 1 min. 
+
+Byte 8: Black Tank Warning Level Percent, per RV-C 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 128. Ordinary timeouts are reported via the Last Operation 
+
+datum in the AUTOFILL_STATUS PGN. The lack of a valid fresh tank level reading should 
+
+trigger a DM1 . This is reported as SPN = 258 and FMI = 11 (Failure Not Identifiable). If the pump 
+
+bypass is on and the fill is set to cancel if the pump bypass is on, then a Yellow DM1 should be 
+
+triggered with SPN = 257 and FMI = 11. The technician should consult the Fresh Tank device for 
+
+further information. 
+
+## Water Pump 
+
+The water pump functions use one active-low discrete output to control a relay powering the 
+
+pump ( PUMP CONTROL ) and an optional input to detect whether the pump control has been 
+
+bypassed ( BYPASS DETECT ). A remote switch may be added to turn the pump on or off. This 
+
+can be a momentary switch, attached to PUMP SWITCH , or a constant-on input, analogous to the 
+
+GEN DEMAND 1 input. 
+
+To allow interoperability with non-RV-C multiplexing equipment there are alternative 
+
+implementations of the pump I/O logic. Such systems typically act like a momentary input, 
+
+latching output relay, and there may be other switches controlling the output. The following table 
+
+describes the operations based on the I/O values. The Output Switching and Relay Type are 
+
+configurable using the proprietary configuration PGN.                     
+
+> Input Type : Demand Demand Momentary Momentary
+> Output Relay Type : Latching Standard Latching Standard
+> PUMP SWITCH Is pump on? Turns pump on/off Is pump on? Turns pump on/off
+> BYPASS DETECT N/A Is pump running? N/A Is pump running?
+> PUMP CONTROL 500 msec pulse Constant on/off 500 msec pulse Constant on/off
+
+PGNs Supported 
+
+Confidential Page 39 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Water Pump Command 
+
+Name: WATER_PUMP_COMMAND 
+
+PGN: 0x1FFB2 
+
+Bit 1.1-1.2: Command 00 = Turn Off, 01 = Turn On 
+
+No other data is supported. 
+
+Proprietary – Configure Water Pump 
+
+Name: PROP_CONFIGURE_WATER_PUMP_CONTROL 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xD6 = Configure Water Pump 
+
+0xD5 = Request Water Pump Configuration 
+
+Format is identical to PROP_REPORT_WATER_PUMP_CONTROL . Unit must be “unlocked” to 
+
+accept this command. It is recommended to reboot the TM-102 to set up the pump properly. 
+
+PGNs Reported 
+
+Water Pump Status 
+
+Name: WATER_PUMP_STATUS 
+
+PGN: 0x1FFB3 
+
+Bit 1.1-1.2: Operating Status 00 = Off, 01 = On (Standby or Running) 
+
+Bit 1.5-1.6: Water Hookup Detected 00 = not detected, 01 = water pressure 
+
+detected in the last 2 minutes. 
+
+Byte 2-3: Current System Pressure Supported by RV-C 
+
+For the unit to be Off, both the Pump Control and the Bypass Detect values must be “Off”. If 
+
+either shows the pump to be on, then it will show “On”. 
+
+Proprietary – Report Water Pump Configuration 
+
+Name: PROP_REPORT_WATER_PUMP_CONTROL 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xD4 = Report Pump Configuration 
+
+Bit 2.1-2.2: Input Switching 0 = Momentary “Switch” (i.e. 500 msec pulse) 
+
+1 = Constant “Demand” 
+
+Bit 2.3-2.4: Output Relay Type 0 = Standard Relay Output 
+
+1 = Latching Relay (Status fed back thru Pump Input) 
+
+Bit 3.1-3.2: Enable Bypass Detect 0 = Ignore bypass input 
+
+1 = Check bypass for DM1 reports 
+
+Byte 4 Implementation 0 = Internal Implementation 
+
+1 = External RV-C – DC Load PGN 
+
+2 = External RV-C – DC Dimmer PGN 
+
+3 = External RV-C – Water Pump PGN 
+
+Byte 5 RV-C Instance Instance used for external RV-C implementations 
+
+The Enable Bypass Detect flag is useful for some customers who do not have the pump bypass 
+
+connected to the input. 
+
+The Input Switch requires the Internal Implementation (type 0). The Output Relay Type and 
+
+Enable Bypass Detect apply only to Internal Implementations. 
+
+In external implementations of types 1 and 2, the water pump status will mirror the DC 
+
+Load/Dimmer instance. In type 3 implementation, the TM-102 does not send or receive water 
+
+Confidential Page 40 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+pump commands, but the Autofill feature will send commands as required. Disabling the Water 
+
+Pump in the main configuration is the equivalent to setting the Implementation type to 3. 
+
+When changing the Implementation Type, the TM102 must be reset. 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 127. 
+
+If the Bypass and the Pump Control do not agree on the state of the pump, then a DM1 shall 
+
+be broadcast. The node will report SPN = 256 - Pump, and FMI = 7 - Mechanical System Not 
+
+Responding. 
+
+If the Bypass indicates the pump is On, while the Pump Control indicates Off, then an Yellow 
+
+Lamp condition will be indicated by the DM1 . The service tool or display should display this as 
+
+“Pump Bypass Detected”. 
+
+If the Bypass indicates the pump is Off, while the Pump Control indicates On, then a Red 
+
+Lamp condition will be indicated by the DM1 . The service tool or display should display this as 
+
+“Pump Relay Not Responding”. 
+
+## Secondary Water Pump 
+
+The secondary water pump requires the use of the IS-160, and has limited functionality. It 
+
+uses a single ordinary relay controlled by the IS-160, and has no provisions for latching relays, 
+
+external switches, or bypass detection. 
+
+The Secondary Water Pump requires the Water Pump to be enabled, and use 
+
+implementation type 0 (Internal Implementation). 
+
+Since RV-C assumes a single water pump, control of this device requires a proprietary 
+
+commands. 
+
+PGNs Supported 
+
+Prop Secondary Water Pump Command 
+
+Name: PROP_SEC_PUMP_COMMAND 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xB7 
+
+Bit 2.1-2.2: Command 00 = Turn Off, 01 = Turn On 
+
+This PGN always triggers a PROP_SEC_PUMP_STATUS report, even if the Command field 
+
+is 11 (0x03 - No Action). 
+
+PGNs Reported 
+
+Prop Secondary Water Pump Status 
+
+Name: PROP_SEC_PUMP_STATUS 
+
+Confidential Page 41 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xB6 
+
+Bit 2.1-2.2: Status 00 = Off, 01 = On 
+
+Suspect Parameters 
+
+The secondary water pump has no diagnostic report. 
+
+## Water Pressure Sensor 
+
+The TM102 assumes a 200 PSI 0-5V Honeywell-type sensor. If enabled, the device 
+
+automatically looks for the sensor on the first unused tank port. (That is, the first tank port with 
+
+tank size zero.) 
+
+PGNs Reported 
+
+Water Pump Status 
+
+Name: WATER_PUMP_STATUS 
+
+PGN: 0x1FFB3 
+
+Byte 2-3 Current System Pressure per RV-C. 
+
+This PGN is sent by itself every 5000 ms if no water pump is enabled. If a pump is enabled, the 
+
+value is included in the WATER_PUMP_STATUS PGN as outlined under Water Pump. 
+
+## Tile Heat Control 
+
+The Tile Heat Control is compatible with Goldheat floor heating products. The Goldheat 
+
+temperature sensor is attached to pins Out#10 and Out#11 ( TILE TEMP + and GROUND). The 
+
+Goldheat control relays are Out#7 and Out#8 (PRIMARY and SECONDARY FLOOR CONTROL) 
+
+The unit supports two floor mats, ordinarily with only one temperature input and set point. 
+
+This is accomplished by the use of two “dwell” settings, one for each mat. If a Sensor Multiplexer 
+
+is used, the system can support two temperature sensors. In the ordinary case the Instance is 
+
+always 1. In the two zone case, the Instances are 1 and 2. 
+
+In the two zone case, the Time Modes and Set Points are always the same for both zones. 
+
+However, each zone has its own Operating Mode, Schedule Mode, and Current Set Point. Thus 
+
+the user can set different levels for each mat manually, but can only schedule them at the same 
+
+level within the same time periods. Note that one mat may be on the schedule, while the other is 
+
+not. 
+
+For more information on the Sensor Multiplexer and the specific operation of the TM-102 in 
+
+Dual-Zone mode, consult the Sensor Multiplexer Application Document. 
+
+PGNs Supported 
+
+Floor Heat Command 
+
+Name: FLOOR_HEAT_COMMAND 
+
+Confidential Page 42 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+PGN: 1FEFB 
+
+Byte 1: Instance 1 or 2 
+
+Bit 2.1-2.2: Operating Mode 00 = Automatic, 01 = Manual 
+
+Bit 2.3-2.4: Operating Status 00 = Off, 01 = On 
+
+*Bit 2.5-2.6: Schedule Mode 00 = Manual, 01 = Scheduled Set Point Changes 
+
+Byte 3,4: Set Point Supported per RV-C 
+
+Note: Byte 5 - Dead Band is not supported. 
+
+* Not official RV-C. 
+
+All of these settings are unique for each zone, if multiplexed. 
+
+Proprietary – Configure Floor Heat 
+
+Name: PROP_CONFIGURE_FLOOR_HEAT_1 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xE6 = Configure Floor Heat 1 
+
+Format is identical to PROP_REPORT_FLOOR_HEAT_1 .
+
+Name: PROP_CONFIGURE_FLOOR_HEAT_2 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xE5 = Configure Floor Heat 2 
+
+Format is identical to PROP_REPORT_FLOOR_HEAT_2 .
+
+Name: PROP_CONFIGURE_FLOOR_HEAT_3 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xBD = Configure Floor Heat 3 
+
+Format is identical to PROP_REPORT_FLOOR_HEAT_3 .
+
+Name: PROP_CONFIGURE_FLOOR_HEAT_4 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xBC = Configure Floor Heat 4 
+
+Format is identical to PROP_REPORT_FLOOR_HEAT_4 .
+
+Name: PROP_REQUEST_FLOOR_HEAT 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xE4 = Request Floor Heat Configuration Report 
+
+The TM-102 will reply to this PGN with PROP_REPORT_FLOOR_HEAT_1 ,
+
+PROP_REPORT_FLOOR_HEAT_2 , PROP_REPORT_FLOOR_HEAT_3 and 
+
+PROP_REPORT_FLOOR_HEAT_4 .
+
+To put the mats into “Storage” mode, put the set point to a suitably low number and put the 
+
+unit in Manual Schedule Mode. To turn Off altogether, set Status to Off. (Setting Status to On 
+
+and Mode to Manual will turn on the heat elements.) 
+
+If Set Point is included and the unit is in Scheduled Mode, the set point will be changed at the 
+
+next day/night mode change. 
+
+In single-sensor mode, the controller waits for the measured temperature to fall below the set 
+
+point. It then triggers each floor output for the configured dwell time. At the end of the longer of 
+
+the two dwell periods it again checks the heat level and repeats the process if necessary. 
+
+Most implementations will use just two Time Modes - “Day” and “Night”. The unit supports up 
+
+to four Time Modes, allowing for a “Morning”,”Day”,”Evening”,”Night” cycle. To disable the use of 
+
+Confidential Page 43 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+unwanted time modes, set the mode start to an invalid hour or minute. 
+
+PGNs Reported 
+
+Floor Heat Status 
+
+Name: FLOOR_HEAT_STATUS 
+
+PGN: 1FEFC 
+
+Byte 1: Instance 1 or 2 
+
+Bit 2.1-2.2: Operating Mode 00 = Automatic, 01 = Manual 
+
+Bit 2.3-2.4: Operating Status 00 = Off, 01 = On 
+
+Bit 2.5-2.6: Heat Element Status 00 = Off, 01 = On 
+
+*Bit 2.7-2.8: Schedule Mode 00 = Manual, 01 = Scheduled Set Point Changes 
+
+Byte 3,4: Measured Temperature Supported per RV-C 
+
+Byte 5,6: Set Point Supported per RV-C 
+
+*Bit 8.1-8.2: Secondary Element Status 00 = Off, 01 = On 
+
+* Not official RV-C. 
+
+Proprietary – Report Floor Heat Configuration 
+
+Name: PROP_REPORT_FLOOR_HEAT_1 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xE3 = Report Floor Heat Configuration 
+
+Byte 2: Mode 1 (Day / Morning) Begin Hour 0 - 23 
+
+Byte 3: Mode 1 (Day / Morning) Begin Minute 0 – 59 
+
+Byte 4: Mode 2 (Night / Away) Begin Hour 0 - 23 
+
+Byte 5: Mode 2 (Night / Away) Begin Minute 0 - 59 
+
+Name: PROP_REPORT_FLOOR_HEAT_2 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xE2 = Report Floor Heat Configuration 
+
+Byte 2,3: Mode 1 Set Point Supported per RV-C 
+
+Byte 4,5 Mode 2 Set Point Supported per RV-C 
+
+Byte 6: Primary Dwell Time 0 – 1250 Sec. 1 bit = 5 Sec 
+
+Byte 7: Secondary Dwell Time 0 – 1250 Sec. 1 bit = 5 Sec 
+
+Bit 8.1-8.2 Dual Temperature Input 0 = Single Sensor Input 
+
+1 = Dual Sensor Input using Sensor Multiplexer 
+
+Name: PROP_REPORT_FLOOR_HEAT_3 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xBB = Report Floor Heat Configuration 
+
+Byte 2: Mode 3 (Evening) Begin Hour 0 - 23, Invalid values disable the mode. 
+
+Byte 3: Mode 3 (Evening) Begin Minute 0 – 59, Invalid values disable the mode. 
+
+Byte 4: Mode 4 (Night) Begin Hour 0 - 23, Invalid values disable the mode. 
+
+Byte 5: Mode 4 (Night) Begin Minute 0 - 59, Invalid values disable the mode. 
+
+Name: PROP_REPORT_FLOOR_HEAT_4 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xBA = Report Floor Heat Configuration 
+
+Byte 2,3: Mode 3 Set Point Supported per RV-C 
+
+Byte 4,5 Mode 4 Set Point Supported per RV-C 
+
+Note that all of the proprietary configuration settings apply to mode Instances. When in Dual 
+
+Input mode only the primary dwell time is used. 
+
+Confidential Page 44 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 97. The only SPN supported is for a fault in the temperature 
+
+sensor, for which the SPN is constructed as MSB = 1, ISB = 1 (or 2 if Dual Mode), and LSB = 0. 
+
+The FMI is either 0 or 1 (Above/Below Normal Range). 
+
+## Ambient Temperature , Thermostat Control 
+
+The TM-102 contains an internal temperature sensor, and optionally an external sensor may 
+
+be attached (Connector TEMP). These items are reported as simple Thermostat instances. The 
+
+Instance numbers are configured via the proprietary PGN indicated in the Configuration section 
+
+above. Setting either sensor to Instance = 0 will disable the sensor and all reports, including DM1 .
+
+Default instance values are: 
+
+Internal sensor 250 
+
+External #1 sensor 249 
+
+External #2 sensor 248 (with IS-160 board attached) 
+
+External #3 sensor 247 (with IS-160 board attached) 
+
+Calibration is provided via the proprietary PGN detailed in the Configuration section above. 
+
+PGNs Supported 
+
+Thermostat Command 
+
+Name: THERMOSTAT_COMMAND_1 
+
+PGN: 0x1FEF9 
+
+Byte 1: Instance Supported per RV-C 
+
+pre v2.03: Always same as External Temp Sensor. 
+
+Bits 2.1-2.4: Operating Mode 0 = Off. 2 = Heat. 
+
+Byte 4-5: Set Point Supported per RV-C. Default is 38 Deg F. 
+
+Furnace Command 
+
+Name: FURNACE_COMMAND 
+
+PGN: 0x1FFE3 
+
+Byte 1: Instance Supported per RV-C 
+
+pre v2.03: Always same as External Temp Sensor. 
+
+Byte 5: Dead Band Supported per RV-C. Default is 1 Deg C. 
+
+Note that you cannot directly control the Heat Output Level or operating mode of the 
+
+“Furnace” via this command. To force the THERMOSTAT_CONTROL on, use the Themostat Set 
+
+Point. To force it off, use the Thermostat Operating Mode. 
+
+PGNs Reported 
+
+Thermostat Status 
+
+Name: THERMOSTAT_STATUS_1 
+
+PGN: 0x1FFE2 
+
+Byte 1: Instance Supported per RV-C 
+
+pre v2.03: Always same as External Temp Sensor. 
+
+Confidential Page 45 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Bits 2.1-2.4: Operating Mode 0 = Off. 2 = Heat. 
+
+Byte 4-5: Set Point Supported per RV-C. Default is 38 Deg F. 
+
+Furnace Status 
+
+Name: FURNACE_STATUS 
+
+PGN: 0x1FFE4 
+
+Byte 1: Instance Supported per RV-C 
+
+pre v2.03: Always same as External Temp Sensor. 
+
+Byte 4: Heat Output Level 0 = Off. 200 = On. 
+
+Shows the THERMOSTAT_CONTROL output. 
+
+Byte 5: Dead Band Supported per RV-C. Default is 1.0 Deg C. 
+
+Ambient Temperature Status 
+
+Name: THERMOSTAT_AMBIENT_STATUS 
+
+PGN: 0x1FF9C 
+
+Byte 1: Instance Supported per RV-C 
+
+Byte 2-3: Ambient Temperature Supported per RV-C 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 88. 
+
+The only SPN supported is for a fault in the temperature sensor with a Red Lamp, for which 
+
+the SPN is constructed as MSB = 1, ISB = Instance, and LSB = 2. The FMI is 11. 
+
+## Climate Control 
+
+The TM-102 can be used as a full climate control system, supporting two temperature zones. 
+
+Each zone has a external temperature sensor and an air conditioner associated with it, while the 
+
+two zones share a single furnace. The zones are always given Instance 1 and 2. 
+
+The TM-102 currently supports conventional air conditioners such as the RV Products 8000 
+
+series with Hi and Lo Fan and Condenser inputs. It supports conventional furnaces such as the 
+
+Suburban NT series. 
+
+All units are controlled through the IS-160 I/O Expander, using the outputs described in the 
+
+Connectors section of that document. The system does not use the internal temperature sensor, 
+
+which may be used for a Thermostat Control per the previous section. These two systems are 
+
+completely independent of each other. 
+
+The system also provides Automatic Genstart, triggering a start as required for cooling and 
+
+maintaining the generator demand as appropriate. 
+
+When two zones are enabled and only 30A power is available, the module will alternate the 
+
+use of each air conditioner to prevent overloading the power input. This feature is controlled by 
+
+the proprietary configuration PGN indicated below. 
+
+This AC load management operates by running one A/C for a specified amount of time 
+
+(“dwell”) or until it reaches the desired temperature. If the “demand gap”, i.e. the difference 
+
+between the desired and actual temperature, is less than the demand gap of the other zone, the 
+
+unit then switches to run the other zone. Otherwise it continues until the demand gap is less than 
+
+Confidential Page 46 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+the gap for the other zone, and then it switches. The process is then repeated. 
+
+Note that the demand gap is calculated for the “active” zone by comparing the actual 
+
+temperature with the stopping temperature for the zone - i.e. the bottom of the dead band - while 
+
+the value for alternate zone is the difference between the actual temperature and the trigger 
+
+temperature - i.e. the top of the dead band. 
+
+A dwell parameter is intended to prevent excessive cycling of the air conditioners. 
+
+When two air conditioners are installed the system is programmed to avoid starting both 
+
+simultaneously. Regardless of the power source, the second A/C will not be started for five 
+
+seconds after the first, to reduce the peak load as the compressor start. When no power source 
+
+is detected, the relays controlling the A/Cs will remain open (off). When A/C power is detected 
+
+the system will wait five seconds before starting each A/C in turn. (More time is allowed if the 
+
+power source is a generator, as indicated below in the discussion of generator settling time.) 
+
+For heat, the unit works in two distinct modes, set in the FURNACE_COMMMAND PGN. In 
+
+LP Furnace mode, only a single LP furnace is used for heat, and it only responds to Zone 1 data. 
+
+In AC Heat Strip mode it responds to both zones, activating the corresponding Heat Strip output 
+
+and Lo Fan output for each AC. 
+
+PGNs Supported 
+
+Thermostat Command 
+
+Name: THERMOSTAT_COMMAND_1 
+
+PGN: 0x1FEF9 
+
+Byte 1: Instance Always 1 or 2 
+
+Bits 2.1-2.4: Operating Mode 0 = Off. 1 = Cool. 2 = Heat. 3 = Auto. 4 = Fan 
+
+Bits 2.5-2.6 Fan Mode Supported per RV-C. 
+
+Bits 2.7-2.8 Schedule Mode Supported per RV-C. 
+
+Byte 3: Fan Speed 0 = Off. 100 = Lo. 200 = High. 
+
+Byte 4-5: Set Point Heat Supported per RV-C. 
+
+Byte 6-7: Set Point Cool Supported per RV-C. 
+
+Note that if the Operating Mode is 4 (Fan), the Fan will come on to cool the coach per the Set 
+
+Point Cool. If the Fan Mode is On, the Fan will stay on full-time, regardless of the temperature. 
+
+Name: THERMOSTAT_COMMAND_2 
+
+PGN: 0x1FEF8 
+
+Byte 1: Instance Always 1 or 2 
+
+Byte 2: Current Schedule Instance Supported per RV-C. 
+
+If the Schedule Instance is set to 251, the unit will scan the Schedule for the most appropriate 
+
+schedule instance and use that value. This is effectively a “Return to Normal Program”, if also 
+
+accompanied by a THERMOSTAT_COMMAND_1 setting the Schedule Mode to Enabled. 
+
+Themostat Schedule Command 
+
+Name: THERMOSTAT_SCHEDULE_COMMAND_1 
+
+PGN: 0x1FEF5 
+
+Byte 1: Instance Always 1 or 2 
+
+Byte 2: Schedule Mode Instance 0 = “Night” 
+
+Confidential Page 47 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+1 = “Daytime” 
+
+2 = “Away” 
+
+250 = “Storage” 
+
+Byte 3: Start Hour Supported per RV-C. 
+
+Byte 4: Start Minute Supported per RV-C. 
+
+Byte 5-6: Set Point Heat Supported per RV-C. 
+
+Byte 7-8: Set Point Cool Supported per RV-C. 
+
+Only four schedule modes are available. When using Storage or Away modes, the command 
+
+should also include a THERMOSTAT_COMMAND_1 setting the Schedule Mode to Disabled. The 
+
+default starting times are 08:00 for “Daytime” and 21:00 for “Night”. 
+
+Furnace Command 
+
+Name: FURNACE_COMMAND 
+
+PGN: 0x1FFE3 
+
+Byte 1: Instance Always 1 or 2 
+
+Bits 2.3-2.8 Heat Source 0 = LP Furnace, 1 = AC Heat Strip 
+
+This setting affects both zones simultaneously. 
+
+Byte 5: Dead Band Supported per RV-C. Default is 1 Deg C. 
+
+Air Conditioner Command 
+
+Name: AIR_CONDITIONER_COMMAND 
+
+PGN: 0x1FFE0 
+
+Byte 1: Instance Always 1 or 2 
+
+Byte 7: Dead Band Supported per RV-C. Default is 1 Deg C. 
+
+Note that you cannot directly control the Heat Output Level or operating mode of the Furnace 
+
+or Air Conditioner via this command. To force the Furnace or Air Conditioner On, use the 
+
+Themostat Set Point. To force them off, use the Thermostat Operating Mode. 
+
+Proprietary – Configure Climate Control 
+
+Name: PROP_CONFIGURE_CLIMATE_CONTROL 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xDC = Configure Climate Control 
+
+0xDB = Request Climate Control Configuration 
+
+Format is identical to PROP_REPORT_CLIMATE_CONTROL below, except it does not include 
+
+the series of flags in Byte Eight. Unit must be “unlocked” to accept this command. 
+
+PGNs Reported 
+
+Thermostat Status 
+
+Name: THERMOSTAT_STATUS_1 
+
+PGN: 0x1FFE2 
+
+Byte 1: Instance Always 1 or 2 
+
+Bits 2.1-2.4: Operating Mode 0 = Off. 1 = Cool. 2 = Heat. 3 = Auto. 4 = Fan 
+
+Bits 2.5-2.6 Fan Mode Supported per RV-C. 
+
+Bits 2.7-2.8 Schedule Mode Supported per RV-C. 
+
+Byte 4-5: Set Point Heat Supported per RV-C. 
+
+Byte 6-7: Set Point Cool Supported per RV-C. 
+
+Name: THERMOSTAT_STATUS_2 
+
+PGN: 0x1FEFA 
+
+Confidential Page 48 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Byte 1: Instance Always 1 or 2 
+
+Byte 2: Current Schedule Instance Supported per RV-C. 
+
+Ambient Temperature Status 
+
+Name: THERMOSTAT_AMBIENT_STATUS 
+
+PGN: 0x1FF9C 
+
+Byte 1: Instance Supported per RV-C 
+
+Byte 2-3: Ambient Temperature Supported per RV-C 
+
+Themostat Schedule Status 
+
+Name: THERMOSTAT_SCHEDULE_STATUS_1 
+
+PGN: 0x1FEF7 
+
+Byte 1: Instance Always 1 or 2 
+
+Byte 2: Schedule Mode Instance 0 = “Night” 
+
+1 = “Daytime” 
+
+2 = “Away” 
+
+250 = “Storage” 
+
+Byte 3: Start Hour Supported per RV-C. 
+
+Byte 4: Start Minute Supported per RV-C. 
+
+Byte 5-6: Set Point Heat Supported per RV-C. 
+
+Byte 7-8: Set Point Cool Supported per RV-C. 
+
+Only four schedule modes are available. When using Storage or Away modes, the command 
+
+should also include a THERMOSTAT_COMMAND_1 setting the Schedule Mode to Disabled. 
+
+Furnace Status 
+
+Name: FURNACE_STATUS 
+
+PGN: 0x1FFE4 
+
+Byte 1: Instance Always 1. 
+
+Bits 2.3-2.8 Heat Source 0 = LP Furnace, 1 = AC Heat Strip 
+
+Byte 4: Heat Output Level 0 = Off. 200 = On. 
+
+Byte 5: Dead Band Supported per RV-C. Default is 1.0 Deg C. 
+
+Air Conditioner Status 
+
+Name: AIR_CONDITIONER_STATUS 
+
+PGN: 0x1FFE1 
+
+Byte 1: Instance Always 1 or 2 
+
+Byte 5: Fan Speed 0 = Off. 100 = Lo. 200 = High. 
+
+Byte 6: Air Conditioning Output Level 0 = Off. 200 = On. 
+
+Byte 7: Dead Band Supported per RV-C. Default is 1.0 Deg C. 
+
+Proprietary – Report Climate Control Configuration 
+
+Name: PROP_REPORT_CLIMATE_CONTROL 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xDA = Report Climate Control Configuration 
+
+Byte 2: Number of Zones Always 1 or 2. 
+
+Byte 3: Load Management Dwell 0 – 1250 Sec. 1 bit = 5 Sec 
+
+Byte 4: Dead Band Under AGS Suppored per RV-C Dead Band 
+
+Byte 5: Generator Settling Time 0 – 1250 Sec. 1 bit = 5 Sec 
+
+Bit 6.1-6.3 Max A/C Units - Generator 0 - 3 A/C units. 1 bit = 1 A/C unit 
+
+Bit 6.4-6.6 Max A/C Units - Shore 0 - 3 A/C units. 1 bit = 1 A/C unit 
+
+Bit 6.7-6.8 Auto Genstart Enabled 0 - Off, 1 - On. Default is on. 
+
+Confidential Page 49 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Bit 7.1-7.4 Load Management Mode - Generator 
+
+0 - Normal Mode (Alternate Zones) 
+
+1 - Zone 1 Only 
+
+2 - Zone 2 Only 
+
+Bit 7.5-7.8 Load Management Mode - Shore Power 
+
+0 - Normal Mode (Alternate Zones) 
+
+1 - Zone 1 Only 
+
+2 - Zone 2 Only 
+
+Bit 8.1-8.2 Load Management Flag 0 - Load Management Inactive 
+
+1 - Load Management Active (Normal Mode) 
+
+Bit 8.3-8.4 Genset Settling Flag 0 - Normal Mode 
+
+1 - A/C Waiting for Genset to Settle. 
+
+Bit 8.5-8.6 AGS Demand Flag 0 - AGS Off or Standby 
+
+1 - Generator Power Currently Demanded 
+
+Bit 8.7-8.8 No. of LPG Furnaces 0 - One Furnace, Zone 1 controls it 
+
+1 - Two Furnaces, one for each zone. 
+
+Load Management Dwell reduces the cycling for each A/C unit. When in normal load 
+
+management mode, the active zone is not allowed to switch for at least the dwell period. After 
+
+that much time has elapsed, the system is allowed to switch to the other zone. (However, if the 
+
+active zone reaches the stop point before the alternate zone reaches its start point, the active 
+
+zone will shut down.) 
+
+The Dead Band Under Genset replaces the normal A/C dead band when the Genstart is 
+
+active. (If the generator is running manually, the dead band is the setting in 
+
+AIR_CONDITIONER_COMMAND). This should normally be larger than the normal dead band to 
+
+reduce the number of starts and stops on the generator. 
+
+The Generator Settling Time is the amount of time in which the A/Cs are forced to stay off 
+
+after the generator is started. This Settling Time is invoked under any circumstances that the 
+
+generator is started - even manually. Upon detecting a manual or automatic start, the A/Cs shall 
+
+be turned off and prevented from turning on until the Settling Time has passed. If set to zero, A/C 
+
+operations are not interrupted upon a genstart. 
+
+The Load Management Modes allow the user to selectively turn off one or more zones 
+
+instead of alternating between the two zones. 
+
+The Load Management Flag indicates whether the system is actively managing the loads -
+
+i.e. the Load Management Mode for the current power source is “Normal” and the maximum 
+
+number of A/C units is less than the number of zones enabled. The Genset Settling Flag 
+
+indicates that the A/Cs are suppressed while waiting for the generator to “settle”. The AGS 
+
+Demand flag is analogous to the other AGS Criteria Demand Flags. 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 89. 
+
+The only SPN supported is for a fault in the temperature sensor with a Red Lamp, for which 
+
+the SPN is constructed as MSB = 1, ISB = Instance, LSB = 2 and FMI = 11. 
+
+Confidential Page 50 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+## Automatic Genstart 
+
+The AGS module conforms to the (proposed) RV-C specification, with several proprietary 
+
+extensions. It supports both external demands and internal criteria to control generator activity, 
+
+and has several proprietary extensions to the standard criteria. The module also supports a 
+
+single discrete input ( GEN DEMAND 1 or GEN DEMAND 2 ) which can indicate demand from a 
+
+non-RV-C external device such as an air conditioner. The TM-102 only supports one external 
+
+demand, not including user inputs. The AGS is a single-instance device with DSA 65. 
+
+If the module detects the generator turning off without a command from this module, it will set 
+
+the External Activity flag and refuse to start the generator. The flag can be reset by the 
+
+GENERATOR_DEMAND_COMMAND , or it will reset automatically at midnight or when it sees the 
+
+generator started externally. 
+
+If the module detects coach movement, i.e. Vehicle Speed in excess of 2 mph, then it may 
+
+disable all AGS criteria. The DISABLE_ON_MOVE flag in the proprietary configuration PGN 
+
+controls whether the criteria are disabled. 
+
+If the RVIA 2010 compliance flag is set, the TM102 sets the external activity flag whenever 
+
+there is a manual start or stop. This effectively disables the autogenstart on any manual event. 
+
+PGNs Supported 
+
+Generator Demand Command 
+
+Name: GENERATOR_DEMAND_COMMAND 
+
+PGN: 1FEFF 
+
+Bit 1.1-1.2: Generator Demand 00 = No Demand, 01 = Generator Demanded 
+
+Bit 1.3-1.4: Quiet Time Override 00 = Respect QT, 01 = Override QT 
+
+Bit 1.5-1.6: External Activity Reset 00 = No Action, 01 = Reset External Activity Flag 
+
+Bit 1.7-1.8: Manual Override 00 = Normal Demand, 01 = Override all demands. 
+
+Bit 2.1-2.2: Generator Lock 00 = Normal, 01 = Genstart disabled 
+
+Byte 3-6: Set Quiet Time Supported per RV-C 
+
+Byte 7: Minimum Cycle Time Supported per RV-C 
+
+When a user triggers a start through a control panel, the panel should set Bit 1.5-1.6 to 01 to 
+
+reset the External Activity flag. Other products should respect the External Activity and Manual 
+
+Override flags by setting those fields to zero. 
+
+When this command is received to end demand, the module will send a request for this PGN. 
+
+Any device that still has a demand for power must respond within 3 seconds or the generator will 
+
+stop. (Assuming no internal demand exists and the manual override flag is not set.) 
+
+If the Manual Override flag is set on a Start Demand action, the node will start the generator 
+
+and set the internal MO flag. If the unit is already in Quiet Time, it will automatically also set the 
+
+Quiet Time Override flag. If the MO flag is set on a Stop Demand action, the node will stop the 
+
+generator, but it will NOT set the internal MO flag. Thus the generator may restart if another node 
+
+or criterion demands it. 
+
+To prevent the generator from starting for any reason, set the Generator Lock flag. Ideally 
+
+this is done as a Stop Demand, with Manual Override as well. 
+
+AGS Criterion Command 
+
+Confidential Page 51 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Name: AGS_CRITERION_COMMAND 
+
+PGN: 1FEFD 
+
+Byte 1: Instance See below 
+
+Bit 2.1-2.2: Command Always 00 = Add/Edit Criterion or 11 = No Action 
+
+Bit 2.3-2.4 Active Status 00 = Deactivate, 01 = Activate 
+
+Byte 3: Criterion Type See below 
+
+The AGS has predetermined criteria which can be reconfigured or deactivated, but not 
+
+deleted or added to. The Instance and Type of each criterion is as follows: 
+
+Instance Type 
+
+1 0 = DC Voltage Threshold 
+
+2 0 = DC Voltage Threshold or Charge Bridge 
+
+3 3 = Ambient Temperature 
+
+4 4 = Transfer Switch AC Point Voltage 
+
+11 5 = Quiet Time 
+
+5 250 = DC Voltage Topoff 
+
+6 249 = Scheduled Exercise 
+
+7 248 = External Input ( GEN SWITCH )
+
+8 248 = External Input ( GEN DEMAND 1 OR GEN DEMAND 2 )
+
+9 1 = DC State of Charge 
+
+10 247 = DC State of Charge Topoff 
+
+AGS Criterion Command - Type 0 
+
+Byte 4: DC Instance 1 = House Battery (either internal or from charger.) 
+
+Any other value must match DC Source Instance 
+
+Byte 5-6: Voltage Threshold Supported per RV-C 
+
+Byte 7: Time Under Threshold 1 bit = 5 sec, 0 – 1250 sec 
+
+this differs from RV-C spec which is 1 bit = 6 sec 
+
+If the DC Instance does not match the DC Source instance the unit will use the house battery by 
+
+default. This may be either a value from an external charger or the TM-102 DC Source. Note that 
+
+when using the Voltage AGS without a charger the Stop Criteria should be set to Time Only. 
+
+Starting with v3.17, the Voltage AGS will not operate if shore power is detected. This may be 
+
+detected from a transfer switch or charger. If neither of these is available the AGS will still 
+
+operate. 
+
+(v 1.88+) If the Charge Bridge AGS is enabled, Instance 2 is automatically set to Charge Bridge 
+
+AGS. This will cause it to ignore the DC Instance setting and look at the Chassis Battery voltage 
+
+defined by the Charge Bridge feature. The run time will be the same as the Charge Bridge 
+
+duration, regardless of the charger status. The instance will also enable or disable whenever 
+
+Instance 1 is enabled or disabled. 
+
+AGS Criterion Command - Type 3 
+
+Byte 4: Thermostat Instance 1-250 = Internal or networked temp instance. 
+
+0 = TM-200 Slave Mode 
+
+Byte 5-6: Ambient Temp Threshold Supported per RV-C. Must be > 0 deg F 
+
+Byte 7: Time Under Threshold 1 bit = 5 sec, 0 – 1250 sec 
+
+this differs from RV-C spec which is 1 bit = 6 sec 
+
+Byte 8: Dead Band 0 = 0 Deg C, 1 bit = .1 Deg C. 
+
+RV-C does not currently support this datum. 
+
+There is a special build that allows the unit to use a tile heat temperature sensor instead of a 
+
+AC102 sensor. This is not a feature of the production builds. 
+
+Confidential Page 52 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+In the TM200 Slave Mode, the unit monitors the proprietary demand level messages used by the 
+
+TM200 to communicate demand level. If any of up to four zones has a demand for air 
+
+conditioning the criterion triggers a demand. The remaining fields are ignored. 
+
+AGS Criterion Command - Type 4 
+
+Byte 4: ATS Instance Always 0xF9 (Surgeguard Output Leg #1) 
+
+Byte 5-6: RMS Voltage Threshold Supported per RV-C 
+
+Byte 7: Time Under Threshold 1 bit = 5 sec, 0 – 1250 sec 
+
+this differs from RV-C spec which is 1 bit = 6 sec 
+
+AGS Criterion Command - Type 5 
+
+Byte 4: reserved 
+
+Byte 5: Quiet Time Begin Hour Supported per RV-C 
+
+Byte 6: Quiet Time Begin Minute Supported per RV-C 
+
+Byte 7: Quiet Time End Hour Supported per RV-C 
+
+Byte 8: Quiet Time End Minute Supported per RV-C 
+
+AGS Criterion Command - Type 248 External Input 
+
+This proprietary format triggers demand based on the status of the discrete input. Note that 
+
+for the generator demand inputs, there are two choices: GEN DEMAND 1 and GEN DEMAND 2 .
+
+The first one is active low while the second is active high input. One or the other or both may be 
+
+used at the same time. 
+
+Gen Demand requires the input be held for at least 5 seconds before activating. Starting in 
+
+v2.20, the Gen Switch input uses a configurable input delay using the following format: 
+
+Byte 4: Switch Delay 1 bit = 0.25 sec, 0 – 62.5 seconds 
+
+requires holding button this long to activate 
+
+AGS Criterion Command - Type 249 Scheduled Exercise 
+
+Bit 4.1-4.2: Sunday 00 = No Start on Sunday. 01 = Start on Sunday 
+
+Bit 4.3-4.4: Monday As Above 
+
+Bit 4.4-4.6: Tuesday As Above 
+
+Bit 4.7-4.8: Wednesday As Above 
+
+Bit 5.1-5.2: Thursday As Above 
+
+Bit 5.3-5.4: Friday As Above 
+
+Bit 5.5-5.6: Saturday As Above 
+
+Byte 6: Start Hour Same Format as Quiet Time Hour 
+
+Byte 7: Start Minute Same Format as Quiet Time Minute 
+
+Byte 8: Run Time 0 = 0 Min. 1 bit = 5 Min. Max = 1250 Min 
+
+AGS Criterion Command - Type 250 DC Voltage Topoff 
+
+Byte 4: DC Instance Should be set to Inverter DC Input Instance 
+
+or DC Source Monitor Instance (See Below) 
+
+Byte 5-6: Voltage Threshold Supported per RV-C 
+
+Byte 7: Run Time 0 = 0 Min, 1 bit = 1 Min 
+
+Starting with v3.17, the DC Voltage Topoff will not operate if shore power is detected. This may 
+
+be detected from a transfer switch or charger. If neither of these is available the Topoff will still 
+
+operate. 
+
+Confidential Page 53 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+AGS Criterion Command - Type 1 
+
+Byte 4: DC Instance Always 0x01 (Main House Battery) 
+
+Byte 5: Start SOC Threshold Pct, Supported per RV-C 
+
+Byte 6: Stop SOC Threshold Pct, Supported per RV-C added in v3.33 
+
+Byte 7: Time Under Threshold 1 bit = 5 sec, 0 – 1250 sec 
+
+this differs from RV-C spec which is 1 bit = 6 sec 
+
+AGS Criterion Command - Type 247 DC SOC Topoff 
+
+Byte 4: DC Instance Always 0x01 (Main House Battery) 
+
+Byte 5: Start SOC Threshold Pct, Supported per RV-C 
+
+Byte 7: Run Time 0 = 0 Min, 1 bit = 1 Min 
+
+Proprietary - Configure AGS Stop Criteria 
+
+Name: PROP_CONFIGURE_AGS_STOP 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0xF2 = Configure AGS Stop Criteria 
+
+0xE7 = Request AGS Stop Criteria 
+
+Byte 2-3: Max Run Time 0 = 0 Min, 1 bit = 1 min 
+
+Bit 4.1 - 4.4: DC Voltage Stop Criterion 00 = Main Charger Reaches Float 
+
+01 = Dual Charger - One Float, One Absorb 
+
+02 = Main Charger Reaches Absorb, Plus Time 
+
+03 = Run Time Only 
+
+04 = 100% State Of Charge 
+
+05 = State Of Charge Stop Setting 
+
+(Stop SOC Threshold) 
+
+Bit 4.5-4.6: Disable-On-Movement 00 = Do Not Disable on Coach Movement 
+
+01 = Disable All Criteria on Coach Movement 
+
+Byte 5: Reserved (Main Charger Instance) 
+
+Byte 6: Reserved (Second Charger Instance) 
+
+Byte 7-8 Plus Time 0 = 0 Min, 1 bit = 1 Min 
+
+Unit must be “unlocked” to accept this command, except the Max Run Time, which can be 
+
+changed without unlocking the unit. 
+
+Name: PROP_CONFIGURE_AGS_STOP_2 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0x7E = Configure AGS Stop Criteria 2 
+
+Byte 2-3: Max Run Time Max Limit Max Run Time cannot be set above this value 
+
+0 = 0 Min, 1 bit = 1 min, Default = 800 min 
+
+Proprietary - Reset AGS Defaults 
+
+Name: PROP_RESET_AGS_DEFAULTS 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0xE8 = Reset AGS Defaults 
+
+Byte 2: Coach Model See “Coach Model Identification” above ( obsolete ). 
+
+Effective versions 1.20 and above, this will rewrite the 
+
+NVRAM with generic defaults. The user should avoid 
+
+using this as much as possible. 
+
+Unit must be “unlocked” to accept this command. 
+
+PGNs Reported 
+
+Generator Demand Status 
+
+Confidential Page 54 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Name: GENERATOR_DEMAND_STATUS 
+
+PGN: 0x1FF80 
+
+Bit 1.1-1.2: Generator Demand 00 = No Demand, 01 = Generator Demanded 
+
+Bit 1.3-1.4: Internal Demand 00 = No Demand, 01 = Demand from AGS Criteria 
+
+Bit 1.5-1.6: Network Demand 00 = No Demand, 01 = Demand from RV-C Command 
+
+Bit 1.7-1.8: External Activity 00 = Normal, 01 = External Activity Detected 
+
+Bit 2.1-2.2: Manual Override 00 = Normal Operation, 01 = Manual Operation. 
+
+Bit 2.3-2.4: Quiet Time 00 = Normal Operation, 01 = Now in Quiet Time 
+
+Bit 2.5-2.6: Quiet Time Override 00 = Normal Operation, 01 = Quiet Time Ignored 
+
+Bit 2.7-2.8: Generator Lock 00 = Normal Operation, 01 = Genstart Disabled by 
+
+command or Gen Lock Input 
+
+Byte 3-6: Quiet Time Supported per RV-C 
+
+Byte 7: Minimum Cycle Time Supported per RV-C 
+
+AGS Criterion Status 
+
+Name: AGS_CRITERION_STATUS 
+
+PGN: 1FEFE 
+
+Byte 1: Instance See below 
+
+Bit 2.1-2.2: Demand Status 00 = Not Currently Demanding Genset 
+
+01 = Demanding Genset 
+
+Bit 2.3-2.4 Active Status 00 = Deactivate, 01 = Activate 
+
+Byte 3: Criterion Type See below 
+
+The remainder of this PGN is determined by the Criterion Type, and is identical to the 
+
+AGS_CRITERION_COMMAND variants listed above. 
+
+AGS Criterion Status 
+
+Name: AGS_CRITERION_STATUS_2 
+
+PGN: TBA by RVIA. Temporarily using 0x17003. 
+
+Byte 1: Instance See below 
+
+Byte 2: Criterion Type See below 
+
+Byte 3-4: Threshold Counter 0 = Target value not within threshold. 
+
+1-65530 = Seconds under threshold. 
+
+This PGN is sent only for Instances 1-4. It is not valid for the Exerciser, Topoff, External Demand, 
+
+or External Switch. 
+
+Proprietary - Report AGS Stop Criteria 
+
+Name: PROP_REPORT_AGS_STOP 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xEF = AGS Stop Criteria Report 
+
+The remainder of this PGN is identical to PROP_CONFIGURE_AGS_STOP 
+
+Name: PROP_REPORT_AGS_STOP_2 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0x7F = AGS Stop Criteria Report 2 
+
+The remainder of this PGN is identical to PROP_CONFIGURE_AGS_STOP_2 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 65. The SPNs are multi-instance. Valid SPNs are: 
+
+Confidential Page 55 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Invalid Configuration 
+
+MSB = 1 ISB = Instance LSB = 0 AGS Configuration 
+
+FMI = 13 - Bad Intelligent Device or Component 
+
+Data Not Available 
+
+MSB = 1 ISB = Instance LSB = 1 AGS Data Input 
+
+FMI = 11 - Failure Not Identifiable 
+
+This would be used if, for example, the DC Source Instance used in Criterion 1 was unavailable. 
+
+## DC Source Monitor 
+
+Note that the Instance for the DC Source is set via a proprietary message detailed above. If 
+
+other DC Source Monitoring devices are attached to the same Instance but have a higher device 
+
+priority, this module will stop broadcasting. 
+
+PGNs Reported 
+
+DC Source Status 
+
+Name: DC_SOURCE_STATUS_1 
+
+PGN: 0x1FFFD 
+
+Byte 1: Instance As configured. 
+
+Byte 2: Device Priority 20 = Voltmeter 
+
+Byte 3-4: DC Voltage Supported per RV-C 
+
+The DC voltage will be from the A/D converter input DC SENSE .
+
+Charger Status 
+
+Name: CHARGER_STATUS 
+
+PGN: 0x1FFC7 
+
+Byte 1: Instance Always 1 
+
+Byte 2-3: Charge Voltage Supported per RV-C 
+
+Byte 7: Operating State 
+
+If no charger is on the network then the TM102 can send CHARGER_STATUS with the operating 
+
+state determined from the house battery voltage.        
+
+> Current Charge State Next State
+> Not Charging Go to Bulk if V > 12.5
+> Bulk Go to Absorption if V > 14
+> Go to Not Charging if V < 12.5
+> Absorption v1.00 – v3.06 Go to Float if V < 14
+> v3.07+ Go to Float if V < 13.6,
+> Go to Float if V =13.6 – 13.9 for 60 seconds
+> (This prevents premature float detection if
+> absorption volts is fluctuating)
+> Float Go to Absorption if V > 14
+> Go to Not Charging if V < 12.5
+
+Confidential Page 56 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Starting in v3.17, the charge state may be determined based on House Battery voltage that is 
+
+broadcast from another device. 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 69. There are no diagnostic SPNs. The DM1 will always be 
+
+sent with all lamps off and no errors. 
+
+## Battery State of Charge 
+
+This feature combines voltage and amperage information from an RV-C inverter (see below) 
+
+to provide a battery State-of-Charge (SOC) value. 
+
+PGNs Supported 
+
+(Reserved) Proprietary – Configure SOC Table 
+
+Name: PROP_CONFIGURE_SOC_TABLE 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xC6 = Configure SOC Table 
+
+0xC5 = Request SOC Table Report 
+
+Format is identical to PROP_REPORT_SOC_TABLE . Unit must be “unlocked” to accept this 
+
+command. 
+
+PGNs Reported 
+
+(Reserved) DC Source Status 
+
+Name: DC_SOURCE_STATUS_2 
+
+PGN: 0x1FFFC 
+
+Byte 1: Instance As configured. 
+
+Byte 2: Device Priority 120 = SOC Device 
+
+Byte 5: State-of-Charge Supported per RV-C 
+
+The Instance generally is not the same as the DC Source Monitor Instance. 
+
+The SOC is calculated using a downloadable table of voltage and amperage values. This 
+
+table is downloaded using proprietary PGNs detailed above. The table consists of an arbitrary 
+
+number of voltage and amperage levels, with a reference SOC percentage for each amp/volt 
+
+point. 
+
+For example, the table might look like:                
+
+> 13.8 V 12.5 V 11.9 V 11.2 V
+> 0 A 100% 60% 40% 20%
+> 50 A 100% 80% 60% 30%
+> 150 A 100% 90% 70% 50%
+
+A reading of 12.2V and 100A would result in a value of 75%. 
+
+(Reserved) Proprietary – Report SOC Table 
+
+Confidential Page 57 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Name: PROP_REPORT_SOC_TABLE 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xC4 = Report SOC Table 
+
+Byte 2: Number of Voltage Points Min = 2 
+
+Byte 3: Number of Amperage Pts. Min = 2 
+
+Byte 4,5 Voltage Point 1 Per RV-C Table 2.2 
+
+Byte 6,7 Voltage Point 2 Per RV-C Table 2.2 
+
+. . . . . . 
+
+Byte a,a+1 Amperage Point 1 Per RV-C Table 2.2 
+
+Byte a+2,a+3 Amperage Point 2 Per RV-C Table 2.2 
+
+. . . . . . 
+
+Byte b SOC Point (V1,A1) Percent SOC, Per RV-C Table 2.2 
+
+Byte b+1 SOC Point (V1,A2) Percent SOC, Per RV-C Table 2.2 
+
+Byte b+2 SOC Point (V1,A3) Percent SOC, Per RV-C Table 2.2 
+
+. . . . . . 
+
+Byte c SOC Point (V2, A1) Percent SOC, Per RV-C Table 2.2 
+
+Byte c+1 SOC Point (V2, A2) Percent SOC, Per RV-C Table 2.2 
+
+Byte c+2 SOC Point (V2, A3) Percent SOC, Per RV-C Table 2.2 
+
+. . . . . . 
+
+PROP_CONFIGURE_SOC_TABLE and PROP_REPORT_SOC_TABLE requires use of the Long 
+
+Message Format. If the table includes X voltage points and Y amperage points, it will use 
+
+3+2*X+2*Y+X*Y bytes to transmit. 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 70. 
+
+If the State-of-Charge feature is enabled, but no RV-C inverter is found to provide the 
+
+amperage data, a DM1 will be sent with red lamp, SPN 9, FMI 2 (Network Connection, Erratic or 
+
+Invalid). If the table used for calculation is misprogrammed, it will send a red lamp, SPN 3, FMI 
+
+13, (Node Configuration, Out of Calibration). 
+
+## RV-C Inverter Support 
+
+By default the TM-102 will parse data from any RV-C inverter on the main data bus. This 
+
+data may be used to update or override the DC Source Monitor, provide data for the Extended 
+
+Serial Monitor , and provide data for the State of Charge calculator. Up to two inverters may be 
+
+monitored, with arbitrary Instance values. 
+
+## Xanbus Bridge 
+
+A Xantrex Inverter/Charger is connected via RV-C port to provide AC/DC electrical 
+
+information. This uses the Xanbus RV-C protocol described in a separate documentation. 
+
+Selected data is translated into the following standard RV-C PGN's. 
+
+The inverter/charger may have two instances. The Xantrex inverter with Xanbus instance of 
+
+zero will be considered RV-C Instance 1. All other Xantrex inverters will have an RV-C Instance 
+
+of 2. There is no support for a three or more inverter system. 
+
+Confidential Page 58 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+In the case that two inverters on the same RV-C port have the same Xanbus instance, the 
+
+Xanbus source address will be compared – the lowest address will be assigned to RV-C Instance 
+
+1, the next higher address will be RV-C Instance 2. The Xanbus ID field will also be checked so 
+
+that if a third ID in the name PGN is found, the TM-102 will reset all inverters back to the initial 
+
+state and start over on the Xanbus name parsing. This will allow the customer to replace 
+
+inverters while still connected. Leaving the third or more inverter online should be discouraged as 
+
+it will continue to reset the inverter instance setups indefinitely. 
+
+If the J1939 Bridge, Chassis Mobility, or J1939 Genset are not active, the TM-102 will search 
+
+for a Xantrex inverter on the second CAN port. Previous to v3.17, the TM-102 only looked to see 
+
+if J1939 Bridge was active. This inverter will automatically be assigned RV-C Instance 2. 
+
+There will be a 5 second delay after receiving the first inverter name PGN for the first time 
+
+before parsing and processing data. However, if a second inverter came online, parsing and data 
+
+processing may begin immediately. This delay will reduce confusion between two inverter's data 
+
+until the instances are established. 
+
+NOTE: For inverter/charger AC status and commands, the instance field is configured in the 
+
+following format: 
+
+bit 1-4: RV-C Instance As configured 
+
+bit 5-6: Line 0 = Line 1 
+
+1 = Line 2 
+
+bit 7-8: Input/Output 0 = Input 
+
+1 = Output 
+
+PGNs Supported 
+
+Charger Command 
+
+Name: CHARGER_COMMAND 
+
+PGN: 0x1FFC5 
+
+Byte 1: Instance As configured. 
+
+Byte 2: Status 0 = Disable 
+
+1 = Enable 
+
+2 = Start Equalization 
+
+Bit 3.1-3.2: Default State on Power-Up 00 = Charger Disabled 
+
+01 = Charger Enabled 
+
+Bit 3.3-3.4: Auto Recharge Enable 00 = Auto recharge disabled FSW only 
+
+01 = Auto recharge enabled 
+
+Bit 3.5-3.8: Force Charge 00 = Force charge off FSW only 
+
+01 = Force charge to bulk 
+
+02 = Force charge to float 
+
+Auto recharge reinitializes charging if battery voltage drops below a certain voltage. 
+
+Name: CHARGER_CONFIGURATION_COMMAND 
+
+PGN: 0x1FFC4 
+
+Byte 1: Instance As configured. 
+
+Byte 2: Charging Algorithm 0 = Constant Voltage 
+
+2 = 3-Stage 
+
+Confidential Page 59 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+3 = 2-Stage 
+
+4 = Trickle 
+
+Byte 3: Charger Mode 0 = Stand-alone 
+
+1 = Primary 
+
+2 = Secondary 
+
+Byte 5-6: Battery Bank Size Supported per RV-C 
+
+Bit 7.1-7.4: Battery Type 0 = Flooded 
+
+1 = Gel 
+
+2 = AGM 
+
+Byte 8: Max Charging Current Supported per RV-C 
+
+Name: CHARGER_CONFIGURATION_COMMAND_2 
+
+PGN: 0x1FF95 
+
+Byte 1: Instance As configured. 
+
+Byte 2: Max Charging Rate Supported per RV-C 
+
+Byte 5: Default Battery Temperature Supported per RV-C FSW only 
+
+Byte 6-7: Recharge Voltage Supported per RV-C FSW only 
+
+Name: CHARGER_CONFIGURATION_COMMAND_3 FSW only 
+
+PGN: 0x1FECB 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: Bulk Voltage Supported per RV-C 
+
+Byte 4-5: Absorption Voltage Supported per RV-C 
+
+Byte 6-7: Float Voltage Supported per RV-C 
+
+Byte 8: Temperature Compensation Constant 0 – 250 mV/K 
+
+Name: CHARGER_EQUALIZATION_CONFIGURATION_COMMAND 
+
+PGN: 0x1FF97 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: Equalization Voltage Supported per RV-C 
+
+Byte 4-5: Equalization Time 0 = 0 Minutes 
+
+Inverter Command 
+
+Name: INVERTER_COMMAND 
+
+PGN: 0x1FFD3 
+
+Byte 1: Instance As configured. 
+
+Bit 2.1-2.2: Inverter Enable Supported per RV-C 
+
+Bit 2.3-2.4: Load Sense Enable Supported per RV-C 
+
+IName: INVERTER_CONFIGURATION_COMMAND_1 
+
+PGN: 0x1FFD0 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: Load Sense Power Threshold 0 = 0 watts 
+
+1 bit = 1 watt 
+
+Byte 4-5: Load Sense Interval 0 = 0 seconds 
+
+1 bit = 0.5 second 
+
+Byte 6-7: Min DC Shutdown Voltage Supported per RV-C 
+
+Name: INVERTER_CONFIGURATION_COMMAND_2 
+
+PGN: 0x1FFCF 
+
+Byte 1: Instance As configured. 
+
+Confidential Page 60 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Byte 2-3: Max DC Shutdown Voltage Supported per RV-C 
+
+Byte 4-5: Min DC Warning Voltage Supported per RV-C 
+
+Byte 6-7: Max DC Warning Voltage Supported per RV-C 
+
+Name: INVERTER_CONFIGURATION_COMMAND_3 FSW only 
+
+PGN: 0x1FECD 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: DC Source shutdown delay 0 = 0 sec 
+
+1 bit = 0.5 sec 
+
+Byte 4: Stack Mode 0 = Stand-alone 
+
+1 = Master 
+
+2 = Slave 
+
+3 = Line 2 Master (for series stacking) 
+
+Name: INVERTER_CONFIGURATION_COMMAND_4 FSW only 
+
+PGN: 0x1FEBE 
+
+Byte 1: Instance As configured. 
+
+Byte 4-5: Absorption Time 1 bit = 1 minute 
+
+Name: INVERTER_ACFAULT_CONFIG_COMMAND_1 
+
+PGN: 0x1FF8C 
+
+Byte 1: Instance As configured. 
+
+Byte 3: Low Output Voltage Level 0 = 0 volts 
+
+1 bit = 1 volt 
+
+Byte 4: High Output Voltage Level 0 = 0 volts 
+
+1 bit = 1 volt 
+
+Name: INVERTER_ACFAULT_CONFIG_COMMAND_2 
+
+PGN: 0x1FF8B 
+
+Byte 1: Instance As configured. 
+
+Byte 2: High Output Frequency Limit 0 = 0 Hz 
+
+1 bit = 1 Hz 
+
+Byte 3: Low Output Frequency Limit 0 = 0 Hz 
+
+1 bit = 1 Hz 
+
+Proprietary – Reset Xantrex Inverter 
+
+Name: PROP_RESET_XANTREX_INVERTER 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0xDF = Reset Xantrex Inverter 
+
+Byte 2: Inverter Instance 0x01 = Inverter 1, 0x02 = Inverter 2 
+
+Bit 3.1-3.2: Reboot Inverter 
+
+Bit 3.3-3.4: Restore Factory Defaults 
+
+Bit 3.5-3.6: Clear Faults 
+
+Bit 3.7-3.8: Restore OEM Defaults 
+
+Byte 4: OEM code TBA 
+
+Bit 5.1-5.2: Clear Warnings 
+
+Unit must be “unlocked” to allow reset to factory defaults 
+
+Proprietary – Configure Xantrex Inverter 
+
+Name: PROP_CONFIGURE_XANTREX_INVERTER 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0xAD = Configure Xantrex Inverter 
+
+Confidential Page 61 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Byte 2: Inverter Instance 0x01 = Inverter 1, 0x02 = Inverter 2 
+
+Byte 3: Device Number 0 – 250, Used only by Freedom SW3012 
+
+used by Xanbus to identify inverters in stacking mode 
+
+Byte 4: Desired Operating Mode 0 = Standby 
+
+1 = Operating 
+
+Byte 5: AC Input Association This matches Xanbus AC Source Identifier 
+
+Used only by Freedom SW3012 
+
+0 = Invalid, 1 = None, 2 = Anonymous, 
+
+3 – 18 = Shore 1 – Shore 16, 
+
+19 – 34 = Gen 1 – Gen 16, 
+
+35 – 50 = AC 1 – AC16, 
+
+51 – 66 = AC Load 1 – AC Load 16, 
+
+67 – 82 = Grid 1 – Grid 16, 
+
+252 = All 
+
+PGNs Reported 
+
+DC Source Status 
+
+Name: DC_SOURCE_STATUS_1 
+
+PGN: 0x1FFFD 
+
+Byte 1: Instance Always 1 = Main House Battery 
+
+Byte 2: Device Priority 100 = Inverter/Charger 
+
+Byte 3-4: DC Voltage Supported per RV-C 
+
+Byte 5-8: DC Current Supported per RV-C 
+
+This PGN is only reported once, regardless of how many inverters attached. The DC voltage and 
+
+current are reported in the following manner:  
+
+> •
+
+If no inverter is found, it will revert to default broadcasting (see DC Source Monitor ) 
+
+> •
+
+If one inverter is found, the voltage and amperage will be reported  
+
+> •
+
+If two inverters are found, the DC voltage is the average of the two inverters and the DC 
+
+current is the sum of both inverter's amperage.  
+
+> •
+
+No broadcast if a higher Device Priority is found. 
+
+For individual voltage and current measured at the inverter, use INVERTER_DC_STATUS .
+
+Charger Status 
+
+Name: CHARGER_STATUS 
+
+PGN: 0x1FFC7 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: Charge Voltage Supported per RV-C 
+
+Byte 4-5: Charge Current Supported per RV-C 
+
+Byte 6: Percent Charge Current Supported per RV-C 
+
+Byte 7: Operating State 
+
+Bit 8.1-8.2: Default State on Power-Up 00 = Charger Disabled 
+
+01 = Charger Enabled 
+
+Bit 8.3-8.4: Auto Recharge Enable 00 = Auto recharge disabled FSW only 
+
+01 = Auto recharge enabled 
+
+Bit 8.5-8.8: Force Charge 00 = Force charge off FSW only 
+
+01 = Force charge to bulk 
+
+02 = Force charge to float 
+
+Confidential Page 62 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Name: CHARGER_CONFIGURATION_STATUS 
+
+PGN: 0x1FFC6 
+
+Byte 1: Instance As configured. 
+
+Byte 2: Charging Algorithm 0 = Constant Voltage 
+
+2 = 3-Stage 
+
+3 = 2-Stage 
+
+4 = Trickle 
+
+Byte 3: Charger Mode 0 = Stand-alone 
+
+1 = Primary 
+
+2 = Secondary 
+
+Bit 4.1-4.2: Battery Sensor Present Supported per RV-C 
+
+Bit 4.5-4.8: Battery Type 0 = Flooded 
+
+1 = Gel 
+
+2 = AGM 
+
+Byte 5-6: Battery Bank Size Supported per RV-C 
+
+Byte 7-8: Max Charging Current Supported per RV-C 
+
+Name: CHARGER_CONFIGURATION_STATUS_2 
+
+PGN: 0x1FF96 
+
+Byte 1: Instance As configured. 
+
+Byte 2: Max Charging Rate Supported per RV-C 
+
+Byte 5: Default Battery Temperature Supported per RV-C FSW only 
+
+Byte 6-7: Recharge Voltage Supported per RV-C FSW only 
+
+Name: CHARGER_CONFIGURATION_STATUS_3 FSW only 
+
+PGN: 0x1FECC 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: Bulk Voltage Supported per RV-C 
+
+Byte 4-5: Absorption Voltage Supported per RV-C 
+
+Byte 6-7: Float Voltage Supported per RV-C 
+
+Byte 8: Temperature Compensation Constant 0 – 250 mV/K 
+
+Name: CHARGER_CONFIGURATION_STATUS_4 FSW only 
+
+PGN: 0x1FEBF 
+
+Byte 1: Instance As configured. 
+
+Byte 4-5: Absorption Time 1 bit = 1 minute 
+
+Name: CHARGER_EQUALIZATION_STATUS 
+
+PGN: 0x1FF99 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: Time Remaining 0 = 0 Minutes 
+
+1 bit = 1 minute 
+
+Bit 4.1-4.2: Pre-Charging status 0 = Pre-Charging not in process 
+
+1 = Charging battery to prepare for equalization 
+
+Name: CHARGER_EQUALIZATION_CONFIGURATION_STATUS 
+
+PGN: 0x1FF98 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: Equalization Voltage Supported per RV-C 
+
+Byte 4-5: Equalization Time 0 = 0 Minutes 
+
+1 bit = i minute 
+
+Confidential Page 63 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Name: CHARGER_AC_STATUS_1 
+
+PGN: 0x1FFCA 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: RMS Input Voltage Supported per RV-C 
+
+Byte 4-5: RMS Input Current Supported per RV-C 
+
+Byte 6-7: Input Frequency Supported per RV-C 
+
+Name: CHARGER_AC_STATUS_2 
+
+PGN: 0x1FFC9 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: Peak Input Voltage Supported per RV-C 
+
+Byte 4-5: Peak Input Current Supported per RV-C 
+
+Byte 8: Capacity Supported per RV-C 
+
+Inverter Status 
+
+Name: INVERTER_STATUS 
+
+PGN: 0x1FFD4 
+
+Byte 1: Instance As configured. 
+
+Byte 2: Status 0 = Disabled 
+
+1 = Invert 
+
+2 = AC Passthru 
+
+3 = APS Only 
+
+4 = Load Sensex 
+
+Bit 3.1-3.2: Battery Sensor Present Supported per RV-C 
+
+Bit 3.3-3.4: Load Sense Enabled Supported per RV-C 
+
+Name: INVERTER_CONFIGURATION_STATUS_1 
+
+PGN: 0x1FFD2 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: Load Sense Power Threshold 0 = 0 watts 
+
+1 bit = 1 watt 
+
+Byte 4-5: Load Sense Interval 0 = 0 seconds 
+
+1 bit = 0.5 second 
+
+Byte 6-7: Min DC Shutdown Voltage Supported per RV-C 
+
+Name: INVERTER_CONFIGURATION_STATUS_2 
+
+PGN: 0x1FFD1 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: Max DC Shutdown Voltage Supported per RV-C 
+
+Byte 4-5: Min DC Warning Voltage Supported per RV-C 
+
+Byte 6-7: Max DC Warning Voltage Supported per RV-C 
+
+Name: INVERTER_CONFIGURATION_STATUS_3 FSW only 
+
+PGN: 0x1FECE 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: DC Source shutdown delay 0 = 0 sec 
+
+1 bit = 0.5 sec 
+
+Byte 4: Stack Mode 0 = Stand-alone 
+
+1 = Master 
+
+2 = Slave 
+
+3 = Line 2 Master (for series stacking) 
+
+Confidential Page 64 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Name: INVERTER_AC_STATUS_1 
+
+PGN: 0x1FFD7 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: RMS Output Voltage Supported per RV-C 
+
+Byte 4-5: RMS Output Current Supported per RV-C 
+
+Byte 6-7: Output Frequency Supported per RV-C 
+
+Name: INVERTER_AC_STATUS_2 
+
+PGN: 0x1FFD6 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: Peak Output Voltage Supported per RV-C 
+
+Byte 4-5: Peak Output Current Supported per RV-C 
+
+Name: INVERTER_ACFAULT_CONFIG_STATUS_1 
+
+PGN: 0x1FF8E 
+
+Byte 1: Instance As configured. 
+
+Byte 3: Low Output Voltage Level 0 = 0 volts 
+
+1 bit = 1 volt 
+
+Byte 4: High Output Voltage Level 0 = 0 volts 
+
+1 bit = 1 volt 
+
+Name: INVERTER_ACFAULT_CONFIG_STATUS_2 
+
+PGN: 0x1FF8D 
+
+Byte 1: Instance As configured. 
+
+Byte 2: High Output Frequency Limit 0 = 0 Hz 
+
+1 bit = 1 Hz 
+
+Byte 3: Low Output Frequency Limit 0 = 0 Hz 
+
+1 bit = 1 Hz 
+
+Name: INVERTER_DC_STATUS 
+
+PGN: 0x1FEE8 (TBA – submitted to RVIA) 
+
+Byte 1: Instance As configured. 
+
+Byte 2-3: DC Voltage Supported per RV-C 
+
+Byte 4-5: DC Current Supported per RV-C 
+
+DC voltage and amperage is measured at the inverter. See also DC_SOURCE_STATUS_1 .
+
+Name: INVERTER_STATISTICS_STATUS 
+
+PGN: 0x1FFCE 
+
+Byte 1: Instance As configured. 
+
+Byte 8-9: Lowest DC Voltage Supported per RV-C 
+
+Byte 10-11: Highest DC Voltage Supported per RV-C 
+
+Byte 12-13: Lowest AC Input Voltage Supported per RV-C 
+
+Byte 14-15: Highest AC Input Voltage Supported per RV-C 
+
+Byte 16-17: Lowest AC Output Voltage Supported per RV-C 
+
+Byte 18-19: Highest AC Output Voltage Supported per RV-C 
+
+Proprietary – Xantrex Inverter Configuration 
+
+Name: PROP_XANTREX_INVERTER_CONFIGURATION_REPORT 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEFFA) 
+
+Byte 1: Operation 0xAC = Xantrex Inverter Configuration Report 
+
+Byte 2: Inverter Instance 0x01 = Inverter 1, 0x02 = Inverter 2 
+
+Confidential Page 65 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Byte 3: Device Number 0 – 250, Used only by Freedom SW3012 
+
+used by Xanbus to identify inverters in stacking mode 
+
+Byte 4: Desired Operating Mode 0 = Standby 
+
+1 = Operating 
+
+Byte 5: AC Input Association This matches Xanbus AC Source Identifier 
+
+Used only by Freedom SW3012 
+
+0 = Invalid, 1 = None, 2 = Anonymous, 
+
+3 – 18 = Shore 1 – Shore 16, 
+
+19 – 34 = Gen 1 – Gen 16, 
+
+35 – 50 = AC 1 – AC16, 
+
+51 – 66 = AC Load 1 – AC Load 16, 
+
+67 – 82 = Grid 1 – Grid 16, 
+
+252 = All 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 66 for the primary inverter and 67 for the secondary inverter. 
+
+The following DM1 messages are sent whenever the fault and warning status changes as well as 
+
+DM1 requests. 
+
+RS Series Inverter Faults 
+
+Fault Description SPN FMI Notes 
+
+W0 FET1 Over Temperature Warning 2-X-0 0 Yellow Lamp 
+
+W1 FET2 Over Temperature Warning 2-X-1 0 Yellow Lamp 
+
+W2 DC Bulk Capacitor Over Temperature 3-X-0 0 Yellow Lamp 
+
+W3 Transformer Over Temperature Warning 3-X-1 0 Yellow Lamp 
+
+W4 Battery Over Temperature Warning 1-X-2 0 Yellow Lamp 
+
+W5 Ambient Over Temperature Warning 3-X-2 0 Yellow Lamp 
+
+W6 AC Overload Warning (AC OUPUT) 0x81-ACO-1 0 Yellow Lamp 
+
+W7 Auto Restart After Fault Feature Enabled. 0-0-3 14 Yellow Lamp 
+
+W8 Equalization Enabled Warning 3-X-4 14 Yellow Lamp 
+
+W9 Battery Temperature Sensor Not Present 1-X-2 5 Yellow Lamp 
+
+W10 Battery Temperature Sensor Shorted 1-X-2 6 Yellow Lamp 
+
+W11 DC Over Voltage Warning 1-X-0 0 Yellow Lamp 
+
+W12 DC Under Voltage Warning 1-X-0 1 Yellow Lamp 
+
+W13 AC Over Voltage Warning (AC Line 1 input) 0x81-ACI1-0 0 Yellow Lamp 
+
+W14 AC Under Voltage Warning (AC Line 1 input) 0x81-ACI1-0 1 Yellow Lamp 
+
+W15 AC Over Voltage Warning (AC Line 2 input) 0x81-ACI2-0 0 Yellow Lamp 
+
+W16 AC Under Voltage Warning (AC Line 2 input) 0x81-ACI2-0 1 Yellow Lamp 
+
+W18 Cannot equalize 3-X-4 2 Yellow Lamp 
+
+W19 Equalization terminated abnormally 3-X-4 11 Yellow Lamp 
+
+W500 Lost network connection 0-1-1 11 Yellow Lamp 
+
+W501 Non-volatile memory warning 0-0-4 11 Yellow Lamp 
+
+F0 FET1 Over Temperature Shutdown 2-X-0 0 Red Lamp 
+
+F2 FET2 Over Temperature Shutdown 2-X-1 0 Red Lamp 
+
+F3 Transformer Over Temperature Shutdown 3-X-1 0 Red Lamp 
+
+F4 Battery Over Temperature Shutdown 1-X-2 0 Red Lamp 
+
+F5 Ambient Over Temperature Shutdown 3-X-2 0 Red Lamp 
+
+F6 AC Overload Shutdown (AC OUTPUT) 0x81-ACO-1 0 Red Lamp 
+
+F7 AC Overload (PEAK CURRENT) Shutdown (AC OUTPUT) 0x82-ACO-0 0 Red Lamp 
+
+F8 Neutral loss shutdown 0x81-ACO-4 5 Red Lamp 
+
+F9 DC Over Voltage Shutdown 1-X-0 0 Red Lamp 
+
+F10 DC Under Voltage Immediate Shutdown 1-X-0 1 Red Lamp 
+
+F11 DC Under Voltage Shutdown 1-X-0 1 Red Lamp 
+
+F12 AC Over Voltage Shutdown (AC Line 1 input) 0x81-ACI1-0 0 Red Lamp 
+
+F13 AC Under Voltage Shutdown (AC Line 1 input) 0x81-ACI1-0 1 Red Lamp 
+
+F14 AC Over Voltage Shutdown (AC Line 2 input) 0x81-ACI2-0 0 Red Lamp 
+
+F15 AC Under Voltage Shutdown (AC Line 2 input) 0x81-ACI2-0 1 Red Lamp 
+
+Confidential Page 66 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+RS Series Inverter Faults 
+
+F16 AC Over Frequency Shutdown (AC Line 1 input) 0x81-ACI1-2 0 Red Lamp 
+
+F17 AC Under Frequency Shutdown (AC Line 1 input) 0x81-ACI1-2 1 Red Lamp 
+
+F18 AC Over Frequency Shutdown (AC Line 2 input) 0x81-ACI2-2 0 Red Lamp 
+
+F19 AC Under Frequency Shutdown (AC Line 2 input) 0x81-ACI2-2 1 Red Lamp 
+
+F23 AC Over Voltage Shutdown (Inverter AC output) 0x81-ACO-0 0 Red Lamp 
+
+F24 AC Under Voltage Shutdown (Inverter AC output) 0x81-ACO-0 1 Red Lamp 
+
+F25 Auxiliary Power Supply Over Voltage Shutdown 0x84-X-0 0 Red Lamp 
+
+F26 Auxiliary Power Supply Under Voltage Shutdown 0x84-X-1 1 Red Lamp 
+
+F29 AC Backfeed Shutdown 1-X-7 11 Red Lamp 
+
+F30 Battery Under Temperature Fault 1-X-2 1 Red Lamp 
+
+F40 No IPC communication 0-1-5 11 Red Lamp 
+
+F41 Dead battery charger timeout 3-X-3 11 Red Lamp 
+
+F500 * Silicon Serial ID Failure 0-1-2 11 Red Lamp 
+
+F502 Watchdog reset error 0-1-3 11 Red Lamp 
+
+F505 * Controller fault 0-0-1 12 Red Lamp 
+
+F506 Wrong fault identifier 0-0-0 11 Red Lamp 
+
+F507 * Wrong identifier 0-0-4 11 Red Lamp 
+
+F508 * Invalid interrupt 0-1-4 11 Red Lamp 
+
+* Xantrex documentation is unclear on what this item means. 
+
+Freedom SW Series Inverter Faults 
+
+Fault Description SPN FMI Notes 
+
+W44 Battery Over Temperature 1-X-2 0 Yellow Lamp 
+
+W48 DC Under Voltage 1-X-0 1 Yellow Lamp 
+
+W49 DC Over Voltage 1-X-0 0 Yellow Lamp 
+
+W57 FET1 Over Temperature 2-X-0 0 Yellow Lamp 
+
+W58 FET2 Over Temperature 2-X-1 0 Yellow Lamp 
+
+W68 Transformer Over Temperature 3-X-1 0 Yellow Lamp 
+
+W69 AGS not connected NA NA NA 
+
+W93 Battery Temperature Sensor Error 1-X-2 11 Yellow Lamp 
+
+W95 Equalization terminated abnormally 3-X-4 11 Yellow Lamp 
+
+W96 Canot Equalize 3-X-4 2 Yellow Lamp 
+
+F1 AC Output under voltage 0x81-ACO-0 1 Red Lamp 
+
+F2 AC Output over voltage 0x81-ACO-0 0 Red Lamp 
+
+F17 Relays Welded (AC Backfeed) 1-X-7 11 Red Lamp 
+
+F44 Battery Over Temperature 1-X-2 0 Red Lamp 
+
+F47 DC Under Voltage (Immediate) 1-X-0 1 Red Lamp 
+
+F48 DC Under Voltage (Fault) 1-X-0 1 Red Lamp 
+
+F49 DC Over Voltage 1-X-0 0 Red Lamp 
+
+F57 FET1 Over Temperature 2-X-0 0 Red Lamp 
+
+F58 FET2 Over Temperature 2-X-1 0 Red Lamp 
+
+F63 Power Board Temp unreadable 4-X-2 2 Red Lamp 
+
+F64 AC Overload 0x81-ACO-1 0 Red Lamp 
+
+F68 Transformer Over Temperature 3-X-1 0 Red Lamp 
+
+F69 External Sync Failed 4-X-0 2 Red Lamp 
+
+F70 Unique Device # Needed 3-X-7 2 Red Lamp 
+
+F71 Too Many Masters 3-X-7 2 Red Lamp 
+
+F72 Check AC Association NA NA NA 
+
+F73 Transformer Temp Unreadable 3-X-1 2 Red Lamp 
+
+F74 Other Unit Invert Fault NA NA NA 
+
+F75 Master Inverter Lost 4-X-0 2 Red Lamp 
+
+F85 Power Board Over Temperature 4-X-2 0 Red Lamp 
+
+F87 Multi-Unit Freq Mismatch 0x81-ACO-2 19 Red Lamp added v3.07 
+
+W = Warnings 
+
+F = Faults 
+
+X = Inverter Instance 
+
+Confidential Page 67 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+ACI1, ACI2 = AC Input Instance 
+
+ACO = AC Output Instance 
+
+DC = DC Instance 
+
+## Outback Inverter Bridge 
+
+Outback inverters are connected to the TM-102 through the Outback Mate control panel. 
+
+There are 3 types of Mate panels – Mate, Mate2M, and Mate3. Differences in these panels and 
+
+how they are connected to the TM102 are outlined below:               
+
+> Mate Mate2M Mate3
+> 1st gen, rarely used 2nd gen, used most often 3rd gen, started using in
+> 2016
+> Serial connection RS232, primary or
+> secondary TM102
+> serial port
+> RS232, primary or
+> secondary TM102 serial
+> port
+> TTL, secondary TM102
+> serial port
+> Interface Board MS706 MS706 MS???
+> TM102 Software “A” v1.26+
+> “E” v3.05+
+> “A” v1.26+
+> “E” v3.05+
+> “A” v3.33+
+> “E” not supported
+> Max Charger
+> Current Setting
+> Not supported “A” v3.33+
+> “E” not supported
+> “A” v3.33+
+> “E” not supported
+> Charger Hi/Low
+> Logic
+> Not supported HI = Gen AC limit
+> Lo = Grid AC limit
+> LO/HI mode switches
+> between Gen/Grid inputs
+> LO/HI mode sets both
+> Gen and Grid AC to
+> appropriate limit
+
+The interface is limited in scope, and cannot completely eliminate the Mate control panel. If 
+
+multiple Outback Inverters are used, they may be connected together using a “hub”. This hub 
+
+consolidates all the inverters into one “virtual” inverter. All data is combined, and total or average 
+
+values are reported as appropriate. Controls all operate on the entire inverter bank 
+
+simultaneously. 
+
+The system uses Instance 1 to represent the combined “virtual” inverter. The Line Instances 
+
+are always 0 (Line 1). 
+
+Starting with v3.05 software, the TM102 can support the FlexMax charge controller. This 
+
+controller is used to connect a solar array to a battery bank for charging. The FlexMax 
+
+communicates over the same network as the Outback inverter/charger. The TM102 can obtain 
+
+the solar volts and amps from it. 
+
+PGNs Supported 
+
+Charger Command 
+
+Name: CHARGER_COMMAND 
+
+PGN: 0x1FFC5 
+
+Byte 1: Instance Always 1 
+
+Byte 2: Status 0 = Disable 
+
+1 = Enable 
+
+Confidential Page 68 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Proprietary – OutBack Charger Command 
+
+Name: PROP_OUTBACK_COMMAND 
+
+PGN: PDU_F = 239, PDU_S = 250 (Source Address) (0xEF##) 
+
+Byte 1: Operation 0xB9 = OUTBACK_COMMAND 
+
+Byte 2: Charger Mode 0: Charger Disabled 
+
+1:LO AC current limited 
+
+2: HI AC current limited 
+
+Byte 4: LO current limit setting 0-250 AC Amps (10A only for v3.07 and earlier) 
+
+Byte 5: HI current limit setting 0-250 AC Amps (30A only for v3.07 and earlier) 
+
+Byte 6: Auto Battery Topoff Pct Pct, per RV-C 
+
+Byte 7: Topoff Float Time 1 bit = 5 minutes, 0 – 1250 min (0 - 20.83 hours) 
+
+Placing values in Bytes 4 and/or 5 will set the current limit, a value of 0xFF will not change 
+
+settings. Similarly, putting a valid value in Byte 2 (0, 1, or 2) will change the HI/LO state. Sending 
+
+this PGN with no valid value will merely prompt for a PROP_OUTBACK_STATUS response from 
+
+the tm102. Versions prior to v3.08 will only support Lo of 10A and High of 30A. V3.08 and later 
+
+supports any setting. 
+
+For the Mate2M panel, the LO/HI charging modes switch the inverter inputs between “Grid” and 
+
+“Gen”. Each has a separate current limit setting. The LO current setting sets the “Grid” limit and 
+
+the HI current setting sets the “Gen” limit. The Mate3 panel does not allow us to switch between 
+
+“Grid” and “Gen” inputs, so instead the TM102 sets both the Grid and Gen to the current limit we 
+
+want. For example, sending a charger mode of LO sets both Grid and Gen to the LO current limit 
+
+setting. Sending a charger mode of HI sets both Grid and Gen to the HI current limit. 
+
+The Auto Battery Topoff feature is used to automatically keep the battery charged based on the 
+
+battery SOC (state-of-Charge). When this feature is enabled, the TM102 will turn off the charger 
+
+when the battery SOC reaches 100% and has spent the required amount of time float charging 
+
+(see Topoff Float Time). The charger will be turned back on when the battery SOC drops to the 
+
+Auto Battery Topoff Percent (Default = 90%). This feature was added in v3.17 and requires the 
+
+Elite Power Battery monitoring system. The float timer requirement was added in v3.18. 
+
+Name: CHARGER_CONFIGURATION_COMMAND v3.33+ “A” only 
+
+PGN: 0x1FFC4 
+
+Byte 1: Instance Always 1 
+
+Byte 8: Max Charging Current Supported per RV-C, Outback settable 0-14 A 
+
+Inverter Command 
+
+Name: INVERTER_COMMAND 
+
+PGN: 0x1FFD3 
+
+Byte 1: Instance Always 1 
+
+Bit 2.1-2.2: Inverter Enable Supported per RV-C 
+
+Bit 2.3-2.4: Load Sense Enable Supported per RV-C 
+
+PGNs Reported 
+
+DC Source Status 
+
+Name: DC_SOURCE_STATUS_1 
+
+PGN: 0x1FFFD 
+
+Byte 1: Instance Always 1 = Main House Battery 
+
+Confidential Page 69 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Byte 2: Device Priority 100 = Inverter/Charger 
+
+Byte 3-4: DC Voltage Average over the Bank. Supported per RV-C 
+
+This PGN takes priority over the DC Source Monitor if that device is set to Instance 1. 
+
+Name: DC_SOURCE_STATUS_1 FlexMax only v3.05+ 
+
+PGN : 0x1FFFD 
+
+Byte 1: Instance 4 = Solar 
+
+Byte 2: Device Priority 100 = Inverter/Charger 
+
+Byte 3-4: DC Voltage Supported per RV-C 
+
+Byte 5-8: DC Current Supported per RV-C 
+
+This PGN sent only if a FlexMax system is connected. 
+
+Charger Status 
+
+Name: CHARGER_STATUS 
+
+PGN: 0x1FFC7 
+
+Byte 1: Instance Always 1 
+
+Byte 2-3: Charge Voltage Average over the Bank. Supported per RV-C 
+
+Byte 4-5: Charge Current Total over the Bank. Supported per RV-C 
+
+Byte 7: Operating State 
+
+Name: CHARGER_AC_STATUS_1 
+
+PGN: 0x1FFCA 
+
+Byte 1: Instance Always 1 (Input Line 0, Charger 1) 
+
+Byte 2-3: RMS Input Voltage Average over the Bank. Supported per RV-C 
+
+Byte 4-5: RMS Input Current Total over the Bank. Supported per RV-C 
+
+Name: CHARGER_CONFIGURATION_STATUS v3.33+ “A” only 
+
+PGN: 0x1FFC6 
+
+Byte 1: Instance Always 1 
+
+Byte 7-8: Max Charging Current Supported per RV-C, Outback range 0-14 A 
+
+Proprietary – OutBack Charger Status 
+
+Name: PROP_OUTBACK_STATUS 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xB8 = OUTBACK_STATUS 
+
+Byte 3: Number of OutBacks, 1-4: Maximum 4 inverters 
+
+The remainder of this PGN is the same format as PROP_OUTBACK_COMMAND. 
+
+Inverter Status 
+
+Name: INVERTER_STATUS 
+
+PGN: 0x1FFD4 
+
+Byte 1: Instance Always 1 
+
+Byte 2: Status 0 = Disabled 
+
+1 = Invert 
+
+2 = AC Passthru 
+
+3 = APS Only 
+
+4 = Load Sense 
+
+Name: INVERTER_AC_STATUS_1 
+
+PGN: 0x1FFD7 
+
+Confidential Page 70 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Byte 1: Instance Always 0x41 (Output Line 0, Inverter 1) 
+
+Byte 2-3: RMS Output Voltage Average over the Bank. Supported per RV-C 
+
+Byte 4-5: RMS Output Current Total over the Bank. Supported per RV-C 
+
+Name: INVERTER_DC_STATUS 
+
+PGN: 0x1FEE8 
+
+Byte 1: Instance Always 1 
+
+Byte 2-3: DC Voltage Average over the Bank. 
+
+Byte 4-5: DC Current Total over the Bank. 
+
+DC voltage and amperage is measured at the inverter. See also DC_SOURCE_STATUS_1 .
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 66. Instance is always 1, Line Instance always 0. 
+
+Loss of communications with the control panel should trigger SPN 9, FMI 11. Since the 
+
+Inverter is a multi-instance device, the full SPN is MSB 0, ISB 1, LSBits 9. This is a Red fault. 
+
+## Chassis Battery Charging Bridge 
+
+This device controls the BATTERY SOLENOID output pin, according to whether charging is 
+
+available. This device is intended to ensure that the chassis battery remains charged when the 
+
+coach is not being driven regularly, and to charge the house batteries off of the alternator. 
+
+The output is activated to charge the chassis from the house upon the following conditions: 
+
+1. The Charger is On and providing charge (positive charging amps) *.
+
+2. The Charger Voltage is between the minimum and maximum voltages given in the 
+
+configuration. Default values are Minimum 12.5V, Maximum 15.0V. 
+
+3. The Chassis Battery is below configured minimum. (Default 12.5V.) 
+
+4. The engine is not running. (RPM is zero). 
+
+5. All of the above are met for at least 30 seconds. 
+
+Or, to charge the house batteries off of the alternator, when 
+
+1. The engine RPMs exceeds the set minimum. 
+
+2. The Chassis Battery is above the configured minimum (Default 13.2V). 
+
+3. House Battery Percent below the configured minimum (Default 90%). 
+
+Condition only used when Elite Power System is used on TM102E v3.11+ 
+
+4. All of the above are met for at least 30 seconds. 
+
+When charging house to chassis, the output is deactivated when either: 
+
+1. The charger is no longer charging. (Charge amperage is zero, or status is not On.) *
+
+2. The configured amount of time has passed. (The default is 30 minutes.) 
+
+3. The engine is started. (RPM is non-zero.) 
+
+4. The charger voltage is no longer in the configured range. 
+
+Confidential Page 71 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+When charging chassis to house, the output is deactivated when either: 
+
+1. The engine is stopped. 
+
+2. The chassis voltage descends below the configured amount. This Cutoff voltage is 
+
+typically less then the voltage at which bridging starts. 
+
+3. House battery percent is 90% or higher. 
+
+Condition only used when Elite Power System is used on TM102E v3.11+ 
+
+* - Charge current requirement eliminated for external RV-C charger (Magnum) in v1.89 and 
+
+altogether in v3.04. Charger state and current requirement eliminated for Outback in v2.23. If no 
+
+charger is available, these requirements are ignored starting in v3.17. 
+
+If engine data is not available the unit will still function, but with a Yellow-Fault DM1. 
+
+This device assumes that the DC Source input is the chassis battery, regardless of how the 
+
+DC Source is actually configured. Charger Instance 1 is the only charger monitored. In addition 
+
+to monitoring the charger (Outback or Xantrex), it also monitors DC_SOURCE_STATUS_1, 
+
+Instance 1, and if it sees a negative (charging) current, it considers the charger to be on. 
+
+Starting with v1.87, if the unit sees an external charger in Standby mode, when the chassis 
+
+battery falls below the threshold it will attempt to turn on the charger. This compensates for the 
+
+Magnum “Full Charge” mode, in which the charger goes to “sleep” after four hours if the batteries 
+
+are well charged. This feature requires the Magnum Interface (TM502) version 1.03 or higher. 
+
+Starting with v2.11, an engine run input was added to the TM102. This can be used if there 
+
+is no connection to the J1939 bus for engine rpm. When the engine run input is activated the 
+
+TM102 generates an engine RPM of 2000 so that the charge bridge can operate correctly. 
+
+Starting in v3.18 the engine run input is only available for the “E” version. 
+
+PGNs Supported 
+
+Proprietary - Charging Bridge Configuration 
+
+Name: PROP_CONFIG_CHARGEBRIDGE_1 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xC0 = Configure Charge Bridge 
+
+0xBF = Request Charge Bridge Report 
+
+Byte 2-3: Minimum Charge Voltage Per RV-C. Minimum voltage required 
+
+Byte 4-5: Maximum Charge Voltage Per RV-C. Maximum voltage required 
+
+Byte 6-7: Minimum Chassis Voltage Per RV-C. Minimum chassis voltage tolerated 
+
+Bits 8.1-8.6: Run Time 0 = 0 min. 1 bit = 1 minute. Max = 60 Min 
+
+Name: PROP_CONFIG_CHARGEBRIDGE_2 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xB1 = Configure Charge Bridge 
+
+0xB0 = Request Charge Bridge Report 
+
+Byte 2-3: Minimum Engine RPM Per RV-C. 1 bit = 1/8 rpm. 0 = Disabled 
+
+Byte 4-5: Minimum Chassis Voltage Per RV-C. Chassis voltage needed to start bridging. 
+
+Byte 6-7: Cutoff Voltage Per RV-C. Chassis voltage at which bridging is cut off. 
+
+Byte 8: Minimum House Batt Pct Per RV-C. Chassis bridges to charge house if house 
+
+Confidential Page 72 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+battery pct drops below this value. TM102E v3.11+ 
+
+Note that you cannot manually override the operation of the bridge, or disable it through these 
+
+PGNs. If you wish to disable this feature you must do so through the main TM-102 configuration 
+
+PGN ( PROP_ENABLE_FEATURE_2). 
+
+PGNs Reported 
+
+Proprietary - Charging Bridge Configuration Report 
+
+Name: PROP_REPORT_CHARGEBRIDGE_1 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xBE = Charge Bridge Report 
+
+Byte 8.7-8.8 Status 00 = Inactive 
+
+01 = Active 
+
+Remaining fields are identical to PROP_CONFIG_CHARGEBRIDGE_1 .
+
+Name: PROP_REPORT_CHARGEBRIDGE_2 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xAF = Charge Bridge Report 
+
+Fields are identical to PROP_CONFIG_CHARGEBRIDGE_2 .
+
+DC Disconnect Status (v.2.13+) 
+
+Name: DC_DISCONNECT_STATUS 
+
+PGN: 0x1FED0 
+
+Byte 1: Instance Always 0x03 House/Chassis Bridge 
+
+Bits 2.1-2.2 Status 00 = Inactive, 01 = Active 
+
+This PGN is sent whenever the PROP_REPORT_CHARGEBRIDGE_1 is sent, on status 
+
+change, and also when directly requested. Note that the same PGN is used for the House Battery 
+
+Disconnect feature. 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 139 (DC Disconnect/Bridge), previous to v3.17 the DSA was 
+
+71 (Chassis Battery SOC). If the charge bridge sense input is used and the charge bridge 
+
+activates without seeing feedback on this input, a Red condition will be reported, with MSB:1, 
+
+ISB:3, LSB:7 (Charge Bridge Solenoid) FMI 7 (Mech. Failure). For v3.17-v3.18 the fault was 
+
+reported with SPN: 256. 
+
+## House Battery Disconnect (v2.13+) 
+
+This feature controls a solenoid using two outputs, and also monitors one active high input to 
+
+sense whether the solenoid has been manually bypassed. This feature is incompatible with the 
+
+Water Heater, Awning, and Slide Room features. 
+
+The unit functions by energizing either the DISCONNECT_OPEN or DISCONNECT_CLOSE 
+
+output for one second. It monitors the BATTERY DISCONNECT SENSE input to determine the 
+
+actual status of the solenoid. 
+
+PGNs Supported 
+
+Confidential Page 73 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+DC Disconnect Command 
+
+Name: DC_DISCONNECT_COMMAND 
+
+PGN: 0x1FECF 
+
+Byte 1: Instance Always 0x01 House Battery Disconnect 
+
+Bits 2.1-2.2 Command 00 = Disconnect Batteries 
+
+01 = Connect Batteries 
+
+PGNs Reported 
+
+DC Disconnect Status (v.2.13+) 
+
+Name: DC_DISCONNECT_STATUS 
+
+PGN: 0x1FED0 
+
+Byte 1: Instance Always 0x01 House Battery Disconnect 
+
+Bits 2.1-2.2 Status 00 = Disconnected, 01 = Connected 
+
+Bits 2.3-2.5 Last Command 00 = Disconnect, 01 = Connect 
+
+Bits 2.5-2.6 Bypass Detect 00 = No bypass, 01 = System control is bypassed 
+
+This PGN is sent on request, on change, and every five seconds. 
+
+## Awning 
+
+The Awning is controlled through pins Out#7 (extend) and Out#8 (retract). These are 
+
+doubled by the Tile heat so the awning control feature cannot be enabled if the tile heat is. 
+
+The Awning is a multi-instance device since there can be many awnings on a coach. The 
+
+TM102 only supports one awning which is instance 1. 
+
+PGNs Supported 
+
+Awning Command 
+
+Name: AWNING_COMMAND 
+
+PGN: 0x1FEF2 
+
+Byte 1: Instance Always 1 (main patio awning) 
+
+Byte 3: Motion 00 = Stop, 01 = Extend, 02 = Retract 
+
+The “Extend” and “Retract” commands must be repeated every 100 ms to keep the awning in 
+
+motion. If a longer gap occurs, the awning should stop automatically for safety. The “Stop” 
+
+command does not need to be repeated, but it should certainly be sent to stop the motion. 
+
+PGNs Reported 
+
+Awning Status 
+
+Name: AWNING_STATUS 
+
+PGN: 0x1FEF3 
+
+Byte 1: Instance Always 1 (main patio awning) 
+
+Byte 2: Motion 0 = No motion, 01 = Extending, 02 = Retracting 
+
+Confidential Page 74 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 130. 
+
+There are no diagnostic SPNs. The DM1 will always be sent with all lamps off and no errors. 
+
+## Water Heater (requires Special Build) 
+
+The TM-102 can control a single conventional water heater. Control is limited to turning the 
+
+unit off and on, and monitoring the status light for errors. If the heater “flames out”, the TM-102 
+
+will pause for five seconds, then restart the heater. It will repeat this up to five times before 
+
+generating a “Failure to Ignite” flag. It will reset the counter if the heater stays on for more than 
+
+one minute. It will reset the flag when a WATER_HEATER_COMMAND is received (regardless 
+
+of the mode selected in that PGN.). 
+
+In Gas+Electric mode, the unit powers the gas burner controller and also powers the electric 
+
+element. 
+
+PGNs Supported 
+
+Water Heater Command 
+
+Name: WATERHEATER_COMMAND 
+
+PGN: 0x1FFF6 
+
+Byte 1: Instance Always 1 
+
+Byte 2: Mode 0 = Off, 1 = Gas, 3 = Gas+Electric 
+
+Prop - Water Heater Configuration 
+
+Name: PROP_CONFIG_WATERHEATER 
+
+PGN: 0xEFFA 
+
+Byte 1: Operation 0xB3 = Configure Water Heater 
+
+Byte 2: Ignition Time 0 - 250, Seconds to allow for ignition. 
+
+Byte 3: Number of Retries 0 - 250, Number of Retries before reporting Fault 
+
+Byte 4: Pause Between Retries 0 - 250, Seconds to allow between retries. 
+
+PGNs Reported 
+
+Water Heater Status 
+
+Name: WATERHEATER_STATUS 
+
+PGN: 0x1FFF7 
+
+Byte 1: Instance Always 1 
+
+Byte 2: Mode 0 = Off, 1 = Gas, 3 = Gas+Electric 
+
+Bit 8.1-8.2 Failure to Ignite Status 0 = No Failure. 1 = Unit cannot ignite. 
+
+Prop - Water Heater Configuration 
+
+Name: PROP_CONFIG_WATERHEATER 
+
+PGN: 0xEF## 
+
+Byte 1: Operation 0xB2 = Report Water Heater Configuration 
+
+Format is identical to PROP_CONFIG_WATERHEATER. 
+
+Confidential Page 75 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 101. The DM1 will be sent with a Yellow Lamp if the Failure 
+
+to Ignite flag is active with MSB = 1, ISB = 1, LSB = 6 and FMI = 7. 
+
+## Slide Control 
+
+The Slide is controlled through a very simple interface, using the IS-160 I/O Expander. The 
+
+TM102 only supports two slide instances, which are always 1 and 2. 
+
+The unit can be configured for two types of slides. In the Electric Slide, the unit runs only 
+
+Extend and Retract outputs. In the Hydraulic Slide, the unit also runs a output, starting the pump 
+
+as necessary for either extension or retraction. (The timing of the pump output may be slightly 
+
+ahead or behind the extend/retract output to provide smoother action.) 
+
+PGNs Supported 
+
+Slide Command 
+
+Name: SLIDE_COMMAND 
+
+PGN: 0x1FFE7 
+
+Byte 1: Instance Always 1 or 2 
+
+Byte 3: Motion 00 = Stop, 01 = Extend, 02 = Retract 
+
+The “Extend” and “Retract” commands must be repeated every 100 ms to keep the slide in 
+
+motion. If a longer gap occurs, the slide shall stop automatically for safety. The “Stop” command 
+
+does not need to be repeated, but it should certainly be sent to stop the motion. 
+
+Proprietary – Configure Slide Rooms 
+
+Name: PROP_CONFIGURE_SLIDE_ROOM_CONTROL 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xD9 = Configure Slide Room Configuration 
+
+0xD8 = Request Slide Room Configuration Report 
+
+Format is identical to PROP_REPORT_SLIDE_ROOM_CONTROL . Unit must be “unlocked” to 
+
+accept this command. 
+
+PGNs Reported 
+
+Slide Status 
+
+Name: SLIDE_STATUS 
+
+PGN: 0x1FFE8 
+
+Byte 1: Instance Always 1 or 2 
+
+Byte 2: Motion 0 = No motion, 01 = Extending, 02 = Retracting 
+
+Proprietary – Report Slide Rooms Configuration 
+
+Name: PROP_REPORT_SLIDE_ROOM_CONTROL 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xD7 = Report Slide Room Configuration 
+
+Byte 2: Room 1 Configuration 0 = Disabled. 1 = Hydraulic. 2 = Electric 
+
+Confidential Page 76 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Byte 3: Room 2 Configuration 0 = Disabled. 1 = Hydraulic. 2 = Electric 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 84. There are no diagnostic SPNs. The DM1 will always be 
+
+sent with all lamps off and no errors. 
+
+## Load Shed / TM200 Power Management Support 
+
+The unit supports a TM200 in slave mode to allow the unit to be fully functional in lieu of a smart 
+
+transfer switch. The feature looks at input pin 7 (AC Current Detect) and 10 (EMS Load Shed 
+
+Signal) as well as the generator run signal. 
+
+PGNs Reported 
+
+Powershare Permission 
+
+Name: PROP_POWERSHARE_PERMISSION 
+
+PGN: 0xEF67 
+
+Byte 1: Operation Always 0xF4 - Power Sharing Permission 
+
+Bit 2.1-2.4 Zone 1 A/C Max Level 0 = Load Shed Signal Detected. 3 = Ok 
+
+Bit 2.5-2.8 Zone 2 A/C Max Level 0 = Load Shed Signal Detected. 3 = Ok 
+
+Bit 3.1-3.4 Zone 3 A/C Max Level 0 = Load Shed Signal Detected. 3 = Ok 
+
+Bit 3.5-3.8 Zone 4 A/C Max Level 0 = Load Shed Signal Detected. 3 = Ok 
+
+Bit 4.1-4.4 Zone 5 A/C Max Level 0 = Load Shed Signal Detected. 3 = Ok 
+
+Bit 4.5-4.8 Zone 6 A/C Max Level 0 = Load Shed Signal Detected. 3 = Ok 
+
+This is sent every second. 
+
+ATS Status 
+
+Name: ATS_STATUS 
+
+PGN: 0x1FFAA 
+
+Byte 1: Instance Always 1 
+
+Byte 2: Source In Use 0 = Generator (Based on run signal) 
+
+1 = Shore Power 
+
+AC Status 
+
+Name: ATS_AC_STATUS_1 
+
+PGN: 0x1FFAD 
+
+Byte 1: Instance Always 0x79 (01111001) 
+
+ATS Instance 1, Leg 1, Output Only 
+
+Byte 2-3: RMS Voltage Always 2400 (120 V) Supported per RV-C 
+
+These two are sent every second if the AC Sense input is active, and is not sent otherwise. 
+
+Confidential Page 77 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+## SurgeGuard Model 34520 Surge Protection Support 
+
+This feature enables the TM102 to connect to a Surgeguard surge protector (model 34520). 
+
+It connects over the primary serial port jumpered for RS485. The serial interface is read only so 
+
+the TM-102 can only read information from the Surgeguard, and thus only supports the relevant 
+
+status PGNs, but no configuration or commands. 
+
+PGNs Reported 
+
+The AC status is reported using the Generic AC Source PGNs. The AC status is reported 
+
+separately for each leg. 
+
+AC Status 
+
+Name: GENERIC_AC_STATUS_1 
+
+PGN: 0x1FEBB 
+
+Byte 1: Instance Leg 1 - 0x11 
+
+Leg 2 - 0x21 
+
+Shore power only 
+
+Byte 2-3: RMS Voltage Supported per RV-C 
+
+Byte 4-5: RMS Current Supported per RV-C 
+
+Bit 8.5-8.6: Fault - Reverse Polarity Supported per RV-C 
+
+Name: GENERIC_AC_STATUS_4 
+
+PGN: 0x1FEB8 
+
+Byte 1: Instance Leg 1 - 0x11 
+
+Leg 2 - 0x21 
+
+Shore power only 
+
+Byte 2: Voltage Fault Supported per RV-C 
+
+0 – Voltage OK 
+
+2 – Low Voltage (< 102V) 
+
+3 – High Voltage (> 132V) 
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 78 (AC Fault Protection System). Note that AC faults are not 
+
+reported via DM1 , but only with the PGNs listed above. 
+
+## Elite Power Lithium ion Battery Management Support 
+
+The unit supports a Lithium Ion Battery Management system from Elite Power Solutions. The 
+
+TM102 connects to the Elite Power system's proprietary CAN communications port using it's 
+
+second CAN port (port normally used for J1939). The CAN bus is 500Kbps and uses the 
+
+standard format CAN packet. For more information on the Elite Power system's proprietary 
+
+protocol, see their CAN bus specification. 
+
+PGNs Supported 
+
+Elite Power System Configuration 
+
+Name: PROP_CONFIGURE_ELITE_POWER 
+
+PGN: PDU_F = 239, PDU_S = 250 (0xEFFA) 
+
+Confidential Page 78 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Byte 1: Operation Always 0xA6 
+
+Byte 2: Battery Amperage Scaling Factor 1 – 250, factor multiplied to amperage Elite 
+
+Power System is sending the TM102 
+
+Byte 3.1-3.4: Number of Packs 1 – 3 packs in system 
+
+TM102 should respond with PROP_ELITE_POWER_CONFIGURATION_REPORT. 
+
+Li-Ion Battery Cell Status 
+
+Name: PROP_REQUEST_LITHIUM_ION_BATTERY_CELL_STATUS 
+
+PGN: PDU_F = 239, PDU_S = 250 (0xEFFA) 
+
+Byte 1: Operation 0xA3 = Pack 1 Cell Status Request 
+
+0x93 = Pack 2 Cell Status Request 
+
+0x83 = Pack 3 Cell Status Request 
+
+Byte 2: Cell Number 1 – 32 cells, 0 = request all cells 
+
+TM102 should respond with PROP_LITHIUM_ION_BATTERY_CELL_STATUS. 
+
+Li-Ion Battery Pack Status 
+
+Name: PROP_REQUEST_LITHIUM_ION_BATTERY_PACK_STATUS 
+
+PGN: PDU_F = 239, PDU_S = 250 (0xEFFA) 
+
+Byte 1: Operation 0xA4 = Pack 1 Status Request 
+
+0x94 = Pack 2 Status Request 
+
+0x84 = Pack 3 Status Request 
+
+TM102 should respond with PROP_LITHIUM_ION_BATTERY_PACK_STATUS_1, 
+
+PROP_LITHIUM_ION_BATTERY_PACK_STATUS_2, and 
+
+PROP_LITHIUM_ION_BATTERY_PACK_STATUS_3. 
+
+PGNs Reported 
+
+DC Source Status 
+
+Name: DC_SOURCE_STATUS_1 
+
+PGN: 0x1FFFD 
+
+Byte 1: Instance As configured. 
+
+Byte 2: Device Priority 120 = SOC Device 
+
+Byte 3-4: DC Voltage Supported per RV-C 
+
+Byte 5-8: DC Current Supported per RV-C 
+
+Name: DC_SOURCE_STATUS_2 
+
+PGN: 0x1FFFC 
+
+Byte 1: Instance As configured. 
+
+Byte 2: Device Priority 120 = SOC Device 
+
+Byte 3-4: DC Temperature Supported per RV-C 
+
+Byte 5: State-of-Charge Supported per RV-C 
+
+Ambient Temperature Status 
+
+Name: THERMOSTAT_AMBIENT_STATUS 
+
+PGN: 0x1FF9C 
+
+Byte 1: Instance As configured using PROP_CONFIGURE_INSTANCE 
+
+Byte 2-3: Battery Temperature Supported per RV-C 
+
+Confidential Page 79 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Battery temperature can be reported using THERMOSTAT_AMBIENT_STATUS so it can be used 
+
+to control a battery heater. 
+
+Elite Power System Configuration 
+
+Name: PROP_ELITE_POWER_CONFIGURATION_REPORT 
+
+PGN: PDU_F = 239, PDU_S = 250 (0xEFFA) 
+
+Byte 1: Operation Always 0xA7 
+
+Format is identical to PROP_CONFIGURE_ELITE_POWER. 
+
+Li-Ion Battery Cell Status 
+
+Name: PROP_LITHIUM_ION_BATTERY_CELL_STATUS 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xA0 = Pack 1 Cell Status 
+
+0x90 = Pack 2 Cell Status 
+
+0x80 = Pack 3 Cell Status 
+
+Byte 2: Cell Number 1 – 32 cells 
+
+Byte 3-4: Cell Voltage 0.001V / bit, this is not RV-C standard 
+
+Byte 5-6: Cell Temperature Supported per RV-C 
+
+Li-Ion Battery Pack Status 
+
+Name: PROP_LITHIUM_ION_BATTERY_PACK_STATUS_1 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xA1 = Pack 1 Status 1 
+
+0x91 = Pack 2 Status 1 
+
+0x81 = Pack 3 Status 1 
+
+Byte 2: Official Cell Count Specified cell count 
+
+Byte 3: Observed Cell Count Actual number of cells found on scan of pack 
+
+Byte 4: Average Cell Temperature Deg F 
+
+Byte 5: Maximum Cell Temperature Deg F 
+
+Byte 6: Minimum Cell Temperature Deg F 
+
+Byte 7: Max Cell Temp Index Index number of cell with highest temperature 
+
+Name: PROP_LITHIUM_ION_BATTERY_PACK_STATUS_2 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xA2 = Pack 1 Status 2 
+
+0x92 = Pack 2 Status 2 
+
+0x82 = Pack 3 Status 2 
+
+Byte 2-3: Maximum Cell Voltage 0.001V / bit, this is not RV-C standard 
+
+Byte 4: Max Cell Voltage Index Index number of cell with highest voltage 
+
+Byte 5-6: Minimum Cell Voltage 0.001V / bit, this is not RV-C standard 
+
+Byte 7: Min Cell Voltage Index Index number of cell with lowest voltage 
+
+Name: PROP_LITHIUM_ION_BATTERY_PACK_STATUS_3 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation 0xA8 = Pack 1 Status 3 
+
+0x98 = Pack 2 Status 3 
+
+0x88 = Pack 3 Status 3 
+
+Byte 2-3: Pack Voltage 0.001V / bit, this is not RV-C standard 
+
+Byte 4-5: Pack Current 0.05 A / bit, Supported per RV-C 
+
+Byte 6: Pack Capacity (SOC) 0.5% / bit, Supported per RV-C 
+
+Confidential Page 80 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Name: PROP_LITHIUM_ION_BATTERY_PACK_ALERT_STATUS 
+
+PGN: PDU_F = 239, PDU_S = 250 (0xEFFA) 
+
+Byte 1: Operation 0xA5 = Pack 1 Alert Status 
+
+0x95 = Pack 2 Alert Status 
+
+0x85 = Pack 3 Alert Status 
+
+Byte 2.1-2.2: Alert Active 0 = No Alerts active, 1 = Alert Active 
+
+Byte 2.3-2.4: Cell Temperature High Alarm 0 = Alert off, 1 = Alert on 
+
+Byte 2.5-2.6: Pack Voltage High Alarm 0 = Alert off, 1 = Alert on 
+
+Byte 2.7-2.8: Pack Voltage High Warning 0 = Alert off, 1 = Alert on 
+
+Byte 3.1-3.2: Pack Voltage Low Alarm 0 = Alert off, 1 = Alert on 
+
+Byte 3.3-3.4: Pack Voltage Low Warning 0 = Alert off, 1 = Alert on 
+
+Byte 3.5-3.6: Pack Current High Alarm 0 = Alert off, 1 = Alert on 
+
+Byte 3.7-3.8: Pack Current High Warning 0 = Alert off, 1 = Alert on 
+
+Byte 4.1-4.2: Pack to Chassis Connection 0 = Alert off, 1 = Alert on 
+
+Byte 4.3-4.4: Pack to Cell Comm Error 0 = Alert off, 1 = Alert on 
+
+Byte 4.5-4.6: System Error 0 = Alert off, 1 = Alert on 
+
+Byte 4.7-4.8: EMS Comm Error 0 = Alert off, 1 = Alert on, 
+
+This alert not produced by Elite System, but 
+
+produced by the TM102 when it cannot 
+
+communicate with the Elite interface. 
+
+PROP_LITHIUM_ION_BATTERY_PACK_ALERT_STATUS should be broadcast every 5 seconds 
+
+to itself (0xFA) and on change. 
+
+Index Alert Synopsis 
+
+1 Pack Normal Active when no other valid alerts 
+
+2 Cell Temperature High 
+
+> Alarm
+> Active when cell temperature exceeds max defined
+> temperature for a cell
+
+3 Pack Voltage High 
+
+> Alarm
+> Active when pack voltage exceeds the max defined
+> voltage for the pack
+
+4 Pack Voltage High 
+
+> Warning
+> Active when pack voltage is off the scale - higher than
+> high voltage setting, but less than the max defined
+> voltage for the pack
+
+5 Pack Voltage Low 
+
+> Alarm
+> Active when pack voltage below the minimum defined
+> voltage for the pack
+
+6 Pack Voltage Low 
+
+> Warning
+> Active when pack voltage is off the scale - lower than
+> the low voltage setting, but higher than the minimum
+> defined voltage for the pack
+
+7 Pack Current High 
+
+> Alarm
+> Active when pack current exceeds the max defined
+> current for the pack
+
+8 Pack Current High 
+
+> Warning
+> Active when pack current is off the scale – higher than
+> the high current setting, but less than the max defined
+> current for the pack
+
+9 Pack to Chassis 
+
+> Connection
+> Active when a pack to chassis connection has been
+> detected
+
+10 Pack to Cell Comm 
+
+> Error
+> Active when the observed cell count by the system is
+> different than the official cell count. The most
+> common cause for this is a communication error.
+
+Confidential Page 81 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document   
+
+> 11 System Error Software detected condition that has not been defined
+
+Suspect Parameters 
+
+The DSA for all DM1 reports is 70. 
+
+If the Elite Power Battery Management feature is enabled, and there is no data detected on 
+
+the secondary CAN bus, a DM1 will be sent with red lamp, SPN 9. FMI 11 (Node Connection, 
+
+Failure Not Identifiable). If there is data detected on the secondary CAN bus, but we get a “Pack 
+
+to Cell Comm Error” from the Elite system, a DM1 will be sent with red lamp, SPN 13, FMI 11 
+
+(Internal Subnetwork Communications, Failure Not Identifiable). 
+
+## Trimark Entry Door Lock Output 
+
+The first output of the TM102 (ENTRY DOOR LOCK) may be used to indicate whether the entry 
+
+door is locked or not. The TM102 looks for the PGN_LOCK_STATUS (instance = 1) message on 
+
+the RV-C network and turns on the output if it sees the door is locked and turns off the output if 
+
+the door is unlocked. If the door status is not found (after 1 minute), the output will default to off. 
+
+In addition, the TM102 looks for the PGN_CHASSIS_MOBILITY_STATUS message and if it sees 
+
+the park brake is disengaged, it keeps the output off. 
+
+This feature is currently only available on the “A” version! 
+
+PGNs Supported 
+
+Request Entry Door Lock Status 
+
+Name: PROP_REQUEST_DOOR_LOCK_STATUS 
+
+PGN: PDU_F = 239, PDU_S = 250 (0xEFFA) 
+
+Byte 1: Operation Always 0x9D 
+
+Byte 2: Instance 1 = Entry Door 
+
+PGNs Reported 
+
+Entry Door Lock Status 
+
+Name: PROP_DOOR_LOCK_STATUS 
+
+PGN: PDU_F = 239, PDU_S = Destination (0xEF##) 
+
+Byte 1: Operation Always 0x9C 
+
+Byte 2: Instance 1 = Entry Door 
+
+Byte 3: Door Lock Status 0 = Unlocked, 1 = Locked, 253 = Unknown 
+
+Byte 4.1-4.2: Door Lock Output 0 = Off, 1 = On 
+
+## Data Logging 
+
+Access to data logging commands is through a “virtual data terminal” protocol that uses the 
+
+Confidential Page 82 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Proprietary PGN. The node serves as a terminal host, and data is transferred as ASCII text to a 
+
+proprietary terminal program. The commands and responses available for to access the data log 
+
+are documented in the PM-002 documentation. 
+
+Text Transfers are only supported to and from Source Address 253 (RV-L Bridge!). As with 
+
+all messages, the TM-102 uses Source Address 250. 
+
+Proprietary - Text Transfer 
+
+Name: RVC_TERMINAL 
+
+PGN: PDU_F = 0x17E, PDU_S = Destination Address (0x17E##) 
+
+Byte 1-8 Character 
+
+This PGN is NEVER sent as a Long Message PGN. If the character is 0xFF, then it should 
+
+be ignored. Strings are not null-terminated. Control characters such as 0x0D (CR) and 0x0A (LF) 
+
+should be supported by the terminal program. 
+
+## Serial Monitor 
+
+The serial monitor allows RS-232 communications to a PC or similar device wired to the GEN 
+
+COM TX , GEN COM RX , and GEN COMMON lines. Communications are 115200 bps, Eight Bit, 
+
+No Parity, No Flow Control. 
+
+The monitor functions as a terminal host, and can be accessed using conventional terminal 
+
+programs such as HyperTerminal. The command set is version-dependent, but all versions 
+
+contain a “?” and/or “Help” command, which will cause all commands to be listed for the user. 
+
+Two special commands are documented here. 
+
+Send RV-C Message 
+
+SEND <pgn> <data> . . . <data> 
+
+This command causes an RV-C message to be transmitted on the data bus. All data values 
+
+must be in hexadecimal. The command will be sent with priority 7 and source address 250. 
+
+There may be no more than eight data bytes – the command does not support long messages. 
+
+Note that the TM-102 itself will not see or parse the message sent. 
+
+Example: SEND 1FFFE 05 0C 19 05 0C 00 00 FF 
+
+This example will send the SET_DATE_TIME_COMMAND and thus set any clocks on the 
+
+network to 12/25/2005, 12:00 Noon. However, it will not set the clock on the TM-102, since the 
+
+TM-102 will not “hear” this message. 
+
+For details of the RV-C PGN definitions, see the RV-C Application Document, published by the 
+
+RVIA. 
+
+Parse RV-C Message 
+
+PARSE <pgn> <data> . . . <data> 
+
+This command is identical to SEND, except instead of transmitting a message on the RV-C 
+
+Confidential Page 83 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+bus it simulates receiving the message on the bus. The syntax is identical to SEND. 
+
+Example: PARSE 1FFFE 05 0C 19 05 0C 00 00 FF 
+
+This example will cause the TM-102 to “receive” the SET_DATE_TIME_COMMAND and thus set 
+
+the TM-102's clock to 12/25/2005, 12:00 Noon. 
+
+Example: PARSE 1FEFF 55 FF FF FF FF FF FF FF 
+
+This example will start the generator by issuing a GENERATOR_DEMAND_COMMAND , with the 
+
+Demand, Quiet Time Override, External Activity Reset, and Manual Override flags all set. To stop 
+
+the generator manually, change the 55 to 40 (No Demand, Manual Override). 
+
+## Extended Serial Monitor 
+
+If this feature is enabled, an additional set of commands and data reports are added to the 
+
+serial protocol. These additional features are listed in an Addendum document available from 
+
+SilverLeaf. The Extended Serial Monitor can only operate on the serial ports (GEN COM or 
+
+SERIAL). 
+
+## Digital I/O Manager 
+
+TM-102 digital inputs and outputs may be monitored and modified. Although the PGN's are 
+
+used mainly for testing purposes, they may be used by external applications that requires the I/O 
+
+(i.e. unused ones) for specific functions. 
+
+NOTE: The user must use the outputs with EXTREME CAUTION as the functioniality of 
+
+the TM-102 devices may be compromised, causing ERRATIC AND POSSIBLY DANGEROUS 
+
+BEHAVIOR of RV appliances and other components. 
+
+All statuses are reported by request only. Note that the I/O pin numbers are the same 
+
+specified in PROP_REPORT_OUTPUT_PIN and PROP_REPORT_INPUT_PIN 
+
+Note that access to a specific subset of the available digital I/O can be configured using the 
+
+PROP_CONFIGURE_IOMANAGER PGN. It is generally wise to take advantage of this feature. 
+
+PGNs Supported 
+
+DC Load Command 
+
+Name: DC_LOAD_COMMAND 
+
+PGN: 0x1FFBC 
+
+Byte 1: Instance See Notes. 
+
+Byte 3: Desired Level 0%=”off”, non-zero values are “on” 
+
+The Instance is determined by the configuration of the IO Manager (see 
+
+PROP_CONFIG_IOMANAGER). The Base RV-C Instance (default: 250) indicates the starting 
+
+point of the numbering - the instances count down from that maximum. The Base Internal 
+
+Confidential Page 84 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+Instance determines which pin is mapped to the Base RV-C Instance. The Number of Outputs 
+
+determines the number of pins accessible through this PGN. Internal instances are mapped 
+
+sequentially to the RV-C instances. They are related by the formula: 
+
+Internal Instance = Base Internal Instance + (Base RV-C Instance - RV-C Instance) 
+
+as long as (Base RV-C Instance - RV-C Instance) < Number of Outputs 
+
+Pin Instances that are out of range are not acknowledged at all. This is intended to prevent 
+
+confusion if other DC Load Management products are installed.. 
+
+PGNs Reported 
+
+DC Load Status 
+
+Name: DC_LOAD_STATUS 
+
+PGN: 0x1FFBD 
+
+Byte 1: Instance 250 minus digital output pin number 
+
+Byte 3: Operating Status 0%=”off”, non-zero values are “on” 
+
+Digital Input Status 
+
+Name: DIGITAL_INPUT_STATUS 
+
+PGN: 0x1FFB8 
+
+Byte 1: Instance 250 minus digital input pin number 
+
+Byte 2: Position 0=”off”, non-zero values are “on” 
+
+Suspect Parameters 
+
+There are no diagnostic SPNs and no DM1 will be reported. 
+
+Confidential Page 85 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+# Interpreting Data Logs 
+
+Record IDs 
+
+EXECUTIVE 0 OVERRIDESW 55 DCSTATUS 77 
+
+CLOCK 1 ACAUTOBACKUP 56 WATERPRESSURE 78 
+
+BRIDGE 2 AUTOTEMP 57 WATERPRESSURESW 79 
+
+WATERPUMP 3 EXTGENSWITCH 58 DISCONNECT 80 
+
+BATTERY 4 AMBIENTAGS 59 LOADSHED 81 
+
+CHARGER 5 CYCLETIME 60 ELITEPOWER 82 
+
+THERMOMETER 6 ACVOLTAGEAGS 61 BLACKTANKMANGER 83 
+
+TERMINAL 7 TOPOFF 62 TRIMARKLOCK 84 
+
+INPUTSWITCH 8 TANKMANAGER 63 
+
+OUTPUTMANAGER 9 LPGTANKMANAGER 64 
+
+XANBUS 10 FLOORHEAT 65 
+
+INVERTER 11 AUTOFILL 66 
+
+OUTBACK 12 IMMOBILIZER 67 
+
+GENERATOR 30 EXTGENDEMAND 68 
+
+SURGEGUARD 35 AWNING 69 
+
+ATS 36 SLIDE 70 
+
+SURGEGUARD 34520 37 CLIMATE 71 
+
+GENSTART 50 WATERHEATER 72 EXTSERIAL 240 
+
+VOLTAGEAGS1 51 BATTERY_SOC 73 CANPORT0 250 
+
+VOLTAGEAGS2 52 AGS_SOC 74 CANPORT1 251 
+
+EXERCISER 53 TOPOFF_SOC 75 SERIALPORT0 252 
+
+THERMOSTATSW 54 CHARGEBRIDGE 76 SERIALPORT1 253 
+
+Events 
+
+Source Event Notes 
+
+genstart User Start 
+
+genstart User Stop 
+
+genstart Auto Start 
+
+genstart Auto Stop 
+
+genstart Quiet Time Stop 
+
+genstart External Flag Set 
+
+Confidential Page 86 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+genstart External Flag Reset 
+
+genstart Generator Locked 
+
+genstart Generator Unlocked 
+
+genstart Enter Quiet Time 
+
+genstart Exit Quiet Time 
+
+genstart Auto Start Retry 
+
+genstart Initialize Flags 
+
+genstart External Start Manual start from gen switch outside our system 
+
+genstart External Stop Manual stop from gen switch outside our system 
+
+genstart criteria Demand ON 
+
+genstart criteria Demand OFF 
+
+genstart criteria ARMED 
+
+genstart criteria DISARMED 
+
+ags switch Ext switch toggle 
+
+battery Status 
+
+charger Disable 
+
+charger Not Charging 
+
+charger Bulk 
+
+charger Absorption 
+
+charger Overcharge 
+
+charger Equalize 
+
+charger Float 
+
+charger Constant Voltage 
+
+inverter Disable 
+
+inverter Invert 
+
+inverter AC Passthru 
+
+inverter APS Only 
+
+inverter Load Sense 
+
+comm Open 
+
+comm Write 
+
+comm Read 
+
+immobilizer Shift Inhibit OFF 
+
+immobilizer Shift Inhibit ON 
+
+chargebridge Charge Bridge OFF 
+
+chargebridge Bridging Charger 
+
+Confidential Page 87 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+chargebridge Bridging Alterntr 
+
+dc disconnect DC Disconnect 
+
+dc disconnect DC Connect 
+
+executive Boot 
+
+executive NVRAM Error 
+
+executive NVRAM Change 
+
+executive NVRAM Reset 
+
+executive Insufficient Memory 
+
+executive Testing flash 
+
+executive Watchdog 
+
+executive Setting Brwnout VRes 
+
+generator Start Command 
+
+generator Stop Command 
+
+generator Generator Start 
+
+generator Generator Stop 
+
+generator Generator Fault 
+
+generator Comm Fault 
+
+generator Precrank Cmd 
+
+outback Outback Command ON 
+
+outback Outback Command OFF 
+
+waterpump Command Pump OFF 
+
+waterpump Command Pump ON 
+
+waterpump Switch Pump OFF 
+
+waterpump Switch Pump ON 
+
+waterpump Secondary Pump OFF 
+
+waterpump Secondary Pump ON 
+
+autofill Command Fill OFF 
+
+autofill Command Fill ON 
+
+autofill Switch Fill OFF 
+
+autofill Switch Fill ON 
+
+autofill Manual Valve ON 
+
+autofill Manual Valve OFF 
+
+autofill Aborted 
+
+water heater OFF 
+
+water heater ON 
+
+Confidential Page 88 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+water heater FAULT 
+
+water heater RETRY 
+
+water heater AC ON 
+
+water heater AC OFF 
+
+surgeguard Power Up 
+
+surgeguard Power Down 
+
+surgeguard Voltage Status 
+
+surgeguard ATS Status 
+
+surgeguard Power Status 
+
+thermostat Thermostat 
+
+climate Thermostat 
+
+xanbus Fault 
+
+xanbus Warning 
+
+xanbus Event 
+
+elitepower Battery Pack1 Status Records battery % and temperature 
+
+elitepower Battery Pack2 Status Records battery % and temperature 
+
+elitepower Battery Pack3 Status Records battery % and temperature 
+
+elitepower Pack1 Comm Status Started/Failure 
+
+elitepower Pack2 Comm Status Started/Failure 
+
+elitepower Pack3 Comm Status Started/Failure 
+
+Genstart Flags 
+
+Most AGS events display the status of the following flags: 
+
+D – Demand Q – Quiet Time 
+
+N – Network Demand O – Quiet Time Override 
+
+E – External Activity V – Disable-On-Movement setting 
+
+M – Manual Override 1 – Pin 6 Lock 
+
+L – Genset Lock 2 – Pin 12 Lock 
+
+Confidential Page 89 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+# Index 
+
+Ambient Temperature 45 
+
+Analog Inputs: 
+
+DC SENSE 8, 56 
+
+EXCITE - 8
+
+EXCITE + 8
+
+SIGNAL 8
+
+SIGNAL - 8
+
+SIGNAL + 8
+
+TILE TEMP 8, 42 
+
+Automatic Fresh Water Fill 37 
+
+Automatic Genstart 51 
+
+Awning 74 
+
+Battery State of Charge 57 
+
+Black Tank Full Warning 37 
+
+Catcon Tank Monitoring 33 
+
+Chassis Battery Charging Bridge 71 
+
+Chassis Motion Controller 25 
+
+Climate Control 46 
+
+Coach Model Identifications 15 
+
+Coach Serial Number 23 
+
+Communication I/O: 
+
+GEN COM RX 6, 83 
+
+GEN COM TX 6, 83 
+
+GEN COMMON 7, 83 
+
+J1939 COMMON 6
+
+J1939 DATA - 6
+
+J1939 DATA + 6
+
+RV-C DATA - 6
+
+RV-C DATA + 6
+
+SCL 8
+
+SDA 8
+
+SERIAL RX 9
+
+SERIAL TX 9
+
+Configuration Items 12 
+
+Connectors 6
+
+Data Logging 82 
+
+DC Source Monitor 56, 62 
+
+Digital I/O Manager 84 
+
+Elite Power Lithium ion Battery Management Support 78 
+
+Extended Serial Monitor 26, 58, 84 
+
+Feature Summary 2
+
+General Specifications 4
+
+Generator RV-C Bridge 26 
+
+Inputs: 
+
+BYPASS DETECT 7, 39 
+
+FILL SWITCH 7, 38 
+
+GEN DEMAND 1 7, 39, 51, 52, 53 
+
+GEN DEMAND 2 7, 51, 52, 53 
+
+GEN RUNNING 7
+
+GEN SWITCH 7, 52 
+
+PARK BRAKE 7, 25 
+
+PUMP SWITCH 7, 39 
+
+WATER HEATER 7
+
+WATER PRESSURE 7
+
+J1939 to RV-C Bridge 24 
+
+Load Shed / TM200 Power Management Support 77 
+
+LPG Tank Monitoring 35 
+
+Maintained States 13 
+
+MSC Tank Sensor Manager 31 
+
+Outback Inverter Bridge 68 
+
+Outputs: 
+
+AWNING EXTEND 8
+
+AWNING RETRACT 8
+
+BATTERY SOLENOID 7, 71 
+
+FILL VALVE 7, 38 
+
+GEN START 7
+
+GEN STOP 7
+
+PRIMARY FLOOR CONTROL 8
+
+PUMP CONTROL 7, 38, 39 
+
+SECONDARY FLOOR CONTROL 8
+
+SHIFT INHIBIT 25 
+
+THERMOSTAT CONTROL 7
+
+PGN Summary 9
+
+PGN: 
+
+AGS_CRITERION_COMMAND 9, 52, 55 
+
+AGS_CRITERION_STATUS 9, 55 
+
+AGS_CRITERION_STATUS_2 55 
+
+AIR_CONDITIONER_COMMAND 48 
+
+AIR_CONDITIONER_STATUS 49 
+
+ATS_AC_STATUS_1 10, 30, 77 
+
+ATS_AC_STATUS_3 30 
+
+ATS_AC_STATUS_4 30 
+
+ATS_STATUS 10, 30, 77 
+
+AUTOFILL_COMMAND 10, 38 
+
+AUTOFILL_STATUS 10, 38, 39 
+
+AWNING_COMMAND 74 
+
+AWNING_STATUS 74 
+
+CHARGER_AC_STATUS_1 64, 70 
+
+CHARGER_AC_STATUS_2 64 
+
+CHARGER_COMMAND 59, 68 
+
+CHARGER_CONFIGURATION_COMMAND 59 
+
+CHARGER_CONFIGURATION_COMMAND 
+
+69 
+
+CHARGER_CONFIGURATION_COMMAND_2 60 
+
+CHARGER_CONFIGURATION_COMMAND_3 
+
+60 
+
+CHARGER_CONFIGURATION_STATUS 63 
+
+CHARGER_CONFIGURATION_STATUS 
+
+70 
+
+CHARGER_CONFIGURATION_STATUS_2 63 
+
+CHARGER_CONFIGURATION_STATUS_3 
+
+63 
+
+CHARGER_CONFIGURATION_STATUS_4 
+
+63 
+
+CHARGER_EQUALIZATION_CONFIGURATION_COMMAND 
+
+60 
+
+CHARGER_EQUALIZATION_CONFIGURATION_STATUS 63 
+
+CHARGER_EQUALIZATION_STATUS 63 
+
+CHARGER_STATUS 56, 62, 70 
+
+CHASSIS_MOBILITY_COMMAND 2, 10, 25 
+
+CHASSIS_MOBILITY_STATUS 2, 10, 26 
+
+Confidential Page 90 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+COMMUNICATION_STATUS_1 10, 23 
+
+COMMUNICATION_STATUS_2 10, 23 
+
+COMMUNICATION_STATUS_3 10, 23 
+
+DATE_TIME_STATUS 9, 23 
+
+DC_LOAD_COMMAND 84 
+
+DC_LOAD_STATUS 85 
+
+DC_SOURCE_STATUS_1 10, 56, 62, 65, 69, 71, 79 
+
+DC_SOURCE_STATUS_1 
+
+70 
+
+DC_SOURCE_STATUS_2 57, 79 
+
+DIGITAL_INPUT_STATUS 85 
+
+DM1 9, 24, 26, 28, 30, 32, 34, 36, 39, 40, 41, 45, 46, 50, 55, 57, 
+
+58, 66, 71, 73, 75, 76, 77, 78, 82, 85 
+
+FLOOR_HEAT_COMMAND 9, 42 
+
+FLOOR_HEAT_STATUS 9, 44 
+
+FURNACE_COMMAND 45, 48 
+
+FURNACE_STATUS 10, 46, 49 
+
+GENERAL_RESET 10, 15, 16 
+
+GENERATOR_AC_STATUS_1 10, 27 
+
+GENERATOR_AC_STATUS_3 27 
+
+GENERATOR_COMMAND 10, 26 
+
+GENERATOR_DEMAND_COMMAND 9, 51, 84 
+
+GENERATOR_DEMAND_STATUS 9, 55 
+
+GENERATOR_START_CONFIG_COMMAND 10, 27, 28 
+
+GENERATOR_START_CONFIG_STATUS 10, 28 
+
+GENERATOR_STATUS_1 10, 27, 28 
+
+GENERATOR_STATUS_2 10, 28 
+
+GENERIC_AC_STATUS_1 78 
+
+GENERIC_AC_STATUS_4 78 
+
+INVERTER_AC_STATUS_1 65, 70 
+
+INVERTER_AC_STATUS_2 65 
+
+INVERTER_ACFAULT_CONFIG_COMMAND_1 61 
+
+INVERTER_ACFAULT_CONFIG_COMMAND_2 61 
+
+INVERTER_ACFAULT_CONFIG_STATUS_1 65 
+
+INVERTER_ACFAULT_CONFIG_STATUS_2 65 
+
+INVERTER_COMMAND 60, 69 
+
+INVERTER_CONFIGURATION_COMMAND_1 60 
+
+INVERTER_CONFIGURATION_COMMAND_2 60 
+
+INVERTER_CONFIGURATION_COMMAND_3 
+
+61 
+
+INVERTER_CONFIGURATION_COMMAND_4 
+
+61 
+
+INVERTER_CONFIGURATION_STATUS_1 64 
+
+INVERTER_CONFIGURATION_STATUS_2 64 
+
+INVERTER_CONFIGURATION_STATUS_3 
+
+64 
+
+INVERTER_DC_STATUS 62, 65, 71 
+
+INVERTER_STATISTICS_STATUS 65 
+
+INVERTER_STATUS 64, 70 
+
+OUTBACK_COMMAND 69 
+
+PRODUCT_ID 4, 23 
+
+PROP_OUTBACK_COMMAND 69 
+
+PROP_RESET_GENERATOR_RUNTIME 27 
+
+PROP_SEC_PUMP_COMMAND 41 
+
+PROP_SEC_PUMP_STATUS 41 
+
+RVC_TERMINAL 83 
+
+SET_DATE_TIME_COMMAND 9, 23, 83, 84 
+
+SLIDE_COMMAND 76 
+
+SLIDE_STATUS 76 
+
+TANK_CALIBRATION_COMMAND 10, 31, 33, 35 
+
+TANK_GEOMETRY_COMMAND 10, 33, 34 
+
+TANK_GEOMETRY_STATUS 10, 34 
+
+TANK_STATUS 10, 31, 34, 36 
+
+THERMOSTAT_AMBIENT_STATUS 10, 46, 49, 79 
+
+THERMOSTAT_AMBIENT_STATUS 80 
+
+THERMOSTAT_COMMAND_1 10, 45, 47, 48, 49 
+
+THERMOSTAT_COMMAND_2 47 
+
+THERMOSTAT_SCHEDULE_COMMAND_1 47 
+
+THERMOSTAT_SCHEDULE_STATUS_1 49 
+
+THERMOSTAT_STATUS_1 10, 45, 48 
+
+THERMOSTAT_STATUS_2 48 
+
+WATER_PUMP_COMMAND 10, 40 
+
+WATER_PUMP_STATUS 10, 40, 42 
+
+WATERHEATER_COMMAND 75 
+
+WATERHEATER_STATUS 75 
+
+80 
+
+Product ID 4
+
+Proprietary PGN: 
+
+PROP_CALIBRATE_AMBIENT_TEMP 17 
+
+PROP_CONFIG_CHARGEBRIDGE_1 72, 73 
+
+PROP_CONFIG_CHARGEBRIDGE_2 72, 73 
+
+PROP_CONFIGURE_AGS_STOP 54, 55 
+
+PROP_CONFIGURE_AGS_STOP_2 54, 55 
+
+PROP_CONFIGURE_AUTOFILL 37, 38 
+
+PROP_CONFIGURE_AUTOFILL_REPORT 37, 38, 39 
+
+PROP_CONFIGURE_CLIMATE_CONTROL 48 
+
+PROP_CONFIGURE_FLOOR_HEAT_1 43 
+
+PROP_CONFIGURE_FLOOR_HEAT_2 43 
+
+PROP_CONFIGURE_FLOOR_HEAT_3 43 
+
+PROP_CONFIGURE_FLOOR_HEAT_4 43 
+
+PROP_CONFIGURE_INPUT_PIN 19 
+
+PROP_CONFIGURE_INSTANCE 16, 20 
+
+PROP_CONFIGURE_IOMANAGER 19 
+
+PROP_CONFIGURE_J1939_BRIDGE 24 
+
+PROP_CONFIGURE_OUTPUT_PIN 19 
+
+PROP_CONFIGURE_SLIDE_ROOM_CONTROL 76 
+
+PROP_CONFIGURE_SOC_TABLE 57, 58 
+
+PROP_CONFIGURE_WATER_PUMP_CONTROL 40 
+
+PROP_CONFIGURE_XANTREX_INVERTER 61 
+
+PROP_ENABLE_FEATURE 17, 18, 20 
+
+PROP_ENABLE_FEATURE_2 17, 18, 20, 73 
+
+PROP_ENABLE_FEATURE_2). 16 
+
+PROP_INSTANCE_REPORT 20 
+
+PROP_INSTANCE_REPORT_2 20 
+
+PROP_LOCK 16 
+
+PROP_NVRAM_CONFIGURE 18 
+
+PROP_OUTBACK_STATUS 70 
+
+PROP_REPORT_ADC_COUNTS_1 20 
+
+PROP_REPORT_ADC_COUNTS_2 20 
+
+PROP_REPORT_AGS_STOP 55 
+
+PROP_REPORT_AGS_STOP_2 55 
+
+PROP_REPORT_CHARGEBRIDGE_1 73 
+
+PROP_REPORT_CHARGEBRIDGE_2 73 
+
+PROP_REPORT_CLIMATE_CONTROL 48, 49 
+
+PROP_REPORT_ENABLE_FEATURE_2 20 
+
+PROP_REPORT_ENABLE_FEATURES 20 
+
+PROP_REPORT_FLOOR_HEAT_1 43, 44 
+
+PROP_REPORT_FLOOR_HEAT_2 43, 44 
+
+Confidential Page 91 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+PROP_REPORT_FLOOR_HEAT_3 43, 44 
+
+PROP_REPORT_FLOOR_HEAT_4 43, 44 
+
+PROP_REPORT_INPUT_PIN 19, 21, 84 
+
+PROP_REPORT_IOMANAGER_CONFIG 19, 22 
+
+PROP_REPORT_J1939_BRIDGE 24 
+
+PROP_REPORT_LOCK_STATUS 16, 19 
+
+PROP_REPORT_NVRAM 18 
+
+PROP_REPORT_OUTPUT_PIN 19, 20, 84 
+
+PROP_REPORT_SLIDE_ROOM_CONTROL 76 
+
+PROP_REPORT_SOC_TABLE 57, 58 
+
+PROP_REPORT_WATER_PUMP_CONTROL 40 
+
+PROP_REQUEST_ADC_COUNTS_1 18 
+
+PROP_REQUEST_ADC_COUNTS_2 18 
+
+PROP_REQUEST_FLOOR_HEAT 43 
+
+PROP_REQUEST_NVRAM 18 
+
+PROP_RESET_AGS_DEFAULTS 15, 54 
+
+PROP_RESET_TANK_GEOMETRY 15, 31, 33, 36 
+
+PROP_RESET_XANTREX_INVERTER 61 
+
+PROP_SET_UNIT_NUMBER 4, 23 
+
+PROP_UNLOCK 16 
+
+PROP_XANTREX_INVERTER_CONFIGURATION_REPORT 
+
+65 
+
+PROP_CONFIGURE_INSTANCE 79 
+
+Propriety Operations Summary 10 
+
+RV-C Inverter Support 58 
+
+Secondary Water Pump 41 
+
+Serial Monitor 83 
+
+Slide Control 76 
+
+SurgeGuard Model 34520 Surge Protection Support 78 
+
+SurgeGuard Transfer Switch RV-C Bridge 29 
+
+System Clock 23 
+
+System Configuration 16 
+
+Thermostat Control 45 
+
+Tile Heat Control 42 
+
+Water Heater 75 
+
+Water Pressure Sensor 42 
+
+Water Pump 39 
+
+Xanbus Bridge 58 
+
+5
+
+Trimark Entry Door Lock Output 82 
+
+Confidential Page 92 of 93 Modified 07/12/2016 SilverLeaf Electronics, Inc. TM-102 Application Document 
+
+# Document Revision History 
+
+Date By Effective Revision 
+
+06/10/15 CCR V3.17 Added Outback Auto Battery Topoff Feature 
+
+Added Charge Bridge Sense Input 
+
+Edits to Charge Bridge logic description 
+
+Added DC Voltage and Topoff AGS new requirement of checking for shorepower before starting gen. 
+
+Added to DC Source Monitor that charging state can now be determined from house battery voltage 
+
+on the network. 
+
+07/10/15 CCR V3.18 Outback Auto Battery Topoff Feature now includes Float Time requirement 
+
+Charge Bridge Sense Input changed to pin 11 
+
+Engine Run input now only available in “E” version 
+
+07/22/15 CCR V3.22 Added instanced DM1 for Charge bridge solenoid fault (1-3-0) 
+
+10/14/15 CCR V3.23 Added Xantrex Freedom SW AC Input Association setting 
+
+10/30/15 CCR - Fixed external dimensions 
+
+01/27/16 CCR V3.26 Added new Xantrex SW warnings 
+
+Added Trimark Entry Door Output Feature 
+
+02/19/16 CCR V3.28 Added support for multiple Elite power battery packs 
+
+07/12/16 CCR V3.33 Added Outback Mate3 support, Max Charging Current 
+
+Added SOC stop threshold setting 
+
+Added AGS Max Run Time Max Limit 
+
+Updated Data Log Record ID table so it's current 
+
+Confidential Page 93 of 93 Modified 07/12/2016

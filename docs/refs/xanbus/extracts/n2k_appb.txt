@@ -1,0 +1,1046 @@
+Title: PGN_Field_List
+
+URL Source: https://copperhilltech.com/content/july%202010%20nmea2000_v1-301_app_b_pgn_field_list.pdf
+
+Published Time: Tue, 11 Aug 2020 14:33:22 +0000
+
+Number of Pages: 52
+
+Markdown Content:
+# NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+ISO Acknowledgment 059392 
+
+Field # Field Description 
+
+This message is provided by ISO 11783 for a handshake mechanism between transmitting and receiving devices. This message is the possible response to acknowledge the reception of a “normal broadcast” message or the response to a specific command to indicate compliance or failure. 1 Control Byte 2 Group Function Value 3 Reserved Bits 4 PGN of Requested Information ISO Request 059904 
+
+Field # Field Description 
+
+As defined by ISO, this message has a data length of 3 bytes with no padding added to complete the single frame. The appropriate response to this message is based on the PGN being requested, and whether the receiver supports the requested PGN. 1 PGN being requested ISO Transport Protocol, Data Transfer 060160 
+
+Field # Field Description 
+
+ISO 11783 defines this PGN as part of the transport protocol method used for transmitting messages that have 9 or more data bytes. This PGN represents a single packet of a multipacket message. 1 Sequence number of multi-packet frame 2 Multi-packet packetized data ISO Transport Protocol, Connection Management - RTS group function 060416 
+
+Field # Field Description 
+
+ISO 11783 defines this group function PGN as part of the transport protocol method used for transmitting messages that have 9 or more data bytes. This PGN’s role in the transport process is determined by the group function value found in the first data byte of the PGN. 1 RTS Group Function Code 2 Total message size, bytes 3 Total number of frames to be transmitted 4 Reserved Bits 5 PGN of multi-packet message ISO Transport Protocol, Connection Management - CTS group function 060416 
+
+Field # Field Description 
+
+ISO 11783 defines this group function PGN as part of the transport protocol method used for transmitting messages that have 9 or more data bytes. This PGN’s role in the transport process is determined by the group function value found in the first data byte of the PGN. 1 CTS Group Function Code 2 Number of frames that can be sent 3 Number of next frame to be transmitted 4 Reserved Bits 5 PGN of multi-packet message 
+
+## Page 1 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+ISO Transport Protocol, Connection Management - EOM group function 060416 
+
+Field # Field Description 
+
+ISO 11783 defines this group function PGN as part of the transport protocol method used for transmitting messages that have 9 or more data bytes. This PGN’s role in the transport process is determined by the group function value found in the first data byte of the PGN. 1 EOM Group Function Code 2 Total message size, bytes 3 Total number of frames received 4 Reserved Bits 5 PGN of multi-packet message ISO Transport Protocol, Connection Management - BAM group function 060416 
+
+Field # Field Description 
+
+ISO 11783 defines this group function PGN as part of the transport protocol method used for transmitting messages that have 9 or more data bytes. This PGN’s role in the transport process is determined by the group function value found in the first data byte of the PGN. 1 BAM Group Function Code 2 Total message size, bytes 3 Total number of frames to be transmitted 4 Reserved Bits 5 PGN of multi-packet message ISO Transport Protocol, Connection Management - Abort group function 060416 
+
+Field # Field Description 
+
+ISO 11783 defines this group function PGN as part of the transport protocol method used for transmitting messages that have 9 or more data bytes. This PGN’s role in the transport process is determined by the group function value found in the first data byte of the PGN. 1 Abort Group Function Code 2 Reserved Bits 3 PGN of multi-packet message ISO Address Claim 060928 
+
+Field # Field Description 
+
+This network management message is used to claim network address, reply to devices requesting the claimed address, and to respond with device information (NAME) requested by the ISO Request or Complex Request Group Function. This PGN contains several fields that are requestable, either independently or in any combination. 1 Unique Number (ISO Identity Number) 2 Manufacturer Code 3 Device Instance Lower (ISO ECU Instance) 4 Device Instance Upper (ISO Function Instance) 5 Device Function (ISO Function) 6 Reserved 7 Device Class 8 System Instance (ISO Device Class Instance) 9 Industry Group 10 Reserved (ISO Self Configurable) 
+
+## Page 2 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+ISO Commanded Address 065240 
+
+Field # Field Description 
+
+ISO 11783 defined this message to provide a mechanism for assigning a network address to a node. The NAME information in the data portion of the message must match the name information of the node whose network address is to be set. 1 Unique Number (ISO Identity Number) 2 Manufacturer Code 3 Device Instance Lower (ISO ECU Instance) 4 Device Instance Upper (ISO Function Instance) 5 Device Function (ISO Function) 6 Reserved Bits 7 Device Class 8 System Instance (ISO Device Class Instance) 9 Industry Group 10 Reserved (ISO Self Configurable) 11 New Source Address NMEA - Request group function 126208 
+
+Field # Field Description 
+
+The Request / Command / Acknowledge Group type of function is defined by first field. The message will be a Request, Command, or Acknowledge Group Function. 1 Complex Request Group Function Code 2 Requested PGN 3 Transmission interval 4 Transmission interval offset 5 Number of Pairs of Request Parameters to follow 6 Field number of first requested parameter 7 Value of first requested parameter 8 Variable Number of fields, Field number 6 repeated 9 Variable Number of fields, Field number 7 repeated NMEA - Command group function 126208 
+
+Field # Field Description 
+
+The Request / Command / Acknowledge Group type of function is defined by first field. The message will be a Request, Command, or Acknowledge Group Function. 1 Command Group Function Code 2 Commanded PGN 3 Priority Setting 4 Reserved Bits 5 Number of Pairs of Commanded Parameters to follow 6 Field number of first commanded parameter 7 Value of first command parameter 8 Variable Number of fields, Field number 6 repeated 9 Variable Number of fields, Field number 7 repeated 
+
+## Page 3 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+NMEA - Acknowledge group function 126208 
+
+Field # Field Description 
+
+The Request / Command / Acknowledge Group type of function is defined by first field. The message will be a Request, Command, or Acknowledge Group Function. 1 Acknowledgment Group Function Code 2 Requested or Commanded PGN # being acknowledged 3 PGN error code 4 Transmission Interval / Priority error code 5 Number of Requested or Commanded Parameters 6 First parameter error code 7 Variable Number of fields, Field number 6 repeated NMEA - Read Fields - group function 126208 
+
+Field # Field Description 
+
+The Request / Command / Acknowledge Group type of function is defined by first field. The message will be a Request, Command, or Acknowledge Group Function. 1 Complex Request Group Function Code 2 PGN Number 3 Manufacturer's Code 4 Reserve Bits 5 Industry Group 6 Unique ID 7 Number of pairs of Commanded Parameters Fields 8 Number of pairs of Fields to Read 9 Field Number of first Commanded Parameter 10 Value of first Commanded Parameter 11 Variable Number of fields, field 9 repeated 12 Variable Number of Fields, field 10 repeated 13 Field Number of first Field to Read 14 Variable Number of Fields, field 13 repeated 
+
+## Page 4 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+NMEA - Read Fields Reply - group function 126208 
+
+Field # Field Description 
+
+The Request / Command / Acknowledge Group type of function is defined by first field. The message will be a Request, Command, or Acknowledge Group Function. 1 Complex Request Group Function Code 2 PGN Number 3 Manufacturer's Code 4 Reserve Bits 5 Industry Group 6 Unique ID 7 Number of pairs of Commanded Parameters Fields 8 Number of pairs of Fields to Read 9 Field Number of first Commanded Parameter 10 Value of first Commanded Parameter 11 Variable Number of fields, field 9 repeated 12 Variable Number of Fields, field 10 repeated 13 Field Number of first Field to Read 14 Value of first Field to Read 15 Variable Number of Fields, field 13 repeated 16 Variable Number of Fields, field 14 repeated NMEA - Write Fields - group function 126208 
+
+Field # Field Description 
+
+The Request / Command / Acknowledge Group type of function is defined by first field. The message will be a Request, Command, or Acknowledge Group Function. 1 Complex Request Group Function Code 2 PGN Number 3 Manufacturer's Code 4 Reserve Bits 5 Industry Group 6 Unique ID 7 Number of pairs of Commanded Parameters Fields 8 Number of pairs of Fields to Written 9 Field Number of first Commanded Parameter 10 Value of first Commanded Parameter 11 Variable Number of fields, field 9 repeated 12 Variable Number of Fields, field 10 repeated 13 Field Number of first Field to be Written 14 Value of first Field to be written 15 Variable Number of Fields, field 13 repeated 16 Variable Number of Fields, field 14 repeated 
+
+## Page 5 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+NMEA - Write Fields Reply - group function 126208 
+
+Field # Field Description 
+
+The Request / Command / Acknowledge Group type of function is defined by first field. The message will be a Request, Command, or Acknowledge Group Function. 1 Complex Request Group Function Code 2 PGN Number 3 Manufacturer's Code 4 Reserve Bits 5 Industry Group 6 Unique ID 7 Number of pairs of Commanded Parameters Fields 8 Number of pairs of Fields to Written 9 Field Number of first Commanded Parameter 10 Value of first Commanded Parameter 11 Variable Number of fields, field 9 repeated 12 Variable Number of Fields, field 10 repeated 13 Field Number of first Field to be Written 14 Status of first Field Written 15 Variable Number of Fields, field 13 repeated 16 Variable Number of Fields, field 14 repeated PGN List - Transmit PGN's group function 126464 
+
+Field # Field Description 
+
+The Transmit / Receive PGN List Group type of function is defined by first field. The message will be a Transmit or Receive PGN List group function. 1 Transmitted PGN Group Function Code 2 First PGN supported 3 Variable Number of fields, Field number 2 repeated PGN List - Received PGN's group function 126464 
+
+Field # Field Description 
+
+The Transmit / Receive PGN List Group type of function is defined by first field. The message will be a Transmit or Receive PGN List group function. 1 Received PGN Group Function Code 2 First PGN supported 3 Variable Number of fields, Field number 2 repeated 
+
+## Page 6 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+System Time 126992 
+
+Field # Field Description 
+
+The purpose of this PGN is twofold: To provide a regular transmission of UTC time and date. To provide synchronism for measurement data. 1 SID 2 Source 3 Reserved Bits 4 Date 5 Time Product Information 126996 
+
+Field # Field Description 
+
+Provides product information onto the network that could be important for determining quality of data coming from this product. 1 NMEA 2000 Database Version 2 NMEA Manufacturer's Product Code 3 Manufacturer's Model ID 4 Manufacturer's Software Version Code 5 Manufacturer's Model Version 6 Manufacturer's Model Serial Code 7 NMEA 2000 Certification Level 8 Load Equivalency Configuration Information 126998 
+
+Field # Field Description 
+
+Free-form alphanumeric fields describing the installation (e.g., starboard engine room location) of the device and installation notes (e.g., calibration data). 1 Installation Description, Field 1 2 Installation Description, Field 2 3 Manufacturer Information, Field 3 
+
+## Page 7 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Heading/Track Control 127237 
+
+Field # Field Description 
+
+Sends commands to, and receives data from, heading control systems. Allows for navigational (remote) control of a heading control system and direct rudder control. 1 Rudder Limit Exceeded 2 Off-Heading Limit Exceeded 3 Off-Track Limit Exceeded 4 Override 5 Steering Mode 6 Turn Mode 7 Heading Reference 8 Reserved Bits 9 Commanded Rudder Direction 10 Commanded Rudder Angle 11 Heading-To-Steer (Course) 12 Track 13 Rudder Limit 14 Off-Heading Limit 15 Radius of Turn Order 16 Rate of Turn Order 17 Off-Track Limit 18 Vessel Heading Rudder 127245 
+
+Field # Field Description 
+
+Rudder order command in direction or angle with current rudder angle reading. 1 Rudder Instance 2 Direction Order 3 Reserved Bits 4 Angle Order 5 Position 6 Reserved Bits Vessel Heading 127250 
+
+Field # Field Description 
+
+Heading sensor value with a flag for True or Magnetic. If the sensor value is Magnetic, the deviation field can be used to produce a Magnetic heading, and the variation field can be used to correct the Magnetic heading to produce a True heading. 1 SID 2 Heading Sensor Reading 3 Deviation 4 Variation 5 Heading Sensor Reference 6 Reserved Bits 
+
+## Page 8 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Rate of Turn 127251 
+
+Field # Field Description 
+
+Rate of Turn is the rate of change of the Heading. 1 Sequence ID 2 Rate of Turn 3 Reserved Bits Attitude 127257 
+
+Field # Field Description 
+
+This parameter group provides a single transmission that describes the position of a vessel relative to both horizontal and vertical planes. This would typically be used for vessel stabilization, vessel control and onboard platform stabilization. 1 SID 2 Yaw 3 Pitch 4 Roll 5 Reserved Bits Magnetic Variation 127258 
+
+Field # Field Description 
+
+Message for transmitting variation. The message contains a sequence number to allow synchronization of other messages such as Heading or Course over Ground. The quality of service and age of service are provided to enable recipients to determine an appropriate level of service if multiple transmissions exist. 1 Sequence ID 2 Variation Source 3 Reserved Bits 4 Age of Service (Date) 5 Variation 6 Reserved Bits Engine Parameters, Rapid Update 127488 
+
+Field # Field Description 
+
+Provides data with a high update rate for a specific engine in a single frame message. The first field provides information as to which engine. 1 Engine Instance 2 Engine Speed 3 Engine Boost Pressure 4 Engine tilt/trim 5 Reserved Bits 
+
+## Page 9 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Engine Parameters, Dynamic 127489 
+
+Field # Field Description 
+
+Used to provide real-time operational data and status relevant to a specific engine, indicated by the engine instance field. This message would normally be broadcasted periodically to provide information for instrumentation or control functions. 1 Engine instance 2 Engine oil pressure 3 Engine oil temp. 4 Engine temp. 5 Alternator potential 6 Fuel rate 7 Total engine hours 8 Engine coolant pressure 9 Fuel Pressure 10 Not Available 11 Engine Discrete Status 1 12 Engine Discrete Status 2 13 Percent Engine Load 14 Percent Engine Torque Transmission Parameters, Dynamic 127493 
+
+Field # Field Description 
+
+Used to provide the operational state and internal operating parameters of a specific transmission, indicated by the transmission instance field. This message would normally be broadcasted periodically to provide information for instrumentation or control functions. 1 Transmission instance 2 Transmission Gear 3 Reserved Bits 4 Transmission oil pressure 5 Transmission oil temperature 6 Transmission Discrete Status 7 Reserved Bits Trip Parameters, Vessel 127496 
+
+Field # Field Description 
+
+Trip parameters relative to Vessel 1 Time to Empty 2 Distance to Empty 3 Estimated Fuel Remaining 4 Trip Run Time 
+
+## Page 10 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Trip Parameters, Engine 127497 
+
+Field # Field Description 
+
+Engine related trip information. 1 Engine instance 2 Trip fuel used 3 Fuel Rate, Average 4 Fuel Rate, Economy 5 Instantaneous Fuel Economy Engine Parameters, Static 127498 
+
+Field # Field Description 
+
+Provides identification information and rated engine speed for the engine indicated by the engine instance field. Used primarily by display devices. 1 Engine instance 2 Rated engine speed 3 VIN 4 Software ID 
+
+## Page 11 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Binary Switch Bank Status 127501 
+
+Field # Field Description 
+
+Universal status report for multiple banks of two-state indicators. 1 Indicator Bank instance 2 Indic. 1 3 Indic. 2 4 Indic. 3 5 Indic. 4 6 Indic. 5 7 Indic. 6 8 Indic. 7 9 Indic. 8 10 Indic. 9 11 Indic. 10 12 Indic. 11 13 Indic. 12 14 Indic. 13 15 Indic. 14 16 Indic. 15 17 Indic. 16 18 Indic. 17 19 Indic. 18 20 Indic. 19 21 Indic. 20 22 Indic. 21 23 Indic. 22 24 Indic. 23 25 Indic. 24 26 Indic. 25 27 Indic. 26 28 Indic. 27 29 Indic. 28 
+
+## Page 12 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Switch Bank Control 127502 
+
+Field # Field Description 
+
+Universal commands to multiple banks of two-state devices. 1 Switch bank instance 2 Switch 1 3 Switch 2 4 Switch 3 5 Switch 4 6 Switch 5 7 Switch 6 8 Switch 7 9 Switch 8 10 Switch 9 11 Switch 10 12 Switch 11 13 Switch 12 14 Switch 13 15 Switch 14 16 Switch 15 17 Switch 16 18 Switch 17 19 Switch 18 20 Switch 19 21 Switch 20 22 Switch 21 23 Switch 22 24 Switch 23 25 Switch 24 26 Switch 25 27 Switch 26 28 Switch 27 29 Switch 28 
+
+## Page 13 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+AC Input Status 127503 
+
+Field # Field Description 
+
+Any device with an AC Input may transmit this message 1 AC Instance 2 Number of Lines 3 Line 4 Acceptability 5 Reserve Bits 6 Voltage 7 Current 8 Frequency 9 Breaker Size 10 Real Power 11 Reactive Power 12 Power Factor AC Output Status 127504 
+
+Field # Field Description 
+
+Any device with an AC Output may transmit this message. 1 AC Instance 2 Number of lines 3 Line 4 Waveform 5 Reserve Bits 6 Voltage 7 Current 8 Frequency 9 Breaker Size 10 Real Power 11 Reactive Power 12 Power Factor Fluid Level 127505 
+
+Field # Field Description 
+
+Fluid Level contains an instance number, type of fluid, level of fluid, and tank capacity. For example the fluid instance may be the level of fuel in a tank or the level of water in the bilge. Used primarily by display or instrumentation devices. 1 Fluid Instance 2 Fluid Type 3 Fluid Level 4 Tank Capacity 5 Reserved Bits 
+
+## Page 14 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+DC Detailed Status 127506 
+
+Field # Field Description 
+
+Provides parametric data for a specific battery, indicated by the battery instance field. Used primarily by display or instrumentation devices, but may also be used by battery management controls. 1 SID 2 DC Instance 3 DC Type 4 State of Charge 5 State of Health 6 Time Remaining 7 Ripple Voltage Charger Status 127507 
+
+Field # Field Description 
+
+Any device capable of charging a battery may transmit this message. 1 Charger Instance 2 Battery Instance 3 Operating State 4 Charge Mode 5 Charger Enable/Disable 6 Equalization Pending 7 Reserved 8 Equalization Time Remaining Battery Status 127508 
+
+Field # Field Description 
+
+Provides parametric data for a specific DC Source, indicated by the instance field. The type of DC Source can be identified from the DC Detailed Status PGN. Used primarily by display or instrumentation devices, but may also be used by power management. 1 Battery Instance 2 Battery Voltage 3 Battery Current 4 Battery Case Temperature 5 SID 
+
+## Page 15 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Inverter Status 127509 
+
+Field # Field Description 
+
+Any device capable of inverting a DC source to an SC output may transmit this message. 1 Inverter Instance 2 AC Instance 3 DC Instance 4 Operating State 5 Inverter Enable/Disable 6 Reserved Charger Configuration Status 127510 
+
+Field # Field Description 
+
+Any device capable of charging a battery may transmit this message. 1 Charger Instance 2 Battery Instance 3 Charger Enable/Disable 4 Reserved Bits 5 Charge Current Limit 6 Charging Algorithm 7 Charger Mode 8 Estimated Battery Temp - When No Sensor Present 9 Equalize One Time Enable/Disable 10 Over Charge Enable/Disable 11 Equailize Time Inverter Configuration Status 127511 
+
+Field # Field Description 
+
+Any device capable of inverting DC to AC may transmit this message. 1 Inverter Instance 2 AC Instance 3 DC Instance 4 Inverter Enable/Disable 5 Inverter Mode 6 Load Sense Enable/Disable 7 Load Sense Power Threshold 8 Load Sense Interval 
+
+## Page 16 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+AGS Configuration Status 127512 
+
+Field # Field Description 
+
+Any device that is capable of starting/stopping a generator may transmit this message. 1 AGS Instance 2 Generator Instance 3 AGS Mode Battery Configuration Status 127513 
+
+Field # Field Description 
+
+Any device connected to a battery may transmit this message. 1 Battery Instance 2 Battery Type 3 Supports Equalization 4 Reserved Bits 5 Nominal Voltage 6 Battery Chemistry 7 Battery Capacity 8 Battery Temperature Coefficient 9 Peukert Exponent 10 Charge Efficiency Factor AGS Status 127514 
+
+Field # Field Description 
+
+Any device capable of starting/stopping a generator may transmit this message. 1 AGS Instance 2 Generator Instance 3 AGS Operating State 4 Generator State 5 Generator On Reason 6 Generator Off Reason Speed, Water referenced 128259 
+
+Field # Field Description 
+
+This parameter group provides a single transmission that describes the motion of a vessel. 1 Sequence ID 2 Speed Water Referenced 3 Speed Ground Referenced 4 Speed Water Referenced Type 5 Reserved Bits 
+
+## Page 17 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Water Depth 128267 
+
+Field # Field Description 
+
+Water depth relative to the transducer and offset of the measuring transducer. Positive offset numbers provide the distance from the transducer to the waterline. 1 SID 2 Water Depth, Transducer 3 Offset 4 Reserved Bits Distance Log 128275 
+
+Field # Field Description 
+
+This PGN provides the cumulative voyage distance traveled since the last reset. The distance is tagged with the time and date of the distance measurement. 1 Measurement Date 2 Measurement Time 3 Total Cumulative Distance 4 Distance Since Last Reset Tracked Target Data 128520 
+
+Field # Field Description 
+
+Message for reporting status and target data from tracking radar external devices. 1 Sequence ID 2 Target ID # 3 Track Status 4 Bearing Reference 5 Reserved Bits 6 Bearing 7 Distance 8 Course 9 Speed 10 CPA 11 TCPA 12 UTC of Fix 13 Name 14 Reference Target 
+
+## Page 18 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Position, Rapid Update 129025 
+
+Field # Field Description 
+
+This PGN provides latitude and longitude referenced to WGS84. Being defined as single frame message, as opposed to other PGNs that include latitude and longitude and are defined as fast or multi-packet, this PGN lends itself to being transmitted more frequently without using up excessive bandwidth on the bus for the benefit of receiving equipment that may require rapid position updates. 1 Latitude 2 Longitude COG & SOG, Rapid Update 129026 
+
+Field # Field Description 
+
+This parameter group is a single frame parameter group that provides Course Over Ground (COG) and Speed Over Ground (SOG). 1 SID 2 COG Reference 3 Reserved Bits 4 Course Over Ground 5 Speed Over Ground 6 Reserved Bits Position Delta, High Precision Rapid Update 129027 
+
+Field # Field Description 
+
+The "Position Delta, High Precision Rapid Update" Parameter Group is intended for applications where very high precision and very fast update rates are needed for position data. This PGN can provide delta position changes down to 1 millimeter with a delta time period accurate to 5 milliseconds. 1 Sequence ID 2 Time Delta 3 Latitude Delta 4 Longitude Delta Altitude Delta, High Precision Rapid Update 129028 
+
+Field # Field Description 
+
+The "Altitude Delta, High Precision Rapid Update" Parameter Group is intended for applications where very high precision and very fast update rates are needed for altitude and course over ground data. This PG can provide delta altitude changes down to 1 millimeter, a change in direction as small as 0.0057 degrees, and with a delta time period accurate to 5 milliseconds. 1 Sequence ID 2 Time Delta 3 GNSS Quality 4 Direction 5 Reserved Bits 6 Course Over Ground 7 Altitude Delta 
+
+## Page 19 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+GNSS Position Data 129029 
+
+Field # Field Description 
+
+This parameter group conveys a comprehensive set of Global Navigation Satellite System (GNSS) parameters, including position information. 1 SID 2 Position date 3 Position time 4 Latitude 5 Longitude 6 Altitude 7 Type of System 8 Method, GNSS 9 Integrity 10 Reserved Bits 11 Number of SVs 12 HDOP 13 PDOP 14 Geoidal Separation 15 Number of Reference Stations 16 Reference Station Type"1" 17 Reference Station ID"1" 18 Age of DGNSS Corrections "1" 19 Reference Station Type "n" 20 Reference Station ID "n" 21 Age of DGNSS Reference Station "n" Time & Date 129033 
+
+Field # Field Description 
+
+This parameter group has a single transmission that provides: UTC time, UTC Date and Local Offset Datum Local geodetic datum and datum offsets from a reference datum. 1 Date 2 Time 3 Local Offset, Minutes 
+
+## Page 20 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+AIS Class A Position Report 129038 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Messages 1, 2, and 3 Position Reports, autonomous, assigned, and response to interrogation, respectively. An AIS device may generate this parameter group either upon receiving a VHF data link message 1,2 or 3, or upon receipt of an ISO or NMEA request PGN (see ITU-R M.1371-1 for additional information). 1 Message ID 2 Repeat Indicator 3 User ID 4 Longitude 5 Latitude 6 Position Accuracy 7 RAIM-flag 8 Time Stamp 9 COG 10 SOG 11 Communication State 12 AIS Transceiver Information 13 True Heading 14 Rate of Turn 15 Navigational Status 16 Reserved for Regional Applications 17 Spare 
+
+## Page 21 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+AIS Class B Position Report 129039 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Message 18 Standard Class B Equipment Position Report. An AIS device may generate this parameter group either upon receiving a VHF data link message 18, or upon receipt of an ISO or NMEA request PGN (see ITU-R M.1371-1 for additional information). 1 Message ID 2 Repeat Indicator 3 User ID 4 Longitude 5 Latitude 6 Position Accuracy 7 RAIM-flag 8 Time Stamp 9 COG 10 SOG 11 Communication State 12 AIS Transceiver Information 13 True Heading 14 Reserved for Regional Applications 15 Reserved for Regional Applications 16 Class B unit flag 17 Class B Display Flag 18 Class B DSC Flag 19 Class B Band Flag 20 Class B Msg 22 Flag 21 Mode Flag 22 Communication State Selector Flag 
+
+## Page 22 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+AIS Class B Extended Position Report 129040 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Message 19 Extended Class B Equipment Position Report containing position and static information. An AIS device may generate this parameter group either upon receiving a VHF data link message 19, or upon receipt of an ISO or NMEA request PGN. 1 Message ID 2 Repeat Indicator 3 User ID 4 Longitude 5 Latitude 6 Position Accuracy 7 RAIM-flag 8 Time Stamp 9 COG 10 SOG 11 Reserved for Regional Applications 12 Reserved for Regional Applications 13 NMEA 2000 Reserved 14 Ship/Cargo Type 15 True Heading 16 NMEA 2000 Reserved 17 Type of Electronic Positioning Device 18 Ship Length 19 Ship Beam 20 Position Reference Point from Starboard 21 Position Reference Point aft of Ship's Bow 22 Name 23 Data Terminal Equipment (DTE) 24 Mode Flag 25 Spare 26 AIS Transceiver Information Datum 129044 
+
+Field # Field Description 
+
+This parameter group is used to define the datum to which a position location output by the same device in other PGNs is referenced. 1 Local Datum 2 Delta Latitude 3 Delta Longitude 4 Delta Altitude 5 Reference Datum 
+
+## Page 23 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+User Datum Settings 129045 
+
+Field # Field Description 
+
+Transformation parameters for converting from WGS-84 to other Datums. 1 Delta X 2 Delta Y 3 Delta Z 4 Rotation in X 5 Rotation in Y 6 Rotation in Z 7 Scale 8 Ellipsoid Semi-major Axis 9 Ellipsoid Flattening Inverse 10 Datum Name Cross Track Error 129283 
+
+Field # Field Description 
+
+This parameter group provides the magnitude of position error perpendicular to the desired course. 1 SID 2 XTE Mode 3 Reserve 4 Navigation Terminated 5 XTE 6 Reserve Navigation Data 129284 
+
+Field # Field Description 
+
+This parameter group provides essential navigation data for following a route. Transmissions will originate from products that can create and manage routes using waypoints. This information is intended for navigational repeaters. 1 SID 2 Distance to Destination Waypoint 3 Course/Bearing Ref. 4 Perpendicular Crossed 5 Arrival Circle Entered 6 Calculation Type 7 ETA Time 8 ETA Date 9 Bearing, Origin To Destination Waypoint 10 Bearing, Position To Destination Waypoint 11 Origin Waypoint Number 12 Destination Waypoint Number 13 Destination Wpt Latitude 14 Destination Wpt Longitude 15 Waypoint Closing Velocity 
+
+## Page 24 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Navigation - Route/WP information 129285 
+
+Field # Field Description 
+
+This parameter group returns Route and WP data ahead in the Active Route. It can be requested or may be transmitted without a request, typically at each Waypoint advance. 1 Start RPS# 2 nItems 3 Database ID 4 Route ID 5 Navigation direction in route 6 Supplementary Route/WP data available 7 Reserved bits 8 Route Name 9 Reserved 10 WPID 11 WP Name 12 WP Latitude 13 WP Longitude 14 Fields 10 thru 13 repeat as needed Set & Drift, Rapid Update 129291 
+
+Field # Field Description 
+
+The Set and Drift effect on the Vessel is the direction and the speed of a current. 1 SID 2 Set Reference 3 Reserved Bits 4 Set 5 Drift 6 Reserved Bits Time to/from Mark 129301 
+
+Field # Field Description 
+
+Time to go to or elapsed from a generic mark, that may be non-fixed. The mark is not generally a specific geographic point but may vary continuously and is most often determined by calculation (the recommended turning or tacking point for sailing vessels, the wheel-over point for vessels making turns, a predicted collision point, etc.) 1 SID 2 Time elapsed (from) or to-go to mark 3 Mark Type 4 Reserved Bits 5 Mark ID 
+
+## Page 25 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Bearing and Distance between two Marks 129302 
+
+Field # Field Description 
+
+Bearing and distance from the origin mark to the destination mark, calculated at the origin mark, for any two arbitrary generic marks. The calculation type (Rhumb Line, Great Circle) is specified, as well as the bearing reference (Mag, True). 1 SID 2 Bearing Ref. 3 Calculation Type 4 Reserved Bits 5 Bearing, Origin To Destination 6 Distance 7 Origin Mark Type 8 Destination Mark Type 9 Origin Mark Id 10 Destination Mark ID GNSS Control Status 129538 
+
+Field # Field Description 
+
+GNSS common satellite receiver parameter status 1 SV Elevation Mask 2 PDOP Mask 3 PDOP Switch 4 SNR Mask 5 GNSS Mode 6 DGNSS Mode 7 Position / Velocity Filter 8 Max Correction Age 9 Antenna Altitude for 2D Mode 10 Use Antenna Altitude for 2D Mode GNSS DOPs 129539 
+
+Field # Field Description 
+
+This PGN provides a single transmission containing GNSS status and dilution of precision components (DOP) that indicate the contribution of satellite geometry to the overall positioning error. There are three DOP parameters reported, horizontal (HDOP), Vertical (VDOP) and time (TDOP). 1 SID 2 Set Mode 3 Op Mode 4 Reserve 5 HDOP 6 VDOP 7 TDOP 
+
+## Page 26 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+GNSS Sats in View 129540 
+
+Field # Field Description 
+
+GNSS information on current satellites in view tagged by sequence ID. Information includes PRN, elevation, azimuth, SNR, defines the number of satellites; defines the satellite number and the information. 1 SID 2 Mode 3 Reserve Bits 4 Number of SVs 5 PRN "1" 6 Elevation "1" 7 Azimuth "1" 8 SNR "1" 9 Range Residuals 1 10 PRN Status "1" 11 Reserved Bits 12 PRN "n" 13 Elevation "n" 14 Azimuth "n" 15 SNR "n" 16 Range Residuals "n" 17 PRN Status "n" 18 Reserved Bits GPS Almanac Data 129541 
+
+Field # Field Description 
+
+This parameter group provides a single transmission that contains relevant almanac data for GPS products. The almanac contains satellite vehicle course orbital parameters. This information is not considered precise and is only valid for several months at a time. GPS products receive almanac data directly from the satellites. This information would either be transmitted to and from GPS products for update, or system interrogation. 1 PRN 2 GPS Week number 3 SV Health Bits 4 Eccentricity 5 Almanac Reference Time 6 Inclination Angle 7 Rate of Right Ascension 8 Root of Semi-major Axis 9 Argument of Perigee 10 Longitude of Ascension Node 11 Mean Anomaly 12 Clock Parameter 1 13 Clock Parameter 2 14 Reserved Bits 
+
+## Page 27 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+GNSS Pseudorange Noise Statistics 129542 
+
+Field # Field Description 
+
+GNSS pseudorange measurement noise statistics can be translated in the position domain in order to give statistical measures of the quality of the position solution. Intended for use with a Receiver Autonomous Integrity Monitoring (RAIM) application. 1 SID 2 RMS of Position Uncertainty 3 STD of Major axis 4 STD of Minor axis 5 Orientation of Major axis 6 STD of Lat Error 7 STD of Lon Error 8 STD of Alt Error GNSS RAIM Output 129545 
+
+Field # Field Description 
+
+This parameter group is used to provide the output from a GNSS Receiver's Receiver Autonomous Integrity Monitoring (RAIM) process. The Integrity field value is based upon the parameters set in PGN 130059 GNS RAIM Settings. 1 Sequence ID 2 Integrity Flag 3 Reserve Bits 4 Latitude expected error 5 Longitude expected error 6 Altitude expected error 7 SV ID of most likely failed sat 8 Probability of missed detection 9 Estimate of pseudorange bias 10 Std Deviation of bias GNSS RAIM Settings 129546 
+
+Field # Field Description 
+
+This PGN is used to report the control parameters for a GNSS Receiver Autonomous Integrity Monitoring (RAIM) process. 1 Radial Position Error Maximum threshold 2 Probability of False Alarm 3 Probability of Missed Detection 4 Pseudorange Residual Filtering Time Constant 5 Reserved Bits 
+
+## Page 28 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+GNSS Pseudorange Error Statistics 129547 
+
+Field # Field Description 
+
+This parameter group is used to support Receiver Autonomous Integrity Monitoring (RAIM). Pseudorange measurement error statistics can be translated in the position domain in order to give statistical measures of the quality of the position solution. 1 Sequence ID 2 RMS Std Dev of Range Inputs 3 Std Dev major error ellipse 4 Std Dev minor error ellipse 5 Orientation of error ellipse 6 Std Dev Latitude error 7 Std Dev Longitude error 8 Std Dev Altitude error DGNSS Corrections 129549 
+
+Field # Field Description 
+
+This PGN provides a means to pass differential GNSS corrections between NMEA 2000 devices. Passing DGNSS data this way allows for more flexibility than traditional methods. One differential correction receiver could supply multiple GNSS receivers. Multiple differential correction receivers or data streams could be connected to a GNSS receiver allowing for network DGNSS approaches. This PGN can accommodate DGPS and DGLONASS corrections. 1 Sequence ID 2 Reference Station ID 3 Reference Station Type 4 Time of corrections 5 Station Health 6 Reserved Bits 7 Satellite ID 8 PRC 9 RRC 10 UDRE 11 IOD GNSS Differential Correction Receiver Interface 129550 
+
+Field # Field Description 
+
+GNSS common differential correction receiver parameter status. 1 Channel 2 Frequency 3 Serial Interface Bit Rate 4 Serial Interface Detection Mode 5 Differential Source 7 Differential Operation Mode 8 Reserved Bits 
+
+## Page 29 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+GNSS Differential Correction Receiver Signal 129551 
+
+Field # Field Description 
+
+GNSS differential correction receiver status tagged by sequence ID. Status information includes frequency, SNR, and use as a correction source. 1 SID 2 Channel 3 Signal Strength 4 Signal SNR 5 Frequency 6 Station Type 7 Station ID 8 Differential Signal Bit Rate 9 Differential Signal Detection Mode 10 Used as Correction Source 11 Reserved Bits 12 Differential Source 13 Time Since Last Sat Differential Sync 14 Satellite Service ID No. GLONASS Almanac Data 129556 
+
+Field # Field Description 
+
+This PGN provides a single transmission that contains relevant almanac data for Glonass products. The almanac contains satellite vehicle course orbital parameters. This information is not considered precise and is only valid for several months at a time. Glonass products receive almanac data directly from the satellites. This information would either be transmitted to and from Glonass products for update, or system interrogation. 1 PRN 2 NA 3 Reserved Bits 4 CnA 5 HnA 6 (epsilon)nA 7 (deltaTnA)DOT 8 (omega)nA 9 (delta)TnA 10 tnA 11 (lambda)nA 12 (delta)inA 13 tcA 14 tnA 
+
+## Page 30 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+AIS DGNSS Broadcast Binary Message 129792 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Message 17 GNSS Broadcast Binary Message containing DGNSS corrections from a base station. An AIS device may generate this parameter group either upon receiving a VHF data link message 17, or upon receipt of an ISO or NMEA request PGN (see ITU-R M.1371-1 for additional information). 1 Message ID 2 Repeat Indicator 3 Source ID 4 NMEA 2000 Reserved 5 AIS Transceiver Information 6 Spare 7 Longitude 8 Latitude 9 NMEA 2000 Reserved 10 Spare 11 Number of Bits in Binary Data Field 12 Binary Data AIS UTC and Date Report 129793 
+
+Field # Field Description 
+
+This parameter group provides data from ITU-R M.1371 message 4 Base Station Report providing position, time, date, and current slot number of a base station, and 11 UTC and date response message providing current UTC and date if available. An AIS device may generate this parameter group either upon receiving a VHF data link message 4 or 11, or upon receipt of an ISO or NMEA request PGN. 1 Message ID 2 Repeat Indicator 3 User ID 4 Longitude 5 Latitude 6 Position accuracy 7 RAIM-flag 8 NMEA 2000 Reserved 9 Position time 10 Communication State 11 AIS Transceiver Information 12 Position Date 13 NMEA 2000 Reserved 14 Type of Electronic Positioning Device 15 Spare 
+
+## Page 31 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+AIS Class A Static and Voyage Related Data 129794 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Message 5 Ship Static and Voyage Related Data Message. An AIS device may generate this parameter group either upon receiving a VHF data link message 5, or upon receipt of an ISO or NMEA request PGN. 1 Message ID 2 Repeat Indicator 3 User ID 4 IMO 5 Call Sign 6 Name 7 Ship/Cargo Type 8 Ship Length 9 Ship Beam 10 Position Reference Point from Starboard 11 Position Reference Point aft of Ship's Bow 12 Estimated Date of Arrival 13 Estimated Time of Arrival 14 Draft 15 Destination 16 AIS Version 17 Type of Electronic Positioning Device 18 Data Terminal Equipment (DTE) 19 Spare 20 AIS Transceiver Information AIS Addressed Binary Message 129795 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Message 6 Addressed Binary Message supporting address communication of binary data. An AIS device may generate this parameter group either upon receiving a VHF data link message 6, or upon receipt of an ISO or NMEA request PGN. 1 Message ID 2 Repeat Indicator 3 Source ID 4 NMEA 2000 Reserved 5 AIS Transceiver Information 6 Sequence Number 7 Destination ID 8 NMEA 2000 Reserved 9 Retransmit Flag 10 Spare 11 Number of Bits in Binary Data Field 12 Binary Data 
+
+## Page 32 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+AIS Acknowledge 129796 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Messages 7 Binary Acknowledge Message and 13 Safety Related Acknowledge Message. Message 7 acknowledges receipt of message 6 while message 13 acknowledges receipt of message 14. An AIS device may generate this parameter group either upon receiving a VHF data link message 7 or 13, or upon receipt of an ISO or NMEA request PGN. 1 Message ID 2 Repeat Indicator 3 Source ID 4 NMEA 2000 Reserved 5 AIS Transceiver Information 6 Spare 7 Destination ID"1" 8 NMEA 2000 Reserved 9 Sequence Number for ID"1" 10 Destination ID"n" 11 NMEA 2000 Reserved 12 Sequence Number for ID"n" AIS Binary Broadcast Message 129797 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Message 8 Binary Broadcast Message supporting broadcast communication of binary data. An AIS device may generate this parameter group either upon receiving a VHF data link message 8, or upon receipt of an ISO or NMEA request PGN. 1 Message ID 2 Repeat Indicator 3 Source ID 4 NMEA 2000 Reserved 5 AIS Transceiver Information 6 Spare 7 Number of Bits in Binary Data Field 8 Binary Data 
+
+## Page 33 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+AIS SAR Aircraft Position Report 129798 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Message 9 SAR Aircraft Position Report Message for Airborne AIS units conducting Search and Rescue operations. An AIS device may generate this parameter group either upon receiving a VHF data link message 9, or upon receipt of an ISO or NMEA request. 1 Message ID 2 Repeat Indicator 3 User ID 4 Longitude 5 Latitude 6 Position Accuracy 7 RAIM-Flag 8 Time Stamp 9 COG 10 SOG 11 Communication State 12 AIS Transceiver Information 13 Altitude 14 Reserved for Regional Applications 15 Data Terminal Equipment (DTE) 16 Spare Radio Frequency/Mode/Power 129799 
+
+Field # Field Description 
+
+This PGN provides status and control for a Radiotelephone, connected to a NMEA 2000 network. The Radiotelephone will transmit and receive status along with remote control and repeater products. 1 Rx Frequency 2 Tx Frequency 3 Radio Channel 4 Tx Power 5 Mode 6 Channel Bandwidth AIS UTC/Date Inquiry 129800 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Message 10 UTC and Date Inquiry Message used to request current UTC and date. An AIS device may generate this parameter group either upon receiving a VHF data link message 10, or AIS Addressed Safety Related Message. 1 Message ID 2 Repeat Indicator 3 Source ID 4 NMEA 2000 Reserved 5 AIS Transceiver Information 6 Spare 7 Destination ID 8 Spare 
+
+## Page 34 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+AIS Addressed Safety Related Message 129801 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Message 12 Addressed Safety Related Message supporting addressed communication of safety related data. An AIS device may generate this parameter group either upon receiving a VHF data link message 12, or upon receipt of an ISO or NMEA request PGN. 1 Message ID 2 Repeat Indicator 3 Source ID 4 NMEA 2000 Reserved 5 AIS Transceiver Information 6 Sequence Number 7 Destination ID 8 NMEA 2000 Reserved 9 Retransmit Flag 10 Spare 11 Safety Related Text AIS Safety Related Broadcast Message 129802 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Message 14 Safety Related Broadcast Message supporting broadcast communication of safety related data. An AIS device may generate this parameter group either upon receiving a VHF data link message 14, or upon receipt of an ISO or NMEA request PGN. 1 Message ID 2 Repeat Indicator 3 Source ID 4 NMEA 2000 Reserved 5 AIS Transceiver Information 6 Spare 7 Safety Related Text 
+
+## Page 35 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+AIS Interrogation 129803 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Message 15 Interrogation Message used to request a specific ITU-R M.1371 message resulting in responses from one or more AIS mobile units. An AIS device may generate this parameter group either upon receiving a VHF data link message 15, or upon receipt of an ISO or NMEA request PGN. 1 Message ID 2 Repeat Indicator 3 Source ID 4 NMEA 2000 Reserved 5 AIS Transceiver Information 6 Spare 7 Destination ID 1 8 NMEA 2000 Reserved 9 Message ID 1.1 10 Slot Offset 1.1 11 Spare 12 Message ID 1.2 13 Slot Offset 1.2 14 NMEA 2000 Reserved 15 Spare 16 Destination ID 2 17 NMEA 2000 Reserved 18 Message ID 2.1 19 Slot Offset 2.1 20 Spare AIS Assignment Mode Command 129804 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Message 16 Assigned Mode Command Message for assigning specific behavior by a competent authority. An AIS device may generate this parameter group either upon receiving a VHF data link message 16, or upon receipt of an ISO or NMEA request PGN. 1 Message ID 2 Repeat Indicator 3 Source ID 4 NMEA 2000 Reserved 5 AIS Transceiver Information 6 Spare 7 Destination ID A 8 Offset A 9 Increment A 10 Destination ID B 11 Offset B 12 Increment B 13 Spare 
+
+## Page 36 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+AIS Data Link Management Message 129805 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Message 20 Data Link Management Message for reserving slots for base stations. An AIS device may generate this parameter group either upon receiving a VHF data link message 20, or upon receipt of an ISO or NMEA request PGN. 1 Message ID 2 Repeat Indicator 3 Source Station ID 4 NMEA 2000 Reserved 5 AIS Transceiver Information 6 Spare 7 Offset Number 1 8 Number of Slots 1 9 Time Out 1 10 Increment 1 11 Offset Number 2 12 Number of Slots 2 13 Time Out 2 14 Increment 2 15 Offset Number 3 16 Number of Slots 3 17 Time Out 3 18 Increment 3 19 Offset Number 4 20 Number of Slots 4 21 Time Out 4 22 Increment 4 23 Spare 
+
+## Page 37 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+AIS Channel Management 129806 
+
+Field # Field Description 
+
+This parameter group provides data associated with the ITU-R M.1371 Message 22 Channel Management Message supporting management of transceiver modes and channels by a base station. 1 Message ID 2 Repeat Indicator 3 Station ID 4 NMEA 2000 Reserved 5 AIS Transceiver Information 6 Spare 7 Channel A 8 Channel B 9 NMEA 2000 Reserved 10 Power 11 Tx/Rx Mode 12 North East Longitude Corner 1 13 North East Latitude Corner 1 14 South West Longitude Corner 2 15 South West Latitude Corner 2 16 NMEA 2000 Reserved 17 Addressed or Broadcast Message Indicator 18 Channel A Bandwidth 19 Channel B Bandwidth 20 NMEA 2000 Reserved 21 Transitional Zone Size 22 Spare 
+
+## Page 38 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+AIS Class B Group Assignment 129807 
+
+Field # Field Description 
+
+The Group Assignment Command is transmitted by a base station when operating as a controlling entity for AIS Stations. 1 Message ID 2 Repeat Indicator 3 Source ID 4 Spare 5 Tx/Rx Mode 6 NMEA 2000 Reserved 7 North East Longitude Corner 1 8 North East Latitude Corner 1 9 South West Longitude Corner 2 10 South West Latitude Corner 2 11 Station Type 12 NMEA 2000 Reserved 13 Ship and Cargo Filter 14 Spare 15 NMEA 2000 Reserved 16 Reporting Interval 17 Quiet Time 18 Spare 
+
+## Page 39 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+DSC Call Information 129808 
+
+Field # Field Description 
+
+This parameter group provides Digital Selective Calling (DSC) data according to ITU M.493-9 with optional expansion according to ITU M.821-1. DSC is a paging system that is used to automate distress alerts sent over terrestrial communication systems such as VHF, MF and HF marine radio systems. DSC provides a mechanism to report significantly more information regarding a distress call rather than just the distress itself. Products equipped with DSC will transmit and receive this information. 1 DSC Format Symbol 2 DSC Category Symbol 3 DSC Message Address 4 Nature Of Distress or 1st Telecommand 5 Subsequent Communication Mode or 2nd Telecommand 6 Proposed Rx Frequency/Channel 7 Proposed Tx Frequency/Channel 8 Telephone Number 9 Latitude of Vessel Reported 10 Longitude of Vessel Reported 11 Time of Position 12 MMSI Of Ship In Distress 13 DSC EOS Symbol 14 Expansion Enabled 15 Reserved Bits 16 Calling Rx Frequency/Channel 17 Calling Tx Frequency/Channel 18 Time of Receipt/Transmission 19 Date of Receipt/Transmission 20 DSC Equipment Assigned Message ID 21 DSC Expansion Field Symbol 22 DSC Expansion Field Data 23 Variable Number Of Fields, Field 21 Repeated, Expansion Field Type 24 Variable Number Of Fields, Field 22 Repeated, Expansion Field Data AIS Class B "CS" Static Data Report, Part A 129809 
+
+Field # Field Description 
+
+This parameter group is used by Class B "CS" shipborne mobile equipment each time Part A of ITU-R M.1372 Message 24 is received. 1 Message ID 2 Repeat Indicator 3 User ID 4 Name 
+
+## Page 40 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+AIS Class B "CS" Static Data Report, Part B 129810 
+
+Field # Field Description 
+
+This parameter group is used by Class B "CS" shipborne mobile equipment each time Part B of ITU-R M.1372 Message 24 is received. 1 Message ID 2 Repeat Indicator 3 User ID 4 Type of Ship and Cargo 5 Vendor ID 6 Call Sign 7 Ship Length 8 Ship Beam 9 Reference Point Position from Starboard 10 Reference Point Position Aft of Bow 11 Mother Ship MMSI 12 NMEA 2000 Reserved 13 Spare Loran-C TD Data 130052 
+
+Field # Field Description 
+
+This provides Time Difference (TD) lines of position of Loran-C signals relative to a single Group Repetition Interval. 1 Group Repetition Interval (GRI) 2 Master Range 3 V Secondary TD 4 W Secondary TD 5 X Secondary TD 6 Y Secondary TD 7 Z Secondary TD 8 Station status: Master 9 Station status: V 10 Station status: W 11 Station status: X 12 Station status: Y 13 Station status: Z 14 Mode 15 Reserved Bits 
+
+## Page 41 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Loran-C Range Data 130053 
+
+Field # Field Description 
+
+This provides Propagation times (Ranges) of Loran-C signals relative to a single Group Repetition Interval. 1 Group Repetition Interval (GRI) 2 Master Range 3 V Secondary Range 4 W Secondary Range 5 X Secondary Range 6 Y Secondary Range 7 Z Secondary Range 8 Station status: Master 9 Station status: V 10 Station status: W 11 Station status: X 12 Station status: Y 13 Station status: Z 14 Mode 15 Reserved Bits Loran-C Signal Data 130054 
+
+Field # Field Description 
+
+SNR, ECD, and ASF values of Loran-C signals 1 Group Repetition Interval (GRI) 2 Station identifier 3 Station SNR 4 Station ECD 5 Station ASF 
+
+## Page 42 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Route and WP Service - Database List 130064 
+
+Field # Field Description 
+
+Complex request for this PGN should return a list of Databases in which a navigation Device organizes its Routes and WPs. A Database may contain one WP-List and multiple Routes. 1 Start Database ID 2 nItems 3 Number of Databases available 4 Database ID 5 Database Name 6 Database Timestamp 7 Database Datestamp 8 WP Position Resolution 9 Reserved Bits 10 Number of Routes in Database 11 Number of WPs in Database 12 Number of Bytes in Database 13 Fields 4 thru 12 repeat as needed Route and WP Service - Route List 130065 
+
+Field # Field Description 
+
+Complex request for this PGN should return a list of Routes in a Database. 1 Start Route ID 2 nItems 3 Number of Routes available in Database 4 Database ID 5 Route ID 6 Route Name 7 reserved 8 WP Identification Method 9 Route Status 10 Fields 5 thru 9 repeat as needed 
+
+## Page 43 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Route and WP Service - Route/WP-List Attributes 130066 
+
+Field # Field Description 
+
+Complex request for this PGN should return the attributes of a Route or the WP-List. 1 Database ID 2 Route ID 3 Route/WP-List Name 4 Route/WP-List Timestamp 5 Route/WP-List Datestamp 6 Change at Last Timestamp 7 Number of WPs in the Route/WP-List 8 Critical supplementary parameters 9 Navigation Method 10 WP Identification Method 11 Route Status 12 XTE Limit for the Route 13 Reserved Route and WP Service - Route - WP Name & Position 130067 
+
+Field # Field Description 
+
+Complex request of this PGN should return the Waypoints belonging to a Route. 1 Start RPS# 2 nItems 3 Number of WPs in the Route 4 Database ID 5 Route ID 6 WPID 7 WP Name 8 WP Latitude 9 WP Longitude 10 Fields 6 thru 9 repeat as needed Route and WP Service - Route - WP Name 130068 
+
+Field # Field Description 
+
+Complex request of this PGN should return the Waypoints belonging to a Route. 1 Start RPS# 2 nItems 3 Number of WPs in the Route 4 Database ID 5 Route ID 6 WPID 7 WP Name 8 field 6 thru 7 repeat as needed 
+
+## Page 44 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Route and WP Service - XTE Limit & Navigation Method 130069 
+
+Field # Field Description 
+
+Complex request of this PGN will return XTE Limit and/or Navigation Method specific to individual legs of a Route. 1 Start RPS# 2 nItems 3 Number of Waypoints with a specific XTE Limit or Nav. Method 4 Database ID 5 Route ID 6 RPS# 7 XTE limit in the leg after WP 8 Nav. Method in the leg after WP 9 Reserved Bits 10 Fields 6 thru 9 repeat as needed Route and WP Service - WP Comment 130070 
+
+Field # Field Description 
+
+Complex request of this PGN should return supplementary Comments attached to Waypoints in a Route or a WP-List 1 Start ID 2 nItems 3 Number of WPs with Comments 4 Database ID 5 Route ID 6 WPID / RPS# 7 Comment 8 Fields 6 thru 7 repeat as needed Route and WP Service - Route Comment 130071 
+
+Field # Field Description 
+
+Complex request of this PGN should return supplementary Comments attached to Routes. 1 Start Route ID 2 nItems 3 Number of Routes with Comments 4 Database ID 5 Route ID 6 Comment 7 Fields 5 thru 6 repeat as needed 
+
+## Page 45 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Route and WP Service - Database Comment 130072 
+
+Field # Field Description 
+
+Complex request of this PGN should return supplementary Comments attached to Databases in the navigation Device. 1 Start Database ID 2 nItems 3 Number of Databases with comments 4 Database ID 5 Comment text 6 Fields 4 thru 5 repeat as needed Route and WP Service - Radius of Turn 130073 
+
+Field # Field Description 
+
+Complex request of this PGN should return the Radius of Turn at specific Waypoints of a Route. 1 Start RPS# 2 nItems 3 Number of Waypoints with a specific Radius of Turn 4 Database ID 5 Route ID 6 RPS# 7 Radius of Turn 8 Fields 6 and 7 repeated as needed Route and WP Service - WP List - WP Name & Position 130074 
+
+Field # Field Description 
+
+Complex request of this PGN should return the Waypoints of a WP-List. 1 Start WPID 2 nItems 3 Number of valid WPs in the WP-List 4 Database ID 5 reserved 6 WPID 7 WP Name 8 WP Latitude 9 WP Longitude 10 Fields 6 thru 9 repeat as needed 
+
+## Page 46 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Wind Data 130306 
+
+Field # Field Description 
+
+Direction and speed of Wind. True wind can be referenced to the vessel or to the ground. The Apparent Wind is what is felt standing on the (moving) ship, I.e., the wind measured by the typical mast head instruments. The boat referenced true wind is given by the vector sum of Apparent wind and vessel's heading and speed though the water. The ground referenced true wind is given by the vector sum of Apparent wind and vessel's heading and speed over ground. 1 Sequence ID 2 Wind Speed 3 Wind Direction 4 Wind Reference 5 Reserve Environmental Parameters 130310 
+
+Field # Field Description 
+
+Local atmospheric environmental conditions 1 Sequence ID 2 Water Temp 3 Outside Ambient Air Temp. 4 Atmospheric Pressure 5 Reserved Bits Environmental Parameters 130311 
+
+Field # Field Description 
+
+Environmental Conditions contains Temperature, Humidity, and Atmospheric Pressure. This is a rework of PGN # 130310 and should be used for new designs. 1 Sequence ID 2 Temperature Instance 3 Humidity Instance 4 Temperature 5 Humidity 6 Atmospheric Pressure Temperature 130312 
+
+Field # Field Description 
+
+Temperature as measured by a specific temperature source. 1 SID 2 Temperature Instance 3 Temperature Source 4 Actual Temperature 5 Set Temperature 6 Reserve Bits 
+
+## Page 47 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Humidity 130313 
+
+Field # Field Description 
+
+Humidity as measured by a specific humidity source. 1 SID 2 Humidity Instance 3 Humidity Source 4 Actual Humidity 5 Set Humidity 6 Reserve Bits Actual Pressure 130314 
+
+Field # Field Description 
+
+Pressure as measured by a specific pressure source 1 SID 2 Pressure Instance 3 Pressure Source 4 Pressure 5 Reserve Bits Set Pressure 130315 
+
+Field # Field Description 
+
+This parameter group can be sent to a device that controls pressure to change its targeted pressure, or it can be sent out by the control device to indicate its current targeted pressure. 1 SID 2 Pressue Instance 3 Pressure Source 4 Pressure 5 Reserve Bits 
+
+## Page 48 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Tide Station Data 130320 
+
+Field # Field Description 
+
+Tide station measurement data including station location, numeric identifier, and name 1 Mode 2 Tide Tendency 3 Reserved Bits 4 Measurement date 5 Measurement time 6 Station location, latitude 7 Station location, longitude 8 Tide level 9 Tide level standard deviation 10 Station ID String 11 Station Name String Salinity Station Data 130321 
+
+Field # Field Description 
+
+Salinity station measurement data including station location, numeric identifier, and name. 1 Mode 2 Reserved Bits 3 Measurement Date 4 Measurement time 5 Station location, latitude 6 Station location, longitude 7 Salinity 8 Water Temperature 9 Station ID String 10 Station Name String 
+
+## Page 49 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Current Station Data 130322 
+
+Field # Field Description 
+
+Current station measurement data including station location, numeric identifier, and name. 1 Mode 2 State 3 Reserved Bits 4 Measurement date 5 Measurement time 6 Station location, latitude 7 Station location, longitude 8 Measurement depth 9 Current speed 10 Current flow direction 11 Water Temperature 12 Station ID String 13 Station Name String Meteorological Station Data 130323 
+
+Field # Field Description 
+
+Meteorological station measurement data including station location, numeric identifier, and name. 1 Mode 2 Reserved Bits 3 Measurement date 4 Measurement time 5 Station location, latitude 6 Station location, longitude 7 Wind Speed 8 Wind Direction 9 Wind Reference 10 Reserve Bits 11 Wind Gusts 12 Atmospheric Pressure 13 Air Temperature 14 Station ID String 15 Station Name String 
+
+## Page 50 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Moored Buoy Station Data 130324 
+
+Field # Field Description 
+
+Moored buoy measurement data including station location and numeric identifier. 1 Mode 2 Reserved Bits 3 Measurement date 4 Measurement time 5 Station location, latitude 6 Station location, longitude 7 Wind Speed 8 Wind Direction 9 Wind Reference 10 Reserved Bits 11 Wind Gusts 12 Wave Height 13 Dominate Wave Period 14 Atmospheric Pressure 15 Pressure Tendency Rate 16 Air temperature 17 Water temperature 18 Station ID String Small Craft Status 130576 
+
+Field # Field Description 
+
+Provides data on various small craft control surfaces and speed through the water. Used primarily by display or instrumentation. 1 Port trim tab 2 Starboard trim tab 3 Reserved Bits Direction Data 130577 
+
+Field # Field Description 
+
+The purpose of this PGN is to group three fundamental vectors related to vessel motion, speed and heading referenced to the water, speed and course referenced to ground and current speed and flow direction. 1 Data Mode 2 Set/COG/Heading Ref. 3 Reserved Bits 4 SID 5 Course Over Ground 6 Speed Over Ground 7 Heading 8 Speed through Water 9 Set 10 Drift 
+
+## Page 51 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010 NMEA 2000 ® STANDARD FOR SERIAL-DATA NETWORKING OF MARINE ELECTRONIC DEVICES 
+
+Vessel Speed Components 130578 
+
+Field # Field Description 
+
+This PGN provides a single transmission that accurately describes the speed of a vessel by component vectors. 1 Longitudinal Speed, Water-referenced 2 Transverse Speed, Water-referenced 3 Longitudinal Speed, Ground-referenced 4 Transverse Speed, Ground-referenced 5 Stern Speed, Water-referenced 6 Stern Speed, Ground-referenced 
+
+## Page 52 of 52 
+
+## Parameter Group Fields 
+
+## Version 1.301 - 12-Apr-10 
+
+## Copyright© NMEA 1999-2010

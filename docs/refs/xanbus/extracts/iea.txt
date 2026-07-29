@@ -1,0 +1,1998 @@
+Title: Microsoft Word - Act_22_final_km.doc
+
+URL Source: https://iea-pvps.org/wp-content/uploads/2020/01/rep11_04.pdf
+
+Published Time: Wed, 15 Apr 2020 08:53:25 GMT
+
+Number of Pages: 84
+
+Markdown Content:
+> 0
+
+# COMMUNICATION BETWEEN COMPONENTS IN MINI-GRIDS 
+
+# Recommendations for communication system needs for PV hybrid mini-grid systems 
+
+# IEA-PVPS T11-04:2011 IEA-PVPS T11-04:2011 
+
+1
+
+# COMMUNICATION BETWEEN COMPONENTS IN MINI-GRIDS 
+
+# Recommendations for communication system needs for PV hybrid mini-grid systems 
+
+# Report IEA-PVPS T11-04:2011 
+
+This technical report has been prepared under the supervision of PVPS Task 11 by: (Activity Leader and Lead Author) Steca Elektronik GmbH, 87700 Memmingen, Germany (Partners and co-workers) Fraunhofer Institut für Solare Energiesysteme (ISE), Freiburg, Germany GMG Corporation, Tokyo, Japan Ingeteam, Navarra, Spain Konkuk University, Seoul, Korea SMA Regelsysteme, Kassel, Germany Schneider Electric, Vancouver, Canada IEA-PVPS T11-04:2011 
+
+2
+
+Content 
+
+1. Foreword ................................................................................................................................... 32. Executive summary................................................................................................................... 53. Introduction, scope and objective ............................................................................................. 84. Purpose of data communication within PV hybrid systems .................................................... 10 4.1. Introduction ....................................................................................................................... 10 4.2. Type of Communication .................................................................................................... 11 4.3. Functions of Communication ............................................................................................ 11 4.3.1. Fast Communication .................................................................................................. 11 4.3.2. Slow Communication .................................................................................................. 12 4.4. Data communication protocols and buses ........................................................................ 12 5. Existing Communication Examples ..................................................................................... 16 5.1. Japan ................................................................................................................................ 16 5.1.1. Introduction ................................................................................................................. 16 5.1.2. Purpose of Communication ........................................................................................ 17 5.1.3. Type of Communication.............................................................................................. 20 5.1.4. Hardware Bus Description .......................................................................................... 20 5.1.5. Protocol Description ................................................................................................... 22 5.2. Korea ................................................................................................................................ 22 5.2.1. Introduction ................................................................................................................. 22 5.2.2. Purpose of Communication ........................................................................................ 24 5.2.3. Type of Communication.............................................................................................. 24 5.2.4. Hardware Bus Description .......................................................................................... 24 5.2.5. ASCII Protocol Description ......................................................................................... 25 5.3. Schneider Electric (Xantrex) – Canada ............................................................................ 26 5.3.1. Introduction ................................................................................................................. 26 5.3.2. Purpose of Communication ........................................................................................ 27 5.3.3. Type of Communication.............................................................................................. 27 5.3.4. Hardware Bus Description .......................................................................................... 28 5.3.5. Protocol Description ................................................................................................... 29 5.4. SMA Communication - Germany ...................................................................................... 31 5.4.1. Overview .................................................................................................................... 31 5.5.1. Introduction ................................................................................................................. 32 5.5.2. Purpose of Communication ........................................................................................ 34 5.5.3. Type of Communication............................................................................................. 34 5.5.4. Protocol Description ................................................................................................... 34 6. Open Source Communication Protocols for Hybrid Energy Systems ..................................... 36 6.1. Universal Energy Supply Protocol (UESP) ....................................................................... 36 6.1.1. General Description .................................................................................................... 36 6.1.2. Example Systems ...................................................................................................... 37 6.1.3. Structure of Communication ....................................................................................... 39 6.1.4. Existing UESP Components ....................................................................................... 41 6.1.5. UESP Certification Laboratory.................................................................................... 42 6.1.6. Status and future of UESP ......................................................................................... 43 6.2. Emerging Standards for Distributed Generation Communication ..................................... 44 6.2.1. Introduction ................................................................................................................. 44 6.2.2. IEEE P1547.3 ............................................................................................................. 44 6.2.3. IEC 61 850 ................................................................................................................. 45 7. Summary and Recommendations ........................................................................................... 50 Notes........................................................................................................................................... 53 Appendix ..................................................................................................................................... 54 IEA-PVPS T11-09:2010 
+
+3
+
+1. Foreword 
+
+The International Energy Agency (IEA), founded in November 1974, is an autonomous body within the framework of the Organization for Economic Cooperation and Development (OECD) which carries out a comprehensive program of energy co-operation among its member countries. The European Commission also participates in the work of the IEA. The IEA Photovoltaic Power Systems Program (PVPS) is one of the collaborative R&D Agreements established within the IEA. Since 1993, the PVPS participants have been conducting a variety of joint projects in the application of photovoltaic conversion of solar energy into electricity. The mission of the IEA PVPS program is: To enhance the international collaboration efforts which accelerate the development and deployment of photovoltaic solar energy as a significant and sustainable renewable energy option. 1. To stimulate activities that will lead to a cost reduction of PV power systems applications. 2. To increase the awareness of PV power systems’ potential and value and thereby provide advice to decision makers from government, utilities and international organizations. 3. To foster the removal of technical and non-technical barriers of PV power systems for the emerging applications in OECD countries. 4. To enhance co-operation with non-OECD countries and address both technical and non-technical issues of PV applications in those countries. The overall program is headed by an Executive Committee composed of one representative from each participating country, while the management of individual research projects (Tasks) is the responsibility of Operating Agents. By mid 2010, thirteen Tasks were established within the PVPS program. The overall goal of Task 11: “PV Hybrid Systems within Mini-grids” is to promote the role of PV technology as a technically relevant and competitive source in mini-grids. It aims at enhancing the knowledge-base of multi-source power generation systems including PV and associated electric distribution networks. The objectives of the Task are to: 
+
+• provide recommendations on individual designs (mix of technologies, architecture, size, performances, other) in order to achieve high penetration level of PV as a mean to improve quality, reliability and economics of electrification systems such as mini-grids; 
+
+• assess the potential of technologies to be mixed with PV for hybridisation; The current members of the IEA PVPS Task 11 are: Australia, Austria, Canada, China, France, Germany, Italy, Japan, Malaysia, Spain, and United States of America. IEA-PVPS T11-04:2011 
+
+4This report gives an overview of data communication systems standards used within PV-hybrid systems and mini-grids. Necessary requirements for data communications in PV hybrid systems are described. Several existing communication protocols used in PV hybrid systems are reviewed to provide an overview of the existing state of the art. New, open source, protocols that will improve interoperability of components in PV hybrid systems are presented. The technical report has been prepared under the supervision of PVPS Task 11 by: Steca Elektronik GmbH (DEU) Fraunhofer Institut für Solare Energiesysteme (DEU) GMG Corporation (JAP) Konkuk University (KOR) Schneider Electric (CAN) SMA Regelsysteme (DEU) Ingeteam (ESP) The report expresses, as nearly as possible, the international consensus of opinion of the Task 11 experts on the subject dealt with. Further information on the activities and results of the Task can be found at: http://www.iea-pvps-task11.org and 
+
+http://www.iea-pvps.org .IEA-PVPS T11-04:2011 
+
+5
+
+2. Executive summary 
+
+The International Energy Agency Photovoltaic Power System Executive Committee launched Task 11: “PV Hybrid Systems within Mini-grids” for the period 2006-2011. This Task extends the work on PV hybrid systems undertaken in PVPS Task 3: “Stand-Alone and Island Applications” and currently includes participants from 11 PVPS members. This IEA PVPS Task 11 report is part of Activity 22 and deals with communication infrastructure among different components of PV hybrid systems. Off-grid PV systems and, in particular, hybrid PV systems are characterised by a high degree of complexity. Therefore data communication among the system components is important to manage, so as to coordinate the overall energy flow in the system. Communicating components in a PV hybrid system typically include the power handling components, such as energy generators, energy storage systems, loads, and switchgear, and also control and monitoring systems. The data communication system implements one or more of the following functions: 
+
+• Control – coordination of component operation for energy management, synchronization, parallel operation, protection, and other system requirements 
+
+• Configuration – initial component and system set-up, selection of operating modes, adjustment of set-points and parameters, and downloading of software upgrades from a single point 
+
+• Monitoring – providing consolidated data on status and performance of individual components and the entire system Many control functions require “fast” communication with precisely synchronized information exchange occurring within microseconds or milliseconds. Supervisory control (energy management), configuration and monitoring functions can usually be carried out with a “slow” communication channel that does not required precise synchronization and allows information exchange with greater delays – fractions of a second to seconds. Fast communication channels are generally more difficult and expensive to implement over long distances. Therefore PV hybrid systems should be designed so that the components using fast communication are physically close to each other. Design of a data communication system for a PV hybrid mini-grid requires selection of pre-defined procedures for regulating the transmission of data, called protocols, and a physical communications medium, often called the data bus. Copper wire remains the most common physical medium for PV hybrid communication networks, but wireless (radio) systems are increasingly used for slow communications, and optical fibre may find use in high performance applications. A large number of protocols have been defined and standardized for data communications. A complete PV hybrid communication system will use a multi-layer set of protocols to transfer information between the physical medium and the control software in the components. Many of the standard lower level protocol layers, such as IEA-PVPS T11-04:2011 
+
+6RS485 plus Modbus, or CAN plus CANopen, are suitable for use in PV hybrid systems. However, there are, as yet, no widely used high level protocols, often called standard information models, for PV hybrid components. Individual manufacturers develop proprietary information models that allow their components to interoperate but these do not extend to components from other manufacturers. Task 11 surveyed its participants to determine how they used data communication among components and what protocols they employed. Slow communication for monitoring, data acquisition, and supervisory control is commonly implemented. Fast communication for control is less common. According to the survey, the most typical hardware bus used by the industry to control the components for PV-hybrid systems is an RS485 bus with proprietary protocols to exchange information. The CAN bus is also used, again often with proprietary protocols. Five case studies, from Japan, Korea, Canada, Germany, and Spain were also submitted. The Japanese and Korean studies look at actual PV systems. They clearly show that present day communication networks commonly use several different protocols, often proprietary, in one system. This is because different components in the system use different data buses and protocols. Considerable effort must be devoted to interfaces between the incompatible data buses and protocols. The Canadian, German, and Spanish studies look at the data communication infrastructure developed by manufacturers of components for PV hybrid systems. The manufacturers base their infrastructure at the lower levels on standard data bus structures and protocols. However they use different standards, and, at the higher levels, they have developed proprietary protocols and information models. Therefore, components supplied by each manufacturer can communicate among themselves, but they cannot communicate with components from other manufacturers. It is widely recognized, both in the PV industry and in the broader industry encompassing all distributed energy resources, that lack of compatibility of communication protocols among components from different vendors is an obstacle to developing better energy systems. Several initiatives have been started to develop common, standard, open-source protocols for distributed energy applications. A general approach is described in IEEE P1547.3 - ”Guide for Monitoring, Information Exchange, and Control of Distributed Resources Interconnected with Electric Power Systems”, which was published in 2007. It provides guidelines for monitoring, information exchange, and control for Distributed Energy Resources (DER) interconnected with Electric Power Systems (EPS). Although it is not a standard that describes specific communication architectures or sets of protocols, its guidelines and methodologies are used in establishing these architectures and protocols. The IEC 61850 ”Communication Networks and Systems in Substations” communication standard is an example of a standard conforming to the approach described in IEEE 1547.3. Originally developed for equipment in electric power system substations, it has evolved to support distributed energy resource (DER) integration with electric power IEA-PVPS T11-04:2011 
+
+7systems. Therefore it has potential application for PV hybrid mini-grids, particularly larger systems that may be interconnected with the central electricity grid. The Universal Energy Supply Protocol (UESP) represents a complete open-source communication protocol stack designed specifically for hybrid energy systems. Based on the CAN bus, it defines data types and objects to support energy management and monitoring and set-up of individual components and the entire hybrid system (see the report Appendix for complete details). The system architecture includes a central energy management unit that can implement a central system control strategy to improve the behaviour and handling of PV systems. It is well suited to small and medium sized stand-alone PV systems, PV hybrids, and mini-grids. The independent CAN in Automation (CiA) organisation (see http://www.can.cia.org), which manages professional CANopen standards for industry, has taken responsibility for further development of UESP. The UESP work has been brought together with the activities of CANopen EnergyBus, which is an activity of the international light electrical vehicles industry. It is developing the draft of CiA 454: CANopen application profile for light electrical vehicles. IEA-PVPS T11-04:2011 
+
+8
+
+3. Introduction, scope and objective 
+
+Installations of PV-hybrid systems for remote power supply applications are increasing year by year. In 2008 approximately 350MWp of PV capacity was installed in such systems world-wide 1. The main applications are industrial use (e.g. telecommunications) and rural electrification. In the early 1980s, the first PV-hybrid Systems were installed by research institutes as demonstration systems. Based on these experiences, the first companies started in the late 1980s to develop and market solar charge controllers and inverters for use in PV-Hybrid Systems. In the 1990s a market for such products was established and today professional solutions are available world-wide. The wide range of available components and system concepts allows system integrators to design complex PV hybrid systems to meet demanding performance requirements. However, to meet these performance requirements, there is a need to coordinate and monitor the operation of the components within PV-hybrid systems. A typical layout of a PV-Hybrid System is shown in Figure 1. 
+
+> Figure 1 - Typical Layout of a PV-Hybrid system
+
+Since several electrical sources, such as PV arrays, diesel gensets and wind generators, are combined with a battery bank to ensure continuous power supply, it is necessary to control the system to achieve the desired operating objectives, such as minimizing diesel fuel consumption and maintaining a minimum level of charge in the battery bank, by coordinating the operation of the power sources and possibly some of the electrical loads. Therefore a mechanism for information exchange and communication among power components within the system is important to meet the design objectives of such systems. IEA-PVPS T11-04:2011 
+
+9This report provides an overview of inter-component communication systems within PV-hybrid systems that are available in the market today. Several proprietary communication infrastructures and protocols are described, to illustrate the current state of the technology. In future, open source (non-proprietary) communication infrastructures will help components from different manufacturers to operate together. This interoperation capability will make systems more flexible and more transparent in terms of operating strategies and user interaction. Some open source protocols currently in development are described in more detail. IEA-PVPS T11-04:2011 
+
+10 
+
+4. Purpose of data communication within PV hybrid systems 4.1. Introduction 
+
+Generally, the purpose of data communication within a PV hybrid system is to achieve one or more of the following objectives: 
+
+• Control – coordination of component operation to meet system requirements 
+
+• Configuration – initial component and system set-up, selection of operating modes, adjustment of set-points and parameters, and downloading of software upgrades from a single point 
+
+• Monitoring – providing consolidated data on status and performance of individual components and the entire system. Communication components within a PV hybrid system can be classified as follows: 
+
+Table 1 Classification of communication components 
+
+Class Subclass 
+
+Loads Controllable loads Influenceable loads Dump loads 
+
+Generators Non dispatchable (Stochastic) Generators Dispatchable (Controllable) Generators 
+
+Energy Storage 
+
+Others Data loggers Sensors and actuatorsEnergy management Others 
+
+Each class has its own set of tasks within the PV-hybrid system, as well as specific communication needs. For example, controllable generators and loads will require considerable control-oriented communication, while sensors or data loggers require monitoring-oriented communication. The generators in the system must coordinate to manage the energy storage system, so they must intercommunicate and have access to monitoring information from the energy storage system. IEA-PVPS T11-04:2011 
+
+11 
+
+4.2. Type of Communication 
+
+Communication among components in PV hybrid systems can be classified into two modes: fast and slow. Fast communication is real-time, deterministic data transfer to enable synchronisation among power handling components, which is a precondition for the power handling components to work properly. The information exchange has to be done within milliseconds, or sometimes microseconds, in order to synchronize, for example, inverters which are working in parallel. Typical frequency of information exchange is around 20 kHz. Slow communication is normally applied to regulate the energy flow within the system (i.e. supervisory control). As the energy storage is often designed to run the whole system perhaps for several hours or at least minutes, energy management commands have to be distributed in a frequency range of 0,01 up to 1 Hz. The data transfer mechanism can allow short delays in transmission and there are no strict requirements for time synchronization. Fast and slow in this context refers to speed of response to system events, rather than to the effective data transfer rate. For example, fast communication for system protection has to respond quickly to a fault event, but these events are relatively infrequent, and the amount of data transferred per event is relatively small, so the effective data rate is low. In contrast, slow communication to update control software in a component may take some time to initiate, but the amount of data transferred is quite large, and it is transferred quickly once the transfer is started, so the effective data rate is high. 
+
+4.3. Functions of Communication 4.3.1. Fast Communication 
+
+Fast communications functions are normally limited to those that absolutely require the fast response capability. This is because fast communication channels are relatively expensive and their performance deteriorates with increasing data traffic. Typical fast communication functions in PV hybrid systems include: 
+
+• Maintaining ac bus stability: Frequency and voltage on the ac bus or mini-grid must be kept within limits and power quality must be maintained. This requires control of active and reactive power flows and phase synchronization of generators feeding the ac bus. As dynamic events occur, such as connection of a large load, the active generators must be coordinated to deliver the voltage and current required to maintain frequency and voltage regulation. IEA-PVPS T11-04:2011 
+
+12 
+
+• Controlling transitions among operating modes: Supervisory control functions command changes in the operating mode of the system to achieve various objectives. For example, an engine genset may be started and connected to the ac bus. The timing of these transitions must be precisely controlled to avoid voltage and frequency transients, so these are coordinated by fast communications. 
+
+• System protection: The mini-grid itself, as well as the loads and generators, must be protected in case of any fault. Short circuits, grid interruption and other faults could damage the whole system. For protection functions, fast communication is needed as the reaction in case of a fault needs to occur within a few milliseconds. Fast communication networks are technically easiest to implement and lowest cost, when they are physically compact with relatively short distances between communication nodes (less than 100 meters). Therefore, use of fast communications in PV hybrid systems is most common when the components that must communicate are located close to each other. If the PV hybrid system is a widely distributed mini-grid, with generation sources spread throughout the grid, then other means for stability control and system protection may be more effective. For example, voltage and frequency droop techniques can be used to coordinate widely separated generators without fast communications. 
+
+4.3.2. Slow Communication 
+
+Slow communication functions are typically all those that do not need the fast real-time response of fast communications. They include: 
+
+• Energy management functions to dispatch generators and control loads, so as to manage the energy storage system and achieve operating objectives, such as maximizing the PV energy contribution. 
+
+• System setup, configuration and status monitoring functions and the associated human interface (displays and control panels). 
+
+• Customer energy metering and dispensing functions 
+
+• Data logging to gather long-term data on system performance 
+
+• Gateways to other data networks such as satellite links, GSM (cellular telephone), or other public wide area networks. 
+
+4.4. Data communication protocols and buses 
+
+Successful information exchange between components in a PV hybrid system requires pre-defined procedures for regulating the transmission of data, called protocols, and a communications medium, often called the data bus. Modern data communication networks commonly use multiple levels of protocols to convert information to a form that can be transmitted over the data bus, as shown in the figure below. IEA-PVPS T11-04:2011 
+
+13  
+
+> Media Interface Layer
+> Media Interface Layer
+> Transport Layer Transport Layer Application Interface Layer Application Interface Layer
+> Physical medium (data bus)
+> Component A Component B
+> Protocol Stack
+
+Figure 2: Multi-level protocols for information exchange 
+
+The Media Interface Layer consists of the hardware and software required to access the physical communication medium and to provide basic facilities for establishing connections between components, regulating data flow, and correcting transmission errors at the bit level. The Transport Layer provides network services, such as managing the identification and addressing of devices on the network, message assembly and disassembly, message routing, and system level error detection and correction. The Application Interface Layer provides the network interface to the application software in the communicating component that uses communication services. 
+
+Physical communication media 
+
+Several different physical media have been used in communication networks for PV hybrid systems. The most common medium is dedicated copper conductors used in conjunction with some form of serial data protocol. Selection of the serial protocol is driven by the following factors: 
+
+• Desired performance of the communication network (e.g. slow or high speed communication, number of communicating devices, distance between devices) 
+
+• Availability and cost of the media interface hardware. Equipment manufacturers prefer protocols that are supported by low cost hardware, preferably embedded in the equipment controller. 
+
+• Popularity of the serial protocol. A widely used protocol expands the range of equipment that can be interfaced. IEA-PVPS T11-04:2011 
+
+14 Some popular serial data protocols used in current PV hybrid systems include 1. RS232 (now formally designated TIA232 (ANSI/EIA/TIA-232-F-1997 2). This simple point-to-point protocol has been in existence for over 40 years and is well supported by low cost interface hardware and software drivers. It is primarily suited for slow communication between two components over relatively short distances (up to 15 meters) 2. RS485 (now formally designated TIA485 (ANSI/TIA/EIA-485-A-98 R2003 3) this multi-point protocol is well supported and enables fast and slow communication among multiple components when used with a higher level data protocol, such as Modbus or Profibus. Maximum distance between components (without repeaters) is 1200 meters. 3. CAN (Controller Area Network – formally ISO 11898 (CAN ISO 11898-1:2003 4), this multi-point protocol, originally developed for automotive in-vehicle networks, is increasingly well supported and enables fast and slow communications among multiple components. A variety of higher level protocols are available for use with the basic CAN Media Interface Layer, such as CANOpen, Devicenet, and SAE J1939. CAN allows development of rugged and reliable networks that can perform fast distributed control functions in a PV hybrid system. However, to achieve the fastest possible response, the network must be relatively small (40 meter maximum distance). A serial data protocol that is likely to become more popular in equipment for PV hybrid systems in the near future is the Ethernet interface to unshielded twisted pair (UTP) cable. The cost of implementing this interface is declining rapidly and it makes connections to computers and wide area networks relatively straightforward. Implementing slow communication in an Ethernet system is relatively simple, but implementing fast communication among components requires careful attention to choice of higher level protocols, type of network architecture, amount of data traffic on the network, and size of the network. An alternative to using dedicated conductors as a communication medium is to inject the data on to the system power conductors using a powerline carrier (PLC) communication protocol. PLC technologies are already used in electricity networks for automated meter reading, control of switchgear, and load control. Similar applications are possible in PV hybrid minigrids. In addition, new higher data rate PLC technologies allow the possibility of fast communication to coordinate mini-grid operation. Wireless (radio frequency) communication channels in PV hybrid systems are primarily used for long distance, slow communication connections between PV hybrid systems and central control and monitoring sites. GSM (cellular telephone) and satellite links are commonly used. The development of low power, low cost wireless network technologies, such as Zigbee, may allow the use of wireless channels within PV hybrid systems for both slow and fast communication functions. IEA-PVPS T11-04:2011 
+
+15 Optical fibre channels offer high data rates and fast response over long distances. However they need significant network management infrastructure and thus are too expensive and complicated for dedicated use in most PV hybrid systems at present. If existing optical fibre infrastructure is available, for example in an urban environment for telecommunication and wide area network applications, then using the existing fibre network for the PV hybrid communication may make economic sense. 
+
+Higher level protocols and interoperation of equipment 
+
+In order for components to successfully communicate with each other, they must share the same communication protocols at all levels. For example, two components may each use a standard CAN media interface layer, but one may use the CANopen set of higher level protocols and the other may use the SAE J1939 set of higher level protocols. Even though they both have a CAN interface, they are not able to exchange data without additional translation software. In addition, for components to successfully interoperate (i.e. to use the communication channel for meaningful coordination of operations), the components must share a common information model that provides meaning and context for the data that is exchanged. For example, if two battery chargers in a PV hybrid system wish to cooperate in managing a battery bank, they must share common names and data formats with the battery monitoring system for quantities such as battery voltage, current, capacity, state of charge, and temperature. In addition, they must have a common algorithm for charging the battery and common procedures for sharing the charging function. This need for compatibility in protocols and information models has made interoperability of components from multiple suppliers difficult to achieve in PV hybrid systems. Equipment manufacturers have been improving the data communication capability of components, and they are usually willing to adopt standard communication protocols when possible since that reduces development effort. However, since the standard protocols selected are usually different between manufacturers, interoperation is not possible. In addition there are, as yet, no widely used standard information models for PV hybrid components. Individual manufacturers develop proprietary information models that allow their components to interoperate, but these do not extend to components from other manufacturers. This situation is being addressed both within the PV hybrid community and within the broader electrical energy industry. Chapter 6 of this report describes the UESP initiative to develop a common open-source set of protocols and information models for PV hybrid system components, as well as broader standards for information exchange among distributed generation resources connected to the electricity network. IEA-PVPS T11-04:2011 
+
+16 
+
+5. Existing Communication Examples 
+
+To provide insight into current data communication practices, several examples are presented. These include very advanced communications systems for urban mini-grid demonstration projects in Japan, monitoring systems for grid tie PV systems in Korea, and three communication protocols implemented by equipment manufacturers in North America and Europe. 
+
+5.1. Japan 5.1.1. Introduction 
+
+Photovoltaic (PV) and Wind Turbine (WT) generation systems are expected to offer solutions for reducing greenhouse gases and become more widely used in the future. However, the chief technical drawback of using these kinds of weather-dependent generators is the difficulty of forecasting their output, which can have negative impacts on commercial grids if a large number of them are introduced. Thus, this problem may hinder the wider application of PV and WT generation systems. The Regional Power Grid with Renewable Energy Resources Project was launched to seek a solution to this problem. The scope of the project is to develop, operate, and evaluate a Dispersed Renewable Energy Supply System with the ability to adapt the total energy output in response to changes in weather and demand. Such a system would reduce the impact that PV and WT generation systems have on commercial grids and allow the interconnection of more Dispersed Energy Resources (DER). In other words, the main objective of this project is to demonstrate an integrated energy management system, or a type of microgrid, as a new way of introducing DER´s. In this section, two types of microgrid systems, the Hachinohe project and the Kyotango project are introduced. Both systems were in operation from October 2005 to March 2008. The Hachinohe project is a real microgrid with private distribution and communication lines, and the Kyotango project is a virtual microgrid using commercial distribution and communication lines. IEA-PVPS T11-04:2011 
+
+17 
+
+5.1.2. Purpose of Communication 
+
+Both microgrid systems consist of distributed weather-dependent generators (photovoltaic and wind turbine), controllable distributed generators (biogas generators, battery), electrical and thermal demand, and EMS (Energy Management Systems). The objectives of energy management are economic operation and balancing control for demand and supply, which involves balancing control of microgrid-confined fluctuations of weather-dependent generators in the microgrid, thereby reducing the negative impact of using natural energy. In the Hachinohe project, distributed generators and users are connected by the private distribution line, and interconnected to a public utility network at one point. Thus, imbalance of demand and supply is measured by fluctuation of tie-line power flow. One objective of the Hachinohe project is to keep moving average (six minutes) error of demand and supply within 3% of demand. Furthermore, system structure of the Hachinohe project has the ability to isolate operation without a commercial power system. Another objective of the Hachinohe project is to maintain high power quality in isolated operation. 
+
+> Figure 3: System overview of Hachinohe project
+
+IEA-PVPS T11-04:2011 
+
+18 
+
+Figure 4: System overview of Kyotango project 
+
+Figure 5: Structure of Hachinohe project control system 
+
+【Operation planning 】
+
+Daily interval 
+
+【Economic dispatching 】
+
+3-minute interval 
+
+【Tie-line control 】
+
+1 second interval 
+
+【Frequency control 】
+
+10m second intarval 
+
+Gas engines 
+
+【Frequency control 】
+
+【Economic dispatching 】【Operation planning 】
+
++
+
+Inbalance compensation 
+
+Control Basis 
+
+> PV power conditioner
+
+f,V 
+
+> Reverse phase current
+
+4 level control hierarchy 
+
+Battery 
+
+【Tie-line control 】 +
+
+> Compensation
+
+Power quality 
+
+Optimum control 
+
+Utility Grid 
+
+City hall Junior High School 
+
+Elementary School 
+
+> Compensation
+
+Interconnection point (open when independent control IEA-PVPS T11-04:2011 
+
+19 Figure 5 shows the four-layered demand and supply control system. The objective of the upper two layers is optimum control, which determines unit commitments and outputs of bio-gas engine generators and battery. The objective of the lower two layers is power quality control. Tie-line control adjusts outputs of the bio-gas engine generators (approximately 1 min 1st order lag) and battery (response within 1 s) using measurement of tie-line power flow. In isolated operation mode, each generator has frequency drooping characteristics to coordinate operation. Additionally, the battery local control using frequency information is installed against instant change of demand and supply balance. On the other hand, in the Kyotango project, distributed generators and users are connected to public distribution lines as a virtual microgrid. Thus, imbalance of demand and supply has to be calculated using measured power generation and power consumption. The objective of the Kyotango project is to keep total error of demand and supply every 5 minutes within 3% of contracted maximum power. Figure 6 shows construction of the demand and supply control system for the Kyotango project. This system has two control layers; one is operation planning and the other is balancing control. The operation planning dispatches bio-gas engine generators’ commitment and output to minimize operation cost every 30 minutes. The balancing control adjusts the bio-gas engines’ output using 10-second interval information from measurement units (MUs) using local and wide area networks (LAN: Ethernet, WAN: ADSL and ISDN). In addition, the battery controller adjusts the battery’s output based on short-term (less than 2 min) fluctuations of weather-dependent energy. 
+
+Figure 6: Structure of Kyotango project control system      
+
+> Operation planning 30 ‐minute interval
+> B alancing control 10 ‐second interval
+> Gas
+> E ngines
+> Fuel cell
+> B attery
+> B attery C ontroller
+> MU
+> L A N
+> MU
+> MU
+> MU
+> WA N MU
+> MU
+> PV
+> WT
+> L oads
+> C om.
+> server 10-second ave. 10-second ave.
+> 10-second interval 10-second interval Unit commitment, Output IEA-PVPS T11-04:2011
+
+20 
+
+5.1.3. Type of Communication 
+
+Table 2 shows information updating intervals for monitoring and controlling in the Hachinohe and Kyotango projects. 
+
+> Table 2: Intervals for monitoring and control
+
+Hachinohe Kyotango 
+
+Monitoring 1 s: Tie-line flow, controllable generators, battery (used in control), State value of CBs >1s ： Uncontrollable generators (PV, WT), Wh Meters of Loads, etc. (not used in control) 10 s: All generators, loads, etc. 
+
+Control <1s: Trip signal for protection 1 s: Controllable generators 10 s: Controllable generators 
+
+For the Hachinohe project, every signal for protection, demand and supply control, and post analysis, shares a private communication line. Therefore, the priority of the signal is adjusted for assurance of control performance. 
+
+5.1.4. Hardware Bus Description 
+
+Figure 7 shows the construction of the communication system of the Hachinohe project. In this project, one-second communication performance is requested for demand and supply control. Therefore, the communication network for hub-programmable logic controllers (MELSEC 5) is constructed using star-type private communication lines (optical fibre cable, 100 Mb/s Ethernet, UDP/IP), and the communication network for local MELSEC is constructed using ring-type communication lines (optical fibre cable, MELSECNET/H). Communication between MELSEC and equipment (bio-gas engine generators, battery, power meter, etc.) uses an RS485 card, analog IO card and a digital IO card mounted on MELSEC. Also, communication between SCADA PC and EMS PC uses a commodity type of BUS network (UTP cable, 100 Mb/s Ethernet, TCP/IP). IEA-PVPS T11-04:2011 
+
+21 
+
+Figure 7: Communication network of Hachinohe project 
+
+The Kyotango project uses a public communication network because the system lies in a large area (over 10 km). This project compares cost performance of a private communication network (LAN), public telecommunication network (ADSL) and dial-up communication, and selects the ADSL network. This network provides communication delay within 20 s, and time synchronisation is achieved using a GPS time stamp. Table 3 shows an overview of measurement units used in the Kyotango project. 
+
+Table 3: Overview of Measurement Units in the Kyotango project 
+
+Structure Terminal body, Clamp CT, Voltage clip, GPS ANT 
+
+Size 210 mm x 110 mm x 53 mm 
+
+Analog inputs 8 values, 16 bit, 5 760 Hz 
+
+Comm. ports Ethernet 10BaseT, RS 232 C, RS 485 
+
+Protocols HTTP, FTP, SMTP             
+
+> S C A D A
+> PC
+> Optical cable, E thernet, UDP/IP
+> PL C (ME L SE C )
+> PL C (ME L SE C )
+> PL C (ME L SE C )
+> PL C (ME L SE C ) Optical, ME L S E C NE T /H
+> E quipment (WT ,PV )
+> E quipment (D G)
+> Metal, A nalog(4~20mA ) or D igital Metal, R S 485
+> E quipment (L oad)
+> Metal, A nalog
+> E MS PC
+> UT P, 100M E hternet, T C P/IP IEA-PVPS T11-04:2011
+
+22 
+
+5.1.5. Protocol Description 
+
+Table 4 shows the protocol description of the Hachinohe project. 
+
+> Table 4: Protocol description of Hachinohe project
+
+Connection Protocol 
+
+SCADA PC- EMS PC Commodity Ethernet, TCP/IP 
+
+SCADA-hub PLC Optical fibre cable (star), Ethernet, UDP/IP 
+
+Hub PLC-local PLC Optical fibre cable, (ring), MELSECNET/H 
+
+Local PLC-Equipment Analog: inputs (generator power output, demand measurement, bus voltage, etc.) and outputs (generator power output, generator terminal voltage) are 4~20 mA current signal. Digital: inputs (state value, Wh pulse, etc.) and outputs (on/off operation for CB and generator, up/down operation for governor, etc.) RS 485: communication with power conditioner for PV and WT (generation, status, solar radiation, wind speed) 
+
+5.2. Korea 5.2.1. Introduction 
+
+Korea triggered research on photovoltaic systems by research institutes and colleges in the early 1970’s. Then, in the 1980s, R&D projects were supported by government investment and the law for promotion of new, renewable energy projects .Since 1993 the Ministry of Commerce, Industry and Energy (MOCIE) has been implementing, via the Korea Energy Management Corporation (KEMCO), demonstration and field testing of various renewable energy technologies. In addition, the government has been encouraging and supporting local authorities to implement their own demonstration or field test projects under the framework of “Local Energy Development Program”. This program in part aims to raise public awareness on renewable energy technologies and to develop indigenous renewable energy sources for each region. In both of these projects, PV technology has always been a high priority. IEA-PVPS T11-04:2011 
+
+23 In July 2002, MOCIE opened to the public the “Solar Land 2010 Program” which is aimed at the acceleration of R&D and dissemination of PV systems in Korea and fostering PV as a new exporting industry as well. The key part of the program was to install 100 000 rooftop systems of 3 kW capacities by the year 2010. Furthermore, the feed-in-tariff project helped Megawatt photovoltaic power systems (PVPS) spread into the Korean peninsula. Now, almost 300 MW of PVPS are installed in Korea. With more and more PVPS installed, the need for monitoring systems increases. The excellent Korean internet structure has encouraged the spread of Ethernet based monitoring systems. Figure 8 depicts a typical photovoltaic system and associated monitoring system in Korea. 
+
+> Figure 8: Typical Layout of a Photovoltaic System in Korea.
+
+In the above picture, the DC combiner box monitors currents of PV strings that are connected in parallel, and sends data to the local monitoring computer. The local monitoring computer also gets measured data from inverters, sensor boxes and trackers in the PV system. In a web-based monitoring system, PV system data is sent to a web server by TCPIP, via WAN or LAN. A client bridge connects the local computer, or individual communication nodes, to the data network, allowing system data (voltage, currents, irradiance, etc.) to be sent to a web server. PV plant managers or residential house owners can check system operating status, generated energy, etc. by accessing the web-server with an internet browser program. IEA-PVPS T11-04:2011 
+
+24 
+
+5.2.2. Purpose of Communication 
+
+In these grid-tie PV applications the purpose of communication is status and performance monitoring. As a rule, PV systems operate without trouble. If failures or faults occur in the PV systems, without operating data monitoring it may only be possible to detect these after several months have passed, from the meter readings, and as a result there will be a large reduction in the revenue received. A comprehensive operating data-monitoring system ensures that failures or faults are signalled and quickly detected. In this way the system owners can carry out a rough check themselves and where necessary call in the installation engineer to carry out a fault diagnosis. 
+
+5.2.3. Type of Communication 
+
+The following describes only serial data communication that is used for local monitoring, not Web based transmission. An ASCII protocol implementing only layer 1, 2 and 7 of the OSI model is used: 
+
+• Layer 1 of OSI model: Physical link 
+
+• Layer 2 of OSI model: DATA link 
+
+• Layer 7 of OSI model: Application level Physical link is the RS485/422 interface. Data link is an ASCII based frame interface. 1. Point to point communication ( inverter to PC) 2. Poll mode (Master = PC / slave = inverter, data collector…) 3. Checksum control Application level defines a set of application commands for: 
+
+• Status read 
+
+• Measurement and nominal values read 
+
+• Order write 
+
+• Calibration and setting commands  
+
+> •
+
+System identification commands 
+
+5.2.4. Hardware Bus Description 
+
+• Baud rate : 9 600 b/s 
+
+• 8 data bits 
+
+• No parity 
+
+• 1 stop bit IEA-PVPS T11-04:2011 
+
+25 
+
+• Flow control – none 
+
+• RS 485/422 
+
+> Table 5: Hardware bus description
+
+5.2.5. ASCII Protocol Description 
+
+To establish communication with the inverter, a following frame is sent that starts with ENQ (05h). The inverter responds to the host within 500mS. Under certain conditions (such as data collection or loss) it may be necessary to send the frame again. All the frame data except ENQ, ACQ, EOT, CMD are HEX-ASCII format “0” to “9” digits and “A” to “F” uppercase letters are used.              
+
+> Table 6: ASCII Protocol description frame Comments Size
+> ENQ Enquiry(05) 1 Byte
+> ACK Acknowledge(06) 1 Byte
+> ID Inverter Identification(#n), 00h-1fh by ASCII 2 Byte
+> CMD Read Command, Read(R/52h) 1 Byte
+> address Read address, 0000h-fffh 4 Byte
+> No of Data Number of data, 00-ffh 2 Byte
+
+IEA-PVPS T11-04:2011 
+
+26 
+
+DATA Word format data 4*(No of data) byte 
+
+CK_SUM Check Sum except ENQ,ACK,EOT 4 Byte 
+
+E0T End of Transmission(04h) 1 Byte 
+
+Table 7 Request FRAME                     
+
+> ENQ ID CMD address No CK_SUM EOT
+> 5h 30h 31h 52h 30h 30h 32h 30h 30h 32h 30 31 64 37 04h
+
+Table 8 Answer FRAME                    
+
+> ACK ID CMD address DATA(8byte) CK_SUM EOT
+> 06h 30h 31h 52h 30h 30h 32h 30h Xxh…..xxh xxh xxh xxh xxh 04h
+
+Data0 ~ Data3 - PV array DC voltage address Data4 ~ Data7 - PV array DC current address 
+
+Example: 
+
+Data0 ~ Data3 - 0x0154 >> 30h 31h 35h 34h ---------- PV array DC voltage 340V Data4 ~ Data7 - 0x0032 >> 30h 30h 33h 32h ---------- PV array DC current 50A 
+
+5.3. Schneider Electric (Xantrex) – Canada 5.3.1. Introduction 
+
+Xantrex Technology Corporation, now a subsidiary of Schneider Electric, is amanufacturer of power conversion equipment for mobile and renewable energy markets. The company recognizes that data communications is a key functional requirement in many applications of its products and therefore has been improving and standardizing the data communications capability of its products for the past decade. Initially, Xantrex products were equipped with simple point-to-point serial data interfaces and used a variety of incompatible protocols. Xantrex has developed a higher performance data communication network employing the CAN physical layer and a proprietary, but standards-based, higher level protocol. This system designated Xanbus is incorporated in Xantrex’s XW products, which are intended for PV hybrid applications. The Xanbus network allows XW system components to coordinate operation and to communicate system data to the user and to external data networks, see Figure 9. IEA-PVPS T11-04:2011 
+
+27 
+
+Figure 9: Functionality of the Xanbus network 
+
+5.3.2. Purpose of Communication 
+
+The Xanbus architecture is capable of handling all classes of components within a PV hybrid system. However the present implementation encompasses energy generation (PV and engine generator), energy storage (battery management) and monitoring and human interface functions. The network allows the interconnected components to be configured, monitored and controlled. 
+
+5.3.3. Type of Communication 
+
+The Xanbus architecture handles both fast and slow communication tasks among interconnected components. However, because data bus traffic is variable and there is some latency time, it is not well suited for precise sub-millisecond synchronization tasks. Therefore it is augmented by separate synchronization and timing signals when it is used for tasks which require very precise and predictable timing. For example, the XW inverter/charger uses a separate, non-Xanbus signal to precisely synchronize the inverter output voltages when inverter/chargers are operated in parallel, but Xanbus messages are used to manage the synchronization scheme (e.g. to select the master inverter that sends out the synchronizing signal) and to balance the power output of the parallel inverters. Fast communication functions within a Xanbus PV hybrid system primarily involve synchronization of single phase inverter/chargers connected in parallel or three-phase configurations, including protection functions, operating mode changes (e.g. from autonomous to grid-tie operation) and operation of ac transfer switches. Slow communication functions include:  
+
+> I nvert er/ Charger ( I NV/ CHG)
+> User I nt erface ( UI )
+> Bat t ery Monit or/ Manager ( Fut ure)
+> Generat or Cont roller
+> CAN/ USB Adapt er
+> PV Charge Cont roller
+> Xanbus Net w ork
+> WAN I nt erface
+> Laptop computer
+> Wi Fi Ethernet
+> WAN Modem Computer IEA-PVPS T11-04:2011
+
+28 
+
+• coordination of inverter/chargers with PV charge controllers and genset controllers to manage battery state-of-charge and for other system energy management purposes, 
+
+• system and component configuration, 
+
+• and status and performance monitoring. 
+
+5.3.4. Hardware Bus Description 
+
+Xanbus employs a CAN 2.0 hardware bus as specified in ISO Standard 11 898 (CAN 2.0) “Road Vehicles - Interchange of Digital Information - Controller Area Network (CAN) for High-speed Communication”. It has adopted some aspects of the CAN-based protocols, SAE J 1939 “Recommended Practice for a Serial Control and Communications Vehicle Network” and NMEA 2000 “Standard for Serial-Data Networking of Marine Electronic Devices” to define aspects of the hardware bus that are not specified in ISO 11 898. The basic characteristics are 
+
+• Uses CAN controllers and transceivers compliant with CAN Version 2.0 Part B Extended Format 
+
+• Serial data rate of 250 kbit/s. 
+
+• Maximum network length of 200 m. 
+
+• Up to 50 physical node connections (limited by network power supply) Xanbus uses four conductors (two for data, two for network power) with an optional shield as the physical medium. Unshielded Category 5 (CAT5) Ethernet cable is commonly used. A number of connector options are specified to meet the needs of various applications and markets. Xanbus products intended for use in PV hybrid applications are currently equipped with RJ45 modular connectors (the same as those used for Ethernet connections). A Xanbus network can be configured in one of two cable topologies: the multi-drop backbone (see Figure 10) or the daisy chain (see Figure 11). 
+
+> Figure 10: Multi-drop backbone topology
+
+IEA-PVPS T11-04:2011 
+
+29 
+
+Figure 11: Daisy chain topology 
+
+The CAN transceivers in a Xanbus interface are connected directly to the cable but the transceivers are galvanically isolated from the remainder of the interface if the node has other external electrical connections. Xanbus distributes network power (15 V DC) on two of its conductors to operate CAN transceivers and also low power nodes that do not have independent power sources. At least one Xanbus node in the network must be equipped to supply network power – usually this is the inverter/charger. 
+
+5.3.5. Protocol Description 
+
+The Xanbus protocol is based upon the open networking standard NMEA 2000. NMEA 2000 was developed by the National Marine Electronics Association, which is a US based organization that promotes communication standards for the marine industry. NMEA 2000 is a superset of the existing ISO 11 783 and SAE J1939 CAN protocols. Xantrex chose NMEA 2000 as a basis for Xanbus because it is a comprehensive, open standard used in one of its mobile markets and very similar standards are used in other mobile markets (i.e. SAE J 1939 for heavy duty vehicles and RV-C for recreational vehicles). 
+
+Figure 12: Xanbus Protocol Stack   
+
+> Transport Layer
+> Transport Layer
+> Application Layer
+> Network Layer
+> Data Link Layer (DLL)
+> Physical Layer
+> Application Layer
+> Network Layer
+> Data Link Layer (DLL)
+> Physical Layer APDU Packet Frame Bit
+> Node 1 Node 2 1567
+> Application Protocol Transfer Unit Level
+> Node 1 - 2 Message Path
+> Network Protocol Data Link Protocol Physical Protocol NMEA 2000 ISO 11783 SAE J1939 CAN 2.0B ISO 11898
+> 4TPDU
+> Transport Protocol IEA-PVPS T11-04:2011
+
+30 The protocol provides facilities that allow network set-up to be “plug & play”. Individual Xanbus nodes claim their own network addresses and each Xanbus enabled component has a silicon ID chip with a globally unique identification number that allows it to be distinguished on the network. One user configuration task, which cannot be automated but is supported by the Xanbus protocol, is to set associations between nodes and the electrical network. For example, associations are set up between an inverter and the AC bus to which it is connected, or between a PV charge controller and the battery to which it is connected. This allows a mapping between the data network and the physical system that is needed to allow proper operation and status monitoring. For example it is important for the network to “know” which components are connected to a battery in order to properly manage the battery. Similarly, in a three-phase mini-grid, the network must “know” which single-phase inverters are connected to which electrical phase in order to properly coordinate operation and display data in ameaningful fashion. Xanbus is a message-based, peer-to-peer protocol. Messages may be broadcast to all nodes in the network or they may be addressed to specific nodes, As with other protocols based on SAE J1939, the content of messages is defined in an application profile which is structured as data dictionaries (parameter groups) in which each entry has a defined format and represents a defined item – usually a physical parameter or a status condition. The content of a message is identified by a parameter group number (PGN) which is included in the message header. Using the PGN, receiving nodes can look up the appropriate entry in the parameter group dictionary and determine how to interpret the data in the message. Xanbus uses many parameter groups from the NMEA 2000 protocol, particularly those associated with data network configuration and services, but also has proprietary parameter groups defining messages related specifically to the components and systems it is intended to interconnect. These messages can be classified as: Commands – Initiate an action upon request Configuration – Allows reading and changing a component’s operating modes, set-points, protection settings, etc. Has provision for security and different levels of access for users, service personnel, and the factory. Status – Reports on the current status of a node. May be transmitted on request or periodically and may include information on system operating state, faults and warnings, and physical parameters (voltages, currents, power, temperature, etc.) Statistics – Reports aggregated historical data Diagnostics – Messages used by service personnel and diagnostic equipment to diagnose and repair components. Development – Low level messages used in engineering development. IEA-PVPS T11-04:2011 
+
+31 
+
+Future Development 
+
+Xantrex intends, whenever possible, to adopt open networking standards that allow its components to interconnect with other elements of distributed energy systems. The lack of standard, widely used open data network protocols for distributed and renewable energy systems in the past has required Xantrex to develop a proprietary protocol. However emerging data communication standards arising from utility distribution system automation and “smart grid” initiatives may allow the adoption of a standard protocol that allows interoperation with other non-Xantrex components without the need for gateways and protocol converters. 
+
+5.4. SMA Communication - Germany 5.4.1. Overview 
+
+The following describes the structure and usage of the "YASDI" software program for communication, with devices manufactured by SMA Regelsysteme. The name "YASDI" stands for "Yet another SMA Data Implementation". Functioning as a driver system without its own graphical interface, the software communicates with SMA devices (e.g. SunnyBoy inverters) using "SMA Data Protocol" via "SunnyNet" and "SMANet". The software has been designed in such a way that it can be easily adapted to other environments (operating systems). At the time of this document's release, adaptations for Windows (Win32) and Linux exist. All system-dependent functions are abstracted from the operating system via an interface. The software is written in "C", and allows maximum portability to other possible target platforms. Although an object-oriented language is not used, there is nevertheless an attempt made to realize an object-oriented structure with the "C" language. The implementations for Windows and Linux are executed as libraries (Windows: DLL, Linux: SO). Utilization, for example as part of a "monolithic" program, is also possible. YASDI primarily implements the master functionality of the SMA Data Protocol. Slave functions can also be easily implemented by utilizing the rudimentary functions for sending and receiving packets. 
+
+Software – Brief Overview 
+
+Implementation of YASDI is based on the OSI layered model for network protocols. The individual layers are grouped in particular libraries, which can be seen in Figure 13. More information about the SMA communication protocols is available from: 
+
+http://www.sma.de/en/products/software/yasdi.html IEA-PVPS T11-04:2011 
+
+32 
+
+> Figure 13: Grouped individual layers 5.5. Ingeteam - Spain
+
+5.5.1. Introduction 
+
+The Ingecon® Hybrid MS system is a modular power converter solution for mini-grids by Ingeteam Energy SA. It embodies the power electronics equipment as well as the management system required for autonomous power supply systems. There is no need for any additional controller. However, communication can be used for monitoring and for programming operation parameters. Though Ingeteam provides its own basic monitoring software, there is documentation describing the open protocol available to any developer who wishes to build custom software for this purpose. The Ingecon® Hybrid MS is based on modules of different types that perform different tasks in a mini-grid. Modules of the same type can be connected together in order to get higher power ratings. IEA-PVPS T11-04:2011 
+
+33 
+
+> Figure 14: General layout of an Ingecon system
+
+Modules of the same and of different types are interconnected by means of an internal power bus. This bus is not open for external access. All the modules are coordinated by a controller placed at the display’s CPU. The communication between all the elements is carried out with a CAN network. There is another network intended for maintenance functions such as memory access, data-logger collection, and firmware upgrading. This network operates under the RS-485 standard. A monitor can recover all the relevant data from the controller following the ModBus RTU protocol. After sizing an installation, with the Ingecon® Hybrid MS, a system is formed with the necessary modules that meet the requirements of the AC power output, the power input sources, and the energy storage. The AC power output is related to the Inverter module. One Inverter module can manage up to 30kVA. An installation with a peak load of, say, 50kVA can be supplied with two Inverter modules. One single mini-grid can comprise up to four Inverter modules which means that it can supply loads of maximum 120kVA. Ingeteam is developing new strategies that will allow interconnecting several Ingecon® Hybrid MS mini-grids and thus increasing the maximum power output. IEA-PVPS T11-04:2011 
+
+34 
+
+5.5.2. Purpose of Communication 
+
+The three different ways for communicating in an Ingecon® Hybrid MS system enable the following tasks: 
+
+System bus: 
+
+Monitoring of every module Parameters configuration (through controller) Operation control (ON / OFF) Firmware upgrade (Ingeteam access) 
+
+• Memory monitoring (Ingeteam access) 
+
+Controller access: 
+
+Monitoring of system data Parameters configuration Operation control (in special applications), comprising: 
+
+• ON / OFF 
+
+• Operation mode: GRID GENERATOR / CURRENT SOURCE 
+
+• Grid interaction: TAKE UP POWER / DELIVER POWER 
+
+• Active and reactive power target 
+
+Internal bus (not accessible from outside): Monitoring of every module Parameters configuration Operation permission 
+
+5.5.3. Type of Communication 
+
+System bus: wired RS-485 bus that interconnects every module in a system and the controller. An external PC, PLC, or SCADA system, can be connected to this bus through a SUBD9 connector at the housing. 
+
+Controller access: Communication port located at the display. Different interface boards supplied by Ingeteam are deployed to user’s choice. Available interfaces are RS-485, Wireless, GPRS/GSM modem, Optic fiber, Ethernet and Bluetooth. 
+
+Internal bus (not accessible from outside): CAN bus. 
+
+5.5.4. Protocol Description 
+
+An internal proprietary protocol is used for the internal communication bus. An implementation of Modbus is used in the communication buses 1) and 2), where the external monitoring system is the master, and the controller (2) and the controller plus every module (1) are all slaves. IEA-PVPS T11-04:2011 
+
+35 The following is an extract from the Ingeteam’s protocol document that describes the modbus protocol implementation for data monitoring. 
+
+HOW TO READ INPUT REGISTERS – 0X30000 
+
+Relevant data are mapped as 16 bit Input Registers in the 0x30001 Modbus Range. These registers are readable using Modbus 0x04 function. 0x30000 is a convention and, in practice, start address must be set to 0 in order to read 0x30001 register. All modules in the Hybrid Modular System store same data in the first 0x21 registers. 
+
+Query Message 
+
+Function 0x04 (Read Input Registers) is used to read online data. The procedure starts with the PC sending a Query message to the inverter. The example below shows a message asking for data from 47 (0x2F) Input Registers. Note that 0x30001 address range is a Modbus naming convention, and in practice register 0x30001 is addressed at 0, and so on. 
+
+Response message 
+
+HMS modules reply with the following Response message. IEA-PVPS T11-04:2011 
+
+36 
+
+6. Open Source Communication Protocols for Hybrid Energy Systems 6.1. Universal Energy Supply Protocol (UESP) 6.1.1. General Description 
+
+The Universal Energy Supply Protocol (UESP) concept offers a solution to the problem of interoperation of components in a PV hybrid system. By standardizing communication protocols and information models among all components within the system, the UESP makes initial system integration and configuration, and subsequent expansion, much easier. The present implementation of the UESP is focused on dc-centric architectures in which the key components of the PV hybrid system are interconnected by a dc bus. However, extension to ac-centric architectures is possible. The idea behind the UESP is to equip all power components (all kinds of generators, batteries and loads) with an identical and well-defined electrical DC connection, as well as with intelligence and a communication interface, speaking a defined protocol (called UESP). Power flow and information flow are separated, leading to more flexibility in system sizing and standardisation. Acentralised control and energy management system administers the system as a whole. Its software is able to manage the energy generation and consumption and ensures the required level of reliability while reducing the operational cost to a minimum. Therefore fuel costs, ageing effects and maintenance costs are taken into account when calculating the optimal operation strategy. In contrast to existing management concepts, the UESP approach is to distribute the intelligence and the knowledge on the operational behaviour and cost of the components from the central management system into the components themselves. The components provide information about their current status of operation, current and future operation cost and constraints to the central management system. Here, using virtual stock exchange algorithms, an optimised schedule for all components is determined and fed back to the components for implementation. The central management is thus very generic and can handle any component using the UESP protocol. It automatically adapts to new or changed system configurations, as these changes impact the optimisation only by additional players on the virtual stock market. This allows the mentioned “Mount-and forget” concept throughout the system, meaning that no adjustment and special programming needs to take place whenever components are attached or removed. Based on results from the provided planning tool, the hybrid system can grow flexibly with the energy demand. In case the central energy management unit fails, several fall-back regulations ensure the supply of the load. If the communication fails completely, the system will automatically go back to simple voltage regulation for all components. IEA-PVPS T11-04:2011 
+
+37 The main features of UESP are: 
+
+• Flexibility and Extendibility through the Plug-and-Play principle which allows easy adaptation to changing demand patterns, and addition of new (future) components. 
+
+• Reliability through the Mount-and-Forget principle which ensures that all components provide standardized status and state-of-health information that, combined with remote monitoring, allows detailed determination of system health and required maintenance without the need to inspect individual components. 
+
+• Low Operation and Maintenance Cost through advanced energy management capability and better diagnostic capability. 
+
+• Reasonable Investment Cost (Components and Installation) competitive with conventional systems 
+
+• Separation of flow of information from the flow of power clarifies the system structure, thereby reducing design work and simplifying ongoing maintenance and modifications. 
+
+• Open Source standard allows all manufacturers to implement the standardised UESP communication in their components. This allows the combination of different type of components among different suppliers - a great advantage for all planners, installers and system integrators. 
+
+6.1.2. Example Systems 
+
+As a practical example, the power supply of a telecommunication station (e.g. repeater) is shown in Figure 15. In the initial phase the supply is sufficiently maintained by a PV generator, a wind generator, battery and the central energy management. Over time, the demand for electricity usually rises, due to higher utilisation or added transmission equipment. In a standard hybrid system, the battery would then need enlargement, as would the PV generator and additional generator. This means downtime for the system and modification to the control. When adding UESP-capable components to an existing UESP system however, they can simply be attached to the power and communication busses and are instantaneously integrated. IEA-PVPS T11-04:2011 
+
+38 
+
+> Figure 15: Simple UESP System for initial supply for telecom load
+
+As can be seen in Figure 16, the system is extended by discrete new components, while the existing components are still in operation. For the second battery, a converter is required for parallel operation, allowing individual determination of State-of-Charge and State-of-Health as well as the combination of different battery types with complementing properties. 
+
+> Figure 16: Extended UESP System with additional generators to supply increased energy demand IEA-PVPS T11-04:2011
+
+39 Furthermore, several demonstration sites have been realized to show the features and functionality of the mentioned optimized communication protocol. 
+
+6.1.3. Structure of Communication 
+
+All components of the UESP PV hybrid system are connected through a CAN bus for communication. The power flow among the generators and loads is realized on the DC bus. For a lot of applications like telecommunication systems, traffic control systems, measurement systems and small village power systems, DC coupling technology is preferable if the main part of the electricity generation and consumption is done on the DC side. This saves power conversion from DC to AC and vice versa. The UESP system is not limited to DC applications; AC coupled PV hybrid systems can also be handled. 
+
+> Figure 17: Structure of UESP Components communication
+
+Figure 17 shows a systematic overview of the structure of the components layout. On the communication side each component is connected to the CAN bus. A termination is used at the end of the last component. The UESP protocol specifies SUB-D 9connectors with specially defined pin configuration for connection to the CAN bus. 
+
+Within a component, the interface to the component’s central controller consists of several hardware and software layers. First, the CAN bus is connected to a CAN hardware interface. Depending on the type of implementation this can be a simple direct connection to a CAN controller. The lowest software layer consists of a CAN software interface containing the CAN hardware driver and support of the features to the next layers. IEA-PVPS T11-04:2011 
+
+40 Above this layer, the so called UIB Firmware (Universal Interface Box Firmware) manages the UESP network management, including the plug & play functionality. All data and parameters have to be structured and handled in this layer as well. Here the central adaption of parameters takes place. The UESP data structure is a high level data layout of abstract component information. The data structure is implemented in the UIB Firmware. Above the UIB Firmware, a component specific data conversion takes place in the component’s specific device interface. Abstract UESP data structure is translated in this layer into the component’s specific data structure. Depending on the component’s internal information infrastructure, this can consist of several layers. Also several types of communication can be implemented here. This can be I²C, RS 232, SPI or any other bus system. If the UESP protocol is fully integrated into the component’s central controller it can simply be a parameter handover. The next step is the component’s internal realisation of the parameter content, either to collect information on the hardware side of the component or to apply commands coming from the Central Energy Management Unit. As it can be seen in Figure 17, the component-side UESP communication infrastructure can be fully integrated into the component (2 nd picture of Figure 17). Alternatively it can be separated from the component in an external box. This solution can be seen in the 1st picture of Figure 17. It is the preferable solution to adapt existing components to the UESP standard. All types of components can be connected to the UESP System. The components are structured according to the following classes of components: 10 - LoadCtrl (controllable electrical load) 11 - LoadInfl (influenceable electrical load) 12 - LoadDumb (non controllable electrical load) 20 - GenCtrl (controllable generator) 21 - GenStoch (stochastic generator) 30 - StoreEnergy (Energy storage) 40 - SysManage (System manager - EMS) 50 - DevMisc (Miscellaneous devices) To be able to establish a UESP System based on reliable and proven power components, existing components were modified as a first step. To handle UESP communication, these components were extended by a Universal Interface Box (UIB) which contains the network management hardware and software. The UIB can be an external device (Figure 17 left) or integrated into the component itself (Figure 17 middle). Additionally the UIB interfaces to the component’s control software to carry out the commands coming from the Energy Management Unit. IEA-PVPS T11-04:2011 
+
+41 
+
+6.1.4. Existing UESP Components 
+
+PV off-grid components usually have an embedded microcontroller that is programmed to perform the regulation and control functions. This controls the electronic switching devices and the necessary hardware infrastructure. The additional UESP functions are implemented by separate hardware and software which handle the network management and the information flow within the UESP system. This UESP sub-control system collects the information from the hardware part of the component and submits it to the network. At the same time it receives the operation requests from the Energy Management Unit and executes them within the given hardware. Several components are available with additional UESP communication infrastructure. The following table lists the initial components. Additional components may be introduced by other manufacturers, since this is an open source protocol.                         
+
+> Table 9: List of initial UESP enabled components Charge Controller AC Charger Inverter Inverter / Charger
+> Name Steca PowerTarom Stecamat800 Steca PI Studer XTH/XTM
+> Manufacturer Steca GmbH Steca GmbH Steca GmbH Studer Innotec
+> System Voltage
+> 12V / 24V / 48V 12V / 24V / 48V 12V / 24V 12V / 24V / 48V
+> Device Power 8,5 kWp 1 kW 500 W – 1 kW 2 kW – 8 kW
+> Parallelizing up to 5 pcs. up to 4 pcs. up to 4 pcs. up to 9 pcs.
+> Max Power 25 kWp 4 kW 4 kW 72 kW
+
+Figure 18 shows, as an example, the Steca PowerTarom which is available in a UESP version. In the internal layout, shown on the right, the strong separation of communication, component control and power handling can be seen very well. Figure 19 shows pictures of the available AC charger, inverter and inverter/charger for UESP systems. The left picture shows the Stecamat800 AC battery charger, the middle one the Steca Solarix PI standalone battery inverter and the right picture the Steca/ Studer Xtender battery inverter/ charger. IEA-PVPS T11-04:2011 
+
+42 
+
+> Figure 18: Example of Steca PowerTarom in UESP Version.
+> Figure 19: Steca Inverters/ chargers available in UESP version
+
+6.1.5. UESP Certification Laboratory 
+
+To make sure that all components which are updated to UESP, and also newly developed UESP components, fulfil the specifications of UESP, a certification laboratory has been set up. The laboratory is located at Fraunhofer Institute for Solar Energy Systems in Freiburg, Germany. It has a complete PV hybrid system with 5 kW (peak) PV plant, 5 kVA motor generator, 3 kW wind turbine, and a battery bank which can be configured as a 12 V, 24 V, 48 V, 60 V or 120 V system. At 48 V the capacity is 400 Ah. On the load side, DC loads as well as several AC loads are available. Any load profile can be simulated to adapt the laboratory to realistic field situations. The equipment within the laboratory is able to monitor the communication handling among all components as well as the power regulating functions. A complex external data logging system can also verify the internal UESP data logging functionality. Besides the communication, the system control strategy can also be monitored and certified that it realises the specified strategy. Figure 20 shows the UESP certification laboratory within the Fraunhofer Institute of Solar Energy Systems in Freiburg, Germany. The battery bank is behind the load on the right hand side of the picture. The PV component cannot be seen, as it is placed on the other side of the battery bank. IEA-PVPS T11-04:2011 
+
+43 
+
+> Figure 20: Picture of the UESP certification laboratory
+
+6.1.6. Status and future of UESP 
+
+The open-source Universal Energy Supply Protocol (UESP) was initially developed by eight German companies in cooperation with Fraunhofer ISE within a project funded by the German Ministry for the Environment, Nature Conservation and Nuclear Safety, BMU. (Project no. 0 329 922 A+B). In 2010, responsibility for UESP was transferred to the CAN in Automation (CiA) organisation, which manages professional CANopen standards for the industry. See http://www.can.cia.org. The UESP work was merged and brought together with the activities of CANopen EnergyBus, which is an activity of the international light electrical vehicles industry. It is developing the draft of CiA 454: “CANopen application profile for light electrical vehicles”. All manufacturers of components for PV hybrid systems are invited to participate in this standard. When enough manufacturers participate in this communication standard, the situation of PV hybrid systems world-wide will improve. The planning of such systems will be much easier due to high flexibility in component selection, as all components can work together. The installation phase can be realised much faster and easier as the system control strategy is implemented in the central energy management unit. There is no need to configure each single component as the components are connected to the bus with plug & play functionality, saving much time during installation. Maintenance of the system is more comfortable and with the central remote control system, each single site no longer needs its special experts but many sites can be handled very effectively from a central remote office. The user profits from optimized systems and the system can be extended very easily if the load profile changes significantly. The manufacturers save development costs as the network management is standardised and shared by a lot of companies. The management of the standard is managed by an independent manufacturer’s alliance. This could push the market growth of rural electrification with PV hybrid systems world wide. It will also have a positive influence on the reputation of PV hybrid systems overall. IEA-PVPS T11-04:2011 
+
+44 Manufacturers of PV hybrid components who wish to participate in the UESP standard are invited to contact Mr. Michael Müller (Steca GmbH) or Mr.Georg Bopp (Fraunhofer Institut für Solare Energiesysteme), (georg.bopp@ise.fraunhofer.de, 
+
+michael.mueller@steca.de ). 
+
+6.2. Emerging Standards for Distributed Generation Communication 6.2.1. Introduction 
+
+Open standards for data communications in PV hybrid mini-grids may emerge from within the technical community involved in developing these systems. However, another source may be the communications standards being developed to integrate distributed generation resources into the utility grid. These standards are often based on extending existing standards for substation or distribution system automation and are driven by the “smart grid” concept. Technical development is primarily by the utility industry and by suppliers to the utility industry. Two open standards emerging from these efforts are the IEEE 1547.3 guide and the IEC 61 850 set of standards. 
+
+6.2.2. IEEE P1547.3 
+
+IEEE P1547.3: Guide for Monitoring, Information Exchange, and Control of Distributed Resources Interconnected with Electric Power Systems. 6
+
+IEEE 1547.3, published in 2007, provides guidelines for monitoring, information exchange, and control for distributed energy resources (DER) interconnected with electric power systems (EPS). Although it is not a standard that describes specific communication architectures or sets of protocols, its guidelines and methodologies are used in establishing these architectures and protocols. The guidelines encourage the use of modern software engineering practices to specify, develop and document the communication architectures and associated protocols and, in particular, the use of the Unified Modelling Language (UML). The UML 7 is an open method for specifying, visualizing, constructing and documenting large, object oriented software systems. The guide discusses: 
+
+• General concepts in monitoring, information exchange and control in the context of distributed energy systems 
+
+• How UML can be used to model information exchange requirements 
+
+• Implementing an information exchange model that specifies in detail how information will be exchanged 
+
+• Selection of appropriate data communication protocols 
+
+• Information security requirements 
+
+• Sample use cases for information exchange between DER and the EPS. IEA-PVPS T11-04:2011 
+
+45 The guide focuses on information exchange between the DER and various independent actors in the electric power system. As such it is primarily concerned with slow communication for supervisory control, monitoring and business related transactions (for example revenue metering, aggregation, etc.). Fast communication among DER units in a mini-grid, to control mini-grid voltage and frequency and maintain power quality, is not in the scope of this guide. 
+
+6.2.3. IEC 61 850 
+
+IEC 61 850: Communication Networks and Systems in Substations. 
+
+The IEC 61 850 body of communications standards was originally developed to provide a vendor-independent communications standard for the numerous intelligent electronic devices (e.g. protective relays, sensors, etc.) in a modern electricity distribution substation. However IEC 61 850 is evolving to support real-time automated operation of the power system of the future, including distribution automation, distributed energy resource (DER) integration with electric power system operations, and other Smart Grid concepts. IEC 61 850 consists of multiple standards and documents that cover the hierarchy of: 
+
+• Protocols or profiles that specify the bits and bytes actually sent over the communication channel 
+
+• Standard service models that specify methods of sending the data (e.g. message structures, whether messages are event driven, periodic, or polled, etc.) 
+
+• Object models, which are standardized formats or templates for exchanging data between different equipment and/or systems 
+
+• Common information model that contains information on the physical configuration of the network – i.e. how equipment is physically interconnected by the electrical network. IEA-PVPS T11-04:2011 
+
+46 
+
+> Figure 21: Architecture of IEC 61 850 Models and the CIM Model
+
+Object models provide standardized names and structures to the data that is exchanged among different devices and systems. Models are developed in a hierarchical fashion from definition of low level data types up to models of the information required to describe a complete physical device. The process from the bottom up is described below 8 in Figure 22. 
+
+> Figure 22: Object Model Hierarchy
+
+1. Standard Data Types : common digital formats such as Boolean, integer, and floating point 2. Common Attributes : predefined common attributes that can be reused by many different objects, such as the Quality attribute. These common attributes are defined in IEC 61 850-7-3 clause 6. IEA-PVPS T11-04:2011 
+
+47 3. Common Data Classes (CDCs) : predefined groupings building on the standard data types and predefined common attributes, such as the Single Point Status (SPS), the Measured Value (MV), and the Controllable Double Point (DPC). In essence, these CDCs are used to define the type or format of Data Objects. These CDCs are defined in IEC 61 850-7-3 clause 7. 4. Data Objects (DO) : predefined names of objects associated with one or more Logical Nodes. Their type or format is defined by one of the CDCs. They are listed only within the Logical Nodes. An example of a DO is “Auto” defined as CDC type SPS. It can be found in a number of Logical Nodes. Another example of a DO is “RHz” defined as a SPC (controllable single point), which is found only in the RSYN Logical Node. 5. Logical Nodes (LN) : predefined groupings of Data Objects that serve specific functions and can be used as “bricks” to build the complete device. Examples of LNs include MMXU which provides all electrical measurements in 3-phase systems (voltage, current, watts, vars, power factor, etc.); PTUV for the model of the voltage portion of under voltage protection; and XCBR for the short circuit breaking capability of a circuit breaker. These LNs are described in IEC 61 850-7-4 clause 5. 6. Logical Devices (LD) : the device model is composed of the relevant Logical Nodes for providing the information needed for a particular device. For instance, a circuit breaker could be composed of the Logical Nodes: XCBR, XSWI, CPOW, CSWI, and SMIG. Logical Devices are not directly defined in any of the documents, since different products and different implementations can use different combinations of Logical Nodes for the same Logical Device. Work on extending IEC 61 850 to distributed generation applications has focused on defining new object models for distributed generation equipment. IEC 61 850 Part 7-420 DER Logical Nodes defines object models for dispersed generation devices and dispersed storage devices, including reciprocating engines, fuel cells, micro turbines, photovoltaic arrays, combined heat and power, and energy storage systems. These DER object models re-use components of existing IEC 61 850 object models where possible, but also include some new extensions for DER components and functions. Figure 22, taken from the DER Logical Nodes document 9, illustrates how a PV system can be modelled using the available Logical Nodes. It includes pre-existing Logical Nodes that model electrical switchgear, protective relay functions, and measurement functions as well as newly defined Logical Nodes for the PV array, the battery system, the inverter, and relevant environmental conditions. IEA-PVPS T11-04:2011 
+
+48 
+
+> Figure 23: Illustration of how a PV system can be modelled
+
+The IEC 61 850 group of standards represents a modern and extendable set of standards for data communication within mini-grids and between mini-grids and the central electric power system that generally conforms to the recommendations of IEEE 1547.3. However there are some implementation issues that affect adoption in PV hybrid mini-grids. IEC 61 850 compliant devices are available for equipment commonly used in electric substations, but, because the DER portion of the standard is so new, DER equipment capable of IEC 61 850 communication is generally not yet available. IEC 61 850 is a comprehensive standard that requires considerable effort and expense to implement. It may not be economically justified for smaller PV hybrid mini-grids, particularly if they do not interconnect with the central electric power system. IEC 61 850 requires a relatively high performance communications channel to fully exploit its capabilities. While electric power system operators typically install these high performance channels within substations, they have, on the whole, not yet extended their networks into the electricity distribution system. Thus, even if the mini-grid is capable of interconnecting with an IEC 61 850 network, the local electric power system may not have the necessary capability at the point of interconnection. IEA-PVPS T11-04:2011 
+
+49 The IEC 61 850 standard is mentioned in many Smart Grid roadmaps, so there is a possibility that the necessary network extension and development of simpler, lower cost equipment will occur. Working Group 17 (WG17) of the IEC Technical Committee 57, which is responsible for developing the IEC 61850 standards related to distributed energy resources, has several suggestions to accelerate the adoption of the IEC 61850 standard. These include: 1. Development of a second edition of IEC 61850-7-420 (Communications systems for Distributed Energy Resources (DER) Logical nodes) that accounts for recent developments in the Smart Grid concept 2. Changing the underlying protocol for 61850 communications to a more widely used, lower cost protocol, such as Real-Time Web Services. 3. Exporting the IEC 61850 data models to other communications standards. For example, the Zigbee Alliance, which develops standards for low-cost digital radio communication networks which are used in Smart Grid and Smart Energy Meter applications, plans to reuse some IEC 61850 information and object models. This will allow an equipment manufacturer to select a communication standard with the appropriate trade-off between performance and cost and still retain compatibility with higher level data models. Working Group 17 is currently writing a Technical Report on object models for inverters used with PV arrays, energy storage systems, and other distributed generation sources. The report should be published by the end of 2011 under the reference 61850-90-7. IEA-PVPS T11-04:2011 
+
+50 
+
+7. Summary and Recommendations 
+
+Many different solutions exist for inter-component data communication in off-grid PV systems, PV hybrid systems and mini-grids. The communication solutions mainly serve the purpose of controlling the power flow among the components and with this, the energy flow in the system. In addition data communication is used to configure and monitor components and their behaviour. Therefore different types of communication can be found in the field. Fast communication is mainly used to control the system, while slow communication can be used to configure and monitor the systems. The data communication system can be based on many different hardware buses. According to the survey of the PVPS Task 11 participants, the most typical hardware bus used by the photovoltaic industry to control the components for PV-hybrid systems and mini grids is an RS485 bus with proprietary protocols to exchange information. The CAN bus is also used, again often with proprietary protocols. Therefore it is reasonable to recommend either an RS485 or CAN hardware bus where component communication needs to be set up for off-grid photovoltaic applications. Especially by using CAN bus, it is possible to integrate standardised high level protocols, such as CANopen, to gain more compatibility with other components. CANopen provides already proven and realized protocol specifications and device profiles that can be used to avoid defining a whole protocol structure. The Modbus standard provides a higher level protocol for the RS485 hardware bus, but it is not as complete as the CANopen protocol and does not have standard device profiles. Up to now, communication solutions offered by different equipment manufacturers are generally not compatible, because of proprietary protocols. Even if a standard hardware data bus and lower level protocol, such as Modbus or CANopen is used, the lack of standardized high level protocols to define information and device models for PV specific applications means communication solutions among manufacturers remain somewhat incompatible. Some new approaches try to standardise the components communication at all protocol levels in order to be more compatible with components from different manufacturers. A general approach is described in IEEE P1547.3 - ”Guide for Monitoring, Information Exchange, and Control of Distributed Resources Interconnected with Electric Power Systems”, which was published in 2007. It provides guidelines for monitoring, information exchange, and control for Distributed Energy Resources (DER) interconnected with Electric Power Systems (EPS). Although it is not a standard that describes specific communication architectures or sets of protocols, its guidelines and methodologies are used in establishing these architectures and protocols. The guidelines encourage the use of modern software engineering practices to specify, develop and document the communication architectures and associated protocols and, in particular, the use of the Unified Modelling Language (UML). The UML is an open method for specifying, visualizing, constructing and documenting large, object oriented software systems. IEA-PVPS T11-04:2011 
+
+51 The IEC 61850 ”Communication Networks and Systems in Substations” (IEC61850-ref) communication standard is an example of a standard conforming to the approach described in IEEE 1547.3. It was originally developed to provide a vendor-independent communications standard for the numerous intelligent electronic devices (e.g. protective relays, sensors, etc.) in a modern electricity distribution substation. However IEC 61850 is evolving to support real-time automated operation of the power system of the future, including distribution automation and distributed energy resource (DER) integration with electric power system operations. Therefore it has potential application for PV hybrid mini-grids, particularly larger systems that may be interconnected with the central electricity grid. Work on extending IEC 61850 to distributed generation applications has focused on defining new object (device) models for distributed generation equipment. IEC 61850 Part 7-420 DER Logical Nodes defines object models for dispersed generation devices and dispersed storage devices, including reciprocating engines, fuel cells, microturbines, photovoltaic arrays, combined heat and power, and energy storage systems. Object models for inverters are currently under development. These DER object models re-use components of existing IEC 61850 object models where possible, but also include some new extensions for DER components and functions. The Universal Energy Supply Protocol (UESP) represents a complete open-source communication protocol stack designed specifically for hybrid energy systems. Based on the CAN bus, it defines data types and objects to support energy management and monitoring and set-up of individual components and the entire hybrid system (see the Appendix for more details). The system architecture includes a central energy management unit that can implement a central system control strategy to improve the behaviour and handling of PV systems. All manufacturers of components for PV hybrid systems are invited to participate in the UESP. When enough manufacturers participate in this communication standard, the situation of PV hybrid systems world-wide will improve, since system developers will have a wide choice of components that can communicate and implement advanced energy management, control, and monitoring functions. The UESP developers have demonstrated that the UESP protocol can be implemented in existing PV equipment, such as PV charge controllers and inverters, by adding a Universal Interface Box (UIB) which contains the network management hardware and software. The UIB can be a standalone unit, or integrated into the PV equipment. This approach provides a path for PV hybrid equipment manufacturers, currently using a variety of proprietary protocols, to migrate to a common open-source protocol, without having to completely redesign their equipment. In 2010, responsibility for UESP was transferred to the CAN in Automation (CiA) organisation, which manages professional CANopen standards for the industry (see http://www.can.cia.org). The UESP work was merged and brought together with the activities of CANopen EnergyBus, which is an activity of the international light electrical IEA-PVPS T11-04:2011 
+
+52 vehicles industry. It is developing the draft of CiA 454: CANopen application profile for light electrical vehicles. IEA-PVPS T11-04:2011 
+
+53 
+
+Notes 
+
+1 Source: EuPD Research study, Sun & Wind Energy, edition 6/2009, p. 86 2 RS232 TIA232 ANSI/EIA/TIA-232-F-1997 available at 
+
+http://focus.ti.com/lit/an/slla037a/slla037a.pdf 
+
+3 RS485 TIA485 (ANSI/TIA/EIA-485-A-98 R2003 available at 
+
+http://tia.nufu.eu/std/TIA-485-A 
+
+4 CAN (Controller Area Network – formally ISO 11898 (CAN ISO 11898-1:2003) 
+
+> http://www.iso.org/iso/iso_catalogue/catalogue_tc/catalogue_detail.htm?csnumber=33422
+
+5 MELSEC and MECSECNET are registered trademarks of Mitsubishi Electric Corp. 6 "IEEE Guide for Monitoring, Information Exchange, and Control of Distributed Resources Interconnected with Electric Power Systems," IEEE Std 1547.3-2007 , pp.1-158, 2007. 7 Martin Fowler, UML Distilled: A Brief Guide to the Standard Object Modeling Language (3rd ed.). Addison-Wesley, 2003. 8 “Communications Systems for Distributed Energy Resources (DER)”, IEC Std. 61850 Part 7-420 DER Logical Nodes, 2008 9 “Communications Systems for Distributed Energy Resources (DER)”, IEC Std. 61850 Part 7-420 DER Logical Nodes, 2008 54 
+
+Appendix 
+
+UESP Protocol and Object Specifications Data types The current implementation of UESP Protocol knows the following basic data types: UINT8 – unsigned 8 bit integer UINT16 – unsigned 16 bit integer UINT32 – unsigned 32 bit integer FLOAT32 – 32 bit floating point value according to IEEE 754 The data type of an object is encoded in the TID (type ID) field in the object’s object dictionary entry. In addition to the basic data types the two combined data types STRING and ARRAY exists: STRING can be seen as a character array with a variable but limited size. ARRAY is an array or list of any one of the above mentioned basic data types with a fixed number of elements. The number of elements is defined in the object’s object dictionary entry and can not be changed. The number of elements of each array is limited to 65 536 and is stored in the LEN field of an object dictionary entry. The combination of the types STRING and ARRAY is not allowed! Caution: Arrays will be transmitted as a whole and not as single elements by the UESP communication stack. Since arrays can be as large as 256 kb net data per object, transmission may take a while. The mentioned amount of net data does not include CAN and UESP protocol overhead. The transmission can also be delayed by higher priorized CAN messages (i.e. NMT messages) or objects transmitted by other components. While transmitting an array, the communication channel between sender and receiver will be blocked. That means that no other objects can be exchanged between those to components while array transmission is in progress. 
+
+Other definitions 
+
+Active/passive object : An active object is an object that is intentionally set and actively transmitted by the owner of the object. A passive object is an entry in the owner’s object dictionary that is not intentionally set by the owner. Passive objects are those objects that are used by the EMS to control a component. The same objects may be used as active or as passive object in different components. IEA-PVPS T11-09:2010 
+
+55 
+
+Object Descriptions 
+
+AdmUID – Unique Identifier / Serial number 
+
+28 bit serial number. The 4 highest significant bits have no meaning. Serial number ranges will be assigned to component manufacturers by UESP consortium. OID 1024 
+
+TID (type) UINT32 
+
+Unit -
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value 10 000 000 h 
+
+Category Mandatory 
+
+Access RO 
+
+AdmClass – Implemented Component Class / Device Profile 
+
+Every UESP component has to implement one of the defined component classes. OID 1 025 
+
+TID (type) UINT8 
+
+Unit -
+
+Default Value -
+
+Minimum Value -
+
+Maximum Value -
+
+Category Mandatory 
+
+Access RO 
+
+Values 10 – LoadCtrl (controllable electrical load) 11 – LoadInfl (influenceable electrical load) 12 – LoadDumb (non controllable electrical load) 20 – GenCtrl (controllable generator) 21 – GenStoch (stochastic generator) 30 – StoreEnergy (Energy storage) 40 – SysManage (System manager - EMS) 50 – DevMisc (Miscellaneous devices) IEA-PVPS T11-09:2010 
+
+56 
+
+AdmManufg – Vendor name 
+
+OID 1 029 
+
+TID (type) STRING 
+
+Unit -
+
+Default Value -
+
+Minimum Value -
+
+Maximum Value -
+
+Category Mandatory 
+
+Access RO 
+
+AdmSerial – Vendor specific serial number 
+
+OID 1 030 
+
+TID (type) STRING 
+
+Unit -
+
+Default Value -
+
+Minimum Value -
+
+Maximum Value -
+
+Category Optional 
+
+Access RO 
+
+AdmType – Component type name 
+
+OID 1 031 
+
+TID (type) STRING 
+
+Unit -
+
+Default Value -
+
+Minimum Value -
+
+Maximum Value -
+
+Category Mandatory 
+
+Access RO IEA-PVPS T11-09:2010 
+
+57 
+
+AdmName – Component name 
+
+Readable name of component. To simplify identification by user for configuration, monitoring and visualization. OID 1 032 
+
+TID (type) STRING 
+
+Unit -
+
+Default Value -
+
+Minimum Value -
+
+Maximum Value -
+
+Category Mandatory 
+
+Access RO 
+
+OpNomInPwr – Nominal input power 
+
+OID 2 055 
+
+TID (type) FLOAT32 
+
+Unit W
+
+Default Value -
+
+Minimum Value -
+
+Maximum Value -
+
+Category Mandatory for LoadCtrl, LoadInfl, LoadDumb, StoreEnergy 
+
+Access RO 
+
+OpNomOutPwr – Nominal output power 
+
+OID 2 056 
+
+TID (type) FLOAT32 
+
+Unit W
+
+Default Value -
+
+Minimum Value -
+
+Maximum Value -
+
+Category Mandatory for GenCtrl, GenStoch, StoreEnergy 
+
+Access RO IEA-PVPS T11-09:2010 
+
+58 
+
+OpNomStoreCap – Nominal storage capacity 
+
+OID 2 057 
+
+TID (type) FLOAT32 
+
+Unit Wh 
+
+Default Value -
+
+Minimum Value -
+
+Maximum Value -
+
+Category Mandatory for StoreEnergy 
+
+Access RO* 
+
+* This object is read-only in normal operation. But since nominal storage capacity can change, this value should be writable by a configuration device. 
+
+OpMeasStoreLevel – Measured state of charge (SOC) 
+
+Available energy of the component expressed as a percentage of storage capacity. OID 2 060 
+
+TID (type) FLOAT32 
+
+Unit %
+
+Default Value 90 
+
+Minimum Value 0
+
+Maximum Value 100 
+
+Category Mandatory for StoreEnergy 
+
+Access (int./ext.) RW/RO IEA-PVPS T11-09:2010 
+
+59 
+
+OpReqOutPwr – Request for power generation / output 
+
+Set point for generated output power. Value has to be set by EMS and is only valid if the component is in normal operation mode. OID 2 075 
+
+TID (type) FLOAT32 
+
+Unit W
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for GenCtrl, GenStoch, StoreEnergy 
+
+Access (int./ext.) RO/RW 
+
+OpMeasVlt – Measured component voltage / DC bus voltage 
+
+OID 2 076 
+
+TID (type) FLOAT32 
+
+Unit V
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value 200 
+
+Category Mandatory for LoadCtrl, LoadInfl, LoadDumb, GenCtrl, GenStoch, StoreEnergy 
+
+Access (int./ext.) RW/RO 
+
+OpMeasCur – Measured component current / current to DC bus 
+
+Current flows to the DC bus have a positive sign, the others a negative one. OID 2 077 
+
+TID (type) FLOAT32 
+
+Unit A
+
+Default Value -
+
+Minimum Value - 200 
+
+Maximum Value 200 
+
+Category Mandatory for LoadCtrl, LoadInfl, LoadDumb, GenCtrl, GenStoch, StoreEnergy 
+
+Access (int./ext.) RW/RO IEA-PVPS T11-09:2010 
+
+60 
+
+OpMeasPwr – Measured component power 
+
+The same signing rules as for DC bus current have to be applied. OID 2 078 
+
+TID (type) FLOAT32 
+
+Unit W
+
+Default Value -
+
+Minimum Value - 30 000 
+
+Maximum Value 30 000 
+
+Category Mandatory for LoadCtrl, LoadInfl, LoadDumb, GenCtrl, GenStoch, StoreEnergy 
+
+Access (int./ext.) RW/RO 
+
+OpStatus – Component state register 
+
+OID 2 081 
+
+TID (type) UINT8 
+
+Unit -
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value 255 
+
+Category Mandatory 
+
+Access (int./ext.) RW/RO 
+
+Values Err – Error flag War – Warning flag OM1/OM0 – Operation mode (0 – EMS, 1 – Voltage controlled, 2 – SOC controlled) CM1/CM0 – Communication mode (0 – normal, 1 – masterless, 2 – communicationless) ON/OFF – power generation/consumption on or off? res – reserved for future use (should be set to zero) IEA-PVPS T11-09:2010 
+
+61 
+
+OpGetMode – Read component operation mode 
+
+This object can be used by an external component to get known of the actual operation mode of the component. 
+
+OID 2 082 
+
+TID (type) UINT8 
+
+Unit -
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value 255 
+
+Category Mandatory 
+
+Access (int./ext.) RW/RO 
+
+Values 0 – Unknown / not allowed! 1 – Initializing 2 – Disabled (power generation/consumption) 3 – Enabled (power generation/consumption) 4 – Shutting down 
+
+OpSetMode – Set component operation mode 
+
+This object can be used by an external component to control the components behaviour. OID 2 083 
+
+TID (type) UINT8 
+
+Unit -
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value 255 
+
+Category Mandatory 
+
+Access (int./ext.) RW*/RW 
+
+Values 0 – None / no action 1 – Initialize / restart 2 – Disable (power generation/consumption) 3 – Enable (power generation/consumption) 4 – Shut down 
+
+* The component should set this value to zero after performing the requested action. IEA-PVPS T11-09:2010 
+
+62 
+
+OpWarning – Warning indication register 
+
+OID 2 084 
+
+TID (type) UINT8 
+
+Unit -
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value 255 
+
+Category Mandatory 
+
+Access (int./ext.) RW/RO 
+
+Values [Frame2] MR – Maintenance request (1) 
+
+OpError – Error indication register 
+
+OID 2 085 
+
+TID (type) UINT8 
+
+Unit -
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value 255 
+
+Category Mandatory 
+
+Access (int./ext.) RW/RO 
+
+Values [Frame3] Not ready – 1 component not ready 0 normal operation IEA-PVPS T11-09:2010 
+
+63 
+
+SvcTimeDate – Time and date service 
+
+Provides the current time/ date in UNIX time format. This is specified as seconds since January 1, 1970, 00:00:00 UTC. Only one component in a network (preferably the active EMS) should provide this as a broadcast service. Other components should implement this as a passive object. OID 3 000 
+
+TID (type) UINT32 
+
+Unit S
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value FFFFFFFFh 
+
+Category Optional 
+
+Access (int./ext.) RW/RW 
+
+SvcStoreSOC – System storage state of charge 
+
+This service provides the total system state of charge. The master battery should implement this as a broadcast service. Since in UESP v1.0 only one battery is allowed, this represents the state of charge of the system battery. Other components should implement this as a passive object. OID 3 009 
+
+TID (type) FLOAT32 
+
+Unit %
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value 100 
+
+Category Mandatory for StoreEnergy 
+
+Access (int./ext.) RW/RO for StoreEnergy, RO/WO for other components IEA-PVPS T11-09:2010 
+
+64 
+
+Emergency mode parameters 
+
+The following objects are representing control parameters for emergency mode. Emergency mode is active if there is no active EMS available. In emergency mode control decisions are based upon SOC threshold values if the system storage SOC service is active. Otherwise control decisions are based on DC bus voltage threshold values. 
+
+EmLoadDropVlt – Emergency mode load drop threshold voltage 
+
+OID 5 000 
+
+TID (type) FLOAT32 
+
+Unit V
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for LoadCtrl Optional for LoadInfl, LoadDumb 
+
+Access (int./ext.) RW/RW* 
+
+* Should only be written by configuration device 
+
+EmLoadReconVlt – Emergency mode load reconnect threshold voltage 
+
+OID 5 001 
+
+TID (type) FLOAT32 
+
+Unit V
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for LoadCtrl Optional for LoadInfl, LoadDumb 
+
+Access (int./ext.) RW/RW* 
+
+* Should only be written by configuration device IEA-PVPS T11-09:2010 
+
+65 
+
+EmGenStartVlt – Emergency mode generator start threshold voltage 
+
+OID 5 002 
+
+TID (type) FLOAT32 
+
+Unit V
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for GenCtrl, GenStoch 
+
+Access (int./ext.) RW/RW* 
+
+* Should only be written by configuration device 
+
+EmGenStopVlt – Emergency mode generator stop threshold voltage 
+
+OID 5 003 
+
+TID (type) FLOAT32 
+
+Unit V
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for GenCtrl, GenStoch 
+
+Access (int./ext.) RW/RW* 
+
+* Should only be written by configuration device IEA-PVPS T11-09:2010 
+
+66 
+
+EmLoadDropSOC – Emergency mode load drop threshold SOC 
+
+OID 5 004 
+
+TID (type) FLOAT32 
+
+Unit V
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for LoadCtrl Optional for LoadInfl, LoadDumb 
+
+Access (int./ext.) RW/RW* 
+
+* Should only be written by configuration device 
+
+EmLoadReconSOC – Emergency mode load reconnect threshold SOC 
+
+OID 5 005 
+
+TID (type) FLOAT32 
+
+Unit V
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for LoadCtrl Optional for LoadInfl, LoadDumb 
+
+Access (int./ext.) RW/RW* 
+
+* Should only be written by configuration device IEA-PVPS T11-09:2010 
+
+67 
+
+EmGenStartSOC – Emergency mode generator start threshold SOC 
+
+OID 5 006 
+
+TID (type) FLOAT32 
+
+Unit V
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for GenCtrl, GenStoch 
+
+Access (int./ext.) RW/RW* 
+
+* Should only be written by configuration device 
+
+EmGenStopSOC – Emergency mode generator stop threshold SOC 
+
+OID 5 007 
+
+TID (type) FLOAT32 
+
+Unit V
+
+Default Value -
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for GenCtrl, GenStoch 
+
+Access (int./ext.) RW/RW* 
+
+* Should only be written by configuration device IEA-PVPS T11-09:2010 
+
+68 
+
+New Objects OpCurrentEnergyPrice – Current price for charging the battery 
+
+OID 2 200 
+
+TID (type) FLOAT32 
+
+Unit ?
+
+Default Value -
+
+Minimum Value -
+
+Maximum Value -
+
+Category Mandatory for StoreEnergy ? 
+
+Access (int./ext.) RW/RO 
+
+OpTimeFrameArrayLen – Maximum number of time frames allowed 
+
+OID 2 220 
+
+TID (type) UINT32 ARRAY 
+
+Unit -
+
+Default Value 10 
+
+Minimum Value 0
+
+Maximum Value 65536 
+
+Category Mandatory for LoadCtrl 
+
+Access (int./ext.) RO/RO 
+
+OpTimeFrameStartTime – Time frame for load usage – start time 
+
+OID 2 221 
+
+TID (type) UINT32 ARRAY 
+
+Unit s
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for LoadCtrl ? 
+
+Access (int./ext.) RW/RW,Should only be written by configuration device IEA-PVPS T11-09:2010 
+
+69 
+
+OpTimeFrameEndTime – Time frame for load usage – end time 
+
+OID 2 222 
+
+TID (type) UINT32 ARRAY 
+
+Unit s
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for LoadCtrl ? 
+
+Access (int./ext.) RW/RW* 
+
+* Should only be written by configuration device 
+
+OpTimeFrameDuration – Time frame for load usage – duration 
+
+This is the duration, the EMS has to enable power supply for the load in the given time frame. 
+
+OID 2 223 
+
+TID (type) UINT32 ARRAY 
+
+Unit s
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for LoadCtrl ? 
+
+Access (int./ext.) RW/RW* 
+
+* Should only be written by configuration device IEA-PVPS T11-09:2010 
+
+70 
+
+OpTimeFrameRequestedPower – Time frame for load usage – requested power 
+
+The power, the component requests for this time frame. OID 2 224 
+
+TID (type) UINT32 ARRAY 
+
+Unit W
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for LoadCtrl ? 
+
+Access (int./ext.) RW/RW* 
+
+* Should only be written by configuration device 
+
+OpCurrentRunTime – Current run time since start 
+
+This is the time the generator/load is running and delivering/consuming power not the up time of the control unit. OID 2 202 
+
+TID (type) UINT32 
+
+Unit s
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for GenCtrl, LoadCtrl 
+
+Access (int./ext.) RW/RO IEA-PVPS T11-09:2010 
+
+71 
+
+OpLastStartTime – Last start up time (UNIX timestamp) 
+
+This is the time since the generator/load is running and delivering/consuming power not the start up time of the control unit. OID 2 203 
+
+TID (type) UINT32 
+
+Unit s (UNIX timestamp) 
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for GenCtrl, LoadCtrl 
+
+Access (int./ext.) RW/RO 
+
+OpAccumulatedRunTime – Accumulated run time of component 
+
+This is the total time, the generator/load was running and delivering/consuming power over components life time, not the start up time of the control unit. OID 2 204 
+
+TID (type) UINT32 
+
+Unit s
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for GenCtrl, LoadCtrl 
+
+Access (int./ext.) RW/RO IEA-PVPS T11-09:2010 
+
+72 
+
+OpNumberOfStarts – Total number of generator starts over components lifetime 
+
+This is number of starts of the generator not the start up of the control unit. OID 2 205 
+
+TID (type) UINT32 
+
+Unit s (UNIX timestamp) 
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for GenCtrl 
+
+Access (int./ext.) RW/RO 
+
+OpMinRunTime – Minimum continuous running time for generator / load 
+
+This is the minimum time the generator/load should run after switching on. It should be used as a hint by the EMS to prevent frequent switching of the generator/load. OID ?
+
+TID (type) UINT32 
+
+Unit s (UNIX timestamp) 
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for GenCtrl, Optional for LoadCtrl 
+
+Access (int./ext.) RW/RW* 
+
+* Should only be written by configuration device IEA-PVPS T11-09:2010 
+
+73 
+
+OpIsVariable – Is generator output power variable? 
+
+This flag /attribute indicates if the generator can only be operated by a fixed output power (nominal output power) or if the output power can be adjusted by the system manager (EMS). If this object is not implemented, a fixed output power is assumed. OID 2 100 
+
+TID (type) UINT8 
+
+Unit -
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Optional for GenCtrl 
+
+Access (int./ext.) RW/RO 
+
+Value 0 – not variable 1 – variable 
+
+OpMinPower – Minimum adjustable generator output power 
+
+If object OpIsVariable is implemented, this object indicates the minimal output power that can be set by the system manager if the generator is switched on. OID 2 101 
+
+TID (type) FLOAT32 
+
+Unit W
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Optional for GenCtrl 
+
+Access (int./ext.) RW/RO IEA-PVPS T11-09:2010 
+
+74 
+
+OpMaxPower – Maxium adjustable generator output power 
+
+If object OpIsModulable is implemented, this object indicates the maximum output power that can be set by the system manager if the generator is switched on. OID 2 102 
+
+TID (type) FLOAT32 
+
+Unit W
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Optional for GenCtrl 
+
+Access (int./ext.) RW/RO 
+
+OpPriority – Priority of load / generator usage 
+
+This is used by the EMS to decide which generator/load to use. In case of generator usage this information may / or may not be used (depending on the implementation of the EMS). In case of load usage, this will be used by the EMS to decide which load to switch off first in case of energy shortfalls. OID ?
+
+TID (type) UINT8 
+
+Unit -
+
+Default Value 0
+
+Minimum Value 0 (least priority) 
+
+Maximum Value 255 (highest priority) 
+
+Category Optional for GenCtrl 
+
+Access (int./ext.) RW/RO 
+
+The following objects are aimed to transmit the components cost function 
+
+OpCostFunctionMinPowerValue – Minimum power value of the provided cost function 
+
+If this value is changed by the system manager, the component has to adjust the array size and values of the cost function. IEA-PVPS T11-09:2010 
+
+75 OID ?
+
+TID (type) FLOAT32 
+
+Unit Wh 
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for GenCtrl 
+
+Access (int./ext.) RW/RW 
+
+OpCostFunctionMaxPowerValue – Maximum power value of the provided cost function 
+
+If this value is changed by the system manager, the component has to adjust the array size and values of the cost function. OID ?
+
+TID (type) FLOAT32 
+
+Unit Wh 
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for GenCtrl 
+
+Access (int./ext.) RW/RW 
+
+OpCostFunctionPowerStepping – Stepping of the provided cost function 
+
+If this value is changed by the system manager, the component has to adjust the array size and values of the cost function. OID ?
+
+TID (type) FLOAT32 
+
+Unit Wh 
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for GenCtrl 
+
+Access (int./ext.) RW/RW IEA-PVPS T11-09:2010 
+
+76 
+
+OpCostFunction – Values of the components energy cost function 
+
+The size of the array is given by the values of the objects 
+
+OpCostFunctionMinPowerValue , OpCostFunctionMaxPowerValue ,
+
+OpCostFunctionPowerStepping . Each array element represents the energy costs for the according energy value. Example: If OpCostFunctionMinPowerValue is set to 0 Wh then element 0 of OpCostFunction 
+
+contains the costs for the energy consumption of 0 Wh. If OpCostFunctionPowerStepping is set to 10 Wh, then element 1 of OpCostFunction 
+
+contains the costs of an energy consumption of 10 Wh. The energy values calculates to 
+
+Ei = OpCostFunctionMinPowerValue + i * OpCostFunctionPowerStepping 
+
+Where i is the array element index (beginning with 0) and Ei is the corresponding energy value. OID ?
+
+TID (type) FLOAT32 ARRAY 
+
+Unit Wh 
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for GenCtrl 
+
+Access (int./ext.) RW/RO IEA-PVPS T11-09:2010 
+
+77 
+
+Objects for load and energy yield forecasts 
+
+OpForecastDailyEnergy – Forecast of the daily energy production / consumption 
+
+This objects provides a forecast of the total energy production (for GenStoch) or consumption (for LoadDumb) of the current day. OID ?
+
+TID (type) FLOAT32 
+
+Unit Wh 
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mandatory for GenStoch, LoadDumb 
+
+Access (int./ext.) RW/RO 
+
+OpForecastDistributionSteps – Provides the number of steps (array size) of the energy forecast distribution 
+
+The OpForecastDistribution object delivers the distribution of the produced or consumed energy over the current day. The number of steps (the resolution) of the forecast is given by this object. OID ?
+
+TID (type) UNIT32 
+
+Unit Wh 
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Mabdatory for GenStoch, LoadDumb 
+
+Access (int./ext.) RW/RW* IEA-PVPS T11-09:2010 
+
+78 
+
+OpForecastDistribution – Energy production / consumption distribution forecast for the current day 
+
+The OpForecastDistribution object delivers the distribution of the produced or consumed energy over the current day. Each array element contains the estimated amount of energy produced or consumed by the component in the corresponding time interval. OID ?
+
+TID (type) FLOAT32 ARRAY 
+
+Unit Wh 
+
+Default Value -
+
+Minimum Value -
+
+Maximum Value -
+
+Category Mabdatory for GenStoch, LoadDumb 
+
+Access (int./ext.) RW/RO 
+
+OpForecastValidity – Is the available forecast valid for the current day? 
+
+OID ?
+
+TID (type) UINT8 
+
+Unit -
+
+Default Value 1
+
+Minimum Value 0
+
+Maximum Value 1
+
+Category Mandatory for GenStoch, LoadDumb 
+
+Access (int./ext.) RW/RO 
+
+Values 0 – forecast not valid (in progress) 1 – forecast valid IEA-PVPS T11-09:2010 
+
+79 
+
+OpForecastDistributionAbsoluteError – Absolute forecast error of the previous day 
+
+This objects provides the absolute forecast error of the energy distribution of the previous day. It should be calculated as 
+
+# | |∑ iabs d, ΔE=Error 
+
+Where ΔEi is the error of interval i. OID ?
+
+TID (type) FLOAT32 
+
+Unit Wh 
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Optional for GenStoch, LoadDumb 
+
+Access (int./ext.) RW/RO 
+
+OpForecastDistributionMeanError – Mean absolute distribution forecast error 
+
+This object provides mean forecast error of the energy distribution over the lifespan of the component. OID ?
+
+TID (type) FLOAT32 
+
+Unit Wh 
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Optional for GenStoch, LoadDumb 
+
+Access (int./ext.) RW/RO IEA-PVPS T11-09:2010 
+
+80 
+
+OpForecastDailyError – Absolute forecast error of the daily energy forecast for the previous day 
+
+OID ?
+
+TID (type) FLOAT32 
+
+Unit Wh 
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Optional for GenStoch, LoadDumb 
+
+Access (int./ext.) RW/RO 
+
+OpForecastMeanDailyError – Mean absolute forecast error of the daily energy forecast 
+
+The mean of the error of the daily energy forecast over the lifespan of the component. 
+
+OID ?
+
+TID (type) FLOAT32 
+
+Unit Wh 
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Optional for GenStoch, LoadDumb 
+
+Access (int./ext.) RW/RO IEA-PVPS T11-09:2010 
+
+81 
+
+Battery related parameters and measurement values BattCellTemp – Battery cell temperature 
+
+This is the minimum time the generator/load should run after switching on. It should be used as a hint by the EMS to prevent frequent switching of the generator/load. OID 5 127 
+
+TID (type) FLOAT32 
+
+Unit °C 
+
+Default Value 0
+
+Minimum Value -
+
+Maximum Value -
+
+Category Optional for StoreEnergy 
+
+Access (int./ext.) RW/RO 
+
+BattNumberOfCells – Number of battery cells connected in series 
+
+This is a configuration parameter of the battery controller. It is used to determine the battery’s state of charge (SOC). OID 5 128 
+
+TID (type) UINT16 
+
+Unit -
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value 65535 
+
+Category Optional for StoreEnergy 
+
+Access (int./ext.) RW/RW* 
+
+* Should only be written by configuration device IEA-PVPS T11-09:2010 
+
+82 
+
+BattNominalCapacityAH – Nominal capacity of the battery in ampere-hours 
+
+This is a configuration parameter of the battery controller. It is used to determine the battery’s state of charge (SOC). OID 5 129 
+
+TID (type) FLOAT32 
+
+Unit Ah (ampere hour) 
+
+Default Value 0
+
+Minimum Value 0
+
+Maximum Value -
+
+Category Optional for StoreEnergy 
+
+Access (int./ext.) RW/RW* 
+
+* Should only be written by configuration device 
+
+Other objects 
+
+General: 
+
+• any additional devices (virtualDevices) Example for an irradiation sensor 
+
+• Type 
+
+• Type of irradiation (global, direct, diffuse) 
+
+• Orientation (Slope) – degrees (0 – horizontal, 90 – vertical) 
+
+• Orientation – degrees (0=south) 
+
+• Sensorvalue (W/m^2) 9 783906 042022 
+
+ISBN 978-3-906042-02-2

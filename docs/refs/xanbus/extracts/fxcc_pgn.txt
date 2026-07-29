@@ -1,0 +1,650 @@
+Title: NMEA2000 PGN List for Freedom X Communication Card Online Guide
+
+URL Source: https://xantrex.com/wp-content/uploads/2021/12/976-0422-01-01_Rev-ANMEA2000-PGN-List-for-FXCC_ENG.pdf
+
+Published Time: Wed, 15 Dec 2021 23:09:57 GMT
+
+Number of Pages: 9
+
+Markdown Content:
+Disclaimer 
+
+THIS  REFERENCE GUIDE IS PROVIDED BY  Xantrex LLC  FOR FREEBASED ON LICENSING AGREEMENTS BETWEEN DIFFERENT PARTIES.  Xantrex  DOES NOT WARRANT THAT THE PRODUCT WILL OPERATE UNINTERRUPTED, THAT IT IS FREE FROM DEFECTS OR ERRORS, OR THAT IT IS SUITABLE FOR CERTAIN PURPOSES. THE PRODUCT IS USED AT YOUR OWN RISK AND RESPONSIBILITY.  Xantrex LLC  HEREBY DISCLAIMS ALL WARRANTIES, WHETHER STATUTORY, EXPRESS, OR IMPLIED, INCLUDING ALL WARRANTIES OF MERCHANTABILITY AND FITNESS FOR PARTICULAR PURPOSE, AND ALL WARRANTIES ARISING FROM COURSE OF DEALING OR USAGE OF TRADE. IN NO EVENT SHALL XANTREX LLC BE LIABLE FOR ANY INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, LOSS, EXPENSE OR CAUSE OF ACTION, WHETHER BASED IN CONTRACT, WARRANTY, TORT (INCLUDING NEGLIGENCE), STRICT LIABILITY, STATUTE, OR OTHERWISE, INCLUDING, WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS, LOSS OF PROFITS, BUSINESS INTERRUPTION, LOSS OF DATA, OR FOR ANY OTHER PECUNIARY OR NON-PECUNIARY LOSS OR DAMAGE ARISING OUT OF OR IN CONNECTION WITH THE INABILITY TO USE OR THE MISUSE OF THE SOFTWARE, EVEN IF  Xantrex LLC  HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. 
+
+# Purpose 
+
+The purpose of this Reference Guide is to provide a Parameter Group Number (PGN) list for the Freedom inverter/charger product and it includes a description of each available PGN. 
+
+# Audience 
+
+This Reference Guide is intended for users and operators of the Freedom inverter/charger product. 
+
+# Supported NMEA2000 Parameter Group Numbers (PGN) 
+
+## Transmit (Send) 
+
+PGN  NMEA2000 PGN Description 
+
+Broadcase Interval (ms) 
+
+Supported Feature  Supported Status Fields 
+
+Supported Config/Command Fields 
+
+59392  ISO Acknowledgment 
+
+NA  NA  NA  NA 
+
+65280  Proprietary Message, Device Control 
+
+NA  NA  Transfer Mode  Reset command 
+
+Clear Fault command 
+
+Transfer Mode 
+
+65281  Proprietary Message, FXCC Configuration 
+
+NA  NA  Hibernate Delay Time 
+
+Buzzer Enable/Disable 
+
+Inverter Ignition 
+
+Hibernate Delay Time 
+
+Buzzer Enable/Disable 
+
+Inverter Ignition 
+
+126464  PGN list  NA  Received PGN list and Transmit PGN list 
+
+NA  NA 
+
+126983  Alert  1000  Alert State machine with silence/acknowledge support 
+
+Supported Alert Cases: 
+
+Faulted, 
+
+Overload, 
+
+DC UV, 
+
+DCOV, 
+
+Internal OT, 
+
+AC input Failure 
+
+NA  NA 
+
+# NMEA2000  PGN  List  for  Freedom  X
+
+# Communication  Card  Online  Guide 
+
+976-0422-01-01 
+
+Rev  APGN  NMEA2000 PGN Description 
+
+Broadcase Interval (ms) 
+
+Supported Feature  Supported Status Fields 
+
+Supported Config/Command Fields 
+
+126985  Alert Text  10000  Supported Alert Cases: 
+
+Faulted, 
+
+Overload, 
+
+DC UV, 
+
+DCOV, 
+
+Internal OT, 
+
+AC input Failure 
+
+NA  NA 
+
+126986  Alert Configuration  NA  Supported Alert Cases: 
+
+Faulted, 
+
+Overload, 
+
+DC UV, 
+
+DCOV, 
+
+Internal OT, 
+
+AC input Failure 
+
+Alert Control 
+
+Silence Timeout 
+
+Reactivation Timeout 
+
+Alert Control 
+
+Silence Timeout 
+
+Reactivation Timeout 
+
+126993  Heartbeat  60000  NA  CAN1 Status 
+
+Device Status 
+
+NA 
+
+126996  Product Information  NA  NA  All fields  NA 
+
+126998  Configuration Information 
+
+NA  NA  Manufacture Info 
+
+Installation 
+
+Description 1 
+
+NA 
+
+127506  DC detailed Status  1500  NA  SOC  NA 
+
+127508  Battery Status  1500  NA  Voltage 
+
+Current 
+
+Temperature 
+
+NA 
+
+127510  Charger Configuration Status 
+
+NA  NA  Charger Current Limit 
+
+Estimated Battery Temp without sensor 
+
+Charger Algorithm 
+
+Charger Enable/Disable 
+
+Charger Current Limit 
+
+Equalize One Time 
+
+Enable/Disable Estimated Battery Temp without sensor 
+
+127511  Inverter Configuration Status 
+
+NA  NA  Load Sense Enable/Disable 
+
+Inverter Enable/Disable 
+
+Load Sense Enable/Disable 
+
+127513  Battery Configuration Status 
+
+NA  NA  Battery Type Equalization Support Nominal Voltage 
+
+Battery Type 
+
+127750  Inverter/Charger Status 
+
+1500  NA  NA  NA 
+
+127751  DC Voltage/Current  1500  NA  Voltage 
+
+Current 
+
+NA 
+
+976-0422-01-01  Rev  A Copyright  © 2021  Xantrex  LLC.  All  Rights  Reserved  2
+
+NMEA2000  PGN  for  Freedom  X Communication  Card  Reference  Guide PGN  NMEA2000 PGN Description 
+
+Broadcase Interval (ms) 
+
+Supported Feature  Supported Status Fields 
+
+Supported Config/Command Fields 
+
+129033  Local Time Offset  NA  NA  Date Time Offset  NA 
+
+130316  Temperature  NA  NA  FET temperature  NA 
+
+130900  Proprietary Message, AC Status 
+
+1500  NA  Voltage 
+
+Current 
+
+Frequency 
+
+Real Power 
+
+Reactive Power 
+
+NA 
+
+130910  Proprietary Message, DC Configuration Status 
+
+NA  NA  DC UV Level 
+
+DCUV Delay Time 
+
+DC UV recovery Level 
+
+DC UV Level 
+
+DCUV Delay Time 
+
+DC UV recovery Level 
+
+130911  Proprietary Message, AC Output Configuration Status 
+
+NA  NA  AC Output Voltage 
+
+AC Output Frequency 
+
+AC Power Limit 
+
+AC Power Limit 
+
+Delay Time 
+
+AC Output Voltage 
+
+AC Output Frequency 
+
+AC Power Limit 
+
+AC Power Limit 
+
+Delay Time 
+
+130912  Proprietary Message, Extended Charger Configuration Status 
+
+NA  NA  Absorption Voltage 
+
+Float Voltage 
+
+Absorption Voltage 
+
+Float Voltage 
+
+130913  Proprietary Message, AC Input Configuration Status 
+
+NA  NA  AC Breaker Size 
+
+AC Lost voltage Level 
+
+AC Breaker Size 
+
+AC Lost voltage Level 
+
+## Transmit (Send) and Receive 
+
+PGN  NMEA2000 PGN Description  Supported Feature  Supported Status Fields  Supported Config/Command Fields 
+
+60160  ISO Data Transfer  NA  NA  NA 
+
+60416  ISO Connection Management 
+
+RTS, 
+
+EOM, 
+
+Abort, 
+
+BAM, 
+
+CTS 
+
+NA  NA 
+
+60928  ISO Address Claim  NA  All fields  System Instance Device Instance 
+
+126208  NMEA Group Function  Request, 
+
+Command, 
+
+Acknowledgment Periodic transmit rate and priority configuration not supported 
+
+NA  NA 
+
+126992  System Time  NA  Date 
+
+Time 
+
+Date and Time synchronized to incoming system time message 
+
+976-0422-01-01  Rev  A Copyright  © 2021  Xantrex  LLC.  All  Rights  Reserved  3
+
+NMEA2000  PGN  for  Freedom  X Communication  Card  Reference  Guide Receive 
+
+PGN  NMEA2000 PGN Description  Supported Feature  Supported Status Fields  Supported Config/Command Fields 
+
+59904  ISO Request  NA  NA  NA 
+
+65240  ISO Commanded Address  NA  NA  NA 
+
+126984  Alert Response  Alert State machine with silence/acknowledge support 
+
+Supported Alert Cases: 
+
+Faulted, 
+
+Overload, 
+
+DC UV, 
+
+DCOV, 
+
+Internal OT, 
+
+AC input Failure 
+
+Response Command  Acknowledge and Temporary Silence Command 
+
+976-0422-01-01  Rev  A Copyright  © 2021  Xantrex  LLC.  All  Rights  Reserved  4
+
+NMEA2000  PGN  for  Freedom  X Communication  Card  Reference  Guide Proprietary Message Definition 
+
+# PGN 65280 
+
+## Device Control Status 
+
+This PGN provides device level controls and configurations. This PGN supports ISO Request, NMEA Request and NMEA command. 
+
+PGN priority : 7 
+
+PGN update rate : non-periodic 
+
+Field #  Field Name  DD  DF  Bit Size  Request  Command 
+
+1 Manufacturer Code  DD172  DF52  11  Required  Required 
+
+2 NMEA Reserved  DD001  DF52  2 Prohibited  Prohibited 
+
+3 Industry Group  DD168  DF52  3 Required  Required 
+
+4 ResetCmd  DD903  DF52  4 Prohibited  Required 
+
+5 Clear Fault  DD003  DF52  2 Prohibited  Required 
+
+6 Transfer Mode  DD902  DF52  2 Prohibited  Required 
+
+# PGN 65281 
+
+## FXCC Configuration Status 
+
+This PGN provides FXCC product specific controls and configurations. This PGN supports ISO Request, NMEA Request and NMEA command. 
+
+PGN priority : 7 
+
+PGN update rate : non-periodic 
+
+Field #  Field Name  DD  DF  Bit Size  Request  Command 
+
+1 Manufacturer Code  DD172  DF52  11  Required  Required 
+
+2 NMEA Reserved  DD001  DF52  2 Prohibited  Prohibited 
+
+3 Industry Group  DD168  DF52  3 Required  Required 
+
+4 Buzzer Enable  DD003  DF52  2 Prohibited  Required 
+
+5 Inverter Ignition  DD900  DF52  2 Prohibited  Required 
+
+6 Charger Ignition  DD901  DF52  2 Prohibited  Required 
+
+7 NMEA Reserved  DD001  DF52  2 Prohibited  Prohibited 
+
+8 Hibernate Delay  DD268  DF98  16  Prohibited  Required 
+
+976-0422-01-01  Rev  A Copyright  © 2021  Xantrex  LLC.  All  Rights  Reserved  5
+
+NMEA2000  PGN  for  Freedom  X Communication  Card  Reference  Guide PGN 130900 
+
+## AC Source Status 
+
+This PGN provides AC source general status. This PGN supports ISO Request, NMEA Request and NMEA command. 
+
+PGN priority : 7 
+
+PGN update rate : 1500ms 
+
+Field #  Field Name  DD  DF  Bit Size  Request  Command 
+
+1 Manufacturer Code  DD172  DF52  11  Required  Required 
+
+2 NMEA Reserved  DD001  DF52  2 Prohibited  Prohibited 
+
+3 Industry Group  DD168  DF52  3 Required  Required 
+
+4 AC Source Instance  DD005  DF53  8 Optional  Required 
+
+5 Line Total  DD006  DF53  8 Optional  Required 
+
+6 Line  DD270  DF52  2 Optional  Required 
+
+7 Qualification  DD259  DF52  2 Prohibited  Prohibited 
+
+8 Waveform  DD273  DF52  3 Prohibited  Prohibited 
+
+9 NMEA Reserved  DD001  DF52  1 Prohibited  Prohibited 
+
+10  Voltage  DD260  DF96  16  Prohibited  Prohibited 
+
+11  Current  DD269  DF95  16  Prohibited  Prohibited 
+
+12  Frequency  DD267  DF22  16  Prohibited  Prohibited 
+
+13  Real Power  DD261  DF94  32  Prohibited  Prohibited 
+
+14  Reactive Power  DD262  DF92  32  Prohibited  Prohibited 
+
+15  Power Factor  DD271  DF97  8 Prohibited  Prohibited 
+
+# PGN 130910 
+
+## DC Source Configuration Status 
+
+This PGN provides DC source configuration status. This PGN supports ISO Request, NMEA Request and NMEA command. 
+
+PGN priority : 7 
+
+PGN update rate : non-periodic 
+
+Field #  Field Name  DD  DF  Bit Size  Request  Command 
+
+1 Manufacturer Code  DD172  DF52  11  Required  Required 
+
+2 NMEA Reserved  DD001  DF52  2 Prohibited  Prohibited 
+
+3 Industry Group  DD168  DF52  3 Required  Required 
+
+4 DC Source Instance  DD005  DF53  8 Required  Required 
+
+5 DC UV Shutdown Level  DD367  DF106  16  Prohibited  Required 
+
+6 DC UV Warning Level  DD367  DF106  16  Prohibited  Required 
+
+7 DC UV Shutdown Delay  DD210  DF95  16  Prohibited  Required 
+
+8 DC UV Recover Level  DD367  DF106  16  Prohibited  Required 
+
+9 DC OV Shutdown Level  DD367  DF106  16  Prohibited  Required 
+
+10  DC OV Warning Level  DD367  DF106  16  Prohibited  Required 
+
+11  DC OV Shutdown Delay  DD210  DF95  16  Prohibited  Required 
+
+12  DC OV Recover Level  DD367  DF106  16  Prohibited  Required 
+
+976-0422-01-01  Rev  A Copyright  © 2021  Xantrex  LLC.  All  Rights  Reserved  6
+
+NMEA2000  PGN  for  Freedom  X Communication  Card  Reference  Guide PGN 130911 
+
+## AC Output Configuration Status 
+
+This PGN provides AC output configuration status. This PGN supports ISO Request, NMEA Request and NMEA command. 
+
+PGN priority : 7 
+
+PGN update rate : non-periodic 
+
+Field #  Field Name  DD  DF  Bit Size  Request  Command 
+
+1 Manufacturer Code  DD172  DF52  11  Required  Required 
+
+2 NMEA Reserved  DD001  DF52  2 Prohibited  Prohibited 
+
+3 Industry Group  DD168  DF52  3 Required  Required 
+
+4 AC Source Instance  DD005  DF53  8 Optional  Required 
+
+5 Line Total  DD006  DF53  8 Optional  Required 
+
+6 Line  DD270  DF52  2 Optional  Required 
+
+7 NMEA Reserved  DD001  DF52  6 Prohibited  Prohibited 
+
+8 Voltage  DD260  DF96  16  Prohibited  Required 
+
+9 Frequency  DD267  DF22  16  Prohibited  Required 
+
+10  Power Limit  DD261  DF80  32  Prohibited  Required 
+
+11  Power Limit Delay  DD210  DF95  16  Prohibited  Required 
+
+12  OV Fault Level  DD260  DF96  16  Prohibited  Required 
+
+13  UV Fault Level  DD260  DF96  16  Prohibited  Required 
+
+# PGN 130912 
+
+## Charger Configuration Status, extended 
+
+This PGN provides additional charger configurations that are not provided with the standard. This PGN supports ISO Request, NMEA Request and NMEA command. 
+
+PGN priority : 7 
+
+PGN update rate : non-periodic 
+
+Field #  Field Name  DD  DF  Bit Size  Request  Command 
+
+1 Manufacturer Code  DD172  DF52  11  Required  Required 
+
+2 NMEA Reserved  DD001  DF52  2 Prohibited  Prohibited 
+
+3 Industry Group  DD168  DF52  3 Required  Required 
+
+4 Charge Instance  DD005  DF53  8 Required  Required 
+
+5 Battery Instance  DD005  DF53  8 Required  Required 
+
+6 Bulk Voltage  DD367  DF106  16  Prohibited  Required 
+
+7 Bulk Time  DD210  DF95  16  Prohibited  Required 
+
+8 Absorption Voltage  DD367  DF106  16  Prohibited  Required 
+
+9 Absorption Time  DD210  DF95  16  Prohibited  Required 
+
+10  Float Voltage  DD367  DF106  16  Prohibited  Required 
+
+11  Float Time  DD210  DF95  16  Prohibited  Required 
+
+12  Equalization Voltage  DD367  DF106  16  Prohibited  Required 
+
+13  Generic Charge Voltage  DD367  DF106  16  Prohibited  Required 
+
+14  Generic Charge Current  DD140  DF07  16  Prohibited  Required 
+
+976-0422-01-01  Rev  A Copyright  © 2021  Xantrex  LLC.  All  Rights  Reserved  7
+
+NMEA2000  PGN  for  Freedom  X Communication  Card  Reference  Guide PGN 130913 
+
+## AC Input Configuration Status 
+
+This PGN provides AC input configuration status. This PGN supports ISO Request, NMEA Request and NMEA command. 
+
+PGN priority : 7 
+
+PGN update rate : non-periodic 
+
+Field #  Field Name  DD  DF  Bit Size  Request  Command 
+
+1 Manufacturer Code  DD172  DF52  11  Required  Required 
+
+2 NMEA Reserved  DD001  DF52  2 Prohibited  Prohibited 
+
+3 Industry Group  DD168  DF52  3 Required  Required 
+
+4 AC Source Instance  DD005  DF53  8 Optional  Required 
+
+5 Line Total  DD006  DF53  8 Optional  Required 
+
+6 Line  DD270  DF52  2 Optional  Required 
+
+7 NMEA Reserved  DD001  DF52  6 Prohibited  Prohibited 
+
+8 Breaker Size  DD269  DF95  16  Prohibited  Required 
+
+9 AC Lost Level  DD260  DF96  16  Prohibited  Required 
+
+10  AC UV Level  DD260  DF96  16  Prohibited  Required 
+
+11  AC UV Warning Level  DD260  DF96  16  Prohibited  Required 
+
+12  AC UV Delay  DD210  DF95  16  Prohibited  Required 
+
+13  AC OV Level  DD260  DF96  16  Prohibited  Required 
+
+14  AC OV Warning Level  DD260  DF96  16  Prohibited  Required 
+
+15  AC OV Delay  DD210  DF95  16  Prohibited  Required 
+
+16  AC UF Level  DD267  DF22  16  Prohibited  Required 
+
+17  AC OF Level  DD267  DF22  16  Prohibited  Required 
+
+976-0422-01-01  Rev  A Copyright  © 2021  Xantrex  LLC.  All  Rights  Reserved  8
+
+NMEA2000  PGN  for  Freedom  X Communication  Card  Reference  Guide Copyright © 2021 Xantrex LLC. All Rights Reserved. 
+
+All trademarks are owned by Xantrex LLC and its affiliates. 
+
+Exclusion for Documentation 
+
+UNLESS SPECIFICALLY AGREED TO IN WRITING, SELLER 
+
+(A) MAKES NO WARRANTY AS TO THE ACCURACY, SUFFICIENCY OR SUITABILITY OF ANY TECHNICAL OR OTHER INFORMATION PROVIDED IN ITS MANUALS OR OTHER DOCUMENTATION; 
+
+(B) ASSUMES NO RESPONSIBILITY OR LIABILITY FOR LOSSES, DAMAGES, COSTS OR EXPENSES, WHETHER SPECIAL, DIRECT, INDIRECT, CONSEQUENTIAL OR INCIDENTAL, WHICH MIGHT ARISE OUT OF THE USE OF SUCH INFORMATION. THE USE OF ANY SUCH INFORMATION WILL BE ENTIRELY AT THE USER’S RISK; AND 
+
+(C) REMINDS YOU THAT IF THIS MANUAL IS IN ANY LANGUAGE OTHER THAN ENGLISH, ALTHOUGH STEPS HAVE BEEN TAKEN TO MAINTAIN THE ACCURACY OF THE TRANSLATION, THE ACCURACY CANNOT BE GUARANTEED. APPROVED CONTENT IS CONTAINED WITH THE ENGLISH LANGUAGE VERSION WHICH IS POSTED AT http://www.xantrex.com. 
+
+NOTE : Visit http://www.xantrex.com , click Products, select a Product category, select a Product, and search the Product Documents panel for a translation of the English guide, if available. 
+
+Document Number:  976-0422-01-01  Rev A  Date:  June 2021 
+
+Contact Information 
+
+Telephone : (Toll Free USA/Canada) +1 800 670 0707 / (Outside USA/Canada) +1 408 987 6030 
+
+Email : customerservice@xantrex.com, 
+
+http://www.xantrex.com/power-products-support/ 
+
+Web : http://www.xantrex.com 
+
+976-0422-01-01  Rev  A Copyright  © 2021  Xantrex  LLC.  All  Rights  Reserved  9
+
+NMEA2000  PGN  for  Freedom  X Communication  Card  Reference  Guide

@@ -1,0 +1,390 @@
+Title: Freedom SW-RVC DGN Reference Guide
+
+URL Source: https://xantrex.com/wp-content/uploads/2022/09/Freedom-SW-RVC-DGN-Reference-Guide-976-0452-01-01_Rev-B_ENG.pdf
+
+Published Time: Wed, 07 Sep 2022 20:17:59 GMT
+
+Number of Pages: 48
+
+Markdown Content:
+FREEDOM SW 3012 
+
+> FREEDOM SW  3012
+
+CLEAR FAULT RESET INVERTER ENABLE INVERTER ENABLED AC IN FAULT GEN SUPPORT CHARGING WARNING 
+
+> FREEDOM SW  3012
+
+FREEDOM SW 3012 
+
+CLEAR FAULT RESET INVERTER ENABLE INVERTER ENABLED AC IN FAULT GEN SUPPORT CHARGING WARNING Freedom SW-RVC Inverter/Charger 
+
+# RV-C DGN Guide 
+
+Product Model Number 
+
+815-3012-02 2 Freedom SW-RVC DGN Reference Guide 
+
+Copyright © 2022 Xantrex LLC. All Rights Reserved. All trademarks are owned by Xantrex LLC and its affiliates. 
+
+Document Number: 976-0452-01-01 Rev B Date: September 2022 
+
+Product Name and Part Number 
+
+Freedom SW-RVC (815-3012-02) 
+
+Contact Information Telephone: (Toll Free USA/Canada) +1 800 670 0707 / (Outside USA/Canada) +1 408 987 6030 
+
+Email: customerservice@xantrex.com, http://www.xantrex.com/power-products-support/ 
+
+Web: http://www.xantrex.com/ ABOUT THIS GUIDE 
+
+# Purpose 
+
+The purpose of this RV-C DGN RV-C DGN Guide is to provide a list of supported Data Group Numbers (DGN) for the Freedom SW-RVC. The list also includes events (for example, faults and warnings), and proprietary messages. 
+
+# Scope 
+
+The reference provides the DGN list including events (for example, faults and warnings), and proprietary messages available for the inverter/charger. It does not provide installation and operational information and troubleshooting guidelines. 
+
+# Audience 
+
+The reference is intended for programmers of RV-C compatible devices which have to communicate with the Freedom SW-RVC Inverter/Charger. 
+
+# Related Information 
+
+You can find more information about Xantrex products and services at http://www.xantrex.com/. 
+
+IMPORTANT : The latest RV-C standard is available at. http://www.rv-c.com/forum/8. 
+
+976-0452-01-01 34 976-0452-01-01 
+
+# CONTENTS 
+
+## Supported DGNs 5
+
+Introduction 5
+
+DC Source DGNs 6
+
+Inverter DGNs 8
+
+Charger DGNs 15 
+
+Diagnostic DGNs 25 
+
+## Faults and Warnings 29 
+
+Diagnostics Message (DM_RV) in RV-C Specs 30 
+
+## Proprietary messages 33 
+
+Introduction 33 
+
+Proprietary DGN General Framework 34 
+
+DGN Messages 35 
+
+Examples of Proprietary_Message_Request 43 Introduction 976-0452-01-01 5
+
+# 1 SUPPORTED DGNS 
+
+Introduction 5
+
+DC Source DGNs 6
+
+Inverter DGNs 8
+
+Charger DGNs 15 
+
+Diagnostic DGNs 25 
+
+# Introduction 
+
+This section provides some general information on supported RV-C Data Group Numbers (DGNs) by the Freedom SW-RVC. 
+
+Bus Speed : 250kbps 
+
+Source Address : Default to 0x42 , support for dynamic address claiming according to "Section 3.3.2 Source Address Claiming" of the RV-C standard. DC Source DGNs 6 Freedom SW-RVC DGN Reference Guide 
+
+# DC Source DGNs 
+
+Abbreviations : HEX = hexadecimal; ms = millisecond; RV-C = Recreational Vehicle Controller Area Network (CAN) 
+
+RV-C DGN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.5.2 DC Source Status 1 DC_SOURCE_STATUS_1 500 1FFFD Instance See RV-C specs Device Priority DC Voltage DC Current 6.5.3 DC Source Status 2 DC_SOURCE_STATUS_2 500 1FFFC Instance See RV-C specs Device Priority Source Temperature State of Charge x Time Remaining 6.5.4 DC Source Status 3 DC_SOURCE_STATUS_3 N/A (not broadcasted, responds to query) 1FFFB Instance Not broadcasted, just sent upon request. Sent with no data on all fields. Device Priority x State of Health x Capacity Remaining x Relative Capacity x AC RMS Ripple DC Source DGNs 976-0452-01-01 7
+
+RV-C DGN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.5.5 DC Source Status 4 DC_SOURCE_STATUS_4 5000 1FEC9 Instance See RV-C specs Device Priority x Desired charge state x Desired DC voltage x Desired DC current Battery Type Inverter DGNs 8 Freedom SW-RVC DGN Reference Guide 
+
+# Inverter DGNs 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.19.3 AC Output Page1 INVERTER_AC_STATUS_1 100 1FFD7 Instance Instance (See Note 1 above) See RV-C specs RMS Voltage RMS Current Frequency x Fault - open ground x Fault - open neutral x Fault - reverse polarity x Fault - ground current 6.19.4 AC Output Page 2 INVERTER_AC_STATUS_2 N/A (not broadcasted, responds to query) 1FFD6 Instance Instance (See Note 1 above) Not broadcasted, just sent upon request. Sent with no data on all fields. x Peak Voltage x Peak Current x Ground Current x Capacity Inverter DGNs 976-0452-01-01 9
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.19.5 AC Output Page 3 INVERTER_AC_STATUS_3 100 1FFD5 Instance Instance (See Note 1 above) See RV-C specs Waveform Phase Status Real Power Reactive Power x Harmonic Distortion x Complementary Leg 6.19.6 AC Output Page 4 INVERTER_AC_STATUS_4 100 1FF8F Instance Instance (See Note 1 above) See RV-C specs Voltage Fault x Fault - surge protection x Fault - high frequency x Fault - low frequency x Bypass mode active Qualification Status Inverter DGNs 10 Freedom SW-RVC DGN Reference Guide 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.19.8 Inverter Status INVERTER_STATUS 500 1FFD4 Status See RV-C specs Battery Temp. Sensor Present x Load Sense Enabled x Inverter Enable x Pass-Through Enable x Generator Support Enable 6.19.9 Inverter Command INVERTER_COMMAND N/A 1FFD3 Instance See RV-C specs Inverter Enable Load Sense Enable x Pass-Through Enable x Generator Support Enable x Reserved x Inverter Enable on Startup x Load Sense Enable on Startup x AC Pass-Through Enable on Startup x Generator support enable on startup Inverter DGNs 976-0452-01-01 11 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.19.10 Inverter Configuration Status 1 INVERTER_CONFIGURATION_ STATUS_1 On Change 1FFD2 Instance See RV-C specs Load Sense Power Threshold Load Sense Interval DC Source Shutdown Voltage - Min 
+
+x Inverter Enable on Startup x Load Sense Enable on Startup x AC Pass-Through Enable on Startup x Generator support enable on startup 6.19.11 Inverter Configuration Status 2 INVERTER_CONFIGURATION_ STATUS_2 On Change 1FFD1 Instance See RV-C specs Load Sense Power Threshold DC Source Shutdown Voltage - Max DC Source Warning Voltage - Min DC Source Warning Voltage - Max Inverter DGNs 12 Freedom SW-RVC DGN Reference Guide 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.19.12 Inverter Configuration Status 2 INVERTER_CONFIGURATION_ STATUS_3 On Change 1FECE Instance See RV-C specs DC Source shutdown delay Stack Mode 
+
+x DC Source Shutdown Recovery Level x Generator Support Engage Current 6.19.14 Inverter Configuration Command 1 INVERTER_CONFIGURATION_ COMMAND_1 N/A 1FFD0 Instance See RV-C specs Load Sense Power Threshold 25W to 250W Load Sense Interval 1sec to 25sec DC Source Shutdown Voltage (Min) 10.0V to 12.0V 6.19.15 Inverter Configuration Command 2 INVERTER_CONFIGURATION_ COMMAND_2 N/A 1FFCF Instance See RV-C specs DC Source Shutdown Voltage (Max) 14.5V to 17.0V DC Source Warning Voltage (Min) DC Source Shutdown Voltage (Min)" -2.000V to "DC Source Shutdown Voltage (Min) DC Source Warning Voltage (Max) DC Source Shutdown Voltage (Max)" -3.000V to "DC Source Shutdown Voltage (Max) Inverter DGNs 976-0452-01-01 13 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.19.16 Inverter Configuration Command 3 INVERTER_CONFIGURATION_ COMMAND_3 N/A 1FECD Instance See RV-C specs DC Source shutdown delay 0sec to 600sec Stack Mode 1- Master 2-Slave 3-Line 2 Master x DC Source Shutdown Recovery Level See RV-C specs x Generator Support Engage Current 6.19.18 Inverter Statistics INVERTER_STATISTIC_STATUS N/A 1FFCE Instance N/A x Number of DC Under Voltage Detections x Number of Inverter AC Output Over-Loads x Number of Times Load Sense Engaged x Lowest DC Voltage x Highest DC Voltage x Lowest AC Input Voltage x Highest AC Input Voltage x Lowest AC Output Voltage x Highest AC Output Voltage x Reserved Inverter DGNs 14 Freedom SW-RVC DGN Reference Guide 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.19.22 Inverter DC Status INVERTER_DC_STATUS 5000 1FEE8 Instance See RV-C specs DC Voltage DC Amperage x DC Source Shutdown Recovery Level 6.19.23 Inverter Temperature Status INVERTER_TEMPERATURE_ STATUS 500 1FEBD Instance See RV-C specs FET Temperature Transformer Temperature Charger DGNs 976-0452-01-01 15 
+
+# Charger DGNs 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.20.3 AC Input Page 1 CHARGER_AC_STATUS_1 5000 1FFCA Instance Instance (See Note 1 above) See RV-C specs RMS Voltage RMS Current x Fault - open ground x Fault - open neutral x Fault - reverse polarity 
+
+x Fault - ground current 6.20.4 AC Input Page 2 CHARGER_AC_STATUS_2 N/A 1FFC9 Instance Instance (See Note 1 above) N/A x Peak Voltage x Peak Current x Capacity Charger DGNs 16 Freedom SW-RVC DGN Reference Guide 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.20.5 AC Input Page 3 CHARGER_AC_STATUS_3 5000 1FFC8 Instance Instance (See Note 1 above) See RV-C specs x Waveform x Phase Status Real Power Reactive Power x Harmonic Distortion x Complementary Leg 6.20.6 AC Input Page 4 CHARGER_AC_STATUS_4 5000 1FF8A Instance Instance (See Note 1 above) See RV-C specs x Voltage Fault x Fault - surge protection x Fault - high frequency x Fault - low frequency x Bypass Mode Active Qualification Status Charger DGNs 976-0452-01-01 17 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.20.8 Charger Status CHARGER_STATUS 5000 1FFC7 Instance See RV-C specs Charge Voltage Charge Current Charge Current Percent of Max Operating State Default State on Power-Up Auto Recharge Enabled Force Charge 6.20.10 Charger Configuration CHARGER_CONFIGURATION_ STATUS N/A 1FFC6 Instance See RV-C specs Charger Mode Battery Sensor Present x Charger Installation Line Battery Type Battery Bank Size Maximum Charging Current Charger DGNs 18 Freedom SW-RVC DGN Reference Guide 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.20.11 Charger Command CHARGER_COMMAND N/A 1FFC5 Instance See RV-C specs Status x Default State on Power-Up Auto Recharge Enabled Force Charge 0- Cancel forcing 1 - Force charge to bulk 2 - Force charge to float 14 - No change 15 - Undefined Charger DGNs 976-0452-01-01 19 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.20.12 Charger Configuration Command CHARGER_CONFIGURATION_ COMMAND N/A 1FFC5 Instance See RV-C specs Charging Algorithm 2-3-Stage 3-2-Stage Charger Mode See RV-C specs x Battery Sensor Present See RV-C specs x Charger Installation line Battery Bank Size 50Ah to 2000Ah Battery Type 0 - Flooded 1 - Gel 2 - AGM 13 - Custom1 15 - Invalid x Reserved See RV-C specs x Maximum Charging Current Charger DGNs 20 Freedom SW-RVC DGN Reference Guide 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.20.13 Charger Configuration Status 2 CHARGER_CONFIGURATION_ STATUS_2 On change 1FF96 Instance See RV-C specs Max Charge Current as a Percentage x Charge Rate Limit as Percent of Bank Size Shore Breaker Size Default Battery Temperature Recharge Voltage 6.20.14 Charger Configuration Command 2 CHARGER_CONFIGURATION_ COMMAND_2 N/A 1FF95 Instance See RV-C specs Max Charge Current as a Percentage 10-100% x Charge Rate Limit as Percent of Bank Size See RV-C specs Shore Breaker Size 5-30A Default Battery Temperature 10 - Cold 25 - Warm 40 -Hot Recharge Voltage 11.0V to 13.5V Charger DGNs 976-0452-01-01 21 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.20.15 Charger Configuration Status 3 CHARGER_CONFIGURATION_ STATUS_3 On Change 1FECC Instance See RV-C specs Bulk Voltage Absorption Voltage Float Voltage Temperature Compensation Constant 6.20.16 Charger Configuration Command 3 CHARGER_CONFIGURATION_ COMMAND_3 N/A 1FECB Instance See RV-C specs Bulk Voltage 11.2V to 16.0V Absorption Voltage 12.0V to 16.0V Float Voltage 11.0V to 16.0V Temperature Compensation Constant 0mV/K to 45mV/K 6.20.17 Charger Configuration Status 4 CHARGER_CONFIGURATION_ STATUS_4 On Change 1FEBF Instance See RV-C specs x Bulk Time Absorption Time Float Time Charger DGNs 22 Freedom SW-RVC DGN Reference Guide 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.20.18 Charger Configuration Command 4 CHARGER_CONFIGURATION_ COMMAND_4 N/A 1FEBE Instance See RV-C specs x Bulk Time See RV-C specs Absorption Time 1 min to 480 min Float Time 1 hr to 1440 hr 6.20.20 Charger Equalization Status CHARGER_EQUALIZATION_ STATUS 1000 1FF99 Instance See RV-C specs Time Remaining x Pre Charging Status 6.20.22 Charger Equalization Configuration Status CHARGER_EQUALIZATION_ CONFIGURATION_STATUS On Change 1FF98 Instance See RV-C specs Equalization Voltage Equalization Time 6.20.23 Equalization Configuration Command CHARGER_EQUALIZATION_ CONFIGURATION_COMMAND On Change 1FF97 Instance See RV-C specs Equalization Voltage 13.5 V to 16.0 V Equalization Time 1 min to 360 min Charger DGNs 976-0452-01-01 23 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.20.7 AC Fault Configuration Status and Command CHARGER_ACFAULT_ CONFIGURATION_STATUS_1 On Change 1FF89 Instance (See Note 1 above) See RV-C specs x Extreme Low Voltage level Low voltage level High voltage level x Extreme high voltage level Qualification time x Bypass mode 6.20.7 AC Fault Configuration Status and Command CHARGER_ACFAULT_ CONFIGURATION_STATUS_2 On Change 1FF88 Instance (See Note 1 above) See RV-C specs High frequency limit Low frequency limit 6.20.7 AC Fault Configuration Status and Command CHARGER_ACFAULT_ CONFIGURATION_COMMAND_1 N/A 1FF87 Instance (See Note 1 above) See RV-C specs x Extreme Low Voltage level Low voltage level 78 V to 115 V High voltage level 125 V to 140 V x Extreme high voltage level See RV-C specs Qualification time 10s x Bypass mode See RV-C specs Charger DGNs 24 Freedom SW-RVC DGN Reference Guide 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.20.7 AC Fault Configuration Status and Command CHARGER_ACFAULT_ CONFIGURATION_COMMAND_2 N/A 1FF86 Instance (See Note 1 above) See RV-C specs High frequency limit 61 Hz to 70 Hz Low frequency limit 44 Hz to 59 Hz Diagnostic DGNs 976-0452-01-01 25 
+
+# Diagnostic DGNs 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+3.2.5 Diagnostics message Diagnostics message (DM_RV) 5000 1FECA Operating Status - Product On See RV-C specs Operating Status - Product Active Operating Status - Yellow Operating Status - Red Product Identifier - Default Source Address Suspect Parameter Number Failure Mode Identifier x Occurrence Count x Reserved x Default Source Address Extension x Bank Select 3.2.8 Product identification message On Request 1FEEB Data See RV-C specs Diagnostic DGNs 26 Freedom SW-RVC DGN Reference Guide 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.2.1 General Purpose Reset GENERAL_RESET N/A 17F00 Reboot See RV-C specs Clear Faults Reset to Default Settings x Reset Statistics x Test Mode Reset to OEM Specific Settings Reboot/Enter Bootloader Mode 6.2.4 Instance Assignment INSTANCE_ASSIGNMENT N/A 17C00 Device Type See RV-C specs Base Instance Max Instance x Base Internal Address x Max Internal Address x Reserved Diagnostic DGNs 976-0452-01-01 27 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+6.2.4 Instance Assignment INSTANCE_STATUS N/A 17B00 Device Type See RV-C specs Base Instance Max Instance x Base Internal Address x Max Internal Address x Reserved Diagnostic DGNs 28 Freedom SW-RVC DGN Reference Guide 
+
+RV-C DN Name Broadcast List and Interval (ms) DGN Hex Parameter Freedom SW RV-C Range  
+
+> x= not implemented
+
+3.3.2 Address Claimed ADDRESS_CLAIM 1000 1EE00 Serial Number Unit's Serial Number Manufacturer Code Xantrex - 119 Node Instance See RV-C specs Function Instance Function Instance x Compatibility Field Device function - 129 INVERTER_ CHARGER x Reserved x Compatibility Field Device class (Vehicle system for J1939) - 30 - POWER_MANAGEMENT x Compatibility Field System Instance - 0 x Compatibility Field Industry Group - 0 Arbitrary Address Capable See RV-C specs 976-0452-01-01 29 
+
+# 2 FAULTS AND WARNINGS 
+
+Diagnostics Message (DM_RV) in RV-C Specs 30 Diagnostics Message (DM_RV) in RV-C Specs 30 Freedom SW-RVC DGN Reference Guide 
+
+# Diagnostics Message (DM_RV) in RV-C Specs 
+
+For a detailed description of Event numbers and troubleshooting information, refer to the Freedom SW-RVC Owner's Guide. 
+
+Abbreviations : FMI = Failure Mode Identifier; ISB = Intermediate Significant Byte; LED = light emitting diode; LSB = Least Significant Byte; MSB = Most Signiicant Byte; SPN = Service Point Number; 
+
+Event # Description SPN FMI LED MSB ISB LSB 
+
+F1 AC Output under voltage 0x81 0x41 0 1 RED F2 AC Output over voltage 0x81 0x41 0 0 RED F17 Relays Welded/AC Backfeed 1 1 7 7 RED F18 Relays Welded/AC Backfeed 1 1 7 7 RED F22 Relays Welded 1 1 7 11 RED F44 Battery Over Temperature 1 INV_CHG_INST 2 0 RED F45 Capacitor Over Temperature Shutdown 3 INV_CHG_INST 0 0 RED F46 Controller Error 0 0 1 11 RED F47 DC Under Voltage (Immediate) 1 INV_CHG_INST 0 1 RED F48 DC Under Voltage 1 INV_CHG_INST 0 1 RED F49 DC Over Voltage 1 INV_CHG_INST 0 0 RED F51 EEPROM SD 0 0 1 11 RED F52 EEPROM Calibration 0 0 3 13 RED F53 EEPROM Configuration 0 0 3 2 RED F54 EEPROM Default 0 1 4 11 RED Diagnostics Message (DM_RV) in RV-C Specs 976-0452-01-01 31 
+
+Event # Description SPN FMI LED MSB ISB LSB 
+
+F55 EEPROM Strings/Logs 0 0 4 11 RED F56 EEPROM Strings/Logs 0 0 4 11 RED F57 FET1 Over Temperature 2 INV_CHG_INST 0 0 RED F58 FET2 Over Temperature 2 INV_CHG_INST 1 0 RED F60 Internal error 0 1 4 11 RED F61 Internal error 0 1 4 11 RED F62 Internal error 0 1 4 11 RED F63 Powerboard temp unreadable 2 INV_CHG_INST 2 2 RED F64 AC Overload 0x81 0x41 1 0 RED F66 System Cfg shutdown 0 0 3 2 RED F67 Watchdog Error 0 1 3 11 RED F68 Transformer over termperature 3 INV_CHG_INST 1 0 RED F69 External Sync Failed 4 INV_CHG_INST 1 8 RED F70 Unique Dev# Needed 0 1 2 11 RED F71 Too Many Masters 3 INV_CHG_INST 7 11 RED F72 Stacking System AC Assoc Mismatched 3 INV_CHG_INST 7 11 RED F73 Transformer Temp unreadable 3 INV_CHG_INST 1 2 RED F74 Stacking mode communication error 4 INV_CHG_INST 0 11 RED F74 Stacking mode communication error 4 INV_CHG_INST 0 11 RED F75 Stacking mode configuration fault 3 INV_CHG_INST 7 11 RED Diagnostics Message (DM_RV) in RV-C Specs 32 Freedom SW-RVC DGN Reference Guide 
+
+Event # Description SPN FMI LED MSB ISB LSB 
+
+F76 Stacking mode configuration fault 3 INV_CHG_INST 7 11 RED F79 Battery Sensor short 1 INV_CHG_INST 2 2 RED F85 Powerboard Over Temperature 2 INV_CHG_INST 2 0 RED F87 Stacking System Inconsistent Frequencies 3 INV_CHG_INST 7 11 RED W96 Unable to Equalize warning 3 INV_CHG_INST 4 11 YELLOW W95 Unable to Equalize warning 3 INV_CHG_INST 4 11 YELLOW W73 Transformer Temp unreadable 3 INV_CHG_INST 1 2 YELLOW W79 Battery Sensor short 1 INV_CHG_INST 2 2 YELLOW W92 Input Connected to 3-Phase AC 0x82 INV_CHG_INST 5 11 YELLOW W44 Battery Over Temperature 1 INV_CHG_INST 2 15 YELLOW W48 DC Under Voltage (Warning) 1 INV_CHG_INST 0 17 YELLOW W49 DC Over Voltage 1 INV_CHG_INST 0 15 YELLOW W57 FET1 Over Temperature 2 INV_CHG_INST 0 15 YELLOW W58 FET1 Over Temperature 2 INV_CHG_INST 1 15 YELLOW W68 Transformer over termperature 3 INV_CHG_INST 1 15 YELLOW W72 Stacking System AC Out Assoc Mismatched 3 INV_CHG_INST 7 11 YELLOW W87 Stacking System Inconsistent Frequencies 3 INV_CHG_INST 7 11 YELLOW Introduction 976-0452-01-01 33 
+
+# 3 PROPRIETARY MESSAGES 
+
+Introduction 33 
+
+Proprietary DGN General Framework 34 
+
+DGN Messages 35 
+
+Examples of Proprietary_Message_Request 43 
+
+# Introduction 
+
+Freedom SW-RVC has additional features which are currently not supported by standard RV-C DGNs. This section describes these proprietary messages. Implementation of the Proprietary Messages uses the first 5 bytes of the ADDRESS_CLAIM field (described in section 3.3.3 of the RV-C Specification) of both source and destination devices to calculate the CRC (Cyclic Redundancy Check ) used in the validation of the Proprietary Messages. The CRC is calculated using the the first 5 bytes of the ADDRESS_CLAIM field of the destination followed by the Proprietary Message data bytes and the first 5 bytes of the ADDRESS_CLAIM field of the source device and appended after the end of the Proprietary Message data bytes (it is not in a fixed position, its position depends on the number of bytes in the individual Proprietary Message). See an example of calculating the CRC and creating a Proprietary Message on page 43 .Proprietary DGN General Framework 34 Freedom SW-RVC DGN Reference Guide 
+
+# Proprietary DGN General Framework 
+
+This message is used to request a Proprietary Message. 
+
+Abbreviation : DGN = Data Group Number; HEX = hexadecimal 
+
+Name HEX ID Fields Type Notes 
+
+PROPRIETARY_ DGN 3.2.6 Proprietary message EF00 Message ID uint8 Message Data Variable size; up to 5 bytes. Using this DGN the Freedom SW-RVC device multiplexes 14 different types of information in the message body. Message CRC uint16 CRC-CCITT polynomial using 0xFFFF as initial value DGN Messages 976-0452-01-01 35 
+
+# DGN Messages 
+
+NOTE : This message is used to request a Proprietary Message. 
+
+Message Name HEX ID DECIMAL ID Fields Units Value Description 
+
+PROPRIETARY_ MESSAGE_ REQUEST 0x2 2 teReqId uint8 RVC_ePROP_MSG_ID_ASSOC_STS=3, RVC_ePROP_MSG_ID_DEV_MODE_STS=6, RVC_ePROP_MSG_ID_SW_VER_STS=8, RVC_ePROP_MSG_ID_GEN_SUPPORT_STS=17, 
+
+ucParam1 uint8 ucParam2 uint8 DEVICE_MODE_ CONFIGURATION 0x4 4 teDesiredMode uint8 XB_eCTRL_MODE_SAFE=2, XB_eCTRL_MODE_OPERATING=3 
+
+DEVICE_MODE_ STATUS 0x6 6 teCurrentMode uint8 XB_eCTRL_MODE_HIBERNATE=0, XB_eCTRL_MODE_POWER_SAVE=1, XB_eCTRL_MODE_SAFE = 2, XB_eCTRL_MODE_OPERATING = 3, XB_eCTRL_MODE_DIAGNOSTIC = 4, XB_eCTRL_MODE_REMOTE_POWER_OFF = 5DGN Messages 36 Freedom SW-RVC DGN Reference Guide 
+
+Message Name HEX ID DECIMAL ID Fields Units Value Description 
+
+SW_VERSION_ STATUS 0x8 8 Controller or Processor Instance bit2 00b - CPU0 
+
+Software Module Identifier bit2 00b - Application Version 01b - XanBus Library Version 10b - RVC Version 
+
+Software Version Msb bit4 Version is represented as: A.BB.CC .The first digit ( A) is the major number (up to 9), 
+
+BB is the minor number and CC the design number resulting in a 5 decimal digit number up to 99,999. Software Version Isb uint8 Software Version Lsb uint8 Software Build Number MSB uint8 A four digit number. 
+
+Software Build Number LSB uint8 DGN Messages 976-0452-01-01 37 
+
+Message Name HEX ID DECIMAL ID Fields Units Value Description 
+
+ASSOCIATION_ CONFIG 0x01 1 teAssocType uint8 XB_eASSN_TYPE_INVALID = 0XB_eASSN_TYPE_DC_INPUT = 1XB_eASSN_TYPE_DC_OUT = 2XB_eASSN_TYPE_DC_INPUT_OUT = 3XB_eASSN_TYPE_RESERVED = 4XB_eASSN_TYPE_AC_INPUT = 5XB_eASSN_TYPE_AC_OUT = 6XB_eASSN_TYPE_AC_INPUT_OUT = 7
+
+ucAssocInst uint8 0 or 1 DGN Messages 38 Freedom SW-RVC DGN Reference Guide 
+
+Message Name HEX ID DECIMAL ID Fields Units Value Description 
+
+ucAssocId uint8 XB_eAC_SRC_ID for AC_INPUT, AC_OUTPUT or AC_INPUT_OUTPUT: XB_eAC_SRC_ID_INVALID = 0, XB_eAC_SRC_ID_NONE = 1, XB_eAC_SRC_ID_ANONYMOUS = 2, XB_eAC_SRC_ID_SHORE1 = 3, . . . XB_eAC_SRC_ID_SHORE16 = 18, XB_eAC_SRC_ID_GEN1 = 19, . . . XB_eAC_SRC_ID_GEN16 = 34, XB_eAC_SRC_ID_AC1 = 35, . . . XB_eAC_SRC_ID_AC16 = 50, XB_eAC_SRC_ID_AC_LOAD1 = 51, . . . XB_eAC_SRC_ID_AC_LOAD16 = 66, XB_eAC_SRC_ID_GRID1 = 67, . . . XB_eAC_SRC_ID_GRID16 = 82, XB_eAC_SRC_ID_ALL = 252, XB_eAC_SRC_ID_RESERVED = 253, XB_eAC_SRC_ID_OUT_OF_RANGE = 254, XB_eAC_SRC_ID_DATA_NOT_AVAILABLE_DO_NOT_CHANGE = 255 DGN Messages 976-0452-01-01 39 
+
+Message Name HEX ID DECIMAL ID Fields Units Value Description 
+
+XB_eDC_SRC_ID for DC_INPUT, DC_OUTPUT or DC_INPUT_OUTPUT: XB_eDC_SRC_ID_INVALID = 0, XB_eDC_SRC_ID_NONE = 1, XB_eDC_SRC_ID_ANONYMOUS = 2, XB_eDC_SRC_ID_HOUSE_BAT_BANK1 = 3, . . . XB_eDC_SRC_ID_HOUSE_BAT_BANK6 = 8, XB_eDC_SRC_ID_START_BAT_BANK1 = 9, . . . XB_eDC_SRC_ID_START_BAT_BANK6 = 14, XB_eDC_SRC_ID_SOLAR_ARRAY1 = 21, . . . XB_eDC_SRC_ID_SOLAR_ARRAY16 = 36, XB_eDC_SRC_ID_ALL = 252, XB_eDC_SRC_ID_RESERVED = 253, XB_eDC_SRC_ID_OUTOF_RANGE = 254, DGN Messages 40 Freedom SW-RVC DGN Reference Guide 
+
+Message Name HEX ID DECIMAL ID Fields Units Value Description 
+
+ASSOCIATION_ STATUS 0x03 3 teAssocType uint8 XB_eASSN_TYPE_INVALID = 0XB_eASSN_TYPE_DC_INPUT = 1XB_eASSN_TYPE_DC_OUT = 2XB_eASSN_TYPE_DC_INPUT_OUT = 3XB_eASSN_TYPE_RESERVED = 4XB_eASSN_TYPE_AC_INPUT = 5XB_eASSN_TYPE_AC_OUT = 6XB_eASSN_TYPE_AC_INPUT_OUT = 7
+
+ucAssocInst uint8 0 or 1 DGN Messages 976-0452-01-01 41 
+
+Message Name HEX ID DECIMAL ID Fields Units Value Description 
+
+ucAssocId uint8 XB_eAC_SRC_ID for AC_INPUT, AC_OUTPUT or AC_INPUT_OUTPUT: XB_eAC_SRC_ID_INVALID = 0, XB_eAC_SRC_ID_NONE = 1, XB_eAC_SRC_ID_ANONYMOUS = 2, XB_eAC_SRC_ID_SHORE1 = 3, . . . XB_eAC_SRC_ID_SHORE16 = 18, XB_eAC_SRC_ID_GEN1 = 19, . . . XB_eAC_SRC_ID_GEN16 = 34, XB_eAC_SRC_ID_AC1 = 35, . . . XB_eAC_SRC_ID_AC16 = 50, XB_eAC_SRC_ID_AC_LOAD1 = 51, . . . XB_eAC_SRC_ID_AC_LOAD16 = 66, XB_eAC_SRC_ID_GRID1 = 67, . . . XB_eAC_SRC_ID_GRID16 = 82, XB_eAC_SRC_ID_ALL = 252, XB_eAC_SRC_ID_RESERVED = 253, XB_eAC_SRC_ID_OUT_OF_RANGE = 254, XB_eAC_SRC_ID_DATA_NOT_AVAILABLE_DO_NOT_CHANGE = 255 DGN Messages 42 Freedom SW-RVC DGN Reference Guide 
+
+Message Name HEX ID DECIMAL ID Fields Units Value Description 
+
+XB_eDC_SRC_ID for DC_INPUT, DC_OUTPUT or DC_INPUT_OUTPUT: XB_eDC_SRC_ID_INVALID = 0, XB_eDC_SRC_ID_NONE = 1, XB_eDC_SRC_ID_ANONYMOUS = 2, XB_eDC_SRC_ID_HOUSE_BAT_BANK1 = 3, . . . XB_eDC_SRC_ID_HOUSE_BAT_BANK6 = 8, XB_eDC_SRC_ID_START_BAT_BANK1 = 9, . . . XB_eDC_SRC_ID_START_BAT_BANK6 = 14, XB_eDC_SRC_ID_SOLAR_ARRAY1 = 21, . . . XB_eDC_SRC_ID_SOLAR_ARRAY16 = 36, XB_eDC_SRC_ID_ALL = 252, XB_eDC_SRC_ID_RESERVED = 253, XB_eDC_SRC_ID_OUTOF_RANGE = 254, 
+
+> * Not yet available at this time.
+
+Examples of Proprietary_Message_Request 976-0452-01-01 43 
+
+# Examples of Proprietary_Message_Request 
+
+Message Name HEX ID DECIMAL ID Fields Value Value Description 
+
+PROPRIETARY_MESSAGE_REQUEST ASSOCIATION_STATUS 0x2 2 teReqId 3 teReqId = ASSOC_STS = 3 
+
+ucParam1 3 teAssocType = DC_INPUT_OUT = 3 
+
+ucParam2 0 ucAssocInst = 0 
+
+PROPRIETARY_MESSAGE_REQUEST DEVICE_MODE_STATUS 0x2 2 teReqId 6 teReqId = DEV_MODE_STS = 6 
+
+ucParam1 0 N/A ucParam2 0 N/A PROPRIETARY_MESSAGE_REQUEST SW_VERSION_STATUS 0x2 2 teReqId 8 teReqId = SW_VER_STS = 8 
+
+ucParam1 0 Controller or Processor Instance = CPU0 = 00b 
+
+ucParam2 2 Software Module Identifier = RV-C Version = 10b Examples of Proprietary_Message_Request 44 Freedom SW-RVC DGN Reference Guide 
+
+The following text box shows several examples of calculating the Cyclic Redundancy Check (CRC) for proprietary messaging using CRC16. 
+
+Unit #1 Address 143, Network Name: 84 12 F7 64 18 (first 5 bytes of the ISO Address Claim Message sent by the unit with address 143=0x8F) Unit #2 Address 67, Network Name: BB 32 E7 64 08 (first 5 bytes of the ISO Address Claim Message sent by the unit with address 67=0x43) // Sender Network Name Message Content Destination Network Name ASSOCIATION_REQUEST AC_IN: 02 05 00 from address 67 crc16.crc_hex( 0x84, 0x12, 0xF7, 0x64, 0x18, 0x02, 0x05, 0x00, 0xBB, 0x32, 0xE7, 0x64, 0x08 ) CRC16 = 0xB81B ASSOCIATION_REQUEST AC_OUT: 02 06 00 from address 67 crc16.crc_hex( 0x84, 0x12, 0xF7, 0x64, 0x18, 0x02, 0x06, 0x00, 0xBB, 0x32, 0xE7, 0x64, 0x08 ) CRC16 = 0x6099 ASSOCIATION_REQUEST AC_IN: 02 05 00 from address 143 crc16.crc_hex( 0xBB, 0x32, 0xE7, 0x64, 0x08, 0x02, 0x05, 0x00, 0x84, 0x12, 0xF7, 0x64, 0x18 ) CRC16 = 0x25FD Examples of Proprietary_Message_Request 976-0452-01-01 45 
+
+ASSOCIATION_REQUEST AC_OUT: 02 06 00 from address 143 crc16.crc_hex( 0xBB, 0x32, 0xE7, 0x64, 0x08, 0x02, 0x06, 0x00, 0x84, 0x12, 0xF7, 0x64, 0x18 ) CRC16 = 0xFD7F DEVICE_MODE_CONFIGURATION: 04 02 - Safe Mode to 14 crc16.crc_hex( 0xBB, 0x32, 0xE7, 0x64, 0x08, 0x04, 0x02, 0x84, 0x12, 0xF7, 0x64, 0x18 ) CRC16 = 0xDA28 ASSOCIATION_CONFIG AC_IN: 01 05 00 03 (XB_eAC_SRC_ID_SHORE1) crc16.crc_hex( 0xBB, 0x32, 0xE7, 0x64, 0x08, 0x01, 0x05, 0x00, 0x03, 0x84, 0x12, 0xF7, 0x64, 0x18 ) CRC16 = 0x9426 ASSOCIATION_STATUS AC_IN: 03 05 00 03 from address 143 crc16.crc_hex( 0xBB, 0x32, 0xE7, 0x64, 0x08, 0x03, 0x05, 0x00, 0x03, 0x84, 0x12, 0xF7, 0x64, 0x18 ) CRC16 = 0x5241 ASSOCIATION_STATUS DC_IN_OUT: 03 03 00 03 - Safe Mode crc16.crc_hex( 0x84, 0x12, 0xF7, 0x64, 0x18, 0x03, 0x03, 0x00, 0x03, 0xBB, 0x32, 0xE7, 0x64, 0x08 ) CRC16 = 0x DEVICE_MODE_REQUEST: 05 crc16.crc_hex( 0x84, 0x12, 0xF7, 0x64, 0x18, 0x05, 0xBB, 0x32, 0xE7, 0x64, 0x08 ) CRC16 = 0xE639 DEVICE_MODE_STATUS: 06 03 crc16.crc_hex( 0xBB, 0x32, 0xE7, 0x64, 0x08, 0x06, 0x03, 0x84, 0x12, 0xF7, 0x64, 0x08 ) CRC16 = 0xED5A DEVICE_MODE_CONFIGURATION: 04 02 - Safe Mode crc16.crc_hex( 0x84, 0x12, 0xF7, 0x64, 0x10, 0x04, 0x02, 0xBB, 0x32, 0xE7, 0x64, 0x08 ) CRC16 = 0x82B2 Examples of Proprietary_Message_Request 46 Freedom SW-RVC DGN Reference Guide 
+
+DEVICE_MODE_CONFIGURATION: 04 03 - Operational Mode crc16.crc_hex( 0x84, 0x12, 0xF7, 0x64, 0x10, 0x04, 0x03, 0xBB, 0x32, 0xE7, 0x64, 0x08 ) CRC16 = 0xC712 ASSOCIATION_CONFIG: 01 03 00 03 (XB_eDC_SRC_ID_HOUSE_BAT_BANK1) crc16.crc_hex( 0x84, 0x12, 0xF7, 0x64, 0x10, 0x01, 0x03, 0x00, 0x03, 0xBB, 0x32, 0xE7, 0x64, 0x08 ) CRC16 = 0x1F56 ASSOCIATION_CONFIG: 01 03 00 04 (XB_eDC_SRC_ID_HOUSE_BAT_BANK2) crc16.crc_hex( 0x84, 0x12, 0xF7, 0x64, 0x08, 0x01, 0x03, 0x00, 0x04, 0xBB, 0x32, 0xE7, 0x64, 0x08 ) CRC16 = 0x09CA REMOTE_PROCEDURE_CALL - Set Xanbus/RVC version - this message is not meant to be public crc16.crc_hex( 0x84, 0x12, 0xF7, 0x64, 0x08, 0x09, 0x01, 0x09, 0xF7, 0x02, 0xAB, 0xBB, 0x32, 0xE7, 0x64, 0x08 ) CRC16 = 0xA01D This page is intentionally left blank. [1] 976-0452-01-01 Rev B http://www.xantrex.com/ (Toll Free USA/Canada) +1 800 670 0707 (Outside USA/Canada) +1 408 987 6030 Printed in:
