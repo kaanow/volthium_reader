@@ -1480,3 +1480,23 @@ skill v0.2.3 (cross-host word-box variance → fixture-held thresholds;
 export contract for every native invocation that feeds a gate).
 
 **Semaphore → reviewer_turn for display-iter4.**
+
+---
+
+## 16. CP2 CLOSED — both boards APPROVED (2026-07-29)
+
+- Battery side: APPROVED 2026-07-26, iteration 4, 0 findings (F01–F11).
+- Display side: APPROVED 2026-07-29, iteration 8 / display-iter4, 0
+  findings (F12–F18 resolved over 4 display iterations; reviewer
+  evidence per-iteration under `visual_inspections/cp2-schematic/`).
+- Standing infrastructure banked for CP3+: shared `core.py` gate stack
+  (readability/glyph, pdf-text ground truth with fixture-held
+  thresholds + build-start self-tests, transactional exports, netlist
+  intent==actual, GOLDEN, exact-part, strict full ERC), requirements
+  runner R1–R23 (42 checks), doc-consistency guards incl. exact-object
+  drawing coverage, and the skills distillation (kicad v0.2.4,
+  pcb-design v0.7.0, pcb-design-review v1.4.0).
+- Control returned to the user. Recommended next phase: **CP3
+  placement** (battery board first or display first — user's call),
+  inheriting the D27 depth stack, DR-33 J1 pad-map note, and the
+  R15/DR-24 solderability constraints.

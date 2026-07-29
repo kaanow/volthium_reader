@@ -992,7 +992,7 @@ All are analysis-backed and the schematic is built with them (ERC-clean,
 readable). Non-gating for the block's structure — only the values would
 change if the user prefers COT (then L1→larger, R_ILIM/C2 re-pick).
 
-## DR-30 — CP2 schematic capture of the isolated RS-485 read (DR-26) + remaining battery-side elements  [BATTERY-SIDE CP2 **APPROVED** 2026-07-26 — agent-reviewer iteration 4, 0 findings, after F01–F11 (2 blockers + 6 important + 1 nit resolved across 4 iterations, incl. independent bare-Windows rebuild verification); remaining opens are bench-gated (DR-26 §7) + the bead-impedance BOM-lock check; display-side CP2 not started]
+## DR-30 — CP2 schematic capture of the isolated RS-485 read (DR-26) + remaining battery-side elements  [**CP2 CLOSED — BOTH BOARDS APPROVED**: battery-side 2026-07-26 (iteration 4, 0 findings, F01–F11); display-side 2026-07-29 (iteration 8 / display-iter4, 0 findings, F12–F18 across 4 display iterations — exact-object/citation corrections, executable bring-up, and a hardened two-layer PDF gate stack with fixture-held thresholds + transactional exports, all independently verified on bare Windows). Remaining opens are bench-gated (DR-26 §7) + the bead-impedance BOM-lock check. Next phase: CP3 placement]
 
 CP2 drew the DR-26 isolated RS-485 subsystem (2× ADM2587E channels, one
 sheet each) plus the battery-side elements that were BOM-listed but not yet
