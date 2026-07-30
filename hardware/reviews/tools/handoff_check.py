@@ -77,8 +77,6 @@ def main():
     pm = re.search(r"active_packet:\s*(\S+)", sem)
     packet = REPO / pm.group(1)
     ptext = packet.read_text(encoding="utf-8")
-    for h12, in re.findall(r"sha256 `([0-9a-f]{12})", ptext):
-        pass
     for m in re.finditer(r"`([\w./-]+)`\s*\n?\s*\(sha256 `([0-9a-f]{12})…?`",
                          ptext):
         f = REPO / m.group(1)
