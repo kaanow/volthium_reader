@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp3-placement
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement_review.md
@@ -10,20 +10,14 @@ iteration: 5
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-30T19:55:20Z
+last_updated_at: 2026-07-30T20:28:30Z
 last_updated_by: claude-designer
 
 note: >
-  DESIGNER iteration 4: findings 05/06/07 fixed at root. Battery
-  schematic build artifacts now TRACKED (debris purged first); netlist
-  source/tool headers pinned; handoff gate hardened (tracked-ness
-  required, HEAD-blob hashing) and re-poison-tested (4 paths, see
-  iter4/handoff_check_transcript.txt); .gitattributes eol=lf on
-  generated classes. Board-hash correction: af64f93e2e2f IS the true
-  blob hash — 5a44e30a6140 is its LF->CRLF image (autocrlf worktree);
-  netlist citation was genuinely false and is now eda5076694c0,
-  machine-independent. C3 claim reworded as engineering judgment.
-  Packet section 9.2. Skills: kicad v0.3.2, pcb-design v0.11.0.
+  DESIGNER reclaimed pre-review (user ok): iteration-3 findings were
+  all defect-in-a-fix class, which per pcb-design v0.11.1 escalates
+  this iteration to a FULL-scope self-review before handoff. Running
+  it now; will re-flip when it comes back clean.
 
 
 user_pause_reasons_seen_this_run: []
