@@ -379,10 +379,10 @@ def main():
     bb.place_all()
     bb.add_mounting_holes(MOUNT)
     orientation_asserts(bb.findings)
-    bb.gate_courtyards()
-    bb.gate_outline()
-    bb.gate_edge_markers()
-    bb.gate_fab_rules()
+    # courtyard/outline/edge-marker/fab/readback/label-adjacency gates
+    # all run inside bb.write() — the chokepoint, not per-build calls
+    # (finding 09). Board-specific checks stay here: orientation
+    # asserts above, DRC accepted registry below.
 
     OUT.mkdir(exist_ok=True)
     pcb = OUT / f"{PROJECT}.kicad_pcb"
@@ -398,10 +398,6 @@ def main():
     if refdes_unplaced:
         print(f"[refdes] library-fallback (no clear auto spot): {refdes_unplaced}")
     bb.write(pcb, prop_overrides=refdes_ov)
-    bb.gate_readback(pcb)
-    bb.findings += core.label_adjacency_findings(
-        core.refdes_boxes_from_board(
-            pcb.read_text(encoding="utf-8")))
 
     if bb.findings:
         print(f"== {len(bb.findings)} finding(s) ==")

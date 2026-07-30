@@ -64,7 +64,8 @@ def main():
                     if [x, y] not in lst:
                         lst.append([x, y])
                         newban += 1
-            BANS.write_text(json.dumps(bans, indent=1), encoding="utf-8")
+            with BANS.open("w", encoding="utf-8", newline="\n") as _f:
+                _f.write(json.dumps(bans, indent=1))
             print(f"iter {it}: {len(adj)} label-adjacency pair(s), "
                   f"banned {newban} spots: "
                   f"{sorted({p[0] for p in adj} | {p[3] for p in adj})}")
@@ -99,7 +100,8 @@ def main():
             if [x, y] not in lst:
                 lst.append([x, y])
                 newban += 1
-        BANS.write_text(json.dumps(bans, indent=1), encoding="utf-8")
+        with BANS.open("w", encoding="utf-8", newline="\n") as _f:
+            _f.write(json.dumps(bans, indent=1))
         print(f"  banned {newban} new spots: "
               f"{sorted({f[0] for f in finds})}")
         if not newban:

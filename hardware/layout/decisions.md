@@ -2364,7 +2364,10 @@ floorplan (generator: `hardware/kicad/pcb/build.py`; evidence in
    view gives only 2.10 mm of plug-shell clearance ahead of the
    overmold, so any recessed face blocks the plug on the board edge).
    Enforced by `gate_edge_markers` in `pcb/core.py` for every
-   footprint carrying the marker, both boards, every build.
+   footprint carrying the marker — the gate runs inside
+   `BoardBuilder.write()` (iter-6, F09), so any board written through
+   the shared core has passed it; poison-verified via a raw `write()`
+   call with no explicit gate invocations.
 
 4. **Isolated pack-read channels as vertical columns** (jack S → iso
    island → ADM2587E → logic row N), with the transceivers rotated so

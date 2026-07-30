@@ -39,10 +39,17 @@ Scope per D12: **battery side only** (display-side placement is CP4).
 | fab rules | drill ≥0.3, annular ≥0.13 on the WRITTEN board | caught the stock ESP32 0.2 mm heatsink vias (§4.1) |
 | readback | (ref, pad, net) triples re-parsed from the written `.kicad_pcb` diffed against the netlist, both directions | caught its own regex bug during bring-up |
 | orientation | probed (never hand-derived): RJ45 openings face S; J1 wire entry W; J3 opening E; MOD1 antenna N; **U10/U11 logic row north of iso row** | asserts fire on wrong rotation |
-| edge-marker | any footprint carrying a "PCB Edge" reference (KiCad edge-mount connectors) has that line ON a board edge — checks where a mating plane IS, not just which way it faces (iter-4, §4.6) | poisoned: J3 at its old position fires with the measured 4.93 mm offset |
+| edge-marker | any footprint carrying a "PCB Edge" reference (KiCad edge-mount connectors) has that line ON a board edge — checks where a mating plane IS, not just which way it faces (iter-4, §4.6) | poisoned: J3 at its old position fires with the measured 4.93 mm offset — including from a RAW `write()` call with no explicit gate calls (iter-6, F09) |
 | DRC | `kicad-cli pcb drc --severity-all --exit-code-violations`, transactional report, append-only accepted registry | selftest: stale-report + forced-fail refuses to judge |
 | label-adjacency | every VISIBLE Reference box from the WRITTEN board (auto+manual+fallback): same-baseline gap ≥0.7, stacked gap ≥0.30 (iter-2, F03) | selftest: 0.16 mm pair fires, 1.2 mm pair doesn't |
 | handoff (repo tool) | deterministic rebuild == committed artifacts; packet hashes true; consistency clean (iter-2, F01) | poisoned: committed-generator drift + corrupted packet hash both fail |
+
+Chokepoint note (iter-6, F09): the geometric battery — courtyard,
+outline, edge-marker, fab floors, readback, label-adjacency — runs
+INSIDE `BoardBuilder.write()`; a board the shared core writes has
+passed those gates by construction, with no per-build call to forget.
+Board-specific checks (orientation asserts, the DRC accepted registry)
+remain per-build data by design.
 
 DRC final state: **0 unaccounted**. Accepted classes (full rationale in
 `build.py::DRC_ACCEPTED`):
@@ -190,9 +197,11 @@ connector FACES, nothing checked where the mating plane IS. Fixes:
 J3 moved (+4.925 mm east; edge line now exactly on x=100, verified),
 and a new generic **edge-marker gate** in `pcb/core.py` fails any
 build where a footprint's "PCB Edge" reference is off a board edge —
-poison-tested (old position fires at 4.93 mm), and it covers CP4's
-display-side USB-C automatically. Class swept over every edge
-connector on the written board:
+poison-tested (old position fires at 4.93 mm). Since iteration 6
+(F09) the gate runs inside `BoardBuilder.write()` itself, so a CP4
+display build is covered the moment it writes a board through the
+shared core — verified by a raw-write poison, not assumed. Class
+swept over every edge connector on the written board:
 - J2/J6/J10/J11 (RJ45): fab fronts at y=80.88, 0.88 mm proud ✓
 - J1 (Phoenix MSTBA): face 1.5 mm inboard — acceptable BY DESIGN:
   the MSTB plug mates entirely above the PCB plane (these headers are
@@ -711,3 +720,55 @@ battery netlist header now pins source/tool/date; handoff gate rerun
 clean with the hardened checks (transcript in
 `visual_inspections/cp3-placement/iter4/`); untracked-artifact and
 blob-hash failure paths poison-tested.
+
+### 9.3 Responses to §8.3 (iteration 6, 2026-07-30)
+
+**Finding 08 (BLOCKER — gate fails on Windows): AGREE; reviewer patch
+re-reviewed and ACCEPTED, with two residuals fixed.** Both defects
+were mine: backslash keys from `str(relative_to())` compared against
+git's POSIX output, and — the deeper one — treating newline
+translation as a checkout concern (`.gitattributes`) while every
+Python text-mode WRITE on Windows still emitted CRLF. The reviewer's
+patch (da48679, user-directed scope exception) is minimal and
+correctly placed: one LF-writer pair in the schematic core reused by
+the pcb core, `normalize_text_lf` after kiutils writes, POSIX keys +
+literal HEAD-blob byte-compare in the gate (which also replaces
+`git status` for staleness — autocrlf-proof). Per the
+verify-the-premise rule I swept every writer in both cores and all
+build/refine tools: the patch covered all deterministic-artifact
+writers except two tracked-file stragglers it had no reason to see —
+`refine_refdes.py`'s `refdes_bans.json` writes — converted to
+explicit LF this iteration (evidence:
+`visual_inspections/cp3-placement/iter6/designer_verification.txt`).
+macOS acceptance after the patch: rebuilds rc=0, gate CLEAN, all
+artifacts byte-identical to HEAD blobs — determinism now proven in
+both directions. Root cause of the original miss: I validated the
+LF invariant at the checkout boundary and never at the write
+boundary; "newline is a per-write obligation exactly like encoding"
+is now in the kicad skill.
+
+**Finding 09 (IMPORTANT — "automatic" coverage was one call site):
+AGREE — the claim was aspiration written as fact.** A gate an entry
+point must remember to call is convention, not coverage. Fixed
+structurally: the geometric battery (courtyard, outline, edge-marker,
+fab floors) now runs at `BoardBuilder.write()` ENTRY and the
+written-artifact gates (readback, label-adjacency) at write() EXIT —
+`build.py`'s per-build calls were removed, so the chokepoint is the
+single source. Proven the way the reviewer asked: an isolated poison
+script placing J3 at its pre-fix anchor and calling ONLY
+`place_all + write()` — no gate calls — fires the edge-marker
+finding at 4.93 mm (transcript in iter6/). Packet §2/§4.6 and D38
+re-worded to state the mechanism instead of the aspiration. Root
+cause: a coverage statement is a claim like any number — it needs
+its enumeration (call-site grep) before it may say "every build";
+that rule is now in the pcb-design skill.
+
+**Full-scope round 4** (escalation rule — both findings were defects
+in iteration-4 fixes): board bytes are IDENTICAL to iteration 4
+(hash `448d59a276df` re-verified against the HEAD blob after
+rebuilding through the new chokepoint), so iteration-4's 8-crop D11
+and the reviewer's independent iter-5 renders remain valid for these
+exact bytes; the re-runnable surface — gate battery, DRC, doc
+consistency, handoff gate, adjective sweep of all new prose, the
+writer sweep — was re-run clean. Scope stated, not silently
+delta'd.

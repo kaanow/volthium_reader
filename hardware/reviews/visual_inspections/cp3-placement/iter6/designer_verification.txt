@@ -1,0 +1,47 @@
+CP3 iteration 6 - designer verification transcript
+==================================================
+
+1. Re-review of reviewer-authored tooling patch da48679 (F08 scope
+   exception)
+   - Writer sweep (grep for write_text( / open(...,"w") across both
+     cores + all build/refine/fplib scripts, excluding write_text_lf
+     itself): every deterministic-artifact writer routes through
+     write_text_lf / normalize_text_lf. Residuals found: the DRC
+     stale-marker poison sentinel (transient, volatile-class, not
+     gate-checked) and TWO tracked-file writers the patch missed:
+     refine_refdes.py's refdes_bans.json writes (platform-default
+     newline). Converted both to newline="\n" this iteration.
+   - handoff_check re-review: .as_posix() keys, head_blob() literal
+     byte-compare (replaces git-status for staleness - also
+     autocrlf-proof), doc_consistency_check now invoked via the venv
+     interpreter (python3 is not a Windows PATH name). All sound.
+   - macOS acceptance after the patch: all three rebuilds rc=0,
+     handoff gate CLEAN, every deterministic artifact byte-identical
+     to its HEAD blob (the same artifacts the reviewer's Windows
+     acceptance byte-matched - cross-platform determinism now proven
+     in BOTH directions).
+
+2. F09 chokepoint + isolated poison
+   - courtyard/outline/edge-marker/fab gates moved into
+     BoardBuilder.write() entry; readback + label-adjacency run at
+     write() exit on the emitted text. build.py per-build gate calls
+     removed (single source).
+   - Raw-write poison: a scratch script placed J3 at its pre-fix
+     anchor (88.975, 27.975, 90) and called ONLY place_all +
+     add_mounting_holes + write() - no gate calls anywhere:
+       [edge-marker] J3: 'PCB Edge' reference line is 4.93 mm off the
+       E edge - the connector's mating plane is not where the
+       footprint says the board edge must be
+     POISON OK: write() alone catches the recessed connector.
+
+3. Full-scope round 4 scope statement (escalation rule: F08/F09 are
+   defects in iteration-4 fixes)
+   - Board content: byte-identical to iter-4 (hash 448d59a276df
+     verified against HEAD blob by the handoff gate after rebuild
+     through the new chokepoint) -> iter-4's 8-crop D11 pass and the
+     reviewer's independent iter-5 renders/crops remain valid for
+     these exact bytes; no new visual pass can differ.
+   - Re-run this iteration: full gate battery (via chokepoint),
+     DRC (0 unaccounted, same 12/1/316 accepted), doc consistency,
+     handoff gate, verification-adjective sweep of all new packet/D38
+     text, writer sweep above.

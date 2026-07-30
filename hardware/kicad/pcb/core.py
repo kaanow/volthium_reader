@@ -497,6 +497,16 @@ class BoardBuilder:
 
     # -- write + readback -------------------------------------------------
     def write(self, path, prop_overrides=None):
+        # The geometric gate battery runs INSIDE the write chokepoint —
+        # a board that gets written has passed it by construction. CP3
+        # finding 09: gates that entry points must "remember to call"
+        # are not automatic coverage; only the chokepoint no build can
+        # skip is. (Board-specific checks — orientation asserts, the
+        # DRC accepted registry — remain per-build data by design.)
+        self.gate_courtyards()
+        self.gate_outline()
+        self.gate_edge_markers()
+        self.gate_fab_rules()
         self.b.to_file(str(path), encoding="utf-8")
         if not Path(path).exists() or Path(path).stat().st_size == 0:
             raise SystemExit(f"[write] {path} missing/empty after to_file")
@@ -514,6 +524,11 @@ class BoardBuilder:
         text = re.sub(r"\(tedit [0-9A-Fa-f]+\)", "(tedit 0)", text)
         text = _restore_properties(text, prop_overrides)
         sch.write_text_lf(path, text)
+        # written-artifact gates, same chokepoint: netlist readback and
+        # refdes label distinctness both judge the emitted text
+        self.gate_readback(path)
+        self.findings += label_adjacency_findings(
+            refdes_boxes_from_board(text))
 
     def gate_readback(self, path):
         """Judge the WRITTEN artifact: re-parse the .kicad_pcb text and
