@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Barge Inn Power</title>
+<style>
+:root {
+  /* dark by default — night-glanceable utility screen */
+  color-scheme: dark;
+  --surface: #1a1a19; --surface-2: #262624; --line: #3a3936;
+  --text-1: #ffffff; --text-2: #c3c2b7; --text-3: #8a8880;
+  --solar: #c98500; --batt: #199e70; --gen: #d95926; --load: #3987e5;
+  --warn: #fab219; --crit: #d03b3b;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --surface: #fcfcfb; --surface-2: #f0efec; --line: #dedcd6;
+  --text-1: #0b0b0b; --text-2: #52514e; --text-3: #8a8880;
+  --solar: #eda100; --batt: #1baf7a; --gen: #eb6834; --load: #2a78d6;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--surface); color: var(--text-1);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.wrap { max-width: 780px; margin: 0 auto; padding: 20px 16px 60px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; }
+.topbar h1 { font-size: 15px; font-weight: 600; color: var(--text-2); margin: 0; }
+.controls { display: flex; gap: 8px; align-items: center; }
+.controls a { color: var(--text-3); font-size: 13px; text-decoration: none; margin-right: 6px; }
+.controls a:hover { color: var(--text-1); }
+button {
+  font: inherit; color: var(--text-1); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; cursor: pointer;
+}
+.hero { text-align: center; margin: 26px 0 8px; }
+.hero .soc { font-size: 76px; font-weight: 700; letter-spacing: -2px; line-height: 1; }
+.hero .soc small { font-size: 34px; font-weight: 500; color: var(--text-2); }
+.hero .sub { color: var(--text-2); margin-top: 6px; font-size: 16px; }
+.hero .chip {
+  display: inline-block; margin-top: 10px; padding: 3px 12px; border-radius: 99px;
+  background: var(--surface-2); border: 1px solid var(--line);
+  color: var(--text-2); font-size: 13px; font-weight: 600;
+}
+.hero .chip.stale { color: var(--crit); border-color: var(--crit); }
+.hero .ab { margin-top: 8px; font-size: 13px; color: var(--text-3);
+  font-variant-numeric: tabular-nums; }
+.flow { display: block; width: 100%; height: auto; margin-top: 10px; }
+.flow text { font: 600 13px system-ui, sans-serif; fill: var(--text-1); }
+.flow .sub { font-weight: 500; font-size: 12px; fill: var(--text-2); }
+.flow .buslbl { font-size: 11px; font-weight: 700; fill: var(--text-3); letter-spacing: 1px; }
+.flow .wire { fill: none; stroke-linecap: round; }
+.flow .bus { fill: var(--surface-2); stroke: var(--line); }
+.strip-box { margin-top: 26px; }
+.strip-head { display: flex; justify-content: space-between; align-items: baseline; }
+.strip-head h2 { font-size: 13px; font-weight: 600; color: var(--text-2); margin: 0 0 6px; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-2); }
+.legend span::before {
+  content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 3px;
+  margin-right: 5px; background: var(--c);
+}
+#strip { display: block; width: 100%; height: auto; cursor: crosshair; }
+.tip {
+  position: fixed; pointer-events: none; z-index: 5; display: none;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  padding: 7px 10px; font-size: 12.5px; box-shadow: 0 4px 14px rgb(0 0 0 / .18);
+  color: var(--text-2); white-space: nowrap;
+}
+.tip b { color: var(--text-1); }
+details.sys { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 10px; }
+details.sys summary { color: var(--text-3); font-size: 13px; cursor: pointer; user-select: none; }
+.sysgrid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px; margin-top: 12px;
+}
+.sysgrid .cell {
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 9px 12px; font-size: 12.5px; color: var(--text-2);
+}
+.sysgrid .cell b { display: block; font-size: 16px; color: var(--text-1); font-weight: 600; }
+.foot { margin-top: 30px; color: var(--text-3); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <h1>Barge Inn Power</h1>
+    <div class="controls">
+      <a href="/history">history</a>
+      <a href="/">classic</a>
+      <button id="theme" title="toggle theme">◐</button>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="soc"><span id="soc">—</span><small>%</small></div>
+    <div class="sub" id="ttx">…</div>
+    <div class="chip" id="state">connecting</div>
+    <div class="ab" id="ab"></div>
+  </div>
+
+  <svg id="flow" class="flow" viewBox="0 0 760 320" role="img" aria-label="power flow diagram">
+    <defs>
+      <linearGradient id="loadmix" x1="0" y1="0" x2="1" y2="0">
+        <stop id="mix0" offset="0" stop-color="#c98500"/>
+        <stop id="mix1" offset="1" stop-color="#c98500"/>
+      </linearGradient>
+    </defs>
+    <path id="w-solar" class="wire" d="M 150 78 C 240 78, 260 120, 325 158"/>
+    <path id="w-batt"  class="wire" d="M 150 246 C 240 246, 260 204, 325 166"/>
+    <path id="w-inv"   class="wire" d="M 325 162 L 495 162"/>
+    <path id="w-gen"   class="wire" d="M 660 78 C 570 78, 550 120, 495 158"/>
+    <path id="w-load"  class="wire" d="M 495 166 C 550 204, 590 246, 660 246"/>
+
+    <rect class="bus" x="298" y="128" width="54" height="68" rx="12"/>
+    <text class="buslbl" x="325" y="167" text-anchor="middle">DC</text>
+    <rect class="bus" x="468" y="128" width="54" height="68" rx="12"/>
+    <text class="buslbl" x="495" y="167" text-anchor="middle">AC</text>
+    <text class="sub" id="invlbl" x="410" y="150" text-anchor="middle"></text>
+
+    <text x="145" y="60" text-anchor="end">☀️ Solar</text>
+    <text class="sub" id="t-solar" x="145" y="90" text-anchor="end">—</text>
+    <text x="145" y="228" text-anchor="end">🔋 Battery</text>
+    <text class="sub" id="t-batt" x="145" y="258" text-anchor="end">—</text>
+    <text x="665" y="60">⛽ Generator</text>
+    <text class="sub" id="t-gen" x="665" y="90">—</text>
+    <text x="665" y="228">🏠 Loads</text>
+    <text class="sub" id="t-load" x="665" y="258">—</text>
+    <text class="sub" id="loadbadge" x="756" y="276" text-anchor="end" fill="var(--text-3)"></text>
+  </svg>
+
+  <div class="strip-box">
+    <div class="strip-head">
+      <h2>Power balance — last hour</h2>
+      <div class="legend">
+        <span style="--c: var(--solar)">solar</span>
+        <span style="--c: var(--batt)">battery</span>
+        <span style="--c: var(--gen)">generator</span>
+        <span style="--c: var(--load)">loads</span>
+      </div>
+    </div>
+    <svg id="strip" viewBox="0 0 760 170" aria-label="supply and demand, mirrored"></svg>
+  </div>
+  <div class="tip" id="tip"></div>
+
+  <details class="sys">
+    <summary>system</summary>
+    <div class="sysgrid">
+      <div class="cell">Battery V <b id="s-dcv">—</b></div>
+      <div class="cell">PV array <b id="s-pvv">—</b></div>
+      <div class="cell">Charge stage <b id="s-stage">—</b></div>
+      <div class="cell">Inverter <b id="s-inv">—</b></div>
+    </div>
+  </details>
+
+  <div class="foot">Solar telemetry decoded live from the Conext CAN bus · battery data from the Volthium BMS · 15 s updates</div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const POLL_S = 15, HIST = 240, BUCKET_S = 15;
+
+/* ---------- live state ---------- */
+const st = {
+  latest: null,          // newest BMS reading
+  solar: null,           // newest solar row
+  stage: null, inv: "inverting", gen: false,
+  lastSolarTs: null, lastEventPoll: 0,
+};
+const hist = [];         // ring of {t, solar, gen, load, batt}
+
+function battW() {       // + = charging (BMS smoothed power)
+  return st.latest?.smoothed_p ?? 0;
+}
+function solarW() { return st.solar?.solar_w ?? 0; }
+function loadW() {
+  if (st.gen) return null;                    // AC-side load unknown during gen (yet)
+  return Math.max(0, solarW() - battW());
+}
+
+/* ---------- fetch ---------- */
+async function jget(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url}: ${r.status}`);
+  return r.json();
+}
+async function pollOnce(first) {
+  const [latest, solar] = await Promise.all([
+    jget("/api/latest").then(d => d.latest),
+    first ? jget(`/api/solar?limit=${HIST}`)
+          : jget(`/api/solar?since=${encodeURIComponent(st.lastSolarTs)}&limit=40`),
+  ]);
+  if (latest) st.latest = latest;
+  const rows = solar.readings || [];
+  if (rows.length) {
+    st.solar = rows[rows.length - 1];
+    st.lastSolarTs = st.solar.ts;
+  }
+  const now = Date.now();
+  if (first || now - st.lastEventPoll > 120e3) {
+    st.lastEventPoll = now;
+    const ev = (await jget("/api/xanbus_events?limit=40")).events || [];
+    const find = k => ev.find(e => e.event === k);
+    const stage = find("chg_stage");
+    if (stage) st.stage = stage.data.to;
+    const inv = find("inverter_mode");
+    if (inv) st.inv = inv.data.to === "ac_passthrough" ? "passthrough" : "inverting";
+    const genStart = ev.findIndex(e => e.event === "gen_start");
+    const genStop = ev.findIndex(e => e.event === "gen_stop");
+    st.gen = genStart !== -1 && (genStop === -1 || genStart < genStop);
+  }
+  if (first) {
+    // backfill the strip: solar rows + bucketed BMS power, joined on ts
+    const ser = (await jget(`/api/history/series?hours=1&bucket_s=${BUCKET_S}`)).series || [];
+    const pByT = new Map(ser.map(b => [Date.parse(b.bucket), b.p_avg]));
+    for (const r of rows) {
+      const t = Date.parse(r.ts);
+      const batt = pByT.get(t) ?? 0;
+      const solar_w = r.solar_w ?? 0;
+      hist.push({ t, solar: solar_w, gen: 0,
+                  load: Math.max(0, solar_w - batt), batt });
+    }
+  } else if (rows.length) {
+    for (const r of rows) {
+      const t = Date.parse(r.ts);
+      if (hist.length && t <= hist[hist.length - 1].t) continue;
+      const batt = battW();
+      const solar_w = r.solar_w ?? 0;
+      hist.push({ t, solar: solar_w, gen: st.gen ? Math.max(0, batt - solar_w) : 0,
+                  load: st.gen ? 0 : Math.max(0, solar_w - batt), batt });
+    }
+    while (hist.length > HIST) hist.shift();
+  }
+}
+
+/* ---------- flow diagram ---------- */
+const wires = {
+  "w-solar": { color: "--solar", getW: () => solarW() },
+  "w-batt":  { color: "--batt",  getW: () => Math.abs(battW()) },
+  "w-inv":   { color: "--load",  getW: () => st.inv === "passthrough"
+                 ? Math.max(0, battW() - solarW()) : (loadW() ?? 0) },
+  "w-gen":   { color: "--gen",   getW: () => st.gen ? Math.max(0, battW() - solarW()) : 0 },
+  "w-load":  { color: "url",     getW: () => loadW() ?? 0 },
+};
+const particles = {};
+for (const id of Object.keys(wires)) {
+  const path = $(id), group = [];
+  for (let k = 0; k < 3; k++) {
+    const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("r", 3.2);
+    path.parentNode.insertBefore(c, path.nextSibling);
+    group.push({ c, phase: k / 3 });
+  }
+  particles[id] = { dots: group, len: path.getTotalLength(), path,
+                    watts: 0, active: false, rev: false };
+}
+let lastFrame = performance.now();
+function animateDots(nowMs) {
+  const dt = Math.min(0.1, (nowMs - lastFrame) / 1000);
+  lastFrame = nowMs;
+  for (const p of Object.values(particles)) {
+    const dur = Math.max(0.9, Math.min(6, 1400 / Math.max(p.watts, 1)));
+    const nShow = p.active ? 1 + Math.min(2, Math.floor(p.watts / 350)) : 0;
+    p.dots.forEach((d, k) => {
+      if (k >= nShow) { d.c.style.display = "none"; return; }
+      d.c.style.display = "";
+      d.phase = (d.phase + dt / dur) % 1;
+      const at = p.rev ? 1 - d.phase : d.phase;
+      const pt = p.path.getPointAtLength(at * p.len);
+      d.c.setAttribute("cx", pt.x);
+      d.c.setAttribute("cy", pt.y);
+      const o = Math.min(1, d.phase / 0.12, (1 - d.phase) / 0.12);
+      d.c.style.opacity = (0.15 + 0.85 * o).toFixed(2);
+    });
+  }
+  requestAnimationFrame(animateDots);
+}
+requestAnimationFrame(animateDots);
+
+function mixHex(pairs) {
+  let r = 0, g = 0, b = 0, W = 0;
+  for (const [hex, w] of pairs) {
+    const v = parseInt(hex.slice(1), 16);
+    r += (v >> 16) * w; g += ((v >> 8) & 255) * w; b += (v & 255) * w; W += w;
+  }
+  if (!W) return css("--text-3");
+  const h = x => Math.round(x / W).toString(16).padStart(2, "0");
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+
+function drawFlow() {
+  const batt = battW(), solar = solarW(), load = loadW();
+  const charging = batt >= 0;
+  for (const [id, w] of Object.entries(wires)) {
+    const watts = w.getW();
+    const path = $(id);
+    const p = particles[id];
+    p.watts = p.watts * 0.7 + watts * 0.3;
+    p.active = p.watts > 8;
+    p.rev = (id === "w-batt" && charging) ||
+            (id === "w-inv" && st.inv === "passthrough");
+    path.style.stroke = w.color === "url" ? "url(#loadmix)" : `var(${w.color})`;
+    path.style.strokeWidth = 3;
+    path.style.opacity = p.active ? 0.9 : 0.22;
+    for (const d of p.dots) {
+      d.c.style.fill = css("--text-1");
+      d.c.style.stroke = css("--surface");
+      d.c.style.strokeWidth = 1;
+    }
+  }
+  $("t-solar").textContent = `${Math.round(solar)} W`;
+  $("t-gen").textContent = st.gen ? "running" : "0 W";
+  $("t-load").textContent = load == null ? "—" : `${Math.round(load)} W`;
+  $("t-batt").textContent = `${charging ? "+" : "−"}${Math.round(Math.abs(batt))} W ${charging ? "charging" : "discharging"}`;
+  $("invlbl").textContent = st.inv === "passthrough" ? "← charging" : "inverting →";
+
+  const genToLoad = st.gen ? 1 : 0;
+  const solarShare = solar + Math.max(-batt, 0) > 0
+    ? Math.min(1, solar / Math.max(solar + Math.max(-batt, 0), 1)) : 0;
+  const srcs = st.gen
+    ? [[css("--gen"), 1]]
+    : [[css("--solar"), solarShare], [css("--batt"), 1 - solarShare]];
+  const mixed = mixHex(srcs);
+  $("mix0").setAttribute("stop-color", mixed);
+  $("mix1").setAttribute("stop-color", mixed);
+  const names = [[css("--gen"), "running on generator"],
+                 [css("--solar"), "running on sun"],
+                 [css("--batt"), "running on battery"]];
+  const dom = srcs.slice().sort((a, b) => b[1] - a[1])[0];
+  const total = srcs.reduce((a, [, w]) => a + w, 0) || 1;
+  $("loadbadge").textContent =
+    dom[1] / total > 0.7 ? (names.find(n => n[0] === dom[0])?.[1] ?? "") : "mixed sources";
+}
+
+/* ---------- balance strip ---------- */
+const strip = $("strip"), tip = $("tip");
+const SW = 760, SH = 170, MID = 88, PAD = 6;
+function drawStrip() {
+  if (!hist.length) return;
+  const maxW = Math.max(400, ...hist.map(h =>
+    Math.max(h.solar + h.gen + Math.max(-h.batt, 0), h.load + Math.max(h.batt, 0))));
+  const y = w => (w / maxW) * (MID - PAD - 22);
+  const x = i => (i / (HIST - 1)) * SW;
+  const area = (vals, base, up) => {
+    let d = "";
+    vals.forEach((v, i) => { d += `${i ? "L" : "M"}${x(i).toFixed(1)},${(MID + (up ? -1 : 1) * (base[i] + y(v))).toFixed(1)}`; });
+    for (let i = vals.length - 1; i >= 0; i--) d += `L${x(i).toFixed(1)},${(MID + (up ? -1 : 1) * base[i]).toFixed(1)}`;
+    return d + "Z";
+  };
+  const zeros = hist.map(() => 0);
+  const sSolar = hist.map(h => h.solar);
+  const sBattD = hist.map(h => Math.max(-h.batt, 0));
+  const sGen = hist.map(h => h.gen);
+  const dLoad = hist.map(h => h.load);
+  const dBattC = hist.map(h => Math.max(h.batt, 0));
+  const acc = (base, vals) => base.map((b, i) => b + y(vals[i]));
+  let svg = "";
+  const seg = (vals, base, up, color) =>
+    `<path d="${area(vals, base, up)}" fill="var(${color})" stroke="var(--surface)" stroke-width="1.5"/>`;
+  let b = zeros;
+  svg += seg(sSolar, b, true, "--solar"); b = acc(b, sSolar);
+  svg += seg(sBattD, b, true, "--batt"); b = acc(b, sBattD);
+  svg += seg(sGen, b, true, "--gen");
+  b = zeros;
+  svg += seg(dLoad, b, false, "--load"); b = acc(b, dLoad);
+  svg += seg(dBattC, b, false, "--batt");
+  svg += `<line x1="0" y1="${MID}" x2="${SW}" y2="${MID}" stroke="var(--line)" stroke-width="1"/>`;
+  svg += `<text x="4" y="14" style="font:500 11px system-ui;fill:var(--text-3)">supply ↑</text>`;
+  svg += `<text x="4" y="${SH - 6}" style="font:500 11px system-ui;fill:var(--text-3)">demand ↓</text>`;
+  svg += `<line id="xh" x1="-9" y1="6" x2="-9" y2="${SH - 6}" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="3 3"/>`;
+  strip.innerHTML = svg;
+}
+strip.addEventListener("mousemove", e => {
+  if (!hist.length) return;
+  const r = strip.getBoundingClientRect();
+  const i = Math.max(0, Math.min(hist.length - 1, Math.round((e.clientX - r.left) / r.width * (HIST - 1))));
+  const h = hist[i];
+  if (!h) return;
+  const xh = strip.querySelector("#xh");
+  if (xh) { const px = (i / (HIST - 1)) * SW; xh.setAttribute("x1", px); xh.setAttribute("x2", px); }
+  tip.style.display = "block";
+  tip.style.left = `${Math.min(e.clientX + 14, innerWidth - 200)}px`;
+  tip.style.top = `${e.clientY + 14}px`;
+  const when = new Date(h.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  tip.innerHTML = `<b>${when}</b><br>solar <b>${Math.round(h.solar)} W</b> · gen <b>${Math.round(h.gen)} W</b><br>loads <b>${Math.round(h.load)} W</b> · battery <b>${h.batt >= 0 ? "+" : "−"}${Math.round(Math.abs(h.batt))} W</b>`;
+});
+strip.addEventListener("mouseleave", () => {
+  tip.style.display = "none";
+  const xh = strip.querySelector("#xh");
+  if (xh) { xh.setAttribute("x1", -9); xh.setAttribute("x2", -9); }
+});
+
+/* ---------- hero + system ---------- */
+const fmtH = h => h >= 24 ? `${Math.floor(h / 24)} d ${Math.round(h % 24)} h`
+  : h >= 1 ? `${Math.floor(h)} h ${Math.round(h % 1 * 60)} m` : `${Math.round(h * 60)} m`;
+function drawHero() {
+  const L = st.latest;
+  if (!L) return;
+  const sa = L.soc_a, sb = L.soc_b;
+  const master = sa != null && sb != null ? Math.min(sa, sb) : (sa ?? sb);
+  $("soc").textContent = master != null ? Math.round(master) : "—";
+  $("ab").textContent = sa != null && sb != null
+    ? `A ${Math.round(sa)}% · B ${Math.round(sb)}%` : "";
+  const ageS = (Date.now() - Date.parse(L.ts)) / 1000;
+  const chip = $("state");
+  if (ageS > 120) {
+    chip.textContent = `stale — last data ${fmtH(ageS / 3600)} ago`;
+    chip.classList.add("stale");
+  } else {
+    chip.classList.remove("stale");
+    const stageTxt = st.stage && L.state === "charging" ? ` · ${st.stage}` : "";
+    chip.textContent = `${L.state}${stageTxt}`;
+  }
+  const mins = L.minutes_remaining;
+  if (mins != null && L.state === "charging") $("ttx").textContent = `≈ ${fmtH(mins / 60)} to full`;
+  else if (mins != null && L.state === "discharging") $("ttx").textContent = `≈ ${fmtH(mins / 60)} to empty`;
+  else if (L.state === "full") $("ttx").textContent = "battery full";
+  else $("ttx").textContent = "holding steady";
+
+  $("s-dcv").textContent = st.solar?.dc_v != null ? `${st.solar.dc_v.toFixed(2)} V`
+    : L.pack_v != null ? `${L.pack_v.toFixed(2)} V` : "—";
+  $("s-pvv").textContent = st.solar?.pv_v != null ? `${st.solar.pv_v.toFixed(1)} V` : "—";
+  $("s-stage").textContent = st.stage ?? "—";
+  $("s-inv").textContent = st.inv;
+}
+
+/* ---------- loop ---------- */
+async function refresh(first) {
+  try {
+    await pollOnce(first);
+    drawFlow(); drawStrip(); drawHero();
+  } catch (err) {
+    console.warn("poll failed:", err);
+    $("state").textContent = "connection lost — retrying";
+    $("state").classList.add("stale");
+  }
+}
+refresh(true);
+setInterval(() => refresh(false), POLL_S * 1000);
+$("theme").addEventListener("click", () => {
+  const cur = document.documentElement.dataset.theme;
+  document.documentElement.dataset.theme = cur === "light" ? "dark" : "light";
+  drawFlow(); drawStrip();
+});
+</script>
+</body>
+</html>

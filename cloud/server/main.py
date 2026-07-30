@@ -645,6 +645,13 @@ async def root() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/v2")
+async def v2_page() -> FileResponse:
+    """The redesigned live screen (SOC hero + power-flow), staged here until
+    it replaces / — see docs/mockups/power-flow.html for its design lineage."""
+    return FileResponse(STATIC_DIR / "v2.html")
+
+
 @app.get("/history")
 async def history_page() -> FileResponse:
     return FileResponse(STATIC_DIR / "history.html")

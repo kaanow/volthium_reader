@@ -444,5 +444,13 @@ class SolarTests(unittest.TestCase):
         self.assertEqual(r.json(), {"events": [], "count": 0})
 
 
+class V2PageTests(unittest.TestCase):
+    def test_v2_page_served(self):
+        c = _client()
+        r = c.get("/v2")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("Barge Inn Power", r.text)
+
+
 if __name__ == "__main__":
     unittest.main()
