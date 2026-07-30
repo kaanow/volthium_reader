@@ -6,45 +6,31 @@ build artifacts — edit the generators, not the KiCad files.
 
 ## File map
 
-| File / dir              | What                                                          |
-|-------------------------|--------------------------------------------------------------|
-| `build_schematics.py`   | **Source of truth.** Builds each board's `.kicad_sch`, runs `kicad-cli sch` upgrade/ERC, and exports the netlist + schematic PDF. Also runs the readability/geometry audits. |
-| `build_pcbs.py`         | Builds each `.kicad_pcb` from the exported netlist: places footprints, routes, fills zones, exports Gerbers/drill/pos/STEP + renders. |
-| `dedupe_pdf_text.py`    | Post-processes exported schematic PDFs (PyMuPDF).            |
-| `libraries/`            | Custom symbols (`volthium.kicad_sym`) + footprints (`volthium.pretty/`). |
-| `battery_side/`, `display_side/` | Per-board KiCad project dirs. Hold the human-maintained `.kicad_pro` + lib tables; the `.kicad_sch`/`.kicad_pcb` are regenerated into them. |
-| `_smoke/`               | Minimal smoke-test board fixture.                            |
-| `archive/`              | **Superseded** SKiDL / KiCad-8 toolchain (genesis). See `archive/README.md`. |
-
-Outputs (netlists, PDFs, Gerbers, renders) land in
-[`../outputs/`](../outputs/) and are regenerated — not hand-edited.
-
-## Build flow
-
-```
-build_schematics.py ─► battery_side/battery_side.kicad_sch  ─┐ kicad-cli
-                       display_side/display_side.kicad_sch  ─┘ ERC + export
-                                                              │
-                                                              ▼
-                                  ../outputs/<board>/{<board>.net, schematic.pdf, erc.rpt}
-                                                              │
-build_pcbs.py  (reads the .net) ──────────────────────────────┘
-       └─► <board>/<board>.kicad_pcb  +  ../outputs/<board>/{fab/, *.png, ...}
-```
+| File / dir      | What                                                          |
+|-----------------|---------------------------------------------------------------|
+| `schematic/`    | **Schematic source of truth.** `core.py` (shared generator core + full gate stack), `build.py` (battery board), `build_display.py` (display board), `testdata/` (standing poison fixtures for the build-start self-test). Outputs land in `schematic/build/` (battery) and `schematic/build_display/` (display): `.kicad_sch` hierarchy, `.kicad_pro`, netlist, PDF, per-sheet PNGs. |
+| `pcb/`          | **Placement/routing source of truth** (CP3+). Same pattern: shared core + per-board build scripts; outputs in `pcb/build/` / `pcb/build_display/`. |
+| `libraries/`    | Custom symbols (`volthium.kicad_sym`).                        |
+| `footprints/`   | Custom footprints (`volthium.pretty/`) with provenance README. |
+| `archive/`      | **Superseded** toolchains: SKiDL/KiCad-8 genesis, plus `pass1_pcb/` (the first design pass's placement/routing generator + board projects + outputs, retired when the design was re-baselined at CP1). See `archive/README.md`. |
 
 ## Requirements
 
-- **KiCad 10** with `kicad-cli` on `PATH`.
-- A Python venv with the deps in [`../../requirements-hw.txt`](../../requirements-hw.txt) (kiutils, PyMuPDF). `build_pcbs.py` also shells out to KiCad's bundled `pcbnew` Python for zone fills / SES import.
+- **KiCad 10** with `kicad-cli` discoverable (see the generator's startup
+  print for the resolved share/CLI pairing).
+- The repo venv (`.venv/`) with kiutils + PyMuPDF.
 
 ## Run
 
 ```bash
-cd hardware/kicad
-python build_schematics.py        # schematics + ERC + netlist/PDF export  (see --help)
-python build_pcbs.py              # placement + routing + fab outputs        (see --help)
+# battery-side schematic (gates + ERC + netlist + PDF/PNG export)
+.venv/bin/python hardware/kicad/schematic/build.py
+# display-side schematic
+.venv/bin/python hardware/kicad/schematic/build_display.py
+# battery-side placement (CP3)
+.venv/bin/python hardware/kicad/pcb/build.py
 ```
 
-The `.kicad_pro` project files are human-maintained and **preserved**
-across regeneration (the generators snapshot and restore them). The old
-SKiDL/KiCad-8 path lives in [`archive/`](archive/) for history.
+Every generator carries its own gate stack (readability, glyph, pdf-text
+ground truth, netlist intent==actual, exact-part contracts, strict full
+ERC/DRC, build-start poison self-tests) and fails the build on any gate.

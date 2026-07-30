@@ -1,7 +1,13 @@
-# `hardware/kicad/archive/` — superseded SKiDL / KiCad-8 toolchain
+# `hardware/kicad/archive/` — superseded toolchains
 
-Historical only. These files are the project's **original generation
-path** and are no longer used.
+Historical only. Two generations are retired here:
+
+1. **SKiDL / KiCad-8 genesis** (files at this level) — the project's
+   original generation path, described below.
+2. **`pass1_pcb/`** — the first design pass's placement/routing
+   toolchain + board projects + outputs, retired 2026-07-29 when the
+   re-baselined design (CP1 2026-05→ / CP2 schematics in
+   `../schematic/`) reached CP3 placement. See `pass1_pcb/README.md`.
 
 ## Why they're here
 
