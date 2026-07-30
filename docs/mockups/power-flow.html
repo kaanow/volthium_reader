@@ -6,25 +6,18 @@
 <title>Volthium — power flow mockup</title>
 <style>
 :root {
-  color-scheme: light;
-  --surface: #fcfcfb; --surface-2: #f0efec; --line: #dedcd6;
-  --text-1: #0b0b0b; --text-2: #52514e; --text-3: #8a8880;
-  --solar: #eda100; --batt: #1baf7a; --gen: #eb6834; --load: #2a78d6;
-  --good: #0ca30c; --warn: #fab219; --crit: #d03b3b;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --surface: #1a1a19; --surface-2: #262624; --line: #3a3936;
-    --text-1: #ffffff; --text-2: #c3c2b7; --text-3: #8a8880;
-    --solar: #c98500; --batt: #199e70; --gen: #d95926; --load: #3987e5;
-  }
-}
-:root[data-theme="dark"] {
+  /* dark by default — this is a night-glanceable utility screen */
   color-scheme: dark;
   --surface: #1a1a19; --surface-2: #262624; --line: #3a3936;
   --text-1: #ffffff; --text-2: #c3c2b7; --text-3: #8a8880;
   --solar: #c98500; --batt: #199e70; --gen: #d95926; --load: #3987e5;
+  --good: #0ca30c; --warn: #fab219; --crit: #d03b3b;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --surface: #fcfcfb; --surface-2: #f0efec; --line: #dedcd6;
+  --text-1: #0b0b0b; --text-2: #52514e; --text-3: #8a8880;
+  --solar: #eda100; --batt: #1baf7a; --gen: #eb6834; --load: #2a78d6;
 }
 * { box-sizing: border-box; }
 body {
@@ -48,6 +41,8 @@ select, button {
   background: var(--surface-2); border: 1px solid var(--line);
   color: var(--text-2); font-size: 13px; font-weight: 600;
 }
+.hero .ab { margin-top: 8px; font-size: 13px; color: var(--text-3);
+  font-variant-numeric: tabular-nums; }
 .flow { display: block; width: 100%; height: auto; margin-top: 10px; }
 .flow text { font: 600 13px system-ui, sans-serif; fill: var(--text-1); }
 .flow .sub { font-weight: 500; font-size: 12px; fill: var(--text-2); }
@@ -92,7 +87,7 @@ details.sys summary { color: var(--text-3); font-size: 13px; cursor: pointer; us
 <body>
 <div class="wrap">
   <div class="topbar">
-    <h1>Volthium · barge</h1>
+    <h1>Barge Inn Power</h1>
     <div class="controls">
       <select id="scenario">
         <option value="sunny">Sunny — charging</option>
@@ -109,6 +104,7 @@ details.sys summary { color: var(--text-3); font-size: 13px; cursor: pointer; us
     <div class="soc"><span id="soc">87</span><small>%</small></div>
     <div class="sub" id="ttx">≈ 3 h 40 m to full</div>
     <div class="chip" id="state">charging · bulk</div>
+    <div class="ab" id="ab">A 88% · B 86%</div>
   </div>
 
   <svg id="flow" class="flow" viewBox="0 0 760 320" role="img" aria-label="power flow diagram">
@@ -138,7 +134,7 @@ details.sys summary { color: var(--text-3); font-size: 13px; cursor: pointer; us
     <text class="sub" id="t-gen" x="665" y="90">0 W</text>
     <text x="665" y="228">🏠 Loads</text>
     <text class="sub" id="t-load" x="665" y="258">180 W</text>
-    <text class="sub" id="loadbadge" x="665" y="276" fill="var(--text-3)">running on sun</text>
+    <text class="sub" id="loadbadge" x="756" y="276" text-anchor="end" fill="var(--text-3)">running on sun</text>
   </svg>
 
   <div class="strip-box">
@@ -162,10 +158,6 @@ details.sys summary { color: var(--text-3); font-size: 13px; cursor: pointer; us
       <div class="cell">PV array <b id="s-pvv">96 V</b></div>
       <div class="cell">Charge stage <b id="s-stage">bulk</b></div>
       <div class="cell">Inverter <b id="s-inv">inverting</b></div>
-      <div class="cell">DC balance residual <b id="s-res">+4 W</b></div>
-      <div class="cell">Gen volts<span class="badge-unverified">ON-SPEC</span> <b id="s-genv">0 V</b></div>
-      <div class="cell">Charger target <b>28.4 V · 60 A</b></div>
-      <div class="cell">Nodes <b id="s-nodes">SW ✓ · MPPT ✓</b></div>
     </div>
   </details>
 
@@ -179,12 +171,13 @@ const css = name => getComputedStyle(document.documentElement).getPropertyValue(
 
 /* ---------- synthetic state ---------- */
 const SCEN = {
-  sunny:     { solar: 620, gen: 0,   load: 180, soc: 87, stage: "bulk",  inv: "inverting", pv: 96 },
-  cloud:     { solar: 480, gen: 0,   load: 200, soc: 74, stage: "bulk",  inv: "inverting", pv: 92, clouds: true },
-  curtailed: { solar: 90,  gen: 0,   load: 85,  soc: 100, stage: "float", inv: "inverting", pv: 112 },
-  night:     { solar: 0,   gen: 0,   load: 140, soc: 62, stage: "not charging", inv: "inverting", pv: 0.2 },
-  gen:       { solar: 40,  gen: 960, load: 310, soc: 55, stage: "bulk",  inv: "passthrough", pv: 88 },
+  sunny:     { solar: 620, gen: 0,   load: 180, socA: 88, socB: 86, stage: "bulk",  inv: "inverting", pv: 96 },
+  cloud:     { solar: 480, gen: 0,   load: 200, socA: 75, socB: 73, stage: "bulk",  inv: "inverting", pv: 92, clouds: true },
+  curtailed: { solar: 90,  gen: 0,   load: 85,  socA: 100, socB: 99, stage: "float", inv: "inverting", pv: 112 },
+  night:     { solar: 0,   gen: 0,   load: 140, socA: 63, socB: 60, stage: "not charging", inv: "inverting", pv: 0.2 },
+  gen:       { solar: 40,  gen: 960, load: 310, socA: 56, socB: 53, stage: "bulk",  inv: "passthrough", pv: 88 },
 };
+for (const s of Object.values(SCEN)) s.soc = Math.round((s.socA + s.socB) / 2);
 let scen = SCEN.sunny, t = 0;
 const HIST = 240;                       // 1 h at 15 s
 const hist = [];                        // {solar, gen, load, batt}
@@ -204,11 +197,14 @@ for (let i = 0; i < HIST; i++) step();   // pre-fill history
 
 /* ---------- flow diagram ---------- */
 const wires = {
-  "w-solar": { color: "--solar", getW: s => s.solar, into: true },
-  "w-batt":  { color: "--batt",  getW: s => Math.abs(s.batt), into: null },
-  "w-inv":   { color: "--load",  getW: s => Math.max(5, s.load - (scen.inv === "passthrough" ? s.gen : 0)), into: true },
-  "w-gen":   { color: "--gen",   getW: s => s.gen, into: true },
-  "w-load":  { color: "url", getW: s => s.load, into: true },
+  "w-solar": { color: "--solar", getW: s => s.solar },
+  "w-batt":  { color: "--batt",  getW: s => Math.abs(s.batt) },
+  // DC<->AC always flows when the system is alive: DC->AC while inverting
+  // (loads drawn from DC), AC->DC in passthrough (charger pushes into DC).
+  "w-inv":   { color: "--load",  getW: s => scen.inv === "passthrough"
+                 ? Math.max(0, s.batt - s.solar) : s.load },
+  "w-gen":   { color: "--gen",   getW: s => s.gen },
+  "w-load":  { color: "url", getW: s => s.load },
 };
 const particles = {};
 for (const id of Object.keys(wires)) {
@@ -244,14 +240,19 @@ function drawFlow(s) {
     const path = $(id);
     const active = watts > 8;
     path.style.stroke = w.color === "url" ? "url(#loadmix)" : `var(${w.color})`;
-    path.style.strokeWidth = (1.2 + 4.5 * Math.sqrt(Math.min(watts, 1500) / 1500)).toFixed(2);
-    path.style.opacity = active ? 1 : 0.25;
+    path.style.strokeWidth = 3;                       // constant — power lives in the dots
+    path.style.opacity = active ? 0.9 : 0.22;
     const dur = Math.max(0.55, Math.min(6, 900 / Math.max(watts, 1)));
     particles[id].forEach(({ c, m }, k) => {
-      c.style.fill = w.color === "url" ? css("--load") : css(w.color);
+      c.style.fill = css("--text-1");                 // contrasting dots
+      c.style.stroke = css("--surface");
+      c.style.strokeWidth = 1;
       c.style.display = active && k < 1 + Math.min(2, watts / 350) ? "" : "none";
       if (m.getAttribute("dur") !== `${dur}s`) m.setAttribute("dur", `${dur}s`);
-      const rev = id === "w-batt" && battCharging;   // path runs batt->DC; charging flows DC->batt
+      // paths are drawn source->bus (solar, gen, batt) or DC->AC (inv) or
+      // AC->loads; reverse when the physical flow is the other way
+      const rev = (id === "w-batt" && battCharging) ||
+                  (id === "w-inv" && scen.inv === "passthrough");
       const kp = rev ? "1;0" : "0;1";
       if (m.getAttribute("keyPoints") !== kp) {
         m.setAttribute("keyPoints", kp);
@@ -264,7 +265,7 @@ function drawFlow(s) {
   $("t-gen").textContent = `${Math.round(s.gen)} W`;
   $("t-load").textContent = `${Math.round(s.load)} W`;
   $("t-batt").textContent = `${s.batt >= 0 ? "+" : "−"}${Math.round(Math.abs(s.batt))} W ${s.batt >= 0 ? "charging" : "discharging"}`;
-  $("invlbl").textContent = scen.inv === "passthrough" ? "passthrough" : "inverting →";
+  $("invlbl").textContent = scen.inv === "passthrough" ? "← charging" : "inverting →";
 
   const genToLoad = scen.inv === "passthrough" ? Math.min(s.gen, s.load) : 0;
   const rest = s.load - genToLoad;
@@ -355,12 +356,11 @@ function drawHero(s) {
     $("ttx").textContent = "holding steady";
     $("state").textContent = scen.stage === "float" ? "full · float" : "idle";
   }
+  $("ab").textContent = `A ${scen.socA}% · B ${scen.socB}%`;
   $("s-dcv").textContent = `${(26.2 + scen.soc / 100 * 1.6 + (Math.random() - .5) * .05).toFixed(2)} V`;
   $("s-pvv").textContent = `${scen.pv.toFixed(scen.pv < 1 ? 1 : 0)} V`;
   $("s-stage").textContent = scen.stage;
   $("s-inv").textContent = scen.inv;
-  $("s-res").textContent = `${(Math.random() * 8 - 4).toFixed(0)} W`;
-  $("s-genv").textContent = s.gen > 0 ? "118 V" : "0 V";
 }
 const fmtH = h => h >= 1 ? `${Math.floor(h)} h ${Math.round(h % 1 * 60)} m` : `${Math.round(h * 60)} m`;
 
@@ -370,6 +370,13 @@ function tick() {
   drawFlow(s); drawStrip(); drawHero(s);
 }
 setInterval(tick, 1000);
+const startScen = location.hash.slice(1);
+if (SCEN[startScen]) {
+  $("scenario").value = startScen;
+  scen = SCEN[startScen];
+  hist.length = 0;
+  for (let i = 0; i < HIST; i++) step();
+}
 tick();
 $("scenario").addEventListener("change", e => {
   scen = SCEN[e.target.value];
@@ -379,8 +386,7 @@ $("scenario").addEventListener("change", e => {
 });
 $("theme").addEventListener("click", () => {
   const cur = document.documentElement.dataset.theme;
-  document.documentElement.dataset.theme =
-    cur === "dark" ? "light" : cur === "light" ? "dark" : matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark";
+  document.documentElement.dataset.theme = cur === "light" ? "dark" : "light";
   tick();
 });
 </script>
