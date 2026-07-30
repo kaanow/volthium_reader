@@ -45,6 +45,10 @@ from cloud.shared.wire import (
     IngestBatch,
     IngestResponse,
     Reading,
+    SolarIngestBatch,
+    SolarIngestResponse,
+    XanbusEventBatch,
+    XanbusEventIngestResponse,
 )
 
 
@@ -303,6 +307,128 @@ async def api_latest(
     if ts is not None and hasattr(ts, "isoformat"):
         r["ts"] = ts.isoformat().replace("+00:00", "Z")
     return {"latest": r}
+
+
+# --- solar (Xanbus/CAN) -----------------------------------------------------
+# Independent telemetry stream read straight off the Conext CAN bus by the
+# Pi's xanbus-reader service. Same auth (per-source bearer token), same
+# idempotent-insert and since=-incremental patterns as readings.
+
+@app.post("/api/solar/ingest", response_model=SolarIngestResponse)
+async def ingest_solar(
+    batch: SolarIngestBatch,
+    request: Request,
+    dao: ReadingsDAO = Depends(get_dao),
+    settings: Settings = Depends(get_settings),
+) -> SolarIngestResponse:
+    _check_token(request, batch.source_id, settings)
+    if not isinstance(dao, AsyncpgReadingsDAO):
+        return SolarIngestResponse(accepted=0, duplicates=0)
+    readings = sorted(batch.readings, key=lambda r: r.ts)
+    accepted, duplicates = await dao.insert_solar(batch.source_id, readings)
+    return SolarIngestResponse(accepted=accepted, duplicates=duplicates)
+
+
+@app.post("/api/xanbus_events/ingest", response_model=XanbusEventIngestResponse)
+async def ingest_xanbus_events(
+    batch: XanbusEventBatch,
+    request: Request,
+    dao: ReadingsDAO = Depends(get_dao),
+    settings: Settings = Depends(get_settings),
+) -> XanbusEventIngestResponse:
+    _check_token(request, batch.source_id, settings)
+    if not isinstance(dao, AsyncpgReadingsDAO):
+        return XanbusEventIngestResponse(accepted=0)
+    inserted = await dao.insert_xanbus_events(batch.source_id, batch.events)
+    return XanbusEventIngestResponse(accepted=inserted)
+
+
+@app.get("/api/solar")
+async def api_solar(
+    source_id: Optional[str] = Query(default=None),
+    limit: int = Query(default=240, ge=1, le=10000),  # 240 = 1h @ 15s
+    since: Optional[str] = Query(
+        default=None,
+        description="ISO timestamp; return only rows STRICTLY AFTER it, "
+        "oldest-first — incremental polling, same contract as /api/readings.",
+    ),
+    dao: ReadingsDAO = Depends(get_dao),
+) -> dict:
+    if not isinstance(dao, AsyncpgReadingsDAO):
+        return {"readings": [], "count": 0}
+    since_dt = None
+    if since is not None:
+        try:
+            since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
+        except ValueError:
+            raise HTTPException(422, "since: not an ISO datetime")
+        if since_dt.tzinfo is None:
+            since_dt = since_dt.replace(tzinfo=timezone.utc)
+    rows = await dao.solar_since(source_id, since_dt, limit)
+    for r in rows:
+        ts = r.get("ts")
+        if ts is not None and hasattr(ts, "isoformat"):
+            r["ts"] = ts.isoformat().replace("+00:00", "Z")
+    return {"readings": rows, "count": len(rows)}
+
+
+@app.get("/api/solar/series")
+async def api_solar_series(
+    source_id: Optional[str] = Query(default=None),
+    hours: float = Query(default=24.0, gt=0, le=24 * 400),
+    bucket_s: int = Query(default=300, ge=15, le=86400),
+    before: Optional[str] = Query(default=None),
+    dao: ReadingsDAO = Depends(get_dao),
+) -> dict:
+    """Bucketed solar series — history_series's solar sibling. Egress is
+    bounded by bucket_s regardless of underlying row count."""
+    if not isinstance(dao, AsyncpgReadingsDAO):
+        return {"series": [], "bucket_s": bucket_s}
+    until = datetime.now(timezone.utc)
+    if before:
+        try:
+            until = datetime.fromisoformat(before.replace("Z", "+00:00"))
+            if until.tzinfo is None:
+                until = until.replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(422, "before: not an ISO datetime")
+    src = await _resolve_solar_source(dao, source_id)
+    if src is None:
+        return {"series": [], "bucket_s": bucket_s}
+    since = max(until - timedelta(hours=hours), SYSTEM_EPOCH)
+    rows = await dao.solar_series(src, since, until, bucket_s)
+    return {"series": _rows_out(rows), "bucket_s": bucket_s, "source_id": src}
+
+
+@app.get("/api/xanbus_events")
+async def api_xanbus_events(
+    source_id: Optional[str] = Query(default=None),
+    event: Optional[str] = Query(default=None),
+    since: Optional[str] = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=2000),
+    dao: ReadingsDAO = Depends(get_dao),
+) -> dict:
+    if not isinstance(dao, AsyncpgReadingsDAO):
+        return {"events": [], "count": 0}
+    since_dt = None
+    if since is not None:
+        try:
+            since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
+        except ValueError:
+            raise HTTPException(422, "since: not an ISO datetime")
+        if since_dt.tzinfo is None:
+            since_dt = since_dt.replace(tzinfo=timezone.utc)
+    rows = await dao.recent_xanbus_events(source_id, event, since_dt, limit)
+    return {"events": _rows_out(rows), "count": len(rows)}
+
+
+async def _resolve_solar_source(
+    dao: "AsyncpgReadingsDAO", source_id: Optional[str]
+) -> Optional[str]:
+    if source_id:
+        return source_id
+    rows = await dao.solar_since(None, None, 1)
+    return rows[0].get("source_id") if rows else None
 
 
 # The current logger/hardware went live 2026-06-29; a handful of stray

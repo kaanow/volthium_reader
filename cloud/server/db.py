@@ -15,7 +15,7 @@ from typing import Optional, Protocol, Sequence
 import asyncpg
 
 from cloud.server.derive import Derived
-from cloud.shared.wire import BleEvent, Reading
+from cloud.shared.wire import BleEvent, Reading, SolarReading
 
 
 class ReadingsDAO(Protocol):
@@ -569,6 +569,153 @@ class AsyncpgReadingsDAO:
                     "worst_delta_v": perbat["dv_b"],
                 },
             }
+        return out
+
+
+    # --- solar (Xanbus/CAN) -------------------------------------------------
+    # Same prod-only pattern as the history queries: /api/solar/* endpoints
+    # isinstance-check for AsyncpgReadingsDAO.
+
+    async def insert_solar(
+        self, source_id: str, readings: Sequence["SolarReading"]
+    ) -> tuple[int, int]:
+        """Insert solar buckets, idempotent on (source_id, ts). Returns
+        (accepted, duplicates) — same contract as insert()."""
+        if not readings:
+            return (0, 0)
+        cols = ("source_id", "ts", "schema_version",
+                "solar_w", "solar_w_min", "solar_w_max", "solar_a",
+                "pv_v", "dc_v", "dc_a", "dc_w", "dc_w_min", "dc_w_max",
+                "sample_n")
+        rows = [(source_id, r.ts, r.schema_version,
+                 r.solar_w, r.solar_w_min, r.solar_w_max, r.solar_a,
+                 r.pv_v, r.dc_v, r.dc_a, r.dc_w, r.dc_w_min, r.dc_w_max,
+                 r.sample_n) for r in readings]
+        n = len(cols)
+        placeholders = ",".join(
+            "(" + ",".join(f"${i*n + j + 1}" for j in range(n)) + ")"
+            for i in range(len(rows))
+        )
+        flat = [v for row in rows for v in row]
+        async with self.pool.acquire() as conn:
+            inserted = await conn.fetch(
+                f"""INSERT INTO solar_readings ({", ".join(cols)})
+                    VALUES {placeholders}
+                    ON CONFLICT (source_id, ts) DO NOTHING
+                    RETURNING ts""",
+                *flat,
+            )
+        accepted = len(inserted)
+        return (accepted, len(rows) - accepted)
+
+    async def solar_since(
+        self, source_id: Optional[str], since: Optional[datetime], limit: int
+    ) -> list[dict]:
+        """Solar rows for the live tile. With `since`: strictly-after,
+        oldest-first (incremental poll — the readings recent_since pattern).
+        Without: newest-first recent rows."""
+        async with self.pool.acquire() as conn:
+            if source_id is None:
+                src = await conn.fetchval(
+                    "SELECT source_id FROM solar_readings ORDER BY ts DESC LIMIT 1"
+                )
+                if src is None:
+                    return []
+                source_id = src
+            if since is not None:
+                rows = await conn.fetch(
+                    """SELECT * FROM solar_readings
+                       WHERE source_id = $1 AND ts > $2
+                       ORDER BY ts ASC LIMIT $3""",
+                    source_id, since, limit,
+                )
+            else:
+                rows = await conn.fetch(
+                    """SELECT * FROM solar_readings
+                       WHERE source_id = $1
+                       ORDER BY ts DESC LIMIT $2""",
+                    source_id, limit,
+                )
+                rows = list(reversed(rows))
+        return [dict(r) for r in rows]
+
+    async def solar_series(
+        self, source_id: str, since: datetime, until: datetime, bucket_s: int
+    ) -> list[dict]:
+        """Bucketed solar aggregates for the range explorer — the
+        history_series shape, so the charts layer treats both alike.
+        min/max fold the stored per-15s min/max (exact, not approximated)."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT
+                       to_timestamp(floor(extract(epoch FROM ts) / $4) * $4) AS bucket,
+                       COUNT(*)         AS n,
+                       AVG(solar_w)     AS solar_w,
+                       MIN(solar_w_min) AS solar_w_min,
+                       MAX(solar_w_max) AS solar_w_max,
+                       AVG(pv_v)        AS pv_v,
+                       AVG(dc_v)        AS dc_v,
+                       AVG(dc_a)        AS dc_a,
+                       AVG(dc_w)        AS dc_w,
+                       MIN(dc_w_min)    AS dc_w_min,
+                       MAX(dc_w_max)    AS dc_w_max
+                   FROM solar_readings
+                   WHERE source_id = $1 AND ts >= $2 AND ts < $3
+                   GROUP BY bucket ORDER BY bucket""",
+                source_id, since, until, bucket_s,
+            )
+        return [dict(r) for r in rows]
+
+    async def insert_xanbus_events(
+        self, source_id: str, events: Sequence[BleEvent]
+    ) -> int:
+        if not events:
+            return 0
+        rows = [(source_id, e.ts, e.event, json.dumps(e.data)) for e in events]
+        async with self.pool.acquire() as conn:
+            await conn.executemany(
+                """INSERT INTO xanbus_events (source_id, ts, event, data)
+                   VALUES ($1, $2, $3, $4::jsonb)""",
+                rows,
+            )
+        return len(rows)
+
+    async def recent_xanbus_events(
+        self,
+        source_id: Optional[str],
+        event: Optional[str],
+        since: Optional[datetime],
+        limit: int = 200,
+    ) -> list[dict]:
+        """Xanbus event stream for the dashboard timeline. All filters
+        optional — mirrors /api/events semantics."""
+        where, params = ["TRUE"], []
+        if source_id:
+            params.append(source_id)
+            where.append(f"source_id = ${len(params)}")
+        if event:
+            params.append(event)
+            where.append(f"event = ${len(params)}")
+        if since:
+            params.append(since)
+            where.append(f"ts >= ${len(params)}")
+        params.append(limit)
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"""SELECT source_id, ts, event, data FROM xanbus_events
+                    WHERE {" AND ".join(where)}
+                    ORDER BY ts DESC LIMIT ${len(params)}""",
+                *params,
+            )
+        out = []
+        for r in rows:
+            d = dict(r)
+            if isinstance(d.get("data"), str):
+                try:
+                    d["data"] = json.loads(d["data"])
+                except json.JSONDecodeError:
+                    d["data"] = {}
+            out.append(d)
         return out
 
 

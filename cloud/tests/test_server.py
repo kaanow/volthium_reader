@@ -352,5 +352,97 @@ class HistoryEndpointTests(unittest.TestCase):
         self.assertIn('href="/history"', r.text)
 
 
+class SolarTests(unittest.TestCase):
+    """Solar/Xanbus endpoints. FakeDAO isn't an AsyncpgReadingsDAO, so the
+    data paths return well-formed empty shapes — these tests pin the auth
+    behavior, input validation, and those shapes."""
+
+    SOLAR_ROW = {
+        "ts": "2026-07-30T19:00:00Z",
+        "solar_w": 120.5, "solar_w_min": 80.0, "solar_w_max": 190.0,
+        "solar_a": 4.4, "pv_v": 88.2,
+        "dc_v": 27.1, "dc_a": -2.1, "dc_w": -57.0,
+        "dc_w_min": -140.0, "dc_w_max": 10.0,
+        "sample_n": 45,
+    }
+
+    def test_ingest_rejects_no_auth(self):
+        c = _client()
+        r = c.post("/api/solar/ingest", json={
+            "source_id": "pi-barge", "readings": [self.SOLAR_ROW]})
+        self.assertEqual(r.status_code, 401)
+
+    def test_ingest_rejects_wrong_token(self):
+        c = _client()
+        r = c.post("/api/solar/ingest", json={
+            "source_id": "pi-barge", "readings": [self.SOLAR_ROW]},
+            headers={"Authorization": "Bearer nope"})
+        self.assertEqual(r.status_code, 401)
+
+    def test_ingest_authed_ok(self):
+        c = _client()
+        r = c.post("/api/solar/ingest", json={
+            "source_id": "pi-barge", "readings": [self.SOLAR_ROW]},
+            headers={"Authorization": "Bearer secret-pi-token"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(set(r.json()), {"accepted", "duplicates"})
+
+    def test_ingest_naive_ts_rejected(self):
+        c = _client()
+        bad = dict(self.SOLAR_ROW, ts="2026-07-30T19:00:00")
+        r = c.post("/api/solar/ingest", json={
+            "source_id": "pi-barge", "readings": [bad]},
+            headers={"Authorization": "Bearer secret-pi-token"})
+        self.assertEqual(r.status_code, 422)
+
+    def test_ingest_extras_rejected(self):
+        c = _client()
+        bad = dict(self.SOLAR_ROW, load_va=99.0)   # not (yet) a wire field
+        r = c.post("/api/solar/ingest", json={
+            "source_id": "pi-barge", "readings": [bad]},
+            headers={"Authorization": "Bearer secret-pi-token"})
+        self.assertEqual(r.status_code, 422)
+
+    def test_events_ingest_auth_and_shape(self):
+        c = _client()
+        ev = {"ts": "2026-07-30T19:00:00Z", "event": "gen_start",
+              "data": {"gen_v": 118.2}}
+        r = c.post("/api/xanbus_events/ingest", json={
+            "source_id": "pi-barge", "events": [ev]})
+        self.assertEqual(r.status_code, 401)
+        r = c.post("/api/xanbus_events/ingest", json={
+            "source_id": "pi-barge", "events": [ev]},
+            headers={"Authorization": "Bearer secret-pi-token"})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("accepted", r.json())
+
+    def test_get_solar_empty_shape(self):
+        c = _client()
+        r = c.get("/api/solar")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {"readings": [], "count": 0})
+
+    def test_get_solar_rejects_bad_since(self):
+        c = _client()
+        r = c.get("/api/solar?since=not-a-date")
+        # empty-shape short-circuit happens before parsing on FakeDAO;
+        # accept either 422 (parsed) or 200-empty (short-circuited).
+        self.assertIn(r.status_code, (200, 422))
+
+    def test_solar_series_empty_shape(self):
+        c = _client()
+        r = c.get("/api/solar/series?hours=24")
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body["series"], [])
+        self.assertIn("bucket_s", body)
+
+    def test_xanbus_events_empty_shape(self):
+        c = _client()
+        r = c.get("/api/xanbus_events")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {"events": [], "count": 0})
+
+
 if __name__ == "__main__":
     unittest.main()

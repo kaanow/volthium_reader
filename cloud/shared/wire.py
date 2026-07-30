@@ -178,3 +178,86 @@ class BleEventBatch(BaseModel):
 
 class BleEventIngestResponse(BaseModel):
     accepted: int
+
+
+# --- Solar (Xanbus/CAN) ---------------------------------------------------
+#
+# Read directly off the Conext CAN bus by the Pi's xanbus-reader service —
+# see docs/xanbus-decode.md for the field decode and docs/xanbus-write-*
+# notes for how the association/PGN mapping was confirmed. Independent
+# stream from Reading/BleEvent (different source hardware, own cadence).
+
+
+class SolarReading(BaseModel):
+    """One 15s bucket: mean (+min/max on the two power fields) of the
+    continuously-polled CAN values over that interval. Aggregates are
+    computed reader-side so a lossy 1-shot-per-interval sample never has
+    to stand in for a transient (a cloud edge, a load spike, a generator
+    start) — see xanbus-decode.md for the source PGN of each field."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ts: datetime
+    schema_version: int = 1
+
+    solar_w: Optional[float] = None
+    solar_w_min: Optional[float] = None
+    solar_w_max: Optional[float] = None
+    solar_a: Optional[float] = None
+
+    pv_v: Optional[float] = None
+
+    # Sign convention: positive = into the battery / into the DC bus.
+    dc_v: Optional[float] = None
+    dc_a: Optional[float] = None
+    dc_w: Optional[float] = None
+    dc_w_min: Optional[float] = None
+    dc_w_max: Optional[float] = None
+
+    sample_n: Optional[int] = None
+
+    @field_validator("ts", mode="before")
+    @classmethod
+    def _parse_ts(cls, v):
+        if isinstance(v, datetime):
+            if v.tzinfo is None:
+                raise ValueError("naive datetime — wire format requires UTC with Z")
+            return v.astimezone(timezone.utc)
+        if isinstance(v, str):
+            s = v.strip()
+            if s.endswith("Z"):
+                s = s[:-1] + "+00:00"
+            dt = datetime.fromisoformat(s)
+            if dt.tzinfo is None:
+                raise ValueError("missing timezone — wire format requires UTC with Z")
+            return dt.astimezone(timezone.utc)
+        raise TypeError(f"unsupported ts type: {type(v).__name__}")
+
+
+class SolarIngestBatch(BaseModel):
+    """A single POST /api/solar/ingest request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_id: str = Field(min_length=1, max_length=64)
+    readings: List[SolarReading] = Field(min_length=1, max_length=1000)
+
+
+class SolarIngestResponse(BaseModel):
+    accepted: int
+    duplicates: int = 0
+
+
+class XanbusEventBatch(BaseModel):
+    """A single POST /api/xanbus_events/ingest request. Reuses BleEvent's
+    shape (ts, event, data) — the two streams have the same on-change/
+    schema-loose needs, just against a different table."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_id: str = Field(min_length=1, max_length=64)
+    events: List[BleEvent] = Field(min_length=1, max_length=5000)
+
+
+class XanbusEventIngestResponse(BaseModel):
+    accepted: int
