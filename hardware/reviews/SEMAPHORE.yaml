@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp3-placement
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement_review.md
@@ -10,14 +10,18 @@ iteration: 5
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-30T20:28:30Z
+last_updated_at: 2026-07-30T20:47:22Z
 last_updated_by: claude-designer
 
 note: >
-  DESIGNER reclaimed pre-review (user ok): iteration-3 findings were
-  all defect-in-a-fix class, which per pcb-design v0.11.1 escalates
-  this iteration to a FULL-scope self-review before handoff. Running
-  it now; will re-flip when it comes back clean.
+  DESIGNER iteration 4 complete, incl. escalated FULL-scope round 3
+  (packet 4.6): found+fixed a USB-C mating-face blocker (J3 was
+  2.42 mm inboard; now 'PCB Edge' line exactly on x=100, shell
+  2.51 mm proud per GCT drawing), new edge-marker gate poison-tested,
+  edge-connector class swept. Board hash now 448d59a276df, netlist
+  eda5076694c0 (blob hashes). Findings 05/06/07 responses in 9.2.
+  Silk accepts 10 -> 12 (J3 x2, enumerated). Skills: kicad v0.3.3,
+  pcb-design v0.11.2. handoff_check CLEAN on committed state.
 
 
 user_pause_reasons_seen_this_run: []
