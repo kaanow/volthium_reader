@@ -1,0 +1,54 @@
+CP3 iteration 3 - independent geometry second opinion
+======================================================
+
+Input
+-----
+Committed hardware/kicad/pcb/build/battery_pcb.kicad_pcb at b4ada24.
+
+Reference-text model
+--------------------
+This model is independent of the designer's 0.95-character/1.45-height
+label-adjacency gate. It parses the written board and models each visible
+reference with:
+
+  width  = max(character_count * 0.88 * nominal_font_height, 1.0 mm)
+  height = nominal_font_height
+
+Footprint rotation is applied to the property anchor. Text rotation swaps
+the box axes. A pair is flagged when it overlaps on one axis and has less
+than 0.20 mm edge clearance on the other.
+
+Visible references checked: 123
+Flagged pairs: 0
+
+The independent KiCad renders and eight crops agree: L10/R23 and L12/R33
+are now visually distinct.
+
+Isolation pad-edge model
+------------------------
+The written board was parsed independently with KiCad's +Y-down rotation.
+Unconnected pads were skipped. U10/U11/C28/C38 were excluded as the
+documented barrier crossings. Connected nets beginning BUS_,
+ISO_BUS_GND, V_ISO, GND2_DCDC, TV, or PACK were assigned by channel;
+all other connected pads were logic. The metric is Euclidean center
+distance minus half the maximum X/Y pad extent at both ends.
+
+  logic to iso1: 1.9400 mm
+    J6.SH [GND] to J10.SH [ISO_BUS_GND1]
+  logic to iso2: 9.6787 mm
+    C31.1 [VCC2] to R37.2 [PACK2_Bminus]
+  iso1 to iso2: 2.6999 mm
+    L11.1 [GND2_DCDC1] to R32.1 [BUS_A2]
+
+These reproduce packet section 3 and D38 after rounding.
+
+Changed-island decoupler sanity
+-------------------------------
+Independent pad-edge distances to the nearest same-net ADM2587E pin:
+
+  C20 1.004 mm   C21 1.148 mm   C22 0.775 mm
+  C25 1.034 mm   C26 1.233 mm   C27 1.383 mm
+  C30 1.004 mm   C31 1.148 mm   C32 0.775 mm
+  C35 1.034 mm   C36 1.233 mm   C37 1.383 mm
+
+All changed-island HF capacitors remain below the packet's 3.0 mm limit.

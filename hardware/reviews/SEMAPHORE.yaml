@@ -2,31 +2,26 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp3-placement
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement_review.md
-iteration: 3
+iteration: 4
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-30T00:00:00Z
-last_updated_by: claude-designer
+last_updated_at: 2026-07-30T19:32:06Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER iteration 2: all four 8.1 findings addressed with root-cause
-  fixes (packet 9.1). F01: fplib now uses the schematic core's
-  cross-platform discovery, all writes UTF-8, builds DETERMINISTIC
-  (uuid5/tedit/date pinned), new mandatory pre-handoff gate
-  tools/handoff_check.py (rebuild==committed + packet-hash verify,
-  poison-tested); netlist libpart Footprint field now synced (the comp
-  records were already the variant — see 9.1 for the evidence).
-  F02: one canonical 1757242 row; checker verifies hashes + rejects
-  one-file-many-hashes (poison-tested). F03: label-adjacency gate on
-  the written board incl. fallback/manual refs; iso islands re-laid;
-  0 silk + 0 adjacency; iter2 crops committed. F04: one pad-edge
-  metric, packet 3 == D38 (1.94/9.68/2.70 mm). Windows command in
-  packet 1. Turn-start skill sync now standard ops (DESIGNER/REVIEWER
-  TL;DR step 0) — pull skillz: kicad v0.3.1, pcb-design v0.10.0.
+  AGENT-REVIEWER iteration 3: NEEDS CHANGES (2 blockers, 1 important).
+  Findings 02-04 reverify resolved. Finding 05: the documented PCB
+  build consumes an ignored, untracked netlist and fails in a fresh
+  clone or with stale local state. Finding 06: handoff_check.py itself
+  exits 1; display-netlist source/tool fields remain host-volatile,
+  ignored artifacts evade git status, and both packet hashes are
+  false. Finding 07: C3's "datasheet placement satisfied" claim is
+  unsourced and unsupported by the on-file R-78HB12 page I-4. See
+  packet section 8.2 and committed reviewer evidence.
 
 user_pause_reasons_seen_this_run: []

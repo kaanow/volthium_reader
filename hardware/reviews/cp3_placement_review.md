@@ -327,6 +327,85 @@ PDFs. Routing-quality gates remain out of CP3 scope.
 
 **REVIEW COMPLETE**: NEEDS CHANGES - 1 blocker, 3 important. (See findings 01-04.)
 
+## 8.2 Reviewer findings (iteration 3)
+
+### Finding 05 — BLOCKER — hardware/kicad/pcb/build.py:67 / .gitignore:51
+**Issue**: The documented PCB rebuild is still not fresh-clone
+reproducible. It consumes
+`hardware/kicad/schematic/build/volthium_reader.net`, but that entire
+build directory is ignored and the netlist is absent from `git
+ls-files`.
+
+**Evidence**: With the reviewer's old ignored netlist present, the exact
+bare Windows command exited 1 on the 12 stock-MOD1 0.2 mm vias. With
+the ignored netlist temporarily absent (the fresh-clone state), it
+exited 1 with `FileNotFoundError`. Running the upstream schematic
+generator first produced the vendored MOD1 record and made the same PCB
+command pass. This proves that the command's result depends on
+machine-local ignored state, not only the reviewed commit. See
+`visual_inspections/cp3-placement/iter3/reviewer/handoff_check_transcript.txt`.
+
+**Suggested fix**: Make the PCB entry point generate and gate its
+upstream schematic/netlist transactionally, or consume a tracked
+canonical netlist/snapshot. Add a fresh-clone self-test that removes all
+ignored build products before invoking the documented command; stale or
+absent upstream state must never reach footprint placement.
+
+### Finding 06 — BLOCKER — hardware/reviews/tools/handoff_check.py:66-88
+**Issue**: The new mandatory handoff gate exits 1 on this handoff and is
+structurally unable to prove freshness for ignored artifacts. The
+packet's two advertised hashes are also false on the reviewed state.
+
+**Evidence**: The exact gate rebuilt all three generators at rc 0, then
+reported a stale display netlist and hash mismatches:
+`40cfc2791487 != dabe7849c7e1` for the ignored battery netlist and
+`af64f93e2e2f != 5a44e30a6140` for the committed board. The display
+netlist changes its absolute `(source ...)` path and Eeschema
+10.0.3/10.0.5 `(tool ...)` field across macOS/Windows; only `(date ...)`
+is normalized. More fundamentally, line 70 uses ordinary `git status`,
+which does not report ignored files, while lines 83-87 accept any
+existing worktree file and hash it without proving that Git tracks it.
+The gate can therefore call an ignored local netlist "committed" and
+cannot implement its stated rebuild-equals-committed invariant.
+
+**Suggested fix**: Normalize every host-volatile netlist field,
+including source path and tool version. Require every deterministic and
+packet-hashed artifact to pass `git ls-files --error-unmatch`, and hash
+the indexed/HEAD blob rather than an arbitrary worktree file. Run
+generation in a clean temporary tree or compare every output against a
+tracked canonical artifact. Finally, rerun the gate after all packet
+and artifact changes and update section 1 with the resulting true
+hashes.
+
+### Finding 07 — IMPORTANT — hardware/reviews/cp3_placement_review.md:115
+**Issue**: The claim that C3 at 8 mm has "datasheet placement
+satisfied" is an unsourced verification adjective, and the on-file
+datasheet does not state a distance criterion that can support it.
+
+**Evidence**: `hardware/datasheets/R-78HB12-0.5.pdf`, page I-4, says to
+use C1 = 3.3 uF/100 V when Vin > 50 V and shows the external circuit.
+It gives no maximum trace length or capacitor-to-module placement
+distance. The 8 mm judgment may be reasonable engineering, but it is
+not a datasheet fact. This is a finding under REVIEWER.md section 3.5
+rule 3.
+
+**Suggested fix**: Cite page I-4 only for the capacitor value/rating.
+State the 8 mm acceptance as an explicit engineering judgment with its
+bulk-input/low-di-dt rationale, or cite a source that actually gives a
+placement limit.
+
+Coverage: findings 02-04 were independently reverified as resolved.
+The reviewer synchronized the released skills; ran and poison-tested
+the document gate; exercised the bare rebuild, fresh-clone simulation,
+and new handoff gate; ran direct KiCad DRC; generated independent
+top/bottom renders and eight crops; ran a different text-box model;
+recomputed isolation and changed-island decoupler distances; checked
+MOD1/J1/U10/U11 object geometry; and spot-checked four on-file PDFs.
+No SKU-cell change triggered a distributor-SKU sweep. Routing remains
+outside CP3 scope.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 2 blockers, 1 important. (See findings 05, 06, 07.)
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-07-30)
