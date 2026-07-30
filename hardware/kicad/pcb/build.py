@@ -152,7 +152,11 @@ pl("R_exp_sda", 72.0, 18.0, 0)
 # ---------------------------------------------------------------------------
 # E: USB-C maintenance power chain (west-flowing: J3 -> ESD -> LDO -> mux)
 # ---------------------------------------------------------------------------
-pl("J3", 93.0, 25.0, 90)
+# J3 sits so its footprint's Dwgs.User "PCB Edge" line lands ON x=100
+# (gate_edge_markers enforces this): shell protrudes 2.51 mm past the
+# edge per the GCT USB4085 drawing — a recessed face blocks the plug
+# overmold (2.10 mm mated clearance, drawing p.2) on the board edge.
+pl("J3", 97.925, 25.0, 90)
 pl("U-ESD", 83.0, 21.0, 0)
 pl("R_cc1", 83.0, 25.0, 0)
 pl("R_cc2", 83.0, 28.0, 0)
@@ -377,6 +381,7 @@ def main():
     orientation_asserts(bb.findings)
     bb.gate_courtyards()
     bb.gate_outline()
+    bb.gate_edge_markers()
     bb.gate_fab_rules()
 
     OUT.mkdir(exist_ok=True)

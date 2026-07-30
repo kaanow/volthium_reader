@@ -11,7 +11,7 @@ Scope per D12: **battery side only** (display-side placement is CP4).
   schematic-side delta (§4.1: MOD1 footprint variant). Now TRACKED
   (iter-3 finding 05) with all header fields pinned (finding 06).
 - Output: `hardware/kicad/pcb/build/battery_pcb.kicad_pcb`
-  (sha256 `af64f93e2e2f…`) — 127 footprints (123 parts + 4 M3 mounting
+  (sha256 `448d59a276df…`) — 127 footprints (123 parts + 4 M3 mounting
   holes), all pads net-bound, **placement only** (routing is CP5).
 - Hashes are of the committed git BLOB (what `git cat-file blob
   HEAD:<path>` returns / what a checkout delivers). Worktree bytes can
@@ -39,6 +39,7 @@ Scope per D12: **battery side only** (display-side placement is CP4).
 | fab rules | drill ≥0.3, annular ≥0.13 on the WRITTEN board | caught the stock ESP32 0.2 mm heatsink vias (§4.1) |
 | readback | (ref, pad, net) triples re-parsed from the written `.kicad_pcb` diffed against the netlist, both directions | caught its own regex bug during bring-up |
 | orientation | probed (never hand-derived): RJ45 openings face S; J1 wire entry W; J3 opening E; MOD1 antenna N; **U10/U11 logic row north of iso row** | asserts fire on wrong rotation |
+| edge-marker | any footprint carrying a "PCB Edge" reference (KiCad edge-mount connectors) has that line ON a board edge — checks where a mating plane IS, not just which way it faces (iter-4, §4.6) | poisoned: J3 at its old position fires with the measured 4.93 mm offset |
 | DRC | `kicad-cli pcb drc --severity-all --exit-code-violations`, transactional report, append-only accepted registry | selftest: stale-report + forced-fail refuses to judge |
 | label-adjacency | every VISIBLE Reference box from the WRITTEN board (auto+manual+fallback): same-baseline gap ≥0.7, stacked gap ≥0.30 (iter-2, F03) | selftest: 0.16 mm pair fires, 1.2 mm pair doesn't |
 | handoff (repo tool) | deterministic rebuild == committed artifacts; packet hashes true; consistency clean (iter-2, F01) | poisoned: committed-generator drift + corrupted packet hash both fail |
@@ -46,9 +47,11 @@ Scope per D12: **battery side only** (display-side placement is CP4).
 DRC final state: **0 unaccounted**. Accepted classes (full rationale in
 `build.py::DRC_ACCEPTED`):
 - `unconnected_items` ×316 — placement-only board, routing at CP5.
-- `silk_edge_clearance` ×10 — enumerated per-instance: 8 = the four
+- `silk_edge_clearance` ×12 — enumerated per-instance: 8 = the four
   RJ45 mating-face silk boxes crossing the S edge (designed overhang),
-  2 = MOD1 antenna silk crossing the N edge (D38). Nothing else clips.
+  2 = MOD1 antenna silk crossing the N edge (D38), 2 = J3 side silk
+  crossing the E edge at y=20.4/29.6 (designed USB-C protrusion,
+  §4.6). Nothing else clips.
 - `lib_footprint_mismatch` ×1 (instance-scoped accept) — MOD1 board
   copy vs `volthium` lib: 62/62 pads coordinate-diffed identical, all
   graphic counts equal; the delta is kiutils serialization
@@ -165,6 +168,58 @@ bar. Findings — all fixed before the reviewer picked the packet up:
    which crops were designer-read; PR-11's evidence names the actual
    verification (grep of the severity-all report), not a category name
    recalled from memory.
+
+### 4.6 Self-review round 3 (FULL-scope, iteration 4, 2026-07-30)
+
+Escalation trigger: every iteration-3 finding was a defect in an
+iteration-2 fix, so this round re-reviewed the whole board, not the
+delta (pcb-design v0.11.1 rule).
+
+**BLOCKER found and fixed — USB-C mating face 2.42 mm inboard of the
+E edge.** Fresh 8-crop D11 pass showed J3's body suspiciously inboard;
+measured from the written board: fab front at x=97.58 vs edge x=100.
+The KiCad footprint itself declares the intent — a "PCB Edge"
+reference line (Dwgs.User label, line on F.Fab at local y=6.1) that
+belongs ON the board edge, putting the shell 2.51 mm PROUD of the
+edge. The GCT drawing's mating view (USB4085_drawing.pdf p.2) allows
+only 2.10 mm of plug shell between overmold and receptacle face, and
+the overmold hangs below the PCB top plane — so at 2.42 mm recess
+even GCT's reference plug bottoms out on the board edge before
+seating. Root cause: the orientation gate probes which way a
+connector FACES, nothing checked where the mating plane IS. Fixes:
+J3 moved (+4.925 mm east; edge line now exactly on x=100, verified),
+and a new generic **edge-marker gate** in `pcb/core.py` fails any
+build where a footprint's "PCB Edge" reference is off a board edge —
+poison-tested (old position fires at 4.93 mm), and it covers CP4's
+display-side USB-C automatically. Class swept over every edge
+connector on the written board:
+- J2/J6/J10/J11 (RJ45): fab fronts at y=80.88, 0.88 mm proud ✓
+- J1 (Phoenix MSTBA): face 1.5 mm inboard — acceptable BY DESIGN:
+  the MSTB plug mates entirely above the PCB plane (these headers are
+  routinely mid-board mounted); nothing in the mating stack dips
+  below the header base. No footprint edge marker exists for it.
+- J3: fixed as above. Silk accepts move 10 → 12 (§2 enumeration).
+
+**Fix-quality adversarial checks on the iteration-4 work itself**
+(the class iteration 3 caught): `git ls-files --eol` audit — every
+tracked KiCad artifact is `i/lf` or binary, the CRLF-risk class is
+empty and the telemetry CSVs (legitimately CRLF) are untouched by the
+new `.gitattributes`; netlist volatility sweep — zero absolute-path /
+tool-version / date strings in either committed netlist; the packet's
+hash-citation regex enumerated (2 citations, both verified against
+HEAD blobs); §9.2's quoted `git cat-file` verification command
+executed as written (returns `af64f93e2e2f`).
+
+**Observed, deliberately unchanged:** refdes `C-bk` (RTC backup cap)
+uses a hyphen where every other functional refdes uses an underscore.
+It is consistent across all 8 doc sites, CP1-baseline and BOM
+included; renaming would churn approved CP1/CP2 artifacts for zero
+engineering value. Noted for a future natural refactor point.
+
+D11 evidence: 8 fresh crops in `visual_inspections/cp3-placement/
+iter4/` (all regions re-read at this iteration's state; usb_east and
+iso_ch2_ne regenerated after the J3 move — protrusion visually
+confirmed). Label-adjacency and silk gates: 0 findings.
 
 ## 5. PR-8 enumeration (decoupler pad-edge distances)
 

@@ -417,6 +417,67 @@ class BoardBuilder:
                     f"[outline] {ref} courtyard crosses board edge {bad} "
                     f"(allowed: {allowed or 'none'})")
 
+    def gate_edge_markers(self, tol=0.05):
+        """Footprints carrying a Dwgs.User 'PCB Edge' reference line
+        (KiCad edge-mount connectors encode their intended board-edge
+        position this way) must sit with that line ON a board edge.
+        Orientation probes only check which way a connector FACES;
+        this checks where its mating plane IS. Born from CP3: the
+        USB-C sat 2.4 mm inboard — past the 2.10 mm plug-overmold
+        budget in the GCT mating drawing — so no cable could seat."""
+        for ref in sorted(set(self.components) & set(self.placement)):
+            fpid = self.components[ref]["footprint"]
+            fp = fplib.load(fpid)
+            texts = [g for g in fp.graphicItems
+                     if type(g).__name__ == "FpText"
+                     and getattr(g, "type", "") == "user"
+                     and getattr(g, "text", "") == "PCB Edge"]
+            if not texts:
+                continue
+            # the marker LINE may live on Dwgs.User or F.Fab (GCT USB4085
+            # puts it on F.Fab); by library convention the text anchor
+            # sits ON the line, so select lines passing through it
+            tp = (texts[0].position.X, texts[0].position.Y)
+            lines = []
+            for g in fp.graphicItems:
+                if type(g).__name__ != "FpLine" or \
+                        getattr(g, "layer", "") not in ("Dwgs.User",
+                                                        "F.Fab", "B.Fab"):
+                    continue
+                ax, ay = g.start.X, g.start.Y
+                bx, by = g.end.X, g.end.Y
+                L2 = (bx - ax) ** 2 + (by - ay) ** 2
+                t = 0 if not L2 else max(0, min(1, (
+                    (tp[0] - ax) * (bx - ax) + (tp[1] - ay) * (by - ay)) / L2))
+                d = math.dist(tp, (ax + t * (bx - ax), ay + t * (by - ay)))
+                if d < 0.25:
+                    lines.append(g)
+            x, y, rot, side = self.placement[ref]
+            best = None      # (edge, dist): BOTH endpoints on one edge
+            if not lines:    # fall back to the text anchor itself
+                px, py = _xf(tp, x, y, rot, side == "B")
+                best = min((("W", abs(px)), ("E", abs(px - self.w)),
+                            ("N", abs(py)), ("S", abs(py - self.h))),
+                           key=lambda e: e[1])
+            for ln in lines:
+                a = _xf((ln.start.X, ln.start.Y), x, y, rot, side == "B")
+                b = _xf((ln.end.X, ln.end.Y), x, y, rot, side == "B")
+                for edge, da, db in (("W", abs(a[0]), abs(b[0])),
+                                     ("E", abs(a[0] - self.w),
+                                      abs(b[0] - self.w)),
+                                     ("N", abs(a[1]), abs(b[1])),
+                                     ("S", abs(a[1] - self.h),
+                                      abs(b[1] - self.h))):
+                    d = max(da, db)
+                    if best is None or d < best[1]:
+                        best = (edge, d)
+            if best[1] > tol:
+                self.findings.append(
+                    f"[edge-marker] {ref}: 'PCB Edge' reference line is "
+                    f"{best[1]:.2f} mm off the {best[0]} edge — the "
+                    "connector's mating plane is not where the footprint "
+                    "says the board edge must be")
+
     def gate_fab_rules(self, min_drill=0.3, min_annular=0.13):
         for fp in self.b.footprints:
             ref = fp.properties.get("Reference", "?")

@@ -2358,6 +2358,13 @@ floorplan (generator: `hardware/kicad/pcb/build.py`; evidence in
    differential pair at CP5 through the y≈21–23 corridor south of the
    module). Full-speed USB tolerates far longer than 60 mm; the
    alternative (west-edge USB) collides with the power-entry column.
+   **Edge geometry (iter-4 fix):** J3 is placed so the footprint's
+   "PCB Edge" reference line lies ON x=100 — the GCT USB4085 shell
+   protrudes 2.51 mm past the edge (per the GCT drawing; its mating
+   view gives only 2.10 mm of plug-shell clearance ahead of the
+   overmold, so any recessed face blocks the plug on the board edge).
+   Enforced by `gate_edge_markers` in `pcb/core.py` for every
+   footprint carrying the marker, both boards, every build.
 
 4. **Isolated pack-read channels as vertical columns** (jack S → iso
    island → ADM2587E → logic row N), with the transceivers rotated so

@@ -29,3 +29,13 @@ Live run on the committed iteration-4 state
 [rebuild] schematic/build_display.py: rc=0
 [rebuild] pcb/build.py: rc=0
 HANDOFF: CLEAN — artifacts fresh, hashes true, consistency ok
+
+Full-scope round 3 addendum: edge-marker gate poison test
+---------------------------------------------------------
+J3 temporarily restored to its old position (courtyard cx=93.0):
+  [edge-marker] J3: 'PCB Edge' reference line is 4.93 mm off the E edge
+  — the connector's mating plane is not where the footprint says the
+  board edge must be
+Fixed position (cx=97.925): gate silent, full build green, DRC clean
+(silk_edge_clearance 10 -> 12: J3's two designed E-edge crossings at
+y=20.4/29.6 join the RJ45 x8 + MOD1 x2 enumeration).
