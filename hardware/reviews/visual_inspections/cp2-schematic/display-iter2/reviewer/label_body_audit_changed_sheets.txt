@@ -1,0 +1,2 @@
+=== sheet_power.kicad_sch: 0 geometry findings ===
+=== sheet_d_power.kicad_sch: 0 geometry findings ===

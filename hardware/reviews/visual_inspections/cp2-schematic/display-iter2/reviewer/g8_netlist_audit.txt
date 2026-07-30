@@ -1,0 +1,31 @@
+G8 INDEPENDENT EXPORTED-NETLIST READ-BACK
+netlist=hardware\kicad\schematic\build_display\volthium_display.net
+nets=56 golden_contracts=110
+golden_issues=0
+poison_issues=1 (expected exactly 1)
+  [golden] ('J1', '1') expected on 'GND' but on 'V12_CAT5E' � intentional poison
+discrete_short_issues=0
+exact_part_issues=0
+exact_part_poison_issues=1 (expected exactly 1)
+  [exact-part] J2: netlist has value/footprint ('JST_B8B-PH-K-S', 'Connector_JST:JST_PH_B8B-PH-K_1x08_P2.00mm_Vertical'), contract requires ('JST_B8B-PH-K-S', 'Connector_JST:JST_PH_B8B-PH-K_1x08_P2.00mm_Horizontal')
+
+PIN-TO-NET NARRATION INPUT
+J1: 1=V12_CAT5E, 2=V12_CAT5E, 3=V12_CAT5E, 4=RS485_A, 5=RS485_B, 6=GND, 7=GND, 8=GND, SH=unconnected-(J1-PadSH)
+F1: 1=V12_CAT5E, 2=V12_PROT
+TVS1: 1=GND, 2=V12_PROT
+U1: 1=V12_PROT, 2=GND, 3=V3V3_REG
+U3-LDO: 1=VBUS, 2=GND, 3=VBUS, 4=unconnected-(U3-LDO-NC-Pad4), 5=Net-(U3-LDO-VOUT)
+U4-MUX: 1=GND, 2=V3V3, 3=Net-(U3-LDO-VOUT), 4=Net-(U3-LDO-VOUT), 5=Net-(U3-LDO-VOUT), 6=V3V3_REG, 7=V3V3, 8=unconnected-(U4-MUX-ST-Pad8)
+J-USB: A1=GND, A12=GND, A4=VBUS, A5=Net-(J-USB-CC1), A6=USB_DP, A7=USB_DM, A8=unconnected-(J-USB-SBU1-PadA8), A9=VBUS, B1=GND, B12=GND, B4=VBUS, B5=Net-(J-USB-CC2), B6=USB_DP, B7=USB_DM, B8=unconnected-(J-USB-SBU2-PadB8), B9=VBUS, SH=GND
+U-ESD: 1=USB_DP, 2=GND, 3=USB_DM, 4=unconnected-(U-ESD-Pad4), 5=VBUS, 6=unconnected-(U-ESD-Pad6)
+U2: 1=RS485_RO, 2=RS485_nRE, 3=RS485_DE, 4=RS485_DI, 5=GND, 6=RS485_A, 7=RS485_B, 8=V3V3
+TVS2: 1=RS485_B, 2=RS485_A
+J5: 1=Net-(J5-Pad1), 2=RS485_B
+J2: 1=V3V3, 2=GND, 3=SPI_MOSI, 4=SPI_SCK, 5=EPD_CS, 6=EPD_DC, 7=EPD_RST, 8=EPD_BUSY
+BTN1: 1=BTN1_IN, 2=GND
+BTN2: 1=BTN2_IN, 2=GND
+BTN3: 1=BTN3_IN, 2=GND
+J3: 1=MCU_EN, 2=V3V3, 3=DBG_TXD, 4=GND, 5=DBG_RXD, 6=BOOT
+MOD1: 1=GND, 2=V3V3, 3=MCU_EN, 4=unconnected-(MOD1-IO4-Pad4), 5=EPD_CS, 6=EPD_DC, 7=EPD_RST, 8=RS485_nRE, 9=unconnected-(MOD1-IO16-Pad9), 10=RS485_DI, 11=RS485_RO, 12=EPD_BUSY, 13=USB_DM, 14=USB_DP, 15=unconnected-(MOD1-IO3-Pad15), 16=unconnected-(MOD1-IO46-Pad16), 17=SPI_SCK, 18=SPI_MOSI, 19=unconnected-(MOD1-IO11-Pad19), 20=BTN1_IN, 21=BTN2_IN, 22=BTN3_IN, 23=unconnected-(MOD1-IO21-Pad23), 24=unconnected-(MOD1-IO47-Pad24), 25=unconnected-(MOD1-IO48-Pad25), 26=unconnected-(MOD1-IO45-Pad26), 27=BOOT, 28=unconnected-(MOD1-IO35-Pad28), 29=unconnected-(MOD1-IO36-Pad29), 30=unconnected-(MOD1-IO37-Pad30), 31=unconnected-(MOD1-IO38-Pad31), 32=unconnected-(MOD1-IO39-Pad32), 33=unconnected-(MOD1-IO40-Pad33), 34=unconnected-(MOD1-IO41-Pad34), 35=unconnected-(MOD1-IO42-Pad35), 36=DBG_RXD, 37=DBG_TXD, 38=RS485_DE, 39=unconnected-(MOD1-IO1-Pad39), 40=GND, 41=GND
+
+RESULT=PASS

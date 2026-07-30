@@ -1,0 +1,31 @@
+R1    GND1 never meets either iso ground (ch1)                         PASS
+      GND1 never meets either iso ground (ch2)                         PASS
+      per-channel iso grounds are distinct nets                        PASS
+      L2 ties the two islands (each channel)                           PASS
+      C_stitch bridges GND1<->GND2_DCDC only                           PASS
+R2    battery RJ45: A=7 B=8 (both channels)                            PASS
+R3    Cat5e: A=4 B=5 12V=1 GND=8                                       PASS
+      display termination goes THROUGH J4                              PASS
+R4    Q10: source on V3V3, load NOT on V3V3                            PASS
+      Q11: source on V3V3, load NOT on V3V3                            PASS
+      Q5: source on V3V3, load NOT on V3V3                             PASS
+      Q_exp: source on V3V3, load NOT on V3V3                          PASS
+      gate pull-ups are 100k                                           PASS
+R5    UVLO divider 5.16M/100k + R_hys 11.5M                            PASS
+R6    USB power chain U5->U6, VIN2 from buck, OUT=V3V3                 PASS
+      fail-safe bypass Q3/Q4 chain                                     PASS
+      ESD array on DP/DM/VBUS                                          PASS
+R7    USB D+/D- reach MOD1 pins 14/13                                  PASS
+R8    J5 = ESP-Prog Program: EN/VDD/TXD/GND/RXD/IO0, IO0 strap wired   PASS
+R9    UART0 console reaches J5: J5.3<->MOD1.37, J5.5<->MOD1.36         FAIL
+R10   Xanbus polarity CAN_L=4 CAN_H=5                                  PASS
+      CAN termination through J7; 120R; NET pins NC                    PASS
+      CAN gated: TWAI pins + CAN_PWR                                   PASS
+R11   RTC always-on + backup cap                                       PASS
+R12   EXP switched rail + bleed + header power                         PASS
+R13   BTN1 override wiring + pull-up                                   PASS
+R14   fuse->diode->clamp chain, T-rated                                PASS
+R15   SOT-583 waiver documented in BOM                                 PASS
+R16   GPIO-exhausted note recorded in BOM                              PASS
+
+29 checks, 1 FAIL

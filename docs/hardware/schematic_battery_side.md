@@ -1,5 +1,24 @@
 # Battery-side board — schematic (netlist form)
 
+> ⚠ **SUPERSEDED — historical pre-CP1 net intent (decisions.md D18–D27). NOT
+> a current design source.** This entire document predates the CP1
+> re-architecture and is retained only for historical reference and the GPIO
+> pin-map starting point. **Every part/value here is stale** (e.g. it still
+> shows AO3400A/AO3401A, pre-D19). The authoritative battery-side design is
+> `cp1_battery_side.md` + `decisions.md` now, and the CP2 KiCad schematic
+> later. Do not cite this file for any current part, value, or topology.
+> **Do not treat any part number, component value, connector, or enclosure
+> here as current.** Re-architected since: the power tree (TPS62933→LM5166 on
+> the *always-on* rail; R-78E12→R-78HB12; the discrete load switch AO340x→ZXMP6A13F/2N7002+Vgs-clamp was ultimately **replaced by the AQY212EH PhotoMOS SSR** (iter-48 F76); SS24→SS26; both-end→display-only RS-485 bias — D19/DR-3/DR-4), the
+> RTC (DS3231+CR2032 → RV-3028-C7 + backup cap — D23), the sense divider
+> (100k/11k → 1.2 MΩ/100 kΩ — DR-6), the dev port (USB-OTG header → native
+> USB-C — D22), and the enclosure (3D-printed IP5x, outline deferred — D20).
+> Even the GPIO *assignments* below should be re-verified, not trusted.
+> **Authoritative:**
+> [`../../hardware/layout/cp1_battery_side.md`](../../hardware/layout/cp1_battery_side.md),
+> [`../../hardware/layout/decisions.md`](../../hardware/layout/decisions.md),
+> [`block_diagrams.md`](block_diagrams.md), [`bom.md`](bom.md).
+
 This is structured to drop into KiCad as a schematic: each component is
 listed with its reference designator and pin connections, organized by
 net. See `bom.md` for part numbers; see `block_diagrams.md` for the

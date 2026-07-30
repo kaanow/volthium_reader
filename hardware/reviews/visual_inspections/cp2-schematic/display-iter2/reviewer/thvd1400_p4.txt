@@ -1,0 +1,83 @@
+5 Specifications
+5.1 Absolute Maximum Ratings
+over operating free-air temperature range, unless otherwise noted (see (1))
+MIN
+MAX
+UNIT
+VCC
+Supply voltage
+–0.5
+7
+V
+VL
+Input voltage at any logic pin (D, DE or RE)
+–0.3
+5.7
+V
+VA, VB
+Voltage at A or B inputs
+–16
+16
+V
+IO
+Receiver output current
+–24
+24
+mA
+TJ
+Junction temperature
+170
+°C
+TSTG
+Storage temperature
+–65
+150
+°C
+(1)
+Operation outside the Absolute Maximum Ratings may cause permanent device damage. Absolute maximum ratings do not imply
+functional operation of the device at these or any other conditions beyond those listed under Recommended Operating Conditions.
+If briefly operating outside the Recommended Operating Conditions but within the Absolute Maximum Ratings, the device may not
+sustain damage, but it may not be fully functional. Operating the device in this manner may affect device reliability, functionality,
+performance, and shorten the device lifetime.
+5.2 ESD Ratings
+VALUE
+UNIT
+V(ESD)
+Electrostatic discharge
+Human body model (HBM), per ANSI/ESDA/JEDEC JS-001(1)
+Bus terminals (A, B) and GND
+±16,000
+V
+V(ESD)
+Electrostatic discharge
+Human body model (HBM), per ANSI/ESDA/JEDEC JS-001(1)
+All other pins
+±4,000
+V
+Charged-device model (CDM), per ANSI/ESDA/JEDEC JS-002(2)
+±1,500
+(1)
+JEDEC document JEP155 states that 500-V HBM allows safe manufacturing with a standard ESD control process.
+(2)
+JEDEC document JEP157 states that 250-V CDM allows safe manufacturing with a standard ESD control process.
+5.3 ESD Ratings [IEC]
+VALUE
+UNIT
+V(ESD)
+Electrostatic discharge
+IEC 61000-4-2 ESD (Contact Discharge), bus terminals and GND
+±12,000
+V
+Electrostatic discharge
+IEC 61000-4-2 ESD (Air-Gap Discharge), bus terminals and GND
+±15,000
+Electrostatic discharge
+IEC 61000-4-4 EFT (Fast transient or burst), bus terminals and GND
+±4,000
+THVD1400, THVD1420
+SLLSF78B – DECEMBER 2020 – REVISED OCTOBER 2021
+www.ti.com
+4
+Submit Document Feedback
+Copyright © 2021 Texas Instruments Incorporated
+Product Folder Links: THVD1400 THVD1420

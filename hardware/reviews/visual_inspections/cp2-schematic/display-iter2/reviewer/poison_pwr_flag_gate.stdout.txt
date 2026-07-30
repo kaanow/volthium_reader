@@ -1,0 +1,14 @@
+[env] KiCad share: C:\Users\kaanw\AppData\Local/Programs/KiCad/10.0/share/kicad
+[env] KiCad CLI: C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli.exe
+[sheet_d_power] READABILITY GATE FAILED:
+  [label-overlap] label 'V12_CAT5E' � text #FLG1:PWR_FLAG
+  [label-overlap] label 'V12_PROT' � text #FLG2:PWR_FLAG
+  [label-overlap] label 'VBUS' � text #FLG3:PWR_FLAG
+  [label-overlap] label 'GND' � text #FLG4:PWR_FLAG
+[sheet_d_conn] readability gate: clean
+[sheet_d_conn] PNG written
+[sheet_d_periph] readability gate: clean
+[sheet_d_periph] PNG written
+[sheet_d_mcu] readability gate: clean
+[sheet_d_mcu] PNG written
+[NETLIST gate] SKIPPED � a sheet failed its readability gate, so the files on disk are STALE (render() refuses to write a failed sheet); netlist comparison would judge the OLD drawing.

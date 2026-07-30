@@ -1,0 +1,16 @@
+[battery]
+pdf=C:\Taeron\repo\volthium\hardware\kicad\schematic\build\volthium_reader.pdf
+raw_words=1686
+exact_duplicate_boxes_removed=259
+cross_object_intersections=4
+  p2: 'ILIM' x 'GND' area=0.580 pt^2 left=(588.659, 188.455, 599.109, 193.531) right=(584.455, 192.867, 589.531, 203.836)
+  p4: 'Q10' x 'NTR4171P' area=9.632 pt^2 left=(183.565, 195.833, 191.93, 200.585) right=(176.365, 199.433, 197.953, 204.185)
+  p7: '4' x 'VOUT' area=3.393 pt^2 left=(221.126, 170.941, 224.553, 176.017) right=(212.064, 166.855, 225.428, 171.931)
+  p8: 'Q11' x 'NTR4171P' area=9.632 pt^2 left=(183.565, 195.833, 191.93, 200.585) right=(176.365, 199.433, 197.953, 204.185)
+[display]
+pdf=C:\Taeron\repo\volthium\hardware\kicad\schematic\build_display\volthium_display.pdf
+raw_words=750
+exact_duplicate_boxes_removed=125
+cross_object_intersections=1
+  p2: '4' x 'VOUT' area=3.393 pt^2 left=(278.726, 361.741, 282.153, 366.817) right=(269.664, 357.655, 283.028, 362.731)
+total_cross_object_intersections=5

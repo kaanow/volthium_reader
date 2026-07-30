@@ -1,0 +1,16 @@
+{
+  "by": "distributor_sku",
+  "items": [
+    {"distributor": "digikey", "sku": "2073-USB4085-GF-ATR-ND"},
+    {"distributor": "mouser", "sku": "640-USB4085-GF-A"},
+    {"distributor": "digikey", "sku": "732-615008145521-ND"},
+    {"distributor": "mouser", "sku": "710-615008145521"},
+    {"distributor": "digikey", "sku": "455-1710-ND"},
+    {"distributor": "digikey", "sku": "AP2112K-3.3TRG1DICT-ND"},
+    {"distributor": "mouser", "sku": "621-AP2112K-3.3TRG1"},
+    {"distributor": "digikey", "sku": "296-TPS2116DRLRCT-ND"},
+    {"distributor": "mouser", "sku": "595-TPS2116DRLR"},
+    {"distributor": "digikey", "sku": "732-5394-ND"},
+    {"distributor": "mouser", "sku": "710-61200621621"}
+  ]
+}

@@ -27,7 +27,7 @@ them. The `.app` launcher is the supported way to (re)start everything.)
 | 1 — what does "full" mean | Banner "FULL" at 95 %, still show % | Estimator ceiling is now 95 %. Dashboard shows `FULL` headline + actual SOC underneath. New `state="full"` in wire protocol enum. |
 | 2 — display style | e-paper, no contest | Locked in: 4.2" tri-color, BOM specced. |
 | 3 — replace the app w/ release-BLE button | Hold persistent BLE; display button releases for 5 min | Spelled out in `docs/production_design.md` under "BLE-share button". Cost: +1 tactile switch. |
-| 4 — must not finish off a low pack | Tiered self-shutdown | New section in `docs/production_design.md` — 4 tiers (normal / low / deep-sleep / hard-cut) plus hysteresis. BOM additions: DS3231 RTC, P-MOSFET load switch, panel-mount override button. |
+| 4 — must not finish off a low pack | Tiered self-shutdown | New section in `docs/production_design.md` — 4 tiers (normal / low / deep-sleep / hard-cut) plus hysteresis. BOM additions: RV-3028-C7 RTC (D23, was DS3231), P-MOSFET load switch, panel-mount override button. |
 | (bonus) Starlink at the cabin | Optional, not a dependency | New section "Optional Starlink sync" in design doc. Battery-side has its own RTC so timekeeping is link-independent. |
 | (bonus) Label batteries by serial tail | `33` / `67`, derived at runtime | `BatteryReading.label` property; logger writes `name_a` / `name_b` columns; dashboard derives the label per-row with A/B fallback. |
 
@@ -54,10 +54,11 @@ them. The `.app` launcher is the supported way to (re)start everything.)
 
 ## Design progress
 
-Hardware design pass complete with a SKiDL → KiCad handoff package
-ready for a different machine to pick up. See
-[`hardware/kicad/HANDOFF.md`](../hardware/kicad/HANDOFF.md) and the
-docs trees:
+Hardware is built programmatically on KiCad 10 (kiutils + `kicad-cli`);
+see [`hardware/kicad/README.md`](../hardware/kicad/README.md) for the
+build flow. CP1 was re-opened (decisions.md D18/D19) to fix CP1/CP2
+architecture defects; the old SKiDL/KiCad-8 toolchain is archived under
+`hardware/kicad/archive/`. Docs trees:
 
 - **`hardware/README.md`** — index
 - **`hardware/block_diagrams.md`** — system + per-board diagrams

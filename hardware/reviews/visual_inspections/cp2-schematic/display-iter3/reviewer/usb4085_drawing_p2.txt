@@ -1,0 +1,99 @@
+Recommended PCB Layout
+As viewed from component side     Tolerance:±0.05mm
+Component Outline
+Solder Area
+0.85
+2.55
+4.25
+5.95
+0.98
+1.74
+1.35
+2x 2.10
+2x 2.40
+2x 1.40
+2x 1.70
+4x 0.60
+4x 0.90
+8.65
+3.38
+16x Ø0.65
+A
+1
+B
+C
+D
+2
+3
+E
+F
+G
+H
+6
+7
+8
+C
+4
+5
+3rd Angle Projection
+Units:
+Metric (mm)
+Tolerances (Except as Noted)
+X. ± 0.50
+X.X ± 0.30
+X.XX ± 0.20
+X.XXX ± 0.10
+Length
+Angle
+Product Description
+This drawing is confidential and
+copyright of Global Connector
+Technology, Ltd (GCT).
+This drawing must not be copied
+or disclosed without written
+consent. E & OE
+Not to
+Scale
+Drawn By
+CC
+Sheet No.
+2/3
+USB4085
+CC
+USB4085
+B PCN
+By
+Detail
+Revision
+Part Number
+Drawing Date
+9th April 2018
+Date
+± 2°
+USB 2.0 Type C Receptacle
+Dip Type, PCB Top Mount
+B
+28/02/23
+www.gct.co
+B1
+B9
+A12
+A1
+A4
+A6
+A7
+A8
+A9
+A5
+B4
+B5
+B6
+B7
+B8
+B12
+16x Ø0.40
+Plug
+6.65
+2.10
+Plug and Receptacle Mating View
+0.37

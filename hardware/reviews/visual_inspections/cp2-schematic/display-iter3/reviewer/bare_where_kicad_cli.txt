@@ -1,0 +1,2 @@
+rc=1
+INFO: Could not find files for the given pattern(s).

@@ -1,0 +1,7 @@
+THVD1400DR.pdf sha256=5ba9785d9fb8dc878b90fd196ff5faed27b5fff0ddfccb8346a82ac3c6a5c47f
+THVD1400DR.pdf pages=33
+USB4085_drawing.pdf sha256=39afb82c5104579e8c2db4f4e758825c48cab1c4b06d4c61c62056470ff09e9e
+USB4085_drawing.pdf pages=3
+installed_USB4085_footprint=C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\share\kicad\footprints\Connector_USB.pretty\USB_C_Receptacle_GCT_USB4085.kicad_mod
+installed_USB4085_THT_pads=20
+installed_USB4085_SMD_pads=0

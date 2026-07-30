@@ -1,6 +1,6 @@
-# Reviewer instructions (Codex) — read this first
+# Reviewer instructions (agent-reviewer) — read this first
 
-You are a Codex agent reviewing the PCB design pass for the
+You are an agent-reviewer agent reviewing the PCB design pass for the
 `volthium_reader` cabin battery monitor. This file is the entry point.
 **Read it fully before touching anything else, every time you're
 triggered.**
@@ -9,6 +9,11 @@ The system runs on a semaphore at
 [`SEMAPHORE.yaml`](SEMAPHORE.yaml) — Claude (the designer) and you
 take turns. The user invokes you on a timer; the semaphore prevents
 collisions.
+
+> **Review against [`SOP.md`](SOP.md)** — the standing standard (governing
+> principles + the review gates). Your job is to independently re-derive each
+> applicable gate; a designer's "PASS" is not evidence. Challenge *premises*
+> (G2 — the real part behind the model), not just the math.
 
 ## Suggested Cursor trigger interval
 
@@ -33,11 +38,11 @@ On every wake:
    read from SEMAPHORE.yaml). If pull fails or there's a merge
    conflict, **stop and ask the user**.
 2. Read [`SEMAPHORE.yaml`](SEMAPHORE.yaml).
-3. If `state` is **NOT** `codex_turn`:
-   - Print: "Not Codex's turn (state={state}, last_updated_by={who}
+3. If `state` is **NOT** `reviewer_turn`:
+   - Print: "Not agent-reviewer's turn (state={state}, last_updated_by={who}
      at {timestamp}). Exiting."
    - Stop. Don't modify anything.
-4. If `state` IS `codex_turn`:
+4. If `state` IS `reviewer_turn`:
    - Check `iteration <= max_iterations_per_cp`. If exceeded, set
      state to `user_turn` with a "stuck" note, commit + push, exit.
    - Otherwise do the review (see §4).
@@ -47,9 +52,9 @@ On every wake:
    - End findings with one of the three sign-off lines (§5).
    - Update SEMAPHORE.yaml — flip `state` to `claude_turn`,
      increment `iteration`, set `last_updated_at` and
-     `last_updated_by: codex`, write a short `note`.
+     `last_updated_by: agent-reviewer`, write a short `note`.
    - Commit + push (§6).
-5. Tell the user: "Codex iteration N on CP<X> complete; handed back
+5. Tell the user: "agent-reviewer iteration N on CP<X> complete; handed back
    to Claude. Status: <APPROVED|NEEDS CHANGES|REJECTED>."
 6. Stop. Don't loop on your own — the user's timer triggers the
    next cycle.
@@ -74,18 +79,19 @@ Full background:
 [`docs/site/loon_lake.md`](../../docs/site/loon_lake.md),
 [`docs/hardware/`](../../docs/hardware/).
 
-## 2. The five checkpoints
+## 2. The six checkpoints
 
 You'll review one CP at a time. The current one is in
-`SEMAPHORE.yaml::current_cp`.
+`SEMAPHORE.yaml::current_cp`. (Six CPs per [`decisions.md` D12](../layout/decisions.md#d12--cp-renumber-display-side-placement-inserted-as-cp4) — display placement was split out as CP4.)
 
-| CP | Phase                  | What you evaluate                                            |
-|----|------------------------|---------------------------------------------------------------|
-| 1  | **Design baseline**    | Markdown specs only. No KiCad files yet                       |
-| 2  | **Schematic capture**  | `.kicad_sch` + ERC report + schematic PDF + netlist           |
-| 3  | **Placement**          | `.kicad_pcb` with footprints placed, top/bottom PNG renders   |
-| 4  | **Routing + DRC**      | Fully-routed `.kicad_pcb`, DRC report, copper pours done      |
-| 5  | **Fab-ready**          | Gerbers, drill, position file, BOM CSV, fab checklist         |
+| CP | Phase                       | What you evaluate                                            |
+|----|-----------------------------|---------------------------------------------------------------|
+| 1  | **Design baseline**         | Markdown specs only. No KiCad files yet                       |
+| 2  | **Schematic capture**       | `.kicad_sch` + ERC report + schematic PDF + netlist           |
+| 3  | **Placement (battery)**     | `battery_side.kicad_pcb` footprints placed, top/bottom renders |
+| 4  | **Placement (display)**     | `display_side.kicad_pcb` footprints placed, renders            |
+| 5  | **Routing + DRC**           | Fully-routed `.kicad_pcb`, DRC report, copper pours done      |
+| 6  | **Fab-ready**               | Gerbers, drill, position file, BOM CSV, fab checklist, STEP   |
 
 ## 3. Your role
 
@@ -96,18 +102,102 @@ will reject your finding if your reasoning is wrong**, but it'll do so
 transparently in a `RESOLVED` entry under each finding. Iterate until
 consensus.
 
-Bring outside knowledge:
-- Datasheets (ESP32-S3, TPS62933, DS3231, SN65HVD3082E, Recom R-78E,
-  Waveshare 4.2" e-Paper B v2, etc.)
+Bring outside knowledge (use the **current** part set — D19–D34).
+Recall tells you **where to look**; it is never itself evidence — any
+number, pin, or SKU you assert in a finding must come from the on-file
+PDF or a tool call made this pass (§3.5):
+- Datasheets: ESP32-S3-WROOM-1, **LM5166** (always-on µA-Iq buck),
+  **TPS3808G01DBVR** (UVLO supervisor, D33), **TPS2116** (USB power-mux,
+  D29), **RV-3028-C7** (RTC, D23), **R-78HB12** / **R-78E3.3** (Recom),
+  **AQY212EH PhotoMOS SSR (display-feed load switch, F76) / NTR4171P (channel + expansion switches) / 2N7002LT1G (Q3/Q4 UVLO bypass)** (the discrete Q1 P-FET + Q2 BJT gate driver was replaced by the SSR iter-48 F76 after 5 iters couldn't datasheet-guarantee it OFF at temp — Si2309CDS/MMBT5551/BZX84C12 retired), **SS26**,
+  **SMAJ33CA/SMAJ15A/SMAJ12CA**, **THVD1400DR** (RS-485 transceiver,
+  D34 — supersedes both `SN65HVD3082E` and the iter-8 ISL3175EIBZ pick),
+  **USBLC6-2** (USB ESD), **AP2112K-3.3** (USB LDO), Waveshare 4.2"
+  e-Paper (B).
 - ESP32-S3 quirks (boot straps, ADC1 vs ADC2/WiFi conflict, RTC-GPIO
-  capability per pin, USB-OTG pin reservation, brown-out behavior)
+  capability per pin, **native USB on GPIO19/20**, brown-out behavior,
+  WiFi TX current vs the supply).
 - KiCad 10 file format / behavior (CP2+)
 - JLCPCB design rules + part stock (CP5)
 - General EE conventions (decoupling close to pin, ground pour stitch
   vias, antenna keepouts, switching loop area, etc.)
 
-Web tools encouraged. Cite sources in findings (URL or datasheet
-section).
+**Tooling — parts-sourcing API (canonical, use it).** An internal
+service at **`http://eridani.zt:8787`** aggregates stock, CAD pricing,
+lifecycle, package, parametrics, and datasheet URLs across Mouser +
+DigiKey + Octopart. Use `curl` over **plain http** (do not use fetchers
+that force-upgrade to https). Common endpoints:
+
+- `POST /query` — flexible lookup by MPN. Body:
+  `{"type":"mpn","value":"THVD1400DR"}` returns stock / price / lifecycle
+  per distributor.
+- `POST /batch` — same, list of MPNs at once.
+- `GET  /datasheet?mpn=THVD1400DR` — fetches the datasheet PDF through the
+  service (works for hosts that block direct requests); the response
+  carries `X-Datasheet-Source-Url` and `X-Datasheet-SHA256` headers so
+  you can cite provenance in a finding.
+- `GET  /guide` — full contract in Markdown (read this first if you
+  haven't used the service before).
+- `GET  /health` — liveness / configured providers.
+
+Use it whenever a finding claims (or challenges) part availability,
+lifecycle, price, package, or a datasheet spec — cite MPN + distributor
+stock number + SHA256 as evidence. Fetch datasheets straight into
+`hardware/datasheets/` (SHA256 already recorded in `manifest.md`) rather
+than downloading through a browser. Details in
+[`SOP.md`](SOP.md) §Tooling and [`ENGINEERING_REVIEW.md`](ENGINEERING_REVIEW.md) §CP1 GATE (D32).
+
+Web tools also encouraged. Cite sources in findings (URL, datasheet
+section, or parts-sourcing API endpoint + SHA256).
+
+## 3.5 Grounding rules (2026-07-14 — read before every pass)
+
+Two audits found **14 fabricated/wrong distributor SKUs, fabricated
+datasheet citations (a "§5.4" and a "Table 5-3" that never existed in
+the PDFs, an off-file app note), wrong-object PDFs (bare-panel manual standing in
+for the Module; Bourns/Littelfuse datasheets for Diodes-ordered parts),
+and an unsourced "(verified)" tag** — all of which survived 20
+iterations of this review process while it was catching genuinely
+subtle reasoning errors. The corollaries are now rules:
+
+1. **Split every claim into REASONING or FACT, and use the matching
+   check.** Reasoning (topology, coordination, derating, arithmetic) →
+   re-derive it, as you already do. Facts (SKUs, MPNs, spec numbers,
+   citations, in-box contents, pinouts) → **verify with a tool** (open
+   the on-file PDF; hit the parts API). *You cannot re-derive a fact.*
+   You are the same kind of model as the designer: an identifier or
+   citation that "looks right" to you looked right to them too —
+   plausibility agreement between the two of you is **correlated error,
+   not independent verification**, and adds ~zero evidence.
+2. **Citation spot-check quota — every pass.** Pick ≥3 cited datasheet
+   tables/sections from the docs under review, open the on-file PDF,
+   and confirm the table exists and the quoted value matches verbatim.
+   A citation that doesn't exist is an automatic IMPORTANT finding
+   *even if the number is right* — right-value/invented-source is the
+   pattern that makes all future verification impossible.
+3. **Unsourced verification adjectives are findings.** "verified",
+   "confirmed", "API-verified", "datasheet says" without an evidence
+   pointer (file + table/section, or API endpoint + date) — file it.
+   The Waveshare "(verified)" tag had no source and was false.
+4. **Object identity, not file existence (D32).** For each new or
+   changed manifest row, open the PDF's title page: the manufacturer
+   must match the orderable SKU's manufacturer, and the document level
+   must match the object (a Module and its bare panel are different
+   objects; SMAJ from four vendors are four datasheets).
+5. **SKU cells: full sweep, not spot-check.** When any SKU cell changed
+   (and always at BOM-lock), batch `POST /resolve` every DK/Mouser cell
+   and require each to resolve to the row's MPN (see SOP G3). Sampling
+   misses systematic fabrication — the 14 bad cells lived among
+   passives no 3-of-5 spot-check would ever select.
+
+**Tooling — doc consistency gate (D35).** Run
+`python3 hardware/reviews/tools/doc_consistency_check.py` at the start
+of every review pass. It re-checks an append-only registry of every
+superseded token in project history and executes D32 (manifest ↔ PDFs ↔
+canonical BOM) as code. A non-zero exit is an automatic G5 finding. If
+your review supersedes a token, require the designer's fix commit to add
+it to the tool's SUPERSEDED registry. The tool is the floor, not the
+ceiling — your independent staleness judgment still applies.
 
 ## 4. How to do a review
 
@@ -158,6 +248,19 @@ For **CP2+** (KiCad-based CPs), additionally:
   sign-off — that equivalence is exactly what let DR-1/DR-2 reach CP6. A
   designer's engineering "PASS" is not evidence; re-derive. New concerns
   go to `DESIGN_REVIEW_ITEMS.md`.
+  - **Domain-complete + spec-consistent (the latest gate).** Cover *every*
+    domain, not just electrical: **mechanical/enclosure fit, RF/antenna
+    environment, thermal, and serviceability/access**. And cross-check each
+    doc against the **decisions log** and the actual parts — a spec that
+    contradicts a later decision or the chosen part is itself a finding
+    (this is the CP1-reopen drift lesson, failure-mode #4 in
+    `ENGINEERING_REVIEW.md`).
+  - **Re-derive the current decision set, don't assume it.** This CP1 was
+    re-opened (D18) and carries **D19–D27** + **DR-1…DR-11**. Independently
+    check the load-bearing ones — the power-domain re-architecture (D19),
+    the always-on µA-Iq supply + WiFi headroom (D25), the RTC budget (DR-8),
+    the surge coordination (DR-3), the display mechanical/depth (DR-10).
+    Don't take "RESOLVED" on faith.
 - **D16 schematic-readability goal.** Top-level acceptance criterion
   for any schematic-touching CP:
   > A human can read this schematic and understand the design.
@@ -190,15 +293,15 @@ For **CP2+** (KiCad-based CPs), additionally:
     reports the same-net-proximity and free-crossing advisories to
     drive these.
   Cite each item separately if the designer misses any.
-- **Codex-owned screenshot evidence (mandatory).** On every CP2+ review,
+- **agent-reviewer-owned screenshot evidence (mandatory).** On every CP2+ review,
   independently generate your own dense-region screenshots from the
   committed schematic PDFs and save them under:
-  `hardware/reviews/visual_inspections/<cp_slug>/iter<N>/codex/`.
+  `hardware/reviews/visual_inspections/<cp_slug>/iter<N>/reviewer/`.
   Include at least:
   - full-page 300 DPI renders for each schematic sheet;
   - 6-12 dense-region crops per sheet (IC pin fields, connectors with
     >=4 pins, clustered passives/rails).
-  Your finding verdict must cite these codex-owned images, even if the
+  Your finding verdict must cite these reviewer-owned images, even if the
   designer also provided screenshots.
   Preferred command:
   `.venv/bin/python hardware/reviews/tools/schematic_visual_audit.py --cp-slug <cp_slug> --iter <N> --strict`
@@ -210,16 +313,18 @@ What to look hard at (CP1 specifically):
   Are always-alive paths really minimal?
 - **Net-by-net sanity** — anything dangling, double-driven, or
   ambiguous?
-- **BOM SKU availability** — spot-check 3–5 parts; report current
-  stock counts.
+- **BOM SKU availability** — spot-check 3–5 parts *by MPN* for
+  stock/lifecycle; but if any SKU **cells** changed since your last
+  pass, `/resolve` **all** changed cells (§3.5 rule 5 — an MPN query
+  passing does not validate the SKU cell beside it).
 - **Power budget arithmetic** — do per-state numbers add up?
 - **Open decisions (D-OPEN-N)** — agree with defaults, or override?
 
 Skip:
 - `docs/STATUS.md`, autonomous-loop notes — firmware-side, irrelevant.
 - `scripts/`, `volthium/`, `firmware/`, `tests/` — also irrelevant.
-- Original SKiDL Python in `hardware/kicad/*.py` — preserved as
-  reference only; the CP1 docs supersede it where they disagree.
+- Superseded SKiDL/KiCad-8 toolchain in `hardware/kicad/archive/` —
+  historical only; the CP1 docs + the kiutils generators supersede it.
 
 ## 5. Findings format
 
@@ -239,7 +344,7 @@ If this is iteration ≥ 2 (re-reviewing after Claude addressed prior
 findings), put your new findings under a fresh `## 8.N Reviewer
 findings (iteration <N>)` heading.
 
-When a finding is about D11 legibility, include a short "Codex visual
+When a finding is about D11 legibility, include a short "agent-reviewer visual
 evidence" bullet listing the screenshot paths you generated.
 
 Severity levels:
@@ -262,7 +367,7 @@ QUESTIONs are fine.
 
 ## 6. Commit + push protocol
 
-On `codex_turn`, after writing findings:
+On `reviewer_turn`, after writing findings:
 
 ```bash
 # 1. Update SEMAPHORE.yaml — flip state, increment iteration, write note.
@@ -272,7 +377,7 @@ On `codex_turn`, after writing findings:
 git add hardware/reviews/cp<N>_*.md hardware/reviews/SEMAPHORE.yaml
 
 # 3. Commit with a short message.
-git commit -m "review: codex iteration <N> on CP<X>"
+git commit -m "review: agent-reviewer iteration <N> on CP<X>"
 
 # 4. Push to the current branch.
 git push origin "$(git symbolic-ref --short HEAD)"
@@ -295,16 +400,16 @@ When you finish iteration 2 on CP1 and hand back to Claude:
 
 ```yaml
 schema_version: 1
-state: claude_turn                # ← flipped from codex_turn
+state: claude_turn                # ← flipped from reviewer_turn
 current_cp: 1
 current_branch: hw/cp1-design-baseline
 active_packet: hardware/reviews/cp1_design_baseline.md
 iteration: 3                      # ← incremented
 max_iterations_per_cp: 10
 last_updated_at: 2026-05-23T19:30:00Z   # ← now
-last_updated_by: codex            # ← you
+last_updated_by: agent-reviewer            # ← you
 note: >
-  Codex iteration 2 on CP1. Re-reviewed Claude's §9 RESOLVED entries.
+  agent-reviewer iteration 2 on CP1. Re-reviewed Claude's §9 RESOLVED entries.
   Status: NEEDS CHANGES (1 important). New finding 06 on
   cp1_battery_side.md §8 V12 behavior subsection — see review packet
   §8.2 for details.
@@ -331,11 +436,11 @@ exit. Both agents will idle until the user manually flips state.
 After the sign-off line is written and the commit pushed, **stop**.
 Tell the user:
 
-> "Codex iteration N on CP<X> complete; handed back to Claude.
+> "agent-reviewer iteration N on CP<X> complete; handed back to Claude.
 > Status: <APPROVED|NEEDS CHANGES|REJECTED>. <K> findings appended."
 
 The next Cursor timer firing will be a no-op if Claude hasn't yet
-flipped state back to `codex_turn` — that's fine, exit cheap and wait
+flipped state back to `reviewer_turn` — that's fine, exit cheap and wait
 for the trigger after.
 
 ## 10. Escalation to user (be sparing)
@@ -354,7 +459,7 @@ summarizes both positions:
 
 ```yaml
 note: >
-  Disagreement on <topic>. Claude's position: <X>. Codex's position:
+  Disagreement on <topic>. Claude's position: <X>. agent-reviewer's position:
   <Y>. Resolution requires user input. See cp<N>_*.md §8.M Finding NN
   for the full thread.
 ```

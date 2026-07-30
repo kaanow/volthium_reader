@@ -47,9 +47,9 @@ firmware/
 |-----------------|----------|-------------------------------|--------------------------------------------|
 | `ble_task`      | 5        | event-driven; runs while connected | Holds persistent BLE central to both BMS. Handles polite-disconnect on `release` event from RS-485. |
 | `tx_task`       | 4        | every 30 s (state 1) / 60 s (state 2) | Builds WireFrame from latest BLE samples, emits RS-485 frame |
-| `power_task`    | 6        | every 5 s + on SOC threshold crossings | Implements the 4-tier state machine; commands MOSFET; manages light/deep sleep |
+| `power_task`    | 6        | every 5 s + on SOC threshold crossings | Implements the 4-tier state machine; commands the SSR1 load switch; manages light/deep sleep. **Graceful display shed (D30):** before opening SSR1 at low SOC, send the RS-485 "sleeping" frame, wait ~1 frame for the display to render it, *then* open SSR1 — the e-paper holds the "sleeping" message after power is cut. **Heartbeat (D30):** track the display's RS-485 acks; on heartbeat loss flag "display dead" in the WiFi log-push (D25). |
 | `adc_task`      | 3        | every 2 s                     | Reads 24V sense; provides voltage-based SOC fallback when BLE is down |
-| `cli_task`      | 2        | USB serial available          | Optional debug shell over USB-OTG |
+| `cli_task`      | 2        | USB serial available          | Optional debug shell over native USB-C (D22) |
 
 Inter-task communication: FreeRTOS queues with the latest `BMSSample`,
 `PackReading`, and `Estimate` structs. Queue depth of 1 (mailbox style)
@@ -60,9 +60,9 @@ because newer readings supersede older ones.
 | Task            | Priority | Period / event                | Notes                                      |
 |-----------------|----------|-------------------------------|--------------------------------------------|
 | `rx_task`       | 5        | RS-485 frame arrived          | Validates CRC, parses WireFrame, posts to render queue |
-| `render_task`   | 4        | on new frame OR button press OR 30 s tick | Decides what to draw, kicks e-paper |
+| `render_task`   | 4        | on new frame OR button press OR 30 s tick | Decides what to draw, kicks e-paper. **Always renders a "last updated HH:MM" timestamp (D30)** — a frozen e-paper showing a stale time is the primary "display is dead" tell (covers both comms-loss and power-loss, since the bistable image keeps the old time). |
 | `input_task`    | 3        | GPIO interrupts (debounced)   | Maps buttons to events; sends "release BLE" over RS-485 |
-| `watchdog_task` | 2        | every 10 s                    | If no frame in 90 s, draws "LINK DOWN" overlay |
+| `watchdog_task` | 2        | every 10 s                    | If no frame in 90 s, draws "LINK DOWN" overlay (D30 mode-a: comms dead, display powered). Also handles the **"sleeping" frame**: on a low-battery/shutdown command from the battery side, render "Monitor sleeping — low battery" so the bistable screen holds that correct message after the battery opens SSR1 (D30 graceful pre-shed). |
 
 ## State machine (battery-side `power_task`)
 
@@ -105,6 +105,14 @@ See `volthium/wire_protocol.py` (Python reference impl) and
 
 CRC-16/CCITT-FALSE test vector: `"123456789"` → `0x29B1`.
 
+**Protocol additions for D30 (display deadness detection):** two new frame
+types to add to `wire_protocol` at CP-firmware: (1) a **battery→display
+"sleeping"/shutdown** command (triggers the pre-shed render before Q1 opens);
+(2) a **display→battery heartbeat/ack** so the battery side can detect a dead
+display and surface it via the WiFi push. Both are small additions to the
+existing framing; spec the byte layout + add test vectors when the C port
+lands.
+
 ## Estimator port
 
 The Python `Estimator` (in `volthium/estimator.py`) is ~80 lines of
@@ -137,16 +145,43 @@ frequent.
 
 ## Debug visibility
 
-Each board exposes a 4-pin debug header on the PCB:
+Each board exposes a **keyed 2×3 ESP-Prog "Program" header** on the PCB
+(battery J5 per DR-32/F01; display J3 per the display-CP2 DR-32 parity
+call — both boards deep-sleep, so recovery must not depend on the USB
+stack). One ESP-Prog ribbon serves both boards:
 
-| Pin | Net           | Purpose                                   |
-|-----|---------------|-------------------------------------------|
-| 1   | GND           |                                           |
-| 2   | UART0_TX      | ESP-IDF console (firmware logs)           |
-| 3   | UART0_RX      | "                                         |
-| 4   | RESET#        | for emergency reset / reflashing          |
+| Pin | Net     | Purpose                                            |
+|-----|---------|----------------------------------------------------|
+| 1   | MCU_EN  | reset / auto-program                               |
+| 2   | V3V3    | target sense                                       |
+| 3   | DBG_TXD | ESP-IDF console out (target TXD0)                  |
+| 4   | GND     |                                                    |
+| 5   | DBG_RXD | console in (target RXD0)                           |
+| 6   | BOOT    | IO0 — force-download (hold low + blip EN)          |
+
+*(CP2 supersedes the original 4-pin GND/TX/RX/RESET# header described in
+earlier revisions of this doc.)*
 
 Use any FTDI cable. The console runs at 115200 8N1.
 
-Optional onboard LED on GPIO15 (battery side) — slow blink in NORMAL,
-fast in LOW, off in DEEPSLEEP/HARDCUT, solid during BLE connect attempts.
+~~Optional onboard LED on GPIO15~~ — **retired (CP1):** D4 removed all
+indicator LEDs (power-first), and GPIO15 is now allocated to RS-485 /RE
+(D34). Status visibility comes from the e-paper timestamp (D30) and the
+UART console.
+
+## Button requirements (user-set, 2026-07-14)
+
+Battery-side **BTN1** (panel-mount, ESP GPIO7, RTC-wake capable,
+active-LOW) is a pure GPIO input — every function below is firmware,
+no hardware dependency:
+
+| Gesture | Function |
+|---------|----------|
+| Short press | Display-power override (existing function; UVLO hardware floor still wins below ~20 V pack) |
+| **Long press (hold ≥ 10 s)** | **WiFi config reset to base state** — wipe stored WiFi credentials/config and return to the not-yet-designed provisioning base state. Reset target state TBD when WiFi provisioning is designed; the trigger path is a firm requirement now |
+
+Long-press-from-deep-sleep works: GPIO7 is in the RTC wake mask, so the
+press wakes the ESP and firmware then samples hold duration. The 100 ms
+debounce RC is irrelevant at these timescales. Display-side BTN1–3
+(GPIO12/13/14) remain fully software-defined per D7 — a parallel reset
+gesture there needs no hardware change either.

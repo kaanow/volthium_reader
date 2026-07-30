@@ -39,6 +39,24 @@ chassis GND **at the battery-side end only**:
 - The battery side is chosen because the 24 V system is the actual ground
   reference for the monitor.
 
+**Reality check on the shield's value (both enclosures are plastic, system
+is battery-floating).** There is **no earth/chassis** in this design — so
+"bond at the battery end" means bond to the **battery-side signal/pack GND**,
+not earth. That still drains capacitively-coupled noise and is correct
+single-point practice, but the shield's benefit is **secondary** to the
+twisted-pair common-mode rejection already protecting RS-485. Don't expect a
+big difference; just don't bond both ends.
+
+**Install/procurement checklist (user — not verifiable in the PCB design):**
+- If using shielded (FTP/STP) keystones + shielded RJ45 jacks, **confirm the
+  shield is electrically continuous through both keystones** — a shield
+  broken at a punchdown does nothing.
+- Bond the shield/drain to battery-side GND at **one** point only; leave the
+  **display-end shield NC** (the display PCB provides no shield bond — the
+  shielded jack's shell stays unbonded there).
+- Both enclosures are 3D-printed plastic → no second inadvertent chassis tie
+  to worry about.
+
 If the existing in-wall Cat5e isn't terminated yet, terminate with
 keystone jacks (Leviton 41108-RW5 or similar Cat5e-rated). Use a
 punchdown tool — don't crimp RJ45 plugs directly to the in-wall cable

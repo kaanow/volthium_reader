@@ -1,0 +1,4 @@
+* text=auto eol=lf
+*.png binary
+*.pdf binary
+*.kicad_sch text eol=lf

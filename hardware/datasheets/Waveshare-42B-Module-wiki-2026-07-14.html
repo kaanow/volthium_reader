@@ -1,0 +1,1977 @@
+<!DOCTYPE html>
+<html class="client-nojs" lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8"/>
+<title>4.2inch e-Paper Module (B) Manual - Waveshare Wiki</title>
+<script>document.documentElement.className="client-js";RLCONF={"wgBreakFrames":!1,"wgSeparatorTransformTable":["",""],"wgDigitTransformTable":["",""],"wgDefaultDateFormat":"dmy","wgMonthNames":["","January","February","March","April","May","June","July","August","September","October","November","December"],"wgRequestId":"7a396bc6496b50a3cc3c5b11","wgCSPNonce":!1,"wgCanonicalNamespace":"","wgCanonicalSpecialPageName":!1,"wgNamespaceNumber":0,"wgPageName":"4.2inch_e-Paper_Module_(B)_Manual","wgTitle":"4.2inch e-Paper Module (B) Manual","wgCurRevisionId":110070,"wgRevisionId":110070,"wgArticleId":12168,"wgIsArticle":!0,"wgIsRedirect":!1,"wgAction":"view","wgUserName":null,"wgUserGroups":["*"],"wgCategories":["SPI interface"],"wgPageContentLanguage":"en","wgPageContentModel":"wikitext","wgRelevantPageName":"4.2inch_e-Paper_Module_(B)_Manual","wgRelevantArticleId":12168,"wgIsProbablyEditable":!1,"wgRelevantPageIsProbablyEditable":!1,"wgRestrictionEdit":[],"wgRestrictionMove":[]}
+;RLSTATE={"ext.gadget.tabber":"ready","site.styles":"ready","noscript":"ready","user.styles":"ready","user":"ready","user.options":"loading","jquery.makeCollapsible.styles":"ready","mediawiki.toc.styles":"ready","skins.tweeki.styles":"ready","skins.tweeki.bootstraptheme.styles":"ready","skins.tweeki.externallinks.styles":"ready","skins.tweeki.awesome.styles":"ready"};RLPAGEMODULES=["site","mediawiki.page.startup","mediawiki.page.ready","jquery.makeCollapsible","mediawiki.toc","ext.FancyBoxThumbs","ext.HighlightjsIntegration","skins.tweeki.messages","skins.tweeki.scripts"];</script>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.loader.implement("user.options@1hzgi",function($,jQuery,require,module){/*@nomin*/mw.user.tokens.set({"patrolToken":"+\\","watchToken":"+\\","csrfToken":"+\\"});
+});});</script>
+<link rel="stylesheet" href="/w/Uy8Yw0y/aAdkk0o.php?lang=en&amp;modules=jquery.makeCollapsible.styles%7Cmediawiki.toc.styles%7Cskins.tweeki.awesome.styles%7Cskins.tweeki.bootstraptheme.styles%7Cskins.tweeki.externallinks.styles%7Cskins.tweeki.styles&amp;only=styles&amp;skin=tweeki"/>
+<script async="" src="/w/Uy8Yw0y/aAdkk0o.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=tweeki"></script>
+<meta name="ResourceLoaderDynamicStyles" content=""/>
+<link rel="stylesheet" href="/w/Uy8Yw0y/aAdkk0o.php?lang=en&amp;modules=ext.gadget.tabber&amp;only=styles&amp;skin=tweeki"/>
+<link rel="stylesheet" href="/w/Uy8Yw0y/aAdkk0o.php?lang=en&amp;modules=site.styles&amp;only=styles&amp;skin=tweeki"/>
+<meta name="generator" content="MediaWiki 1.35.5"/>
+<meta property="og:image" content="https://www.waveshare.com/w/upload/8/8b/4.2inch-e-Paper-B-1.jpg"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="shortcut icon" href="/w/favicon.ico"/>
+<link rel="search" type="application/opensearchdescription+xml" href="/w/opensearch_desc.php" title="Waveshare Wiki (en)"/>
+<link rel="EditURI" type="application/rsd+xml" href="https://www.waveshare.com/w/api.php?action=rsd"/>
+<link rel="alternate" type="application/atom+xml" title="Waveshare Wiki Atom feed" href="/w/index.php?title=Special:RecentChanges&amp;feed=atom"/>
+<!--[if lt IE 9]><script src="/w/resources/lib/html5shiv/html5shiv.js"></script><![endif]-->
+</head>
+<body class="mediawiki ltr sitedir-ltr mw-hide-empty-elt ns-0 ns-subject page-4_2inch_e-Paper_Module_B_Manual rootpage-4_2inch_e-Paper_Module_B_Manual skin-tweeki action-view tweeki-animateLayout tweeki-non-advanced tweeki-user-anon">			<!-- navbar -->
+			<div id="mw-navigation" class="navbar navbar-default navbar-fixed-top navbar-expand-lg fixed-top navbar-light bg-light" role="navigation">
+				<h2>Navigation menu</h2>
+				<div id="mw-head" class="navbar-inner">
+					<div class="container">
+
+						<div class="navbar-header">
+							<button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+								<span class="sr-only">Toggle navigation</span>
+								<span class="icon-bar"></span>
+								<span class="icon-bar"></span>
+								<span class="icon-bar"></span>
+							</button>
+
+							<a href="/wiki/Main_Page" class="navbar-brand"><img src="https://www.waveshare.com/w/upload/a/a7/Ws-watermark-en.svg" alt="Waveshare Wiki" /></a>
+						</div>
+
+						<div id="navbar" class="navbar-collapse collapse">
+													<ul class="nav navbar-nav">
+							<li class="nav"><a href="#" id="n-raspberry-pi" class="dropdown-toggle" data-toggle="dropdown">Raspberry Pi <b class="caret"></b></a><ul class="dropdown-menu " role="menu"><li id="n-main_page.2523rpi-boards"><a href="/wiki/Main_Page#RPi-Boards" tabindex="-1">Boards/Kits</a></li><li id="n-main_page.2523rpi-displays"><a href="/wiki/Main_Page#RPi-Displays" tabindex="-1">Displays</a></li><li id="n-main_page.2523rpi-cameras"><a href="/wiki/Main_Page#RPi-Cameras" tabindex="-1">Cameras</a></li><li id="n-main_page.2523rpi-expansions"><a href="/wiki/Main_Page#RPi-Expansions" tabindex="-1">Expansions</a></li><li id="n-main_page.2523rpi-laptops"><a href="/wiki/Main_Page#RPi-Laptops" tabindex="-1">All-in-one</a></li><li id="n-main_page.2523rpi-robots"><a href="/wiki/Main_Page#RPi-Robots" tabindex="-1">Robots</a></li><li id="n-main_page.2523rpi-games"><a href="/wiki/Main_Page#RPi-Games" tabindex="-1">Portable Gaming</a></li><li id="n-main_page.2523rpi-acces"><a href="/wiki/Main_Page#RPi-Acces" tabindex="-1">Accessories</a></li><li id="n-main_page.2523android-linux-boards"><a href="/wiki/Main_Page#Android-Linux-Boards" tabindex="-1">Other Android/Linux Boards</a></li></ul></li><li class="nav"><a href="#" id="n-ai" class="dropdown-toggle" data-toggle="dropdown">AI <b class="caret"></b></a><ul class="dropdown-menu " role="menu"><li id="n-main_page.2523jetson-ai-boards"><a href="/wiki/Main_Page#Jetson-AI-Boards" tabindex="-1">Boards/Kits</a></li><li id="n-main_page.2523jetson-ai-displays"><a href="/wiki/Main_Page#Jetson-AI-Displays" tabindex="-1">Displays</a></li><li id="n-main_page.2523jetson-ai-cameras"><a href="/wiki/Main_Page#Jetson-AI-Cameras" tabindex="-1">Cameras</a></li><li id="n-main_page.2523jetson-ai-hat"><a href="/wiki/Main_Page#Jetson-AI-HAT" tabindex="-1">Expansions</a></li><li id="n-main_page.2523jetson-ai-robots"><a href="/wiki/Main_Page#Jetson-AI-Robots" tabindex="-1">Robots</a></li></ul></li><li class="nav"><a href="#" id="n-displays" class="dropdown-toggle" data-toggle="dropdown">Displays <b class="caret"></b></a><ul class="dropdown-menu " role="menu"><li id="n-main_page.2523display-lcd-oleds"><a href="/wiki/Main_Page#Display-LCD-OLEDs" tabindex="-1">LCD/OLED</a></li><li id="n-main_page.2523display-e-paper"><a href="/wiki/Main_Page#Display-e-Paper" tabindex="-1">e-Paper</a></li></ul></li><li class="nav"><a href="#" id="n-iot" class="dropdown-toggle" data-toggle="dropdown">IoT <b class="caret"></b></a><ul class="dropdown-menu " role="menu"><li id="n-main_page.2523long-range-wireless-comm"><a href="/wiki/Main_Page#Long-range-wireless-comm" tabindex="-1">Long Range Wireless</a></li><li id="n-main_page.2523short-range-wireless-comm"><a href="/wiki/Main_Page#Short-range-wireless-comm" tabindex="-1">Short Range Wireless</a></li><li id="n-main_page.2523wired-communication"><a href="/wiki/Main_Page#Wired-communication" tabindex="-1">Wired Comm / Converter</a></li><li id="n-main_page.2523misc-cameras-av"><a href="/wiki/Main_Page#Misc-cameras-av" tabindex="-1">Cameras / Audio / Video</a></li><li id="n-main_page.2523misc-sensor-modules"><a href="/wiki/Main_Page#Misc-sensor-modules" tabindex="-1">Sensors</a></li><li id="n-main_page.2523misc-servos-motors"><a href="/wiki/Main_Page#Misc-servos-motors" tabindex="-1">Motors / Servos</a></li><li id="n-main_page.2523misc-other-modules"><a href="/wiki/Main_Page#Misc-other-modules" tabindex="-1">others</a></li></ul></li><li class="nav"><a href="#" id="n-robotics" class="dropdown-toggle" data-toggle="dropdown">Robotics <b class="caret"></b></a><ul class="dropdown-menu " role="menu"><li id="n-main_page.2523robotics-cars"><a href="/wiki/Main_Page#Robotics-cars" tabindex="-1">Mobile Robots</a></li><li id="n-main_page.2523dog-like-robots"><a href="/wiki/Main_Page#Dog-like-Robots" tabindex="-1">Dog-like Robots</a></li><li id="n-main_page.2523robotics-drivers-sensors"><a href="/wiki/Main_Page#Robotics-drivers-sensors" tabindex="-1">Drivers / Sensors</a></li><li id="n-main_page.2523robotics-robot-arms"><a href="/wiki/Main_Page#Robotics-robot-arms" tabindex="-1">Robot Arm / Control</a></li></ul></li><li class="nav"><a href="#" id="n-mcu.252Ffpga" class="dropdown-toggle" data-toggle="dropdown">MCU/FPGA <b class="caret"></b></a><ul class="dropdown-menu " role="menu"><li id="n-main_page.2523arduino-main-boards"><a href="/wiki/Main_Page#Arduino-main-boards" tabindex="-1">Arduino</a></li><li id="n-main_page.2523micro.253Abit"><a href="/wiki/Main_Page#micro:bit" tabindex="-1">micro:bit</a></li><li id="n-main_page.2523mcu.2farm" class="LPC"><a href="/wiki/Main_Page#MCU.2FARM" tabindex="-1">STM32</a></li><li id="n-main_page.2523fpga"><a href="/wiki/Main_Page#FPGA" tabindex="-1">FPGA</a></li></ul></li><li class="nav"><a href="https://service.waveshare.com" id="n-https.253A.252F.252Fservice.waveshare.com" rel="nofollow" target="_blank">Support</a></li>							</ul>
+						
+													<ul class="nav navbar-nav navbar-right">
+							</ul>
+				<form class="navbar-form navbar-right" action="/w/index.php" id="searchform">
+					<div class="form-group"><input type="search" name="search" placeholder="Product name search" title="Search Waveshare Wiki [f]" accesskey="f" id="searchInput" class="search-query form-control"/><input type="submit" name="go" value="Go" title="Go to a page with this exact name if it exists" id="mw-searchButton" class="searchButton btn hidden"/>
+					</div>
+				</form><ul class="nav navbar-nav navbar-right">							</ul>
+						</div>
+						
+					</div>
+				</div>
+			</div>
+			<!-- /navbar -->
+					<div id="mw-page-base"></div>
+			<div id="mw-head-base"></div>
+			<a id="top"></a>
+
+			<!-- content -->
+			<div id="contentwrapper" class="user-loggedout not-editable container with-navbar with-navbar-fixed">
+
+				
+				<div class="row">
+					<div class="col-md-offset-2 col-md-10" role="main">
+								<div class="mw-body" id="content">
+			<div id="mw-js-message" style="display:none;"></div>
+									<h1 id="firstHeading" class="firstHeading page-header" lang="en"><span dir="auto">4.2inch e-Paper Module (B) Manual</span></h1>
+									<!-- bodyContent -->
+			<div id="bodyContent">
+								<div id="siteSub">From Waveshare Wiki</div>
+								<div id="contentSub"></div>
+												<div id="jump-to-nav" class="mw-jump">
+					Jump to:					<a href="#mw-navigation">navigation</a>, 					<a href="#p-search">search</a>
+				</div>
+				<div id="mw-content-text" lang="en" dir="ltr" class="mw-content-ltr"><div class="mw-parser-output"><div class="wiki-pages jet-green-color">
+<table id="infotable" class="a-r at-c roundy bgd-green bl-white" style="margin-left: 5px; margin-bottom: 5px; width: 30%;">
+
+<tbody><tr>
+<td>
+<table class="at-c roundy" style="background: transparent;width:100%;">
+
+<tbody><tr>
+<td class="at-c textwhite"><b>4.2inch e-Paper (B)</b>
+</td></tr>
+<tr>
+<td class="at-c bgwhite" style="margin:5px;"><a href="https://www.waveshare.com/4.2inch-e-Paper-B.htm" target="_blank" rel="nofollow noreferrer noopener"><img alt="4.2inch-e-Paper-B-1.jpg" src="/w/upload/thumb/8/8b/4.2inch-e-Paper-B-1.jpg/300px-4.2inch-e-Paper-B-1.jpg" decoding="async" loading="lazy" width="300" height="226" srcset="/w/upload/thumb/8/8b/4.2inch-e-Paper-B-1.jpg/450px-4.2inch-e-Paper-B-1.jpg 1.5x, /w/upload/thumb/8/8b/4.2inch-e-Paper-B-1.jpg/600px-4.2inch-e-Paper-B-1.jpg 2x" /></a><br /><br /><small>400 x 300, 4.2inch EPD panel</small>
+</td></tr></tbody></table>
+</td></tr>
+<tr>
+<td>
+<table class="roundy" style="background: transparent;width:100%;">
+
+<tbody><tr>
+<td class="at-c textwhite"><b>4.2inch e-Paper Module (B)</b>
+</td></tr>
+<tr>
+<td class="at-c bgwhite" style="margin:5px;"><a href="http://www.waveshare.com/4.2inch-e-paper-module-b.htm" target="_blank" rel="nofollow noreferrer noopener"><img alt="4.2inch-e-paper-module-b-3.jpg" src="/w/upload/thumb/1/10/4.2inch-e-paper-module-b-3.jpg/300px-4.2inch-e-paper-module-b-3.jpg" decoding="async" loading="lazy" width="300" height="300" srcset="/w/upload/thumb/1/10/4.2inch-e-paper-module-b-3.jpg/450px-4.2inch-e-paper-module-b-3.jpg 1.5x, /w/upload/thumb/1/10/4.2inch-e-paper-module-b-3.jpg/600px-4.2inch-e-paper-module-b-3.jpg 2x" /></a><br /><br /><small>400 x 300, 4.2inch EPD module, three-color, SPI interface</small>
+</td></tr></tbody></table>
+</td></tr>
+<tr style="display:none;">
+<td>
+<table class="roundy" style="background: transparent;width:100%;">
+
+<tbody><tr>
+<td class="at-c textwhite"><b>{{{name3}}}</b>
+</td></tr>
+<tr>
+<td class="at-c bgwhite" style="margin:5px;"><br />
+</td></tr></tbody></table>
+</td></tr>
+<tr style="display:none;">
+<td>
+<table class="roundy" style="background: transparent;width:100%;">
+
+<tbody><tr>
+<td class="at-c textwhite"><b>{{{name4}}}</b>
+</td></tr>
+<tr>
+<td class="at-c bgwhite" style="margin:5px;"><br />
+</td></tr></tbody></table>
+</td></tr>
+<tr style="display:none;">
+<td>
+<table class="roundy" style="background: transparent;width:100%;">
+
+<tbody><tr>
+<td class="at-c textwhite"><b>{{{name5}}}</b>
+</td></tr>
+<tr>
+<td class="at-c bgwhite" style="margin:5px;"><br />
+</td></tr></tbody></table>
+</td></tr>
+<tr style="display:none;">
+<td>
+<table class="roundy" style="background: transparent;width:100%;">
+
+<tbody><tr>
+<td class="at-c textwhite"><b>{{{name6}}}</b>
+</td></tr>
+<tr>
+<td class="at-c bgwhite" style="margin:5px;"><br />
+</td></tr></tbody></table>
+</td></tr>
+<tr>
+<td>
+<table class="roundy" style="display:none;">
+<tbody><tr>
+<td style="width:2%;">
+</td>
+<td style="width:3%;">
+</td>
+<th colspan="2" width="90%" class="at-c roundytop bgl-white">Primary Attribute
+</th>
+<td style="width:3%;">
+</td>
+<td style="width:2%;">
+</td></tr>
+<tr>
+<td colspan="6" width="90px" class="at-c roundytl roundytr bgwhite b-green" style="border-width: 0 0 1px 0;"><b>Category:</b> <a href="/wiki/Category:OLEDs_/_LCDs" title="Category:OLEDs / LCDs">OLEDs / LCDs</a>, <a href="/wiki/Category:LCD" title="Category:LCD">LCD</a>
+</td></tr>
+<tr style="display:none;">
+<th colspan="3" width="90px" class="at-r bgwhite b-green" style="border-width: 0 0 1px 0;">{{{userDefinedInfo}}}:
+</th>
+<td colspan="3" class="at-l b-green bgwhite" style="border-width: 0 0 1px 0;">{{{userdefinedvalue}}}
+</td></tr>
+<tr style="display:none;">
+<td colspan="6" width="90px" class="at-c roundybl roundybr bgwhite"><b>Brand:</b> Waveshare
+</td></tr></tbody></table>
+</td></tr>
+<tr>
+<td>
+<table class="a-r roundy" style="display:none;">
+<tbody><tr>
+<td style="width:2%;">
+</td>
+<td style="width:3%;">
+</td>
+<th colspan="2" width="90%" class="at-c roundytop bgl-white">Website
+</th>
+<td style="width:3%;">
+</td>
+<td style="width:2%;">
+</td></tr>
+<tr>
+<td colspan="6" width="90px" class="at-c roundytl roundytr bgwhite b-green" style="border-width: 0 0 1px 0;"><b>International:</b> <a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="http://www.waveshare.com/4.2inch-e-paper-module-b.htm">Waveshare website</a>
+</td></tr>
+<tr>
+<td colspan="6" width="90px" class="at-c roundybl roundybr bgwhite"><b>Chinese:</b> <a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="http://www.waveshare.net/shop/4.2inch-e-Paper-Module-B.htm">官方中文站点</a>
+</td></tr></tbody></table>
+</td></tr>
+<tr>
+<td>
+<table class="a-r roundy" style="background: transparent; border-collapse:collapse;width:100%;display:none;">
+<tbody><tr>
+<td style="width:2%;">
+</td>
+<td style="width:3%;">
+</td>
+<th colspan="2" width="90%" class="at-c roundytop bgl-white">Onboard Interfaces
+</th>
+<td style="width:3%;">
+</td>
+<td style="width:2%;">
+</td></tr>
+<tr>
+<td colspan="6" width="90px" class="at-l roundy bgwhite b-green" style="border-width: 0 0 1px 0;">
+<table class="roundy bgwhite fulltable" style="text-align:center;">
+
+<tbody><tr>
+<td class="roundy bl-gray bw-1" style="width:25%;;"><small><b><a href="/wiki/Category:SPI_interface" title="Category:SPI interface">SPI</a></b></small>
+</td>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td></tr>
+<tr>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td></tr>
+<tr>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td></tr>
+<tr>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td></tr>
+<tr>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td>
+<td class="roundy bl-gray bw-1" style="width:25%;display:none;"><small></small>
+</td></tr></tbody></table>
+</td></tr></tbody></table>
+</td></tr>
+<tr>
+<td>
+<table class="a-r roundy" style="background: transparent; border-collapse:collapse;width:100%;;display:none;">
+<tbody><tr>
+<td style="width:2%;">
+</td>
+<td style="width:3%;">
+</td>
+<th colspan="2" width="90%" class="at-c roundytop bgl-white">Related Products
+</th>
+<td style="width:3%;">
+</td>
+<td style="width:2%;">
+</td></tr>
+<tr>
+<td colspan="6" width="90px" class="at-l roundy bgwhite b-green" style="border-width: 0 0 1px 0;">
+<ul><li><a href="/wiki/4.3inch_e-Paper_UART_Module" title="4.3inch e-Paper UART Module">4.3inch e-Paper UART Module</a></li>
+<li><a href="/wiki/13.3inch_e-Paper_HAT" title="13.3inch e-Paper HAT">13.3inch e-Paper HAT</a></li>
+<li><a href="/wiki/13.3inch_HDMI_e-Paper" title="13.3inch HDMI e-Paper">13.3inch HDMI e-Paper</a></li>
+<li><a href="/wiki/12.48inch_e-Paper_Module" title="12.48inch e-Paper Module">12.48inch e-Paper Module</a></li>
+<li><a href="/wiki/12.48inch_e-Paper_Module_(B)" title="12.48inch e-Paper Module (B)">12.48inch e-Paper Module (B)</a></li>
+<li><a href="/wiki/10.3inch_HDMI_e-Paper" title="10.3inch HDMI e-Paper">10.3inch HDMI e-Paper</a></li>
+<li><a href="/wiki/10.3inch_e-Paper_HAT_(D)" title="10.3inch e-Paper HAT (D)">10.3inch e-Paper HAT (D)</a></li>
+<li><a href="/wiki/10.3inch_e-Paper_HAT" title="10.3inch e-Paper HAT">10.3inch e-Paper HAT</a></li>
+<li><a href="/wiki/9.7inch_HDMI_e-Paper" title="9.7inch HDMI e-Paper">9.7inch HDMI e-Paper</a></li>
+<li><a href="/wiki/9.7inch_e-Paper_HAT" title="9.7inch e-Paper HAT">9.7inch e-Paper HAT</a></li>
+<li><a href="/wiki/7.8inch_e-Paper_HAT" title="7.8inch e-Paper HAT">7.8inch e-Paper HAT</a></li>
+<li><a href="/wiki/7.8inch_HDMI_e-Paper" title="7.8inch HDMI e-Paper">7.8inch HDMI e-Paper</a></li>
+<li><a href="/wiki/7.5inch_HD_e-Paper_HAT" title="7.5inch HD e-Paper HAT">7.5inch HD e-Paper HAT</a></li>
+<li><a href="/wiki/7.5inch_HD_e-Paper_HAT_(B)" title="7.5inch HD e-Paper HAT (B)">7.5inch HD e-Paper HAT (B)</a></li>
+<li><a href="/wiki/7.5inch_e-Paper_HAT" title="7.5inch e-Paper HAT">7.5inch e-Paper HAT</a></li>
+<li><a href="/wiki/7.5inch_e-Paper_HAT_(B)" title="7.5inch e-Paper HAT (B)">7.5inch e-Paper HAT (B)</a></li>
+<li><a href="/wiki/7.5inch_e-Paper_HAT_(C)" title="7.5inch e-Paper HAT (C)">7.5inch e-Paper HAT (C)</a></li>
+<li><a href="/wiki/7.5inch_e-Paper_(G)" class="mw-redirect" title="7.5inch e-Paper (G)">7.5inch e-Paper (G)</a></li>
+<li><a href="/wiki/7.5inch_NFC-Powered_e-Paper" title="7.5inch NFC-Powered e-Paper">7.5inch NFC-Powered e-Paper</a></li>
+<li><a href="/wiki/7.5inch_NFC-Powered_HD_e-Paper" title="7.5inch NFC-Powered HD e-Paper">7.5inch NFC-Powered HD e-Paper</a></li>
+<li><a href="/wiki/6inch_e-Paper_HAT" title="6inch e-Paper HAT">6inch e-Paper HAT</a></li>
+<li><a href="/wiki/6inch_HD_e-Paper_HAT" title="6inch HD e-Paper HAT">6inch HD e-Paper HAT</a></li>
+<li><a href="/wiki/5.83inch_e-Paper_HAT" title="5.83inch e-Paper HAT">5.83inch e-Paper HAT</a></li>
+<li><a href="/wiki/5.83inch_e-Paper_HAT_(B)" title="5.83inch e-Paper HAT (B)">5.83inch e-Paper HAT (B)</a></li>
+<li><a href="/wiki/5.83inch_e-Paper_HAT_(C)" title="5.83inch e-Paper HAT (C)">5.83inch e-Paper HAT (C)</a></li>
+<li><a href="/wiki/5.65inch_e-Paper_Module_(F)" title="5.65inch e-Paper Module (F)">5.65inch e-Paper Module (F)</a></li>
+<li><a href="/wiki/4.2inch_e-Paper_Cloud_Module" title="4.2inch e-Paper Cloud Module">4.2inch e-Paper Cloud Module</a></li>
+<li><a href="/wiki/4.2inch_e-Paper_Module" title="4.2inch e-Paper Module">4.2inch e-Paper Module</a></li>
+<li><a href="/wiki/4.2inch_e-Paper_Module_(B)" title="4.2inch e-Paper Module (B)">4.2inch e-Paper Module (B)</a></li>
+<li><a href="/wiki/4.2inch_e-Paper_Module_(C)" title="4.2inch e-Paper Module (C)">4.2inch e-Paper Module (C)</a></li>
+<li><a href="/wiki/4.2inch_NFC-Powered_e-Paper" title="4.2inch NFC-Powered e-Paper">4.2inch NFC-Powered e-Paper</a></li>
+<li><a href="/wiki/4.01inch_e-Paper_Module_(F)" class="mw-redirect" title="4.01inch e-Paper Module (F)">4.01inch e-Paper (F)</a></li>
+<li><a href="/wiki/4.01inch_e-Paper_HAT_(F)" title="4.01inch e-Paper HAT (F)">4.01inch e-Paper HAT (F)</a></li>
+<li><a href="/wiki/3.7inch_e-Paper_HAT" title="3.7inch e-Paper HAT">3.7inch e-Paper</a></li>
+<li><a href="/wiki/3.7inch_e-Paper_HAT" title="3.7inch e-Paper HAT">3.7inch e-Paper HAT</a></li>
+<li><a href="/wiki/2.9inch_e-Paper_Module" title="2.9inch e-Paper Module">2.9inch e-Paper Module</a></li>
+<li><a href="/wiki/2.9inch_e-Paper_Module_(B)" title="2.9inch e-Paper Module (B)">2.9inch e-Paper Module (B)</a></li>
+<li><a href="/wiki/2.9inch_e-Paper_Module_(C)" title="2.9inch e-Paper Module (C)">2.9inch e-Paper Module (C)</a></li>
+<li><a href="/wiki/2.9inch_e-Paper_HAT_(D)" title="2.9inch e-Paper HAT (D)">2.9inch e-Paper HAT (D)</a></li>
+<li><a href="/wiki/2.9inch_Touch_e-Paper_HAT" title="2.9inch Touch e-Paper HAT">2.9inch Touch e-Paper HAT</a></li>
+<li><a href="/wiki/2.9inch_NFC-Powered_e-Paper" title="2.9inch NFC-Powered e-Paper">2.9inch NFC-Powered e-Paper</a></li>
+<li><a href="/wiki/2.7inch_NFC-Powered_e-Paper_Module" title="2.7inch NFC-Powered e-Paper Module">2.7inch NFC-Powered e-Paper Module</a></li>
+<li><a href="/wiki/2.7inch_e-Paper_HAT" title="2.7inch e-Paper HAT">2.7inch e-Paper HAT</a></li>
+<li><a href="/wiki/2.7inch_e-Paper_HAT_(B)" title="2.7inch e-Paper HAT (B)">2.7inch e-Paper HAT (B)</a></li>
+<li><a href="/wiki/2.66inch_e-Paper_Module" title="2.66inch e-Paper Module"> 2.66.inch e-Paper</a></li>
+<li><a href="/wiki/2.66inch_e-Paper_Module" title="2.66inch e-Paper Module">2.66inch e-Paper Module</a></li>
+<li><a href="/wiki/2.66inch_e-Paper_Module_(B)" title="2.66inch e-Paper Module (B)"> 2.66inch e-Paper (B)</a></li>
+<li><a href="/wiki/2.66inch_e-Paper_Module_(B)" title="2.66inch e-Paper Module (B)">2.66inch e-Paper Module (B)</a></li>
+<li><a href="/wiki/2.13inch_e-Paper_Cloud_Module" title="2.13inch e-Paper Cloud Module">2.13inch e-Paper Cloud Module</a></li>
+<li><a href="/wiki/2.13inch_e-Paper_HAT" title="2.13inch e-Paper HAT">2.13inch e-Paper HAT</a></li>
+<li><a href="/wiki/2.13inch_e-Paper_HAT_(B)" title="2.13inch e-Paper HAT (B)">2.13inch e-Paper HAT (B)</a></li>
+<li><a href="/wiki/2.13inch_e-Paper_HAT_(C)" title="2.13inch e-Paper HAT (C)">2.13inch e-Paper HAT (C)</a></li>
+<li><a href="/wiki/2.13inch_e-Paper_HAT_(D)" title="2.13inch e-Paper HAT (D)">2.13inch e-Paper HAT (D)</a></li>
+<li><a href="/wiki/2.13inch_Touch_e-Paper_HAT" title="2.13inch Touch e-Paper HAT">2.13inch Touch e-Paper HAT</a></li>
+<li><a href="/wiki/2.13inch_NFC-Powered_e-Paper" title="2.13inch NFC-Powered e-Paper">2.13inch NFC-Powered e-Paper</a></li>
+<li><a href="/wiki/1.54inch_NFC-Powered_e-Paper_(BB)" title="1.54inch NFC-Powered e-Paper (BB)">1.54inch NFC-Powered e-Paper (BB)</a></li>
+<li><a href="/wiki/1.54inch_NFC-Powered_e-Paper_(BW)" class="mw-redirect" title="1.54inch NFC-Powered e-Paper (BW)">1.54inch NFC-Powered e-Paper (BW)</a></li>
+<li><a href="/wiki/1.54inch_e-Paper_Module" title="1.54inch e-Paper Module">1.54inch e-Paper Module</a></li>
+<li><a href="/wiki/1.54inch_e-Paper_Module_(B)" title="1.54inch e-Paper Module (B)">1.54inch e-Paper Module (B)</a></li>
+<li><a href="/wiki/1.54inch_e-Paper_Module_(C)" title="1.54inch e-Paper Module (C)">1.54inch e-Paper Module (C)</a></li>
+<li><a href="/w/index.php?title=1.02inch_e-paper_Module&amp;action=edit&amp;redlink=1" class="new" title="1.02inch e-paper Module (page does not exist)">1.02inch e-paper Module</a></li>
+<li><a href="/wiki/E-Paper_Driver_HAT" title="E-Paper Driver HAT">e-Paper Driver HAT</a></li>
+<li><a href="/wiki/EINK-DISP-103" title="EINK-DISP-103">EINK-DISP-103</a></li>
+<li><a href="/wiki/E-Paper_Shield" title="E-Paper Shield">E-Paper Shield</a></li>
+<li><a href="/wiki/E-Paper_ESP8266_Driver_Board" title="E-Paper ESP8266 Driver Board">e-Paper ESP8266 Driver Board</a></li>
+<li><a href="/wiki/E-Paper_ESP32_Driver_Board" title="E-Paper ESP32 Driver Board">E-Paper ESP32 Driver Board</a></li></ul>
+</td></tr></tbody></table>
+</td></tr></tbody></table>
+<div class="tabber">
+<div class="tabbertab" title="Introduction">
+<div id="toc" class="toc" role="navigation" aria-labelledby="mw-toc-heading"><input type="checkbox" role="button" id="toctogglecheckbox" class="toctogglecheckbox" style="display:none" /><div class="toctitle" lang="en" dir="ltr"><h2 id="mw-toc-heading">Contents</h2><span class="toctogglespan"><label class="toctogglelabel" for="toctogglecheckbox"></label></span></div>
+<ul>
+<li class="toclevel-1 tocsection-1"><a href="#Overview"><span class="tocnumber">1</span> <span class="toctext">Overview</span></a>
+<ul>
+<li class="toclevel-2 tocsection-2"><a href="#Version"><span class="tocnumber">1.1</span> <span class="toctext">Version</span></a></li>
+<li class="toclevel-2 tocsection-3"><a href="#Parameters"><span class="tocnumber">1.2</span> <span class="toctext">Parameters</span></a></li>
+<li class="toclevel-2"><a href="#Communication_Method"><span class="tocnumber">1.3</span> <span class="toctext">Communication Method</span></a></li>
+<li class="toclevel-2"><a href="#Operating_Principle"><span class="tocnumber">1.4</span> <span class="toctext">Operating Principle</span></a></li>
+<li class="toclevel-2 tocsection-4"><a href="#Program_Principle"><span class="tocnumber">1.5</span> <span class="toctext">Program Principle</span></a></li>
+<li class="toclevel-2"><a href="#Precautions"><span class="tocnumber">1.6</span> <span class="toctext">Precautions</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1"><a href="#Working_With_Raspberry_Pi"><span class="tocnumber">2</span> <span class="toctext">Working With Raspberry Pi</span></a>
+<ul>
+<li class="toclevel-2"><a href="#Hardware_Connection"><span class="tocnumber">2.1</span> <span class="toctext">Hardware Connection</span></a></li>
+<li class="toclevel-2"><a href="#Disable_SPI_Interface"><span class="tocnumber">2.2</span> <span class="toctext">Disable SPI Interface</span></a></li>
+<li class="toclevel-2"><a href="#C"><span class="tocnumber">2.3</span> <span class="toctext">C</span></a></li>
+<li class="toclevel-2"><a href="#Python"><span class="tocnumber">2.4</span> <span class="toctext">Python</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1"><a href="#Working_With_Arduino"><span class="tocnumber">3</span> <span class="toctext">Working With Arduino</span></a>
+<ul>
+<li class="toclevel-2"><a href="#Hardware_Connection_2"><span class="tocnumber">3.1</span> <span class="toctext">Hardware Connection</span></a></li>
+<li class="toclevel-2"><a href="#Install_IDE"><span class="tocnumber">3.2</span> <span class="toctext">Install IDE</span></a></li>
+<li class="toclevel-2"><a href="#Run_The_Demo"><span class="tocnumber">3.3</span> <span class="toctext">Run The Demo</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1"><a href="#Working_With_Jetson_Nano"><span class="tocnumber">4</span> <span class="toctext">Working With Jetson Nano</span></a>
+<ul>
+<li class="toclevel-2"><a href="#Hardware_Connection_3"><span class="tocnumber">4.1</span> <span class="toctext">Hardware Connection</span></a></li>
+<li class="toclevel-2"><a href="#C_2"><span class="tocnumber">4.2</span> <span class="toctext">C</span></a></li>
+<li class="toclevel-2"><a href="#Python_2"><span class="tocnumber">4.3</span> <span class="toctext">Python</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1"><a href="#Working_With_RDK_X3"><span class="tocnumber">5</span> <span class="toctext">Working With RDK X3</span></a>
+<ul>
+<li class="toclevel-2"><a href="#Hardware_Connection_4"><span class="tocnumber">5.1</span> <span class="toctext">Hardware Connection</span></a></li>
+<li class="toclevel-2"><a href="#Enable_SPI"><span class="tocnumber">5.2</span> <span class="toctext">Enable SPI</span></a></li>
+<li class="toclevel-2"><a href="#Python_3"><span class="tocnumber">5.3</span> <span class="toctext">Python</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1"><a href="#Working_With_STM32"><span class="tocnumber">6</span> <span class="toctext">Working With STM32</span></a>
+<ul>
+<li class="toclevel-2"><a href="#Hardware_Connection_5"><span class="tocnumber">6.1</span> <span class="toctext">Hardware Connection</span></a></li>
+<li class="toclevel-2"><a href="#Run_The_Program"><span class="tocnumber">6.2</span> <span class="toctext">Run The Program</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1"><a href="#ESP32.2F8266"><span class="tocnumber">7</span> <span class="toctext">ESP32/8266</span></a>
+<ul>
+<li class="toclevel-2"><a href="#ESP32"><span class="tocnumber">7.1</span> <span class="toctext">ESP32</span></a></li>
+<li class="toclevel-2"><a href="#ESP8266"><span class="tocnumber">7.2</span> <span class="toctext">ESP8266</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-5"><a href="#Resources"><span class="tocnumber">8</span> <span class="toctext">Resources</span></a>
+<ul>
+<li class="toclevel-2 tocsection-6"><a href="#Documentation"><span class="tocnumber">8.1</span> <span class="toctext">Documentation</span></a></li>
+<li class="toclevel-2 tocsection-7"><a href="#Demo"><span class="tocnumber">8.2</span> <span class="toctext">Demo</span></a></li>
+<li class="toclevel-2 tocsection-8"><a href="#Development_Resources"><span class="tocnumber">8.3</span> <span class="toctext">Development Resources</span></a></li>
+<li class="toclevel-2 tocsection-9"><a href="#Third_Parties_Examples"><span class="tocnumber">8.4</span> <span class="toctext">Third Parties Examples</span></a></li>
+<li class="toclevel-2 tocsection-10"><a href="#Related_Links"><span class="tocnumber">8.5</span> <span class="toctext">Related Links</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-11"><a href="#FAQ"><span class="tocnumber">9</span> <span class="toctext">FAQ</span></a>
+<ul>
+<li class="toclevel-2"><a href="#Questions_about_Software"><span class="tocnumber">9.1</span> <span class="toctext">Questions about Software</span></a></li>
+<li class="toclevel-2"><a href="#Questions_about_Hardware"><span class="tocnumber">9.2</span> <span class="toctext">Questions about Hardware</span></a></li>
+<li class="toclevel-2"><a href="#Questions_about_Screen"><span class="tocnumber">9.3</span> <span class="toctext">Questions about Screen</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-12"><a href="#Support"><span class="tocnumber">10</span> <span class="toctext">Support</span></a></li>
+</ul>
+</div>
+
+<h1><span class="mw-headline" id="Overview">Overview</span></h1>
+<h2><span class="mw-headline" id="Version">Version</span></h2>
+<p><font color="#DD1223">
+</font></p><font color="#DD1223">
+<ul><li>V2: Compared with the old version, in addition to the chip and driver, other appearance and function are compatible. If you are the first time to purchase it and there is a V2 label behind the screen, you can directly use V2 demo.</li>
+<li>V1: use V1 demo.</li></ul>
+</font><p><font color="#DD1223"></font>
+
+</p>
+<h2><span class="mw-headline" id="Parameters">Parameters</span></h2>
+<table border="1;" style="border:#dddddd; width:600px; line-height:200%" align="center">
+
+<tbody><tr style="background:white; color:black;" align="center">
+<td>Dimensions</td>
+<td>4.2inch
+</td></tr>
+<tr style="background:#efefef; color:black;" align="center">
+<td>Driver board dimensions</td>
+<td>103.0mm × 78.5mm
+</td></tr>
+<tr style="background:white; color:black;" align="center">
+<td>Display dimensions</td>
+<td>84.8mm × 63.6mm
+</td></tr>
+<tr style="background:#efefef; color:black;" align="center">
+<td>Outline dimensions (screen only)</td>
+<td>91mm × 77mm × 1.05mm
+</td></tr>
+<tr style="background:white; color:black;" align="center">
+<td>Operating voltage</td>
+<td>3.3V / 5V (IO level voltage must be consistent with the supply voltage)
+</td></tr>
+<tr style="background:#efefef; color:black;" align="center">
+<td>Communication interface</td>
+<td>SPI
+</td></tr>
+<tr style="background:white; color:black;" align="center">
+<td>Dot pitch</td>
+<td>0.212mm × 0.212mm
+</td></tr>
+<tr style="background:#efefef; color:black;" align="center">
+<td>Resolution</td>
+<td>400 × 300
+</td></tr>
+<tr style="background:white; color:black;" align="center">
+<td>Display color</td>
+<td>Black, White, Red
+</td></tr>
+<tr style="background:#efefef; color:black;" align="center">
+<td>Grey scale</td>
+<td>2
+</td></tr>
+<tr style="background:white; color:black;" align="center">
+<td>Refresh time</td>
+<td>15s
+</td></tr>
+<tr style="background:#efefef; color:black;" align="center">
+<td>Refresh power consumption</td>
+<td>38.4mW（typ.）
+</td></tr>
+<tr style="background:white; color:black;" align="center">
+<td>Standby current</td>
+<td>&lt; 0.01uA (almost 0)
+</td></tr>
+<tr style="background:#efefef; color:black;" align="center">
+<td>Operating temperature</td>
+<td>0 ~ 40 ℃
+</td></tr>
+<tr style="background:white; color:black;" align="center">
+<td>Storage temperature</td>
+<td>-25 ~ 60 ℃
+</td></tr></tbody></table>
+<ul><li>Refresh time: The refresh time is the experimental results, the actual refresh time will have errors, and the actual effect shall prevail. There will be a flickering effect during the global refresh process, this is a normal phenomenon.</li>
+<li>Refresh power consumption: The power consumption data is the experimental results. The actual power consumption will have a certain error due to the existence of the driver board and the actual use situation. The actual effect shall prevail.</li>
+<li>The display color may be biased when refreshing in a low temperature environment, and it needs to be refreshed after 6 hours of rest at 25°C.</li></ul>
+<div class="toccolours mw-collapsible mw-collapsed">
+<h2><span class="mw-headline" id="Communication_Method">Communication Method</span></h2>
+<div class="mw-collapsible-content">
+<p><a href="/wiki/File:4.37inch-e-paper-manual-2.jpg" class="image"><img alt="4.37inch-e-paper-manual-2.jpg" src="/w/upload/thumb/d/df/4.37inch-e-paper-manual-2.jpg/700px-4.37inch-e-paper-manual-2.jpg" decoding="async" loading="lazy" width="700" height="313" srcset="/w/upload/d/df/4.37inch-e-paper-manual-2.jpg 1.5x" /></a><br />
+CSB (CS): Slave chip select signal, active at low level. When it is at low level, the chip is enabled. <br />
+SCL (SCK/SCLK): Serial clock signal. <br />
+D/C (DC): Data/command control signal, write command (Command) when the level is low; write data (Data/parameter) when the level is high. <br />
+SDA (DIN): Serial data signal. <br />
+Timing: CPHL=0, CPOL=0, i.e. SPI mode 0. <br />
+Note: For specific information about SPI communication, you can search for information online on your own.
+</p>
+</div></div>
+<div class="toccolours mw-collapsible mw-collapsed">
+<h2><span class="mw-headline" id="Operating_Principle">Operating Principle</span></h2>
+<div class="mw-collapsible-content">
+<p>The e-paper used in this product uses "microcapsule electrophoresis display" technology for image display. The basic principle is that charged nanoparticles suspended in a liquid migrate under the action of an electric field. The e-paper display screen displays patterns by reflecting ambient light and does not require a backlight. Under ambient light, the e-paper display screen is clearly visible, with a viewing angle of almost 180°. Therefore, e-paper displays are ideal for reading.
+</p>
+</div></div>
+<h2><span class="mw-headline" id="Program_Principle">Program Principle</span></h2>
+<ul><li>We define the pixels in a monochrome picture, 0 is black and 1 is white.<br />
+<ul><li>White: □, Bit 1<br /></li>
+<li>Black: ■, Bit 0<br /></li></ul></li>
+<li>The dot in the figure is called a pixel. As we know, 1 and 0 are used to define the color, therefore we can use one bit to define the color: 1pixel = 1bit, and 1 byte = 8pixels<br /></li>
+<li>For example, If we set the first 8 pixels to black and the last 8 pixels to white, we show it by codes, The pixels 1-16 correspond to the 0 to 15 bits, with 0 representing black and 1 representing white, they will be 16-bit as below:<br /></li></ul>
+<p><a href="/wiki/File:E-paper_hardware_work_1.png" class="image"><img alt="E-paper hardware work 1.png" src="/w/upload/6/67/E-paper_hardware_work_1.png" decoding="async" loading="lazy" width="488" height="77" /></a><br />
+</p>
+<ul><li>For a computer, its data storage method is high-order first, low-order later, and a byte has only 8 bits, so there will be a little change:<br /></li></ul>
+<p><a href="/wiki/File:E-paper_hardware_work_2.png" class="image"><img alt="E-paper hardware work 2.png" src="/w/upload/f/fd/E-paper_hardware_work_2.png" decoding="async" loading="lazy" width="488" height="96" /></a><br />
+</p>
+<ul><li>In this way, only 2 bytes are needed to represent 16 pixels.</li>
+<li>For 4.2inch e-paper B, which is red, black, and white, we need to split the picture into two pictures, one black and white picture, one red and white picture, because during transmission one register controls black and white display and one register control red and white display. 1 byte in the black and white part controls 8 pixels, 1 byte in the red and white part controls 8 pixels</li>
+<li>Suppose there are 8 pixels, the front 4 are red, and the back 4 are black. Then you need to split them into 2 pictures: a black and white picture, a red and white picture. These two pictures are 8 pixels, but the first 4 pixels of the black and white picture are white, and the last 4 pixels are black, while the first 4 pixels of the red and white picture are red, and the last four pixels are white.</li></ul>
+<p><a href="/wiki/File:2.13inch-epPaer-B-pixels.png" class="image"><img alt="2.13inch-epPaer-B-pixels.png" src="/w/upload/5/5e/2.13inch-epPaer-B-pixels.png" decoding="async" loading="lazy" width="583" height="165" /></a>
+</p>
+<ul><li>If we stipulate that white is stored as 1, and red or black is stored as 0, then we have the following representation:</li></ul>
+<p><a href="/wiki/File:2.13inch-epPaer-B-pixels-2.png" class="image"><img alt="2.13inch-epPaer-B-pixels-2.png" src="/w/upload/c/cb/2.13inch-epPaer-B-pixels-2.png" decoding="async" loading="lazy" width="556" height="170" /></a>
+</p>
+<ul><li>And 1 byte of the black and white part controls 8 pixels, and 1 byte of the red and white part controls 8 pixels, then it can be expressed as follows:</li></ul>
+<p><a href="/wiki/File:2.13inch-epPaer-B-pixels-3.png" class="image"><img alt="2.13inch-epPaer-B-pixels-3.png" src="/w/upload/1/15/2.13inch-epPaer-B-pixels-3.png" decoding="async" loading="lazy" width="555" height="346" /></a>
+</p>
+<h2><span class="mw-headline" id="Precautions">Precautions</span></h2>
+<ol><li><font color="#FF0000">For e-Paper displays that support partial refresh, please note that you cannot refresh them with the partial refresh mode all the time. After refreshing partially several times, you need to fully refresh EPD once. Otherwise, the display effect will be abnormal.</font><br /></li>
+<li>It is a normal phenomenon that the three-color or multi-color EPD will have a certain color difference in different batches. Hence, it is recommended to use the program to clear all the pictures on the EPD and store it facing up. Please clear the screen several times before powering on.</li>
+<li><font color="#FF0000">Note that the screen cannot be powered on for a long time. When the screen is not refreshed, please set the screen to sleep mode or power off it. Otherwise, the screen will remain in a high voltage state for a long time, which will damage the e-Paper and cannot be repaired!</font><br /></li>
+<li><font color="#FF0000">When using the e-Paper display, it is recommended that the refresh interval be at least 180s, and refresh at least once every 24 hours. If the e-Paper is not used for a long time, you should use the program to clear the screen before storing it. (Refer to the datasheet for specific storage environment requirements.)<br /></font></li><font color="#FF0000">
+</font><li><font color="#FF0000">After the screen enters sleep mode, the sent image data will be ignored, and it can be refreshed normally only after initializing again.</font><br /></li>
+<li>Control the 0x3C or 0x50 (refer to the datasheet for details) register to adjust the border color. In the demo, you can adjust the Border Waveform Control register or VCOM AND DATA INTERVAL SETTING to set the border.<br /></li>
+<li>If you find that the created image data is displayed incorrectly on the screen, it is recommended to check whether the image size setting is correct, change the width and height settings of the image and try again.<br /></li>
+<li>The working voltage of the e-Paper display is 3.3V. If you buy the raw panel, you need to add a level convert circuit for compatibility with 5V voltage. The new version of the driver board (V2.1 and subsequent versions) has added a level processing circuit, which can support both 3.3V and 5V. The old version only supports a 3.3V working environment. You can confirm the version before using it. (The version number is under the board name.)<br /></li>
+<li><font color="#FF0000">The FPC cable of the screen is fragile, Please note: Do not bend the cable along the vertical direction of the screen to avoid tearing the cable; Do not repeatedly excessive bending the cable, to avoid the cable fracture; Do not bend the cable toward the front of the screen to avoid the cable from being disconnected from the panel. It is recommended to use fixed wiring during debugging and development.</font><br /></li>
+<li><font color="#FF0000">The screen of e-Paper is relatively fragile, please try to avoid dropping, bumping and pressing hard.</font><br /></li>
+<li>We recommend that customers use the sample program provided by us to test with the corresponding development board.<br /></li></ol>
+<h1><span class="mw-headline" id="Working_With_Raspberry_Pi">Working With Raspberry Pi</span></h1>
+<h2><span class="mw-headline" id="Hardware_Connection">Hardware Connection</span></h2>
+<p>When connecting the Raspberry Pi, you can directly insert the board into the 40PIN pin header of the Raspberry Pi, and pay attention to the correct pins.<br />
+If you choose to connect with an 8PIN cable, please refer to the pin correspondence table below:<br />
+</p>
+<table border="1;" style="border:#d7e5b9; width:100%; max-width:700px; line-height:200%" align="center">
+<caption>Raspberry Pi Pinout
+</caption>
+<tbody><tr style="background:#7eb128; color:white;" align="center">
+<td rowspan="2">e-Paper
+</td>
+<td colspan="2">Raspberry Pi
+</td></tr>
+<tr style="background:#7eb128; color:white;" align="center">
+<td>BCM2835
+</td>
+<td>Board
+</td></tr>
+<tr align="center">
+<td>VCC</td>
+<td>3.3V</td>
+<td>3.3V
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>GND</td>
+<td>GND</td>
+<td>GND
+</td></tr>
+<tr align="center">
+<td>DIN</td>
+<td>MOSI</td>
+<td>19
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>CLK</td>
+<td>SCLK</td>
+<td>23
+</td></tr>
+<tr align="center">
+<td>CS</td>
+<td>CE0</td>
+<td>24
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>DC</td>
+<td>25</td>
+<td>22
+</td></tr>
+<tr align="center">
+<td>RST</td>
+<td>17</td>
+<td>11
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>BUSY</td>
+<td>24</td>
+<td>18
+</td></tr></tbody></table>
+<h2><span class="mw-headline" id="Disable_SPI_Interface">Disable SPI Interface</span></h2>
+<ul><li>Open the Raspberry Pi terminal and input the following commands to enter the configuration interface:</li></ul>
+<pre>sudo raspi-config
+Select Interfacing Options -&gt; SPI -&gt; No to enable the SPI interface
+</pre>
+<p><a href="/wiki/File:12.48_spi03.jpg" class="image"><img alt="12.48 spi03.jpg" src="/w/upload/8/80/12.48_spi03.jpg" decoding="async" loading="lazy" width="551" height="258" /></a><br />
+<a href="/wiki/File:12.48_spi.jpg" class="image"><img alt="12.48 spi.jpg" src="/w/upload/c/c6/12.48_spi.jpg" decoding="async" loading="lazy" width="603" height="253" /></a><br />
+<a href="/wiki/File:12.48_spi02.jpg" class="image"><img alt="12.48 spi02.jpg" src="/w/upload/4/4e/12.48_spi02.jpg" decoding="async" loading="lazy" width="450" height="291" /></a><br />
+</p>
+<ul><li>Reboot the Raspberry Pi:</li></ul>
+<pre>sudo reboot
+</pre>
+<h2><span class="mw-headline" id="C">C</span></h2>
+<ul><li>Install lg library</li></ul>
+<pre>#Open the Raspberry Pi terminal and run the following commands: 
+wget https://github.com/joan2937/lg/archive/master.zip
+unzip master.zip
+cd lg-master
+make
+sudo make install
+#For more details, you can refer to the source code: https://github.com/gpiozero/lg
+</pre>
+<ul><li>Install gpiod library (Optional)</li></ul>
+<pre>#Open the Raspberry Pi terminal and run the following commands: 
+sudo apt-get update
+sudo apt install gpiod libgpiod-dev
+</pre>
+<ul><li>Install BCM2835</li></ul>
+<pre>#Open the Raspberry Pi terminal and run the following command
+wget http://www.airspayce.com/mikem/bcm2835/bcm2835-1.71.tar.gz
+tar zxvf bcm2835-1.71.tar.gz
+cd bcm2835-1.71/
+sudo ./configure &amp;&amp; sudo make &amp;&amp; sudo make check &amp;&amp; sudo make install
+# For more information, please refer to the official website: http://www.airspayce.com/mikem/bcm2835/
+</pre>
+<ul><li>Install WiringPi (Optional)</li></ul>
+<pre>#Open the Raspberry Pi terminal and run the following command:
+sudo apt-get install wiringpi
+#For Raspberry Pi systems after May 2019 (earlier than before, you may not need to execute), you may need to upgrade:
+wget https://project-downloads.drogon.net/wiringpi-latest.deb
+sudo dpkg -i wiringpi-latest.deb
+gpio -v
+#Run gpio -v and version 2.52 will appear. If it does not appear, the installation is wrong.
+
+#Bullseye branch system use the following command:
+git clone https://github.com/WiringPi/WiringPi
+cd WiringPi
+./build
+gpio -v
+# Run gpio -v and version 2.60 will appear. If it does not appear, it means that there is an installation error.
+</pre>
+<ul><li>Download the demo via GitHub (You can skip this step if you have downloaded it.)</li></ul>
+<pre>git clone https://github.com/waveshare/e-Paper.git
+cd e-Paper/RaspberryPi_JetsonNano/
+</pre>
+<ul><li>Download the demo (You can skip this step if you have downloaded it.)</li></ul>
+<pre>wget https://files.waveshare.com/upload/7/71/E-Paper_code.zip
+unzip E-Paper_code.zip -d e-Paper
+cd e-Paper/RaspberryPi_JetsonNano/
+</pre>
+<ul><li>Compile the demo (Note: -j4 is to compile with 4 threads, the numbers can be modified by yourself; EPD=epd4in2bV2 is to specify a macro definition, and epd4in2bV2 corresponds to the test demo in the main function).</li></ul>
+<pre># Now at e-Paper/RaspberryPi_JetsonNano
+cd c
+sudo make clean
+sudo make -j4 EPD=epd4in2bV2
+</pre>
+<ul><li>Run the demo:</li></ul>
+<pre>sudo ./epd
+</pre>
+<h2><span class="mw-headline" id="Python">Python</span></h2>
+<ul><li>Install the function library:</li></ul>
+<pre>sudo apt-get update
+sudo apt-get install python3-pip
+sudo apt-get install python3-pil
+sudo apt-get install python3-numpy
+sudo pip3 install spidev
+</pre>
+<ul><li>Install function library (python2):</li></ul>
+<pre>sudo apt-get update
+sudo apt-get install python-pip
+sudo apt-get install python-pil
+sudo apt-get install python-numpy
+sudo pip install spidev
+</pre>
+<ul><li>Install gpiozero library (it is installed in the system by default, if not, you can install it by following the commands below)</li></ul>
+<pre>sudo apt-get update
+# python3
+sudo apt install python3-gpiozero
+# python2
+sudo apt install python-gpiozero
+</pre>
+<ul><li>Download the demo via GitHub (You can skip this step if you have downloaded it.)</li></ul>
+<pre>git clone https://github.com/waveshare/e-Paper.git
+cd e-Paper/RaspberryPi_JetsonNano/
+</pre>
+<ul><li>Download the demo (You can skip this step if you have downloaded it.)</li></ul>
+<pre>wget https://files.waveshare.com/upload/7/71/E-Paper_code.zip
+unzip E-Paper_code.zip -d e-Paper
+cd e-Paper/RaspberryPi_JetsonNano/
+</pre>
+<ul><li>Run the demo:</li></ul>
+<pre># Make sure it's in e-Paper/RaspberryPi_JetsonNano/
+cd python/examples/
+python3 epd_4in2b_V2_test.py
+</pre>
+<h1><span class="mw-headline" id="Working_With_Arduino">Working With Arduino</span></h1>
+<h2><span class="mw-headline" id="Hardware_Connection_2">Hardware Connection</span></h2>
+<p>Use an 8PIN cable to connect, please refer to the pin correspondence table below:<br />
+</p>
+<table border="1;" style="border:#7eb128; width:700px; line-height:200%" align="center">
+<caption>Arduino connection pin mapping
+</caption>
+<tbody><tr style="background:#7eb128; color:white;" align="center">
+<td>e-Paper</td>
+<td>Arduino UNO</td>
+<td>Mega2560
+</td></tr>
+<tr align="center">
+<td>VCC</td>
+<td>5V</td>
+<td>5V
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>GND</td>
+<td>GND</td>
+<td>GND
+</td></tr>
+<tr align="center">
+<td>DIN</td>
+<td>D11</td>
+<td>D51
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>CLK</td>
+<td>D13</td>
+<td>D52
+</td></tr>
+<tr align="center">
+<td>CS</td>
+<td>D10</td>
+<td>D10
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>DC</td>
+<td>D9</td>
+<td>D9
+</td></tr>
+<tr align="center">
+<td>RST</td>
+<td>D8</td>
+<td>D8
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>BUSY</td>
+<td>D7</td>
+<td>D7
+</td></tr></tbody></table>
+<h2><span class="mw-headline" id="Install_IDE">Install IDE</span></h2>
+<p><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://www.waveshare.com/wiki/Arduino_ide_download">Arduino IDE Windows Install Guide</a>
+</p>
+<h2><span class="mw-headline" id="Run_The_Demo">Run The Demo</span></h2>
+<ul><li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://files.waveshare.com/upload/7/71/E-Paper_code.zip">Download the demo</a> in Resource, unzip it to the "E-Paper_code" directory, and you can see the following content:</li></ul>
+<p><a href="/wiki/File:Arduinos_Guides_for_4.37_e-Paper_001.jpg" class="image"><img alt="Arduinos Guides for 4.37 e-Paper 001.jpg" src="/w/upload/2/2b/Arduinos_Guides_for_4.37_e-Paper_001.jpg" decoding="async" loading="lazy" width="377" height="120" /></a><br />
+</p>
+<ul><li>Open the test demo: E-Paper_code\Arduino\epd4in2b_V2\epd4in2b_V2.ino</li></ul>
+<p><a href="/wiki/File:Arduinos_Guides_for_4.2invh_b.jpg" class="image"><img alt="Arduinos Guides for 4.2invh b.jpg" src="/w/upload/8/81/Arduinos_Guides_for_4.2invh_b.jpg" decoding="async" loading="lazy" width="324" height="398" /></a><br />
+</p>
+<ul><li>Select the corresponding Board and Port in the Tools in the Arduino IDE.</li></ul>
+<p><a href="/wiki/File:Arduinos_Guides_for_4.37_e-Paper_003.jpg" class="image"><img alt="Arduinos Guides for 4.37 e-Paper 003.jpg" src="/w/upload/8/8f/Arduinos_Guides_for_4.37_e-Paper_003.jpg" decoding="async" loading="lazy" width="356" height="326" /></a><br />
+</p>
+<ul><li>Finally, click upload, the upload is successful as follows (Arduino 1.8.13).</li></ul>
+<p><a href="/wiki/File:Arduinos_Guides_for_4.37_e-Paper_004.jpg" class="image"><img alt="Arduinos Guides for 4.37 e-Paper 004.jpg" src="/w/upload/b/b0/Arduinos_Guides_for_4.37_e-Paper_004.jpg" decoding="async" loading="lazy" width="784" height="316" /></a><br />
+</p>
+<h1><span class="mw-headline" id="Working_With_Jetson_Nano">Working With Jetson Nano</span></h1>
+<h2><span class="mw-headline" id="Hardware_Connection_3">Hardware Connection</span></h2>
+<p>The 40PIN pin of Jetson Nano is compatible with the 40PIN pin of Raspberry Pi and it provides a Jetson.GPIO library with the same API as the RPI.GPIO library of Raspberry Pi, so the serial number connected here is the same as that of Raspberry Pi. The module can be directly inserted into the 40Pin headers of the Jetson Nano when using the 40PIN interface.<br />
+If you choose to connect with an 8PIN cable, please refer to the pin correspondence table below:<br />
+</p>
+<table border="1;" style="border:#d7e5b9; width:100%; max-width:700px; line-height:200%" align="center">
+<caption>Jetson nano connection pin mapping
+</caption>
+<tbody><tr style="background:#7eb128; color:white" align="center">
+<td rowspan="2">e-Paper
+</td>
+<td colspan="2">Jetson Nano Developer Kit
+</td></tr>
+<tr style="background:#7eb128; color:white" align="center">
+<td>BCM2835
+</td>
+<td>Board
+</td></tr>
+<tr align="center">
+<td>VCC</td>
+<td>3.3V</td>
+<td>3.3V
+</td></tr>
+<tr style="background:#ebf2dc; color:black" align="center">
+<td>GND</td>
+<td>GND</td>
+<td>GND
+</td></tr>
+<tr align="center">
+<td>DIN</td>
+<td>10 (SPI0_MOSI)</td>
+<td>19
+</td></tr>
+<tr style="background:#ebf2dc; color:black" align="center">
+<td>CLK</td>
+<td>11 (SPI0_SCK)</td>
+<td>23
+</td></tr>
+<tr align="center">
+<td>CS</td>
+<td>8 (SPI0_CS0)</td>
+<td>24
+</td></tr>
+<tr style="background:#ebf2dc; color:black" align="center">
+<td>DC</td>
+<td>25</td>
+<td>22
+</td></tr>
+<tr align="center">
+<td>RST</td>
+<td>17</td>
+<td>11
+</td></tr>
+<tr style="background:#ebf2dc; color:black" align="center">
+<td>BUSY</td>
+<td>24</td>
+<td>18
+</td></tr></tbody></table>
+<h2><span class="mw-headline" id="C_2">C</span></h2>
+<ul><li>Download the demo via GitHub (you can skip this step if you have downloaded it.)</li></ul>
+<pre>git clone https://github.com/waveshare/e-Paper.git
+cd e-Paper/RaspberryPi_JetsonNano/
+</pre>
+<ul><li>Download the test demo: (you can skip this step if you have downloaded it.)</li></ul>
+<pre>wget https://files.waveshare.com/upload/7/71/E-Paper_code.zip
+unzip E-Paper_code.zip -d e-Paper
+cd e-Paper/RaspberryPi_JetsonNano/
+</pre>
+<ul><li>Alternate method of decompression:</li></ul>
+<pre>sudo apt-get install p7zip-full
+7z x E-Paper_code.zip -O./e-Paper
+cd e-Paper/RaspberryPi_JetsonNano/
+</pre>
+<ul><li>Compile the demo (Note: JETSON is specifying the device as jetson nano, and RPI is not specified by default. -j4 is to compile by 4 threads, and the number can be changed by yourself. "EPD=epd4in2bV2" is to specify a macro definition, and "epd4in2bV2" corresponds to the test demo in the main function.)</li></ul>
+<pre># Now at e-Paper/RaspberryPi_JetsonNano
+cd c
+sudo make clean
+sudo make JETSON -j4 EPD=epd4in2bV2
+</pre>
+<ul><li>Run the demo:</li></ul>
+<pre>sudo ./epd
+</pre>
+<h2><span class="mw-headline" id="Python_2">Python</span></h2>
+<ul><li>Install function library:</li></ul>
+<pre>sudo apt-get update
+sudo apt-get install python3-numpy
+sudo apt-get install python3-pip
+sudo pip3 install Jetson.GPIO
+</pre>
+<ul><li>Download the demo via GitHub (you can skip this step if you have downloaded it.)</li></ul>
+<pre>git clone https://github.com/waveshare/e-Paper.git
+cd e-Paper/RaspberryPi_JetsonNano/
+</pre>
+<ul><li>Download the demo (you can skip this step if you have downloaded it.)</li></ul>
+<pre>wget https://files.waveshare.com/upload/7/71/E-Paper_code.zip
+unzip E-Paper_code.zip -d e-Paper
+cd e-Paper/RaspberryPi_JetsonNano/
+</pre>
+<ul><li>Run the demo:</li></ul>
+<pre># Make sure it's in e-Paper/RaspberryPi_JetsonNano/
+cd python/examples/
+python3 epd_4in2b_V2_test.py
+</pre>
+<h1><span class="mw-headline" id="Working_With_RDK_X3">Working With RDK X3</span></h1>
+<h2><span class="mw-headline" id="Hardware_Connection_4">Hardware Connection</span></h2>
+<p>When connecting the RDK X3, you can directly insert the board into the 40PIN pin header of the RDK X3, and pay attention to the correct pins.<br />
+If you choose to connect with an 8PIN cable, please refer to the pin correspondence table below:<br />
+</p>
+<table border="1;" style="border:#ebf2dc; width:100%; max-width:700px; line-height:200%" align="center">
+<caption>RDK X3 connection pin mapping
+</caption>
+<tbody><tr style="background:#7eb128; color:white" align="center">
+<td rowspan="2">e-Paper
+</td>
+<td colspan="2">RDK X3
+</td></tr>
+<tr style="background:#7eb128; color:white" align="center">
+<td>BCM
+</td>
+<td>Board
+</td></tr>
+<tr align="center">
+<td>VCC</td>
+<td>3.3V</td>
+<td>3.3V
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>GND</td>
+<td>GND</td>
+<td>GND
+</td></tr>
+<tr align="center">
+<td>DIN</td>
+<td>MOSI</td>
+<td>19
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>CLK</td>
+<td>SCLK</td>
+<td>23
+</td></tr>
+<tr align="center">
+<td>CS</td>
+<td>CE0</td>
+<td>24
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>DC</td>
+<td>25</td>
+<td>22
+</td></tr>
+<tr align="center">
+<td>RST</td>
+<td>17</td>
+<td>11
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>BUSY</td>
+<td>24</td>
+<td>18
+</td></tr></tbody></table>
+<h2><span class="mw-headline" id="Enable_SPI">Enable SPI</span></h2>
+<ul><li>SPI is enabled by default. If you have disabled it, you can enable it by following the steps below.</li>
+<li>Enter the command: sudo srpi-config</li></ul>
+<p><a href="/wiki/File:Enable-SPI0.jpg" class="image"><img alt="Enable-SPI0.jpg" src="/w/upload/thumb/9/99/Enable-SPI0.jpg/450px-Enable-SPI0.jpg" decoding="async" loading="lazy" width="450" height="158" srcset="/w/upload/9/99/Enable-SPI0.jpg 1.5x" /></a><br /><a href="/wiki/File:Enable-SPI.jpg" class="image"><img alt="Enable-SPI.jpg" src="/w/upload/1/16/Enable-SPI.jpg" decoding="async" loading="lazy" width="450" height="415" /></a><br />
+<a href="/wiki/File:Enable-SPI2.jpg" class="image"><img alt="Enable-SPI2.jpg" src="/w/upload/6/65/Enable-SPI2.jpg" decoding="async" loading="lazy" width="450" height="257" /></a><br />
+</p>
+<h2><span class="mw-headline" id="Python_3">Python</span></h2>
+<ul><li>The corresponding library has been installed in the function. If you uninstall it accidentally, please use the following command to install it.</li></ul>
+<pre>sudo apt-get update
+sudo apt-get install python-pip
+sudo apt-get install python-pil
+sudo apt-get install python-numpy
+sudo pip install Hobot.GPIO
+sudo pip install spidev
+</pre>
+<ul><li>Download the demo via GitHub (skip this step if you have downloaded it).</li></ul>
+<pre>git clone https://github.com/waveshare/e-Paper.git
+cd e-Paper/RaspberryPi_JetsonNano/
+</pre>
+<ul><li>Download the demo (skip this step if you have downloaded it).</li></ul>
+<pre>wget https://files.waveshare.com/upload/7/71/E-Paper_code.zip
+unzip E-Paper_code.zip -d e-Paper
+cd e-Paper/RaspberryPi_JetsonNano/
+</pre>
+<ul><li>Alternate method of decompression:</li></ul>
+<pre>sudo apt-get install p7zip-full
+7z x E-Paper_code.zip -O./e-Paper
+cd e-Paper/RaspberryPi_JetsonNano/
+</pre>
+<ul><li>Run the demo:</li></ul>
+<pre># Make sure you are in e-Paper/RaspberryPi_JetsonNano/
+cd python/examples/
+python3 epd_4in2b_V2_test.py
+</pre>
+<h1><span class="mw-headline" id="Working_With_STM32">Working With STM32</span></h1>
+<h2><span class="mw-headline" id="Hardware_Connection_5">Hardware Connection</span></h2>
+<table border="1;" style="border:#7eb128; width:100%; max-width:700px; line-height:200%" align="center">
+<caption>STM32 Connection pin mapping
+</caption>
+<tbody><tr style="background:#7eb128; color:white;" align="center">
+<td>e-Paper</td>
+<td>STM32
+</td></tr>
+<tr align="center">
+<td>VCC</td>
+<td>3.3V
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>GND</td>
+<td>GND
+</td></tr>
+<tr align="center">
+<td>DIN</td>
+<td>PA7
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>CLK</td>
+<td>PA5
+</td></tr>
+<tr align="center">
+<td>CS</td>
+<td>PA4
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>DC</td>
+<td>PA2
+</td></tr>
+<tr align="center">
+<td>RST</td>
+<td>PA1
+</td></tr>
+<tr style="background:#ebf2dc; color:black;" align="center">
+<td>BUSY</td>
+<td>PA3
+</td></tr></tbody></table>
+<h2><span class="mw-headline" id="Run_The_Program">Run The Program</span></h2>
+<ul><li>Click to download the <a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://files.waveshare.com/upload/7/71/E-Paper_code.zip">demo</a>, and then unzip it into the E-Paper_code directory to see the following content.</li></ul>
+<p><a href="/wiki/File:STM32_for_4.37_e-paper010.jpg" class="image"><img alt="STM32 for 4.37 e-paper010.jpg" src="/w/upload/e/e6/STM32_for_4.37_e-paper010.jpg" decoding="async" loading="lazy" width="264" height="179" /></a><br />
+</p>
+<ul><li>Use Keil to open epd-demo.uvprojx in the E-Paper_code\STM32\STM32-F103ZET6\MDK-ARM directory</li>
+<li>Open Keil's compilation toolbar (usually already open).</li></ul>
+<p><a href="/wiki/File:STM32_for_4.37_e-paper012.jpg" class="image"><img alt="STM32 for 4.37 e-paper012.jpg" src="/w/upload/9/9b/STM32_for_4.37_e-paper012.jpg" decoding="async" loading="lazy" width="508" height="337" /></a><br />
+</p>
+<ul><li>Select the EPD_4in2b_V2_test at the location shown in the picture.</li></ul>
+<p><a href="/wiki/File:STM32_for_4.2_b_e-paper0014.jpg" class="image"><img alt="STM32 for 4.2 b e-paper0014.jpg" src="/w/upload/7/7a/STM32_for_4.2_b_e-paper0014.jpg" decoding="async" loading="lazy" width="513" height="409" /></a><br />
+</p>
+<ul><li>Click to compile.</li></ul>
+<p><a href="/wiki/File:STM32_for_4.37_e-paper014.jpg" class="image"><img alt="STM32 for 4.37 e-paper014.jpg" src="/w/upload/8/83/STM32_for_4.37_e-paper014.jpg" decoding="async" loading="lazy" width="654" height="86" /></a><br />
+</p>
+<ul><li>Make sure the appropriate programmer is connected, then click LOAD to download the demo to the microcontroller.</li></ul>
+<div class="tabbertab" title="Resources">
+<div class="toccolours mw-collapsible mw-collapsed">
+<h1><span id="ESP32/8266"></span><span class="mw-headline" id="ESP32.2F8266">ESP32/8266</span></h1>
+<div class="mw-collapsible-content">
+<h2><span class="mw-headline" id="ESP32">ESP32</span></h2>
+<p>There is a lot of content, please click <a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://www.waveshare.com/wiki/E-Paper_ESP32_Driver_Board">here</a> to view.
+</p>
+<h2><span class="mw-headline" id="ESP8266">ESP8266</span></h2>
+<p>There is a lot of content, please click <a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://www.waveshare.com/wiki/E-Paper_ESP8266_Driver_Board">here</a> to view.
+</p>
+</div>
+<h1><span class="mw-headline" id="Resources">Resources</span></h1>
+<h2><span class="mw-headline" id="Documentation">Documentation</span></h2>
+<ul><li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://files.waveshare.com/wiki/4.2inch%20e-Paper%20Module%20(B)/4.2inch%20e-Paper%20(B)%20V2.pdf">4.2inch e-Paper (B) V2 Datasheet</a>(Current version)</li>
+<li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://files.waveshare.com/upload/7/7f/4.2inch-e-paper-b-specification.pdf">4.2inch e-Paper (B) V2 Old Datasheets</a></li>
+<li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://files.waveshare.com/upload/9/97/4.2inch_e-Paper_Schematic.pdf">Schematic</a></li></ul>
+<h2><span class="mw-headline" id="Demo">Demo</span></h2>
+<ul><li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://files.waveshare.com/wiki/common/E-Paper_code.zip">Demo (zip file)</a></li>
+<li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://github.com/waveshare/e-Paper">GitHub</a></li></ul>
+<h2><span class="mw-headline" id="Development_Resources">Development Resources</span></h2>
+<ul><li><a href="/wiki/E-Paper_Floyd-Steinberg" title="E-Paper Floyd-Steinberg">E-Paper Floyd-Steinberg</a></li>
+<li><a href="/wiki/E-Paper_API_Analysis" title="E-Paper API Analysis">E-Paper API Analysis</a></li>
+<li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://files.waveshare.com/upload/c/c6/Zimo221.7z">Zimo221.7z </a></li>
+<li><a href="/wiki/Ink_Screen_Font_Library_Tutorial" title="Ink Screen Font Library Tutorial">e-Paper Font Library Tutorial</a></li>
+<li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://files.waveshare.com/upload/3/36/Image2Lcd.7z">Image2Lcd.7z</a></li>
+<li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://www.waveshare.com/wiki/Image2Lcd_Image_Bitmap_Conversion">Image2Lcd Image Bitmap Conversion</a></li>
+<li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://www.waveshare.com/wiki/Template:2.13inch_e-Paper_HAT%2B_Pwn">pwnagotchi Usage</a></li></ul>
+<h2><span class="mw-headline" id="Third_Parties_Examples">Third Parties Examples</span></h2>
+<ul><li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://github.com/aceisace/Inkycal">Inkycal Project</a></li></ul>
+<dl><dd>This is the Inkycal project for reference.</dd></dl>
+<ul><li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://www.tindie.com/products/aceinnolab/inkycal-build-v3/">Inkycal</a></li></ul>
+<h2><span class="mw-headline" id="Related_Links">Related Links</span></h2>
+<ul><li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://www.waveshare.com/wiki/Raspberry_Pi_Documentation">Raspberry Pi Documentation</a></li>
+<li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://github.com/aceinnolab/Inkycal">e-Paper Dashboard</a></li>
+<li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://github.com/Quectel-Pi/demo-inkscreen-reader">Quectel-Pi e-Paper Reader</a></li>
+<li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://github.com/mmolhoek/papertrail">GPS Tracker</a></li>
+<li><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://github.com/tuya/TuyaOpen">TuyaOpen e-Paper Driver</a></li></ul>
+<h1><span class="mw-headline" id="FAQ">FAQ</span></h1>
+<h2><span class="mw-headline" id="Questions_about_Software">Questions about Software</span></h2>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion1">
+								Question: The Raspberry Pi runs the Python demo and the following occurs?<br />
+</a><a href="/wiki/File:Epaper-hat077.jpg" class="image"><img alt="Epaper-hat077.jpg" src="/w/upload/c/ce/Epaper-hat077.jpg" decoding="async" loading="lazy" width="600" height="80" /></a>
+
+							
+						</h4>
+					</div>
+					<div id="accordion1" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>Enter the command: ls /dev/spi*.</li>
+<li>The result may appear as shown in the figure.</li></ul>
+<p><a href="/wiki/File:2.36inch_e-paper_Hat_FAQ02.jpg" class="image"><img alt="2.36inch e-paper Hat FAQ02.jpg" src="/w/upload/1/1e/2.36inch_e-paper_Hat_FAQ02.jpg" decoding="async" loading="lazy" width="350" height="41" /></a><br />
+</p>
+<ul><li>This is because the SPI interface is occupied in the /boot/config.txt file.</li></ul>
+<p><a href="/wiki/File:2.36inch_e-paper_Hat_FAQ03.jpg" class="image"><img alt="2.36inch e-paper Hat FAQ03.jpg" src="/w/upload/8/80/2.36inch_e-paper_Hat_FAQ03.jpg" decoding="async" loading="lazy" width="421" height="106" /></a><br />
+</p>
+<ul><li>Steps:
+<ul><li>Delete the occupation of spi0-0 in the /boot/config.txt file.</li>
+<li>Modify the location shown in the picture in the /e-Paper/RaspberryPi_JetsonNano/lib/waveshare_epd/epdconfig.py file and change it to 0,1.</li>
+<li><a href="/wiki/File:2.36inch_e-paper_Hat_FAQ04.jpg" class="image"><img alt="2.36inch e-paper Hat FAQ04.jpg" src="/w/upload/4/43/2.36inch_e-paper_Hat_FAQ04.jpg" decoding="async" loading="lazy" width="600" height="121" /></a><br /></li></ul></li></ul>
+</div>
+<div style="display:none;"></div>
+<div style="display:none;"></div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion2">
+								Question: How to use custom fonts?
+							</a>
+						</h4>
+					</div>
+					<div id="accordion2" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>Currently, we do not provide additional font files. You may refer to the custom font generator shared by users to generate and test font files.</li>
+<li>Note: This tool is not officially maintained and is for learning purposes only.
+<ul><li><a target="_blank" rel="nofollow noreferrer noopener" class="external free" href="https://github.com/ayoy/fontedit">https://github.com/ayoy/fontedit</a></li></ul></li></ul>
+</div>
+<div style="display:none;"></div>
+<div style="display:none;"></div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion3">
+								Question: STM32 drives the e-Paper screen, the MDK compilation display space is not enough?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion3" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>Our demo uses STM32f103ZET6. If the customer modifies other models in MDK, such as STM32F103RBT6, the RAM space becomes smaller, and the stack size and heap size in the startup file need to be modified on the original basis.</li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion4">
+								Question: Questions about data sheet. When does the font transmit Data Start Transmission 1, and when does it use Data Start Transmission 2?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion4" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>When transmitting B/W data, use Data Start Transmission 1; When transmitting RED data, use Data Start Transmission 2.</li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p><p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion5">
+								Question: e-Paper shows black border?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion5" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>The border display color can be set through the Border Waveform Control register or the VCOM AND DATA INTERVAL SETTING register.</li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p><p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion6">
+								Question: After multiple positions are partially refreshed, the font is lighter after refreshing several times?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion6" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>In this case, the customer needs to reduce the position of the partial refresh and clear the screen after 5 rounds of partial refreshing (increasing the voltage of VCOM can improve the color, but it will increase the afterimage).</li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion7">
+								Question: When the e-Paper screen is in deep sleep mode, there will be a problem that the screen refresh will not be clean when it wakes up for the first time. How can I solve it?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion7" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>The process of re-awakening the e-Paper screen is actually the process of re-powering. Therefore, when the EPD wakes up, the screen must be cleared first, so as to avoid the afterimage phenomenon to the greatest extent.</li></ul>
+</div>
+<div style="display:none;"></div>
+<div style="display:none;"></div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion8">
+								Question: When testing the program, the program has been stuck in e-Paper busy?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion8" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>It may be caused by the unsuccessful SPI driver.<br />
+<ul><li>1. First check whether the wiring is correct.<br /></li>
+<li>2. Check whether the SPI is enabled and whether the parameters are configured correctly (SPI baud rate, SPI mode and other parameters).<br /></li></ul></li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion9">
+								Question: Why can't the image be displayed when full refreshing after partial refreshing?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion9" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>The full refresh initialization function needs to be added when the e-Paper screen is switched from partial refresh to full refresh.</li></ul>
+</div>
+<div style="display:none;"></div>
+<div style="display:none;"></div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion10">
+								Question: Why is the printing information normal when running a Python program, but the e-Paper screen does not respond?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion10" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>It may be a demo based on the BCM2835 library that has run the C language before. At this time, you need to restart the Raspberry Pi and then run the Python demo.</li></ul>
+</div>
+<div style="display:none;"></div>
+<div style="display:none;"></div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion11">
+								Question: ImportError: No module named Image?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion11" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>Install the imaging library using the command "sudo apt-get install python-imaging".</li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<h2><span class="mw-headline" id="Questions_about_Hardware">Questions about Hardware</span></h2>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion12">
+								Question: Can Arduino 5V drive the e-Paper?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion12" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>Yes, now there is a level conversion chip onboard, supporting a 5V drive.</li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion13">
+								Question: What should be paid attention to when designing the driver board?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion13" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>The rated input voltage of the e-Paper screen is 2.3~3.6V. If it is a 5V system, level conversion is required. In addition, the voltage should not be lower than 2.5V, so as not to affect the display effect of the e-Paper screen.<br /></li>
+<li>Device selection can use the model in the schematic diagram we provide or choose according to the datasheet.<br /></li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion14">
+								Question: Can I use analog SPI?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion14" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>Yes, pay attention to the correct timing.<br /></li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion15">
+								Question: Why is the BUSY pin always busy?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion15" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>Check if SPI communication is normal.<br /></li>
+<li>Confirm whether the BUSY pin is normally initialized to input mode.<br /></li>
+<li>It may be that there is no normal reset, try to shorten the duration of the low level during reset (because the power-off switch is added to the drive circuit, the reset low level is too long, which will cause the drive board to power off and cause the reset to fail).</li>
+<li>If the busy function sends the 0x71 command, you can try to comment it out.<br /></li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion16">
+								Question: What is the specification of the screen cable interface?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion16" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>1.64inch, 2.36inch, 3inch, 0.5mm pitch, 26Pin.</li>
+<li>1.02inch, 0.5mm pitch, 30Pin.</li>
+<li>4.37inch, 7.3inch, 0.5mm pitch, 50Pin.</li>
+<li>The rest (non-parallel ports) are 0.5mm pitch, 24Pin.</li></ul>
+</div>
+<div style="display:none;"></div>
+<div style="display:none;"></div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion17">
+								Question: What type of connector does the e-Paper screen use?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion17" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>Cable socket 0.5-XXpin rear-flip 2.0H (FPC connector).</li></ul>
+</div>
+<div style="display:none;"></div>
+<div style="display:none;"></div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<h2><span class="mw-headline" id="Questions_about_Screen">Questions about Screen</span></h2>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion18">
+								Question: What is the usage environment of the e-Paper screen?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion18" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>【Working conditions】Temperature range: 0~40°C (seven-color screen: 15~35°C); Humidity range: 35%~65%RH.<br /></li>
+<li>【Storage conditions】Temperature range: below 30°C; Humidity range: below 55%RH; Maximum storage time: 6 months.<br /></li>
+<li>【Transportation conditions】Temperature range: -25~50°C; Maximum transportation time: 10 days.<br /></li>
+<li>【After unpacking】Temperature range: 20°C±5°C; Humidity range: 50±5%RH; Maximum storage time: Assemble within 72 hours.<br /></li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion19">
+								Question: Precautions for e-Paper screen refresh?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion19" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>Refresh mode<br />
+<ul><li>Full refresh: The e-Paper screen will flicker several times during the refresh process (the number of flickers depends on the refresh time), and the flicker is to remove the afterimage to achieve the best display effect.<br /></li>
+<li>Partial refresh: The e-Paper screen has no flickering effect during the refresh process. Users who use the partial refreshing function note that after refreshing several times, a <b>full refresh</b> operation should be performed to remove the residual image, otherwise the residual image problem will become more and more serious, or even damage the screen (currently only some black and white e-Paper screens support partial refreshing, please refer to product page description).<br /></li></ul></li>
+<li>Refresh rate<br />
+<ul><li>During use, it is recommended that customers set the refresh interval of the e-Paper screen to at least 180 seconds (except for products that support the partial refresh function).<br /></li>
+<li>During the standby process (that is, after the refresh operation), it is recommended that the customer set the e-Paper screen to sleep mode, or power off (the power supply part of the e-Paper screen can be disconnected with an analog switch) to reduce power consumption and prolong the life of the e-Paper screen. (<b>If some e-Paper screens are powered on for a long time, the screen will be damaged beyond repair.</b>)</li>
+<li>During the use of the three-color e-Paper screen, it is recommended that customers update the display screen at least once every 24 hours (if the screen remains the same screen for a long time, there will be a screen burn that is difficult to repair).<br /></li></ul></li>
+<li>Usage Environment<br />
+<ul><li>The e-Paper displays are recommended for indoor use and not for outdoor use.</li>
+<li>If the usage scenario is outdoors, we do not guarantee the display effect. If the e-Paper screen is damaged due to outdoor use, we do not provide warranty service.</li>
+<li>Here are some protective measures for outdoor use, but we do not guarantee that the e-Paper screen will function normally even after taking these precautions:
+<ul><li>Avoid exposing the e-Paper screen to direct sunlight and ensure UV protection. Prolonged exposure to strong light can dry out the charged particles, rendering them inactive and unable to refresh, which is irreversible.</li>
+<li>Completely cover the white glue part of the e-Paper screen's connection ribbon with 3M tape. Complete coverage and no coverage show different effects under UV light.</li>
+<li>Place the e-Paper screen in relatively shaded areas, such as under trees or the shadow of eaves.</li></ul></li>
+<li>When designing e-Paper screen products, customers should ensure that the usage environment meets the requirements of the e-Paper screen.</li></ul></li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion20">
+								Question: What is the refresh rate/lifetime of the e-Paper screen?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion20" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>Ideally, with normal use, it can be refreshed 1,000,000 times (1 million times).</li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion21">
+								Question: After using for a while, the screen refresh (full refresh) has a serious afterimage problem that cannot be repaired?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion21" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>Power on the development board for a long time, after each refresh operation, it is recommended to set the screen to sleep mode or directly power off, otherwise, the screen may burn out when the screen is in a high voltage state for a long time.</li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion22">
+								Question: After the e-Paper screen enters deep sleep mode, can it be refreshed again?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion22" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>Yes, but you need to re-initialize the electronic paper with software.</li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion23">
+								Question: Why is the image displayed offset?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion23" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>Maybe the SPI rate is too high, resulting in data loss, try to reduce the SPI rate.<br /></li>
+<li>Insufficient or unstable power supply leads to data loss.<br /></li>
+<li>The data cable is so long to cause data loss, the extension cable should not exceed 20cm.<br /></li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion24">
+								Question: What is the waveform file of the e-Paper screen and what does it do?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion24" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>The display gray scale of electrophoretic electronic paper is determined by the spatial position of the particles in the Microcapsule or Microcup. The electrophoresis phenomenon occurs between black particles and white particles under the action of voltage. This voltage sequence that promotes the electrophoretic movement of the particles is the driving waveform of the electronic paper. The driving waveform is the core part of the electronic paper display, and the optimization of the driving waveform will directly affect the display effect of the display. The driving waveform file is used to describe the parameters formed by the voltage sequence that promotes the electrophoretic movement of the particles, and it needs to be called regularly when the electronic paper is refreshed.<br /></li>
+<li>For different batches of e-Paper diaphragms, electrophoretic matrices require different voltage values ​​when driving the display due to materials, manufacturing processes, etc. The waveform of the e-Paper screen is reflected in the relationship between grayscale, voltage and temperature. Generally speaking, after each batch of electrophoresis matrix is ​​generated, there will be a corresponding waveform file in the form of a .wbf file. The film manufacturer will provide the waveform file and electrophoresis matrix to the manufacturer of the e-Paper screen, and then the manufacturer of the e-Paper screen integrates the protection board, substrate and driver and then provides it to customers; if the waveform file does not correspond to the screen, it is likely that the display cannot be displayed or the display effect is unsatisfactory. Generally, the waveform file has OTP built into the driver IC of the e-Paper screen when leaving the factory, and some programs we provide also called external waveform files to drive the e-Paper screen.</li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion25">
+								Question:  What do LUT and OTP stand for?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion25" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>LUT is the abbreviation of LOOK UP TABLE, and OTP is the abbreviation of ONE TIME PROGRAM. The original intention of LUT is to load waveform files, and the waveform files are divided into OTP and REGISTER. Among them, OTP is the built-in waveform storage method, and REGISTER is the external waveform storage method.</li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion26">
+								Question: What is the process of partial refreshing?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion26" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>There are mainly two types of e-Paper screens.<br />
+<ul><li>One is to refresh the background image first.<br /></li>
+<li>The other is to alternately refresh old data and new data.<br /></li></ul></li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion27">
+								Question: How to partially refresh in different positions at the same time?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion27" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>Simultaneous partial refreshing in different locations needs to be operated in the program design, that is, first refreshing the data of different locations into the electronic paper IC, and finally doing the Update/TurnOnDisplay uniformly.</li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion28">
+								Question:  Does the three-color e-Paper have a red/yellow color difference?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion28" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>Yes, when the e-Paper is batched, there will be some color difference, which is a normal phenomenon. Store the e-Paper faces up to reduce the reddish/yellowishness to a certain extent.</li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion29">
+								Question:  Are bare screens shipped with a film?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion29" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>With film.</li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<div class="panel-group">
+				<div class="panel panel-default">
+					<div class="panel-heading">
+						<h4 class="panel-title">
+							<a data-toggle="collapse" data-parent="#accordion" href="#accordion30">
+								Question:  Does e-Paper have a built-in temperature sensor?
+
+							</a>
+						</h4>
+					</div>
+					<div id="accordion30" class="panel-collapse collapse in">
+						<div class="panel-body">
+<div>&#160;<b>Answer:</b></div>
+<div>
+<ul><li>At present, all screens have built-in temperature sensors, and you can also use IIC pins external LM75 temperature sensor.</li></ul>
+</div>
+<div style="display:none;">{{{3}}}</div>
+<div style="display:none;">{{{4}}}</div>
+<p><font color="red" style="display:none;">{{{5}}}</font>
+</p>
+						</div>
+					</div>
+				</div>
+</div>
+<p><br />
+</p>
+<h1><span class="mw-headline" id="Support">Support</span></h1>
+<p><br />
+<br />
+</p>
+<div style="background:linear-gradient(to bottom right,#91C942,#7DB036); border-radius:15px; width:100%;min-width:750px;">
+<div style="display:flex;flex-direction: row;align-items: flex-start;">
+<div style="flex:l; font-size:15px; width:70%; margin-top:20px; margin-bottom:20px; margin-right:40px;padding-left:40px;">
+<p style="font-size:20px; font-weight:bold;">
+Technical Support
+</p>
+<p>
+If you need technical support or have any feedback/review, please click the <b>Submit Now</b> button to submit a ticket, Our support team will check and reply to you within 1 to 2 working days. Please be patient as we make every effort to help you to resolve the issue. 
+<br /> 
+Working Time: 9 AM - 6 PM GMT+8 (Monday to Friday)
+</p>
+</div>
+<div style="margin-top:94px;">
+<div id="service" style="display:flex; flex:r; background-color:#393939; color:white; text-align:center; font-size:20px; border-radius:20px;">
+<p><a target="_blank" rel="nofollow noreferrer noopener" class="external text" href="https://service.waveshare.com/">Submit Now</a>
+</p>
+</div>
+</div>
+</div>
+</div>
+</div></div></div></div></div>
+<!-- 
+NewPP limit report
+Cached time: 20260714214135
+Cache expiry: 0
+Dynamic content: true
+Complications: []
+CPU time usage: 0.344 seconds
+Real time usage: 0.586 seconds
+Preprocessor visited node count: 1693/1000000
+Post‐expand include size: 36224/2097152 bytes
+Template argument size: 27494/2097152 bytes
+Highest expansion depth: 8/40
+Expensive parser function count: 0/100
+Unstrip recursion depth: 0/20
+Unstrip post‐expand size: 33742/5000000 bytes
+-->
+<!--
+Transclusion expansion time report (%,ms,calls,template)
+100.00%  350.660      1 -total
+ 28.81%  101.014      1 Template:E-paper_Hat_color_FAQ
+ 24.68%   86.535     30 Template:FAQ
+ 15.82%   55.490      1 Template:Infobox_item
+ 10.87%   38.109      1 Template:4.2inch_e-Paper_Module_(B)_rpi
+  5.05%   17.703      1 Template:Product_List
+  4.66%   16.325      1 Template:4.2inch_e-Paper_Module_(B)_Jetson
+  4.54%   15.907      1 Template:4.2inch_e-Paper_Module_(B)_Sunrise
+  4.52%   15.840      1 Template:Servicebox1
+  4.43%   15.533      2 Template:Amazon_nolink
+-->
+</div></div>								<div class="printfooter">
+				Retrieved from "<a dir="ltr" href="https://www.waveshare.com/w/index.php?title=4.2inch_e-Paper_Module_(B)_Manual&amp;oldid=110070">https://www.waveshare.com/w/index.php?title=4.2inch_e-Paper_Module_(B)_Manual&amp;oldid=110070</a>"				</div>
+												<div id="catlinks" class="catlinks catlinks-allhidden" data-mw="interface"><div id="mw-hidden-catlinks" class="mw-hidden-catlinks mw-hidden-cats-hidden">Hidden category: <ul><li><a href="/wiki/Category:SPI_interface" title="Category:SPI interface">SPI interface</a></li></ul></div></div>												<div class="visualClear"></div>
+							</div>
+			<!-- /bodyContent -->
+		</div>
+						</div>
+				</div>
+			</div>
+			<!-- /content -->
+
+			<!-- sidebar-left -->
+			<div class="sidebar-wrapper sidebar-left-wrapper">
+				<div class="sidebar-container container">
+					<div class="row">
+						<div id="sidebar-left" class="col-md-2 col-md-offset-0">
+							<div id="tweekiTOC"></div>						</div>
+					</div>
+				</div>
+			</div>
+			<!-- /sidebar-left -->
+					<!-- footer -->
+			<div id="footer" role="contentinfo" class="footer container footer-sticky bg-light">
+			<ul id="footer-custom"><li class="dropup"><a href="/w/index.php?title=Special:UserLogin&amp;returnto=4.2inch+e-Paper+Module+%28B%29+Manual" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o">Login / Create Account</a></li></ul><div style="clear:both"></div>			</div>
+			<!-- /footer -->
+		
+<script>
+var fbtFancyBoxOptions = {};
+</script>
+
+<script>(RLQ=window.RLQ||[]).push(function(){mw.config.set({"wgPageParseReport":{"limitreport":{"cputime":"0.344","walltime":"0.586","ppvisitednodes":{"value":1693,"limit":1000000},"postexpandincludesize":{"value":36224,"limit":2097152},"templateargumentsize":{"value":27494,"limit":2097152},"expansiondepth":{"value":8,"limit":40},"expensivefunctioncount":{"value":0,"limit":100},"unstrip-depth":{"value":0,"limit":20},"unstrip-size":{"value":33742,"limit":5000000},"timingprofile":["100.00%  350.660      1 -total"," 28.81%  101.014      1 Template:E-paper_Hat_color_FAQ"," 24.68%   86.535     30 Template:FAQ"," 15.82%   55.490      1 Template:Infobox_item"," 10.87%   38.109      1 Template:4.2inch_e-Paper_Module_(B)_rpi","  5.05%   17.703      1 Template:Product_List","  4.66%   16.325      1 Template:4.2inch_e-Paper_Module_(B)_Jetson","  4.54%   15.907      1 Template:4.2inch_e-Paper_Module_(B)_Sunrise","  4.52%   15.840      1 Template:Servicebox1","  4.43%   15.533      2 Template:Amazon_nolink"]},"cachereport":{"timestamp":"20260714214135","ttl":0,"transientcontent":true}}});mw.config.set({"wgBackendResponseTime":1017});});</script>	<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1b3b138a90dd465',t:'MTc4NDA2NTI5NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

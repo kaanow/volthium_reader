@@ -1,0 +1,16 @@
+analytic/battery: rc=2, gate_markers=1, findings=2, netlist_skipped=True, expected_failure=True
+  [glyph-glyph] J3 name'SHIELD' × J3 name'GND'
+  [glyph-glyph] J3 name'SHIELD' × J3 name'GND'
+analytic/display: rc=2, gate_markers=1, findings=2, netlist_skipped=True, expected_failure=True
+  [glyph-glyph] J-USB name'SHIELD' × J-USB name'GND'
+  [glyph-glyph] J-USB name'SHIELD' × J-USB name'GND'
+pdf/battery: rc=0, gate_markers=0, findings=0, netlist_skipped=False, expected_failure=False
+  rendered_SHIELD_GND_intersections=2
+  SHIELD x GND overlap=1.791 x 0.489 mm; SHIELD=(149.68, 379.26, 168.36, 384.33); GND=(152.46, 382.95, 157.53, 393.92)
+  SHIELD x GND overlap=1.791 x 0.489 mm; SHIELD=(149.68, 379.26, 168.36, 384.33); GND=(163.26, 382.95, 168.33, 393.92)
+pdf/display: rc=0, gate_markers=0, findings=0, netlist_skipped=False, expected_failure=False
+  rendered_SHIELD_GND_intersections=2
+  SHIELD x GND overlap=1.791 x 0.489 mm; SHIELD=(149.68, 379.26, 168.36, 384.33); GND=(152.46, 382.95, 157.53, 393.92)
+  SHIELD x GND overlap=1.791 x 0.489 mm; SHIELD=(149.68, 379.26, 168.36, 384.33); GND=(163.26, 382.95, 168.33, 393.92)
+overall=FAIL
+unexpected cases=pdf/battery, pdf/display

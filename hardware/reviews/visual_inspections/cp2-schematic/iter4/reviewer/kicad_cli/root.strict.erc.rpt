@@ -1,0 +1,34 @@
+ERC report (2026-07-26T06:55:30, Encoding UTF8)
+Report includes: Errors, Warnings, Exclusions
+
+***** Sheet /
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(95.25 mm, 167.64 mm): Global Label 'PACK1_Bminus'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(95.25 mm, 167.64 mm): Global Label 'PACK2_Bminus'
+
+***** Sheet /Battery — Power path/
+
+***** Sheet /Battery — Supervisor/
+
+***** Sheet /Battery — Isolated RS-485 read (ch.1)/
+
+***** Sheet /Battery — MCU (ESP32-S3)/
+
+***** Sheet /Battery — Peripherals & comms/
+
+***** Sheet /Battery — USB maintenance power/
+
+***** Sheet /Battery — Isolated RS-485 read (ch.2)/
+
+***** Sheet /Battery — Connectors & I/O/
+
+ ** ERC messages: 2  Errors 0  Warnings 2
+
+ ** Ignored checks:
+    - Global label only appears once in the schematic
+    - Four connection points are joined together
+    - SPICE model issue
+    - Assigned footprint doesn't match footprint filters

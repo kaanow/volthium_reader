@@ -1,0 +1,69 @@
+F17 FIXTURE IDENTITY AND THRESHOLD HOLD
+poison_pdf_battery_sheet_conn.pdf:
+  sha256=47851b58f4a495cc6cb12ce3b093aa4fe79bf2fd37f39d7a84b4b466a2749a49
+  exact_prior_reviewer_fixture=True
+  threshold_0.45_findings=2
+    [pdf-text] 'GND' × 'SHIELD' rendered boxes overlap 1.79×0.49 mm at (54,135)
+    [pdf-text] 'GND' × 'SHIELD' rendered boxes overlap 1.79×0.49 mm at (58,135)
+  threshold_0.50_findings=0
+  intended_pair_identity=True
+  threshold_hold_is_load_bearing=True
+poison_pdf_display_sheet_d_conn.pdf:
+  sha256=4b9f24dd088f431cb2fb6d466f1c7d69b3cf07a983c4aedf3e189a3b62836f04
+  exact_prior_reviewer_fixture=True
+  threshold_0.45_findings=2
+    [pdf-text] 'GND' × 'SHIELD' rendered boxes overlap 1.79×0.49 mm at (54,135)
+    [pdf-text] 'GND' × 'SHIELD' rendered boxes overlap 1.79×0.49 mm at (58,135)
+  threshold_0.50_findings=0
+  intended_pair_identity=True
+  threshold_hold_is_load_bearing=True
+
+F18 CHECKED-EXPORT UNIT POISONS
+nonzero_exit_with_preseeded_stale: accepted=False target_exists=False expected_rejection=True
+zero_exit_without_new_artifact: accepted=False target_exists=False expected_rejection=True
+zero_exit_with_new_nonempty_artifact: accepted=True bytes=10 expected_acceptance=True
+
+F17 WHOLE-BUILD THRESHOLD POISON
+returncode=2
+regression_marker=True
+expected_rejection=True
+----- stdout -----
+[env] KiCad share: C:\Users\kaanw\AppData\Local/Programs/KiCad/10.0/share/kicad
+[env] KiCad CLI: C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli.exe
+[selftest] pdf-text gate: poison_pdf_battery_sheet_conn.pdf yielded 0 findings, expected exactly 2 — threshold/gate regression (F17)
+[selftest] GATE SELF-TEST FAILED — refusing to build with a compromised gate layer
+----- stderr -----
+
+
+F18 WHOLE-BUILD FORCED EXPORT FAILURE
+preseeded_conn_sha256=274c3fd53d6d1d89a6289860e8432c5094b446b0a29cd246109eadfd88b4e1a1
+returncode=2
+forced_pdf_failures=5
+pdf_text_clean_markers=0
+stale_conn_removed=True
+netlist_skipped=True
+expected_rejection=True
+----- stdout -----
+[env] KiCad share: C:\Users\kaanw\AppData\Local/Programs/KiCad/10.0/share/kicad
+[env] KiCad CLI: C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli.exe
+[selftest] probing export contract (the next [pdf-export] FAILED line is the INTENTIONAL probe, not a build error):
+[poison] forced PDF export failure: sch export pdf -o C:\Users\kaanw\AppData\Local\Temp\tmpg2uj_7lj\out.pdf C:\Users\kaanw\AppData\Local\Temp\tmpg2uj_7lj\no_such_schematic.kicad_sch
+[pdf-export] FAILED for no_such_schematic.kicad_sch: rc=97, exists=False — stale/absent PDF must not be judged
+[selftest] gate self-tests: pdf-text fixtures 2+2, export contract rejects stale — clean
+[sheet_d_power] readability gate: clean
+[poison] forced PDF export failure: sch export pdf -o C:\Users\kaanw\AppData\Local\Temp\f17-f18-build-poison-05jcyf8k\export\kicad\schematic\build_display\sheet_d_power.pdf C:\Users\kaanw\AppData\Local\Temp\f17-f18-build-poison-05jcyf8k\export\kicad\schematic\build_display\sheet_d_power.kicad_sch
+[pdf-export] FAILED for sheet_d_power.kicad_sch: rc=97, exists=False — stale/absent PDF must not be judged
+[sheet_d_conn] readability gate: clean
+[poison] forced PDF export failure: sch export pdf -o C:\Users\kaanw\AppData\Local\Temp\f17-f18-build-poison-05jcyf8k\export\kicad\schematic\build_display\sheet_d_conn.pdf C:\Users\kaanw\AppData\Local\Temp\f17-f18-build-poison-05jcyf8k\export\kicad\schematic\build_display\sheet_d_conn.kicad_sch
+[pdf-export] FAILED for sheet_d_conn.kicad_sch: rc=97, exists=False — stale/absent PDF must not be judged
+[sheet_d_periph] readability gate: clean
+[poison] forced PDF export failure: sch export pdf -o C:\Users\kaanw\AppData\Local\Temp\f17-f18-build-poison-05jcyf8k\export\kicad\schematic\build_display\sheet_d_periph.pdf C:\Users\kaanw\AppData\Local\Temp\f17-f18-build-poison-05jcyf8k\export\kicad\schematic\build_display\sheet_d_periph.kicad_sch
+[pdf-export] FAILED for sheet_d_periph.kicad_sch: rc=97, exists=False — stale/absent PDF must not be judged
+[sheet_d_mcu] readability gate: clean
+[poison] forced PDF export failure: sch export pdf -o C:\Users\kaanw\AppData\Local\Temp\f17-f18-build-poison-05jcyf8k\export\kicad\schematic\build_display\sheet_d_mcu.pdf C:\Users\kaanw\AppData\Local\Temp\f17-f18-build-poison-05jcyf8k\export\kicad\schematic\build_display\sheet_d_mcu.kicad_sch
+[pdf-export] FAILED for sheet_d_mcu.kicad_sch: rc=97, exists=False — stale/absent PDF must not be judged
+[NETLIST gate] SKIPPED — a sheet failed its readability gate, so the files on disk are STALE (render() refuses to write a failed sheet); netlist comparison would judge the OLD drawing.
+----- stderr -----
+
+
+OVERALL=PASS

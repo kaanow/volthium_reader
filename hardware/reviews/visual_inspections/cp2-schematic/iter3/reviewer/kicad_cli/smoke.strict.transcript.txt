@@ -1,0 +1,42 @@
+KiCad CLI: C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli.exe
+KiCad share: C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\share\kicad
+Python UTF-8 mode: 1
+ERROR: KiCad command failed with rc=5: C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli.exe sch erc --format report --severity-all --exit-code-violations -o C:\Taeron\repo\volthium\hardware\reviews\visual_inspections\cp2-schematic\iter3\reviewer\kicad_cli\smoke\smoke.erc.rpt C:\Taeron\repo\volthium\hardware\kicad\schematic\build\volthium_reader.kicad_sch
++ C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli.exe version --format about
+Application: kicad-cli x64 on x64
+
+Version: 10.0.5, release build
+
+Libraries:
+	wxWidgets 3.3.2 
+	FreeType 2.13.3
+	HarfBuzz 12.3.0
+	FontConfig 2.17.1
+	libcurl/8.18.0 Schannel zlib/1.3.1
+
+Platform: Windows 11 (build 26200), 64-bit edition, 64 bit, Little endian, wxBase
+
+Build Info:
+	Date: Jul 21 2026 21:37:42
+	wxWidgets: 3.3.2 (wchar_t,STL containers)
+	Boost: 1.90.0
+	OCC: 7.9.2
+	Curl: 8.18.0
+	ngspice: 46
+	Compiler: Visual C++ 1944 without C++ ABI
+	KICAD_IPC_API=ON
+	KICAD_USE_PCH=OFF
+
+Locale: 
+	Lang: en_US
+	Enc: UTF-8
+	Num: 1,234.5
+	Encoded кΩ丈: D0BACEA9E4B888 (sys), D0BACEA9E4B888 (utf8)
++ C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli.exe sch export pdf -o C:\Taeron\repo\volthium\hardware\reviews\visual_inspections\cp2-schematic\iter3\reviewer\kicad_cli\smoke\smoke.pdf C:\Taeron\repo\volthium\hardware\kicad\schematic\build\volthium_reader.kicad_sch
+Plotted to 'C:\Taeron\repo\volthium\hardware\reviews\visual_inspections\cp2-schematic\iter3\reviewer\kicad_cli\smoke\smoke.pdf'.
+Done.
++ C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli.exe sch export netlist --format kicadsexpr -o C:\Taeron\repo\volthium\hardware\reviews\visual_inspections\cp2-schematic\iter3\reviewer\kicad_cli\smoke\smoke.net C:\Taeron\repo\volthium\hardware\kicad\schematic\build\volthium_reader.kicad_sch
+Warning: schematic has annotation errors, please use the schematic editor to fix them
++ C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli.exe sch erc --format report --severity-all --exit-code-violations -o C:\Taeron\repo\volthium\hardware\reviews\visual_inspections\cp2-schematic\iter3\reviewer\kicad_cli\smoke\smoke.erc.rpt C:\Taeron\repo\volthium\hardware\kicad\schematic\build\volthium_reader.kicad_sch
+Found 141 violations
+Saved ERC Report to C:/Taeron/repo/volthium/hardware/reviews/visual_inspections/cp2-schematic/iter3/reviewer/kicad_cli/smoke/smoke.erc.rpt

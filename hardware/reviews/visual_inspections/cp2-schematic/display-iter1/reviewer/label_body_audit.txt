@@ -1,0 +1,14 @@
+﻿=== sheet_d_power.kicad_sch: 0 geometry findings ===
+  [advisory] same-net labels 'V12_CAT5E' only 2.5 mm apart ((225,65)/(225,62)) — consider wiring instead of two flags
+  [advisory] same-net labels 'GND' only 2.5 mm apart ((225,52)/(225,50)) — consider wiring instead of two flags
+  [advisory] same-net labels 'GND' only 2.5 mm apart ((225,55)/(225,52)) — consider wiring instead of two flags
+  [advisory] same-net labels 'V12_CAT5E' only 2.5 mm apart ((225,67)/(225,65)) — consider wiring instead of two flags
+  [advisory] same-net labels 'GND' only 5.1 mm apart ((225,55)/(225,50)) — consider wiring instead of two flags
+  [advisory] same-net labels 'V12_CAT5E' only 5.1 mm apart ((225,67)/(225,62)) — consider wiring instead of two flags
+  [advisory] same-net labels 'GND' only 13.0 mm apart ((110,127)/(98,130)) — consider wiring instead of two flags
+  [advisory] same-net labels 'GND' only 16.1 mm apart ((47,150)/(42,135)) — consider wiring instead of two flags
+=== sheet_d_conn.kicad_sch: 0 geometry findings ===
+=== sheet_d_periph.kicad_sch: 0 geometry findings ===
+  [advisory] same-net labels 'GND' only 12.7 mm apart ((130,60)/(117,60)) — consider wiring instead of two flags
+  [advisory] same-net labels 'MCU_EN' only 19.1 mm apart ((137,160)/(152,149)) — consider wiring instead of two flags
+=== sheet_d_mcu.kicad_sch: 0 geometry findings ===

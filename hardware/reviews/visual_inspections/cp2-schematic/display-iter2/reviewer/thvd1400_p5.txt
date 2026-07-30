@@ -1,0 +1,157 @@
+5.4 Recommended Operating Conditions
+MIN
+NOM
+MAX
+UNIT
+VCC
+Supply voltage
+3
+5
+5.5
+V
+VID
+Differential input voltage
+–12
+12
+V
+VI
+Input voltage at any bus terminal(1)
+–7
+12
+V
+VIH
+High-level input voltage (driver, driver-enable, and receiver-enable inputs)
+2
+5.5
+V
+VIL
+Low-level input voltage (driver, driver-enable, and receiver-enable inputs)
+0
+0.8
+V
+IO
+Output current
+Driver
+–60
+60
+mA
+Receiver
+–8
+8
+RL
+Differential load resistance
+54
+60
+Ω
+1/tUI
+Signaling rate: THVD1400
+500
+kbps
+1/tUI
+Signaling rate: THVD1420
+12
+Mbps
+TJ
+Junction temperature
+–40
+150
+°C
+TA (2)
+Operating ambient temperature
+–40
+125
+°C
+TSHDN
+Thermal shutdown threshold (temperature rising)
+150
+170
+°C
+THYS
+Thermal shutdown hysteresis
+15
+°C
+(1)
+The algebraic convention in which the least positive (most negative) limit is designated as minimum is used in this data sheet.
+(2)
+Operation is specified for internal (junction) temperatures up to 150°C. Self-heating due to internal power dissipation should be
+considered for each application. Maximum junction temperature is internally limited by the thermal shut-down (TSD) circuit which
+disables the driver outputs when the junction temperature reaches 170°C.
+5.5 Thermal Information
+THERMAL METRIC(1)
+THVD1400, THVD1420
+UNIT
+DRL (SOT)
+D (SOIC)
+8 PINS
+8 PINS
+RθJA
+Junction-to-ambient thermal resistance
+112.2
+126.0
+°C/W
+RθJC(top)
+Junction-to-case (top) thermal resistance
+28.4
+66.2
+°C/W
+RθJB
+Junction-to-board thermal resistance
+22.1
+69.4
+°C/W
+ψJT
+Junction-to-top characterization parameter
+1.2
+18.7
+°C/W
+ψJB
+Junction-to-board characterization parameter
+22.0
+68.7
+°C/W
+(1)
+For more information about traditional and new thermal metrics, see the Semiconductor and IC Package Thermal Metrics application
+report.
+5.6 Power Dissipation Characteristics
+PARAMETER
+TEST CONDITIONS
+VALUE
+UNIT
+PD
+Power dissipation, driver and
+receiver enabled, VCC = 5.5 V, TA =
+125°C, 50% duty cycle square-wave
+signal at maximum signaling rate
+(THVD1400)
+Unterminated
+RL = 300 Ω, CL = 50 pF
+145
+mW
+RS-422 load
+RL = 100 Ω, CL = 50 pF
+175
+RS-485 load
+RL = 54 Ω, CL = 50 pF
+235
+Power dissipation, driver and
+receiver enabled, VCC = 5.5 V, TA =
+125°C, 50% duty cycle square-wave
+signal at maximum signaling rate
+(THVD1420)
+Unterminated
+RL = 300 Ω, CL = 50 pF
+175
+mW
+RS-422 load
+RL = 100 Ω, CL = 50 pF
+200
+RS-485 load
+RL = 54 Ω, CL = 50 pF
+250
+www.ti.com
+THVD1400, THVD1420
+SLLSF78B – DECEMBER 2020 – REVISED OCTOBER 2021
+Copyright © 2021 Texas Instruments Incorporated
+Submit Document Feedback
+5
+Product Folder Links: THVD1400 THVD1420

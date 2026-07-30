@@ -8,22 +8,28 @@ pack.
 
 ## Battery-side draw, per state
 
-Conversion efficiency assumptions:
+Conversion efficiency assumptions (per decisions.md D19):
 
-- TPS62933 (24 V → 3.3 V), 50–80 % at 5–80 mA load.
-- R-78E12 (24 V → 12 V), 80 % over the relevant range.
+- **U1 LM5166** (24 V → 3.3 V, *always-on*), IQ-SLEEP 9.7 µA typ /
+  15 µA max (datasheet §6.5; the "~14 µA" previously quoted here was
+  unsourced — corrected 2026-07-14 PDF audit); 70–85 % at 5–80 mA load. The microamp quiescent is the point — the always-on rail
+  costs almost nothing at idle, which keeps the low-SOC trickle ~1 mW
+  (the RV-3028-C7 RTC adds only 45 nA — D23).
+- **U2 R-78HB12** (24 V → 12 V, *switched*, display feed), ~80 % over the
+  relevant range. Behind the SSR1 load switch, so it draws **zero** when
+  the display is shed at < 10 % SOC.
 
 ### State 1 — Normal (> 25 % SOC, persistent BLE)
 
 | Subsystem               | 3.3 V load        | 24 V draw (with conversion) | Note |
 |-------------------------|-------------------|----------------------------|------|
 | ESP32-S3 active (BLE)   | ~75 mA avg        | ~38 mA   ≈ 0.92 W           | BLE central holding 2 links + UART |
-| RS-485 transceiver idle | ~1 mA             | ~0.5 mA                     | Driver disabled, receiver listening |
-| DS3231                  | ~150 µA           | ~0.1 mA                     |  |
-| Bias resistors R2/R3    | ~3 mA on 3V3      | ~1.5 mA                     |  |
-| **Battery-side subtotal**| —                | **~40 mA at 24 V ≈ 0.96 W** | |
+| RS-485 transceiver idle | ~1 mA             | ~0.5 mA                     | Driver disabled, receiver listening (idle bias is display-end only, DR-4b — no battery-side bias draw) |
+| RV-3028-C7 RTC          | 45 nA             | negligible                  | (was DS3231 ~150 µA — DR-8) |
+| **Battery-side subtotal**| —                | **~38 mA at 24 V ≈ 0.9 W**  | |
 | Display-side via Cat5e  | (see below)       | +~5 mA at 24 V ≈ 0.12 W     |  |
-| **Whole-system total**  |                   | **~45 mA at 24 V ≈ 1.1 W**  |  |
+| **Whole-system total (avg)** |              | **~43 mA at 24 V ≈ 1.0 W**  |  |
+| WiFi log push (D25)     | ~150–250 mA for a ~2–6 s session, a few ×/hour | small added *average* | duty-cycled; logs buffered in flash between pushes (LM5166 500 mA feeds it) |
 
 Per day: 1.1 W × 24 h = 26 Wh ≈ 1.1 Ah / day off the 24 V pack.
 At 200 Ah usable per battery (400 Ah pack × ~85 % usable to 10 %),
@@ -36,7 +42,7 @@ load. Way under the budget.
 |----------------------|----------------------------------|
 | ESP32-S3             | ~15 mA avg (mostly light-sleep, wakes for ~1 s once/min for BLE) |
 | RS-485               | ~1 mA                            |
-| DS3231               | ~150 µA                          |
+| RV-3028-C7 RTC       | 45 nA (negligible)               |
 | Display side         | unchanged (~5 mA at 24 V)        |
 | **Total**            | **~13 mA at 24 V ≈ 0.31 W**       |
 
@@ -45,43 +51,127 @@ load. Way under the budget.
 | Subsystem            | Avg draw                         |
 |----------------------|----------------------------------|
 | ESP32-S3 ULP+RTC     | ~50 µA (RTC slow-clock + ULP wake every 10 min) |
-| DS3231               | ~150 µA                          |
-| Q1/Q2 path off       | ~10 µA (pull-up leakage)         |
+| RV-3028-C7 RTC       | 45 nA (negligible)               |
+| SSR1 output (closed) | Ron 0.85 Ω typ — negligible dissipation at ~5 mA display load |
 | Display side         | still receiving 12 V; ESP32 + e-paper light-sleep ≈ ~5 mA at 24 V conv. |
 | **Total**            | **~5.4 mA at 24 V ≈ 0.13 W**      |
 
-### State 4 — Hard cut (< 10 %)
+### State 4 — Hard cut (< 10 % SOC)
 
-P-MOSFET Q1 is OFF. Only the 24 V sense divider (R5/R6 = 111 kΩ to GND)
-and the DS3231 backup battery stay alive.
+SSR1 is OPEN — the 12 V/display feed (U2) is shed, so the entire display
+side is dark. The **ESP stays powered** on the always-on rail (U1) and
+deep-sleeps, waking briefly to read the sense divider and re-engage SSR1
+when the pack recovers. No full power-down, no separate supervisor IC
+(D19 / DR-4: a fully-unpowered MCU couldn't wake itself).
 
-| Subsystem            | Draw                              |
-|----------------------|-----------------------------------|
-| R5/R6 divider        | 24 V / 111 kΩ = **216 µA**         |
-| DS3231 (on CR2032)   | 0 from pack — runs off backup     |
-| Everything else      | 0                                  |
-| **Total from pack**  | **~5 mW**                          |
+Terms are kept in their **native voltage domain** and only the buck-input
+side is referred to the pack directly; 3.3 V loads are drawn from the
+pack via U1's light-load efficiency. **Rows use the datasheet
+*maximum* Iq where the datasheet publishes a spec max** (U1/U4/U6/U3);
+**typical + explicit engineering margin** is used where no max is
+published (ESP32-S3-WROOM Deep-sleep is 7-8 µA typ per Espressif Table 6-7
+— citation corrected 2026-07-14, "§5.4" doesn't exist in the WROOM datasheet
+with no listed max, so this table uses 10 µA typ + 5 µA margin = 15 µA;
+RTC RV-3028-C7 at 45 nA typ / **60 nA max** per its own EC table @ 3 V,
+25 °C — the earlier "≤200 nA per Micro Crystal AN" cited a document not
+on file (corrected 2026-07-14 PDF audit); well under the µW floor). *(Reviewer iter-6 F03: prior rows mis-referred
+3.3 V rail current to 24 V. Iter-10 F08: the iter-8 first cut quoted
+transceiver shutdown Iq at typical (10 nA) instead of maximum (12 µA),
+which triggered the ISL3175E → THVD1400DR reselection. Iter-12 F13
+caught that my "max throughout" claim still mixed typ and max — this
+"max where spec'd + explicit margin where not" wording is the corrected
+convention used everywhere in the CP1 documents.)*
 
-At 5 mW the pack would take **~2 years** to lose 1 % SOC from this load
-alone. The cabin will have its own non-monitor parasitics that dominate
-by orders of magnitude.
+| Subsystem                                | Native draw (typ / **max** where spec'd) | Referred to pack (24 V) |
+|------------------------------------------|------------------------------------------|-------------------------|
+| U1 LM5166 input Iq (`IQ-SLEEP` no-load @ TJ = 25 °C) | 9.7 µA typ / **15 µA max** @ 24 V | **~0.36 mW** (max) |
+| 24 V sense divider (R1+R2 = 1.3 MΩ)      | 24 V / 1.3 MΩ = 18.5 µA @ 24 V (fixed R) | **~0.44 mW** |
+| UVLO divider (D28: R1≈5.16 MΩ/R2≈100 kΩ) | 4.56 µA @ 24 V (fixed R)                 | **~0.11 mW** |
+| ESP32-S3-WROOM Deep-sleep (RTC + ULP off) | 7–8 µA **typ** per Espressif ES-datasheet **Table 6-7** (citation corrected 2026-07-14; no §5.4 exists); use **10 µA + ~5 µA engineering margin = 15 µA** @ 3.3 V (~50 µW) | ~0.10 mW (η ≈ 50 %) |
+| U4 TPS3808G01 Iq (VDD_TPS = 3.3 V)       | 2.4 µA typ / **5 µA max** @ 3.3 V (~17 µW at max) | ~0.03 mW (η ≈ 50 %) |
+| U6 TPS2116 mux Iq (Vout = 3.3 V, `IQ,VIN2`) | 1.35 µA typ / **4.5 µA max** over -40 to 105 °C (~15 µW at max) | ~0.03 mW (η ≈ 50 %) |
+| U3 THVD1400DR RS-485 xcvr (D34, shutdown via DE=0+/RE=1) | 100 nA typ / **1 µA max** @ 3.3 V (~3.3 µW at max) | ~7 µW (η ≈ 50 %; below rounding) |
+| RV-3028-C7 RTC (D23; VDD on V3V3)         | 45 nA typ / **60 nA max** @ 3 V, 25 °C (datasheet EC table; prior "≤200 nA per AN" cited an off-file document — corrected 2026-07-14); ~150 nW at typ | ~0.3 µW (η ≈ 50 %; below rounding) |
+| SSR1 (AQY212EH PhotoMOS) OFF-state leakage into the shed U2 branch (F76) | **≤1 µA (spec @ 25 °C only** — datasheet publishes **no** hot max**)** | **≤0.024 mW @ 25 °C**; at 85 °C an **engineering estimate ~0.7–1.4 mW** (~30–60 µA, leakage ≈ 2× per 10 °C — carried as an estimate, **not** a bound; opto-isolated, cannot self-turn-on), gated by acceptance test (F83) |
+| Rest of display side (U2 shed)           | 0                                        | 0                       |
+| **Total from pack** |  | **~1.1 mW @ 25 °C (SSR1 open ≤1 µA); estimated hot ceiling ~2.5 mW @ 85 °C, gated by the State-4 leakage acceptance test — F83.** (F76 removed the Q1/Q2 gate-network terms.) |
+
+The 3.3 V load-referred conversion uses a deliberately conservative
+**η ≈ 50 %** light-load efficiency for the LM5166 at ~25 µA of output
+load — LM5166's datasheet plots hit ~60–80 % at this current, so this
+row is upper-bound. Even at η = 65 % the total is **~1.05 mW**; at
+η = 80 % it drops to ~1.02 mW. Call it **~1.1 mW** headline honestly.
+
+**OFF state (F76 — resolved by the PhotoMOS SSR).** The discrete
+gate-driver's temperature-dependent OFF leakage was the recurring
+problem (a FET IDSS or BJT ICBO that could develop a turn-on voltage).
+The AQY212EH SSR eliminates the *self-turn-on* failure: its OFF state is
+an opto-isolated open MOSFET with **no gate divider**, so leakage cannot
+cascade into turn-on — architecturally, independent of temperature.
+
+On the *magnitude* of the OFF leakage, though, be honest (F83): the
+datasheet's **≤1 µA is a 25 °C spec** and it publishes **no
+elevated-temperature leakage maximum**. So:
+- **At 25 °C**, State-4 is a guaranteed **~1.1 mW** (SSR term ≤0.024 mW).
+- **At 85 °C**, the SSR leakage is an **engineering estimate** of
+  ~30–60 µA (leakage roughly doubles per 10 °C from the 25 °C ≤1 µA
+  spec) → ~0.7–1.4 mW, i.e. an **estimated hot ceiling ~2.5 mW** for
+  State-4. This is carried as an estimate — **not** a `≤`/`bounded`
+  number — and is gated at bring-up by a **State-4 leakage acceptance
+  test with a < 5 mW pass criterion**. If a unit failed it, the fix is a
+  part with a guaranteed hot-leakage max; the architectural
+  no-self-turn-on conclusion is unaffected either way.
+
+The old Q1 IDSS + Q2 ICBO rows are gone (Q1/Q2 removed).
+
+**Honesty about typ vs max (reviewer iter-12 F13).** Prior versions of
+this table claimed "max throughout" but several rows were actually
+*typical* values (U1 was 14 µA, U4 2.4 µA, U6 1.3 µA, U3 shutdown "10 nA
+typ / 12 µA max" carried as 10 nA). Rebuilt here with datasheet
+*maxima* where the datasheet publishes them; ESP Deep-sleep is an
+Espressif-typical figure with an explicit engineering margin added
+(ESP32-S3-WROOM does not publish a spec max for Deep-sleep Iq — its
+Table 6-7 lists 7–8 µA typical); RTC is 45 nA typ / 60 nA max per the
+RV-3028-C7 datasheet EC table (negligible either way). *(2026-07-14 PDF
+audit: this paragraph previously cited a "5.4 table" that doesn't exist
+and previously pointed at an off-file Micro Crystal AN for a ≤200 nA
+max — both citations replaced with figures read from the on-file
+datasheets.)*
+
+**Hardware floor (D28/DR-16), an even lower state below state 4.** If the
+firmware ever fails to shed (hung-but-powered MCU), U4 asserts ESP **EN**
+low below ~20 V pack: the ESP drops to its ~µA reset state (killing the
+~38 mA hung drain) and the display auto-sheds (PWR_EN Hi-Z). Draw in
+this floor state is only marginally lower than state 4 — U1 Iq + the
+two dividers dominate (~0.91 mW), with only the ESP's ~15 µA (with
+margin) going away (~0.10 mW saved) — total **~0.98 mW**. It holds
+until the pack recovers past **~21.7–21.8 V** (release from the built-in
+VHYS + external R_hys network; reviewer iter-5 F01 for polarity, iter-6
+F04 for the release value).
+
+At ~1 mW the pack would take **~10 years** to lose 1 % SOC from this
+load alone — self-discharge and the cabin's own parasitics dominate by
+orders of magnitude. (A literal full cut + hardware supervisor could
+reach ~0.7 mW, but D19 judged the extra part not worth the marginal
+saving.)
 
 ## Display-side draw
 
 The display side gets 12 V over Cat5e. Looking at it from the display
 end (before tracing back to the 24 V pack):
 
-| Subsystem               | 3.3 V load     | 12 V draw  | Note |
-|-------------------------|----------------|------------|------|
-| ESP32-S3 active (RX only) | ~30 mA       | ~10 mA     | Listening, refreshing e-paper occasionally |
-| ESP32-S3 light-sleep    | ~2 mA          | ~0.8 mA    | Most of the time |
-| RS-485 receive-only     | ~1 mA          | ~0.4 mA    |  |
-| E-paper during refresh  | ~25 mA × ~2 s every 30 s | ~1.5 mA avg | Worst-case full refresh; partial refresh much less |
-| E-paper static          | 0              | 0          | The whole point of e-paper |
-| **Display-side average**| —              | **~3–5 mA at 12 V ≈ 50 mW** | |
+| Subsystem               | 3.3 V load (max where spec'd) | 12 V draw  | Note |
+|-------------------------|--------------------------------|------------|------|
+| ESP32-S3 active (RX only) | ~30 mA                       | ~10 mA     | Listening, refreshing e-paper occasionally |
+| ESP32-S3 light-sleep    | ~2 mA                          | ~0.8 mA    | Most of the time |
+| RS-485 receive-only (U2 THVD1400 RX, no load) | ~700 µA typ / **~900 µA max** | ~0.4 mA | Under F11 Deep-sleep wake: this term is continuous while the display is powered (State A+B). |
+| **R3/R4 idle bias (DNP by default, iter-12 F12)** | **0 (not stuffed)** — populate only if bench shows EMI noise. If populated: **4.58 mA at 3.3 V ≈ 15 mW** whenever display is powered. | +1.6 mA if populated | THVD1400 §8.2.1.4 guarantees Full Fail-Safe RX without bias; power-first (D5) rule keeps it off the board by default. |
+| E-paper during refresh  | ~25 mA × ~2 s every 30 s      | ~1.5 mA avg | Worst-case full refresh; partial refresh much less |
+| E-paper static          | 0                              | 0          | The whole point of e-paper |
+| **Display-side average**| —                              | **~3–5 mA at 12 V ≈ 50 mW** | With bias DNP; +18 mW if populated. |
 
-At the **24 V pack** end, with 80 % conversion through R-78E12, that
-becomes ~63 mW.
+At the **24 V pack** end, with 80 % conversion through U2 (R-78HB12),
+that becomes ~63 mW.
 
 ## Wire loss
 
@@ -106,7 +196,7 @@ Assuming a fully charged 200 Ah pack with no other loads:
 | Normal (state 1)                   | 1.1 W      | ~340 days           |
 | Low (state 2)                      | 0.31 W     | ~1,200 days         |
 | Deep sleep (state 3)               | 0.13 W     | ~2,800 days         |
-| Hard cut (state 4)                 | 5 mW       | ~200 years (limited by self-discharge first) |
+| Hard cut (state 4)                 | ~1.1 mW (SSR1 open ≤1 µA leakage — F76; the Q1/Q2 gate-network terms were removed) | decades (self-discharge dominates first) |
 
 These are upper bounds — in reality the inverter idle is dozens of watts,
 the cabin's fridge is ~5 A intermittent, etc. The monitor is rounding

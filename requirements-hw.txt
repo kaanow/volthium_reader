@@ -1,2 +1,6 @@
-# Hardware design dependencies (SKiDL → KiCad netlist generation)
-skidl>=2.2.3
+# Hardware design dependencies (KiCad 10 programmatic generation)
+# Used by hardware/kicad/build_schematics.py + build_pcbs.py + dedupe_pdf_text.py.
+# Requires KiCad 10 installed separately (for kicad-cli + bundled pcbnew).
+kiutils>=1.4.0
+PyMuPDF>=1.23.0
+# (The old SKiDL/KiCad-8 path is archived under hardware/kicad/archive/.)

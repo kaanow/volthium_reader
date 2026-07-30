@@ -1,0 +1,3 @@
+Wrote audit artifacts to: hardware\reviews\visual_inspections\cp2-schematic\display-iter4\reviewer\g9\cp2-schematic\iter8\reviewer
+Report: hardware\reviews\visual_inspections\cp2-schematic\display-iter4\reviewer\g9\cp2-schematic\iter8\reviewer\REPORT.md
+Text-overlap pairs: battery=269, display=129

@@ -44,15 +44,79 @@ PCB outline target: **85 × 65 mm**. Mounting:
 **Faceplate (3D-printed, user-supplied)**: ~115 × 117 mm overall
 (matches standard double-gang plate footprint). Cutouts:
 
-- 84.8 × 63.2 mm rectangular window for e-paper active area, centered
+- 84.8 × 63.6 mm rectangular window for e-paper active area (Waveshare 4.2" (B) verified active area), centered
   vertically with ~5 mm offset toward the top edge to leave room for
   the button labels
-- 3× 6 mm round cutouts along the bottom edge, on 18 mm centers, for
-  the 6×6 mm tactile button caps to poke through (~16 mm horizontal
-  span between centers of buttons 1 and 3)
+- 3× round clearance holes (sized to the chosen plunger ⌀, ~4–6 mm) along
+  the bottom edge, on 18 mm centers, for the **tall tactile actuators to poke
+  through** (~16 mm horizontal span between centers of buttons 1 and 3)
 
 The user designs the faceplate against a STEP file of the PCB +
 mechanical envelope, exported at CP5.
+
+### 2.1 Assembly & depth stack (D27 — aggressive mechanical pass)
+
+The double-gang box is **shallow (~45 mm usable depth)**, which is the
+binding mechanical constraint. The stack, front → back:
+
+```
+faceplate (~3 mm) → e-paper MODULE (glass + driver PCB, ~4 mm)
+   → gap/standoffs → main PCB (1.6 mm + part heights) → bracket → box floor
+```
+
+Hard constraints this imposes (CP3 must honor; a depth tally is produced then):
+
+- **Tall THT parts eat the budget.** A vertical RJ45 (~13–21 mm) and the
+  R-78E3.3 SIP (~11 mm) would blow the depth. → **right-angle / low-profile
+  RJ45** (also lets the in-wall Cat5e enter from the side/bottom cleanly);
+  orient/seat the R-78 for minimum height. Keep tall parts off the
+  module-facing side.
+- **The e-paper module doesn't fit *inside* the box.** Its **driver-board
+  outline is 103.0 × 78.5 mm** (the 91 × 77 mm figure is the screen/panel
+  only — reviewer Finding 02), which exceeds the ~95 mm box interior. → **mount the module to the back of the oversized custom
+  faceplate** (~115×117 mm), with the main PCB in the box behind it; the
+  8-pin SPI cable (DR-7) runs between, with slack + a strain-relief anchor.
+- **Button actuator height spans the PCB→faceplate gap + protrudes slightly**
+  (user call: real tall-actuator THT tactiles, not printed caps). The plunger
+  length can only be fixed once the depth stack is → pick the catalog height
+  at CP3/CP5 from the PCB STEP (§4.6).
+- **Service port (D27, geometry corrected):** the box is recessed in the
+  wall, so a "bottom" port isn't accessible — only the faceplate front is
+  exposed. Routine firmware is **OTA over RS-485** (battery side pulls it
+  via WiFi), so the display's USB is **bench/recovery only**: a board-edge
+  **USB-C** reached by **popping the faceplate** (detaches without wall
+  removal) — **no front cutout**. The faceplate is specified as a
+  snap/magnetic pop-off for exactly this.
+- **No antenna keepout** (D26): the display radio is unused (RS-485 link),
+  so the WROOM antenna region carries no keepout — frees the layout.
+
+**Depth tally (computed now, not deferred — confirm exact part dims at CP3):**
+
+| Element, front → back into the ~45 mm usable box        | Depth   |
+|---------------------------------------------------------|---------|
+| e-paper module (panel 1.2 mm + driver PCB + connector)  | ~5 mm   |
+| module-back → PCB-front standoff gap (clears 8-pin cable + button throw) | ~8 mm |
+| main PCB                                                 | 1.6 mm  |
+| tallest back-side part: **J1 Würth RJ45 ~13.6 mm above PCB** (R-78E3.3 SIP ~11 mm is shorter) | ~13.6 mm |
+| bracket standoff + clearance to box floor               | ~5 mm   |
+| **Total**                                               | **~33 mm** |
+
+Against ~45 mm usable → **~12 mm margin**. The tallest back-side part is the
+**J1 RJ45 (Würth 615008145521, ~13.6 mm above PCB — datasheet-confirmed)**;
+the R-78E3.3 SIP (~11 mm) is next. (The earlier ~4.4 mm SUYIN low-profile is
+gone — not distributor-stocked; the Würth standard right-angle still fits with
+~12 mm margin.) **Module dims (reviewer Finding 02): driver-board (binding for the
+faceplate mount) = 103.0 × 78.5 mm; screen/panel = 91 × 77 mm; active area
+84.8 × 63.6 mm.** The 103 mm board exceeds the ~95 mm box interior but mounts
+to the faceplate regardless (D-OPEN-11) — and still fits the 115 × 117 mm
+faceplate; **lay out the mounting bosses, cable exit, and M2 holes against
+103 × 78.5 mm, not 91 × 77 mm.** The earlier ~21 mm vertical-RJ45 worry is
+exactly what the right-angle choice removes. CP3 re-checks the ~5 mm module
+thickness against the physical part.
+
+**Deliverable:** the **PCB STEP** (with the e-paper-module envelope +
+connector/button/USB-C positions) is the contract the user designs the
+bracket + faceplate against.
 
 ## 3. Power architecture
 
@@ -60,7 +124,7 @@ mechanical envelope, exported at CP5.
 +12 V from Cat5e (J1 RJ45 pins 1/2/3)
     │
     ▼
-F1 [PTC polyfuse 0.5 A hold, 1 A trip]    ← resettable; protects cable
+F1 [PTC polyfuse ~0.25 A hold (DR-11)]    ← resettable; protects cable
     │
     ▼
 TVS1 [SMAJ15A unidirectional, V12 ↔ GND]   ← inductive kick from cable
@@ -68,11 +132,14 @@ TVS1 [SMAJ15A unidirectional, V12 ↔ GND]   ← inductive kick from cable
     ▼
 U1 [Recom R-78E3.3-0.5, 12 V → 3.3 V, 0.5 A] ← stocked module, no inductor BOM
     │
+    ▼  V3V3_REG (CP2: regulator output is NOT the system rail)
+U4-MUX [TPS2116, D29: VIN1 = USB-LDO (priority), VIN2 = V3V3_REG]
+    │
     ▼
 3V3 ──┬─── ESP32-S3 (MOD1)
-      ├─── e-paper VCC (LCD1 via FFC J2)
-      ├─── SN65HVD3082E (U2) VCC
-      └─── RS-485 bias (R10/R11 optional — see §4.5)
+      ├─── e-paper VCC (LCD1 module via 8-pin J2)
+      ├─── THVD1400DR (U2) VCC  (D34, revised iter-10)
+      └─── RS-485 bias footprint (R3/R4, **DNP by default per iter-12 F12** — THVD1400 Full Fail-Safe RX (§8.2.1.4) means the bus doesn't need continuous bias for idle correctness; footprint remains for CP5 bench-stuff at ~330 Ω if EMI shows a need. See §4.5.)
 ```
 
 No 24 V on this board. No RTC chip (time syncs from RS-485 frames). No
@@ -85,9 +152,9 @@ bistable display; the ESP32-S3 self-manages its sleep states).
 
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
-| J1  | RJ45 keystone jack (T568B), shielded       | THT shielded   | 1   | Same part as battery-side J2; shield drain NOT bonded at this end (single-point bond at battery side per [`cat5e_pinout.md`](../../docs/hardware/cat5e_pinout.md)) |
-| F1  | PTC polyfuse, 0.5 A hold / 1 A trip (e.g. Bel Fuse 0ZCG0050FF2C) | THT radial   | 1 | Resettable; protects against cable shorts |
-| TVS1 | SMAJ15A unidirectional TVS (Vrwm 15 V)    | SMA            | 1   | Clamps V12 transients (cable inrush, regulator turn-on) |
+| J1  | **Würth 615008145521** WR-MJ RJ45 jack, right-angle (horizontal, tab-down), shielded, T568B | THT shielded   | 1   | **Right-angle (DR-10):** horizontal jack so the in-wall Cat5e enters from the side. **Datasheet-verified 2026-06-25: right-angle + shielded + MAGNETICS-FREE (plain CAT5e 8P8C — safe for our 12 V DC + RS-485) + ~13.6 mm above PCB (fits the depth stack).** Replaces the un-sourceable SUYIN 100362. Shield drain NOT bonded here (single-point bond at battery side, [`cat5e_pinout.md`](../../docs/hardware/cat5e_pinout.md)). Datasheet: [`../datasheets/615008145521.pdf`](../datasheets/615008145521.pdf). |
+| F1  | PTC polyfuse, **~0.25 A hold** (DR-11) | THT radial   | 1 | Resettable cable protection. 0.25 A covers the ~40 mA load + ~150 mA refresh/inrush peaks, and trips well below the battery-side U2's ~0.5 A foldback → real cable + upstream protection (was 0.5 A — too loose). |
+| TVS1 | SMAJ15A**-13-F** unidirectional TVS (Vrwm 15 V) | SMA            | 1   | Clamps V12 transients (cable inrush, regulator turn-on). *(-13-F orderable variant per the iter-23 F20 sweep — the non-F is Obsolete)* |
 | C1  | 22 µF / 25 V X7R (V12 input bulk)          | 1210           | 1   | U1 input bulk; smooths cable inductive ringing |
 
 ### 4.2 Power conversion
@@ -101,7 +168,11 @@ bistable display; the ESP32-S3 self-manages its sleep states).
 
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
-| MOD1 | ESP32-S3-WROOM-1-N16R8                    | SMD module     | 1   | Matches battery-side; common firmware base. (Same D-OPEN-1 question: -N8 vs -N16R8 — defer to reviewer) |
+| MOD1 | ESP32-S3-WROOM-1-N16R8 (`-1`)             | SMD module     | 1   | Matches battery-side (firmware + footprint commonality). **Radio unused** — RS-485 is the only link, so disable RF in firmware and **drop the antenna keepout** (D26). **D-OPEN-1 RESOLVED (D31): keep -N16R8 on both boards** — the $1.10 vs -N8 is moot at build qty 1; one SKU avoids mix-ups. PSRAM unused (30 KB framebuffer fits internal SRAM). |
+| J-USB | **USB-C receptacle GCT USB4085-GF-A** on native ESP32-S3 USB (board edge) | THT top-mount (F13) | 1 | **D27:** bench/recovery port — reached by popping the faceplate (no front cutout). Routine firmware is OTA over RS-485, so it's rarely used. *(CP2: pinned to the same GCT SKU as the battery board's J3; API-verified in stock 2026-07-27)* |
+| U-ESD | USB ESD array (USBLC6-2)                   | SOT-23-6       | 1   | ESD clamp on the USB-C D+/D−/VBUS (D27). |
+| U3-LDO | 3.3 V LDO (AP2112K-3.3, ~600 mA), VBUS→3V3_USB | SOT-23-5 | 1 | **USB maintenance power (D29):** run/program/troubleshoot the display MCU off USB **without 12 V**. VBUS-referenced → zero draw when unplugged. |
+| U4-MUX | **TI TPS2116DRLR** priority power mux (~1.3 µA Iq, reverse-blocking) | **SOT-583 (leadless ⚠)** | 1 | **D29:** VIN1=USB-LDO (priority), VIN2=R-78E3.3 output, OUT=V3V3. USB present → R-78E3.3 idles. **No UVLO bypass** — the display has no supervisor (it's shed by the battery side). No 5 V on V3V3 (LDO). **Package SOT-583, not SOT-23 (API 2026-06-25)** — leadless, see DR-24 |
 | C3  | 10 µF X7R (ESP bulk, ≤ 2 mm from 3V3 pin)  | 0805           | 1   | |
 | C4  | 100 nF X7R (ESP HF decoupling, 0402 if possible) | 0402 | 1 | |
 | C5  | 1 µF X7R (EN soft-start)                    | 0603           | 1   | |
@@ -111,52 +182,177 @@ bistable display; the ESP32-S3 self-manages its sleep states).
 
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
-| LCD1 | Waveshare 4.2" e-Paper Module (B) v2 (panel only — we don't use the HAT) | bare panel | 1 | Bistable display; B&W partial refresh ~500–700 ms, color full refresh ~7 s. See [`decisions.md#d6`](decisions.md#d6-display-42-tri-color-bwr-e-paper). The driver IC is on the panel's own PCB tail, we connect via FFC |
-| J2  | Hirose FH12-24S-0.5SH(55) FFC connector, 24-pin 0.5 mm pitch, top-contact | SMT | 1 | Mating to the panel's flex ribbon |
-| C6  | 1 µF X7R (panel VCC bulk; some panels need this) | 0603 | 1   | Per Waveshare schematic; reduces VCC dip during refresh |
+| LCD1 | **Waveshare 4.2inch e-Paper Module (B)** — module **with onboard driver PCB + 8-pin SPI header** | module | 1 | Bistable B/W/R; B&W partial refresh ~500–700 ms, color full refresh ~7 s. See [`decisions.md#d6`](decisions.md#d6-display-42-tri-color-bwr-e-paper). The driver + booster live on the module; we provide only 3.3 V + SPI (DR-7) |
+| J2  | **JST-PH 2.0 mm, 8-pin** post header (B8B-PH-K-S top-entry; S8B-PH-K-S side-entry option), e-paper SPI; service = unplug | THT 1×8 | 1 | **Matches the module's connector — evidence on file (iter-23 F21):** the Waveshare Module (B) interface is **PH2.0 8-pin** and the box includes a PH2.0 20 cm 8-pin cable, per the hashed product-page + wiki captures in the datasheet manifest (LCD1 row, captured 2026-07-14). We put the **same JST-PH family on our board** so an off-the-shelf **pre-crimped PH↔PH cable assembly** (e.g. JST ASPHSPH24K102-class) connects module↔board — **no crimp tool**. **JST-PH is mechanically keyed/latched → can't seat reversed** (the earlier 2.54 mm-header + printed-keying-rib plan is dropped). **Δ (DR-7): was a 24-pin Hirose FH12-24S FFC** (the *bare*-panel connector, needs a booster network we don't carry). The module is on the pop-off faceplate, J2 on the PCB behind; the ~200 mm cable gives service slack — faceplate-off = unplug. CP3: pick top- vs side-entry from the cable-routing/depth stack. |
+| C6  | 1 µF X7R (panel VCC bulk) | 0603 | 1   | Reduces V3V3 dip during refresh |
 
-The FFC pinout (J2 pins) is panel-specific. The original SKiDL has a
-placeholder mapping with notes that it MUST be verified against the
-panel datasheet before fab. **CP1 commits to verifying this at CP2**;
-the verified mapping will land in `hardware/layout/cp2_fcc_pinout.md`.
+**J2 8-pin pinout** (canonical Waveshare e-paper interface — match the
+physical pin order to the module's silk at assembly):
 
-Tentative ESP↔panel signals (from the Waveshare 4.2" B v2 reference):
+| J2 pin | Signal | Net | ESP GPIO | Direction |
+|--------|--------|-----|----------|-----------|
+| 1 | VCC  | V3V3      | —      | 3.3 V |
+| 2 | GND  | GND       | —      | — |
+| 3 | DIN  | SPI_MOSI  | GPIO10 | out |
+| 4 | CLK  | SPI_SCK   | GPIO9  | out |
+| 5 | CS   | EPD_CS    | GPIO5  | out |
+| 6 | DC   | EPD_DC    | GPIO6  | out |
+| 7 | RST  | EPD_RST   | GPIO7  | out |
+| 8 | BUSY | EPD_BUSY  | GPIO8  | in |
 
-| Signal | ESP GPIO | Direction |
-|--------|----------|-----------|
-| BUSY   | GPIO8    | input     |
-| RST    | GPIO7    | output    |
-| DC     | GPIO6    | output    |
-| CS     | GPIO5    | output    |
-| CLK    | GPIO9    | output    |
-| DIN    | GPIO10   | output    |
-| VCC    | V3V3      | -         |
-| GND    | GND       | -         |
-
-SPI clock target: 4 MHz (conservative); 10 MHz achievable per panel
-datasheet.
+SPI clock target: 4 MHz (conservative); 10 MHz achievable per the module
+datasheet. *(This closes the old "verify the FFC pinout at CP2" open item —
+there's no FFC; the module exposes the fixed 8-signal SPI bus above.)*
 
 ### 4.5 RS-485 interface
 
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
-| U2  | SN65HVD3082E                                | SOIC-8         | 1   | Same as battery-side U3 |
+| U2  | **THVD1400DR** (TI, 3.3–5.5 V half-duplex, 500 kbps, full fail-safe RX) | SOIC-8 | 1 | Same as battery-side U3 (**D34**, revised iter-10 F08). VCC 3.0–5.5 V, RX-only Iq 900 µA max / 700 µA typ, **shutdown Iq 1 µA max** (12× better than the iter-8 first cut ISL3175E on the max-to-max comparison), full fail-safe RX (open/short/idle → RO HIGH), datasheet-guaranteed internal DE pull-DOWN + /RE pull-UP → default-safe without external resistors. SN75176 8-SOIC pinout. |
 | R2  | 120 Ω 1 % termination, A ↔ B              | 0805           | 1   | This end is always the bus terminus → populated by default |
-| R3  | 680 Ω idle bias: A → V3V3                  | 0805           | 1   | Optional — battery-side already biases the bus. **Power-first**: leave footprints, don't populate by default on hand-assembly. Reviewer to confirm |
-| R4  | 680 Ω idle bias: B → GND                   | 0805           | 1   | (paired with R3, optional) |
+| R3  | ~330 Ω idle bias: A → V3V3                 | 0805           | 1   | **DNP by default (iter-12 F12).** If populated, gives ~275 mV differential (A > B) at 3.3 V / 720 Ω = **4.58 mA**, ≈ **15 mW** continuous whenever the display board is powered (States A + B). THVD1400 datasheet §8.2.1.4 guarantees Full Fail-Safe: open/short/idle bus all drive RO HIGH built-in — so the bias is **not** required to keep RO stable, only for extra noise-margin against transient bus dips. Power-first (D5) call: leave the footprint on the PCB but do not stuff by default; populate at CP5 bench only if actual link testing shows spurious RO glitches. *(Prior "populated by default + shed at hard-cut" understated the cost — 15 mW is present in every non-hard-cut display state, not "free margin".)* |
+| R4  | ~330 Ω idle bias: B → GND                  | 0805           | 1   | **DNP by default** (paired with R3; same rationale). |
 | TVS2 | SMAJ12CA bidirectional                    | SMA            | 1   | RS-485 surge clamp |
 | C7  | 100 nF X7R (U2 VCC decoupling)             | 0603           | 1   | |
 
-**Power-first note**: depopulating R3/R4 (idle bias at this end) saves
-~2.3 mA continuous on V3V3 → ~7.6 mW. The battery-side's bias is
-sufficient to define the idle state for the whole bus. Footprints stay
-so a future build can populate them if the bus topology changes.
+**Enable topology (D34, reviewer iter-8 F06 + iter-10 F08/F09).** DE and
+/RE routed as **two independent ESP GPIOs** (GPIO2 = DE, GPIO15 = /RE).
+THVD1400 has **datasheet-guaranteed internal pulls** (DE 2 MΩ pull-DOWN,
+/RE 2 MΩ pull-UP) that default the transceiver to shutdown whenever both
+GPIOs float — no external R_DE / R_RE needed. Reset / crash / brown-out
+land in shutdown safely. Display-side power is shed with the display at
+hard-cut (SSR1 OPEN via battery-side), so the display's transceiver is
+unpowered in State 4 regardless — but the topology still matters for
+State 3/B (deep-sleep waiting for the next RS-485 frame).
+
+**Display-side sleep policy (D34 / F09, revised iter-12 F11).**
+The display's job in deep-sleep is to wake on incoming RS-485 traffic.
+The transceiver's receiver **must be enabled** during deep-sleep for RO
+to toggle on a start-bit, otherwise the wake path is impossible. So:
+
+- **GPIO15 (/RE) latched LOW through Deep-sleep** via
+  `gpio_hold_en(GPIO15)` + `gpio_deep_sleep_hold_en()` before entering
+  sleep. This overrides THVD1400's internal pull-UP and keeps /RE = 0 →
+  receiver on. GPIO15 is RTC-capable per Espressif ESP32-S3 datasheet
+  Table 3-1 Pin Definitions (RTC_GPIO0..21) [table number corrected 2026-07-14 — the datasheet has no Table 5-3].
+- **GPIO2 (DE) can Hi-Z** in Deep-sleep — internal pull-DOWN takes
+  DE = 0 = driver off. (Alternatively latched LOW; no functional
+  difference.)
+- **Wake source: `ext1` `ESP_EXT1_WAKEUP_ANY_LOW` mask over GPIO12,
+  GPIO13, GPIO14, GPIO18** (F15). One RTC-GPIO wake API covers all four
+  active-LOW wake inputs: BTN1/BTN2/BTN3 (§4.6) and RS-485 RO from U2.
+  All four are RTC-capable per ESP32-S3 datasheet Table 3-1 (corrected 2026-07-14: was cited as a nonexistent Table 5-3). **NOT the
+  ESP UART wake API** — ESP32-S3 UART wake is Light-sleep-only per
+  Espressif [`sleep_modes.html`](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/system/sleep_modes.html);
+  Deep-sleep powers off the APB-clocked digital peripherals including
+  the UART, so the triggering byte is unavailable to the application on
+  wake regardless.
+- **Wake waveform: a sustained LOW held for ≥3 RTC slow-clock cycles
+  plus margin** (F15, polarity + bus-ownership corrected iter-17 F17).
+  The RTC slow clock is 150 kHz internal → 3 cycles ≈ 20 µs;
+  Espressif's Deep-sleep GPIO wake documentation requires this minimum
+  for reliable sampling. At the D34 250 kbps bit rate, a normal UART
+  data byte is only 4 µs per bit — a random `0x55` never holds RO LOW
+  long enough. **Master-side driver polarity (from
+  [THVD1400 datasheet](https://www.ti.com/lit/ds/symlink/thvd1400.pdf)
+  §7.4 Function Tables): master sets `DE=1, D/TXD=0` → A LOW, B HIGH,
+  `V_A − V_B` negative → RO LOW** at every enabled receiver on the
+  bus (display side included). CP2 firmware nominal: hold that BREAK
+  for **50 ms** — orders of magnitude above the 20 µs sampling
+  minimum, and comfortably above ESP32-S3 wake+boot (~10 ms typical
+  from Deep-sleep). **Bus-ownership with observable turnaround
+  guard** (F17 + iter-18 F18): the display can and often will finish
+  booting inside the master's 50 ms BREAK window, so a numbered
+  ordering ("master releases DE, then display asserts DE") cannot be
+  enforced by numbering alone — both sides need an observable
+  condition to synchronize on. `ESP_EXT1_WAKEUP_ANY_LOW` is a **level**
+  wake, so ext1 fires during the LOW sampling window itself (not on
+  the LOW→HIGH transition when the master releases). Wake causes the
+  boot; the bus-idle handoff is a separate event.
+  - **Master:** (1) set `DE=1, TXD=0` → drive BREAK. (2) Hold BREAK
+    50 ms nominal. (3) **Set `DE=0` AND `/RE=0` simultaneously**
+    (deassert driver + enable own receiver) *before* starting the
+    ACK timeout — if the master keeps /RE=1, it can't observe the
+    display's ACK arriving. (4) Watch RO for the ACK frame; on ACK,
+    transmit payload.
+  - **Display:** (a) ext1 fires on the LOW level → ESP wakes and
+    boots. (b) Firmware initializes with **`DE=0` kept low**
+    (/RE=0 is already latched via `gpio_hold_en(GPIO15)`, so the
+    receiver is on and RO is valid). (c) Firmware polls GPIO18/RO
+    and waits until it has been **HIGH continuously for a bus-idle
+    guard interval** — nominally **≥50 µs**, sized against the
+    slowest relevant [THVD1400 §6.7](https://www.ti.com/lit/ds/symlink/thvd1400.pdf)
+    Switching Characteristics path: driver-disable `tPHZ/tPLZ =
+    80 ns typ / 200 ns max` for the master's `DE=0` transition to
+    tri-state the pair, **plus** receiver-enable/fail-safe response
+    `tR(F) = 4 µs typ / 10 µs max` for the display's RX to detect
+    the idle condition and drive RO HIGH via the built-in fail-safe
+    circuit once the master is no longer driving. The **10 µs
+    receiver-enable/fail-safe max** dominates the budget; **50 µs
+    gives ≥5× margin over that path and ~250× over the
+    driver-disable max**, plus 4 µs of UART bit-time noise margin at
+    250 kbps. (d) Once
+    RO has been continuously HIGH for the guard, display asserts
+    `DE=1`, transmits the ACK frame, then sets `DE=0`. (e) Done.
+  The guard makes the handoff **observable**: the display cannot
+  assert DE until it *sees* the bus idle, which requires the
+  master's `DE=0` transition to have propagated through THVD1400's
+  driver-disable time. This eliminates the driver-overlap risk that
+  a numbered-list ordering leaves open when boot happens to
+  complete mid-BREAK. **Bench-verify at CP2:** scope **both DE pins
+  simultaneously** plus A/B/RO, and confirm no driver-overlap window
+  ever appears — including cases where display boot completes
+  mid-BREAK. Don't size correctness around the ~10 ms boot assumption.
+- **Firmware protocol requirement (CP2 firmware handoff):** master
+  drives BREAK → sets `DE=0` + `/RE=0` → starts ACK timeout →
+  display observes RO HIGH for ≥50 µs guard → display asserts DE,
+  transmits ACK, deasserts DE → master receives ACK → master
+  transmits payload. ACK timeout, retry policy, and the exact guard
+  interval are firmware-layer decisions, but the **observable
+  turnaround** (display waits on RO HIGH; master enables /RE before
+  starting timeout) is a correctness requirement, not a
+  nice-to-have. **The wake-causing waveform is lost by design; the
+  ACK is what tells the master the display is ready to receive.**
+- **Transceiver draws its RX-only Iq (~900 µA max, ~700 µA typ)
+  continuously** in this state — a real cost that appears in the
+  display-side State B budget (§7). Not in the battery-side hard-cut
+  budget because the display is on the SSR1-shed rail; at hard-cut SSR1 is
+  off and the whole display side is dark.
+- **Alternative considered and rejected: Light-sleep + UART wake** (F15,
+  corrected iter-15). ESP32-S3-WROOM-1-N16R8 module
+  [datasheet](https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf)
+  Table 6 lists Light-sleep at **240 µA typ** for the base module, plus
+  **~140 µA for the N16R8's 8-line PSRAM** (kept in retention);
+  Deep-sleep is ~7-8 µA typ. Mode delta ≈ **0.37 mA (~1.2 mW at 3.3 V)**,
+  not the ~1 mA / ~3 mW previously quoted. Even so, Light-sleep
+  UART wake still normally loses the triggering character (Espressif
+  sleep_modes docs: the triggering character is not received and an
+  extra wake character is normally required) — so the master would still
+  send a preamble byte, and the display's ACK would still be needed. On
+  a ~1 mW hard-cut budget and a ~50 mW display State A total, 1.2 mW
+  is meaningful; and Deep-sleep + BREAK still wins on both power and
+  wake-source unification (buttons + bus on one API). Deep-sleep +
+  BREAK is the power-first choice ([[power-first]]).
+
+**Power-first note (D19/DR-4, revised iter-12 F12)**: if the bus ever
+needs continuous idle bias, it lives **here, on the display end** —
+*not* on the battery side. The battery 3V3 rail is now always-on, so
+battery-side bias (~2.3 mA) would draw continuously and blow the ~1 mW
+hard-cut budget. **But**: THVD1400's Full Fail-Safe RX (datasheet
+§8.2.1.4) guarantees RO HIGH on an open/short/idle bus without any
+external bias, so **R3/R4 are DNP by default** (iter-12 F12) — the
+15 mW cost is not spent unless bench testing reveals a specific noise
+problem. If populated at CP5 at the previously-computed ~330 Ω (a
+single bias point that clears 200 mV idle across both terminators),
+the 15 mW is sourced from the display 3V3 rail, which is **shed with
+the display** when the battery opens SSR1 at low SOC — so the cost is
+zero in State 4 regardless of stuff status.
 
 ### 4.6 User input (3 tactile buttons, software-defined labels)
 
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
-| BTN1, BTN2, BTN3 | 6×6×4.3 mm tactile SMT switch (e.g. C&K PTS525 SMT) | SMT | 3 | Mounted on the **bottom edge** of the PCB, on 18 mm centers; line up under faceplate cutouts |
+| BTN1, BTN2, BTN3 | **THT tall-actuator tactile switch** (6×6 mm body, long plunger — e.g. the 6×6×N mm family, N ≈ 13–17 mm) | THT | 3 | **User call (2026-06-23): real tactile button whose actuator protrudes slightly through the faceplate** — no printed caps. Mounted on the **bottom edge**, actuator pointing **toward the faceplate (+Z)**, on 18 mm centers under the faceplate cutouts. **Actuator height = (PCB-front → faceplate-front gap) + ~2–3 mm protrusion**; the gap is set by the module/standoff depth stack, so the exact plunger length is locked at CP3/CP5 from the PCB STEP (DR-10). Pick the catalog height nearest that figure |
 | R5, R6, R7 | 1 MΩ pull-ups (BTN ↔ V3V3)        | 0805 ×3        | 3   | High-value to minimize Iq; ESP internal pullup also available as backup |
 | C8, C9, C10 | 100 nF X7R RC debounce             | 0603 ×3        | 3   | RC = 100 ms — human-button slow |
 
@@ -175,18 +371,31 @@ ESP GPIO mapping (BTN inputs):
 
 ### 4.7 Status indicator
 
-**None.** Per [D4](decisions.md#d4) — no idle indicator LEDs.
+**No status LED** (consistent with D4) — and deliberately **no last-gasp
+supercap** either (a tri-color refresh is ~7 s / ~1.3 J → would need ~0.7 F,
+and wouldn't reliably complete on a dying rail). Instead, "is the display
+dead?" is solved in firmware/sequencing per **D30**:
+- **"Last updated HH:MM" timestamp on every refresh** — a frozen e-paper
+  showing a stale time is the unmistakable tell (covers both comms-loss and
+  power-loss, since the bistable image keeps the old time).
+- **Graceful pre-shed render** — the battery side sends a "sleeping" frame
+  and waits for the display to draw it *before* opening SSR1; the bistable
+  screen then holds "Monitor sleeping — low battery."
+- **Battery-side heartbeat detection** — missing display acks → flagged via
+  the WiFi push (D25).
+- Comms-dead-but-powered is already caught by `watchdog_task` ("LINK DOWN").
 
-The e-paper handles all status display: red text for alerts, B&W partial
-refresh for live updates, etc.
+A status LED was rejected because it **dies with the board** → tells you
+nothing about the power-loss case. See D30.
 
 ### 4.8 Dev / debug headers
 
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
-| J3  | 4-pin 2.54 mm header (UART debug: TX/RX/GND/RESET#) | THT | 1 | FTDI for ESP-IDF console |
-| J4  | 4-pin 2.54 mm header (USB-OTG breakout: D+/D−/VBUS/GND) | THT | 1 | Firmware flash for bring-up |
+| J3  | **Keyed 2×3 IDC box header — the real ESP-Prog "Program" connector** (Würth 61200621621, same SKU as battery J5): 1=EN, 2=VDD, 3=TXD(target), 4=GND, 5=RXD(target), 6=IO0 | THT 2×3 | 1 | **Δ display CP2 (resolves the CP1 "revisit" note):** DR-32's deep-sleep recovery argument applies to THIS board too — it Deep-sleeps between frames, so a USB-independent force-download path (IO0 low + EN blip) is required. Was a 4-pin UART header; now the keyed 2×3 ESP-Prog per F01/F10, ribbon-compatible with the same ESP-Prog as the battery board |
+| J4  | _(removed — superseded by the USB-C maintenance port, D27)_ | — | 0 | Native USB now exits J-USB (USB-C); J3 (above) covers bench console + recovery. |
 | J5  | 2-pin 2.54 mm jumper (RS-485 term lift, R2 bypass) | THT | 1 | Same as battery-side |
+| R_cc1, R_cc2 | 5.1 kΩ CC1/CC2 UFP pull-downs | 0805 ×2 | 2 | **Added at display CP2 (CP1 gap, same catch as the battery BOM-diff 2026-07-23):** required for a C-to-C cable's source to enable VBUS |
 
 ## 5. Net list
 
@@ -194,34 +403,42 @@ refresh for live updates, etc.
 |--------------|-------------|-----------------------|-----------------------------------------------|-------|
 | V12_CAT5E    | 12 V        | J1 pins 1/2/3        | F1                                            | From battery side over Cat5e |
 | V12_PROT     | 12 V        | F1 out               | TVS1, U1 VIN, C1                              | Post-PTC, post-TVS |
-| V3V3         | 3.3 V       | U1 VOUT              | ESP3V3, U2 VCC, panel VCC, R3 (if pop), R5/R6/R7 | Switched 3.3 V (only one switch: the ESP itself sleeps) |
+| V3V3         | 3.3 V       | **U4-MUX OUT (TPS2116)** — sources: R-78E3.3 (VIN2) / USB-LDO U3-LDO (VIN1, priority) | ESP3V3, U2 VCC, panel VCC, R3 (if pop), R5/R6/R7 | USB present → from USB-LDO (R-78E3.3 idles); USB absent → from R-78E3.3. D29 (mirrors battery side; **no UVLO bypass** — display has no supervisor) |
+| 3V3_USB      | 3.3 V       | U3-LDO (from VBUS)   | TPS2116 VIN1 (U4-MUX)                          | USB maintenance rail (D29); present only with a cable in; VBUS-referenced |
+| VBUS         | 5 V (USB)   | J-USB VBUS           | U-ESD, U3-LDO VIN                              | Present only with a USB cable; powers the USB-LDO (D29). **Never tied to V3V3** (LDO regulates — reviewer F04) |
 | GND          | 0 V         | (chassis)            | All IC GNDs, J1 pins 6/7/8                    | Single-point bond at battery side; J1 shield drain NC at this end |
-| UART_TX_3V3  | 3.3 V       | ESP IO17              | U2 D pin                                       | RS-485 driver input |
-| UART_RX_3V3  | 3.3 V       | U2 R pin              | ESP IO18                                       | RS-485 receiver output |
-| DE_RE        | 3.3 V       | ESP IO2               | U2 DE & RE pins (tied)                         | Active-HIGH = transmit |
+| RS485_DI     | 3.3 V       | ESP IO17              | U2 D pin                                       | RS-485 driver input *(CP2 net-name normalization: was UART_TX_3V3 — matches the battery-side convention)* |
+| RS485_RO     | 3.3 V       | U2 R pin              | ESP IO18                                       | RS-485 receiver output *(was UART_RX_3V3)* |
+| RS485_DE     | 3.3 V       | ESP IO2               | U2 DE pin (active-HIGH); THVD1400 internal 2 MΩ pull-DOWN → default 0 | **D34/F06:** split from tied DE_RE. Internal pull → default-safe (driver off). *(CP2: was "DE")* |
+| RS485_nRE    | 3.3 V       | ESP IO15              | U2 /RE pin (active-LOW); THVD1400 internal 2 MΩ pull-UP → default 1  | **D34/F06 + F09 + F15:** split from tied DE_RE. Internal pull defaults /RE = 1 (shutdown). **Display sleep policy latches GPIO15 LOW via RTC-GPIO (`gpio_hold_en`)** so the receiver stays on and RO can pull GPIO18 LOW when the master drives a sustained-LOW wake waveform (ext1 ANY_LOW mask over GPIO12/13/14/18). *(CP2: was "/RE" — a leading slash is a hierarchy separator in KiCad net names)* |
 | RS485_A      | 0–5 V diff  | U2 A pin              | J1 pin 4, R2, R3 (opt), TVS2                   | Differential pair |
 | RS485_B      | 0–5 V diff  | U2 B pin              | J1 pin 5, R2, R4 (opt), TVS2                   | (paired with A) |
-| EPD_CS       | 3.3 V       | ESP IO5               | J2 (FFC CS pin)                                | SPI chip select |
-| EPD_DC       | 3.3 V       | ESP IO6               | J2 (FFC DC pin)                                | Data/command |
-| EPD_RST      | 3.3 V       | ESP IO7               | J2 (FFC RST pin)                                | Hardware reset, active-low |
-| EPD_BUSY     | 3.3 V       | J2 (FFC BUSY pin)     | ESP IO8                                        | Panel ready-to-receive flag |
-| SPI_SCK      | 3.3 V       | ESP IO9               | J2 (FFC CLK pin)                                | SPI clock |
-| SPI_MOSI     | 3.3 V       | ESP IO10              | J2 (FFC DIN pin)                                | SPI data out (write-only) |
+| EPD_CS       | 3.3 V       | ESP IO5               | J2 (CS pin)                                | SPI chip select |
+| EPD_DC       | 3.3 V       | ESP IO6               | J2 (DC pin)                                | Data/command |
+| EPD_RST      | 3.3 V       | ESP IO7               | J2 (RST pin)                                | Hardware reset, active-low |
+| EPD_BUSY     | 3.3 V       | J2 (BUSY pin)     | ESP IO8                                        | Panel ready-to-receive flag |
+| SPI_SCK      | 3.3 V       | ESP IO9               | J2 (CLK pin)                                | SPI clock |
+| SPI_MOSI     | 3.3 V       | ESP IO10              | J2 (DIN pin)                                | SPI data out (write-only) |
 | BTN1_IN      | 3.3 V LV    | BTN1 + R5             | ESP IO12                                       | Active-LOW |
 | BTN2_IN      | 3.3 V LV    | BTN2 + R6             | ESP IO13                                       | Active-LOW |
 | BTN3_IN      | 3.3 V LV    | BTN3 + R7             | ESP IO14                                       | Active-LOW |
-| RESET#       | 3.3 V LV    | ESP EN / J3 pin 4     | -                                              | Pulled HIGH via R1 + C5 |
+| MCU_EN       | 3.3 V LV    | ESP EN / **J3 pin 1** | -                                              | Pulled HIGH via R1 + C5 soft-start *(CP2: was "RESET# / J3 pin 4" — J3 is now the keyed 2×3 ESP-Prog, EN on pin 1, GND on pin 4)* |
 
 ## 6. ESP32-S3 pin assignment
 
-Inherits from [`schematic_display_side.md`](../../docs/hardware/schematic_display_side.md)
-with one change: GPIO15 (debug LED) is **unused** (D4); becomes
-expansion pad on J3 or J4.
+Inherits the ESP32-S3-WROOM base pinout, with two CP1-era changes vs the
+older `schematic_display_side.md` parent doc: GPIO15 (originally debug
+LED) was freed by D4 (no LEDs) and **reclaimed as RS-485 /RE by D34**
+(post-iter-8, resolves F06 topology + F09 wake-path); GPIO2 was split from
+tied DE_RE to plain DE by D34.
 
 | GPIO   | Direction | Function                | Sleep behavior              |
 |--------|-----------|--------------------------|------------------------------|
-| GPIO0  | (strap)   | Bootloader strap         | -                            |
-| GPIO2  | output    | RS-485 DE/RE             | Hi-Z in deep sleep           |
+| GPIO0  | (strap)   | Bootloader strap         | weak pull-up                 |
+| GPIO3  | (strap)   | USB-JTAG select; leave NC (internal default) | - (reviewer F05) |
+| GPIO45 | (strap)   | VDD_SPI strap; leave NC (internal default)   | - (reviewer F05) |
+| GPIO46 | (strap)   | Boot-mode strap; leave NC (internal default) | - (reviewer F05) |
+| GPIO2  | output    | **RS-485 DE** (D34)      | Hi-Z in deep sleep → THVD1400 internal 2 MΩ pull-DOWN defaults DE=0 (transmit off) |
 | GPIO5  | output    | E-paper CS               | Hi-Z; pulled HIGH externally? No — leave at last state |
 | GPIO6  | output    | E-paper DC               | "                            |
 | GPIO7  | output    | E-paper RST              | "                            |
@@ -231,47 +448,65 @@ expansion pad on J3 or J4.
 | GPIO12 | input     | BTN1 (RTC-capable)       | Wake source for "any button press" |
 | GPIO13 | input     | BTN2 (RTC-capable)       | "                            |
 | GPIO14 | input     | BTN3 (RTC-capable)       | "                            |
-| GPIO15 | (expansion) | brought to J3, unused   | -                            |
-| GPIO17 | UART1 TX  | to SN65HVD3082E D pin    | Hi-Z in deep sleep           |
-| GPIO18 | UART1 RX  | from SN65HVD3082E R pin   | Hi-Z in deep sleep; **RS-485 RX wakes the ESP** (configure as RTC-capable wake) |
-| GPIO19/20 | USB DM/DP | USB-OTG (J4 dev header) | Hi-Z; not on bus when unused |
+| GPIO15 | output    | **RS-485 /RE** (D34/F09) | **Latched LOW in Deep-sleep via `gpio_hold_en(GPIO15)` + `gpio_deep_sleep_hold_en()`** so /RE = 0 → receiver stays on so RO can respond to the master's sustained-LOW BREAK (ext1 ANY_LOW wake mask, see GPIO18 row). RTC-capable per ESP32-S3 Table 3-1 (corrected citation). Overrides THVD1400 internal 2 MΩ pull-UP. |
+| GPIO17 | UART1 TX  | to U2 (THVD1400) D pin   | Hi-Z in deep sleep           |
+| GPIO18 | UART1 RX + `ext1` wake mask | from U2 (THVD1400) R pin | Hi-Z in Deep-sleep for the UART bit; also included in the **`ext1 ESP_EXT1_WAKEUP_ANY_LOW` wake mask** with GPIO12/13/14 (D34/F11+F15). A sustained LOW on the bus → THVD1400 RO LOW → ext1 fires. **The triggering waveform is lost** — Espressif UART wake is Light-sleep-only; ext1 wakes on a level, not a byte. Firmware protocol: master sends a ≥20 µs sustained LOW (nominally 50 ms UART BREAK / dominant hold) + waits for display ACK before transmitting the real frame. GPIO18 is RTC-capable per ESP32-S3 Table 3-1 (corrected citation). |
+| GPIO19/20 | USB DM/DP | native USB → USB-C port (J-USB), ESD-clamped | maintenance port (D27) |
 
 ## 7. Power budget (per [`power_budget.md`](../../docs/hardware/power_budget.md))
 
 State A — Normal (showing live data, RS-485 RX, ESP light-sleep
-between frames):
+between frames). *(Prior versions of this table omitted the R3/R4 idle
+bias — iter-12 F12. Bias is now DNP by default, so State A is
+unchanged; if populated it adds +4.58 mA at 3.3 V = +15.1 mW at load,
++18.9 mW at V12 = +1.6 mA at V12.)*
 
-| Subsystem            | Avg draw on V3V3 | At V12 input (80 % eff) |
-|----------------------|------------------|--------------------------|
-| ESP32-S3 light-sleep | ~2 mA            |                          |
-| RS-485 receive       | ~1 mA            |                          |
-| Panel idle           | ~0               |                          |
-| Panel refresh        | ~25 mA × 7 s every 30 s = 5.8 mA avg | |
-| Subtotal             | ~8.8 mA at 3.3 V = 29 mW | ~36 mW at V12 = ~3 mA |
+| Subsystem            | Avg draw on V3V3 (max where spec'd) | At V12 input (80 % eff) |
+|----------------------|--------------------------------------|--------------------------|
+| ESP32-S3 light-sleep | ~2 mA                                |                          |
+| RS-485 receive (U2 THVD1400 RX-only, no load) | ~700 µA typ / **~900 µA max** |          |
+| Panel idle           | ~0                                   |                          |
+| Panel refresh        | ~25 mA × 7 s every 30 s = 5.8 mA avg |                          |
+| R3/R4 idle bias      | **0 (DNP, F12)**                     |                          |
+| Subtotal             | ~8.8 mA at 3.3 V = 29 mW             | ~36 mW at V12 = ~3 mA    |
 
-This is the typical state. At the 24 V pack end (R-78E12 80 % eff) →
+This is the typical state. At the 24 V pack end (U2 R-78HB12, 80 % eff) →
 ~45 mW, in line with the existing power budget.
 
-State B — Idle (no frames coming in for > 5 minutes, ESP deeper sleep):
+State B — Idle (no frames coming in for > 5 minutes, ESP deeper sleep;
+see §4.5 for the F11 Deep-sleep wake decision):
 
-| Subsystem            | Avg draw |
-|----------------------|----------|
-| ESP32-S3 deep sleep  | ~10 µA   |
-| RS-485 receive       | ~1 mA    |
-| Panel static         | 0        |
-| Total                | ~1 mA at 3.3 V = 3.3 mW |
+| Subsystem            | Avg draw (max where spec'd) |
+|----------------------|------------------------------|
+| ESP32-S3 Deep-sleep + RTC hold (per F11+F15 architecture; ext1 ANY_LOW mask over GPIO12/13/14/18) | ~10 µA typ (Espressif Table 6-7 — corrected citation 2026-07-14; add engineering margin for max) |
+| RS-485 receive (U2 THVD1400, RX-only, no load; /RE held LOW via `gpio_hold_en` per F09) | ~700 µA typ / **~900 µA max** |
+| R3/R4 idle bias      | **0 (DNP, F12)**             |
+| Panel static         | 0                            |
+| Total                | ~0.9 mA at 3.3 V ≈ **~3.0 mW** (max, no bias) |
 
-Could improve further by gating RS-485 receiver power via an N-FET on
-the U2 VCC line — defer to a future revision; ~1 mA is fine.
+The RX-active current is unavoidable in State B given the F11+F15
+Deep-sleep wake architecture: /RE must stay LOW so the receiver can
+drive RO on the master's sustained-LOW BREAK, and GPIO18 is one of
+four active-LOW wake inputs in the ext1 ANY_LOW mask (with buttons
+GPIO12/13/14; UART peripheral is powered off in Deep-sleep — the
+triggering waveform is lost, so battery-side firmware must send a
+sustained-LOW wake interval + wait for display ACK before sending the
+real frame; see D34 §Firmware TODO). Gating VCC to U2 with an N-FET would kill even the RO
+edge and force the display back to Light-sleep + higher ESP Iq — deferred
+to a future revision if this ~3 mW ever becomes load-bearing vs the
+display's ~29 mW State A average.
 
-State C — Hard cut (no V12 from battery side because Q1 is OFF over
-there): **board is off**. No draw.
+State C — Hard cut (no V12 from battery side because SSR1 is OPEN over
+there): **board is off**. No draw. R3/R4 bias contributes nothing here
+regardless of stuff status.
 
 ## 8. RS-485 interface
 
 - Bus terminus → R2 populated.
-- Idle bias (R3, R4) **footprints provided but unpopulated by default**;
-  see §4.5.
+- Idle bias (R3, R4) **DNP by default per iter-12 F12** — THVD1400's
+  Full Fail-Safe RX handles open/short/idle without external bias.
+  Footprint stays on the PCB; CP5 stuff at ~330 Ω if EMI testing reveals
+  a specific need (D19/DR-4; battery side carries none regardless). See §4.5.
 - Shield drain wire from J1 is **NC** at this end. Single-point bond at
   battery side. (See [`cat5e_pinout.md`](../../docs/hardware/cat5e_pinout.md).)
 
@@ -287,6 +522,8 @@ there): **board is off**. No draw.
 | C6    | 1 µF   | V3V3 (panel) | J2 VCC pin < 3 mm        | Panel refresh dip suppression |
 | C7    | 100 nF | V3V3    | U2 VCC < 2 mm                | RS-485 decoupling |
 | C8, C9, C10 | 100 nF | BTNn_IN | -                       | Button RC debounce (×3) |
+| C_usb1, C_usb2 | 1 µF | 3V3_USB / VBUS | U3-LDO in/out < 2 mm   | AP2112 in/out (D29, reviewer F04) |
+| C_mux | ~47 µF | V3V3 | TPS2116 OUT < 5 mm           | Mux OUT bulk for RCB on USB hot-plug (D29; mirrors battery C13, reviewer F11) |
 
 ## 10. Layout strategy
 
@@ -297,33 +534,37 @@ ground pour).
 
 ### 10.2 Placement priorities
 
-1. **J2 FFC on the long edge** (top of board, the side closest to the
-   e-paper panel above the buttons in the faceplate). The panel ribbon
-   bends only 90° from panel back to PCB front.
+1. **J2 (8-pin header) on the long edge** (top of board, closest to the
+   e-paper module above the buttons in the faceplate), so the module's
+   8-pin cable run to the board is short.
 2. **Buttons BTN1/2/3 on the bottom edge**, in a row, 18 mm centers,
    centered laterally on the PCB. So at X = (PCB_width − 2×18 mm) / 2 =
    (85 − 36) / 2 = 24.5 mm to first button center → buttons at
    24.5 mm / 42.5 mm / 60.5 mm. Slightly off the rules I stated above —
    reconciling: **use 24, 42, 60 mm to match a 3 mm offset from the
    left mounting hole.**
-3. **ESP32-S3 antenna pointing toward the box back wall** (away from
-   the e-paper panel — the panel has a metal-foil back layer that
-   reflects RF and might detune the antenna).
-4. **U1 (R-78E3.3) tall** — SIP3 footprint sticks up ~9 mm. Place on
-   the **back** of the PCB (B.Cu side) so it points into the empty
-   double-gang box space, not into the e-paper panel.
-5. **RS-485 + RJ45 on a short edge**, accessible from the back of the
-   box (where the in-wall Cat5e arrives). Either short edge works
-   mechanically; preference is the LEFT edge (X = 0) so the cable
-   doesn't push the box too far forward.
-6. **Buttons exit the PCB toward the faceplate side**; their height
-   plus PCB to faceplate distance must clear the box's interior front
-   ribs. Tactile switch is 4.3 mm tall; PCB + standoff stack adds ~5 mm;
-   total ~10 mm from PCB back to button cap top. Faceplate sits ~12 mm
-   in front of the PCB back. Caps need 2 mm of travel to actuate plus
-   the faceplate's 2 mm thickness → caps need to be ~4 mm above the
-   faceplate front surface to be operable. Will need ~5–6 mm cap height
-   custom or a longer rubber dome cap. **3D-print extension required.**
+3. **No antenna placement constraint (D26):** the radio is unused
+   (RS-485 link), so there's no antenna keepout/orientation to honor —
+   freed layout. (No PCB-antenna-vs-panel-foil concern.)
+4. **Watch the depth stack (DR-10).** Keep tall parts low and off the
+   module-facing side: the **R-78E3.3 SIP (~9–11 mm)** and the RJ45 are the
+   offenders. Place the R-78 flat/on the back pointing into the box;
+   confirm the full faceplate→module→PCB→bracket→floor tally fits the
+   ~45 mm box at CP3.
+5. **Right-angle / low-profile RJ45 on a short edge** (DR-10), so the
+   in-wall Cat5e enters from the side/bottom and the jack doesn't consume
+   depth. Preference: LEFT edge so the cable doesn't push the box forward.
+6. **USB-C bench/recovery port at a board edge** (D27) — reached by
+   popping the faceplate (no front cutout); routine updates are OTA over
+   RS-485, so it's rarely used.
+7. **Buttons exit the PCB toward the faceplate (+Z)** with a **tall-actuator
+   THT tactile** whose plunger reaches through the faceplate cutout and
+   **protrudes ~2–3 mm** for an easy press (user call — no printed caps).
+   Actuator length = (PCB-front → faceplate-front gap) + protrusion; the gap
+   is set by the module/standoff depth stack, so pick the catalog plunger
+   height at CP3/CP5 from the PCB STEP. The faceplate carries a clearance
+   hole per button (not a cap pocket). Keep the switch bodies clear of the
+   box's interior front ribs.
 
 ### 10.3 Net classes
 
@@ -336,7 +577,7 @@ ground pour).
 
 ### 10.4 Ground
 
-B.Cu continuous ground pour. Stitching vias every 10 mm. The FFC J2's
+B.Cu continuous ground pour. Stitching vias every 10 mm. The J2 header's
 GND pins all tie to the pour directly; no thermal relief on those (they
 carry the return current for SPI signal edges).
 
@@ -350,24 +591,22 @@ minimum).
 | ID            | Question | Default if no reviewer input |
 |---------------|----------|------------------------------|
 | **D-OPEN-1**  | ESP32-S3-WROOM-1-N16R8 vs -N8? | N16R8 (consistent with battery side) |
-| **D-OPEN-8**  | Populate R3/R4 idle-bias on display side or leave footprints unpopulated? | **Unpopulated by default** — battery-side bias is sufficient |
+| ~~**D-OPEN-8**~~ | Populate R3/R4 idle-bias on display side? | **RESOLVED (D19/DR-4): populate at ~330 Ω** — this is the bus's *only* bias (battery side carries none, to keep its always-on rail at zero static draw) |
 | **D-OPEN-9**  | RS-485 receiver power-gate (N-FET on U2 VCC) for further idle-current reduction? | **No** — adds complexity for ~1 mA savings; defer to v2 |
 | **D-OPEN-10** | Button hardware-debounce RC values? CP1 specs 1 MΩ + 100 nF (RC = 100 ms). Some prefer 10 kΩ + 100 nF (RC = 1 ms, faster response). | **100 ms** — human buttons; the RC delay is invisible. 1 MΩ keeps Iq trivially low even if any GPIO ever inverts polarity at fab |
-| **D-OPEN-11** | Where does the panel mount mechanically? (a) on the PCB front via M2 standoffs, (b) on the 3D-printed bracket separately from the PCB, (c) glued to the faceplate? | **(b) — on the 3D-printed bracket**, panel sits between PCB and faceplate. User redesigns the bracket if (a) or (c) is preferred |
+| ~~**D-OPEN-11**~~ | Panel mount? | **RESOLVED (D27/DR-10):** the e-paper **module mounts to the back of the oversized custom faceplate** (the ~90–103 mm module doesn't fit inside the ~95 mm box); the main PCB sits in the box behind, 8-pin cable between. |
 | **D-OPEN-12** | Faceplate dimensions — 115 × 117 mm to match standard double-gang, or larger? | **115 × 117 mm** matches user's reference; can override at CP5 |
 
 ## 13. Risk register
 
-1. **FFC connector pinout verification** — the SKiDL placeholder mapping
-   for J2 must be replaced with verified panel datasheet mapping before
-   CP2. The Hirose FH12-24S has a fixed pin-1 indication, but the
-   panel's flex tail can be flipped — verify by tracing the panel's own
-   PCB tail on the actual unit at hand or against the Waveshare 4.2"
-   B v2 schematic from manufacturer.
-2. **Tactile button cap height** — 4.3 mm switch + standoffs leaves
-   ~10 mm from PCB back to cap top, while the faceplate sits ~12 mm
-   ahead. Need cap extensions in the 3D print. Compute exactly at CP3
-   based on actual standoff stack.
+1. ~~**FFC connector pinout verification**~~ — **RESOLVED (DR-7):** there
+   is no FFC. J2 is an **8-pin JST-PH 2.0 mm** post header matching the
+   Waveshare Module (B)'s onboard PH connector (§4.4) — keyed by design.
+   Residual: match the physical pin order on J2 to the module's silk/cable.
+2. **Tall-actuator tactile plunger length** — pick the catalog height so the
+   plunger spans the PCB-front→faceplate gap and protrudes ~2–3 mm through
+   the faceplate hole (user call — no printed caps). Lock the exact height at
+   CP3 from the actual standoff/depth stack.
 3. **R-78E3.3 SIP3 footprint orientation** — taller side of the module
    must face AWAY from the e-paper to avoid clearance issues.
 4. **Panel SPI bus timing on 4 MHz** — verify partial refresh works at
@@ -382,13 +621,13 @@ minimum).
 | Board outline                    | ~85 × 60 mm                              | 85 × 65 mm — slightly bigger thanks to double-gang  |
 | Button function                  | Hardcoded (Refresh / Next-screen / Release-BLE) | **Software-defined**, with on-screen labels rendered next to each button |
 | Debug LED                        | LED1 + R_led                            | **Removed** per D4                          |
-| Idle bias on RS-485              | R11/R12 populated (~2.3 mA)              | Footprints provided, unpopulated by default per D5 |
+| Idle bias on RS-485              | Battery-side R11/R12 (~2.3 mA, always-on leak under D19) | **Moved footprint here; DNP by default per iter-12 F12** — THVD1400 Full Fail-Safe RX (§8.2.1.4) handles idle without external bias. CP5 stuff at ~330 Ω if EMI testing requires it; sourced from display 3V3 so shed with the display at low SOC either way (D19/DR-4) |
 | Mounting                         | Single-gang low-voltage bracket          | Custom 3D-printed bracket (drops into double-gang box and secures PCB) |
 | Faceplate                        | Blank single-gang plate, cut for window  | Custom 3D-printed plate (user designs against PCB STEP from CP5) |
 
 ## 15. What's NOT in CP1
 
-- Verified FFC pin mapping for the panel (CP2)
+- Final J2 8-pin pin-order match to the e-paper module silk (CP2)
 - Schematic capture in KiCad (CP2)
 - Footprint placement (CP3)
 - Routing (CP4)

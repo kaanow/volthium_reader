@@ -25,10 +25,8 @@ hardware/tools/*.jar
 hardware/kicad/outputs/
 hardware/kicad/projects/
 
-# SKiDL leftover artifacts
+# KiCad-CLI / build leftover artifacts
 *.erc
-/skidl_REPL.log
-/test_smoke.log
 
 # Off-Pi capture corpus pulled by scripts/pull_captures.sh for Xanbus decoding.
 # This is decode *tooling* input, not telemetry — it lives local-only, never
@@ -55,3 +53,6 @@ hardware/outputs/*/*.ses
 # Freerouting log/state
 logs/
 freerouting.json
+
+# CP2 code-generated schematics + review renders (regenerate: schematic/build.py)
+hardware/kicad/schematic/build/

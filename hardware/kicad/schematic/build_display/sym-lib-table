@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "volthium")(type "KiCad")(uri "${KIPRJMOD}/volthium.kicad_sym")(options "")(descr ""))
+)

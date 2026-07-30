@@ -1,0 +1,212 @@
+Specifications
+Material
+  Insulator: LCP, UL 94V-0, Black
+  Contact:  Copper Alloy (T=0.15mm)
+  Shell: Stainless steel (T=0.30mm)
+  Inner Ground Cover Shell: Stainless Steel (T=0.10mm)
+  Mid-Plate: Stainless Steel (T=0.15mm)
+Plating
+  Contact:
+    Contact Area: See Ordering Grid
+    Solder Tails: Gold Flash
+    Underplating:  50µ" min. Nickel
+  Shell: 50µ" min. Nickel
+  Inner Ground Cover Shell&  Mid-Plate: Clear
+Electrical
+  Current Rating:
+5.00A collectively for VBUS pins
+6.25A collectively for GND pins
+1.25A for A5/B5 pin
+0.25A per pin for all other pins
+  Voltage Rating: 48V DC
+  Power Rating: 240W
+  Contact Resistance: 40mΩ max initial.
+    50mΩ max after test
+  Dielectric Withstanding Voltage: 100V AC
+  Insulation Resistance 100MΩ min
+Mechanical & Environmental
+  Operating Temperature: -40°C to 85°C
+  Mating Force: 5 to 20 N.
+  Unmated Force: 6 to 20 N after test
+  Durability: 20,000 cycles
+Pin
+Signal
+Mating
+Sequence
+A1
+GND
+First
+A4
+VBUS
+First
+A5
+CC1
+Second
+A6
+Dp1
+Second
+A7
+Dn1
+Second
+A8
+SBU1
+Second
+A9
+VBUS
+First
+A12
+GND
+First
+SHELL
+GND
+Pin
+Signal
+Mating
+Sequence
+B12
+GND
+First
+B9
+VBUS
+First
+B8
+SBU2
+Second
+B7
+Dn2
+Second
+B6
+Dp2
+Second
+B5
+CC2
+Second
+B4
+VBUS
+First
+B1
+GND
+First
+SHELL
+GND
+Ordering Grid
+Request Samples
+and Quotation
+USB4085
+A
+Packing Options
+A = Tape & Reel
+(700 per reel)
+XX
+Contact Plating
+GF = Gold Flash  (Standard)
+30 = 30µ" Gold
+A
+1
+B
+C
+D
+2
+3
+E
+F
+G
+H
+6
+7
+8
+C
+4
+5
+3rd Angle Projection
+Units:
+Metric (mm)
+Tolerances (Except as Noted)
+X. ± 0.50
+X.X ± 0.30
+X.XX ± 0.20
+X.XXX ± 0.10
+Length
+Angle
+Product Description
+This drawing is confidential and
+copyright of Global Connector
+Technology, Ltd (GCT).
+This drawing must not be copied
+or disclosed without written
+consent. E & OE
+Not to
+Scale
+Drawn By
+CC
+Sheet No.
+1/3
+USB4085
+CC
+USB4085
+B PCN
+By
+Detail
+Revision
+Part Number
+Drawing Date
+9th April 2018
+Date
+± 2°
+USB 2.0 Type C Receptacle
+Dip Type, PCB Top Mount
+B
+28/02/23
+www.gct.co
+A1
+A12
+B12
+B1
+8.34+0.06
+-0.02
+A
+B
+A
+B
+2.56±0.04
+ 1.88
+3.16
+4.25
+3.38
+0.80±0.10
+1.50±0.10
+1.60
+2.10
+0.80
+7.26
+1.35
+8x 0.70±0.05
+0.27
+2x 0.25±0.025
+6.69+0.05
+-0.06
+3.90±0.15
+3.40±0.15
+1.70±0.10
+3.20±0.10
+4.55±0.10
+8.94
+9.17±0.30
+8.64
+0.85
+2.55
+4.25
+5.95
+3.46
+T=0.30±0.05
+16x 0.22±0.05
+T=0.15±0.05
+0.98
+ C
+Section A-A
+Section B-B
+1.35
+Detail C
+Scale 2:1
+4.45
+1.20±0.05

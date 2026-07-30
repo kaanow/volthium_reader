@@ -1,0 +1,20 @@
+INDEPENDENT RENDERED-WORD SECOND OPINION
+threshold_mm=0.45
+child_pdfs=12
+build/sheet_conn.pdf: words=192 findings=0
+build/sheet_isors485_1.pdf: words=221 findings=0
+  benign-near-threshold 'Q10' x 'NTR4171P' overlap=2.951x0.406 mm
+build/sheet_isors485_2.pdf: words=221 findings=0
+  benign-near-threshold 'Q11' x 'NTR4171P' overlap=2.951x0.406 mm
+build/sheet_mcu.pdf: words=177 findings=0
+build/sheet_periph.pdf: words=169 findings=0
+build/sheet_power.pdf: words=140 findings=0
+build/sheet_super.pdf: words=77 findings=0
+build/sheet_usb.pdf: words=107 findings=0
+  benign-near-threshold '4' x 'VOUT' overlap=1.209x0.349 mm
+build_display/sheet_d_conn.pdf: words=131 findings=0
+build_display/sheet_d_mcu.pdf: words=158 findings=0
+build_display/sheet_d_periph.pdf: words=140 findings=0
+build_display/sheet_d_power.pdf: words=117 findings=0
+  benign-near-threshold '4' x 'VOUT' overlap=1.209x0.349 mm
+TOTAL_FINDINGS=0

@@ -30,10 +30,11 @@
   stays above 0 °C if the cabin is occupied. If we leave the cabin
   unheated, partial-refresh ghosting may become visible. Worth noting in
   the firmware: avoid refreshes below 0 °C, fall back to full-refresh-only.
-- **Battery-side enclosure ventilation**: the TPS62933 will dissipate
-  ~150 mW. The Hammond 1556B2GY enclosure handles that easily, but if
-  we add heavier-current circuits later we may need a thermal pad to
-  the box lid.
+- **Battery-side enclosure ventilation**: the regulators (U1 LM5165
+  always-on µA-Iq buck + U2 R-78HB12 12 V, per D19) dissipate well under
+  ~150 mW combined at typical load. The enclosure handles that easily; if
+  we add heavier-current circuits later we may need a thermal pad to the
+  box lid.
 - **Cable strain relief at the in-wall keystone**: shoulder-mount the
   RJ45 keystone so the patch cable comes out without stressing the
   punch-down.

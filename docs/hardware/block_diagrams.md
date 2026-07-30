@@ -28,7 +28,7 @@
                      │         │    │
                   ┌──▼─────────▼────▼──────┐
                   │  DISPLAY-SIDE BOARD    │
-                  │  (single-gang wall     │
+                  │  (double-gang wall     │
                   │   mount in kitchen)    │
                   └──────────┬─────────────┘
                              │
@@ -54,48 +54,59 @@ inverter would burn 10–50 W in inverter idle losses for a 1 W load.
 
 ## Battery-side board (block-level)
 
+Power tree per decisions.md **D19** (CP1 re-architecture). Two domains:
+an **always-on** rail that powers the MCU in every state, and a
+**switched** rail (the display feed) the MCU sheds at low SOC.
+
 ```
-                   24 V tap (fused 1 A)
-                          │
-                          ▼
-                ┌──────────────────┐
-                │ TPS62933 buck     │── 3.3 V rail ─┐
-                │ 24 → 3.3 V         │              │
-                │ (Q-curr ~22 µA)   │              │
-                └──────────────────┘              │
-                                                  │
-                ┌──── 12 V buck (Recom R-78E12) ──┴── +12 V to Cat5e
-                │
-                ▼
-            ┌───────────────┐
-            │ ESP32-S3      │
-            │ WROOM-1       │   ◄── DS3231 RTC (I²C, battery-backed)
-            │ N16R8         │
-            │               │
-            │ ┌─ ULP ────┐  │   ◄── 24 V ADC sense (through 1:10 divider)
-            │ │          │  │
-            │ └─ BLE 5  ─┘  │   ◄── override button (RTC-wake-capable GPIO)
-            │  GPIO bank   │
-            └──┬───────────┘   ──► P-MOSFET load switch (kills the entire
-               │                     downstream rail when SOC < 10%)
-               │
-               ▼
+        24 V tap (fused 1 A)
+              │
+              ▼  F1 → D1 (60 V Schottky, reverse-pol) → TVS1 (SMAJ33CA, ~53 V clamp)
+        ┌─────┴─────────── V24_FUSED ─────────────────────┐
+        │ (always-on)                                      │ (switched)
+        ▼                                                  ▼
+  ┌──────────────────┐                       SSR1 AQY212EH PhotoMOS SSR (60 V)
+  │ U1 LM5166 buck   │── 3.3 V always-on ─┐  +F2 80mA +R_inrush 2×75Ω, ESP-ctl
+  │ 24 → 3.3 V        │                    │            │
+  │ (Iq ~10 µA)    │                    │            ▼  V24_SW
+  └──────────────────┘                    │     ┌──────────────────┐
+                                          │     │ U2 R-78HB12 buck │── +12 V to Cat5e
+            ┌───────────────┐             │     │ 24 → 12 V (72 V)  │     → display side
+            │ ESP32-S3      │◄────────────┘     └──────────────────┘
+            │ WROOM-1 N16R8 │   ◄── RV-3028-C7 RTC (I²C, cap-backed)
+            │ ULP+BLE+WiFi  │   ◄── 24 V ADC sense (1.2 MΩ/100 k divider, ~19 µA)
+            │  GPIO bank    │   ──► WiFi log-push to Starlink server (duty-cycled, D25)
+            │               │   ◄── override button (RTC-wake GPIO)
+            └──┬────────────┘   ──► drives SSR1 LED (via R_opto): sheds the 12 V/display feed
+               │                       when SOC < 10 % (ESP stays alive,
+               ▼                       deep-sleeps, re-engages on recovery)
       ┌──────────────────┐
-      │  SN65HVD3082      │ ◄────► RS-485 A/B  (Cat5e pair 1)
-      │  RS-485 xceiver  │
+      │  THVD1400         │ ◄────► RS-485 A/B  (Cat5e pair 1); ESP gates it
+      │  RS-485 xceiver  │          off via DE/RE when idle (no power switch)
       └──────────────────┘
                     ▲
                     │
                   GND (Cat5e pair 4) — shield bonded to chassis HERE only
 ```
 
-Three power domains worth keeping clear in your head:
+Two power domains worth keeping clear in your head:
 
-1. **Always-on**: DS3231 + ESP32 ULP (~25 µA total).
-2. **Switched** (controlled by ESP32-S3 main core): RS-485 driver,
-   3.3 V → MCU active state, 12 V → Cat5e.
-3. **Hard-cut** (P-MOSFET kills it): everything except the ULP voltage
-   sense. Re-engages on voltage recovery.
+1. **Always-on** (U1 LM5166, 9.7 µA typ / 15 µA max Iq): ESP32-S3 + RV-3028-C7 RTC + the 24 V
+   sense divider. The MCU is *never* unpowered — at low SOC it deep-sleeps
+   (~µA) and periodically reads the sense divider. All-in trickle at
+   hard-cut ≈ ~1 mW (U1 Iq + divider). The MCU is its own supervisor;
+   there is no separate voltage-supervisor IC.
+2. **Switched** (SSR1 AQY212EH load switch + F2 fuse + R_inrush, MCU-controlled): U2 → 12 V → Cat5e → the
+   *entire display side*. Opening SSR1 at < 10 % SOC cuts the display
+   completely (it has no other power source). RS-485 isn't power-switched —
+   the ESP disables the transceiver via DE/RE (µA) when there's nothing to
+   talk to.
+
+Why the MCU is always-on and not behind the load switch: a downstream MCU
+can't gate its own supply (it would lose power the instant it tried, then
+default back on — and at power-up it could never start). The load switch
+must sit *above* only the sheddable loads. This was the core CP1 defect
+that D19 fixes (see DESIGN_REVIEW_ITEMS.md DR-4).
 
 ## Display-side board (block-level)
 
@@ -110,13 +121,13 @@ Three power domains worth keeping clear in your head:
                                                 │               │  ┌─ button: refresh-now
                                                 │  GPIO bank ──┼──┼─ button: change-screen
                                                 │               │  └─ button: release-BLE
-        ┌─── e-paper 24-pin FFC ──────► SPI ───┤               │
+        ┌─── e-paper 8-pin PH2.0 ─────► SPI ───┤               │
         │   (CS, DC, RST, BUSY, MOSI, SCK)     │               │
         │                                       └──────┬────────┘
         │                                              │
         ▼                                              ▼
   4.2" e-paper                              ┌───────────────────┐
-  (tri-color, B-version)                    │  SN65HVD3082       │ ◄──► RS-485 A/B
+  (tri-color, B-version)                    │  THVD1400          │ ◄──► RS-485 A/B
                                             └───────────────────┘
                                                        ▲
                                                        │

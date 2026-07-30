@@ -13,14 +13,19 @@ The repository's existing SKiDL Python (`hardware/kicad/{battery,display}_side.p
 targets KiCad 7/8 symbol/footprint libraries. KiCad 10's S-expression format
 has evolved, and `skidl==2.2.3` does not target it cleanly.
 
-**Decision**: `.kicad_pro` / `.kicad_sch` / `.kicad_pcb` are the source of
-truth. The SKiDL files are preserved as design-intent reference for
-reviewers but are not regenerated from.
+**Decision**: KiCad 10 is the target; SKiDL is dropped.
 
 **Reason**: avoids spending time wrestling SKiDL into KiCad 10 compatibility
 on a project where the design is already specified at schematic-net level
-in `docs/hardware/`. Direct authoring via `kiutils` + KiCad GUI is the
-shortest path.
+in `docs/hardware/`.
+
+**Update (2026-06-18):** the project went fully **programmatic** — the
+generators `hardware/kicad/build_schematics.py` (+ `build_pcbs.py`) are
+the source of truth; the `.kicad_sch` / `.kicad_pcb` are build artifacts
+(the `.kicad_pro` is human-maintained and preserved across regen). The old
+SKiDL files (`battery_side.py` / `display_side.py` / `run.sh` / `HANDOFF.md`)
+were **archived** under `hardware/kicad/archive/` during the D18 cleanup —
+they target KiCad 8 and are not part of the build.
 
 ## D2 — Fab choice = JLCPCB, qty 5 of each (bare PCB)
 
@@ -130,6 +135,13 @@ Considered:
 
 Refresh policy makes button presses feel responsive while preserving red
 for alerts and keeping idle current at zero (e-paper is bistable).
+
+**Update (2026-06-18, DR-7):** use the **Waveshare 4.2inch e-Paper Module
+(B)** — the version *with* the onboard driver/booster PCB and an 8-pin SPI
+header — **not** the bare `WFT0420CZ15` panel. The board connects via an
+8-pin 2.54 mm header (J2): VCC/GND/DIN/CLK/CS/DC/RST/BUSY. (The earlier
+design used a 24-pin bare-panel FFC and lacked the booster network a raw
+panel needs — see DESIGN_REVIEW_ITEMS DR-7.)
 
 ## D7 — User input = 3 tactile buttons on PCB bottom edge
 
@@ -280,7 +292,7 @@ not pass.
   A grep-based audit alone is not sufficient — overlapping labels,
   off-page text, and unreadable clusters are visual defects that
   scripted checks can miss.
-- Codex cites D11 when pushing back on documentation that fails any
+- agent-reviewer cites D11 when pushing back on documentation that fails any
   of the criteria above. Criteria #0 and #5 are non-negotiable.
 - `DESIGNER.md` calls out D11 as a deliverable equal to correctness.
 
@@ -304,7 +316,7 @@ that touches a rendered document must include:
 3. **Embed those screenshots in the active CP review packet** under
    a heading `## D11 visual inspection — iter <N>`. One screenshot
    per region, captioned with the region name (e.g. "U2
-   SN65HVD3082E + RS-485 termination").
+   THVD1400DR + RS-485 termination").
 4. **For each screenshot, write one sentence**:
    `Read every piece of text in this region. Findings: <none> | <list>.`
    If `<list>` is non-empty, the document does not pass D11 and the
@@ -341,7 +353,7 @@ immediately saw, on the display-side schematic alone:
 - FFC J2 pins 1–10: pin number + pin name (`Pin_N`) + net label
   (`GND`, `3V3`, `EPD_BUSY`, …) all occupying the same X coordinate
   — three pieces of text stacked at every used pin.
-- U2 SN65HVD3082E: net labels (`UART_RX`, `UART_TX`, `DE_RE`, `3V3`,
+- U2 (the since-superseded SN65HVD3082E): net labels (`UART_RX`, `UART_TX`, `DE_RE`, `3V3`,
   `GND`) placed directly on top of the chip's pin names (`RO`, `DI`,
   `RE`, `VCC`, pin 5).
 - C7, R3, R4, TVS R2: net labels and component reference text
@@ -391,7 +403,7 @@ D11 *and* D16 (top-level goal + zero-exception overlap rule), the
 visual-inspection protocol, the documented iter-36 failure, and the
 D16 schematic-readiness checklist in `hardware/reviews/DESIGNER.md`
 §0 are intended to be **copied verbatim** into any future PCB
-project that forks this template. A fresh Claude or Codex instance
+project that forks this template. A fresh Claude or agent-reviewer instance
 starting a new board project should:
 
 1. Read D11 + D16 first and internalize both the goal and the hard
@@ -687,7 +699,7 @@ F-*, SR-*, PR-* criterion. Columns:
 - **Status** (PASS or FAIL, no other values)
 - **Evidence / justification** (one sentence; for FAIL, what specifically failed; for any PR-3 / PR-4 PASS that has a non-zero raw DRC count, the per-instance justification)
 
-The reviewer (Codex) verifies each row independently. APPROVED requires
+The reviewer (agent-reviewer) verifies each row independently. APPROVED requires
 **every applicable row = PASS**. Any FAIL → NEEDS CHANGES.
 
 CPs select the criteria that apply to their phase:
@@ -752,7 +764,7 @@ was false and must not be reused.
   ~11.6 mm-radius milled cutout about the anchor. Left → cutout off the
   board edge; down → off the bottom edge; right → the cutout swallows
   MOD1's pads. Confirmed empirically (invalid-outline / new errors).
-- **MOD1 is boxed on all four sides** — Q1/R3/R4 immediately left, J2
+- **MOD1 is boxed on all four sides** — SSR1/R_opto/R_inrush/F2 immediately left, J2
   immediately right, F1 fuse above, RTC1 immediately below. A 2 mm
   downward shift collides MOD1's bottom pads with RTC1's top pads
   (8 new errors). MOD1 cannot move either.
@@ -900,9 +912,19 @@ warning-severity per the D13 convention.
   - PSRAM yes/no → no PSRAM needed
   - antenna onboard vs U.FL connector → onboard (lower BoM, fewer SKUs)
   - revision (WROOM-1 vs WROOM-2) → WROOM-1, ubiquitous in stock
-- **D-OPEN-2: RS-485 transceiver part.** Original BOM:
+- **D-OPEN-2: RS-485 transceiver part.** ~~Original BOM:
   `SN65HVD3082EDR`. Alternative `THVD1452`, `MAX3485ESA`. Need to pick
-  based on stock + low quiescent (THVD1452 is the lowest-Iq).
+  based on stock + low quiescent (THVD1452 is the lowest-Iq).~~
+  **CLOSED 2026-07-02 by D34 (revised iter-10 F08).** SN65HVD3082EDR was
+  a 5 V part being run outside its VCC = 4.5–5.5 V window (reviewer
+  iter-8 F05). Iter-8 first cut picked ISL3175EIBZ, but iter-10 F08
+  correctly flagged that I quoted its 10 nA *typical* shutdown Iq as the
+  design bound (max is 12 µA). Max-to-max reselect → **`THVD1400DR`**
+  (TI, VCC 3.0–5.5 V, RX-only Iq 900 µA max, **1 µA max shutdown Iq**,
+  datasheet-guaranteed internal DE pull-DOWN + /RE pull-UP → default-safe
+  without external resistors, full fail-safe RX, drop-in SN75176 SOIC-8
+  pinout, TI Active with DK+Mouser 35016 stock).
+  See **D34** for the full candidate table and rationale.
 - **D-OPEN-3: ULP voltage monitor IC vs ESP32-S3 internal ADC.** The
   4-tier shutdown needs sub-100 µA monitoring of pack voltage in
   HARDCUT. Options:
@@ -1018,7 +1040,7 @@ work beyond what iter-7 did:
    whitespace separating it from neighbouring clusters.
 4. **Pin numbers retained on every IC.** Power-stack pin-number
    collisions are fixed at the lib-symbol level (e.g. consolidating
-   the DS3231M's 9 GND pins into a single multi-number `(alternates)`
+   the retired DS3231M's 9 GND pins into a single multi-number `(alternates)`
    block, or relocating ESP32-S3-WROOM-1's 1 / 40 / 41 GND pins) so
    the schematic can show pin numbers without rendering them on top
    of each other.
@@ -1078,3 +1100,1232 @@ designer instance runs the CP1/CP2 engineering review from the start —
 so a 72 V-rated module and a correctly-oriented, correctly-sized,
 properly-derated protection chain are chosen *up front*, and DR-1/DR-2
 never occur. The framework's job is to front-load every hard-won lesson.
+
+## D18 — CP1 re-open; board artifacts superseded
+
+**Date**: 2026-06-17
+
+**Decision.** The checkpoint sequence is **re-opened at CP1**. The
+project nominally reached "CP6 fab-ready," but DR-1/DR-2 proved the
+errors were CP1/CP2 (architecture/schematic) decisions that no gate
+caught (see D17). Rather than patch downstream, we revert the *mindset*
+to CP1 and re-run the full gate sequence with the D17 engineering review
+now in place — ignoring sunk cost.
+
+**What is superseded.** All **board artifacts** — battery/display
+placement (CP3/CP4), routing + pours (CP5), and fab outputs
+(gerbers/drill/pos/BOM-CSV/STEP, CP6) — are SUPERSEDED. They were
+generated against the pre-DR schematics and are internally inconsistent
+with the corrected design. They remain in-tree as history but must not
+be treated as current; they will be regenerated after the schematics are
+re-validated.
+
+**What carries forward (not sunk cost).** The framework (D11/D13/D16/D17,
+`ENGINEERING_REVIEW.md`, `DESIGN_REVIEW_ITEMS.md`), the audit tooling, the
+DR-1/DR-2 schematic corrections, and the readability results. The redo
+starts ahead precisely because the *learnings and tooling* are kept while
+the *flawed downstream artifacts* are discarded — that asymmetry is the
+framework's payoff.
+
+**How CP1 runs this time.** Clean-sheet: the architecture is re-derived
+from first principles per domain (power input, regulation, comms, MCU,
+sensing, connectors) per `ENGINEERING_REVIEW.md`, and the existing design
+is measured against that derivation as a *candidate*, not assumed as the
+baseline. Findings are logged in `DESIGN_REVIEW_ITEMS.md`; clear errors
+are fixed before any agent-reviewer handoff (excellence is produced, not added in
+review).
+
+## D19 — Battery-side power-domain re-architecture (always-on µA housekeeping + switched display feed)
+
+**Date**: 2026-06-17
+
+**Decision.** Re-architect the battery-side power tree to fix DR-3/DR-4.
+The MCU and its supply move to an **always-on** rail; the load switch
+sheds only the display feed; every part on the protected rail out-rates
+the surge clamp. Resolves the bootstrap, gate-overstress, and clamp-
+coordination defects together.
+
+**Power tree (battery side):**
+
+    J1 → F1 → D1(60V Schottky) → V24_FUSED {TVS1 SMAJ33CA ~53V clamp, R5/R6 sense}
+       ├─ ALWAYS-ON:  U1 wide-Vin µA-Iq buck → 3V3 (ESP32 + RTC + sense)
+       └─ F2 (80mA) → SSR1 (AQY212EH PhotoMOS load switch, F76) → R_inrush 2×75Ω=150Ω → V24_SW → U2 (R-78HB12, 72V) → 12V → Cat5e → display
+
+- **Always-on rail (U1).** Carries the ESP in *all* states — active
+  (~75 mA BLE) at high SOC, deep-sleep (~µA) at low SOC. It must be
+  **both** ≥60 V (to survive the ~53 V TVS clamp) **and** µA-Iq (so the
+  low-SOC trickle is sub-mW). The R-78HB brick (DR-2) is ≥60 V but idles
+  at mA → tens of mW always-on, which violates power-first ([[D5]]). So
+  U1 becomes a **wide-Vin, µA-Iq buck IC** — **TI LM5165YDRCR**
+  (3–65 V, ~10.5 µA Iq, 150 mA, **fixed 3.3 V** — FB→VOUT, no divider;
+  needs inductor + I/O caps; in stock @ DigiKey, Active). 65 V gives
+  ~12 V margin over the clamp. *This intentionally reverses the DR-2
+  brick choice for U1 only* — DR-2's goal (surge survival) is still met,
+  and µA-Iq is regained. (Use the fixed-output "Y" variant, not the
+  adjustable DRCR — same package, no FB-divider scaffolding.)
+- **Hard-cut behavior (Option 1 "done right", user call 2026-06-17).**
+  The ESP stays powered always; at <10 % SOC it deep-sleeps in ULP,
+  periodically reads V24_SENSE, and **sheds the display** by opening SSR1
+  (which kills U2 → 12 V → the entire display board, since the display is
+  powered only from the battery side over Cat5e). It re-engages on
+  voltage recovery. The ESP is its own supervisor — **no separate
+  voltage-supervisor IC.** All-in low-SOC trickle ≈ U1 Iq (~0.5 mW) +
+  sense divider (~0.5 mW) ≈ **~1 mW**. (Full-cut + supervisor would reach
+  ~0.7 mW but adds a part and "smart" failure modes — not worth it.)
+- **Load switch done right — PhotoMOS SSR (iter-48, F76 resolution).**
+  The display-feed switch is a **Panasonic AQY212EH PhotoMOS solid-state
+  relay** (1-Form-A, 60 V / 550 mA, Ron 0.85 Ω typ / 2.5 Ω max) in the
+  switched branch V24_FUSED → **F2 (80 mA fuse)** → SSR1 →
+  **R_inrush (2× 75 Ω 1206-HP in series = 150 Ω)** → V24_SW, LED-driven from
+  ESP `PWR_EN` through **R_opto 330 Ω** (worst-case I_F ≥ 5 mA ≥
+  datasheet-recommended 5 mA). R_inrush limits the recurring turn-on inrush
+  into C3 (3.3 µF) to **0.197 A — below the SSR's 0.30 A @85 °C continuous
+  rating** (no reliance on the 1.5 A/100 ms one-shot), and F2 clears a
+  downstream short the R_inrush limits to that same 0.197 A (coordinated
+  network, F84; re-coordinated iter-54 for F86/F87 — see below).
+  It switches only U2/the display feed; the MCU rail stays always-on.
+
+  *[Why an SSR — the discrete gate-driver saga, F60→F76. A high-side
+  P-FET (Q1) switched from 3.3 V logic needs a level-shifting pulldown
+  (Q2) + a gate network, and across **five** review iterations every
+  discrete version had a datasheet-spec gap: F60/F64 the Zener clamp
+  wasn't a characterized bracket at the sub-mA surge current; F68 a
+  2N7002 had no guaranteed on-state at 3.3 V; F72/F76 a BJT (MMBT5551)
+  had no guaranteed grounded-emitter cutoff hot (a silicon BJT conducts
+  below 0.4 V VBE at 125 °C, so a base-emitter bleeder can't *prove*
+  cutoff). Root cause (verified iter-48): **no single discrete
+  transistor** in the catalog has, simultaneously, a guaranteed on-state
+  at a 3.3 V drive, a guaranteed hot leakage in the actual grounded
+  configuration, and a rating for the 29 V (53 V-surge) node — 30 V
+  logic-level FETs have the hot-IDSS row but can't take the node; 60 V
+  FETs aren't logic-level and lack a hot-IDSS row; BJTs lack a grounded
+  cutoff spec. **Escalated to the user (packet §38); user chose the
+  PhotoMOS SSR.**]*
+
+  *[Why it resolves the finding cleanly:*
+  - **OFF cannot self-turn-on (architectural), leakage magnitude gated by
+    test (F83).** The SSR output is an opto-isolated MOSFET; LED off →
+    **open MOSFET with no gate divider**, so leakage can never develop a
+    turn-on Vgs — the discrete self-turn-on failure is *architecturally
+    impossible regardless of temperature*. On the *magnitude*: off-leakage
+    is a guaranteed **≤1 µA at 25 °C only** (≤0.024 mW State-4); the
+    datasheet publishes **no hot maximum**, so 85 °C is an **engineering
+    estimate** ~30–60 µA (~0.7–1.4 mW; est., **not** a bound) → estimated
+    hot State-4 ceiling ~2.5 mW, gated by a **bring-up State-4 leakage
+    acceptance test, <5 mW pass**. The hot-leakage *bound* the discrete
+    saga could never satisfy is not load-bearing here (it fed no divider);
+    only its *magnitude* matters, and the test covers it.
+  - **ON is guaranteed by LED current.** Worst-case I_F = (3.3−1.5)/330 ≈
+    5.4 mA (VF max 1.5 V), ≥ the datasheet-recommended 5 mA and well above
+    the 3 mA max operate current — ample margin. Ron 0.85 Ω typ / 2.5 Ω
+    max → ≤13 mV drop at the ~5 mA display draw (≤0.75 V even at the SSR's
+    0.3 A@85 °C continuous rating).
+  - **Inrush + fault coordinated (F80/F84; re-coordinated iter-54 for
+    F86/F87).** R_inrush = **2× 75 Ω 1206-HP in series (=150 Ω)** + F2 =
+    **80 mA**. Worst case (29.2 V, R−1 %, no fuse/SSR series credit — the
+    reviewer's max-stress method): I = 0.197 A. Recurring inrush 0.197 A <
+    SSR 0.30 A@85 °C continuous (0.66×) → no one-shot reliance; τ = 150 Ω·
+    C3 (3.3 µF) = 0.5 ms.
+    A downstream short is limited to that same 0.197 A: **246 % of F2 (214 %
+    at −40 °C** with the ~15 % cold fuse re-rating**)** → clears within the
+    200 %→5 s bound; fault power 5.74 W total = **2.87 W each < the
+    CRCW1206-HP §8.1 short-term-overload guarantee, which is defined at
+    P70 = 0.75 W → 6.25·P70 = 4.69 W/5 s** (a *single* 150 Ω 1206-HP sees
+    5.74 W > 4.69 W and is not guaranteed — the F86 gap; the series pair
+    fixes it, and a 2512-HP would too but is not stocked at 150 Ω). F2's
+    turn-on I²t is **2.9 %** of its melt I²t (at the right-sized C3 = 3.3 µF;
+    ≤4.3 % at the 5 µF max-effective ceiling — the old 22 µF gave 19.1 %,
+    F90) — far under Littelfuse's ≤20 %/100 k-pulse *selection basis* (F87). F2 is the designed first-fault element; F1 the
+    upstream backstop. Datasheets: Vishay_CRCW_HP.pdf (bdd4e4b9, §8.1 p.8),
+    Littelfuse_451_453.pdf (399d3cc9).
+  - **Surge:** open, it blocks the 53 V clamp (60 V rating); closed, it
+    passes the surge to U2 (R-78HB12, 72 V — survives).
+  - **Power:** LED ~20 mW **active only** (States 1–3: 3.3 V × ~6 mA through R_opto 330 Ω), **0 in hard-cut**.
+    Removed 7 discrete gate-driver parts (Q1/Q2/R3/Rg/R_base/R_be/DZ1) for
+    the 5-part switched branch (SSR1 + R_opto + 2× R_inrush + F2).
+    Exact SKUs: SSR1 = AQY212EH (DK 255-2963-ND / Mouser 769-AQY212EH),
+    R_opto = **RMCF0805FT330RCT-ND / 71-CRCW0805-330-E3** (330 Ω, F79 —
+    the earlier 390 Ω `RMCF0805FT390RCT-ND / 71-CRCW0805390RFKEA` are
+    retired), R_inrush (×2, 75 Ω) = **541-75.0UTR-ND / 71-CRCW120675R0FKEAH**,
+    F2 = **F3649TR-ND / 576-0451.080MRL** (resolve-exact 2026-07-18).
+    Datasheet on file (Panasonic GU-E, sha d329b9729322).
+    Fail-safe unchanged: PWR_EN low/Hi-Z → LED off → SSR open → display
+    shed. Q1's Si2309CDS, Q2's MMBT5551, and DZ1's BZX84C12 are retired
+    (manifest Retired section).]*
+- **Surge coordination (DR-3).** U2 → **Recom R-78HB12-0.5** (17–72 V in,
+  0.5 A). D1 → **60 V Schottky** (SS26/SK56). With U1 (65 V), SSR1 (60 V),
+  U2 (72 V), D1 (60 V) the whole protected rail out-rates the SMAJ33CA's
+  ~53 V clamp — completing DR-2's logic.
+- **RS-485 idle bias moves to the display end only** (consequence of the
+  always-on rail). With the battery 3V3 now always-on, a battery-side
+  idle bias (~2.3 mA through 680 Ω) was **removed** (DR-4b) — it would
+  otherwise draw *continuously* and blow the ~1 mW hard-cut budget by ~8×. So the bus's fail-safe bias lives on
+  the **display** end (~330 Ω for >200 mV idle across the two
+  120 Ω terminators) — sourced from the display 3V3, which is shed with
+  the display at low SOC. The battery keeps only the terminator (no static
+  draw) and the transceiver (~µA in DE/RE shutdown), so the always-on rail
+  carries **zero** RS-485 static draw. Verified candidate values:
+  3.3 V·60/(390+60+390) = 236 mV idle (> 200 mV fail-safe).
+  *[Superseded in two steps: DR-13 resized 390 → ~330 Ω; then iter-12
+  F12 (D34/DR-25) marked the display-end footprints **DNP by default**
+  — THVD1400's Full Fail-Safe RX (§8.2.1.4) needs no external bias for
+  idle correctness, so no bias is populated anywhere on the bus unless
+  CP5 bench testing reveals an EMI need.]*
+
+**Part-sourcing note.** LM5165YDRCR, R-78HB12-0.5, ZXMP6A13F were
+DigiKey stock/lifecycle-checked 2026-06-17 (then in stock/Active — the
+ZXMP6A13F has since gone NRND and is superseded iter-38, F57); final
+confirmation at BOM-lock ([[D-OPEN-6]]). 2N7002, SS26, and a 12 V Zener
+(BZX84C12) are jellybeans.
+
+**Why this is the excellent answer.** It boots reliably (MCU never gates
+its own supply), holds the power-first budget at hard-cut (~1 mW), needs
+no supervisor IC, and makes the protection chain genuinely protective.
+The cost is U1 returns to a discrete buck (inductor + I/O caps) — a fair
+price for µA-Iq always-on, and the only way to satisfy power-first and
+surge-survival simultaneously on a 29 V bus.
+
+## D20 — Enclosure = user 3D-printed plastic (IP5x, indoors); board outline deferred
+
+**Date**: 2026-06-18
+
+**Decision.** The battery-side enclosure is a **user-3D-printed plastic
+box**, **IP5x** (dust, not water — indoors), mounted on the wall a short
+distance *above* the two batteries with **air between**. **The board
+outline is an output of placement (CP3), not a pre-set number** — "as
+small as comfortable, never artificially large."
+
+**Supersedes** D15's 95×75 mm size and the earlier Hammond 1554/1591 /
+IP65–66 enclosure specs (those are dropped). D15's *floorplan zoning*
+intent still stands; the size is un-committed.
+
+## D21 — Battery-side antenna = ESP32-S3-WROOM-1 (PCB antenna, `-1`)
+
+**Date**: 2026-06-18
+
+**Decision.** Use the **`-1`** module (onboard PCB antenna), **not `-1U`**
+(external U.FL). **Why:** the plastic (RF-transparent) box and the air gap
+above the metal pack remove the reasons for an external antenna, and BLE
+range to the BMS is only ~1–3 m. Drops the U.FL connector, pigtail,
+external antenna, and an enclosure penetration. **Cost:** the 15×6 mm PCB-
+antenna keepout returns (no copper/traces, board-edge placement).
+*(Display-side antenna is a separate question — the display may not need RF
+at all; TBD.)*
+
+**Update (2026-06-18):** the "metal pack" caveat is **dropped** — the
+Volthium 12V 200Ah batteries are **ABS-plastic** cased (verified), so there
+is no large metal mass to detune the antenna and no special "face away from
+metal" orientation is needed. The same `-1` PCB antenna also serves **WiFi**
+(2.4 GHz, shared with BLE) per D25 — no new RF parts.
+
+## D22 — External maintenance port = USB-C on native ESP32-S3 USB
+
+**Date**: 2026-06-18
+
+**Decision.** A board-edge **USB-C** connector wired to the ESP32-S3's
+**native USB** (GPIO19/20) gives flash + serial console + JTAG over one
+port — no external programmer, accessible **without opening** the box
+(through an enclosure port with an IP5x dust cap). Replaces the internal
+USB-OTG pin header. (Matches `production_design.md`'s "USB-C port behind
+the lid for occasional updates.")
+
+## D23 — RTC = RV-3028-C7 (ultra-low-power), backup = small trickle-charged cap
+
+**Date**: 2026-06-18
+
+**Decision.** Replace the **DS3231** with the **Micro Crystal RV-3028-C7**
+— a 45 nA, ±1 ppm (RT), I²C RTC with the crystal integrated and a built-in
+backup switchover + trickle charger. Back it with a **small cap on
+VBACKUP** (the RTC trickle-charges it); no coin cell, no bulky supercap.
+
+**Why.** The DS3231's ~0.1–0.2 mA (TCXO) was the *dominant* always-on
+load — ~0.5 mW, ⅓ of the hard-cut budget (DR-8). The RV-3028-C7 draws
+**45 nA** (~3000× less), so the RTC becomes negligible and hard-cut returns
+to **~1 mW**. Accuracy ±1–3 ppm ≈ the DS3231's ±2 ppm (fine for
+timestamps; the DS3231's full-temp compensation isn't needed). At 45 nA a
+small cap rides a service disconnect for weeks, so the coin-vs-supercap
+question (the original D23) collapses — and the part is far smaller
+(3.2×1.5 mm vs SOIC-16W), −40…+85 °C. **Supersedes the DS3231 choice**;
+resolves DR-8.
+
+## D24 — E-paper = tri-color (B) retained; cold limit accepted
+
+**Date**: 2026-06-18
+
+**Decision.** Keep the **4.2" tri-color (B)** panel (D6). Its environmental
+limits are now explicit and **accepted as a known risk**: operating
+**0–40 °C** (color-biases near 0 °C, 6 h recovery at 25 °C after cold),
+storage **< 30 °C / ≤ 6 months**, and **no rated long-term cold storage**
+(lowest published cold figure is −25 °C *transport*, ≤ 10 days). Mono does
+**not** help — same 0 °C floor; the only true fix is a specialty low-temp
+e-paper (different vendor/cost), declined. If it fails cold, that's a
+learning. (These limits are inherent to this e-paper class, color or not.)
+
+## D25 — Battery-side WiFi log push; U1 → LM5166 (500 mA) to feed it
+
+**Date**: 2026-06-18
+
+**Decision.** The **battery-side** ESP32-S3 gains a **duty-cycled WiFi
+log-push** role (the Starlink router is near the batteries; ABS-plastic
+cells + plastic box → a clean 2.4 GHz hop, and the battery board is the
+data *source*). To power a WiFi session, **swap U1 from LM5165 (150 mA) →
+LM5166 (500 mA)** — same TI 3–65 V ultra-low-IQ family (IQ-SLEEP 9.7 µA typ / 15 µA max — [corrected 2026-07-14: earlier "~14 µA" was unsourced]),
+fixed 3.3 V, same package.
+
+**Why the supply swap (not a cap).** A WiFi connect → DHCP → TLS-auth →
+upload sequence runs **~2–6 s** at a **sustained ~150–250 mA** (peaks
+~300–500 mA) — not a millisecond spike. Bridging a multi-second deficit
+off the 150 mA LM5165 would need ~1+ **farad** (a supercap); a bulk cap
+only covers sub-ms TX peaks. The LM5166's 500 mA actually sources the
+session, while its ~10 µA sleep idle keeps **hard-cut at ~1 mW** (vs the LM5165's
+10.5 µA — negligible difference).
+
+**Scope.** WiFi is **duty-cycled**: connect, dump logs buffered in the
+16 MB flash, disconnect. Continuous/live WiFi is out of scope (would need
+more supply/budget). Uses the ESP32-S3's built-in radio + the `-1` PCB
+antenna (shared with BLE, D21) — **no new RF parts**. A bulk cap on 3V3
+still helps the sub-ms TX peaks. **Supersedes the LM5165 choice in D19.**
+
+**Fixed-vs-adjustable resolved (2026-06-21; PN corrected after reviewer
+Finding 01).** The open question — whether a fixed-3.3 V LM5166 is orderable
+or we must use adjustable + an FB divider — is closed: a fixed-output variant
+exists. **The 3.3 V part is `LM5166YDRCR`** — suffix **`Y` = 3.3 V**,
+**`X` = 5 V** (TI LM5166 datasheet §6.5). My first pass mis-named it
+`LM5166XDRCR`; that is the **5 V** part and would force ~5 V onto the ESP
+rail (destructive) — the reviewer caught it. CP1 commits to **`LM5166YDRCR`:
+FB→VOUT, no divider.** Fallback if dry at BOM-lock: `LM5166YDRCT` (cut tape),
+else adjustable `LM5166DRCR` + high-Z divider; **never `LM5166XDRCR`.**
+(TI.com showed YDRCR out-of-stock on 2026-06-21 — confirm distributor stock
+at BOM-lock.)
+
+## D26 — Display-side MCU: keep the WROOM, radio unused, antenna keepout dropped
+
+**Date**: 2026-06-18
+
+**Decision.** The display-side ESP32-S3 uses **no radio** — its only link
+is the wired RS-485 to the battery side. Keep the **ESP32-S3-WROOM-1
+(`-1`)** anyway for **firmware + footprint commonality** with the battery
+board, but **disable the radio in firmware** and **drop the 15×6 mm
+antenna keepout** on the display PCB (no RF → no keepout → freer layout).
+No separate config radio (config is via the 3 buttons + on-screen labels).
+
+## D27 — Display serviceability + mechanical contract
+
+**Date**: 2026-06-18
+
+**Decision (DR-9/DR-10).** The display is wall-mounted, so:
+
+- **Service — corrected (the box is recessed in the wall, so only the
+  faceplate *front* is exposed; a "bottom-edge" port doesn't work).**
+  Routine firmware comes **OTA over RS-485** — the battery side pulls the
+  image (WiFi/Starlink, D25) and propagates it to the display over the bus
+  (per `production_design.md`). So the display's physical USB is a
+  **bench/recovery port only**, used rarely → a board-edge **USB-C** (native
+  ESP32-S3 USB) reached by **popping the faceplate** (the faceplate detaches
+  from the front without disturbing the in-wall box — no full wall removal).
+  **No front-face cutout** (keeps the kitchen face clean). + a **USB ESD
+  array** (USBLC6-2) on D+/D−/VBUS; keep one internal UART header for bench.
+  *(If zero-disassembly recovery is ever wanted, the alternative is a
+  discreet front-face USB-C cutout — declined for aesthetics.)*
+
+- **Enclosure stack (shallow double-gang box, ~45 mm usable depth):** the
+  e-paper **module mounts to the back of the oversized custom faceplate**
+  (~115×117 mm — the module ~90–103 mm doesn't fit *inside* the ~95 mm box),
+  the main PCB sits in the box behind it, 8-pin cable between (slack +
+  strain relief). **Right-angle / low-profile RJ45** so it doesn't consume
+  the scarce depth and routes the in-wall Cat5e cleanly. Button caps span
+  the PCB→faceplate gap.
+
+- **The 3D-printed parts are fully specifiable — so we spec them, not punt
+  them.** The bracket + faceplate are ours to define: faceplate is a
+  **snap/magnetic pop-off** (no through-screws) carrying the module mounting
+  bosses + a recessed grip; bracket holds the main PCB and interfaces the
+  box's 84 mm screws; the depth stack + button-cap extension lengths are
+  dimensioned from the PCB STEP. The **PCB STEP** (module envelope +
+  connector/button/USB-C positions) is the master; the print geometry is
+  derived from it and specified in the CP-layout docs, not left open.
+
+(PTC also tightened to ~0.25 A hold — DR-11.)
+
+## D28 — Hardware UVLO backstop (independent low-pack supervisor) — DR-16
+
+**Decision.** Add a micropower hardware voltage supervisor (**U4 = TI
+TPS3808G01DBVR**, ~2.4 µA Iq, adjustable threshold via SENSE, open-drain
+RESET, programmable CT deglitch) as an **independent backstop** to the firmware's
+low-SOC load-shed. This closes the gap that D19's always-on MCU created:
+the firmware-only shed protects against a *dead* MCU (R4 defaults the SSR LED off → SSR open)
+but **not** a *hung-but-powered* MCU, which keeps drawing ~38 mA at low SOC
+— the dominant low-SOC load (the display is only ~5 mA) and exactly the
+failure "must not finish off a low pack" exists to prevent.
+
+**Operational relationship — two staggered layers (they never fight):**
+- **Layer 1 — firmware (smart, primary).** BLE/sense-informed SOC, tiered
+  shedding, hysteresis, deep-sleep; sheds the display at ~10 % SOC. Does
+  ~100 % of the work in a healthy system.
+- **Layer 2 — hardware (dumb floor, backstop).** U4 monitors the **pack**
+  voltage and, below a hard floor **set *below* the firmware's range**,
+  asserts the ESP **EN** low. Fires only if Layer 1 failed and let the bus
+  droop to the floor. Silent (insurance) in normal operation because the
+  firmware always sheds at a higher voltage first.
+
+**Why EN-assert, not power-cut (preserves D19's wake guarantee).** U4's
+open-drain RESET pulls the **ESP EN** node low. That (a) drops the MCU to
+its ~µA reset state — killing the ~38 mA hung drain — and (b) **auto-sheds
+the display for free**: a reset MCU floats GPIO4 (PWR_EN) Hi-Z → R4 holds
+PWR_EN low → SSR LED off → SSR open → display dark. No separate override part
+needed; it reuses the existing default-OFF chain. Because it asserts **EN**
+(not power), the MCU stays powered on the always-on rail; on recovery U4
+releases EN → the MCU **cold-boots fresh** (which also un-hangs it) and
+resumes. So DR-4's "fully-unpowered MCU can't wake" problem is *not*
+reopened — this is the key difference from a hysteretic power-cut.
+
+**Threshold (part = TPS3808G01DBVR, repackaged per D33/DR-24; datasheet-
+confirmed; hysteresis polarity corrected per reviewer iter-5 F01).** VIT =
+**0.405 V**. **Key polarity fact:** U4's RESET is open-drain **active-low**, so
+the RESET→SENSE hysteresis resistor R_hys is *positive* feedback whose effect
+is present only while **healthy** — RESET pulled to 3.3 V injects into SENSE,
+raising it, which drops the *falling* trip below the plain divider threshold;
+once RESET asserts (VOL ≈ 0–0.2 V) its R_hys leg becomes small — but not
+zero, so the **rising release sits a few hundred mV above the plain
+(no-feedback) divider threshold** (see F04 refinement below). Therefore
+size the **divider to the release target** (the plain divider threshold is
+the *lower bound* on the release) and R_hys to the downward trip shift:
+- **No-feedback divider threshold** set to the release target ~**21.3 V**
+  (VIT only, ignoring built-in VHYS and R_hys):
+  R2/(R1+R2) = 0.405/21.3 → **R1 ≈ 5.16 MΩ, R2 ≈ 100 kΩ** (E96).
+- **R_hys ≈ 11.5 MΩ** sets the downward shift ΔV = R1·(V_RESET_H − VIT)/R_hys.
+- **Falling trip ~20.0 V** (RESET pulled high to ~3.3 V, ΔV ≈ 1.5 V below the
+  no-feedback threshold; solving at SENSE = VIT = 0.405 V).
+- **Rising release ~21.7–21.8 V.** After the built-in VHYS lifts SENSE to
+  VIT + VHYS = 0.4111 V and RESET is still low (0–0.2 V, VOL range), a small
+  extra current flows from SENSE to RESET through R_hys, so V24 must reach
+  ~21.72 V (VOL = 0.2 V) to ~21.81 V (VOL = 0 V) to deassert. *(Reviewer
+  iter-6 F04 caught that my earlier "~21.5 V" understated this: I'd
+  quoted the no-feedback divider threshold + built-in VHYS but forgot the
+  R_hys leg is still active at deassertion.)*
+
+The *built-in* VHYS (1.5 % of VIT ≈ 6 mV at SENSE, ~0.3 V at the pack) is too
+small alone — shedding the ~38 mA load rebounds the pack past it → chatter — so
+the band is set deliberately in hardware. **Divider bias:** ISENSE ±25 nA max →
+divider current ≥ 100× ≈ 2.5 µA; 0.405 V/100 kΩ = 4.05 µA at threshold ✓ — and
+the higher-R, lower-threshold part still draws *less* than the old 2.89 V/2.0 MΩ
+divider (~4.6 µA at 24 V vs ~12 µA). Add a small SENSE filter cap for the
+high-Z node; final E96 values + bench hysteresis check at CP2.
+
+**Power.** Keeping each term in its native voltage domain
+(reviewer iter-6 F03 caught the prior mixed-domain sum): UVLO divider
+~4.6 µA @ 24 V ≈ **~0.11 mW** at pack; U4 Iq **5 µA max** @ 3.3 V ≈
+17 µW at load (~33 µW referred through U1 at η ≈ 50 %). Adding LM5166
+Iq max 15 µA × 24 V = **~0.36 mW** + V24 sense divider **~0.44 mW** +
+ESP32-S3 Deep-sleep 10 µA typ + **5 µA engineering margin** (Espressif
+does not publish a spec max) + D29 mux max 4.5 µA + U3 THVD1400
+shutdown max 1 µA gives **hard-cut ≈ ~1.1 mW** total from pack (SSR1 open ≤1 µA; F76 removed the Q1/Q2 gate-network terms)
+(~1.1 mW headline; see `docs/hardware/power_budget.md` State 4 for the
+full table with per-row typ vs max annotations). The EN-asserted floor
+state (chip in reset, ESP off) drops the ESP ~99 µW referred term and
+lands at ~0.98 mW — only ~0.1 mW below hard-cut, since the V24-side
+terms dominate. *(iter-12 F13 rebuilt this on datasheet max where
+spec'd + explicit engineering margin where max isn't published,
+correcting the earlier "max throughout" claim that had carried typ
+values for U1/U4/U6; iter-14 F16 tightened the wording so it matches
+across power_budget.md, D34, DR-25, and the §7 State-4 row.)*
+
+**Override-button precedence.** The hardware floor **wins** over the
+panel-mount manual override — a user can't force the display on below the
+floor (can't drain a dead pack). The override only re-engages above the
+floor.
+
+**Supersedes** D19's "no separate supervisor IC" stance: D19 omitted it on
+the assumption always-on MCU + firmware sufficed; DR-16 is the realization
+that "always-on" also means "un-stoppable when hung." This adds the
+supervisor for ~µA and ~$1, without undoing D19's wake guarantee.
+
+## D29 — USB maintenance power (run/program/troubleshoot off USB) — DR-18
+
+**Decision.** Make the USB-C maintenance port able to **power the MCU** (for
+bring-up, flashing, and field troubleshooting **without a 24 V supply**),
+integrated so it does **not** compromise the hard-cut budget, the UVLO, or
+the always-on architecture. (Supersedes the DR-18 default of "data+ESD
+only.") Earlier DR-18 correction stands: USB does **not** defeat the UVLO
+(U4 gates EN, supply-independent); 5 V must never reach the 3.3 V rail.
+
+**Topology (battery side).**
+- **U5 = 3.3 V LDO** (e.g. AP2112K-3.3, ~600 mA), VBUS (5 V) → 3V3_USB.
+  Powered from **VBUS only**.
+- **U6 = TPS2116** 2-input priority power mux (1.6–5.5 V, 2.5 A, **~1.3 µA
+  Iq / 50 nA standby**, auto switchover, reverse-blocking N-FETs — no
+  Schottky drop): **VIN1 (priority) = 3V3_USB**, **VIN2 = U1 buck 3V3**,
+  **OUT = V3V3**. USB present → output from USB, the LM5166 sees its output
+  held high → **stops switching → pack draw ≈ its ~10 µA sleep Iq (15 µA max)**; USB absent →
+  auto-switches to the buck → V3V3 exactly as before.
+- **VBUS-present UVLO bypass = Q3 + Q4 (fail-safe default-ON; corrected per
+  reviewer iter-2 F03).** Q3 = N-FET in series in U4's open-drain RESET→EN
+  line; its gate is **pulled to V3V3 via R_byp1 (100 kΩ) → default-ON**, so
+  with VBUS **absent** Q3 conducts → U4 drives EN → **UVLO active (the safe
+  default)**. With VBUS **present**, Q4 (a second small N-FET, gate from a
+  VBUS divider R_byp2) turns on and pulls Q3's gate to GND → Q3 opens → U4
+  isolated → the MCU **boots off USB even on a dead/absent pack** (essential
+  for bench programming). *(My first cut drove Q3's gate straight from a VBUS
+  divider, which defaulted to UVLO-**bypassed** when unplugged — the unsafe
+  direction; F03 fixed it to default-ON.)* R_byp1 only carries current when
+  Q4 pulls low (VBUS present) → ~0 always-on pack draw.
+
+**Display side:** same **LDO + TPS2116** (VIN1 = USB-LDO, VIN2 = R-78E3.3
+output). **No UVLO bypass** (the display has no U4 — it's shed by the battery
+side), so it's simpler.
+
+**Why no requirement is compromised.**
+- **Hard-cut ~1 mW (power-first):** every added part except the mux is
+  **VBUS-referenced → zero pack draw when unplugged** (the unattended state).
+  The mux adds only **~1.3 µA always-on** (~4 µW) — rounding error on 1 mW.
+  Hard-cut stays **≈1 mW**.
+- **D28 UVLO:** the protected scenario (unattended hung MCU) is always
+  USB-absent → UVLO fully active. The bypass relaxes it **only during
+  attended USB sessions**, where the MCU runs off USB and isn't draining the
+  pack anyway. Guarantee intact.
+- **No 5 V on 3.3 V** (LDO regulates); **D19 always-on** unchanged (buck is
+  VIN2; V3V3 identical when unplugged).
+
+**Residual (accepted):** attended USB session **and** a low pack connected
+**and** firmware (mis)enables the display → the display could draw the low
+pack via U2 while you work. Attended/transient, and firmware should not
+enable the display on a low pack. Acceptable. **Trade:** ~LDO + mux + bypass
+FET + passives on the battery side (LDO + mux on display) — the cost is parts
+and a more complex power section, **not** any core requirement. The
+bring-up/programming/troubleshooting value (every hand-built unit) justifies
+it. Exact LDO/mux SKUs + the bypass implementation finalized at CP2/BOM-lock.
+
+## D30 — Display "deadness" detection (no status LED, no last-gasp supercap)
+
+**Problem.** E-paper is **bistable** → on power loss the display **freezes**
+the last image. So a dead display can show a stale-but-plausible screen, and
+a viewer can't tell. Two failure modes: (a) **comms dead, display powered**
+(RS-485 stops); (b) **display loses power** (battery sheds it at low SOC, or
+a Cat5e fault).
+
+**Options weighed.** A *status LED* dies with the board → tells you nothing
+about power loss (mode b); it only shows "powered + running." A *last-gasp
+supercap* to render one final error: a tri-color **full refresh is ~7 s
+@ ~55 mA ≈ 1.3 J** → needs **~0.7 F** (rides 3.3→2.7 V) — bulky, and the 7 s
+refresh won't reliably complete on a collapsing rail. **Both rejected.**
+
+**Decision — three firmware/sequencing measures, no added hardware:**
+1. **"Last updated HH:MM" timestamp on every e-paper refresh.** A frozen
+   screen with a stale timestamp is unmistakably dead — covers **both** modes
+   (the frozen image carries the old time). This is the primary indicator.
+2. **Graceful pre-shed render (mode b, the common case).** The battery side
+   *controls* the shed (it opens SSR1), so before cutting it sends a final
+   RS-485 "low-battery / sleeping" frame, waits for the display to render it,
+   *then* opens SSR1. The bistable screen **holds that correct message** after
+   power is cut — zero stored energy needed.
+3. **Battery-side heartbeat detection.** The battery side already expects
+   display acks over RS-485; on heartbeat loss it flags the display dead via
+   the WiFi log-push (D25). System-level "the display is dead" without any
+   display-side hardware.
+
+Mode (a) is already covered by the display `watchdog_task` ("LINK DOWN"
+overlay on 90 s frame timeout). **No status LED (consistent with D4); no
+supercap.** Downstream hooks: firmware tasks + the RS-485 protocol
+(shutdown/sleeping frame + display heartbeat/ack) — see
+[`docs/firmware/architecture.md`](../../docs/firmware/architecture.md);
+captured as CP-firmware items, not CP1/CP2 hardware.
+
+## D31 — MCU module SKU common to both boards; build qty = 1
+
+**Decision.** Both boards use **ESP32-S3-WROOM-1-N16R8** (resolves the
+D-OPEN-1 -N16R8-vs-N8 question — keep them the same). The display's job is
+tiny (30 KB framebuffer fits internal SRAM → PSRAM unused; 8 MB flash would
+suffice), so -N8 ($5.66) vs -N16R8 ($6.76) is a **$1.10** difference. With
+**build qty = 1 (populated units)**, a single module SKU across both boards
+(no mix-up risk, firmware/footprint commonality) is worth far more than
+$1.10. The battery side also has a marginal real use for the 16 MB (log
+buffering between WiFi pushes), so matching to it is the simple call.
+
+*Note: "build qty = 1" is the populated-assembly count; JLCPCB's 5-pc
+bare-PCB minimum is unrelated (spare boards).*
+
+## D32 — Every active BOM part's datasheet on hand + read is a CP1 completion gate
+
+**Decision (user, 2026-06-26).** CP1 is **not complete** until **every active
+BOM part** (both boards) has its **datasheet stored in
+[`hardware/datasheets/`](../datasheets/)** (manifest: MPN → file → source URL
+→ sha256) **and has been read** to verify the part against the design —
+package/footprint, connector PN/pitch/pinout, in-box contents, mechanical
+envelope, and the key electrical premises actually used (thresholds, clamps,
+ratings).
+
+**Why a hard gate, not a nicety.** Reading the actual datasheets — enabled by
+the parts-sourcing API's `/datasheet` proxy — has repeatedly caught errors
+that were invisible at the "model of the part" level and that both designer
+and reviewer missed: connector pitch (e-paper JST-PH 2.0 vs an assumed
+2.54 mm header), package (TPS3890, the superseded UVLO candidate, = WSON 1.5×1.5 not SOT-23; TPS2116 =
+SOT-583; SS26 = SMB not SMA → DR-24 leadless assembly concern), threshold
+(TPS389030 VITN = 2.89 V not the 1.15 V carried from the -01 variant),
+**Ethernet magnetics** that would have blocked our DC + RS-485 (both RJ45s
+verified magnetics-free from datasheets), and obsolete variants
+(USBLC6-2SC6 → SC6Y). The datasheet is the source of truth; an absent or
+unread datasheet is an **unverified premise**, and CP1 does not sign off on
+unverified premises.
+
+**Replace, don't patch.** When a datasheet reveals a part is a poor fit, the
+correct response is to **retire it in favor of a better part**, not to bend
+the design around the bad choice (see [`feedback`/replace-don't-patch];
+prior precedents: LM5165→LM5166 fixed-output, SUYIN→Würth RJ45, the planned reflow
+acceptance vs leaded downgrades in DR-24).
+
+**Operational.** Fetch via the API proxy (`GET …/datasheet?mpn=…`); for the
+few bot/WAF-blocked hosts it can't reach (onsemi, Littelfuse, ST, Phoenix,
+Micro Crystal), pull manually. The manifest's "not yet retrieved" list is the
+CP1 punch-list — it must reach empty (for active parts) before CP1 sign-off.
+
+## D33 — Assembly method: reflow + paste stencil; U4 repackaged to leaded — DR-24
+
+**Decision (user, 2026-07-01).** Build qty = 1, assembled in-house with a
+**heat gun + a crude oven**, so **reflow is available**. The real assembly
+pain the user identified is *not* the package footprint but **getting the
+right amount of solder on tiny pads by hand**. The fix for that is a
+**solder-paste stencil** (JLCPCB laser-cut steel bundles one for ~$8–30 with
+the board) — it deposits an exact, repeatable paste volume per aperture, which
+makes even bottom-terminated parts tractable. **Assembly plan = stencil +
+reflow (heat gun/oven) for the leadless/module parts; iron for everything
+else.** With a stencil in the plan, package choice is decided on **function +
+power**, not solderability.
+
+Judged that way, the three leadless parts flagged in DR-24 split:
+
+| Ref | Was | Now | Rationale |
+|-----|-----|-----|-----------|
+| **U4** UVLO supervisor | TPS389030DSER, **WSON 1.5×1.5** | **TPS3808G01DBVR, SOT-23-6 (leaded)** | **Swapped.** Functional superset (adj SENSE, OD RESET, prog CT delay, +MR input) at **Iq 2.4 µA vs 2.1 µA** — negligible. Free upside: easier to place/inspect/rework. VIT changes 2.89 V→0.405 V → divider re-derived (see D28). Active, DK 149k, ~$0.90. |
+| **U6** priority mux | **TPS2116DRLR, SOT-583** | **kept (SOT-583)** | The only leaded alternative (TPS2113A, TSSOP-8) draws **~75 µA operating vs the TPS2116's 1.32 µA** — 57× more, ~0.25 mW continuous on the always-on field path — a power-first violation. Low-Iq leaded routes (LTC4412 + external P-FET) add parts/complexity. Stencil solves solderability without the power cost. |
+| **U1** always-on buck | **LM5166YDRCR, VSON-10** | **kept (VSON-10)** | No leaded µA-Iq wide-Vin equivalent; user accepted. Reflowed with the stencil. |
+
+**Why this is "replace, don't patch" done right:** U4 had a genuinely
+equal-or-better leaded part available, so we swapped ([[replace-dont-patch]]).
+U6/U1 did not — the "leaded" options were strictly worse on the design's
+core power-first axis ([[power-first]]), so the correct move is to keep the
+right part and make assembly easier via the stencil, not to downgrade the
+part. **Resolves DR-24.** Feeds CP3 placement (footprints/thermal-pad/vias for
+U1/U6) and the fab order (add stencil).
+
+## D34 — RS-485 transceiver = THVD1400DR (3.3 V half-duplex); DE / /RE split; per-board sleep policy — DR-25 (reviewer iter-8 F05/F06 + iter-10 F08/F09 + iter-14 F15 + iter-16 F17 + iter-18 F18)
+
+**Decision (2026-07-02, revised iter-10, further revised iter-14 F15
+wake spec, polarity + bus-ownership tightened iter-16 F17,
+observable turnaround guard added iter-18 F18).** Swap `SN65HVD3082EDR` → **`THVD1400DR`** on both boards.
+Route the transceiver enables as **two independent ESP GPIOs** (DE +
+/RE) and rely on THVD1400's **datasheet-guaranteed internal pulls**
+(DE 2 MΩ pull-DOWN + /RE 2 MΩ pull-UP) for the default-safe state;
+**battery firmware defaults to shutdown** (both GPIOs Hi-Z), **display
+firmware defaults to receive-active** (GPIO15 latched LOW via RTC-GPIO
+so RO stays live and can pull GPIO18 LOW when the master drives the
+sustained-LOW wake BREAK; wake API = `ext1` `ESP_EXT1_WAKEUP_ANY_LOW`
+mask over GPIO12/13/14/18, per iter-14 F15). Resolves **F05 (BLOCKER,
+wrong-VCC part)**, **F06 (IMPORTANT, tied enables can't shutdown)**, and
+**F08 (IMPORTANT, max-vs-typ shutdown accounting)**, and closes the
+long-open **D-OPEN-2**. **F09 (display deep-sleep RX wake regression)** is
+addressed by the split sleep policy below. **Note:** the iter-8 first cut
+earlier picked `ISL3175EIBZ`; reviewer iter-10 F08 correctly flagged that its
+worst-case shutdown Iq is 12 µA max, not the 10 nA typ I quoted. Redoing
+the candidate table max-to-max shifted the winner to THVD1400DR.
+
+**Why the swap.** `SN65HVD3082E` is unambiguously a **5 V** device (its TI
+family datasheet §6.3 Recommended Operating Conditions specifies
+**VCC = 4.5–5.5 V**, and §3 opens with "Powered by a 5-V supply"). Both
+boards nonetheless powered it from V3V3 — outside its operating conditions
+on both endpoints, so the RS-485 link is undefined as designed. The
+reviewer's F05 catch was correct on the merits; `SN65HVD3082E` was picked
+against a "3.3 V" premise that was never true. The premise regressed all
+the way into `docs/hardware/bom.md`, which literally labels the part
+"half-duplex, 3.3 V". [[cots-interface-reality]] and [[part-availability-early]]
+both apply — I should have opened the datasheet at part-selection time.
+
+**Why THVD1400DR over the alternatives — max-to-max analysis.** Five
+candidates cleared the "genuine 3.3 V, low-Iq, half-duplex, in-stock,
+active" bar (parts-sourcing API, 2026-07-02). Comparing **datasheet
+maximum** shutdown Iq (the number that actually bounds worst-case
+State-4 draw, not typical) after reviewer iter-10 F08:
+
+| Part | VCC (Rec.) | Iq active max (RX-only, no load) | Shutdown Iq **max** | Data-rate class | Full Fail-Safe RX | Stock (DK/Mouser) | $1 qty | Datasheet-guaranteed internal pulls? |
+|------|------------|----------------------------------|---------------------|-----------------|-------------------|-------------------|--------|--------------------------------------|
+| **THVD1400DR** (TI) | 3.0 – 5.5 V | 900 µA | **1 µA** | 500 kbps | Yes (open/short/idle bus) | 32635 / 2381 | ~$1.38 | **Yes** — DE 2 MΩ pull-DOWN, /RE 2 MΩ pull-UP → defaults to shutdown when both float |
+| MAX3485ESA (Maxim/ADI) | 3.0 – 3.6 V | 500 µA | 1 µA | 10 Mbps | Not spec'd fail-safe | 3508 / 729 | ~$11.22 | No |
+| SN65HVD75DR (TI) | 3.0 – 3.6 V | 950 µA | 2 µA | 20 Mbps | Not spec'd fail-safe | 0 / 0 | ~$3.58 | No (stock = 0 disqualifies anyway) |
+| ISL3175EIBZ (Renesas) | 3.0 – 3.6 V | 700 µA | **12 µA** | 200 kbps | Yes | 889 / 2757 | ~$3.10 | No — superseded by THVD1400 (F08) |
+| SP3485EN-L (Exar/MaxLinear) | 3.0 – 3.6 V | 2000 µA | not spec'd (implied ~1 µA "50 nA" text) | 10 Mbps | No | 0 / 3534 | ~$1.38 | No |
+
+**THVD1400DR** wins on the axes this project ranks:
+- **Power-first (D5 [[power-first]]) on max shutdown Iq.** THVD1400 = 1 µA
+  max shutdown; ISL3175 = 12 µA max (12×), SN65HVD75 = 2 µA max, SP3485
+  not fully spec'd. At 3.3 V load and η ≈ 50 % through U1, the max
+  shutdown contribution to State-4 is **~7 µW referred** vs ISL3175's
+  ~80 µW — a 73 µW gap, ~7 % of the 1 mW hard-cut headline. The
+  transceiver is in shutdown ~99 % of the time on the always-on battery
+  side, so max-shutdown *is* the load-bearing spec.
+- **Default-safe without extra parts.** THVD1400's datasheet
+  §Pin Functions (page 4) explicitly specifies the enable pins with
+  internal pulls that put the device in shutdown when both float —
+  independent of external components, guaranteed across the temperature
+  range. This means the F06 topology fix needs only two GPIO nets (no
+  R_DE / R_RE), saves 4 board parts, and is more robust than external
+  pulls that a stuff-error could omit.
+- **Fail-safe RX (matches the superseded ISL3175E).** Open / short / idle bus all drive
+  RO high, so DR-13's 275 mV bias is now noise-margin insurance, not a
+  fail-safe requirement. Same story as with ISL3175.
+- **Package + pinout.** SOIC-8 standard SN75176 pinout
+  (RO/RE/DE/DI/GND/A/B/VCC on pins 1..8), drop-in for the CP1 U3/U2
+  footprint.
+- **Availability + lifecycle.** TI Active with **32635 stock at DigiKey**
+  + 2381 at Mouser — ~10× the ISL3175's headroom. Same-day cut-tape
+  everywhere.
+- **Cost.** $1.38 at qty 1 vs ISL3175's $3.10 — matters little for the
+  qty-1 build ([[build-quantity]]) but "cheaper *and* better" is worth
+  noting.
+
+**Iq active trade-off (transparent).** THVD1400 draws 900 µA max in RX-only
+mode vs ISL3175's 700 µA max — a 200 µA gap when the receiver is actively
+listening. On the battery side, that's during infrequent RS-485 comm
+sessions (~1 % duty cycle in field operation); on the display side, that's
+whenever the display is on the always-listening rail. Even at 100 % duty
+the delta is 200 µA × 3.3 V = 660 µW at load, ~1.3 mW referred through
+U1 — inside the noise band of State 1's ~1.08 W. Not the load-bearing
+spec. Data-rate class (500 kbps vs 200 kbps) is also comfortably above
+our 250 kbps target and 5 m Cat5e handles both.
+
+Datasheet stored at `hardware/datasheets/THVD1400DR.pdf`
+(sha `5ba9785d9fb8dc878b90fd196ff5faed27b5fff0ddfccb8346a82ac3c6a5c47f`).
+
+**Why not just retain ISL3175E and budget its 12 µA max shutdown?** The
+reviewer explicitly offered that option in iter-10 F08. I chose to
+reselect because (a) THVD1400 is a 12× improvement on the **exact** spec
+this project's power-first ethic prioritizes ([[power-first]]), (b) the
+switch is a same-footprint, same-pinout swap so integration cost is a
+BOM cell + datasheet swap, no schematic rework at this CP, and (c) the
+internal-pull default-safe eliminates R_DE / R_RE entirely, which is a
+cleaner CP1 close on F06 than the belt-and-suspenders external pulls
+would have been. Every axis except peak active current improves.
+
+**Why DE / /RE split.** THVD1400DR (like SN65HVD3082E and every
+DE/RE-enable transceiver in this class) enters shutdown when
+**DE = 0 AND /RE = 1** simultaneously. Tying DE to /RE across a single
+GPIO gives only two states — receive (both low) or transmit (both high) —
+so shutdown is topologically unreachable. The prior CP1 design tied both
+enables to ESP GPIO2; F06 correctly identifies that this means the
+transceiver is *always active* in every state that isn't SSR1-shed, so its
+worst-case active current (RX-only ~900 µA at 3.3 V = **~3.0 mW at load,
+~6.0 mW referred through U1 at η ≈ 50 %**) was silently absent from the
+State-4 hard-cut budget for the battery side. That's a real,
+load-bearing miss.
+
+**Topology.**
+- **DE → ESP GPIO2** (active-HIGH, transmit enable).
+- **/RE → ESP GPIO15** (active-LOW, receive enable). GPIO15 was previously
+  unused (D4 removed the debug LED it once drove; it was surfaced on J3 as
+  an expansion pad). Reclaimed for /RE on **both boards**.
+- **Default-safe pulls are internal to THVD1400** (datasheet-guaranteed):
+  - **DE has an internal 2 MΩ pull-DOWN** → floating GPIO2 defaults DE = 0
+    (transmit off).
+  - **/RE has an internal 2 MΩ pull-UP** → floating GPIO15 defaults
+    /RE = 1 (receiver off).
+  - So an un-driven pair defaults to **shutdown** — no external pulls
+    needed. This is the F06 fix distilled into pure topology + datasheet
+    guarantees.
+- **Truth table for firmware (both boards):**
+
+| Mode      | DE (GPIO2) | /RE (GPIO15) | State                  |
+|-----------|------------|--------------|------------------------|
+| Shutdown  | 0          | 1            | driver off, RX off; Icc ≤ 1 µA (max, THVD1400 spec) |
+| Receive   | 0          | 0            | driver off, RX on; Icc ≤ 900 µA (max, RX-only, no load) |
+| Transmit  | 1          | 1            | driver on, RX off; Icc ≤ 1500 µA (max, DE+RE, no load) |
+| (illegal) | 1          | 0            | both on — not used (would drive + echo) |
+
+**Board-specific deep-sleep policy (F09).**
+
+- **Battery side (State 3/4):** ESP puts GPIO2 and GPIO15 to Hi-Z; the
+  THVD1400 internal pulls default to shutdown (Icc ≤ 1 µA max).
+  Transceiver contributes ~7 µW referred to pack in State 4 — negligible
+  vs the ~1 mW headline. Battery does not use RS-485 as a wake source
+  (battery ESP wakes on its own timer + BTN_OVERRIDE, not on RS-485
+  traffic).
+- **Display side (State B — waiting for the next frame from the battery
+  ESP; revised iter-12 F11 + iter-14 F15):** ESP holds GPIO15 **LOW via
+  RTC-GPIO latch** (`gpio_hold_en(GPIO15)` + `gpio_deep_sleep_hold_en()`)
+  through Deep-sleep, so /RE = 0 = receiver on, keeping RO active. GPIO2
+  can Hi-Z (internal pull-DOWN → DE = 0 = driver off). **Wake source =
+  `ext1` `ESP_EXT1_WAKEUP_ANY_LOW` mask over GPIO12, GPIO13, GPIO14,
+  GPIO18** — one wake API covers the 3 active-LOW buttons (§4.6) and
+  the RS-485 RO wake. Espressif's sleep documentation states clearly:
+  Deep-sleep powers off the APB-clocked digital peripherals (including
+  the UART), so UART wake is **Light-sleep-only** and the triggering
+  frame is unavailable to the application. The iter-8 first cut and my
+  iter-10 §17 both said "GPIO18 UART start-bit wakes the ESP" — false
+  in Deep-sleep. Iter-12 F11 corrected to ext0/ext1 RTC-GPIO wake but
+  left the API un-selected; iter-14 F15 selects **ext1 ANY_LOW** so
+  the buttons and bus share one wake mechanism. **Corrected wake
+  waveform** (polarity + bus-ownership tightened iter-16 F17): the
+  master drives the RS-485 pair with **`DE=1, D/TXD=0`**, which per
+  [THVD1400 datasheet](https://www.ti.com/lit/ds/symlink/thvd1400.pdf)
+  §7.4 puts **A LOW, B HIGH, `V_A − V_B` negative** on the bus, and
+  every enabled receiver on the bus (display side included) drives
+  **RO LOW**. Hold that BREAK for a sustained-LOW interval that meets
+  the RTC slow-clock's ≥3-cycle sampling minimum (150 kHz slow clock
+  → ~20 µs floor). CP2 firmware nominal is **50 ms sustained LOW** —
+  comfortably above the 20 µs minimum and above ESP32-S3 wake+boot
+  (~10 ms typical from Deep-sleep). **Bus-ownership with observable
+  turnaround guard** (F17 + iter-18 F18): the display can and often
+  will finish booting inside the master's 50 ms BREAK window, so
+  numbered ordering ("master releases DE, then display asserts DE")
+  cannot be enforced by numbering alone — both sides need an
+  observable condition. `ESP_EXT1_WAKEUP_ANY_LOW` is a **level** wake,
+  so ext1 fires during the LOW sampling window itself (not on the
+  LOW→HIGH transition when the master releases). Wake causes the
+  boot; the bus-idle handoff is a separate event.
+  - **Master:** (1) `DE=1, TXD=0` → drive BREAK. (2) Hold 50 ms.
+    (3) **Set `DE=0` AND `/RE=0` simultaneously** (deassert driver
+    + enable own receiver) *before* starting the ACK timeout —
+    otherwise the master cannot observe the display's ACK arriving.
+    (4) Watch RO for the ACK frame; on ACK, transmit payload.
+  - **Display:** (a) ext1 fires on LOW-level → ESP wakes + boots.
+    (b) Firmware initializes with **`DE=0` kept low** (/RE=0 is
+    already latched via `gpio_hold_en(GPIO15)` so receiver is on
+    and RO is valid). (c) Firmware polls GPIO18/RO and waits until
+    RO has been **HIGH continuously for a bus-idle guard interval**
+    — nominally **≥50 µs**, sized against the slowest relevant
+    [THVD1400 §6.7](https://www.ti.com/lit/ds/symlink/thvd1400.pdf)
+    Switching Characteristics path: driver-disable
+    `tPHZ/tPLZ = 80 ns typ / 200 ns max` for the master's `DE=0`
+    transition **plus** receiver-enable/fail-safe response
+    `tR(F) = 4 µs typ / 10 µs max` for the display's RX to detect
+    idle and drive RO HIGH via the built-in fail-safe once the
+    master is no longer driving. The 10 µs receiver-enable/fail-safe
+    max dominates the budget; **50 µs gives ≥5× margin over that
+    path and ~250× over the driver-disable max**, plus 4 µs of UART
+    bit-time noise margin at 250 kbps. (d) Once RO has been
+    continuously HIGH for the guard, display asserts `DE=1`,
+    transmits the ACK frame, then sets `DE=0`. (e) Done.
+  The guard makes the handoff **observable**: display cannot assert
+  DE until it sees the bus idle, which requires the master's
+  `DE=0` transition to have propagated through THVD1400's
+  driver-disable time. This eliminates the driver-overlap risk left
+  open when boot happens to complete mid-BREAK. **Firmware protocol
+  requirement:** master drives BREAK → sets `DE=0` + `/RE=0` →
+  starts ACK timeout → display observes RO HIGH for ≥50 µs guard →
+  display asserts DE + transmits ACK + deasserts DE → master
+  receives ACK → master transmits payload. The observable turnaround
+  (display waits on RO HIGH; master enables /RE before starting
+  timeout) is a correctness requirement, not a nice-to-have. **Bench
+  -verify at CP2**: scope **both DE pins simultaneously** plus
+  A/B/RO, and confirm no driver-overlap window ever appears —
+  including cases where display boot completes mid-BREAK. Do not
+  size correctness around the ~10 ms boot assumption. The transceiver draws its
+  **RX-only Iq (~900 µA max)** continuously in this state — a real
+  cost that appears in the display-side State B budget (§7), but the
+  display is on the SSR1-shed rail so this term is *not* in the
+  battery-side hard-cut budget. Alternative rejected: **Light-sleep +
+  UART wake** (revised iter-14 F15 numbers). Module datasheet
+  ESP32-S3-WROOM-1 Table 6 lists Light-sleep at **240 µA typ** plus
+  **~140 µA for the N16R8's 8-line PSRAM** (retention), so the mode
+  delta vs ~10 µA Deep-sleep is **~0.37 mA (~1.2 mW at 3.3 V)** — not
+  the ~1 mA/~3 mW I quoted iter-12. Even in Light-sleep, Espressif
+  notes the triggering character is not received and an extra wake
+  character is normally required, so the master would still send a
+  preamble byte. Deep-sleep + BREAK still wins on power (1.2 mW is
+  meaningful on a ~1 mW hard-cut budget and ~50 mW display State A
+  total) and unifies buttons + bus on one wake API.
+- **Both boards, reset / crash / brown-out:** both GPIOs float → THVD1400
+  internal pulls → shutdown. No external components required.
+
+**GPIO map delta (both boards).** GPIO2 = **RS-485 DE** (was: DE/RE tied);
+**GPIO15 = RS-485 /RE** (was: unused, brought to J3). J3 loses that
+expansion pad — acceptable since J3 keeps the other unused GPIOs and this
+board is single-purpose.
+
+**Hard-cut budget impact (F08 max accounting, revised iter-12 F13).**
+With the split, State-4 shutdown is achievable and the transceiver
+contributes **at most 1 µA @ 3.3 V ≈ 3.3 µW at load, ~7 µW referred**
+(max, worst-case over temp) — inside the µW rounding floor. **Full
+State-4 sum rebuilt on datasheet max where spec'd + explicit engineering
+margin where no max is published** (iter-12 F13 caught that my earlier
+"max throughout" claim was still using typical values for U1/U4/U6, and
+iter-14 F16 flagged one remaining "throughout" phrasing here; this is
+the corrected convention used everywhere in the CP1 documents):
+**~1.1 mW total** with LM5166 **15 µA max** +
+TPS3808 **5 µA max** + TPS2116 **4.5 µA max** + THVD1400 **1 µA max**
++ ESP32-S3 Deep-sleep 10 µA typ + 5 µA engineering margin (Espressif
+does not publish a spec max for Deep-sleep in ES Table 6-7 [citation corrected 2026-07-14]). ([[power-first]])
+If we had kept ISL3175E and honored F08 max-to-max, the headline would
+be ~1.14 mW (the extra 11 µA on the U3 shutdown line).
+
+**BOM impact.**
+- U3 (battery) / U2 (display): `SN65HVD3082EDR` → **`THVD1400DR`**
+  (both SOIC-8, drop-in footprint per datasheet pinout:
+  R/RE/DE/D/GND/A/B/VCC on pins 1..8).
+- **No** R_DE / R_RE required — THVD1400 internal pulls do the job.
+  Saves 4 board parts (2 per board) vs the initial ISL3175 topology.
+- Retire `docs/hardware/bom.md` "half-duplex, 3.3 V" label on `SN65HVD3082E`
+  (was misleading, part is 5 V).
+
+**Firmware TODO (deferred to CP2/firmware layer).**
+- **Battery-side:** on boot, drive GPIO2 LOW and GPIO15 HIGH before
+  enabling either as an output. On entering deep-sleep, configure both
+  GPIOs to Hi-Z (no RTC-GPIO latch) so THVD1400's internal pulls take
+  over to shutdown.
+- **Display-side (revised iter-12 F11 + iter-14 F15 + iter-16 F17 +
+  iter-18 F18):** on boot, drive GPIO2 LOW and GPIO15 LOW (receiver
+  on). Before entering Deep-sleep, call `gpio_hold_en(GPIO15)` then
+  `gpio_deep_sleep_hold_en()` to latch GPIO15 LOW through the sleep
+  — /RE stays 0, transceiver stays in RX. Configure the **`ext1`
+  wake mode with `ESP_EXT1_WAKEUP_ANY_LOW`** and a bit mask covering
+  GPIO12, GPIO13, GPIO14 (buttons, §4.6), and GPIO18 (RS-485 RO).
+  **Not** the ESP UART wake API (UART is powered down in Deep-sleep
+  per Espressif sleep_modes docs, and the triggering byte is lost
+  regardless). Battery-side (master) firmware wakes the display by
+  driving the RS-485 pair to the BREAK state — **`DE=1, D/TXD=0` →
+  A LOW, B HIGH, VA-VB negative → RO LOW at every enabled receiver**
+  per [THVD1400 §7.4](https://www.ti.com/lit/ds/symlink/thvd1400.pdf)
+  Function Tables — for **≥20 µs (RTC slow-clock 3-cycle minimum)
+  with a nominal 50 ms** used at CP2. After the BREAK the master
+  sets **`DE=0` AND `/RE=0` simultaneously** (deasserts driver +
+  enables own receiver) before starting the ACK timeout —
+  otherwise it can't observe the display's ACK arriving. **Observable
+  turnaround guard (iter-18 F18):** on wake, display firmware keeps
+  `DE=0` and polls GPIO18/RO until it has been **HIGH continuously
+  for a bus-idle guard interval — nominally ≥50 µs**, sized against
+  the slowest relevant THVD1400 §6.7 path: driver-disable
+  `tPHZ/tPLZ = 80 ns typ / 200 ns max` plus receiver-enable/fail-safe
+  `tR(F) = 4 µs typ / 10 µs max`; the 10 µs receiver-fail-safe max
+  dominates and 50 µs is ≥5× that path plus 4 µs UART-bit noise
+  margin at 250 kbps. Only then may
+  display firmware assert `DE=1`, transmit the ACK frame, and
+  deassert `DE=0`. Master sees ACK on its now-enabled receiver and
+  transmits the payload. The guard makes the handoff observable so
+  the bus never has two active drivers even if display boot
+  completes mid-BREAK. BREAK duration + guard interval + ACK
+  timeout + retry policy are firmware-layer decisions — CP2
+  handoff item. GPIO12/13/14/15/18 all RTC-capable per Espressif
+  ESP32-S3 datasheet Table 3-1 [corrected 2026-07-14]. **CP2 bench-verify:** scope both DE
+  pins simultaneously plus A/B/RO and confirm no driver-overlap
+  window ever appears — including cases where display boot completes
+  mid-BREAK.
+
+**Supersedes** D-OPEN-2 (transceiver alternatives inventory). The reviewer's
+existing D-OPEN-2 list (SN65HVD3082E, THVD1452, MAX3485, ISL3170E,
+ISL3175E) is now closed: **THVD1400DR** on power-first + drop-in-pinout
++ default-safe + stock/price grounds. Iter-8's ISL3175E choice was on
+the right track but I mis-quoted its shutdown Iq as 10 nA (typical) when
+the design-relevant number is 12 µA (max); reviewer iter-10 F08 forced
+the correct max-to-max comparison.
+
+**Sources.**
+- THVD1400DR datasheet: `hardware/datasheets/THVD1400DR.pdf`,
+  sha256 `5ba9785d9fb8dc878b90fd196ff5faed27b5fff0ddfccb8346a82ac3c6a5c47f`
+  (TI THVD1400/THVD1420 family; §Pin Functions confirms internal pulls;
+  §Electrical Characteristics confirms 1 µA max shutdown Iq at DE = 0,
+  RE = VCC).
+- ISL3175EIBZ datasheet retained at `hardware/datasheets/ISL3175EIBZ.pdf`
+  (sha `dee60a6b8227f6f03e9a425586c2714452b6b9e68ff4c9ac771d8111c6c5ecb0`)
+  as the record of the iter-8 candidate table + iter-10 max-to-max
+  benchmark.
+- Parts-sourcing API pulled 2026-07-02: TI Active, MOQ 1, DigiKey
+  296-THVD1400DRTR-ND ($1.47) / Mouser 595-THVD1400DR ($1.38) — total
+  **35016** units across two authorized distributors, comfortable
+  head-room for the qty-1 build + spare-parts buffer.
+
+## D35 — Documentation architecture: one canonical home per fact type + mechanical drift gate — user directive 2026-07-14
+
+**Date**: 2026-07-14
+**Status**: committed
+
+**Trigger.** A user audit found live staleness that survived 20 review
+iterations and the reviewer's manual G5 sweeps: `docs/hardware/bom.md`
+still listed EG1218 for BTN1 (superseded by RP3502MABLK in the COTS
+sweep) and a phantom battery-side 680 Ω bias row (removed by D19/DR-4b);
+`cp1_battery_side.md` States 1–2 still budgeted ~1.5 mA of display bias
+made DNP by iter-12 F12; and the datasheet manifest claimed "gate CLOSED
+— every active part" while RP3502MABLK had no stored datasheet. Root
+cause: the same fact was stored as free prose in up to five documents,
+and the G5 sweep depended on a human remembering which tokens had been
+superseded. Same failure class as reviewer findings F13/F14/F16.
+
+**Decision — three layers:**
+
+1. **Ownership: one canonical home per fact type.** Everything else may
+   carry a ≤1-line summary plus a link — never a restatement.
+   - Parts, sourcing, package, stuff-status → `hardware/layout/cp1_bom.md`
+     (per-CP successor files thereafter), with
+     `hardware/datasheets/manifest.md` as the machine-readable registry
+     of chosen parts (D32).
+   - Power numbers/budgets → `docs/hardware/power_budget.md`. Baseline
+     state tables cite it and carry a declared tolerance (±5 %), not
+     independent arithmetic.
+   - Design policies + rationale → this decisions log (D-entries).
+     Supersession is recorded with bracketed notes in place — history is
+     annotated, never silently rewritten.
+   - Review state → the active packet + `DESIGN_REVIEW_ITEMS.md` (both
+     are history-bearing records; stale tokens are expected there).
+   - `docs/hardware/bom.md` is **non-normative** effective now (banner
+     added); its unique content (proto alternates, sourcing links) will
+     be folded into the canonical BOM at CP2 and the file reduced to a
+     pointer.
+
+2. **Mechanical drift gate (replaces remember-and-grep G5).**
+   `hardware/reviews/tools/doc_consistency_check.py` runs an
+   **append-only superseded-token registry** — every part/value/policy
+   swap ever made stays in the registry and is re-checked on every run,
+   so catching drift no longer depends on recalling what changed. The
+   same tool executes D32 as code: manifest rows ↔ PDFs on disk ↔
+   canonical BOM presence. **Run before every semaphore flip** (added to
+   DESIGNER.md pre-handoff checklist and SOP G5). Registry maintenance
+   is part of every swap: the commit that supersedes a token adds it.
+
+3. **Structural elimination at CP2.** Schematic capture makes the KiCad
+   symbol fields (MPN, DK/Mouser SKU, DNP flag) the machine source of
+   parts truth; the markdown BOM becomes **generated** from the
+   schematic by script. Duplication then physically cannot drift, and
+   the checker's BOM cross-checks retarget the generated output.
+
+**Non-goals.** No mass rewrite of reviewer-approved CP1 prose beyond the
+specific staleness fixed in this commit; D-entry history stays intact
+(bracket-note convention). The gate is additive — the reviewer's
+independent G5 judgment remains; the tool is the floor, not the ceiling.
+
+## D36 — RS-485 wired battery read: co-equal alternative transport (both packs, per-pack isolated) — user directive 2026-07-15
+
+**Decision.** Add a **populated, BLE-independent RS-485 read path to both
+packs** as a **co-equal alternative transport** to BLE — *not* a
+subordinate backup. Full design in
+[`cp1_rs485_battery_read.md`](cp1_rs485_battery_read.md).
+
+**Why + framing (user, 2026-07-15).** BLE to the two BMS has been
+worryingly flaky in the field; the user wants a real wired path, not a
+DNP option. **Which transport is primary is deliberately left open** — if
+the wired path performs better it may *become* the primary; that judgment
+is not made in advance. Firmware runs both in parallel (same `ej_bms`
+parser) and the selection/merge policy is a field decision. Space/volume
+is not a constraint on the battery board.
+
+**Key architectural point (drives everything).** The two 12 V packs are
+in **series**, and this is a **polled** protocol (master must *transmit*
+queries). The top pack's BMS receiver is referenced to **+12 V**; a
+system-ground-referenced driver lands ≈ −9…−13 V common-mode at that
+receiver, past its −7 V limit — so we can't poll the top pack from system
+ground, and a wide-CM *receiver* doesn't help (it's the drive reference
+that's wrong). To transmit inside the pack's window the front-end must
+*float* to its reference = galvanic isolation. So this is **not** one
+shared bus (the two packs' fixed transceivers are 12 V apart and would
+see each other out of range) — it is **two galvanically-isolated
+channels**. (BLE is RF-isolated for the same reason — the two transports
+are isolation-equivalent peers, not primary-vs-backup; CAN's common-mode
+is tighter still → reserved for a future inverter bridge.)
+
+**Symmetric + self-referenced (user, 2026-07-15).** The two channels are
+**identical and interchangeable — either pack on either jack**; firmware
+distinguishes packs by protocol address (`0x01`/`0x02`), not by channel.
+Each isolated front-end references **locally** (its own iso-supply ground
++ fail-safe bias to local rails, Ethernet-style). The **primary topology
+connects to each pack only through the 2-wire A/B pair — and that
+topology is conditional on the §7 two-domain acceptance matrix passing
+(F52/F58)**; the qualified fallback is a per-channel **REF conductor**
+from that channel's ISO_BUS_GND to its own pack's B− (direct; pad placed
+at CP2). *[The earlier "no reference wire is required + optional ~1 MΩ
+iso-GND↔bus bleed" wording is superseded (F52/F58): a bleed to a signal
+line the reader itself drives references nothing during reader TX, so it
+cannot bound the pack receiver's common-mode.]* The asymmetric option
+(isolate only the top pack) was rejected in favor of swappable channels.
+
+**Shape.** Shared ESP **UART2** (free — ESP32-S3 has 3 UART controllers;
+UART0 console, UART1 display) fanned to two **ADM2587E** isolated RS-485
+front-ends (integrated isoPower); **power-gating each channel's VCC is
+the channel select** (sequential polling, master role). Decoded frames
+reuse the existing `ej_bms` `:AddrCmd…CRC~` parser byte-for-byte — only
+the transport differs from BLE. **ADM2587E ICC = 90 mA @ 3.3 V/100 Ω**
+(Rev H Table 1; **iter-30 F28 corrected the first draft's 72 mA**, which
+is the 5 V row — isoPower dominates whenever VCC is applied) → gating is
+essential; gated ~0.5 % duty → **~1.5 mW average** in polling states
+(~0.17 % of State-1). States 3–4 unpowered → **hard-cut ~1.1 mW
+unchanged**, contingent on the §2a off-state contract (F30) + a
+default-off load switch. **Shared-UART off-state (F30):** per-channel
+dedicated DI/DE/RO on the ESP, matrix-muxed, inactive pins held high-Z —
+no reliance on the ADM2587E's unspecified VCC=0 behavior. **isoPower
+support network (F32):** full bypass/ferrite/stitching set + a binding
+CP2/CP3 isolation-keepout contract (design §3).
+Connectors: 2× RJHSE-5380 RJ45 (mate the vendor pack-connector→RJ45
+cable; A/B on pins 7/8 — double-sourced: thread 2024-01-15 + photo
+label; **CAN domain resolved, F45 closed 2026-07-16** — the thread's
+"pin 1 and 2" is the battery-side connector; the **in-service cable
+beeps out to RJ45 4/6** (2026-07-17), while the separate Pro-Series
+label prints 4/5 — a different cable product, **not** the same map
+(F63); CAN pads, if ever routed, follow the measured in-service map).
+Bus TVS footprints = SM712 + series R, **DNP /
+port intentionally unprotected (F44)** — see design §3.
+
+**Reserved, not chosen: CAN for reading.** CAN's role is a future
+pack→Victron-inverter bridge (the vendor CAN doc's purpose); its
+common-mode range is worse for a series stack and it carries less
+per-cell detail than the serial protocol. The ESP has a native TWAI/CAN
+controller if that bridge is ever built.
+
+**Interface premise — REDACTED TRANSCRIPT ON FILE (F45 closed 2026-07-16; F55 label: owner-supplied redaction, original off-file;
+F37/F47;** see design §7 + the transcript
+[`vendor/Voltage_monitoring_thread_2023-2024_redacted_transcript.txt`](../../docs/vendor/Voltage_monitoring_thread_2023-2024_redacted_transcript.txt)
++ dated fact table in
+[`vendor/volthium-rs485-correspondence-2024.md`](../../docs/vendor/volthium-rs485-correspondence-2024.md)):
+verified verbatim, 2024-03-28 — *"Use a Standard RS485 adapter with
+A & B. No ground need. Don't use a TTL 3.3V adapter directly."* So:
+RS-485 (not TTL), 2-wire/no-ground, A/B on RJ45 **7/8** (double-sourced);
+socket closest to the negative terminal (2024-01-15). Pack connector
+**measured 2026-07-17 (cable photos on file, docs/vendor/images/)**:
+4-position **M12-pattern** screw coupling (~12.3 mm thread ID), insert
+numbered 1→4 CCW; full conductor map beeped out — battery 1/2 = CAN-H/L
+→ RJ45 4/6, battery 3/4 = RS-485 A/B → RJ45 7/8; the purchased cable
+ends in an **RJ45 male** (mates our jack directly, no patch cable).
+Vendor PN never supplied — not load-bearing (we mate at the RJ45). The ADM2587E isolated front-end is the correct circuit
+class under this premise. **The ~2-week on-site test remains
+TOPOLOGY-GATING (F47):** it decides whether the floating island needs a
+local reference/bleed — pass limits and the DNP fallback circuit are
+specified in design §7; **D36/DR-26 stay gated until it passes.**
+**D32 closed 2026-07-16:** ADM2587E + Semtech SM712 datasheets on file,
+read and verified; SM712 DNP by default (port intentionally unprotected
+per F44 — no coordinated network exists; see design §3).
+
+**Status.** Extends approved CP1 → needs a **CP1-delta review pass before
+CP2**. Logged as **DR-26**.
+
+## D37 — Battery-side expansion header (Molex PicoBlade, 8-ckt) — user directive 2026-07-15
+
+**Decision.** Add a populated **8-circuit Molex PicoBlade (1.25 mm)**
+expansion header on the battery-side board (space is free there). It
+brings out an I2C expansion bus + flexible analog/wake/digital IO +
+power, chosen to maximize what an unknown future daughterboard can do
+using the fewest scarce ESP resources and **zero continuous draw when
+nothing is plugged in**.
+
+**Pinout (8-ckt, grounds bracketing the signals for return/SI):**
+
+| Pin | Signal | ESP capability required | Why it's the best use of the pin |
+|-----|--------|-------------------------|----------------------------------|
+| 1 | **GND** | — | return |
+| 2 | **EXP_3V3** | **load-switched, default-OFF** rail (not raw always-on) — **F34/F39/F48** | powers the add-on through an on/off load switch (Q_exp) that is **OFF at reset and force-OFF in State 4**. **F48 — the off-state is a testable contract, not "dead":** see the power-domain contract below (pull-ups on the switched rail, signals high-Z before/while off, bleed resistor, ≤5 µW worst-case datasheet-bound State-4 term). **F39: this is on/off gating, not a current limiter** — the real upstream ceiling is F1 (1 A) + LM5166 (500 mA, shared). A per-rail hard limit (series ~75 mA PPTC) is an option, DNP. Enable = ESP `EXP_PWR_EN`. |
+| 3 | **EXP_SDA** | I2C1 (a **dedicated** controller, *not* the RTC's I2C0) | the single highest-leverage expansion bus: addressable, multi-drop, 2 pins — sensors / ADC / IO-expander / EEPROM / fuel-gauge all speak it. **Dedicated bus isolates the timekeeping-critical RV-3028 from an unknown add-on** (leaner alt: share I2C0 — 2 fewer GPIOs, 2 fewer pull-ups, but couples expansion to the RTC). Pull-ups on the header side, **powered from switched `EXP_3V3` (F48)** — never from always-on 3V3, so they cannot back-feed a dead rail or a powered-down add-on. |
+| 4 | **EXP_SCL** | I2C1 | " |
+| 5 | **EXP_AIO1** | **ADC1 + RTC-wake** (free pool GPIO8/9/10) | analog-in *or* digital *or* an interrupt that can **wake the ESP from deep sleep** (ext1). ADC1 (not ADC2) so it never conflicts with WiFi (datasheet: ADC1 = GPIO1–10). |
+| 6 | **EXP_AIO2** | **ADC1 + RTC-wake** | second analog/wake/digital line |
+| 7 | **EXP_DIO3** | generic digital (free pool GPIO38–42) | CS / PWM / soft-UART / SPI via the GPIO matrix — keeps the two ADC1 pins free for analog. |
+| 8 | **GND** | — | second return near the analog/I2C pins |
+
+**Why these and not others.**
+- **No hardware UART is offered** — all three ESP UART controllers are
+  allocated (UART0 console, UART1 display RS-485, UART2 battery RS-485
+  read per D36). EXP_DIO3 can soft-UART or be reassigned if a peripheral
+  is freed. Stated honestly rather than implying a spare hardware UART.
+- **No dedicated SPI** — 3–4 pins for a maybe; I2C covers most
+  expansion, and EXP_DIO3 + the AIO pins can bit-bang or route a spare
+  SPI controller through the matrix.
+- **No raw-pack / high-power rail** — power-first: the header is
+  logic-level and its rail is **load-switched, default-off** (F34) so a
+  future add-on can't break the ~1 mW low-SOC budget. A hungry add-on
+  taps the pack elsewhere.
+
+**Enforceable power-domain contract (F34/F39/F48/F51).** The expansion
+rail is **not** raw always-on 3V3, and — correcting the iter-30 wording —
+it is **not** current-limited either. It is an **on/off, default-OFF
+load switch** — a **direct-GPIO-driven NTR4171P** (F51 simplification:
+source = 3V3 = the GPIO domain, no level shifter; **iter-40 F61: the
+FET is onsemi NTR4171P**, RDS(on) **guaranteed 150 mΩ max at
+VGS = −2.5 V**, Vgs ±12 V ≫ the 3.3 V drive — it replaced DMG3415U,
+NRND at the manufacturer despite distributor stock (which in turn
+replaced the NRND ZXMP6A13F); 100 kΩ gate pull-up to 3V3; `EXP_PWR_EN`
+**active-LOW**, high-Z/high = OFF) — **OFF at reset** (pull-up wins
+while the pin is high-Z) and **force-OFF in State 4**.
+F48 replaced the "rail is *dead*" wording with a **testable off-state
+contract**:
+
+1. **Pull-up supply**: the I2C1 pull-ups (and any header-side pull-up)
+   are powered from **switched `EXP_3V3`**, never always-on 3V3 — with
+   the switch off there is no pull-up path into the add-on.
+2. **Signal off-state (firmware, binding)**: all five expansion signals
+   (EXP_SDA/SCL/AIO1/AIO2/DIO3) are driven **high-Z *before*
+   `EXP_PWR_EN` is deasserted and held high-Z whenever the rail is off**
+   (same pattern as the D36 §2a contract) — no ESP pin may source an
+   unpowered add-on through its protection diodes.
+3. **Discharge**: a bleed resistor **R_exp_bleed = 10 kΩ, EXP_3V3 →
+   GND** (populated) discharges the switched node so switch leakage
+   cannot float it. **Sized against the elevated-temperature limit
+   (F66):** NTR4171P IDSS ≤ 5 µA @ 85 °C × 10 kΩ = **≤ 50 mV @ 85 °C**
+   (≤ 10 mV @ 25 °C) — the parked-rail bound now uses the worst-case
+   temperature, not the 25 °C point, and equals the item-5 acceptance
+   target. (At the retired 100 kΩ the same 5 µA gave 500 mV, and an
+   earlier row wrongly cited the ZXMP6A13F's 0.5 µA/50 mV — both fixed.)
+   On-state cost 330 µA (~1.1 mW) — active-mode only.
+4. **Off-state budget — honestly bounded (F51; FET re-pinned iter-38
+   F56/F57)**: with the 2N7002 removed (F51 direct drive) the only
+   semiconductor leak is the **NTR4171P**, whose IDSS ≤ 1 µA
+   (NTR4171P/D, V_DS = −24 V, 25 °C) **and ≤ 5 µA @ 85 °C** are test
+   points at a harsher V_DS than ours (−3.3 V); unlike the prior parts
+   this one *does* publish an elevated-temp row. Budget structure:
+   **datasheet-anchored: ≤ 1 µA @ 25 °C, ≤ 5 µA @ 85 °C** (the published
+   worst-case, used for the parked-rail bound in item 3 and the State-4
+   term ≈ 5 µA × 3.3 V ≈ 16 µW); the **binding number is the measured
+   acceptance limit in item 5**. If the bench measurement
+   exceeds the allocation, swap in a specified-over-temperature
+   load-switch IC (noted alternative) — a part swap, not a respin.
+5. **Acceptance test (bench, at bring-up — the enforceable bound)**:
+   with an add-on plugged and rail off, at working ambient —
+   **V(EXP_3V3) ≤ 50 mV measured**, and total always-on-3V3 draw
+   attributable to the expansion block ≤ 5 µA (the item-4 allocation).
+   The measured 50 mV limit binds even though the item-3 datasheet
+   bound is 100 mV — failing it triggers the bleed-resistor swap.
+6. **Arbitrary daughterboards**: series-R footprints on all five signal
+   lines (DNP by default) as partial-power-down isolation if a future
+   add-on proves back-power-prone; a controlled add-on designed to this
+   contract doesn't need them.
+
+The real current ceiling is the upstream F1 (1 A) + LM5166 (500 mA,
+shared). If a per-rail hard limit is ever wanted, add a series PPTC
+(~75 mA hold) — noted, DNP. (F34's first fix claimed a "~50 mA limit"
+with no limiting component; F39 corrected that; F48 closed the
+back-power/leakage holes above.)
+
+**Exact GPIO numbers finalized at CP2** (coordinated with D36's UART2 +
+channel-select allocation); the *capabilities* above are the binding
+spec — the reviewer/gate checks the CP2 pin map against them.
+
+**Part + sourcing (G2/G3 — F33 corrected).** Molex **PicoBlade 1.25 mm,
+8-ckt, SMT**. Pick **one binding orientation** per row:
+- **Vertical 53398-0871** — DK **WM7612CT-ND** / Mouser 538-53398-0871
+  (both resolve to 53398-0871; API 2026-07-16). *Default.*
+- Right-angle **53261-0871** — DK **WM7626TR-ND** / Mouser 538-53261-0871
+  (cable exits parallel to the board — for a lid-mounted daughterboard).
+
+Customer drawings on file (manifest: Molex_53398-0871_PicoBlade_vert.pdf
+sha 642bc09ea605; RA sha 6e1b0968c9ed) — 1.25 mm pitch, 8-ckt, tin.
+**F38/F49/F53 (mate/rating) — CLOSED iter-36, exact header spec on
+file:** the drawing states **MATE WITH: 51021 SERIES**, and the
+header-system product spec **PS-51021-024 (Rev AD, 2022-06-03) is now on
+file** (owner upload 2026-07-17, sha b7d3ec9b74b9; official molex.com
+URL cited by the iter-35 reviewer — direct fetch WAF-blocked). Its scope
+p.1 explicitly lists **vertical headers 53398\*\*71 (ours)**, r/a 53261,
+housing 51021\*\*00, terminals 500798\*00/500588\*00; ratings p.2:
+**1.0 A max (AWG 26/28/30; 0.8 A at AWG 32), 125 V, −40…+105 °C**, plus
+an 8-circuit derating reference of 1.5 A (AWG 26/28) / 1.0 A (AWG 30/32)
+at 30 °C rise, marked reference-only. Our loads (logic signals + one
+power pin whose upstream ceiling is the shared LM5166 500 mA) sit inside
+the 1.0 A rating. (PS-51021-009, the wire-to-wire sibling, is retained
+in the manifest scoped to the cable-assembly mate side only — F53.)
+**Mating hardware (sourced, orderable at qty 1):** loose 50079-8000
+terminals have a **25,000-piece MOQ** (DK WM1142TR-ND / Mouser
+538-50079-8000, API 2026-07-16) — not a qty-1 answer; instead the
+**off-the-shelf pre-built 8-ckt PicoBlade↔PicoBlade cable assembly Molex
+0151340801 (100 mm)** — DK **WM15273-ND**, 8,199 stock, Active, $10.53
+CAD (API 2026-07-16) — one assembly cut in half = two single-ended
+pigtails, no crimping. The prior "≤50 mA rail" phrasing is retired (no
+such limiter exists — F39/F49). **F33 fix:** the first draft put the r/a DK SKU
+(WM7626) in the vertical row — corrected to WM7612CT-ND.
+
+**Protection.** Series-R footprints (DNP) on **all five** signal lines
+(SDA/SCL/AIO1/AIO2/DIO3 — the F48 contract item 6, partial-power-down
+isolation for back-power-prone add-ons), and an optional ESD array on
+the exposed IO — it's an *internal* header (short cable to a controlled
+daughterboard), so light. Populate at CP2 if the add-on class warrants.
+
+**Status.** Extends approved CP1 → covered by the same CP1-delta review
+pass as D36 (logged under **DR-27**).

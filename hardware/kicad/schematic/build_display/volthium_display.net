@@ -1,0 +1,4838 @@
+(export
+	(version "E")
+	(design
+		(source "/Users/pivot/Documents/repo/volthium_reader/hardware/kicad/schematic/build_display/volthium_display.kicad_sch")
+		(date "2026-07-28T13:23:25")
+		(tool "Eeschema 10.0.3")
+		(sheet
+			(number "1")
+			(name "/")
+			(tstamps "/")
+			(title_block
+				(title "Volthium reader — display-side (root)")
+				(company "Volthium reader")
+				(rev)
+				(date)
+				(source "volthium_display.kicad_sch")
+				(comment
+					(number "1")
+					(value "")
+				)
+				(comment
+					(number "2")
+					(value "")
+				)
+				(comment
+					(number "3")
+					(value "")
+				)
+				(comment
+					(number "4")
+					(value "")
+				)
+				(comment
+					(number "5")
+					(value "")
+				)
+				(comment
+					(number "6")
+					(value "")
+				)
+				(comment
+					(number "7")
+					(value "")
+				)
+				(comment
+					(number "8")
+					(value "")
+				)
+				(comment
+					(number "9")
+					(value "")
+				)
+			)
+		)
+		(sheet
+			(number "2")
+			(name "/Display — Power path/")
+			(tstamps "/9c350fb1-f691-45f5-9109-507b989bb083/")
+			(title_block
+				(title "Display — Power path")
+				(company "Volthium reader")
+				(rev)
+				(date)
+				(source "sheet_d_power.kicad_sch")
+				(comment
+					(number "1")
+					(value "")
+				)
+				(comment
+					(number "2")
+					(value "")
+				)
+				(comment
+					(number "3")
+					(value "")
+				)
+				(comment
+					(number "4")
+					(value "")
+				)
+				(comment
+					(number "5")
+					(value "")
+				)
+				(comment
+					(number "6")
+					(value "")
+				)
+				(comment
+					(number "7")
+					(value "")
+				)
+				(comment
+					(number "8")
+					(value "")
+				)
+				(comment
+					(number "9")
+					(value "")
+				)
+			)
+		)
+		(sheet
+			(number "3")
+			(name "/Display — RS-485, e-paper, buttons/")
+			(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			(title_block
+				(title "Display — RS-485, e-paper, buttons")
+				(company "Volthium reader")
+				(rev)
+				(date)
+				(source "sheet_d_periph.kicad_sch")
+				(comment
+					(number "1")
+					(value "")
+				)
+				(comment
+					(number "2")
+					(value "")
+				)
+				(comment
+					(number "3")
+					(value "")
+				)
+				(comment
+					(number "4")
+					(value "")
+				)
+				(comment
+					(number "5")
+					(value "")
+				)
+				(comment
+					(number "6")
+					(value "")
+				)
+				(comment
+					(number "7")
+					(value "")
+				)
+				(comment
+					(number "8")
+					(value "")
+				)
+				(comment
+					(number "9")
+					(value "")
+				)
+			)
+		)
+		(sheet
+			(number "4")
+			(name "/Display — Connectors & I/O/")
+			(tstamps "/54aafd45-180f-484e-82f4-de169ba9215d/")
+			(title_block
+				(title "Display — Connectors & I/O")
+				(company "Volthium reader")
+				(rev)
+				(date)
+				(source "sheet_d_conn.kicad_sch")
+				(comment
+					(number "1")
+					(value "")
+				)
+				(comment
+					(number "2")
+					(value "")
+				)
+				(comment
+					(number "3")
+					(value "")
+				)
+				(comment
+					(number "4")
+					(value "")
+				)
+				(comment
+					(number "5")
+					(value "")
+				)
+				(comment
+					(number "6")
+					(value "")
+				)
+				(comment
+					(number "7")
+					(value "")
+				)
+				(comment
+					(number "8")
+					(value "")
+				)
+				(comment
+					(number "9")
+					(value "")
+				)
+			)
+		)
+		(sheet
+			(number "5")
+			(name "/Display — MCU (ESP32-S3)/")
+			(tstamps "/8f61eaf4-748f-4563-87a1-b3a18dfc7cd1/")
+			(title_block
+				(title "Display — MCU (ESP32-S3)")
+				(company "Volthium reader")
+				(rev)
+				(date)
+				(source "sheet_d_mcu.kicad_sch")
+				(comment
+					(number "1")
+					(value "")
+				)
+				(comment
+					(number "2")
+					(value "")
+				)
+				(comment
+					(number "3")
+					(value "")
+				)
+				(comment
+					(number "4")
+					(value "")
+				)
+				(comment
+					(number "5")
+					(value "")
+				)
+				(comment
+					(number "6")
+					(value "")
+				)
+				(comment
+					(number "7")
+					(value "")
+				)
+				(comment
+					(number "8")
+					(value "")
+				)
+				(comment
+					(number "9")
+					(value "")
+				)
+			)
+		)
+	)
+	(components
+		(comp
+			(ref "C1")
+			(value "22µF 25V")
+			(footprint "Capacitor_SMD:C_1210_3225Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_1210_3225Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Power path")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_power.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/Display — Power path/")
+				(tstamps "/9c350fb1-f691-45f5-9109-507b989bb083/")
+			)
+			(tstamps "4429bb9a-506a-4a65-b5e0-93e9488f24e2")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C2")
+			(value "10µF")
+			(footprint "Capacitor_SMD:C_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Power path")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_power.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/Display — Power path/")
+				(tstamps "/9c350fb1-f691-45f5-9109-507b989bb083/")
+			)
+			(tstamps "51cca854-0b8e-4b04-ba46-8594c5909f85")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C_mux")
+			(value "47µF")
+			(footprint "Capacitor_SMD:C_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Power path")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_power.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/Display — Power path/")
+				(tstamps "/9c350fb1-f691-45f5-9109-507b989bb083/")
+			)
+			(tstamps "249c0b1e-dd72-4a21-9038-f631b990dd4b")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C_usb1")
+			(value "1µF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Power path")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_power.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/Display — Power path/")
+				(tstamps "/9c350fb1-f691-45f5-9109-507b989bb083/")
+			)
+			(tstamps "5d68aa98-5d16-4a4b-991a-d3f965c3dfc7")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C_usb2")
+			(value "1µF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Power path")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_power.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/Display — Power path/")
+				(tstamps "/9c350fb1-f691-45f5-9109-507b989bb083/")
+			)
+			(tstamps "885dc671-432a-4b4f-822d-165f5606c7ca")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "F1")
+			(value "MF-R025")
+			(footprint "volthium:Fuse_Bourns_MF-R025_THT_P5.08mm")
+			(fields
+				(field
+					(name "Footprint") "volthium:Fuse_Bourns_MF-R025_THT_P5.08mm")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "Polyfuse")
+				(description "Resettable fuse, polymeric positive temperature coefficient")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Power path")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_power.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "resettable fuse PTC PPTC polyfuse polyswitch")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "*polyfuse* *PTC*")
+			)
+			(sheetpath
+				(names "/Display — Power path/")
+				(tstamps "/9c350fb1-f691-45f5-9109-507b989bb083/")
+			)
+			(tstamps "5b2cfe29-0da2-4cb2-a885-c6ac104d110a")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "TVS1")
+			(value "SMAJ15A-13-F")
+			(footprint "Diode_SMD:D_SMA")
+			(fields
+				(field
+					(name "Footprint") "Diode_SMD:D_SMA")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "D_TVS")
+				(description "Bidirectional transient-voltage-suppression diode")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Power path")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_power.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "diode TVS thyrector")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "TO-???* *_Diode_* *SingleDiode* D_*")
+			)
+			(sheetpath
+				(names "/Display — Power path/")
+				(tstamps "/9c350fb1-f691-45f5-9109-507b989bb083/")
+			)
+			(tstamps "cb2dfc6f-492c-4ccc-87ac-591e308a7703")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "U1")
+			(value "R-78E3.3-0.5")
+			(footprint "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT")
+			(fields
+				(field
+					(name "Footprint") "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R-78E3.3-0.5")
+				(description "500mA Step-Down DC/DC-Regulator, 6-28V input, 3.3V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Power path")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_power.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "dc-dc recom Step-Down DC/DC-Regulator")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "Converter*DCDC*RECOM*R*78E*0.5*")
+			)
+			(sheetpath
+				(names "/Display — Power path/")
+				(tstamps "/9c350fb1-f691-45f5-9109-507b989bb083/")
+			)
+			(tstamps "7f56aa17-1c07-40fc-9f7e-ba1a06c5e6a1")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "3")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "U3-LDO")
+			(value "AP2112K-3.3")
+			(footprint "Package_TO_SOT_SMD:SOT-23-5")
+			(fields
+				(field
+					(name "Footprint") "Package_TO_SOT_SMD:SOT-23-5")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "AP2112K-3.3")
+				(description "600mA low dropout linear regulator, with enable pin, 3.8V-6V input voltage range, 3.3V fixed positive output, SOT-23-5")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Power path")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_power.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "linear regulator ldo fixed positive")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "SOT?23?5*")
+			)
+			(sheetpath
+				(names "/Display — Power path/")
+				(tstamps "/9c350fb1-f691-45f5-9109-507b989bb083/")
+			)
+			(tstamps "5d0a865c-d701-4349-adf4-4835b02afe64")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "5")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "U4-MUX")
+			(value "TPS2116DRLR")
+			(footprint "Package_TO_SOT_SMD:SOT-583-8")
+			(fields
+				(field
+					(name "Footprint") "Package_TO_SOT_SMD:SOT-583-8")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "TPS2116DRL")
+				(description "2 Channnels Power Mux with Manual and Priority Switchover, 1.6-5.5V Input Voltage, 2.5A Output Current, Ron 40 mOhm, SOT-583-8")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Power path")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_power.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "Texas-Instruments power-mux switchover")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "SOT?5?3*")
+			)
+			(sheetpath
+				(names "/Display — Power path/")
+				(tstamps "/9c350fb1-f691-45f5-9109-507b989bb083/")
+			)
+			(tstamps "18000e25-4526-4603-8fd7-fbc5ab4bfc2f")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "6")
+						)
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "7")
+						)
+						(pin
+							(num "8")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "BTN1")
+			(value "6x6 tall-actuator")
+			(footprint "Button_Switch_THT:SW_PUSH_6mm_H13mm")
+			(fields
+				(field
+					(name "Footprint") "Button_Switch_THT:SW_PUSH_6mm_H13mm")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "SW_Push")
+				(description "Push button switch, generic, two pins")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "switch normally-open pushbutton push-button")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "49729fd7-64d5-44a5-89e2-58cfc8768784")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "BTN2")
+			(value "6x6 tall-actuator")
+			(footprint "Button_Switch_THT:SW_PUSH_6mm_H13mm")
+			(fields
+				(field
+					(name "Footprint") "Button_Switch_THT:SW_PUSH_6mm_H13mm")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "SW_Push")
+				(description "Push button switch, generic, two pins")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "switch normally-open pushbutton push-button")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "c83f8d5e-5229-4924-9b75-2b37388378b6")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "BTN3")
+			(value "6x6 tall-actuator")
+			(footprint "Button_Switch_THT:SW_PUSH_6mm_H13mm")
+			(fields
+				(field
+					(name "Footprint") "Button_Switch_THT:SW_PUSH_6mm_H13mm")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "SW_Push")
+				(description "Push button switch, generic, two pins")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "switch normally-open pushbutton push-button")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "82f35d42-7af3-4709-961e-a1f7bce0e9bf")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C6")
+			(value "1µF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "6d87775c-c357-4756-a9e8-cc16c560beb5")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C7")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "259a8f38-02ac-4a00-8e07-c851b6b56dbe")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C8")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "1e94bd8e-0e77-40ad-8ce2-8fb9a2061147")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C9")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "8fbfe3e1-744a-4dcf-a66c-d7e71e77a7ce")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C10")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "46752082-e155-429c-86a1-760d8c396d09")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J2")
+			(value "JST_B8B-PH-K-S")
+			(footprint "Connector_JST:JST_PH_B8B-PH-K_1x08_P2.00mm_Vertical")
+			(fields
+				(field
+					(name "Footprint") "Connector_JST:JST_PH_B8B-PH-K_1x08_P2.00mm_Vertical")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "Conn_01x08")
+				(description "Generic connector, single row, 01x08, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "connector")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "Connector*:*_1x??_*")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "7987f06c-d2a5-4617-a998-32927c870f5f")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "6")
+						)
+						(pin
+							(num "7")
+						)
+						(pin
+							(num "8")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J5")
+			(value "TERM")
+			(footprint "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical")
+			(fields
+				(field
+					(name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "Conn_01x02")
+				(description "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "connector")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "Connector*:*_1x??_*")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "334d9f3e-5a8f-4cbd-9595-7be90f55570f")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R2")
+			(value "120")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "c35af8ce-c1c8-4a4f-9732-553b5cebf1d5")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R3")
+			(value "330")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "dnp")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "dcacdc88-ed12-4a48-88bd-660fdd354823")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R4")
+			(value "330")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "dnp")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "7cbe1256-4fb1-4cfd-91a9-d0d40fe57f7d")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R5")
+			(value "1M")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "1a93813a-12a1-43db-b29b-cdd73985432b")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R6")
+			(value "1M")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "0869328c-0fe2-4238-9021-1a8482e3f808")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R7")
+			(value "1M")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "0a73c546-9dfa-47e9-a352-a7997c732a57")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "TVS2")
+			(value "SMAJ12CA-13-F")
+			(footprint "Diode_SMD:D_SMA")
+			(fields
+				(field
+					(name "Footprint") "Diode_SMD:D_SMA")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "D_TVS")
+				(description "Bidirectional transient-voltage-suppression diode")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "diode TVS thyrector")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "TO-???* *_Diode_* *SingleDiode* D_*")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "8ef6ed76-c3aa-4c28-9385-d6a5d2a818be")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "U2")
+			(value "THVD1400DR")
+			(footprint "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm")
+			(fields
+				(field
+					(name "Footprint") "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "THVD1400D")
+				(description "Half duplex RS-485/RS-422, 500 Kbps, 3V - 5.5V supply, ±12kV electro-static discharge (ESD) protection, with receiver/driver enable, 32 receiver drive capacity, SOIC-8")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — RS-485, e-paper, buttons")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_periph.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "Half duplex 3.3V 5V RS-485 RS-422")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "SOIC*3.9x4.9mm*P1.27mm*")
+			)
+			(sheetpath
+				(names "/Display — RS-485, e-paper, buttons/")
+				(tstamps "/e1868921-9588-4d16-a8ce-1f0a3836c03d/")
+			)
+			(tstamps "9bec0471-f451-49fe-ad4a-0c9b5b8a7b2c")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "8")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "6")
+						)
+						(pin
+							(num "7")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J-USB")
+			(value "USB4085-GF-A")
+			(footprint "Connector_USB:USB_C_Receptacle_GCT_USB4085")
+			(fields
+				(field
+					(name "Footprint") "Connector_USB:USB_C_Receptacle_GCT_USB4085")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "USB_C_16P")
+				(description "USB-C 2.0 receptacle, 16-pin (all pins on their own row)")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Connectors & I/O")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_conn.kicad_sch")
+			)
+			(sheetpath
+				(names "/Display — Connectors & I/O/")
+				(tstamps "/54aafd45-180f-484e-82f4-de169ba9215d/")
+			)
+			(tstamps "85402297-f6d1-4c06-a1b2-a00f512a2572")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "SH")
+						)
+						(pin
+							(num "A1")
+						)
+						(pin
+							(num "A12")
+						)
+						(pin
+							(num "B1")
+						)
+						(pin
+							(num "B12")
+						)
+						(pin
+							(num "A4")
+						)
+						(pin
+							(num "A9")
+						)
+						(pin
+							(num "B4")
+						)
+						(pin
+							(num "B9")
+						)
+						(pin
+							(num "A5")
+						)
+						(pin
+							(num "B5")
+						)
+						(pin
+							(num "A7")
+						)
+						(pin
+							(num "B7")
+						)
+						(pin
+							(num "A6")
+						)
+						(pin
+							(num "B6")
+						)
+						(pin
+							(num "A8")
+						)
+						(pin
+							(num "B8")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J1")
+			(value "Wurth_615008145521")
+			(footprint "volthium:J_Wurth_WR-MJ_615008145521")
+			(fields
+				(field
+					(name "Footprint") "volthium:J_Wurth_WR-MJ_615008145521")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "RJ45_Shielded")
+				(description "RJ connector, 8P8C (8 positions 8 connected), Shielded")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Connectors & I/O")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_conn.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "8P8C RJ jack socket connector")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "8P8C* RJ31* RJ32* RJ33* RJ34* RJ35* RJ41* RJ45* RJ49* RJ61*")
+			)
+			(sheetpath
+				(names "/Display — Connectors & I/O/")
+				(tstamps "/54aafd45-180f-484e-82f4-de169ba9215d/")
+			)
+			(tstamps "01c1480c-4bce-4b86-ba67-53877dcf05c2")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "SH")
+						)
+						(pin
+							(num "8")
+						)
+						(pin
+							(num "7")
+						)
+						(pin
+							(num "6")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "1")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J3")
+			(value "ESP-Prog")
+			(footprint "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical")
+			(fields
+				(field
+					(name "Footprint") "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "Conn_02x03_Odd_Even")
+				(description "Generic connector, double row, 02x03, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers), script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Connectors & I/O")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_conn.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "connector")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "Connector*:*_2x??_*")
+			)
+			(sheetpath
+				(names "/Display — Connectors & I/O/")
+				(tstamps "/54aafd45-180f-484e-82f4-de169ba9215d/")
+			)
+			(tstamps "521b3ddd-6c1f-4c3f-91ab-d5ca42840b2b")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "6")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R_cc1")
+			(value "5.1k")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Connectors & I/O")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_conn.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/Display — Connectors & I/O/")
+				(tstamps "/54aafd45-180f-484e-82f4-de169ba9215d/")
+			)
+			(tstamps "757c2009-c857-4d15-922a-957abf260e55")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R_cc2")
+			(value "5.1k")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Connectors & I/O")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_conn.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/Display — Connectors & I/O/")
+				(tstamps "/54aafd45-180f-484e-82f4-de169ba9215d/")
+			)
+			(tstamps "a4d99e48-abef-4cf1-9e43-8668d8158f75")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "U-ESD")
+			(value "USBLC6-2SC6Y")
+			(footprint "Package_TO_SOT_SMD:SOT-23-6")
+			(fields
+				(field
+					(name "Footprint") "Package_TO_SOT_SMD:SOT-23-6")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "USBLC6-2SC6")
+				(description "Very low capacitance ESD protection diode, 2 data-line, SOT-23-6")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — Connectors & I/O")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_conn.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "usb ethernet video")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "SOT?23*")
+			)
+			(sheetpath
+				(names "/Display — Connectors & I/O/")
+				(tstamps "/54aafd45-180f-484e-82f4-de169ba9215d/")
+			)
+			(tstamps "0590eeb8-6ba2-4773-b0b2-851717c44e3f")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "6")
+						)
+						(pin
+							(num "4")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C3")
+			(value "10µF")
+			(footprint "Capacitor_SMD:C_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — MCU (ESP32-S3)")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_mcu.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/Display — MCU (ESP32-S3)/")
+				(tstamps "/8f61eaf4-748f-4563-87a1-b3a18dfc7cd1/")
+			)
+			(tstamps "12c8fcae-209e-4eca-b84a-f3eff171f264")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C4")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — MCU (ESP32-S3)")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_mcu.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/Display — MCU (ESP32-S3)/")
+				(tstamps "/8f61eaf4-748f-4563-87a1-b3a18dfc7cd1/")
+			)
+			(tstamps "33957729-ef45-40bf-ada0-945225dc2cb5")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C5")
+			(value "1µF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — MCU (ESP32-S3)")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_mcu.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/Display — MCU (ESP32-S3)/")
+				(tstamps "/8f61eaf4-748f-4563-87a1-b3a18dfc7cd1/")
+			)
+			(tstamps "43ccd0d5-5ed6-4534-ae31-0829533bfdff")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "MOD1")
+			(value "ESP32-S3-WROOM-1-N16R8")
+			(footprint "RF_Module:ESP32-S3-WROOM-1")
+			(fields
+				(field
+					(name "Footprint") "RF_Module:ESP32-S3-WROOM-1")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "ESP32-S3-WROOM-1")
+				(description "RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboard antenna, SMD")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — MCU (ESP32-S3)")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_mcu.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "RF Radio BT ESP ESP32-S3 Espressif onboard PCB antenna")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "ESP32?S3?WROOM?1*")
+			)
+			(sheetpath
+				(names "/Display — MCU (ESP32-S3)/")
+				(tstamps "/8f61eaf4-748f-4563-87a1-b3a18dfc7cd1/")
+			)
+			(tstamps "a5c46dfa-a62e-4b7b-9335-e6e35fc4ead8")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "27")
+						)
+						(pin
+							(num "39")
+						)
+						(pin
+							(num "38")
+						)
+						(pin
+							(num "15")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "6")
+						)
+						(pin
+							(num "7")
+						)
+						(pin
+							(num "12")
+						)
+						(pin
+							(num "17")
+						)
+						(pin
+							(num "18")
+						)
+						(pin
+							(num "19")
+						)
+						(pin
+							(num "20")
+						)
+						(pin
+							(num "21")
+						)
+						(pin
+							(num "22")
+						)
+						(pin
+							(num "8")
+						)
+						(pin
+							(num "9")
+						)
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "40")
+						)
+						(pin
+							(num "41")
+						)
+						(pin
+							(num "37")
+						)
+						(pin
+							(num "36")
+						)
+						(pin
+							(num "10")
+						)
+						(pin
+							(num "11")
+						)
+						(pin
+							(num "13")
+						)
+						(pin
+							(num "14")
+						)
+						(pin
+							(num "23")
+						)
+						(pin
+							(num "28")
+						)
+						(pin
+							(num "29")
+						)
+						(pin
+							(num "30")
+						)
+						(pin
+							(num "31")
+						)
+						(pin
+							(num "32")
+						)
+						(pin
+							(num "33")
+						)
+						(pin
+							(num "34")
+						)
+						(pin
+							(num "35")
+						)
+						(pin
+							(num "26")
+						)
+						(pin
+							(num "16")
+						)
+						(pin
+							(num "24")
+						)
+						(pin
+							(num "25")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R1")
+			(value "10k")
+			(footprint "Resistor_SMD:R_0805_2012Metric")
+			(fields
+				(field
+					(name "Footprint") "Resistor_SMD:R_0805_2012Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "volthium")
+				(part "R")
+				(description "Resistor")
+			)
+			(property
+				(name "Sheetname")
+				(value "Display — MCU (ESP32-S3)")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheet_d_mcu.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "R res resistor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "R_*")
+			)
+			(sheetpath
+				(names "/Display — MCU (ESP32-S3)/")
+				(tstamps "/8f61eaf4-748f-4563-87a1-b3a18dfc7cd1/")
+			)
+			(tstamps "bdf0ddeb-888f-442c-badb-6419e5ca6e47")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+	)
+	(groups)
+	(variants)
+	(libparts
+		(libpart
+			(lib "volthium")
+			(part "AP2112K-3.3")
+			(description "600mA low dropout linear regulator, with enable pin, 3.8V-6V input voltage range, 3.3V fixed positive output, SOT-23-5")
+			(docs "https://www.diodes.com/assets/Datasheets/AP2112.pdf")
+			(footprints
+				(fp "SOT?23?5*")
+			)
+			(fields
+				(field
+					(name "Reference") "U")
+				(field
+					(name "Value") "AP2112K-3.3")
+				(field
+					(name "Footprint") "Package_TO_SOT_SMD:SOT-23-5")
+				(field
+					(name "Datasheet") "https://www.diodes.com/assets/Datasheets/AP2112.pdf")
+				(field
+					(name "Description") "600mA low dropout linear regulator, with enable pin, 3.8V-6V input voltage range, 3.3V fixed positive output, SOT-23-5")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "VIN")
+					(type "power_in")
+				)
+				(pin
+					(num "2")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "3")
+					(name "EN")
+					(type "input")
+				)
+				(pin
+					(num "4")
+					(name "NC")
+					(type "no_connect")
+				)
+				(pin
+					(num "5")
+					(name "VOUT")
+					(type "power_out")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "C")
+			(description "Unpolarized capacitor")
+			(footprints
+				(fp "C_*")
+			)
+			(fields
+				(field
+					(name "Reference") "C")
+				(field
+					(name "Value") "C")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Unpolarized capacitor")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "Conn_01x02")
+			(description "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			(footprints
+				(fp "Connector*:*_1x??_*")
+			)
+			(fields
+				(field
+					(name "Reference") "J")
+				(field
+					(name "Value") "Conn_01x02")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "Conn_01x08")
+			(description "Generic connector, single row, 01x08, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			(footprints
+				(fp "Connector*:*_1x??_*")
+			)
+			(fields
+				(field
+					(name "Reference") "J")
+				(field
+					(name "Value") "Conn_01x08")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Generic connector, single row, 01x08, script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "3")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "4")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "5")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "6")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "7")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "8")
+					(name "")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "Conn_02x03_Odd_Even")
+			(description "Generic connector, double row, 02x03, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers), script generated (kicad-library-utils/schlib/autogen/connector/)")
+			(footprints
+				(fp "Connector*:*_2x??_*")
+			)
+			(fields
+				(field
+					(name "Reference") "J")
+				(field
+					(name "Value") "Conn_02x03_Odd_Even")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Generic connector, double row, 02x03, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers), script generated (kicad-library-utils/schlib/autogen/connector/)")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "3")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "4")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "5")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "6")
+					(name "")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "D_TVS")
+			(description "Bidirectional transient-voltage-suppression diode")
+			(footprints
+				(fp "TO-???*")
+				(fp "*_Diode_*")
+				(fp "*SingleDiode*")
+				(fp "D_*")
+			)
+			(fields
+				(field
+					(name "Reference") "D")
+				(field
+					(name "Value") "D_TVS")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Bidirectional transient-voltage-suppression diode")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "A1")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "A2")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "ESP32-S3-WROOM-1")
+			(description "RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboard antenna, SMD")
+			(docs "https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf")
+			(footprints
+				(fp "ESP32?S3?WROOM?1*")
+			)
+			(fields
+				(field
+					(name "Reference") "U")
+				(field
+					(name "Value") "ESP32-S3-WROOM-1")
+				(field
+					(name "Footprint") "RF_Module:ESP32-S3-WROOM-1")
+				(field
+					(name "Datasheet") "https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf")
+				(field
+					(name "Description") "RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboard antenna, SMD")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "2")
+					(name "3V3")
+					(type "power_in")
+				)
+				(pin
+					(num "3")
+					(name "EN")
+					(type "input")
+				)
+				(pin
+					(num "4")
+					(name "IO4")
+					(type "bidirectional")
+				)
+				(pin
+					(num "5")
+					(name "IO5")
+					(type "bidirectional")
+				)
+				(pin
+					(num "6")
+					(name "IO6")
+					(type "bidirectional")
+				)
+				(pin
+					(num "7")
+					(name "IO7")
+					(type "bidirectional")
+				)
+				(pin
+					(num "8")
+					(name "IO15")
+					(type "bidirectional")
+				)
+				(pin
+					(num "9")
+					(name "IO16")
+					(type "bidirectional")
+				)
+				(pin
+					(num "10")
+					(name "IO17")
+					(type "bidirectional")
+				)
+				(pin
+					(num "11")
+					(name "IO18")
+					(type "bidirectional")
+				)
+				(pin
+					(num "12")
+					(name "IO8")
+					(type "bidirectional")
+				)
+				(pin
+					(num "13")
+					(name "USB_D-")
+					(type "bidirectional")
+				)
+				(pin
+					(num "14")
+					(name "USB_D+")
+					(type "bidirectional")
+				)
+				(pin
+					(num "15")
+					(name "IO3")
+					(type "bidirectional")
+				)
+				(pin
+					(num "16")
+					(name "IO46")
+					(type "bidirectional")
+				)
+				(pin
+					(num "17")
+					(name "IO9")
+					(type "bidirectional")
+				)
+				(pin
+					(num "18")
+					(name "IO10")
+					(type "bidirectional")
+				)
+				(pin
+					(num "19")
+					(name "IO11")
+					(type "bidirectional")
+				)
+				(pin
+					(num "20")
+					(name "IO12")
+					(type "bidirectional")
+				)
+				(pin
+					(num "21")
+					(name "IO13")
+					(type "bidirectional")
+				)
+				(pin
+					(num "22")
+					(name "IO14")
+					(type "bidirectional")
+				)
+				(pin
+					(num "23")
+					(name "IO21")
+					(type "bidirectional")
+				)
+				(pin
+					(num "24")
+					(name "IO47")
+					(type "bidirectional")
+				)
+				(pin
+					(num "25")
+					(name "IO48")
+					(type "bidirectional")
+				)
+				(pin
+					(num "26")
+					(name "IO45")
+					(type "bidirectional")
+				)
+				(pin
+					(num "27")
+					(name "IO0")
+					(type "bidirectional")
+				)
+				(pin
+					(num "28")
+					(name "IO35")
+					(type "bidirectional")
+				)
+				(pin
+					(num "29")
+					(name "IO36")
+					(type "bidirectional")
+				)
+				(pin
+					(num "30")
+					(name "IO37")
+					(type "bidirectional")
+				)
+				(pin
+					(num "31")
+					(name "IO38")
+					(type "bidirectional")
+				)
+				(pin
+					(num "32")
+					(name "IO39")
+					(type "bidirectional")
+				)
+				(pin
+					(num "33")
+					(name "IO40")
+					(type "bidirectional")
+				)
+				(pin
+					(num "34")
+					(name "IO41")
+					(type "bidirectional")
+				)
+				(pin
+					(num "35")
+					(name "IO42")
+					(type "bidirectional")
+				)
+				(pin
+					(num "36")
+					(name "RXD0")
+					(type "bidirectional")
+				)
+				(pin
+					(num "37")
+					(name "TXD0")
+					(type "bidirectional")
+				)
+				(pin
+					(num "38")
+					(name "IO2")
+					(type "bidirectional")
+				)
+				(pin
+					(num "39")
+					(name "IO1")
+					(type "bidirectional")
+				)
+				(pin
+					(num "40")
+					(name "GND")
+					(type "passive")
+				)
+				(pin
+					(num "41")
+					(name "GND")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "Polyfuse")
+			(description "Resettable fuse, polymeric positive temperature coefficient")
+			(footprints
+				(fp "*polyfuse*")
+				(fp "*PTC*")
+			)
+			(fields
+				(field
+					(name "Reference") "F")
+				(field
+					(name "Value") "Polyfuse")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Resettable fuse, polymeric positive temperature coefficient")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "R")
+			(description "Resistor")
+			(footprints
+				(fp "R_*")
+			)
+			(fields
+				(field
+					(name "Reference") "R")
+				(field
+					(name "Value") "R")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Resistor")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "R-78E3.3-0.5")
+			(description "500mA Step-Down DC/DC-Regulator, 6-28V input, 3.3V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3")
+			(docs "https://www.recom-power.com/pdf/Innoline/R-78Exx-0.5.pdf")
+			(footprints
+				(fp "Converter*DCDC*RECOM*R*78E*0.5*")
+			)
+			(fields
+				(field
+					(name "Reference") "U")
+				(field
+					(name "Value") "R-78E3.3-0.5")
+				(field
+					(name "Footprint") "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT")
+				(field
+					(name "Datasheet") "https://www.recom-power.com/pdf/Innoline/R-78Exx-0.5.pdf")
+				(field
+					(name "Description") "500mA Step-Down DC/DC-Regulator, 6-28V input, 3.3V fixed Output Voltage, LM78xx replacement, -40°C to +85°C, SIP3")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "IN")
+					(type "power_in")
+				)
+				(pin
+					(num "2")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "3")
+					(name "OUT")
+					(type "power_out")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "RJ45_Shielded")
+			(description "RJ connector, 8P8C (8 positions 8 connected), Shielded")
+			(footprints
+				(fp "8P8C*")
+				(fp "RJ31*")
+				(fp "RJ32*")
+				(fp "RJ33*")
+				(fp "RJ34*")
+				(fp "RJ35*")
+				(fp "RJ41*")
+				(fp "RJ45*")
+				(fp "RJ49*")
+				(fp "RJ61*")
+			)
+			(fields
+				(field
+					(name "Reference") "J")
+				(field
+					(name "Value") "RJ45_Shielded")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "RJ connector, 8P8C (8 positions 8 connected), Shielded")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "3")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "4")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "5")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "6")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "7")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "8")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "SH")
+					(name "")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "SW_Push")
+			(description "Push button switch, generic, two pins")
+			(fields
+				(field
+					(name "Reference") "SW")
+				(field
+					(name "Value") "SW_Push")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "Push button switch, generic, two pins")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "THVD1400D")
+			(description "Half duplex RS-485/RS-422, 500 Kbps, 3V - 5.5V supply, ±12kV electro-static discharge (ESD) protection, with receiver/driver enable, 32 receiver drive capacity, SOIC-8")
+			(docs "https://www.ti.com/lit/ds/symlink/thvd1420.pdf")
+			(footprints
+				(fp "SOIC*3.9x4.9mm*P1.27mm*")
+			)
+			(fields
+				(field
+					(name "Reference") "U")
+				(field
+					(name "Value") "THVD1400D")
+				(field
+					(name "Footprint") "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm")
+				(field
+					(name "Datasheet") "https://www.ti.com/lit/ds/symlink/thvd1420.pdf")
+				(field
+					(name "Description") "Half duplex RS-485/RS-422, 500 Kbps, 3V - 5.5V supply, ±12kV electro-static discharge (ESD) protection, with receiver/driver enable, 32 receiver drive capacity, SOIC-8")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "RO")
+					(type "output")
+				)
+				(pin
+					(num "2")
+					(name "~{RE}")
+					(type "input")
+				)
+				(pin
+					(num "3")
+					(name "DE")
+					(type "input")
+				)
+				(pin
+					(num "4")
+					(name "DI")
+					(type "input")
+				)
+				(pin
+					(num "5")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "6")
+					(name "A")
+					(type "bidirectional")
+				)
+				(pin
+					(num "7")
+					(name "B")
+					(type "bidirectional")
+				)
+				(pin
+					(num "8")
+					(name "VCC")
+					(type "power_in")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "TPS2116DRL")
+			(description "2 Channnels Power Mux with Manual and Priority Switchover, 1.6-5.5V Input Voltage, 2.5A Output Current, Ron 40 mOhm, SOT-583-8")
+			(docs "https://www.ti.com/lit/ds/symlink/tps2116.pdf")
+			(footprints
+				(fp "SOT?5?3*")
+			)
+			(fields
+				(field
+					(name "Reference") "U")
+				(field
+					(name "Value") "TPS2116DRL")
+				(field
+					(name "Footprint") "Package_TO_SOT_SMD:SOT-583-8")
+				(field
+					(name "Datasheet") "https://www.ti.com/lit/ds/symlink/tps2116.pdf")
+				(field
+					(name "Description") "2 Channnels Power Mux with Manual and Priority Switchover, 1.6-5.5V Input Voltage, 2.5A Output Current, Ron 40 mOhm, SOT-583-8")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "2")
+					(name "VOUT")
+					(type "power_out")
+				)
+				(pin
+					(num "3")
+					(name "VIN1")
+					(type "power_in")
+				)
+				(pin
+					(num "4")
+					(name "PR1")
+					(type "input")
+				)
+				(pin
+					(num "5")
+					(name "MODE")
+					(type "input")
+				)
+				(pin
+					(num "6")
+					(name "VIN2")
+					(type "power_in")
+				)
+				(pin
+					(num "7")
+					(name "VOUT")
+					(type "passive")
+				)
+				(pin
+					(num "8")
+					(name "ST")
+					(type "open_collector")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "USBLC6-2SC6")
+			(description "Very low capacitance ESD protection diode, 2 data-line, SOT-23-6")
+			(docs "https://www.st.com/resource/en/datasheet/usblc6-2.pdf")
+			(footprints
+				(fp "SOT?23*")
+			)
+			(fields
+				(field
+					(name "Reference") "U")
+				(field
+					(name "Value") "USBLC6-2SC6")
+				(field
+					(name "Footprint") "Package_TO_SOT_SMD:SOT-23-6")
+				(field
+					(name "Datasheet") "https://www.st.com/resource/en/datasheet/usblc6-2.pdf")
+				(field
+					(name "Description") "Very low capacitance ESD protection diode, 2 data-line, SOT-23-6")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "3")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "4")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "5")
+					(name "")
+					(type "passive")
+				)
+				(pin
+					(num "6")
+					(name "")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "volthium")
+			(part "USB_C_16P")
+			(description "USB-C 2.0 receptacle, 16-pin (all pins on their own row)")
+			(fields
+				(field
+					(name "Reference") "J")
+				(field
+					(name "Value") "USB_C_16P")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "USB-C 2.0 receptacle, 16-pin (all pins on their own row)")
+			)
+			(pins
+				(pin
+					(num "A1")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "A4")
+					(name "VBUS")
+					(type "power_in")
+				)
+				(pin
+					(num "A5")
+					(name "CC1")
+					(type "passive")
+				)
+				(pin
+					(num "A6")
+					(name "D+")
+					(type "passive")
+				)
+				(pin
+					(num "A7")
+					(name "D-")
+					(type "passive")
+				)
+				(pin
+					(num "A8")
+					(name "SBU1")
+					(type "passive")
+				)
+				(pin
+					(num "A9")
+					(name "VBUS")
+					(type "power_in")
+				)
+				(pin
+					(num "A12")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "B1")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "B4")
+					(name "VBUS")
+					(type "power_in")
+				)
+				(pin
+					(num "B5")
+					(name "CC2")
+					(type "passive")
+				)
+				(pin
+					(num "B6")
+					(name "D+")
+					(type "passive")
+				)
+				(pin
+					(num "B7")
+					(name "D-")
+					(type "passive")
+				)
+				(pin
+					(num "B8")
+					(name "SBU2")
+					(type "passive")
+				)
+				(pin
+					(num "B9")
+					(name "VBUS")
+					(type "power_in")
+				)
+				(pin
+					(num "B12")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "SH")
+					(name "SHIELD")
+					(type "passive")
+				)
+			)
+		)
+	)
+	(libraries
+		(library
+			(logical "volthium")
+			(uri "${KIPRJMOD}/volthium.kicad_sym")
+		)
+	)
+	(nets
+		(net
+			(code "1")
+			(name "BOOT")
+			(class "Default")
+			(node
+				(ref "J3")
+				(pin "6")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "27")
+				(pinfunction "IO0_27")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "2")
+			(name "BTN1_IN")
+			(class "Default")
+			(node
+				(ref "BTN1")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C8")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "20")
+				(pinfunction "IO12_20")
+				(pintype "bidirectional")
+			)
+			(node
+				(ref "R5")
+				(pin "2")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "3")
+			(name "BTN2_IN")
+			(class "Default")
+			(node
+				(ref "BTN2")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C9")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "21")
+				(pinfunction "IO13_21")
+				(pintype "bidirectional")
+			)
+			(node
+				(ref "R6")
+				(pin "2")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "4")
+			(name "BTN3_IN")
+			(class "Default")
+			(node
+				(ref "BTN3")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C10")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "22")
+				(pinfunction "IO14_22")
+				(pintype "bidirectional")
+			)
+			(node
+				(ref "R7")
+				(pin "2")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "5")
+			(name "DBG_RXD")
+			(class "Default")
+			(node
+				(ref "J3")
+				(pin "5")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "36")
+				(pinfunction "RXD0_36")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "6")
+			(name "DBG_TXD")
+			(class "Default")
+			(node
+				(ref "J3")
+				(pin "3")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "37")
+				(pinfunction "TXD0_37")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "7")
+			(name "EPD_BUSY")
+			(class "Default")
+			(node
+				(ref "J2")
+				(pin "8")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "12")
+				(pinfunction "IO8_12")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "8")
+			(name "EPD_CS")
+			(class "Default")
+			(node
+				(ref "J2")
+				(pin "5")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "5")
+				(pinfunction "IO5_5")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "9")
+			(name "EPD_DC")
+			(class "Default")
+			(node
+				(ref "J2")
+				(pin "6")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "6")
+				(pinfunction "IO6_6")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "10")
+			(name "EPD_RST")
+			(class "Default")
+			(node
+				(ref "J2")
+				(pin "7")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "7")
+				(pinfunction "IO7_7")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "11")
+			(name "GND")
+			(class "Default")
+			(node
+				(ref "BTN1")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "BTN2")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "BTN3")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C1")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C10")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C2")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C3")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C4")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C5")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C6")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C7")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C8")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C9")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C_mux")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C_usb1")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C_usb2")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "J-USB")
+				(pin "A1")
+				(pinfunction "GND_A1")
+				(pintype "power_in")
+			)
+			(node
+				(ref "J-USB")
+				(pin "A12")
+				(pinfunction "GND_A12")
+				(pintype "power_in")
+			)
+			(node
+				(ref "J-USB")
+				(pin "B1")
+				(pinfunction "GND_B1")
+				(pintype "power_in")
+			)
+			(node
+				(ref "J-USB")
+				(pin "B12")
+				(pinfunction "GND_B12")
+				(pintype "power_in")
+			)
+			(node
+				(ref "J-USB")
+				(pin "SH")
+				(pinfunction "SHIELD_SH")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "6")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "7")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "8")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "J3")
+				(pin "4")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "1")
+				(pinfunction "GND_1")
+				(pintype "power_in")
+			)
+			(node
+				(ref "MOD1")
+				(pin "40")
+				(pinfunction "GND_40")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "41")
+				(pinfunction "GND_41")
+				(pintype "passive")
+			)
+			(node
+				(ref "R4")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "R_cc1")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "R_cc2")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "TVS1")
+				(pin "1")
+				(pinfunction "A1_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U-ESD")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "2")
+				(pinfunction "GND_2")
+				(pintype "power_in")
+			)
+			(node
+				(ref "U2")
+				(pin "5")
+				(pinfunction "GND_5")
+				(pintype "power_in")
+			)
+			(node
+				(ref "U3-LDO")
+				(pin "2")
+				(pinfunction "GND_2")
+				(pintype "power_in")
+			)
+			(node
+				(ref "U4-MUX")
+				(pin "1")
+				(pinfunction "GND_1")
+				(pintype "power_in")
+			)
+		)
+		(net
+			(code "12")
+			(name "MCU_EN")
+			(class "Default")
+			(node
+				(ref "C5")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J3")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "3")
+				(pinfunction "EN_3")
+				(pintype "input")
+			)
+			(node
+				(ref "R1")
+				(pin "2")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "13")
+			(name "Net-(J-USB-CC1)")
+			(class "Default")
+			(node
+				(ref "J-USB")
+				(pin "A5")
+				(pinfunction "CC1_A5")
+				(pintype "passive")
+			)
+			(node
+				(ref "R_cc1")
+				(pin "1")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "14")
+			(name "Net-(J-USB-CC2)")
+			(class "Default")
+			(node
+				(ref "J-USB")
+				(pin "B5")
+				(pinfunction "CC2_B5")
+				(pintype "passive")
+			)
+			(node
+				(ref "R_cc2")
+				(pin "1")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "15")
+			(name "Net-(J5-Pad1)")
+			(class "Default")
+			(node
+				(ref "J5")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "R2")
+				(pin "2")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "16")
+			(name "Net-(U3-LDO-VOUT)")
+			(class "Default")
+			(node
+				(ref "C_usb2")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U3-LDO")
+				(pin "5")
+				(pinfunction "VOUT_5")
+				(pintype "power_out")
+			)
+			(node
+				(ref "U4-MUX")
+				(pin "3")
+				(pinfunction "VIN1_3")
+				(pintype "power_in")
+			)
+			(node
+				(ref "U4-MUX")
+				(pin "4")
+				(pinfunction "PR1_4")
+				(pintype "input")
+			)
+			(node
+				(ref "U4-MUX")
+				(pin "5")
+				(pinfunction "MODE_5")
+				(pintype "input")
+			)
+		)
+		(net
+			(code "17")
+			(name "RS485_A")
+			(class "Default")
+			(node
+				(ref "J1")
+				(pin "4")
+				(pintype "passive")
+			)
+			(node
+				(ref "R2")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "R3")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "TVS2")
+				(pin "2")
+				(pinfunction "A2_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "U2")
+				(pin "6")
+				(pinfunction "A_6")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "18")
+			(name "RS485_B")
+			(class "Default")
+			(node
+				(ref "J1")
+				(pin "5")
+				(pintype "passive")
+			)
+			(node
+				(ref "J5")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "R4")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "TVS2")
+				(pin "1")
+				(pinfunction "A1_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U2")
+				(pin "7")
+				(pinfunction "B_7")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "19")
+			(name "RS485_DE")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "38")
+				(pinfunction "IO2_38")
+				(pintype "bidirectional")
+			)
+			(node
+				(ref "U2")
+				(pin "3")
+				(pinfunction "DE_3")
+				(pintype "input")
+			)
+		)
+		(net
+			(code "20")
+			(name "RS485_DI")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "10")
+				(pinfunction "IO17_10")
+				(pintype "bidirectional")
+			)
+			(node
+				(ref "U2")
+				(pin "4")
+				(pinfunction "DI_4")
+				(pintype "input")
+			)
+		)
+		(net
+			(code "21")
+			(name "RS485_RO")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "11")
+				(pinfunction "IO18_11")
+				(pintype "bidirectional")
+			)
+			(node
+				(ref "U2")
+				(pin "1")
+				(pinfunction "RO_1")
+				(pintype "output")
+			)
+		)
+		(net
+			(code "22")
+			(name "RS485_nRE")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "8")
+				(pinfunction "IO15_8")
+				(pintype "bidirectional")
+			)
+			(node
+				(ref "U2")
+				(pin "2")
+				(pinfunction "~{RE}_2")
+				(pintype "input")
+			)
+		)
+		(net
+			(code "23")
+			(name "SPI_MOSI")
+			(class "Default")
+			(node
+				(ref "J2")
+				(pin "3")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "18")
+				(pinfunction "IO10_18")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "24")
+			(name "SPI_SCK")
+			(class "Default")
+			(node
+				(ref "J2")
+				(pin "4")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "17")
+				(pinfunction "IO9_17")
+				(pintype "bidirectional")
+			)
+		)
+		(net
+			(code "25")
+			(name "USB_DM")
+			(class "Default")
+			(node
+				(ref "J-USB")
+				(pin "A7")
+				(pinfunction "D-_A7")
+				(pintype "passive")
+			)
+			(node
+				(ref "J-USB")
+				(pin "B7")
+				(pinfunction "D-_B7")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "13")
+				(pinfunction "USB_D-_13")
+				(pintype "bidirectional")
+			)
+			(node
+				(ref "U-ESD")
+				(pin "3")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "26")
+			(name "USB_DP")
+			(class "Default")
+			(node
+				(ref "J-USB")
+				(pin "A6")
+				(pinfunction "D+_A6")
+				(pintype "passive")
+			)
+			(node
+				(ref "J-USB")
+				(pin "B6")
+				(pinfunction "D+_B6")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "14")
+				(pinfunction "USB_D+_14")
+				(pintype "bidirectional")
+			)
+			(node
+				(ref "U-ESD")
+				(pin "1")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "27")
+			(name "V3V3")
+			(class "Default")
+			(node
+				(ref "C3")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C4")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C6")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C7")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C_mux")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J3")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "2")
+				(pinfunction "3V3_2")
+				(pintype "power_in")
+			)
+			(node
+				(ref "R1")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "R3")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "R5")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "R6")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "R7")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U2")
+				(pin "8")
+				(pinfunction "VCC_8")
+				(pintype "power_in")
+			)
+			(node
+				(ref "U4-MUX")
+				(pin "2")
+				(pinfunction "VOUT_2")
+				(pintype "power_out")
+			)
+			(node
+				(ref "U4-MUX")
+				(pin "7")
+				(pinfunction "VOUT_7")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "28")
+			(name "V3V3_REG")
+			(class "Default")
+			(node
+				(ref "C2")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "3")
+				(pinfunction "OUT_3")
+				(pintype "power_out")
+			)
+			(node
+				(ref "U4-MUX")
+				(pin "6")
+				(pinfunction "VIN2_6")
+				(pintype "power_in")
+			)
+		)
+		(net
+			(code "29")
+			(name "V12_CAT5E")
+			(class "Default")
+			(node
+				(ref "F1")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "3")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "30")
+			(name "V12_PROT")
+			(class "Default")
+			(node
+				(ref "C1")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "F1")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "TVS1")
+				(pin "2")
+				(pinfunction "A2_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "1")
+				(pinfunction "IN_1")
+				(pintype "power_in")
+			)
+		)
+		(net
+			(code "31")
+			(name "VBUS")
+			(class "Default")
+			(node
+				(ref "C_usb1")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J-USB")
+				(pin "A4")
+				(pinfunction "VBUS_A4")
+				(pintype "power_in")
+			)
+			(node
+				(ref "J-USB")
+				(pin "A9")
+				(pinfunction "VBUS_A9")
+				(pintype "power_in")
+			)
+			(node
+				(ref "J-USB")
+				(pin "B4")
+				(pinfunction "VBUS_B4")
+				(pintype "power_in")
+			)
+			(node
+				(ref "J-USB")
+				(pin "B9")
+				(pinfunction "VBUS_B9")
+				(pintype "power_in")
+			)
+			(node
+				(ref "U-ESD")
+				(pin "5")
+				(pintype "passive")
+			)
+			(node
+				(ref "U3-LDO")
+				(pin "1")
+				(pinfunction "VIN_1")
+				(pintype "power_in")
+			)
+			(node
+				(ref "U3-LDO")
+				(pin "3")
+				(pinfunction "EN_3")
+				(pintype "input")
+			)
+		)
+		(net
+			(code "32")
+			(name "unconnected-(J-USB-SBU1-PadA8)")
+			(class "Default")
+			(node
+				(ref "J-USB")
+				(pin "A8")
+				(pinfunction "SBU1_A8")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "33")
+			(name "unconnected-(J-USB-SBU2-PadB8)")
+			(class "Default")
+			(node
+				(ref "J-USB")
+				(pin "B8")
+				(pinfunction "SBU2_B8")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "34")
+			(name "unconnected-(J1-PadSH)")
+			(class "Default")
+			(node
+				(ref "J1")
+				(pin "SH")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "35")
+			(name "unconnected-(MOD1-IO1-Pad39)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "39")
+				(pinfunction "IO1_39")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "36")
+			(name "unconnected-(MOD1-IO3-Pad15)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "15")
+				(pinfunction "IO3_15")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "37")
+			(name "unconnected-(MOD1-IO4-Pad4)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "4")
+				(pinfunction "IO4_4")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "38")
+			(name "unconnected-(MOD1-IO11-Pad19)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "19")
+				(pinfunction "IO11_19")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "39")
+			(name "unconnected-(MOD1-IO16-Pad9)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "9")
+				(pinfunction "IO16_9")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "40")
+			(name "unconnected-(MOD1-IO21-Pad23)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "23")
+				(pinfunction "IO21_23")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "41")
+			(name "unconnected-(MOD1-IO35-Pad28)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "28")
+				(pinfunction "IO35_28")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "42")
+			(name "unconnected-(MOD1-IO36-Pad29)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "29")
+				(pinfunction "IO36_29")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "43")
+			(name "unconnected-(MOD1-IO37-Pad30)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "30")
+				(pinfunction "IO37_30")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "44")
+			(name "unconnected-(MOD1-IO38-Pad31)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "31")
+				(pinfunction "IO38_31")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "45")
+			(name "unconnected-(MOD1-IO39-Pad32)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "32")
+				(pinfunction "IO39_32")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "46")
+			(name "unconnected-(MOD1-IO40-Pad33)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "33")
+				(pinfunction "IO40_33")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "47")
+			(name "unconnected-(MOD1-IO41-Pad34)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "34")
+				(pinfunction "IO41_34")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "48")
+			(name "unconnected-(MOD1-IO42-Pad35)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "35")
+				(pinfunction "IO42_35")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "49")
+			(name "unconnected-(MOD1-IO45-Pad26)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "26")
+				(pinfunction "IO45_26")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "50")
+			(name "unconnected-(MOD1-IO46-Pad16)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "16")
+				(pinfunction "IO46_16")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "51")
+			(name "unconnected-(MOD1-IO47-Pad24)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "24")
+				(pinfunction "IO47_24")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "52")
+			(name "unconnected-(MOD1-IO48-Pad25)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "25")
+				(pinfunction "IO48_25")
+				(pintype "bidirectional+no_connect")
+			)
+		)
+		(net
+			(code "53")
+			(name "unconnected-(U-ESD-Pad4)")
+			(class "Default")
+			(node
+				(ref "U-ESD")
+				(pin "4")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "54")
+			(name "unconnected-(U-ESD-Pad6)")
+			(class "Default")
+			(node
+				(ref "U-ESD")
+				(pin "6")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "55")
+			(name "unconnected-(U3-LDO-NC-Pad4)")
+			(class "Default")
+			(node
+				(ref "U3-LDO")
+				(pin "4")
+				(pinfunction "NC_4")
+				(pintype "no_connect")
+			)
+		)
+		(net
+			(code "56")
+			(name "unconnected-(U4-MUX-ST-Pad8)")
+			(class "Default")
+			(node
+				(ref "U4-MUX")
+				(pin "8")
+				(pinfunction "ST_8")
+				(pintype "open_collector+no_connect")
+			)
+		)
+	)
+)

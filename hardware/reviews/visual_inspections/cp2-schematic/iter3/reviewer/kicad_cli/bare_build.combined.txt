@@ -1,0 +1,22 @@
+[sheet_power] readability gate: clean
+Traceback (most recent call last):
+  File "C:\Taeron\repo\volthium\hardware\kicad\schematic\build.py", line 2310, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "C:\Taeron\repo\volthium\hardware\kicad\schematic\build.py", line 2282, in main
+    ok &= render(s, name)
+          ^^^^^^^^^^^^^^^
+  File "C:\Taeron\repo\volthium\hardware\kicad\schematic\build.py", line 1856, in render
+    kcli("sch", "export", "pdf", "-o", str(OUT/f"{name}.pdf"), str(schf))
+  File "C:\Taeron\repo\volthium\hardware\kicad\schematic\build.py", line 1842, in kcli
+    def kcli(*a): return subprocess.run(["kicad-cli", *a], capture_output=True, text=True)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kaanw\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\subprocess.py", line 548, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kaanw\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\subprocess.py", line 1026, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+  File "C:\Users\kaanw\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\subprocess.py", line 1538, in _execute_child
+    hp, ht, pid, tid = _winapi.CreateProcess(executable, args,
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [WinError 2] The system cannot find the file specified
