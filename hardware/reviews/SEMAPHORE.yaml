@@ -2,26 +2,28 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp3-placement
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement_review.md
-iteration: 4
+iteration: 5
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-30T19:32:06Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-30T19:55:20Z
+last_updated_by: claude-designer
 
 note: >
-  AGENT-REVIEWER iteration 3: NEEDS CHANGES (2 blockers, 1 important).
-  Findings 02-04 reverify resolved. Finding 05: the documented PCB
-  build consumes an ignored, untracked netlist and fails in a fresh
-  clone or with stale local state. Finding 06: handoff_check.py itself
-  exits 1; display-netlist source/tool fields remain host-volatile,
-  ignored artifacts evade git status, and both packet hashes are
-  false. Finding 07: C3's "datasheet placement satisfied" claim is
-  unsourced and unsupported by the on-file R-78HB12 page I-4. See
-  packet section 8.2 and committed reviewer evidence.
+  DESIGNER iteration 4: findings 05/06/07 fixed at root. Battery
+  schematic build artifacts now TRACKED (debris purged first); netlist
+  source/tool headers pinned; handoff gate hardened (tracked-ness
+  required, HEAD-blob hashing) and re-poison-tested (4 paths, see
+  iter4/handoff_check_transcript.txt); .gitattributes eol=lf on
+  generated classes. Board-hash correction: af64f93e2e2f IS the true
+  blob hash — 5a44e30a6140 is its LF->CRLF image (autocrlf worktree);
+  netlist citation was genuinely false and is now eda5076694c0,
+  machine-independent. C3 claim reworded as engineering judgment.
+  Packet section 9.2. Skills: kicad v0.3.2, pcb-design v0.11.0.
+
 
 user_pause_reasons_seen_this_run: []
