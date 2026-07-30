@@ -701,8 +701,6 @@ def auto_refdes(components, placement, board_w, board_h,
         for cw, th, font in ((char_w, text_h, None), (0.78, 1.1, 0.8)):
             tw = max(len(ref) * cw, 1.8)
             cands = []
-            if area >= big_area:
-                cands.append((cx, cy, 0))       # on the housing/body
             for ring in (0.45, 0.9, 1.6, 2.3):
                 cands.append((cx, by0 - ring - th / 2, 0))          # N
                 cands.append((cx, by1 + ring + th / 2, 0))          # S
@@ -711,6 +709,10 @@ def auto_refdes(components, placement, board_w, board_h,
                 # vertical text in the horizontal gaps
                 cands.append((bx1 + ring + th / 2, cy, 90))
                 cands.append((bx0 - ring - th / 2, cy, 90))
+            if area >= big_area:
+                # own body LAST: legal, but invisible once the part is
+                # soldered — prefer a spot that survives assembly
+                cands.append((cx, cy, 0))
             for tcx, tcy, ang in cands:
                 hw, hh = (tw / 2, th / 2) if ang == 0 else (th / 2, tw / 2)
                 rect = (tcx - hw, tcy - hh, tcx + hw, tcy + hh)

@@ -173,12 +173,12 @@ pl("TVS2", 8.0, 58.0, 0)       # A-B differential clamp
 # S-center: Xanbus CAN (J6 + U7 TCAN332 + Q5 power gate)
 pl("J6", 39.0, 73.0, 180)
 pl("U7", 39.0, 58.5, 0)
-pl("C12", 45.0, 58.5, 90)    # U7 VCC (gated) decoupling
+pl("C12", 33.0, 56.0, 90)    # U7 VCC (gated) decoupling, at the W (VCC-pin) column
 pl("J7", 48.5, 58.5, 0)       # CAN term jumper
 pl("R15", 45.0, 54.0, 90)    # 120R CAN term
 pl("Q5", 29.0, 56.0, 0)      # CAN_PWR P-FET
 pl("R14", 29.0, 60.0, 90)
-pl("D2", 33.0, 56.0, 0)      # DNP bus clamp (F03)
+pl("D2", 33.0, 60.0, 0)      # DNP bus clamp (F03)
 
 # service: BTN1 harness header + debounce in the NE corner beside J_EXP
 # (all internal harness connectors grouped top-right); J5 ESP-Prog rot 90
@@ -196,7 +196,7 @@ def iso_channel(jref, uref, qref, rpwr, rtx, beads, tvs, rs, cs, bridge, x0):
     beads + caps, protection, term/bias) -> RJ45 at the edge. C28/C38
     (1 kV bridge) sits beside the package across the barrier."""
     pl(jref, x0, 73.0, 180)
-    pl(uref, x0, 47.0, 0)
+    pl(uref, x0, 47.0, 270)   # 270: logic pins 1-10 NORTH, iso 11-20 SOUTH (probed)
     # logic row (north of U)
     pl(qref, x0 - 7.0, 37.5, 0)
     pl(rpwr, x0 - 3.8, 37.5, 90)
@@ -263,6 +263,8 @@ MANUAL_REFDES = {
     "R_exp_bleed": (77.4, 17.0, 0, 0.8),
     "R_byp2": (59.2, 29.5, 90, 0.8),
     "C20": (58.9, 35.05, 0, 0.8),
+    "D10": (55.6, 62.0, 90, 0.8),
+    "D11": (77.9, 62.0, 90, 0.8),
     "R_byp2b": (61.5, 32.5, 90, 0.8),
     "R30": (72.0, 37.5, 0, 0.8),
 }
@@ -324,6 +326,16 @@ def orientation_asserts(findings):
     if not mean_xy(list(pp.values()))[0] < court_center("J3")[0]:
         findings.append("[orient] J3: pads not west of body — USB opening "
                         "does not face E edge")
+    # ADM2587E barrier axis: logic pins (1-10) NORTH, iso pins (11-20)
+    # SOUTH, so the CP5 pour split can follow the package barrier and the
+    # iso island sits wholly on the bus side
+    for u in ("U10", "U11"):
+        pp = pads(u)
+        logic_y = sum(pp[str(n)][1] for n in range(1, 11)) / 10
+        iso_y = sum(pp[str(n)][1] for n in range(11, 21)) / 10
+        if not logic_y < iso_y:
+            findings.append(f"[orient] {u}: logic pin row is not north of "
+                            "the iso row — barrier axis wrong")
     # MOD1 antenna overhangs N: module at rot 0 with body top at y=0
     x, y, rot, side = P["MOD1"]
     if not (rot == 0 and 5.0 <= y <= 9.0):
