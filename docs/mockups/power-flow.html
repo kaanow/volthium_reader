@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Volthium — power flow mockup</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface: #fcfcfb; --surface-2: #f0efec; --line: #dedcd6;
+  --text-1: #0b0b0b; --text-2: #52514e; --text-3: #8a8880;
+  --solar: #eda100; --batt: #1baf7a; --gen: #eb6834; --load: #2a78d6;
+  --good: #0ca30c; --warn: #fab219; --crit: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface: #1a1a19; --surface-2: #262624; --line: #3a3936;
+    --text-1: #ffffff; --text-2: #c3c2b7; --text-3: #8a8880;
+    --solar: #c98500; --batt: #199e70; --gen: #d95926; --load: #3987e5;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #1a1a19; --surface-2: #262624; --line: #3a3936;
+  --text-1: #ffffff; --text-2: #c3c2b7; --text-3: #8a8880;
+  --solar: #c98500; --batt: #199e70; --gen: #d95926; --load: #3987e5;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--surface); color: var(--text-1);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.wrap { max-width: 780px; margin: 0 auto; padding: 20px 16px 60px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; }
+.topbar h1 { font-size: 15px; font-weight: 600; color: var(--text-2); margin: 0; }
+.controls { display: flex; gap: 8px; align-items: center; }
+select, button {
+  font: inherit; color: var(--text-1); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px;
+}
+.hero { text-align: center; margin: 26px 0 8px; }
+.hero .soc { font-size: 76px; font-weight: 700; letter-spacing: -2px; line-height: 1; }
+.hero .soc small { font-size: 34px; font-weight: 500; color: var(--text-2); }
+.hero .sub { color: var(--text-2); margin-top: 6px; font-size: 16px; }
+.hero .chip {
+  display: inline-block; margin-top: 10px; padding: 3px 12px; border-radius: 99px;
+  background: var(--surface-2); border: 1px solid var(--line);
+  color: var(--text-2); font-size: 13px; font-weight: 600;
+}
+.flow { display: block; width: 100%; height: auto; margin-top: 10px; }
+.flow text { font: 600 13px system-ui, sans-serif; fill: var(--text-1); }
+.flow .sub { font-weight: 500; font-size: 12px; fill: var(--text-2); }
+.flow .buslbl { font-size: 11px; font-weight: 700; fill: var(--text-3); letter-spacing: 1px; }
+.flow .wire { fill: none; stroke-linecap: round; }
+.flow .bus { fill: var(--surface-2); stroke: var(--line); }
+.strip-box { margin-top: 26px; }
+.strip-head { display: flex; justify-content: space-between; align-items: baseline; }
+.strip-head h2 { font-size: 13px; font-weight: 600; color: var(--text-2); margin: 0 0 6px; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-2); }
+.legend span::before {
+  content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 3px;
+  margin-right: 5px; background: var(--c);
+}
+#strip { display: block; width: 100%; height: auto; cursor: crosshair; }
+.tip {
+  position: fixed; pointer-events: none; z-index: 5; display: none;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  padding: 7px 10px; font-size: 12.5px; box-shadow: 0 4px 14px rgb(0 0 0 / .18);
+  color: var(--text-2); white-space: nowrap;
+}
+.tip b { color: var(--text-1); }
+details.sys { margin-top: 26px; border-top: 1px solid var(--line); padding-top: 10px; }
+details.sys summary { color: var(--text-3); font-size: 13px; cursor: pointer; user-select: none; }
+.sysgrid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px; margin-top: 12px;
+}
+.sysgrid .cell {
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 9px 12px; font-size: 12.5px; color: var(--text-2);
+}
+.sysgrid .cell b { display: block; font-size: 16px; color: var(--text-1); font-weight: 600; }
+.badge-unverified {
+  font-size: 10px; font-weight: 700; letter-spacing: .5px; color: var(--text-3);
+  border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; margin-left: 6px;
+  vertical-align: 2px;
+}
+.foot { margin-top: 30px; color: var(--text-3); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <h1>Volthium · barge</h1>
+    <div class="controls">
+      <select id="scenario">
+        <option value="sunny">Sunny — charging</option>
+        <option value="cloud">Passing clouds</option>
+        <option value="curtailed">Full &amp; curtailed</option>
+        <option value="night">Night — on battery</option>
+        <option value="gen">Generator run</option>
+      </select>
+      <button id="theme" title="toggle theme">◐</button>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="soc"><span id="soc">87</span><small>%</small></div>
+    <div class="sub" id="ttx">≈ 3 h 40 m to full</div>
+    <div class="chip" id="state">charging · bulk</div>
+  </div>
+
+  <svg id="flow" class="flow" viewBox="0 0 760 320" role="img" aria-label="power flow diagram">
+    <defs>
+      <linearGradient id="loadmix" x1="0" y1="0" x2="1" y2="0">
+        <stop id="mix0" offset="0" stop-color="#eda100"/>
+        <stop id="mix1" offset="1" stop-color="#2a78d6"/>
+      </linearGradient>
+    </defs>
+    <path id="w-solar" class="wire" d="M 150 78 C 240 78, 250 120, 300 148"/>
+    <path id="w-batt"  class="wire" d="M 150 246 C 240 246, 250 204, 300 176"/>
+    <path id="w-inv"   class="wire" d="M 350 162 L 470 162"/>
+    <path id="w-gen"   class="wire" d="M 660 78 C 570 78, 560 120, 520 148"/>
+    <path id="w-load"  class="wire" d="M 520 176 C 560 204, 590 246, 660 246"/>
+
+    <rect class="bus" x="298" y="128" width="54" height="68" rx="12"/>
+    <text class="buslbl" x="325" y="167" text-anchor="middle">DC</text>
+    <rect class="bus" x="468" y="128" width="54" height="68" rx="12"/>
+    <text class="buslbl" x="495" y="167" text-anchor="middle">AC</text>
+    <text class="sub" id="invlbl" x="410" y="150" text-anchor="middle">inverting →</text>
+
+    <text x="145" y="60" text-anchor="end">☀️ Solar</text>
+    <text class="sub" id="t-solar" x="145" y="90" text-anchor="end">620 W</text>
+    <text x="145" y="228" text-anchor="end">🔋 Battery</text>
+    <text class="sub" id="t-batt" x="145" y="258" text-anchor="end">+440 W</text>
+    <text x="665" y="60">⛽ Generator</text>
+    <text class="sub" id="t-gen" x="665" y="90">0 W</text>
+    <text x="665" y="228">🏠 Loads</text>
+    <text class="sub" id="t-load" x="665" y="258">180 W</text>
+    <text class="sub" id="loadbadge" x="665" y="276" fill="var(--text-3)">running on sun</text>
+  </svg>
+
+  <div class="strip-box">
+    <div class="strip-head">
+      <h2>Power balance — last hour</h2>
+      <div class="legend">
+        <span style="--c: var(--solar)">solar</span>
+        <span style="--c: var(--batt)">battery</span>
+        <span style="--c: var(--gen)">generator</span>
+        <span style="--c: var(--load)">loads</span>
+      </div>
+    </div>
+    <svg id="strip" viewBox="0 0 760 170" aria-label="supply and demand, mirrored"></svg>
+  </div>
+  <div class="tip" id="tip"></div>
+
+  <details class="sys">
+    <summary>system</summary>
+    <div class="sysgrid">
+      <div class="cell">Battery V <b id="s-dcv">26.8 V</b></div>
+      <div class="cell">PV array <b id="s-pvv">96 V</b></div>
+      <div class="cell">Charge stage <b id="s-stage">bulk</b></div>
+      <div class="cell">Inverter <b id="s-inv">inverting</b></div>
+      <div class="cell">DC balance residual <b id="s-res">+4 W</b></div>
+      <div class="cell">Gen volts<span class="badge-unverified">ON-SPEC</span> <b id="s-genv">0 V</b></div>
+      <div class="cell">Charger target <b>28.4 V · 60 A</b></div>
+      <div class="cell">Nodes <b id="s-nodes">SW ✓ · MPPT ✓</b></div>
+    </div>
+  </details>
+
+  <div class="foot">Mockup — synthetic data. Pick a scenario above; everything animates from the same state the real /v2 page will read from <code>/api/solar</code>.</div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+/* ---------- synthetic state ---------- */
+const SCEN = {
+  sunny:     { solar: 620, gen: 0,   load: 180, soc: 87, stage: "bulk",  inv: "inverting", pv: 96 },
+  cloud:     { solar: 480, gen: 0,   load: 200, soc: 74, stage: "bulk",  inv: "inverting", pv: 92, clouds: true },
+  curtailed: { solar: 90,  gen: 0,   load: 85,  soc: 100, stage: "float", inv: "inverting", pv: 112 },
+  night:     { solar: 0,   gen: 0,   load: 140, soc: 62, stage: "not charging", inv: "inverting", pv: 0.2 },
+  gen:       { solar: 40,  gen: 960, load: 310, soc: 55, stage: "bulk",  inv: "passthrough", pv: 88 },
+};
+let scen = SCEN.sunny, t = 0;
+const HIST = 240;                       // 1 h at 15 s
+const hist = [];                        // {solar, gen, load, batt}
+function step() {
+  t++;
+  const n = f => 1 + Math.sin(t / 9 + f) * 0.04 + Math.sin(t / 3.1 + f * 2) * 0.015;
+  let solar = scen.solar * n(0);
+  if (scen.clouds && Math.sin(t / 12) > 0.55) solar *= 0.25;
+  const gen = scen.gen * (scen.gen ? n(2) : 0);
+  const load = scen.load * n(4) + (Math.random() < 0.02 ? 350 : 0);  // kettle!
+  const batt = solar + gen - load;      // + = charging
+  hist.push({ solar, gen, load, batt });
+  if (hist.length > HIST) hist.shift();
+  return { solar, gen, load, batt };
+}
+for (let i = 0; i < HIST; i++) step();   // pre-fill history
+
+/* ---------- flow diagram ---------- */
+const wires = {
+  "w-solar": { color: "--solar", getW: s => s.solar, into: true },
+  "w-batt":  { color: "--batt",  getW: s => Math.abs(s.batt), into: null },
+  "w-inv":   { color: "--load",  getW: s => Math.max(5, s.load - (scen.inv === "passthrough" ? s.gen : 0)), into: true },
+  "w-gen":   { color: "--gen",   getW: s => s.gen, into: true },
+  "w-load":  { color: "url", getW: s => s.load, into: true },
+};
+const particles = {};
+for (const id of Object.keys(wires)) {
+  const path = $(id), group = [];
+  for (let k = 0; k < 3; k++) {
+    const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("r", 3.2);
+    const m = document.createElementNS("http://www.w3.org/2000/svg", "animateMotion");
+    m.setAttribute("repeatCount", "indefinite");
+    m.setAttribute("begin", `${k * 0.85}s`);
+    const mp = document.createElementNS("http://www.w3.org/2000/svg", "mpath");
+    mp.setAttribute("href", `#${id}`);
+    m.appendChild(mp); c.appendChild(m);
+    path.parentNode.appendChild(c);
+    group.push({ c, m });
+  }
+  particles[id] = group;
+}
+function mixHex(pairs) {                 // [[hex, weight], ...] -> hex
+  let r = 0, g = 0, b = 0, W = 0;
+  for (const [hex, w] of pairs) {
+    const v = parseInt(hex.slice(1), 16);
+    r += (v >> 16) * w; g += ((v >> 8) & 255) * w; b += (v & 255) * w; W += w;
+  }
+  if (!W) return css("--text-3");
+  const h = x => Math.round(x / W).toString(16).padStart(2, "0");
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+function drawFlow(s) {
+  const battCharging = s.batt >= 0;
+  for (const [id, w] of Object.entries(wires)) {
+    const watts = w.getW(s);
+    const path = $(id);
+    const active = watts > 8;
+    path.style.stroke = w.color === "url" ? "url(#loadmix)" : `var(${w.color})`;
+    path.style.strokeWidth = (1.2 + 4.5 * Math.sqrt(Math.min(watts, 1500) / 1500)).toFixed(2);
+    path.style.opacity = active ? 1 : 0.25;
+    const dur = Math.max(0.55, Math.min(6, 900 / Math.max(watts, 1)));
+    particles[id].forEach(({ c, m }, k) => {
+      c.style.fill = w.color === "url" ? css("--load") : css(w.color);
+      c.style.display = active && k < 1 + Math.min(2, watts / 350) ? "" : "none";
+      if (m.getAttribute("dur") !== `${dur}s`) m.setAttribute("dur", `${dur}s`);
+      const rev = id === "w-batt" && battCharging;   // path runs batt->DC; charging flows DC->batt
+      const kp = rev ? "1;0" : "0;1";
+      if (m.getAttribute("keyPoints") !== kp) {
+        m.setAttribute("keyPoints", kp);
+        m.setAttribute("keyTimes", "0;1");
+        m.setAttribute("calcMode", "linear");
+      }
+    });
+  }
+  $("t-solar").textContent = `${Math.round(s.solar)} W`;
+  $("t-gen").textContent = `${Math.round(s.gen)} W`;
+  $("t-load").textContent = `${Math.round(s.load)} W`;
+  $("t-batt").textContent = `${s.batt >= 0 ? "+" : "−"}${Math.round(Math.abs(s.batt))} W ${s.batt >= 0 ? "charging" : "discharging"}`;
+  $("invlbl").textContent = scen.inv === "passthrough" ? "passthrough" : "inverting →";
+
+  const genToLoad = scen.inv === "passthrough" ? Math.min(s.gen, s.load) : 0;
+  const rest = s.load - genToLoad;
+  const solarShare = s.solar + Math.max(0, s.batt) > 0 ? Math.min(1, s.solar / Math.max(s.solar + Math.max(-s.batt, 0), 1)) : 0;
+  const srcs = [
+    [css("--gen"), genToLoad],
+    [css("--solar"), rest * solarShare],
+    [css("--batt"), rest * (1 - solarShare)],
+  ];
+  const mixed = mixHex(srcs);
+  $("mix0").setAttribute("stop-color", mixed);
+  $("mix1").setAttribute("stop-color", mixed);
+  const dom = srcs.slice().sort((a, b) => b[1] - a[1])[0];
+  const names = { [css("--gen")]: "running on generator", [css("--solar")]: "running on sun", [css("--batt")]: "running on battery" };
+  const total = srcs.reduce((a, [, w]) => a + w, 0);
+  $("loadbadge").textContent = dom[1] / total > 0.7 ? names[dom[0]] : "mixed sources";
+}
+
+/* ---------- balance strip ---------- */
+const strip = $("strip"), tip = $("tip");
+const SW = 760, SH = 170, MID = 88, PAD = 6;
+function drawStrip() {
+  const maxW = Math.max(400, ...hist.map(h => Math.max(h.solar + h.gen + Math.max(-h.batt, 0), h.load + Math.max(h.batt, 0))));
+  const y = w => (w / maxW) * (MID - PAD - 22);
+  const x = i => (i / (HIST - 1)) * SW;
+  const area = (vals, base, up) => {
+    let d = "";
+    vals.forEach((v, i) => { d += `${i ? "L" : "M"}${x(i).toFixed(1)},${(MID + (up ? -1 : 1) * (base[i] + y(v))).toFixed(1)}`; });
+    for (let i = vals.length - 1; i >= 0; i--) d += `L${x(i).toFixed(1)},${(MID + (up ? -1 : 1) * base[i]).toFixed(1)}`;
+    return d + "Z";
+  };
+  const zeros = hist.map(() => 0);
+  const sSolar = hist.map(h => h.solar);
+  const sBattD = hist.map(h => Math.max(-h.batt, 0));
+  const sGen = hist.map(h => h.gen);
+  const dLoad = hist.map(h => h.load);
+  const dBattC = hist.map(h => Math.max(h.batt, 0));
+  const acc = (base, vals) => base.map((b, i) => b + y(vals[i]));
+  let svg = "";
+  const seg = (vals, base, up, color) =>
+    `<path d="${area(vals, base, up)}" fill="var(${color})" stroke="var(--surface)" stroke-width="1.5"/>`;
+  let b = zeros;
+  svg += seg(sSolar, b, true, "--solar"); b = acc(b, sSolar);
+  svg += seg(sBattD, b, true, "--batt"); b = acc(b, sBattD);
+  svg += seg(sGen, b, true, "--gen");
+  b = zeros;
+  svg += seg(dLoad, b, false, "--load"); b = acc(b, dLoad);
+  svg += seg(dBattC, b, false, "--batt");
+  svg += `<line x1="0" y1="${MID}" x2="${SW}" y2="${MID}" stroke="var(--line)" stroke-width="1"/>`;
+  svg += `<text x="4" y="14" style="font:500 11px system-ui;fill:var(--text-3)">supply ↑</text>`;
+  svg += `<text x="4" y="${SH - 6}" style="font:500 11px system-ui;fill:var(--text-3)">demand ↓</text>`;
+  svg += `<line id="xh" x1="-9" y1="6" x2="-9" y2="${SH - 6}" stroke="var(--text-3)" stroke-width="1" stroke-dasharray="3 3"/>`;
+  strip.innerHTML = svg;
+}
+strip.addEventListener("mousemove", e => {
+  const r = strip.getBoundingClientRect();
+  const i = Math.max(0, Math.min(HIST - 1, Math.round((e.clientX - r.left) / r.width * (HIST - 1))));
+  const h = hist[i];
+  if (!h) return;
+  const xh = strip.querySelector("#xh");
+  if (xh) { const px = (i / (HIST - 1)) * SW; xh.setAttribute("x1", px); xh.setAttribute("x2", px); }
+  const mins = Math.round((HIST - 1 - i) * 15 / 60);
+  tip.style.display = "block";
+  tip.style.left = `${Math.min(e.clientX + 14, innerWidth - 190)}px`;
+  tip.style.top = `${e.clientY + 14}px`;
+  tip.innerHTML = `<b>−${mins} min</b><br>solar <b>${Math.round(h.solar)} W</b> · gen <b>${Math.round(h.gen)} W</b><br>loads <b>${Math.round(h.load)} W</b> · battery <b>${h.batt >= 0 ? "+" : "−"}${Math.round(Math.abs(h.batt))} W</b>`;
+});
+strip.addEventListener("mouseleave", () => {
+  tip.style.display = "none";
+  const xh = strip.querySelector("#xh");
+  if (xh) { xh.setAttribute("x1", -9); xh.setAttribute("x2", -9); }
+});
+
+/* ---------- hero + system ---------- */
+function drawHero(s) {
+  let soc = scen.soc;
+  $("soc").textContent = Math.round(soc);
+  const CAP_WH = 24 * 420;
+  if (s.batt > 30) {
+    const h = (100 - soc) / 100 * CAP_WH / s.batt;
+    $("ttx").textContent = `≈ ${fmtH(h)} to full`;
+    $("state").textContent = `charging · ${scen.stage}`;
+  } else if (s.batt < -30) {
+    const h = soc / 100 * CAP_WH / -s.batt;
+    $("ttx").textContent = `≈ ${fmtH(h)} to empty`;
+    $("state").textContent = "discharging";
+  } else {
+    $("ttx").textContent = "holding steady";
+    $("state").textContent = scen.stage === "float" ? "full · float" : "idle";
+  }
+  $("s-dcv").textContent = `${(26.2 + scen.soc / 100 * 1.6 + (Math.random() - .5) * .05).toFixed(2)} V`;
+  $("s-pvv").textContent = `${scen.pv.toFixed(scen.pv < 1 ? 1 : 0)} V`;
+  $("s-stage").textContent = scen.stage;
+  $("s-inv").textContent = scen.inv;
+  $("s-res").textContent = `${(Math.random() * 8 - 4).toFixed(0)} W`;
+  $("s-genv").textContent = s.gen > 0 ? "118 V" : "0 V";
+}
+const fmtH = h => h >= 1 ? `${Math.floor(h)} h ${Math.round(h % 1 * 60)} m` : `${Math.round(h * 60)} m`;
+
+/* ---------- loop + controls ---------- */
+function tick() {
+  const s = step();
+  drawFlow(s); drawStrip(); drawHero(s);
+}
+setInterval(tick, 1000);
+tick();
+$("scenario").addEventListener("change", e => {
+  scen = SCEN[e.target.value];
+  hist.length = 0;
+  for (let i = 0; i < HIST; i++) step();
+  tick();
+});
+$("theme").addEventListener("click", () => {
+  const cur = document.documentElement.dataset.theme;
+  document.documentElement.dataset.theme =
+    cur === "dark" ? "light" : cur === "light" ? "dark" : matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark";
+  tick();
+});
+</script>
+</body>
+</html>
