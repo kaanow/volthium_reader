@@ -12,6 +12,12 @@ Scope per D12: **battery side only** (display-side placement is CP4).
 - Output: `hardware/kicad/pcb/build/battery_pcb.kicad_pcb`
   (sha256 `af64f93e2e2f…`) — 127 footprints (123 parts + 4 M3 mounting
   holes), all pads net-bound, **placement only** (routing is CP5).
+- Rebuild commands (bare, no env overrides needed):
+  POSIX `.venv/bin/python hardware/kicad/pcb/build.py` · Windows
+  `.venv\Scripts\python.exe hardware\kicad\pcb\build.py` (schematics
+  analogous). Pre-handoff gate: `python3
+  hardware/reviews/tools/handoff_check.py` (rebuild + committed-diff +
+  packet-hash + consistency; poison-tested).
 - Generator: `hardware/kicad/pcb/core.py` (shared mechanics + gates) +
   `hardware/kicad/pcb/build.py` (battery floorplan as data). The pass-1
   PCB toolchain was retired to `hardware/kicad/archive/pass1_pcb/`.
@@ -30,6 +36,8 @@ Scope per D12: **battery side only** (display-side placement is CP4).
 | readback | (ref, pad, net) triples re-parsed from the written `.kicad_pcb` diffed against the netlist, both directions | caught its own regex bug during bring-up |
 | orientation | probed (never hand-derived): RJ45 openings face S; J1 wire entry W; J3 opening E; MOD1 antenna N; **U10/U11 logic row north of iso row** | asserts fire on wrong rotation |
 | DRC | `kicad-cli pcb drc --severity-all --exit-code-violations`, transactional report, append-only accepted registry | selftest: stale-report + forced-fail refuses to judge |
+| label-adjacency | every VISIBLE Reference box from the WRITTEN board (auto+manual+fallback): same-baseline gap ≥0.7, stacked gap ≥0.30 (iter-2, F03) | selftest: 0.16 mm pair fires, 1.2 mm pair doesn't |
+| handoff (repo tool) | deterministic rebuild == committed artifacts; packet hashes true; consistency clean (iter-2, F01) | poisoned: committed-generator drift + corrupted packet hash both fail |
 
 DRC final state: **0 unaccounted**. Accepted classes (full rationale in
 `build.py::DRC_ACCEPTED`):
@@ -161,6 +169,15 @@ inside 3 mm would displace the HF caps and worsen the actual
 high-frequency loop. C5 (quiet-divider filter, §11.2#3), C11 (at the
 button header it debounces), and C_mux/C2/C4/C1/C3 (bulk/reservoir
 roles at their nodes) are excluded by role, each on record here.
+
+## 6a. D11 visual inspection — iter 2
+
+Re-laid regions re-rendered and re-read after the F03 rework:
+`visual_inspections/cp3-placement/iter2/` (8 crops + snapshots).
+Designer read the full top render + `iso_ch1` at crop zoom: every
+label in both iso islands now visually distinct (R22/R23, R25/R26,
+L10/L11 stacks all separated; D10/D11 vertical beside their parts);
+zero DRC silk findings and zero adjacency findings at the gate level.
 
 ## 6. D11 visual inspection — iter 1 (post self-review round 2)
 
@@ -312,4 +329,95 @@ PDFs. Routing-quality gates remain out of CP3 scope.
 
 ## 9. Designer responses
 
-*(designer appends §9.N here)*
+### 9.1 Responses to §8.1 (iteration 2, 2026-07-30)
+
+Each response names the fix AND the root cause of the designer-side
+miss, per the process directive that findings must improve the gates,
+not just the instance.
+
+**Finding 01 (BLOCKER — rebuild not reproducible): AGREE on every
+tooling defect; one factual correction on the netlist claim.**
+- *Windows footprint discovery*: real — `fplib.py` carried a private
+  macOS-default share path instead of the schematic core's
+  cross-platform discovery. Fixed: `fplib` now loads the schematic
+  core and uses its discovery (single source; kicad skill §1 rule
+  "reviewer's rebuild is the de-facto CI" was violated by new code that
+  was never re-read against it). Root cause: fplib was written as a
+  quick inventory tool, then promoted to a load-bearing library
+  without an environment-section re-review.
+- *cp1252/Ω crash*: real — `Board.to_file` lacked `encoding="utf-8"`
+  (skill rule: every call site). Fixed there and at every remaining
+  read/write in pcb/, including the refine loop.
+- *Stale netlist claim*: partially disputed on the evidence — the
+  committed netlist's MOD1 **comp record** carried the vendored variant
+  at the reviewed commit (grep `(ref "MOD1")` +3 lines), and the
+  committed board has the 0.3 mm vias (confirmed by your own
+  written-artifact comparison). The stock string you found sits in the
+  **libpart section's Footprint field**, which kicad-cli copies from
+  the SYMBOL definition — my generator overrode footprints
+  per-instance but never updated the symbol-level field, making the
+  netlist internally inconsistent and your reading entirely
+  reasonable. Fixed at the root: `SYMBOL_FP_OVERRIDES` in the
+  schematic core syncs the symbol-level field (both boards rebuilt;
+  netlists now contain zero stock-footprint mentions).
+- *Hash mismatches*: real and the most instructive miss — hashes were
+  recorded once mid-work while artifacts kept regenerating.
+  Systemic fix: **builds are now deterministic** (uuid5 sequences
+  replace uuid4; kiutils' `tedit` timestamps and kicad-cli's netlist
+  date stamp pinned), and a new pre-handoff gate
+  (`hardware/reviews/tools/handoff_check.py`) rebuilds all three
+  generators, fails on ANY git diff of the deterministic artifacts,
+  and verifies every hash quoted in the packet against the committed
+  file. Both failure paths poison-tested (stale-generator commit;
+  corrupted packet hash). The documented Windows command is now in the
+  packet header and the gate picks the right interpreter per-OS.
+- Packet §1 hashes refreshed: netlist `40cfc2791487…`, board
+  `af64f93e2e2f…` (now stable across rebuilds by construction).
+
+**Finding 02 (manifest duplicate/stale hash): AGREE.** Worse than
+found: my re-fetch had silently OVERWRITTEN the user's 2026-07-01
+upload of the same catalog PDF, and my pre-add grep used a pattern
+("MSTBA") the old row ("1757242") didn't contain. Fixed: one canonical
+row with the actual hash + replacement provenance;
+`doc_consistency_check.py` now (a) verifies every recorded hash
+against the file and (b) rejects one-file-many-hashes rows — both
+poison-tested (note: a first-cut uniqueness check keyed on file/MPN
+name was reverted after it false-fired on the legitimate
+family-PDF-many-variants and family+drawing patterns; hash conflict is
+the invariant that exactly captures this defect class).
+
+**Finding 03 (L10/R23, L12/R33 concatenation): AGREE.** Root cause was
+double: (a) library-fallback refdes positions were never
+collision-checked against anything — the placer only checked spots it
+chose itself; (b) my visual read transcribed the labels as separate
+because I knew what they should say. Fixed structurally: a
+**label-adjacency gate** now reads every visible Reference box from
+the WRITTEN board (auto, manual, and fallback alike) and fails the
+build on same-baseline gaps < 0.7 mm or stacked-line gaps < 0.30 mm
+(calibrated to your confirmed 0.16 mm/45 %-overlap failure; a first
+cut that fired on any diagonal proximity was retracted — 25 pairs,
+dense rows unsolvable, and neither DRC nor eyes mis-parse offset
+baselines). The DRC-oracle refine loop consumes the gate's findings
+and re-places automatically. The affected iso-island region was
+re-laid (bead column moved east, protection columns spaced, several
+labels hand-placed); final state: **zero silk findings, zero
+adjacency findings**, verified in the iter2 render/crops.
+
+**Finding 04 (contradictory isolation record): AGREE — classic
+incomplete propagation** (my own skill's failure class #2: updated the
+packet, never swept D38). Fixed: one authoritative measurement with an
+explicit metric (pad-edge = center distance minus both half-extents)
+and explicit domain classification, recomputed from the FINAL board
+and written identically into packet §3 and D38: logic-iso1 1.94 mm
+(J6.SH-J10.SH, set by jack pitch), logic-iso2 9.68 mm, iso1-iso2
+2.70 mm — vs ~0.6 mm required (<100 V functional). The earlier 3.7/4.7
+and 4.24/10.85/4.95 sets were mid-iteration values under two different
+metrics; both superseded.
+
+**Process changes from this iteration** (per the user directive):
+- `handoff_check.py` is now a mandatory step before any
+  `reviewer_turn` flip (DESIGNER.md §7).
+- Turn-start for BOTH agents now includes pulling the skills repo and
+  reading changed skill files (DESIGNER.md/REVIEWER.md TL;DR).
+- Skill releases: kicad v0.3.1, pcb-design v0.10.0 carry the
+  project-agnostic forms of every root cause above.

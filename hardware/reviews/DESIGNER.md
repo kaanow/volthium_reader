@@ -17,6 +17,9 @@ triggers (Cursor for agent-reviewer; `/loop` or manual prompts for you).
 
 On every wake:
 
+0. **Sync the skills** (standard ops, both agents): `git -C
+   <skills clone> pull` and read any SKILL.md whose version changed
+   since your last turn — released lessons bind the next turn's work.
 1. `git pull origin <current_branch>` (read from SEMAPHORE.yaml).
 2. Read [`SEMAPHORE.yaml`](SEMAPHORE.yaml).
 3. Branch based on `state`:
@@ -399,6 +402,9 @@ When done, hand back to agent-reviewer via `state: reviewer_turn`.
 
 ```bash
 python3 hardware/reviews/tools/doc_consistency_check.py
+python3 hardware/reviews/tools/handoff_check.py   # CP3+: rebuilds every
+# generator and fails on ANY committed-artifact drift or stale packet
+# hash (builds are deterministic by construction — CP3 F01)
 ```
 
 Exit 0 required. It re-checks the append-only registry of every token

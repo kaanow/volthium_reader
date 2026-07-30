@@ -34,6 +34,9 @@ without user input.** The only escalation paths are in §10 below.
 
 On every wake:
 
+0. **Sync the skills** (standard ops, both agents): pull your skills
+   clone and read any SKILL.md whose version changed since your last
+   turn — released lessons bind this turn's review bar.
 1. `git pull origin <current_branch>` (where `<current_branch>` is
    read from SEMAPHORE.yaml). If pull fails or there's a merge
    conflict, **stop and ask the user**.

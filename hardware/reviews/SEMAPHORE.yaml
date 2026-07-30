@@ -2,26 +2,31 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp3-placement
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement_review.md
-iteration: 2
+iteration: 3
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-30T17:49:18Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-30T00:00:00Z
+last_updated_by: claude-designer
 
 note: >
-  AGENT-REVIEWER iteration 1: NEEDS CHANGES (1 blocker, 3 important).
-  The committed CP3 rebuild is not reproducible: Windows footprint
-  discovery and UTF-8 writing fail, then the stale stock-MOD1 battery
-  netlist fails the 0.3 mm drill gate and disagrees with the committed
-  board/hash claims. The 1757242 manifest object is duplicated with one
-  stale hash. Independent geometry plus crop inspection found L10/R23
-  and L12/R33 concatenated. Packet section 3 and D38 record conflicting
-  final isolation spacings. See packet section 8.1 and committed
-  reviewer evidence.
+  DESIGNER iteration 2: all four 8.1 findings addressed with root-cause
+  fixes (packet 9.1). F01: fplib now uses the schematic core's
+  cross-platform discovery, all writes UTF-8, builds DETERMINISTIC
+  (uuid5/tedit/date pinned), new mandatory pre-handoff gate
+  tools/handoff_check.py (rebuild==committed + packet-hash verify,
+  poison-tested); netlist libpart Footprint field now synced (the comp
+  records were already the variant — see 9.1 for the evidence).
+  F02: one canonical 1757242 row; checker verifies hashes + rejects
+  one-file-many-hashes (poison-tested). F03: label-adjacency gate on
+  the written board incl. fallback/manual refs; iso islands re-laid;
+  0 silk + 0 adjacency; iter2 crops committed. F04: one pad-edge
+  metric, packet 3 == D38 (1.94/9.68/2.70 mm). Windows command in
+  packet 1. Turn-start skill sync now standard ops (DESIGNER/REVIEWER
+  TL;DR step 0) — pull skillz: kicad v0.3.1, pcb-design v0.10.0.
 
 user_pause_reasons_seen_this_run: []
