@@ -1090,11 +1090,17 @@ def kicad_netlist(rootf):
     if r.returncode != 0:
         raise SystemExit(f"[netlist-gate] export failed: {r.stderr[:300]}")
     txt = out.read_text(encoding="utf-8")
-    # pin kicad-cli's export timestamp: with deterministic uuids this is
-    # the netlist's ONLY volatile byte, and pinning it makes
-    # rebuild == committed a checkable handoff property
+    # Pin every host-volatile header field, not just the date: the design
+    # (source ...) is an absolute path and (tool ...) carries the installed
+    # KiCad point version, so an unpinned netlist can NEVER hash equal
+    # across machines (CP3 finding 06). Sheet-level sources are already
+    # relative. With deterministic uuids these are the only volatile bytes.
     pinned = re.sub(r'\(date "[^"]*"\)', '(date "pinned-for-determinism")',
                     txt, count=1)
+    pinned = re.sub(r'\(source "[^"]*"\)',
+                    f'(source "{Path(rootf).name}")', pinned, count=1)
+    pinned = re.sub(r'\(tool "[^"]*"\)', '(tool "pinned-for-determinism")',
+                    pinned, count=1)
     if pinned != txt:
         out.write_text(pinned, encoding="utf-8")
         txt = pinned

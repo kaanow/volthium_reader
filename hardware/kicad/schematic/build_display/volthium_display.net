@@ -1,9 +1,9 @@
 (export
 	(version "E")
 	(design
-		(source "/Users/pivot/Documents/repo/volthium_reader/hardware/kicad/schematic/build_display/volthium_display.kicad_sch")
+		(source "volthium_display.kicad_sch")
 		(date "pinned-for-determinism")
-		(tool "Eeschema 10.0.3")
+		(tool "pinned-for-determinism")
 		(sheet
 			(number "1")
 			(name "/")

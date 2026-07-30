@@ -7,11 +7,15 @@ Scope per D12: **battery side only** (display-side placement is CP4).
 
 - Input netlist: the CP2-APPROVED battery schematic's export,
   `hardware/kicad/schematic/build/volthium_reader.net`
-  (sha256 `40cfc2791487…`), 123 components / 125 nets. One CP3-driven
-  schematic-side delta (§4.1: MOD1 footprint variant).
+  (sha256 `eda5076694c0…`), 123 components / 125 nets. One CP3-driven
+  schematic-side delta (§4.1: MOD1 footprint variant). Now TRACKED
+  (iter-3 finding 05) with all header fields pinned (finding 06).
 - Output: `hardware/kicad/pcb/build/battery_pcb.kicad_pcb`
   (sha256 `af64f93e2e2f…`) — 127 footprints (123 parts + 4 M3 mounting
   holes), all pads net-bound, **placement only** (routing is CP5).
+- Hashes are of the committed git BLOB (what `git cat-file blob
+  HEAD:<path>` returns / what a checkout delivers). Worktree bytes can
+  differ on `core.autocrlf=true` clones; compare against the blob.
 - Rebuild commands (bare, no env overrides needed):
   POSIX `.venv/bin/python hardware/kicad/pcb/build.py` · Windows
   `.venv\Scripts\python.exe hardware\kicad\pcb\build.py` (schematics
@@ -111,8 +115,12 @@ re-run green (see footprints README provenance row).
   holes' H1–H4 refs hidden (rendered off-board at the corners).
 
 ### 4.4 Affinity/PR-8 instrument (review_affinity.py) catches
-- C3 (U2 input bulk) was 14 mm from U2.1 → 8 mm (module input, not a
-  high-di/dt node; datasheet placement satisfied).
+- C3 (U2 input bulk) was 14 mm from U2.1 → 8 mm. The R-78HB12-0.5
+  datasheet (p. I-4) specifies only the part — 3.3 µF/100 V for
+  Vin > 50 V — and gives NO placement distance; accepting 8 mm is an
+  engineering judgment: C3 is bulk storage at the module's filtered
+  24 V input, not a decoupler on a high-di/dt node, so lead
+  inductance at this distance is immaterial.
 - C7/C6 order swapped so the 100 nF HF cap is CLOSEST to MOD1 pin 2
   (1.5 mm pad-edge), 10 µF bulk behind.
 - **U5 and U6 were rotated 180° from the power-flow direction** (VIN
@@ -500,3 +508,77 @@ metrics; both superseded.
   reading changed skill files (DESIGNER.md/REVIEWER.md TL;DR).
 - Skill releases: kicad v0.3.1, pcb-design v0.10.0 carry the
   project-agnostic forms of every root cause above.
+
+### 9.2 Responses to §8.2 (iteration 4, 2026-07-30)
+
+**Finding 05 (BLOCKER — build consumes ignored netlist): AGREE.** The
+battery `schematic/build/` directory carried a blanket `.gitignore`
+entry from its CP2 days as a scratch area, so the one artifact the PCB
+generator consumes was invisible to git — and to every git-based check
+I built. Fixed at the root: the directory's canonical outputs are now
+TRACKED under the same policy as `build_display/` and `pcb/build/`
+(the CP2-era experiment debris that motivated the ignore was purged
+first — the dir was emptied and rebuilt so only what the generator
+actually produces is committed). `parse_netlist` now fails with an
+actionable regenerate-first message instead of a raw traceback if the
+input is absent. Root cause of the miss: I promoted a scratch
+directory to a dependency of a downstream build without ever
+re-deciding its tracking policy — "it's always been ignored" survived
+a change in the directory's role. The handoff gate now makes this
+class impossible to reintroduce (see 06).
+
+**Finding 06 (BLOCKER — handoff gate can't prove its invariant):
+AGREE on all three structural defects; one evidence-based correction
+on the board hash.**
+- *Host-volatile netlist fields*: real — only `(date)` was pinned. The
+  design-header `(source)` (absolute path!) and `(tool)` (installed
+  KiCad point version) are now pinned too (`schematic/core.py`); sheet
+  sources were already relative. The committed display netlist had
+  been carrying my absolute macOS path — the diff you saw.
+- *Ignored files evade `git status`*: real — the gate now derives the
+  deterministic-artifact set from the rebuild globs and FAILS if any
+  member is untracked (`git ls-files` set-difference), before the
+  diff check. Untracked = a fresh clone won't have it = "committed"
+  claims about it are void.
+- *Worktree hashing*: real — the gate now (a) requires each
+  packet-cited file to be tracked and uncommitted-change-free, then
+  (b) hashes the HEAD BLOB (`git cat-file blob`), never worktree
+  bytes.
+- *Board-hash correction*: `af64f93e2e2f` is the true sha256 of the
+  committed board blob at the reviewed commit (verify:
+  `git cat-file blob 35f8bd2^:hardware/kicad/pcb/build/battery_pcb.kicad_pcb | sha256sum`).
+  Your `5a44e30a6140` is that same byte stream after LF→CRLF: your
+  clone's `core.autocrlf=true` rewrote the worktree copy at checkout
+  (reproduced here by CRLF-converting the blob — exact hash match).
+  So the board citation was not false — but your structural point
+  stands in full: a hash claim that only holds on some checkouts is a
+  broken claim. Two fixes: blob hashing (above) and a new
+  `.gitattributes` forcing `eol=lf` on all generated KiCad artifacts
+  and netlists, so worktree bytes == blob bytes on every platform
+  (this also protects the KiCad sources themselves from CRLF
+  mangling). The netlist citation WAS genuinely false for the repo —
+  it hashed an untracked local file; with tracking + pinning it is
+  now `eda5076694c0` and machine-independent by construction.
+- Root cause of the miss: I tested the gate only in the environment
+  where it was born — my own clone, where worktree == blob and every
+  "committed" file happened to exist. The gate's stated invariant
+  ("rebuild == committed") was never checked against git's definition
+  of committed. The fresh-clone and cross-OS conditions the reviewer
+  runs under are the gate's actual requirements spec.
+
+**Finding 07 (IMPORTANT — unsourced verification adjective): AGREE.**
+"Datasheet placement satisfied" claimed a criterion the datasheet
+does not contain. §4.4 now cites p. I-4 only for what it states
+(3.3 µF/100 V above 50 V input) and marks the 8 mm acceptance as an
+explicit engineering judgment with its rationale (bulk storage at a
+filtered module input, not a high-di/dt decoupler). Root cause: the
+verify-before-claim rule was applied to numbers (hashes, distances)
+but not to *attributions* — "per datasheet" is a citation and needs
+the same page-level check as a quoted value. Grep confirmed no other
+"datasheet placement" phrasing exists in the docs.
+
+**Verification of this iteration**: all three generators rebuilt; the
+battery netlist header now pins source/tool/date; handoff gate rerun
+clean with the hardened checks (transcript in
+`visual_inspections/cp3-placement/iter4/`); untracked-artifact and
+blob-hash failure paths poison-tested.

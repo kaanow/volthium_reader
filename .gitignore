@@ -47,5 +47,8 @@ firmware/common/volthium_lib/*.o
 logs/
 freerouting.json
 
-# CP2 code-generated schematics + review renders (regenerate: schematic/build.py)
-hardware/kicad/schematic/build/
+# Battery-side build artifacts are TRACKED (same policy as build_display/
+# and pcb/build/): the PCB generator consumes build/volthium_reader.net,
+# so a fresh clone must contain it (CP3 finding 05 — a blanket ignore
+# here made the documented PCB rebuild depend on machine-local state).
+# Volatile leftovers (*.kicad_prl) are covered by the global patterns.

@@ -8,14 +8,23 @@ recorded early were never refreshed. With deterministic builds
 property:
 
   1. rebuild every generator (battery sch, display sch, battery pcb)
-  2. `git status` on the build trees — ANY diff means the committed
-     artifacts don't match the committed generators: FAIL
-  3. every 12-hex hash quoted in the active packet must match a real
-     committed file: FAIL otherwise
-  4. doc_consistency_check must be clean
+  2. every deterministic artifact the rebuild produced must be TRACKED
+     by git — an ignored/untracked input (CP3 finding 05: the pcb build
+     consumed an ignored netlist) is invisible to `git status` and
+     absent in a fresh clone, so "committed" claims about it are void
+  3. `git status` on the tracked artifacts — ANY diff means the
+     committed artifacts don't match the committed generators: FAIL
+  4. every 12-hex hash quoted in the active packet must match the
+     file's HEAD BLOB — not its worktree bytes. The reviewer checks out
+     the blob; worktree bytes are host-dependent (CP3 finding 06: the
+     reviewer's autocrlf worktree hashed differently from the
+     byte-identical committed board). The cited file must also be
+     tracked and unmodified, else the HEAD blob isn't what's on disk.
+  5. doc_consistency_check must be clean
 
-Run from the repo root. Renders/PNGs/PDFs are volatile (tool timestamps)
-and excluded from the diff check — their CONTENT is gated in-build.
+Run from the repo root AFTER committing, right before the semaphore
+flip. Renders/PNGs/PDFs are volatile (tool timestamps) and excluded
+from the diff check — their CONTENT is gated in-build.
 """
 import hashlib
 import os
@@ -67,6 +76,13 @@ def main():
         for g in DETERMINISTIC_GLOBS:
             paths += [str(p.relative_to(REPO))
                       for p in (REPO / d).glob(g)]
+    tracked = set(sh("git", "-C", str(REPO), "ls-files", "--",
+                     *paths).stdout.splitlines())
+    untracked = sorted(set(paths) - tracked)
+    if untracked:
+        fails.append("[untracked] deterministic artifacts a fresh clone "
+                     "won't have (ignored or never added):\n  "
+                     + "\n  ".join(untracked))
     r = sh("git", "-C", str(REPO), "status", "--porcelain", "--", *paths)
     if r.stdout.strip():
         fails.append("[stale] committed artifacts differ from a fresh "
@@ -79,14 +95,27 @@ def main():
     ptext = packet.read_text(encoding="utf-8")
     for m in re.finditer(r"`([\w./-]+)`\s*\n?\s*\(sha256 `([0-9a-f]{12})…?`",
                          ptext):
-        f = REPO / m.group(1)
-        if not f.exists():
-            fails.append(f"[hash] packet cites missing file {m.group(1)}")
+        rel = m.group(1)
+        if sh("git", "-C", str(REPO), "ls-files", "--error-unmatch", "--",
+              rel).returncode != 0:
+            fails.append(f"[hash] packet cites UNTRACKED file {rel} — "
+                         "a hash claim about a file git doesn't have is "
+                         "unverifiable by the reviewer")
             continue
-        actual = hashlib.sha256(f.read_bytes()).hexdigest()[:12]
+        if sh("git", "-C", str(REPO), "status", "--porcelain", "--",
+              rel).stdout.strip():
+            fails.append(f"[hash] {rel} has uncommitted changes — commit "
+                         "before hashing; the packet must describe HEAD")
+            continue
+        # hash the HEAD blob (what a checkout delivers), never worktree
+        # bytes — those vary with the host's eol config
+        blob = subprocess.run(
+            ["git", "-C", str(REPO), "cat-file", "blob", f"HEAD:{rel}"],
+            capture_output=True).stdout
+        actual = hashlib.sha256(blob).hexdigest()[:12]
         if actual != m.group(2):
-            fails.append(f"[hash] packet hash {m.group(2)} != actual "
-                         f"{actual} for {m.group(1)}")
+            fails.append(f"[hash] packet hash {m.group(2)} != HEAD blob "
+                         f"{actual} for {rel}")
 
     r = sh("python3", str(REPO / "hardware/reviews/tools/"
                           "doc_consistency_check.py"))

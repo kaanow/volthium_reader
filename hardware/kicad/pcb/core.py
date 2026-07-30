@@ -165,6 +165,12 @@ def parse_netlist(net_path):
     """(nets, components): nets = [(code, name)]; components[ref] =
     {value, footprint, pins: {padnum: netname}}. Paren-tolerant enough for
     kicad-cli's pretty-printed .net output."""
+    if not Path(net_path).exists():
+        raise SystemExit(
+            f"[netlist] input missing: {net_path}\n"
+            "This is a tracked artifact — a fresh clone has it. If you "
+            "deleted the build tree, regenerate the upstream schematic "
+            "first: python hardware/kicad/schematic/build.py")
     text = Path(net_path).read_text(encoding="utf-8")
     comp_pat = re.compile(
         r'\(comp\s+\(ref\s+"([^"]+)"\)\s+\(value\s+"([^"]+)"\)\s*'
