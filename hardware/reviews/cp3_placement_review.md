@@ -205,6 +205,105 @@ Findings from the read — all dispositioned, none open:
 
 *(reviewer appends §8.N here)*
 
+### 8.1 Reviewer findings (iteration 1)
+
+Reviewed commit: `0ddffbd50a894b6f0bda4aaba52817857ad24ac6`
+
+#### Finding 01 - BLOCKER - the committed CP3 build is not reproducible
+
+The rebuild-first precondition fails before this placement can be
+accepted. On Windows, the documented command names a POSIX venv path.
+Using the Windows interpreter then exposed three successive committed
+source/tooling defects:
+
+1. `hardware/kicad/pcb/fplib.py` searches the macOS KiCad footprint path
+   and the project library, but does not discover the installed Windows
+   KiCad share.
+2. After explicitly setting `KICAD_SHARE`, board serialization fails
+   under cp1252 on the ohm symbol because the writer does not request
+   UTF-8.
+3. With UTF-8 forced, the fab gate rejects 12 MOD1 vias at 0.2 mm. The
+   committed battery netlist still names the stock
+   `RF_Module:ESP32-S3-WROOM-1`, while the committed schematic generator
+   and board name `volthium:ESP32-S3-WROOM-1_HSvia0.3`.
+
+An independent written-artifact comparison found matching topology
+(431 `(reference,pad,net)` bindings each, zero missing/extra) but the
+same MOD1 footprint-ID mismatch. The actual committed SHA-256 values are
+`063b574e...6562` for the board and `2483956a...c91e` for the battery
+netlist; neither matches the hashes recorded in section 1. Thus F-P-2,
+F-P-7, and the build-freshness precondition are not demonstrated by the
+committed inputs.
+
+Required resolution: centralize or port the existing cross-platform
+KiCad-share discovery into the PCB generator; make all generated-file
+writes explicitly UTF-8; regenerate and commit the battery schematic,
+netlist, and reports from the committed schematic generator; rebuild
+the board from that netlist; then rerun the complete gate stack and
+replace the packet hashes. The documented bare Windows command must pass
+without environment overrides.
+
+Evidence:
+`visual_inspections/cp3-placement/iter1/reviewer/REPORT.md`.
+
+#### Finding 02 - IMPORTANT - the 1757242 manifest identity is duplicated and one hash is stale
+
+`hardware/datasheets/manifest.md` contains two rows for the same MPN and
+`1757242.pdf`. The newly added J1 row records `7a342188f10c`, which
+matches the actual file. The older row records `7b6cfef0980a`, which
+does not. The PDF itself is the correct Phoenix Contact
+MSTBA 2,5/2-G-5,08 order 1757242, so the footprint spot-check passes,
+but the manifest is no longer a unique and internally consistent
+source of object identity. The initial consistency checker returned
+exit 0 despite this defect.
+
+Required resolution: retain one canonical 1757242 row with the actual
+hash and remove or correct the stale duplicate. Extend
+`doc_consistency_check.py` to reject duplicate source objects and to
+verify each recorded hash against the file, then poison-test that
+failure path.
+
+#### Finding 03 - IMPORTANT - two refdes pairs concatenate in the final silkscreen
+
+The alternate text-box model and the independent KiCad plot agree that
+`L10`/`R23` reads as `L10R23` and `L12`/`R33` reads as `L12R33`.
+Each modeled pair has only 0.160 mm horizontal edge clearance with
+0.645 mm vertical overlap. This contradicts section 6 and the PR-1/PR-3
+all-PASS claims even though the designer's DRC/refinement model did not
+flag the pairs.
+
+Required resolution: reposition the affected references or nearby
+parts to create visually distinct labels, regenerate the render/crops,
+and rerun both the DRC-based check and an independent geometry check.
+
+Evidence:
+`visual_inspections/cp3-placement/iter1/reviewer/geometry_second_opinion.txt`,
+`crop_iso_ch1.png`, `crop_iso_ch2.png`, and `full_top_2d.png`.
+
+#### Finding 04 - IMPORTANT - the final isolation-spacing record is contradictory
+
+Packet section 3 records final cross-domain pad spacings of 4.24 mm
+(logic to iso1), 10.85 mm (logic to iso2), and 4.95 mm (iso1 to iso2).
+Decision D38 still records 3.7 mm and 4.7 mm for the corresponding
+nearest separations. These are both presented as final placement facts,
+so the load-bearing isolation/pour-split record does not identify one
+authoritative measurement set.
+
+Required resolution: recompute the three separations from the final
+committed board using one stated pad-edge metric and one explicit
+domain classification, then synchronize packet section 3 and D38.
+
+Coverage: the reviewer ran the mandatory consistency check; attempted
+the committed rebuild through the failing gate transcript; compared the
+written netlist and board independently; ran direct KiCad DRC; inspected
+independent top/bottom renders, a 2D plot, and eight crops; applied an
+independent reference-text box model; rechecked outline, mounting holes,
+assembly side, connector edges, RF overhang, and isolation placement;
+and spot-checked J1, MOD1, U10/U11, and SSR1 against four on-file source
+PDFs. Routing-quality gates remain out of CP3 scope.
+
+**REVIEW COMPLETE**: NEEDS CHANGES - 1 blocker, 3 important. (See findings 01-04.)
+
 ## 9. Designer responses
 
 *(designer appends §9.N here)*

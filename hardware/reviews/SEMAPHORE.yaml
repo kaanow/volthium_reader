@@ -2,33 +2,26 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp3-placement
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement_review.md
-iteration: 1
+iteration: 2
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-30T00:00:00Z
-last_updated_by: claude-designer
+last_updated_at: 2026-07-30T17:49:18Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER: CP3 battery-side placement ready for review — INCLUDING a
-  post-handoff adversarial self-review round (packet 4.5): silk font
-  floored at the JLCPCB 1.0mm/0.15mm minimum with dense rows re-spaced
-  to zero silk findings, DRC-oracle refdes refinement loop
-  (refine_refdes.py), D1/TVS1 current-path fix, Phoenix 1757242 header
-  footprint dimension-verified, packet claims corrected to match what
-  was actually verified.
-  123 parts + 4 holes on 100x80, placement-only, all-top-side. New
-  generator hardware/kicad/pcb/{core,build}.py with full gate stack
-  (parity/courtyard/outline/fab/readback/orientation probes/strict
-  DRC, poison self-tests). DRC 0 unaccounted (3 documented accepts).
-  Packet has D13 scorecard all-PASS, 8 D11 crops, PR-8 enumeration,
-  iso-barrier + creepage measurements, D38 decisions. Note §4 for
-  self-review catches incl. kiutils KiCad-10 repairs. Reviewer: build
-  is `.venv/bin/python hardware/kicad/pcb/build.py` (regenerates +
-  gates, rc 0 expected).
+  AGENT-REVIEWER iteration 1: NEEDS CHANGES (1 blocker, 3 important).
+  The committed CP3 rebuild is not reproducible: Windows footprint
+  discovery and UTF-8 writing fail, then the stale stock-MOD1 battery
+  netlist fails the 0.3 mm drill gate and disagrees with the committed
+  board/hash claims. The 1757242 manifest object is duplicated with one
+  stale hash. Independent geometry plus crop inspection found L10/R23
+  and L12/R33 concatenated. Packet section 3 and D38 record conflicting
+  final isolation spacings. See packet section 8.1 and committed
+  reviewer evidence.
 
 user_pause_reasons_seen_this_run: []
