@@ -2363,7 +2363,13 @@ floorplan (generator: `hardware/kicad/pcb/build.py`; evidence in
    island → ADM2587E → logic row N), with the transceivers rotated so
    the package's internal isolation barrier runs horizontally (logic
    pins 1-10 north / iso pins 11-20 south — probed and asserted in the
-   generator). The CP5 pour split follows the barrier line. Measured
-   minimum cross-domain pad separation: 3.7 mm logic↔iso1 (J7 to
-   R22), 4.7 mm iso1↔iso2 — an order of magnitude above the ~0.6 mm
-   IPC-2221 requirement for the <100 V functional isolation in play.
+   generator). The CP5 pour split follows the barrier line. Cross-domain
+   separation on the final committed board — metric: **pad-edge**
+   (pad-center distance minus both pads' half max-extents); domains:
+   iso1/iso2 = every net in the channel's BUS_*/ISO_BUS_GND*/V_ISO*/
+   GND2_DCDC*/TV*/PACK* families, logic = everything else;
+   U10/U11/C28/C38 excluded as the designed barrier crossings.
+   Measured: logic-iso1 **1.94 mm** (J6.SH to J10.SH — set by jack
+   pitch), logic-iso2 **9.68 mm**, iso1-iso2 **2.70 mm** (L11 to R32)
+   — vs the ~0.6 mm IPC-2221 requirement for the <100 V functional
+   isolation in play (3.2x at the worst pair).

@@ -729,6 +729,35 @@ def check_d32_manifest() -> list[str]:
     rows = re.findall(r"^\| ([^|]+?) \| ([^|]+?) \|", active_section, re.M)
     bom_text = CANONICAL_BOM.read_text(encoding="utf-8")
     n = 0
+    # CP3 F02: a duplicated identity slipped through — same PDF referenced
+    # by two rows, one carrying a stale hash the checker never verified.
+    # Uniqueness + hash-verification are now mechanical.
+    seen_pdfs: dict[str, str] = {}
+    hash_rows = re.findall(
+        r"^\| ([^|]+?) \| ([^|]+?) \|[^|]*\|[^|]*\| ([0-9a-f]{12}) \|",
+        active_section, re.M)
+    file_hashes: dict[str, set] = {}
+    for mpn, pdf_cell, h12 in hash_rows:
+        m = re.match(r"(\S+\.pdf)", pdf_cell.strip())
+        if not m:
+            continue
+        file_hashes.setdefault(m.group(1), set()).add(h12)
+        f = DATASHEET_DIR / m.group(1)
+        if f.exists():
+            import hashlib
+            actual = hashlib.sha256(f.read_bytes()).hexdigest()[:12]
+            if actual != h12:
+                findings.append(
+                    f"[d32] manifest '{mpn.strip()}': recorded hash {h12} != "
+                    f"actual {actual} for {m.group(1)} — stale identity row")
+    # one file, two recorded hashes = a stale duplicate identity (F02's
+    # exact shape); a family PDF backing several variant rows with ONE
+    # hash is legitimate
+    for fname, hs in file_hashes.items():
+        if len(hs) > 1:
+            findings.append(
+                f"[d32] conflicting hashes recorded for {fname}: "
+                f"{sorted(hs)} — collapse to one canonical identity row")
     for mpn, pdf_cell in rows:
         mpn, pdf_cell = mpn.strip(), pdf_cell.strip()
         if mpn in ("MPN",) or mpn.startswith(":-") or mpn.startswith("--"):
@@ -738,6 +767,7 @@ def check_d32_manifest() -> list[str]:
         if not m:
             findings.append(f"[d32] manifest row '{mpn}': no PDF filename")
             continue
+
         if not (DATASHEET_DIR / m.group(1)).exists():
             findings.append(f"[d32] manifest '{mpn}': {m.group(1)} not on disk")
         bom_token = MANIFEST_TO_BOM_ALIAS.get(mpn, mpn)

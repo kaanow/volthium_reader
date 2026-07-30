@@ -16,8 +16,25 @@ from pathlib import Path
 from kiutils.footprint import Footprint
 
 KROOT = Path(__file__).resolve().parents[1]          # hardware/kicad
-KICAD_SHARE = os.environ.get(
-    "KICAD_SHARE", "/Applications/KiCad/KiCad.app/Contents/SharedSupport")
+
+
+def _sch_core():
+    """The schematic core owns cross-platform KiCad share/CLI discovery
+    (env overrides -> macOS/Windows/Linux candidates, same-root pairing).
+    Reuse it — a second, private discovery list broke the reviewer's
+    Windows rebuild (CP3 F01)."""
+    if "sch_core" in sys.modules:
+        return sys.modules["sch_core"]
+    import importlib.util as ilu
+    spec = ilu.spec_from_file_location(
+        "sch_core", KROOT / "schematic" / "core.py")
+    mod = ilu.module_from_spec(spec)
+    sys.modules["sch_core"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+KICAD_SHARE = _sch_core().KICAD_SHARE
 FP_DIRS = [os.environ.get("KICAD10_FOOTPRINT_DIR", f"{KICAD_SHARE}/footprints"),
            str(KROOT / "footprints")]                # repo-local volthium.pretty
 

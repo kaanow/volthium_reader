@@ -45,10 +45,11 @@ ROOT_TITLE = "Volthium reader — battery-side (root)"
 def configure(project, out_dirname, root_title):
     """Bind the core to one project: netlist/instance-path project name, the
     output directory (sibling of this file), and the root sheet title."""
-    global PROJECT, OUT, ROOT_TITLE
+    global _UUID_N, PROJECT, OUT, ROOT_TITLE
     PROJECT = project
     OUT = HERE / out_dirname
     ROOT_TITLE = root_title
+    _UUID_N = 0
 
 
 GRID = 1.27
@@ -159,7 +160,18 @@ SYMBOLS = {
     "PWR_FLAG":         (f"{STOCK}/power.kicad_sym",                "PWR_FLAG"),
 }
 
-def _uuid(): return str(uuid.uuid4())
+_UUID_N = 0
+
+
+def _uuid():
+    """Deterministic uuid sequence (uuid5 over a per-build counter).
+    Random uuids made every rebuild differ textually, so "regenerated ==
+    committed" was uncheckable and stale-artifact drift was invisible
+    (CP3 F01). Reset per configure()."""
+    global _UUID_N
+    _UUID_N += 1
+    return str(uuid.uuid5(uuid.NAMESPACE_URL,
+                          f"volthium:{PROJECT}:{_UUID_N}"))
 def snap(v): return round(v / GRID) * GRID
 def _tw(s): return len(s) * CHARW + 0.4      # text width estimate
 
@@ -195,6 +207,9 @@ def _raw_pin_names_hidden(libfile, entry):
 
 
 _SYMCACHE = {}
+# symbol name -> footprint id, applied to the SYMBOL definition when all
+# instances share it (set by the build script before building sheets)
+SYMBOL_FP_OVERRIDES = {}
 def resolve_symbol(name):
     """Return a self-contained kiutils Symbol for `name`, flattened to its
     pin-bearing ancestor (KiCad's schematic cache stores flattened symbols,
@@ -265,6 +280,15 @@ def resolve_symbol(name):
     # P-FETs (Q_PMOS_GSD) already show theirs.
     if _raw_pin_names_hidden(libfile, entry) and name not in ("2N7002",):
         for p in allpins: p.name = "~"
+    # Sync the SYMBOL-level Footprint field with a project override where
+    # every instance uses one footprint (e.g. a vendored fab-rule variant).
+    # Without this the netlist's libpart section reports the stock library
+    # default while the comp records carry the override — an internal
+    # inconsistency a reviewer read as a stale netlist (CP3 F01).
+    if name in SYMBOL_FP_OVERRIDES:
+        for prop in flat.properties:
+            if prop.key == "Footprint":
+                prop.value = SYMBOL_FP_OVERRIDES[name]
     _SYMCACHE[name] = flat
     return flat
 
@@ -1066,6 +1090,14 @@ def kicad_netlist(rootf):
     if r.returncode != 0:
         raise SystemExit(f"[netlist-gate] export failed: {r.stderr[:300]}")
     txt = out.read_text(encoding="utf-8")
+    # pin kicad-cli's export timestamp: with deterministic uuids this is
+    # the netlist's ONLY volatile byte, and pinning it makes
+    # rebuild == committed a checkable handoff property
+    pinned = re.sub(r'\(date "[^"]*"\)', '(date "pinned-for-determinism")',
+                    txt, count=1)
+    if pinned != txt:
+        out.write_text(pinned, encoding="utf-8")
+        txt = pinned
     nets = {}
     # paren-balanced scan (a regex-to-blank-line parse drops one-line nets)
     i = 0

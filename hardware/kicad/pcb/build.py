@@ -128,7 +128,7 @@ pl("Q3", 48.5, 24.0, 0)      # UVLO->EN bypass logic
 pl("Q4", 52.5, 24.0, 0)
 pl("R_byp1", 56.2, 24.6, 90)
 pl("R_byp2", 59.7, 24.6, 90)
-pl("R_byp2b", 61.5, 28.5, 0)
+pl("R_byp2b", 62.7, 24.6, 90)
 
 # RTC cluster east of module
 pl("C9", 53.0, 8.0, 90)      # RTC decoupling
@@ -203,7 +203,7 @@ def iso_channel(jref, uref, qref, rpwr, rtx, beads, tvs, rs, cs, bridge, x0):
     pl(qref, x0 - 6.6, 37.5, 0)
     pl(cs[2], x0 - 3.2, 39.3, 90)   # 0.1u at VCC1 pin 8 (probed x0-3.2)
     pl(rpwr, x0 - 0.8, 37.5, 90)
-    pl(rtx, x0 - 3.0, 35.6, 90)   # series TX R at U pin 7 (probed x0-1.9), out of the cap bank
+    pl(rtx, x0 + 1.6, 35.6, 90)   # series TX R above the bank, E of the gate (label pocket open N)
     pl(cs[0], x0 + 3.4, 39.3, 90)   # 0.1u at VCC1 pin 2 (probed x0+4.4)
     pl(cs[1], x0 + 5.8, 39.3, 90)   # 0.01u beside it
     pl(cs[3], x0 - 9.8, 39.3, 90)   # 10u bulk at the row W end (inter-channel gap)
@@ -217,11 +217,11 @@ def iso_channel(jref, uref, qref, rpwr, rtx, beads, tvs, rs, cs, bridge, x0):
     pl(cs[4], x0 - 1.8, 54.7, 90)    # 10u V_ISOOUT bulk
     pl(cs[6], x0 + 4.2, 54.7, 90)   # 0.1u at V_ISOIN pin 19 (probed x0+4.4)    # 0.1u V_ISOIN (HF, at pin 19)
     pl(cs[7], x0 + 6.6, 54.7, 90)    # 0.01u V_ISOIN
-    pl(beads[1], x0 - 9.2, 54.7, 90)  # GND2 bead
-    pl(beads[0], x0 - 9.2, 58.4, 90)  # supply bead
+    pl(beads[1], x0 + 9.6, 58.2, 90)  # GND2 bead (E col)
+    pl(beads[0], x0 + 9.6, 62.0, 90)  # supply bead (E col)
     pl(rs[5], x0 + 8.5, 51.5, 90)    # 0R pack-ref provisioning (bridge zone)
-    pl(rs[0], x0 - 6.4, 58.4, 0)     # 10R protect A
-    pl(rs[1], x0 - 6.4, 61.9, 0)     # 10R protect B
+    pl(rs[0], x0 - 8.4, 58.4, 0)     # 10R protect A
+    pl(rs[1], x0 - 8.4, 61.9, 0)     # 10R protect B
     pl(tvs, x0 - 1.5, 58.4, 0)       # SM712
     pl(rs[2], x0 - 1.5, 62.0, 90)    # 120R term
     pl(rs[3], x0 + 6.5, 58.4, 0)     # 560R bias A
@@ -264,20 +264,31 @@ CUSTOM_RULES = """(version 1)
 # (board-frame position + text angle + compact font)
 MANUAL_REFDES = {
     # expansion legend labels (west of the part column)
-    "R_exp_pu": (65.5, 10.5, 0),
-    "R_exp_bleed": (63.9, 13.0, 0),
-    "R_exp_scl": (64.9, 15.5, 0),
-    "R_exp_sda": (64.9, 18.0, 0),
+    "R_exp_pu": (76.8, 10.5, 0),
+    "R_exp_bleed": (78.2, 12.7, 0),
+    "R_exp_scl": (77.5, 14.6, 0),
+    "R_exp_sda": (77.5, 16.5, 0),
     # stuck-set manual spots (DRC-oracle refuted every auto candidate)
     "R_inrush2": (21.5, 45.1, 0),
+    "R_inrush1": (21.5, 48.9, 0),
     "SSR1": (33.7, 40.5, 90),
     "Q5": (25.9, 56.0, 90),
     "Q_exp": (56.4, 20.6, 90),
-    "R_byp1": (55.0, 27.0, 0),
+    "R_byp1": (54.7, 27.0, 0),
     "R_byp2": (59.2, 29.5, 90),
-    "D10": (55.6, 62.0, 90),
-    "D11": (77.9, 62.0, 90),
-    "R_byp2b": (61.5, 32.5, 90),
+    "D10": (55.4, 58.4, 90),
+    "C2": (55.0, 33.2, 0),
+    "C24": (59.3, 54.7, 90),
+    "C34": (81.8, 54.7, 90),
+    "U5": (74.6, 18.6, 0),
+    "R20": (58.5, 35.0, 0),
+    "R30": (80.6, 35.0, 0),
+    "C_usb1": (81.6, 17.9, 0),
+    "C_mux": (64.5, 17.9, 0),
+    "RTC1": (56.0, 4.9, 0),
+    "C9": (51.6, 8.0, 90),
+    "D11": (77.9, 58.4, 90),
+    "R_byp2b": (62.7, 30.1, 90),
 }
 
 # DRC accepted classes at PLACEMENT stage (no routing yet)
@@ -375,13 +386,17 @@ def main():
     if bans_file.exists():
         import json as _json
         bans = {k: [tuple(v) for v in vs]
-                for k, vs in _json.loads(bans_file.read_text()).items()}
+                for k, vs in _json.loads(
+                    bans_file.read_text(encoding="utf-8")).items()}
     refdes_ov, refdes_unplaced = core.auto_refdes(
         COMPS, P, W, H, manual=MANUAL_REFDES, banned=bans)
     if refdes_unplaced:
         print(f"[refdes] library-fallback (no clear auto spot): {refdes_unplaced}")
     bb.write(pcb, prop_overrides=refdes_ov)
     bb.gate_readback(pcb)
+    bb.findings += core.label_adjacency_findings(
+        core.refdes_boxes_from_board(
+            pcb.read_text(encoding="utf-8")))
 
     if bb.findings:
         print(f"== {len(bb.findings)} finding(s) ==")

@@ -1304,6 +1304,8 @@ ERC_ACCEPTED = {
 def main():
     core.configure("volthium_reader", "build",
                    "Volthium reader — battery-side (root)")
+    core.SYMBOL_FP_OVERRIDES["ESP32-S3-WROOM-1"] = \
+        "volthium:ESP32-S3-WROOM-1_HSvia0.3"   # keep libpart field == comp records
     return core.run(SHEETS, GOLDEN, EXACT_PARTS, ERC_ACCEPTED)
 
 if __name__ == "__main__":

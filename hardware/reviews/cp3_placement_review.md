@@ -7,10 +7,10 @@ Scope per D12: **battery side only** (display-side placement is CP4).
 
 - Input netlist: the CP2-APPROVED battery schematic's export,
   `hardware/kicad/schematic/build/volthium_reader.net`
-  (sha256 `485965cc2398…`), 123 components / 125 nets. One CP3-driven
+  (sha256 `40cfc2791487…`), 123 components / 125 nets. One CP3-driven
   schematic-side delta (§4.1: MOD1 footprint variant).
 - Output: `hardware/kicad/pcb/build/battery_pcb.kicad_pcb`
-  (sha256 `b3d8030a1624…`) — 127 footprints (123 parts + 4 M3 mounting
+  (sha256 `af64f93e2e2f…`) — 127 footprints (123 parts + 4 M3 mounting
   holes), all pads net-bound, **placement only** (routing is CP5).
 - Generator: `hardware/kicad/pcb/core.py` (shared mechanics + gates) +
   `hardware/kicad/pcb/build.py` (battery floorplan as data). The pass-1
@@ -59,10 +59,16 @@ J5 ESP-Prog flat mid-board (lid-off service access).
 Isolated channels (D36/DR-26): vertical columns at x≈59.5/82 — logic
 row, ADM2587E **rotated so the package isolation barrier runs
 horizontally** (probed + asserted), iso island (supply π-filter under
-its own pins, protection/term row), jack. Cross-domain pad separation
-measured on the final layout: logic↔iso1 ≥4.24 mm (the J6/J10 jack
-shells — fixed by jack pitch), logic↔iso2 ≥10.85 mm, iso1↔iso2
-≥4.95 mm — vs ~0.6 mm IPC-2221 for <100 V functional isolation. CP5 note: B.Cu pour must split along y≈47 under U10/U11
+its own pins, protection/term row), jack. Cross-domain
+separation on the final committed board — metric: **pad-edge**
+(pad-center distance minus both pads' half max-extents); domains:
+iso1/iso2 = every net in the channel's BUS_*/ISO_BUS_GND*/V_ISO*/
+GND2_DCDC*/TV*/PACK* families, logic = everything else;
+U10/U11/C28/C38 excluded as the designed barrier crossings.
+Measured: logic-iso1 **1.94 mm** (J6.SH to J10.SH — set by jack
+pitch), logic-iso2 **9.68 mm**, iso1-iso2 **2.70 mm** (L11 to R32)
+— vs the ~0.6 mm IPC-2221 requirement for the <100 V functional
+isolation in play (3.2x at the worst pair). CP5 note: B.Cu pour must split along y≈47 under U10/U11
 (barrier line), islands per channel.
 
 ## 4. Findings made and fixed during self-review (selection)

@@ -430,7 +430,7 @@ class BoardBuilder:
 
     # -- write + readback -------------------------------------------------
     def write(self, path, prop_overrides=None):
-        self.b.to_file(str(path))
+        self.b.to_file(str(path), encoding="utf-8")
         if not Path(path).exists() or Path(path).stat().st_size == 0:
             raise SystemExit(f"[write] {path} missing/empty after to_file")
         # kiutils (KiCad-6 era) parses KiCad-10's "(remove_unused_layers no)"
@@ -441,6 +441,10 @@ class BoardBuilder:
         text = Path(path).read_text(encoding="utf-8")
         text = text.replace("(remove_unused_layers)",
                             "(remove_unused_layers no)")
+        # kiutils stamps serialization time into (tedit ...) — the one
+        # nondeterminism in the board build. Pin it so rebuild == committed
+        # is a checkable handoff property (KiCad 10 ignores this legacy field).
+        text = re.sub(r"\(tedit [0-9A-Fa-f]+\)", "(tedit 0)", text)
         text = _restore_properties(text, prop_overrides)
         Path(path).write_text(text, encoding="utf-8")
 
@@ -770,6 +774,77 @@ def core_rot_inv(dx, dy, deg):
     return (dx * c - dy * s, dx * s + dy * c)
 
 
+def refdes_boxes_from_board(board_text):
+    """Rendered-box estimate for every VISIBLE Reference property in the
+    WRITTEN board (anchor + angle + font from the file; measured-mean
+    advance). Covers auto, manual, AND library-fallback refs — the
+    fallback class was invisible to the placer's own checks (CP3 F03)."""
+    boxes = []
+    pos = 0
+    for m in re.finditer(r'\n  \(footprint "([^"]+)"', board_text):
+        start = m.start() + 1
+        end = _balanced(board_text, start + 2)
+        ch = board_text[start:end]
+        atm = re.search(r'\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', ch)
+        if not atm:
+            pos = end
+            continue
+        fx, fy = float(atm.group(1)), float(atm.group(2))
+        frot = float(atm.group(3)) if atm.group(3) else 0.0
+        pm = re.search(r'\(property "Reference" "([^"]+)"', ch)
+        if pm:
+            blk = ch[pm.start():_balanced(ch, pm.start())]
+            if "(hide yes)" not in blk:
+                bat = re.search(
+                    r'\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', blk)
+                fs = re.search(r'\(size ([\d.]+) [\d.]+\)', blk)
+                ref = pm.group(1)
+                dx, dy = float(bat.group(1)), float(bat.group(2))
+                ta = float(bat.group(3)) if bat.group(3) else 0.0
+                font = float(fs.group(1)) if fs else 1.0
+                bx, by = _xf((dx, dy), fx, fy, frot, False)
+                tw = max(len(ref) * 0.95 * font, 1.5)
+                th = 1.45 * font
+                hw, hh = ((tw / 2, th / 2) if ta % 180 == 0
+                          else (th / 2, tw / 2))
+                boxes.append((ref, (bx - hw, by - hh, bx + hw, by + hh)))
+        pos = end
+    return boxes
+
+
+def label_adjacency_findings(boxes, run_gap=0.7, stack_gap=0.30):
+    """Concatenation model (calibrated to the reviewer-confirmed failure:
+    0.16 mm x-gap at ~45% line overlap read as "L10R23"): two labels
+    merge when they share a baseline (>=40% overlap on the reading axis'
+    perpendicular) and the along-reading gap is under ~one character
+    advance (run_gap); stacked lines touching within stack_gap also
+    fail. Mere diagonal proximity is NOT concatenation — DRC's silk
+    clearance owns actual overlap, eyes parse offset baselines fine
+    (first cut of this gate fired on 25 such pairs and made dense rows
+    unsolvable)."""
+    out = []
+    for i in range(len(boxes)):
+        for j in range(i + 1, len(boxes)):
+            ra, a = boxes[i]
+            rb, b = boxes[j]
+            gx = max(a[0], b[0]) - min(a[2], b[2])
+            gy = max(a[1], b[1]) - min(a[3], b[3])
+            ovy = min(a[3], b[3]) - max(a[1], b[1])
+            ovx = min(a[2], b[2]) - max(a[0], b[0])
+            minh = min(a[3] - a[1], b[3] - b[1])
+            minw = min(a[2] - a[0], b[2] - b[0])
+            same_line = ovy >= 0.4 * minh and gx < run_gap
+            stacked = ovx >= 0.4 * minw and 0 <= gy < stack_gap
+            if same_line or stacked:
+                ca = ((a[0] + a[2]) / 2, (a[1] + a[3]) / 2)
+                cb = ((b[0] + b[2]) / 2, (b[1] + b[3]) / 2)
+                kind = "same-line" if same_line else "stacked"
+                out.append(f"[label-adjacency] {ra}@({ca[0]:.2f},{ca[1]:.2f})"
+                           f" x {rb}@({cb[0]:.2f},{cb[1]:.2f}): {kind}, gap "
+                           f"{max(gx, gy):.2f} — reads as one refdes")
+    return out
+
+
 # ---------------------------------------------------------------------------
 # External ground truth: DRC (transactional, strict parse)
 # ---------------------------------------------------------------------------
@@ -860,6 +935,15 @@ def selftest_gates():
     big = courtyard_segments("Connector_RJ:RJ45_Amphenol_RJHSE5380", 8, 8, 0)
     if not courtyards_collide(small, big):
         print("[selftest] courtyard gate FAILED on containment")
+        ok = False
+    # label-adjacency gate: concatenating pair fires, spaced pair doesn't
+    hot = [("L10", (10, 10, 12, 11.4)), ("R23", (12.16, 10, 14.6, 11.4))]
+    cold = [("L10", (10, 10, 12, 11.4)), ("R23", (13.2, 10, 15.6, 11.4))]
+    if not label_adjacency_findings(hot):
+        print("[selftest] label-adjacency FAILED to fire on 0.16 mm gap")
+        ok = False
+    if label_adjacency_findings(cold):
+        print("[selftest] label-adjacency false-fired on 1.2 mm gap")
         ok = False
     # DRC transactional contract: a forced-failing invocation against a
     # pre-seeded stale report must raise, not judge the stale file
