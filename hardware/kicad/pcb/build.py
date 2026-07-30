@@ -88,15 +88,15 @@ pl("R_hys", 11.8, 22.5, 90)
 # ---------------------------------------------------------------------------
 # W: 24 V entry + protection (J1 above J2; flow J1 -> F1 -> D1 row)
 # ---------------------------------------------------------------------------
-pl("D1", 8.0, 27.0, 0)
-pl("TVS1", 15.5, 27.0, 0)
+pl("D1", 26.0, 27.0, 0)   # at F1 output end -> V24_FUSED star (self-review)
+pl("TVS1", 18.5, 27.0, 0)
 pl("F1", 20.0, 34.0, 0)
 pl("J1", 7.5, 45.0, 270)          # wire entry west; probed below
 
 # V24 switched chain: F2 -> SSR1 -> R_inrush1/2 -> U2 -> V12_CAT5E
 pl("F2", 18.0, 40.5, 0)
 pl("SSR1", 28.0, 40.5, 0)
-pl("R_opto", 35.0, 40.5, 90)
+pl("R_opto", 36.5, 40.5, 90)
 pl("R_inrush1", 18.0, 47.0, 0)
 pl("R_inrush2", 24.0, 47.0, 0)
 pl("U2", 33.0, 49.0, 0)
@@ -141,11 +141,13 @@ pl("R9", 67.5, 8.0, 90)
 # NE: expansion header + power gate
 # ---------------------------------------------------------------------------
 pl("J_EXP", 78.0, 6.0, 0)
-pl("Q_exp", 70.0, 12.5, 0)
-pl("R_exp_pu", 74.0, 12.5, 90)
-pl("R_exp_bleed", 77.4, 12.5, 90)
-pl("R_exp_scl", 80.8, 12.5, 90)
-pl("R_exp_sda", 84.2, 12.5, 90)
+# legend-style stack: 8-11 char refdes cannot live inline at 1.0 mm font
+# (JLC floor) — parts in a column, refs manual to the west (self-review)
+pl("Q_exp", 60.0, 20.6, 0)
+pl("R_exp_pu", 72.0, 10.5, 0)
+pl("R_exp_bleed", 72.0, 13.0, 0)
+pl("R_exp_scl", 72.0, 15.5, 0)
+pl("R_exp_sda", 72.0, 18.0, 0)
 
 # ---------------------------------------------------------------------------
 # E: USB-C maintenance power chain (west-flowing: J3 -> ESD -> LDO -> mux)
@@ -174,8 +176,8 @@ pl("TVS2", 8.0, 58.0, 0)       # A-B differential clamp
 pl("J6", 39.0, 73.0, 180)
 pl("U7", 39.0, 58.5, 0)
 pl("C12", 33.0, 56.0, 90)    # U7 VCC (gated) decoupling, at the W (VCC-pin) column
-pl("J7", 48.5, 58.5, 0)       # CAN term jumper
-pl("R15", 45.0, 54.0, 90)    # 120R CAN term
+pl("J7", 45.5, 58.5, 0)       # CAN term jumper
+pl("R15", 45.9, 53.5, 90)    # 120R CAN term
 pl("Q5", 29.0, 56.0, 0)      # CAN_PWR P-FET
 pl("R14", 29.0, 60.0, 90)
 pl("D2", 33.0, 60.0, 0)      # DNP bus clamp (F03)
@@ -185,7 +187,7 @@ pl("D2", 33.0, 60.0, 0)      # DNP bus clamp (F03)
 # lies flat between the USB row and the iso logic rows
 pl("BTN1", 89.0, 13.0, 0)
 pl("C11", 93.0, 13.0, 90)    # BTN debounce
-pl("J5", 72.0, 30.0, 90)
+pl("J5", 72.0, 28.5, 90)   # flat, in the band between USB row and iso logic rows
 
 # ---------------------------------------------------------------------------
 # S-E: two isolated pack-read channels (columns at x0 = 59, 82)
@@ -198,30 +200,32 @@ def iso_channel(jref, uref, qref, rpwr, rtx, beads, tvs, rs, cs, bridge, x0):
     pl(jref, x0, 73.0, 180)
     pl(uref, x0, 47.0, 270)   # 270: logic pins 1-10 NORTH, iso 11-20 SOUTH (probed)
     # logic row (north of U)
-    pl(qref, x0 - 7.0, 37.5, 0)
-    pl(rpwr, x0 - 3.8, 37.5, 90)
-    pl(rtx, x0 - 1.2, 37.5, 90)
-    pl(cs[0], x0 + 1.4, 39.3, 90)
-    pl(cs[1], x0 + 4.0, 39.3, 90)
-    pl(cs[2], x0 + 6.6, 39.3, 90)
-    pl(cs[3], x0 + 9.6, 39.3, 90)
+    pl(qref, x0 - 6.6, 37.5, 0)
+    pl(cs[2], x0 - 3.2, 39.3, 90)   # 0.1u at VCC1 pin 8 (probed x0-3.2)
+    pl(rpwr, x0 - 0.8, 37.5, 90)
+    pl(rtx, x0 - 3.0, 35.6, 90)   # series TX R at U pin 7 (probed x0-1.9), out of the cap bank
+    pl(cs[0], x0 + 3.4, 39.3, 90)   # 0.1u at VCC1 pin 2 (probed x0+4.4)
+    pl(cs[1], x0 + 5.8, 39.3, 90)   # 0.01u beside it
+    pl(cs[3], x0 - 9.8, 39.3, 90)   # 10u bulk at the row W end (inter-channel gap)
     # bridge cap beside the package, spanning the barrier line
     pl(bridge, x0 + 8.5, 47.0, 90)
-    # iso island: supply row
-    pl(beads[0], x0 - 1.0, 57.8, 0)
-    pl(beads[1], x0 - 5.0, 57.8, 0)
-    pl(cs[4], x0 - 2.2, 54.9, 90)
-    pl(cs[5], x0 - 4.7, 54.9, 90)
-    pl(cs[6], x0 + 4.0, 54.9, 90)
-    pl(cs[7], x0 + 6.2, 54.9, 90)
-    # iso island: bus protection / termination row
-    pl(rs[0], x0 - 6.5, 60.3, 0)     # 10R protect A
-    pl(rs[1], x0 - 6.5, 63.6, 0)     # 10R protect B
-    pl(tvs, x0 - 1.5, 62.0, 0)       # SM712
-    pl(rs[2], x0 + 2.6, 62.0, 90)    # 120R term
-    pl(rs[3], x0 + 6.5, 60.3, 0)     # 560R bias A
-    pl(rs[4], x0 + 6.5, 63.6, 0)     # 560R bias B
-    pl(rs[5], x0 + 10.5, 62.0, 90)   # 0R pack-ref provisioning
+    # iso island v2 (self-review, silk-floor respacing): supply row under
+    # the iso pins; beads as a W column pair; protection as column pairs
+    # with a ref band between (y~60.15) and below (y~63.6, clear of the
+    # jack silk at ~64.74)
+    pl(cs[5], x0 - 4.6, 54.7, 90)   # 0.1u at V_ISOOUT pin 12 (probed x0-4.4)    # 0.1u V_ISOOUT (HF, at pin 12)
+    pl(cs[4], x0 - 1.8, 54.7, 90)    # 10u V_ISOOUT bulk
+    pl(cs[6], x0 + 4.2, 54.7, 90)   # 0.1u at V_ISOIN pin 19 (probed x0+4.4)    # 0.1u V_ISOIN (HF, at pin 19)
+    pl(cs[7], x0 + 6.6, 54.7, 90)    # 0.01u V_ISOIN
+    pl(beads[1], x0 - 9.2, 54.7, 90)  # GND2 bead
+    pl(beads[0], x0 - 9.2, 58.4, 90)  # supply bead
+    pl(rs[5], x0 + 8.5, 51.5, 90)    # 0R pack-ref provisioning (bridge zone)
+    pl(rs[0], x0 - 6.4, 58.4, 0)     # 10R protect A
+    pl(rs[1], x0 - 6.4, 61.9, 0)     # 10R protect B
+    pl(tvs, x0 - 1.5, 58.4, 0)       # SM712
+    pl(rs[2], x0 - 1.5, 62.0, 90)    # 120R term
+    pl(rs[3], x0 + 6.5, 58.4, 0)     # 560R bias A
+    pl(rs[4], x0 + 6.5, 61.9, 0)     # 560R bias B
 
 
 iso_channel("J10", "U10", "Q10", "R20", "R21",
@@ -259,13 +263,21 @@ CUSTOM_RULES = """(version 1)
 # Hand-picked refdes spots where the greedy placer has no clear ring
 # (board-frame position + text angle + compact font)
 MANUAL_REFDES = {
-    "R_exp_pu": (74.0, 15.3, 0, 0.8),
-    "R_exp_bleed": (77.4, 17.0, 0, 0.8),
-    "R_byp2": (59.2, 29.5, 90, 0.8),
-    "D10": (55.6, 62.0, 90, 0.8),
-    "D11": (77.9, 62.0, 90, 0.8),
-    "R_byp2b": (61.5, 32.5, 90, 0.8),
-    "R30": (72.0, 37.5, 0, 0.8),
+    # expansion legend labels (west of the part column)
+    "R_exp_pu": (65.5, 10.5, 0),
+    "R_exp_bleed": (63.9, 13.0, 0),
+    "R_exp_scl": (64.9, 15.5, 0),
+    "R_exp_sda": (64.9, 18.0, 0),
+    # stuck-set manual spots (DRC-oracle refuted every auto candidate)
+    "R_inrush2": (21.5, 45.1, 0),
+    "SSR1": (33.7, 40.5, 90),
+    "Q5": (25.9, 56.0, 90),
+    "Q_exp": (56.4, 20.6, 90),
+    "R_byp1": (55.0, 27.0, 0),
+    "R_byp2": (59.2, 29.5, 90),
+    "D10": (55.6, 62.0, 90),
+    "D11": (77.9, 62.0, 90),
+    "R_byp2b": (61.5, 32.5, 90),
 }
 
 # DRC accepted classes at PLACEMENT stage (no routing yet)
@@ -358,8 +370,14 @@ def main():
 
     OUT.mkdir(exist_ok=True)
     pcb = OUT / f"{PROJECT}.kicad_pcb"
+    bans_file = OUT / "refdes_bans.json"
+    bans = {}
+    if bans_file.exists():
+        import json as _json
+        bans = {k: [tuple(v) for v in vs]
+                for k, vs in _json.loads(bans_file.read_text()).items()}
     refdes_ov, refdes_unplaced = core.auto_refdes(
-        COMPS, P, W, H, manual=MANUAL_REFDES)
+        COMPS, P, W, H, manual=MANUAL_REFDES, banned=bans)
     if refdes_unplaced:
         print(f"[refdes] library-fallback (no clear auto spot): {refdes_unplaced}")
     bb.write(pcb, prop_overrides=refdes_ov)
@@ -380,10 +398,12 @@ def main():
             print(f"  [{cat}] {msg}")
         return 1
 
-    core.render_board(pcb, OUT / "render_top.png", "top")
-    core.render_board(pcb, OUT / "render_bottom.png", "bottom")
-    core.export_svg(pcb, OUT / "doc_top.svg",
-                    "F.Cu,F.SilkS,F.Mask,Edge.Cuts,F.CrtYd")
+    import os as _os
+    if not _os.environ.get("SKIP_RENDER"):
+        core.render_board(pcb, OUT / "render_top.png", "top")
+        core.render_board(pcb, OUT / "render_bottom.png", "bottom")
+        core.export_svg(pcb, OUT / "doc_top.svg",
+                        "F.Cu,F.SilkS,F.Mask,Edge.Cuts,F.CrtYd")
     print(f"[ok] {pcb.name}: {len(bb.b.footprints)} footprints, "
           f"{len(bb.b.nets)} nets, DRC clean (accepted: "
           f"{ {k: counts.get(k, 0) for k in DRC_ACCEPTED} })")

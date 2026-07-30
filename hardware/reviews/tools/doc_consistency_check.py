@@ -622,6 +622,7 @@ CANONICAL_BOM = REPO / "hardware/layout/cp1_bom.md"
 # (module/manual naming differences) — map to the token that should.
 MANIFEST_TO_BOM_ALIAS = {
     "MSTB 2,5/2-ST-5,08 (1757019)": "1757019",
+    "MSTBA 2,5/2-G-5,08 (1757242, J1 board header)": "1757242",
     "LCD1 Waveshare 4.2\" e-Paper Module (B)": "Waveshare",
     "8125SHZBE (BTN1 battery override)": "8125SHZBE",
     "RJHSE-5380": "RJHSE5380",

@@ -600,11 +600,10 @@ def _restore_properties(board_text, prop_overrides=None):
             if ov:
                 dx, dy, ang = ov[:3]
                 blk = blk.replace(bat.group(0), f'(at {dx} {dy} {ang})', 1)
-                if len(ov) > 3:   # compact font for dense rows
-                    f = ov[3]
+                if len(ov) > 3:   # explicit font (floored at fab minimum)
+                    f = max(ov[3], 1.0)
                     blk = re.sub(r'\(size [\d.]+ [\d.]+\)',
                                  f'(size {f} {f})', blk, count=1)
-                    blk = blk.replace('(thickness 0.15)', '(thickness 0.12)')
             elif bat and rot:
                 la = float(bat.group(3)) if bat.group(3) else 0.0
                 na = _norm_text_angle(la + rot)
@@ -630,7 +629,7 @@ def _rects_overlap(a, b, margin=0.15):
 
 def auto_refdes(components, placement, board_w, board_h,
                 extra_rects=(), big_area=80.0,
-                char_w=1.0, text_h=1.4, manual=None):
+                char_w=0.95, text_h=1.45, manual=None, banned=None):
     """Greedy refdes placement on silk. For each part (row order), try the
     candidate spots N/S/E/W of the courtyard (3 offset rings) plus, for
     large parts, the body center; take the first spot clear of every pad
@@ -653,7 +652,7 @@ def auto_refdes(components, placement, board_w, board_h,
         xs = [p[0] for p in corners]; ys = [p[1] for p in corners]
         # silk outlines run ~0.1-0.3 mm outside the fab outline; inflate the
         # obstacle so text never kisses a neighbour's (or its own) silk
-        body = (min(xs) - 0.15, min(ys) - 0.15, max(xs) + 0.15, max(ys) + 0.15)
+        body = (min(xs) - 0.25, min(ys) - 0.25, max(xs) + 0.25, max(ys) + 0.25)
         pb = d.pads_bbox
         pcorners = [core_xf(p, x, y, rot, side == "B") for p in
                     [(pb[0], pb[1]), (pb[2], pb[1]), (pb[2], pb[3]),
@@ -675,8 +674,8 @@ def auto_refdes(components, placement, board_w, board_h,
     for ref, mv in manual.items():
         bx, by, ang = mv[:3]
         font = mv[3] if len(mv) > 3 else None
-        cw = 0.78 if font else char_w
-        th = 1.1 if font else text_h
+        cw = char_w
+        th = text_h
         tw = max(len(ref) * cw, 1.8)
         hw, hh = (tw / 2, th / 2) if ang == 0 else (th / 2, tw / 2)
         placed_text.append((bx - hw, by - hh, bx + hw, by + hh))
@@ -697,13 +696,19 @@ def auto_refdes(components, placement, board_w, board_h,
         cx, cy = (bx0 + bx1) / 2, (by0 + by1) / 2
         area = (bx1 - bx0) * (by1 - by0)
         chosen = None
-        # attempt full-size text, then a compact 0.8 mm font
-        for cw, th, font in ((char_w, text_h, None), (0.78, 1.1, 0.8)):
+        # single font tier: JLCPCB's silk floor is 1.0 mm height / 0.15 mm
+        # stroke ("characters less than this will be unidentifiable" —
+        # capability page, fetched 2026-07-30). A 0.8 mm 'compact' tier
+        # shipped here briefly and died in self-review.
+        for cw, th, font in ((char_w, text_h, None),):
             tw = max(len(ref) * cw, 1.8)
             cands = []
-            for ring in (0.45, 0.9, 1.6, 2.3):
+            # N/S rings must be >= a text height apart or adjacent rows'
+            # candidates overlap and dense rows exhaust their spots
+            for ring in (0.45, 0.45 + th + 0.2, 0.45 + 2 * (th + 0.2)):
                 cands.append((cx, by0 - ring - th / 2, 0))          # N
                 cands.append((cx, by1 + ring + th / 2, 0))          # S
+            for ring in (0.45, 0.9, 1.6, 2.3):
                 cands.append((bx1 + ring + tw / 2, cy, 0))          # E
                 cands.append((bx0 - ring - tw / 2, cy, 0))          # W
                 # vertical text in the horizontal gaps
@@ -718,6 +723,11 @@ def auto_refdes(components, placement, board_w, board_h,
                 rect = (tcx - hw, tcy - hh, tcx + hw, tcy + hh)
                 if rect[0] < 0.5 or rect[1] < 0.5 or \
                    rect[2] > board_w - 0.5 or rect[3] > board_h - 0.5:
+                    continue
+                # DRC-refuted spots (empirical calibration — the refine
+                # loop bans positions the real glyph geometry rejected)
+                if banned and any(abs(tcx - bx) < 0.8 and abs(tcy - by) < 0.8
+                                  for bx, by in banned.get(ref, ())):
                     continue
                 if any(_rects_overlap(rect, pr) for pr in pad_rects):
                     continue

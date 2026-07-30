@@ -14,7 +14,13 @@ last_updated_at: 2026-07-30T00:00:00Z
 last_updated_by: claude-designer
 
 note: >
-  DESIGNER: CP3 initial battery-side placement ready for review.
+  DESIGNER: CP3 battery-side placement ready for review — INCLUDING a
+  post-handoff adversarial self-review round (packet 4.5): silk font
+  floored at the JLCPCB 1.0mm/0.15mm minimum with dense rows re-spaced
+  to zero silk findings, DRC-oracle refdes refinement loop
+  (refine_refdes.py), D1/TVS1 current-path fix, Phoenix 1757242 header
+  footprint dimension-verified, packet claims corrected to match what
+  was actually verified.
   123 parts + 4 holes on 100x80, placement-only, all-top-side. New
   generator hardware/kicad/pcb/{core,build}.py with full gate stack
   (parity/courtyard/outline/fab/readback/orientation probes/strict

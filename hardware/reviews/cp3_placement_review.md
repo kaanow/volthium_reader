@@ -60,9 +60,9 @@ Isolated channels (D36/DR-26): vertical columns at x≈59.5/82 — logic
 row, ADM2587E **rotated so the package isolation barrier runs
 horizontally** (probed + asserted), iso island (supply π-filter under
 its own pins, protection/term row), jack. Cross-domain pad separation
-measured: logic↔iso1 ≥3.71 mm (J7.2→R22.1), iso1↔iso2 ≥4.73 mm,
-logic↔iso2 ≥16.7 mm — vs ~0.6 mm IPC-2221 for <100 V functional
-isolation. CP5 note: B.Cu pour must split along y≈47 under U10/U11
+measured on the final layout: logic↔iso1 ≥4.24 mm (the J6/J10 jack
+shells — fixed by jack pitch), logic↔iso2 ≥10.85 mm, iso1↔iso2
+≥4.95 mm — vs ~0.6 mm IPC-2221 for <100 V functional isolation. CP5 note: B.Cu pour must split along y≈47 under U10/U11
 (barrier line), islands per channel.
 
 ## 4. Findings made and fixed during self-review (selection)
@@ -107,28 +107,75 @@ re-run green (see footprints README provenance row).
 - Iso supply caps re-ordered under their own pins (V_ISOOUT west /
   V_ISOIN east), beads to a second row.
 
+### 4.5 Self-review round 2 (post-handoff adversarial pass, 2026-07-30)
+
+Run after the first handoff commit, against the reviewer skill's own
+bar. Findings — all fixed before the reviewer picked the packet up:
+
+1. **Silk font below the fab floor (order-blocking class).** The refdes
+   auto-placer's "compact" tier used 0.8 mm / 0.12 mm text; JLCPCB's
+   capability page (fetched 2026-07-30) sets the floor at **1.0 mm
+   height / 0.15 mm stroke** ("characters less than this will be
+   unidentifiable"). Every silk text is now at or above the floor; the
+   dense rows were physically re-spaced to make legal-size labels fit
+   (iso islands restructured into column pairs with dedicated ref
+   bands; the 8–11-character expansion refdes became a legend-style
+   column with west-side labels; J5 relocated; series-R out of the cap
+   bank; VCC/iso cap banks re-seated under their PROBED supply-pin x).
+2. **DRC-as-oracle refinement loop** (`refine_refdes.py`): rather than
+   hand-tuning the analytic glyph model against every descender, the
+   loop bans each DRC-refuted refdes position and re-places until the
+   REAL geometry accepts — final state: **zero silk findings**. The
+   loop initially judged a stale report when a build died before DRC
+   (the same stale-artifact class as the schematic-era export lesson) —
+   now transactional: report deleted before each build, missing report
+   = hard stop.
+3. **Current-path fix**: D1/TVS1 sat at the fuse's INPUT end, forcing
+   the 1 A V24 path to double back ~20 mm; moved to F1's output end so
+   J1 → F1 → D1 → V24_FUSED star flows monotonically.
+4. **Phoenix J1 footprint dimension-verified against the exact ordered
+   header** (MSTBA 2,5/2-G-5,08, order no. 1757242 — datasheet fetched
+   via the parts API, archived as `1757242.pdf`, manifest row added):
+   pitch 5.08 ✓, hole Ø1.4 ✓, pin 1×1 mm ✓ vs the stock footprint's
+   5.08 / Ø1.4 / 2.08×3.6 pads. (The PDF previously on file, 1757019,
+   is the mating plug — a sibling object, not evidence for the header.)
+5. **Packet honesty corrections**: the D11 section now states exactly
+   which crops were designer-read; PR-11's evidence names the actual
+   verification (grep of the severity-all report), not a category name
+   recalled from memory.
+
 ## 5. PR-8 enumeration (decoupler pad-edge distances)
 
-After fixes, every 0.1 µF/0.01 µF HF decoupler measures **< 3.0 mm**
-pad-edge to its IC pin. Four 10 µF bulk caps measure 3.0–4.3 mm
-(C23/C33 → VCC banks, C24/C34 → iso supplies, C6 → MOD1), each sitting
-deliberately BEHIND its HF partner — moving bulk inside 3 mm would
-displace the HF caps and worsen the actual high-frequency loop. C5
-(36.6 mm to the ADC pin) is the §11.2#3 quiet-divider filter — the
-long filtered-DC run is the design. C11 lives at the button header it
-debounces. C_mux/C2/C4/C1/C3 are bulk/reservoir roles at their nodes.
+Final measurement (after the self-review re-seat of every bank under
+its PROBED supply-pin x): every 0.1 µF/0.01 µF HF decoupler measures
+**< 3.0 mm** pad-edge to its IC pin. Exactly five 10 µF bulk caps
+exceed 3 mm — C23/C33 (VCC banks, 5.2), C24/C34 (iso supplies, 3.0),
+C6 (MOD1, 4.3) — each deliberately BEHIND its HF partner; moving bulk
+inside 3 mm would displace the HF caps and worsen the actual
+high-frequency loop. C5 (quiet-divider filter, §11.2#3), C11 (at the
+button header it debounces), and C_mux/C2/C4/C1/C3 (bulk/reservoir
+roles at their nodes) are excluded by role, each on record here.
 
-## 6. D11 visual inspection — iter 1
+## 6. D11 visual inspection — iter 1 (post self-review round 2)
 
 Full-page renders + 8 region crops at
-`visual_inspections/cp3-placement/iter1/`:
-`nw_divider_uvlo, w_power_entry, buck_control, mod1_rtc, usb_east,
-sw_comms_xanbus, iso_ch1, iso_ch2_ne` (+ `build/render_top.png`,
-`render_bottom.png`, snapshot of the .kicad_pcb alongside).
-Read in full at working zoom. Findings: **none open** — every refdes
-legible, every polarity mark visible (SMA cathode bars, SOT-23 pin-1,
-SOIC dots, RJ45 pin-1 triangles), bottom side bare (single-sided
-assembly confirmed).
+`visual_inspections/cp3-placement/iter1/` (+ snapshots/). Designer read:
+the FULL top render end-to-end, plus `iso_ch1`, `sw_comms_xanbus`,
+`buck_control` at crop zoom (the three densest regions). The other five
+crops are provided for the reviewer's independent read (per protocol the
+reviewer generates their own evidence regardless).
+
+Findings from the read — all dispositioned, none open:
+- every refdes legible at the 1.0 mm/0.15 mm fab-minimum font; zero
+  DRC silk findings;
+- polarity/pin-1 marks visible: SMA cathode bars (TVS1/TVS2/TVS3/D1),
+  SOT-23 pin-1 ticks, SOIC dots (U3/U7/U10/U11), RJ45 + IDC pin-1
+  triangles, SSR1 notch;
+- three floating-label notes (label >3 mm from its part, but no
+  ambiguous partner in the gap): C_usb1, L11/L13 (bead labels beside
+  the U10/U11 bodies), R_byp1 (label midway to C2 — C2 carries its own
+  adjacent label, so the association resolves);
+- bottom render bare — single-sided assembly confirmed.
 
 ## 7. D13 scorecard
 
@@ -151,7 +198,7 @@ assembly confirmed).
 | PR-8 | PASS | §5 mechanical enumeration: all HF decouplers <3 mm; bulk exceptions listed per-instance with role rationale |
 | PR-9 | PASS | §3 + D38; connector edges/holes per cp1 §2 (updated) |
 | PR-10 | PASS | RS485 A/B adjacent (U3.6/7→J2.4/5 short); CANH/L adjacent + term/jumper inline; USB D± through inline ESD, common corridor |
-| PR-11 | PASS | solder_mask_bridge count 0 in full-severity DRC |
+| PR-11 | PASS | zero mask-bridge entries of any name in the --severity-all DRC report (grep of the committed drc.rpt; the report enumerates every violation class it found) |
 | PR-12 | PASS | same as F-P-3 |
 
 ## 8. Reviewer findings
