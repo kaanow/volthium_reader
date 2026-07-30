@@ -2329,3 +2329,41 @@ daughterboard), so light. Populate at CP2 if the add-on class warrants.
 
 **Status.** Extends approved CP1 → covered by the same CP1-delta review
 pass as D36 (logged under **DR-27**).
+
+## D38 — CP3 battery-side placement decisions (outline, antenna, USB run, iso columns)
+
+**Date**: 2026-07-30 (CP3 initial placement, `hw/cp3-placement`)
+
+Four placement-level decisions taken while deriving the battery-side
+floorplan (generator: `hardware/kicad/pcb/build.py`; evidence in
+`hardware/reviews/cp3_placement_review.md`):
+
+1. **Board outline 100 × 80 mm**, mounting holes M3 at
+   (4,4)/(96,4)/(4,76)/(96,76). Driven by: 4× RJ45 (19.6 mm courtyards)
+   + clearance on the south cable edge, Phoenix on the west edge, and
+   the module antenna on the north edge. All-top-side assembly (the
+   allowed double-sided option was not needed — one paste/reflow pass,
+   R15).
+
+2. **Antenna overhang (supersedes the on-board 15×6 keepout plan).**
+   MOD1 sits with the module body fully on-board and the antenna
+   section cantilevered past the N edge — no PCB, no copper, no
+   enclosure metal under the antenna at all. Espressif permits
+   board-edge antenna placement; overhang is the stronger version of
+   the keepout. The stock footprint's 48 mm courtyard arm (Espressif's
+   recommended clearance region) falls entirely off-board.
+
+3. **USB-C stays on the E edge (D22 serviceability) accepting a ~60 mm
+   FS-USB run** to the module's west-side USB pins (routed as a
+   differential pair at CP5 through the y≈21–23 corridor south of the
+   module). Full-speed USB tolerates far longer than 60 mm; the
+   alternative (west-edge USB) collides with the power-entry column.
+
+4. **Isolated pack-read channels as vertical columns** (jack S → iso
+   island → ADM2587E → logic row N), with the transceivers rotated so
+   the package's internal isolation barrier runs horizontally (logic
+   pins 1-10 north / iso pins 11-20 south — probed and asserted in the
+   generator). The CP5 pour split follows the barrier line. Measured
+   minimum cross-domain pad separation: 3.7 mm logic↔iso1 (J7 to
+   R22), 4.7 mm iso1↔iso2 — an order of magnitude above the ~0.6 mm
+   IPC-2221 requirement for the <100 V functional isolation in play.

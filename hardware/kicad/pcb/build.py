@@ -100,7 +100,7 @@ pl("R_opto", 35.0, 40.5, 90)
 pl("R_inrush1", 18.0, 47.0, 0)
 pl("R_inrush2", 24.0, 47.0, 0)
 pl("U2", 33.0, 49.0, 0)
-pl("C3", 18.0, 52.0, 0)      # U2 Vin bulk (V24_SW)
+pl("C3", 24.0, 52.0, 0)      # U2 Vin bulk (V24_SW), adjacent pin 1 (affinity review)
 pl("C4", 43.0, 50.0, 90)     # V12_CAT5E out bulk
 pl("TVS3", 48.0, 46.0, 90)     # V12 clamp
 
@@ -117,8 +117,8 @@ pl("R_ILIM", 46.0, 35.5, 0)
 # N: MCU module + decoupling + south control band
 # ---------------------------------------------------------------------------
 P["MOD1"] = (40.0, 6.75, 0, "F")           # antenna overhangs N (D-CP3-1)
-pl("C6", 28.0, 10.0, 90)     # 10u at module W edge (pin 2)
-pl("C7", 28.0, 14.0, 90)
+pl("C7", 28.0, 4.5, 90)      # 100n HF decoupler CLOSEST to MOD1 pin 2 (probed at 31.25,2.76)
+pl("C6", 28.0, 8.5, 90)      # 10u bulk behind it
 # control band south of module body (y 22.3..25.7)
 pl("R4", 32.2, 24.0, 90)     # PWR_EN pulldown
 pl("R7", 35.4, 24.0, 90)     # EN pull-up
@@ -155,9 +155,9 @@ pl("U-ESD", 83.0, 21.0, 0)
 pl("R_cc1", 83.0, 25.0, 0)
 pl("R_cc2", 83.0, 28.0, 0)
 pl("C_usb1", 79.0, 21.0, 90)
-pl("U5", 75.0, 21.0, 0)
+pl("U5", 75.0, 21.0, 180)   # VIN pins face E toward VBUS (PR-8 review)
 pl("C_usb2", 71.0, 21.0, 90)
-pl("U6", 67.0, 21.0, 0)
+pl("U6", 67.0, 21.0, 180)   # VIN1/PR1 face E toward U5
 pl("C_mux", 64.5, 21.0, 90)
 
 # ---------------------------------------------------------------------------
@@ -167,7 +167,7 @@ pl("J2", 18.0, 73.0, 180)
 pl("U3", 18.0, 58.5, 0)
 pl("C10", 22.5, 58.5, 90)    # U3 decoupling
 pl("R10", 13.0, 54.0, 90)    # 120R term
-pl("J4", 23.5, 53.5, 0)       # term-lift jumper
+pl("J4", 19.5, 52.5, 0)       # term-lift jumper
 pl("TVS2", 8.0, 58.0, 0)       # A-B differential clamp
 
 # S-center: Xanbus CAN (J6 + U7 TCAN332 + Q5 power gate)
@@ -201,19 +201,19 @@ def iso_channel(jref, uref, qref, rpwr, rtx, beads, tvs, rs, cs, bridge, x0):
     pl(qref, x0 - 7.0, 37.5, 0)
     pl(rpwr, x0 - 3.8, 37.5, 90)
     pl(rtx, x0 - 1.2, 37.5, 90)
-    pl(cs[0], x0 + 1.4, 37.5, 90)
-    pl(cs[1], x0 + 4.0, 37.5, 90)
-    pl(cs[2], x0 + 6.6, 37.5, 90)
-    pl(cs[3], x0 + 9.6, 37.5, 90)
+    pl(cs[0], x0 + 1.4, 39.3, 90)
+    pl(cs[1], x0 + 4.0, 39.3, 90)
+    pl(cs[2], x0 + 6.6, 39.3, 90)
+    pl(cs[3], x0 + 9.6, 39.3, 90)
     # bridge cap beside the package, spanning the barrier line
     pl(bridge, x0 + 8.5, 47.0, 90)
     # iso island: supply row
-    pl(beads[0], x0 - 6.0, 55.5, 0)
-    pl(beads[1], x0 - 6.0, 58.5, 0)
-    pl(cs[4], x0 - 2.2, 56.0, 90)
-    pl(cs[5], x0 + 0.8, 56.0, 90)
-    pl(cs[6], x0 + 3.8, 56.0, 90)
-    pl(cs[7], x0 + 6.4, 56.0, 90)
+    pl(beads[0], x0 - 1.0, 57.8, 0)
+    pl(beads[1], x0 - 5.0, 57.8, 0)
+    pl(cs[4], x0 - 2.2, 54.9, 90)
+    pl(cs[5], x0 - 4.7, 54.9, 90)
+    pl(cs[6], x0 + 4.0, 54.9, 90)
+    pl(cs[7], x0 + 6.2, 54.9, 90)
     # iso island: bus protection / termination row
     pl(rs[0], x0 - 6.5, 60.3, 0)     # 10R protect A
     pl(rs[1], x0 - 6.5, 63.6, 0)     # 10R protect B
@@ -262,7 +262,6 @@ MANUAL_REFDES = {
     "R_exp_pu": (74.0, 15.3, 0, 0.8),
     "R_exp_bleed": (77.4, 17.0, 0, 0.8),
     "R_byp2": (59.2, 29.5, 90, 0.8),
-    "C20": (58.9, 35.05, 0, 0.8),
     "D10": (55.6, 62.0, 90, 0.8),
     "D11": (77.9, 62.0, 90, 0.8),
     "R_byp2b": (61.5, 32.5, 90, 0.8),

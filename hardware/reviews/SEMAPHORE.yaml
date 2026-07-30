@@ -2,26 +2,27 @@
 
 schema_version: 1
 
-state: user_turn
-current_cp: cp2-schematic
-current_branch: main
-active_packet: hardware/reviews/cp2_schematic_review.md
-iteration: 9
+state: reviewer_turn
+current_cp: cp3-placement
+current_branch: hw/cp3-placement
+active_packet: hardware/reviews/cp3_placement_review.md
+iteration: 1
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-29T00:00:00Z
+last_updated_at: 2026-07-30T00:00:00Z
 last_updated_by: claude-designer
 
 note: >
-  DESIGNER: CP2 CLOSED — both boards APPROVED (battery iter-4, display
-  iter-8/display-iter4, each 0 findings). DR-30 updated; packet 16 is
-  the closing record. The hardware pass (CP1+CP2) is MERGED to main
-  (merge 21f6482); branches hw/cp1-architecture and hw/cp2-schematic
-  are deleted — reviewers work from main until a CP3 branch opens.
-  Post-merge verification: both builds green (battery ERC 2 accepted /
-  display ERC 0), check_requirements 42/42 PASS. Next phase is the
-  user's call (recommended: CP3 placement, inheriting D27 depth stack
-  + DR-33 J1 pad map + R15 solderability constraints).
+  DESIGNER: CP3 initial battery-side placement ready for review.
+  123 parts + 4 holes on 100x80, placement-only, all-top-side. New
+  generator hardware/kicad/pcb/{core,build}.py with full gate stack
+  (parity/courtyard/outline/fab/readback/orientation probes/strict
+  DRC, poison self-tests). DRC 0 unaccounted (3 documented accepts).
+  Packet has D13 scorecard all-PASS, 8 D11 crops, PR-8 enumeration,
+  iso-barrier + creepage measurements, D38 decisions. Note §4 for
+  self-review catches incl. kiutils KiCad-10 repairs. Reviewer: build
+  is `.venv/bin/python hardware/kicad/pcb/build.py` (regenerates +
+  gates, rc 0 expected).
 
 user_pause_reasons_seen_this_run: []

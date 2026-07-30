@@ -596,23 +596,23 @@ before claiming "N errors."
 
 ### 12b. kiutils cannot read the post-route board — edit placement, regenerate, reroute
 
-`kiutils` (used by `build_pcbs.py`) parses the KiCad-10 board only well
-enough to *write* a fresh one (`Board.create_new()`); it throws
-`IndexError` trying to *read* a board that pcbnew/Freerouting saved
-(KiCad-10 `(net ...)` syntax it doesn't model). So there is **no
-surgical kiutils edit of a routed `.kicad_pcb`.** To change anything
-geometric:
+`kiutils` parses the KiCad-10 board only well enough to *write* a fresh
+one (`Board.create_new()`); it throws trying to *read* a board that
+pcbnew/Freerouting saved. So there is **no surgical kiutils edit of a
+routed `.kicad_pcb`.** The supported path (current pass, CP3+):
 
-1. Edit the `BATTERY_PLACEMENT` / `DISPLAY_PLACEMENT` constants in
-   `build_pcbs.py`.
-2. Regenerate placement-only (fast, no routing):
-   `.venv/bin/python hardware/kicad/build_pcbs.py --battery`
-3. Validate placement with `kicad-cli pcb drc` *before* routing.
-4. Only once placement DRC is clean, route:
-   `... build_pcbs.py --battery --autoroute` (several minutes).
+1. Edit the placement data in `hardware/kicad/pcb/build.py`
+   (`pl(ref, x, y, rot, side)` calls; shared mechanics + gates live in
+   `hardware/kicad/pcb/core.py`).
+2. Regenerate: `.venv/bin/python hardware/kicad/pcb/build.py` — the
+   build runs its own gate stack (parity, courtyard, outline, fab
+   rules, readback, strict full DRC with accounted exclusions) and
+   fails non-zero on any finding.
+3. Routing (CP5) reruns the same generator; never hand-edit the
+   emitted `.kicad_pcb`.
 
-This placement→DRC→reroute loop is the supported path. Trying to hand-
-edit the routed file will fail or corrupt it.
+(The pass-1 flow this section used to describe lives in
+`hardware/kicad/archive/pass1_pcb/`.)
 
 ### 12c. Read real pad geometry with pcbnew, not kiutils
 

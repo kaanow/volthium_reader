@@ -29,11 +29,11 @@ Where this CP1 doc disagrees with the cross-references, **CP1 wins**.
 
 | Dimension      | Target               | Constraint source                           |
 |----------------|----------------------|---------------------------------------------|
-| Board outline  | **TBD — derived at CP3 placement** | Form factor unconstrained (D10/D20): "as small as comfortable, never artificially large." No pre-set size |
+| Board outline  | **100 × 80 mm** (derived at CP3 — D38; driven by the 4-jack south edge + Phoenix west + module-antenna north) | Form factor unconstrained (D10/D20): "as small as comfortable, never artificially large" |
 | Thickness      | 1.6 mm               | JLCPCB default, lowest cost                 |
-| Layers         | 2 (top + bottom; **double-sided assembly OK**) | Trace counts low; 2L sufficient |
-| Mounting holes | 4× M3 corner, 3.2 mm | To 3D-printed standoffs/bracket; coords set with the outline at CP3 |
-| Antenna keepout | 15×6 mm at the PCB-antenna edge | ESP32-S3-WROOM-1 (**`-1`, PCB antenna** — D21) |
+| Layers         | 2 (top + bottom; **double-sided assembly OK** — CP3 used top-only) | Trace counts low; 2L sufficient |
+| Mounting holes | 4× M3 corner, 3.2 mm at (4,4) (96,4) (4,76) (96,76) — set at CP3 | To 3D-printed standoffs/bracket |
+| Antenna keepout | module antenna section **overhangs the N board edge** (D38 — supersedes the on-board 15×6 keepout: no PCB under the antenna at all) | ESP32-S3-WROOM-1 (**`-1`, PCB antenna** — D21) |
 | Maintenance port | board-edge USB-C | Native ESP32-S3 USB, accessible without opening (D22) |
 
 **Enclosure (D20):** user-3D-printed **plastic** box, **IP5x** (dust,
