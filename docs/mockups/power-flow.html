@@ -114,11 +114,13 @@ details.sys summary { color: var(--text-3); font-size: 13px; cursor: pointer; us
         <stop id="mix1" offset="1" stop-color="#2a78d6"/>
       </linearGradient>
     </defs>
-    <path id="w-solar" class="wire" d="M 150 78 C 240 78, 250 120, 300 148"/>
-    <path id="w-batt"  class="wire" d="M 150 246 C 240 246, 250 204, 300 176"/>
-    <path id="w-inv"   class="wire" d="M 350 162 L 470 162"/>
-    <path id="w-gen"   class="wire" d="M 660 78 C 570 78, 560 120, 520 148"/>
-    <path id="w-load"  class="wire" d="M 520 176 C 560 204, 590 246, 660 246"/>
+    <!-- wires run to the box CENTERS; boxes are drawn after, so dots glide
+         underneath and are swallowed rather than popping at the edge -->
+    <path id="w-solar" class="wire" d="M 150 78 C 240 78, 260 120, 325 158"/>
+    <path id="w-batt"  class="wire" d="M 150 246 C 240 246, 260 204, 325 166"/>
+    <path id="w-inv"   class="wire" d="M 325 162 L 495 162"/>
+    <path id="w-gen"   class="wire" d="M 660 78 C 570 78, 550 120, 495 158"/>
+    <path id="w-load"  class="wire" d="M 495 166 C 550 204, 590 246, 660 246"/>
 
     <rect class="bus" x="298" y="128" width="54" height="68" rx="12"/>
     <text class="buslbl" x="325" y="167" text-anchor="middle">DC</text>
@@ -206,23 +208,45 @@ const wires = {
   "w-gen":   { color: "--gen",   getW: s => s.gen },
   "w-load":  { color: "url", getW: s => s.load },
 };
+/* JS-driven dots (not SMIL): phase advances by dt/duration each frame, so a
+   speed change alters velocity WITHOUT moving the dot — no restarts, no
+   snapping. Dots fade in/out at the path ends and are inserted directly
+   after their path, i.e. BELOW the bus boxes in paint order. */
 const particles = {};
 for (const id of Object.keys(wires)) {
   const path = $(id), group = [];
   for (let k = 0; k < 3; k++) {
     const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     c.setAttribute("r", 3.2);
-    const m = document.createElementNS("http://www.w3.org/2000/svg", "animateMotion");
-    m.setAttribute("repeatCount", "indefinite");
-    m.setAttribute("begin", `${k * 0.85}s`);
-    const mp = document.createElementNS("http://www.w3.org/2000/svg", "mpath");
-    mp.setAttribute("href", `#${id}`);
-    m.appendChild(mp); c.appendChild(m);
-    path.parentNode.appendChild(c);
-    group.push({ c, m });
+    path.parentNode.insertBefore(c, path.nextSibling);
+    group.push({ c, phase: k / 3 });
   }
-  particles[id] = group;
+  particles[id] = { dots: group, len: path.getTotalLength(), path,
+                    watts: 0, active: false, rev: false };
 }
+let lastFrame = performance.now();
+function animateDots(nowMs) {
+  const dt = Math.min(0.1, (nowMs - lastFrame) / 1000);
+  lastFrame = nowMs;
+  for (const p of Object.values(particles)) {
+    const dur = Math.max(0.9, Math.min(6, 1400 / Math.max(p.watts, 1)));
+    const nShow = p.active ? 1 + Math.min(2, Math.floor(p.watts / 350)) : 0;
+    p.dots.forEach((d, k) => {
+      if (k >= nShow) { d.c.style.display = "none"; return; }
+      d.c.style.display = "";
+      d.phase = (d.phase + dt / dur) % 1;
+      const at = p.rev ? 1 - d.phase : d.phase;
+      const pt = p.path.getPointAtLength(at * p.len);
+      d.c.setAttribute("cx", pt.x);
+      d.c.setAttribute("cy", pt.y);
+      // ease in from the source, fade as the bus swallows it
+      const o = Math.min(1, d.phase / 0.12, (1 - d.phase) / 0.12);
+      d.c.style.opacity = (0.15 + 0.85 * o).toFixed(2);
+    });
+  }
+  requestAnimationFrame(animateDots);
+}
+requestAnimationFrame(animateDots);
 function mixHex(pairs) {                 // [[hex, weight], ...] -> hex
   let r = 0, g = 0, b = 0, W = 0;
   for (const [hex, w] of pairs) {
@@ -238,28 +262,21 @@ function drawFlow(s) {
   for (const [id, w] of Object.entries(wires)) {
     const watts = w.getW(s);
     const path = $(id);
-    const active = watts > 8;
+    const p = particles[id];
+    p.watts = p.watts * 0.7 + watts * 0.3;            // smooth -> steady dot speed
+    p.active = p.watts > 8;
+    // paths are drawn source->bus (solar, gen, batt) or DC->AC (inv) or
+    // AC->loads; reverse when the physical flow is the other way
+    p.rev = (id === "w-batt" && battCharging) ||
+            (id === "w-inv" && scen.inv === "passthrough");
     path.style.stroke = w.color === "url" ? "url(#loadmix)" : `var(${w.color})`;
     path.style.strokeWidth = 3;                       // constant — power lives in the dots
-    path.style.opacity = active ? 0.9 : 0.22;
-    const dur = Math.max(0.55, Math.min(6, 900 / Math.max(watts, 1)));
-    particles[id].forEach(({ c, m }, k) => {
-      c.style.fill = css("--text-1");                 // contrasting dots
-      c.style.stroke = css("--surface");
-      c.style.strokeWidth = 1;
-      c.style.display = active && k < 1 + Math.min(2, watts / 350) ? "" : "none";
-      if (m.getAttribute("dur") !== `${dur}s`) m.setAttribute("dur", `${dur}s`);
-      // paths are drawn source->bus (solar, gen, batt) or DC->AC (inv) or
-      // AC->loads; reverse when the physical flow is the other way
-      const rev = (id === "w-batt" && battCharging) ||
-                  (id === "w-inv" && scen.inv === "passthrough");
-      const kp = rev ? "1;0" : "0;1";
-      if (m.getAttribute("keyPoints") !== kp) {
-        m.setAttribute("keyPoints", kp);
-        m.setAttribute("keyTimes", "0;1");
-        m.setAttribute("calcMode", "linear");
-      }
-    });
+    path.style.opacity = p.active ? 0.9 : 0.22;
+    for (const d of p.dots) {
+      d.c.style.fill = css("--text-1");               // contrasting dots
+      d.c.style.stroke = css("--surface");
+      d.c.style.strokeWidth = 1;
+    }
   }
   $("t-solar").textContent = `${Math.round(s.solar)} W`;
   $("t-gen").textContent = `${Math.round(s.gen)} W`;
