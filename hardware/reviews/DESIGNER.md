@@ -403,8 +403,10 @@ When done, hand back to agent-reviewer via `state: reviewer_turn`.
 ```bash
 python3 hardware/reviews/tools/doc_consistency_check.py
 python3 hardware/reviews/tools/handoff_check.py   # CP3+: rebuilds every
-# generator and fails on ANY committed-artifact drift or stale packet
-# hash (builds are deterministic by construction — CP3 F01)
+# generator and fails on ANY committed-artifact drift, untracked
+# deterministic artifact, or stale packet hash. Run it AFTER committing
+# — it hashes HEAD blobs, not worktree bytes (CP3 F01/F05/F06). Packet
+# hashes = git blob sha256 (worktree bytes lie on autocrlf clones).
 ```
 
 Exit 0 required. It re-checks the append-only registry of every token
