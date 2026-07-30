@@ -469,6 +469,68 @@ outside CP3 scope.
 
 **REVIEW COMPLETE**: NEEDS CHANGES — 2 blockers, 1 important. (See findings 05, 06, 07.)
 
+## 8.3 Reviewer findings (iteration 5)
+
+Reviewed commit: `035394a`
+
+### Finding 08 - BLOCKER - hardware/reviews/tools/handoff_check.py:74-87
+**Issue**: The mandatory pre-handoff gate still exits 1 on Windows even
+though all three rebuilds complete at rc 0. This rejects the handoff before
+the placement can be approved and disproves the packet's `HANDOFF: CLEAN`
+claim on the reviewer's supported host.
+
+**Evidence**: Two independent defects reproduce on the exact committed
+state. First, line 77 creates artifact keys with
+`str(Path.relative_to(...))`, yielding Windows backslashes, while
+`git ls-files` returns slash-separated paths; the set difference therefore
+labels every tracked artifact untracked. Second, `.gitattributes` requires
+LF, but the Windows generators rewrite deterministic text using
+platform-default CRLF. After the rebuild, the board contains 4,910 CRLFs
+and the battery netlist 12,317 CRLFs while both HEAD blobs contain zero;
+`git status --porcelain` reports them modified and the gate rejects their
+hashes. The packet's HEAD-blob hashes themselves are correct
+(`eda5076694c0...` and `448d59a276df...`). Full transcript and byte counts:
+`hardware/reviews/visual_inspections/cp3-placement/iter5/reviewer/handoff_check_transcript.txt`.
+
+**Suggested fix**: Build Git path keys with `.as_posix()` (or canonicalize
+both sets), and force `newline="\n"` at every deterministic generator
+write/normalization chokepoint, including kiutils-produced files. Keep the
+HEAD-blob hash logic. Acceptance is the exact bare handoff command returning
+0 after a rebuild in a fresh Windows clone with default
+`core.autocrlf=true`, with worktree bytes equal to the LF blobs.
+
+### Finding 09 - IMPORTANT - hardware/kicad/pcb/build.py:384 / hardware/layout/decisions.md:D38
+**Issue**: The changed documentation says `gate_edge_markers` covers both
+boards on every build and will protect CP4 automatically, but the method is
+not in a shared mandatory build sequence. The only call site is the
+battery-side `build.py`, so defining the method in `core.py` does not make a
+future display build execute it.
+
+**Evidence**: A repository-wide `rg gate_edge_markers` finds the method
+definition and one executable call at battery `build.py:384`; the other hits
+are prose. The battery implementation itself is effective: the committed J3
+position passes, while an independent in-memory poison at the old position
+fails 4.93 mm off the east edge. See
+`hardware/reviews/visual_inspections/cp3-placement/iter5/reviewer/geometry_second_opinion.txt`.
+
+**Suggested fix**: Put the edge-marker check in a shared mandatory placement
+gate runner/finalization chokepoint used by every board generator, or add an
+explicit call plus an isolated poison test to each board entry point. Until
+the CP4 call path exists and is tested, scope the packet/D38 claim to the
+battery build instead of saying both boards are automatically covered.
+
+Coverage: the reviewer ran the mandatory consistency gate; rebuilt the
+battery board with the exact bare Windows command; exercised the handoff
+gate and isolated both failure causes; ran direct KiCad DRC; compared all
+123 parts and 431 connected pad/net triples independently; verified J3's
+marker and 2.510 mm protrusion plus all four RJ45 fronts; poison-tested the
+new edge gate; generated independent top/bottom renders and eight crops;
+ran a different 123-reference geometry model; and spot-checked four on-file
+PDF citations. No manifest row or SKU cell changed. Routing remains outside
+CP3 scope.
+
+**REVIEW COMPLETE**: NEEDS CHANGES - 1 blocker, 1 important. (See findings 08, 09.)
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-07-30)

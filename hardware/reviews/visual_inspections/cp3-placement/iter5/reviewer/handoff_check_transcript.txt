@@ -1,0 +1,73 @@
+CP3 iteration 5 - Windows handoff precondition
+================================================
+
+Command
+-------
+python3 hardware/reviews/tools/handoff_check.py
+
+Result
+------
+Exit code: 1
+
+The three generator invocations completed:
+
+  [rebuild] schematic/build.py: rc=0
+  [rebuild] schematic/build_display.py: rc=0
+  [rebuild] pcb/build.py: rc=0
+
+The gate then failed every deterministic artifact as untracked and reported
+freshly rebuilt deterministic files as stale. Representative output:
+
+  [untracked] deterministic artifacts a fresh clone won't have
+    hardware\kicad\pcb\build\battery_pcb.kicad_pcb
+    hardware\kicad\schematic\build\volthium_reader.net
+    hardware\kicad\schematic\build_display\volthium_display.net
+
+  [stale] committed artifacts differ from a fresh rebuild
+    M hardware/kicad/pcb/build/battery_pcb.kicad_pcb
+    M hardware/kicad/schematic/build/volthium_reader.net
+    M hardware/kicad/schematic/build_display/volthium_display.net
+
+  [hash] hardware/kicad/schematic/build/volthium_reader.net has
+  uncommitted changes
+
+  [hash] hardware/kicad/pcb/build/battery_pcb.kicad_pcb has
+  uncommitted changes
+
+  HANDOFF: FAIL
+
+Independent root-cause probes
+-----------------------------
+
+1. Path normalization:
+
+  constructed = 'hardware\\kicad\\pcb\\build\\battery_pcb.kicad_pcb'
+  git output  = 'hardware/kicad/pcb/build/battery_pcb.kicad_pcb'
+  constructed-string membership in git output = False
+  POSIX-normalized membership in git output    = True
+
+`handoff_check.py` builds `paths` with `str(Path.relative_to(...))`, which
+uses backslashes on Windows. `git ls-files` emits slash-separated paths.
+The set difference therefore labels tracked files untracked.
+
+2. Line endings after the rebuild:
+
+  battery_pcb.kicad_pcb:
+    HEAD blob: 334694 bytes, 0 CRLF, 4910 LF
+    worktree:  339604 bytes, 4910 CRLF, 4910 LF
+
+  volthium_reader.net:
+    HEAD blob: 212320 bytes, 0 CRLF, 12317 LF
+    worktree:  224637 bytes, 12317 CRLF, 12317 LF
+
+The new `.gitattributes` requires `eol=lf`, but the Windows generators
+write text with platform-default newline translation. `git diff --quiet`
+returns 0 after the clean filter, while `git status --porcelain` reports
+the generated files modified. The mandatory gate uses the latter.
+
+3. Packet blob hashes are correct:
+
+  volthium_reader.net  eda5076694c0eb2f78d68b41e0ef326075d088bc80f29738a1c6afa4ba9f2d8d
+  battery_pcb.kicad_pcb 448d59a276df240e9254f6281bcc926b138e9d686dee38d6d331857798c333c5
+
+The generated build trees were restored to HEAD after these probes.

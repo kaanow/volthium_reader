@@ -1,0 +1,73 @@
+CP3 iteration 5 - independent geometry second opinion
+======================================================
+
+Input
+-----
+Committed hardware/kicad/pcb/build/battery_pcb.kicad_pcb at 035394a.
+
+Reference-text model
+--------------------
+An independent parser read visible F.SilkS Reference properties from the
+written board. It used a different box model from the designer's
+label-adjacency gate:
+
+  width  = max(character_count * 0.88 * nominal_font_height, 1.0 mm)
+  height = nominal_font_height
+
+Footprint transforms and text orientation were applied. A pair was flagged
+when its boxes overlapped on one axis and had less than 0.20 mm edge
+clearance on the other.
+
+  Visible component references checked: 123
+  Flagged pairs: 0
+
+The independent 3D top render and eight region crops agree. Previously
+problematic L10/R23 and L12/R33 remain visually distinct. The bottom render
+shows no bottom-side components.
+
+Edge-connector model
+--------------------
+The model parsed F.Fab line endpoints from each written footprint and
+transformed them directly from footprint-local coordinates. This does not
+use `BoardBuilder.gate_edge_markers`.
+
+  J2  F.Fab y max = 80.875 mm (0.875 mm proud of south edge)
+  J6  F.Fab y max = 80.875 mm (0.875 mm proud of south edge)
+  J10 F.Fab y max = 80.875 mm (0.875 mm proud of south edge)
+  J11 F.Fab y max = 80.875 mm (0.875 mm proud of south edge)
+
+For J3, the footprint anchor is (93.900, 27.975) at 90 degrees. The local
+F.Fab marker line from (-0.025, 6.1) to (5.975, 6.1) transforms to:
+
+  (100.000, 28.000) to (100.000, 22.000)
+
+Maximum marker-to-east-edge error: 0.000000 mm. The transformed F.Fab body
+extends to x = 102.510 mm, so the shell is 2.510 mm proud.
+
+The exact-object GCT drawing, USB4085_drawing.pdf page 2, shows the
+recommended PCB layout and the 2.10 mm plug/receptacle mating-view
+dimension. Reviewer render: usb4085_drawing_page2.png.
+
+Independent edge-gate poison
+----------------------------
+The committed J3 position produces no edge-marker finding. An in-memory
+copy moved 4.925 mm west (the pre-fix position) produces:
+
+  [edge-marker] J3: 'PCB Edge' reference line is 4.93 mm off the E edge
+
+This proves the battery build's new gate can reject the defect it was
+created to catch.
+
+Netlist/layout parity
+---------------------
+An independent balanced-parenthesis parser compared the exported netlist
+against the written board:
+
+  Netlist components: 123
+  Board components excluding H1-H4: 123
+  Missing/extra component references: 0 / 0
+  Connected (reference, pad, net) triples: 431 / 431
+  Missing/extra connected triples: 0 / 0
+
+Exact footprint identities match between netlist and board for MOD1, J1,
+J2, J3, J6, J10, J11, U10, and U11.
