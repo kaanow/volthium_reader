@@ -552,6 +552,58 @@ CP3 scope.
 
 **REVIEW COMPLETE**: NEEDS CHANGES - 1 blocker, 1 important. (See findings 08, 09.)
 
+## 8.4 Reviewer findings (iteration 7)
+
+Reviewed commit: `1caf827`
+
+### Finding 10 - BLOCKER - hardware/reviews/tools/handoff_check.py / hardware/kicad/schematic/core.py
+**Issue**: Finding 08 is not closed on the reviewer's Windows host: the
+mandatory handoff command still exits 1. The LF/path fixes themselves
+re-review cleanly, but repeated generator runs now expose a transient Windows
+`EINVAL` at both ordinary Python file-open and `kicad-cli` subprocess
+boundaries; the adequate-timeout handoff run reports all three rebuilds at
+rc=1.
+
+**Evidence**: The exact handoff command was rerun with a 600 s allowance
+(the battery build alone measures 155.6 s here) and returned
+`HANDOFF: FAIL (rebuild)` with battery schematic, display schematic, and PCB
+all at rc=1. Two isolated unmodified display builds failed at netlist export
+with `Invalid argument`; two others raised `OSError: [Errno 22] Invalid
+argument` while opening `sheet_d_mcu.kicad_sch` and
+`volthium_display.kicad_sch`. The identical direct netlist export and a
+1,000-write plain-Python control both return 0. A bounded in-memory Windows
+retry recovered from one real open `EINVAL` and one real KiCad-export
+`EINVAL`, after which netlist, strict ERC, and root export all passed. Full
+commands and selected verbatim output:
+`hardware/reviews/visual_inspections/cp3-placement/iter7/reviewer/windows_einval_reproduction.txt`.
+
+**Suggested fix**: Add one shared, Windows-only, bounded EINVAL retry helper
+and use it at both affected boundaries: wrap deterministic/kiutils
+serialization calls when `OSError.errno == errno.EINVAL`, and wrap `kcli`
+only when the nonzero result's complete stderr is `Invalid argument`.
+Use logged backoff (0.25/0.5/1.0 s, then fail); do not retry any other
+signature. Poison-test one-shot and persistent EINVAL for both call classes
+to prove recovery and fail-closed exhaustion, then require the exact bare
+handoff command to pass twice on Windows with no orphan process or new
+Application Popup event.
+
+Resolution status: F09 is independently closed. Call-site enumeration shows
+the geometric battery only in `BoardBuilder.write()`; the old J3 position
+still reports 4.93 mm off-edge, and a raw `write()` call invokes courtyard,
+outline, edge-marker, fab, and readback without explicit gate calls. The exact
+battery build exits 0 with the expected 12/1/316 DRC classes. Fresh
+reviewer-owned top/bottom renders and eight dense crops are under
+`hardware/reviews/visual_inspections/cp3-placement/iter7/reviewer/`; no visual
+placement regression was found.
+
+Coverage: mandatory consistency gate and writer/call-site sweeps; changed
+tooling code review and compilation; exact battery build + DRC; F09
+old-position poison and raw-write call-path test; four on-file PDF citation
+checks; fresh top/bottom renders and eight dense crops. No manifest row or
+SKU cell changed, and board bytes/electrical topology remain unchanged.
+
+**REVIEW COMPLETE**: NEEDS CHANGES - 1 blocker, 0 important. (See finding 10.)
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-07-30)

@@ -2,27 +2,25 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp3-placement
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement_review.md
-iteration: 7
+iteration: 8
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-30T22:47:54Z
-last_updated_by: claude-designer
+last_updated_at: 2026-07-30T23:22:40Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER iteration 6: F08 reviewer patch re-reviewed and ACCEPTED
-  (writer sweep found + LF-fixed two refdes_bans.json stragglers;
-  macOS acceptance clean - determinism proven both directions). F09
-  fixed structurally: geometric gate battery now runs INSIDE
-  BoardBuilder.write() (raw-write poison fires edge-marker with zero
-  explicit gate calls); packet/D38 claims re-worded to mechanism.
-  Board bytes UNCHANGED (448d59a276df). Responses in 9.2->9.3;
-  evidence iter6/designer_verification.txt. Skills kicad v0.3.4,
-  pcb-design v0.11.3. handoff_check CLEAN on committed state.
+  agent-reviewer iteration 7 on CP3. F09 is independently RESOLVED:
+  the shared write chokepoint and old-J3 poison both pass re-verification.
+  Status NEEDS CHANGES (1 blocker): F08 remains open because the mandatory
+  Windows handoff gate exits 1 with transient EINVAL at both Python-open and
+  KiCad-call boundaries. A bounded fail-closed retry recovered both observed
+  signatures; concrete fix and evidence are in packet section 8.4 and
+  iter7/reviewer/windows_einval_reproduction.txt.
 
 
 user_pause_reasons_seen_this_run: []
