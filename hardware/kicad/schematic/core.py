@@ -42,6 +42,18 @@ OUT = HERE / "build"            # generated schematics + review renders (gitigno
 ROOT_TITLE = "Volthium reader — battery-side (root)"
 
 
+def write_text_lf(path, text):
+    """Write deterministic UTF-8 text without host newline translation."""
+    with Path(path).open("w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+
+
+def normalize_text_lf(path):
+    """Normalize text emitted by libraries that do not expose newline=."""
+    p = Path(path)
+    write_text_lf(p, p.read_text(encoding="utf-8"))
+
+
 def configure(project, out_dirname, root_title):
     """Bind the core to one project: netlist/instance-path project name, the
     output directory (sibling of this file), and the root sheet title."""
@@ -867,12 +879,12 @@ def build_root(defs, root_uuid):
 def write_project():
     """Minimal .kicad_pro + sym-lib-table so KiCad opens the hierarchy cleanly."""
     import json
-    (OUT / f"{PROJECT}.kicad_pro").write_text(json.dumps({
+    write_text_lf(OUT / f"{PROJECT}.kicad_pro", json.dumps({
         "board": {}, "boards": [], "libraries": {"pinned_footprint_libs": [], "pinned_symbol_libs": []},
         "meta": {"filename": f"{PROJECT}.kicad_pro", "version": 1},
         "schematic": {"legacy_lib_list": [], "legacy_lib_dir": ""},
         "sheets": [], "text_variables": {},
-    }, indent=2), encoding="utf-8")
+    }, indent=2))
     # F08: the old table pointed at the PROJECT lib with a BARE relative URI —
     # resolved against process CWD (not the project dir), and the project lib
     # anyway lacks the stock-derived symbols we embed (138 [lib_symbol_issues]
@@ -886,17 +898,18 @@ def write_project():
     gen.symbols = [_SYMCACHE[k] for k in sorted(_SYMCACHE)]
     gen.filePath = str(OUT / "volthium.kicad_sym")
     gen.to_file(encoding="utf-8")
-    (OUT / "sym-lib-table").write_text(
+    normalize_text_lf(gen.filePath)
+    write_text_lf(
+        OUT / "sym-lib-table",
         '(sym_lib_table\n  (version 7)\n  (lib (name "volthium")(type "KiCad")'
-        '(uri "${KIPRJMOD}/volthium.kicad_sym")(options "")(descr ""))\n)\n',
-        encoding="utf-8")
+        '(uri "${KIPRJMOD}/volthium.kicad_sym")(options "")(descr ""))\n)\n')
     # Repo-local footprint library (vendored/authored parts absent from the
     # stock libs — see hardware/kicad/footprints/README.md). Declared per
     # project so kicad-cli ERC can resolve `volthium:` footprint links.
-    (OUT / "fp-lib-table").write_text(
+    write_text_lf(
+        OUT / "fp-lib-table",
         '(fp_lib_table\n  (version 7)\n  (lib (name "volthium")(type "KiCad")'
-        '(uri "${KIPRJMOD}/../../footprints/volthium.pretty")(options "")(descr ""))\n)\n',
-        encoding="utf-8")
+        '(uri "${KIPRJMOD}/../../footprints/volthium.pretty")(options "")(descr ""))\n)\n')
 
 
 def kcli(*a):
@@ -976,6 +989,7 @@ def render(s, name, crops=()):
         return False
     print(f"[{name}] readability gate: clean")
     schf = OUT / f"{name}.kicad_sch"; s.sch.to_file(str(schf), encoding="utf-8")
+    normalize_text_lf(schf)
     if not _checked_pdf_export(schf, OUT / f"{name}.pdf"):
         return False
     bad = _pdf_text_collisions(OUT / f"{name}.pdf")
@@ -1101,9 +1115,8 @@ def kicad_netlist(rootf):
                     f'(source "{Path(rootf).name}")', pinned, count=1)
     pinned = re.sub(r'\(tool "[^"]*"\)', '(tool "pinned-for-determinism")',
                     pinned, count=1)
-    if pinned != txt:
-        out.write_text(pinned, encoding="utf-8")
-        txt = pinned
+    write_text_lf(out, pinned)
+    txt = pinned
     nets = {}
     # paren-balanced scan (a regex-to-blank-line parse drops one-line nets)
     i = 0
@@ -1331,7 +1344,7 @@ def run(sheets_def, golden, exact_parts, erc_accepted):
         built.append((name, s))
     # root + project
     rootf = OUT / f"{PROJECT}.kicad_sch"
-    rootf.write_text(build_root(defs, root_uuid), encoding="utf-8")
+    write_text_lf(rootf, build_root(defs, root_uuid))
     write_project()
     if not ok:
         print("[NETLIST gate] SKIPPED — a sheet failed its readability gate, so"

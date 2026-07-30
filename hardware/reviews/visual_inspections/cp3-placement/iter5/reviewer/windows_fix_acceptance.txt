@@ -1,0 +1,42 @@
+CP3 finding 08 - Windows portability fix acceptance
+====================================================
+
+Host
+----
+Windows 11, KiCad 10, repository virtual environment.
+
+Full integration command
+------------------------
+.venv\Scripts\python.exe hardware\reviews\tools\handoff_check.py
+
+Result
+------
+Exit code: 0
+
+  [rebuild] schematic/build.py: rc=0
+  [rebuild] schematic/build_display.py: rc=0
+  [rebuild] pcb/build.py: rc=0
+  HANDOFF: CLEAN - artifacts fresh, hashes true, consistency ok
+
+Independent byte audit after the rebuild
+----------------------------------------
+
+  Deterministic artifacts enumerated: 26
+  Artifact path keys containing backslashes: 0
+  Worktree/HEAD byte mismatches: 0
+  Artifacts containing CRLF: 0
+  One-CRLF in-memory poison rejected by byte comparator: yes
+
+Syntax check
+------------
+.venv\Scripts\python.exe -m py_compile \
+  hardware\kicad\schematic\core.py \
+  hardware\kicad\pcb\core.py \
+  hardware\reviews\tools\handoff_check.py
+
+Result: exit 0.
+
+Scope
+-----
+User-directed tooling-only reviewer exception. The designer must re-review
+the implementation before treating Finding 08 as resolved.

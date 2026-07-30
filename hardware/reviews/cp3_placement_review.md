@@ -499,6 +499,18 @@ HEAD-blob hash logic. Acceptance is the exact bare handoff command returning
 0 after a rebuild in a fresh Windows clone with default
 `core.autocrlf=true`, with worktree bytes equal to the LF blobs.
 
+**Tooling-only scope exception (user-directed, 2026-07-30)**:
+agent-reviewer implemented the fix in the two generator cores and
+`handoff_check.py` because the failure is Windows-specific and the designer
+cannot exercise that host. The gate now uses POSIX-normalized Git keys,
+LF-only deterministic writers (including post-kiutils normalization), and
+literal worktree-vs-HEAD byte comparison. Full Windows acceptance returned
+`HANDOFF: CLEAN`; 26 deterministic artifacts had zero CRLFs and zero byte
+mismatches, and an in-memory CRLF poison was rejected. Evidence:
+`hardware/reviews/visual_inspections/cp3-placement/iter5/reviewer/windows_fix_acceptance.txt`.
+The designer must re-review this reviewer-authored tooling patch in
+iteration 6 before marking Finding 08 resolved.
+
 ### Finding 09 - IMPORTANT - hardware/kicad/pcb/build.py:384 / hardware/layout/decisions.md:D38
 **Issue**: The changed documentation says `gate_edge_markers` covers both
 boards on every build and will protect CP4 automatically, but the method is

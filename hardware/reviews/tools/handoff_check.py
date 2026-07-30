@@ -12,8 +12,9 @@ property:
      by git — an ignored/untracked input (CP3 finding 05: the pcb build
      consumed an ignored netlist) is invisible to `git status` and
      absent in a fresh clone, so "committed" claims about it are void
-  3. `git status` on the tracked artifacts — ANY diff means the
-     committed artifacts don't match the committed generators: FAIL
+  3. compare every rebuilt artifact byte-for-byte with its HEAD blob —
+     ANY difference means the committed artifacts don't match the
+     committed generators: FAIL
   4. every 12-hex hash quoted in the active packet must match the
      file's HEAD BLOB — not its worktree bytes. The reviewer checks out
      the blob; worktree bytes are host-dependent (CP3 finding 06: the
@@ -55,6 +56,13 @@ def sh(*args, **kw):
     return subprocess.run(args, capture_output=True, text=True, **kw)
 
 
+def head_blob(rel):
+    r = subprocess.run(
+        ["git", "-C", str(REPO), "cat-file", "blob", f"HEAD:{rel}"],
+        capture_output=True)
+    return r.stdout if r.returncode == 0 else None
+
+
 def main():
     fails = []
     env = dict(os.environ, SKIP_RENDER="1")
@@ -74,7 +82,7 @@ def main():
     paths = []
     for d in BUILD_DIRS:
         for g in DETERMINISTIC_GLOBS:
-            paths += [str(p.relative_to(REPO))
+            paths += [p.relative_to(REPO).as_posix()
                       for p in (REPO / d).glob(g)]
     tracked = set(sh("git", "-C", str(REPO), "ls-files", "--",
                      *paths).stdout.splitlines())
@@ -83,10 +91,18 @@ def main():
         fails.append("[untracked] deterministic artifacts a fresh clone "
                      "won't have (ignored or never added):\n  "
                      + "\n  ".join(untracked))
-    r = sh("git", "-C", str(REPO), "status", "--porcelain", "--", *paths)
-    if r.stdout.strip():
-        fails.append("[stale] committed artifacts differ from a fresh "
-                     "rebuild of the committed generators:\n" + r.stdout)
+    stale = []
+    for rel in paths:
+        if rel in untracked:
+            continue
+        blob = head_blob(rel)
+        worktree = REPO / rel
+        if blob is None or not worktree.exists() or \
+                worktree.read_bytes() != blob:
+            stale.append(rel)
+    if stale:
+        fails.append("[stale] rebuilt artifacts differ byte-for-byte "
+                     "from their HEAD blobs:\n  " + "\n  ".join(stale))
 
     sem = (REPO / "hardware/reviews/SEMAPHORE.yaml").read_text(
         encoding="utf-8")
@@ -102,23 +118,22 @@ def main():
                          "a hash claim about a file git doesn't have is "
                          "unverifiable by the reviewer")
             continue
-        if sh("git", "-C", str(REPO), "status", "--porcelain", "--",
-              rel).stdout.strip():
-            fails.append(f"[hash] {rel} has uncommitted changes — commit "
-                         "before hashing; the packet must describe HEAD")
+        blob = head_blob(rel)
+        f = REPO / rel
+        if blob is None or not f.exists() or f.read_bytes() != blob:
+            fails.append(f"[hash] {rel} differs byte-for-byte from HEAD — "
+                         "commit the current deterministic artifact before "
+                         "hashing; the packet must describe HEAD")
             continue
         # hash the HEAD blob (what a checkout delivers), never worktree
         # bytes — those vary with the host's eol config
-        blob = subprocess.run(
-            ["git", "-C", str(REPO), "cat-file", "blob", f"HEAD:{rel}"],
-            capture_output=True).stdout
         actual = hashlib.sha256(blob).hexdigest()[:12]
         if actual != m.group(2):
             fails.append(f"[hash] packet hash {m.group(2)} != HEAD blob "
                          f"{actual} for {rel}")
 
-    r = sh("python3", str(REPO / "hardware/reviews/tools/"
-                          "doc_consistency_check.py"))
+    r = sh(PY, str(REPO / "hardware/reviews/tools/"
+                    "doc_consistency_check.py"))
     if r.returncode != 0:
         fails.append("[consistency] doc_consistency_check failed:\n"
                      + r.stdout[-400:])

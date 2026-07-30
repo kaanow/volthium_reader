@@ -513,7 +513,7 @@ class BoardBuilder:
         # is a checkable handoff property (KiCad 10 ignores this legacy field).
         text = re.sub(r"\(tedit [0-9A-Fa-f]+\)", "(tedit 0)", text)
         text = _restore_properties(text, prop_overrides)
-        Path(path).write_text(text, encoding="utf-8")
+        sch.write_text_lf(path, text)
 
     def gate_readback(self, path):
         """Judge the WRITTEN artifact: re-parse the .kicad_pcb text and
@@ -556,8 +556,8 @@ def write_project(out_dir, project, netclasses, custom_rules=""):
     (KiCad .kicad_dru text) carries scoped exceptions, e.g. a fine-pitch
     connector's own pad field below the routing netclass clearance."""
     if custom_rules:
-        (Path(out_dir) / f"{project}.kicad_dru").write_text(
-            custom_rules, encoding="utf-8")
+        sch.write_text_lf(Path(out_dir) / f"{project}.kicad_dru",
+                          custom_rules)
     pro = {
         "board": {"design_settings": {"defaults": {}, "rules": {
             "min_copper_edge_clearance": 0.3}}},
@@ -573,13 +573,14 @@ def write_project(out_dir, project, netclasses, custom_rules=""):
             "meta": {"version": 4},
         },
     }
-    (Path(out_dir) / f"{project}.kicad_pro").write_text(
-        json.dumps(pro, indent=2), encoding="utf-8")
-    (Path(out_dir) / "fp-lib-table").write_text(
+    sch.write_text_lf(Path(out_dir) / f"{project}.kicad_pro",
+                      json.dumps(pro, indent=2))
+    sch.write_text_lf(
+        Path(out_dir) / "fp-lib-table",
         '(fp_lib_table\n  (version 7)\n'
         '  (lib (name "volthium")(type "KiCad")'
         '(uri "${KIPRJMOD}/../../footprints/volthium.pretty")'
-        '(options "")(descr "repo-local"))\n)\n', encoding="utf-8")
+        '(options "")(descr "repo-local"))\n)\n')
 
 
 # ---------------------------------------------------------------------------
