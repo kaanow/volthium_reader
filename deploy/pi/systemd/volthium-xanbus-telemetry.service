@@ -1,0 +1,25 @@
+[Unit]
+Description=Volthium Xanbus live telemetry (CAN decode -> 15s rows -> Railway)
+# can0 is brought up by the capture unit; both hold independent AF_CAN sockets.
+After=network.target volthium-xanbus-capture.service
+Wants=volthium-xanbus-capture.service
+
+[Service]
+Type=simple
+# Root for CAP_NET_RAW (AF_CAN), same as the capture service.
+WorkingDirectory=/srv/volthium_reader
+EnvironmentFile=/etc/volthium-uploader.env
+ExecStart=/srv/volthium_reader/.venv/bin/python scripts/xanbus_telemetry.py
+# Hard resource rails (see CLAUDE.md / 2026-07-26 outage): the decoder holds
+# only bounded state, so 60M is generous; if it ever balloons, kill THIS
+# service, never the box.
+MemoryMax=60M
+MemorySwapMax=0
+# Protected from OOM less strongly than the primary BMS telemetry (-900):
+# if memory pressure forces a sacrifice, solar decode dies before pack data.
+OOMScoreAdjust=-500
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

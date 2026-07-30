@@ -21,6 +21,7 @@ install -m 0644 "$HERE/systemd/volthium-xanbus-capture.service"   "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-modbus-poll.service"      "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-uploader.service"         "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-events-uploader.service"  "$SYSD/"
+install -m 0644 "$HERE/systemd/volthium-xanbus-telemetry.service" "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-usb-keepawake.service"    "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-usb-keepawake.timer"      "$SYSD/"
 install -m 0755 "$HERE/bin/volthium-usb-keepawake.sh"             /usr/local/bin/
@@ -66,19 +67,20 @@ systemctl daemon-reload
 # Enable the boot-critical set so a bare power-cycle recovers with no human.
 systemctl enable volthium-rs485-logger volthium-xanbus-capture \
     volthium-modbus-poll volthium-uploader volthium-events-uploader \
-    volthium-usb-keepawake.timer
+    volthium-xanbus-telemetry volthium-usb-keepawake.timer
 # BLE logger is the dormant fallback — present but must NOT auto-start
 # (Conflicts= with the RS485 logger; run exactly one).
 systemctl disable volthium-logger 2>/dev/null || true
 systemctl stop volthium-logger 2>/dev/null || true
 # (Re)start the live data path. Brief (~one sample) gap on a running system.
 systemctl restart volthium-rs485-logger volthium-xanbus-capture \
-    volthium-modbus-poll volthium-uploader volthium-events-uploader
+    volthium-modbus-poll volthium-uploader volthium-events-uploader \
+    volthium-xanbus-telemetry
 systemctl start volthium-usb-keepawake.timer
 
 echo "== status =="
 for s in volthium-rs485-logger volthium-xanbus-capture volthium-modbus-poll \
-         volthium-uploader volthium-events-uploader; do
+         volthium-uploader volthium-events-uploader volthium-xanbus-telemetry; do
     printf "   %-32s %s\n" "$s" "$(systemctl is-active "$s")"
 done
 echo "done."
