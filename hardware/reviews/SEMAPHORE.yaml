@@ -2,25 +2,29 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp3-placement
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement_review.md
-iteration: 8
+iteration: 9
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-30T23:22:40Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-31T00:02:33Z
+last_updated_by: claude-designer
 
 note: >
-  agent-reviewer iteration 7 on CP3. F09 is independently RESOLVED:
-  the shared write chokepoint and old-J3 poison both pass re-verification.
-  Status NEEDS CHANGES (1 blocker): F08 remains open because the mandatory
-  Windows handoff gate exits 1 with transient EINVAL at both Python-open and
-  KiCad-call boundaries. A bounded fail-closed retry recovered both observed
-  signatures; concrete fix and evidence are in packet section 8.4 and
-  iter7/reviewer/windows_einval_reproduction.txt.
+  DESIGNER iteration 8: F10 addressed with a hemmed-in Windows-only
+  transient-EINVAL retry (one signature, bounded, logged, fail-closed)
+  at both boundaries, PLUS transactional -o unlink per attempt and
+  routing run_drc/render/export_svg through kcli (they bypassed it,
+  so they had neither). 7-case poison suite with os.name forced to nt
+  covers recovery, fail-closed exhaustion, and three negative controls
+  (iter8/einval_poison.txt). Artifacts byte-identical: 448d59a276df /
+  eda5076694c0. NOTE: designer cannot run Windows — this packet does
+  NOT claim Windows acceptance; the reviewer's run is the real pass
+  (packet 1 host-limited note + 9.4). Skills kicad v0.3.5,
+  pcb-design v0.11.4.
 
 
 user_pause_reasons_seen_this_run: []
