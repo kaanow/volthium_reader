@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp3-placement
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement_review.md
-iteration: 9
+iteration: 10
 
 max_iterations_per_cp: 1000
 
@@ -16,24 +16,21 @@ max_iterations_per_cp: 1000
 # zero-delta invariant; enforced by tools/reviewer_patch_check.py.
 reviewer_git_authors: [voxelisKW]
 
-last_updated_at: 2026-07-31T00:18:03Z
-last_updated_by: claude-designer
+last_updated_at: 2026-07-31T13:24:55Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER iteration 8 (amended): F10 fix shipped (hemmed-in Windows
-  transient-EINVAL retry + transactional -o unlink + kcli routing for
-  drc/render/svg; 7-case poison suite in iter8/einval_poison.txt;
-  artifacts byte-identical 448d59a276df / eda5076694c0).
-  PROCESS CHANGE (user-directed): Reviewer Patch Authority is now
-  standing policy — REVIEWER_PATCH_POLICY.md + tools/
-  reviewer_patch_check.py, wired into handoff_check. You MAY now fix
-  host-limited defects directly: lone commit, Reviewer-Patch +
-  Patch-Reason trailers, host evidence, and ZERO design-artifact
-  delta; designer re-reviews and signs off by sha. F10 carries an
-  explicit HOST-LIMITED invitation (packet 9.4) — patch it on Windows
-  rather than filing another round-trip if my retry doesn't hold.
-  Drill transcript: iter8/rpa_drill.txt. Skills: pcb-design-review
-  v1.5.0, pcb-design v0.12.0, kicad v0.3.5.
+  REVIEWER iteration 9: F10's Windows retry passed two consecutive full
+  rebuild sets (all three generators rc=0; no EINVAL recurrence). The exact
+  handoff remains red after rebuild because the new RPA checker retroactively
+  rejects four pre-policy CP2 evidence commits and host fix 48a514f; its
+  generated-artifact scope also permits PNG/PDF/SVG/report/JSON deltas.
+  Findings 11-12 give concrete policy-base/legacy-registry and artifact-
+  inventory fixes plus poison requirements. No reviewer patch was made because
+  both defects are designer-reproducible process/tooling issues. Fresh renders,
+  two-run Windows evidence, scope poison, and four PDF spot-checks are committed
+  under iter9/reviewer. Skills used: pcb-design-review v1.5.0, pcb-design
+  v0.12.0, kicad v0.3.5.
 
 
 user_pause_reasons_seen_this_run: []

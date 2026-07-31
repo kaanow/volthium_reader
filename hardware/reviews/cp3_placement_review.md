@@ -608,6 +608,72 @@ SKU cell changed, and board bytes/electrical topology remain unchanged.
 
 **REVIEW COMPLETE**: NEEDS CHANGES - 1 blocker, 0 important. (See finding 10.)
 
+## 8.5 Reviewer findings (iteration 9)
+
+Reviewed commit: `7edf009`
+
+### Finding 11 - BLOCKER - hardware/reviews/tools/reviewer_patch_check.py:20,78-118
+**Issue**: The mandatory handoff gate cannot pass on the current branch even
+though the F10 Windows retry implementation now passes its requested two-run
+acceptance test. The RPA check defaults to `origin/main..HEAD`, retroactively
+classifies any reviewer-authored `.py` as a patch, and searches only the active
+CP3 packet for historical acceptance. It therefore rejects four pre-policy CP2
+review-evidence commits plus the pre-policy Windows host fix `48a514f`.
+
+**Evidence**: Two complete Windows handoff runs rebuilt battery schematic,
+display schematic, and PCB at `rc=0` (210.3 s and 80.5 s) with no recurrence of
+`EINVAL`; both then exited 1 with `RPA: VIOLATION (5)`. The exact standalone
+default check reproduces the five violations. The control range
+`3e4c097..HEAD`, beginning at the RPA-policy introduction, returns clean. Full
+commit IDs and output are in
+`hardware/reviews/visual_inspections/cp3-placement/iter9/reviewer/windows_handoff_and_rpa.txt`.
+
+**Suggested fix**: Make the enforcement epoch explicit and machine-readable,
+then run the gate over `<rpa-policy-base>..HEAD`; alternatively maintain a
+complete legacy-patch registry independent of the active CP packet. Exclude
+reviewer-owned `hardware/reviews/visual_inspections/**` evidence programs from
+the untrailered product-code heuristic. Poison-test a pre-policy evidence
+commit, a pre-policy host patch, a post-policy untrailered product-code patch,
+and a valid accepted RPA patch. The bare mandatory handoff command must then
+return 0 from this branch on both macOS and Windows.
+
+### Finding 12 - BLOCKER - hardware/reviews/tools/reviewer_patch_check.py:43-44,66-73,133-139
+**Issue**: The RPA zero-delta invariant is not enforced over the complete
+generated-artifact set. `ARTIFACT_SUFFIXES` covers KiCad source/netlist
+suffixes, but generated PNG, PDF, SVG, report, and JSON outputs under the build
+directories all pass `in_scope()` and are omitted from the commit delta check.
+A formally trailered patch can therefore change deterministic review/design
+outputs while the gate reports zero-delta.
+
+**Evidence**: Direct scope poison calls returned allowed (`None`) for
+`pcb/build/render_top.png`, `pcb/build/doc_top.svg`, `pcb/build/drc.rpt`,
+`pcb/build/refdes_bans.json`, and `schematic/build/volthium_reader.pdf`.
+Command output is recorded in the iteration-9 evidence file above.
+
+**Suggested fix**: Replace the suffix-only approximation with a committed
+generated-output inventory. The simplest robust rule here is to deny all files
+under `hardware/kicad/schematic/build/`, `build_display/`, and
+`hardware/kicad/pcb/build/` in reviewer patches, while retaining
+`hardware/reviews/visual_inspections/**` as reviewer evidence. If build
+directories can contain authored inputs later, derive and check the exact
+artifact list from the handoff rebuild globs instead. Add negative controls for
+PNG, PDF, SVG, DRC/report, JSON, netlist, and KiCad outputs.
+
+Resolution status: F10's implementation is independently accepted at the host
+boundary: two consecutive full Windows rebuild sets passed with all three
+generators at `rc=0`, and no transient `EINVAL` recurred. Finding 10 cannot be
+closed at the overall handoff boundary until finding 11 is fixed because the
+exact mandatory command remains red after successful rebuilds. No design data,
+board bytes, or electrical topology changed in the reviewed delta.
+
+Coverage: mandatory consistency gate; changed F10/RPA code review; two exact
+Windows handoff attempts; default and policy-base RPA range controls; five-class
+generated-artifact scope poison; four independent on-file PDF citation checks;
+fresh direct KiCad top/bottom renders and eight crop inspections. No placement
+regression was found.
+
+**REVIEW COMPLETE**: NEEDS CHANGES - 2 blockers, 0 important. (See findings 11, 12.)
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-07-30)
