@@ -416,6 +416,17 @@ you did verify (poison tests with the platform branch forced, plus
 unchanged-output proof), and treat the reviewer's acceptance run as the
 gate's real pass. Never write "CLEAN" for a host you didn't run on.
 
+Better still, **stop guessing and invite a patch**: write `HOST-LIMITED:
+invites reviewer patch` in the finding response and let the reviewer fix
+it on the host where it reproduces
+([`REVIEWER_PATCH_POLICY.md`](REVIEWER_PATCH_POLICY.md)). Your duties
+then: re-review their patch like any suggested fix (verify the premise;
+in CP3 iteration 6 this caught two writers the patch missed), then sign
+off in the packet with `RPA-ACCEPTED: <finding> <sha>`. `handoff_check`
+fails while any reviewer patch is unaccepted, and
+`reviewer_patch_check.py` enforces the scope — including the zero-delta
+invariant, so a "host fix" can never smuggle in a design change.
+
 Exit 0 required. It re-checks the append-only registry of every token
 this project has ever superseded, and executes D32 (datasheet manifest ↔
 PDFs ↔ canonical BOM) as code. If your change superseded a part, value,

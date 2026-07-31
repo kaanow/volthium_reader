@@ -138,6 +138,16 @@ def main():
         fails.append("[consistency] doc_consistency_check failed:\n"
                      + r.stdout[-400:])
 
+    # No handoff may carry an unaccepted reviewer patch (RPA policy).
+    rng = ("origin/main..HEAD"
+           if sh("git", "-C", str(REPO), "rev-parse", "--verify", "-q",
+                 "origin/main").returncode == 0 else "main..HEAD")
+    r = sh(PY, str(REPO / "hardware/reviews/tools/"
+                    "reviewer_patch_check.py"), rng)
+    if r.returncode != 0:
+        fails.append("[rpa] reviewer-patch gate not clean "
+                     f"(rc={r.returncode}):\n" + r.stdout[-500:])
+
     if fails:
         print("\n".join(fails))
         print("HANDOFF: FAIL")

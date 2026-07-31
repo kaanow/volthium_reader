@@ -798,7 +798,11 @@ explicit LF this iteration (evidence:
 `visual_inspections/cp3-placement/iter6/designer_verification.txt`).
 macOS acceptance after the patch: rebuilds rc=0, gate CLEAN, all
 artifacts byte-identical to HEAD blobs — determinism now proven in
-both directions. Root cause of the original miss: I validated the
+both directions.
+RPA-ACCEPTED: F08 da48679 (retroactive: this patch predates the
+Reviewer Patch Authority policy that it motivated; the re-review
+above is the sign-off the policy now requires — see
+`hardware/reviews/REVIEWER_PATCH_POLICY.md`). Root cause of the original miss: I validated the
 LF invariant at the checkout boundary and never at the write
 boundary; "newline is a per-write obligation exactly like encoding"
 is now in the kicad skill.
@@ -892,3 +896,52 @@ unchanged (hash `448d59a276df`, re-verified against the HEAD blob);
 the change is entirely in the IO boundary of the generators. Re-run
 clean: all three builds, full gate battery, DRC (12/1/316), doc
 consistency, handoff gate, the seven-case poison suite above.
+
+### 9.5 Process change: Reviewer Patch Authority (iteration 8)
+
+User directive: the reviewer should be able to fix tooling defects
+directly when they are not reasonable for the designer to handle.
+Findings 08 and 10 are the evidence — two Windows-only defects that
+each cost multiple round-trips because the designer could only guess
+at a fix and the reviewer could only describe the failure. One-off
+authorization already worked once (iteration 5); this makes it a
+standing mechanism with a mechanical boundary.
+
+**`hardware/reviews/REVIEWER_PATCH_POLICY.md`** — the reviewer may
+commit fixes for defects whose acceptance depends on a host the
+designer cannot exercise. Either side opens it (designer writes
+`HOST-LIMITED: invites reviewer patch`; or the reviewer declares it on
+a host-specific finding). Everything the designer can reproduce stays
+a finding — that boundary is what keeps the review independent.
+
+**The load-bearing rule is the zero-delta invariant**: a reviewer
+patch must not move one byte of a design artifact. A host-adaptation
+fix changes how bytes are written, never what they say; if a fix
+can't satisfy that, it is a design change and goes back as a finding.
+This is what makes bounded write access safe without judgment calls.
+
+**`tools/reviewer_patch_check.py`** enforces it: trailer required on
+reviewer code commits (`Reviewer-Patch` + `Patch-Reason`), finding must
+exist in the packet, path scope (design data, part evidence, footprint
+library and turn control are denied), zero-delta against the parent
+commit, and designer sign-off (`RPA-ACCEPTED: <finding> <sha>`).
+Exit 0 clean / 1 violation / 2 pending-acceptance. `handoff_check.py`
+now fails while any reviewer patch is unaccepted, so an unreviewed
+patch cannot ride through a handoff.
+
+**Exercised end-to-end before adoption**, with real commits under both
+identities in a scratch clone (transcript:
+`visual_inspections/cp3-placement/iter8/rpa_drill.txt`): the happy path
+(PENDING → sign-off → clean) plus four refusals — zero-delta breach,
+denied design-data path, untrailered code commit, unknown finding id.
+The known blind spot was tested rather than assumed: a floorplan change
+made in generator SOURCE with no rebuild is invisible to zero-delta, so
+the drill confirms the layered gates close it — the edge-marker gate
+fires and `handoff_check` fails on rebuild≠committed. Either the
+reviewer rebuilds (artifact moves → violation) or they don't (rebuild
+mismatch → handoff fail).
+
+Retroactive legitimization is part of the design, not a loophole: a
+patch predating the policy (or authorized ad hoc) passes only once the
+designer re-reviews it and signs off by sha — recorded for da48679 in
+§9.2 above.

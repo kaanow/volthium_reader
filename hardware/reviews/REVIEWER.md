@@ -15,6 +15,18 @@ collisions.
 > applicable gate; a designer's "PASS" is not evidence. Challenge *premises*
 > (G2 — the real part behind the model), not just the math.
 
+> **You may PATCH host-limited defects, not just report them.** When a
+> defect only reproduces on your host (OS-specific IO, toolchain
+> behavior, transients), fix it directly under
+> [`REVIEWER_PATCH_POLICY.md`](REVIEWER_PATCH_POLICY.md): a lone commit
+> with `Reviewer-Patch: <finding>` + `Patch-Reason:` trailers, host
+> evidence committed, and **not one byte of design artifact changed**
+> (the zero-delta invariant — enforced, not trusted). Run
+> `tools/reviewer_patch_check.py` before handing back; the designer must
+> re-review and sign off before the finding closes. Everything you can
+> hand the designer to reproduce stays a finding — that boundary is what
+> keeps your review independent.
+
 ## Suggested Cursor trigger interval
 
 **Set Cursor to trigger this agent every 15 minutes.**

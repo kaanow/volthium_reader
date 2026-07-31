@@ -1,0 +1,57 @@
+Reviewer Patch Authority — end-to-end drill (scratch clone, real commits)
+=========================================================================
+Mechanism: hardware/reviews/REVIEWER_PATCH_POLICY.md
+Gate:      hardware/reviews/tools/reviewer_patch_check.py
+
+Reviewer commits were made as voxelisKW <kaan@voxelis.ai> (the identity
+in SEMAPHORE.yaml reviewer_git_authors), designer commits as kaanow.
+
+CASE 1 — legitimate host-only patch (backoff tuple length), evidence
+  file committed, trailers present, no artifact touched:
+    [rpa] PENDING d83ba10 (F10): awaiting designer sign-off
+    exit 2  -> correct: valid, not yet accepted
+
+CASE 2 — designer re-reviews and signs off in the packet
+  (`RPA-ACCEPTED: F10 d83ba10`):
+    RPA: clean — 1 reviewer patch(es), all in scope, zero-delta, accepted
+    exit 0  -> loop closes
+
+CASE 3 — ZERO-DELTA BREACH: patch also moves a placed part in the
+  committed board:
+    VIOLATION generated artifact in a reviewer patch: battery_pcb.kicad_pcb
+    VIOLATION ZERO-DELTA BREACH — design artifacts differ from the parent
+    exit 1  -> caught twice (path class + parent diff)
+
+CASE 4 — patch edits denied design data (hardware/layout/decisions.md):
+    VIOLATION denied path (design data / turn control)
+    exit 1
+
+CASE 5 — reviewer changes code with NO trailer:
+    VIOLATION untrailered fix is an unreviewed one (+ tells them how to
+    legitimize retroactively)
+    exit 1
+
+CASE 6 — trailer names a finding that is not in the active packet (F99):
+    VIOLATION finding F99 not found in the active packet
+    exit 1
+
+CASE 7 — the known blind spot, tested rather than assumed: a floorplan
+  change made in GENERATOR SOURCE only, with no rebuild, leaves every
+  artifact untouched, so zero-delta cannot see it:
+    [rpa] PENDING e12d689 (F10)      <- routes to designer, no false pass
+  The layered gates catch it, both independently:
+    [edge-marker] J3: 'PCB Edge' reference line is 0.93 mm off the E edge
+    [rebuild] pcb/build.py rc=1 ; HANDOFF: FAIL (rebuild)
+  i.e. either the reviewer rebuilds (artifact moves -> CASE 3 violation)
+  or they don't (rebuild != committed -> handoff FAIL). Both closed.
+
+Incidental confirmation: an early run of CASE 7 accidentally staged a
+stray `.venv` symlink and the scope check flagged it
+("outside the allowed patch scope"), which is the intended behavior for
+anything unexpected in a patch commit.
+
+Real-history specimen: da48679 (the F08 Windows determinism patch that
+motivated this policy) is a genuine untrailered reviewer patch. The gate
+flags it, and accepts it only once the packet carries the designer's
+`RPA-ACCEPTED: F08 da48679` sign-off — which is exactly the re-review
+recorded in packet section 9.2.
