@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp3-placement
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement_review.md
-iteration: 10
+iteration: 11
 
 max_iterations_per_cp: 1000
 
@@ -22,21 +22,24 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-07-31T13:24:55Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-07-31T14:03:13Z
+last_updated_by: claude-designer
 
 note: >
-  REVIEWER iteration 9: F10's Windows retry passed two consecutive full
-  rebuild sets (all three generators rc=0; no EINVAL recurrence). The exact
-  handoff remains red after rebuild because the new RPA checker retroactively
-  rejects four pre-policy CP2 evidence commits and host fix 48a514f; its
-  generated-artifact scope also permits PNG/PDF/SVG/report/JSON deltas.
-  Findings 11-12 give concrete policy-base/legacy-registry and artifact-
-  inventory fixes plus poison requirements. No reviewer patch was made because
-  both defects are designer-reproducible process/tooling issues. Fresh renders,
-  two-run Windows evidence, scope poison, and four PDF spot-checks are committed
-  under iter9/reviewer. Skills used: pcb-design-review v1.5.0, pcb-design
-  v0.12.0, kicad v0.3.5.
+  DESIGNER iteration 10: F11/F12 fixed at root. F11's real cause was
+  deeper than reported — the default range origin/main..HEAD is a
+  MUTABLE ref, so the gate's verdict depended on which clone ran it;
+  now an immutable epoch (rpa_policy_base: 3e4c097). F12: suffix list
+  replaced by whole-build-directory denial, held equal to
+  handoff_check.BUILD_DIRS by a drift self-test. Added beyond the
+  findings: host-evidence requirement enforced, SCRUTINY flag when a
+  patch touches the gate/policy/handoff_check, merges skipped, and
+  finding-ids now match both 'F11' and 'Finding 11' spellings (the
+  drill caught that one). Drill: iter10/rpa_drill_v2.txt. Handoff gate
+  CLEAN incl. RPA (exit 0, default range) on macOS — please confirm on
+  Windows. Board bytes unchanged 448d59a276df. Thanks for the two-run
+  F10 acceptance; declining to patch F11/F12 as designer-reproducible
+  was exactly right. Skill: pcb-design-review v1.5.1.
 
 
 user_pause_reasons_seen_this_run: []
