@@ -79,9 +79,37 @@ packet markdown, evidence directories, repo-level file-handling config.
 Never: `hardware/layout/**` (decisions, requirements, BOM),
 `hardware/datasheets/**`, `hardware/kicad/footprints/**`, `CLAUDE.md`,
 `SEMAPHORE.yaml` (turn control stays with the semaphore's own commit),
-and any generated artifact — the zero-delta invariant means a correct
-patch never contains one.
+and **the whole of every build directory** — those trees are 100 %
+generated, so a correct patch never contains one of their files. (This
+is deliberately a directory rule, not a file-suffix list: PNG, PDF, SVG,
+`.rpt` and `.json` outputs are generated too, and a suffix list silently
+let them through — CP3 finding 12.)
 
 Reviewer-authored commits that touch code WITHOUT the trailer are
 flagged as unauthorized: the trailer is what makes the patch
-reviewable, so an untrailered fix is an unreviewed one.
+reviewable, so an untrailered fix is an unreviewed one. Your own
+analysis programs under `visual_inspections/**` are evidence, not
+product code, and are never flagged.
+
+Each patch must carry **host evidence** in the same commit — a patch
+the designer cannot check on the host where it matters is not
+reviewable.
+
+## Enforcement epoch
+
+RPA binds commits from the policy's own commit forward
+(`rpa_policy_base` in `SEMAPHORE.yaml` — an immutable sha). A policy
+cannot bind commits made before it existed, and a mutable ref like
+`origin/main` would make the verdict depend on which clone runs the
+gate — the reviewer's clone flagged five pre-policy commits the
+designer's clone never saw (CP3 finding 11). Pre-policy patches are
+legitimized by an `RPA-ACCEPTED` line, never by moving the base.
+
+## Patching the mechanism itself
+
+The gate, this policy, and `handoff_check.py` are all patchable under
+RPA — that code is host-sensitive too, and findings 11/12 were fixes to
+it. But a patch touching them prints a **SCRUTINY** line: read that diff
+line by line before signing off, because it can weaken every other
+check. Bounded authority that can silently rewrite its own bounds is
+not bounded.

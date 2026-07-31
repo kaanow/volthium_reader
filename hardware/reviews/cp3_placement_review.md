@@ -1021,3 +1021,69 @@ Retroactive legitimization is part of the design, not a loophole: a
 patch predating the policy (or authorized ad hoc) passes only once the
 designer re-reviews it and signs off by sha — recorded for da48679 in
 §9.2 above.
+
+### 9.6 Responses to §8.5 (iteration 10, 2026-07-31)
+
+Both findings are defects in the RPA gate I shipped one turn earlier —
+defect-in-a-fix class, so this is a full-scope round on that tool.
+
+**Finding 11 (BLOCKER — gate red on the reviewer's clone): AGREE, and
+the root cause is worse than the finding states.** The default range
+`origin/main..HEAD` is a MUTABLE REF: on my clone `48a514f` and the
+CP2 evidence commits are ancestors of `origin/main` and fall outside
+the range; on yours they don't. So the gate's verdict depended on
+which clone ran it — the same nondeterminism family as the earlier
+rebuild/blob/newline defects, reappearing in the tool I built to
+enforce discipline. Fixed with an explicit, immutable enforcement
+epoch: `rpa_policy_base: 3e4c097` in `SEMAPHORE.yaml` (the policy's
+own commit), so `<base>..HEAD` is identical on every clone. A policy
+cannot bind commits made before it existed; pre-policy patches are
+legitimized by an `RPA-ACCEPTED` line, never by moving the base. Also
+fixed: `visual_inspections/**` is excluded from the product-code
+heuristic — your analysis programs are evidence, not product code.
+
+**Finding 12 (BLOCKER — zero-delta covered only a suffix list):
+AGREE, and the suggested directory rule is right.** My
+`ARTIFACT_SUFFIXES` was an enumeration of what I happened to think of,
+which is exactly the "guess wearing a verification adjective" failure
+my own skill warns about — PNG/SVG/`.rpt`/`.json`/PDF outputs all
+walked through. Replaced with the structural rule: **the whole of
+every build directory is denied**, since those trees are 100 %
+generated. `BUILD_DIRS` is now held equal to `handoff_check.BUILD_DIRS`
+by a self-test that refuses to run the gate on drift — otherwise the
+two boundaries could diverge silently later.
+
+**Three checks I added beyond the findings** (full-scope pass on the
+tool, drill in `iter10/rpa_drill_v2.txt`):
+- **Evidence requirement**: a trailered patch with no file under
+  `visual_inspections/` is now a violation. The policy always said
+  evidence was required; only prose enforced it.
+- **Self-modification SCRUTINY**: a patch touching the gate, the
+  policy, or `handoff_check.py` prints a loud line telling me to read
+  that diff line by line. Not a violation — that code is host-sensitive
+  too, and findings 11/12 are themselves fixes to it — but bounded
+  authority that can silently rewrite its own bounds is not bounded.
+- **Merge commits skipped**; they introduce no authored change and
+  their `commit^` diff is misleading.
+
+**One defect the drill found in my own fix**: finding ids are written
+two ways — the trailer says `F11`, the packet prose says
+"Finding 11" — and the v1 gate only knew the bare token, so a
+legitimate patch citing a real finding would have been rejected. The
+gate now accepts either spelling; `F99` is still refused.
+
+**Verification**: eight scope classes poisoned (the five you listed
+plus netlist/board/sheet), three controls confirmed still allowed, the
+epoch and evidence-heuristic cases, an untrailered post-policy product
+patch, the evidence and self-modification checks, and the BUILD_DIRS
+drift self-test — all executed with real commits under both git
+identities. Default-range run on this branch: `RPA: clean`, exit 0.
+Board bytes unchanged (`448d59a276df`).
+
+**F10**: thank you for the two-run Windows acceptance — that closes the
+host boundary I could not test. Recording it here:
+`RPA-ACCEPTED` does not apply (no reviewer patch was made; you
+correctly judged F11/F12 designer-reproducible and declined to patch,
+which is the boundary working as intended). F10's implementation is
+accepted at the host boundary by your evidence; its handoff-boundary
+blocker was F11, fixed above.
