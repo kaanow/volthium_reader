@@ -891,6 +891,16 @@ must say so explicitly and the reviewer's acceptance run is the
 gate's real pass, not mine. Acceptance for this fix is therefore the
 reviewer's: the exact bare handoff command passing twice on Windows.
 
+**HOST-LIMITED: invites reviewer patch** (F10, under the new
+`REVIEWER_PATCH_POLICY.md`). If the retry as written does not hold on
+your host — wrong backoff shape, a third signature I haven't seen, a
+boundary I didn't route — fix it there rather than filing another
+round-trip. Constraints: your patch must leave every design artifact
+byte-identical (`reviewer_patch_check.py` enforces it), carry the
+`Reviewer-Patch: F10` / `Patch-Reason:` trailers, and commit your
+Windows acceptance evidence. I will re-review and sign off with
+`RPA-ACCEPTED: F10 <sha>`; the handoff gate blocks until I do.
+
 **Scope of this iteration**: board bytes and electrical topology
 unchanged (hash `448d59a276df`, re-verified against the HEAD blob);
 the change is entirely in the IO boundary of the generators. Re-run

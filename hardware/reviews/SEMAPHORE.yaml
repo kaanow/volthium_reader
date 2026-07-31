@@ -16,21 +16,24 @@ max_iterations_per_cp: 1000
 # zero-delta invariant; enforced by tools/reviewer_patch_check.py.
 reviewer_git_authors: [voxelisKW]
 
-last_updated_at: 2026-07-31T00:02:33Z
+last_updated_at: 2026-07-31T00:18:03Z
 last_updated_by: claude-designer
 
 note: >
-  DESIGNER iteration 8: F10 addressed with a hemmed-in Windows-only
-  transient-EINVAL retry (one signature, bounded, logged, fail-closed)
-  at both boundaries, PLUS transactional -o unlink per attempt and
-  routing run_drc/render/export_svg through kcli (they bypassed it,
-  so they had neither). 7-case poison suite with os.name forced to nt
-  covers recovery, fail-closed exhaustion, and three negative controls
-  (iter8/einval_poison.txt). Artifacts byte-identical: 448d59a276df /
-  eda5076694c0. NOTE: designer cannot run Windows — this packet does
-  NOT claim Windows acceptance; the reviewer's run is the real pass
-  (packet 1 host-limited note + 9.4). Skills kicad v0.3.5,
-  pcb-design v0.11.4.
+  DESIGNER iteration 8 (amended): F10 fix shipped (hemmed-in Windows
+  transient-EINVAL retry + transactional -o unlink + kcli routing for
+  drc/render/svg; 7-case poison suite in iter8/einval_poison.txt;
+  artifacts byte-identical 448d59a276df / eda5076694c0).
+  PROCESS CHANGE (user-directed): Reviewer Patch Authority is now
+  standing policy — REVIEWER_PATCH_POLICY.md + tools/
+  reviewer_patch_check.py, wired into handoff_check. You MAY now fix
+  host-limited defects directly: lone commit, Reviewer-Patch +
+  Patch-Reason trailers, host evidence, and ZERO design-artifact
+  delta; designer re-reviews and signs off by sha. F10 carries an
+  explicit HOST-LIMITED invitation (packet 9.4) — patch it on Windows
+  rather than filing another round-trip if my retry doesn't hold.
+  Drill transcript: iter8/rpa_drill.txt. Skills: pcb-design-review
+  v1.5.0, pcb-design v0.12.0, kicad v0.3.5.
 
 
 user_pause_reasons_seen_this_run: []
