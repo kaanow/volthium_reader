@@ -1,0 +1,63 @@
+CP3 iteration 8 — Windows transient-EINVAL retry poison tests
+==============================================================
+os.name is patched to 'nt' so the Windows-only path executes on macOS;
+sleeps are stubbed to keep the run fast. Both call classes, both
+outcomes (one-shot recovery, persistent exhaustion), plus the
+negative controls that must NOT retry.
+
+--- open EINVAL x1 -> recovers
+[win-einval] retry 1 write fake.kicad_sch
+    RESULT: returned 'wrote'
+
+--- open EINVAL persistent -> fails closed
+[win-einval] retry 1 write fake.kicad_sch
+[win-einval] retry 2 write fake.kicad_sch
+[win-einval] retry 3 write fake.kicad_sch
+    RESULT: SystemExit -> [win-einval] write fake.kicad_sch: EINVAL persisted through 3 retries — failing closed
+
+--- open ENOENT -> propagates unretried
+    RESULT: returned 'raised on attempt 1 (no retry) errno=2'
+
+--- kicad 'Invalid argument' x1 -> recovers
+[win-einval] retry 1 kicad ('sch','export','netlist')
+    RESULT: returned rc=0 stderr=''
+
+--- kicad 'Invalid argument' persistent -> fails closed
+[win-einval] retry 1 kicad ('sch','export','netlist')
+[win-einval] retry 2 kicad ('sch','export','netlist')
+[win-einval] retry 3 kicad ('sch','export','netlist')
+    RESULT: SystemExit -> [win-einval] kicad ('sch','export','netlist'): EINVAL persisted through 3 retries — failing closed
+
+--- kicad real error -> returned to caller, unretried
+    RESULT: returned rc=1 stderr='could not open schematic\n'
+
+--- kicad rc=5 violations -> returned to caller, unretried
+    RESULT: returned rc=5 stderr='violations found\n'
+
+
+Non-Windows behavior + determinism (macOS, os.name unpatched)
+--------------------------------------------------------------
+_win_einval short-circuits to a direct call when os.name != "nt", so
+the POSIX path is byte-for-byte the previous code path. All three
+generators rebuilt after the change:
+  schematic/build.py         ROOT ERC strict rc=5, 2/2 accepted
+  schematic/build_display.py ROOT ERC strict rc=0, 0 messages
+  pcb/build.py               DRC 12/1/316, 0 unaccounted
+Artifact hashes UNCHANGED from iteration 6:
+  battery_pcb.kicad_pcb   448d59a276df
+  volthium_reader.net     eda5076694c0
+
+Coverage of the retry (call-site enumeration)
+----------------------------------------------
+file-open class, via write_text_lf / read_text_checked /
+to_file_checked / normalize_text_lf:
+  schematic core: root sheet, project files, sym-lib/fp-lib tables,
+    volthium.kicad_sym, every sheet .kicad_sch (to_file), netlist read
+    after export, netlist re-read in the parity gate
+  pcb core: board to_file, board re-read in write(), gate_readback
+    re-read, DRC report read, .kicad_dru/.kicad_pro/fp-lib-table
+kicad-cli class, via sch.kcli (transactional -o unlink per attempt):
+  schematic: every sch export/erc call already routed through kcli
+  pcb: drc, render x2, export svg — these three bypassed kcli entirely
+    before this iteration and had NO transactional unlink of their own
+    -o target beyond a pre-call unlink; now they inherit both.

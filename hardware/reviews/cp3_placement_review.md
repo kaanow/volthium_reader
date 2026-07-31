@@ -22,6 +22,10 @@ Scope per D12: **battery side only** (display-side placement is CP4).
   analogous). Pre-handoff gate: `python3
   hardware/reviews/tools/handoff_check.py` (rebuild + committed-diff +
   packet-hash + consistency; poison-tested).
+- **Host-limited acceptance**: the gate is CLEAN on the designer's
+  macOS host. Windows acceptance of the F10 transient-EINVAL retry
+  (§9.4) can only be established by the reviewer's run — the designer
+  cannot exercise that host, so this packet does not claim it.
 - Generator: `hardware/kicad/pcb/core.py` (shared mechanics + gates) +
   `hardware/kicad/pcb/build.py` (battery floorplan as data). The pass-1
   PCB toolchain was retired to `hardware/kicad/archive/pass1_pcb/`.
@@ -824,3 +828,67 @@ exact bytes; the re-runnable surface — gate battery, DRC, doc
 consistency, handoff gate, adjective sweep of all new prose, the
 writer sweep — was re-run clean. Scope stated, not silently
 delta'd.
+
+### 9.4 Responses to §8.4 (iteration 8, 2026-07-30)
+
+**Finding 10 (BLOCKER — Windows transient EINVAL): AGREE, with the
+premise checked first and one addition to the suggested fix.**
+
+*Premise check* (the verify-the-premise rule applies to reviewer
+remedies too, and "add a retry" is exactly the kind of fix that can
+hide a real defect): the evidence rules out a data or logic cause —
+the same export and the same opens succeed in isolation, a
+1,000-iteration plain-Python write control passes, no orphan process
+or Application-Error event remains, and the failures land on
+different files and different boundaries run to run. That is a host
+transient, and the artifacts it interrupts are byte-identical on
+success. So a narrow retry is the correct shape of fix here; a
+broad one would not be.
+
+*Implementation* — one shared helper, `_win_einval` in the schematic
+core (reused by the pcb core, which already imports it), deliberately
+hemmed in: **Windows only** (short-circuits to a direct call
+elsewhere, so the POSIX path is unchanged code), **one signature
+only** (`OSError.errno == EINVAL` for opens; for kicad-cli, nonzero
+rc AND complete stderr exactly `Invalid argument`), **bounded**
+(0.25/0.5/1.0 s), **logged per attempt**, and **fail-closed** on
+exhaustion via SystemExit. Every other error — including a real
+kicad-cli failure and DRC's rc=5 — returns to its caller's gate
+unretried on the first try.
+
+*Addition to the suggested fix (transactional retry).* Retrying an
+export that may have half-written its output is its own stale-artifact
+hazard — the class this project has already been bitten by twice (the
+stale DRC report; the stale packet hashes). `kcli` now removes the
+`-o` target before EVERY attempt, so no attempt can read or judge a
+previous attempt's partial output. That also closed a gap the finding
+didn't name: `run_drc`, `render_board` and `export_svg` called
+`subprocess.run` directly, bypassing `kcli` — they had no retry AND
+no per-attempt transactional unlink. All three now route through
+`kcli`.
+
+*Verification* (`visual_inspections/cp3-placement/iter8/einval_poison.txt`):
+seven cases with `os.name` patched to `nt` so the Windows path
+executes here — one-shot recovery and persistent fail-closed
+exhaustion for BOTH call classes, plus three negative controls that
+must not retry (a different errno, a real kicad error, DRC's rc=5).
+All seven behave as specified. Non-Windows determinism re-proven: all
+three generators rebuilt, artifact hashes unchanged
+(`448d59a276df`, `eda5076694c0`).
+
+*Root cause of my miss*: I treated "the reviewer's host" as a
+configuration difference (paths, newlines, encoding) — all static
+properties I could reason about from here. A host can also differ in
+its transient FAILURE behavior, which no amount of reading my own
+code reveals; only running there does. I cannot run there, so the
+standing consequence is procedural, now in DESIGNER.md §7: when a
+gate's acceptance depends on a host I cannot exercise, the packet
+must say so explicitly and the reviewer's acceptance run is the
+gate's real pass, not mine. Acceptance for this fix is therefore the
+reviewer's: the exact bare handoff command passing twice on Windows.
+
+**Scope of this iteration**: board bytes and electrical topology
+unchanged (hash `448d59a276df`, re-verified against the HEAD blob);
+the change is entirely in the IO boundary of the generators. Re-run
+clean: all three builds, full gate battery, DRC (12/1/316), doc
+consistency, handoff gate, the seven-case poison suite above.

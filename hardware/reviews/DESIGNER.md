@@ -409,6 +409,13 @@ python3 hardware/reviews/tools/handoff_check.py   # CP3+: rebuilds every
 # hashes = git blob sha256 (worktree bytes lie on autocrlf clones).
 ```
 
+**Host-limited acceptance (CP3 F10).** A gate whose pass depends on a
+host you cannot exercise (the reviewer's Windows box, a fab's DRC) is
+NOT accepted by your clean local run. Say so in the packet, state what
+you did verify (poison tests with the platform branch forced, plus
+unchanged-output proof), and treat the reviewer's acceptance run as the
+gate's real pass. Never write "CLEAN" for a host you didn't run on.
+
 Exit 0 required. It re-checks the append-only registry of every token
 this project has ever superseded, and executes D32 (datasheet manifest ↔
 PDFs ↔ canonical BOM) as code. If your change superseded a part, value,

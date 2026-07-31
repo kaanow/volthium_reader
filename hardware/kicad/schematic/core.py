@@ -42,16 +42,70 @@ OUT = HERE / "build"            # generated schematics + review renders (gitigno
 ROOT_TITLE = "Volthium reader — battery-side (root)"
 
 
+# --- Windows transient-EINVAL boundary (CP3 F10) ---------------------------
+# On the reviewer's Windows host, opening a just-touched generated artifact
+# and invoking kicad-cli both intermittently fail with errno 22 / stderr
+# "Invalid argument", while identical isolated operations succeed — a
+# host-level transient, not a defect in the data. Retry is normally
+# forbidden here (it hides real failures), so this one is deliberately
+# hemmed in: Windows only, ONE exact signature, bounded backoff, every
+# attempt logged, and exhaustion is fatal. Anything else propagates
+# unretried on the first try.
+_WIN_BACKOFF = (0.25, 0.5, 1.0)
+
+
+def _win_einval(fn, describe, transient_result=None):
+    """Run fn(); on Windows retry ONLY the transient EINVAL signature.
+
+    transient_result: optional predicate on a returned value (used for
+    subprocess results, which report failure by value, not exception).
+    """
+    if os.name != "nt":
+        return fn()
+    import errno
+    import time
+    for attempt in range(len(_WIN_BACKOFF) + 1):
+        if attempt:
+            time.sleep(_WIN_BACKOFF[attempt - 1])
+            print(f"[win-einval] retry {attempt} {describe}", flush=True)
+        try:
+            r = fn()
+        except OSError as e:
+            if e.errno != errno.EINVAL:
+                raise            # any other error: fatal, unretried
+            continue
+        if transient_result is not None and transient_result(r):
+            continue
+        return r
+    raise SystemExit(f"[win-einval] {describe}: EINVAL persisted through "
+                     f"{len(_WIN_BACKOFF)} retries — failing closed")
+
+
 def write_text_lf(path, text):
     """Write deterministic UTF-8 text without host newline translation."""
-    with Path(path).open("w", encoding="utf-8", newline="\n") as f:
-        f.write(text)
+    def _w():
+        with Path(path).open("w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+    _win_einval(_w, f"write {Path(path).name}")
+
+
+def read_text_checked(path):
+    """Read a GENERATED artifact (same transient boundary as the writes)."""
+    return _win_einval(lambda: Path(path).read_text(encoding="utf-8"),
+                       f"read {Path(path).name}")
+
+
+def to_file_checked(obj, path=None, describe=""):
+    """kiutils to_file() — its open() hits the same boundary."""
+    name = Path(path).name if path else describe
+    return _win_einval(
+        (lambda: obj.to_file(str(path), encoding="utf-8")) if path else
+        (lambda: obj.to_file(encoding="utf-8")), f"to_file {name}")
 
 
 def normalize_text_lf(path):
     """Normalize text emitted by libraries that do not expose newline=."""
-    p = Path(path)
-    write_text_lf(p, p.read_text(encoding="utf-8"))
+    write_text_lf(path, read_text_checked(path))
 
 
 def configure(project, out_dirname, root_title):
@@ -897,7 +951,7 @@ def write_project():
     gen.generator = "volthium_build"
     gen.symbols = [_SYMCACHE[k] for k in sorted(_SYMCACHE)]
     gen.filePath = str(OUT / "volthium.kicad_sym")
-    gen.to_file(encoding="utf-8")
+    to_file_checked(gen, describe="volthium.kicad_sym")
     normalize_text_lf(gen.filePath)
     write_text_lf(
         OUT / "sym-lib-table",
@@ -913,7 +967,27 @@ def write_project():
 
 
 def kcli(*a):
-    return subprocess.run([str(KICAD_CLI), *a], capture_output=True, text=True)
+    """Invoke kicad-cli. Retries ONLY the Windows transient whose complete
+    stderr is "Invalid argument" (F10) — every other nonzero result is
+    returned to the caller's gate unchanged. Transactional across the
+    retry: the -o target is removed before each attempt, so no attempt
+    can read or judge a half-written output from a previous one."""
+    args = [str(KICAD_CLI), *a]
+    out = None
+    if "-o" in a:
+        i = list(a).index("-o")
+        if i + 1 < len(a):
+            out = Path(a[i + 1])
+
+    def _run():
+        if out is not None and out.exists():
+            out.unlink()
+        return subprocess.run(args, capture_output=True, text=True)
+
+    return _win_einval(
+        _run, f"kicad {a[:3]}",
+        transient_result=lambda r: (r.returncode != 0
+                                    and r.stderr.strip() == "Invalid argument"))
 
 MM = 2.8346   # schematic mm -> PDF points
 
@@ -988,7 +1062,7 @@ def render(s, name, crops=()):
         print(f"[{name}] READABILITY GATE FAILED:"); [print("  "+b) for b in bad]
         return False
     print(f"[{name}] readability gate: clean")
-    schf = OUT / f"{name}.kicad_sch"; s.sch.to_file(str(schf), encoding="utf-8")
+    schf = OUT / f"{name}.kicad_sch"; to_file_checked(s.sch, schf)
     normalize_text_lf(schf)
     if not _checked_pdf_export(schf, OUT / f"{name}.pdf"):
         return False
@@ -1103,7 +1177,7 @@ def kicad_netlist(rootf):
     r = kcli("sch", "export", "netlist", "-o", str(out), str(rootf))
     if r.returncode != 0:
         raise SystemExit(f"[netlist-gate] export failed: {r.stderr[:300]}")
-    txt = out.read_text(encoding="utf-8")
+    txt = read_text_checked(out)
     # Pin every host-volatile header field, not just the date: the design
     # (source ...) is an absolute path and (tool ...) carries the installed
     # KiCad point version, so an unpinned netlist can NEVER hash equal
@@ -1222,7 +1296,7 @@ def verify_netlist(built, rootf, golden, exact_parts):
 def check_exact_parts(rootf, exact_parts):
     """Read (ref, value, footprint) from the exported netlist and require the
     EXACT_PARTS variants. Returns issues."""
-    txt = (OUT / (Path(rootf).stem + ".net")).read_text(encoding="utf-8")
+    txt = read_text_checked(OUT / (Path(rootf).stem + ".net"))
     comps = dict()
     for m in re.finditer(r'\(ref "([^"]+)"\)\s*\(value "([^"]*)"\)\s*'
                          r'\(footprint "([^"]*)"\)', txt):

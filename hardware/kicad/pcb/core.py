@@ -507,7 +507,7 @@ class BoardBuilder:
         self.gate_outline()
         self.gate_edge_markers()
         self.gate_fab_rules()
-        self.b.to_file(str(path), encoding="utf-8")
+        sch.to_file_checked(self.b, path)
         if not Path(path).exists() or Path(path).stat().st_size == 0:
             raise SystemExit(f"[write] {path} missing/empty after to_file")
         # kiutils (KiCad-6 era) parses KiCad-10's "(remove_unused_layers no)"
@@ -515,7 +515,7 @@ class BoardBuilder:
         # reads as YES: semantics inverted on every THT pad, and every such
         # footprint diffs against its library ([lib_footprint_mismatch]).
         # Restore the explicit "no" textually at the write chokepoint.
-        text = Path(path).read_text(encoding="utf-8")
+        text = sch.read_text_checked(path)
         text = text.replace("(remove_unused_layers)",
                             "(remove_unused_layers no)")
         # kiutils stamps serialization time into (tedit ...) — the one
@@ -533,7 +533,7 @@ class BoardBuilder:
     def gate_readback(self, path):
         """Judge the WRITTEN artifact: re-parse the .kicad_pcb text and
         diff (ref, pad, net) triples against the netlist, both ways."""
-        text = Path(path).read_text(encoding="utf-8")
+        text = sch.read_text_checked(path)
         board = set()
         chunks = re.split(r'\n  \(footprint ', text)[1:]
         for ch in chunks:
@@ -937,17 +937,18 @@ def run_drc(pcb_path, accepted, out_rpt):
     (category, object-substring) pairs."""
     rpt = Path(out_rpt)
     rpt.unlink(missing_ok=True)
-    r = subprocess.run(
-        [str(KICAD_CLI), "pcb", "drc", "--severity-all",
-         "--exit-code-violations", "-o", str(rpt), str(pcb_path)],
-        capture_output=True, text=True)
+    # via sch.kcli: transactional -o unlink + the Windows transient-EINVAL
+    # retry (F10). rc=5 (violations found) carries its own stderr, so it is
+    # never mistaken for the retryable signature.
+    r = sch.kcli("pcb", "drc", "--severity-all",
+                 "--exit-code-violations", "-o", str(rpt), str(pcb_path))
     if r.returncode not in (0, 5):
         raise SystemExit(f"[drc] kicad-cli failed rc={r.returncode}: "
                          f"{r.stderr[-400:]}")
     if not rpt.exists() or rpt.stat().st_size == 0:
         raise SystemExit("[drc] report missing/empty after run — refusing "
                          "to judge a stale artifact")
-    text = rpt.read_text(encoding="utf-8")
+    text = sch.read_text_checked(rpt)
     entries = re.findall(r'^\[(\w+)\]: (.*)$', text, re.M)
     unaccounted = []
     counts = {}
@@ -968,10 +969,9 @@ def run_drc(pcb_path, accepted, out_rpt):
 def render_board(pcb_path, out_png, side):
     p = Path(out_png)
     p.unlink(missing_ok=True)
-    r = subprocess.run(
-        [str(KICAD_CLI), "pcb", "render", "--side", side, "--quality", "high",
-         "--width", "2400", "--height", "1800", "-o", str(p), str(pcb_path)],
-        capture_output=True, text=True)
+    r = sch.kcli("pcb", "render", "--side", side, "--quality", "high",
+                 "--width", "2400", "--height", "1800", "-o", str(p),
+                 str(pcb_path))
     if r.returncode != 0 or not p.exists() or p.stat().st_size == 0:
         raise SystemExit(f"[render] {side} failed rc={r.returncode}: "
                          f"{r.stderr[-300:]}")
@@ -980,11 +980,9 @@ def render_board(pcb_path, out_png, side):
 def export_svg(pcb_path, out_svg, layers):
     p = Path(out_svg)
     p.unlink(missing_ok=True)
-    r = subprocess.run(
-        [str(KICAD_CLI), "pcb", "export", "svg", "--layers", layers,
-         "--page-size-mode", "2", "--exclude-drawing-sheet",
-         "-o", str(p), str(pcb_path)],
-        capture_output=True, text=True)
+    r = sch.kcli("pcb", "export", "svg", "--layers", layers,
+                 "--page-size-mode", "2", "--exclude-drawing-sheet",
+                 "-o", str(p), str(pcb_path))
     if r.returncode != 0 or not p.exists() or p.stat().st_size == 0:
         raise SystemExit(f"[svg] failed rc={r.returncode}: {r.stderr[-300:]}")
 
