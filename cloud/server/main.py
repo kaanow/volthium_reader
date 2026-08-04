@@ -431,6 +431,40 @@ async def _resolve_solar_source(
     return rows[0].get("source_id") if rows else None
 
 
+@app.get("/api/solar/energy")
+async def api_solar_energy(
+    source_id: Optional[str] = Query(default=None),
+    days: int = Query(default=30, ge=1, le=400),
+    dao: ReadingsDAO = Depends(get_dao),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    """Daily energy ledger with the solar split (production physics-inferred
+    where the MPPT under-reports — see db.solar_energy_daily)."""
+    if not isinstance(dao, AsyncpgReadingsDAO):
+        return {"days": [], "tz": settings.display_tz}
+    src = await _resolve_solar_source(dao, source_id)
+    if src is None:
+        return {"days": [], "tz": settings.display_tz}
+    rows = await dao.solar_energy_daily(src, days, settings.display_tz)
+    return {"days": _rows_out(rows), "tz": settings.display_tz, "source_id": src}
+
+
+@app.get("/api/solar/load_heatmap")
+async def api_solar_load_heatmap(
+    source_id: Optional[str] = Query(default=None),
+    days: int = Query(default=21, ge=1, le=120),
+    dao: ReadingsDAO = Depends(get_dao),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    if not isinstance(dao, AsyncpgReadingsDAO):
+        return {"cells": [], "tz": settings.display_tz}
+    src = await _resolve_solar_source(dao, source_id)
+    if src is None:
+        return {"cells": [], "tz": settings.display_tz}
+    rows = await dao.load_heatmap(src, days, settings.display_tz)
+    return {"cells": _rows_out(rows), "tz": settings.display_tz, "source_id": src}
+
+
 # The current logger/hardware went live 2026-06-29; a handful of stray
 # readings predate it (an old bring-up rig). History views floor their range
 # here so the "90 d" / "all" spans aren't padded with a ~6-week empty gap.
@@ -650,6 +684,13 @@ async def v2_page() -> FileResponse:
     """The redesigned live screen (SOC hero + power-flow), staged here until
     it replaces / — see docs/mockups/power-flow.html for its design lineage."""
     return FileResponse(STATIC_DIR / "v2.html")
+
+
+@app.get("/v2/history")
+async def v2_history_page() -> FileResponse:
+    """History companion to /v2: daily energy ledger, load heatmap, cell
+    imbalance drift, event timeline."""
+    return FileResponse(STATIC_DIR / "v2-history.html")
 
 
 @app.get("/history")

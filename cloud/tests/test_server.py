@@ -452,5 +452,25 @@ class V2PageTests(unittest.TestCase):
         self.assertIn("Barge Inn Power", r.text)
 
 
+class V2HistoryTests(unittest.TestCase):
+    def test_v2_history_page_served(self):
+        c = _client()
+        r = c.get("/v2/history")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("Daily energy", r.text)
+
+    def test_solar_energy_empty_shape(self):
+        c = _client()
+        r = c.get("/api/solar/energy?days=30")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["days"], [])
+
+    def test_load_heatmap_empty_shape(self):
+        c = _client()
+        r = c.get("/api/solar/load_heatmap")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["cells"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

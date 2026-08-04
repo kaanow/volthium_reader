@@ -87,7 +87,7 @@ details.sys summary { color: var(--text-3); font-size: 13px; cursor: pointer; us
   <div class="topbar">
     <h1>Barge Inn Power</h1>
     <div class="controls">
-      <a href="/history">history</a>
+      <a href="/v2/history">history</a>
       <a href="/">classic</a>
       <button id="theme" title="toggle theme">◐</button>
     </div>
@@ -151,6 +151,7 @@ details.sys summary { color: var(--text-3); font-size: 13px; cursor: pointer; us
       <div class="cell">PV array <b id="s-pvv">—</b></div>
       <div class="cell">Charge stage <b id="s-stage">—</b></div>
       <div class="cell">Inverter <b id="s-inv">—</b></div>
+      <div class="cell" title="What the MPPT claims to produce — under-reads when the array is pinned at battery voltage">MPPT self-report <b id="s-mppt">—</b></div>
     </div>
   </details>
 
@@ -175,10 +176,26 @@ const hist = [];         // ring of {t, solar, gen, load, batt}
 function battW() {       // + = charging (BMS smoothed power)
   return st.latest?.smoothed_p ?? 0;
 }
-function solarW() { return st.solar?.solar_w ?? 0; }
+/* The MPPT under-reports its own output when the array is pinned near
+   battery voltage (verified against its Modbus registers 2026-08-04, both
+   interfaces agree on the wrong number while the BMS shows the true charge).
+   When the two trustworthy meters (BMS battery power + inverter DC draw)
+   say more power is flowing than the MPPT admits, infer production from
+   physics and mark it approximate. */
+function inferSolar(reported, batt, dcw) {
+  if (dcw == null) return { w: reported, approx: false };
+  const inferred = batt + dcw;                // charge + house draw = source
+  if (inferred - reported > 60) return { w: Math.max(0, inferred), approx: true };
+  return { w: reported, approx: false };
+}
+function solarInfo() {
+  return inferSolar(st.solar?.solar_w ?? 0, battW(),
+                    st.gen ? null : st.solar?.dc_w ?? null);
+}
+function solarW() { return solarInfo().w; }
 function loadW() {
   if (st.gen) return null;                    // AC-side load unknown during gen (yet)
-  return Math.max(0, solarW() - battW());
+  return st.solar?.dc_w ?? Math.max(0, solarW() - battW());
 }
 
 /* ---------- fetch ---------- */
@@ -219,18 +236,18 @@ async function pollOnce(first) {
     for (const r of rows) {
       const t = Date.parse(r.ts);
       const batt = pByT.get(t) ?? 0;
-      const solar_w = r.solar_w ?? 0;
-      hist.push({ t, solar: solar_w, gen: 0,
-                  load: Math.max(0, solar_w - batt), batt });
+      const s = inferSolar(r.solar_w ?? 0, batt, r.dc_w);
+      hist.push({ t, solar: s.w, gen: 0,
+                  load: r.dc_w ?? Math.max(0, s.w - batt), batt });
     }
   } else if (rows.length) {
     for (const r of rows) {
       const t = Date.parse(r.ts);
       if (hist.length && t <= hist[hist.length - 1].t) continue;
       const batt = battW();
-      const solar_w = r.solar_w ?? 0;
-      hist.push({ t, solar: solar_w, gen: st.gen ? Math.max(0, batt - solar_w) : 0,
-                  load: st.gen ? 0 : Math.max(0, solar_w - batt), batt });
+      const s = inferSolar(r.solar_w ?? 0, batt, st.gen ? null : r.dc_w);
+      hist.push({ t, solar: s.w, gen: st.gen ? Math.max(0, batt - s.w) : 0,
+                  load: st.gen ? 0 : (r.dc_w ?? 0), batt });
     }
     while (hist.length > HIST) hist.shift();
   }
@@ -311,7 +328,8 @@ function drawFlow() {
       d.c.style.strokeWidth = 1;
     }
   }
-  $("t-solar").textContent = `${Math.round(solar)} W`;
+  const si = solarInfo();
+  $("t-solar").textContent = `${si.approx ? "≈ " : ""}${Math.round(si.w)} W`;
   $("t-gen").textContent = st.gen ? "running" : "0 W";
   $("t-load").textContent = load == null ? "—" : `${Math.round(load)} W`;
   $("t-batt").textContent = `${charging ? "+" : "−"}${Math.round(Math.abs(batt))} W ${charging ? "charging" : "discharging"}`;
@@ -425,6 +443,7 @@ function drawHero() {
   $("s-pvv").textContent = st.solar?.pv_v != null ? `${st.solar.pv_v.toFixed(1)} V` : "—";
   $("s-stage").textContent = st.stage ?? "—";
   $("s-inv").textContent = st.inv;
+  $("s-mppt").textContent = st.solar?.solar_w != null ? `${Math.round(st.solar.solar_w)} W` : "—";
 }
 
 /* ---------- loop ---------- */

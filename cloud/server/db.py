@@ -666,6 +666,65 @@ class AsyncpgReadingsDAO:
             )
         return [dict(r) for r in rows]
 
+    async def solar_energy_daily(
+        self, source_id: str, days: int, tz: str
+    ) -> list[dict]:
+        """Per-local-day energy ledger with the solar split. Production is
+        INFERRED from the two trustworthy meters (BMS battery power +
+        inverter DC draw) whenever that exceeds the MPPT's self-report —
+        the MPPT under-reads when its array is pinned near battery voltage
+        (verified vs its own Modbus, 2026-08-04). 15s buckets joined across
+        readings & solar_readings, integrated per day."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """WITH r AS (
+                       SELECT to_timestamp(floor(extract(epoch FROM ts)/15)*15) AS b,
+                              AVG(pack_p) AS batt
+                       FROM readings WHERE source_id = $1
+                         AND ts > now() - ($2 || ' days')::interval
+                       GROUP BY b
+                   ), s AS (
+                       SELECT ts AS b, solar_w, dc_w
+                       FROM solar_readings WHERE source_id = $1
+                         AND ts > now() - ($2 || ' days')::interval
+                   ), j AS (
+                       SELECT s.b,
+                              GREATEST(COALESCE(s.solar_w,0),
+                                       COALESCE(r.batt,0) + COALESCE(s.dc_w,0))
+                                  AS prod_w,
+                              COALESCE(s.dc_w,0)  AS load_w,
+                              COALESCE(r.batt,0)  AS batt_w
+                       FROM s LEFT JOIN r USING (b)
+                   )
+                   SELECT (b AT TIME ZONE $3)::date AS day,
+                          SUM(GREATEST(prod_w,0)) * 15 / 3600.0  AS solar_wh,
+                          SUM(load_w) * 15 / 3600.0              AS load_wh,
+                          SUM(GREATEST(batt_w,0))  * 15 / 3600.0 AS batt_in_wh,
+                          SUM(GREATEST(-batt_w,0)) * 15 / 3600.0 AS batt_out_wh,
+                          COUNT(*) * 15 / 86400.0                AS coverage
+                   FROM j GROUP BY day ORDER BY day""",
+                source_id, str(days), tz,
+            )
+        return [dict(r) for r in rows]
+
+    async def load_heatmap(
+        self, source_id: str, days: int, tz: str
+    ) -> list[dict]:
+        """hour-of-day x day matrix of average inverter DC draw (house
+        load proxy) from solar_readings.dc_w."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT (ts AT TIME ZONE $3)::date AS day,
+                          extract(hour FROM ts AT TIME ZONE $3)::int AS hour,
+                          AVG(dc_w) AS load_w
+                   FROM solar_readings
+                   WHERE source_id = $1
+                     AND ts > now() - ($2 || ' days')::interval
+                   GROUP BY day, hour ORDER BY day, hour""",
+                source_id, str(days), tz,
+            )
+        return [dict(r) for r in rows]
+
     async def insert_xanbus_events(
         self, source_id: str, events: Sequence[BleEvent]
     ) -> int:

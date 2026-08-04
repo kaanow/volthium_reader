@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Barge Inn Power — History</title>
+<style>
+:root {
+  color-scheme: dark;
+  --surface: #1a1a19; --surface-2: #262624; --line: #3a3936;
+  --text-1: #ffffff; --text-2: #c3c2b7; --text-3: #8a8880;
+  --solar: #c98500; --batt: #199e70; --gen: #d95926; --load: #3987e5;
+  --a: #3987e5; --b: #d95926; --crit: #d03b3b;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --surface: #fcfcfb; --surface-2: #f0efec; --line: #dedcd6;
+  --text-1: #0b0b0b; --text-2: #52514e; --text-3: #8a8880;
+  --solar: #eda100; --batt: #1baf7a; --gen: #eb6834; --load: #2a78d6;
+  --a: #2a78d6; --b: #eb6834;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface); color: var(--text-1);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 20px 16px 60px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; }
+.topbar h1 { font-size: 15px; font-weight: 600; color: var(--text-2); margin: 0; }
+.controls { display: flex; gap: 8px; align-items: center; }
+.controls a { color: var(--text-3); font-size: 13px; text-decoration: none; margin-right: 6px; }
+.controls a:hover { color: var(--text-1); }
+button { font: inherit; color: var(--text-1); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+section { margin-top: 34px; }
+section h2 { font-size: 13px; font-weight: 600; color: var(--text-2); margin: 0 0 4px; }
+section .note { font-size: 12px; color: var(--text-3); margin: 0 0 10px; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-2); margin-bottom: 6px; }
+.legend span::before { content: ""; display: inline-block; width: 9px; height: 9px;
+  border-radius: 3px; margin-right: 5px; background: var(--c); }
+svg.chart { display: block; width: 100%; height: auto; }
+.tip { position: fixed; pointer-events: none; z-index: 5; display: none;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  padding: 7px 10px; font-size: 12.5px; box-shadow: 0 4px 14px rgb(0 0 0 / .18);
+  color: var(--text-2); white-space: nowrap; }
+.tip b { color: var(--text-1); }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px; margin-top: 12px; }
+.stats .cell { background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 9px 12px; font-size: 12.5px; color: var(--text-2); }
+.stats .cell b { display: block; font-size: 17px; color: var(--text-1); font-weight: 600; }
+.hm { display: grid; gap: 2px; }
+.hm .cell { aspect-ratio: 1.6; border-radius: 2px; background: var(--surface-2); }
+.hm-labels { display: flex; justify-content: space-between; font-size: 11px;
+  color: var(--text-3); margin-top: 4px; }
+.timeline { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; }
+.timeline li { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.timeline .t { color: var(--text-3); min-width: 118px; font-variant-numeric: tabular-nums; }
+.timeline .ev { color: var(--text-1); font-weight: 600; min-width: 120px; }
+.timeline .d { color: var(--text-2); }
+.foot { margin-top: 34px; color: var(--text-3); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <h1>Barge Inn Power — History</h1>
+    <div class="controls">
+      <a href="/v2">live</a>
+      <a href="/history">classic</a>
+      <button id="theme" title="toggle theme">◐</button>
+    </div>
+  </div>
+
+  <section>
+    <h2>Daily energy — last 30 days</h2>
+    <p class="note">Production above, consumption below. Production is physics-derived
+      (battery&nbsp;+&nbsp;inverter draw) where the MPPT under-reports.</p>
+    <div class="legend">
+      <span style="--c: var(--solar)">solar in</span>
+      <span style="--c: var(--load)">loads out</span>
+      <span style="--c: var(--batt)">battery net (dot)</span>
+    </div>
+    <svg id="ledger" class="chart" viewBox="0 0 840 240"></svg>
+    <div class="stats" id="ledger-stats"></div>
+  </section>
+
+  <section>
+    <h2>Load pattern — hour × day, last 21 days</h2>
+    <p class="note">Average house draw (inverter DC input). Darker = heavier use.</p>
+    <div class="hm" id="heatmap"></div>
+    <div class="hm-labels"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+  </section>
+
+  <section>
+    <h2>Cell imbalance — daily worst spread per battery</h2>
+    <p class="note">Max cell ΔV per day. Rising trend = balancer losing ground; battery A's
+      spread is what drove the July overvoltage trips.</p>
+    <div class="legend">
+      <span style="--c: var(--a)">battery A</span>
+      <span style="--c: var(--b)">battery B</span>
+    </div>
+    <svg id="drift" class="chart" viewBox="0 0 840 160"></svg>
+  </section>
+
+  <section>
+    <h2>Events — last 14 days</h2>
+    <p class="note">Charge-stage moves, generator, node health, BMS alarms.</p>
+    <ul class="timeline" id="timeline"></ul>
+  </section>
+
+  <div class="tip" id="tip"></div>
+  <div class="foot">Built from 15 s CAN + BMS telemetry · <span id="cov"></span></div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const tip = $("tip");
+const fmtWh = wh => wh >= 1000 ? `${(wh/1000).toFixed(2)} kWh` : `${Math.round(wh)} Wh`;
+function showTip(e, html) {
+  tip.style.display = "block";
+  tip.style.left = `${Math.min(e.clientX + 14, innerWidth - 210)}px`;
+  tip.style.top = `${e.clientY + 14}px`;
+  tip.innerHTML = html;
+}
+document.addEventListener("mouseover", e => {
+  const h = e.target.closest("[data-tip]");
+  if (h) showTip(e, h.dataset.tip); else tip.style.display = "none";
+});
+document.addEventListener("mousemove", e => {
+  const h = e.target.closest("[data-tip]");
+  if (h) showTip(e, h.dataset.tip);
+});
+
+async function jget(u) { const r = await fetch(u); return r.json(); }
+
+/* ---------- daily energy ledger ---------- */
+function drawLedger(days) {
+  const svg = $("ledger");
+  if (!days.length) { svg.outerHTML = "<p class='note'>no data yet</p>"; return; }
+  const W = 840, H = 240, MID = 130, PADX = 30;
+  const n = days.length;
+  const bw = Math.min(22, (W - PADX * 2) / n * 0.72);
+  const step = (W - PADX * 2) / n;
+  const maxWh = Math.max(500, ...days.map(d => Math.max(d.solar_wh || 0, d.load_wh || 0)));
+  const y = wh => (wh / maxWh) * (MID - 26);
+  let out = "";
+  days.forEach((d, i) => {
+    const x = PADX + i * step + (step - bw) / 2;
+    const sol = d.solar_wh || 0, load = d.load_wh || 0;
+    const net = (d.batt_in_wh || 0) - (d.batt_out_wh || 0);
+    const label = new Date(d.day + "T12:00:00").toLocaleDateString([], { month: "short", day: "numeric" });
+    const t = `<b>${label}</b><br>solar in <b>${fmtWh(sol)}</b><br>loads out <b>${fmtWh(load)}</b><br>battery net <b>${net >= 0 ? "+" : "−"}${fmtWh(Math.abs(net))}</b>`;
+    out += `<g data-tip="${t.replace(/"/g, "&quot;")}">`;
+    out += `<rect x="${x}" y="${MID - y(sol)}" width="${bw}" height="${Math.max(y(sol), 1)}" rx="3" fill="var(--solar)"/>`;
+    out += `<rect x="${x}" y="${MID + 2}" width="${bw}" height="${Math.max(y(load), 1)}" rx="3" fill="var(--load)"/>`;
+    const ny = net >= 0 ? MID - y(net) : MID + 2 + y(-net);
+    out += `<circle cx="${x + bw / 2}" cy="${ny}" r="3" fill="var(--batt)" stroke="var(--surface)" stroke-width="1"/>`;
+    out += `</g>`;
+    if (i % Math.ceil(n / 10) === 0)
+      out += `<text x="${x + bw / 2}" y="${H - 6}" text-anchor="middle" style="font:11px system-ui;fill:var(--text-3)">${label}</text>`;
+  });
+  out += `<line x1="${PADX}" y1="${MID}" x2="${W - PADX}" y2="${MID}" stroke="var(--line)"/>`;
+  out += `<text x="${PADX}" y="16" style="font:500 11px system-ui;fill:var(--text-3)">in ↑</text>`;
+  out += `<text x="${PADX}" y="${H - 24}" style="font:500 11px system-ui;fill:var(--text-3)">out ↓</text>`;
+  svg.innerHTML = out;
+
+  const tot = k => days.reduce((a, d) => a + (d[k] || 0), 0);
+  const sWh = tot("solar_wh"), lWh = tot("load_wh");
+  const best = days.slice().sort((a, b) => (b.solar_wh || 0) - (a.solar_wh || 0))[0];
+  $("ledger-stats").innerHTML = `
+    <div class="cell">Solar harvested <b>${fmtWh(sWh)}</b></div>
+    <div class="cell">Loads consumed <b>${fmtWh(lWh)}</b></div>
+    <div class="cell">Daily average <b>${fmtWh(sWh / Math.max(days.length, 1))}</b></div>
+    <div class="cell">Best day <b>${fmtWh(best.solar_wh || 0)}</b></div>`;
+}
+
+/* ---------- load heatmap ---------- */
+function drawHeatmap(cells) {
+  const hm = $("heatmap");
+  if (!cells.length) { hm.outerHTML = "<p class='note'>no data yet</p>"; return; }
+  const days = [...new Set(cells.map(c => c.day))].sort();
+  const byKey = new Map(cells.map(c => [`${c.day}|${c.hour}`, c.load_w]));
+  const max = Math.max(60, ...cells.map(c => c.load_w || 0));
+  hm.style.gridTemplateColumns = `repeat(24, 1fr)`;
+  let html = "";
+  for (const day of days) {
+    const label = new Date(day + "T12:00:00").toLocaleDateString([], { month: "short", day: "numeric" });
+    for (let h = 0; h < 24; h++) {
+      const v = byKey.get(`${day}|${h}`);
+      const frac = v == null ? 0 : Math.min(1, (v / max) ** 0.6);
+      const t = v == null ? `<b>${label} ${h}:00</b><br>no data`
+        : `<b>${label} ${h}:00</b><br>avg load <b>${Math.round(v)} W</b>`;
+      html += `<div class="cell" data-tip="${t.replace(/"/g, "&quot;")}"
+        style="background: color-mix(in oklab, var(--load) ${Math.round(frac * 100)}%, var(--surface-2))"></div>`;
+    }
+  }
+  hm.innerHTML = html;
+}
+
+/* ---------- cell drift ---------- */
+function drawDrift(series) {
+  const svg = $("drift");
+  const pts = series.filter(b => b.dv_a != null || b.dv_b != null);
+  if (!pts.length) { svg.outerHTML = "<p class='note'>no data yet</p>"; return; }
+  const W = 840, H = 160, PADX = 30, PADY = 16;
+  const max = Math.max(0.1, ...pts.map(b => Math.max(b.dv_a || 0, b.dv_b || 0)));
+  const x = i => PADX + i / Math.max(pts.length - 1, 1) * (W - PADX * 2);
+  const y = v => H - PADY - (v / max) * (H - PADY * 2);
+  const line = key => pts.map((b, i) =>
+    `${i ? "L" : "M"}${x(i).toFixed(1)},${y(b[key] || 0).toFixed(1)}`).join("");
+  let out = `<path d="${line("dv_a")}" fill="none" stroke="var(--a)" stroke-width="2"/>`;
+  out += `<path d="${line("dv_b")}" fill="none" stroke="var(--b)" stroke-width="2"/>`;
+  pts.forEach((b, i) => {
+    const label = new Date(b.bucket).toLocaleDateString([], { month: "short", day: "numeric" });
+    const t = `<b>${label}</b><br>A <b>${((b.dv_a || 0) * 1000).toFixed(0)} mV</b> · B <b>${((b.dv_b || 0) * 1000).toFixed(0)} mV</b>`;
+    out += `<rect x="${x(i) - 8}" y="0" width="16" height="${H}" fill="transparent" data-tip="${t.replace(/"/g, "&quot;")}"/>`;
+  });
+  out += `<text x="${PADX}" y="12" style="font:11px system-ui;fill:var(--text-3)">${Math.round(max * 1000)} mV</text>`;
+  svg.innerHTML = out;
+}
+
+/* ---------- events timeline ---------- */
+function drawTimeline(events, alarms) {
+  const items = [];
+  const NAME = { chg_stage: "charge stage", inverter_mode: "inverter",
+                 gen_start: "generator ON", gen_stop: "generator off",
+                 node_dropout: "node lost", node_return: "node back",
+                 chg_target: "charger target" };
+  for (const e of events) {
+    if (e.event === "ac_load_sample") continue;
+    if (e.event === "chg_target") continue;      // noisy while MPPT flaps
+    let d = "";
+    if (e.event === "chg_stage") d = `${e.data.node}: ${e.data.from} → ${e.data.to}`;
+    else if (e.event === "inverter_mode") d = `${e.data.from} → ${e.data.to}`;
+    else if (e.data.node) d = e.data.node;
+    else d = JSON.stringify(e.data).slice(0, 60);
+    items.push({ ts: e.ts, ev: NAME[e.event] || e.event, d, crit: e.event === "node_dropout" });
+  }
+  for (const a of alarms || []) {
+    items.push({ ts: a.start, ev: "BMS alarm", crit: true,
+                 d: `battery ${a.bat?.toUpperCase?.() || a.bat}: ${(a.flags || []).join(", ")}` });
+  }
+  items.sort((x, y) => y.ts.localeCompare(x.ts));
+  $("timeline").innerHTML = items.slice(0, 60).map(i => {
+    const t = new Date(i.ts).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    return `<li><span class="t">${t}</span><span class="ev" ${i.crit ? 'style="color:var(--crit)"' : ""}>${i.ev}</span><span class="d">${i.d}</span></li>`;
+  }).join("") || "<li><span class='d'>quiet — no events</span></li>";
+}
+
+/* ---------- boot ---------- */
+(async () => {
+  const since14 = new Date(Date.now() - 14 * 864e5).toISOString();
+  const [energy, hm, drift, events, alarms] = await Promise.all([
+    jget("/api/solar/energy?days=30"),
+    jget("/api/solar/load_heatmap?days=21"),
+    jget("/api/history/series?hours=720&bucket_s=86400"),
+    jget(`/api/xanbus_events?since=${encodeURIComponent(since14)}&limit=500`),
+    jget("/api/history/alarms?hours=336").catch(() => ({ alarms: [] })),
+  ]);
+  drawLedger(energy.days || []);
+  drawHeatmap(hm.cells || []);
+  drawDrift(drift.series || []);
+  drawTimeline(events.events || [], alarms.alarms || []);
+  const cov = (energy.days || []).length;
+  $("cov").textContent = cov ? `${cov} days of solar telemetry so far` : "";
+})();
+$("theme").addEventListener("click", () => {
+  const cur = document.documentElement.dataset.theme;
+  document.documentElement.dataset.theme = cur === "light" ? "dark" : "light";
+});
+</script>
+</body>
+</html>
