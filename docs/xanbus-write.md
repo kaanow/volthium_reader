@@ -12,7 +12,25 @@ diode-clamp latch. Read side: `docs/xanbus-decode.md`.
 | Claim an address (J1939/81) | ✅ done — 0x80 claimed uncontested, network sees us |
 | Be interrogated by the network | ✅ observed — Insight requests 4 identity PGNs within 1.3 s |
 | Answer the interrogation | ✅ implemented (`--identify`), field test pending |
-| Have a command accepted | ❌ **ACCESS DENIED** |
+| Have a command accepted | ✅ **ACK — solved 2026-08-05** |
+
+## SOLVED: command authority is the NAME `function` field
+
+A node presenting **function 134 (gateway)** is permitted to command. Any
+other function is refused with ACCESS DENIED. Nothing else needed changing —
+same address, same claim, same discovery answers, same command bytes:
+
+```
+function 130 (generic)  -> <- node 1: ACCESS DENIED for PGN 0x14000
+function 134 (gateway)  -> <- node 1: ACK           for PGN 0x14000
+```
+
+That is the whole authorization model as it applies to us: the MPPT asks
+"are you a gateway?" and believes the answer. Use `--function 134`.
+
+Our NAME still loses every arbitration (vehicle_system_instance = 15 sits
+above `function` in NAME ordering), so declaring gateway class cannot let us
+evict the real Insight; the tool refuses any override that would.
 
 ## The blocker, precisely
 
@@ -45,9 +63,9 @@ No CRC, no preceding handshake. The Insight sends it, then requests PGN
 
 ## Ranked ideas
 
-1. Answer discovery, then command — standing may follow identification.
-2. Claim a low address (0x03–0x0F); real devices live at 0–2.
-3. Present as function 134 (gateway) — the only device that ever commands.
+1. ~~Answer discovery~~ — implemented; necessary-looking but not sufficient.
+2. ~~Low address~~ — untested, unnecessary: 0x80 works.
+3. ~~Function 134~~ — **this was it.**
 4. RV-C proprietary path: DEVICE_MODE_CONFIGURATION inside DGN 0xEF00 with the
    NAME-seeded CRC-CCITT (implemented, 14/14 doc vectors pass). Speculative
    for Conext, but the CRC is literally a prove-who-you-are mechanism.
