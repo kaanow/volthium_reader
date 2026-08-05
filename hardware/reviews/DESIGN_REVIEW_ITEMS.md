@@ -1328,3 +1328,46 @@ in mechanism form. Do it properly or not at all.
 party or runs outside your control; the repo gains contributors who are
 not you; or an artifact from this loop ever needs to prove provenance to
 someone outside it (e.g. a fab or client audit trail).
+
+---
+
+## DR-35 — Can the display's USB-C actually be plugged in inside the wall box?  [OPEN — mechanical, needs the user's call]
+
+**Raised:** 2026-08-05 during CP4 placement.
+
+**The concern.** D27 specifies the display's USB-C as a bench/recovery port
+"reached by popping the faceplate", and the ordered part (GCT USB4085,
+pinned to the same SKU as battery J3) is an **edge connector whose opening
+faces horizontally**, out over the board edge. The enclosure geometry makes
+that hard to use:
+
+- box interior ≈ 95 × 75 mm, PCB 85 × 65 mm → only **~5 mm** of clearance
+  between any board edge and the box wall;
+- a USB-C plug with overmold needs on the order of 15–20 mm of straight-in
+  approach beyond the receptacle face.
+
+So with the PCB seated on its bracket, a side-facing USB-C cannot be
+reached from any direction: the faceplate coming off exposes the board's
+**front**, not its edges.
+
+**Options, for the user to choose:**
+1. **Accept an unclip-to-service port.** Keep the part; specify in the
+   bracket design that the PCB can be unclipped and tilted forward far
+   enough to expose the E edge. Costs nothing in BOM; makes recovery a
+   two-step job. Consistent with D27's "rarely used".
+2. **Switch to a vertical (top-entry) USB-C** whose opening faces +Z. With
+   the faceplate and module removed there is unlimited front access, so
+   this is the geometry that actually matches the stated service model.
+   Costs: a second USB-C SKU (breaks the single-SKU commonality with
+   battery J3) and a footprint change.
+3. **Front-face cutout** — explicitly declined in D27 for aesthetics.
+
+**My recommendation: option 1**, on the grounds that D27 already accepted a
+faceplate-off service ritual and the port is genuinely rare-use; option 2 is
+mechanically cleaner but spends a SKU and re-opens a settled decision. Either
+way this must be decided before CP6 exports the STEP the bracket is designed
+against.
+
+**Placed as-is for now** (E edge, shell proud of the edge per the CP3
+mating-face rule), because that geometry is correct for options 1 and 3 and
+is the documented intent.

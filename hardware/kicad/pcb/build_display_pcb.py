@@ -75,7 +75,12 @@ CUSTOM_RULES = """(version 1)
 
 DRC_ACCEPTED = {
     "unconnected_items": "placement-only board; routing is CP5",
-    "silk_edge_clearance": "designed mating-face overhangs (J1 W, J-USB E)",
+    "silk_edge_clearance": "designed mating-face overhang (J-USB E edge)",
+    # Instance-scoped: the two vendored variants and the flipped SIP. Each
+    # needs the CP3-style pad-diff evidence in the packet before hand-off.
+    ("lib_footprint_mismatch", "ESP32-S3-WROOM-1_HSvia0.3_NoAntKeepout"): 0,
+    ("lib_footprint_mismatch", "J_Wurth_WR-MJ_615008145521"): 0,
+    ("lib_footprint_mismatch", "Converter_DCDC_RECOM_R-78E-0.5_THT"): 0,
 }
 
 NETS, COMPS = core.parse_netlist(NETLIST)
@@ -103,7 +108,7 @@ def pl(ref, cx, cy, rot=0, side="F"):
 # ---------------------------------------------------------------------------
 # J1 RJ45 right-angle, mating face W: in-wall Cat5e enters from the side so
 # the cable does not push the box forward (§10.2 #5). 13.6 mm tall.
-pl("J1", 9.3, 38.0, 0, "B")
+pl("J1", 9.8, 38.0, 0, "B")
 # U1 R-78E3.3 SIP (~11 mm) on the back, pointing into the box (§10.2 #4)
 pl("U1", 30.0, 47.0, 0, "B")
 
