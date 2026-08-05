@@ -64,6 +64,7 @@ BUILD_DIRS = [
     "hardware/kicad/schematic/build/",
     "hardware/kicad/schematic/build_display/",
     "hardware/kicad/pcb/build/",
+    "hardware/kicad/pcb/build_display/",
 ]
 ALLOW = [
     "hardware/kicad/",          # generator/tool python (see DENY)

@@ -43,13 +43,15 @@ BUILDS = [
     REPO / "hardware/kicad/schematic/build.py",
     REPO / "hardware/kicad/schematic/build_display.py",
     REPO / "hardware/kicad/pcb/build.py",
+    REPO / "hardware/kicad/pcb/build_display_pcb.py",
 ]
 # deterministic source-of-truth artifacts; renders are volatile
 DETERMINISTIC_GLOBS = ["*.kicad_sch", "*.net", "*.kicad_pcb", "*.kicad_pro",
                        "*.kicad_sym", "*.kicad_dru", "fp-lib-table"]
 BUILD_DIRS = ["hardware/kicad/schematic/build",
               "hardware/kicad/schematic/build_display",
-              "hardware/kicad/pcb/build"]
+              "hardware/kicad/pcb/build",
+              "hardware/kicad/pcb/build_display"]
 
 
 def sh(*args, **kw):
