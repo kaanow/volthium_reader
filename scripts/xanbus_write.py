@@ -38,6 +38,8 @@ import glob
 import gzip
 import json
 import os
+import socket
+import struct
 import sys
 import time
 
@@ -183,17 +185,23 @@ def build_mode_frame(dest: int, mode: int, src: int = DEFAULT_SRC_ADDR,
     return can_id, bytes([mode])
 
 
+CAN_EFF_FLAG = 0x80000000
+
+
+def pack_frame(can_id: int, payload: bytes) -> bytes:
+    """SocketCAN frame bytes for an extended-ID frame. Pure — unit-tested
+    without hardware (see tests/test_xanbus_write.py)."""
+    return struct.pack("=IB3x8s", can_id | CAN_EFF_FLAG, len(payload),
+                       payload.ljust(8, b"\x00"))
+
+
 def send_frame(can_id: int, payload: bytes, iface: str = "can0") -> None:
     """Transmit one extended-ID CAN frame. The ONLY function in this file
     that touches the wire; everything else is construction/inspection."""
-    import struct as _struct
-    CAN_EFF_FLAG = 0x80000000
     sock = socket.socket(socket.AF_CAN, socket.SOCK_RAW, socket.CAN_RAW)
     try:
         sock.bind((iface,))
-        frame = _struct.pack("=IB3x8s", can_id | CAN_EFF_FLAG, len(payload),
-                             payload.ljust(8, b"\x00"))
-        sock.send(frame)
+        sock.send(pack_frame(can_id, payload))
     finally:
         sock.close()
 
