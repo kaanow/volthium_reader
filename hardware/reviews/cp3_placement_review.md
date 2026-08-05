@@ -738,6 +738,54 @@ manifest, SKU, or electrical-topology delta was present in the reviewed change.
 
 **REVIEW COMPLETE**: NEEDS CHANGES - 2 blockers, 0 important. (See findings 13, 14.)
 
+## 8.7 Reviewer findings (iteration 13)
+
+Reviewed commit: `79021e1`
+
+### Finding 15 - BLOCKER - hardware/reviews/tools/reviewer_patch_check.py:149-159,164-190
+**Issue**: The claimed independent designer sign-off is not authenticated.
+`signed_off_by()` trusts the free-form Git author name from `git blame`, and
+`accepted_by_designer()` accepts every name not equal to `voxelisKW`. A
+reviewer can therefore commit its own `RPA-ACCEPTED` line with author name
+`kaanow` (or any other non-reviewer string), and the gate treats it as designer
+approval.
+
+**Evidence**: On this reviewer host,
+`git -c user.name=kaanow -c user.email=designer@example.invalid var
+GIT_AUTHOR_IDENT` returned `kaanow <designer@example.invalid> ...` without any
+designer credential. The checker extracts exactly that unverified `author`
+field at lines 158-159 and rejects only names in `REVIEWER_AUTHORS` at line
+184. It has neither a designer allowlist nor commit-signature verification.
+Command transcript:
+`hardware/reviews/visual_inspections/cp3-placement/iter13/reviewer/rpa_authorship_reverify.txt`.
+
+**Suggested fix**: Authenticate the approval with a credential unavailable to
+the reviewer. Concretely, provision a distinct SSH signing key for the macOS
+designer, pin its public key/fingerprint in enforcement code, locate the commit
+that introduced the exact acceptance line, and require `git verify-commit` to
+validate that commit against the pinned designer key. Fail closed for unsigned,
+unknown-key, bad-signature, and reviewer-signed commits. Poison an unsigned
+self-signoff authored `kaanow` (must fail) and a genuinely designer-signed
+signoff (must pass). A protected approval from a separate authenticated GitHub
+account is an acceptable equivalent; a `DESIGNER_AUTHORS` string allowlist is
+not, because commit authorship remains locally selectable.
+
+Resolution status: Findings 13 and 14 are independently closed at their named
+boundaries. The exact Windows handoff now returns 0 with all three generators
+at `rc=0`; standalone and integrated RPA use the pinned epoch. In-memory
+poisons changing the documentary epoch to `HEAD` and emptying the reviewer
+author list both fail closed. Finding 15 remains because the new sign-off
+authorship check does not establish a distinct actor.
+
+Coverage: synchronized/read `pcb-design-review` v1.6.0 and `kicad` v0.4.0;
+mandatory consistency and full Windows handoff gates; line-by-line trust-model
+delta review; epoch and author-list poisons; sign-off identity probe; four
+on-file PDF citation checks; fresh top/bottom KiCad renders and eight crop
+inspections. No board, schematic, manifest, SKU, or electrical-topology delta
+was present in the reviewed change.
+
+**REVIEW COMPLETE**: NEEDS CHANGES - 1 blocker, 0 important. (See finding 15.)
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-07-30)
