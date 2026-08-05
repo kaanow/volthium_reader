@@ -25,8 +25,13 @@ the verdict depend on which clone runs it (F11). This module is the ONLY
 owner of epoch selection: callers pass no range (F13), and the
 reviewer-writable SEMAPHORE copy is documentary and equality-checked
 (F14 — a guard whose scope the guarded party sets is not a guard).
-Sign-off is verified by git AUTHORSHIP, not by the line's presence: the
-packet is reviewer-writable, so a patch could otherwise accept itself.
+Sign-off is checked by git AUTHORSHIP as RECORDED, not by the line's
+presence: the packet is reviewer-writable, so a patch could otherwise
+accept itself. Note the limit — author names are free-form commit data,
+not authenticated identity (F15). That is a deliberate stopping point,
+not an oversight: see the threat model in ../REVIEWER_PATCH_POLICY.md
+and DR-34. This check stops accidental self-acceptance; it does not
+withstand a deliberate one, and nothing short of signed commits would.
 
 Exit 0 clean · 1 VIOLATION (scope/invariant breach) · 2 PENDING
 (a valid patch awaiting designer acceptance).
@@ -147,10 +152,14 @@ def _check_documentary_copies():
 
 
 def signed_off_by(packet_rel, line_no):
-    """WHO added this RPA-ACCEPTED line. The packet is reviewer-writable —
-    they add their findings to it every turn — so presence of a sign-off
-    proves nothing; authorship does. Self-acceptance is the hole this
-    closes (designer sweep after CP3 F14)."""
+    """WHO is RECORDED as adding this RPA-ACCEPTED line. The packet is
+    reviewer-writable — they add findings to it every turn — so the
+    line's presence proves nothing; recorded authorship at least
+    distinguishes the two actors (designer sweep after CP3 F14).
+    Limit, stated deliberately: git author names are free-form, so this
+    catches accidental self-acceptance, not a deliberate one (F15 /
+    DR-34). Authenticating it needs signed commits and a key the
+    reviewer cannot reach — a user decision, not an agent one."""
     r = sh("git", "blame", "--line-porcelain", "-L", f"{line_no},{line_no}",
            "HEAD", "--", packet_rel)
     if r.returncode != 0:

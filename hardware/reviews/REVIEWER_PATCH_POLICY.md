@@ -105,6 +105,45 @@ gate — the reviewer's clone flagged five pre-policy commits the
 designer's clone never saw (CP3 finding 11). Pre-policy patches are
 legitimized by an `RPA-ACCEPTED` line, never by moving the base.
 
+## Threat model (read this before hardening anything here)
+
+This section exists because its absence let a hardening thread recurse:
+each fix to the mechanism produced a finding against the fix. "What
+authenticates the authenticator?" has no natural stopping point unless
+the threat is stated. So:
+
+**Both agents act for one principal** — the same human — on that human's
+own machines, and both have full write access to the whole repository.
+
+**What RPA defends against** (all accident, not malice):
+- a reviewer fixing something they should have reported, eroding
+  independence one convenient patch at a time;
+- a "host fix" that quietly carries a design change (the zero-delta
+  invariant);
+- an unreviewed patch riding into a handoff unnoticed;
+- configuration drift that silently widens any of the above.
+
+**What it does NOT defend against, by design: an actor with repository
+write access who intends to subvert it.** Such an actor does not need to
+forge a sign-off — they can rewrite this gate to return 0, commit design
+data directly, or push to `main`. Every one of those is simpler than
+faking an approval, and none is closed by hardening approvals.
+
+**Therefore the termination rule.** A finding that the mechanism *can be
+defeated* by an actor who could equally defeat it by simpler means is a
+NOTE, not a blocker: closing it buys no real safety and costs ceremony
+that erodes attention. Findings that the mechanism *fails open by
+accident* — a check that silently doesn't run, a boundary that drifts, a
+config the guarded party edits in the course of normal work — remain
+blockers, because those fire without anyone intending harm.
+
+**When this model changes, revisit immediately.** If the reviewer ever
+becomes a third party, runs outside the principal's control, or the repo
+gains contributors who are not the principal, authentication stops being
+ceremony and becomes load-bearing — at which point signed acceptance
+commits verified against a pinned designer key is the right answer, and
+the work is pre-specified in DR-34.
+
 ## Whose word the gate takes
 
 The gate reads configuration and sign-offs from files. Any of those you
