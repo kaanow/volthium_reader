@@ -32,8 +32,8 @@ except Exception as exc:  # pragma: no cover - runtime dependency check
 
 
 REPO = Path(__file__).resolve().parents[3]
-DEFAULT_BATTERY_PDF = REPO / "hardware/outputs/battery_side/schematic.pdf"
-DEFAULT_DISPLAY_PDF = REPO / "hardware/outputs/display_side/schematic.pdf"
+DEFAULT_BATTERY_PDF = REPO / "hardware/kicad/schematic/build/volthium_reader.pdf"
+DEFAULT_DISPLAY_PDF = REPO / "hardware/kicad/schematic/build_display/volthium_display.pdf"
 DEFAULT_OUT_ROOT = REPO / "hardware/reviews/visual_inspections"
 
 

@@ -42,13 +42,80 @@ OUT = HERE / "build"            # generated schematics + review renders (gitigno
 ROOT_TITLE = "Volthium reader — battery-side (root)"
 
 
+# --- Windows transient-EINVAL boundary (CP3 F10) ---------------------------
+# On the reviewer's Windows host, opening a just-touched generated artifact
+# and invoking kicad-cli both intermittently fail with errno 22 / stderr
+# "Invalid argument", while identical isolated operations succeed — a
+# host-level transient, not a defect in the data. Retry is normally
+# forbidden here (it hides real failures), so this one is deliberately
+# hemmed in: Windows only, ONE exact signature, bounded backoff, every
+# attempt logged, and exhaustion is fatal. Anything else propagates
+# unretried on the first try.
+_WIN_BACKOFF = (0.25, 0.5, 1.0)
+
+
+def _win_einval(fn, describe, transient_result=None):
+    """Run fn(); on Windows retry ONLY the transient EINVAL signature.
+
+    transient_result: optional predicate on a returned value (used for
+    subprocess results, which report failure by value, not exception).
+    """
+    if os.name != "nt":
+        return fn()
+    import errno
+    import time
+    for attempt in range(len(_WIN_BACKOFF) + 1):
+        if attempt:
+            time.sleep(_WIN_BACKOFF[attempt - 1])
+            print(f"[win-einval] retry {attempt} {describe}", flush=True)
+        try:
+            r = fn()
+        except OSError as e:
+            if e.errno != errno.EINVAL:
+                raise            # any other error: fatal, unretried
+            continue
+        if transient_result is not None and transient_result(r):
+            continue
+        return r
+    raise SystemExit(f"[win-einval] {describe}: EINVAL persisted through "
+                     f"{len(_WIN_BACKOFF)} retries — failing closed")
+
+
+def write_text_lf(path, text):
+    """Write deterministic UTF-8 text without host newline translation."""
+    def _w():
+        with Path(path).open("w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+    _win_einval(_w, f"write {Path(path).name}")
+
+
+def read_text_checked(path):
+    """Read a GENERATED artifact (same transient boundary as the writes)."""
+    return _win_einval(lambda: Path(path).read_text(encoding="utf-8"),
+                       f"read {Path(path).name}")
+
+
+def to_file_checked(obj, path=None, describe=""):
+    """kiutils to_file() — its open() hits the same boundary."""
+    name = Path(path).name if path else describe
+    return _win_einval(
+        (lambda: obj.to_file(str(path), encoding="utf-8")) if path else
+        (lambda: obj.to_file(encoding="utf-8")), f"to_file {name}")
+
+
+def normalize_text_lf(path):
+    """Normalize text emitted by libraries that do not expose newline=."""
+    write_text_lf(path, read_text_checked(path))
+
+
 def configure(project, out_dirname, root_title):
     """Bind the core to one project: netlist/instance-path project name, the
     output directory (sibling of this file), and the root sheet title."""
-    global PROJECT, OUT, ROOT_TITLE
+    global _UUID_N, PROJECT, OUT, ROOT_TITLE
     PROJECT = project
     OUT = HERE / out_dirname
     ROOT_TITLE = root_title
+    _UUID_N = 0
 
 
 GRID = 1.27
@@ -159,7 +226,18 @@ SYMBOLS = {
     "PWR_FLAG":         (f"{STOCK}/power.kicad_sym",                "PWR_FLAG"),
 }
 
-def _uuid(): return str(uuid.uuid4())
+_UUID_N = 0
+
+
+def _uuid():
+    """Deterministic uuid sequence (uuid5 over a per-build counter).
+    Random uuids made every rebuild differ textually, so "regenerated ==
+    committed" was uncheckable and stale-artifact drift was invisible
+    (CP3 F01). Reset per configure()."""
+    global _UUID_N
+    _UUID_N += 1
+    return str(uuid.uuid5(uuid.NAMESPACE_URL,
+                          f"volthium:{PROJECT}:{_UUID_N}"))
 def snap(v): return round(v / GRID) * GRID
 def _tw(s): return len(s) * CHARW + 0.4      # text width estimate
 
@@ -195,6 +273,9 @@ def _raw_pin_names_hidden(libfile, entry):
 
 
 _SYMCACHE = {}
+# symbol name -> footprint id, applied to the SYMBOL definition when all
+# instances share it (set by the build script before building sheets)
+SYMBOL_FP_OVERRIDES = {}
 def resolve_symbol(name):
     """Return a self-contained kiutils Symbol for `name`, flattened to its
     pin-bearing ancestor (KiCad's schematic cache stores flattened symbols,
@@ -265,6 +346,15 @@ def resolve_symbol(name):
     # P-FETs (Q_PMOS_GSD) already show theirs.
     if _raw_pin_names_hidden(libfile, entry) and name not in ("2N7002",):
         for p in allpins: p.name = "~"
+    # Sync the SYMBOL-level Footprint field with a project override where
+    # every instance uses one footprint (e.g. a vendored fab-rule variant).
+    # Without this the netlist's libpart section reports the stock library
+    # default while the comp records carry the override — an internal
+    # inconsistency a reviewer read as a stale netlist (CP3 F01).
+    if name in SYMBOL_FP_OVERRIDES:
+        for prop in flat.properties:
+            if prop.key == "Footprint":
+                prop.value = SYMBOL_FP_OVERRIDES[name]
     _SYMCACHE[name] = flat
     return flat
 
@@ -843,12 +933,12 @@ def build_root(defs, root_uuid):
 def write_project():
     """Minimal .kicad_pro + sym-lib-table so KiCad opens the hierarchy cleanly."""
     import json
-    (OUT / f"{PROJECT}.kicad_pro").write_text(json.dumps({
+    write_text_lf(OUT / f"{PROJECT}.kicad_pro", json.dumps({
         "board": {}, "boards": [], "libraries": {"pinned_footprint_libs": [], "pinned_symbol_libs": []},
         "meta": {"filename": f"{PROJECT}.kicad_pro", "version": 1},
         "schematic": {"legacy_lib_list": [], "legacy_lib_dir": ""},
         "sheets": [], "text_variables": {},
-    }, indent=2), encoding="utf-8")
+    }, indent=2))
     # F08: the old table pointed at the PROJECT lib with a BARE relative URI —
     # resolved against process CWD (not the project dir), and the project lib
     # anyway lacks the stock-derived symbols we embed (138 [lib_symbol_issues]
@@ -861,22 +951,43 @@ def write_project():
     gen.generator = "volthium_build"
     gen.symbols = [_SYMCACHE[k] for k in sorted(_SYMCACHE)]
     gen.filePath = str(OUT / "volthium.kicad_sym")
-    gen.to_file(encoding="utf-8")
-    (OUT / "sym-lib-table").write_text(
+    to_file_checked(gen, describe="volthium.kicad_sym")
+    normalize_text_lf(gen.filePath)
+    write_text_lf(
+        OUT / "sym-lib-table",
         '(sym_lib_table\n  (version 7)\n  (lib (name "volthium")(type "KiCad")'
-        '(uri "${KIPRJMOD}/volthium.kicad_sym")(options "")(descr ""))\n)\n',
-        encoding="utf-8")
+        '(uri "${KIPRJMOD}/volthium.kicad_sym")(options "")(descr ""))\n)\n')
     # Repo-local footprint library (vendored/authored parts absent from the
     # stock libs — see hardware/kicad/footprints/README.md). Declared per
     # project so kicad-cli ERC can resolve `volthium:` footprint links.
-    (OUT / "fp-lib-table").write_text(
+    write_text_lf(
+        OUT / "fp-lib-table",
         '(fp_lib_table\n  (version 7)\n  (lib (name "volthium")(type "KiCad")'
-        '(uri "${KIPRJMOD}/../../footprints/volthium.pretty")(options "")(descr ""))\n)\n',
-        encoding="utf-8")
+        '(uri "${KIPRJMOD}/../../footprints/volthium.pretty")(options "")(descr ""))\n)\n')
 
 
 def kcli(*a):
-    return subprocess.run([str(KICAD_CLI), *a], capture_output=True, text=True)
+    """Invoke kicad-cli. Retries ONLY the Windows transient whose complete
+    stderr is "Invalid argument" (F10) — every other nonzero result is
+    returned to the caller's gate unchanged. Transactional across the
+    retry: the -o target is removed before each attempt, so no attempt
+    can read or judge a half-written output from a previous one."""
+    args = [str(KICAD_CLI), *a]
+    out = None
+    if "-o" in a:
+        i = list(a).index("-o")
+        if i + 1 < len(a):
+            out = Path(a[i + 1])
+
+    def _run():
+        if out is not None and out.exists():
+            out.unlink()
+        return subprocess.run(args, capture_output=True, text=True)
+
+    return _win_einval(
+        _run, f"kicad {a[:3]}",
+        transient_result=lambda r: (r.returncode != 0
+                                    and r.stderr.strip() == "Invalid argument"))
 
 MM = 2.8346   # schematic mm -> PDF points
 
@@ -951,7 +1062,8 @@ def render(s, name, crops=()):
         print(f"[{name}] READABILITY GATE FAILED:"); [print("  "+b) for b in bad]
         return False
     print(f"[{name}] readability gate: clean")
-    schf = OUT / f"{name}.kicad_sch"; s.sch.to_file(str(schf), encoding="utf-8")
+    schf = OUT / f"{name}.kicad_sch"; to_file_checked(s.sch, schf)
+    normalize_text_lf(schf)
     if not _checked_pdf_export(schf, OUT / f"{name}.pdf"):
         return False
     bad = _pdf_text_collisions(OUT / f"{name}.pdf")
@@ -1065,7 +1177,20 @@ def kicad_netlist(rootf):
     r = kcli("sch", "export", "netlist", "-o", str(out), str(rootf))
     if r.returncode != 0:
         raise SystemExit(f"[netlist-gate] export failed: {r.stderr[:300]}")
-    txt = out.read_text(encoding="utf-8")
+    txt = read_text_checked(out)
+    # Pin every host-volatile header field, not just the date: the design
+    # (source ...) is an absolute path and (tool ...) carries the installed
+    # KiCad point version, so an unpinned netlist can NEVER hash equal
+    # across machines (CP3 finding 06). Sheet-level sources are already
+    # relative. With deterministic uuids these are the only volatile bytes.
+    pinned = re.sub(r'\(date "[^"]*"\)', '(date "pinned-for-determinism")',
+                    txt, count=1)
+    pinned = re.sub(r'\(source "[^"]*"\)',
+                    f'(source "{Path(rootf).name}")', pinned, count=1)
+    pinned = re.sub(r'\(tool "[^"]*"\)', '(tool "pinned-for-determinism")',
+                    pinned, count=1)
+    write_text_lf(out, pinned)
+    txt = pinned
     nets = {}
     # paren-balanced scan (a regex-to-blank-line parse drops one-line nets)
     i = 0
@@ -1171,7 +1296,7 @@ def verify_netlist(built, rootf, golden, exact_parts):
 def check_exact_parts(rootf, exact_parts):
     """Read (ref, value, footprint) from the exported netlist and require the
     EXACT_PARTS variants. Returns issues."""
-    txt = (OUT / (Path(rootf).stem + ".net")).read_text(encoding="utf-8")
+    txt = read_text_checked(OUT / (Path(rootf).stem + ".net"))
     comps = dict()
     for m in re.finditer(r'\(ref "([^"]+)"\)\s*\(value "([^"]*)"\)\s*'
                          r'\(footprint "([^"]*)"\)', txt):
@@ -1293,7 +1418,7 @@ def run(sheets_def, golden, exact_parts, erc_accepted):
         built.append((name, s))
     # root + project
     rootf = OUT / f"{PROJECT}.kicad_sch"
-    rootf.write_text(build_root(defs, root_uuid), encoding="utf-8")
+    write_text_lf(rootf, build_root(defs, root_uuid))
     write_project()
     if not ok:
         print("[NETLIST gate] SKIPPED — a sheet failed its readability gate, so"

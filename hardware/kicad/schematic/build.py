@@ -880,7 +880,7 @@ def blk_mcu(s, cx, cy):
     IO7=BTN, IO8/9=I2C, IO17/18=RS485 DI/RO, USB_D±. Unused GPIOs no-connected.
     (cx,cy)=module centre."""
     mod = s.place("ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
-                  "RF_Module:ESP32-S3-WROOM-1", (cx, cy), angle=0, tanchor="u", tgap=9.0)
+                  "volthium:ESP32-S3-WROOM-1_HSvia0.3", (cx, cy), angle=0, tanchor="u", tgap=9.0)
     # pin number -> global net (side inferred from pin x)
     NETS = {"3": "MCU_EN", "39": "V24_SENSE", "38": "RS485_DE", "4": "PWR_EN",
             "7": "BTN_OVERRIDE", "12": "I2C_SDA", "17": "I2C_SCL", "8": "RS485_nRE",
@@ -1304,6 +1304,8 @@ ERC_ACCEPTED = {
 def main():
     core.configure("volthium_reader", "build",
                    "Volthium reader — battery-side (root)")
+    core.SYMBOL_FP_OVERRIDES["ESP32-S3-WROOM-1"] = \
+        "volthium:ESP32-S3-WROOM-1_HSvia0.3"   # keep libpart field == comp records
     return core.run(SHEETS, GOLDEN, EXACT_PARTS, ERC_ACCEPTED)
 
 if __name__ == "__main__":

@@ -1,0 +1,86 @@
+CP3 iteration 7 reviewer - Windows EINVAL reproduction
+========================================================
+
+Host: Windows 11, repo venv, per-user KiCad 10 under
+%LOCALAPPDATA%\Programs\KiCad\10.0.
+Reviewed commit: 1caf827
+
+1. Mandatory gate, adequate timeout
+
+Command:
+  .\.venv\Scripts\python.exe hardware\reviews\tools\handoff_check.py
+
+Result: exit 1 after 31.5 s. The gate reported all three child rebuilds
+failed:
+
+  [rebuild] schematic/build.py rc=1
+  [rebuild] schematic/build_display.py rc=1
+  [rebuild] pcb/build.py rc=1
+  HANDOFF: FAIL (rebuild)
+
+The earlier 124 s timeout was not used as evidence: an isolated successful
+battery build measured 155.6 s on this host. The rerun above allowed 600 s.
+
+2. Unmodified display-build reproductions
+
+Command:
+  $env:SKIP_RENDER='1'
+  .\.venv\Scripts\python.exe hardware\kicad\schematic\build_display.py
+
+Two runs reached the netlist gate and exited 1 with:
+
+  [netlist-gate] export failed: Invalid argument
+
+A third run failed before the fourth sheet was written:
+
+  OSError: [Errno 22] Invalid argument:
+  'C:\Taeron\repo\volthium\hardware\kicad\schematic\build_display\sheet_d_mcu.kicad_sch'
+
+A run with a one-second post-KiCad delay still failed in the ordinary LF
+writer:
+
+  OSError: [Errno 22] Invalid argument:
+  'C:\Taeron\repo\volthium\hardware\kicad\schematic\build_display\volthium_display.kicad_sch'
+
+The same netlist export, run directly and through a one-shot Python
+subprocess with the same absolute executable/input/output paths, returned
+rc=0. A 1,000-iteration ordinary Python open/write probe also returned 0.
+No orphan kicad-cli process and no matching Application Popup/Application
+Error event remained after the runs.
+
+3. Bounded-retry experiment
+
+An in-memory wrapper retried only Windows errno.EINVAL from file open and
+only a nonzero KiCad result whose complete stderr was "Invalid argument".
+Backoff was bounded at 0.25, 0.5, and 1.0 s; any other error or persistent
+failure remained fatal. The run encountered both signatures:
+
+  [win-einval] open retry 1 path=C:\Taeron\repo\volthium\hardware\kicad\schematic\build_display\sheet_d_conn.kicad_sch
+  [win-einval] kicad retry 1 op=('sch', 'export', 'netlist')
+
+Both retries succeeded and the unmodified design pipeline completed:
+
+  [NETLIST gate] generator intent == kicad-cli netlist: clean
+  [ROOT ERC strict] rc=0; 0 message(s), 0 accepted (ERC_ACCEPTED), 0 unaccounted
+  [ROOT] wrote volthium_display.kicad_sch + .kicad_pro + full volthium_display.pdf
+  Exit code: 0
+
+This demonstrates a concrete fail-closed mitigation at both affected
+boundaries; retrying only kicad-cli is insufficient because Python file
+opens exhibit the same transient.
+
+4. F09 independent checks
+
+The pre-fix J3 placement independently produced:
+
+  [edge-marker] J3: 'PCB Edge' reference line is 4.93 mm off the E edge
+
+A raw BoardBuilder.write() call with no explicit gate invocation recorded
+the shared calls in this order:
+
+  courtyard, outline, edge-marker, fab, readback
+
+The exact battery build returned 0 and direct DRC reported:
+
+  {'silk_edge_clearance': 12, 'lib_footprint_mismatch': 1,
+   'unconnected_items': 316}

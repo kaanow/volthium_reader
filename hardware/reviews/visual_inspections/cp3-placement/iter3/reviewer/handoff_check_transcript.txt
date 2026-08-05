@@ -1,0 +1,45 @@
+CP3 iteration 3 - exact pre-handoff gate
+=========================================
+
+Command
+-------
+Environment overrides KICAD_SHARE, KICAD_CLI, KICAD10_SYMBOL_DIR,
+KICAD10_FOOTPRINT_DIR, and PYTHONUTF8 were removed, then:
+
+  python3 hardware\reviews\tools\handoff_check.py
+
+Result
+------
+Exit code: 1
+
+[rebuild] schematic/build.py: rc=0
+[rebuild] schematic/build_display.py: rc=0
+[rebuild] pcb/build.py: rc=0
+[stale] committed artifacts differ from a fresh rebuild of the committed generators:
+ M hardware/kicad/schematic/build_display/volthium_display.net
+
+[hash] packet hash 40cfc2791487 != actual dabe7849c7e1 for hardware/kicad/schematic/build/volthium_reader.net
+[hash] packet hash af64f93e2e2f != actual 5a44e30a6140 for hardware/kicad/pcb/build/battery_pcb.kicad_pcb
+HANDOFF: FAIL
+
+The display-netlist diff was:
+
+  source: /Users/pivot/Documents/repo/.../volthium_display.kicad_sch
+       -> C:\Taeron\repo\volthium\...\volthium_display.kicad_sch
+  tool:   Eeschema 10.0.3 -> Eeschema 10.0.5
+
+Only the date field is normalized by schematic/core.py.
+
+Fresh-clone input simulation
+----------------------------
+hardware/kicad/schematic/build/volthium_reader.net is ignored by
+.gitignore and absent from git ls-files. Temporarily moving that file
+aside and running the documented Windows PCB command produced:
+
+  FileNotFoundError:
+  hardware\kicad\schematic\build\volthium_reader.net
+  missing_input_rc=1
+
+The file was restored in a finally block. Running the upstream schematic
+generator first regenerates the vendored MOD1 footprint record; the same
+PCB command then exits 0.

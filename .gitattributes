@@ -1,0 +1,14 @@
+# Generated KiCad artifacts + netlists are byte-exact deliverables: their
+# sha256 is quoted in review packets and checked by handoff_check.py.
+# Force LF in every worktree so bytes == blob on Windows checkouts too
+# (CP3 finding 06: core.autocrlf=true made the reviewer's worktree board
+# hash differ from the committed blob it was byte-identical to).
+*.kicad_sch text eol=lf
+*.kicad_pcb text eol=lf
+*.kicad_pro text eol=lf
+*.kicad_sym text eol=lf
+*.kicad_mod text eol=lf
+*.kicad_dru text eol=lf
+*.net text eol=lf
+fp-lib-table text eol=lf
+sym-lib-table text eol=lf

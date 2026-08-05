@@ -1,0 +1,115 @@
+CP3 placement iteration 11 - Windows RPA re-verification
+Date: 2026-08-05
+Reviewed commit: 8a084a6
+Host: Windows reviewer clone
+
+Mandatory consistency precondition
+==================================
+
+Command:
+  .\.venv\Scripts\python.exe hardware\reviews\tools\doc_consistency_check.py
+
+Result: exit 0.
+  34 manifest parts checked; 36 BOM cells remain _verify_ because their
+  MPN is not chosen; no unmarked stale tokens; D32 consistency clean.
+
+Mandatory handoff / rebuild precondition
+========================================
+
+Command:
+  .\.venv\Scripts\python.exe hardware\reviews\tools\handoff_check.py
+
+Result: exit 1 after 219.3 seconds.
+
+  [rebuild] schematic/build.py: rc=0
+  [rebuild] schematic/build_display.py: rc=0
+  [rebuild] pcb/build.py: rc=0
+  [rpa] reviewer-patch gate not clean (rc=1):
+  [rpa] INFO da48679: untrailered reviewer patch, accepted retroactively
+  [rpa] VIOLATION 48a514f: reviewer commit changes code
+        ['hardware/kicad/schematic/build.py'] with no Reviewer-Patch trailer
+  RPA: VIOLATION (1)
+  HANDOFF: FAIL
+
+The three Windows rebuilds and F10 retry path remain healthy. The failing
+RPA command is selected by handoff_check.py lines 142-146: it explicitly
+passes origin/main..HEAD (or main..HEAD), overriding the new checker's
+immutable-epoch default.
+
+Direct default-range control
+============================
+
+Command:
+  .\.venv\Scripts\python.exe hardware\reviews\tools\reviewer_patch_check.py
+
+Result: exit 0.
+  RPA: clean - no reviewer patches in 3e4c097..HEAD
+
+This establishes that the checker-side epoch implementation works on this
+Windows clone and that the remaining F11 failure is the stale integration
+call in handoff_check.py.
+
+F12 structural-scope re-verification
+====================================
+
+Direct in_scope() checks rejected all eight tested generated outputs:
+
+  pcb/build/render_top.png
+  pcb/build/doc_top.svg
+  pcb/build/drc.rpt
+  pcb/build/refdes_bans.json
+  schematic/build/volthium_reader.pdf
+  schematic/build/volthium_reader.net
+  pcb/build/battery_pcb.kicad_pcb
+  schematic/build_display/sheet_d_mcu.kicad_sch
+
+Controls remained allowed for pcb/core.py, reviewer_patch_check.py's sibling
+handoff tool, and a reviewer evidence script. _assert_build_dirs_in_sync()
+passed normally. Removing pcb/build from the in-memory RPA list produced:
+
+  DRIFT POISON: CAUGHT [rpa] BUILD_DIRS drifted from
+  handoff_check.BUILD_DIRS: only there=['hardware/kicad/pcb/build']
+
+Finding 12 is therefore independently closed.
+
+Mutable epoch-binding poison
+============================
+
+The policy calls rpa_policy_base immutable, but reviewer_patch_check.py reads
+its value from SEMAPHORE.yaml at runtime. The reviewer is required to edit and
+commit that file every turn. An untrailered reviewer commit that changes only
+SEMAPHORE.yaml produces an empty product-code heuristic and is ignored.
+
+The checker was imported without editing files and sem_field() was overridden
+only in memory to return HEAD for rpa_policy_base. The unmodified main()
+returned:
+
+  RPA: clean - no reviewer patches in HEAD..HEAD
+  MUTABLE-BASE POISON rc= 0
+  reviewer semaphore-only commit code heuristic= []
+
+Thus a routine reviewer-owned semaphore commit can move the effective epoch
+past every patch without triggering the path-scope logic. The SHA identifier
+is immutable, but its binding is not.
+
+Independent source-PDF spot checks
+==================================
+
+PyMuPDF extraction from the on-file PDFs confirmed in this turn:
+
+1. USB4085_drawing.pdf page 2 contains both 2.10 and
+   "Plug and Receptacle Mating View".
+2. R-78HB12-0.5.pdf page 4 contains 3.3, 100V, and Vin>50V in the
+   converter power-up capacitor note.
+3. LM5166YDRCR.pdf page 5 contains the LM5166X 5 V and LM5166Y 3.3 V
+   electrical-characteristics rows.
+4. THVD1400DR.pdf page 3 contains the receiver-enable active-low and
+   driver-enable active-high pin-function entries (the same table states the
+   internal pull-up and pull-down respectively).
+
+Visual check
+============
+
+Fresh reviewer-owned KiCad top and bottom renders plus eight top-side crops
+are in this directory. No placement regression was observed. Test-generated
+build-directory changes were restored before the review commit.

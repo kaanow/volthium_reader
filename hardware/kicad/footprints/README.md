@@ -7,6 +7,7 @@ layout's `fp-lib-table` must add this library under the same nickname.
 | Footprint | Part | Provenance |
 |-----------|------|------------|
 | `J_Wurth_WR-MJ_615008145521.kicad_mod` | Würth 615008145521 WR-MJ RJ45, horizontal shielded EMI-finger 8P8C tab-down (display J1) | **Manufacturer-official**, vendored verbatim from [WurthElektronik/KiCad-Library](https://github.com/WurthElektronik/KiCad-Library) `footprints/Connector_THT_Wurth.pretty/`, commit `fdbe2d0192`, fetched 2026-07-27. sha256 `38db7c97fd9b…899684`. License: Würth `License_Terms_WE_KiCad_library.pdf` (free use for designing with WE products). |
+| `ESP32-S3-WROOM-1_HSvia0.3.kicad_mod` | ESP32-S3-WROOM-1 module (both boards, MOD1) | KiCad 10 stock `RF_Module:ESP32-S3-WROOM-1` with ONE delta: the 12 heatsink via-in-pad drills bumped 0.2 → 0.3 mm (pad 0.6 mm → 0.15 mm annular ring). Rationale: JLCPCB 2-layer min drill is 0.3 mm (cp1_battery_side §12); the stock 0.2 mm EP stitching vias violate the fab floor. Found mechanically by the CP3 `pcb/fplib.py` drill scan, 2026-07-29. |
 
 ## Why vendored, and the pin-map verification (2026-07-27)
 

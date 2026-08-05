@@ -16,14 +16,9 @@ hardware/kicad/*/*.kicad_prl
 hardware/kicad/*/*.lck
 hardware/kicad/*/.history/
 hardware/kicad/*.log
-hardware/outputs/*/drc.rpt
 
 # External autorouter binaries (large, downloaded per-host)
 hardware/tools/*.jar
-
-# Legacy paths from the original SKiDL → KiCad 8 plan (no longer used; safe to ignore)
-hardware/kicad/outputs/
-hardware/kicad/projects/
 
 # KiCad-CLI / build leftover artifacts
 *.erc
@@ -48,11 +43,12 @@ firmware/common/volthium_lib/*.o
 *-erc.rpt
 *-drc.rpt
 
-# Specctra SES routing files (regeneratable from .dsn + Freerouting)
-hardware/outputs/*/*.ses
 # Freerouting log/state
 logs/
 freerouting.json
 
-# CP2 code-generated schematics + review renders (regenerate: schematic/build.py)
-hardware/kicad/schematic/build/
+# Battery-side build artifacts are TRACKED (same policy as build_display/
+# and pcb/build/): the PCB generator consumes build/volthium_reader.net,
+# so a fresh clone must contain it (CP3 finding 05 — a blanket ignore
+# here made the documented PCB rebuild depend on machine-local state).
+# Volatile leftovers (*.kicad_prl) are covered by the global patterns.

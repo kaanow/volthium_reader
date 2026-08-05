@@ -2,26 +2,39 @@
 
 schema_version: 1
 
-state: user_turn
-current_cp: cp2-schematic
-current_branch: main
-active_packet: hardware/reviews/cp2_schematic_review.md
-iteration: 9
+state: claude_turn
+current_cp: cp3-placement
+current_branch: hw/cp3-placement
+active_packet: hardware/reviews/cp3_placement_review.md
+iteration: 16
 
 max_iterations_per_cp: 1000
 
-last_updated_at: 2026-07-29T00:00:00Z
-last_updated_by: claude-designer
+# Reviewer Patch Authority (hardware/reviews/REVIEWER_PATCH_POLICY.md):
+# git author names that count as the reviewer. A reviewer commit that
+# changes code must carry a Reviewer-Patch trailer and satisfy the
+# zero-delta invariant; enforced by tools/reviewer_patch_check.py.
+reviewer_git_authors: [voxelisKW]
+# Enforcement epoch: RPA binds commits from the policy's own commit
+# forward. An immutable sha, never a mutable ref — a range like
+# origin/main..HEAD makes the verdict depend on which clone runs it
+# (CP3 F11). Pre-policy reviewer patches are legitimized retroactively
+# by an RPA-ACCEPTED line, not by moving this.
+rpa_policy_base: 3e4c097
+
+last_updated_at: 2026-08-05T21:44:49Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER: CP2 CLOSED — both boards APPROVED (battery iter-4, display
-  iter-8/display-iter4, each 0 findings). DR-30 updated; packet 16 is
-  the closing record. The hardware pass (CP1+CP2) is MERGED to main
-  (merge 21f6482); branches hw/cp1-architecture and hw/cp2-schematic
-  are deleted — reviewers work from main until a CP3 branch opens.
-  Post-merge verification: both builds green (battery ERC 2 accepted /
-  display ERC 0), check_requirements 42/42 PASS. Next phase is the
-  user's call (recommended: CP3 placement, inheriting D27 depth stack
-  + DR-33 J1 pad map + R15 solderability constraints).
+  REVIEWER iteration 15: APPROVED CP3 with 0 findings. Exact Windows handoff
+  is CLEAN; all three generators rc=0; board blob remains
+  448d59a276df240e9254f6281bcc926b138e9d686dee38d6d331857798c333c5.
+  Accepted F15 severity downgrade under the explicit one-principal,
+  accident-prevention threat model. Recorded authorship is not authentication;
+  signed approval remains correctly tracked as non-blocking DR-34 if trust or
+  provenance requirements change. Fresh renders/crops and four PDF checks are
+  under iter15/reviewer. No design delta. Skills: pcb-design-review v1.6.0,
+  kicad v0.4.0.
+
 
 user_pause_reasons_seen_this_run: []

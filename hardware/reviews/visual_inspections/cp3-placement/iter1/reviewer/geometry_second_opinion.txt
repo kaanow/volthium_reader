@@ -1,0 +1,44 @@
+CP3 iteration 1 - independent reference-text geometry audit
+============================================================
+
+Input
+-----
+Committed hardware/kicad/pcb/build/battery_pcb.kicad_pcb at
+0ddffbd50a894b6f0bda4aaba52817857ad24ac6.
+
+Method
+------
+This check does not use the designer's refine_refdes.py collision model.
+It parses the written board, converts each visible reference's local
+coordinates to board coordinates, and models a reference as a fixed box:
+
+  width  = character_count * text_height * 0.88
+  height = text_height
+
+Pairs are flagged when their boxes overlap on one axis and have less than
+0.20 mm edge clearance on the other. The direct KiCad render and crop are
+then the deciding visual layer.
+
+Results
+-------
+Visible references checked: 123
+Flagged pairs: 2
+
+L10 / R23
+  centers: (50.300, 60.825) / (53.100, 60.470) mm
+  modeled horizontal edge gap: 0.160 mm
+  modeled vertical overlap: 0.645 mm
+  eye check: reads as "L10R23" in crop_iso_ch1.png and full_top_2d.png
+
+L12 / R33
+  centers: (72.800, 60.825) / (75.600, 60.470) mm
+  modeled horizontal edge gap: 0.160 mm
+  modeled vertical overlap: 0.645 mm
+  eye check: reads as "L12R33" in crop_iso_ch2.png,
+             crop_south_connectors.png, and full_top_2d.png
+
+Conclusion
+----------
+The independent box model and the eye-at-crop layer agree on both pairs.
+The packet's PR-1/PR-3 all-PASS claim is not supported by the written
+board.

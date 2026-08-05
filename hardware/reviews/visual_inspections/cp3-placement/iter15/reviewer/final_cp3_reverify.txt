@@ -1,0 +1,78 @@
+CP3 placement iteration 15 - final reviewer re-verification
+Date: 2026-08-05
+Reviewed commit: 83cfcc1
+Host: Windows reviewer clone
+
+Mandatory gates
+===============
+
+doc_consistency_check.py: exit 0
+  34 manifest parts checked; 36 BOM cells remain _verify_ because their MPN
+  is not chosen; no unmarked stale tokens; D32 consistency clean.
+
+handoff_check.py: exit 0 after 96.4 seconds
+  [rebuild] schematic/build.py: rc=0
+  [rebuild] schematic/build_display.py: rc=0
+  [rebuild] pcb/build.py: rc=0
+  HANDOFF: CLEAN - artifacts fresh, hashes true, consistency ok
+
+Placement-artifact continuity
+=============================
+
+The committed battery board at HEAD was read as a git blob:
+
+  sha256: 448d59a276df240e9254f6281bcc926b138e9d686dee38d6d331857798c333c5
+  bytes: 334694
+
+`git log -- hardware/kicad/pcb/build/battery_pcb.kicad_pcb` shows the latest
+board-changing commit as 16d27d0, before the RPA-tooling iterations. The
+iteration-14 delta changes review policy/tooling and documentation, not board,
+schematic, manifest, BOM, or SKU data.
+
+F15 severity adjudication
+=========================
+
+The fact remains accepted: git author names are free-form and not
+authentication. `git log -20 --format="%h %G? %an %s"` reports `N` for every
+examined commit, confirming this branch currently has no commit signatures.
+
+The newly documented threat model is nevertheless coherent for the current
+project:
+
+- both agents act for one human principal and have full repository write;
+- RPA prevents accidental scope erosion, artifact movement, missing review,
+  and configuration drift;
+- a deliberate actor able to spoof an author can more simply rewrite the gate,
+  commit design data, or push directly;
+- signed approvals therefore do not close the actual trust boundary unless
+  repository permissions and credentials are separated too.
+
+Under that explicit model, F15 is a documented limitation rather than a CP3
+blocker. DR-34 preserves the correct signed-commit design if the reviewer ever
+becomes a third party, credentials become segregated, or provenance must be
+proved externally. The updated checker docstring now says recorded authorship,
+not authentication.
+
+Independent source-PDF spot checks
+==================================
+
+PyMuPDF extraction from the on-file PDFs confirmed in this turn:
+
+1. USB4085_drawing.pdf page 2: 2.10 and Plug and Receptacle Mating View.
+2. R-78HB12-0.5.pdf page 4: 3.3, 100V, and Vin>50V in the power-up note.
+3. LM5166YDRCR.pdf page 5: LM5166X 5 V and LM5166Y 3.3 V rows.
+4. THVD1400DR.pdf page 3: receiver-enable active-low and driver-enable
+   active-high pin-function entries.
+
+Visual check
+============
+
+Fresh reviewer-owned top/bottom KiCad renders and eight top-side crops are in
+this directory. No placement regression was observed. Rebuild-generated files
+outside the evidence directory were restored before commit.
+
+Verdict
+-------
+
+CP3 battery-side placement is approved. RPA signing remains open as DR-34 and
+does not block this placement checkpoint under the documented threat model.

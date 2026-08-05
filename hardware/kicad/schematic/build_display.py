@@ -372,7 +372,7 @@ def blk_d_mcu(s, cx, cy):
     IO3/IO45/IO46 left NC (internal defaults, F05). EN: R1 10k pull-up +
     C5 1uF soft-start. (cx,cy)=module centre."""
     mod = s.place("ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
-                  "RF_Module:ESP32-S3-WROOM-1", (cx, cy), angle=0, tanchor="u", tgap=9.0)
+                  "volthium:ESP32-S3-WROOM-1_HSvia0.3", (cx, cy), angle=0, tanchor="u", tgap=9.0)
     NETS = {"3": "MCU_EN",
             "5": "EPD_CS", "6": "EPD_DC", "7": "EPD_RST", "12": "EPD_BUSY",
             "17": "SPI_SCK", "18": "SPI_MOSI",
@@ -584,6 +584,8 @@ ERC_ACCEPTED = {
 def main():
     core.configure("volthium_display", "build_display",
                    "Volthium reader — display-side (root)")
+    core.SYMBOL_FP_OVERRIDES["ESP32-S3-WROOM-1"] = \
+        "volthium:ESP32-S3-WROOM-1_HSvia0.3"   # keep libpart field == comp records
     return core.run(SHEETS, GOLDEN, EXACT_PARTS, ERC_ACCEPTED)
 
 if __name__ == "__main__":

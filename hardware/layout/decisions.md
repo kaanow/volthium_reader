@@ -2329,3 +2329,57 @@ daughterboard), so light. Populate at CP2 if the add-on class warrants.
 
 **Status.** Extends approved CP1 → covered by the same CP1-delta review
 pass as D36 (logged under **DR-27**).
+
+## D38 — CP3 battery-side placement decisions (outline, antenna, USB run, iso columns)
+
+**Date**: 2026-07-30 (CP3 initial placement, `hw/cp3-placement`)
+
+Four placement-level decisions taken while deriving the battery-side
+floorplan (generator: `hardware/kicad/pcb/build.py`; evidence in
+`hardware/reviews/cp3_placement_review.md`):
+
+1. **Board outline 100 × 80 mm**, mounting holes M3 at
+   (4,4)/(96,4)/(4,76)/(96,76). Driven by: 4× RJ45 (19.6 mm courtyards)
+   + clearance on the south cable edge, Phoenix on the west edge, and
+   the module antenna on the north edge. All-top-side assembly (the
+   allowed double-sided option was not needed — one paste/reflow pass,
+   R15).
+
+2. **Antenna overhang (supersedes the on-board 15×6 keepout plan).**
+   MOD1 sits with the module body fully on-board and the antenna
+   section cantilevered past the N edge — no PCB, no copper, no
+   enclosure metal under the antenna at all. Espressif permits
+   board-edge antenna placement; overhang is the stronger version of
+   the keepout. The stock footprint's 48 mm courtyard arm (Espressif's
+   recommended clearance region) falls entirely off-board.
+
+3. **USB-C stays on the E edge (D22 serviceability) accepting a ~60 mm
+   FS-USB run** to the module's west-side USB pins (routed as a
+   differential pair at CP5 through the y≈21–23 corridor south of the
+   module). Full-speed USB tolerates far longer than 60 mm; the
+   alternative (west-edge USB) collides with the power-entry column.
+   **Edge geometry (iter-4 fix):** J3 is placed so the footprint's
+   "PCB Edge" reference line lies ON x=100 — the GCT USB4085 shell
+   protrudes 2.51 mm past the edge (per the GCT drawing; its mating
+   view gives only 2.10 mm of plug-shell clearance ahead of the
+   overmold, so any recessed face blocks the plug on the board edge).
+   Enforced by `gate_edge_markers` in `pcb/core.py` for every
+   footprint carrying the marker — the gate runs inside
+   `BoardBuilder.write()` (iter-6, F09), so any board written through
+   the shared core has passed it; poison-verified via a raw `write()`
+   call with no explicit gate invocations.
+
+4. **Isolated pack-read channels as vertical columns** (jack S → iso
+   island → ADM2587E → logic row N), with the transceivers rotated so
+   the package's internal isolation barrier runs horizontally (logic
+   pins 1-10 north / iso pins 11-20 south — probed and asserted in the
+   generator). The CP5 pour split follows the barrier line. Cross-domain
+   separation on the final committed board — metric: **pad-edge**
+   (pad-center distance minus both pads' half max-extents); domains:
+   iso1/iso2 = every net in the channel's BUS_*/ISO_BUS_GND*/V_ISO*/
+   GND2_DCDC*/TV*/PACK* families, logic = everything else;
+   U10/U11/C28/C38 excluded as the designed barrier crossings.
+   Measured: logic-iso1 **1.94 mm** (J6.SH to J10.SH — set by jack
+   pitch), logic-iso2 **9.68 mm**, iso1-iso2 **2.70 mm** (L11 to R32)
+   — vs the ~0.6 mm IPC-2221 requirement for the <100 V functional
+   isolation in play (3.2x at the worst pair).

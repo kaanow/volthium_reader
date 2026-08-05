@@ -1,0 +1,41 @@
+CP3 iteration 4 - hardened handoff gate: poison tests + live run
+================================================================
+
+Poison 1: untracked deterministic artifact (netlist un-added from index)
+[untracked] deterministic artifacts a fresh clone won't have (ignored or never added):
+[hash] packet cites UNTRACKED file hardware/kicad/schematic/build/volthium_reader.net — a hash claim about a file git doesn't have is unverifiable by the reviewer
+HANDOFF: FAIL
+
+Poison 2 (first attempt): appended a byte to the cited board file.
+Did NOT fire — the gate rebuilds first, and the rebuild regenerates
+build outputs, overwriting the poison (self-healing; a rebuild that
+DIFFERS from HEAD fires [stale] instead). The uncommitted-changes
+branch therefore guards cited files no rebuild regenerates — retested
+below against such a file (see Poison 2b).
+
+Poison 3: corrupted packet hash vs HEAD blob
+[hash] packet hash deadbeef0000 != HEAD blob eda5076694c0 for hardware/kicad/schematic/build/volthium_reader.net
+HANDOFF: FAIL
+
+Poison 2b: uncommitted change to a cited file outside the build trees
+(packet temporarily cites hardware/datasheets/1757242.pdf with its true
+blob hash; the worktree copy is then modified)
+[hash] hardware/datasheets/1757242.pdf has uncommitted changes — commit before hashing; the packet must describe HEAD
+HANDOFF: FAIL
+
+Live run on the committed iteration-4 state
+-------------------------------------------
+[rebuild] schematic/build.py: rc=0
+[rebuild] schematic/build_display.py: rc=0
+[rebuild] pcb/build.py: rc=0
+HANDOFF: CLEAN — artifacts fresh, hashes true, consistency ok
+
+Full-scope round 3 addendum: edge-marker gate poison test
+---------------------------------------------------------
+J3 temporarily restored to its old position (courtyard cx=93.0):
+  [edge-marker] J3: 'PCB Edge' reference line is 4.93 mm off the E edge
+  — the connector's mating plane is not where the footprint says the
+  board edge must be
+Fixed position (cx=97.925): gate silent, full build green, DRC clean
+(silk_edge_clearance 10 -> 12: J3's two designed E-edge crossings at
+y=20.4/29.6 join the RJ45 x8 + MOD1 x2 enumeration).

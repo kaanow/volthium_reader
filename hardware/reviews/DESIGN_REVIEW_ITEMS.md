@@ -1280,3 +1280,51 @@ span 15.50 @ 5.84, drills 0.9). The [exact-part] contract pins J1 to this
 footprint; `hardware/kicad/footprints/README.md` carries the full
 provenance + verification record. **CP3 note:** trust the official pad
 numbering, not visual intuition, when placing/routing J1.
+
+---
+
+## DR-34 — Should RPA sign-off be cryptographically authenticated?  [OPEN — needs the user's call; costs key provisioning]
+
+**Raised:** 2026-08-05, from CP3 finding 15 (agent-reviewer).
+
+**The fact, independently confirmed:** git author names are free-form
+commit data, not identity. `git -c user.name=kaanow … commit` produces a
+commit attributed to the designer with no designer credential; I
+reproduced this in a scratch repo. So the RPA sign-off check
+(`accepted_by_designer`, which verifies via `git blame` that a
+non-reviewer authored the `RPA-ACCEPTED` line) establishes *whose name is
+on it*, not *who wrote it*. The project currently has **no commit
+signing at all** — every commit in the branch history shows `%G? = N`.
+
+**The reviewer's prescribed fix:** provision a distinct SSH signing key
+for the designer host, pin its fingerprint in enforcement code, and
+require `git verify-commit` on the commit introducing the acceptance
+line; fail closed on unsigned/unknown-key/reviewer-signed.
+
+**Why this is the user's call, not the agents':**
+1. **It costs you setup and upkeep.** A signing key must be created,
+   installed on the macOS host only, kept off the Windows host, and
+   maintained. No agent can provision that.
+2. **Its load-bearing premise is yours to establish.** The fix assumes a
+   credential "unavailable to the reviewer". Both agents currently run as
+   *you*, on *your* machines. If the reviewer agent can read your SSH
+   agent or key files on the Windows box, it can sign as designer and the
+   fix buys nothing. Whether that separation is real is a fact about your
+   environment that I cannot verify from here.
+3. **Proportionality depends on the threat model** — now written down in
+   `REVIEWER_PATCH_POLICY.md`. Against *accident* (what RPA is for),
+   authorship + SCRUTINY + mandatory designer re-review already work.
+   Against a *subverting* actor with repo write access, signing closes
+   one path while leaving strictly easier ones open (rewrite the gate,
+   commit design data directly, push to main).
+
+**My recommendation: defer, and revisit if the model changes.** Adding a
+non-cryptographic substitute (e.g. a `DESIGNER_AUTHORS` allowlist) would
+be worse than doing nothing — it would look like authentication without
+being it, which is the "verification adjective without evidence" failure
+in mechanism form. Do it properly or not at all.
+
+**Adopt it if any of these become true:** the reviewer becomes a third
+party or runs outside your control; the repo gains contributors who are
+not you; or an artifact from this loop ever needs to prove provenance to
+someone outside it (e.g. a fab or client audit trail).

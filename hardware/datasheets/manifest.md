@@ -7,7 +7,7 @@ pulled manually. Read + interface-verified per D32.
 | MPN | file | provider | source | sha256 (12) |
 |-----|------|----------|--------|-------------|
 | 0215001.MXP | 0215001.MXP.pdf (763K) | manual | user download 2026-07-01 | 6ea4fed8f791 |
-| 1757242 | 1757242.pdf (1388K) | manual | user download 2026-07-01 | 7b6cfef0980a |
+| MSTBA 2,5/2-G-5,08 (1757242, J1 board header) | 1757242.pdf (1.4M) | parts-API datasheet endpoint | re-fetched 2026-07-30 (replaces the 2026-07-01 user download of the same Phoenix catalog PDF — catalog regeneration changes the hash; dims re-verified p.3: pitch 5.08, pin 1x1, hole 1.4) | 7a342188f10c |
 | 2N7002LT1G (onsemi) | 2N7002_onsemi.pdf (2N7002L-D Rev 11) | digikey via API proxy 2026-07-17 | https://www.onsemi.com/pub/Collateral/2N7002L-D.PDF — **F51 fix: the prior 2N7002.pdf was Diotec's (wrong manufacturer for the ordered onsemi SKU); part re-pinned to the exact orderable 2N7002LT1G** (Mouser 863-2N7002LT1G, 76k stock, API 2026-07-17; DK LT1G variants zero-stock same query). IDSS ≤1.0 µA @ TJ=25 °C / ≤500 µA @ TJ=125 °C (60 V, VGS=0) — **25 °C is a test point, not a full-range max** | 11eb3cde5ed5 |
 | 615008145521 | 615008145521.pdf (844K) | digikey | https://www.we-online.com/components/products/datasheet/615008145521.pdf | da03e4ed6257 |
 | AP2112K-3.3TRG1 | AP2112K-3.3TRG1.pdf (737K) | digikey | https://www.diodes.com/assets/Datasheets/AP2112.pdf | ef8d376f2ec3 |

@@ -1,0 +1,98 @@
+CP3 placement iteration 9 - Windows handoff and RPA evidence
+Date: 2026-07-31
+Host: Windows, reviewer clone
+
+F10 acceptance command
+======================
+
+The mandatory handoff command was run twice from a clean generated-artifact
+worktree, with adequate timeout. Both runs rebuilt every generator
+successfully:
+
+  [rebuild] schematic/build.py: rc=0
+  [rebuild] schematic/build_display.py: rc=0
+  [rebuild] pcb/build.py: rc=0
+
+Elapsed times were 210.3 s and 80.5 s. Neither run reproduced the transient
+Windows OSError/Invalid-argument failure from finding 10. The F10 retry path
+therefore passes the requested two-run Windows acceptance test.
+
+Both commands nevertheless exited 1 after the rebuild because the newly
+introduced reviewer-patch gate returned:
+
+  [rpa] reviewer-patch gate not clean (rc=1)
+  RPA: VIOLATION (5)
+  HANDOFF: FAIL
+
+RPA history-range reproduction
+==============================
+
+Command:
+
+  .\.venv\Scripts\python.exe hardware\reviews\tools\reviewer_patch_check.py origin/main..HEAD
+
+Result: exit 1, five violations. Four are pre-policy CP2 review-evidence
+commits whose only .py files live under visual_inspections:
+
+  07f304a  cp2 display-iter4 reviewer evidence scripts
+  dc56a27  cp2 display-iter3 reviewer evidence scripts
+  c0e0209  cp2 display-iter2 reviewer evidence scripts
+  fec1563  cp2 display-iter1 reviewer evidence scripts
+
+The fifth is 48a514f, the pre-policy Windows KiCad-discovery host fix. The
+checker accepts da48679 because the active CP3 packet contains its explicit
+RPA-ACCEPTED record, but it searches only the active packet for every
+historical commit.
+
+Control command:
+
+  .\.venv\Scripts\python.exe hardware\reviews\tools\reviewer_patch_check.py 3e4c097..HEAD
+
+Result:
+
+  RPA: clean - no reviewer patches in 3e4c097..HEAD
+
+Commit 3e4c097 is the commit that introduced the standing RPA policy and
+checker. This control proves that the red handoff is caused by retroactive
+classification rather than an unaccepted post-policy reviewer patch.
+
+Generated-artifact scope poison
+===============================
+
+The checker in_scope() function was called directly on representative
+generated outputs. Each returned None, meaning allowed:
+
+  hardware/kicad/pcb/build/render_top.png: None
+  hardware/kicad/pcb/build/doc_top.svg: None
+  hardware/kicad/pcb/build/drc.rpt: None
+  hardware/kicad/pcb/build/refdes_bans.json: None
+  hardware/kicad/schematic/build/volthium_reader.pdf: None
+
+The current ARTIFACT_SUFFIXES tuple covers KiCad design/netlist suffixes but
+not the rest of the deterministic generated-output inventory. A trailered
+reviewer patch can therefore alter these outputs without triggering either
+the path-scope or zero-delta checks.
+
+Independent source-PDF spot checks
+==================================
+
+Text was extracted directly with PyMuPDF from the on-file PDFs:
+
+1. USB4085_drawing.pdf, page 2: the Plug and Receptacle Mating View contains
+   the 2.10 mm dimension (shown twice in the extracted text).
+2. R-78HB12-0.5.pdf, page I-4: the power-up note specifies C1 = 3.3 uF / 100 V
+   when Vin > 50 V. The extractor renders the micro symbol incorrectly on
+   this Windows console, but the numeric/value text and source page agree.
+3. LM5166YDRCR.pdf, page 5, electrical characteristics: LM5166X is identified
+   at VOUT = 5 V and LM5166Y at VOUT = 3.3 V.
+4. THVD1400DR.pdf, Table 4-1 on page 3: RE has an internal 2 Mohm pull-up and
+   DE has an internal 2 Mohm pull-down.
+
+Visual evidence
+===============
+
+Fresh reviewer-owned direct KiCad top and bottom renders plus eight crop
+regions are in this directory. The bottom remains intentionally unpopulated;
+no visual placement regression was found. The board and other deterministic
+design artifacts were restored after each handoff run and are not changed by
+this review.

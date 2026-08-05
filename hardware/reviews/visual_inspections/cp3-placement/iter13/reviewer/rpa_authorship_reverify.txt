@@ -1,0 +1,101 @@
+CP3 placement iteration 13 - RPA trust-model re-verification
+Date: 2026-08-05
+Reviewed commit: 79021e1
+Host: Windows reviewer clone
+
+Mandatory gates
+===============
+
+doc_consistency_check.py: exit 0
+  34 manifest parts checked; 36 BOM cells remain _verify_ because their
+  MPN is not chosen; no unmarked stale tokens; D32 consistency clean.
+
+handoff_check.py: exit 0 after 90.9 seconds
+  [rebuild] schematic/build.py: rc=0
+  [rebuild] schematic/build_display.py: rc=0
+  [rebuild] pcb/build.py: rc=0
+  HANDOFF: CLEAN - artifacts fresh, hashes true, consistency ok
+
+Standalone reviewer_patch_check.py: exit 0
+  RPA: clean - no reviewer patches in
+  3e4c097d891d4f516f7b51e264308a679d7f3995..HEAD
+
+This independently closes finding 13: the full handoff now reaches the same
+pinned epoch as the standalone checker on the Windows clone.
+
+Documentary-state poisons
+=========================
+
+The checker was imported without editing files. sem_field() was overridden
+in memory for one field at a time:
+
+1. rpa_policy_base -> HEAD:
+   CAUGHT: SEMAPHORE rpa_policy_base 'HEAD' disagrees with pinned epoch
+   '3e4c097'.
+2. reviewer_git_authors -> empty:
+   CAUGHT: SEMAPHORE reviewer_git_authors [] disagrees with pinned list
+   ['voxelisKW'].
+
+These controls independently close the specific finding-14 semaphore and
+author-list bypasses.
+
+Residual sign-off identity failure
+==================================
+
+reviewer_patch_check.py signed_off_by() uses git blame and returns only the
+commit's free-form `author` name. accepted_by_designer() accepts every name
+except those in REVIEWER_AUTHORS; there is no pinned designer allowlist and no
+signature verification.
+
+The reviewer process selected the designer's name locally without credentials
+or a commit:
+
+  git -c user.name=kaanow -c user.email=designer@example.invalid \
+      var GIT_AUTHOR_IDENT
+
+Output:
+
+  kaanow <designer@example.invalid> 1785961952 -0700
+
+The author value later returned by `git blame` is data supplied by the commit
+creator. Any actor with write access can choose `kaanow`, `Mallory`, or any
+other non-reviewer string; lines 184-189 reject only the literal reviewer
+author. The current claim that a patch cannot accept itself is therefore not
+mechanically established. An unsigned reviewer commit with a spoofed author
+would be treated as designer acceptance.
+
+Required identity boundary
+==========================
+
+Use a credential the reviewer does not possess. One concrete implementation:
+
+1. Provision a distinct SSH signing key for the macOS designer and commit its
+   public key/fingerprint as a pinned enforcement constant.
+2. Have signed_off_by() locate the commit that introduced the exact acceptance
+   line, then require `git verify-commit` to validate that commit against the
+   pinned designer key. Author name/email may remain display metadata only.
+3. Fail closed for unsigned commits, unknown keys, bad signatures, and reviewer
+   signatures.
+4. Poison with an unsigned self-signoff authored `kaanow` (must fail) and a
+   genuinely designer-signed signoff (must pass).
+
+If commit signing is unsuitable, use an equivalently independent approval
+channel whose authenticated actor is not controlled by the reviewer, such as a
+protected GitHub review/check written by a separate designer account. Merely
+adding DESIGNER_AUTHORS would reduce accidental mistakes but would not prove
+identity.
+
+Citation and visual controls
+============================
+
+PyMuPDF extraction from the on-file PDFs confirmed in this turn:
+
+1. USB4085_drawing.pdf page 2: 2.10 and Plug and Receptacle Mating View.
+2. R-78HB12-0.5.pdf page 4: 3.3, 100V, and Vin>50V in the power-up note.
+3. LM5166YDRCR.pdf page 5: LM5166X 5 V and LM5166Y 3.3 V rows.
+4. THVD1400DR.pdf page 3: receiver-enable active-low and driver-enable
+   active-high pin-function entries.
+
+Fresh reviewer-owned top/bottom KiCad renders and eight top-side crops are in
+this directory. No placement regression was observed. Rebuild-generated files
+outside the evidence directory were restored before commit.

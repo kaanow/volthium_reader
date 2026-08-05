@@ -1,0 +1,47 @@
+RPA gate v2 — poison drill after findings 11 and 12
+====================================================
+Scratch clone, real commits under both identities. Every case below was
+executed; outputs are verbatim.
+
+F12 — generated-artifact scope (was a suffix list, now whole build trees)
+  REFUSED  pcb/build/render_top.png          <- allowed before the fix
+  REFUSED  pcb/build/doc_top.svg             <- allowed before
+  REFUSED  pcb/build/drc.rpt                 <- allowed before
+  REFUSED  pcb/build/refdes_bans.json        <- allowed before
+  REFUSED  schematic/build/volthium_reader.pdf  <- allowed before
+  REFUSED  schematic/build/volthium_reader.net
+  REFUSED  pcb/build/battery_pcb.kicad_pcb
+  REFUSED  build_display/sheet_d_mcu.kicad_sch
+  controls still ALLOWED: pcb/core.py, reviews/tools/handoff_check.py,
+  visual_inspections/**/reviewer/x.txt
+
+F11 — enforcement epoch + evidence heuristic
+  a) default range is now <rpa_policy_base>..HEAD from SEMAPHORE.yaml
+     (immutable sha 3e4c097): "RPA: clean — no reviewer patches in
+     3e4c097..HEAD". Pre-policy CP2 evidence commits and the pre-policy
+     host fix 48a514f are out of epoch by construction, on ANY clone.
+  b) reviewer evidence-only commit containing a .py analysis program:
+     exit 0, not flagged (visual_inspections/** excluded from the
+     product-code heuristic)
+  c) post-policy untrailered PRODUCT-code commit still flagged:
+     VIOLATION ... changes code ['hardware/kicad/pcb/core.py'] with no
+     Reviewer-Patch trailer
+
+New checks added this iteration (designer-found, not requested)
+  d) evidence requirement — trailered patch with NO file under
+     visual_inspections/: VIOLATION "a patch the designer cannot check
+     on the host where it matters is not reviewable"
+  e) self-modification SCRUTINY — a patch touching the RPA gate, the
+     policy, or handoff_check prints:
+     "patches the enforcement mechanism itself ... read this diff line
+     by line before signing off: it can weaken every check above"
+     (not a violation: that code is host-sensitive too — F11/F12 are
+     themselves fixes to it — but it must never pass silently)
+  f) BUILD_DIRS drift self-test — deleting one dir from the list:
+     "[rpa] BUILD_DIRS drifted from handoff_check.BUILD_DIRS:
+      only there=['hardware/kicad/pcb/build']" and the gate refuses to run
+  g) merge commits skipped (they introduce no authored change)
+  h) finding-id matching accepts BOTH spellings — the drill itself
+     failed on this: the packet writes "Finding 11", the trailer says
+     F11, and the v1 gate only knew the bare token. Now either form
+     matches; an unknown id (F99) is still refused.
