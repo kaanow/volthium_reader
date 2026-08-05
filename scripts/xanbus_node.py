@@ -376,6 +376,10 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--iface", default="can0")
     ap.add_argument("--addr", type=lambda s: int(s, 0), default=DEFAULT_ADDR)
+    ap.add_argument("--function", type=int, default=None,
+                    help="override the NAME function field (129 inverter/charger, "
+                         "131 charge controller, 134 gateway). For testing whether "
+                         "command authority is tied to device function.")
     ap.add_argument("--dest", type=int, default=1, help="target node (1 = MPPT)")
     ap.add_argument("--wait", type=float, default=15.0,
                     help="seconds held in standby during --bounce")
@@ -394,8 +398,26 @@ def main() -> int:
                     help="ACTUALLY TRANSMIT. Without this nothing is sent.")
     args = ap.parse_args()
 
+    name = OUR_NAME
+    if args.function is not None:
+        fields = decode_name(OUR_NAME)
+        fields["function"] = args.function
+        name = encode_name(**fields)
+        # Safety invariant: whatever we present, we must still LOSE every
+        # arbitration against the real devices so we can never evict one.
+        # vehicle_system_instance=15 sits above `function` in NAME ordering,
+        # which is what preserves this across a function override.
+        ours = int.from_bytes(name, "little")
+        for peer in (0x0AEEE6FF00813C80, 0x16ACF9FF00833C80, 0x1E6AFEFF00863C80):
+            peer_le = int.from_bytes(peer.to_bytes(8, "big"), "little")
+            if peer_le >= ours:
+                print(f"REFUSING: NAME {name.hex()} would win arbitration "
+                      f"against a real device")
+                return 2
+        print(f"using NAME {name.hex()} (function={args.function})")
+
     if args.decode_names:
-        with XanbusNode(args.iface, args.addr) as node:
+        with XanbusNode(args.iface, args.addr, name) as node:
             print("listening 5 s for Address Claimed...")
             seen = {}
             for pgn, dest, src, payload in node._recv(5.0):
@@ -420,7 +442,7 @@ def main() -> int:
         return 0
 
     if not args.send:
-        print("DRY RUN — would claim 0x%02X with NAME %s" % (args.addr, OUR_NAME.hex()))
+        print("DRY RUN — would claim 0x%02X with NAME %s" % (args.addr, name.hex()))
         if args.bounce:
             for name, mode in (("standby", MODE_STANDBY), ("operating", MODE_OPERATING)):
                 cid = build_id(PGN_DEVICE_MODE, args.addr, args.dest)
@@ -428,7 +450,7 @@ def main() -> int:
         print("(nothing transmitted; re-run with --send)")
         return 0
 
-    with XanbusNode(args.iface, args.addr) as node:
+    with XanbusNode(args.iface, args.addr, name) as node:
         if not node.claim():
             print("could not claim an address — aborting, nothing commanded")
             return 1
