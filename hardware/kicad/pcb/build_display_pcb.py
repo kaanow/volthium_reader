@@ -108,9 +108,9 @@ def pl(ref, cx, cy, rot=0, side="F"):
 # ---------------------------------------------------------------------------
 # J1 RJ45 right-angle, mating face W: in-wall Cat5e enters from the side so
 # the cable does not push the box forward (§10.2 #5). 13.6 mm tall.
-pl("J1", 9.8, 38.0, 0, "B")
+pl("J1", 9.8, 46.5, 0, "B")
 # U1 R-78E3.3 SIP (~11 mm) on the back, pointing into the box (§10.2 #4)
-pl("U1", 30.0, 47.0, 0, "B")
+pl("U1", 22.0, 41.0, 0, "B")
 
 # ---------------------------------------------------------------------------
 # FRONT side (F) — faces the faceplate/module across the standoff gap
@@ -125,17 +125,17 @@ pl("J2", 42.0, 6.0, 0)
 pl("MOD1", 42.0, 27.0, 0)
 
 # --- W column: 12 V entry chain J1 -> F1 -> TVS1/C1 -> U1 (on the back) ---
-pl("F1", 12.0, 14.0, 0)
-pl("C1", 12.0, 20.0, 0)
-pl("TVS1", 24.0, 14.0, 0)
+pl("F1", 13.0, 8.0, 0)
+pl("C1", 12.5, 13.5, 0)
+pl("TVS1", 23.5, 8.0, 0)
 
 # --- RS-485 front end, left of the module ---
-pl("TVS2", 24.0, 20.0, 0)
-pl("U2", 26.0, 39.5, 0)          # THVD1400
-pl("R3", 24.0, 25.5, 0)          # 330R idle bias (D19/DR-4)
-pl("R4", 24.0, 29.0, 0)
-pl("R2", 24.5, 33.0, 0)          # 120R termination, gated by J5
-pl("J5", 29.0, 30.0, 0)          # TERM jumper
+pl("TVS2", 23.5, 13.5, 0)
+pl("U2", 12.5, 19.5, 0)          # THVD1400
+pl("R3", 21.5, 18.0, 0)          # 330R idle bias (D19/DR-4)
+pl("R4", 27.0, 24.5, 0)
+pl("R2", 21.5, 25.0, 0)          # 120R termination, gated by J5
+pl("J5", 28.0, 20.0, 0)          # TERM jumper
 
 # --- E column: USB-C bench/recovery chain, flowing W from the connector ---
 # Shell PROUD of the E edge (CP3 lesson, enforced by gate_edge_markers):
@@ -168,8 +168,8 @@ pl("J3", 78.0, 46.0, 0)
 # its 1M pullup and 100 nF debounce immediately north ---
 for _ref, _bx in (("BTN1", 24.0), ("BTN2", 42.0), ("BTN3", 60.0)):
     pl(_ref, _bx, 57.5, 0)
-pl("R5", 20.0, 49.5, 0)
-pl("C8", 16.0, 49.5, 0)
+pl("R5", 16.0, 49.5, 0)
+pl("C8", 10.0, 49.5, 0)
 pl("R6", 38.0, 49.5, 0)
 pl("C9", 46.0, 49.5, 0)
 pl("R7", 56.0, 49.5, 0)

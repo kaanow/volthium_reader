@@ -145,9 +145,19 @@ def tht_pad_segments(fpid, x, y, deg, back=False, margin=0.25):
 
 
 def _xf(p, x, y, deg, back):
+    """Footprint-local point -> board coords.
+
+    Back side mirrors about the footprint's X axis (negate Y). This is
+    KiCad's own convention, established empirically rather than assumed:
+    a stock footprint written to B.Cu is reported as matching its library
+    copy by KiCad's lib_footprint_mismatch check ONLY under this
+    transform — negating X instead, or not mirroring at all, both make
+    KiCad call it a mismatch (CP4). The writer (_flip_to_back) and this
+    function must always agree; when they disagreed, DRC found pads 5 mm
+    from where every analytic gate predicted."""
     px, py = p
     if back:
-        px = -px
+        py = -py
     rx, ry = _rot(px, py, deg)
     return (x + rx, y + ry)
 
@@ -273,16 +283,16 @@ def _flip_to_back(fp):
     """
     for pad in (fp.pads or []):
         pad.layers = [_flip_layer(l) for l in (pad.layers or [])]
-        pad.position.X = -pad.position.X
+        pad.position.Y = -pad.position.Y
         if getattr(pad.position, "angle", None):
             pad.position.angle = (-pad.position.angle) % 360
     for gi in (fp.graphicItems or []):
         for attr in ("start", "end", "center", "mid", "position"):
             pt = getattr(gi, attr, None)
-            if pt is not None and hasattr(pt, "X"):
-                pt.X = -pt.X
+            if pt is not None and hasattr(pt, "Y"):
+                pt.Y = -pt.Y
         for c in (getattr(gi, "coordinates", None) or []):
-            c.X = -c.X
+            c.Y = -c.Y
         if hasattr(gi, "layer") and gi.layer:
             new = _flip_layer(gi.layer)
             if (new.startswith("B.") and gi.layer.startswith("F.")

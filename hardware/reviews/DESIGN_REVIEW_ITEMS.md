@@ -1331,43 +1331,67 @@ someone outside it (e.g. a fab or client audit trail).
 
 ---
 
-## DR-35 — Can the display's USB-C actually be plugged in inside the wall box?  [OPEN — mechanical, needs the user's call]
+## DR-35 — Display USB-C: the edge connector can't be reached in the box  [OPEN — recommend option B]
 
-**Raised:** 2026-08-05 during CP4 placement.
+**Raised:** 2026-08-05 during CP4 placement. **Updated same day** with the
+user's vertical-connector idea, which turns out to be the best option.
 
-**The concern.** D27 specifies the display's USB-C as a bench/recovery port
-"reached by popping the faceplate", and the ordered part (GCT USB4085,
-pinned to the same SKU as battery J3) is an **edge connector whose opening
-faces horizontally**, out over the board edge. The enclosure geometry makes
-that hard to use:
+**The problem, in plain terms.** D27 says the display's USB-C is a
+bench/recovery port "reached by popping the faceplate". The part currently
+specified (GCT USB4085) is an **edge connector: its opening points sideways,
+out over the board edge.** But the PCB is 85 × 65 mm inside a ~95 × 75 mm
+box, so there is only about **5 mm** between any board edge and the box wall,
+while a USB-C plug needs roughly **15–20 mm of straight-in room**. Popping
+the faceplate exposes the **front** of the board, not its edges. So as
+drawn, you cannot plug a cable in without taking the board out.
 
-- box interior ≈ 95 × 75 mm, PCB 85 × 65 mm → only **~5 mm** of clearance
-  between any board edge and the box wall;
-- a USB-C plug with overmold needs on the order of 15–20 mm of straight-in
-  approach beyond the receptacle face.
+### The three options
 
-So with the PCB seated on its bracket, a side-facing USB-C cannot be
-reached from any direction: the faceplate coming off exposes the board's
-**front**, not its edges.
+**A — Leave the part where it is; unscrew the board to service it.**
+Service becomes: pop the faceplate, unclip/unscrew the PCB from its bracket,
+tilt it forward far enough to expose the east edge, then plug in. No BOM
+change, no redesign. Costs nothing now; costs a fiddly two-step job on the
+rare occasions recovery is needed, and the bracket must be designed to allow
+the tilt.
 
-**Options, for the user to choose:**
-1. **Accept an unclip-to-service port.** Keep the part; specify in the
-   bracket design that the PCB can be unclipped and tilted forward far
-   enough to expose the E edge. Costs nothing in BOM; makes recovery a
-   two-step job. Consistent with D27's "rarely used".
-2. **Switch to a vertical (top-entry) USB-C** whose opening faces +Z. With
-   the faceplate and module removed there is unlimited front access, so
-   this is the geometry that actually matches the stated service model.
-   Costs: a second USB-C SKU (breaks the single-SKU commonality with
-   battery J3) and a footprint change.
-3. **Front-face cutout** — explicitly declined in D27 for aesthetics.
+**B — Vertical USB-C on the front face (the user's suggestion). RECOMMENDED.**
+A vertical receptacle points **up, off the front of the board**, so with the
+faceplate off — and the e-paper module leaving with it — you plug straight
+down into an unobstructed port. It is invisible and unreachable when
+assembled, which is exactly the "hidden until serviced" behaviour wanted.
 
-**My recommendation: option 1**, on the grounds that D27 already accepted a
-faceplate-off service ritual and the port is genuinely rare-use; option 2 is
-mechanically cleaner but spends a SKU and re-opens a settled decision. Either
-way this must be decided before CP6 exports the STEP the bracket is designed
-against.
+The question was whether it fits under the module when assembled. It does,
+with room to spare: **GCT USB4120-03-C is 6.5 mm tall** ("USB2.0 Type C
+Receptacle, 16 Contacts, Vertical, SMT, H=6.5mm", product spec p.1, fetched
+2026-08-05, on file as `USB4120.pdf`). The PCB→module standoff gap is ~8 mm,
+and the tallest front-side part is already the J3 ESP-Prog header at about
+9.4 mm — so **this connector adds no depth at all** and does not lengthen the
+button plungers. Availability checked the same day: **89,250 in stock,
+$0.84 CAD, Active**, and it is the **same manufacturer (GCT)** as the
+existing part, so the vendor relationship is unchanged.
+Costs: a second USB-C SKU instead of sharing the battery board's J3
+(single-SKU preference), and it is **SMT where USB4085 is THT** — fine here,
+since the front side is the SMD side anyway. Needs a footprint swap and a
+pin-map re-verify (16 contacts vs the 4085's 20 pads) at part-lock.
 
-**Placed as-is for now** (E edge, shell proud of the edge per the CP3
-mating-face rule), because that geometry is correct for options 1 and 3 and
-is the documented intent.
+**C — Cutout in the faceplate.** Explicitly declined in D27 for aesthetics
+(keeps the kitchen-facing plate clean). Not revisited.
+
+### Recommendation
+
+**Option B.** It is the only one that actually delivers the service model D27
+describes, it costs no depth, the part is cheap and deeply stocked from the
+incumbent vendor, and it removes a mechanism (board removal) from a recovery
+procedure that by definition happens when something is already wrong. The
+single-SKU preference is real but weak at build quantity 1 — one extra line
+on one order.
+
+**If you pick B**, the changes are: swap J-USB's footprint and part, re-verify
+the pin map against the new 16-contact drawing, place it on the front face
+near the buttons (as you suggested — that clusters the service points at the
+bottom where a hand naturally goes), and drop the E-edge overhang whitelist.
+**If you pick A**, the board is already correct as placed; the bracket spec
+must then state the tilt-out requirement.
+
+**Placed as option A for now**, since that geometry is the documented intent
+and is also correct under C.
