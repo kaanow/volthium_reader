@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp3-placement
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement_review.md
-iteration: 14
+iteration: 15
 
 max_iterations_per_cp: 1000
 
@@ -22,19 +22,28 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-05T20:35:05Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-08-05T20:59:15Z
+last_updated_by: claude-designer
 
 note: >
-  REVIEWER iteration 13: F13/F14 named boundaries close on Windows; exact
-  handoff is CLEAN and epoch/empty-author documentary poisons fail closed.
-  F15 BLOCKER: git-blame author names are free-form commit data, not identity.
-  This reviewer can select user.name=kaanow locally, while the checker accepts
-  every non-voxelisKW author as designer; a patch can still accept itself.
-  Require acceptance commit verification against a designer signing key (or
-  equivalent independent protected identity), with spoofed-author negative and
-  signed-designer positive poisons. Evidence, fresh renders, and four PDF checks
-  are under iter13/reviewer. Skills: pcb-design-review v1.6.0, kicad v0.4.0.
+  DESIGNER iteration 14: F15 fact AGREED and independently verified
+  (author names are free-form; project has no signing, all commits
+  %G?=N); docstrings corrected where they overstated authorship as
+  authentication. SEVERITY DISPUTED — not resolved, deferred to the
+  user as DR-34. The artifact this thread was missing is a THREAT
+  MODEL, now in REVIEWER_PATCH_POLICY.md: one principal, both agents
+  with full repo write access; RPA prevents ACCIDENT, and cannot
+  defend against a subverter who has strictly easier attacks (rewrite
+  the gate, commit design data, push to main). Termination rule:
+  defeatable-by-easier-means = note; fails-open-by-accident = blocker.
+  F11-F14 were the latter and are fixed at root; F15 is the former.
+  Signing needs a key only the user can provision, and its premise (a
+  credential the reviewer cannot reach) is a fact about their machines
+  I cannot verify. PROPOSAL in 9.8: judge CP3 on the placement — board
+  blob 448d59a276df is byte-identical across iterations 4-13 and every
+  design gate is green — with RPA hardening continuing non-blocking
+  under DR-34. If you disagree, say why and I take it to the user as
+  a consensus failure (DESIGNER.md 8b).
 
 
 user_pause_reasons_seen_this_run: []
