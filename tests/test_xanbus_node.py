@@ -16,8 +16,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import xanbus_node as xn  # noqa: E402
 from xanbus_node import (  # noqa: E402
     ADDR_GLOBAL, ADDR_NULL, MODE_OPERATING, MODE_STANDBY, OUR_NAME,
-    PGN_ADDRESS_CLAIMED, PGN_DEVICE_MODE, PGN_REQUEST, XanbusNode,
-    build_id, decode_name, encode_name, pack_frame, parse_id, unpack_frame,
+    PGN_ACK, PGN_ADDRESS_CLAIMED, PGN_DEVICE_MODE, PGN_HW_REV, PGN_PROD_INFO,
+    PGN_REQUEST, PGN_STS, PGN_SW_VER, XanbusNode,
+    build_id, decode_name, encode_name, fast_packet_frames, pack_frame,
+    parse_id, unpack_frame,
 )
 
 # Captured verbatim from the bus (PGN 60928 payloads).
@@ -186,6 +188,99 @@ class CommandTests(unittest.TestCase):
         for bad in (0x00, 0x01, 0x04, 0xFF):
             with self.assertRaises(ValueError):
                 n.set_mode(1, bad)
+
+
+
+def _request_frame(req_pgn, dest, src=2):
+    payload = bytes([req_pgn & 0xFF, (req_pgn >> 8) & 0xFF, (req_pgn >> 16) & 0xFF])
+    return pack_frame(build_id(PGN_REQUEST, src=src, dest=dest), payload)
+
+
+class FastPacketTests(unittest.TestCase):
+    def test_single_frame_payload(self):
+        f = fast_packet_frames(b"\x01\x02\x03")
+        self.assertEqual(len(f), 1)
+        self.assertEqual(f[0][0] & 0x1F, 0)        # frame index 0
+        self.assertEqual(f[0][1], 3)               # declared length
+        self.assertEqual(f[0][2:5], b"\x01\x02\x03")
+
+    def test_multi_frame_split_and_reassembly(self):
+        payload = bytes(range(43))                 # ProdInfoSts-sized
+        frames = fast_packet_frames(payload, seq=3)
+        self.assertEqual(len(frames), 1 + -(-(43 - 6) // 7))
+        # reassemble the way the readers do, and require an exact round trip
+        total, buf = frames[0][1], bytearray(frames[0][2:])
+        for f in frames[1:]:
+            self.assertEqual(f[0] >> 5, 3)         # sequence preserved
+            buf += f[1:]
+        self.assertEqual(bytes(buf[:total]), payload)
+
+    def test_frame_indices_are_sequential(self):
+        frames = fast_packet_frames(bytes(30))
+        self.assertEqual([f[0] & 0x1F for f in frames], list(range(len(frames))))
+
+    def test_rejects_oversized_payload(self):
+        with self.assertRaises(ValueError):
+            fast_packet_frames(bytes(300))
+
+
+class DiscoveryTests(unittest.TestCase):
+    def setUp(self):
+        self._real_select = xn.select.select
+
+    def tearDown(self):
+        xn.select.select = self._real_select
+
+    def test_answers_each_discovery_pgn(self):
+        for pgn in (PGN_STS, PGN_PROD_INFO, PGN_SW_VER, PGN_HW_REV):
+            n = _node()
+            n.claim()
+            n.sock.inbox.append(_request_frame(pgn, dest=n.addr))
+            n.sock.sent.clear()
+            n.pump(0.05)
+            self.assertEqual(n.answered.get(pgn), 1, f"no answer for 0x{pgn:05X}")
+            self.assertTrue(n.sock.sent, f"nothing sent for 0x{pgn:05X}")
+            self.assertEqual(parse_id(n.sock.sent[0][0])[0], pgn)
+
+    def test_ignores_requests_for_pgns_we_do_not_serve(self):
+        n = _node()
+        n.claim()
+        n.sock.inbox.append(_request_frame(0x1F0C5, dest=n.addr))
+        n.sock.sent.clear()
+        n.pump(0.05)
+        self.assertEqual(n.answered, {})
+        self.assertEqual(n.sock.sent, [])
+
+    def test_address_claim_request_triggers_reannounce(self):
+        n = _node()
+        n.claim()
+        n.sock.inbox.append(_request_frame(PGN_ADDRESS_CLAIMED, dest=n.addr))
+        n.sock.sent.clear()
+        n.pump(0.05)
+        self.assertEqual(parse_id(n.sock.sent[0][0])[0], PGN_ADDRESS_CLAIMED)
+        self.assertEqual(n.sock.sent[0][1], OUR_NAME)
+
+    def test_identity_payloads_are_correctly_sized(self):
+        n = _node()
+        self.assertEqual(len(n._prod_info()), 43)
+        self.assertEqual(len(n._hw_rev()), 22)
+        self.assertEqual(len(n._sw_ver()), 25)
+        self.assertEqual(len(n._sts()), 6)
+
+    def test_identity_does_not_impersonate_schneider(self):
+        n = _node()
+        blob = (n._prod_info() + n._hw_rev()).decode("ascii", "ignore").upper()
+        for forbidden in ("MPPT", "CONEXT", "SCHNEIDER", "XANTREX", "865-"):
+            self.assertNotIn(forbidden, blob)
+
+    def test_records_access_denied_ack(self):
+        """The MPPT's real refusal, so we surface it instead of guessing."""
+        ack = bytes([2, 0xFB, 0xFF, 0xFF, 0xFF, 0x00, 0x40, 0x01])
+        n = _node()
+        n.claim()
+        n.sock.inbox.append(pack_frame(build_id(PGN_ACK, src=1, dest=n.addr), ack))
+        n.pump(0.05)
+        self.assertEqual(n.acks, [(1, 2, PGN_DEVICE_MODE)])
 
 
 if __name__ == "__main__":

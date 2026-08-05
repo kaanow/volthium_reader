@@ -44,7 +44,18 @@ CAN_FRAME_FMT = "=IB3x8s"
 
 PGN_ADDRESS_CLAIMED = 0x0EE00      # 60928, broadcast
 PGN_REQUEST = 0x0EA00              # 59904, request-for-PGN
+PGN_ACK = 0x0E800                  # 59392, ISO Acknowledgment
 PGN_DEVICE_MODE = 0x14000          # Conext device mode (02=standby 03=operating)
+
+# Discovery PGNs the Insight interrogates a new node with, within ~1.3 s of
+# its address claim (observed 2026-08-05). A node that answers none of these
+# is a ghost on the network; these are our replies.
+PGN_STS = 0x1F00F                  # generic device status (single frame)
+PGN_PROD_INFO = 0x1F014            # model + part number (fast packet)
+PGN_SW_VER = 0x1F80E               # software version (fast packet)
+PGN_HW_REV = 0x1F810               # hardware revision + serial (fast packet)
+
+ACK_CONTROL = {0: "ACK", 1: "NAK", 2: "ACCESS DENIED", 3: "CANNOT RESPOND"}
 
 ADDR_NULL = 0xFE                   # J1939 "cannot claim"
 ADDR_GLOBAL = 0xFF
@@ -143,6 +154,31 @@ def pack_frame(can_id: int, payload: bytes) -> bytes:
                        len(payload), payload.ljust(8, b"\x00"))
 
 
+def fast_packet_frames(payload: bytes, seq: int = 0) -> list[bytes]:
+    """Split a payload into NMEA2000 fast-packet frames.
+
+    Control byte is a 3-bit sequence counter plus a 5-bit frame index; frame 0
+    also carries the total length and 6 data bytes, later frames carry 7 each.
+    Unused tail bytes are 0xFF, matching what the real devices emit."""
+    if not 0 <= len(payload) <= 223:
+        raise ValueError(f"payload of {len(payload)} B does not fit a fast packet")
+    frames = [bytes([(seq & 0x7) << 5, len(payload)]) + payload[:6].ljust(6, b"\xff")]
+    pos, idx = 6, 1
+    while pos < len(payload):
+        chunk = payload[pos:pos + 7]
+        frames.append(bytes([((seq & 0x7) << 5) | (idx & 0x1F)])
+                      + chunk.ljust(7, b"\xff"))
+        pos += 7
+        idx += 1
+    return frames
+
+
+def _ascii_field(text: str, width: int) -> bytes:
+    """Fixed-width NUL-padded ASCII, the convention the Conext devices use
+    for model and part-number strings."""
+    return text.encode("ascii", "replace")[:width].ljust(width, b"\x00")
+
+
 def unpack_frame(raw: bytes) -> tuple[int, bytes]:
     can_id, dlc, data = struct.unpack(CAN_FRAME_FMT, raw)
     return can_id & 0x1FFFFFFF, data[:dlc]
@@ -160,7 +196,10 @@ class XanbusNode:
         self.sock: socket.socket | None = None
         self.claimed = False
         self._last_refresh = 0.0
+        self._fp_seq = 0
         self.peers: dict[int, bytes] = {}
+        self.answered: dict[int, int] = {}     # discovery PGN -> times answered
+        self.acks: list[tuple[int, int, int]] = []   # (src, control, pgn)
 
     # -- plumbing --------------------------------------------------------
     def _log(self, msg: str) -> None:
@@ -180,6 +219,66 @@ class XanbusNode:
 
     def _send(self, can_id: int, payload: bytes) -> None:
         self.sock.send(pack_frame(can_id, payload))
+
+    def _send_fast(self, pgn: int, dest: int, payload: bytes) -> None:
+        """Transmit a multi-frame fast-packet message."""
+        can_id = build_id(pgn, self.addr, dest)
+        for f in fast_packet_frames(payload, self._fp_seq):
+            self._send(can_id, f)
+        self._fp_seq = (self._fp_seq + 1) & 0x7
+
+    # -- identity: what we answer discovery with -------------------------
+    #
+    # Structures mirror the real devices byte-for-byte (verified against
+    # captured ProdInfoSts / HwRevSts / SwVerSts payloads); only the identity
+    # strings are ours. We describe ourselves honestly — this is a Volthium
+    # monitor, not an impersonation of Schneider hardware.
+
+    def _prod_info(self) -> bytes:
+        # 07 | 16B model | 12B part number | 0xFF filler  (43 B total)
+        return (bytes([0x07]) + _ascii_field("VolthiumMon", 16)
+                + _ascii_field("VOLTHIUM-1", 12) + b"\xff" * 14)
+
+    def _hw_rev(self) -> bytes:
+        # 07 | ffff | rev | 12B serial | filler  (22 B total)
+        return (bytes([0x07, 0xFF, 0xFF, 0x01, 0x00, 0x00])
+                + _ascii_field("VOLTHIUMPI01", 12) + b"\xff" * 4)
+
+    def _sw_ver(self) -> bytes:
+        # 25 B, same shape as the real SwVerSts records
+        return (bytes([0x07, 0xF0, 0x02]) + struct.pack("<I", 1)
+                + bytes([0x01, 0x00, 0xF0, 0x00, 0xA1, 0x28, 0x00, 0x00])
+                + bytes([0x01, 0x00, 0xF0, 0x03, 0x10, 0x27, 0x00, 0x00])
+                + b"\xff" * 6)[:25]
+
+    def _sts(self) -> bytes:
+        # Both real devices emit this identical 6-byte "operating" status.
+        return bytes.fromhex("030403030200")
+
+    def _discovery_table(self) -> dict:
+        return {
+            PGN_STS: (False, self._sts),
+            PGN_PROD_INFO: (True, self._prod_info),
+            PGN_SW_VER: (True, self._sw_ver),
+            PGN_HW_REV: (True, self._hw_rev),
+        }
+
+    def _answer_request(self, req_pgn: int, requester: int) -> bool:
+        """Reply to a Request for one of our identity PGNs. Returns True if
+        we answered."""
+        entry = self._discovery_table().get(req_pgn)
+        if entry is None:
+            return False
+        is_fast, build = entry
+        payload = build()
+        if is_fast:
+            self._send_fast(req_pgn, ADDR_GLOBAL, payload)
+        else:
+            self._send(build_id(req_pgn, self.addr, ADDR_GLOBAL), payload)
+        self.answered[req_pgn] = self.answered.get(req_pgn, 0) + 1
+        self._log(f"  answered request for 0x{req_pgn:05X} from {requester} "
+                  f"({len(payload)} B)")
+        return True
 
     def _recv(self, timeout: float):
         """Yield (pgn, dest, src, payload) for `timeout` seconds."""
@@ -240,6 +339,15 @@ class XanbusNode:
                     req = payload[0] | (payload[1] << 8) | (payload[2] << 16)
                     if req == PGN_ADDRESS_CLAIMED and dest in (self.addr, ADDR_GLOBAL):
                         self._announce()
+                    elif dest == self.addr:
+                        self._answer_request(req, src)
+                elif pgn == PGN_ACK and dest == self.addr and len(payload) >= 8:
+                    # A device is telling us what it made of our last message.
+                    ctl = payload[0]
+                    acked = payload[5] | (payload[6] << 8) | (payload[7] << 16)
+                    self.acks.append((src, ctl, acked))
+                    self._log(f"  <- node {src}: {ACK_CONTROL.get(ctl, ctl)} "
+                              f"for PGN 0x{acked:05X}")
                 elif (pgn == PGN_ADDRESS_CLAIMED and src == self.addr
                       and len(payload) == 8 and payload != self.name):
                     if int.from_bytes(payload, "little") < int.from_bytes(self.name, "little"):
@@ -275,6 +383,9 @@ def main() -> int:
                     help="seconds to hold the address after the last command")
     ap.add_argument("--claim-only", action="store_true",
                     help="claim and hold, send no commands (safe bus test)")
+    ap.add_argument("--identify", action="store_true",
+                    help="claim, then answer discovery interrogation. No "
+                         "commands — pure request/response (safe bus test)")
     ap.add_argument("--bounce", action="store_true",
                     help="the MPPT latch fix: standby, wait, operating")
     ap.add_argument("--decode-names", action="store_true",
@@ -304,7 +415,7 @@ def main() -> int:
                 print(f"  arbitration vs 0x{src:02X}: {rel} it")
         return 0
 
-    if not (args.bounce or args.claim_only):
+    if not (args.bounce or args.claim_only or args.identify):
         ap.print_help()
         return 0
 
@@ -326,10 +437,26 @@ def main() -> int:
             print(f"holding address for {args.hold:.0f}s (no commands)")
             node.pump(args.hold)
             return 0
+        if args.identify:
+            print(f"answering discovery for {args.hold:.0f}s (no commands)")
+            node.pump(args.hold)
+            print(f"\ndiscovery PGNs answered: "
+                  f"{ {hex(k): v for k, v in node.answered.items()} or 'none asked'}")
+            for src, ctl, pgn in node.acks:
+                print(f"  ack from node {src}: {ACK_CONTROL.get(ctl, ctl)} "
+                      f"for 0x{pgn:05X}")
+            return 0
+        # Let discovery complete before commanding — the network interrogates
+        # a new node within ~1.3 s and we want to have answered first.
+        node.pump(6.0)
         node.set_mode(args.dest, MODE_STANDBY)
         node.pump(args.wait)
         node.set_mode(args.dest, MODE_OPERATING)
         node.pump(args.hold)
+        denied = [a for a in node.acks if a[1] == 2]
+        if denied:
+            print(f"\nACCESS DENIED for {[hex(p) for _, _, p in denied]} "
+                  f"— the device refused the command")
         print("done — check pv_v on the dashboard")
     return 0
 
