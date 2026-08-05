@@ -117,6 +117,33 @@ def courtyard_segments(fpid, x, y, deg, back=False):
     return segs
 
 
+def tht_pad_segments(fpid, x, y, deg, back=False, margin=0.25):
+    """Rectangles of a footprint's THROUGH-HOLE pads, in board coords.
+
+    A THT pad pierces the board, so it obstructs BOTH sides even though the
+    part's body sits on one. The courtyard gate skips opposite-side pairs
+    (correct for bodies), which made a front part placed over a back-side
+    THT part's pad field invisible to it — DRC caught J1's pads shorting
+    J5/U2/R2 on the display board. Using pad extents rather than the whole
+    courtyard keeps the *body* area on the far side usable, which matters on
+    a small board (J1's body is 19x22 mm; its pad field is far smaller).
+    """
+    fp = fplib.load(fpid)
+    segs = []
+    for pad in fp.pads:
+        if pad.type not in ("thru_hole", "np_thru_hole"):
+            continue
+        hx = max(pad.size.X, pad.drill.diameter if pad.drill and
+                 pad.drill.diameter else 0) / 2 + margin
+        hy = max(pad.size.Y, (pad.drill.width or pad.drill.diameter)
+                 if pad.drill and pad.drill.diameter else 0) / 2 + margin
+        px, py = pad.position.X, pad.position.Y
+        corners = [(px - hx, py - hy), (px + hx, py - hy),
+                   (px + hx, py + hy), (px - hx, py + hy)]
+        segs.extend(_seg_loop(corners, x, y, deg, back))
+    return segs
+
+
 def _xf(p, x, y, deg, back):
     px, py = p
     if back:
@@ -232,10 +259,30 @@ def _flip_layer(name):
 def _flip_to_back(fp):
     """Cascade-flip a kiutils footprint to the back side (pass-1 lesson:
     fp.layer alone does NOT flip pads/graphics — that shipped B.Cu parts
-    physically on F.Cu)."""
+    physically on F.Cu).
+
+    Flipping is a MIRROR, not just a layer swap: KiCad stores back-side
+    geometry already mirrored about the footprint's Y axis, and reads the
+    stored coordinates literally. CP4 caught this — the writer swapped
+    layers but left X unmirrored, so a B-side part's pads landed on the
+    unmirrored side of its anchor. DRC (reading the written file) saw J1's
+    shield pad 5 mm east of where every analytic gate predicted it, because
+    the gates' _xf(back=True) mirrors and the writer did not. Unmirrored
+    back-side pads mean the physical part does not match its own land
+    pattern, so this is a fabrication defect, not just a gate disagreement.
+    """
     for pad in (fp.pads or []):
         pad.layers = [_flip_layer(l) for l in (pad.layers or [])]
+        pad.position.X = -pad.position.X
+        if getattr(pad.position, "angle", None):
+            pad.position.angle = (-pad.position.angle) % 360
     for gi in (fp.graphicItems or []):
+        for attr in ("start", "end", "center", "mid", "position"):
+            pt = getattr(gi, attr, None)
+            if pt is not None and hasattr(pt, "X"):
+                pt.X = -pt.X
+        for c in (getattr(gi, "coordinates", None) or []):
+            c.X = -c.X
         if hasattr(gi, "layer") and gi.layer:
             new = _flip_layer(gi.layer)
             if (new.startswith("B.") and gi.layer.startswith("F.")
@@ -415,7 +462,22 @@ class BoardBuilder:
                 ra, sa, a = placed[i]
                 rb, sb, b = placed[j]
                 if sa != sb:
-                    continue  # opposite sides: courtyards independent
+                    # Opposite sides: bodies are independent, but THT pads
+                    # pierce the board and obstruct both faces.
+                    for src, dst, tag in ((i, j, ra), (j, i, rb)):
+                        ref_s = placed[src][0]
+                        if ref_s not in self.components:
+                            continue      # mounting holes: already both-sided
+                        fpid = self.components[ref_s]["footprint"]
+                        px, py, prot, pside = self.placement[ref_s]
+                        pads = tht_pad_segments(fpid, px, py, prot,
+                                                back=(pside == "B"))
+                        if pads and courtyards_collide(pads, placed[dst][2]):
+                            self.findings.append(
+                                f"[thru-pads] {tag} THT pads pierce the board "
+                                f"into {placed[dst][0]} on the "
+                                f"{placed[dst][1]} side")
+                    continue
                 if courtyards_collide(a, b):
                     self.findings.append(f"[courtyard] {ra} x {rb} ({sa} side)")
 

@@ -58,11 +58,13 @@ OVERHANG_OK = {
     "J-USB": "E",    # USB-C shell must sit PROUD of the edge (CP3 lesson)
 }
 
-NETCLASSES = {
-    "Power-12V": (0.5, 0.25, ["V12_CAT5E", "V12_PROT"]),
-    "Power-3V3": (0.4, 0.20, ["V3V3"]),
-    "RS485-diff": (0.25, 0.20, ["RS485_A", "RS485_B"]),
-}
+NETCLASSES = [
+    # (name, track_width, clearance, patterns) — cp1_display_side §10.3
+    ("Default", 0.2, 0.2, []),
+    ("Power-12V", 0.5, 0.25, ["V12_CAT5E", "V12_PROT"]),
+    ("Power-3V3", 0.4, 0.2, ["V3V3", "V3V3_REG"]),
+    ("RS485-diff", 0.25, 0.2, ["RS485_A", "RS485_B"]),
+]
 
 # J-USB's own pad field is finer than the routing netclass clearance
 CUSTOM_RULES = """(version 1)
@@ -93,3 +95,174 @@ def cc(fpid, cx, cy, rot, side="F"):
 def pl(ref, cx, cy, rot=0, side="F"):
     """Place by courtyard centre. Footprint comes from the netlist only."""
     P[ref] = cc(COMPS[ref]["footprint"], cx, cy, rot, side)
+
+
+# ---------------------------------------------------------------------------
+# BACK side (B) — faces the box floor, generous depth. Only the two parts
+# that would blow the front standoff gap live here (§10.2 #4).
+# ---------------------------------------------------------------------------
+# J1 RJ45 right-angle, mating face W: in-wall Cat5e enters from the side so
+# the cable does not push the box forward (§10.2 #5). 13.6 mm tall.
+pl("J1", 9.3, 38.0, 0, "B")
+# U1 R-78E3.3 SIP (~11 mm) on the back, pointing into the box (§10.2 #4)
+pl("U1", 30.0, 47.0, 0, "B")
+
+# ---------------------------------------------------------------------------
+# FRONT side (F) — faces the faceplate/module across the standoff gap
+# ---------------------------------------------------------------------------
+# N edge: J2 e-paper header, side-entry (D39). rot 0 puts the pin row NORTH
+# of the body, so the opening (and cable) faces SOUTH over the board rather
+# than into the ~5 mm gap between board edge and box wall. PROBED, not assumed.
+pl("J2", 42.0, 6.0, 0)
+
+# MOD1 centre, no antenna keepout (D26/D39): courtyard x 32.25..51.75,
+# y 14.00..40.50 — the placement exclusion every other front part respects.
+pl("MOD1", 42.0, 27.0, 0)
+
+# --- W column: 12 V entry chain J1 -> F1 -> TVS1/C1 -> U1 (on the back) ---
+pl("F1", 12.0, 14.0, 0)
+pl("C1", 12.0, 20.0, 0)
+pl("TVS1", 24.0, 14.0, 0)
+
+# --- RS-485 front end, left of the module ---
+pl("TVS2", 24.0, 20.0, 0)
+pl("U2", 26.0, 39.5, 0)          # THVD1400
+pl("R3", 24.0, 25.5, 0)          # 330R idle bias (D19/DR-4)
+pl("R4", 24.0, 29.0, 0)
+pl("R2", 24.5, 33.0, 0)          # 120R termination, gated by J5
+pl("J5", 29.0, 30.0, 0)          # TERM jumper
+
+# --- E column: USB-C bench/recovery chain, flowing W from the connector ---
+# Shell PROUD of the E edge (CP3 lesson, enforced by gate_edge_markers):
+# the footprint's "PCB Edge" line lands exactly on x = W.
+pl("J-USB", W - 2.075, 16.0, 90)
+pl("U-ESD", 70.0, 27.0, 0)       # ESD array inboard of the connector
+pl("R_cc1", 77.0, 25.5, 0)       # CC pulldowns
+pl("R_cc2", 77.0, 29.0, 0)
+pl("C_usb1", 62.0, 27.0, 0)      # VBUS bulk
+pl("U3-LDO", 70.0, 33.0, 0)      # USB 5 V -> 3V3
+pl("C_usb2", 62.0, 33.0, 0)
+pl("U4-MUX", 70.0, 38.5, 0)      # priority mux: USB (VIN1) vs R-78E (VIN2)
+pl("C_mux", 62.0, 38.5, 0)       # 47 uF on the muxed V3V3 rail
+pl("C2", 77.0, 33.0, 0)          # regulator-output bulk (V3V3_REG)
+
+# --- 3V3 decoupling south of the module, clear of its y=40.50 courtyard ---
+pl("C3", 34.0, 44.0, 0)
+pl("C4", 38.0, 44.0, 0)
+pl("C6", 42.0, 44.0, 0)
+pl("C7", 46.0, 44.0, 0)
+
+# --- EN / boot support ---
+pl("R1", 52.0, 44.0, 0)
+pl("C5", 56.0, 44.0, 0)
+
+# --- J3 ESP-Prog: front side, serviceable once faceplate + module come away
+pl("J3", 78.0, 46.0, 0)
+
+# --- S edge: buttons at the doc x centres (18 mm pitch, §10.2 #2), each with
+# its 1M pullup and 100 nF debounce immediately north ---
+for _ref, _bx in (("BTN1", 24.0), ("BTN2", 42.0), ("BTN3", 60.0)):
+    pl(_ref, _bx, 57.5, 0)
+pl("R5", 20.0, 49.5, 0)
+pl("C8", 16.0, 49.5, 0)
+pl("R6", 38.0, 49.5, 0)
+pl("C9", 46.0, 49.5, 0)
+pl("R7", 56.0, 49.5, 0)
+pl("C10", 62.5, 49.5, 0)
+
+
+def orientation_asserts(findings):
+    """PROBE every mechanical invariant from the placed geometry — never
+    hand-derive a rotation's effect (the CP2 source/drain-swap lesson)."""
+    def pads(ref):
+        x, y, rot, side = P[ref]
+        return core.placed_pads(COMPS[ref]["footprint"], x, y, rot, side)
+
+    def court_center(ref):
+        x, y, rot, side = P[ref]
+        segs = core.courtyard_segments(COMPS[ref]["footprint"], x, y, rot,
+                                       back=(side == "B"))
+        pts = [p for s in segs for p in s]
+        return (sum(p[0] for p in pts) / len(pts),
+                sum(p[1] for p in pts) / len(pts))
+
+    # J1: the RJ45 mating face must open WEST — its shield/mounting posts sit
+    # east of the signal pads when the opening faces the W edge.
+    sig = [p for n, p in pads("J1").items() if n.isdigit()]
+    if not (sum(p[0] for p in sig) / len(sig)) < court_center("J1")[0]:
+        findings.append("[orient] J1: signal pads not west of body — RJ45 "
+                        "opening does not face the W edge")
+
+    # J2: side-entry opening must face SOUTH (cable over the board, not into
+    # the box wall) — pin 1 row sits north of the courtyard centre.
+    if not pads("J2")["1"][1] < court_center("J2")[1]:
+        findings.append("[orient] J2: pin row not north of body — side-entry "
+                        "cable would exit over the N board edge")
+
+    # Buttons must be on the FRONT (plungers reach the faceplate, D27)
+    for b in ("BTN1", "BTN2", "BTN3"):
+        if P[b][3] != "F":
+            findings.append(f"[orient] {b} is on the back — plunger cannot "
+                            "reach the faceplate")
+
+    # The two tall parts must be on the BACK (depth stack, §10.2 #4)
+    for tall in ("J1", "U1"):
+        if P[tall][3] != "B":
+            findings.append(f"[orient] {tall} is on the front — it exceeds "
+                            "the PCB->module standoff gap")
+
+
+def main():
+    core.configure(PROJECT, "build_display", NETLIST)
+    if not core.selftest_gates():
+        print("[selftest] FAILED — refusing to build")
+        return 2
+
+    bb = core.BoardBuilder(W, H, NETS, COMPS, P, overhang_ok=OVERHANG_OK)
+    bb.place_all()
+    bb.add_mounting_holes(MOUNT)
+    orientation_asserts(bb.findings)
+    # courtyard / outline / edge-marker / fab / readback / label-adjacency
+    # all run inside bb.write() — the chokepoint (CP3 F09)
+
+    OUT.mkdir(exist_ok=True)
+    pcb = OUT / f"{PROJECT}.kicad_pcb"
+    bans_file = OUT / "refdes_bans.json"
+    bans = {}
+    if bans_file.exists():
+        import json as _json
+        bans = {k: [tuple(v) for v in vs]
+                for k, vs in _json.loads(
+                    bans_file.read_text(encoding="utf-8")).items()}
+    refdes_ov, refdes_unplaced = core.auto_refdes(COMPS, P, W, H, banned=bans)
+    if refdes_unplaced:
+        print(f"[refdes] library-fallback: {refdes_unplaced}")
+    bb.write(pcb, prop_overrides=refdes_ov)
+
+    if bb.findings:
+        print(f"== {len(bb.findings)} finding(s) ==")
+        for f in bb.findings:
+            print(" ", f)
+        return 1
+
+    core.write_project(OUT, PROJECT, NETCLASSES, CUSTOM_RULES)
+    unaccounted, counts = core.run_drc(pcb, DRC_ACCEPTED, OUT / "drc.rpt")
+    print("[drc] categories:", counts)
+    if unaccounted:
+        print(f"[drc] {len(unaccounted)} unaccounted:")
+        for cat, msg in unaccounted[:40]:
+            print(f"  [{cat}] {msg}")
+        return 1
+
+    import os as _os
+    if not _os.environ.get("SKIP_RENDER"):
+        core.render_board(pcb, OUT / "render_top.png", "top")
+        core.render_board(pcb, OUT / "render_bottom.png", "bottom")
+    print(f"[ok] {pcb.name}: {len(bb.b.footprints)} footprints, "
+          f"{len(bb.b.nets)} nets, DRC clean (accepted: "
+          f"{ {k: counts.get(k, 0) for k in DRC_ACCEPTED} })")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

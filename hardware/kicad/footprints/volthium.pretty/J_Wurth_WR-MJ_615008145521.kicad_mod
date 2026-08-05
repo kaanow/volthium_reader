@@ -266,7 +266,7 @@
 		(thermal_bridge_angle 0)
 		(uuid "46c63036-a058-498f-ba87-847cef1631d3")
 	)
-	(pad "S1" thru_hole circle
+	(pad "SH" thru_hole circle
 		(at -4.575 5.84)
 		(size 2.55 2.55)
 		(drill 1.7)
@@ -275,7 +275,7 @@
 		(thermal_bridge_angle 0)
 		(uuid "932c79b0-e268-488d-8b9d-5ab810b66137")
 	)
-	(pad "S2" thru_hole circle
+	(pad "SH" thru_hole circle
 		(at 10.925 5.84)
 		(size 2.55 2.55)
 		(drill 1.7)

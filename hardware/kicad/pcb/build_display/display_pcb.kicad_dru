@@ -1,0 +1,4 @@
+(version 1)
+(rule "usbc_own_pad_field"
+  (constraint clearance (min 0.127mm))
+  (condition "A.memberOfFootprint('J-USB') && B.memberOfFootprint('J-USB')"))
