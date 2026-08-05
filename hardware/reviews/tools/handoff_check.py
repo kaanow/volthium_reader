@@ -139,11 +139,11 @@ def main():
                      + r.stdout[-400:])
 
     # No handoff may carry an unaccepted reviewer patch (RPA policy).
-    rng = ("origin/main..HEAD"
-           if sh("git", "-C", str(REPO), "rev-parse", "--verify", "-q",
-                 "origin/main").returncode == 0 else "main..HEAD")
+    # NO RANGE ARGUMENT: the checker owns epoch selection. Passing one
+    # here is how F11's fix got bypassed at the only boundary that
+    # matters (F13) — the caller silently overrode the corrected default.
     r = sh(PY, str(REPO / "hardware/reviews/tools/"
-                    "reviewer_patch_check.py"), rng)
+                    "reviewer_patch_check.py"))
     if r.returncode != 0:
         fails.append("[rpa] reviewer-patch gate not clean "
                      f"(rc={r.returncode}):\n" + r.stdout[-500:])

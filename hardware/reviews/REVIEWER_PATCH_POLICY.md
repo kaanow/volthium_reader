@@ -105,6 +105,27 @@ gate — the reviewer's clone flagged five pre-policy commits the
 designer's clone never saw (CP3 finding 11). Pre-policy patches are
 legitimized by an `RPA-ACCEPTED` line, never by moving the base.
 
+## Whose word the gate takes
+
+The gate reads configuration and sign-offs from files. Any of those you
+can write is part of its attack surface, so the load-bearing ones do not
+live where you work:
+
+- **The enforcement epoch and the reviewer-author list are pinned in
+  `reviewer_patch_check.py`**, not in `SEMAPHORE.yaml`. You must rewrite
+  the semaphore every turn — that is turn control, your job — and a
+  guard whose scope the guarded party sets is not a guard. The semaphore
+  keeps documentary copies; the gate requires them to agree and fails on
+  drift. (Setting the epoch to `HEAD`, or emptying the author list, both
+  used to make the gate report clean while hiding every patch.)
+- **A sign-off counts only if a non-reviewer authored the line**, checked
+  by `git blame`. You write findings into the packet every turn, so
+  presence of an `RPA-ACCEPTED` line proves nothing; authorship does. A
+  patch cannot accept itself.
+- Ordinary semaphore edits (state, iteration, notes) are *not* flagged —
+  the fix makes the semaphore powerless over enforcement rather than
+  making your routine turn commits noisy.
+
 ## Patching the mechanism itself
 
 The gate, this policy, and `handoff_check.py` are all patchable under

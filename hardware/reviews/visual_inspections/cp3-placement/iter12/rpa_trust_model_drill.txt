@@ -1,0 +1,71 @@
+RPA gate v3 — trust-model drill (findings 13/14 + designer sweep)
+==================================================================
+Scratch clone, real commits under both git identities.
+
+THE CLASS (what F14 is an instance of): every input this gate reads that
+the GUARDED PARTY can write is part of its attack surface. The reviewer
+must rewrite SEMAPHORE.yaml every turn (turn control is their job) and
+writes findings into the packet every turn. So the gate had FOUR such
+inputs, of which the review named one:
+
+  1. rpa_policy_base      (SEMAPHORE)  <- F14, named
+  2. reviewer_git_authors (SEMAPHORE)  <- designer sweep, unnamed
+  3. active_packet        (SEMAPHORE)  <- designer sweep, unnamed
+  4. RPA-ACCEPTED lines   (packet)     <- designer sweep, unnamed, worst:
+                                          a patch could accept itself
+
+Pre-fix confirmation (in-memory, on the shipped gate):
+  sem_field('reviewer_git_authors') -> ''      => gate exit 0, all reviewer
+                                                 commits skipped entirely
+  sem_field('active_packet') -> another file   => gate exit 0
+
+FIX: enforcement constants (POLICY_BASE, REVIEWER_AUTHORS) are pinned in
+reviewer_patch_check.py — which is in SELF, so a reviewer patch touching
+it raises SCRUTINY. SEMAPHORE keeps documentary copies, equality-checked
+at every run. Sign-off is verified by git AUTHORSHIP (blame), not by the
+line's presence.
+
+Drill results
+-------------
+F14-a  reviewer semaphore-only commit sets rpa_policy_base: HEAD
+       -> "[rpa] SEMAPHORE rpa_policy_base 'HEAD' disagrees with the
+           pinned epoch '3e4c097' — enforcement is pinned in
+           reviewer_patch_check.py; fix the documentation, not the gate"
+       exit 1  (pre-fix: exit 0, range HEAD..HEAD, every patch hidden)
+
+HOLE 2 reviewer empties reviewer_git_authors
+       -> "[rpa] SEMAPHORE reviewer_git_authors [] disagrees with the
+           pinned list ['voxelisKW']"
+       exit 1  (pre-fix: exit 0, every reviewer commit skipped)
+
+CONTROL ordinary reviewer turn-state edit (iteration bump), semaphore-only
+       -> RPA: clean, exit 0.  The fix deliberately does NOT flag
+       semaphore commits as code — that would fire on every legitimate
+       turn flip. It makes the semaphore POWERLESS instead.
+
+HOLE 4 reviewer commits a valid patch, then writes their own sign-off
+       -> "[rpa] VIOLATION sign-off on packet line 1155 was written by
+           'voxelisKW', a reviewer author — a patch cannot accept itself;
+           the designer must sign off"
+       exit 2 (patch stays PENDING)
+       Same patch with the identical line committed by the DESIGNER
+       -> RPA: clean — 1 reviewer patch, in scope, zero-delta, accepted
+       exit 0
+
+F13    integration: origin/main force-moved 6 commits back so it diverges
+       from CP history.
+       standalone checker            -> clean, epoch range 3e4c097…..HEAD
+       checker as the handoff calls it -> rc 0, identical last line
+       origin/main restored          -> identical verdict again
+       i.e. the verdict no longer depends on where origin/main points,
+       and the handoff cannot override the epoch (no range argument).
+
+Accepted residual
+-----------------
+active_packet (input 3) legitimately changes per checkpoint, so it cannot
+be pinned. Mitigations: the named packet must be git-TRACKED, and a
+sign-off in it counts only if a non-reviewer authored that line. A
+repointed packet could therefore satisfy the finding-exists sanity check
+with an invented id, but cannot manufacture an accepted patch — the
+authorship check is the actual boundary. Documented rather than
+over-built.

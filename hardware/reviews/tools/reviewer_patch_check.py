@@ -18,11 +18,15 @@ mechanical. This checks every reviewer-authored commit in a range:
      cannot check is not reviewable)
   6. designer sign-off `RPA-ACCEPTED: <id> <sha>` present in the packet
 
-Enforcement epoch: the range defaults to `<rpa_policy_base>..HEAD` from
-SEMAPHORE.yaml — an immutable sha, because a policy cannot bind commits
-made before it existed, and because a mutable ref like `origin/main`
-makes the verdict depend on which clone runs it (F11: the reviewer's
-clone flagged five pre-policy commits the designer's clone never saw).
+Enforcement epoch: the range defaults to `POLICY_BASE..HEAD`, pinned in
+this file — an immutable sha, because a policy cannot bind commits made
+before it existed, and because a mutable ref like `origin/main` makes
+the verdict depend on which clone runs it (F11). This module is the ONLY
+owner of epoch selection: callers pass no range (F13), and the
+reviewer-writable SEMAPHORE copy is documentary and equality-checked
+(F14 — a guard whose scope the guarded party sets is not a guard).
+Sign-off is verified by git AUTHORSHIP, not by the line's presence: the
+packet is reviewer-writable, so a patch could otherwise accept itself.
 
 Exit 0 clean · 1 VIOLATION (scope/invariant breach) · 2 PENDING
 (a valid patch awaiting designer acceptance).
@@ -35,6 +39,18 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
+
+# --- enforcement constants: pinned HERE, never read from SEMAPHORE.yaml ---
+# A guard whose scope is set by the guarded party is not a guard. The
+# reviewer must rewrite SEMAPHORE.yaml every turn (that is turn control,
+# their job), so anything load-bearing that lives there is theirs to
+# change — setting the epoch to HEAD, or emptying the author list, made
+# this gate report clean while hiding every patch (CP3 F14 + the designer
+# sweep that followed it). These live in enforcement code instead, which
+# is in SELF below: a reviewer patch touching it raises SCRUTINY.
+# SEMAPHORE keeps documentary copies; they are equality-checked at run.
+POLICY_BASE = "3e4c097d891d4f516f7b51e264308a679d7f3995"
+REVIEWER_AUTHORS = ("voxelisKW",)
 
 # Generated trees: nothing in them is authored, so a reviewer patch may
 # never contain one. _assert_build_dirs_in_sync() holds this list equal
@@ -110,15 +126,68 @@ def in_scope(path):
     return None
 
 
+def _check_documentary_copies():
+    """SEMAPHORE.yaml restates the epoch and the author list for humans.
+    Documentation may not disagree with enforcement — and since the
+    reviewer owns that file, a drift is exactly how the guard would be
+    widened. Require equality; fail on any difference."""
+    declared = sem_field(r"rpa_policy_base:\s*(\S+)", required=False)
+    if declared and not POLICY_BASE.startswith(declared.rstrip(".")):
+        raise SystemExit(
+            f"[rpa] SEMAPHORE rpa_policy_base {declared!r} disagrees with the "
+            f"pinned epoch {POLICY_BASE[:7]!r} — enforcement is pinned in "
+            "reviewer_patch_check.py; fix the documentation, not the gate")
+    da = sem_field(r"reviewer_git_authors:\s*\[([^\]]*)\]", required=False)
+    if da is not None:
+        got = tuple(s.strip() for s in da.split(",") if s.strip())
+        if got != REVIEWER_AUTHORS:
+            raise SystemExit(
+                f"[rpa] SEMAPHORE reviewer_git_authors {list(got)} disagrees "
+                f"with the pinned list {list(REVIEWER_AUTHORS)}")
+
+
+def signed_off_by(packet_rel, line_no):
+    """WHO added this RPA-ACCEPTED line. The packet is reviewer-writable —
+    they add their findings to it every turn — so presence of a sign-off
+    proves nothing; authorship does. Self-acceptance is the hole this
+    closes (designer sweep after CP3 F14)."""
+    r = sh("git", "blame", "--line-porcelain", "-L", f"{line_no},{line_no}",
+           "HEAD", "--", packet_rel)
+    if r.returncode != 0:
+        return None
+    m = re.search(r"^author (.+)$", r.stdout, re.M)
+    return m.group(1) if m else None
+
+
 def main():
     _assert_build_dirs_in_sync()
-    base = sem_field(r"rpa_policy_base:\s*(\S+)")
-    rng = sys.argv[1] if len(sys.argv) > 1 else f"{base}..HEAD"
-    authors = [s.strip() for s in
-               sem_field(r"reviewer_git_authors:\s*\[([^\]]*)\]").split(",")
-               if s.strip()]
-    packet = REPO / sem_field(r"active_packet:\s*(\S+)")
+    _check_documentary_copies()
+    rng = sys.argv[1] if len(sys.argv) > 1 else f"{POLICY_BASE}..HEAD"
+    authors = list(REVIEWER_AUTHORS)
+    packet_rel = sem_field(r"active_packet:\s*(\S+)")
+    packet = REPO / packet_rel
+    if sh("git", "ls-files", "--error-unmatch", "--",
+          packet_rel).returncode != 0:
+        raise SystemExit(f"[rpa] active_packet {packet_rel} is not tracked")
     ptext = packet.read_text(encoding="utf-8")
+
+    def accepted_by_designer(pattern):
+        """True only if a matching sign-off line exists AND a non-reviewer
+        committed it."""
+        for m in re.finditer(pattern, ptext, re.M):
+            line_no = ptext.count("\n", 0, m.start()) + 1
+            who = signed_off_by(packet_rel, line_no)
+            if who is None:
+                print(f"[rpa] INFO sign-off on packet line {line_no} is not "
+                      "committed yet — commit the packet, then re-run")
+                continue
+            if who in authors:
+                print(f"[rpa] VIOLATION sign-off on packet line {line_no} was "
+                      f"written by {who!r}, a reviewer author — a patch "
+                      "cannot accept itself; the designer must sign off")
+                return False
+            return True
+        return False
 
     r = sh("git", "log", "--format=%H%x1f%an%x1f%P%x1f%B%x1e", rng)
     if r.returncode != 0:
@@ -151,7 +220,7 @@ def main():
             # A patch can be legitimized after the fact: the designer
             # re-reviews it and signs off by sha — the same scrutiny a
             # trailered patch gets.
-            if re.search(rf"^RPA-ACCEPTED:\s*\S+\s+{short}", ptext, re.M):
+            if accepted_by_designer(rf"^RPA-ACCEPTED:\s*\S+\s+{short}"):
                 print(f"[rpa] INFO {short}: untrailered reviewer patch, "
                       "accepted retroactively by designer sign-off")
                 continue
@@ -202,8 +271,8 @@ def main():
                 f"differ from the parent commit: {moved}. A host fix must "
                 "not change design output; file this as a finding instead.")
 
-        if not re.search(rf"^RPA-ACCEPTED:\s*{re.escape(fid)}\s+{short}",
-                         ptext, re.M):
+        if not accepted_by_designer(
+                rf"^RPA-ACCEPTED:\s*{re.escape(fid)}\s+{short}"):
             pending.append(
                 f"{short} ({fid}): awaiting designer sign-off — add "
                 f"`RPA-ACCEPTED: {fid} {short}` to the packet response "

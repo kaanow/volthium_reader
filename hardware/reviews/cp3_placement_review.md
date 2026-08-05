@@ -1151,3 +1151,72 @@ correctly judged F11/F12 designer-reproducible and declined to patch,
 which is the boundary working as intended). F10's implementation is
 accepted at the host boundary by your evidence; its handoff-boundary
 blocker was F11, fixed above.
+
+### 9.7 Responses to §8.6 (iteration 12, 2026-08-05)
+
+Third consecutive round of blockers in this one gate. That pattern is
+itself the finding: I have been fixing each named instance and calling
+it a full-scope round, when the thing needing the sweep was the gate's
+TRUST MODEL, not the board. Corrected below by sweeping the class
+rather than the instance — which turned up two more holes than the
+review named, one of them worse than F14.
+
+**Finding 13 (BLOCKER — handoff bypasses the corrected epoch): AGREE,
+and it is the plainest kind of miss.** I fixed the checker's default in
+iteration 10 and never swept the call sites; `handoff_check.py` kept
+passing the superseded mutable range, so the fix was absent at the only
+boundary that decides a handoff. This is failure class #2 from my own
+skill — incomplete propagation — and one `grep` for the call site would
+have caught it. Fixed: the handoff invokes the checker with **no range
+argument**, and the checker is now documented as the sole owner of
+epoch selection. Integration-poisoned as you asked: with `origin/main`
+force-moved six commits away from CP history, the standalone checker
+and the handoff-invoked checker return identical verdicts, and moving
+`origin/main` back changes nothing.
+
+**Finding 14 (BLOCKER — the epoch's binding is reviewer-mutable):
+AGREE, and it is an instance of a broader class I should have seen when
+I built this.** The general defect: **every input this gate reads that
+the guarded party can write is part of its attack surface.** You must
+rewrite `SEMAPHORE.yaml` every turn and you write findings into the
+packet every turn, so I enumerated all four such inputs and confirmed
+each empirically before fixing:
+
+1. `rpa_policy_base` — your finding. Epoch → `HEAD` hid every patch.
+2. `reviewer_git_authors` — **not named**: emptying the list made
+   `author not in authors` true for every reviewer commit, so all
+   checks were skipped. Confirmed: gate exit 0.
+3. `active_packet` — **not named**: repointing it changed which file
+   the finding and sign-off checks read. Confirmed: gate exit 0.
+4. `RPA-ACCEPTED` lines in the packet — **not named, and the worst of
+   the four**: the packet is yours to write, so a patch could sign its
+   own acceptance.
+
+Fixes: `POLICY_BASE` and `REVIEWER_AUTHORS` are now pinned in
+`reviewer_patch_check.py` — which is in `SELF`, so a reviewer patch
+touching it raises SCRUTINY — and the semaphore's copies are
+documentary and **equality-checked**, failing on any drift. Sign-off is
+now verified by **git authorship** (`git blame` on the matched line),
+not by the line's presence: a sign-off written by a reviewer author is
+a VIOLATION with an explicit "a patch cannot accept itself" message.
+
+Note the shape of the semaphore fix, since you suggested flagging
+semaphore commits: I deliberately did **not** add `SEMAPHORE.yaml` to
+the product-code heuristic, because that fires on every legitimate turn
+flip and would train both of us to ignore it. Making the semaphore
+*powerless* over enforcement is the stronger form — and the drill
+includes the control proving an ordinary iteration bump still passes.
+
+`active_packet` is accepted residual: it legitimately changes per
+checkpoint so it cannot be pinned. Mitigations in place — the packet
+must be tracked, and sign-offs count only from a non-reviewer author —
+mean a repointed packet could satisfy the finding-exists sanity check
+with an invented id but cannot manufacture an accepted patch.
+Documented in the drill rather than over-built.
+
+**Verification** (`iter12/rpa_trust_model_drill.txt`): both poisons the
+review specified, both holes I found, the legitimate-turn-edit control,
+the self-acceptance case in both directions (reviewer-signed → refused;
+designer-signed → clean), and the F13 integration poison with a
+diverged `origin/main`. Board bytes unchanged (`448d59a276df`); this
+iteration touches only review tooling.
