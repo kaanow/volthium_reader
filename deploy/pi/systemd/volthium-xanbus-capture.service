@@ -19,14 +19,14 @@ WorkingDirectory=/srv/volthium_reader
 # TO REVERT (restores a bus we physically cannot transmit on):
 #   change 'listen-only off' back to 'listen-only on' here, then
 #   sudo systemctl restart volthium-xanbus-capture
-# restart-ms 100: auto-recover from bus-off. Mandatory now that we can
-# transmit — without it a single bad TX latches the controller bus-off and
-# can0 stays dead (taking capture AND telemetry with it) until a human runs
-# 'ip link set can0 down/up'. The interface had never transmitted a frame
-# before 2026-08-05, so the TX path is unproven; this makes a failed
-# experiment self-healing instead of an outage.
+# NOTE: bus-off auto-recovery is NOT available here — this gs_usb adapter
+# rejects 'restart-ms' with "Device doesn't support restart from Bus Off"
+# (learned the hard way 2026-08-05: it fails the whole ExecStartPre and
+# leaves can0 down). So a bus-off from a bad TX needs a manual
+# 'ip link set can0 down/up' over SSH, or a service restart. Keep that in
+# mind before transmitting; scripts/can_watchdog.sh automates the recovery.
 ExecStartPre=-/sbin/ip link set can0 down
-ExecStartPre=/sbin/ip link set can0 type can bitrate 250000 listen-only off restart-ms 100
+ExecStartPre=/sbin/ip link set can0 type can bitrate 250000 listen-only off
 ExecStartPre=/sbin/ip link set can0 up
 ExecStart=/srv/volthium_reader/.venv/bin/python scripts/can_capture.py
 Restart=always
