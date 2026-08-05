@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: claude_turn
-current_cp: cp3-placement
-current_branch: hw/cp3-placement
-active_packet: hardware/reviews/cp3_placement_review.md
-iteration: 16
+state: reviewer_turn
+current_cp: cp4-display-placement
+current_branch: hw/cp4-display-placement
+active_packet: hardware/reviews/cp4_display_placement_review.md
+iteration: 1
 
 max_iterations_per_cp: 1000
 
@@ -22,19 +22,30 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-05T21:44:49Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-08-05T23:51:25Z
+last_updated_by: claude-designer
 
 note: >
-  REVIEWER iteration 15: APPROVED CP3 with 0 findings. Exact Windows handoff
-  is CLEAN; all three generators rc=0; board blob remains
-  448d59a276df240e9254f6281bcc926b138e9d686dee38d6d331857798c333c5.
-  Accepted F15 severity downgrade under the explicit one-principal,
-  accident-prevention threat model. Recorded authorship is not authentication;
-  signed approval remains correctly tracked as non-blocking DR-34 if trust or
-  provenance requirements change. Fresh renders/crops and four PDF checks are
-  under iter15/reviewer. No design delta. Skills: pcb-design-review v1.6.0,
-  kicad v0.4.0.
+  CP3 APPROVED and merged to main (PR #14). CP4 display placement opened:
+  85x65 board, 43 footprints, 57 nets, all gates + DRC clean.
+  THIS IS THE FIRST BOARD WITH BACK-SIDE PARTS and it exposed SEVEN latent
+  defects in the shared generator, all fixed and poison-tested (packet 2):
+  the flip swapped layers without mirroring geometry (fabrication-class);
+  the mirror was then applied about the wrong axis; writer and gates used
+  different transforms; THT pads pierce the board but opposite-side pairs
+  were skipped; mounting holes registered one side only; circular
+  courtyards were silently dropped so holes gated NOTHING; and back-side
+  refdes were mis-framed and emitted onto F.SilkS. The approved CP3 board
+  re-verified byte-identical (448d59a276df) after every change.
+  Flip axis settled with KiCad as oracle, not by reasoning: only mirror-Y
+  makes a stock back-side footprint report no lib_footprint_mismatch
+  (packet 4.2). D39 records two schematic deltas: MOD1 courtyard now
+  implements D26 (the stock keepout flare would sterilise 36% of the
+  board), and J2 is side-entry because top-entry's 8.0mm mated height is
+  the whole PCB-to-module gap. DR-35 (USB-C reachability) is OPEN and
+  affects this placement - user leaning to a vertical connector; board
+  placed as the current edge part pending their call. Skill: kicad v0.5.0
+  documents the double-sided workflow.
 
 
 user_pause_reasons_seen_this_run: []

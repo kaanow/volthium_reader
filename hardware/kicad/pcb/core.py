@@ -765,6 +765,10 @@ def _restore_properties(board_text, prop_overrides=None):
             lib_props = {}
         atm = re.search(r'\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', chunk)
         rot = float(atm.group(3)) if atm and atm.group(3) else 0.0
+        # a footprint on B.Cu carries its silk on B.SilkS; the library
+        # block always says F.SilkS, and this restore was not side-aware,
+        # so back-side refdes were emitted onto the FRONT silk (CP4).
+        on_back = '(layer "B.Cu")' in chunk[:400]
         refm = re.search(r'\(property "Reference" "([^"]+)"', chunk)
         ref = refm.group(1) if refm else None
 
@@ -776,6 +780,11 @@ def _restore_properties(board_text, prop_overrides=None):
             # substitute the instance text into the library block
             blk = re.sub(r'^\(property "[^"]+" "[^"]*"',
                          f'(property "{name}" "{val}"', lib)
+            if on_back:
+                blk = blk.replace('(layer "F.SilkS")', '(layer "B.SilkS")')
+                blk = blk.replace('(layer "F.Fab")', '(layer "B.Fab")')
+                if "mirror" not in blk:
+                    blk = blk.replace("(effects", "(effects (justify mirror)", 1)
             if name == "Reference" and fpid.startswith("MountingHole"):
                 # convention: mounting holes carry no silk refdes (H1/H2
                 # rendered off-board at the corner holes otherwise)
@@ -870,7 +879,10 @@ def auto_refdes(components, placement, board_w, board_h,
         if rot:
             dx, dy = core_rot_inv(dx, dy, rot)
         if side == "B":
-            dx = -dx
+            # inverse of _xf's back-side mirror, which negates Y (CP4):
+            # negating X here put every back-side refdes at the mirror
+            # image of its intended spot (J1's landed 21 mm off its body).
+            dy = -dy
         ov = (round(dx, 3), round(dy, 3), ang)
         overrides[ref] = ov if font is None else ov + (font,)
 

@@ -1363,7 +1363,7 @@ assembled, which is exactly the "hidden until serviced" behaviour wanted.
 The question was whether it fits under the module when assembled. It does,
 with room to spare: **GCT USB4120-03-C is 6.5 mm tall** ("USB2.0 Type C
 Receptacle, 16 Contacts, Vertical, SMT, H=6.5mm", product spec p.1, fetched
-2026-08-05, on file as `USB4120.pdf`). The PCB→module standoff gap is ~8 mm,
+2026-08-05, on file as `hardware/datasheets/candidates/USB4120.pdf`). The PCB→module standoff gap is ~8 mm,
 and the tallest front-side part is already the J3 ESP-Prog header at about
 9.4 mm — so **this connector adds no depth at all** and does not lengthen the
 button plungers. Availability checked the same day: **89,250 in stock,
