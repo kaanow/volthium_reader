@@ -50,6 +50,18 @@ log = logging.getLogger("xanbus-telemetry")
 BUCKET_S = 15
 UPLOAD_PERIOD_S = 300          # seal + upload cadence (5 min batches)
 DROPOUT_S = 60                 # node silent this long -> node_dropout event
+
+# MPPT diode-clamp latch detection (root-caused 2026-08-05). When array
+# current demand exceeds what the (smoke-dimmed) panels can supply, the
+# operating point slides down the IV curve until the array sits at battery
+# voltage + a diode drop. A buck converter cannot restart without input
+# headroom, so it stays latched: real power keeps flowing through the body
+# diode, UNREGULATED and unmetered, until demand ceases (battery full, or
+# sunset). Verified fix: Operating Mode -> Standby -> Operating, which opens
+# the PV input and lets the array fly to Voc so the tracker can re-acquire.
+LATCH_DELTA_V = 2.5            # array-minus-output below this = clamped
+LATCH_DAYLIGHT_V = 5.0         # array above this = the sun is up
+LATCH_CONFIRM_S = 600          # sustained this long before we call it
 AC_LOAD_SAMPLE_S = 300         # provisional AC-load snapshot cadence
 ASM_MAX_AGE_S = 5.0            # abandon half-reassembled fast-packets
 SPOOL_DIR = Path("data/solar")
@@ -155,6 +167,11 @@ class Decoder:
         self.last_seen: dict[int, float] = {}
         self.dropped: set[int] = set()
         self.last_ac_load_sample = 0.0
+        # latch detection state (see LATCH_* constants)
+        self.pv_v: float | None = None
+        self.mppt_out_v: float | None = None
+        self.clamp_since: float | None = None
+        self.latched = False
 
     # -- helpers -----------------------------------------------------------
 
@@ -193,8 +210,12 @@ class Decoder:
         if assoc == 0x03:        # MPPT -> battery: THE production channel
             self._agg("solar_a").add(abs(i / 1000))
             self._agg("solar_w").add(abs(float(w)))
+            self.mppt_out_v = v / 1000
         elif assoc == 0x15:      # PV array side: only voltage is real
+            # (no input-side current sensor on this model: I and P are
+            # structurally 0 — see docs/xanbus-decode.md)
             self._agg("pv_v").add(v / 1000)
+            self.pv_v = v / 1000
         return []
 
     def _chg_sts(self, src: int, p: bytes, t: float) -> list[dict]:
@@ -286,7 +307,7 @@ class Decoder:
         return events
 
     def housekeeping(self, now: float) -> list[dict]:
-        """Call ~1/s: prunes reassembly, detects node dropouts."""
+        """Call ~1/s: prunes reassembly, detects node dropouts + MPPT latch."""
         self.asm.prune(now)
         events = []
         for src, name in ((SRC_SW, "sw"), (SRC_MPPT, "mppt")):
@@ -297,7 +318,36 @@ class Decoder:
                 events.append({"t": now, "event": "node_dropout",
                                "data": {"node": name,
                                         "silent_s": round(now - seen)}})
+        events += self._check_latch(now)
         return events
+
+    def _check_latch(self, now: float) -> list[dict]:
+        """Diode-clamp detector: array pinned within a diode drop of the
+        output while the sun is up means the converter has stopped
+        switching and power is bypassing it unregulated."""
+        if self.pv_v is None or self.mppt_out_v is None:
+            return []
+        delta = self.pv_v - self.mppt_out_v
+        clamped = (self.pv_v > LATCH_DAYLIGHT_V and delta < LATCH_DELTA_V)
+        if not clamped:
+            self.clamp_since = None
+            if self.latched:
+                self.latched = False
+                return [{"t": now, "event": "mppt_unlatched",
+                         "data": {"pv_v": round(self.pv_v, 1),
+                                  "delta_v": round(delta, 2)}}]
+            return []
+        if self.clamp_since is None:
+            self.clamp_since = now
+        if not self.latched and now - self.clamp_since >= LATCH_CONFIRM_S:
+            self.latched = True
+            return [{"t": now, "event": "mppt_latched",
+                     "data": {"pv_v": round(self.pv_v, 1),
+                              "out_v": round(self.mppt_out_v, 2),
+                              "delta_v": round(delta, 2),
+                              "clamped_s": round(now - self.clamp_since),
+                              "fix": "Operating Mode -> Standby -> Operating"}}]
+        return []
 
     def flush_bucket(self, now: float) -> dict | None:
         """If a 15 s wall-aligned bucket has completed, return its row."""

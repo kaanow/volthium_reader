@@ -80,6 +80,19 @@ details.sys summary { color: var(--text-3); font-size: 13px; cursor: pointer; us
 }
 .sysgrid .cell b { display: block; font-size: 16px; color: var(--text-1); font-weight: 600; }
 .foot { margin-top: 30px; color: var(--text-3); font-size: 12px; }
+.latch {
+  margin-top: 10px; padding: 10px 14px; border-radius: 10px; font-size: 13px;
+  background: color-mix(in oklab, var(--crit) 14%, var(--surface));
+  border: 1px solid var(--crit); color: var(--text-1); line-height: 1.5;
+}
+table.sys-t { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+table.sys-t th { text-align: right; font-weight: 600; color: var(--text-3);
+  font-size: 11px; letter-spacing: .4px; text-transform: uppercase; padding: 0 0 6px; }
+table.sys-t th:first-child { text-align: left; }
+table.sys-t td { padding: 6px 0; border-top: 1px solid var(--line);
+  text-align: right; font-variant-numeric: tabular-nums; color: var(--text-1); }
+table.sys-t td:first-child { text-align: left; color: var(--text-2); }
+table.sys-t tr.balance td { color: var(--text-3); border-top: 1px solid var(--line); }
 </style>
 </head>
 <body>
@@ -100,7 +113,7 @@ details.sys summary { color: var(--text-3); font-size: 13px; cursor: pointer; us
     <div class="ab" id="ab"></div>
   </div>
 
-  <svg id="flow" class="flow" viewBox="0 0 760 320" role="img" aria-label="power flow diagram">
+  <svg id="flow" class="flow" viewBox="0 0 760 330" role="img" aria-label="power flow diagram">
     <defs>
       <linearGradient id="loadmix" x1="0" y1="0" x2="1" y2="0">
         <stop id="mix0" offset="0" stop-color="#c98500"/>
@@ -112,6 +125,7 @@ details.sys summary { color: var(--text-3); font-size: 13px; cursor: pointer; us
     <path id="w-inv"   class="wire" d="M 325 162 L 495 162"/>
     <path id="w-gen"   class="wire" d="M 660 78 C 570 78, 550 120, 495 158"/>
     <path id="w-load"  class="wire" d="M 495 166 C 550 204, 590 246, 660 246"/>
+    <path id="w-dc"    class="wire" d="M 325 196 C 325 250, 330 280, 372 292"/>
 
     <rect class="bus" x="298" y="128" width="54" height="68" rx="12"/>
     <text class="buslbl" x="325" y="167" text-anchor="middle">DC</text>
@@ -128,7 +142,14 @@ details.sys summary { color: var(--text-3); font-size: 13px; cursor: pointer; us
     <text x="665" y="228">🏠 Loads</text>
     <text class="sub" id="t-load" x="665" y="258">—</text>
     <text class="sub" id="loadbadge" x="756" y="276" text-anchor="end" fill="var(--text-3)"></text>
+    <text x="382" y="290">🧊 DC loads</text>
+    <text class="sub" id="t-dc" x="382" y="308">—</text>
   </svg>
+  <div id="latchwarn" class="latch" hidden>
+    ⚠ <b>MPPT latched</b> — array pinned at battery voltage; power is bypassing
+    the converter unregulated. Fix: Insight → MPPT → Configuration →
+    Operating Mode → <b>Standby</b> → Apply → wait 15 s → <b>Operating</b> → Apply.
+  </div>
 
   <div class="strip-box">
     <div class="strip-head">
@@ -146,13 +167,11 @@ details.sys summary { color: var(--text-3); font-size: 13px; cursor: pointer; us
 
   <details class="sys">
     <summary>system</summary>
-    <div class="sysgrid">
-      <div class="cell">Battery V <b id="s-dcv">—</b></div>
-      <div class="cell">PV array <b id="s-pvv">—</b></div>
-      <div class="cell">Charge stage <b id="s-stage">—</b></div>
-      <div class="cell">Inverter <b id="s-inv">—</b></div>
-      <div class="cell" title="What the MPPT claims to produce — under-reads when the array is pinned at battery voltage">MPPT self-report <b id="s-mppt">—</b></div>
-    </div>
+    <table class="sys-t">
+      <thead><tr><th>node</th><th>V</th><th>A</th><th>W</th></tr></thead>
+      <tbody id="sys-rows"></tbody>
+    </table>
+    <p class="foot" id="sys-note" style="margin-top:10px"></p>
   </details>
 
   <div class="foot">Solar telemetry decoded live from the Conext CAN bus · battery data from the Volthium BMS · 15 s updates</div>
@@ -176,17 +195,24 @@ const hist = [];         // ring of {t, solar, gen, load, batt}
 function battW() {       // + = charging (BMS smoothed power)
   return st.latest?.smoothed_p ?? 0;
 }
-/* The MPPT under-reports its own output when the array is pinned near
-   battery voltage (verified against its Modbus registers 2026-08-04, both
-   interfaces agree on the wrong number while the BMS shows the true charge).
-   When the two trustworthy meters (BMS battery power + inverter DC draw)
-   say more power is flowing than the MPPT admits, infer production from
-   physics and mark it approximate. */
+/* Production accounting.
+   The MPPT's OUTPUT-CURRENT sensor is the least trustworthy meter here: it
+   read 0.33 A while ~14 A flowed during the 2026-08 diode-clamp latch, and
+   still under-reads ~25% while regulating. Against it, two independent BMS
+   shunts (series pack — they must read the same current) agree within
+   0.8 A. So production is derived from the trustworthy side:
+
+       production = battery charge + inverter DC draw + unmetered DC loads
+
+   and the MPPT self-report is kept as a cross-check, not a source. There is
+   no PV-side current sensor at all on this model (0x15 I/P are structurally
+   0), so the array side can never be measured directly. */
 function inferSolar(reported, batt, dcw) {
-  if (dcw == null) return { w: reported, approx: false };
-  const inferred = batt + dcw;                // charge + house draw = source
-  if (inferred - reported > 60) return { w: Math.max(0, inferred), approx: true };
-  return { w: reported, approx: false };
+  if (dcw == null) return { w: reported, approx: false, src: "mppt" };
+  const derived = batt + dcw;
+  if (derived - reported > 60)
+    return { w: Math.max(0, derived), approx: true, src: "derived" };
+  return { w: reported, approx: false, src: "mppt" };
 }
 function solarInfo() {
   return inferSolar(st.solar?.solar_w ?? 0, battW(),
@@ -196,6 +222,23 @@ function solarW() { return solarInfo().w; }
 function loadW() {
   if (st.gen) return null;                    // AC-side load unknown during gen (yet)
   return st.solar?.dc_w ?? Math.max(0, solarW() - battW());
+}
+/* Unmetered DC loads (the 24 V fridge and anything else straight off the
+   bus): whatever the balance can't account for. Cleanest at night, when the
+   MPPT is out of the loop entirely. */
+function dcLoadW() {
+  const s = st.solar;
+  if (!s) return null;
+  const inv = s.dc_w ?? 0;
+  if ((s.solar_w ?? 0) < 5 && !st.gen) return Math.max(0, -battW() - inv);
+  const si = solarInfo();
+  if (si.src !== "mppt") return null;         // derived production hides it
+  return Math.max(0, si.w - battW() - inv);
+}
+function latched() {
+  const s = st.solar;
+  if (!s || s.pv_v == null || s.dc_v == null) return false;
+  return s.pv_v > 5 && (s.pv_v - s.dc_v) < 2.5;
 }
 
 /* ---------- fetch ---------- */
@@ -261,6 +304,7 @@ const wires = {
                  ? Math.max(0, battW() - solarW()) : (loadW() ?? 0) },
   "w-gen":   { color: "--gen",   getW: () => st.gen ? Math.max(0, battW() - solarW()) : 0 },
   "w-load":  { color: "url",     getW: () => loadW() ?? 0 },
+  "w-dc":    { color: "--load",  getW: () => dcLoadW() ?? 0 },
 };
 const particles = {};
 for (const id of Object.keys(wires)) {
@@ -332,6 +376,8 @@ function drawFlow() {
   $("t-solar").textContent = `${si.approx ? "≈ " : ""}${Math.round(si.w)} W`;
   $("t-gen").textContent = st.gen ? "running" : "0 W";
   $("t-load").textContent = load == null ? "—" : `${Math.round(load)} W`;
+  const dcl = dcLoadW();
+  $("t-dc").textContent = dcl == null ? "—" : `≈ ${Math.round(dcl)} W`;
   $("t-batt").textContent = `${charging ? "+" : "−"}${Math.round(Math.abs(batt))} W ${charging ? "charging" : "discharging"}`;
   $("invlbl").textContent = st.inv === "passthrough" ? "← charging" : "inverting →";
 
@@ -438,12 +484,42 @@ function drawHero() {
   else if (L.state === "full") $("ttx").textContent = "battery full";
   else $("ttx").textContent = "holding steady";
 
-  $("s-dcv").textContent = st.solar?.dc_v != null ? `${st.solar.dc_v.toFixed(2)} V`
-    : L.pack_v != null ? `${L.pack_v.toFixed(2)} V` : "—";
-  $("s-pvv").textContent = st.solar?.pv_v != null ? `${st.solar.pv_v.toFixed(1)} V` : "—";
-  $("s-stage").textContent = st.stage ?? "—";
-  $("s-inv").textContent = st.inv;
-  $("s-mppt").textContent = st.solar?.solar_w != null ? `${Math.round(st.solar.solar_w)} W` : "—";
+  drawSystem(L);
+}
+
+function drawSystem(L) {
+  const s = st.solar || {};
+  const n = (v, d = 1) => v == null ? "—" : v.toFixed(d);
+  const si = solarInfo();
+  const dcl = dcLoadW();
+  const battA = L.pack_i, battV = L.pack_v, battP = battW();
+  const invA = s.dc_a == null ? null : Math.abs(s.dc_a);
+  // PV array: voltage only — this model has no input-side current sensor,
+  // so array I/P are structurally absent (not a decode gap).
+  const rows = [
+    ["PV array", n(s.pv_v), "—", "—"],
+    ["MPPT output", n(s.dc_v, 2), n(s.solar_a, 2), n(s.solar_w, 0)],
+    ["Battery", n(battV, 2), n(battA, 2), n(battP, 0)],
+    ["Inverter (AC loads)", n(s.dc_v, 2), n(invA, 2), n(s.dc_w, 0)],
+    ["DC loads", n(battV, 2), dcl == null ? "—" : n(dcl / (battV || 27), 2),
+      dcl == null ? "—" : `≈ ${n(dcl, 0)}`],
+    ["Generator", st.gen ? "running" : "0", "—", st.gen ? "—" : "0"],
+  ];
+  let html = rows.map(r =>
+    `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join("");
+  // balance check: what the sources claim vs what the sinks account for
+  if (s.solar_a != null && battA != null && invA != null) {
+    const gap = battA + invA - s.solar_a;
+    html += `<tr class="balance"><td>balance gap</td><td></td>` +
+            `<td>${gap >= 0 ? "+" : ""}${gap.toFixed(2)}</td>` +
+            `<td>${gap >= 0 ? "+" : ""}${Math.round(gap * (battV || 27))}</td></tr>`;
+  }
+  $("sys-rows").innerHTML = html;
+  $("sys-note").textContent = si.src === "derived"
+    ? "Production shown on the diagram is derived from battery + inverter draw — the MPPT's own current sensor is under-reporting."
+    : "Balance gap = battery + inverter draw − MPPT self-report. A persistent positive gap is the MPPT under-reading its output current; unmetered DC loads push it negative.";
+  const warn = $("latchwarn");
+  if (warn) warn.hidden = !latched();
 }
 
 /* ---------- loop ---------- */

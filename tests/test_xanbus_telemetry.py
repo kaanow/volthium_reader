@@ -162,5 +162,79 @@ class BucketTests(unittest.TestCase):
         self.assertIsNone(dec.flush_bucket(1785400001.0 + BUCKET_S))
 
 
+
+class LatchDetectionTests(unittest.TestCase):
+    """The diode-clamp latch that cost five days of regulated charging
+    (2026-08-01..05). Array pinned at output voltage + a diode drop while
+    the sun is up = converter not switching."""
+
+    def _clamped(self, dec, t):
+        # array 27.9 V, output 26.7 V -> delta 1.2 V, daylight
+        pv = bytes.fromhex("0315") + (27900).to_bytes(4, "little") + \
+            b"\x00" * 8 + b"\xff" * 7
+        out = bytes.fromhex("0303") + (26700).to_bytes(4, "little") + \
+            (-330).to_bytes(4, "little", signed=True) + \
+            (8).to_bytes(4, "little") + b"\xff" * 7
+        feed_fastpacket(dec, 0x1F0C5, 1, pv, t)
+        feed_fastpacket(dec, 0x1F0C5, 1, out, t)
+
+    def _healthy(self, dec, t):
+        pv = bytes.fromhex("0315") + (89500).to_bytes(4, "little") + \
+            b"\x00" * 8 + b"\xff" * 7
+        out = bytes.fromhex("0303") + (27060).to_bytes(4, "little") + \
+            (-23070).to_bytes(4, "little", signed=True) + \
+            (624).to_bytes(4, "little") + b"\xff" * 7
+        feed_fastpacket(dec, 0x1F0C5, 1, pv, t)
+        feed_fastpacket(dec, 0x1F0C5, 1, out, t)
+
+    def test_latch_needs_sustained_clamp(self):
+        dec = Decoder()
+        self._clamped(dec, 1000.0)
+        self.assertEqual(dec.housekeeping(1010.0), [])      # too brief
+        self.assertFalse(dec.latched)
+
+    def test_latch_fires_after_confirm_window(self):
+        dec = Decoder()
+        self._clamped(dec, 1000.0)
+        dec.housekeeping(1001.0)
+        evs = [e for e in dec.housekeeping(1000.0 + 601)
+               if e["event"].startswith("mppt_")]
+        self.assertEqual([e["event"] for e in evs], ["mppt_latched"])
+        self.assertIn("Standby", evs[0]["data"]["fix"])
+        self.assertTrue(dec.latched)
+
+    def test_healthy_array_never_latches(self):
+        dec = Decoder()
+        self._healthy(dec, 1000.0)
+        dec.housekeeping(1001.0)
+        self.assertEqual([e for e in dec.housekeeping(1000.0 + 601)
+                          if e["event"].startswith("mppt_")], [])
+        self.assertFalse(dec.latched)
+
+    def test_unlatch_event_on_recovery(self):
+        dec = Decoder()
+        self._clamped(dec, 1000.0)
+        dec.housekeeping(1001.0)
+        dec.housekeeping(1601.0)
+        self.assertTrue(dec.latched)
+        self._healthy(dec, 1700.0)
+        evs = [e for e in dec.housekeeping(1701.0)
+               if e["event"].startswith("mppt_")]
+        self.assertEqual([e["event"] for e in evs], ["mppt_unlatched"])
+        self.assertFalse(dec.latched)
+
+    def test_night_does_not_latch(self):
+        dec = Decoder()
+        pv = bytes.fromhex("0315") + (200).to_bytes(4, "little") + \
+            b"\x00" * 8 + b"\xff" * 7
+        out = bytes.fromhex("0303") + (26100).to_bytes(4, "little") + \
+            b"\x00" * 8 + b"\xff" * 7
+        feed_fastpacket(dec, 0x1F0C5, 1, pv, 1000.0)
+        feed_fastpacket(dec, 0x1F0C5, 1, out, 1000.0)
+        dec.housekeeping(1001.0)
+        self.assertEqual([e for e in dec.housekeeping(1601.0)
+                          if e["event"].startswith("mppt_")], [])
+
+
 if __name__ == "__main__":
     unittest.main()

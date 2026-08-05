@@ -39,6 +39,7 @@ import gzip
 import json
 import os
 import sys
+import time
 
 # ---------------------------------------------------------------- CRC ------
 
@@ -145,6 +146,58 @@ def harvest_names(data_dir: str):
     return names
 
 
+# ---------------------------------------------------------- mode command --
+#
+# The ONE write we fully understand, captured from the real Insight Home
+# twice on 2026-08-05 while it fixed a latched MPPT:
+#
+#   id 0x19400102  ->  PGN 0x14000, dest 1 (MPPT), src 2 (Insight), prio 6
+#   payload: a single byte, 0x02 = Standby, 0x03 = Operating
+# (verbatim from the capture; test_xanbus_write.py pins the exact bytes)
+#
+# No CRC, no record echo, no change counter — the simplest primitive on the
+# bus. (The NAME-seeded CRC scheme above belongs to the Freedom RV-C
+# proprietary DGN family; these Conext config PGNs don't use it.)
+#
+# Why this command first: the Standby->Operating bounce is the verified
+# remote fix for the diode-clamp latch (docs/xanbus-decode.md). It is a
+# command we actively WANT to issue, whose success is unambiguous on the
+# bus within ~60 s, and whose worst case (device parked in Standby) is
+# undoable from the Insight UI in two clicks.
+
+PGN_DEVICE_MODE = 0x14000
+MODE_STANDBY, MODE_OPERATING = 0x02, 0x03
+DEFAULT_SRC_ADDR = 0x80        # unused on our bus (nodes are 0,1,2)
+
+
+def build_mode_frame(dest: int, mode: int, src: int = DEFAULT_SRC_ADDR,
+                     prio: int = 6) -> tuple[int, bytes]:
+    """Return (can_id, payload) for a device-mode command. PDU1 (PF<240),
+    so the destination address rides in the PS byte and is excluded from
+    the PGN — matching the captured 0x18140102 exactly."""
+    if mode not in (MODE_STANDBY, MODE_OPERATING):
+        raise ValueError(f"refusing unknown mode 0x{mode:02X}")
+    pf = (PGN_DEVICE_MODE >> 8) & 0xFF
+    dp = (PGN_DEVICE_MODE >> 16) & 1
+    can_id = (prio << 26) | (dp << 24) | (pf << 16) | (dest << 8) | src
+    return can_id, bytes([mode])
+
+
+def send_frame(can_id: int, payload: bytes, iface: str = "can0") -> None:
+    """Transmit one extended-ID CAN frame. The ONLY function in this file
+    that touches the wire; everything else is construction/inspection."""
+    import struct as _struct
+    CAN_EFF_FLAG = 0x80000000
+    sock = socket.socket(socket.AF_CAN, socket.SOCK_RAW, socket.CAN_RAW)
+    try:
+        sock.bind((iface,))
+        frame = _struct.pack("=IB3x8s", can_id | CAN_EFF_FLAG, len(payload),
+                             payload.ljust(8, b"\x00"))
+        sock.send(frame)
+    finally:
+        sock.close()
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--self-test", action="store_true", help="run doc CRC vectors")
@@ -152,6 +205,17 @@ def main():
                     help="extract node NAMEs from capture corpus (offline)")
     ap.add_argument("--demo", action="store_true",
                     help="show a constructed (non-sendable) message using harvested NAMEs")
+    ap.add_argument("--mode", choices=("standby", "operating"),
+                    help="build a device-mode command (prints it; sends only with --send)")
+    ap.add_argument("--bounce", action="store_true",
+                    help="the latch fix: standby, wait, operating (needs --send)")
+    ap.add_argument("--dest", type=int, default=1, help="target node (1 = MPPT)")
+    ap.add_argument("--src", type=lambda s: int(s, 0), default=DEFAULT_SRC_ADDR)
+    ap.add_argument("--iface", default="can0")
+    ap.add_argument("--wait", type=float, default=15.0,
+                    help="seconds in standby during --bounce")
+    ap.add_argument("--send", action="store_true",
+                    help="ACTUALLY TRANSMIT. Without this nothing touches the bus.")
     args = ap.parse_args()
 
     if args.self_test:
@@ -166,6 +230,25 @@ def main():
             print(f"\ndemo DEVICE_MODE_CONFIGURATION src{s0}->src{s1} "
                   f"(body only, NOT sendable): {body.hex()}")
         return 0
+
+    if args.bounce or args.mode:
+        seq = ([("standby", MODE_STANDBY), ("operating", MODE_OPERATING)]
+               if args.bounce else
+               [(args.mode, MODE_STANDBY if args.mode == "standby" else MODE_OPERATING)])
+        for i, (name, mode) in enumerate(seq):
+            can_id, payload = build_mode_frame(args.dest, mode, args.src)
+            print(f"{'SEND' if args.send else 'DRY '}  {name:9s} "
+                  f"id=0x{can_id:08X} dlc={len(payload)} data={payload.hex()}")
+            if args.send:
+                send_frame(can_id, payload, args.iface)
+                if i + 1 < len(seq):
+                    print(f"      waiting {args.wait:.0f}s in standby...")
+                    time.sleep(args.wait)
+        if not args.send:
+            print("\n(dry run — nothing was transmitted. Re-run with --send,\n"
+                  " and note can0 must NOT be in listen-only mode to transmit.)")
+        return 0
+
     ap.print_help()
     return 0
 
