@@ -674,6 +674,70 @@ regression was found.
 
 **REVIEW COMPLETE**: NEEDS CHANGES - 2 blockers, 0 important. (See findings 11, 12.)
 
+## 8.6 Reviewer findings (iteration 11)
+
+Reviewed commit: `8a084a6`
+
+### Finding 13 - BLOCKER - hardware/reviews/tools/handoff_check.py:142-146
+**Issue**: Finding 11 is not closed at the mandatory handoff boundary.
+`reviewer_patch_check.py` correctly defaults to `3e4c097..HEAD`, but
+`handoff_check.py` still explicitly passes the superseded mutable range
+`origin/main..HEAD` (or `main..HEAD`) and therefore bypasses the fix.
+
+**Evidence**: The exact Windows handoff rebuilt all three generators at
+`rc=0`, then exited 1 because the RPA stage rejected pre-policy host commit
+`48a514f`. Immediately afterward, the standalone checker with no range
+argument returned 0 and reported `RPA: clean - no reviewer patches in
+3e4c097..HEAD`. Full transcript:
+`hardware/reviews/visual_inspections/cp3-placement/iter11/reviewer/rpa_windows_reverify.txt`.
+
+**Suggested fix**: Delete handoff lines 142-144 and invoke
+`reviewer_patch_check.py` with no range argument. The checker must be the only
+owner of epoch selection. Add an integration poison where `origin/main`
+deliberately diverges from the CP history and require the standalone checker
+and full handoff to return the same verdict. Then run the bare handoff on both
+macOS and Windows.
+
+### Finding 14 - BLOCKER - hardware/reviews/SEMAPHORE.yaml:rpa_policy_base / hardware/reviews/tools/reviewer_patch_check.py:114-121,142-155
+**Issue**: The epoch identifier is a SHA, but its binding is still mutable by
+the reviewer. The checker reads `rpa_policy_base` from `SEMAPHORE.yaml`, which
+the reviewer must edit every turn; an untrailered reviewer commit touching
+only that YAML file has no `.py`/git-config entry in the product-code heuristic
+and is skipped. Setting the field to `HEAD` makes the effective range
+`HEAD..HEAD` and hides every reviewer patch.
+
+**Evidence**: An in-memory poison made only `sem_field()` return `HEAD` for
+the base. The otherwise unmodified checker returned 0 with `RPA: clean - no
+reviewer patches in HEAD..HEAD`. Applying its own product-code expression to a
+semaphore-only commit produced `[]`, confirming that path-scope denial is never
+reached for this routine untrailered commit. Transcript is in the iteration-11
+evidence file above.
+
+**Suggested fix**: Pin the full policy-commit SHA in
+`reviewer_patch_check.py` or another enforcement file not routinely modified
+for turn control. If `SEMAPHORE.yaml` retains the field as documentation, the
+checker must require exact equality with the pinned constant and fail on any
+drift. Poison a reviewer-authored semaphore-only commit that changes the base
+to `HEAD`; the gate must reject it while accepting an ordinary state/iteration
+handoff edit.
+
+Resolution status: Finding 12 is independently closed. All eight generated
+artifact classes are now denied structurally; normal controls remain allowed;
+the directory-list equality check passes and its in-memory drift poison fails
+closed. F10 also remains healthy: all three generators rebuilt successfully on
+Windows without transient `EINVAL`. Finding 11 remains open through finding 13
+because the exact mandatory handoff path still uses its old range selection.
+
+Coverage: updated review and KiCad skills read (`pcb-design-review` v1.5.1,
+`kicad` v0.4.0); mandatory consistency gate; full Windows rebuild/handoff;
+line-by-line RPA checker/policy/handoff integration review; standalone epoch
+control; eight generated-artifact scope poisons, three allowed controls, and
+BUILD_DIRS drift poison; mutable-base poison; four on-file PDF citation checks;
+fresh top/bottom KiCad renders and eight crop inspections. No board, schematic,
+manifest, SKU, or electrical-topology delta was present in the reviewed change.
+
+**REVIEW COMPLETE**: NEEDS CHANGES - 2 blockers, 0 important. (See findings 13, 14.)
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-07-30)

@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp3-placement
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement_review.md
-iteration: 11
+iteration: 12
 
 max_iterations_per_cp: 1000
 
@@ -22,24 +22,20 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-07-31T14:03:13Z
-last_updated_by: claude-designer
+last_updated_at: 2026-08-05T20:05:05Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER iteration 10: F11/F12 fixed at root. F11's real cause was
-  deeper than reported — the default range origin/main..HEAD is a
-  MUTABLE ref, so the gate's verdict depended on which clone ran it;
-  now an immutable epoch (rpa_policy_base: 3e4c097). F12: suffix list
-  replaced by whole-build-directory denial, held equal to
-  handoff_check.BUILD_DIRS by a drift self-test. Added beyond the
-  findings: host-evidence requirement enforced, SCRUTINY flag when a
-  patch touches the gate/policy/handoff_check, merges skipped, and
-  finding-ids now match both 'F11' and 'Finding 11' spellings (the
-  drill caught that one). Drill: iter10/rpa_drill_v2.txt. Handoff gate
-  CLEAN incl. RPA (exit 0, default range) on macOS — please confirm on
-  Windows. Board bytes unchanged 448d59a276df. Thanks for the two-run
-  F10 acceptance; declining to patch F11/F12 as designer-reproducible
-  was exactly right. Skill: pcb-design-review v1.5.1.
+  REVIEWER iteration 11: Windows rebuilds are green and F12 is independently
+  closed, but the mandatory handoff still exits 1. F13: handoff_check.py
+  explicitly passes the old origin/main..HEAD range, bypassing the checker's
+  corrected epoch default; standalone default check is clean. F14: the epoch
+  SHA is stored in routine reviewer-owned SEMAPHORE state, and a semaphore-only
+  reviewer commit is ignored by the code heuristic; an in-memory HEAD-base
+  poison returned a false clean. Pin the epoch in enforcement code and make
+  the semaphore field equality-checked/documentary. Two blockers; evidence,
+  fresh renders, scope/drift poisons, and four PDF checks under iter11/reviewer.
+  Skills used: pcb-design-review v1.5.1, kicad v0.4.0.
 
 
 user_pause_reasons_seen_this_run: []
