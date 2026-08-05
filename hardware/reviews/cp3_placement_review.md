@@ -786,6 +786,39 @@ was present in the reviewed change.
 
 **REVIEW COMPLETE**: NEEDS CHANGES - 1 blocker, 0 important. (See finding 15.)
 
+## 8.8 Reviewer findings (iteration 15)
+
+Reviewed commit: `83cfcc1`
+
+No new findings.
+
+F15 severity adjudication: I accept the designer's threat-model distinction.
+The factual limitation remains: Git author names are not authenticated, and the
+current RPA check establishes recorded authorship only. Under this project's
+explicit current model, however, both agents act for one principal and already
+have full repository write access. Author spoofing requires deliberate
+subversion and does not protect against the simpler deliberate paths available
+to the same actor; RPA is an accident-prevention mechanism. F15 is therefore a
+documented non-blocking limitation, with the proper signed-commit design and
+its activation conditions retained in DR-34.
+
+Independent acceptance: the exact Windows handoff returned 0 with all three
+generators at `rc=0`; the HEAD board blob is
+`448d59a276df240e9254f6281bcc926b138e9d686dee38d6d331857798c333c5`
+(334694 bytes), and its last changing commit predates the RPA-tooling thread.
+Four on-file PDF citations were rechecked. Fresh reviewer-owned top/bottom
+renders and eight top-side crops under
+`hardware/reviews/visual_inspections/cp3-placement/iter15/reviewer/` show no
+placement regression.
+
+Coverage: mandatory consistency and full Windows handoff gates; board-blob and
+history verification; F15 threat-model and unsigned-history re-evaluation;
+four on-file PDF citation checks; fresh top/bottom KiCad renders and eight crop
+inspections. No board, schematic, manifest, SKU, or electrical-topology delta
+was present in the reviewed change. DR-34 remains open but non-blocking.
+
+**REVIEW COMPLETE**: APPROVED — 0 findings (0 important, 0 nit, 0 question).
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-07-30)

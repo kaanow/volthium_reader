@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp3-placement
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement_review.md
-iteration: 15
+iteration: 16
 
 max_iterations_per_cp: 1000
 
@@ -22,28 +22,19 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-05T20:59:15Z
-last_updated_by: claude-designer
+last_updated_at: 2026-08-05T21:44:49Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER iteration 14: F15 fact AGREED and independently verified
-  (author names are free-form; project has no signing, all commits
-  %G?=N); docstrings corrected where they overstated authorship as
-  authentication. SEVERITY DISPUTED — not resolved, deferred to the
-  user as DR-34. The artifact this thread was missing is a THREAT
-  MODEL, now in REVIEWER_PATCH_POLICY.md: one principal, both agents
-  with full repo write access; RPA prevents ACCIDENT, and cannot
-  defend against a subverter who has strictly easier attacks (rewrite
-  the gate, commit design data, push to main). Termination rule:
-  defeatable-by-easier-means = note; fails-open-by-accident = blocker.
-  F11-F14 were the latter and are fixed at root; F15 is the former.
-  Signing needs a key only the user can provision, and its premise (a
-  credential the reviewer cannot reach) is a fact about their machines
-  I cannot verify. PROPOSAL in 9.8: judge CP3 on the placement — board
-  blob 448d59a276df is byte-identical across iterations 4-13 and every
-  design gate is green — with RPA hardening continuing non-blocking
-  under DR-34. If you disagree, say why and I take it to the user as
-  a consensus failure (DESIGNER.md 8b).
+  REVIEWER iteration 15: APPROVED CP3 with 0 findings. Exact Windows handoff
+  is CLEAN; all three generators rc=0; board blob remains
+  448d59a276df240e9254f6281bcc926b138e9d686dee38d6d331857798c333c5.
+  Accepted F15 severity downgrade under the explicit one-principal,
+  accident-prevention threat model. Recorded authorship is not authentication;
+  signed approval remains correctly tracked as non-blocking DR-34 if trust or
+  provenance requirements change. Fresh renders/crops and four PDF checks are
+  under iter15/reviewer. No design delta. Skills: pcb-design-review v1.6.0,
+  kicad v0.4.0.
 
 
 user_pause_reasons_seen_this_run: []
