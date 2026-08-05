@@ -40,12 +40,12 @@
 | R19 | Deep-sleep wake path MUST work: /RE on RTC-capable IO15 (gpio_hold LOW in sleep), RO on RTC-capable IO18, buttons on RTC-capable IO12/13/14 — one `ext1 ANY_LOW` mask over all four wake inputs; 1 MΩ button pull-ups (power-first) + 100 nF debounce | D34 F09/F15; ESP32-S3 DS Table 3-1 | [M] goldens MOD1 pin map + value checks · [B] CP5 BREAK-wake test | M ✅ / B pending |
 | R20 | Display USB-C maintenance port powers and boots the MCU without 12 V (AP2112 LDO → TPS2116 priority mux; no UVLO bypass — no supervisor on this board); ESD-clamped; 5.1 kΩ CC UFP advertisement | D27/D29 | [M] goldens LDO→mux chain, U-ESD, R_cc1/2, D± to MOD1 13/14 | ✅ |
 | R21 | Forced-download recovery independent of USB on the DISPLAY board too (it Deep-sleeps between frames): keyed 2×3 ESP-Prog "Program" header J3, same map as battery J5 | DR-32 (display CP2 decision) | [M] goldens J3.1-6 + MOD1.27 BOOT + end-to-end UART0 | ✅ |
-| R22 | E-paper interface exactly matches the Waveshare 4.2" (B) Module: PH2.0 8-pin, canonical order VCC/GND/DIN/CLK/CS/DC/RST/BUSY on the D31 GPIO map | DR-7/F21 evidence on file | [M] goldens J2 order + MOD1 pin map + [exact-part] B8B-PH-K-S | ✅ |
+| R22 | E-paper interface exactly matches the Waveshare 4.2" (B) Module: PH2.0 8-pin, canonical order VCC/GND/DIN/CLK/CS/DC/RST/BUSY on the D31 GPIO map | DR-7/F21 evidence on file | [M] goldens J2 order + MOD1 pin map + [exact-part] S8B-PH-K-S | ✅ |
 | R23 | Display input protection: ~0.25 A PTC (resettable, DR-11) → SMAJ15A clamp + bulk → R-78E3.3; regulator output (V3V3_REG) reaches the system rail only through the mux | DR-11/DR-15; D29 | [M] goldens F1/TVS1/C1/U1 chain + V3V3_REG≠V3V3 | ✅ |
 
 Exact-variant contracts for the display board (J1 Würth 615008145521 with the
 manufacturer-official footprint — its tail fan-out is NON-monotone, see
-`hardware/kicad/footprints/README.md` — J2 B8B-PH-K-S, J3 IDC 2×3, J-USB
+`hardware/kicad/footprints/README.md` — J2 S8B-PH-K-S, J3 IDC 2×3, J-USB
 USB4085-GF-A, U1 R-78E3.3-0.5, F1 MF-R025) are enforced by the build's
 [exact-part] gate in `build_display.py`, not listed as separate rows.
 

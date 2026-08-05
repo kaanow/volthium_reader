@@ -2383,3 +2383,47 @@ floorplan (generator: `hardware/kicad/pcb/build.py`; evidence in
    pitch), logic-iso2 **9.68 mm**, iso1-iso2 **2.70 mm** (L11 to R32)
    — vs the ~0.6 mm IPC-2221 requirement for the <100 V functional
    isolation in play (3.2x at the worst pair).
+
+## D39 — CP4 display-side placement: MOD1 courtyard implements D26; J2 is side-entry
+
+**Date**: 2026-08-05 (CP4 display placement, `hw/cp4-display-placement`)
+
+Two decisions taken before any part was placed, both forced by evidence
+rather than preference.
+
+1. **MOD1 courtyard now reflects the package, not a retired keepout.**
+   The stock ESP32-S3-WROOM-1 courtyard is a T-shape: a 19.5 × 20.2 mm
+   body stem plus a **48 × 21 mm flare that exists only to encode
+   Espressif's antenna keepout**. [D26](#d26--display-side-mcu-keep-the-wroom-radio-unused-antenna-keepout-dropped)
+   already retired that keepout on this board (radio unused — RS-485 is
+   the only link, "no RF → no keepout → freer layout"), but the footprint
+   never reflected it. Honouring it would sterilise **36 % of an 85 × 65 mm
+   PCB** for a rule the design has formally dropped, and would silently
+   distort the whole floorplan.
+   → Display-only variant `ESP32-S3-WROOM-1_HSvia0.3_NoAntKeepout`:
+   courtyard replaced by a body-hugging 19.50 × 26.50 mm rectangle.
+   Verified 2026-08-05: **62/62 pads coordinate-identical** to the parent;
+   the only graphic delta is F.CrtYd 8 → 4 segments. The courtyard now
+   means what the placement gate uses it for — physical interference.
+   **The battery board keeps the full-keepout parent — its radio IS used
+   (D25 OTA).** Reversing D26 would require re-placing this board.
+
+2. **J2 e-paper header is SIDE-entry (S8B-PH-K-S), not top-entry (B8B).**
+   CP1 §4.4 deferred this ("pick top- vs side-entry at CP3 from the
+   cable-routing/depth stack"); the decision was never made and the
+   schematic defaulted to top-entry. The JST ePH datasheet
+   (`hardware/datasheets/B8B-PH-K-S.pdf`) settles it:
+   - p.1, top-entry: **"a mounting height of 8 mm"** mated — which is the
+     *entire* PCB-front → module-back gap (§2.1), leaving nothing for the
+     cable, which on a top-entry part exits vertically into the module.
+   - p.3: bare headers are 6.0 mm (top-entry) vs 7.6 mm (side-entry); the
+     side-entry cable exits **horizontally**, adding no vertical stack.
+
+   Widening the gap to fit top-entry is the obvious alternative and is
+   **rejected by a coupling**: plunger length = gap + faceplate + protrusion,
+   so 8 mm → ~13.5 mm (mid-catalog for the 6×6×N tactiles) but 12 mm →
+   ~17.5 mm, at or past the catalog top end, with more actuator wobble.
+   The depth budget is what sets the button hardware, so the gap stays at
+   8 mm and J2 becomes side-entry.
+   → BOM/contract/footprint updated; same JST PH family, same price class,
+   same 20 cm PH↔PH cable, no crimp tool (DR-7 unaffected).

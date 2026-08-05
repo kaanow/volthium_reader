@@ -43,7 +43,7 @@ flags from the earlier review:
 every SKU cell after any SKU edit and again at BOM-lock — a SKU cell is
 a claim, never a recollection. At **CP5 procurement**, re-run the sweep
 and re-check stock/lifecycle before clicking ORDER (stock moves: J2
-B8B-PH-K-S collapsed 2900 → 16 in three weeks). The earlier posture
+S8B-PH-K-S collapsed 2900 → 16 in three weeks). The earlier posture
 ("CP1 doesn't gate on SKU correctness; verification is CP5's job") is
 retired — it's how wrong-part cells survived 20 review iterations.
 
@@ -287,7 +287,7 @@ U2 R-78HB12-0.5 = CA$27.95 (was $8) and BTN1 8125SHZBE = CA$18.47
 | Ref | Part | Pkg | Qty | DigiKey SKU | Mouser SKU | Price | Notes |
 |-----|------|-----|-----|-------------|------------|-------|-------|
 | LCD1 | Waveshare 4.2inch e-Paper **Module (B)** — tri-color (B/W/R), onboard driver + 8-pin SPI | module | 1 | — | — | ~$35.00 | **Δ (DR-7): use the module (8-pin SPI), not a bare panel.** Driver + booster on the module. **Sourcing corrected 2026-07-14 (SKU sweep): prior DK 1738-1135-ND resolves to DFRobot DFR0290 (different manufacturer's display) and Mouser 992-19094 is a phantom; keyword sweep confirms neither distributor lists this Waveshare module → order from waveshare.com or Amazon** |
-| J2  | **JST-PH 2.0 mm 8-pin** post header (B8B-PH-K-S top / S8B-PH-K-S side) — e-paper SPI: VCC/GND/DIN/CLK/CS/DC/RST/BUSY | THT 1×8 | 1 | B8B-PH-K-S → 455-1710-ND (**stock recovered: 16 → 8,264 by 2026-07-27 (API); the order-early panic is lifted**; Active) | — (Mouser doesn't list; prior 455- cell used the DK prefix) | $0.52 | **Matches the module's PH 2.0 connector — evidence: hashed Waveshare product-page + wiki captures 2026-07-14 (manifest LCD1 row; box lists "PH2.0 20cm 8Pin x1"; iter-23 F21).** Same family both sides → pre-crimped PH↔PH cable (user: ASPHSPH24K102-class), no tool. Keyed by design. **Δ (DR-7):** was a 24-pin FH12-24S FFC (bare-panel) |
+| J2  | **JST-PH 2.0 mm 8-pin** post header (S8B-PH-K-S top / S8B-PH-K-S side) — e-paper SPI: VCC/GND/DIN/CLK/CS/DC/RST/BUSY | THT 1×8 | 1 | S8B-PH-K-S → 455-1710-ND (**stock recovered: 16 → 8,264 by 2026-07-27 (API); the order-early panic is lifted**; Active) | — (Mouser doesn't list; prior 455- cell used the DK prefix) | $0.52 | **Matches the module's PH 2.0 connector — evidence: hashed Waveshare product-page + wiki captures 2026-07-14 (manifest LCD1 row; box lists "PH2.0 20cm 8Pin x1"; iter-23 F21).** Same family both sides → pre-crimped PH↔PH cable (user: ASPHSPH24K102-class), no tool. Keyed by design. **Δ (DR-7):** was a 24-pin FH12-24S FFC (bare-panel) |
 | C6  | 1 µF X7R panel VCC bulk | 0603 | 1 | (same as C5) | | $0.10 | NEW — reduces VCC dip during refresh |
 
 ### RS-485

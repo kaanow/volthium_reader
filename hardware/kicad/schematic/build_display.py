@@ -295,13 +295,19 @@ def blk_d_rs485(s, cx, cy):
 
 
 def blk_d_epd(s, cx, cy):
-    """J2 e-paper interface: JST-PH 2.0 mm 8-pin (B8B-PH-K-S), matching the
+    """J2 e-paper interface: JST-PH 2.0 mm 8-pin (S8B-PH-K-S), matching the
     Waveshare 4.2" (B) Module's own PH2.0 connector (DR-7/F21 evidence on
     file) -> off-the-shelf PH<->PH cable, keyed, no crimp tool. Canonical
     Waveshare SPI pin order. C6 1uF panel-VCC bulk against refresh dips.
     (cx,cy)=J2 centre."""
-    j2 = s.place("Conn_01x08", "J2", "JST_B8B-PH-K-S",
-                 "Connector_JST:JST_PH_B8B-PH-K_1x08_P2.00mm_Vertical",
+    # CP4/D39: SIDE-entry (S8B), not top-entry (B8B). Datasheet ePH p.1:
+    # the top-entry version's MATED height is 8.0 mm, which is the entire
+    # PCB-front -> module-back gap (cp1_display_side §2.1) with nothing
+    # left for the cable. Side-entry is a 7.6 mm header whose cable exits
+    # HORIZONTALLY. Widening the gap instead would push the button plunger
+    # to ~17.5 mm, past the 6x6xN catalog range.
+    j2 = s.place("Conn_01x08", "J2", "JST_S8B-PH-K-S",
+                 "Connector_JST:JST_PH_S8B-PH-K_1x08_P2.00mm_Horizontal",
                  (cx, cy), angle=0, tanchor="u", tgap=3.0)
     NET = {"1": "V3V3", "2": "GND", "3": "SPI_MOSI", "4": "SPI_SCK",
            "5": "EPD_CS", "6": "EPD_DC", "7": "EPD_RST", "8": "EPD_BUSY"}
@@ -372,7 +378,7 @@ def blk_d_mcu(s, cx, cy):
     IO3/IO45/IO46 left NC (internal defaults, F05). EN: R1 10k pull-up +
     C5 1uF soft-start. (cx,cy)=module centre."""
     mod = s.place("ESP32-S3-WROOM-1", "MOD1", "ESP32-S3-WROOM-1-N16R8",
-                  "volthium:ESP32-S3-WROOM-1_HSvia0.3", (cx, cy), angle=0, tanchor="u", tgap=9.0)
+                  "volthium:ESP32-S3-WROOM-1_HSvia0.3_NoAntKeepout", (cx, cy), angle=0, tanchor="u", tgap=9.0)
     NETS = {"3": "MCU_EN",
             "5": "EPD_CS", "6": "EPD_DC", "7": "EPD_RST", "12": "EPD_BUSY",
             "17": "SPI_SCK", "18": "SPI_MOSI",
@@ -568,7 +574,9 @@ GOLDEN = [
 # ---- exact-variant contracts (footprint existence can't certify the variant)
 EXACT_PARTS = {
     "J1":    ("Wurth_615008145521", "volthium:J_Wurth_WR-MJ_615008145521"),
-    "J2":    ("JST_B8B-PH-K-S", "Connector_JST:JST_PH_B8B-PH-K_1x08_P2.00mm_Vertical"),
+    # D39 (CP4): side-entry — top-entry's 8.0 mm mated height consumes the
+    # whole PCB->module gap; see the placement note in _sheet_epaper().
+    "J2":    ("JST_S8B-PH-K-S", "Connector_JST:JST_PH_S8B-PH-K_1x08_P2.00mm_Horizontal"),
     "J3":    ("ESP-Prog", "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical"),
     "J-USB": ("USB4085-GF-A", "Connector_USB:USB_C_Receptacle_GCT_USB4085"),
     "U1":    ("R-78E3.3-0.5", "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT"),
@@ -584,8 +592,10 @@ ERC_ACCEPTED = {
 def main():
     core.configure("volthium_display", "build_display",
                    "Volthium reader — display-side (root)")
+    # CP4/D26: the display board uses the no-antenna-keepout courtyard variant
+    # (radio unused; see footprints/README.md). Battery board keeps the parent.
     core.SYMBOL_FP_OVERRIDES["ESP32-S3-WROOM-1"] = \
-        "volthium:ESP32-S3-WROOM-1_HSvia0.3"   # keep libpart field == comp records
+        "volthium:ESP32-S3-WROOM-1_HSvia0.3_NoAntKeepout"  # libpart field == comp records
     return core.run(SHEETS, GOLDEN, EXACT_PARTS, ERC_ACCEPTED)
 
 if __name__ == "__main__":

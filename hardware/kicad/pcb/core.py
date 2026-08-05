@@ -89,6 +89,28 @@ def courtyard_segments(fpid, x, y, deg, back=False):
             segs.extend(_seg_loop([(x0, y0), (x1, y0), (x1, y1), (x0, y1)],
                                   x, y, deg, back))
             continue
+        elif t == "FpCircle":
+            # CP4: circular courtyards were SILENTLY SKIPPED here, so every
+            # MountingHole (whose courtyard is a single fp_circle) added zero
+            # geometry — the gate believed it was checking holes and was not.
+            # Polygonalise instead; 24 segments keeps the chord error under
+            # 1% of the radius, which is far below any real clearance.
+            cx0, cy0 = g.center.X, g.center.Y
+            r = math.dist((cx0, cy0), (g.end.X, g.end.Y))
+            ring = [(cx0 + r * math.cos(2 * math.pi * k / 24),
+                     cy0 + r * math.sin(2 * math.pi * k / 24))
+                    for k in range(24)]
+            segs.extend(_seg_loop(ring, x, y, deg, back))
+            continue
+        elif t == "FpPoly":
+            segs.extend(_seg_loop([(c.X, c.Y) for c in g.coordinates],
+                                  x, y, deg, back))
+            continue
+        elif t == "FpArc":
+            # conservative: treat as its chord (never under-reports the
+            # endpoints; an arc courtyard is rare and always paired with
+            # bounding lines in practice)
+            pts = [(g.start.X, g.start.Y), (g.end.X, g.end.Y)]
         else:
             continue
         segs.append(tuple(_xf(p, x, y, deg, back) for p in pts))
@@ -343,9 +365,14 @@ class BoardBuilder:
         # was blind to — holes lived outside the placement dict)
         self._extra_courtyards = getattr(self, "_extra_courtyards", [])
         for i, (x, y) in enumerate(coords, start=1):
-            self._extra_courtyards.append(
-                (f"H{i}", "F",
-                 courtyard_segments(f"MountingHole:{drill_fp}", x, y, 0)))
+            segs = courtyard_segments(f"MountingHole:{drill_fp}", x, y, 0)
+            # BOTH sides: an NPTH hole obstructs the front AND the back, and
+            # the collision gate skips opposite-side pairs. Registering "F"
+            # only made a back-side part over a hole invisible to the gate —
+            # harmless on an all-front board (CP3), a real hole for CP4's
+            # back-side J1/U1.
+            for s in ("F", "B"):
+                self._extra_courtyards.append((f"H{i}", s, segs))
         for i, (x, y) in enumerate(coords, start=1):
             fp = Footprint.from_file(str(src), encoding="utf-8")
             fp.libraryNickname = "MountingHole"

@@ -49,7 +49,8 @@ PCB outline target: **85 × 65 mm**. Mounting:
   the button labels
 - 3× round clearance holes (sized to the chosen plunger ⌀, ~4–6 mm) along
   the bottom edge, on 18 mm centers, for the **tall tactile actuators to poke
-  through** (~16 mm horizontal span between centers of buttons 1 and 3)
+  through** (**36 mm** horizontal span between centers of buttons 1 and 3 —
+  corrected at CP4; the earlier "~16 mm" contradicted the 18 mm pitch)
 
 The user designs the faceplate against a STEP file of the PCB +
 mechanical envelope, exported at CP5.
@@ -183,7 +184,7 @@ bistable display; the ESP32-S3 self-manages its sleep states).
 | Ref | Part                                       | Pkg            | Qty | Rationale |
 |-----|--------------------------------------------|----------------|-----|-----------|
 | LCD1 | **Waveshare 4.2inch e-Paper Module (B)** — module **with onboard driver PCB + 8-pin SPI header** | module | 1 | Bistable B/W/R; B&W partial refresh ~500–700 ms, color full refresh ~7 s. See [`decisions.md#d6`](decisions.md#d6-display-42-tri-color-bwr-e-paper). The driver + booster live on the module; we provide only 3.3 V + SPI (DR-7) |
-| J2  | **JST-PH 2.0 mm, 8-pin** post header (B8B-PH-K-S top-entry; S8B-PH-K-S side-entry option), e-paper SPI; service = unplug | THT 1×8 | 1 | **Matches the module's connector — evidence on file (iter-23 F21):** the Waveshare Module (B) interface is **PH2.0 8-pin** and the box includes a PH2.0 20 cm 8-pin cable, per the hashed product-page + wiki captures in the datasheet manifest (LCD1 row, captured 2026-07-14). We put the **same JST-PH family on our board** so an off-the-shelf **pre-crimped PH↔PH cable assembly** (e.g. JST ASPHSPH24K102-class) connects module↔board — **no crimp tool**. **JST-PH is mechanically keyed/latched → can't seat reversed** (the earlier 2.54 mm-header + printed-keying-rib plan is dropped). **Δ (DR-7): was a 24-pin Hirose FH12-24S FFC** (the *bare*-panel connector, needs a booster network we don't carry). The module is on the pop-off faceplate, J2 on the PCB behind; the ~200 mm cable gives service slack — faceplate-off = unplug. CP3: pick top- vs side-entry from the cable-routing/depth stack. |
+| J2  | **JST-PH 2.0 mm, 8-pin** post header (**S8B-PH-K-S side-entry** — chosen at CP4/D39; the B8B top-entry option is rejected: its 8.0 mm mated height is the whole PCB→module gap), e-paper SPI; service = unplug | THT 1×8 | 1 | **Matches the module's connector — evidence on file (iter-23 F21):** the Waveshare Module (B) interface is **PH2.0 8-pin** and the box includes a PH2.0 20 cm 8-pin cable, per the hashed product-page + wiki captures in the datasheet manifest (LCD1 row, captured 2026-07-14). We put the **same JST-PH family on our board** so an off-the-shelf **pre-crimped PH↔PH cable assembly** (e.g. JST ASPHSPH24K102-class) connects module↔board — **no crimp tool**. **JST-PH is mechanically keyed/latched → can't seat reversed** (the earlier 2.54 mm-header + printed-keying-rib plan is dropped). **Δ (DR-7): was a 24-pin Hirose FH12-24S FFC** (the *bare*-panel connector, needs a booster network we don't carry). The module is on the pop-off faceplate, J2 on the PCB behind; the ~200 mm cable gives service slack — faceplate-off = unplug. **RESOLVED at CP4 (D39): side-entry**, from the datasheet mated heights vs the 8 mm depth gap. |
 | C6  | 1 µF X7R (panel VCC bulk) | 0603 | 1   | Reduces V3V3 dip during refresh |
 
 **J2 8-pin pinout** (canonical Waveshare e-paper interface — match the
@@ -365,9 +366,14 @@ ESP GPIO mapping (BTN inputs):
 
 | Button | ESP GPIO | Physical position (X mm from PCB left edge) |
 |--------|----------|----------------------------------------------|
-| BTN1   | GPIO12   | 22 mm                                        |
+| BTN1   | GPIO12   | 24 mm                                        |
 | BTN2   | GPIO13   | 42 mm (center)                               |
-| BTN3   | GPIO14   | 62 mm                                        |
+| BTN3   | GPIO14   | 60 mm                                        |
+
+*(Corrected at CP4: this table previously read 22 / 42 / 62 mm, which is
+**20 mm** centers and contradicted both the stated 18 mm pitch and §10.2's
+reconciliation. §10.2's 24 / 42 / 60 is the authority — 18 mm centers,
+3 mm right of the left mounting hole, span 36 mm centred on x = 42.)*
 
 ### 4.7 Status indicator
 

@@ -120,7 +120,10 @@ SUPERSEDED: list[tuple[str, str | None, str]] = [
     (r"1727010|MKDS", "1757242", "J1 → MSTBA 1757242 + MSTB 1757019 (D32)"),
     (r"SUYIN|100362", "615008145521", "display RJ45 → Würth 615008145521 (DR-10)"),
     (r"DS3231", "RV-3028", "RTC → RV-3028-C7 (D23/DR-8)"),
-    (r"FH12-24S", "B8B-PH-K-S", "e-paper conn → JST-PH B8B-PH-K-S (DR-7)"),
+    (r"FH12-24S", "S8B-PH-K-S", "e-paper conn → JST-PH (DR-7); side-entry at D39"),
+    (r"B8B-PH-K", "S8B-PH-K",
+     "J2 top-entry → SIDE-entry (CP4/D39: the 8.0 mm mated height of the "
+     "top-entry part consumes the whole PCB→module gap)"),
     (r"USBLC6-2SC6\b(?!Y)", "USBLC6-2SC6Y", "ESD → -2SC6Y variant (API sweep)"),
     (r"680\s*[ΩR].{0,40}bias|bias.{0,40}680\s*[ΩR]", None,
      "battery-side bias removed (D19/DR-4b); display bias DNP (F12)"),
