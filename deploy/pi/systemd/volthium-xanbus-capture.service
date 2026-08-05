@@ -6,10 +6,27 @@ After=network.target
 Type=simple
 # Runs as root: brings up can0 and opens a raw AF_CAN socket (CAP_NET_RAW).
 WorkingDirectory=/srv/volthium_reader
-# Bring up can0 listen-only @ 250 kbit/s (Xanbus). '-' on the down line ignores
+# Bring up can0 @ 250 kbit/s (Xanbus). '-' on the down line ignores
 # "not up yet"; the reconfigure needs the link down first.
+#
+# listen-only is OFF as of 2026-08-05 so scripts/xanbus_write.py can issue
+# the MPPT Standby->Operating bounce that clears a diode-clamp latch (the
+# failure that cost five days of regulated charging; see
+# docs/xanbus-decode.md). Nothing on this box transmits on its own: the
+# capture and telemetry services only ever read, and the writer refuses to
+# send without an explicit --send flag.
+#
+# TO REVERT (restores a bus we physically cannot transmit on):
+#   change 'listen-only off' back to 'listen-only on' here, then
+#   sudo systemctl restart volthium-xanbus-capture
+# restart-ms 100: auto-recover from bus-off. Mandatory now that we can
+# transmit — without it a single bad TX latches the controller bus-off and
+# can0 stays dead (taking capture AND telemetry with it) until a human runs
+# 'ip link set can0 down/up'. The interface had never transmitted a frame
+# before 2026-08-05, so the TX path is unproven; this makes a failed
+# experiment self-healing instead of an outage.
 ExecStartPre=-/sbin/ip link set can0 down
-ExecStartPre=/sbin/ip link set can0 type can bitrate 250000 listen-only on
+ExecStartPre=/sbin/ip link set can0 type can bitrate 250000 listen-only off restart-ms 100
 ExecStartPre=/sbin/ip link set can0 up
 ExecStart=/srv/volthium_reader/.venv/bin/python scripts/can_capture.py
 Restart=always
