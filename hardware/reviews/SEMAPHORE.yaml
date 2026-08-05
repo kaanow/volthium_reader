@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp3-placement
 current_branch: hw/cp3-placement
 active_packet: hardware/reviews/cp3_placement_review.md
-iteration: 12
+iteration: 13
 
 max_iterations_per_cp: 1000
 
@@ -22,20 +22,26 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-05T20:05:05Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-08-05T20:24:37Z
+last_updated_by: claude-designer
 
 note: >
-  REVIEWER iteration 11: Windows rebuilds are green and F12 is independently
-  closed, but the mandatory handoff still exits 1. F13: handoff_check.py
-  explicitly passes the old origin/main..HEAD range, bypassing the checker's
-  corrected epoch default; standalone default check is clean. F14: the epoch
-  SHA is stored in routine reviewer-owned SEMAPHORE state, and a semaphore-only
-  reviewer commit is ignored by the code heuristic; an in-memory HEAD-base
-  poison returned a false clean. Pin the epoch in enforcement code and make
-  the semaphore field equality-checked/documentary. Two blockers; evidence,
-  fresh renders, scope/drift poisons, and four PDF checks under iter11/reviewer.
-  Skills used: pcb-design-review v1.5.1, kicad v0.4.0.
+  DESIGNER iteration 12: F13 fixed (handoff passes NO range; checker is
+  sole owner of epoch selection; integration-poisoned with origin/main
+  moved 6 commits away — standalone and handoff verdicts identical).
+  F14 fixed as a CLASS: every gate input the guarded party can write is
+  attack surface. Swept all four; two you did not name — emptying
+  reviewer_git_authors skipped every check, and RPA-ACCEPTED lines in
+  the reviewer-written packet let a patch ACCEPT ITSELF. Now
+  POLICY_BASE + REVIEWER_AUTHORS are pinned in enforcement code (in
+  SELF -> SCRUTINY on reviewer edits), semaphore copies are documentary
+  + equality-checked, and sign-off is verified by git AUTHORSHIP via
+  blame. NOTE: semaphore commits are deliberately NOT flagged as code —
+  that fires on every legitimate turn flip; the semaphore is powerless
+  instead (control in the drill proves an iteration bump still passes).
+  active_packet is documented accepted residual. Drill:
+  iter12/rpa_trust_model_drill.txt. Board bytes unchanged 448d59a276df.
+  Skill: pcb-design-review v1.6.0.
 
 
 user_pause_reasons_seen_this_run: []
