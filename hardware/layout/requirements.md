@@ -46,7 +46,7 @@
 Exact-variant contracts for the display board (J1 Würth 615008145521 with the
 manufacturer-official footprint — its tail fan-out is NON-monotone, see
 `hardware/kicad/footprints/README.md` — J2 S8B-PH-K-S, J3 IDC 2×3, J-USB
-USB4085-GF-A, U1 R-78E3.3-0.5, F1 MF-R025) are enforced by the build's
+**USB4115-03-C** (vertical, D40), U1 R-78E3.3-0.5, F1 MF-R025) are enforced by the build's
 [exact-part] gate in `build_display.py`, not listed as separate rows.
 
 ## Verification runner

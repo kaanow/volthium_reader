@@ -157,13 +157,15 @@ def blk_d_j1_rj45(s, cx, cy):
 
 
 def blk_d_usbc(s, cx, cy):
-    """USB-C bench/recovery port J-USB (D27; GCT USB4085, same SKU as the
+    """USB-C bench/recovery port J-USB (D27/D40; GCT USB4115-03-C, VERTICAL —
+    reachable straight-on once the faceplate + module come away. Was the
     battery board's J3). VBUS/GND 4 pads each (spread in the symbol); D± ->
     native ESP USB; CC1/CC2 5.1k UFP pull-downs; SBU unused; shield -> GND.
     U-ESD USBLC6-2SC6Y on D+/D-/VBUS. (cx,cy)=J-USB."""
     yg = snap(cy + 30.48)
-    j = s.place("USB_C_16P", "J-USB", "USB4085-GF-A",
-                "Connector_USB:USB_C_Receptacle_GCT_USB4085", (cx, cy), angle=0, tanchor="u", tgap=3.0)
+    j = s.place("USB_C_16P", "J-USB", "USB4115-03-C",
+                "Connector_USB:USB_C_Receptacle_GCT_USB4115-03-C", (cx, cy),
+                angle=0, tanchor="u", tgap=3.0)
 
     def bus(pins, net, dx=10.16):
         xb = snap(max(p[0] for p in pins) + dx)
@@ -578,7 +580,10 @@ EXACT_PARTS = {
     # whole PCB->module gap; see the placement note in _sheet_epaper().
     "J2":    ("JST_S8B-PH-K-S", "Connector_JST:JST_PH_S8B-PH-K_1x08_P2.00mm_Horizontal"),
     "J3":    ("ESP-Prog", "Connector_IDC:IDC-Header_2x03_P2.54mm_Vertical"),
-    "J-USB": ("USB4085-GF-A", "Connector_USB:USB_C_Receptacle_GCT_USB4085"),
+    # D40 (CP4/DR-35): vertical receptacle. The edge-mount USB4085 could not
+    # be plugged inside the wall box (~5 mm past any board edge vs a plug
+    # needing 15-20 mm); popping the faceplate exposes the board FRONT.
+    "J-USB": ("USB4115-03-C", "Connector_USB:USB_C_Receptacle_GCT_USB4115-03-C"),
     "U1":    ("R-78E3.3-0.5", "Converter_DCDC:Converter_DCDC_RECOM_R-78E-0.5_THT"),
     "F1":    ("MF-R025", "volthium:Fuse_Bourns_MF-R025_THT_P5.08mm"),
 }

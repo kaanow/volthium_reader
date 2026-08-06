@@ -1,0 +1,9 @@
+J-USB (USB4115-03-C) lib_footprint_mismatch — non-geometric?
+==============================================================
+pads: board 30  library 30
+pad tuples identical: True
+
+serialisation tokens (library vs board chunk):
+   (unlocked yes)             lib=  3  board=  2
+   embedded_fonts             lib=  1  board=  0
+   (remove_unused_layers      lib=  4  board=  4

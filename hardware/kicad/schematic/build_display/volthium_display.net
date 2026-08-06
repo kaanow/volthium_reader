@@ -1820,11 +1820,11 @@
 		)
 		(comp
 			(ref "J-USB")
-			(value "USB4085-GF-A")
-			(footprint "Connector_USB:USB_C_Receptacle_GCT_USB4085")
+			(value "USB4115-03-C")
+			(footprint "Connector_USB:USB_C_Receptacle_GCT_USB4115-03-C")
 			(fields
 				(field
-					(name "Footprint") "Connector_USB:USB_C_Receptacle_GCT_USB4085")
+					(name "Footprint") "Connector_USB:USB_C_Receptacle_GCT_USB4115-03-C")
 				(field
 					(name "Datasheet")
 				)

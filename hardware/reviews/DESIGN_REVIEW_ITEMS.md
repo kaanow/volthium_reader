@@ -1283,7 +1283,7 @@ numbering, not visual intuition, when placing/routing J1.
 
 ---
 
-## DR-34 — Should RPA sign-off be cryptographically authenticated?  [OPEN — needs the user's call; costs key provisioning]
+## DR-34 — Should RPA sign-off be cryptographically authenticated?  [RESOLVED 2026-08-05 — **NO**; see D41]
 
 **Raised:** 2026-08-05, from CP3 finding 15 (agent-reviewer).
 
@@ -1331,7 +1331,7 @@ someone outside it (e.g. a fab or client audit trail).
 
 ---
 
-## DR-35 — Display USB-C: the edge connector can't be reached in the box  [OPEN — recommend option B]
+## DR-35 — Display USB-C: the edge connector can't be reached in the box  [RESOLVED 2026-08-05 — **option B, vertical**; implemented as GCT USB4115-03-C, see D40]
 
 **Raised:** 2026-08-05 during CP4 placement. **Updated same day** with the
 user's vertical-connector idea, which turns out to be the best option.

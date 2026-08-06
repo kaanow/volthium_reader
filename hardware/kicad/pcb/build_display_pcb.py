@@ -22,8 +22,8 @@ from signal convenience:
            the module directly in front of it
   W edge:  J1 RJ45 (right-angle, tab-down) — in-wall Cat5e enters from
            the side so the cable does not push the box forward (§10.2#5)
-  E edge:  J-USB USB-C bench/recovery port (D27), mating face PROUD of
-           the edge — the CP3 F-USB lesson, enforced by gate_edge_markers
+  SE front: J-USB vertical USB-C bench/recovery port (D27/D40), opening
+           +Z, reachable once the faceplate and module come away
   S edge:  BTN1/2/3 at x = 24 / 42 / 60 mm (18 mm centres, §10.2#2 —
            the §4.6 table's 22/42/62 was 20 mm centres and was corrected
            at CP4)
@@ -55,7 +55,8 @@ MOUNT = [(4.0, 4.0), (81.0, 4.0), (4.0, 61.0), (81.0, 61.0)]
 # connectors allowed to overhang the edge they mate through
 OVERHANG_OK = {
     "J1": "W",       # RJ45 right-angle mating face, in-wall Cat5e (§10.2#5)
-    "J-USB": "E",    # USB-C shell must sit PROUD of the edge (CP3 lesson)
+    # J-USB is VERTICAL since D40 — it opens +Z off the front face, so
+    # it overhangs nothing and has no "PCB Edge" marker to satisfy.
 }
 
 NETCLASSES = [
@@ -75,11 +76,12 @@ CUSTOM_RULES = """(version 1)
 
 DRC_ACCEPTED = {
     "unconnected_items": "placement-only board; routing is CP5",
-    "silk_edge_clearance": "designed mating-face overhang (J-USB E edge)",
+    "silk_edge_clearance": "J1 RJ45 designed W-edge mating overhang",
     # Instance-scoped: the two vendored variants and the flipped SIP. Each
     # needs the CP3-style pad-diff evidence in the packet before hand-off.
     ("lib_footprint_mismatch", "ESP32-S3-WROOM-1_HSvia0.3_NoAntKeepout"): 0,
     ("lib_footprint_mismatch", "J_Wurth_WR-MJ_615008145521"): 0,
+    ("lib_footprint_mismatch", "USB_C_Receptacle_GCT_USB4115-03-C"): 0,
     ("lib_footprint_mismatch", "Converter_DCDC_RECOM_R-78E-0.5_THT"): 0,
 }
 
@@ -137,10 +139,11 @@ pl("R4", 27.0, 24.5, 0)
 pl("R2", 21.5, 25.0, 0)          # 120R termination, gated by J5
 pl("J5", 28.0, 20.0, 0)          # TERM jumper
 
-# --- E column: USB-C bench/recovery chain, flowing W from the connector ---
-# Shell PROUD of the E edge (CP3 lesson, enforced by gate_edge_markers):
-# the footprint's "PCB Edge" line lands exactly on x = W.
-pl("J-USB", W - 2.075, 16.0, 90)
+# --- E column: USB-C chain, running N from the SE connector ---
+# SE on the FRONT face: vertical USB-C (D40) opening +Z. Sited by the
+# buttons so the service points cluster where a hand goes once the
+# faceplate and module come away; nothing overhangs a board edge.
+pl("J-USB", 72.0, 57.0, 0)
 pl("U-ESD", 70.0, 27.0, 0)       # ESD array inboard of the connector
 pl("R_cc1", 77.0, 25.5, 0)       # CC pulldowns
 pl("R_cc2", 77.0, 29.0, 0)
@@ -162,7 +165,7 @@ pl("R1", 52.0, 44.0, 0)
 pl("C5", 56.0, 44.0, 0)
 
 # --- J3 ESP-Prog: front side, serviceable once faceplate + module come away
-pl("J3", 78.0, 46.0, 0)
+pl("J3", 78.0, 44.0, 0)
 
 # --- S edge: buttons at the doc x centres (18 mm pitch, §10.2 #2), each with
 # its 1M pullup and 100 nF debounce immediately north ---

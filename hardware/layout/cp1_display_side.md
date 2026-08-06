@@ -95,22 +95,22 @@ Hard constraints this imposes (CP3 must honor; a depth tally is produced then):
 
 *(Corrected at CP4 from measured part heights — see the CP4 packet §6.
 The gap was assumed to be 8 mm at CP1; the tallest front-side part is
-actually **J3, the Würth 61200621621 box header at 9.1 ±0.15 mm**
-(drawing p.1), so the gap must clear that. J2's side-entry header is
+actually **J-USB, the GCT USB4115-03-C vertical receptacle at 9.30 mm**
+(drawing p.1, D40), with J3's box header at 9.1 ±0.15 mm next. J2's side-entry header is
 7.6 mm (JST ePH p.3) and the D39 decision keeps it under the driver.)*
 
 | Element, front → back into the ~45 mm usable box        | Depth   |
 |---------------------------------------------------------|---------|
 | e-paper module (panel 1.2 mm + driver PCB + connector)  | ~5 mm   |
-| module-back → PCB-front standoff gap — **set by J3 at 9.1 mm + ~0.4 mm clearance** | **~9.5 mm** |
+| module-back → PCB-front standoff gap — **set by J-USB at 9.30 mm + ~0.4 mm clearance** (D40; J3's box header at 9.1 mm is next) | **~9.7 mm** |
 | main PCB                                                 | 1.6 mm  |
 | tallest back-side part: **J1 Würth RJ45 ~13.6 mm above PCB** (R-78E3.3 SIP ~11 mm is shorter) | ~13.6 mm |
 | bracket standoff + clearance to box floor               | ~5 mm   |
-| **Total**                                               | **~34.5 mm** |
+| **Total**                                               | **~34.7 mm** |
 
-Against ~45 mm usable → **~10.5 mm margin** (was quoted as ~12 mm on the pre-CP4 8 mm gap).
+Against ~45 mm usable → **~10.3 mm margin** (was quoted as ~12 mm on the pre-CP4 8 mm gap).
 
-**Button plunger requirement, now derivable (this closes the CP1 defer):** actuator length = gap + faceplate + protrusion = 9.5 + 3 + 2.5 = **~15 mm**, i.e. pick the catalog height nearest 15 mm from the 6×6×N tall-actuator family (13–17 mm class). Re-confirm against the CP6 STEP before ordering, since the faceplate thickness is the user's to set. The tallest back-side part is the
+**Button plunger requirement, now derivable (this closes the CP1 defer):** actuator length = gap + faceplate + protrusion = 9.7 + 3 + 2.3 = **15 mm** (catalog height `150`; protrusion 2.3 mm is inside the ~2–3 mm spec), i.e. pick the catalog height nearest 15 mm from the 6×6×N tall-actuator family (13–17 mm class). Re-confirm against the CP6 STEP before ordering, since the faceplate thickness is the user's to set. The tallest back-side part is the
 **J1 RJ45 (Würth 615008145521, ~13.6 mm above PCB — datasheet-confirmed)**;
 the R-78E3.3 SIP (~11 mm) is next. (The earlier ~4.4 mm SUYIN low-profile is
 gone — not distributor-stocked; the Würth standard right-angle still fits with

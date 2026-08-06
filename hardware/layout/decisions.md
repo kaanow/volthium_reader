@@ -2427,3 +2427,63 @@ rather than preference.
    8 mm and J2 becomes side-entry.
    → BOM/contract/footprint updated; same JST PH family, same price class,
    same 20 cm PH↔PH cable, no crimp tool (DR-7 unaffected).
+
+## D40 — Display USB-C is VERTICAL (front face), not edge-mount
+
+**Date**: 2026-08-05 (CP4, user call; resolves DR-35)
+
+**Problem.** D27 specified the display's USB-C as a bench/recovery port
+"reached by popping the faceplate", but the part chosen (GCT USB4085) is an
+**edge** connector whose opening points sideways over the board edge. The
+enclosure makes that unusable: the PCB is 85 × 65 mm inside a ~95 × 75 mm
+box, leaving only **~5 mm** past any edge, while a USB-C plug needs roughly
+**15–20 mm** of straight-in approach. And popping the faceplate exposes the
+board's **front**, not its edges. As drawn, the port could not be reached
+without unbolting the board.
+
+**Decision (user, 2026-08-05): switch to a vertical receptacle on the front
+face.** It opens **+Z**, so with the faceplate off — and the e-paper module
+leaving with it — the port is reachable straight-on, and it is invisible and
+unreachable when assembled. That is exactly the service model D27 describes.
+
+**Part: GCT USB4115-03-C** (`USB4115_drawing.pdf` p.1: "USB3.2 Gen2 Type C
+Receptacle, **Vertical**, SMT, **H=9.30 mm**"). Chosen over the shorter
+**USB4120-03-C** (6.5 mm, USB 2.0, 16 contacts) for one reason: **KiCad ships
+a footprint for the 4115 that references GCT's official drawing, and none for
+the 4120.** Hand-authoring a 0.5 mm-pitch connector land pattern is precisely
+the risk class this project has been bitten by (DR-33's non-monotone RJ45
+fan-out; the CP3 mating-face defect), so an already-published footprint beats
+1.6 mm of depth.
+
+**Consequences, all checked:**
+- 9.30 mm displaces J3's 9.1 mm as the front-side depth driver → standoff gap
+  ~9.7 mm, total stack ~34.7 mm against ~45 mm usable.
+- **BTN1–3 are unaffected**: with the 15 mm plunger already locked, protrusion
+  becomes 2.3 mm — still inside the ~2–3 mm spec. (An earlier draft of this
+  analysis wrongly claimed the taller part would force a longer plunger; the
+  arithmetic says otherwise.)
+- 24 contacts of which our USB 2.0 symbol uses 16; the footprint's pad names
+  (A1–A12/B1–B12/SH) are a superset, so every symbol pin binds and the 8
+  SuperSpeed pads are simply unconnected.
+- Nothing overhangs a board edge any more: the E-edge overhang whitelist entry
+  and the associated silk/copper edge-clearance findings are **gone** (DRC
+  `silk_edge_clearance` 2 → 0).
+- **The battery board keeps USB4085.** It is not in a wall box, and its
+  edge-mount geometry is correct there — this change is display-only.
+
+## D41 — RPA sign-off stays name-based; no signing keys
+
+**Date**: 2026-08-05 (user call; resolves DR-34)
+
+Reviewer-patch acceptance continues to be verified by git **authorship**
+(`git blame` on the `RPA-ACCEPTED` line), not by cryptographic signature.
+The user declined to provision a designer signing key.
+
+This is consistent with the threat model recorded in
+`REVIEWER_PATCH_POLICY.md`: both agents act for one principal on that
+principal's machines with full repo write access, so RPA exists to prevent
+**accident**, and an actor willing to forge authorship could more easily
+rewrite the gate, commit design data directly, or push to `main`. The known
+limit is stated in the gate's own docstring rather than papered over.
+**Revisit if the model changes** — a third-party reviewer, contributors who
+are not the principal, or an artifact needing provenance outside this loop.

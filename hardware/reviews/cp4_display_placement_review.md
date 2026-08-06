@@ -7,10 +7,10 @@ Scope per D12: **display side only** (battery-side placement was CP3, APPROVED).
 
 - Input netlist: the CP2-APPROVED display schematic's export,
   `hardware/kicad/schematic/build_display/volthium_display.net`
-  (sha256 `bdb817c16281…`), 39 components / 56 nets. Two CP4-driven
-  schematic-side deltas, both in §4.1.
+  (sha256 `41145f58b214…`), 39 components / 56 nets. **Three** CP4-driven
+  schematic-side deltas — §4.1 and §4.5.
 - Output: `hardware/kicad/pcb/build_display/display_pcb.kicad_pcb`
-  (sha256 `cebadb942b4f…`) — 43 footprints (39 parts + 4 M3 mounting
+  (sha256 `1bf74eea4fc0…`) — 43 footprints (39 parts + 4 M3 mounting
   holes), all pads net-bound, **placement only** (routing is CP5).
 - Hashes are of the committed git BLOB (`git cat-file blob HEAD:<path>`).
 - Rebuild: POSIX `.venv/bin/python hardware/kicad/pcb/build_display_pcb.py`
@@ -18,7 +18,9 @@ Scope per D12: **display side only** (battery-side placement was CP3, APPROVED).
   Pre-handoff gate: `python3 hardware/reviews/tools/handoff_check.py`.
 - Generator: `hardware/kicad/pcb/core.py` (shared with CP3) +
   `hardware/kicad/pcb/build_display_pcb.py` (display floorplan as data).
-- Decisions taken: **D39** (MOD1 courtyard implements D26; J2 side-entry).
+- Decisions taken: **D39** (MOD1 courtyard implements D26; J2 side-entry),
+  **D40** (USB-C goes vertical — resolves DR-35), **D41** (RPA sign-off stays
+  name-based — resolves DR-34).
 
 ## 2. What is materially new versus CP3
 
@@ -140,16 +142,9 @@ DRC final state: **0 unaccounted**. Accepted:
 
 ## 6. Open items for the reviewer
 
-- **DR-35 (USB-C access) is OPEN and affects this placement.** The specified
-  GCT USB4085 is an **edge** connector, but the box leaves only ~5 mm past any
-  board edge while a plug needs 15–20 mm, and popping the faceplate exposes
-  the board's **front**, not its edges. The user proposed a **vertical** USB-C
-  hidden under the faceplate; that is now the recommended option — GCT
-  **USB4120-03-C is 6.5 mm tall** (product spec p.1, on file as
-  `hardware/datasheets/candidates/USB4120.pdf`), below the ~8 mm gap and below the ~9.4 mm J3 header, so it
-  costs **no depth**. Board is placed as the current (edge) part pending the
-  user's call; if option B is taken, J-USB's footprint, pin map and the
-  E-edge overhang whitelist all change.
+- ~~DR-35 (USB-C access)~~ **RESOLVED — implemented, see §4.5 (D40).**
+- ~~DR-34 (RPA sign-off signing)~~ **RESOLVED — declined by the user (D41);**
+  the gate's own docstring states the name-based limit rather than hiding it.
 - ~~Per-instance evidence for the MOD1 `lib_footprint_mismatch`~~ **DONE** —
   `visual_inspections/cp4-display-placement/iter1/mod1_pad_diff.txt`: all
   **62/62 pad tuples** (number, type, shape, x, y, angle, sizeX, sizeY)
@@ -163,14 +158,15 @@ DRC final state: **0 unaccounted**. Accepted:
 ### 4.4 Depth stack corrected, and the button plunger resolved
 
 CP1 §2.1 assumed an 8 mm PCB→module standoff gap. Measured from the parts
-actually placed, the tallest front-side component is **J3, the Würth
-61200621621 box header at 9.1 ±0.15 mm** (drawing p.1, on file) — so the gap
-must be **~9.5 mm**, and the total stack **~34.5 mm** against ~45 mm usable
-(~10.5 mm margin, previously quoted as ~12 mm). `cp1_display_side.md §2.1`
-updated with the correction and its source.
+actually placed it is larger. At the time of this analysis the driver was
+**J3, the Würth 61200621621 box header at 9.1 ±0.15 mm** (drawing p.1);
+**§4.5's vertical USB-C at 9.30 mm then displaced it**, so the final numbers
+are **gap ~9.7 mm, stack ~34.7 mm** against ~45 mm usable (~10.3 mm margin,
+previously quoted as ~12 mm). `cp1_display_side.md §2.1` carries the final
+values and their sources.
 
 That closes a CP1 defer. Plunger length = gap + faceplate + protrusion =
-9.5 + 3 + 2.5 = **15 mm**, which is a real catalog height, so BTN1–3 are no
+9.7 + 3 + 2.3 = **15 mm**, which is a real catalog height, so BTN1–3 are no
 longer `_verify_`: **Same Sky TS02-66-150-BK-160-SCR-D** (datasheet fetched
 from the manufacturer — Mouser's mirror WAF-serves HTML, the same trap as
 the GCT drawing at CP3; manifest row added). Checks performed:
@@ -191,6 +187,51 @@ Heights still carried from earlier work and **not** re-sourced this
 checkpoint: J-USB (~3.2 mm), MOD1 (~3.1 mm), F1/J5 (~3–4 mm). None is within
 6 mm of the 9.1 mm driver, so none can change the gap; they would need a
 datasheet pass only if the stack is ever re-cut around a different tall part.
+
+### 4.5 USB-C goes vertical (D40) — the largest change this checkpoint
+
+DR-35 found that the specified **edge-mount** USB4085 could not physically be
+plugged inside the wall box: only ~5 mm of clearance exists past any board
+edge, a plug needs 15–20 mm of straight-in approach, and popping the faceplate
+exposes the board's **front**, not its edges. The user chose the vertical
+option, which opens **+Z** and is reachable straight-on once the faceplate and
+e-paper module come away — invisible and unreachable when assembled.
+
+**Part choice deliberately favoured footprint provenance over depth.** Two
+vertical GCT parts were compared:
+
+| | USB4120-03-C | **USB4115-03-C (chosen)** |
+|---|---|---|
+| height | **6.5 mm** | 9.30 mm |
+| contacts | 16 (USB 2.0) | 24 (USB 3.2), 16 used |
+| KiCad footprint | **none — would be hand-authored** | **ships with KiCad, cites GCT's drawing** |
+| price / stock | $0.84 / 89 k | $1.00 / 54 k |
+
+The 4120 is the better mechanical fit, but authoring a 0.5 mm-pitch connector
+land pattern is exactly the risk class that has bitten this project twice
+(DR-33's non-monotone RJ45 fan-out; CP3's mating-face defect). A published
+footprint is worth 2.8 mm of depth here, because the depth is affordable and a
+wrong land pattern is not.
+
+Consequences, each checked rather than assumed:
+- The 9.30 mm part displaces J3 (9.1 mm) as the depth driver → gap ~9.7 mm,
+  stack ~34.7 mm against ~45 mm usable.
+- **BTN1–3 unaffected.** With the 15 mm plunger already locked, protrusion
+  becomes 2.3 mm — inside the ~2–3 mm spec. *An earlier draft of my own
+  analysis claimed the taller part would force a longer plunger; that was
+  wrong, and the arithmetic is shown in D40.*
+- Pin binding: footprint pads (A1–A12/B1–B12/SH) are a **superset** of the
+  16-pin symbol, so every symbol pin binds and the 8 SuperSpeed pads are
+  simply unconnected. Pin/signal table cross-checked against the drawing.
+- **Nothing overhangs a board edge any more** — the E-edge whitelist entry is
+  gone and DRC `silk_edge_clearance` went **2 → 0**, `copper_edge_clearance`
+  stayed 0.
+- `lib_footprint_mismatch` for the new part is instance-accepted with the same
+  evidence shape: **30/30 pad tuples identical**, delta is one
+  `(unlocked yes)` and the `embedded_fonts` token
+  (`iter1/jusb_pad_diff.txt`).
+- **The battery board keeps USB4085** — it is not in a wall box, so its
+  edge-mount geometry remains correct. Display-only change.
 
 ## 7. D13 scorecard
 
