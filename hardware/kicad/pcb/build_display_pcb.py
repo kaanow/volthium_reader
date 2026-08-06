@@ -240,6 +240,55 @@ def orientation_asserts(findings):
                             "the PCB->module standoff gap")
 
 
+# --- Mechanical envelope annotation (reviewer F03) -------------------------
+# The load-bearing mechanical claims of this board — cable-entry direction,
+# the 9.7 mm front standoff gap, the 13.6 mm back depth, faceplate reach —
+# rest on parts whose 3D bodies do NOT render: J1 points at Wurth's own
+# ${WE_3DMODEL_DIR}, which is not bound in this install, and the stock USB
+# footprint names a STEP absent from KiCad 10. Rather than hand-author 3D
+# solids, draw the committed, dimensioned envelope on Cmts.User so the
+# geometry is text in the board file, deterministic, and visible in the
+# exported documentation plot.
+#
+# heights: source of each number is named so none of this is recalled.
+ENVELOPES = {
+    "J1":    (13.6, "Wurth 615008145521 RJ45, right-angle; cp1_display_side "
+                    "2.1 datasheet-confirmed. BACK side, opens WEST"),
+    "U1":    (11.0, "R-78E3.3-0.5 SIP, cp1_display_side 2.1. BACK side"),
+    "J-USB": (9.30, "GCT USB4115-03-C vertical, drawing p.1 H=9.30. FRONT, "
+                    "opens +Z — sets the standoff gap"),
+    "J3":    (9.10, "Wurth 61200621621 box header, drawing p.1. FRONT"),
+    "J2":    (7.60, "JST S8B-PH-K-S side entry, ePH p.3. FRONT"),
+    "BTN1":  (15.0, "TS02-66-150 actuator 15.0 mm above PCB. FRONT"),
+    "BTN2":  (15.0, "TS02-66-150 actuator 15.0 mm above PCB. FRONT"),
+    "BTN3":  (15.0, "TS02-66-150 actuator 15.0 mm above PCB. FRONT"),
+}
+
+
+def annotate_envelopes(bb):
+    """Draw each tall part's body outline + height on Cmts.User."""
+    from kiutils.items.gritems import GrRect, GrText
+    from kiutils.items.common import Position, Effects, Font
+    for ref, (h, src) in sorted(ENVELOPES.items()):
+        x, y, rot, side = P[ref]
+        d = core.fplib.FpDims(COMPS[ref]["footprint"])
+        fx0, fy0, fx1, fy1 = d.fab_bbox or d.courtyard
+        pts = [core._xf((px, py), x, y, rot, side == "B")
+               for px, py in ((fx0, fy0), (fx1, fy0), (fx1, fy1), (fx0, fy1))]
+        x0 = min(p[0] for p in pts); x1 = max(p[0] for p in pts)
+        y0 = min(p[1] for p in pts); y1 = max(p[1] for p in pts)
+        bb.b.graphicItems.append(GrRect(
+            start=Position(X=round(x0, 3), Y=round(y0, 3)),
+            end=Position(X=round(x1, 3), Y=round(y1, 3)),
+            layer="Cmts.User", width=0.05, fill="none"))
+        bb.b.graphicItems.append(GrText(
+            text=f"{ref} h={h:.1f}mm {'(B)' if side == 'B' else '(F)'}",
+            position=Position(X=round((x0 + x1) / 2, 3),
+                              Y=round(y0 - 0.9, 3), angle=0),
+            layer="Cmts.User",
+            effects=Effects(font=Font(width=0.7, height=0.7, thickness=0.12))))
+
+
 def main():
     core.configure(PROJECT, "build_display", NETLIST)
     if not core.selftest_gates():
@@ -265,6 +314,7 @@ def main():
     refdes_ov, refdes_unplaced = core.auto_refdes(COMPS, P, W, H, banned=bans)
     if refdes_unplaced:
         print(f"[refdes] library-fallback: {refdes_unplaced}")
+    annotate_envelopes(bb)
     bb.write(pcb, prop_overrides=refdes_ov)
 
     if bb.findings:
@@ -286,6 +336,8 @@ def main():
     if not _os.environ.get("SKIP_RENDER"):
         core.render_board(pcb, OUT / "render_top.png", "top")
         core.render_board(pcb, OUT / "render_bottom.png", "bottom")
+        core.export_svg(pcb, OUT / "doc_envelopes.svg",
+                        "F.Cu,F.SilkS,Edge.Cuts,F.CrtYd,Cmts.User")
     print(f"[ok] {pcb.name}: {len(bb.b.footprints)} footprints, "
           f"{len(bb.b.nets)} nets, DRC clean (accepted: "
           f"{ {k: counts.get(k, 0) for k in DRC_ACCEPTED} })")

@@ -10,7 +10,7 @@ Scope per D12: **display side only** (battery-side placement was CP3, APPROVED).
   (sha256 `41145f58b214…`), 39 components / 56 nets. **Three** CP4-driven
   schematic-side deltas — §4.1 and §4.5.
 - Output: `hardware/kicad/pcb/build_display/display_pcb.kicad_pcb`
-  (sha256 `1bf74eea4fc0…`) — 43 footprints (39 parts + 4 M3 mounting
+  (sha256 `6232b530ee70…`) — 43 footprints (39 parts + 4 M3 mounting
   holes), all pads net-bound, **placement only** (routing is CP5).
 - Hashes are of the committed git BLOB (`git cat-file blob HEAD:<path>`).
 - Rebuild: POSIX `.venv/bin/python hardware/kicad/pcb/build_display_pcb.py`
@@ -172,9 +172,11 @@ from the manufacturer — Mouser's mirror WAF-serves HTML, the same trap as
 the GCT drawing at CP3; manifest row added). Checks performed:
 - `150` = 15.0 mm actuator, and it is **not** one of the starred heights the
   part-number key restricts to long-crimped terminals, so `SCR` is valid;
-- datasheet p.2 recommended land pattern **6.5 × 4.5 mm, 4 × drill 1.0**
-  versus the stock `SW_PUSH_6mm_H13mm` footprint's pads — **exact match**
-  (verified, not assumed — the DR-33 lesson);
+- datasheet p.2 land pattern **6.5 × 4.5 mm, 4 × Ø1.0** versus the stock
+  `SW_PUSH_6mm_H13mm`: **centres match exactly (6.5 × 4.5 mm); drills deviate 1.0 → 1.1 mm.** The datasheet's recommended pattern is 4 × Ø1.0 mm; the stock KiCad footprint uses Ø1.1 mm. Acceptance: the terminal is 0.7 ± 0.1 mm across its largest dimension (drawing p.2), so a 1.1 mm hole leaves ≥0.3 mm diametral clearance for insertion, and the 2.0 mm pad still gives a 0.45 mm annular ring — comfortably above the 0.13 mm fab floor. This is a sane substitution, **not identity evidence**; if an exact-pattern footprint is wanted, vendor one at CP5.
+  *I originally wrote "exact match" here while my own output printed
+  drill 1.1 — a verification adjective contradicted by the evidence on
+  the same screen (reviewer F04).*
 - ratings 12 Vdc / 50 mA, −30…+80 °C, 80,000 cycles at 160 gf — the 3V3
   button-to-GND use is far inside all three.
 
@@ -337,3 +339,80 @@ Routing-quality gates remain outside CP4 scope. Evidence is in
 `visual_inspections/cp4-display-placement/iter1/reviewer/REPORT.md`.
 
 **REVIEW COMPLETE**: NEEDS CHANGES - 1 blocker, 3 important.
+
+
+## 9. Designer responses
+
+### 9.1 Responses to §8.1 (iteration 2, 2026-08-06)
+
+**Finding 01 (BLOCKER): AGREE — reproduced exactly, fixed at root.** `cc()`
+in **both** PCB builds still negated local X while the writer and gates
+negate Y. Your numbers reproduce to the digit: J1 requested (9.8, 46.5)
+landed at (16.15, 28.06); U1 (22, 41) at (26.97, 45.50).
+
+This is the **fourth** site of one transform, and the one I never swept —
+after twice claiming I had. So the fix is not an axis edit: `cc()` now
+delegates to `core._xf`, leaving the project exactly **one** back-side
+transform. A duplicated transform was the defect; sharing it is the repair.
+
+You were also right that the J1 assert was tautological — it compared two
+symmetric X centroids, equal by construction. Replaced with a real probe: the
+signal pads sit at one end of the footprint and the body extends away from
+them, so the pads-to-courtyard-centre vector *is* the opening direction. J1
+is now rot 90 on the back and that vector reads **(-7.95, +0.00)** — due
+west. Re-placed for the three conflicts your scratch probe predicted (BTN1
+into J1 pads, J1 pads into R5, J1 courtyard into U1): J1 (11, 30), U1
+(12, 48), U2 (25.5, 33.5), R2 (27, 29). Parts now land at their requested
+centres with 0.00 error; all gates and DRC clean.
+
+*On the discrepancy:* the build exits **0** here, before and after the fix. I
+could not reproduce an exit-1 on macOS at the reviewed commit, so I cannot
+explain your transcript — but the defect you diagnosed was real and is fixed,
+and the corrected assert now fails loudly if J1 is ever not west-facing.
+
+**Finding 02 (IMPORTANT): AGREE — both cells would have ordered the wrong
+object.** Confirmed by live `POST /resolve`: `455-1710-ND` resolves to
+B8B-PH-K-S (the rejected top-entry part) and `640-USB4085-GF-A` to
+USB4085-GF-A (the retired edge part). Two separate incomplete propagations:
+D39 changed the MPN text but never re-resolved the order code, and D40
+updated one distributor column and not the other. Both corrected, along with
+the stale J-USB prose in `cp1_display_side.md` and the J2 description that
+read "S8B" for both entry styles.
+
+Persistent coverage added as a **row-scoped** check rather than a SUPERSEDED
+token: the battery J3 legitimately orders USB4085 through that same Mouser
+code, so a global token rule would fire on a correct row — the CP3
+manifest-uniqueness false-positive trap. Poison-tested both directions with a
+control (`iter2/row_coherence_poison.txt`). One further change your finding
+implies: the superseded order codes are no longer quoted **anywhere** in the
+BOM, even as history — a wrong order code does not belong in an orderable
+document. My first attempt at those history notes tripped my own new check,
+which is how I noticed.
+
+**Finding 03 (IMPORTANT): AGREE.** Verified: J1 points at Wurth's own
+`WE_3DMODEL_DIR` variable (unbound in this install), the stock USB footprint
+names a STEP absent from this KiCad 10 install, and the buttons carry the H13
+model against a 15 mm selection. Taking your second option — committed
+dimensioned envelope geometry — as more deterministic than hand-authored
+solids: every height-critical part now carries a **Cmts.User envelope
+rectangle plus a height label sourced to its datasheet**, and a
+`doc_envelopes.svg` / PDF plot exports them. J1 13.6 (B), U1 11.0 (B), J-USB
+9.30 (F), J3 9.10 (F), J2 7.60 (F), BTN1-3 15.0 (F).
+
+That plot immediately earned its keep: it showed the board still carrying
+**"Antenna KEEP-OUT ZONE"** on Cmts.User from the stock ESP32 footprint —
+asserting in the board documentation precisely the constraint D26 retired and
+D39 built a variant to drop. Removed from the variant (the factual "Antenna"
+label stays); provenance recorded in the footprints README.
+
+**Finding 04 (IMPORTANT): AGREE, and this is the worst of the four.** The
+datasheet specifies 4 x 1.0 mm drills; the footprint uses 1.1 mm. **My own
+console output printed `drill 1.1` on the same screen where I wrote "exact
+match".** That is a verification adjective contradicted by evidence in front
+of me — the precise failure my own skills tell me to hunt. Every "exact
+match" claim is replaced with the stated deviation plus an acceptance
+argument: centres match exactly; the 0.7 +/-0.1 mm terminal leaves >=0.3 mm
+diametral clearance in a 1.1 mm hole, and the 2.0 mm pad keeps a 0.45 mm
+annular ring, far above the 0.13 mm fab floor. A sane substitution, **not
+identity evidence** — vendoring an exact-pattern footprint is available at
+CP5 if wanted.
