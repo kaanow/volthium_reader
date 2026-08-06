@@ -744,7 +744,7 @@ class AsyncpgReadingsDAO:
             rows = await conn.fetch(
                 """WITH s AS (
                        SELECT to_timestamp(floor(extract(epoch FROM ts)/15)*15) AS b,
-                              AVG(solar_w) AS solar_w, AVG(dc_w) AS dc_w
+                              AVG(pv_v) AS pv_v, AVG(dc_w) AS dc_w
                        FROM solar_readings
                        WHERE source_id = $1 AND ts > now() - ($2 || ' hours')::interval
                        GROUP BY b
@@ -755,7 +755,13 @@ class AsyncpgReadingsDAO:
                    WHERE r.source_id = $1
                      AND r.ts > now() - ($2 || ' hours')::interval
                      AND r.pack_p IS NOT NULL
-                     AND COALESCE(s.solar_w, 0) < 10      -- darkness only
+                     -- Darkness by ARRAY VOLTAGE, never by reported power.
+                     -- During a diode-clamp latch the MPPT reports 3-12 W
+                     -- while ~380 W actually flows, so a power-based filter
+                     -- lets latched DAYLIGHT hours in and wrecks the split
+                     -- (first attempt returned 255 W at 83% duty). Voltage
+                     -- sensing is the one MPPT measurement we trust.
+                     AND COALESCE(s.pv_v, 0) < 15
                    ORDER BY r.ts""",
                 source_id, str(hours),
             )
