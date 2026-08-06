@@ -378,11 +378,18 @@ class XanbusNode:
     #   0x11A00 ChgCfgFloat   value u32 LE @4, millivolts
     #   0x11B00 ChgCfgEqualize  enable flag @1
 
-    def read_record(self, pgn: int, dest: int, timeout: float = 4.0):
-        """Request a config record and return the first instance received."""
+    def read_record(self, pgn: int, dest: int, timeout: float = 4.0,
+                    instance: int | None = 0x04, all_instances: bool = False):
+        """Request a config record.
+
+        These records come in multiple INSTANCES, distinguished by byte 0 —
+        the MPPT reports 0x04 and 0x06 for the same PGN. Returning whichever
+        arrived first meant we could edit one instance and write it into the
+        other's slot, which the device NAKs. Default to the 0x04 primary."""
         self._send(build_id(PGN_REQUEST, self.addr, dest),
                    bytes([pgn & 0xFF, (pgn >> 8) & 0xFF, (pgn >> 16) & 0xFF]))
         asm: dict = {}
+        found: dict[int, bytes] = {}
         for got_pgn, _dest, src, payload in self._recv(timeout):
             if got_pgn != pgn or src != dest or not payload:
                 continue
@@ -393,8 +400,17 @@ class XanbusNode:
                 asm[seq][1] += payload[1:]
                 total, buf = asm[seq]
                 if len(buf) >= total:
-                    return bytes(buf[:total])
-        return None
+                    rec = bytes(buf[:total])
+                    del asm[seq]
+                    if rec:
+                        found.setdefault(rec[0], rec)
+                    if not all_instances and (instance is None
+                                              or rec[0] == instance):
+                        return rec
+        if all_instances:
+            return found
+        return found.get(instance) if instance is not None else (
+            next(iter(found.values()), None))
 
     def write_record(self, pgn: int, dest: int, record: bytes) -> None:
         """Send a full config record back to the device."""
