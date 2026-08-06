@@ -90,6 +90,36 @@ Two consequences:
    re-sweep should find roughly 75 W against a ~113 W load — still a deficit,
    so it should re-latch. That is a concrete prediction for Unknown #2 below.
 
+**That prediction was wrong, and the way it was wrong matters.** The re-sweep
+at 10:58 found **227 W**, not 75 W — three times the estimate — and the fix
+held. The error was assuming the 44.5 W seen at 08:10 was the array at its
+MPP. It was not: the tracker was *already* descending by then, so 44.5 W was
+just the high-water mark of an already-degrading trajectory, not the array's
+capability. Post-fix the array settled at **88 V**, matching the ~89.8 V MPP
+measured during the 2026-08-05 standby test.
+
+Which means the runaway had been under way since **first light** — pv_v
+declined monotonically from 82.5 V at 05:40 and never had a healthy tracking
+period all morning. The morning was not "structurally weak"; it was
+**structurally latched**. Corrected accordingly below.
+
+### Diagnostic: cloud vs runaway
+
+They separate cleanly, because a cloud and a tracker walk-down move different
+axes:
+
+- **Cloud/smoke** cuts irradiance, which cuts *current*. Panel Vmp barely
+  moves with irradiance, so power drops at roughly **constant voltage**.
+- **Runaway** is the operating point sliding left, so power and **voltage
+  fall together**.
+
+Worked example, 2026-08-06 11:10 to 12:40: pv_v 85.4 -> 48.2 (-44%) and power
+235.8 -> 127.2 W (-46%). Voltage and power fell in lockstep, so this is the
+runaway restarting, not weather — even though it happened while irradiance
+was still climbing toward the 13:00-15:00 peak.
+
+Use this before blaming smoke for any future production shortfall.
+
 `mppt_latch_context` still ships 20 min of 1 Hz run-up with each latch event
 for the finer detail.
 
@@ -117,6 +147,31 @@ limiting charge current so demand never exceeds supply). The guard records
 >
 > Lesson worth generalising: a threshold on a reported value has to clear that
 > sensor's own quantisation, and a guard that declines to act must say so.
+
+**ANSWERED (first half), 2026-08-06 10:58 local — the guard cleared a real
+latch, unattended, end to end.** Sequence from its own journal:
+
+```
+10:58:09  claimed 0x80, answered discovery (0x1F00F/1F810/1F014/1F80E) from node 2
+10:58:11  sent PGN 0x14000 -> node 1: 02 (Standby)    <- node 1: ACK
+10:58:26  sent PGN 0x14000 -> node 1: 03 (Operating)  <- node 1: ACK
+10:59:34  latch_fix_result: acked=true recovered=true
+          before: fraction 1.00  pv_v 29.6
+          after : fraction 0.00  pv_v 93.0 (max 98.3)
+```
+
+Production went **5.3 W -> 235.8 W**, a 44x step, and the battery flipped from
+-110 W (discharging in full daylight) to +119 W charging. The clamp had been
+costing ~110 W continuously.
+
+**It did not re-latch**: five subsequent guard runs (11:17 / 11:37 / 11:57 /
+12:17 / 12:38) were all silent. So a bounce is durable when the array can
+out-supply the load, and the 45 min cooldown / 4-per-day cap are not acting as
+the control loop — at least on a day like this one.
+
+Still open: the recurrence question in the *deficit* case, i.e. what happens
+when a bounce lands while production is still below load. The 12:40 descent
+(see the cloud-vs-runaway diagnostic above) should produce that test today.
 
 **3. The MPPT status byte (offset 0 of DcSrcSts2).**
 Always 0x03 in normal operation. Captured now but never seen change. Does it
