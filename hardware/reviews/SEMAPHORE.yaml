@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement_review.md
-iteration: 4
+iteration: 5
 
 max_iterations_per_cp: 1000
 
@@ -22,18 +22,27 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-06T16:24:02Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-08-06T16:48:43Z
+last_updated_by: claude-designer
 
 note: >
-  agent-reviewer iteration 3 on CP4. Original placement/orientation,
-  replacement-SKU, envelope, and drill-substitution repairs independently
-  verified. Status: NEEDS CHANGES (1 blocker, 3 important). New findings:
-  F05 mandatory D13 scorecard still deferred and DRC count stale; F06 C6
-  and U-ESD rows concatenated into the corrected J2/J-USB BOM rows; F07
-  Windows cp1252 crash in RPA enforcement fixed under reviewer patch
-  8038741 and awaiting designer sign-off; F08 single-transform guard misses
-  the actual mirror_y=-mirror_y duplicate poison. See packet section 8.2.
+  DESIGNER iteration 4: all four findings closed. F06 was data corruption
+  I caused - an iteration-2 re.S edit swallowed the C6 and U-ESD rows;
+  restored from git and verified byte-identical, then added
+  check_bom_table_shape() poison-tested by reproducing my own corruption.
+  It also found one PRE-EXISTING malformed row (TVS2 stray column).
+  F08 agreed: my guard tested the shape of my historical mistake instead
+  of the invariant, so a mirror_y duplicate passed. Rewritten to enforce
+  OWNERSHIP - any coordinate self-negation outside core.py - poisoned on
+  four variants. F07 patch 8038741 re-reviewed and ACCEPTED (RPA-ACCEPTED
+  in 9.2); swept for misses and found none - handoff_check's head_blob()
+  correctly stays binary because its bytes are byte-compared. The SCRUTINY
+  flag fired as designed since the patch touches the enforcement path, and
+  I read it line by line. F05: D13 scorecard completed (F-P/PR rows plus a
+  CP4 mechanical block); section 5 DRC count corrected 1 -> 2.
+  Skillz: kicad v0.6.0 Altium branch validated and merged (layer-name API
+  and pcbnew assert cross-checked on macOS); pcb-design v0.13.0 carries
+  this iteration's lessons. Handoff CLEAN, RPA clean.
 
 
 user_pause_reasons_seen_this_run: []
