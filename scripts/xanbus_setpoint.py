@@ -65,6 +65,24 @@ def set_field(record: bytes, spec, value: float) -> bytes:
     return bytes(out)
 
 
+def to_write_form(record: bytes) -> bytes:
+    """Convert a record as REPORTED by the device into the form the Insight
+    uses to WRITE it.
+
+    Byte 0 distinguishes the two: the device reports with 0x04 (and 0x06 for
+    its second instance), while every captured Insight write uses 0x00. Byte 1
+    is the change counter, which the writer sends as 0x00 and the DEVICE
+    increments on accept — that increment is how we know a write landed.
+
+    Echoing the report form back is what produced ACCESS DENIED on
+    2026-08-05: the MPPT saw a status report from a peer, not a config write.
+    """
+    out = bytearray(record)
+    out[0] = 0x00
+    out[1] = 0x00
+    return bytes(out)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--iface", default="can0")
@@ -120,9 +138,10 @@ def main() -> int:
         if args.read or args.set is None:
             return 0
 
-        edited = set_field(original, spec, args.set)
+        edited = to_write_form(set_field(original, spec, args.set))
         changed = [i for i in range(len(original)) if original[i] != edited[i]]
-        print(f"editing bytes {changed} only — every other byte preserved")
+        print(f"editing bytes {changed} (0,1 = write-form header; "
+              f"rest is the value) — every other byte preserved")
         node.write_record(pgn, args.dest, edited)
         node.pump(3.0)
 
@@ -137,7 +156,8 @@ def main() -> int:
 
         if args.restore:
             print(f"\nrestoring original {orig_val:g} {unit}...")
-            node.write_record(pgn, args.dest, set_field(check, spec, orig_val))
+            node.write_record(pgn, args.dest,
+                              to_write_form(set_field(check, spec, orig_val)))
             node.pump(3.0)
             final = node.read_record(pgn, args.dest)
             if final is not None:
