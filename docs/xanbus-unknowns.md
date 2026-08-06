@@ -120,6 +120,38 @@ was still climbing toward the 13:00-15:00 peak.
 
 Use this before blaming smoke for any future production shortfall.
 
+### The descent is a SAWTOOTH — it aborts unless it reaches the clamp
+
+Watching the whole afternoon of 08-06 corrects the "monotonic runaway"
+reading from earlier the same day. The tracker descends and then **re-acquires
+on its own**, repeatedly, on a roughly 30-60 min cycle:
+
+| local | pv_v | W | |
+|---|---|---|---|
+| 11:10 | 85.4 | 236 | post-bounce peak |
+| 12:40 | 47.7 | 124 | descended |
+| 13:00 | 61.4 | 213 | **recovered unaided** |
+| 14:00 | 46.6 | 143 | descended again |
+| 14:05 | 52.1 | 181 | **recovered unaided** |
+
+So a descent is not committed. The MPPT re-sweeps periodically and climbs
+back — *provided it has not yet reached the diode clamp*. The clamp is the
+point of no return, because there the converter stops switching entirely and
+no sweep can occur. That is the real threshold, and it is why the guard's job
+is specifically to break the clamp rather than to chase every dip.
+
+The condition that turns a dip into a latch is a *sustained* deficit. On a
+day like 08-06 (surplus only ~+50 W against a ~115 W load) the array flirts
+with the deficit condition all afternoon, hence the sawtooth; in the morning,
+when supply was genuinely below load for hours, one of those descents ran all
+the way to the clamp and stuck.
+
+Note the earlier 12:40 entry in this file predicted the descent then under way
+was "the runaway restarting". It was a genuine descent by the voltage-and-
+power test — but it aborted at 12:55 without intervention, which the
+prediction did not allow for. Recorded rather than removed, because the
+correction is the finding.
+
 `mppt_latch_context` still ships 20 min of 1 Hz run-up with each latch event
 for the finer detail.
 
@@ -296,6 +328,45 @@ latch-dependent (a latched array pins at ~28 V), so it is not clean either.
 known-good converter, so its daily total will be the first uncontaminated
 production figure this project has.** Judge smoke recovery from that, not from
 the back-history.
+
+### A metric that survives all of this: the clear-sky index
+
+Raw daily totals confound weather, geometry and the latch. Normalising by
+computed clear-sky plane-of-array irradiance removes geometry, and filtering
+to healthy-delta samples removes the latch:
+
+    index = solar_w / POA(day, local_hour)      # W per W/m2, arbitrary units
+    keep only  pv_v - dc_v > 8 V                # exclude clamped samples
+    keep only  09:00-16:00 local, POA > 200
+
+| day | n | index | vs 08-05 | usable? |
+|---|---|---|---|---|
+| 07-30 | 56 | 0.144 | 21% | **no — demand-limited** |
+| 07-31 | 19 | 0.099 | 15% | **no — demand-limited** |
+| 08-01 | 1 | 0.012 | 2% | no — latched all day |
+| 08-05 | 51 | 0.675 | 100% | yes |
+| 08-06 | 59 | 0.205 | 30% | yes |
+
+**The filter that matters most is one I nearly missed: exclude
+DEMAND-limited samples.** An MPPT only produces what is asked of it, so once
+the battery is full the array idles near Voc and the index measures load, not
+sunlight. 07-30 20:20 is the giveaway — `pv_v` 114.1 V with **3.0 W**, at
+`dc_v` 28.03 (absorption). Those days must be dropped, not read as "worse than
+today". Require a battery that is actually accepting charge (`dc_v` well below
+absorb, meaningful surplus).
+
+On the two comparable days — both with a discharged battery taking everything
+offered — **08-06 sits at 30% of 08-05**. Today is simply a dim day.
+
+Independent confirmation from the discriminator above: right after each day's
+bounce the array sat at essentially the same voltage but very different
+current — 08-05 **91.9 V / 634 W**, 08-06 **88.3 V / 228 W**. Same voltage,
+2.8x the current: that is irradiance, not the tracker. And it is not
+geometry — computed POA at 08-06 11:00 is slightly *higher* than at 08-05
+13:40.
+
+So: today's poor numbers are weather, not degradation, and the array itself
+demonstrated a healthy ~88-92 V MPP on both days.
 
 Dawn 08-06 also showed the array reaching `pv_v_max` 103.4 V at low load —
 encouraging, though dawn Voc is not comparable to midday Voc.
