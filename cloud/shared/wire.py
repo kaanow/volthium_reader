@@ -206,6 +206,10 @@ class SolarReading(BaseModel):
     solar_a: Optional[float] = None
 
     pv_v: Optional[float] = None
+    # schema_version 2+: array-voltage extremes. A bucket mean hides the
+    # slide down the IV curve that precedes a diode-clamp latch.
+    pv_v_min: Optional[float] = None
+    pv_v_max: Optional[float] = None
 
     # Sign convention: positive = into the battery / into the DC bus.
     dc_v: Optional[float] = None

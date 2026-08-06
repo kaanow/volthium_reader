@@ -379,6 +379,17 @@ class SolarTests(unittest.TestCase):
             headers={"Authorization": "Bearer nope"})
         self.assertEqual(r.status_code, 401)
 
+    def test_ingest_accepts_schema_v2_pv_extremes(self):
+        """The reader emits pv_v_min/max from schema_version 2. A model that
+        forbids them silently 422s every row — which is exactly what happened
+        on 2026-08-05 and stalled ingest for 43 minutes."""
+        c = _client()
+        row = dict(self.SOLAR_ROW, schema_version=2, pv_v_min=27.4, pv_v_max=91.2)
+        r = c.post("/api/solar/ingest", json={
+            "source_id": "pi-barge", "readings": [row]},
+            headers={"Authorization": "Bearer secret-pi-token"})
+        self.assertEqual(r.status_code, 200, r.text)
+
     def test_ingest_authed_ok(self):
         c = _client()
         r = c.post("/api/solar/ingest", json={
