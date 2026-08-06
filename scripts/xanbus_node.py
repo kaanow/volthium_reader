@@ -364,6 +364,46 @@ class XanbusNode:
         self._send(build_id(pgn, self.addr, dest), payload)
         self._log(f"  sent PGN 0x{pgn:05X} -> node {dest}: {payload.hex()}")
 
+    # -- config records --------------------------------------------------
+    #
+    # Setpoints live in fast-packet CONFIG RECORDS, not one-byte commands.
+    # The Insight's pattern (captured 2026-07-29 while changing charger
+    # settings): request the record, receive it, edit the field in place,
+    # send the whole record back. There is no CRC on these — the change
+    # counter at byte 1 increments on each accepted edit, which is how the
+    # device tells us it took.
+    #
+    #   0x11700 ChgCfgBulk    value u32 LE @4, millivolts
+    #   0x11800 ChgCfgAbsorp  value u32 LE @4 (mV); TIME u16 LE @46, SECONDS
+    #   0x11A00 ChgCfgFloat   value u32 LE @4, millivolts
+    #   0x11B00 ChgCfgEqualize  enable flag @1
+
+    def read_record(self, pgn: int, dest: int, timeout: float = 4.0):
+        """Request a config record and return the first instance received."""
+        self._send(build_id(PGN_REQUEST, self.addr, dest),
+                   bytes([pgn & 0xFF, (pgn >> 8) & 0xFF, (pgn >> 16) & 0xFF]))
+        asm: dict = {}
+        for got_pgn, _dest, src, payload in self._recv(timeout):
+            if got_pgn != pgn or src != dest or not payload:
+                continue
+            seq, fid = payload[0] >> 5, payload[0] & 0x1F
+            if fid == 0:
+                asm[seq] = [payload[1], bytearray(payload[2:])]
+            elif seq in asm:
+                asm[seq][1] += payload[1:]
+                total, buf = asm[seq]
+                if len(buf) >= total:
+                    return bytes(buf[:total])
+        return None
+
+    def write_record(self, pgn: int, dest: int, record: bytes) -> None:
+        """Send a full config record back to the device."""
+        if not self.claimed:
+            raise RuntimeError("refusing to write without a claimed address")
+        self._send_fast(pgn, dest, record)
+        self._log(f"  wrote config record 0x{pgn:05X} -> node {dest} "
+                  f"({len(record)} B)")
+
     def set_mode(self, dest: int, mode: int) -> None:
         if mode not in (MODE_STANDBY, MODE_OPERATING):
             raise ValueError(f"refusing unknown mode 0x{mode:02X}")
