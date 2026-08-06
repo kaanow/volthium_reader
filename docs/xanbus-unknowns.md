@@ -84,14 +84,26 @@ The daily Wh/Ah pair is the useful part and is now confirmed. NOTE it inherits
 the MPPT's current-sensor under-report (see #5), so it is a convenience, not a
 truth source — integrating the derived production is still more accurate.
 
-**7. Three PGNs that carry information we can't read.**
-- `127005` (0x1F01D) — 12% of bus traffic, only bytes 2–3 vary: one u16, 49
-  distinct values in 2.5 h. A timer or countdown?
-- `126991` (0x1F00F) — one flag byte toggling between two values. This is the
-  "Sts" PGN the gateway asks new nodes for, so its 6 bytes encode device
-  health somehow.
-- `127167`, `127177`, `127174` — byte-for-byte constant all day. Probably
-  carry nothing while nothing is wrong; worth re-checking during a fault.
+**7. RESOLVED 2026-08-06 — neither carries telemetry we want.**
+
+`127005` (0x1F01D) is **not a counter or a measurement**. It is a **20.0 Hz
+(50 ms) s16 at offset 2**, broadcast by BOTH the SW and the MPPT, oscillating
+around zero (range −67..+74, mean +16, stdev 30) and **flipping sign between
+consecutive samples**. Values are quantised in ~3.4 steps. Nothing physical on
+this system changes sign twenty times a second, so this is a control or
+clock-synchronisation term, not telemetry — consistent with IEA-PVPS T11-04
+describing Xanbus master election and sync. It accounts for ~12% of bus
+traffic and can be safely ignored.
+
+`126991` (0x1F00F, "Sts") is **byte-for-byte CONSTANT** — `030403030200` on
+both nodes across 39,586 frames overnight. Earlier notes claimed a toggling
+flag byte; that was wrong. It is a static "operating normally" heartbeat, and
+it is what the gateway asks a new node for during discovery (which is why we
+answer it in `xanbus_node.py`). Only interesting if it ever changes — worth a
+re-check during a fault.
+
+`127167`, `127177`, `127174` — still byte-for-byte constant. Same conclusion:
+recheck during a fault, ignore otherwise.
 
 **8. Is there an access-level / unlock mechanism above "gateway"?**
 IEA-PVPS T11-04 §5.3 describes Xanbus configuration messages carrying
