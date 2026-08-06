@@ -30,7 +30,31 @@ bulk, 0x11A00 float, 0x11B00 equalize — untested. Also unknown whether the SW
 inverter (node 0) honours the same authorization model as the MPPT.
 **Test: read-modify-write-restore on each, benign values only.**
 
-**5. The MPPT output-current discrepancy is AFFINE, not a simple error.**
+**5. The MPPT under-reports EVERYTHING, and no third meter exists to arbitrate.**
+Two results from 2026-08-06:
+
+*The energy counter is not independent.* Modbus reg 131 is the MPPT's own
+daily output Wh (resets at local midnight; reg 135/139/143 are week/month/year,
+reg 133/137/141 the matching second-counters). Over the REGULATING window only
+(post-unlatch 14:08-20:28, excluding latched hours the counter legitimately
+cannot see) it logged 1153 Wh where battery charge + inverter draw + fridge
+require **2053 Wh — a 1.78x under-report**, consistent with the instantaneous
+current error. So the counter is derived from the same sensor and is useless
+as a cross-check.
+
+*There is no independent third meter.* The SW inverter's Modbus reg 81 reads
+−5580 mA, identical to CAN `dc_a` — it measures its own terminals, not the
+battery. Every other candidate (SOC, remaining_ah) is BMS-derived from the
+same shunt, so it is circular.
+
+**Therefore #5 cannot be settled remotely.** It needs an external
+measurement — a DC clamp meter on the MPPT output during an on-site visit.
+Operationally this is low-stakes: SOC and energy come from the BMS, and the
+display already derives production from battery + inverter rather than
+trusting the MPPT. Recording it so nobody re-runs the analysis expecting
+a different answer.
+
+*Original characterisation, retained:*
 Measured over 839 paired samples while regulating: the ratio true/reported
 FALLS from 1.88 to 1.46 as current rises, while the difference RISES from
 +3.3 A to +9.8 A. Fit: `true ≈ 1.35 × reported + 2.2 A`. That is neither a
