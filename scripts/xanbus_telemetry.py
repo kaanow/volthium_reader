@@ -59,8 +59,14 @@ DROPOUT_S = 60                 # node silent this long -> node_dropout event
 # diode, UNREGULATED and unmetered, until demand ceases (battery full, or
 # sunset). Verified fix: Operating Mode -> Standby -> Operating, which opens
 # the PV input and lets the array fly to Voc so the tracker can re-acquire.
-LATCH_DELTA_V = 2.5            # array-minus-output below this = clamped
-LATCH_DAYLIGHT_V = 5.0         # array above this = the sun is up
+# A diode clamp pins the array JUST ABOVE the output — one diode drop. So the
+# test is a BAND, not an upper bound. The original `delta < 2.5` also matched
+# NEGATIVE deltas, which is the opposite condition: at dusk the array decays
+# BELOW battery voltage (dark, non-conducting) and that read as a latch. It
+# fired a false positive at 21:24 on 2026-08-05 with delta -15.7 V and 0 W.
+LATCH_DELTA_MIN_V = 0.3        # below this the array isn't driving the diode
+LATCH_DELTA_MAX_V = 2.5        # above this the tracker has real headroom
+LATCH_DAYLIGHT_V = 20.0        # array must at least exceed a dark panel string
 LATCH_CONFIRM_S = 600          # sustained this long before we call it
 LATCH_TRAIL_S = 1200           # seconds of 1 Hz history kept for forensics
 AC_LOAD_SAMPLE_S = 300         # provisional AC-load snapshot cadence
@@ -353,7 +359,8 @@ class Decoder:
         if self.pv_v is None or self.mppt_out_v is None:
             return []
         delta = self.pv_v - self.mppt_out_v
-        clamped = (self.pv_v > LATCH_DAYLIGHT_V and delta < LATCH_DELTA_V)
+        clamped = (self.pv_v > LATCH_DAYLIGHT_V
+                   and LATCH_DELTA_MIN_V <= delta <= LATCH_DELTA_MAX_V)
         if not clamped:
             self.clamp_since = None
             if self.latched:

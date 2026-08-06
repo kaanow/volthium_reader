@@ -57,8 +57,13 @@ STATE_PATH = Path("data/latch_guard_state.json")
 EVENT_SPOOL = Path("data/solar/events.jsonl")
 
 SAMPLE_S = 45.0            # how long to watch before deciding
-CLAMP_DELTA_V = 2.5        # array within this of output = clamped
-DAYLIGHT_V = 5.0           # array above this = the sun is up
+# A diode clamp pins the array JUST ABOVE the output (one diode drop), so
+# this is a BAND. An upper bound alone also matches NEGATIVE deltas — a dark
+# array sitting below battery voltage, which cannot conduct through the diode
+# at all. That misread dusk as a latch on 2026-08-05.
+CLAMP_DELTA_MIN_V = 0.3
+CLAMP_DELTA_MAX_V = 2.5
+DAYLIGHT_V = 20.0          # a dark string still floats a few volts
 CLAMP_FRACTION = 0.9       # this much of the sample must be clamped
 COOLDOWN_S = 45 * 60       # minimum gap between fix attempts
 MAX_FIXES_PER_DAY = 4      # hard cap; a latch we can't fix must not loop
@@ -133,7 +138,8 @@ def sample_array(iface: str, seconds: float) -> dict:
                             out_v = v / 1000
                     if pv_v is not None and out_v is not None:
                         n += 1
-                        if pv_v > DAYLIGHT_V and (pv_v - out_v) < CLAMP_DELTA_V:
+                        if (pv_v > DAYLIGHT_V and
+                                CLAMP_DELTA_MIN_V <= (pv_v - out_v) <= CLAMP_DELTA_MAX_V):
                             clamped += 1
     finally:
         sock.close()

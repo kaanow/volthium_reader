@@ -241,6 +241,31 @@ class LatchDetectionTests(unittest.TestCase):
         self.assertEqual([e["event"] for e in evs], ["mppt_unlatched"])
         self.assertFalse(dec.latched)
 
+    def test_dusk_decay_does_not_latch(self):
+        """The real 2026-08-05 21:24 false positive: array at 10.9 V while the
+        output sits at 26.5 V -- a delta of -15.7 V and zero production. An
+        upper-bound-only test matched that; a clamp BAND must not."""
+        dec = Decoder()
+        pv = bytes.fromhex("0315") + (10900).to_bytes(4, "little") + \
+            b"\x00" * 8 + b"\xff" * 7
+        out = bytes.fromhex("0303") + (26540).to_bytes(4, "little") + \
+            b"\x00" * 8 + b"\xff" * 7
+        feed_fastpacket(dec, 0x1F0C5, 1, pv, 1000.0)
+        feed_fastpacket(dec, 0x1F0C5, 1, out, 1000.0)
+        dec.housekeeping(1001.0)
+        self.assertEqual([e for e in dec.housekeeping(1601.0)
+                          if e["event"].startswith("mppt_")], [])
+        self.assertFalse(dec.latched)
+
+    def test_real_clamp_still_latches(self):
+        """The genuine signature: array pinned ~1.2 V ABOVE the output."""
+        dec = Decoder()
+        self._clamped(dec, 1000.0)
+        dec.housekeeping(1001.0)
+        evs = [e for e in dec.housekeeping(1601.0)
+               if e["event"] == "mppt_latched"]
+        self.assertEqual(len(evs), 1)
+
     def test_night_does_not_latch(self):
         dec = Decoder()
         pv = bytes.fromhex("0315") + (200).to_bytes(4, "little") + \
