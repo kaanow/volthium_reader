@@ -47,6 +47,49 @@ the mode-bounce does not provide: **limit charge current so the operating
 point never reaches the clamp.** Worth considering once the write path is
 trusted (`CHG_CFG_I_LIMIT` / max charge rate, currently 100%).
 
+### Refinement 2026-08-06 afternoon: it is a RUNAWAY, and it overshoots the MPP
+
+A full day of 5 min buckets shows the walk does not stop at the maximum power
+point — it goes straight through it and keeps going:
+
+| local | pv_v | solar W | note |
+|---|---|---|---|
+| 05:40 | 82.5 | 0.8 | first light, near Voc |
+| 06:55 | 55.9 | 22.3 | |
+| 08:10 | **52.4** | **44.5** | **peak power — this is the MPP** |
+| 08:55 | 42.1 | 35.1 | past the knee, losing power |
+| 09:55 | 34.7 | 23.5 | |
+| 10:10 | 30.1 | 11.4 | |
+| 10:25 | 28.3 | 6.2 | clamped, and stayed clamped |
+
+House load was a flat ~113 W throughout. The tracker sat at 52 V making
+44.5 W, then walked *down* the wrong side of the curve for two hours and
+never turned around.
+
+**Geometry rules out irradiance as the cause.** For the site (51.119 N,
+-121.210 W) on 6 Aug, plane-of-array beam irradiance on a south-east array
+*rose* between 08:10 and 10:25 by **+64% to +79%** — and that holds for every
+plausible tilt (30/40/50 deg), so it does not depend on knowing the mounting
+angle. Available power went up ~1.7x while delivered power went down 7.2x:
+the MPPT ended up roughly **12x off** what it had already demonstrated it
+could get.
+
+That reframes the mechanism. Past the knee the feedback is **regenerative**,
+not restoring: moving left reduces power, which deepens the deficit, which
+makes the controller pull harder, which moves it further left. So —
+
+- the morning **geometry** supplies the initiating condition (demand > supply);
+- past the knee it becomes a **runaway**, which is why it never recovers on
+  its own and why it survives into the afternoon.
+
+Two consequences:
+
+1. **Current-limiting is now the indicated fix, not merely an idea.** It
+   attacks initiation; the mode-bounce only treats the end state.
+2. **A bounce will only hold if post-sweep power exceeds load.** At 10:55 a
+   re-sweep should find roughly 75 W against a ~113 W load — still a deficit,
+   so it should re-latch. That is a concrete prediction for Unknown #2 below.
+
 `mppt_latch_context` still ships 20 min of 1 Hz run-up with each latch event
 for the finer detail.
 
@@ -55,6 +98,25 @@ If it re-latches within minutes, the guard's cooldown and daily cap turn into
 the real control loop and we need a smarter strategy (e.g. deliberately
 limiting charge current so demand never exceeds supply). The guard records
 `recovered` on every attempt, so the data will answer this.
+
+> Still unanswered on 2026-08-06, because the guard's first meeting with a
+> real latch found a bug instead. **The detection ceiling was tighter than the
+> MPPT's own reporting dither.** With `out_v` steady at 26.50 V, reported
+> `pv_v` hops over a ~1.1 V range (27.5-29.9), so the delta swings 0.90-3.44 V
+> second to second. Against a 2.5 V ceiling, 47% of 15 s buckets held at least
+> one out-of-band sample. The detector therefore raised `mppt_latched` at
+> 17:28:03Z and retracted it 25 s later on a 2.96 V delta while the array
+> stayed clamped for hours; and the guard's clamp fraction never reached 0.9,
+> so it declined to act on every 20 min run — *silently*, because a
+> below-threshold fraction returned without emitting anything. Five hours of
+> latch, no trace. Fixed in f42e88e: both ceilings to 4.0 V (observed dither
+> plus margin, still far below the 8.2 V smallest healthy delta), 120 s
+> hysteresis on release, and a `latch_guard_ambiguous` event so a
+> below-threshold bail can never be invisible again. After the fix the same
+> live clamp sampled at **fraction 1.0 (179/179)**.
+>
+> Lesson worth generalising: a threshold on a reported value has to clear that
+> sensor's own quantisation, and a guard that declines to act must say so.
 
 **3. The MPPT status byte (offset 0 of DcSrcSts2).**
 Always 0x03 in normal operation. Captured now but never seen change. Does it
