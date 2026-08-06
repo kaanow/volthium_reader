@@ -25,8 +25,24 @@ morning**, meaning demand exceeded supply continuously, so the MPPT was
 pulling maximum current the entire time. That is what walks the operating
 point down until it hits the diode clamp and cannot climb back.
 
-So the latch needs no trigger. It needs only *sustained demand above what a
-smoke-limited array can supply*. Which implies a preventative fix exists that
+**The array faces SOUTH-EAST and is shaded/oblique until early afternoon**
+(user, 2026-08-06; confirmed in the data — peak power lands at 13:00-15:00
+every single day: 799 W@13, 1001 W@15, 160 W@14, 148 W@13, 712 W@13).
+Mornings run 30-130 W regardless of how good the day becomes.
+
+That makes the morning latch **STRUCTURAL, not a fault**. House load is
+~90-130 W; morning production is ~25-55 W. Demand exceeds supply every
+morning by geometry alone, so the MPPT pulls maximum current, walks down the
+IV curve and clamps — on any day, smoke or no smoke. It then stays clamped
+until afternoon direct sun supplies enough current to climb back out, or
+until demand falls.
+
+This also explains the 2026-08-01..05 "five day latch": those were days when
+afternoon sun never got strong enough (smoke) to break out of a clamp that
+forms every morning anyway.
+
+So the latch needs no trigger. It needs only *sustained demand above what the
+array can supply at that moment*. Which implies a preventative fix exists that
 the mode-bounce does not provide: **limit charge current so the operating
 point never reaches the clamp.** Worth considering once the write path is
 trusted (`CHG_CFG_I_LIMIT` / max charge rate, currently 100%).
@@ -149,6 +165,11 @@ Do NOT read that 9x energy jump as smoke clearing. 08-02..04 were spent
 LATCHED, and a latched MPPT cannot meter power that bypasses it through the
 diode — so those totals are floors, not measurements. The 08-05 jump is mostly
 the latch being cleared at 13:37, not extra sun.
+
+**Judge array health from AFTERNOON hours only.** The array is south-east
+facing and shaded until early afternoon, so morning comparisons measure
+shade, not air quality — an earlier "smoke has not cleared" reading based on
+07:00/08:00 hours was withdrawn for exactly this reason.
 
 Peak `pv_v` is the sounder indicator since it is independent of the metering
 fault, and 61.7 -> 98.9 V is a genuine improvement. But it is still partly
