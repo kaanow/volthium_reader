@@ -106,7 +106,9 @@ def _assert_build_dirs_in_sync():
 
 
 def sh(*a):
-    return subprocess.run(a, capture_output=True, text=True, cwd=str(REPO))
+    return subprocess.run(
+        a, capture_output=True, text=True, encoding="utf-8",
+        errors="replace", cwd=str(REPO))
 
 
 def sem_field(pattern, required=True):

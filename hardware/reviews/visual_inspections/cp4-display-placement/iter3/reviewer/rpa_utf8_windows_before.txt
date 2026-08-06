@@ -1,0 +1,17 @@
+Host: Windows 11, Python 3.13, default subprocess text encoding cp1252
+Command: .venv\Scripts\python.exe hardware\reviews\tools\reviewer_patch_check.py
+Result: exit 1 before the reviewer patch
+
+The checker asked git log for commit messages with text=True but no encoding.
+The repository history contains UTF-8 text outside cp1252, so Python's reader
+thread failed before the RPA policy could return a verdict:
+
+UnicodeDecodeError: 'charmap' codec can't decode byte 0x9d in position 67:
+character maps to <undefined>
+
+The failed reader left stdout as None, causing a secondary failure:
+
+AttributeError: 'NoneType' object has no attribute 'split'
+
+The same implicit-decoding helper exists in handoff_check.py. That wrapper
+therefore receives an opaque RPA failure rather than a policy verdict.

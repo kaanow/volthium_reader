@@ -1,0 +1,22 @@
+Host: Windows 11, Python 3.13
+Patch under test: explicit UTF-8 decoding with replacement for text subprocesses
+
+Direct policy gate:
+  Command: .venv\Scripts\python.exe hardware\reviews\tools\reviewer_patch_check.py
+  Exit: 0
+  Output: RPA: clean - no reviewer patches in
+          3e4c097d891d4f516f7b51e264308a679d7f3995..HEAD
+
+Integration boundary:
+  Command: .venv\Scripts\python.exe hardware\reviews\tools\handoff_check.py
+  Exit: 0
+  Output:
+    [rebuild] schematic/build.py: rc=0
+    [rebuild] schematic/build_display.py: rc=0
+    [rebuild] pcb/build.py: rc=0
+    [rebuild] pcb/build_display_pcb.py: rc=0
+    HANDOFF: CLEAN - artifacts fresh, hashes true, consistency ok
+
+The commands completed without the cp1252 UnicodeDecodeError or the secondary
+None.stdout failure. The full handoff also proves that no deterministic design
+artifact changes are needed for this host adaptation.

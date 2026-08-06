@@ -55,7 +55,9 @@ BUILD_DIRS = ["hardware/kicad/schematic/build",
 
 
 def sh(*args, **kw):
-    return subprocess.run(args, capture_output=True, text=True, **kw)
+    return subprocess.run(
+        args, capture_output=True, text=True, encoding="utf-8",
+        errors="replace", **kw)
 
 
 def head_blob(rel):
