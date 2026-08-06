@@ -375,6 +375,7 @@ def orientation_asserts(findings):
 
 def main():
     core.configure(PROJECT, "build", NETLIST)
+    core.assert_single_back_transform()
     if not core.selftest_gates():
         print("[selftest] FAILED — refusing to build")
         return 2

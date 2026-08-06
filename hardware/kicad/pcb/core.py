@@ -1101,6 +1101,41 @@ def export_svg(pcb_path, out_svg, layers):
 # ---------------------------------------------------------------------------
 # Build-start self-test: every analytic gate must demonstrably fail
 # ---------------------------------------------------------------------------
+def assert_single_back_transform():
+    """Fail the build if any module re-implements the back-side mirror.
+
+    CP4 F01: the mirror convention existed in four places — _xf (gates),
+    _flip_to_back (writer), auto_refdes's inverse, and cc() in BOTH pcb
+    builds. I corrected three and swore the class was swept; the fourth
+    shipped a board whose parts sat 18 mm from their stated positions.
+    A convention duplicated across files cannot be kept correct by
+    diligence, so this makes a fifth copy a build failure rather than a
+    future finding.
+    """
+    import ast
+    bad = []
+    for f in sorted(HERE.glob("*.py")):
+        src = f.read_text(encoding="utf-8")
+        for node in ast.walk(ast.parse(src)):
+            # a unary negation assigned to an x-ish mirror variable
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.UnaryOp) \
+                    and isinstance(node.value.op, ast.USub):
+                tgt = node.targets[0]
+                name = getattr(tgt, "id", None) or getattr(tgt, "attr", None)
+                inner = node.value.operand
+                iname = getattr(inner, "id", None) or getattr(inner, "attr", None)
+                if name and iname and name == iname and name.lower().endswith("x"):
+                    if f.name != "core.py":
+                        bad.append(f"{f.name}:{node.lineno}: {name} = -{iname}")
+    if bad:
+        raise SystemExit(
+            "[transform] a back-side mirror is re-implemented outside core: "
+            + "; ".join(bad)
+            + "\n  The project has ONE back-side transform (core._xf, which "
+              "negates Y). Delegate to it instead of copying the convention.")
+    return True
+
+
 def selftest_gates():
     ok = True
     # courtyard collision must fire on two overlapping 0603s and stay

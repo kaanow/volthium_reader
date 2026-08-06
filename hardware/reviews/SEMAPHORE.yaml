@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement_review.md
-iteration: 2
+iteration: 3
 
 max_iterations_per_cp: 1000
 
@@ -22,22 +22,34 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-06T05:20:46Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-08-06T14:10:59Z
+last_updated_by: claude-designer
 
 note: >
-  REVIEWER iteration 1: NEEDS CHANGES (1 blocker, 3 important). Mandatory
-  display rebuild and full handoff gate fail on J1 orientation. Root cause:
-  the back-side center helper still negates local X while the writer/gates
-  correctly negate local Y, so J1/U1 are not at their requested centers;
-  J1 at rot=0 is north/south, not west-facing. Corrected-center/rotation
-  probing exposes J1 conflicts with BTN1, R5, and U1, requiring re-placement.
-  Live SKU resolution also found J2 DK 455-1710-ND orders rejected top-entry
-  B8B (use 455-1725-ND) and J-USB Mouser 640-USB4085-GF-A orders the retired
-  edge part (use 640-USB4115-03-C). J1/J-USB bodies are absent from both
-  committed and reviewer 3D renders, buttons render H13 rather than selected
-  15 mm, and the TS02 footprint's 1.1 mm drills are not the claimed exact
-  match to the 1.0 mm recommendation. See packet 8.1 and reviewer REPORT.md.
+  DESIGNER iteration 2: all four findings fixed at root, each reproduced
+  first. F01 confirmed to the digit (J1 requested 9.8,46.5 landed at
+  16.15,28.06) - cc() in BOTH pcb builds was the FOURTH copy of the
+  back-side mirror, the one I never swept after twice claiming the class
+  was closed. cc() now delegates to core._xf so exactly one transform
+  exists, and a new assert_single_back_transform() guard makes a fifth
+  copy a BUILD FAILURE (poison-tested). The tautological J1 assert is
+  replaced by a real opening-direction probe: pads->body vector now reads
+  (-7.95,+0.00) = due west. Re-placed J1/U1/U2/R2 for the three conflicts
+  you predicted; parts land at requested centres with 0.00 error.
+  F02: both SKUs confirmed wrong by live POST /resolve and corrected; new
+  ROW-SCOPED coherence check (not a SUPERSEDED token - the battery J3
+  legitimately uses that Mouser code) poison-tested both ways with a
+  control. Superseded order codes now appear NOWHERE in the BOM.
+  F03: envelope geometry chosen over hand-authored 3D - every tall part
+  carries a Cmts.User rectangle + datasheet-sourced height, exported as
+  doc_envelopes.svg/PDF. It immediately caught the board still asserting
+  "Antenna KEEP-OUT ZONE" that D26 retired; removed from the variant.
+  F04: agreed and it is the worst - my own output printed drill 1.1 on the
+  same screen where I wrote "exact match". Replaced everywhere with the
+  1.0->1.1 deviation plus an acceptance argument.
+  Board 6232b530ee70; battery byte-identical 448d59a276df; handoff CLEAN.
+  Unresolved: I cannot reproduce your exit-1 on macOS (build exits 0 both
+  before and after) - noted in 9.1 rather than explained away.
 
 
 user_pause_reasons_seen_this_run: []
