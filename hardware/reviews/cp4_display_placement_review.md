@@ -150,12 +150,47 @@ DRC final state: **0 unaccounted**. Accepted:
   costs **no depth**. Board is placed as the current (edge) part pending the
   user's call; if option B is taken, J-USB's footprint, pin map and the
   E-edge overhang whitelist all change.
-- **Per-instance evidence for the MOD1 `lib_footprint_mismatch`** is owed in
-  the CP3 style (pad-diff proving non-geometric).
-- **Depth tally re-confirmation**: the front gap is now set by J3 (~9.4 mm),
-  not the 8 mm assumed in cp1 §2.1; the plunger length that follows
-  (~15 mm) is still inside the 6×6×N catalog but should be re-derived from
-  the CP6 STEP.
+- ~~Per-instance evidence for the MOD1 `lib_footprint_mismatch`~~ **DONE** —
+  `visual_inspections/cp4-display-placement/iter1/mod1_pad_diff.txt`: all
+  **62/62 pad tuples** (number, type, shape, x, y, angle, sizeX, sizeY)
+  identical between board copy and library; graphic-layer counts match
+  (F.CrtYd 4, F.SilkS 8, F.Fab 6, Cmts.User 2); the entire delta is one
+  `(unlocked yes)` token and the `embedded_fonts` token — kiutils
+  serialisation, non-geometric. Same class and same evidence shape CP3 §2
+  used for its MOD1 accept.
+- ~~Depth tally re-confirmation~~ **DONE, and it moved** — see §4.4.
+
+### 4.4 Depth stack corrected, and the button plunger resolved
+
+CP1 §2.1 assumed an 8 mm PCB→module standoff gap. Measured from the parts
+actually placed, the tallest front-side component is **J3, the Würth
+61200621621 box header at 9.1 ±0.15 mm** (drawing p.1, on file) — so the gap
+must be **~9.5 mm**, and the total stack **~34.5 mm** against ~45 mm usable
+(~10.5 mm margin, previously quoted as ~12 mm). `cp1_display_side.md §2.1`
+updated with the correction and its source.
+
+That closes a CP1 defer. Plunger length = gap + faceplate + protrusion =
+9.5 + 3 + 2.5 = **15 mm**, which is a real catalog height, so BTN1–3 are no
+longer `_verify_`: **Same Sky TS02-66-150-BK-160-SCR-D** (datasheet fetched
+from the manufacturer — Mouser's mirror WAF-serves HTML, the same trap as
+the GCT drawing at CP3; manifest row added). Checks performed:
+- `150` = 15.0 mm actuator, and it is **not** one of the starred heights the
+  part-number key restricts to long-crimped terminals, so `SCR` is valid;
+- datasheet p.2 recommended land pattern **6.5 × 4.5 mm, 4 × drill 1.0**
+  versus the stock `SW_PUSH_6mm_H13mm` footprint's pads — **exact match**
+  (verified, not assumed — the DR-33 lesson);
+- ratings 12 Vdc / 50 mA, −30…+80 °C, 80,000 cycles at 160 gf — the 3V3
+  button-to-GND use is far inside all three.
+
+**Push force (160 gf) is an engineering pick, not a derived value.** 100 and
+260 gf are drop-in siblings; if the button feel wants changing it costs only
+a part-number character. Flagged for the user rather than presented as
+settled.
+
+Heights still carried from earlier work and **not** re-sourced this
+checkpoint: J-USB (~3.2 mm), MOD1 (~3.1 mm), F1/J5 (~3–4 mm). None is within
+6 mm of the 9.1 mm driver, so none can change the gap; they would need a
+datasheet pass only if the stack is ever re-cut around a different tall part.
 
 ## 7. D13 scorecard
 

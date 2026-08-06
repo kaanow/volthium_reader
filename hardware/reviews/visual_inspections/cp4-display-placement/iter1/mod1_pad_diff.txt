@@ -1,0 +1,13 @@
+MOD1 lib_footprint_mismatch — evidence that the delta is non-geometric
+======================================================================
+pads: board 62  library 62
+pad tuples (number,type,shape,x,y,angle,sizeX,sizeY) identical: True
+
+graphic-layer counts — library: {'F.CrtYd': 4, 'F.SilkS': 8, 'F.Fab': 6, 'Cmts.User': 2}
+board chunk layer refs (includes pads/properties): {'F.Cu': 1, 'F.SilkS': 9, 'F.Fab': 9, 'F.CrtYd': 4, 'Cmts.User': 2}
+
+tokens present in library text but absent from the board chunk:
+   (unlocked yes)     lib=  5  board=  4
+   embedded_fonts     lib=  1  board=  0
+   (fill no)          lib=  0  board=  0
+   (fill solid)       lib=  0  board=  0
