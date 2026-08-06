@@ -1092,7 +1092,7 @@ avoid all strapping/PSRAM/console pins.
 
 ---
 
-## DR-31 — Xanbus CAN read (provisioned)  [**GATE MET 2026-08-05** — the software work landed; OPEN only as a populate / don't-populate call at BOM-lock]
+## DR-31 — Xanbus CAN read (provisioned)  [**RESOLVED 2026-08-05 — POPULATE** (user call); see D42. D2 remains DNP by design. Write capability assessed: no hardware change needed]
 
 **The gate condition is satisfied.** This item was held because "the protocol work is a software project outside this repo". It is neither outside this repo nor unproven any more:
 - `docs/xanbus-decode.md` (2026-07-27): **"essentially solved for the priority fields"** — CAN field layouts taken from `extrafu/berrybms`, cross-checked against Schneider's Conext Modbus maps, and **validated by correlation against our own capture corpus** (`xanbus_reader.py --validate`). Only the cumulative energy counters (PGN 127166) still need correlation.

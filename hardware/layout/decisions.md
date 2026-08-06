@@ -2487,3 +2487,57 @@ rewrite the gate, commit design data directly, or push to `main`. The known
 limit is stated in the gate's own docstring rather than papered over.
 **Revisit if the model changes** — a third-party reviewer, contributors who
 are not the principal, or an artifact needing provenance outside this loop.
+
+## D42 — Xanbus CAN is POPULATED, and write capability needs no hardware change
+
+**Date**: 2026-08-05 (user call; closes DR-31)
+
+**Populate.** U7 (TCAN332DR), Q5 (NTR4171P gate), R14 (100 k default-OFF
+pull-up), R15 (120 Ω termination), J7 (termination jumper) and J6 (Xanbus
+RJ45) are **fitted on the build**. The gate that held this — "the protocol
+work is a software project outside this repo" — is met: the decode is
+validated against our own capture corpus, a live telemetry service is
+deployed, and a write path exists (see DR-31). The BOM already carried these
+at qty 1, so this decision confirms rather than changes the line items.
+
+**D2 stays DNP** — unchanged and deliberate. No TVS can simultaneously stand
+off the ±12 V CAN common-mode range and clamp below the TCAN332's ±14 V bus
+abs-max (F03, 2026-07-24); the footprint remains for a future part, and no
+coordination is claimed.
+
+**Write capability: no design change required.** The question was whether
+letting the reader *transmit* on Xanbus (once the protocol matures) affects
+the hardware. It does not, and the reasons are properties the part already
+has for the read case — verified from TCAN332 datasheet p.1 (SLLSEQ7F):
+
+- **Driver dominant time-out (TXD DTO)** is built into the transceiver. A
+  hung MCU holding TXD dominant cannot jam the Xanbus indefinitely — the
+  transceiver releases the bus itself. This is the single biggest hazard of
+  turning a listener into a talker, and it is already covered in silicon.
+  (Receiver DTO is present too.)
+- **The power gate fails safe in the right direction.** CAN_PWR is
+  active-LOW with a 100 k pull-up, so any MCU reset — including a watchdog
+  reset after a firmware hang — releases the gate, unpowers U7, and its bus
+  pins go **high-Z**, removing the node from the network entirely.
+- **Same pins, same node count, same loading.** TWAI is a full CAN
+  controller; TX and RX (IO40/IO41) were already assigned. A transmitting
+  node presents the same electrical load as a listening one, so the ±12 V
+  common-mode range, ±14 V fault tolerance and termination scheme are
+  unchanged. GPIO budget is untouched (and remains exhausted).
+- **Termination already switchable** (R15 + J7), which matters more for a
+  talker but was provisioned anyway.
+
+**What write does change is firmware and process, not schematic:**
+1. The MCU must not sit in TWAI *listen-only* mode when writing — note that
+   the TCAN332 has **no transceiver-level silent mode** (that is TCAN330/337
+   in the same family), so bus participation is governed by the TWAI mode and
+   the power gate. Read-only builds should use listen-only so the reader does
+   not even ACK.
+2. Firmware must keep the watchdog armed — the fail-safe above depends on a
+   hang leading to a reset.
+3. Transmitting may keep the transceiver powered longer, which is a
+   power-budget line, not a topology change.
+4. **Writing to a live inverter/charge-controller stack is a different risk
+   posture than listening.** The hardware permits it safely; whether the
+   product *should* command the Schneider stack — and under what interlocks —
+   is a requirements question, and is where any future review should focus.
