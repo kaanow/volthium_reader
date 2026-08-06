@@ -152,6 +152,41 @@ power test — but it aborted at 12:55 without intervention, which the
 prediction did not allow for. Recorded rather than removed, because the
 correction is the finding.
 
+### The deficit crossover is the trigger — caught cleanly at 15:15 on 08-06
+
+The sawtooth model above predicts that descents abort while surplus is
+positive and become terminal once it is not. The afternoon of 08-06 shows the
+transition happening at a single identifiable moment:
+
+| local | pv_v | solar W | load W | surplus | |
+|---|---|---|---|---|---|
+| 14:00 | 46.6 | 143 | 121 | +22 | dips, recovers |
+| 14:05 | 52.1 | 181 | 113 | +69 | **recovered** |
+| 14:45 | 48.1 | 146 | 112 | +34 | dips |
+| 14:50 | 51.1 | 168 | 109 | +59 | **recovered** |
+| 15:15 | 46.9 | 112 | 113 | **-1** | **crossover** |
+| 15:30 | 44.7 | 65 | 112 | -47 | no recovery |
+| 16:00 | 34.9 | 22 | 116 | -94 | no recovery |
+| 16:35 | 29.6 | 5.3 | 114 | -109 | **clamped** |
+
+Before 15:15 every dip recovered, three times in an hour. From the moment
+surplus went negative there was **not one recovery** — a monotonic 80 minute
+walk into the clamp. That is the predicted behaviour, on data collected after
+the prediction was written.
+
+It is not merely sunset: computed POA falls ~36% between 15:00 and 16:00 while
+measured power fell 85%, and voltage fell with it. The evening irradiance
+decline supplies the *crossover*; the runaway supplies the *collapse*.
+
+**Practical consequence — the guard should not fix a latch it cannot hold.**
+At 17:00 local the sun is 33 deg up but an SE array is nearly edge-on to it;
+scaling the healthy 11:00 measurement (228 W at POA 867) gives roughly **32 W
+available against a ~113 W load**. A bounce then cannot be sustained by
+definition. Prediction, recorded before the guard's 17:00 run: it will ACK,
+the array will fly up briefly, and it will **re-latch within ~10-30 min**.
+That is the Unknown #2 deficit case, arriving on its own without anyone
+forcing it.
+
 `mppt_latch_context` still ships 20 min of 1 Hz run-up with each latch event
 for the finer detail.
 
