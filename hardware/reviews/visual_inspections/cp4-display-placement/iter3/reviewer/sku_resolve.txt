@@ -1,0 +1,19 @@
+Live call: POST http://eridani.zt:8787/resolve
+Date: 2026-08-06
+Request:
+  by: distributor_sku
+  digikey 455-1725-ND
+  mouser 640-USB4115-03-C
+
+Results:
+  digikey 455-1725-ND
+    matched: exact
+    manufacturer: JST Sales America Inc.
+    manufacturer_part_number: S8B-PH-K-S
+  mouser 640-USB4115-03-C
+    matched: exact
+    manufacturer: GCT
+    manufacturer_part_number: USB4115-03-C
+
+providers_queried: digikey, mouser
+elapsed_ms: 943.3

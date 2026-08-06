@@ -341,6 +341,114 @@ Routing-quality gates remain outside CP4 scope. Evidence is in
 **REVIEW COMPLETE**: NEEDS CHANGES - 1 blocker, 3 important.
 
 
+### 8.2 Reviewer findings (iteration 3)
+
+Reviewed design commit: `1a357eaa75c69198713498393e31f8a1cf7ad70e`.
+Host-only reviewer patch: `80387419563e6dcc2a6baf6006e0461db10ca22f`.
+
+The F01 placement/orientation repair passes a fresh Windows rebuild, the
+designer's analytic gates, an independent serialized-board AABB model, and
+reviewer inspection at crop zoom. Both F02 replacement SKU cells resolve
+exactly to their selected MPNs. F03's dimensioned envelope geometry is present
+and readable, and F04's 1.0-to-1.1 mm drill substitution is now stated and
+supported by the on-file drawing. The new findings below are limited to
+completion and regression-gate defects introduced or left open by iteration 2.
+
+#### Finding 05 - IMPORTANT - the mandatory D13 scorecard is still deferred, and its DRC count is stale
+
+**Issue**: Packet section 7 still says the D13 scorecard is deferred even though
+iteration 1 Finding 03 explicitly required the binary scorecard before CP4 could
+close. Packet section 5 also describes the final DRC state as one
+`lib_footprint_mismatch`; the fresh report contains two, J-USB and MOD1. Section
+4.5 documents the added J-USB mismatch and its 30/30 pad-diff evidence, so this
+is a stale count rather than an unjustified footprint, but it prevents the
+required one-row-per-criterion sign-off from being audited.
+
+**Evidence**: `decisions.md` D13 lines 692-700 require every packet to include
+an explicit PASS/FAIL row for each applicable F-/SR-/PR- criterion. Packet
+section 7 remains "Deferred to iteration 2." Fresh reviewer evidence
+`visual_inspections/cp4-display-placement/iter3/reviewer/drc.rpt` reports
+`lib_footprint_mismatch` x2 at J-USB and MOD1.
+
+**Suggested fix**: complete section 7 with every applicable F-P and PR criterion
+as binary PASS/FAIL plus evidence, and update section 5 to the actual two
+per-instance-justified mismatch warnings. Do not substitute a prose summary for
+the D13 table.
+
+#### Finding 06 - IMPORTANT - both corrected BOM rows swallowed the following component row
+
+**Issue**: The order codes corrected for F02 are right, but each edit merged the
+next component onto the same physical Markdown row. `C6` now appears after the
+J2 notes on line 290, and `U-ESD` appears after the J-USB notes on line 314.
+Those refs no longer have independent table rows, and the new row-scoped
+coherence checker exits 0 on the malformed table.
+
+**Evidence**: `hardware/layout/cp1_bom.md:290` contains both J2 and C6 fields on
+one physical row; line 314 contains both J-USB and U-ESD fields on one physical
+row. The mandatory
+`doc_consistency_check.py` returned exit 0 at the start of this pass. The live
+changed-cell audit independently returned exact matches:
+`455-1725-ND -> S8B-PH-K-S` and `640-USB4115-03-C -> USB4115-03-C`; see
+`visual_inspections/cp4-display-placement/iter3/reviewer/sku_resolve.txt`.
+
+**Suggested fix**: restore C6 and U-ESD as separate Markdown rows without
+changing the verified order codes. Extend the checker with table-shape
+validation that enforces the header's column count and exactly one recognized
+ref field per row, then poison-test both concatenations.
+
+#### Finding 07 - BLOCKER - the RPA enforcement path crashed on Windows; reviewer patch awaits designer acceptance
+
+**Issue**: After all four generators passed, `reviewer_patch_check.py` decoded
+UTF-8 `git log` output with Windows cp1252 and crashed before returning a policy
+verdict. The handoff wrapper consequently failed with only an opaque RPA exit.
+This is host-limited, so reviewer patch `8038741` adds explicit UTF-8 decoding
+to the text subprocess helpers in both enforcement scripts. It is tested but
+unaccepted until designer review.
+
+**Evidence**: The before transcript records the `UnicodeDecodeError` and
+secondary `None.stdout` failure. The after transcript records direct RPA exit 0
+and complete handoff exit 0 with all four rebuilds. Both are committed with the
+patch under `visual_inspections/cp4-display-placement/iter3/reviewer/`.
+The patch changes only two review-tool helpers and host evidence; deterministic
+design artifacts remained byte-identical.
+
+**Suggested fix**: inspect patch `8038741` line by line because it touches the
+RPA enforcement surface. If accepted, add exactly
+`RPA-ACCEPTED: F07 8038741` in the iteration-4 designer response. If rejected,
+state the concrete issue and retain the finding; do not ask the macOS designer
+to guess at another Windows encoding fix.
+
+#### Finding 08 - IMPORTANT - the single-transform guard misses duplication of the actual transform
+
+**Issue**: `assert_single_back_transform()` claims to reject any new module that
+re-implements the back-side mirror, but its AST test only rejects self-negation
+whose variable name ends in `x`. The correct project convention negates Y. A
+temporary external `mirror_y = -mirror_y` duplicate passes, so the guard does
+not enforce the invariant used to close the repeated F01 defect class.
+
+**Evidence**: The current-tree control passes and an external
+`mirror_x = -mirror_x` positive control is caught. The adversarial
+`mirror_y = -mirror_y` poison is accepted. Transcript:
+`visual_inspections/cp4-display-placement/iter3/reviewer/transform_guard_poison.txt`.
+The implementation is at `hardware/kicad/pcb/core.py:1104-1135`.
+
+**Suggested fix**: make the guard enforce ownership rather than the historical
+wrong expression: reject external self-negation of either coordinate used as a
+mirror (at minimum X and Y), while keeping `core.py` as the sole allowed owner.
+Add the missed `mirror_y = -mirror_y` poison beside the existing positive test.
+
+Coverage: mandatory consistency check exit 0; fresh display build exit 0; all
+four full-handoff rebuilds exit 0 after the bounded Windows repair; direct DRC
+reviewed; both changed SKU cells live-resolved; four manufacturer-PDF citation
+checks completed; independent board-file geometry plus designer gates plus
+eyes-at-crop-zoom completed; all eight reviewer crops and the envelope plot
+inspected. Detailed evidence is in
+`visual_inspections/cp4-display-placement/iter3/reviewer/REPORT.md`. Routing
+quality remains CP5 scope; CP5 was not started.
+
+**REVIEW COMPLETE**: NEEDS CHANGES - 1 blocker, 3 important. (See findings 05, 06, 07, 08.)
+
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-08-06)

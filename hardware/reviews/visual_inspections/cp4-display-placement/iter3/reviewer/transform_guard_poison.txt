@@ -1,0 +1,18 @@
+Gate: hardware/kicad/pcb/core.py::assert_single_back_transform
+
+CONTROL - current source tree:
+  Result: PASS
+
+POSITIVE CONTROL - temporary external file containing:
+  mirror_x = -mirror_x
+  Result: caught as duplicate.py:1; PASS
+
+ADVERSARIAL POISON - temporary external file containing the actual correct-axis
+mirror operation:
+  mirror_y = -mirror_y
+  Result: accepted; POISON MISSED
+
+The implementation only rejects self-negation assignments whose target name
+ends in x. It therefore detects a recurrence of the old wrong-axis expression,
+but does not enforce the stated invariant that no module re-implements the
+correct back-side transform outside core.
