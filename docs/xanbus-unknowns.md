@@ -6,12 +6,33 @@ the `xanbus` skill.
 
 ## Tier 1 — worth testing soon
 
-**1. Does the latch have a trigger, or is it purely an IV-curve slide?**
-We know the *mechanism* (demand exceeds supply → operating point slides to the
-diode clamp) but not whether something *precipitates* it: a load step, a cloud
-edge, an SOC threshold, a charge-stage transition, or a controller-side
-decision. Now instrumented — `mppt_latch_context` ships 20 min of 1 Hz
-run-up with every latch event. **Test: read the trail after the next latch.**
+**1. It is a SLIDE, not a trigger — observed live 2026-08-06 morning.**
+
+Caught the run-up in progress. Array voltage walks steadily DOWN as the MPPT
+extracts more current, with no discrete event anywhere:
+
+| local | pv_v | delta | solar W | house W |
+|---|---|---|---|---|
+| 07:16 | 63.0 | 36.6 | 24 | 90 |
+| 07:42 | 51.5 | 25.0 | 33 | 108 |
+| 08:15 | 52.2 | 25.6 | 43 | 130 |
+| 08:41 | 44.6 | 18.1 | 41 | 131 |
+
+No load step, no cloud edge, no charge-stage change, no SOC threshold — just a
+monotonic walk down the IV curve as demand rises. **The precondition is the
+interesting part: the battery was DISCHARGING (−50 W) in full daylight all
+morning**, meaning demand exceeded supply continuously, so the MPPT was
+pulling maximum current the entire time. That is what walks the operating
+point down until it hits the diode clamp and cannot climb back.
+
+So the latch needs no trigger. It needs only *sustained demand above what a
+smoke-limited array can supply*. Which implies a preventative fix exists that
+the mode-bounce does not provide: **limit charge current so the operating
+point never reaches the clamp.** Worth considering once the write path is
+trusted (`CHG_CFG_I_LIMIT` / max charge rate, currently 100%).
+
+`mppt_latch_context` still ships 20 min of 1 Hz run-up with each latch event
+for the finer detail.
 
 **2. Does the latch recur after our fix, and how fast?**
 If it re-latches within minutes, the guard's cooldown and daily cap turn into
