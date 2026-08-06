@@ -781,7 +781,9 @@ the guaranteed-HIGH region. Bias is noise-margin insurance, not a
 fail-safe requirement.
 DR-13 stays RESOLVED with the improved threshold picture.
 
-## DR-26 — RS-485 wired battery read: co-equal alternative transport (both packs)  [OPEN — design proposed 2026-07-15 (D36); needs CP1-delta review before CP2]
+## DR-26 — RS-485 wired battery read: co-equal alternative transport (both packs)  [**DESIGN CLOSED** — reviewed and built through CP2+CP3; **OPEN only for bench verification** at CP5]
+
+**Status corrected 2026-08-05.** The old status ("needs CP1-delta review before CP2") went stale: that review happened. The two isolated channels are in the netlist (`ADM2587E` ×2 = U10/U11), passed the CP2 schematic review (both boards APPROVED 2026-07-26/29, DR-30) and were placed and approved at CP3 (merged to main as PR #14 — see the packet's isolation-separation record). **Nothing about the design is awaiting review.** What remains is bench work: confirm the isolated front end actually floats to each pack's reference and polls both packs, alongside the DR-28 bring-up tests at CP5.
 
 User directive: BLE to the two BMS is worryingly flaky → add a real,
 populated wired read path as a **co-equal alternative** (may become
@@ -875,7 +877,9 @@ Two readings, both provisional:
    weakly-referenced) — the §7 two-domain matrix keeps its gate role; this
    just raises the prior that the 2-wire float configuration passes.
 
-## DR-27 — Battery-side PicoBlade expansion header (D37)  [OPEN — design 2026-07-15; folds into the same CP1-delta review as DR-26]
+## DR-27 — Battery-side PicoBlade expansion header (D37)  [**DESIGN CLOSED** — reviewed and built through CP2+CP3; **OPEN only for bench verification** at CP5]
+
+**Status corrected 2026-08-05**, same cause as DR-26. `J_EXP` is in the netlist as `PicoBlade_53398-0871`, was reviewed at CP2 and placed at CP3 (the NE expansion column, with its legend-style refdes band). The load-switched default-OFF EXP_3V3 rail is drawn and gated. Remaining: bench-verify the switched rail and the I2C1/AIO pins when the board is populated.
 
 8-ckt Molex PicoBlade (53398-0871 vert / 53261-0871 r-a). Signals: 3V3,
 GND×2, dedicated **I2C1** (SDA/SCL, isolates the RV-3028 timekeeping bus),
@@ -1088,7 +1092,16 @@ avoid all strapping/PSRAM/console pins.
 
 ---
 
-## DR-31 — Xanbus CAN read (provisioned)  [OPEN — drawn + verified 2026-07-22; population gated on the Xanbus software work]
+## DR-31 — Xanbus CAN read (provisioned)  [**GATE MET 2026-08-05** — the software work landed; OPEN only as a populate / don't-populate call at BOM-lock]
+
+**The gate condition is satisfied.** This item was held because "the protocol work is a software project outside this repo". It is neither outside this repo nor unproven any more:
+- `docs/xanbus-decode.md` (2026-07-27): **"essentially solved for the priority fields"** — CAN field layouts taken from `extrafu/berrybms`, cross-checked against Schneider's Conext Modbus maps, and **validated by correlation against our own capture corpus** (`xanbus_reader.py --validate`). Only the cumulative energy counters (PGN 127166) still need correlation.
+- A **live telemetry service is deployed**: `deploy/pi/systemd/volthium-xanbus-telemetry.service` runs `scripts/xanbus_telemetry.py` (CAN decode → 15 s rows → Railway), alongside a raw-capture service.
+- A **write path** exists (`scripts/xanbus_write.py`), with 23 tests across the two modules.
+
+**What is left is a build decision, not a technical unknown:** populate U7 (TCAN332DR), Q5, D2 and the R15/J7 termination on the assembled board, or leave them unstuffed. At build quantity 1 the parts are ~$6 and the footprints are already placed, so populating costs almost nothing and skipping it forfeits the reader's ability to take Xanbus over from the Pi. **Recommend populating.**
+
+**One thing to flag rather than assume:** DR-31's scope is *read*. A Xanbus **write** path now exists in software. Writing to a live inverter/charge-controller stack from this board is a different risk conversation (and a different requirement) than listening to it — if that is intended, it needs its own review rather than arriving implicitly with the CAN transceiver.
 
 **User-approved requirements change (2026-07-22):** add a CAN transceiver so
 the reader can listen to the **Xanbus** network of the Schneider stack
