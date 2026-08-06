@@ -238,3 +238,102 @@ Consequences, each checked rather than assumed:
 Deferred to iteration 2 — this packet is the first hand-off of a board whose
 generator changed materially underneath it, and the reviewer's independent
 rebuild is the more valuable first check.
+
+## 8. Reviewer findings
+
+### 8.1 Reviewer findings (iteration 1)
+
+Reviewed commit: `ff1da386ca286dddfc0d3c0a0ade1b95e31111b9`
+
+#### Finding 01 - BLOCKER - back-side center placement is still using the retired mirror axis, and J1 does not face west
+
+The mandatory rebuild-first precondition fails. The documented display build
+returns exit 1 on its own J1 orientation gate, and the full handoff check
+rebuilds both schematics and the battery PCB successfully before failing on
+the display PCB with the same finding.
+
+The failure exposes a real committed-placement defect. `core._xf()` and
+`_flip_to_back()` correctly mirror local Y, but `build_display_pcb.py:cc()`
+still negates local X when centering a back-side footprint. Independent
+recomputation therefore puts J1's requested courtyard center `(9.8, 46.5)` at
+`(16.15, 28.06)` and U1's requested `(22, 41)` at `(26.97, 45.50)`. J1 also
+remains at 0 degrees: its locating posts and signal row differ along board Y,
+so its connector axis is north/south, not west. The current assertion compares
+the signal-row X centroid with a symmetric courtyard X centroid; those are
+equal by construction and do not encode the opening direction.
+
+A scratch probe with the correct back-center transform and J1 rotated 90
+degrees puts the locating posts west of the signal row, but then reveals three
+real conflicts: BTN1 through-pads into J1, J1 through-pads into R5, and J1's
+courtyard into U1. This cannot be fixed by weakening the assertion.
+
+Required resolution: make center placement use the same mirror-Y transform as
+the writer/gates; orient J1 from a probe that compares the locating-post/body
+direction with the signal row; then re-place J1, U1, BTN1/R5 as required until
+the corrected through-pad/courtyard gates and DRC are clean. The bare Windows
+build and full handoff check must both exit 0 before the next handoff.
+
+#### Finding 02 - IMPORTANT - two CP4 BOM SKU cells order the rejected physical variants
+
+Live `/resolve` checks contradict the display BOM:
+
+- J2 Digi-Key `455-1710-ND` resolves exactly to **B8B-PH-K-S**, the rejected
+  top-entry header, not the selected side-entry S8B part. The verified active,
+  in-stock S8B code is **`455-1725-ND`**.
+- J-USB Mouser `640-USB4085-GF-A` resolves exactly to the retired edge-mount
+  **USB4085-GF-A**, not vertical USB4115. The verified USB4115 Mouser code is
+  **`640-USB4115-03-C`**.
+
+The Digi-Key USB4115 code resolves correctly, and the button code resolves to
+the intended TS02 variant. Related propagation is incomplete:
+`cp1_display_side.md` still calls J-USB the edge-mount USB4085, and the J2 BOM
+description says `S8B` for both top and side entry instead of B8B/S8B. The
+mandatory consistency checker exited 0 despite all of these live
+contradictions.
+
+Required resolution: replace both wrong SKU cells, correct the stale J-USB and
+J2 prose, add the superseded object/SKU tokens to the persistent consistency
+coverage, and poison-test that the checker rejects reintroduction of either
+wrong-order object.
+
+#### Finding 03 - IMPORTANT - the visual/3D evidence omits the load-bearing mechanical bodies
+
+The committed designer renders and fresh reviewer renders agree: J1 and the
+new J-USB render as pads/courtyards only, with no connector body. J1 references
+`${WE_3DMODEL_DIR}`, which is neither repo-bound nor present in the render; the
+stock USB footprint references a STEP absent from this KiCad 10 model install.
+BTN1-3 use `SW_PUSH_6mm_H13mm`, so the rendered body is 13 mm while the selected
+TS02 actuator is 15 mm. These are exactly the parts that establish cable-entry
+direction, the 9.7 mm front gap, the 13.6 mm back depth, and faceplate reach.
+
+Required resolution: provide deterministic 3D bodies for J1, J-USB, and the
+15 mm button variant, or committed dimensioned envelope geometry that appears
+in the reviewer-visible top/bottom outputs. Re-render both faces and complete
+the binary D13 scorecard; deferring the scorecard leaves CP4's mechanical
+claims without the mandatory eye-at-crop-zoom layer.
+
+#### Finding 04 - IMPORTANT - the TS02 footprint is compatible-looking, not the claimed exact match
+
+The on-file Same Sky drawing specifies a 6.5 x 4.5 mm, four-drill **1.0 mm**
+recommended pattern. The stock KiCad footprint has the same centers but uses
+**1.1 mm** drills. Its 2.0 mm pads still leave a 0.45 mm annular ring and the
+largest 0.8 mm terminal has 0.3 mm diametral clearance, so the substitution is
+plausibly sane; it is simply not identity evidence.
+
+Required resolution: replace every "exact match" claim with an explicit
+1.0-to-1.1 mm deviation and a stated tolerance/assembly acceptance, or vendor
+the exact recommended drill pattern. Keep the verified pin grouping and
+6.5 x 4.5 mm centers on record.
+
+Coverage: `doc_consistency_check.py` passed; the documented rebuild and full
+handoff gate were run through the failing transcript; board/netlist blob hashes
+were independently reproduced; direct KiCad DRC found only the two documented
+footprint mismatches plus 123 expected unrouted items; KiCad exported all 39
+component placements; the back-side mirror was corroborated by the absence of
+J1/U1 library mismatches; the circular-courtyard checker was poison-tested;
+fresh top/bottom 3D renders, two fitted 2D geometry plots, and eight crop views
+were inspected; and four on-file manufacturer PDFs were checked directly.
+Routing-quality gates remain outside CP4 scope. Evidence is in
+`visual_inspections/cp4-display-placement/iter1/reviewer/REPORT.md`.
+
+**REVIEW COMPLETE**: NEEDS CHANGES - 1 blocker, 3 important.

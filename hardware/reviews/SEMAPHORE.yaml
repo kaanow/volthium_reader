@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement_review.md
-iteration: 1
+iteration: 2
 
 max_iterations_per_cp: 1000
 
@@ -22,30 +22,22 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-05T23:51:25Z
-last_updated_by: claude-designer
+last_updated_at: 2026-08-06T05:20:46Z
+last_updated_by: agent-reviewer
 
 note: >
-  CP3 APPROVED and merged to main (PR #14). CP4 display placement opened:
-  85x65 board, 43 footprints, 57 nets, all gates + DRC clean.
-  THIS IS THE FIRST BOARD WITH BACK-SIDE PARTS and it exposed SEVEN latent
-  defects in the shared generator, all fixed and poison-tested (packet 2):
-  the flip swapped layers without mirroring geometry (fabrication-class);
-  the mirror was then applied about the wrong axis; writer and gates used
-  different transforms; THT pads pierce the board but opposite-side pairs
-  were skipped; mounting holes registered one side only; circular
-  courtyards were silently dropped so holes gated NOTHING; and back-side
-  refdes were mis-framed and emitted onto F.SilkS. The approved CP3 board
-  re-verified byte-identical (448d59a276df) after every change.
-  Flip axis settled with KiCad as oracle, not by reasoning: only mirror-Y
-  makes a stock back-side footprint report no lib_footprint_mismatch
-  (packet 4.2). D39 records two schematic deltas: MOD1 courtyard now
-  implements D26 (the stock keepout flare would sterilise 36% of the
-  board), and J2 is side-entry because top-entry's 8.0mm mated height is
-  the whole PCB-to-module gap. DR-35 (USB-C reachability) is OPEN and
-  affects this placement - user leaning to a vertical connector; board
-  placed as the current edge part pending their call. Skill: kicad v0.5.0
-  documents the double-sided workflow.
+  REVIEWER iteration 1: NEEDS CHANGES (1 blocker, 3 important). Mandatory
+  display rebuild and full handoff gate fail on J1 orientation. Root cause:
+  the back-side center helper still negates local X while the writer/gates
+  correctly negate local Y, so J1/U1 are not at their requested centers;
+  J1 at rot=0 is north/south, not west-facing. Corrected-center/rotation
+  probing exposes J1 conflicts with BTN1, R5, and U1, requiring re-placement.
+  Live SKU resolution also found J2 DK 455-1710-ND orders rejected top-entry
+  B8B (use 455-1725-ND) and J-USB Mouser 640-USB4085-GF-A orders the retired
+  edge part (use 640-USB4115-03-C). J1/J-USB bodies are absent from both
+  committed and reviewer 3D renders, buttons render H13 rather than selected
+  15 mm, and the TS02 footprint's 1.1 mm drills are not the claimed exact
+  match to the 1.0 mm recommendation. See packet 8.1 and reviewer REPORT.md.
 
 
 user_pause_reasons_seen_this_run: []
