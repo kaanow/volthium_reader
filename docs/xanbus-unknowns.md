@@ -270,6 +270,63 @@ same shunt, so it is circular.
 
 **Therefore #5 cannot be settled remotely.** It needs an external
 measurement — a DC clamp meter on the MPPT output during an on-site visit.
+
+### PARTIALLY SETTLED 2026-08-06: during a clamp, the MPPT is blind, and the power is REAL
+
+The clamped case *can* be settled remotely, because the two meters are on
+opposite sides of the diode and the load is known. Comparing every clamped
+5 min bucket (`pv_v > 20`, delta 0.3-4.0 V) against BMS pack power:
+
+| day | n | MPPT reports | BMS pack power | max BMS |
+|---|---|---|---|---|
+| 07-30 | 25 | 23.5 W | **+267 W** | +359 W |
+| 07-31 | 36 | 14.1 W | +135 W | +323 W |
+| 08-01 | 59 | 10.0 W | +111 W | +462 W |
+| 08-03 | 64 | 14.5 W | +157 W | **+535 W** |
+| 08-04 | 120 | 10.9 W | +106 W | +311 W |
+| 08-06 | 11 | 6.3 W | **-31 W** | +20 W |
+
+(charger-free buckets only — see below.)
+
+**So the diode path really does carry hundreds of watts that the MPPT does not
+meter.** This confirms the overcharge story rather than the "it just stops
+producing" reading: during a clamp, setpoints do not apply and the battery can
+be taking +500 W with the controller reporting 15 W. That is a **safety**
+finding, not merely a production one, and it is the mechanism behind the BMS
+cell-overvoltage disconnect.
+
+Why: at ~28 V the array sits far left of Vmp, deep in its current-source
+region, so it delivers close to Isc — and Isc scales with irradiance. Hence
+the effect is huge in strong midday sun and absent on 08-06, whose clamps fell
+in morning shade and late-afternoon sun on a dim day (index 30%). **The clamp's
+danger scales with irradiance**, which is exactly why the 08-01..05 event was
+damaging and today's was not.
+
+Three alternative explanations were checked and rejected:
+
+1. *Generator or shore charger.* Ruled out with `charger_frac`: 07-30 had
+   **zero** charger buckets and still showed +267 W against 23.5 W reported.
+   The table above excludes every charger-on bucket anyway.
+2. *Wrong meter.* A first pass used CAN `dc_a`, which showed the battery
+   discharging in all 589 clamped buckets and suggested the opposite
+   conclusion. `dc_a` is the **inverter's own DC draw** (Unknown #11), not
+   battery net current. Retracted before it reached a commit.
+3. *Bucket averaging.* A second pass at 1800 s buckets mixed clamped and
+   healthy minutes and inflated the excess. At 300 s the effect survives on
+   07-30..08-04 and correctly vanishes on 08-06.
+
+**Consequence for every production figure in this file:** `solar_w` and the
+Modbus Wh counters understate latched periods by 10-40x, so latched-day totals
+are not floors-with-a-small-gap — they can miss the majority of the energy.
+Only healthy-delta samples may be used for array-health work, which is what
+the clear-sky index in #10 already does.
+
+**Consequence for detection:** there is a far more robust latch signature
+available than the voltage band — **BMS pack power greatly exceeding MPPT
+reported power** means the converter is bypassed, full stop. No thresholds, no
+dither problem, no dawn/dusk ambiguity. The obstacle is plumbing, not physics:
+the Xanbus reader and the RS485 BMS logger are separate services. Worth wiring
+up, as a cross-check alongside the band rather than a replacement.
 Operationally this is low-stakes: SOC and energy come from the BMS, and the
 display already derives production from battery + inverter rather than
 trusting the MPPT. Recording it so nobody re-runs the analysis expecting
