@@ -118,11 +118,28 @@ a dead end now that the native path works — keep for reference.
 
 ## Tier 3 — open questions about the physical system
 
-**10. Is the array actually healthy?**
-The smoke hypothesis explains the current ceiling well, but we've never seen
-the array perform in clean air since instrumenting it. **Test: watch dawn
-`pv_v` and sustained current once the fire smoke clears.** Recovery signature
-= peak `pv_v` back toward ~114 V with >3 A sustained above 60 V.
+**10. Array health — improving, but the record is CONFOUNDED by the latch.**
+
+Peak array voltage by local day: 07-30 112.7, 07-31 111.5, 08-01 111.8,
+08-02 76.9, 08-03 68.4, 08-04 61.7, **08-05 98.9**. MPPT-metered energy the
+same days: 984, 775, 242, 189, 261, 189, **1735** Wh.
+
+Do NOT read that 9x energy jump as smoke clearing. 08-02..04 were spent
+LATCHED, and a latched MPPT cannot meter power that bypasses it through the
+diode — so those totals are floors, not measurements. The 08-05 jump is mostly
+the latch being cleared at 13:37, not extra sun.
+
+Peak `pv_v` is the sounder indicator since it is independent of the metering
+fault, and 61.7 -> 98.9 V is a genuine improvement. But it is still partly
+latch-dependent (a latched array pins at ~28 V), so it is not clean either.
+
+**08-06 is the first day that starts with a working latch detector and a
+known-good converter, so its daily total will be the first uncontaminated
+production figure this project has.** Judge smoke recovery from that, not from
+the back-history.
+
+Dawn 08-06 also showed the array reaching `pv_v_max` 103.4 V at low load —
+encouraging, though dawn Voc is not comparable to midday Voc.
 
 **12. Generator fields — wired on spec, never validated.**
 `126998 assoc 0x13` (GEN1) V/I/freq. Correct per Xantrex's own enum table and
