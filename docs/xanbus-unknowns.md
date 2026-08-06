@@ -321,12 +321,27 @@ are not floors-with-a-small-gap — they can miss the majority of the energy.
 Only healthy-delta samples may be used for array-health work, which is what
 the clear-sky index in #10 already does.
 
-**Consequence for detection:** there is a far more robust latch signature
-available than the voltage band — **BMS pack power greatly exceeding MPPT
-reported power** means the converter is bypassed, full stop. No thresholds, no
-dither problem, no dawn/dusk ambiguity. The obstacle is plumbing, not physics:
-the Xanbus reader and the RS485 BMS logger are separate services. Worth wiring
-up, as a cross-check alongside the band rather than a replacement.
+**Consequence for detection:** **BMS pack power greatly exceeding MPPT reported
+power** means the converter is bypassed, full stop — no thresholds, no dither
+problem, no dawn/dusk ambiguity.
+
+But note what it does *not* do. On 08-06 the clamps were real and the excess
+was zero, because there was too little irradiance to push current through the
+diode. So this signature does not detect "is it clamped" — it detects **"is
+this clamp dangerous"**, which is arguably the more useful question. It is a
+*severity* signal, and the two are complementary:
+
+| | voltage band | BMS excess |
+|---|---|---|
+| answers | is the converter clamped? | is the clamp doing harm? |
+| fails when | sensor dither, dawn/dusk | irradiance too low to matter |
+
+That suggests a two-speed guard: the band drives the ordinary path (two
+confirmations, dawn/dusk exclusion, 20 min cadence), while a large BMS excess
+justifies **skipping the confirmation delay** — an unregulated +500 W into the
+pack is precisely the case where waiting 20 minutes for a second confirmation
+is the wrong trade. Not built; the obstacle is plumbing, not physics, since
+the Xanbus reader and the RS485 BMS logger are separate services.
 Operationally this is low-stakes: SOC and energy come from the BMS, and the
 display already derives production from battery + inverter rather than
 trusting the MPPT. Recording it so nobody re-runs the analysis expecting
