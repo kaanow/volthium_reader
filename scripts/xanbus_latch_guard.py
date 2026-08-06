@@ -61,10 +61,14 @@ SAMPLE_S = 45.0            # how long to watch before deciding
 # this is a BAND. An upper bound alone also matches NEGATIVE deltas — a dark
 # array sitting below battery voltage, which cannot conduct through the diode
 # at all. That misread dusk as a latch on 2026-08-05.
+# The ceiling must also clear the MPPT's reporting dither (~1.1 V on pv_v
+# against a steady out_v), or a continuous clamp samples as intermittent and
+# never reaches CLAMP_FRACTION. See xanbus_telemetry.LATCH_DELTA_MAX_V.
 CLAMP_DELTA_MIN_V = 0.3
-CLAMP_DELTA_MAX_V = 2.5
+CLAMP_DELTA_MAX_V = 4.0
 DAYLIGHT_V = 20.0          # a dark string still floats a few volts
 CLAMP_FRACTION = 0.9       # this much of the sample must be clamped
+AMBIGUOUS_FRACTION = 0.3   # above this but below CLAMP_FRACTION = report it
 COOLDOWN_S = 45 * 60       # minimum gap between fix attempts
 MAX_FIXES_PER_DAY = 4      # hard cap; a latch we can't fix must not loop
 VERIFY_S = 60.0            # watch this long after a fix to judge it
@@ -203,6 +207,16 @@ def main() -> int:
     if before["fraction"] < CLAMP_FRACTION:
         if st.pop("clamp_seen_at", None):           # healthy again — reset
             save_state(st)
+        # Bailing SILENTLY here is how a five-hour latch stayed invisible on
+        # 2026-08-06: the ceiling was tighter than the MPPT's dither, so a
+        # continuous clamp sampled at ~0.5 and fell out with no trace. A
+        # partial clamp is the interesting case — report it. Fully healthy
+        # (fraction near zero) stays quiet, so this costs no routine egress.
+        if before["fraction"] >= AMBIGUOUS_FRACTION:
+            emit("latch_guard_ambiguous",
+                 {"reason": "some samples clamped but below the acting "
+                            "threshold — partial clamp or a moving tracker",
+                  "threshold": CLAMP_FRACTION, **before})
         return 0                                    # healthy: quiet, no event
     # A clamp seen ONCE is not a latch. At dawn and dusk the array voltage
     # passes through battery voltage on its way up/down, so darkness looks

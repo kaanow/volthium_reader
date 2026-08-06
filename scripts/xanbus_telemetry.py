@@ -65,9 +65,19 @@ DROPOUT_S = 60                 # node silent this long -> node_dropout event
 # BELOW battery voltage (dark, non-conducting) and that read as a latch. It
 # fired a false positive at 21:24 on 2026-08-05 with delta -15.7 V and 0 W.
 LATCH_DELTA_MIN_V = 0.3        # below this the array isn't driving the diode
-LATCH_DELTA_MAX_V = 2.5        # above this the tracker has real headroom
+# The ceiling must clear the MPPT's own reporting dither, or a real latch
+# reads as intermittent. Measured during the unbroken 2026-08-06 10:20 local
+# clamp: pv_v hops over a ~1.1 V range (27.5-29.9) against a rock-steady
+# out_v, so the delta swings 0.90-3.44 V second to second. At 2.5 V, 47% of
+# 15 s buckets contained at least one out-of-band sample — enough to clear
+# the latched flag 25 s after raising it. 4.0 V covers the observed dither
+# with margin and is still nowhere near a healthy operating point: the
+# smallest delta seen while genuinely tracking that day was 8.2 V, and
+# 13 V+ during real production.
+LATCH_DELTA_MAX_V = 4.0        # above this the tracker has real headroom
 LATCH_DAYLIGHT_V = 20.0        # array must at least exceed a dark panel string
 LATCH_CONFIRM_S = 600          # sustained this long before we call it
+LATCH_RELEASE_S = 120          # ...and sustained THIS long before we clear it
 LATCH_TRAIL_S = 1200           # seconds of 1 Hz history kept for forensics
 AC_LOAD_SAMPLE_S = 300         # provisional AC-load snapshot cadence
 ASM_MAX_AGE_S = 5.0            # abandon half-reassembled fast-packets
@@ -180,6 +190,7 @@ class Decoder:
         self.mppt_out_w: float | None = None
         self.mppt_status: int | None = None
         self.clamp_since: float | None = None
+        self.clamp_clear_since: float | None = None
         self.latched = False
         # Rolling 1 Hz history so a latch event can carry the run-up with it.
         # We do NOT yet understand what triggers the slide — whether it is a
@@ -363,12 +374,22 @@ class Decoder:
                    and LATCH_DELTA_MIN_V <= delta <= LATCH_DELTA_MAX_V)
         if not clamped:
             self.clamp_since = None
-            if self.latched:
-                self.latched = False
-                return [{"t": now, "event": "mppt_unlatched",
-                         "data": {"pv_v": round(self.pv_v, 1),
-                                  "delta_v": round(delta, 2)}}]
-            return []
+            if not self.latched:
+                return []
+            # Releasing needs hysteresis for the same reason the ceiling was
+            # raised: a single dithered sample is not a recovery. Requiring a
+            # sustained exit means "unlatched" reports a tracker that actually
+            # climbed back out, not one quantisation step of noise.
+            if self.clamp_clear_since is None:
+                self.clamp_clear_since = now
+            if now - self.clamp_clear_since < LATCH_RELEASE_S:
+                return []
+            self.latched = False
+            self.clamp_clear_since = None
+            return [{"t": now, "event": "mppt_unlatched",
+                     "data": {"pv_v": round(self.pv_v, 1),
+                              "delta_v": round(delta, 2)}}]
+        self.clamp_clear_since = None
         if self.clamp_since is None:
             self.clamp_since = now
         if not self.latched and now - self.clamp_since >= LATCH_CONFIRM_S:

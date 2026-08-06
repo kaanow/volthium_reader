@@ -178,6 +178,16 @@ class LatchDetectionTests(unittest.TestCase):
         feed_fastpacket(dec, 0x1F0C5, 1, pv, t)
         feed_fastpacket(dec, 0x1F0C5, 1, out, t)
 
+    def _clamped_at(self, dec, t, pv_mv):
+        """A clamp at a specific array voltage, for replaying real dither."""
+        pv = bytes.fromhex("0315") + int(pv_mv).to_bytes(4, "little") + \
+            b"\x00" * 8 + b"\xff" * 7
+        out = bytes.fromhex("0303") + (26500).to_bytes(4, "little") + \
+            (-330).to_bytes(4, "little", signed=True) + \
+            (8).to_bytes(4, "little") + b"\xff" * 7
+        feed_fastpacket(dec, 0x1F0C5, 1, pv, t)
+        feed_fastpacket(dec, 0x1F0C5, 1, out, t)
+
     def _healthy(self, dec, t):
         pv = bytes.fromhex("0315") + (89500).to_bytes(4, "little") + \
             b"\x00" * 8 + b"\xff" * 7
@@ -229,17 +239,56 @@ class LatchDetectionTests(unittest.TestCase):
                           if e["event"].startswith("mppt_")], [])
         self.assertFalse(dec.latched)
 
-    def test_unlatch_event_on_recovery(self):
+    def test_unlatch_needs_a_sustained_exit(self):
+        """Recovery must be held, for the same reason the ceiling is wide:
+        one dithered sample above the band is not the tracker climbing out."""
         dec = Decoder()
         self._clamped(dec, 1000.0)
         dec.housekeeping(1001.0)
         dec.housekeeping(1601.0)
         self.assertTrue(dec.latched)
         self._healthy(dec, 1700.0)
-        evs = [e for e in dec.housekeeping(1701.0)
+        self.assertEqual([e for e in dec.housekeeping(1701.0)
+                          if e["event"].startswith("mppt_")], [])
+        self.assertTrue(dec.latched)                 # not yet — needs 120 s
+        self._healthy(dec, 1830.0)
+        evs = [e for e in dec.housekeeping(1831.0)
                if e["event"].startswith("mppt_")]
         self.assertEqual([e["event"] for e in evs], ["mppt_unlatched"])
         self.assertFalse(dec.latched)
+
+    def test_a_single_dithered_sample_does_not_unlatch(self):
+        """Regression for 2026-08-06: the latch was declared at 17:28:03 and
+        retracted 25 s later on delta 2.96 V, while the array stayed clamped
+        for hours. One sample out of band must not clear the flag."""
+        dec = Decoder()
+        self._clamped(dec, 1000.0)
+        dec.housekeeping(1001.0)
+        dec.housekeeping(1601.0)
+        self.assertTrue(dec.latched)
+        self._healthy(dec, 1610.0)                   # one stray sample
+        dec.housekeeping(1611.0)
+        self._clamped(dec, 1612.0)                   # ...clamped again
+        self.assertEqual([e for e in dec.housekeeping(1613.0)
+                          if e["event"].startswith("mppt_")], [])
+        self.assertTrue(dec.latched)
+
+    def test_real_dither_keeps_the_latch_asserted(self):
+        """Replay of the measured 2026-08-06 clamp: out_v steady at 26.50 V
+        while pv_v hops 27.5 <-> 29.9, swinging the delta 1.0-3.4 V second
+        to second. At the old 2.5 V ceiling this sampled as intermittent and
+        both the detector and the guard lost the latch."""
+        dec = Decoder()
+        observed = [27500, 29900, 28300, 29800, 27600, 29600, 28100, 29900]
+        t = 1000.0
+        for i in range(700):
+            self._clamped_at(dec, t + i, observed[i % len(observed)])
+            dec.housekeeping(t + i)
+        self.assertTrue(dec.latched)
+        # ...and it must never have been retracted along the way.
+        self._clamped_at(dec, t + 700, 29900)        # worst-case 3.4 V delta
+        self.assertEqual([e for e in dec.housekeeping(t + 701)
+                          if e["event"] == "mppt_unlatched"], [])
 
     def test_dusk_decay_does_not_latch(self):
         """The real 2026-08-05 21:24 false positive: array at 10.9 V while the
