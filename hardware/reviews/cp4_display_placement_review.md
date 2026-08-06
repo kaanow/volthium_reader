@@ -551,6 +551,83 @@ quality remains CP5 scope; CP5 was not started.
 **REVIEW COMPLETE**: NEEDS CHANGES - 0 blockers, 2 important. (See findings 09, 10.)
 
 
+### 8.4 Reviewer findings (iteration 7)
+
+Reviewed design commit: `0b7ed2027653954973bf4eefec2cca7b3b1597b8`.
+
+The physical F09 repair passes: a fresh committed-generator rebuild is clean,
+the serialized J1 anchor is now `(11.000,19.025)` mm on B.SilkS and outside
+U1, the independent placement AABB audit remains clean, and the fresh bottom
+render shows both `J1` and `U1` readable. F10's missing row is present. The
+remaining findings concern the claimed regression coverage and the factual
+basis of that row.
+
+#### Finding 11 - IMPORTANT - the new refdes gates do not judge emitted text geometry and miss all three independent poisons
+
+**Issue**: `assert_refdes_roundtrip()` does not parse the emitted board despite
+claiming to prove the emitted anchor. It applies `refdes_local_to_board()` to
+the same in-memory override produced by its inverse partner, so a mutually
+consistent but serializer-wrong pair passes. `refdes_over_body_findings()`
+checks only whether the reference anchor is inside another body, not whether
+the text rectangle overlaps it, and explicitly skips the reference's own
+component. Packet PR-2 therefore incorrectly says this function mechanically
+enforces the no-on-body criterion.
+
+**Evidence**: The write chokepoint at `hardware/kicad/pcb/core.py:628-635`
+passes `prop_overrides`, not emitted `text`, to both new gates. The round-trip
+implementation at lines 987-1008 calls its coupled forward helper. The body
+gate at lines 1031-1038 compares only `(bx,by)` and skips `other == ref`.
+Independent transcript
+`visual_inspections/cp4-display-placement/iter7/reviewer/refdes_gate_independent_poison.txt`
+records three escapes: paired wrong transforms return no finding while the
+serializer-frame anchor lands at the old bad `(11.000,47.325)` mm point; a
+1.90 x 1.45 mm text box overlaps a body with its anchor 0.1 mm outside; and a
+reference centered on its own body is ignored. Control evidence confirms the
+current J1 artifact itself is fixed.
+
+**Suggested fix**: parse each visible Reference property from the emitted
+board text at the write chokepoint, including layer, board-space anchor, angle,
+and full text box. Compare that parsed anchor to `_REFDES_SELECTED`, then test
+the parsed text rectangle against both its own body and every other same-side
+body. Keep the forward helper as a conversion utility, not as evidence of what
+was emitted. Add the three independent poisons above as standing tests and
+require each downstream gate to fail independently.
+
+#### Finding 12 - IMPORTANT - PR-13 imports the battery board's CAN/JTAG rationale into the display board
+
+**Issue**: The new PR-13 row says the display has no SWD/JTAG because its
+ESP32-S3 JTAG pins were forfeited to the DR-31 CAN gate. DR-31's CAN block and
+IO40/IO41/IO42 assignment belong to the battery board. The display has no CAN
+block and retains native USB-JTAG through J-USB. J5 is an RS-485 termination
+jumper, not a debug header.
+
+**Evidence**: `hardware/layout/decisions.md` DR-31 identifies battery U7/J6
+CAN and the battery J5 UART path. The display pin map in
+`hardware/layout/cp1_display_side.md` section 6 instead assigns GPIO19/20 to
+native USB at J-USB and identifies GPIO3 as the USB-JTAG-select strap; D27
+defines J-USB as the display's native-USB bench/recovery port. The exported
+display netlist contains J-USB and J3 and no U7 or CAN net. Detailed trace:
+`visual_inspections/cp4-display-placement/iter7/reviewer/pr13_trace.md`.
+
+**Suggested fix**: keep PR-13 PASS on the actual display evidence: J3 provides
+keyed ESP-Prog UART/forced-download recovery and J-USB provides native USB
+flash, serial, and JTAG after the faceplate is removed. Remove the battery CAN
+claim and the unrelated J5 termination jumper from this row.
+
+Coverage: published/installed skill hashes matched; mandatory consistency
+check exit 0; fresh display build exit 0; full four-generator handoff CLEAN;
+direct strict KiCad DRC completed with the documented two footprint warnings
+and 123 placement-only unconnected items; accepted RPA patch clean; actual J1
+serialized geometry and independent AABB model checked; fresh full top/bottom
+renders plus J1/U1 and J3/J-USB crop zooms inspected; three new gates poisoned
+independently; and four on-file manufacturer-PDF citations spot-checked. No
+manifest row or SKU cell changed in iteration 6. Connectivity did not change;
+CP5 was not started. Evidence is in
+`visual_inspections/cp4-display-placement/iter7/reviewer/REPORT.md`.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings 11, 12.)
+
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-08-06)

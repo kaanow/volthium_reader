@@ -1,0 +1,21 @@
+Command: .venv\Scripts\python.exe hardware\reviews\visual_inspections\cp4-display-placement\iter7\reviewer\refdes_gate_independent_poison.py
+Exit: 0
+
+POISON 1: coupled wrong inverse + forward model
+  selected board point=(11.0, 19.025)
+  wrong local value=(-14.15, -9.22)
+  gate findings=[]
+  actual serializer-frame landing=(11.000, 47.325)
+  RESULT=ESCAPED
+POISON 2: anchor outside, visible text rectangle overlaps
+  anchor=(3.900, 5.000)
+  text_box=(2.95, 4.275, 4.85, 5.725)
+  other_body=(4.0, 4.0, 6.0, 6.0)
+  gate findings=[]
+  RESULT=ESCAPED
+POISON 3: reference anchor at its own component body centre
+  anchor=(5.000, 5.000)
+  own_body=(4.0, 4.0, 6.0, 6.0)
+  gate findings=[]
+  RESULT=ESCAPED
+SUMMARY: 3/3 independent poisons escaped
