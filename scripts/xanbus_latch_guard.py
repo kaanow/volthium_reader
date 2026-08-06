@@ -195,7 +195,29 @@ def main() -> int:
     if not before["daylight"]:
         return 0                                    # night: quiet, no event
     if before["fraction"] < CLAMP_FRACTION:
+        if st.pop("clamp_seen_at", None):           # healthy again — reset
+            save_state(st)
         return 0                                    # healthy: quiet, no event
+    # A clamp seen ONCE is not a latch. At dawn and dusk the array voltage
+    # passes through battery voltage on its way up/down, so darkness looks
+    # exactly like a clamp for ~5-10 minutes (observed 2026-08-05 20:40:
+    # pv_v 28.7 vs out 26.5, a 2.2 V delta, with 1 W of production). Runs are
+    # 20 min apart, so requiring two CONSECUTIVE confirmations excludes that
+    # window while a real latch — which persists for hours — sails through.
+    # This matters beyond a wasted bounce: a spurious fix at dawn would burn a
+    # daily-cap slot, start a 45 min cooldown, and could mask the real latch.
+    prev_seen = st.get("clamp_seen_at", 0)
+    if now - prev_seen > 2.5 * 60 * 60:      # stale confirmation, restart
+        prev_seen = 0
+    if not prev_seen:
+        st["clamp_seen_at"] = now
+        save_state(st)
+        emit("latch_guard_pending",
+             {"reason": "clamp seen once — needs a second consecutive "
+                        "confirmation before acting (dawn/dusk exclusion)",
+              **before})
+        return 0
+
     if now - st.get("last_attempt", 0) < COOLDOWN_S:
         emit("latch_guard_skipped",
              {"reason": "cooldown",

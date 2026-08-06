@@ -78,12 +78,6 @@ the array perform in clean air since instrumenting it. **Test: watch dawn
 `pv_v` and sustained current once the fire smoke clears.** Recovery signature
 = peak `pv_v` back toward ~114 V with >3 A sustained above 60 V.
 
-**11. What is the SW inverter's `dc_w` really measuring?**
-Assumed to be its own DC draw (house AC loads). At night it matches total
-battery discharge, which is consistent — but that's also consistent with it
-being a whole-bus measurement. Matters for the power-balance arithmetic.
-**Test: run a large, known AC load and see whether dc_w tracks it 1:1.**
-
 **12. Generator fields — wired on spec, never validated.**
 `126998 assoc 0x13` (GEN1) V/I/freq. Correct per Xantrex's own enum table and
 berrybms's gen-on captures, but our generator has never run during a capture.
@@ -108,3 +102,14 @@ unknown with a hardware-failure tail risk.
   36 min off (~50 min period)**. Needs no new logging — 15-minute buckets
   simply averaged straight through it.
 - ~~Is the MPPT damaged?~~ No — diode-clamp latch, clears on a mode bounce.
+- ~~What is the SW inverter's `dc_w` measuring?~~ **Its own draw (house AC
+  loads) only — it is blind to solar.** Proven 2026-08-05 by comparing a
+  known latch (~380 W bypassing the converter) against dusk darkness: dc_a
+  and dc_w were identical in both (~−4.5 A, ~120 W). So it can never serve as
+  a bus-total, and it cannot discriminate a latch from darkness.
+- ~~Can the latch guard false-positive at dawn/dusk?~~ **Yes, and it was
+  able to.** The array voltage passes through battery voltage on its way
+  up/down, so darkness reads as a clamp for ~5–10 min (observed 20:40:
+  pv_v 28.7 vs out 26.5, delta 2.2 V, 1 W production). Fixed by requiring two
+  CONSECUTIVE confirmations 20 min apart — longer than the dusk window,
+  far shorter than a real latch.
