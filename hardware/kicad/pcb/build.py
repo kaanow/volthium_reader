@@ -47,14 +47,18 @@ def _dims(fpid):
 
 
 def cc(fpid, cx, cy, rot, side="F"):
-    """Anchor placement such that the footprint's courtyard CENTER lands
-    at (cx, cy) after rotation/side transform."""
-    d = _dims(fpid)
+    """Anchor placement so the footprint's courtyard CENTRE lands at (cx, cy).
+
+    Delegates the mirror to core._xf so there is exactly ONE back-side
+    transform in the project. This helper previously carried its own copy
+    that negated X while the writer and gates negate Y (CP4 F01) — the
+    fourth site of the same convention, and the one nobody swept. A
+    duplicated transform is the bug; sharing it is the fix.
+    """
+    d = core.fplib.FpDims(fpid)
     x0, y0, x1, y1 = d.courtyard
-    mx, my = (x0 + x1) / 2, (y0 + y1) / 2
-    if side == "B":
-        mx = -mx
-    rx, ry = core._rot(mx, my, rot)
+    mid = ((x0 + x1) / 2.0, (y0 + y1) / 2.0)
+    rx, ry = core._xf(mid, 0.0, 0.0, rot, side == "B")
     return (cx - rx, cy - ry, rot, side)
 
 

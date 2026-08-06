@@ -702,6 +702,69 @@ def _allowed(line: str, lines: list[str], idx: int, rel: str,
     return False
 
 
+# --- Row-scoped part/SKU coherence (CP4 F02) -------------------------------
+# A BOM row must not name an order code that reverse-resolves to a DIFFERENT
+# physical part than the row's own MPN. Two such cells shipped at CP4: the
+# display J2 kept `455-1710-ND` (= B8B top-entry) after the MPN moved to the
+# S8B side-entry part, and the display J-USB kept Mouser `640-USB4085-GF-A`
+# (= the retired edge connector) after moving to USB4115.
+#
+# Deliberately ROW-SCOPED, not a SUPERSEDED token: the BATTERY board's J3
+# legitimately orders USB4085 via that very Mouser code, so a global token
+# rule would fire on a correct row — the same false-positive trap that made
+# the CP3 manifest-uniqueness first cut unusable. Verified by live
+# `POST /resolve` 2026-08-06.
+ROW_COHERENCE: list[tuple[str, str, str, str]] = [
+    ("| J2  |", "S8B-PH-K-S", r"455-1710-ND|B8B-PH-K-S(?!.*rejected)",
+     "display J2 is the SIDE-entry S8B (D39); 455-1710-ND orders the "
+     "rejected top-entry B8B — use 455-1725-ND"),
+    ("| J-USB |", "USB4115-03-C", r"640-USB4085-GF-A",
+     "display J-USB is the VERTICAL USB4115 (D40); 640-USB4085-GF-A orders "
+     "the retired edge-mount part — use 640-USB4115-03-C"),
+]
+
+
+def check_row_coherence() -> list[str]:
+    findings = []
+    path = REPO / "hardware/layout/cp1_bom.md"
+    if not path.exists():
+        return ["[row] cp1_bom.md missing"]
+    lines = path.read_text(encoding="utf-8").splitlines()
+    # Both boards have a J2; scope to the display section or the check fires
+    # on the battery board's (correct) RJ45 row.
+    disp = next((i for i, l in enumerate(lines)
+                 if l.startswith("## Display-side board")), None)
+    if disp is None:
+        return ["[row] cp1_bom.md: '## Display-side board' heading not found"]
+    for key, required, forbidden, hint in ROW_COHERENCE:
+        rows = [(i, l) for i, l in enumerate(lines)
+                if i > disp and l.startswith(key)]
+        if not rows:
+            findings.append(f"[row] BOM row {key!r} not found — update "
+                            "ROW_COHERENCE")
+            continue
+        for idx, line in rows:
+            if required not in line:
+                findings.append(
+                    f"[row] cp1_bom.md:{idx + 1}: row {key!r} no longer names "
+                    f"{required!r} — {hint}")
+            for m in re.finditer(forbidden, line):
+                # allow it only where the line also explains the supersession
+                # current=None deliberately: for row coherence the correct
+                # MPN being present on the line is the NORMAL case, not
+                # evidence the wrong SKU is historical. Only strikethrough or
+                # an explicit history marker in the token's own clause
+                # exempts it.
+                if not _allowed(line, lines, idx, "hardware/layout/cp1_bom.md",
+                                None, m.start(), m.end()):
+                    findings.append(
+                        f"[row] cp1_bom.md:{idx + 1}: row {key!r} carries "
+                        f"{m.group(0)!r} which orders a DIFFERENT part than "
+                        f"{required!r} — {hint}")
+                    break
+    return findings
+
+
 def check_stale_tokens() -> list[str]:
     findings = []
     for rel in LIVE_DOCS:
@@ -968,6 +1031,7 @@ def main() -> int:
     findings = run_fixtures()  # self-test first — a broken gate can't certify
     findings += check_stale_tokens()
     findings += check_d32_manifest()
+    findings += check_row_coherence()
     findings += check_bom_mpn_coverage()
     if findings:
         print(f"\n{len(findings)} finding(s):\n")

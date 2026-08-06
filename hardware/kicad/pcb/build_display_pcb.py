@@ -90,12 +90,18 @@ P = {}
 
 
 def cc(fpid, cx, cy, rot, side="F"):
+    """Anchor placement so the footprint's courtyard CENTRE lands at (cx, cy).
+
+    Delegates the mirror to core._xf so there is exactly ONE back-side
+    transform in the project. This helper previously carried its own copy
+    that negated X while the writer and gates negate Y (CP4 F01) — the
+    fourth site of the same convention, and the one nobody swept. A
+    duplicated transform is the bug; sharing it is the fix.
+    """
     d = core.fplib.FpDims(fpid)
     x0, y0, x1, y1 = d.courtyard
-    mx, my = (x0 + x1) / 2, (y0 + y1) / 2
-    if side == "B":
-        mx = -mx
-    rx, ry = core._rot(mx, my, rot)
+    mid = ((x0 + x1) / 2.0, (y0 + y1) / 2.0)
+    rx, ry = core._xf(mid, 0.0, 0.0, rot, side == "B")
     return (cx - rx, cy - ry, rot, side)
 
 
@@ -110,9 +116,9 @@ def pl(ref, cx, cy, rot=0, side="F"):
 # ---------------------------------------------------------------------------
 # J1 RJ45 right-angle, mating face W: in-wall Cat5e enters from the side so
 # the cable does not push the box forward (§10.2 #5). 13.6 mm tall.
-pl("J1", 9.8, 46.5, 0, "B")
+pl("J1", 11.0, 30.0, 90, "B")
 # U1 R-78E3.3 SIP (~11 mm) on the back, pointing into the box (§10.2 #4)
-pl("U1", 22.0, 41.0, 0, "B")
+pl("U1", 12.0, 48.0, 0, "B")
 
 # ---------------------------------------------------------------------------
 # FRONT side (F) — faces the faceplate/module across the standoff gap
@@ -133,10 +139,10 @@ pl("TVS1", 23.5, 8.0, 0)
 
 # --- RS-485 front end, left of the module ---
 pl("TVS2", 23.5, 13.5, 0)
-pl("U2", 12.5, 19.5, 0)          # THVD1400
+pl("U2", 25.5, 33.5, 0)          # THVD1400
 pl("R3", 21.5, 18.0, 0)          # 330R idle bias (D19/DR-4)
 pl("R4", 27.0, 24.5, 0)
-pl("R2", 21.5, 25.0, 0)          # 120R termination, gated by J5
+pl("R2", 27.0, 29.0, 0)          # 120R termination, gated by J5
 pl("J5", 28.0, 20.0, 0)          # TERM jumper
 
 # --- E column: USB-C chain, running N from the SE connector ---
@@ -194,12 +200,26 @@ def orientation_asserts(findings):
         return (sum(p[0] for p in pts) / len(pts),
                 sum(p[1] for p in pts) / len(pts))
 
-    # J1: the RJ45 mating face must open WEST — its shield/mounting posts sit
-    # east of the signal pads when the opening faces the W edge.
+    # J1: the RJ45 mating face must open WEST.
+    #
+    # The old form of this assert compared the signal-row X centroid with the
+    # courtyard X centroid and was TAUTOLOGICAL — both are symmetric, so it
+    # was equal by construction and encoded nothing about direction (CP4 F01).
+    #
+    # What actually encodes the opening: the signal pads sit at one end of the
+    # footprint (local y 0..2.54) and the jack body extends away from them to
+    # local y ~20. So the vector from the signal-pad centroid toward the
+    # courtyard centre IS the opening direction, and it must point WEST.
     sig = [p for n, p in pads("J1").items() if n.isdigit()]
-    if not (sum(p[0] for p in sig) / len(sig)) < court_center("J1")[0]:
-        findings.append("[orient] J1: signal pads not west of body — RJ45 "
-                        "opening does not face the W edge")
+    sx = sum(p[0] for p in sig) / len(sig)
+    sy = sum(p[1] for p in sig) / len(sig)
+    ccx, ccy = court_center("J1")
+    dx, dy = ccx - sx, ccy - sy
+    if not (dx < 0 and abs(dx) > abs(dy)):
+        findings.append(
+            f"[orient] J1: opening vector (pads -> body) is ({dx:+.1f},{dy:+.1f}) "
+            "— the RJ45 must open WEST (predominantly -x) so the in-wall "
+            "Cat5e enters from the side (§10.2 #5)")
 
     # J2: side-entry opening must face SOUTH (cable over the board, not into
     # the box wall) — pin 1 row sits north of the courtyard centre.

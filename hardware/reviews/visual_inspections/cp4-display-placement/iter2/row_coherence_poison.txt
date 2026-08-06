@@ -1,0 +1,22 @@
+CP4 iter2 — row-coherence poison tests (reviewer F02)
+=====================================================
+Invariant: a DISPLAY BOM row must not carry an order code that
+reverse-resolves to a different physical part than the row's MPN.
+Row-scoped on purpose: the BATTERY J3 legitimately orders USB4085
+via 640-USB4085-GF-A, so a global token rule would fire on a
+correct row (the CP3 manifest-uniqueness false-positive trap).
+
+SKUs reverse-resolved live 2026-08-06 (POST /resolve):
+   455-1710-ND      -> B8B-PH-K-S     (rejected top-entry)
+   455-1725-ND      -> S8B-PH-K-S     (selected side-entry)
+   640-USB4085-GF-A -> USB4085-GF-A   (retired edge-mount)
+   640-USB4115-03-C -> USB4115-03-C   (selected vertical)
+
+--- POISON: display J2  order code reverted to 455-1710-ND
+  [row] cp1_bom.md:290: row '| J2  |' carries '455-1710-ND' which orders a DIFFERENT part than 'S8B-PH-K-S' — display J2 is the SIDE-entry S8B (D39); 455-1710-ND orders the rejected top-entry B8B — use 455-1725-ND
+
+--- POISON: display J-USB order code reverted to 640-USB4085-GF-A
+  [row] cp1_bom.md:314: row '| J-USB |' carries '640-USB4085-GF-A' which orders a DIFFERENT part than 'USB4115-03-C' — display J-USB is the VERTICAL USB4115 (D40); 640-USB4085-GF-A orders the retired edge-mount part — use 640-USB4115-03-C
+
+--- CONTROL: unmodified BOM
+clean: no unmarked stale tokens; D32 manifest ↔ PDF ↔ BOM consistent
