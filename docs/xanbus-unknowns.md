@@ -30,12 +30,16 @@ bulk, 0x11A00 float, 0x11B00 equalize — untested. Also unknown whether the SW
 inverter (node 0) honours the same authorization model as the MPPT.
 **Test: read-modify-write-restore on each, benign values only.**
 
-**5. Why does the MPPT's output current under-read by ~25%?**
-Two BMS shunts say ~29 A while the MPPT claims 22 A, consistently. Is it a
-calibration offset, a scale factor, a temperature effect, or does the delta
-track something? **Test: regression of (BMS current − MPPT current) against
-current magnitude, temperature and array voltage** — pure analysis on data we
-already have.
+**5. The MPPT output-current discrepancy is AFFINE, not a simple error.**
+Measured over 839 paired samples while regulating: the ratio true/reported
+FALLS from 1.88 to 1.46 as current rises, while the difference RISES from
++3.3 A to +9.8 A. Fit: `true ≈ 1.35 × reported + 2.2 A`. That is neither a
+scale error nor an offset, which is odd for a miscalibrated shunt. The fridge
+(~0.8 A average) accounts for barely a tenth of it. **Open question: is the
+MPPT under-reading, or is the BMS pair over-reading?** They agree with each
+other, but they are the same model, so a systematic model error would not show
+up as disagreement. **Next test:** compare BMS-integrated Ah against the
+MPPT's own energy counters over a full day — an independent third opinion.
 
 ## Tier 2 — real value, harder
 
@@ -98,6 +102,9 @@ unknown with a hardware-failure tail risk.
 - ~~Why NAK on config writes?~~ Change counter is an optimistic-concurrency
   token; echo the one you read.
 - ~~Why does PV power read 0?~~ No input-side current sensor on this model.
-- ~~Where's the fridge in the data?~~ Bimodal in native 5 s `pack_p`: ~78 W
-  baseline vs ~152 W running, ~74 W draw, ~29% duty. 15-minute buckets hid it.
+- ~~Where's the fridge in the data?~~ Bimodal in native 5 s `pack_p`.
+  Characterised over 7 night hours / 8 complete cycles (Otsu split at
+  −123 W): **draw 76.0 W, duty 29.0%, 0.53 kWh/day, cycle 14 min on /
+  36 min off (~50 min period)**. Needs no new logging — 15-minute buckets
+  simply averaged straight through it.
 - ~~Is the MPPT damaged?~~ No — diode-clamp latch, clears on a mode bounce.
