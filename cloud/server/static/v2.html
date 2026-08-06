@@ -187,6 +187,8 @@ const POLL_S = 15, HIST = 240, BUCKET_S = 15;
 const st = {
   latest: null,          // newest BMS reading
   solar: null,           // newest solar row
+  dcProfile: null,       // characterised DC load (fridge) from dark hours
+  lastProfilePoll: 0,
   stage: null, inv: "inverting", gen: false,
   lastSolarTs: null, lastEventPoll: 0,
 };
@@ -223,17 +225,26 @@ function loadW() {
   if (st.gen) return null;                    // AC-side load unknown during gen (yet)
   return st.solar?.dc_w ?? Math.max(0, solarW() - battW());
 }
-/* Unmetered DC loads (the 24 V fridge and anything else straight off the
-   bus): whatever the balance can't account for. Cleanest at night, when the
-   MPPT is out of the loop entirely. */
+/* Unmetered DC loads — the 24 V fridge, straight off the bus with no meter.
+   Two regimes, and we are honest about which one we're in:
+
+   IN DARKNESS it is directly measurable: whatever the battery supplies
+   beyond the inverter's own draw IS the DC load. Exact, no assumptions.
+
+   IN DAYLIGHT it is not. The arithmetic would have to lean on the MPPT's
+   output current, which under-reports (unknowns #5), so instead we show the
+   CHARACTERISED profile from /api/solar/dc_load — the fridge's measured draw
+   and duty cycle from dark hours — marked as a profile, not a live reading.
+   An invented number would be worse than an honest one. */
 function dcLoadW() {
   const s = st.solar;
   if (!s) return null;
   const inv = s.dc_w ?? 0;
-  if ((s.solar_w ?? 0) < 5 && !st.gen) return Math.max(0, -battW() - inv);
-  const si = solarInfo();
-  if (si.src !== "mppt") return null;         // derived production hides it
-  return Math.max(0, si.w - battW() - inv);
+  const dark = (s.solar_w ?? 0) < 10 && !st.gen;
+  if (dark) return { w: Math.max(0, -battW() - inv), live: true };
+  const p = st.dcProfile;
+  if (p && p.draw_w) return { w: p.draw_w * p.duty, live: false };
+  return null;
 }
 function latched() {
   const s = st.solar;
@@ -272,6 +283,12 @@ async function pollOnce(first) {
     const genStop = ev.findIndex(e => e.event === "gen_stop");
     st.gen = genStart !== -1 && (genStop === -1 || genStart < genStop);
   }
+  if (first || now - st.lastProfilePoll > 3600e3) {
+    st.lastProfilePoll = now;
+    try {
+      st.dcProfile = (await jget("/api/solar/dc_load?hours=24")).profile || null;
+    } catch (e) { /* non-fatal: the arm just shows a dash */ }
+  }
   if (first) {
     // backfill the strip: solar rows + bucketed BMS power, joined on ts
     const ser = (await jget(`/api/history/series?hours=1&bucket_s=${BUCKET_S}`)).series || [];
@@ -304,7 +321,7 @@ const wires = {
                  ? Math.max(0, battW() - solarW()) : (loadW() ?? 0) },
   "w-gen":   { color: "--gen",   getW: () => st.gen ? Math.max(0, battW() - solarW()) : 0 },
   "w-load":  { color: "url",     getW: () => loadW() ?? 0 },
-  "w-dc":    { color: "--load",  getW: () => dcLoadW() ?? 0 },
+  "w-dc":    { color: "--load",  getW: () => dcLoadW()?.w ?? 0 },
 };
 const particles = {};
 for (const id of Object.keys(wires)) {
@@ -377,7 +394,8 @@ function drawFlow() {
   $("t-gen").textContent = st.gen ? "running" : "0 W";
   $("t-load").textContent = load == null ? "—" : `${Math.round(load)} W`;
   const dcl = dcLoadW();
-  $("t-dc").textContent = dcl == null ? "—" : `≈ ${Math.round(dcl)} W`;
+  $("t-dc").textContent = dcl == null ? "—"
+    : dcl.live ? `${Math.round(dcl.w)} W` : `~${Math.round(dcl.w)} W avg`;
   $("t-batt").textContent = `${charging ? "+" : "−"}${Math.round(Math.abs(batt))} W ${charging ? "charging" : "discharging"}`;
   $("invlbl").textContent = st.inv === "passthrough" ? "← charging" : "inverting →";
 
@@ -501,8 +519,9 @@ function drawSystem(L) {
     ["MPPT output", n(s.dc_v, 2), n(s.solar_a, 2), n(s.solar_w, 0)],
     ["Battery", n(battV, 2), n(battA, 2), n(battP, 0)],
     ["Inverter (AC loads)", n(s.dc_v, 2), n(invA, 2), n(s.dc_w, 0)],
-    ["DC loads", n(battV, 2), dcl == null ? "—" : n(dcl / (battV || 27), 2),
-      dcl == null ? "—" : `≈ ${n(dcl, 0)}`],
+    ["DC loads (fridge)", n(battV, 2),
+      dcl == null ? "—" : n(dcl.w / (battV || 27), 2),
+      dcl == null ? "—" : (dcl.live ? n(dcl.w, 0) : `~${n(dcl.w, 0)} avg`)],
     ["Generator", st.gen ? "running" : "0", "—", st.gen ? "—" : "0"],
   ];
   let html = rows.map(r =>

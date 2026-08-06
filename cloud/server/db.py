@@ -727,6 +727,74 @@ class AsyncpgReadingsDAO:
             )
         return [dict(r) for r in rows]
 
+    async def dc_load_profile(self, source_id: str, hours: float) -> dict:
+        """Characterise the unmetered DC load (the 24 V fridge) from the BMS.
+
+        It is only DIRECTLY measurable in darkness: with no solar, whatever
+        the battery supplies beyond the inverter's own draw is DC load. The
+        signature is strongly bimodal — compressor on vs off — so we split the
+        samples at the point of maximum between-class variance (Otsu) rather
+        than assuming a threshold.
+
+        Deliberately does NOT extrapolate into daylight. During the day the
+        arithmetic would have to lean on the MPPT's output-current reading,
+        which under-reports (see docs/xanbus-unknowns.md #5), and an invented
+        number is worse than an honest gap."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """WITH s AS (
+                       SELECT to_timestamp(floor(extract(epoch FROM ts)/15)*15) AS b,
+                              AVG(solar_w) AS solar_w, AVG(dc_w) AS dc_w
+                       FROM solar_readings
+                       WHERE source_id = $1 AND ts > now() - ($2 || ' hours')::interval
+                       GROUP BY b
+                   )
+                   SELECT r.ts, r.pack_p, s.dc_w
+                   FROM readings r
+                   JOIN s ON s.b = to_timestamp(floor(extract(epoch FROM r.ts)/15)*15)
+                   WHERE r.source_id = $1
+                     AND r.ts > now() - ($2 || ' hours')::interval
+                     AND r.pack_p IS NOT NULL
+                     AND COALESCE(s.solar_w, 0) < 10      -- darkness only
+                   ORDER BY r.ts""",
+                source_id, str(hours),
+            )
+        vals = [float(r["pack_p"]) for r in rows]
+        out = {"samples": len(vals), "hours": hours}
+        if len(vals) < 120:
+            out["note"] = "not enough dark samples yet"
+            return out
+
+        lo_v, hi_v = min(vals), max(vals)
+        best = None
+        for i in range(1, 200):
+            t = lo_v + (hi_v - lo_v) * i / 200
+            a = [v for v in vals if v <= t]
+            b = [v for v in vals if v > t]
+            if len(a) < 20 or len(b) < 20:
+                continue
+            wa, wb = len(a) / len(vals), len(b) / len(vals)
+            ma = sum(a) / len(a)
+            mb = sum(b) / len(b)
+            score = wa * wb * (ma - mb) ** 2
+            if best is None or score > best[0]:
+                best = (score, t, ma, mb, len(a))
+        if best is None:
+            out["note"] = "no clean split — load may not be cycling"
+            return out
+        _score, split, mean_on, mean_off, n_on = best
+        draw = mean_off - mean_on            # both negative; ON is more negative
+        duty = n_on / len(vals)
+        out.update(
+            split_w=round(split, 1),
+            draw_w=round(draw, 1),
+            duty=round(duty, 3),
+            baseline_w=round(-mean_off, 1),  # everything else on the bus
+            kwh_per_day=round(draw * duty * 24 / 1000, 3),
+            bimodal=bool(draw > 20),
+        )
+        return out
+
     async def insert_xanbus_events(
         self, source_id: str, events: Sequence[BleEvent]
     ) -> int:

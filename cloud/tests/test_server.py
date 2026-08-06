@@ -476,6 +476,12 @@ class V2HistoryTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["days"], [])
 
+    def test_dc_load_empty_shape(self):
+        c = _client()
+        r = c.get("/api/solar/dc_load?hours=24")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["profile"], {})
+
     def test_load_heatmap_empty_shape(self):
         c = _client()
         r = c.get("/api/solar/load_heatmap")

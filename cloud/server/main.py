@@ -449,6 +449,22 @@ async def api_solar_energy(
     return {"days": _rows_out(rows), "tz": settings.display_tz, "source_id": src}
 
 
+@app.get("/api/solar/dc_load")
+async def api_dc_load(
+    source_id: Optional[str] = Query(default=None),
+    hours: float = Query(default=24.0, gt=0, le=24 * 30),
+    dao: ReadingsDAO = Depends(get_dao),
+) -> dict:
+    """Characterise the unmetered DC load (the fridge) from dark-hours data.
+    Measured, not modelled — see db.dc_load_profile."""
+    if not isinstance(dao, AsyncpgReadingsDAO):
+        return {"profile": {}}
+    src = await _resolve_solar_source(dao, source_id)
+    if src is None:
+        return {"profile": {}}
+    return {"profile": await dao.dc_load_profile(src, hours), "source_id": src}
+
+
 @app.get("/api/solar/load_heatmap")
 async def api_solar_load_heatmap(
     source_id: Optional[str] = Query(default=None),
