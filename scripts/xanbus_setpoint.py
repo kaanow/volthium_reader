@@ -70,16 +70,18 @@ def to_write_form(record: bytes) -> bytes:
     uses to WRITE it.
 
     Byte 0 distinguishes the two: the device reports with 0x04 (and 0x06 for
-    its second instance), while every captured Insight write uses 0x00. Byte 1
-    is the change counter, which the writer sends as 0x00 and the DEVICE
-    increments on accept — that increment is how we know a write landed.
+    its second instance), while every captured Insight write uses 0x00.
+    Echoing the report form back produced ACCESS DENIED — the MPPT saw a
+    status report from a peer, not a config write.
 
-    Echoing the report form back is what produced ACCESS DENIED on
-    2026-08-05: the MPPT saw a status report from a peer, not a config write.
+    Byte 1 is the change counter and is PRESERVED, not zeroed. It behaves as
+    an optimistic-concurrency token: send the counter you just read, and the
+    device increments it on accept. The July capture looked like "the writer
+    sends 0x00" only because the counter happened to be 0 at that moment;
+    sending a literal 0 against a device holding 3 got a NAK.
     """
     out = bytearray(record)
     out[0] = 0x00
-    out[1] = 0x00
     return bytes(out)
 
 
