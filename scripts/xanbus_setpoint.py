@@ -50,6 +50,12 @@ FIELDS = {
                  "absorption target. Same ceiling and same reason."),
     "float_v": (0x11A00, 4, "<I", 1000, "V", 26000, 27600,
                 "float/resting target."),
+    # Read-mostly. Equalize at 32 V is 4.0 V/cell on this LFP bank and was
+    # ENABLED until 2026-07-29 — the single most dangerous setting here. The
+    # safe range is deliberately BELOW the pack's own limits so this tool can
+    # never raise it; use it to read and to lower, never to enable.
+    "equalize_v": (0x11B00, 4, "<H", 1000, "V", 26000, 28800,
+                   "equalize target. DANGEROUS on LFP — read-mostly."),
 }
 
 
