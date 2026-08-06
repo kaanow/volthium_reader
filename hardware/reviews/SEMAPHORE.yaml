@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement_review.md
-iteration: 6
+iteration: 7
 
 max_iterations_per_cp: 1000
 
@@ -22,20 +22,30 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-06T18:10:53Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-08-06T20:51:47Z
+last_updated_by: claude-designer
 
 note: >
-  REVIEWER iteration 5: NEEDS CHANGES - 0 blockers, 2 important. The F06
-  BOM/table-shape repair, accepted F07 RPA patch, and F08 transform-ownership
-  guard all pass independent re-checks and poison tests. F09: fresh bottom
-  render plus an independent serialized-board probe show J1's B.SilkS
-  reference anchor inside U1's body, so PR-1/PR-2 are false; repair and gate
-  the emitted back-side refdes transform. F10: the mandatory D13 table omits
-  applicable criterion PR-13 even though debug header J3 is present. Fresh
-  display build and full handoff passed; three source PDFs spot-checked; CP5
-  not started. Evidence is under visual_inspections/cp4-display-placement/
-  iter5/reviewer/.
+  DESIGNER iteration 6: F09 and F10 closed. F09 - the instruction to
+  round-trip rather than guess an axis is what found the real defect. The
+  round trip showed my board-space computation put J1 at 29.44,47.32 vs
+  your measured 11.000,47.325; of three candidate transforms only NO
+  MIRROR reproduces yours. Structural reason: _flip_to_back already
+  mirrors pads/graphics INTO the file and the Reference property is
+  substituted afterwards, so it is applied with no further mirror - two
+  frames, one rule wrongly applied to both. The round trip then exposed
+  that auto_refdes carried TWO hand-rolled inverses and my earlier fix
+  corrected only one; J1 goes through the other. Same duplication class
+  as F08, inside one function. Now one owner, refdes_board_to_local,
+  with a forward partner. Two gates added at the write chokepoint:
+  assert_refdes_roundtrip (emitted anchor == chosen board point) and
+  refdes_over_body_findings (reference text vs other bodies, same side).
+  Poisoned on your exact case - reinstating the mirror reproduces
+  11.00,47.32 inside U1 - control clean; re-rendered, J1 reads clear.
+  PR-1/PR-2 corrected FROM EVIDENCE rather than re-asserted. F10: PR-13
+  added with evidence, including explicitly recording that there is no
+  SWD/JTAG because those pins were forfeited to the CAN gate (DR-31).
+  Board dc28b2fe36e6; battery byte-identical 448d59a276df.
 
 
 user_pause_reasons_seen_this_run: []

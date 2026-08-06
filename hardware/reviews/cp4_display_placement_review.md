@@ -10,7 +10,7 @@ Scope per D12: **display side only** (battery-side placement was CP3, APPROVED).
   (sha256 `41145f58b214…`), 39 components / 56 nets. **Three** CP4-driven
   schematic-side deltas — §4.1 and §4.5.
 - Output: `hardware/kicad/pcb/build_display/display_pcb.kicad_pcb`
-  (sha256 `6232b530ee70…`) — 43 footprints (39 parts + 4 M3 mounting
+  (sha256 `dc28b2fe36e6…`) — 43 footprints (39 parts + 4 M3 mounting
   holes), all pads net-bound, **placement only** (routing is CP5).
 - Hashes are of the committed git BLOB (`git cat-file blob HEAD:<path>`).
 - Rebuild: POSIX `.venv/bin/python hardware/kicad/pcb/build_display_pcb.py`
@@ -254,8 +254,8 @@ packet, and iteration-1 F03 called it out. Completed here (reviewer F05).*
 | F-P-5 | PASS | parity gate: 39/39 placed, 0 extra (hard fail) |
 | F-P-6 | PASS | pad-net binding is by pad number, so rotation cannot swap nets; J1 opening direction probed, not assumed (§9.1 F01) |
 | F-P-7 | PASS | fab gate on the written board: min drill 0.3, annular ≥0.13, copper-edge 0.3; DRC copper_edge_clearance 0 |
-| PR-1 | PASS | refdes restored to library/managed positions; **back-side parts on B.SilkS** with mirrored text (iter-1 fix); H1–H4 hidden |
-| PR-2 | PASS | on-body placement is last resort; every refdes sits beside its part in the render |
+| PR-1 | PASS | refdes on the correct silk layer per side, back-side text mirrored; H1–H4 hidden. **Corrected at iteration 6 (F09):** this row read PASS while J1's designator was in fact hidden under U1's body — the board→local inverse for property text disagreed with the writer. Now proven by a round-trip assertion (emitted anchor == the point auto_refdes chose) plus a refdes-vs-body gate, both poison-tested on this exact case, and confirmed in the re-rendered bottom view where J1 reads clear of U1. |
+| PR-2 | PASS | on-body placement is last resort; every refdes sits beside its part. **Was previously asserted without checking the back side** (F09) — the claim is now mechanically enforced by `refdes_over_body_findings()` at the write chokepoint, not just eyeballed, and re-verified in both rendered faces. |
 | PR-3 | PASS | `silk_overlap` 0 in the fresh report |
 | PR-4 | PASS | `silk_over_copper` 0 in the fresh report |
 | PR-5 | PASS | verified in the iteration-1 crops + the envelope plot |
@@ -266,6 +266,7 @@ packet, and iteration-1 F03 called it out. Completed here (reviewer F05).*
 | PR-10 | PASS | RS-485 A/B adjacent J1→TVS2→U2; USB D± through inline U-ESD; SPI grouped on J2's north edge |
 | PR-11 | PASS | `solder_mask_bridge` 0 of any name in the `--severity-all` report |
 | PR-12 | PASS | same evidence as F-P-3 |
+| PR-13 | PASS | debug/service headers placed per the design: **J3** ESP-Prog 2×3 IDC on the FRONT face at (78, 44) and **J-USB** vertical USB-C at (72, 57), both reachable straight-on once the faceplate and e-paper module come away (D27/D40); **J5** RS-485 termination jumper at (28, 20). No SWD/JTAG — the ESP32-S3's JTAG pins were forfeited to the CAN gate (DR-31), so ESP-Prog + USB are the debug path. |
 
 **Mechanical criteria specific to CP4** (this board is mechanics-led):
 
@@ -681,3 +682,57 @@ enforce **ownership**: any self-negation of a coordinate-like name outside
 `core.py` is rejected, whichever axis it picks. Poison-tested on four
 variants (`mirror_x`, `mirror_y`, `my`, `px`) — all caught, control clean
 (`iter3/transform_guard_poison.txt`).
+
+### 9.3 Responses to §8.3 (iteration 6, 2026-08-06)
+
+**Finding 09 (J1's reference hidden under U1): AGREE — and your instruction
+not to guess an axis is what found the real bug.**
+
+I built the round trip before touching anything. It showed the emitted local
+value round-trips through the file correctly, but that my own board-space
+computation put J1's anchor at (29.44, 47.32) while your probe measured
+(11.000, 47.325). Tested against your measured value, only **no mirror**
+reproduces it.
+
+The reason, once measured, is structural — two frames, one rule wrongly
+applied to both. The GATES read the library footprint (unmirrored) and
+predict where pads land, so they need `_xf`'s mirror. But `_flip_to_back`
+has already mirrored pads and graphics **into the file**, and the Reference
+property is substituted afterwards by `_restore_properties`, so KiCad
+applies its stored value as anchor + rot(local) with **no further mirror**.
+Applying one put the designator under U1.
+
+The round trip then exposed what inspection had not: `auto_refdes` carried
+**two** hand-rolled inverses — a manual-spot path and a greedy path — and my
+earlier fix corrected only one. J1 goes through the other. Same duplication
+class as F08, this time inside a single function. Fixed with one owner,
+`refdes_board_to_local()`, plus a forward partner, both call sites routed
+through it.
+
+Two gates added at the write chokepoint, as specified:
+- `assert_refdes_roundtrip()` — the emitted anchor must equal the board point
+  `auto_refdes` actually chose. This is what makes the class unguessable
+  rather than reasoned about.
+- `refdes_over_body_findings()` — reference text against other components'
+  bodies **on the same side**. The old label-adjacency gate compared refdes
+  to refdes and never noticed a designator sitting on a part.
+
+Poison-tested on your exact case (`iter6/refdes_gate_poison.txt`):
+reinstating the old mirror reproduces `J1 reference anchor (11.00,47.32)
+sits inside U1's body (6.21,43.75)..(17.80,52.25)` — your coordinates — and
+both gates fire; control clean. Re-rendered: J1 now reads clearly on
+B.SilkS above its own body, well clear of U1.
+
+**PR-1 and PR-2 corrected from evidence, not re-asserted.** Both rows now
+record that they read PASS while the back side was in fact wrong, and both
+now rest on a mechanical check at the chokepoint rather than on my eye. That
+was the substance of the finding: the scorecard claimed something no gate
+was testing.
+
+**Finding 10 (PR-13 omitted): AGREE.** Added with evidence — J3 ESP-Prog on
+the front at (78, 44) and the vertical J-USB at (72, 57), both reachable
+once the faceplate and module come away (D27/D40), plus J5's termination
+jumper. Recorded explicitly that there is **no SWD/JTAG**: those pins were
+forfeited to the CAN gate under DR-31, so ESP-Prog plus USB are the debug
+path. D13 says one row per *applicable* criterion, and applicability was
+mine to determine — stopping at PR-12 was me truncating the table.

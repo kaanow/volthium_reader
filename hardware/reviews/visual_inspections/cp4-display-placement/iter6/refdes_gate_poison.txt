@@ -1,0 +1,12 @@
+CP4 iter6 — refdes gate poison tests (reviewer F09)
+========================================================
+
+1. CONTROL — as built:
+    clean (round trip holds, no reference on a body)
+
+2. POISON — reinstate the old back-side mirror on J1's local value
+    [refdes-roundtrip] J1: auto_refdes chose board (11.00,19.02) but the emitted local (-14.15, -9.22) lands at (11.00,47.32) — the inverse and the writer disagree
+    [refdes-on-body] J1 reference anchor (11.00,47.32) sits inside U1's body (6.21,43.75)..(17.80,52.25) on the B side — hidden once U1 is fitted
+
+3. POISON — place J1's reference exactly on U1's body centre
+    [refdes-on-body] J1 reference anchor (12.00,48.00) sits inside U1's body (6.21,43.75)..(17.80,52.25) on the B side — hidden once U1 is fitted

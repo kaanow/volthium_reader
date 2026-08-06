@@ -623,11 +623,17 @@ class BoardBuilder:
         text = re.sub(r"\(tedit [0-9A-Fa-f]+\)", "(tedit 0)", text)
         text = _restore_properties(text, prop_overrides)
         sch.write_text_lf(path, text)
-        # written-artifact gates, same chokepoint: netlist readback and
-        # refdes label distinctness both judge the emitted text
+        # written-artifact gates, same chokepoint: netlist readback,
+        # refdes label distinctness, refdes-vs-body, and the round trip
+        # that proves the emitted designator landed where it was chosen
         self.gate_readback(path)
         self.findings += label_adjacency_findings(
             refdes_boxes_from_board(text))
+        if prop_overrides:
+            assert_refdes_roundtrip(self.components, self.placement,
+                                    prop_overrides, self.findings)
+            self.findings += refdes_over_body_findings(
+                self.components, self.placement, prop_overrides)
 
     def gate_readback(self, path):
         """Judge the WRITTEN artifact: re-parse the .kicad_pcb text and
@@ -822,6 +828,9 @@ def _rects_overlap(a, b, margin=0.15):
                 or a[3] + margin <= b[1] or b[3] + margin <= a[1])
 
 
+_REFDES_SELECTED = {}
+
+
 def auto_refdes(components, placement, board_w, board_h,
                 extra_rects=(), big_area=80.0,
                 char_w=0.95, text_h=1.45, manual=None, banned=None):
@@ -875,15 +884,9 @@ def auto_refdes(components, placement, board_w, board_h,
         hw, hh = (tw / 2, th / 2) if ang == 0 else (th / 2, tw / 2)
         placed_text.append((bx - hw, by - hh, bx + hw, by + hh))
         _, _, x, y, rot, side, _, _ = byref[ref]
-        dx, dy = bx - x, by - y
-        if rot:
-            dx, dy = core_rot_inv(dx, dy, rot)
-        if side == "B":
-            # inverse of _xf's back-side mirror, which negates Y (CP4):
-            # negating X here put every back-side refdes at the mirror
-            # image of its intended spot (J1's landed 21 mm off its body).
-            dy = -dy
-        ov = (round(dx, 3), round(dy, 3), ang)
+        _REFDES_SELECTED[ref] = (bx, by)
+        dx, dy = refdes_board_to_local(bx, by, x, y, rot, side)
+        ov = (dx, dy, ang)
         overrides[ref] = ov if font is None else ov + (font,)
 
     for ref, fpid, x, y, rot, side, body, pads in sorted(
@@ -947,15 +950,100 @@ def auto_refdes(components, placement, board_w, board_h,
             continue
         tcx, tcy, ang, rect, font = chosen
         placed_text.append(rect)
-        # convert board-frame center to footprint-local (inverse transform)
-        dx, dy = tcx - x, tcy - y
-        if rot:
-            dx, dy = core_rot_inv(dx, dy, rot)
-        if side == "B":
-            dx = -dx
-        ov = (round(dx, 3), round(dy, 3), ang)
+        _REFDES_SELECTED[ref] = (tcx, tcy)
+        dx, dy = refdes_board_to_local(tcx, tcy, x, y, rot, side)
+        ov = (dx, dy, ang)
         overrides[ref] = ov if font is None else ov + (font,)
     return overrides, unplaced
+
+
+def refdes_board_to_local(bx, by, x, y, rot, side):
+    """Board point -> the value stored in a footprint's Reference (at ...).
+
+    THE inverse of how KiCad places property text, and the only copy.
+    auto_refdes had two hand-rolled inverses — a manual-spot path and a
+    greedy path — and CP4 F09 fixed one while the other kept mirroring,
+    putting J1's designator under U1's body. Same duplication class as
+    F08, this time inside one function.
+
+    No mirror for the back side, established by round trip, not reasoning:
+    _flip_to_back has already mirrored pads/graphics INTO the file, and the
+    Reference property is substituted afterwards, so KiCad applies the
+    stored value as anchor + rot(local) with no further mirror.
+    assert_refdes_roundtrip() holds this true.
+    """
+    dx, dy = bx - x, by - y
+    if rot:
+        dx, dy = core_rot_inv(dx, dy, rot)
+    return round(dx, 3), round(dy, 3)
+
+
+def refdes_local_to_board(lx, ly, x, y, rot, side):
+    """Forward partner of refdes_board_to_local — what KiCad will do."""
+    rx, ry = _rot(lx, ly, rot)
+    return (x + rx, y + ry)
+
+
+def assert_refdes_roundtrip(components, placement, overrides, findings):
+    """Every emitted Reference must land where auto_refdes chose it.
+
+    CP4 F09: the board->local inverse and the writer's local->board
+    application disagreed for back-side parts, so a designator selected in
+    clear space was emitted under a neighbouring body. No amount of
+    reasoning about axes catches that; a round trip does.
+    """
+    for ref, ov in overrides.items():
+        if ref not in placement:
+            continue
+        x, y, rot, side = placement[ref]
+        bx, by = refdes_local_to_board(ov[0], ov[1], x, y, rot, side)
+        sel = _REFDES_SELECTED.get(ref)
+        if sel is None:
+            continue
+        if abs(bx - sel[0]) > 0.01 or abs(by - sel[1]) > 0.01:
+            findings.append(
+                f"[refdes-roundtrip] {ref}: auto_refdes chose board "
+                f"({sel[0]:.2f},{sel[1]:.2f}) but the emitted local "
+                f"{ov[:2]} lands at ({bx:.2f},{by:.2f}) — the inverse and "
+                "the writer disagree")
+
+
+def refdes_over_body_findings(components, placement, overrides):
+    """Visible reference text vs OTHER components' bodies, same side.
+
+    The label-adjacency gate compares refdes to refdes; it never noticed a
+    designator sitting on top of a part, which is just as unreadable after
+    assembly (CP4 F09: J1's reference inside U1's body box).
+    """
+    out = []
+    bodies = {}
+    for ref, (x, y, rot, side) in placement.items():
+        if ref not in components:
+            continue
+        d = fplib.FpDims(components[ref]["footprint"])
+        box = d.fab_bbox or d.courtyard
+        if not box:
+            continue
+        pts = [_xf((px, py), x, y, rot, side == "B")
+               for px, py in ((box[0], box[1]), (box[2], box[1]),
+                              (box[2], box[3]), (box[0], box[3]))]
+        bodies[ref] = (side, min(p[0] for p in pts), min(p[1] for p in pts),
+                       max(p[0] for p in pts), max(p[1] for p in pts))
+    for ref, ov in overrides.items():
+        if ref not in placement:
+            continue
+        x, y, rot, side = placement[ref]
+        bx, by = refdes_local_to_board(ov[0], ov[1], x, y, rot, side)
+        for other, (oside, ox0, oy0, ox1, oy1) in bodies.items():
+            if other == ref or oside != side:
+                continue
+            if ox0 <= bx <= ox1 and oy0 <= by <= oy1:
+                out.append(
+                    f"[refdes-on-body] {ref} reference anchor "
+                    f"({bx:.2f},{by:.2f}) sits inside {other}'s body "
+                    f"({ox0:.2f},{oy0:.2f})..({ox1:.2f},{oy1:.2f}) on the "
+                    f"{side} side — hidden once {other} is fitted")
+    return out
 
 
 def core_xf(p, x, y, deg, back):
