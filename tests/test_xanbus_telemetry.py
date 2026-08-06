@@ -199,9 +199,27 @@ class LatchDetectionTests(unittest.TestCase):
         dec.housekeeping(1001.0)
         evs = [e for e in dec.housekeeping(1000.0 + 601)
                if e["event"].startswith("mppt_")]
-        self.assertEqual([e["event"] for e in evs], ["mppt_latched"])
+        self.assertEqual([e["event"] for e in evs],
+                         ["mppt_latched", "mppt_latch_context"])
         self.assertIn("Standby", evs[0]["data"]["fix"])
         self.assertTrue(dec.latched)
+
+    def test_latch_event_carries_the_run_up(self):
+        """We don't yet know what triggers the slide, so the event must ship
+        the preceding array history, not just the moment of arrival."""
+        dec = Decoder()
+        t = 1000.0
+        for i in range(60):            # a minute of 1 Hz history
+            self._clamped(dec, t + i)
+            dec.housekeeping(t + i)
+        evs = [e for e in dec.housekeeping(t + 601)
+               if e["event"] == "mppt_latch_context"]
+        self.assertEqual(len(evs), 1)
+        trail = evs[0]["data"]["trail"]
+        self.assertGreater(len(trail), 5)
+        for row in trail:              # [t, pv_v, out_v, out_w, status]
+            self.assertEqual(len(row), 5)
+        self.assertLessEqual(len(dec.trail), 1200)   # bounded memory
 
     def test_healthy_array_never_latches(self):
         dec = Decoder()

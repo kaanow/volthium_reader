@@ -22,6 +22,8 @@ install -m 0644 "$HERE/systemd/volthium-modbus-poll.service"      "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-uploader.service"         "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-events-uploader.service"  "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-xanbus-telemetry.service" "$SYSD/"
+install -m 0644 "$HERE/systemd/volthium-latch-guard.service"     "$SYSD/"
+install -m 0644 "$HERE/systemd/volthium-latch-guard.timer"       "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-usb-keepawake.service"    "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-usb-keepawake.timer"      "$SYSD/"
 install -m 0755 "$HERE/bin/volthium-usb-keepawake.sh"             /usr/local/bin/
@@ -67,7 +69,8 @@ systemctl daemon-reload
 # Enable the boot-critical set so a bare power-cycle recovers with no human.
 systemctl enable volthium-rs485-logger volthium-xanbus-capture \
     volthium-modbus-poll volthium-uploader volthium-events-uploader \
-    volthium-xanbus-telemetry volthium-usb-keepawake.timer
+    volthium-xanbus-telemetry volthium-latch-guard.timer \
+    volthium-usb-keepawake.timer
 # BLE logger is the dormant fallback — present but must NOT auto-start
 # (Conflicts= with the RS485 logger; run exactly one).
 systemctl disable volthium-logger 2>/dev/null || true
@@ -76,7 +79,7 @@ systemctl stop volthium-logger 2>/dev/null || true
 systemctl restart volthium-rs485-logger volthium-xanbus-capture \
     volthium-modbus-poll volthium-uploader volthium-events-uploader \
     volthium-xanbus-telemetry
-systemctl start volthium-usb-keepawake.timer
+systemctl start volthium-usb-keepawake.timer volthium-latch-guard.timer
 
 echo "== status =="
 for s in volthium-rs485-logger volthium-xanbus-capture volthium-modbus-poll \

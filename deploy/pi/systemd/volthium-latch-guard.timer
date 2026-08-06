@@ -1,0 +1,13 @@
+[Unit]
+Description=Check for a latched MPPT every 20 minutes
+
+[Timer]
+# The guard no-ops in seconds at night (array < 5 V) and whenever the array is
+# healthy, so the idle cost is one short read-only CAN listen.
+OnBootSec=10min
+OnUnitActiveSec=20min
+AccuracySec=1min
+Persistent=false
+
+[Install]
+WantedBy=timers.target

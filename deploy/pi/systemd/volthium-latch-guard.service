@@ -1,0 +1,20 @@
+[Unit]
+Description=Volthium MPPT diode-clamp latch guard (detect + clear)
+After=network.target volthium-xanbus-capture.service
+Wants=volthium-xanbus-capture.service
+
+[Service]
+Type=oneshot
+# Root for CAP_NET_RAW (AF_CAN) — it both listens and transmits.
+WorkingDirectory=/srv/volthium_reader
+ExecStart=/srv/volthium_reader/.venv/bin/python scripts/xanbus_latch_guard.py
+# Bounded like everything else on this 1 GB box (see CLAUDE.md).
+MemoryMax=60M
+MemorySwapMax=0
+# Hard ceiling: sample + fix + verify is ~2.5 min. If it ever hangs, the timer
+# must not stack another run on top of a wedged one.
+TimeoutStartSec=300
+OOMScoreAdjust=-500
+
+[Install]
+WantedBy=multi-user.target

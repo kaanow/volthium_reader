@@ -62,6 +62,7 @@ DROPOUT_S = 60                 # node silent this long -> node_dropout event
 LATCH_DELTA_V = 2.5            # array-minus-output below this = clamped
 LATCH_DAYLIGHT_V = 5.0         # array above this = the sun is up
 LATCH_CONFIRM_S = 600          # sustained this long before we call it
+LATCH_TRAIL_S = 1200           # seconds of 1 Hz history kept for forensics
 AC_LOAD_SAMPLE_S = 300         # provisional AC-load snapshot cadence
 ASM_MAX_AGE_S = 5.0            # abandon half-reassembled fast-packets
 SPOOL_DIR = Path("data/solar")
@@ -170,8 +171,16 @@ class Decoder:
         # latch detection state (see LATCH_* constants)
         self.pv_v: float | None = None
         self.mppt_out_v: float | None = None
+        self.mppt_out_w: float | None = None
+        self.mppt_status: int | None = None
         self.clamp_since: float | None = None
         self.latched = False
+        # Rolling 1 Hz history so a latch event can carry the run-up with it.
+        # We do NOT yet understand what triggers the slide — whether it is a
+        # load step, a cloud edge, an SOC threshold or something in the
+        # controller — so capture the approach, not just the arrival.
+        self.trail: list[tuple] = []
+        self._last_trail = 0.0
 
     # -- helpers -----------------------------------------------------------
 
@@ -211,6 +220,9 @@ class Decoder:
             self._agg("solar_a").add(abs(i / 1000))
             self._agg("solar_w").add(abs(float(w)))
             self.mppt_out_v = v / 1000
+            self.mppt_out_w = abs(float(w))
+            self.mppt_status = _st       # status byte — meaning still unknown,
+                                         # logged so we can correlate it later
         elif assoc == 0x15:      # PV array side: only voltage is real
             # (no input-side current sensor on this model: I and P are
             # structurally 0 — see docs/xanbus-decode.md)
@@ -309,6 +321,7 @@ class Decoder:
     def housekeeping(self, now: float) -> list[dict]:
         """Call ~1/s: prunes reassembly, detects node dropouts + MPPT latch."""
         self.asm.prune(now)
+        self._record_trail(now)
         events = []
         for src, name in ((SRC_SW, "sw"), (SRC_MPPT, "mppt")):
             seen = self.last_seen.get(src)
@@ -320,6 +333,18 @@ class Decoder:
                                         "silent_s": round(now - seen)}})
         events += self._check_latch(now)
         return events
+
+    def _record_trail(self, now: float) -> None:
+        """Keep ~20 min of 1 Hz array/converter state for latch forensics."""
+        if now - self._last_trail < 1.0 or self.pv_v is None:
+            return
+        self._last_trail = now
+        self.trail.append((round(now, 1), round(self.pv_v, 1),
+                           round(self.mppt_out_v or 0, 2),
+                           round(self.mppt_out_w or 0, 1),
+                           self.mppt_status))
+        if len(self.trail) > LATCH_TRAIL_S:
+            del self.trail[:len(self.trail) - LATCH_TRAIL_S]
 
     def _check_latch(self, now: float) -> list[dict]:
         """Diode-clamp detector: array pinned within a diode drop of the
@@ -341,12 +366,23 @@ class Decoder:
             self.clamp_since = now
         if not self.latched and now - self.clamp_since >= LATCH_CONFIRM_S:
             self.latched = True
-            return [{"t": now, "event": "mppt_latched",
-                     "data": {"pv_v": round(self.pv_v, 1),
-                              "out_v": round(self.mppt_out_v, 2),
-                              "delta_v": round(delta, 2),
-                              "clamped_s": round(now - self.clamp_since),
-                              "fix": "Operating Mode -> Standby -> Operating"}}]
+            # Ship the run-up with the event. Decimated to ~5 s so the payload
+            # stays a few KB while still showing the shape of the slide.
+            trail = [t for i, t in enumerate(self.trail) if i % 5 == 0]
+            return [
+                {"t": now, "event": "mppt_latched",
+                 "data": {"pv_v": round(self.pv_v, 1),
+                          "out_v": round(self.mppt_out_v, 2),
+                          "delta_v": round(delta, 2),
+                          "clamped_s": round(now - self.clamp_since),
+                          "status_byte": self.mppt_status,
+                          "fix": "Operating Mode -> Standby -> Operating"}},
+                {"t": now, "event": "mppt_latch_context",
+                 "data": {"note": "1Hz array trail preceding the latch, "
+                                  "decimated to 5s: [t, pv_v, out_v, out_w, status]",
+                          "samples": len(trail),
+                          "trail": trail}},
+            ]
         return []
 
     def flush_bucket(self, now: float) -> dict | None:
@@ -368,15 +404,21 @@ class Decoder:
 
         solar = aggs.get("solar_w")
         dc = aggs.get("dc_w")
+        pv = aggs.get("pv_v")
         n = solar.n if solar else (dc.n if dc else 0)
         row = {
             "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(row_ts)),
-            "schema_version": 1,
+            "schema_version": 2,
             "solar_w": m("solar_w"),
             "solar_w_min": round(solar.min, 2) if solar and solar.n else None,
             "solar_w_max": round(solar.max, 2) if solar and solar.n else None,
             "solar_a": m("solar_a", 3),
             "pv_v": m("pv_v"),
+            # v2: array-voltage extremes. The diode-clamp latch is a SLIDE down
+            # the IV curve, and a bucket mean hides how far it moved within the
+            # interval — min/max is what shows the approach and the recovery.
+            "pv_v_min": round(pv.min, 2) if pv and pv.n else None,
+            "pv_v_max": round(pv.max, 2) if pv and pv.n else None,
             "dc_v": m("dc_v", 3),
             "dc_a": m("dc_a", 3),
             "dc_w": m("dc_w"),
