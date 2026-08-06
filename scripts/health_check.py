@@ -135,10 +135,14 @@ def check_pi() -> dict:
         'echo "FREEMB:$(free -m | awk "/^Mem:/{print \\$7}")"; '
         'echo "DISKPCT:$(df --output=pcent / | tail -1 | tr -d " %")"; '
         'echo "SPOOL:$(ls data/solar/*.sealed 2>/dev/null | wc -l)"; '
-        'echo "ERRORS:$(journalctl -u volthium-xanbus-telemetry --since \\"-2h\\" '
-        '--no-pager 2>/dev/null | grep -icE \\"error|422|fail\\")"; '
-        'echo "GUARDRUNS:$(journalctl -u volthium-latch-guard --since \\"-2h\\" '
-        '--no-pager 2>/dev/null | grep -c Starting)"; '
+        # NB: no nested double quotes here. An earlier version escaped them
+        # through the ssh layer, which mangled --since and silently reported
+        # zero guard runs while the guard was in fact running six times an
+        # hour. A check that under-reports is worse than no check.
+        "echo \"ERRORS:$(journalctl -u volthium-xanbus-telemetry --since -2h "
+        "--no-pager 2>/dev/null | grep -icE 'error|422|fail')\"; "
+        "echo \"GUARDRUNS:$(journalctl -u volthium-latch-guard --since -2h "
+        "--no-pager 2>/dev/null | grep -c Starting)\"; "
         'echo "CAN:$(ip -details link show can0 2>/dev/null | grep -o \\"LISTEN-ONLY\\" || echo TX-CAPABLE)"'
     )
     last_err = None
