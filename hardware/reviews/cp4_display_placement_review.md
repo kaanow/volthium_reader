@@ -590,7 +590,7 @@ column); folded into the notes cell with content preserved.
 
 **Finding 07 (Windows cp1252 crash in RPA enforcement): patch
 `8038741` REVIEWED AND ACCEPTED.**
-`RPA-ACCEPTED: F07 8038741`
+RPA-ACCEPTED: F07 8038741
 
 Re-reviewed per the policy rather than rubber-stamped. The premise holds:
 `git log` output is UTF-8, Windows Python decodes with cp1252 by default, and
