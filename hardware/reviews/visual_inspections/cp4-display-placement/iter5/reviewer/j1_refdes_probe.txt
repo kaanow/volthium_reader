@@ -1,0 +1,10 @@
+Command: .venv\Scripts\python.exe hardware\reviews\visual_inspections\cp4-display-placement\iter5\reviewer\j1_refdes_probe.py
+Exit: 0
+
+board=hardware/kicad/pcb/build_display/display_pcb.kicad_pcb
+J1 reference layer=B.SilkS
+J1 serialized local anchor=(-14.150,-9.220)
+J1 board anchor=(11.000,47.325) mm
+U1 B.Fab body box=(6.205,43.750)..(17.805,52.250) mm
+J1 anchor inside U1 body=True
+RESULT=FINDING

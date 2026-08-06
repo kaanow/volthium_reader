@@ -484,6 +484,72 @@ quality remains CP5 scope; CP5 was not started.
 **REVIEW COMPLETE**: NEEDS CHANGES - 1 blocker, 3 important. (See findings 05, 06, 07, 08.)
 
 
+### 8.3 Reviewer findings (iteration 5)
+
+Reviewed design commit: `f4ea4f1b95b8af35e23e713dc7ecec05e8e8bda9`.
+
+The iteration-4 repairs for F06, F07, and F08 pass independent re-checks. The
+BOM rows are structurally separate and both historical row mergers are caught
+by the new table-shape gate; the accepted RPA patch is clean; and the external
+transform-ownership guard catches four independent X/Y self-negation poisons.
+F05 is only partly closed: its DRC count is corrected and a scorecard exists,
+but two scorecard defects remain.
+
+#### Finding 09 - IMPORTANT - J1's reference is hidden under U1, contradicting PR-1 and PR-2
+
+**Issue**: The fresh bottom render has no visible `J1` reference. Independent
+parsing of the serialized board places J1's B.SilkS reference anchor at
+`(11.000, 47.325)` mm, inside U1's B.Fab body box
+`(6.205, 43.750)..(17.805, 52.250)` mm. U1 therefore covers the J1 reference
+after assembly. Section 7 nevertheless marks PR-1 and PR-2 PASS and says every
+reference sits beside its part.
+
+**Evidence**: The targeted render
+`visual_inspections/cp4-display-placement/iter5/reviewer/render_bottom_j1_zoom.png`
+shows U1 readable and J1's body with no visible `J1`. The independent
+serialized-board probe and exact coordinates are in `j1_refdes_probe.py` and
+`j1_refdes_probe.txt` beside that image. The source path is consistent with the
+failure: `auto_refdes()` in `hardware/kicad/pcb/core.py` converts the selected
+board point back to local coordinates and applies a back-side inverse that is
+not verified by a board-to-local-to-emitted-board round trip. The current
+post-write gate checks reference-to-reference adjacency, not reference text
+against component bodies, so this overlap remains green.
+
+**Suggested fix**: repair the back-side reference coordinate conversion from
+the serializer's actual transform, and add a round-trip assertion that the
+emitted reference anchor equals the board-space candidate selected by
+`auto_refdes()`. Add a post-write gate for visible reference text against other
+component body/courtyard geometry, poison-test this exact J1-under-U1 case, then
+rerender both sides and correct PR-1/PR-2 from evidence. Do not patch only J1's
+coordinates or assume which local axis to negate without the round-trip test.
+
+#### Finding 10 - IMPORTANT - the mandatory D13 scorecard omits applicable criterion PR-13
+
+**Issue**: Section 7 stops at PR-12. D13 explicitly defines PR-13, "Debug
+headers placed per the design (UART debug, USB-OTG, SWD/JTAG if applicable),"
+and requires one binary row for every applicable criterion. This display board
+has debug header J3, so PR-13 is applicable and cannot be omitted.
+
+**Evidence**: `hardware/layout/decisions.md` D13 lists PR-13 and requires every
+applicable row at sign-off. Packet section 7 contains PR-1 through PR-12 only;
+its own service-access row identifies J3 on the front, confirming applicability.
+
+**Suggested fix**: add the PR-13 PASS/FAIL row with concrete J3 placement and
+access evidence from the generated board and fresh render. Keep the criterion
+in the mandatory table rather than relying on the separate mechanical prose.
+
+Coverage: mandatory consistency check exit 0; fresh display build exit 0; all
+four full-handoff rebuilds exit 0 with deterministic artifacts and RPA clean;
+direct DRC reviewed; iteration-4 table-shape and transform guards independently
+poison-tested; three on-file manufacturer-PDF citations spot-checked;
+independent serialized-board geometry rerun; and fresh top/bottom renders,
+eight quadrant crops, and targeted J1/USB zooms inspected. Detailed evidence is
+in `visual_inspections/cp4-display-placement/iter5/reviewer/REPORT.md`. Routing
+quality remains CP5 scope; CP5 was not started.
+
+**REVIEW COMPLETE**: NEEDS CHANGES - 0 blockers, 2 important. (See findings 09, 10.)
+
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-08-06)

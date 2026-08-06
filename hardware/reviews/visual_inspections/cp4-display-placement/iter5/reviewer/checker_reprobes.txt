@@ -1,0 +1,32 @@
+Independent checker reprobes, 2026-08-06
+
+BOM table-shape gate
+--------------------
+The checker module was loaded from committed source and pointed at temporary
+copies of cp1_bom.md; no repository file was poisoned.
+
+  control:   0 findings
+  merge C6 into preceding J2 row: 1 bom-shape finding
+  merge U-ESD into preceding J-USB row: 1 bom-shape finding
+
+RESULT: PASS
+
+Single-transform ownership gate
+-------------------------------
+The committed tree was the control. Four temporary external modules were
+created one at a time and removed after each call.
+
+  control: PASS
+  mirror_x = -mirror_x: CAUGHT
+  mirror_y = -mirror_y: CAUGHT
+  my = -my: CAUGHT
+  px = -px: CAUGHT
+
+RESULT: PASS for the stated outside-core ownership rule.
+
+RPA enforcement
+---------------
+reviewer_patch_check.py exit 0. Patch 8038741 is in scope, zero-delta, and its
+F07 acceptance line is attributed to the non-reviewer designer commit.
+
+RESULT: PASS
