@@ -1,0 +1,13 @@
+CP4 iter3 — BOM table-shape poison tests (reviewer F06)
+=======================================================
+Reproduces the exact corruption iteration 2 introduced: a Δ-note edit
+using re.S swallowed the row boundary and absorbed the NEXT component.
+
+--- POISON: merge the C6 row into the row above it
+  [bom-shape] cp1_bom.md:290: 19 cells, table header has 10 — a row was merged or split
+
+--- POISON: merge the U-ESD row into the row above it
+  [bom-shape] cp1_bom.md:315: 19 cells, table header has 10 — a row was merged or split
+
+--- CONTROL: unmodified BOM
+clean: no unmarked stale tokens; D32 manifest ↔ PDF ↔ BOM consistent

@@ -724,6 +724,50 @@ ROW_COHERENCE: list[tuple[str, str, str, str]] = [
 ]
 
 
+def check_bom_table_shape() -> list[str]:
+    """Every BOM data row must be ONE ref with the header's column count.
+
+    CP4 F06: two Δ-note edits used `re.S`, so `.` matched across newlines and
+    swallowed a row boundary — C6 and U-ESD were absorbed into the J2 and
+    J-USB rows. The refs silently stopped having rows of their own, and the
+    row-scoped coherence check exited 0 on the malformed table because it
+    only ever looked at the row it could find. Shape is checked here so a
+    merged row is a finding rather than a silent loss.
+    """
+    findings = []
+    path = REPO / "hardware/layout/cp1_bom.md"
+    lines = path.read_text(encoding="utf-8").splitlines()
+    ncols = None
+    REF = re.compile(r"^\|\s*([A-Za-z][A-Za-z0-9_+-]*)\s*\|")
+    for idx, line in enumerate(lines):
+        s = line.strip()
+        if not s.startswith("|"):
+            ncols = None                     # table ended
+            continue
+        cells = s.split("|")
+        if re.fullmatch(r"\|[\s:|-]+\|", s):   # header separator row
+            ncols = len(cells)
+            continue
+        if ncols is None:                    # header row itself
+            ncols = len(cells)
+            continue
+        if len(cells) != ncols:
+            findings.append(
+                f"[bom-shape] cp1_bom.md:{idx + 1}: {len(cells)} cells, "
+                f"table header has {ncols} — a row was merged or split")
+            continue
+        # exactly one ref-looking first cell; a second '| REF |' inside the
+        # row is the signature of a swallowed neighbour
+        body = "|".join(cells[2:])
+        m2 = re.search(r"\|\s*(C\d+|R\d+|U[-\w]*\d*|J[-\w]*\d*|BTN\d|TVS\d|D\d+|Q\d+|F\d+|MOD\d)\s*\|\s*[^|]{0,60}\|\s*\d+\s*\|", body)
+        if m2 and REF.match(s):
+            findings.append(
+                f"[bom-shape] cp1_bom.md:{idx + 1}: row for "
+                f"{REF.match(s).group(1)!r} appears to contain a second "
+                f"component row ({m2.group(1)!r}) — merged rows")
+    return findings
+
+
 def check_row_coherence() -> list[str]:
     findings = []
     path = REPO / "hardware/layout/cp1_bom.md"
@@ -1032,6 +1076,7 @@ def main() -> int:
     findings += check_stale_tokens()
     findings += check_d32_manifest()
     findings += check_row_coherence()
+    findings += check_bom_table_shape()
     findings += check_bom_mpn_coverage()
     if findings:
         print(f"\n{len(findings)} finding(s):\n")

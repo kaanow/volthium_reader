@@ -137,8 +137,13 @@ floors, readback, DRC, label-adjacency, handoff), running inside
 DRC final state: **0 unaccounted**. Accepted:
 - `unconnected_items` ×123 — placement-only board, routing at CP5.
 - `silk_edge_clearance` ×2 — J-USB's designed E-edge overhang.
-- `lib_footprint_mismatch` ×1 — MOD1 vendored variant (non-geometric
-  kiutils serialisation, same class as CP3 §2).
+- `lib_footprint_mismatch` **×2**, both instance-scoped with pad-diff
+  evidence: **MOD1** (vendored no-keepout variant) and **J-USB**
+  (USB4115-03-C, added at §4.5). Each is kiutils serialisation only —
+  62/62 and 30/30 pad tuples respectively identical to their library copies
+  (`iter1/mod1_pad_diff.txt`, `iter1/jusb_pad_diff.txt`).
+  *Corrected at iteration 3: this read "×1" after §4.5 added the second
+  (reviewer F05) — the count was stale, not the footprint unjustified.*
 
 ## 6. Open items for the reviewer
 
@@ -237,9 +242,39 @@ Consequences, each checked rather than assumed:
 
 ## 7. D13 scorecard
 
-Deferred to iteration 2 — this packet is the first hand-off of a board whose
-generator changed materially underneath it, and the reviewer's independent
-rebuild is the more valuable first check.
+*Iteration 1 deferred this; that was wrong — D13 requires the table in every
+packet, and iteration-1 F03 called it out. Completed here (reviewer F05).*
+
+| Criterion | Status | Evidence |
+|-----------|--------|----------|
+| F-P-1 | PASS | DRC 0 unaccounted; accepted classes = unconnected_items ×123 (placement-only) + lib_footprint_mismatch ×2, each per-instance justified (§5) |
+| F-P-2 | PASS | readback gate inside `write()`: written-file (ref,pad,net) == netlist both directions; 0 unbound live pads |
+| F-P-3 | PASS | every footprint comes from the CP2-gated netlist; `[exact-part]` contract covers J1/J2/J3/J-USB/U1/F1 and caught the D39 J2 swap in flight |
+| F-P-4 | PASS | outline 85×65 + 4× M3 @ (4,4)(81,4)(4,61)(81,61) per cp1_display_side §2; envelope plot confirms bodies inside it |
+| F-P-5 | PASS | parity gate: 39/39 placed, 0 extra (hard fail) |
+| F-P-6 | PASS | pad-net binding is by pad number, so rotation cannot swap nets; J1 opening direction probed, not assumed (§9.1 F01) |
+| F-P-7 | PASS | fab gate on the written board: min drill 0.3, annular ≥0.13, copper-edge 0.3; DRC copper_edge_clearance 0 |
+| PR-1 | PASS | refdes restored to library/managed positions; **back-side parts on B.SilkS** with mirrored text (iter-1 fix); H1–H4 hidden |
+| PR-2 | PASS | on-body placement is last resort; every refdes sits beside its part in the render |
+| PR-3 | PASS | `silk_overlap` 0 in the fresh report |
+| PR-4 | PASS | `silk_over_copper` 0 in the fresh report |
+| PR-5 | PASS | verified in the iteration-1 crops + the envelope plot |
+| PR-6 | PASS | text angles normalised 0/90; back-side text mirrored so it reads correctly from the back |
+| PR-7 | PASS | §3 floorplan follows the enclosure story; USB chain runs N from the SE connector, RS-485 front end west of the module |
+| PR-8 | PASS | 3V3 decouplers C3/C4/C6/C7 in a row immediately south of MOD1's courtyard edge; each button's 100 nF sits beside its switch |
+| PR-9 | PASS | §3 + D8/D27/D40: J1 west (in-wall Cat5e), J2 north (short module cable), buttons south at 24/42/60, USB-C front face |
+| PR-10 | PASS | RS-485 A/B adjacent J1→TVS2→U2; USB D± through inline U-ESD; SPI grouped on J2's north edge |
+| PR-11 | PASS | `solder_mask_bridge` 0 of any name in the `--severity-all` report |
+| PR-12 | PASS | same evidence as F-P-3 |
+
+**Mechanical criteria specific to CP4** (this board is mechanics-led):
+
+| Criterion | Status | Evidence |
+|-----------|--------|----------|
+| depth stack | PASS | driver = J-USB 9.30 mm (drawing p.1) → gap ~9.7 mm, total ~34.7 mm vs ~45 mm usable; envelope plot carries every height with its source |
+| plunger reach | PASS | 9.7 + 3 + 2.3 = 15.0 mm = catalog height `150`, protrusion inside the ~2–3 mm spec |
+| service access | PASS | D40 vertical USB-C opens +Z, reachable with faceplate + module removed; J3 on the front beside it |
+| back-side geometry | PASS | writer and gates share ONE mirror (core._xf); parts land at requested centres with 0.00 error; guard rejects a re-implemented mirror on either axis (F08) |
 
 ## 8. Reviewer findings
 
@@ -524,3 +559,59 @@ diametral clearance in a 1.1 mm hole, and the 2.0 mm pad keeps a 0.45 mm
 annular ring, far above the 0.13 mm fab floor. A sane substitution, **not
 identity evidence** — vendoring an exact-pattern footprint is available at
 CP5 if wanted.
+
+### 9.2 Responses to §8.2 (iteration 3, 2026-08-06)
+
+**Finding 05 (D13 scorecard deferred + stale DRC count): AGREE on both.**
+Deferring the scorecard was wrong on its own terms — D13 requires the table
+in *every* packet, and iteration-1 F03 had already said so. §7 now carries
+one binary row per applicable F-P/PR criterion with evidence, plus a
+CP4-specific mechanical block (depth stack, plunger reach, service access,
+back-side geometry), since this board is mechanics-led. §5's count is
+corrected from ×1 to **×2** — §4.5 added the J-USB mismatch and I never
+updated the summary. Both are per-instance justified with pad-diff evidence
+(62/62 MOD1, 30/30 J-USB).
+
+**Finding 06 (both corrected rows swallowed the next component): AGREE —
+this is data corruption I introduced.** The iteration-2 Δ-note rewrite used
+`re.S`, so `.` matched across the newline and the lookahead ran on into the
+following row: C6 and U-ESD stopped having rows of their own. Restored from
+`git show c961ccb~1` and verified **byte-identical** to the pre-corruption
+text, so the verified order codes are untouched.
+
+You were right that the row-scoped checker exited 0 on the malformed table —
+it only inspected the row it could find, so a swallowed row was invisible to
+it. Added `check_bom_table_shape()`: every data row must match its header's
+column count and must not contain a second component row. Poison-tested by
+reproducing exactly the corruption I caused (merge C6 up, merge U-ESD up) —
+both now fail, control clean (`iter3/bom_shape_poison.txt`). The shape check
+also found one **pre-existing** malformed row (TVS2 carried a stray extra
+column); folded into the notes cell with content preserved.
+
+**Finding 07 (Windows cp1252 crash in RPA enforcement): patch
+`8038741` REVIEWED AND ACCEPTED.**
+`RPA-ACCEPTED: F07 8038741`
+
+Re-reviewed per the policy rather than rubber-stamped. The premise holds:
+`git log` output is UTF-8, Windows Python decodes with cp1252 by default, and
+the crash lands before the gate can return a verdict — the same
+"UTF-8 is a per-call obligation" class as CP3 F01. The patch is minimal and
+correctly placed: `encoding="utf-8", errors="replace"` on the text-mode
+subprocess helper in both enforcement scripts.
+
+I swept for what it missed, which is my job here. One `subprocess.run` in
+`handoff_check.py` still has no `encoding=` — `head_blob()` — and that is
+**correct**: it runs in binary mode deliberately, because its bytes are
+compared against the worktree byte-for-byte. Decoding it would break the
+comparison. No other text-mode subprocess remains unencoded. Zero-delta held
+(the gate reported PENDING, not VIOLATION).
+
+**Finding 08 (guard misses the actual convention): AGREE, and the mistake is
+instructive.** I wrote the guard against the *shape of my historical error*
+(`…x = -…x`) instead of against the invariant, so a duplicate of the
+convention actually in use (`mirror_y = -mirror_y`) sailed through — a guard
+that would have caught the last bug but not the next one. Rewritten to
+enforce **ownership**: any self-negation of a coordinate-like name outside
+`core.py` is rejected, whichever axis it picks. Poison-tested on four
+variants (`mirror_x`, `mirror_y`, `my`, `px`) — all caught, control clean
+(`iter3/transform_guard_poison.txt`).

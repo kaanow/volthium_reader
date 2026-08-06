@@ -1124,7 +1124,16 @@ def assert_single_back_transform():
                 name = getattr(tgt, "id", None) or getattr(tgt, "attr", None)
                 inner = node.value.operand
                 iname = getattr(inner, "id", None) or getattr(inner, "attr", None)
-                if name and iname and name == iname and name.lower().endswith("x"):
+                # Enforce OWNERSHIP of the convention, not the shape of the
+                # historical mistake. The first cut only rejected names ending
+                # in "x" — i.e. the wrong expression I happened to have
+                # written — so a duplicate of the ACTUAL convention
+                # (mirror_y = -mirror_y) sailed through (CP4 F08). Any
+                # self-negation of a coordinate outside core is a re-implemented
+                # mirror, whichever axis it picks.
+                if name and iname and name == iname and \
+                        re.search(r"(^|_)(x|y|mx|my|px|py|mirror\w*|coord\w*)$",
+                                  name.lower()):
                     if f.name != "core.py":
                         bad.append(f"{f.name}:{node.lineno}: {name} = -{iname}")
     if bad:

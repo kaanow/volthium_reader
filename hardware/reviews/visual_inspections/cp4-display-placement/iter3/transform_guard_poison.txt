@@ -1,0 +1,8 @@
+CP4 iter3 — single-transform guard poison tests (reviewer F08)
+==============================================================
+The guard must reject a re-implemented mirror on EITHER axis.
+  mirror_x = -mirror_x -> CAUGHT
+  mirror_y = -mirror_y -> CAUGHT
+  my = -my   -> CAUGHT
+  px = -px   -> CAUGHT
+  CONTROL (unmodified) -> 0 transform findings (want 0)
