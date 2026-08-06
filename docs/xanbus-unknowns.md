@@ -67,12 +67,22 @@ MPPT's own energy counters over a full day — an independent third opinion.
 
 ## Tier 2 — real value, harder
 
-**6. PGN 127166 ("MPPT Data") — the energy counters.**
-60-byte fast packet, >16 frames, with 6 varying byte positions (@0, 19, 23,
-46, 50, 58). Almost certainly cumulative Wh/runtime counters matching the
-Modbus registers 30:131/135/139/143 (+115 Wh over one morning) and 30:133/137
-(operating seconds). Correlation-decodable with the labels we already have.
-Nice-to-have: integrating `solar_w` gives the same answer.
+**6. PGN 127166 ("MPPT Data") — PARTIALLY DECODED 2026-08-06.**
+60-byte fast packet, >16 frames (so it needs the standard 3/5 split; the
+berrybms nibble split cannot reassemble it). 10,842 records paired against
+labelled Modbus counters within 30 s:
+
+| offset | width | meaning | evidence |
+|---|---|---|---|
+| 46 | u32 | **daily output Ah** | offset50/offset46 = 27.2-27.5 V across all samples — that ratio IS the battery voltage, so 46 is amp-hours of the same quantity 50 counts in watt-hours. Resets at local midnight. |
+| 50 | u32 | **daily output Wh** | tracks Modbus reg 131 with a constant +7..8 offset; both reset to 0 at local midnight |
+| 54 | u32 | active-seconds counter | increments ~1/s while producing, freezes when production stops, does NOT reset daily — so a week/month/lifetime accumulator, period unidentified |
+| 58 | u16 | a daily counter | resets at midnight, held 712 all evening; semantics unknown |
+| 19, 23 | u32 | slow lifetime counters | +1 and +12 over ~4.6 h |
+
+The daily Wh/Ah pair is the useful part and is now confirmed. NOTE it inherits
+the MPPT's current-sensor under-report (see #5), so it is a convenience, not a
+truth source — integrating the derived production is still more accurate.
 
 **7. Three PGNs that carry information we can't read.**
 - `127005` (0x1F01D) — 12% of bus traffic, only bytes 2–3 vary: one u16, 49
