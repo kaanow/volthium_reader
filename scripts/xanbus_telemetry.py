@@ -373,16 +373,20 @@ class Decoder:
         clamped = (self.pv_v > LATCH_DAYLIGHT_V
                    and LATCH_DELTA_MIN_V <= delta <= LATCH_DELTA_MAX_V)
         if not clamped:
-            self.clamp_since = None
-            if not self.latched:
-                return []
-            # Releasing needs hysteresis for the same reason the ceiling was
-            # raised: a single dithered sample is not a recovery. Requiring a
-            # sustained exit means "unlatched" reports a tracker that actually
-            # climbed back out, not one quantisation step of noise.
+            # Hysteresis applies on the way IN as well as out. Zeroing
+            # clamp_since on the first out-of-band sample means one brief
+            # excursion restarts the whole 600 s confirmation, and a real
+            # latch can then never be reported: on 2026-08-06 the array sat
+            # clamped 16:35-17:00 local, twitched to delta 4.19 V once around
+            # 16:50, and the detector emitted nothing for the entire 25 min.
+            # The guard's fraction-over-a-window test caught it; this
+            # continuous-run test did not. Same grace both directions.
             if self.clamp_clear_since is None:
                 self.clamp_clear_since = now
             if now - self.clamp_clear_since < LATCH_RELEASE_S:
+                return []                       # brief excursion: hold state
+            self.clamp_since = None             # sustained: accumulation void
+            if not self.latched:
                 return []
             self.latched = False
             self.clamp_clear_since = None

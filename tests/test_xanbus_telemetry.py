@@ -273,6 +273,46 @@ class LatchDetectionTests(unittest.TestCase):
                           if e["event"].startswith("mppt_")], [])
         self.assertTrue(dec.latched)
 
+    def test_brief_excursion_does_not_restart_confirmation(self):
+        """Regression for 2026-08-06 16:35-17:00 local: the array sat clamped
+        for 25 min, twitched out of band once around 16:50, and the detector
+        emitted NOTHING for the whole episode because that one sample zeroed
+        clamp_since. The guard's fraction test caught the latch; this one had
+        to be told that hysteresis applies on the way in too."""
+        dec = Decoder()
+        t = 1000.0
+        for i in range(400):                      # 400 s clamped
+            self._clamped(dec, t + i)
+            dec.housekeeping(t + i)
+        self.assertFalse(dec.latched)
+        self._healthy(dec, t + 400)               # one brief excursion
+        dec.housekeeping(t + 401)
+        evs = []
+        for i in range(402, 620):                 # clamped again
+            self._clamped(dec, t + i)
+            evs += [e for e in dec.housekeeping(t + i)
+                    if e["event"] == "mppt_latched"]
+        self.assertEqual(len(evs), 1)             # 600 s reached despite it
+        self.assertTrue(dec.latched)
+
+    def test_sustained_exit_still_voids_the_accumulation(self):
+        """The grace must not become amnesia: a genuinely healthy stretch
+        longer than the release window resets the confirmation clock."""
+        dec = Decoder()
+        t = 1000.0
+        for i in range(400):
+            self._clamped(dec, t + i)
+            dec.housekeeping(t + i)
+        for i in range(400, 600):                 # 200 s healthy > 120 s
+            self._healthy(dec, t + i)
+            dec.housekeeping(t + i)
+        for i in range(600, 900):                 # only 300 s clamped again
+            self._clamped(dec, t + i)
+            dec.housekeeping(t + i)
+        self.assertFalse(dec.latched)             # must NOT have latched
+        self.assertEqual([e for e in dec.housekeeping(t + 900)
+                          if e["event"] == "mppt_latched"], [])
+
     def test_real_dither_keeps_the_latch_asserted(self):
         """Replay of the measured 2026-08-06 clamp: out_v steady at 26.50 V
         while pv_v hops 27.5 <-> 29.9, swinging the delta 1.0-3.4 V second
