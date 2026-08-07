@@ -1,0 +1,25 @@
+edge/battery_control: []
+edge/display_control: []
+edge/wrong_identity: ["[edge-marker] edge-marker refs: set mismatch — 1 present vs 1 expected; missing ['J1'], unexpected ['J3']"]
+edge/marker_disappears: ["[edge-marker] edge-marker refs: set mismatch — 0 present vs 1 expected; missing ['J3'], unexpected []"]
+edge/marker_appears: ["[edge-marker] edge-marker refs: set mismatch — 1 present vs 0 expected; missing [], unexpected ['J-USB']", "[edge-marker] J-USB: 'PCB Edge' reference line is 1.90 mm off the S edge — the connector's mating plane is not where the footprint says the board edge must be"]
+fab/missing_drill: ['[fab] XTEST pad 1: typed thru_hole but carries no drill — it was silently excluded from the drill/annular checks']
+fab/smd_control: []
+roundtrip/control_malformed: []
+roundtrip/bad_anchor: []
+roundtrip/bad_reference: ['[refdes-roundtrip] a footprint (Button_Switch_THT:SW_PUSH_6mm_H13mm) has no parseable anchor or reference — it is excluded from the round trip entirely rather than verified']
+roundtrip/fallback_control: []
+roundtrip/fallback_anchor_missing: []
+PASS battery_control_clean
+PASS display_control_clean
+PASS same_size_scope_substitution_fails
+PASS expected_marker_disappearance_fails
+PASS unexpected_marker_appearance_fails
+PASS typed_through_hole_without_drill_fails
+PASS drillless_smd_control_clean
+PASS roundtrip_control_has_no_malformed_footprint
+FAIL malformed_anchor_fails
+PASS malformed_reference_fails
+PASS fallback_control_clean
+FAIL fallback_malformed_anchor_rejected
+independent gate recheck failed: malformed_anchor_fails, fallback_malformed_anchor_rejected

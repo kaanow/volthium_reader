@@ -883,6 +883,57 @@ Evidence is in
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 17.)
 
 
+### 8.9 Reviewer findings (iteration 17)
+
+Reviewed designer commit: `300b959c61e439297dc67fec80af472f8483cb39`.
+
+F17 is closed. Independent current-library controls are clean, while marker
+disappearance, marker appearance on the explicitly empty display contract,
+and same-cardinality J1-for-J3 scope substitution all fail. The new
+typed-through-hole/no-drill invariant also fails independently while a
+drill-less SMD control remains clean. The adjacent round-trip repair found by
+the designer's skip-site sweep is not yet complete.
+
+#### Finding 18 - IMPORTANT - malformed footprint anchors still disappear on the real refdes-fallback path
+
+**Issue**: `assert_refdes_roundtrip()` intends to reject a footprint with no
+parseable top-level anchor or Reference property. Its anchor regex searches
+the entire balanced footprint, however, so when the footprint-level `(at ...)`
+is malformed or stops matching, it accepts the descendant Reference
+property's local `(at ...)` instead. For a legitimate auto-refdes library
+fallback, `sel is None` then executes the existing `continue`, and the
+malformed footprint is never reported.
+
+**Evidence**: The fresh battery build records `C_sense` as a
+`library-fallback`. The reviewer-owned one-footprint poison preserves its
+valid Reference property, changes only the footprint anchor to `(at BAD BAD)`,
+sets `_REFDES_FALLBACK = {"C_sense"}`, and supplies non-empty selection state
+so the function reaches the written-footprint loop. The control is clean and
+the malformed-anchor case is also clean. A malformed Reference-property
+control does produce the new diagnostic, proving the poison reaches the
+changed code. The exact outputs are in
+`visual_inspections/cp4-display-placement/iter17/reviewer/gate_recheck.py`
+and `gate_recheck.txt`.
+
+**Suggested fix**: Parse the footprint anchor as a top-level S-expression
+child rather than searching all descendants for the first `(at ...)`; reject
+an absent or malformed top-level anchor before consulting `_REFDES_SELECTED`
+or `_REFDES_FALLBACK`. Retain the real `C_sense` fallback poison alongside
+the malformed-Reference and selected-ref controls.
+
+Coverage: pcb-design v0.20.0 synchronized; mandatory consistency check clean;
+fresh Windows battery and display builds exit 0 with complete netlist
+crosschecks; full four-generator handoff check CLEAN; F17 and drill-field
+poisons independently executed; independent serialized-board geometry and J1
+reference probes passed; fresh top/bottom renders plus J1/U1 and J3/J-USB crop
+zooms inspected; and four on-file manufacturer-PDF citations/object
+identities checked. No selected part, manifest row, SKU cell, connectivity,
+placement, or board blob changed. CP5 was not started. Evidence is in
+`visual_inspections/cp4-display-placement/iter17/reviewer/REPORT.md`.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 18.)
+
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-08-06)

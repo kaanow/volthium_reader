@@ -1,0 +1,3 @@
+﻿[crosscheck] CROSSCHECK: clean � 39 references, 39 sides, 191 pad-nets (of 191 net-bound pads KiCad sees) agree with KiCad's own engine
+[drc] categories: {'lib_footprint_mismatch': 2, 'unconnected_items': 123}
+[ok] display_pcb.kicad_pcb: 43 footprints, 57 nets, DRC clean (accepted: {'unconnected_items': 123, 'silk_edge_clearance': 0, ('lib_footprint_mismatch', 'ESP32-S3-WROOM-1_HSvia0.3_NoAntKeepout'): 0, ('lib_footprint_mismatch', 'J_Wurth_WR-MJ_615008145521'): 0, ('lib_footprint_mismatch', 'USB_C_Receptacle_GCT_USB4115-03-C'): 0, ('lib_footprint_mismatch', 'Converter_DCDC_RECOM_R-78E-0.5_THT'): 0})

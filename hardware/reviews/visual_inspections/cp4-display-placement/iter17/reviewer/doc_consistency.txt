@@ -1,0 +1,2 @@
+﻿  info: 36 manifest parts checked; 34 BOM cells still at _verify_ (MPN not chosen — D32 applies when chosen)
+clean: no unmarked stale tokens; D32 manifest ↔ PDF ↔ BOM consistent
