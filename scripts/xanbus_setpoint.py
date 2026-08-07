@@ -97,6 +97,9 @@ def main() -> int:
     ap.add_argument("--dest", type=int, default=1, help="1 = MPPT, 0 = SW")
     ap.add_argument("--field", choices=sorted(FIELDS), default="absorb_time")
     ap.add_argument("--read", action="store_true", help="read only, no write")
+    ap.add_argument("--dump", action="store_true",
+                    help="hex-dump the whole record (read-only aid: the "
+                         "enable flags live outside the mapped offsets)")
     ap.add_argument("--set", type=float, help="new value (in the field's unit)")
     ap.add_argument("--restore", action="store_true",
                     help="put the original value back afterwards")
@@ -142,6 +145,16 @@ def main() -> int:
         counter = original[1]
         print(f"\nread: {args.field} = {orig_val:g} {unit} "
               f"(change counter {counter}, record {len(original)} B)")
+
+        if args.dump:
+            print("\nraw record (offset: bytes):")
+            for i in range(0, len(original), 16):
+                chunk = original[i:i + 16]
+                hexs = " ".join(f"{b:02x}" for b in chunk)
+                print(f"  {i:3d}: {hexs}")
+            print(f"  byte[0] instance = 0x{original[0]:02x}   "
+                  f"byte[1] change counter = {original[1]}")
+            print(f"  mapped field at offset {off} = {orig_val:g} {unit}")
 
         if args.read or args.set is None:
             return 0
