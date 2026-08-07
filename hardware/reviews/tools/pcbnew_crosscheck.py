@@ -39,22 +39,29 @@ def main():
     # therefore anchored to the caller's component set, not inferred from
     # whatever happened to be in the file being judged.
     board_refs = {fp.GetReference() for fp in b.GetFootprints()}
-    want = list(exp.get("components", []))
+    want = set(exp.get("components", []))
+    mech = set(exp.get("mechanical", []))
     if board_refs and not want:
         bad.append(f"the board KiCad loaded carries {len(board_refs)} "
                    "footprints but the expected object names no components "
                    "— an empty expectation cannot certify a populated board")
-    missing = [r for r in want if r not in board_refs]
-    if missing:
-        bad.append(f"expected components absent from the board: "
-                   f"{sorted(missing)[:12]}")
-    if want and len(exp.get("side", {})) != len(want):
-        bad.append(f"side map covers {len(exp.get('side', {}))} of "
-                   f"{len(want)} expected components — a partial map cannot "
-                   "certify the whole board")
-    if want and not exp.get("refdes"):
-        bad.append(f"no reference positions supplied for {len(want)} "
-                   "expected components — nothing would be checked")
+
+    # IDENTITY, not cardinality (CP4 F16). A 1-of-39 map and a same-size map
+    # with one member swapped both satisfied the previous count tests while
+    # judging the wrong set. Counts below are diagnostics inside the
+    # message, never the test.
+    def same_set(label, got, expect):
+        got, expect = set(got), set(expect)
+        if got == expect:
+            return
+        miss, extra = sorted(expect - got), sorted(got - expect)
+        bad.append(f"{label}: set mismatch — {len(got)} present vs "
+                   f"{len(expect)} expected; missing {miss[:10]}, "
+                   f"unexpected {extra[:10]}")
+
+    same_set("board footprints", board_refs, want | mech)
+    same_set("refdes map", exp.get("refdes", {}), want)
+    same_set("side map", exp.get("side", {}), want)
 
     for ref, e in exp.get("refdes", {}).items():
         fp = b.FindFootprintByReference(ref)
@@ -77,52 +84,52 @@ def main():
         if got != side:
             bad.append(f"{ref} side: our model {side}, KiCad {got}")
 
-    # An oracle must not score a pad it never found as agreement (CP4 F13).
-    # Absence is a FAILURE, every pad carrying the number is checked (a
-    # footprint may repeat one), and the compared count is asserted against
-    # the expected map so a truncated map cannot pass quietly.
+    # Pads by IDENTITY (CP4 F16). Build KiCad's net-bound
+    # (ref, pad-number) -> [netname, ...] multimap and require its KEY SET to
+    # equal the expected key set. Counting physical occurrences let a
+    # same-size map pass after swapping a required net-bound pad for an
+    # unrelated unbound one: the total stayed 191, so the count agreed while
+    # the sets did not.
     expected_pads = exp.get("pads", {})
-    compared = 0
-    located = set()
-    for key, net in expected_pads.items():
-        ref, pad = key.split("/", 1)
-        fp = b.FindFootprintByReference(ref)
-        if fp is None:
-            bad.append(f"{ref}.{pad}: our model expects this pad but the "
-                       "footprint is absent from the board KiCad loaded")
-            continue
-        matches = [p_ for p_ in fp.Pads() if p_.GetNumber() == pad]
-        if not matches:
-            bad.append(f"{ref}.{pad}: our model expects this pad but KiCad's "
-                       f"board has no pad numbered {pad!r} on {ref}")
-            continue
-        located.add(key)
-        for p_ in matches:
-            compared += 1
-            got = p_.GetNetname()
-            if got != net:
-                bad.append(
-                    f"{ref}.{pad} net: our model {net!r}, KiCad {got!r}")
-
-    if len(located) != len(expected_pads):
-        bad.append(f"located only {len(located)} of {len(expected_pads)} "
-                   "expected pads")
-
-    # Coverage, not just agreement: if our expected map omits net-bound pads
-    # that KiCad can see, the oracle is checking a subset while reporting
-    # confidence. This is the invariant that the first-four-pins truncation
-    # violated while printing "clean".
-    board_bound = 0
+    board_map = {}
     for fp in b.GetFootprints():
         for p_ in fp.Pads():
-            if p_.GetNetname():
-                board_bound += 1
-    # Unconditional and EXACT. The truthiness guard that used to sit here
-    # is precisely what let an empty map through (F15).
+            net = p_.GetNetname()
+            if net:
+                board_map.setdefault(
+                    f"{fp.GetReference()}/{p_.GetNumber()}", []).append(net)
+
+    same_set("net-bound pads", expected_pads, board_map)
+
+    # An expected pad with an empty net name asserts nothing (F16).
+    blank = sorted(k for k, v in expected_pads.items() if not v)
+    if blank:
+        bad.append(f"expected pads carry an EMPTY net name, which asserts "
+                   f"nothing: {blank[:10]}")
+
+    compared = 0
+    for key, net in expected_pads.items():
+        got_list = board_map.get(key)
+        if got_list is None:
+            ref, pad = key.split("/", 1)
+            fp = b.FindFootprintByReference(ref)
+            why = ("the footprint is absent from the board KiCad loaded"
+                   if fp is None else
+                   f"KiCad's board has no NET-BOUND pad numbered {pad!r} "
+                   f"on {ref}")
+            bad.append(f"{key}: our model expects this pad but {why}")
+            continue
+        # every PHYSICAL occurrence must match, not just the first
+        for got in got_list:
+            compared += 1
+            if got != net:
+                bad.append(f"{key} net: our model {net!r}, KiCad {got!r}")
+
+    board_bound = sum(len(v) for v in board_map.values())
     if compared != board_bound:
-        bad.append(f"coverage: KiCad sees {board_bound} net-bound pads but "
-                   f"our expected map compared {compared} — the oracle is "
-                   "judging a different set than the board actually has")
+        bad.append(f"coverage: KiCad sees {board_bound} net-bound pad "
+                   f"occurrences but our expected map compared {compared} — "
+                   "the oracle is judging a different set than the board has")
 
     if bad:
         print(f"CROSSCHECK: FAIL ({len(bad)})")

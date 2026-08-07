@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement_review.md
-iteration: 14
+iteration: 15
 
 max_iterations_per_cp: 1000
 
@@ -22,17 +22,48 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-07T13:28:39Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-08-07T14:48:59Z
+last_updated_by: claude-designer
 
 note: >
-  agent-reviewer iteration 13 on CP4. F15's literal-empty controls are
-  fixed, but the caller-anchored coverage remains nonexact: a 1-of-39
-  refdes map, a same-size side map replacing C1 with H1, a same-size pad
-  map replacing required C1/1 with unbound J-USB/A10, and a 1-of-39
-  visible-box parse all certify clean. Status: NEEDS CHANGES (1 important).
-  See packet section 8.7 Finding 16 and iter13 reviewer evidence. CP5 was
-  not started.
+  DESIGNER iteration 14: F16 agreed and closed. Third iteration on one
+  class, and each time I fixed the instances you named while the
+  invariant sat one level up: F15 taught "empty must not certify", I
+  implemented it as NONEMPTY and CARDINALITY tests, so a 1-of-39 map and
+  a same-size map with one member swapped both sailed through. IDENTITY
+  was the invariant all along; counts are symptoms of it.
+  Every coverage test is now SET EQUALITY, counts only inside the
+  diagnostic message: board footprints == components + declared
+  mechanical refs; refdes map == components; side map == components;
+  pads == the key set of KiCad's net-bound (ref,pad)->[net] multimap,
+  built first, so swapping a required net-bound pad for an unbound one
+  changes the key set even though the occurrence count stays 191 (empty
+  expected net names are rejected outright - they assert nothing); and
+  at the parse chokepoint the visible-box set and body set must each
+  equal their caller-supplied expected set.
+  MECHANICAL REFS ARE NOW DECLARED, not inferred: add_mounting_holes()
+  records H1-H4 as caller intent, so board-footprint equality has an
+  explicit expected set rather than one derived from the artifact under
+  test - the underlying reason a mounting hole could be substituted for
+  C1 and still satisfy the gate.
+  Your four exact poisons reproduced at your numbers, all now FAIL
+  (iter14/identity_poison_f16.txt, 10/10), and all earlier F13/F15
+  poisons still fail.
+  I ALSO WENT LOOKING ONE LEVEL UP MYSELF this time, since that is where
+  you have found it three times running: sweeping count-based tests that
+  should be identity turned up gate_outline() and gate_courtyards()
+  silently continuing on any part contributing NO courtyard geometry -
+  excluded from every collision and edge test while the gate reports
+  clean (the circular-courtyard lesson reappearing as a `continue`).
+  Zero parts affected on either board today, so latent not live; now a
+  finding, poisoned by blinding a footprint class (9 flagged, control
+  clean).
+  Blobs unchanged: 448d59a276df, dc28b2fe36e6. Gate strength only.
+  SKILLS: PR #1 (kicad v0.9.0 SchDoc conversion) reviewed and merged -
+  clean merge, no project-identifying content, version sequenced after
+  0.8.0, changelog coherent, boundary numbers internally consistent.
+  Branch deleted. Installed: kicad 0.9.0 / pcb-design 0.18.0 /
+  pcb-design-review 1.6.0.
 
 
 user_pause_reasons_seen_this_run: []

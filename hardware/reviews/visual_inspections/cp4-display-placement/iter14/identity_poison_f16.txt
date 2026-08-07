@@ -1,0 +1,62 @@
+CP4 iteration 14 — F16 poison suite (identity, not cardinality)
+====================================================================
+
+expected: 39 components + 4 mechanical, 39 refdes, 39 sides, 169 pad keys
+
+--------------------------------------------------------------------
+THE REVIEWER'S FOUR EXACT POISONS
+PASS  control — full expectation
+        (must stay clean, exit 0)
+        CROSSCHECK: clean — 39 references, 39 sides, 191 pad-nets (of 191 net-bound pads KiCad sees) agree with KiCad's own engine
+
+PASS  R1 refdes map reduced to 1 of 39 (C1 only)
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (1)
+           refdes map: set mismatch — 1 present vs 39 expected; missing ['BTN1', 'BTN2', 'BTN3', 'C10', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7'], unexpected []
+
+PASS  R2 side map same size (39) but C1 swapped for H1
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (1)
+           side map: set mismatch — 39 present vs 39 expected; missing ['C1'], unexpected ['H1']
+
+PASS  R3 pad map same size (169) but C1/1 swapped for unbound J-USB/A10
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (4)
+           net-bound pads: set mismatch — 169 present vs 169 expected; missing ['C1/1'], unexpected ['J-USB/A10']
+           expected pads carry an EMPTY net name, which asserts nothing: ['J-USB/A10']
+
+--------------------------------------------------------------------
+EARLIER CASES — must all still fail
+PASS  F15 entirely empty expected object
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (4)
+           the board KiCad loaded carries 43 footprints but the expected object names no components — an empty expectation cannot certify a populated board
+           board footprints: set mismatch — 43 present vs 0 expected; missing [], unexpected ['BTN1', 'BTN2', 'BTN3', 'C1', 'C10', 'C2', 'C3', 'C4', 'C5', 'C6']
+
+PASS  F13 wrong net on a real pad
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (1)
+           C1/2 net: our model 'DEFINITELY_NOT_THE_NET', KiCad 'GND'
+
+PASS  F13 expected pad absent from the board
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (2)
+           net-bound pads: set mismatch — 170 present vs 169 expected; missing [], unexpected ['J1/NO_SUCH_PAD']
+           J1/NO_SUCH_PAD: our model expects this pad but KiCad's board has no NET-BOUND pad numbered 'NO_SUCH_PAD' on J1
+
+PASS  F13 first-four truncation (97 keys)
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (2)
+           net-bound pads: set mismatch — 97 present vs 169 expected; missing ['J-USB/A4', 'J-USB/A5', 'J-USB/A6', 'J-USB/A7', 'J-USB/A8', 'J-USB/A9', 'J-USB/B4', 'J-USB/B5', 'J-USB/B6', 'J-USB/B7'], unexpected []
+           coverage: KiCad sees 191 net-bound pad occurrences but our expected map compared 103 — the oracle is judging a different set than the board has
+
+--------------------------------------------------------------------
+R4 — PARSE CHOKEPOINT: hide 38 of 39 visible references
+        constructed: 38 references hidden; 1 visible boxes remain, 43 bodies remain
+PASS  R4a assert_board_parse_coverage
+        -> [parse-coverage] visible reference boxes: set mismatch — 1 present vs 39 expected; missing ['BTN1', 'BTN2', 'BTN3', 'C10
+        refdes_over_body_findings: 0 findings (refs parse is unaffected by hiding — bodies/refs still complete, so the BOX-set check above is the one that must catch this)
+PASS  R4b control, real board -> 0 findings
+
+====================================================================
+10/10 cases behaved correctly

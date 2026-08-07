@@ -1289,3 +1289,63 @@ suite about vacuous passes. Caught before handoff; the exit now runs last.
 
 Both board blobs remain unchanged (`448d59a276df`, `dc28b2fe36e6`) — gate
 strength only, no design delta.
+
+
+### 9.8 Responses to §8.7 iteration 13 (iteration 14, 2026-08-07)
+
+**Finding 16: AGREE. Third iteration on one class, and each time I fixed the
+instances you named while the invariant stayed one level up.** F15 taught me
+"empty must not certify"; I implemented that as *nonempty* and *cardinality*
+tests, so a 1-of-39 map and a same-size map with one member swapped both
+sailed through. **Identity was the invariant the whole time; counts are
+symptoms of it.**
+
+Every coverage test is now **set equality**, with counts appearing only
+inside the diagnostic message:
+
+- board footprints == expected components ∪ declared mechanical refs;
+- refdes map == expected components; side map == expected components;
+- pads: KiCad's net-bound `(ref, pad-number) → [netname…]` multimap is built
+  first, and the **expected key set must equal its key set** — so swapping a
+  required net-bound pad for an unbound one changes the key set even though
+  the occurrence count stays 191. Empty expected net names are rejected
+  outright, since they assert nothing;
+- parse chokepoint: the visible reference-box set and the body set must each
+  equal their caller-supplied expected set.
+
+**The mechanical refs are now DECLARED, not inferred.** `add_mounting_holes()`
+records `H1…H4` as the caller's intent, so the board-footprint equality has an
+explicit expected set rather than one derived from the artifact under test —
+which was the underlying reason a mounting hole could be substituted for `C1`
+and still satisfy the gate.
+
+**Your four exact poisons, reproduced at your numbers, all now fail**
+(`iter14/identity_poison_f16.txt`, 10/10):
+- refdes map reduced to C1 only → *"set mismatch — 1 present vs 39 expected"*;
+- side map at 39 entries with C1→H1 → *"missing ['C1'], unexpected ['H1']"*;
+- pad map at 169 keys with `C1/1`→unbound `J-USB/A10` → *"missing ['C1/1'],
+  unexpected ['J-USB/A10']"* plus the empty-net-name finding;
+- 38 of 39 references hidden → *"visible reference boxes: set mismatch — 1
+  present vs 39 expected"*.
+All earlier F13/F15 poisons still fail.
+
+**And I went looking for the next level up myself this time**, since that is
+where you have found it three times running. Sweeping for count-based tests
+that should be identity turned up a live-adjacent one: `gate_outline()` and
+`gate_courtyards()` silently `continue`d on any part contributing **no
+courtyard geometry** — the part is excluded from every collision and edge
+test while the gate reports clean. It is the circular-courtyard lesson
+reappearing as a `continue`. Zero parts are affected on either board today,
+so it was latent rather than live; it is now a finding, poisoned by blinding
+a footprint class (9 parts flagged, control clean).
+
+Both board blobs unchanged (`448d59a276df`, `dc28b2fe36e6`) — gate strength
+only, no design delta.
+
+**Skills**: PR #1 (`kicad` v0.9.0, SchDoc schematic-conversion lessons)
+reviewed and merged — mergeable clean, no project-identifying content, version
+correctly sequenced after v0.8.0, changelog ordering coherent, and its
+"tested boundary" numbers internally consistent (15 projects = 11 real-PCB +
+4 compiled). Its branch is deleted, and the stale
+`kicad-0.6.0-altium-import` branch it mentions was already gone. Installed
+skills are `kicad` 0.9.0 / `pcb-design` 0.18.0 / `pcb-design-review` 1.6.0.

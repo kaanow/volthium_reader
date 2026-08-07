@@ -421,6 +421,11 @@ class BoardBuilder:
         # (the first DRC run caught a hole x jack overlap the analytic gate
         # was blind to — holes lived outside the placement dict)
         self._extra_courtyards = getattr(self, "_extra_courtyards", [])
+        # Declared here, by the caller that asked for the holes — coverage
+        # gates need the mechanical refs as INTENT, never inferred from the
+        # emitted board they are judging (CP4 F16).
+        self.mechanical_refs = getattr(self, "mechanical_refs", set())
+        self.mechanical_refs |= {f"H{i}" for i in range(1, len(coords) + 1)}
         for i, (x, y) in enumerate(coords, start=1):
             segs = courtyard_segments(f"MountingHole:{drill_fp}", x, y, 0)
             # BOTH sides: an NPTH hole obstructs the front AND the back, and
@@ -466,6 +471,15 @@ class BoardBuilder:
             fpid = self.components[ref]["footprint"]
             x, y, rot, side = self.placement[ref]
             segs = courtyard_segments(fpid, x, y, rot, back=(side == "B"))
+            # A part contributing zero geometry is silently un-gated while
+            # appearing gated — the class behind the circular courtyards,
+            # and the same identity-vs-presence error as F16. Not live on
+            # either board today; asserted so it cannot become live.
+            if not [p for s in segs for p in s]:
+                self.findings.append(
+                    f"[courtyard] {ref} ({fpid}) contributed NO courtyard "
+                    "geometry — it is excluded from every collision test "
+                    "while appearing covered")
             placed.append((ref, side, segs))
         for i in range(len(placed)):
             for j in range(i + 1, len(placed)):
@@ -501,6 +515,11 @@ class BoardBuilder:
             segs = courtyard_segments(fpid, x, y, rot, back=(side == "B"))
             pts = [p for s in segs for p in s]
             if not pts:
+                # was a silent `continue`: the part was never tested against
+                # the outline while the gate reported clean (see gate_courtyards)
+                self.findings.append(
+                    f"[outline] {ref} ({fpid}) contributed NO courtyard "
+                    "geometry — it was never tested against the board edge")
                 continue
             x0 = min(p[0] for p in pts); x1 = max(p[0] for p in pts)
             y0 = min(p[1] for p in pts); y1 = max(p[1] for p in pts)
@@ -627,14 +646,20 @@ class BoardBuilder:
         # refdes label distinctness, refdes-vs-body, and the round trip
         # that proves the emitted designator landed where it was chosen
         self.gate_readback(path)
-        assert_board_parse_coverage(text, set(self.components), self.findings)
+        mech = getattr(self, "mechanical_refs", set())
+        assert_board_parse_coverage(text, set(self.components),
+                                    set(self.components) | mech,
+                                    self.findings)
         self.findings += label_adjacency_findings(
             refdes_boxes_from_board(text))
         assert_refdes_roundtrip(text, self.findings)
+        # every footprint carries a Reference, holes included — so the
+        # expected set here is components PLUS the declared mechanical refs
         self.findings += refdes_over_body_findings(
-            text, expected_refs=set(self.components))
+            text, expected_refs=set(self.components) | mech)
         pcbnew_crosscheck(path, self.components, self.placement,
-                          refdes_boxes_from_board(text), self.findings)
+                          refdes_boxes_from_board(text), self.findings,
+                          mechanical=mech)
 
     def gate_readback(self, path):
         """Judge the WRITTEN artifact: re-parse the .kicad_pcb text and
@@ -1114,12 +1139,10 @@ def refdes_over_body_findings(board_text, expected_refs=None):
             "this gate certifies nothing, and an empty result here must not "
             "be read as clean")
     if expected_refs is not None:
-        absent = sorted(set(expected_refs) - set(refs))
-        if absent:
-            out.append(
-                f"[refdes-on-body] the caller expected {len(expected_refs)} "
-                f"components but {len(absent)} were not parsed from the "
-                f"board: {absent[:12]} — coverage is incomplete")
+        # Identity, not "are the expected ones present" — a parse yielding
+        # extra or substituted refs is equally a wrong set (F16).
+        _set_equality("parsed references", refs, expected_refs, out,
+                      tag="refdes-on-body")
     # Anchor coverage on the FOOTPRINT count, not the parsed-ref count: if
     # the reference regex itself stops matching, a ref-based test has an
     # empty list and quietly claims nothing — the same escape one level up.
@@ -1237,7 +1260,7 @@ def kicad_python():
 
 
 def pcbnew_crosscheck(board_path, components, placement, refdes_boxes,
-                      findings):
+                      findings, mechanical=()):
     """Re-derive our assertions with KiCad's OWN engine (CP4, post-F11).
 
     Our gates read the board with the assumptions that wrote it, so a bad
@@ -1251,6 +1274,7 @@ def pcbnew_crosscheck(board_path, components, placement, refdes_boxes,
               "independent oracle did NOT run")
         return
     exp = {"components": sorted(components),
+           "mechanical": sorted(mechanical or ()),
            "refdes": {r: [round((b[0] + b[2]) / 2, 3),
                           round((b[1] + b[3]) / 2, 3)]
                       for r, b in refdes_boxes},
@@ -1326,8 +1350,30 @@ def refdes_boxes_from_board(board_text):
     return boxes
 
 
-def assert_board_parse_coverage(board_text, expected_refs, findings):
-    """One owner for 'the emitted text parsed to what we expect'.
+def _set_equality(label, got, want, findings, tag="parse-coverage"):
+    """Identity, not cardinality. Counts are diagnostics only.
+
+    CP4 F16: emptiness and length tests are the SAME vacuous-pass class one
+    step up — a 1-of-39 map, or a same-size map with one member swapped for
+    an unrelated one, satisfied every count-based check while judging the
+    wrong set. Comparing key sets is the invariant; a count can only ever
+    be a symptom of it.
+    """
+    got, want = set(got), set(want)
+    if got == want:
+        return True
+    missing, extra = sorted(want - got), sorted(got - want)
+    findings.append(
+        f"[{tag}] {label}: set mismatch — {len(got)} present vs "
+        f"{len(want)} expected; missing {missing[:10]}"
+        f"{'…' if len(missing) > 10 else ''}, unexpected {extra[:10]}"
+        f"{'…' if len(extra) > 10 else ''}")
+    return False
+
+
+def assert_board_parse_coverage(board_text, expected_visible, expected_all,
+                                findings):
+    """One owner for 'the emitted text parsed to EXACTLY what we expect'.
 
     Several gates downstream consume a parse of the board (reference boxes,
     bodies, adjacency). Each is a pure function that reports clean when its
@@ -1335,29 +1381,25 @@ def assert_board_parse_coverage(board_text, expected_refs, findings):
     because a parse that silently yields nothing turns every one of them
     into a vacuous pass at once (CP4 F15). Guarding the PARSE once protects
     all consumers, instead of bolting an emptiness test onto each.
+
+    F16: the first cut of that guard tested only for TOTAL emptiness, so
+    hiding 38 of 39 references still passed. Both expected sets are now
+    supplied by the caller and compared by IDENTITY.
     """
-    n_fp = len(re.findall(r'\n  \(footprint "', board_text))
+    board_refs = set(re.findall(r'\(property "Reference" "([^"]+)"',
+                                board_text))
     boxes = refdes_boxes_from_board(board_text)
     bodies = bodies_from_board(board_text)
-    if not n_fp:
+    if not board_refs:
         findings.append(
             "[parse-coverage] the emitted board text yielded 0 footprints — "
             "every gate reading it would report clean having judged nothing")
         return
-    if not boxes:
-        findings.append(
-            f"[parse-coverage] 0 reference boxes parsed from {n_fp} "
-            "footprints — the adjacency and on-body gates would both be "
-            "vacuous")
-    if not bodies:
-        findings.append(
-            f"[parse-coverage] 0 bodies parsed from {n_fp} footprints — "
-            "nothing could be tested against component outlines")
-    absent = sorted(set(expected_refs) - {r for r, _, _ in bodies})
-    if absent:
-        findings.append(
-            f"[parse-coverage] {len(absent)} expected component(s) produced "
-            f"no parsed geometry: {absent[:12]}")
+    _set_equality("board footprints", board_refs, expected_all, findings)
+    _set_equality("visible reference boxes", {r for r, _ in boxes},
+                  expected_visible, findings)
+    _set_equality("parsed bodies", {r for r, _, _ in bodies},
+                  expected_all, findings)
 
 
 def label_adjacency_findings(boxes, run_gap=0.7, stack_gap=0.30):
