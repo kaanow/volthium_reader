@@ -622,6 +622,49 @@ a dead end now that the native path works — keep for reference.
 
 ## Tier 3 — open questions about the physical system
 
+**13. Pack A's imbalance is a CLIFF at 100% SOC, and the mitigation is not yet
+proven.**
+
+Cell spread in pack A (`dv_a`) at high state of charge, by local day:
+
+| day | peak SOC | mean dv_a | **max dv_a** |
+|---|---|---|---|
+| 07-28 | 96% | 0.0086 | **0.0090** |
+| 07-29 | 100% | 0.0925 | **0.3690** |
+| 07-30 | 100% | 0.0887 | **0.3740** |
+| 07-31 | 100% | 0.0868 | **0.3860** |
+| 08-01 | 100% | 0.0734 | **0.4150** |
+| 08-05 | 100% | 0.0706 | **0.3800** |
+| 08-06 | 96% | 0.0087 | **0.0090** |
+
+It is not a trend, it is a **threshold**. Every day that reached 100% blew out
+to a **0.37-0.42 V** spread; every day that stopped at 96% stayed at
+**0.009 V**, forty times smaller. That matches the known cell 4 running to
+~3.83 V while its siblings sit near 3.4 V, and it is the mechanism behind both
+BMS cell-overvoltage disconnects.
+
+So the charge ceiling is the right lever: 28.0 V is 3.50 V/cell average and
+should stop the pack short of the cliff.
+
+**But that is NOT yet demonstrated.** 08-06 is the only clean day after the
+ceiling reached 28.0 V, and it was a *dim* day — clear-sky index 30% of 08-05,
+peaking at 95.6% SOC. The array may simply have run out of energy before the
+ceiling ever became the binding constraint. Attributing 08-06's good behaviour
+to the setpoint would be exactly the mistake this file keeps recording.
+
+**Watch item: the first BRIGHT day after 08-05.** If SOC tops out around
+96-97% with `dv_a` under ~0.02 V, the ceiling is doing the work. If it reaches
+100% and `dv_a` jumps past 0.3 V again, then 28.0 V is still too high and the
+next step is the imbalance itself, not the ceiling.
+
+*Method note, because it nearly went the other way:* the first look at this
+was a single night showing `dv_a` tripling from 0.008 to 0.024 V over two
+hours — which reads as a developing fault. Checking the same SOC band across
+every prior day showed 0.014-0.024 V on **all** of them, recovering below 70%:
+a reproducible artefact of the LFP discharge knee around 75% SOC, not a
+signal. A within-day trend meant nothing until it was compared against the
+same band on other days.
+
 **12. The two DC meters disagree by ~33 W on the baseline, and it matters.**
 
 Found while auditing 2026-08-06's own work. In darkness the only DC consumers
