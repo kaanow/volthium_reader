@@ -6,6 +6,7 @@ No socket, no I/O — exercises Decoder/Reassembler/flush_bucket only.
 """
 from __future__ import annotations
 
+import struct
 import sys
 import unittest
 from pathlib import Path
@@ -119,6 +120,53 @@ class DecodeTests(unittest.TestCase):
         self.assertGreater(starts[0]["data"]["gen_v"], 100)   # ~115 V line
         evs = feed_fastpacket(dec, 0x1F016, 0, GEN_OFF, t=1020.0)
         self.assertEqual(len([e for e in evs if e["event"] == "gen_stop"]), 1)
+
+    def _ac_out(self, v_mv: int, i_ma: int = 0, va: int = 0) -> bytes:
+        """An AC2Sts frame with assoc 0x33 (AC out / cabin loads)."""
+        p = bytearray(b"\x00" * 49)
+        p[1] = 0x33
+        struct.pack_into("<I", p, 5, v_mv)
+        struct.pack_into("<h", p, 9, i_ma)
+        struct.pack_into("<h", p, 18, va)
+        struct.pack_into("<h", p, 41, 6000)      # 60.00 Hz
+        return bytes(p)
+
+    def test_broken_ac_load_decode_stays_quiet(self):
+        """assoc 0x33 reports 0 V / 0 A while the inverter is demonstrably
+        producing AC. Emitting that every 300 s was 288 records/day of
+        confirmed zeros — 45% of the event stream, carrying nothing. It must
+        be silent while the value is unchanging."""
+        dec = Decoder()
+        evs = feed_fastpacket(dec, 0x1F016, 0, self._ac_out(0), t=1000.0)
+        first = [e for e in evs if e["event"] == "ac_load_sample"]
+        self.assertEqual(len(first), 0)          # nothing on the very first
+        for i in range(1, 40):                   # ~3 h of identical zeros
+            evs = feed_fastpacket(dec, 0x1F016, 0, self._ac_out(0),
+                                  t=1000.0 + i * 300)
+            self.assertEqual([e for e in evs
+                              if e["event"] == "ac_load_sample"], [])
+
+    def test_ac_load_decode_speaks_the_moment_it_works(self):
+        """The reason it is kept rather than deleted: if 0x33 ever produces
+        real numbers, that is the cabin AC load we have no other way to see."""
+        dec = Decoder()
+        feed_fastpacket(dec, 0x1F016, 0, self._ac_out(0), t=1000.0)
+        feed_fastpacket(dec, 0x1F016, 0, self._ac_out(0), t=1300.0)
+        evs = feed_fastpacket(dec, 0x1F016, 0,
+                              self._ac_out(119_800, 4200, 500), t=1600.0)
+        got = [e for e in evs if e["event"] == "ac_load_sample"]
+        self.assertEqual(len(got), 1)
+        self.assertGreater(got[0]["data"]["to"][0], 100)   # ~119.8 V line
+
+    def test_ac_load_heartbeat_proves_it_is_still_decoded(self):
+        """Silence must not be ambiguous between 'unchanged' and 'gone'."""
+        dec = Decoder()
+        feed_fastpacket(dec, 0x1F016, 0, self._ac_out(0), t=1000.0)
+        evs = feed_fastpacket(dec, 0x1F016, 0, self._ac_out(0),
+                              t=1000.0 + 6 * 3600 + 1)
+        beats = [e for e in evs if e["event"] == "ac_load_sample"]
+        self.assertEqual(len(beats), 1)
+        self.assertTrue(beats[0]["data"].get("heartbeat"))
 
     def test_inverter_mode_change(self):
         dec = Decoder()

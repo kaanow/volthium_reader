@@ -32,6 +32,7 @@ import asyncio
 import csv
 import json
 import logging
+import logging.handlers
 import os
 import sys
 import time
@@ -317,7 +318,13 @@ def main(argv: list[str] | None = None) -> int:
 
     handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
     if args.log:
-        handlers.append(logging.FileHandler(args.log))
+        # ROTATE. A plain FileHandler here grew data/uploader.log to 45 MB and
+        # rising, on a Pi whose whole job is to still be running in a month —
+        # one line per upload, one upload every 5 s, forever. Two 5 MB files is
+        # ample: this log is only ever read for the last few minutes around an
+        # incident, and journald keeps its own bounded copy of stdout anyway.
+        handlers.append(logging.handlers.RotatingFileHandler(
+            args.log, maxBytes=5 * 1024 * 1024, backupCount=1))
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",

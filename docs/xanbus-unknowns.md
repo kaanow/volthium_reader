@@ -692,10 +692,39 @@ peaking at 95.6% SOC. The array may simply have run out of energy before the
 ceiling ever became the binding constraint. Attributing 08-06's good behaviour
 to the setpoint would be exactly the mistake this file keeps recording.
 
-**Watch item: the first BRIGHT day after 08-05.** If SOC tops out around
-96-97% with `dv_a` under ~0.02 V, the ceiling is doing the work. If it reaches
-100% and `dv_a` jumps past 0.3 V again, then 28.0 V is still too high and the
-next step is the imbalance itself, not the ceiling.
+**CORRECTED 2026-08-07 — the ceiling is the WRONG LEVER, and never was one.**
+Peak pack voltage by day, measured rather than assumed:
+
+| day | peak pack V | SOC at peak | dv_a at peak |
+|---|---|---|---|
+| 07-29 | 27.50 | 100% | 0.369 |
+| 07-31 | **27.55** | 100% | 0.386 |
+| 08-01 | 27.36 | 100% | 0.415 |
+| 08-05 | 27.51 | 100% | 0.380 |
+| 08-06 | 26.94 | 92% | 0.008 |
+
+**The pack has never reached 28.0 V. Its all-time peak is 27.55 V.** So the
+bulk/absorb ceiling — whether 29.2, 28.4 or 28.0 — has never been the binding
+constraint, and lowering it could not have helped. What actually stops the
+charge is the **BMS pulling current to zero** as pack A's weak cell approaches
+its limit; the MPPT's setpoints are irrelevant at the top of charge.
+
+Note what that implies about the numbers above: the 0.37-0.42 V spread occurs
+at a pack average of only ~3.44 V/cell. Cell 4 reaches ~3.83 V while its
+siblings sit near 3.31 V. The cell diverges *long* before any pack-level
+voltage limit could engage, which is exactly why a pack-voltage ceiling cannot
+catch it.
+
+So the earlier "watch the first bright day to see if the ceiling works" test
+was ill-posed — a bright day tests nothing about the ceiling, it just
+reproduces the cliff. **08-06 and 08-07 looked good because they were dim and
+never approached full charge, not because of any setpoint.**
+
+The real levers are therefore: keep SOC off the top (which weather is doing by
+accident right now), balancing, and ultimately the weak cell itself — an
+on-site job. A setpoint that *would* bind is one below ~27.3 V, but that
+sacrifices real capacity to work around one bad cell and should be a
+deliberate decision, not a default.
 
 *Method note, because it nearly went the other way:* the first look at this
 was a single night showing `dv_a` tripling from 0.008 to 0.024 V over two

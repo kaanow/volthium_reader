@@ -79,7 +79,8 @@ LATCH_DAYLIGHT_V = 20.0        # array must at least exceed a dark panel string
 LATCH_CONFIRM_S = 600          # sustained this long before we call it
 LATCH_RELEASE_S = 120          # ...and sustained THIS long before we clear it
 LATCH_TRAIL_S = 1200           # seconds of 1 Hz history kept for forensics
-AC_LOAD_SAMPLE_S = 300         # provisional AC-load snapshot cadence
+AC_LOAD_HEARTBEAT_S = 6 * 3600  # AC-load decode is broken and edge-triggered;
+                                # this only proves it is still being decoded
 ASM_MAX_AGE_S = 5.0            # abandon half-reassembled fast-packets
 SPOOL_DIR = Path("data/solar")
 KEEP_SEALED = 2000             # absolute disk bound if Railway dies for weeks
@@ -297,14 +298,30 @@ class Decoder:
                 self._agg("gen_v").add(v1)
                 self._agg("gen_va").add(va)
         elif assoc == 0x33:      # AC out / cabin loads — PROVISIONAL decode
-            if t - self.last_ac_load_sample >= AC_LOAD_SAMPLE_S:
+            # This decode does not work: it reports 0 V / 0 A / 0 VA while the
+            # inverter is demonstrably producing AC (the cabin runs on it, and
+            # the DC side shows a steady ~113 W draw). Emitting it every 300 s
+            # was 288 records/day of confirmed zeros — 45% of the whole event
+            # stream, carrying nothing.
+            #
+            # Kept rather than deleted, because the cost of being wrong in the
+            # other direction is high: if assoc 0x33 ever starts producing real
+            # numbers, that is the cabin AC load we have no other way to see.
+            # So make it EDGE-TRIGGERED — silent while it stays broken, loud the
+            # moment it isn't — plus a 6 h heartbeat to prove it is still being
+            # decoded at all.
+            sig = (round(v1, 1), round(i1 + i2, 2), va, round(freq, 1))
+            beat = t - self.last_ac_load_sample >= AC_LOAD_HEARTBEAT_S
+            changed = self._changed("ac_load_sig", sig, t, "ac_load_sample",
+                                    {"provisional": True})
+            if changed or beat:
                 self.last_ac_load_sample = t
-                out.append({"t": t, "event": "ac_load_sample",
-                            "data": {"load_v": round(v1, 1),
-                                     "load_a": round(i1 + i2, 3),
-                                     "load_va": va,
-                                     "load_hz": round(freq, 2),
-                                     "provisional": True}})
+                out += changed or [{"t": t, "event": "ac_load_sample",
+                                    "data": {"load_v": sig[0], "load_a": sig[1],
+                                             "load_va": sig[2],
+                                             "load_hz": sig[3],
+                                             "heartbeat": True,
+                                             "provisional": True}}]
         return out
 
     # -- public ------------------------------------------------------------
