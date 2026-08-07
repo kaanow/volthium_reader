@@ -1,0 +1,11 @@
+[refdes] library-fallback (no clear auto spot): ['C_sense', 'C_usb2', 'Q10', 'C22', 'C32', 'C12']
+[crosscheck] CROSSCHECK: clean — 123 references, 123 sides, 480 pad-nets (of 480 net-bound pads KiCad sees) agree with KiCad's own engine
+[crosscheck] CROSSCHECK: FAIL (1)
+[crosscheck]    BTN1 side: our model F, KiCad B
+[crosscheck] CROSSCHECK: FAIL (3)
+[crosscheck]    net-bound pads: set mismatch — 431 present vs 429 expected; missing [], unexpected ['J5/6', 'MOD1/27']
+[crosscheck]    MOD1/27: our model expects this pad but KiCad's board has no NET-BOUND pad numbered '27' on MOD1
+[crosscheck]    J5/6: our model expects this pad but KiCad's board has no NET-BOUND pad numbered '6' on J5
+[fail-closed] 13 meaning-changing mutations, all rejected by the gate battery
+[drc] categories: {'silk_edge_clearance': 12, 'lib_footprint_mismatch': 1, 'unconnected_items': 316}
+[ok] battery_pcb.kicad_pcb: 127 footprints, 125 nets, DRC clean (accepted: {'unconnected_items': 316, 'silk_edge_clearance': 12, ('lib_footprint_mismatch', 'ESP32-S3-WROOM-1_HSvia0.3'): 0})

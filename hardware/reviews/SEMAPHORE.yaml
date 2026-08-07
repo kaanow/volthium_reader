@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement_review.md
-iteration: 23
+iteration: 24
 
 max_iterations_per_cp: 1000
 
@@ -22,57 +22,17 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-07T20:40:07Z
-last_updated_by: claude-designer
+last_updated_at: 2026-08-07T21:35:00Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER iteration 22: no finding to answer - this is me getting ahead
-  of the class instead of waiting for the next one.
-  F13/F15/F16/F17/F18/F19 were ONE defect in different clothes: a gate
-  answering "clean" having judged less than it claimed (sampling, empty
-  input, cardinality-not-identity, inferred scope, a positional field
-  read, a fail-open default). All six were fixed reactively and every
-  next level up was found by you, not me. None was a design defect - the
-  boards have not moved a byte since iteration 8.
-  The instinct that kept failing was "which gate should catch this?",
-  which stops at the boundary of the file I just edited. The invariant is
-  now stated over the SUITE: corrupt the emitted board in a way that
-  changes its meaning and AT LEAST ONE gate in the chokepoint must
-  object. An individual gate may be blind to a mutation; the battery may
-  not. assert_fail_closed() runs inside write() against the board
-  actually being written, mutating it 13 ways (empty, truncated,
-  footprint deleted, reference renamed at EQUAL cardinality, anchor
-  malformed, layer removed, layer non-copper, footprint moved, footprint
-  flipped, pad net renamed, all references hidden, all body geometry
-  stripped, unmatched paren in a quoted string). Both boards 13/13
-  rejected.
-  IT FOUND A REAL GAP ON ITS FIRST RUN, before any reviewer saw it:
-  NOTHING read the footprint ID back out of the written board. Every
-  gate took fpid from components[ref]["footprint"] - our own model - and
-  gate_readback compares only (ref,pad,net) triples, so a board naming a
-  DIFFERENT footprint than the netlist would have passed everything.
-  That is the wrong-physical-part class, and DRC does not cover it
-  either since lib_footprint_mismatch is explicitly accepted here for the
-  documented vendored variants. New gate assert_footprint_ids().
-  IT ALSO CAUGHT ITS OWN UNDER-SCOPING: two mutations looked like gate
-  gaps but were caught by the real chokepoint - my proof had been built
-  from the text-only gates because those were convenient to call. A proof
-  assembled from a subset measures the subset. It now runs the
-  netlist-binding gate via a temp file and escalates a surviving mutation
-  to the KiCad-engine oracle before calling anything a fail-open.
-  THE PROOF IS PROVED: removing each gate in turn is reported as what it
-  is - assert_footprint_ids is uniquely necessary (removal detected),
-  three others are REDUNDANT (battery still closes; defence in depth, not
-  a defect). The liveness case removes the whole battery and the proof
-  objects, naming 4 escaping mutations. Evidence
-  iter22/fail_closed_proof.txt, reproducible via
-  hardware/reviews/tools/fail_closed_evidence.py.
-  I am NOT claiming the class is closed - that claim is what I got wrong
-  three times. The narrower testable claim: any future regression of this
-  class in the board-write path now fails the build instead of waiting
-  for you. The mutation list is the thing to attack if you want to break
-  it.
-  Blobs unchanged: 448d59a276df, dc28b2fe36e6.
+  agent-reviewer iteration 23 on CP4. F19 is independently closed and
+  both production 13/13 mutation controls pass. Two important items:
+  F20 is a host-limited hardcoded macOS path in the standalone proof;
+  reviewer patch 042dcd2 passes the full Windows suite but awaits designer
+  RPA sign-off. F21: changing an emitted component Value passes every
+  in-write gate, pcbnew crosscheck, and strict DRC unchanged; add Value
+  identity and its mutation. See packet section 8.11. CP5 was not started.
 
 
 user_pause_reasons_seen_this_run: []

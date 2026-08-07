@@ -989,6 +989,80 @@ was not started. Evidence is in
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 19.)
 
 
+### 8.11 Reviewer findings (iteration 23)
+
+Reviewed designer commit: `dd47624b5cb8a9e97979778af10138f65de9db59`.
+
+F19 is closed. Fresh Windows builds pass, the direct-child controls preserve
+quoted unmatched parentheses, and missing/malformed/non-copper footprint
+layers remain distinct from valid F.Cu/B.Cu. The new production mutation
+battery rejects all 13 submitted mutations on both boards. Its standalone
+evidence runner had one host defect, and an independent extension found one
+meaning-changing identity mutation outside the submitted list.
+
+#### Finding 20 - IMPORTANT - fail-closed evidence runner is hardcoded to the designer's macOS checkout
+
+**Issue**: `hardware/reviews/tools/fail_closed_evidence.py` begins with
+`os.chdir("/Users/pivot/Documents/repo/volthium_reader")`. The claimed
+reproducible proof cannot start on Windows or from any other checkout path.
+This is host-limited, so the reviewer fixed it under RPA rather than asking
+the macOS designer to guess.
+
+**Evidence and patch**: On Windows the committed tool exits 1 at line 15 with
+`FileNotFoundError: [WinError 3]`. Standalone reviewer patch `042dcd2` derives
+the repository root from `Path(__file__).resolve().parents[3]`, changes to
+that path, and inserts its PCB directory by absolute path. The complete tool
+then exits 0 after 442 seconds: both production controls 13/13, all four
+single-gate removals, whole-battery liveness, and restored controls pass.
+Before/after transcripts are in
+`visual_inspections/cp4-display-placement/iter23/reviewer/fail_closed_windows_before.txt`
+and `fail_closed_windows_after.txt`.
+
+**Required designer action**: Re-review the patch and record
+`RPA-ACCEPTED: F20 042dcd2`, or reject it with a technical reason. The patch
+is host-proven but remains unaccepted until that sign-off.
+
+#### Finding 21 - IMPORTANT - emitted component Value identity passes the entire new battery and strict DRC
+
+**Issue**: The new `assert_footprint_ids()` verifies only the footprint ID.
+No written-artifact gate compares each footprint's emitted `Value` property
+with `components[ref]["value"]`, even though that netlist-derived intent is
+already available. Changing the value therefore changes assembly/part
+identity while every gate and strict DRC remain unchanged.
+
+**Evidence**: The reviewer changes only the first display footprint's
+top-level Value string to `ZZ_WRONG_VALUE`. The unmodified control is clean;
+the mutated board then passes `assert_board_parse_coverage`,
+`assert_footprint_ids`, adjacency, refdes round-trip, body checks,
+`gate_readback`, and the pcbnew crosscheck with zero findings. It is not one
+of the submitted 13 mutations. Strict DRC on control and poison returns the
+exact same category counts and messages. As a harness control, removing all
+four Edge.Cuts objects also passes the in-write battery but strict DRC adds
+`invalid_outline`, correctly distinguishing later-gate coverage from the
+Value mutation's genuine end-to-end escape. Reproduction:
+`visual_inspections/cp4-display-placement/iter23/reviewer/battery_extension_recheck.py`
+and `battery_extension_recheck.txt`.
+
+**Suggested fix**: Generalize the footprint-ID gate to emitted component
+identity keyed by ref, requiring both footprint ID and top-level Value to
+equal the netlist-derived component record. Add a same-cardinality Value
+mutation to the production fail-closed battery and retain the strict-DRC
+control comparison. Keep the Edge.Cuts result classified as later DRC
+coverage, not as a board-design defect.
+
+Coverage: kicad v0.11.0 and pcb-design v0.21.0 synchronized; mandatory
+consistency check clean; fresh Windows battery/display builds and both 13/13
+mutation controls pass; full standalone proof runs after RPA patch; F19 and
+independent Value/outline mutations executed; independent serialized-board
+geometry and J1 reference probes passed; fresh top/bottom renders plus J1/U1
+and J3/J-USB crops inspected; and four on-file manufacturer-PDF citations and
+object identities checked. No selected part, manifest row, SKU cell,
+connectivity, placement, or board blob changed. CP5 was not started. Evidence
+is in `visual_inspections/cp4-display-placement/iter23/reviewer/REPORT.md`.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings 20-21.)
+
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-08-06)

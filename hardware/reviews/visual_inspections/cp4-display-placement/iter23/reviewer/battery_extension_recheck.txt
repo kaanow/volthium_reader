@@ -1,0 +1,21 @@
+[crosscheck] CROSSCHECK: clean — 39 references, 39 sides, 191 pad-nets (of 191 net-bound pads KiCad sees) agree with KiCad's own engine
+[crosscheck] CROSSCHECK: clean — 39 references, 39 sides, 191 pad-nets (of 191 net-bound pads KiCad sees) agree with KiCad's own engine
+[crosscheck] CROSSCHECK: clean — 39 references, 39 sides, 191 pad-nets (of 191 net-bound pads KiCad sees) agree with KiCad's own engine
+submitted_mutations: ['empty text', 'truncated to half', 'first footprint deleted', 'a reference renamed (same count)', 'top-level layer removed', 'top-level layer non-copper', 'top-level anchor malformed', 'unmatched paren inside a quoted description', 'a footprint moved 5 mm', 'a footprint flipped to the other side', "a pad's net renamed", 'every reference hidden', 'all body geometry stripped']
+f19_controls: {'front': 'F.Cu', 'back': 'B.Cu', 'missing': None, 'malformed': None, 'quoted_anchor': (1.0, 2.0, 90.0), 'quoted_layer': 'B.Cu'}
+control_findings: []
+value_mutation_findings: []
+outline_edges_removed: 4
+outline_mutation_findings: []
+control_strict_drc: {'unaccounted': [('copper_edge_clearance', 'Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.4701 mm)'), ('copper_edge_clearance', 'Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.4701 mm)'), ('lib_footprint_issues', "The current configuration does not include the footprint library 'volthium'"), ('lib_footprint_issues', "The current configuration does not include the footprint library 'volthium'"), ('lib_footprint_issues', "The current configuration does not include the footprint library 'volthium'")], 'counts': {'copper_edge_clearance': 2, 'lib_footprint_issues': 3, 'lib_footprint_mismatch': 1, 'unconnected_items': 123}}
+value_strict_drc: {'unaccounted': [('copper_edge_clearance', 'Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.4701 mm)'), ('copper_edge_clearance', 'Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.4701 mm)'), ('lib_footprint_issues', "The current configuration does not include the footprint library 'volthium'"), ('lib_footprint_issues', "The current configuration does not include the footprint library 'volthium'"), ('lib_footprint_issues', "The current configuration does not include the footprint library 'volthium'")], 'counts': {'copper_edge_clearance': 2, 'lib_footprint_issues': 3, 'lib_footprint_mismatch': 1, 'unconnected_items': 123}}
+outline_strict_drc: {'unaccounted': [('copper_edge_clearance', 'Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.4701 mm)'), ('copper_edge_clearance', 'Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.4701 mm)'), ('invalid_outline', 'Board has malformed outline (no edges found on Edge.Cuts layer)'), ('lib_footprint_issues', "The current configuration does not include the footprint library 'volthium'"), ('lib_footprint_issues', "The current configuration does not include the footprint library 'volthium'"), ('lib_footprint_issues', "The current configuration does not include the footprint library 'volthium'")], 'counts': {'copper_edge_clearance': 2, 'invalid_outline': 1, 'lib_footprint_issues': 3, 'lib_footprint_mismatch': 1, 'unconnected_items': 123}}
+PASS control_clean
+PASS f19_direct_child_controls
+PASS value_mutation_is_outside_submitted_list
+PASS outline_mutation_is_outside_submitted_list
+FAIL value_mutation_rejected
+FAIL outline_mutation_rejected
+PASS value_drc_unchanged_from_control
+PASS outline_drc_adds_invalid_outline
+independent battery extension failed: value_mutation_rejected, outline_mutation_rejected
