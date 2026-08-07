@@ -273,6 +273,41 @@ Still open: the recurrence question in the *deficit* case, i.e. what happens
 when a bounce lands while production is still below load. The 12:40 descent
 (see the cloud-vs-runaway diagnostic above) should produce that test today.
 
+### What the guard was worth on its first full day: +801 Wh of 1031 Wh (78%)
+
+Measured energy for local day 2026-08-06 (UTC buckets, local day = 07:00Z to
+07:00Z — getting that boundary wrong truncates the evening and was worth an
+hour of confusion):
+
+| window | Wh |
+|---|---|
+| dawn → morning clamp, 05:40-10:10 | 125 |
+| **morning clamp, 10:10-10:55** | **11** |
+| after fix 1, 10:55-16:35 | 782 |
+| **evening clamp, 16:35-17:00** | **3** |
+| after fix 2, 17:00-18:40 | 110 |
+| **day total** | **1031** |
+
+Counterfactual: the clamp continues at its own measured yield (14.1 W morning,
+6.3 W evening). That is not speculation — **a clamped array has no
+self-recovery path** (the sawtooth's unaided recoveries all happen *before*
+the clamp), and 08-01..04 demonstrated it by staying latched for days.
+
+    fix 1:  782 Wh over 5.66 h  vs   80 Wh clamped  -> +702 Wh
+    fix 2:  110 Wh over 1.67 h  vs   11 Wh clamped  -> + 99 Wh
+    ------------------------------------------------------------
+                                        RECOVERED     +801 Wh
+
+So without the guard the day would have yielded roughly **230 Wh instead of
+1031 Wh**. And this was a *dim* day (clear-sky index 30% of 08-05); on a bright
+day the absolute recovery is larger.
+
+Two clamps totalling 70 minutes cost ~198 Wh even *with* prompt clearing
+(morning ~160 Wh, evening ~38 Wh, using the power measured minutes after each
+fix as the counterfactual). That is the residual worth attacking with
+current-limiting — the preventative fix in Unknown #1 — since the guard by
+construction cannot act until a clamp has already formed and been confirmed.
+
 **3. The MPPT status byte (offset 0 of DcSrcSts2).**
 Always 0x03 in normal operation. Captured now but never seen change. Does it
 move during a latch, a fault, or a mode change? **Test: correlate against the
