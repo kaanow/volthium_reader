@@ -15,7 +15,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from xanbus_latch_guard import (   # noqa: E402
-    MIN_SUN_ELEVATION_DEG, sun_elevation_deg,
+    HEALTHY_RUNS_TO_CLEAR, MIN_SUN_ELEVATION_DEG, note_clamped_run,
+    note_healthy_run, sun_elevation_deg,
 )
 
 
@@ -85,6 +86,58 @@ class SunElevationGateTests(unittest.TestCase):
         self.assertGreater(noon, 50.0)
         self.assertLess(midnight, -15.0)
         self.assertGreater(noon, midnight)
+
+
+class ConfirmationHysteresisTests(unittest.TestCase):
+    """A pending confirmation must survive a brief wobble.
+
+    Replays 2026-08-07 exactly. The array clamped at 09:40 and stayed clamped
+    until the guard fixed it at 10:21. One run at 10:00 caught a 5.9 V delta —
+    still 31 V making 20 W, nowhere near recovered — and under the old
+    clear-on-one-healthy-run rule that wiped the confirmation, restarting the
+    sequence and delaying the fix by 20 minutes at ~255 W (~85 Wh).
+    """
+
+    def test_single_wobble_does_not_clear_a_pending_confirmation(self):
+        st = {"clamp_seen_at": 1000.0}
+        note_healthy_run(st)                       # the 10:00 wobble
+        self.assertIn("clamp_seen_at", st,
+                      "one healthy run must not wipe the confirmation")
+
+    def test_sustained_recovery_does_clear_it(self):
+        """The grace must not become amnesia."""
+        st = {"clamp_seen_at": 1000.0}
+        for _ in range(HEALTHY_RUNS_TO_CLEAR):
+            note_healthy_run(st)
+        self.assertNotIn("clamp_seen_at", st)
+
+    def test_a_clamped_run_resets_the_healthy_streak(self):
+        """Wobble, clamp, wobble must NOT accumulate to a clear."""
+        st = {"clamp_seen_at": 1000.0}
+        note_healthy_run(st)
+        note_clamped_run(st)
+        note_healthy_run(st)
+        self.assertIn("clamp_seen_at", st)
+        self.assertEqual(st["healthy_runs"], 1)
+
+    def test_todays_actual_sequence_would_now_act_20_min_sooner(self):
+        """09:41 clamped, 09:51 clamped (armed), 10:01 wobble, 10:11 clamped.
+        Under the fix the confirmation survives 10:01, so 10:11 is the second
+        consecutive confirmation and the fix lands then instead of at 10:21."""
+        st: dict = {}
+        note_clamped_run(st); st["clamp_seen_at"] = 9.41      # 09:41 arms it
+        note_clamped_run(st)                                   # 09:51 clamped
+        self.assertIn("clamp_seen_at", st)
+        note_healthy_run(st)                                   # 10:01 wobble
+        self.assertIn("clamp_seen_at", st, "the wobble cost 20 min before")
+        note_clamped_run(st)                                   # 10:11 clamped
+        self.assertIn("clamp_seen_at", st)                     # -> would act
+
+    def test_no_pending_confirmation_needs_no_write(self):
+        """Healthy runs on a healthy day must not churn the state file."""
+        st: dict = {}
+        self.assertFalse(note_healthy_run(st))
+        self.assertFalse(note_healthy_run(st))
 
 
 if __name__ == "__main__":

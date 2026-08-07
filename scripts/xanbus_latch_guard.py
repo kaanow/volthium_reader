@@ -97,6 +97,9 @@ MIN_SUN_ELEVATION_DEG = 5.0
 DAYLIGHT_V = 20.0          # kept as a secondary check: is the array connected?
 CLAMP_FRACTION = 0.9       # this much of the sample must be clamped
 AMBIGUOUS_FRACTION = 0.3   # above this but below CLAMP_FRACTION = report it
+HEALTHY_RUNS_TO_CLEAR = 2  # consecutive clean runs before a pending
+                           # confirmation is dropped — symmetric with the two
+                           # needed to arm one (see the 2026-08-07 note below)
 COOLDOWN_S = 45 * 60       # minimum gap between fix attempts
 MAX_FIXES_PER_DAY = 4      # hard cap; a latch we can't fix must not loop
 VERIFY_S = 60.0            # watch this long after a fix to judge it
@@ -131,6 +134,26 @@ def save_state(st: dict) -> None:
         STATE_PATH.write_text(json.dumps(st))
     except OSError as exc:
         print(f"warn: could not save state: {exc}", file=sys.stderr)
+
+
+def note_healthy_run(st: dict) -> bool:
+    """Record one below-threshold run. Returns True if the state changed and
+    should be persisted.
+
+    Pulled out of main() and made pure because this bookkeeping is where the
+    guard keeps going wrong, and inline it is untestable without a CAN bus.
+    """
+    st["healthy_runs"] = st.get("healthy_runs", 0) + 1
+    if not st.get("clamp_seen_at"):
+        return False                      # nothing pending; nothing to persist
+    if st["healthy_runs"] >= HEALTHY_RUNS_TO_CLEAR:
+        st.pop("clamp_seen_at", None)     # genuinely recovered — drop it
+    return True
+
+
+def note_clamped_run(st: dict) -> None:
+    """Record one at-or-above-threshold run: the healthy streak is broken."""
+    st["healthy_runs"] = 0
 
 
 def sun_elevation_deg(when: float | None = None) -> float:
@@ -271,7 +294,22 @@ def main() -> int:
             save_state(st)
         return 0                                    # night: quiet, no event
     if before["fraction"] < CLAMP_FRACTION:
-        if st.pop("clamp_seen_at", None):           # healthy again — reset
+        # Clearing a pending confirmation on ONE healthy run is too eager, and
+        # it cost real energy on 2026-08-07: the array clamped at 09:40,
+        # confirmed once at 09:51, wobbled to a 5.9 V delta for a single
+        # sample at 10:00 — still at 31 V making 20 W, nowhere near recovered —
+        # and that one run wiped the confirmation. The sequence restarted and
+        # the fix landed at 10:21 instead of 10:01. **20 minutes at ~255 W,
+        # about 85 Wh, thrown away by a 5-minute wobble.**
+        #
+        # So require TWO consecutive healthy runs to clear, mirroring the two
+        # required to arm. This is the same hysteresis the reader's detector
+        # got on 08-06; the guard was left binary. It does make the guard
+        # marginally quicker to act, which is bounded by the elevation gate,
+        # the 45 min cooldown, the 4/day cap, and the fact that a bounce is
+        # cheap and demonstrably harmless. The 2.5 h staleness check below is
+        # still the backstop against a confirmation lingering forever.
+        if note_healthy_run(st):
             save_state(st)
         # Bailing SILENTLY here is how a five-hour latch stayed invisible on
         # 2026-08-06: the ceiling was tighter than the MPPT's dither, so a
@@ -290,6 +328,7 @@ def main() -> int:
     # one-off sampling artefact. Runs are 10 min apart, so a real latch — which
     # persists for hours — costs at most one extra cycle, while a spurious fix
     # would burn a daily-cap slot and start a 45 min cooldown.
+    note_clamped_run(st)
     prev_seen = st.get("clamp_seen_at", 0)
     if now - prev_seen > 2.5 * 60 * 60:      # stale confirmation, restart
         prev_seen = 0
