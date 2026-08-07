@@ -311,9 +311,32 @@ real fixes with 23 deg to spare and excludes every transient seen so far. It
 needs no sensor (astronomy from lat/lon/clock), it fails safe (strictly fewer
 actions), and unlike the confirmation delay it costs no time on a real latch.
 
+**And the two confirmations need not be adjacent.** The night gate
+
+```
+if not before["daylight"]:
+    return 0                       # night: quiet, no event
+if before["fraction"] < CLAMP_FRACTION:
+    if st.pop("clamp_seen_at", None):   # <-- the reset lives HERE, below it
+```
+
+returns *above* the line that clears `clamp_seen_at`, so darkness never resets
+a pending confirmation. A dusk confirmation at 20:41 therefore stays armed
+until the 2.5 h staleness window expires at 23:11, and **any** run in that
+window that catches `fraction >= 0.9` with `pv_v > 20` counts as the second
+confirmation — no adjacency required, nothing sensible needed in between.
+Given the array thrashes 27-78 V at dusk, that is a plausible pairing rather
+than a theoretical one.
+
+Two ways to close it: the elevation gate (blocks both samples, and is right
+for other reasons), or clearing `clamp_seen_at` when it goes dark. The
+elevation gate is preferable because it removes the whole class rather than
+this instance.
+
 Proposed, not deployed — the two-confirmation rule has held every night so far,
-so nothing is broken yet. If a dusk double-confirm is ever observed, this
-becomes a fix rather than an improvement.
+so nothing is *known* broken yet. A watch is running on tonight's 21:01 run.
+If a dusk double-confirm is observed, this is promoted from improvement to fix
+and goes in immediately.
 
 ### What the guard was worth on its first full day: +801 Wh of 1031 Wh (78%)
 
