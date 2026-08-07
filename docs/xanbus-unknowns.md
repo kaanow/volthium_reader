@@ -563,6 +563,47 @@ a dead end now that the native path works — keep for reference.
 
 ## Tier 3 — open questions about the physical system
 
+**12. The two DC meters disagree by ~33 W on the baseline, and it matters.**
+
+Found while auditing 2026-08-06's own work. In darkness the only DC consumers
+are the inverter and the fridge, so `battery_out - inverter_draw` should be
+the fridge and nothing else. Over five dark nights it is **negative**:
+
+| night | battery out (4 h) | inverter draw | implied DC load |
+|---|---|---|---|
+| 08-02 | 409 Wh | 452 Wh | **-43 Wh** |
+| 08-04 | 388 Wh | 453 Wh | **-65 Wh** |
+| 08-06 | 412 Wh | 455 Wh | **-43 Wh** |
+
+A negative unmetered load is impossible, so one meter is wrong. Localised: the
+BMS puts the non-fridge baseline at **80.3 W** (`baseline_w` from the Otsu
+profile) while the Conext reports drawing **113 W** — a 33 W / 29% gap. Same
+family as #5, but between the BMS shunt and the *inverter's* shunt rather than
+the MPPT's.
+
+**The fridge itself is fine.** The differenced signal is still cleanly bimodal
+— two clusters 63 W apart at ~35% duty on 5 min buckets — it just sits on a
+-32 W pedestal. And the published profile (75.8 W, 29.1%, 0.528 kWh/day) is
+**immune** to this, because `dc_load_profile` splits `pack_p` against itself
+rather than differencing the two meters. The 63 W I measured is lower only
+because 5 min buckets smear the compressor edges; the 15 s server figure is
+the better one.
+
+What was NOT immune: `/v2`'s dark-path `dcLoadW()` computed `-batt - inv` and
+clamped the negative to zero, which hid the sign but not the bias and so
+rendered the fridge at roughly half size. Fixed to use the server's split
+(`battW() <= split_w`), which compares one meter with itself.
+
+Cautionary note on method: the server endpoint and the earlier hand analysis
+"independently agreed within ~1%", which felt like confirmation. It was not —
+they were two implementations of the same method. Agreement between two
+routes only means something when the routes can fail differently.
+
+Open: which meter is right. Unresolvable remotely for the same reason as #5 —
+it needs a clamp meter. Practical rule meanwhile: **trust the BMS shunts for
+absolute DC power** (two of them, and they agree with each other within
+0.8 A), and treat `dc_w` as indicative.
+
 **10. Array health — improving, but the record is CONFOUNDED by the latch.**
 
 Peak array voltage by local day: 07-30 112.7, 07-31 111.5, 08-01 111.8,

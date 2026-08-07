@@ -239,10 +239,20 @@ function loadW() {
 function dcLoadW() {
   const s = st.solar;
   if (!s) return null;
-  const inv = s.dc_w ?? 0;
-  const dark = (s.solar_w ?? 0) < 10 && !st.gen;
-  if (dark) return { w: Math.max(0, -battW() - inv), live: true };
   const p = st.dcProfile;
+  const dark = (s.pv_v ?? 0) < 15 && !st.gen;
+  /* In darkness we can show the fridge cycling LIVE, but not by differencing
+     the two DC meters. They are offset ~33 W apart: over five dark nights the
+     BMS says the non-fridge baseline is 80 W while the inverter reports
+     drawing 113 W, so `-batt - inv` reads about -32 W with the compressor OFF
+     and +31 W with it ON. Clamping the negative to zero hid the sign but not
+     the bias — it halved the fridge.
+
+     So use the server's Otsu split instead, which compares pack_p against
+     ITSELF and is therefore immune to any offset between meters. split_w and
+     battW() are both pack_p, so they compare directly. */
+  if (dark && p && p.draw_w && p.split_w != null)
+    return { w: battW() <= p.split_w ? p.draw_w : 0, live: true };
   if (p && p.draw_w) return { w: p.draw_w * p.duty, live: false };
   return null;
 }
