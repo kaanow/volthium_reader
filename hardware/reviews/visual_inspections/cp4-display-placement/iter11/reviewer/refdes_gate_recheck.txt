@@ -1,0 +1,22 @@
+Command: .venv\Scripts\python.exe hardware\reviews\visual_inspections\cp4-display-placement\iter9\reviewer\refdes_gate_recheck.py
+Exit: 0
+
+CONTROL
+  roundtrip_findings=[]
+  body_findings=[]
+  RESULT=PASS
+POISON 1: emitted J1 anchor moved
+  findings=['[refdes-roundtrip] J1: placer chose (11.00,19.02) but the EMITTED board puts it at (11.00,47.32)']
+  RESULT=CAUGHT
+POISON 2: anchor clears but text box overlaps
+  RESULT=CAUGHT
+POISON 3: reference centered on own body
+  RESULT=CAUGHT
+POISON 4: no placer selections
+  findings=['[refdes-roundtrip] no placement selections recorded while the board carries 43 references - auto_refdes did not run before this gate, so the round trip checked nothing']
+  RESULT=CAUGHT
+INDEPENDENT EXTENT CHECK
+  MOD1 body=(33.0, 14.0, 51.0, 39.5)
+  size=(18.00,25.50) mm
+  RESULT=PASS
+SUMMARY: PASS

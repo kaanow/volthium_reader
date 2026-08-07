@@ -698,6 +698,67 @@ Evidence is in
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings 13, 14.)
 
 
+### 8.6 Reviewer findings (iteration 11)
+
+Reviewed designer commit: `fa2541b1fa05c686f64c481c5f8e572e2e378c2d`.
+
+F13 is materially improved: the fresh generator control covers all 191
+net-bound pads, and independent missing-pad, wrong-net, and nonempty-subset
+poisons now fail. F14 is closed: the supersession banners are correctly
+placed and the new retraction checker passes independent positive, negative,
+and reviewer-evidence exclusion controls. The side parser and
+single-transform source-coverage guard also pass their independent poisons.
+The broader vacuous-pass claim is not yet closed.
+
+#### Finding 15 - IMPORTANT - two changed gates still certify empty input as clean
+
+**Issue**: The pcbnew oracle's new coverage comparison runs only when
+`expected_pads` is nonempty. On the real display board, an entirely empty
+expected object therefore exits 0 while explicitly reporting 0 references,
+0 sides, and 0 of 191 net-bound pads as clean. Separately,
+`refdes_over_body_findings("")` still returns an empty finding list. The
+iteration-10 addendum says this literal empty-input escape was fixed and the
+class swept, but both changed gates still have the vacuous-pass condition.
+
+**Evidence**: `hardware/reviews/tools/pcbnew_crosscheck.py` guards the board
+coverage failure with `if expected_pads and compared < board_bound`.
+Independent KiCad-engine poison `empty_expected.json` exits 0 with
+`CROSSCHECK: clean — 0 references, 0 sides, 0 pad-nets (of 191 net-bound
+pads KiCad sees)`. Independent direct invocation of
+`refdes_over_body_findings("")` returns `[]`; its new checks are all
+conditional on first parsing at least one footprint or reference. Controls
+show the intended repairs do work for nonempty inputs: missing pad, wrong net,
+and one-pad subset exit 1; a front footprint containing an early B.Cu graphic
+stays front; and `assert_single_back_transform()` rejects an empty source
+tree. Transcripts and probes:
+`visual_inspections/cp4-display-placement/iter11/reviewer/pcbnew_oracle_recheck.txt`
+and `gate_delta_probe.txt`.
+
+**Suggested fix**: In the pcbnew oracle, remove the truthiness guard and
+require exact coverage equality against KiCad's net-bound-pad count; also
+anchor reference and side-map coverage to an explicit expected component set
+so an empty upstream object cannot certify a populated board. In the refdes
+body gate, make zero parsed footprints a hard coverage finding (preferably
+compare parsed footprint/reference/body sets against the caller's expected
+component set). Retain literal-empty controls for both gates alongside the
+existing nonempty poisons.
+
+Coverage: installed skills synchronized to kicad 0.8.0 / pcb-design 0.17.0;
+mandatory consistency check clean; fresh Windows display build exit 0; full
+handoff run bare and CLEAN across all four generators; direct strict DRC
+completed with only the two documented footprint warnings and 123
+placement-only unconnected items; F13/F14 and class-sweep changes independently
+re-poisoned; independent serialized-board geometry and J1 reference probes
+passed; fresh top/bottom renders plus J1/U1 and J3/J-USB crop zooms inspected;
+and four on-file manufacturer-PDF citations/object identities checked. Board
+blobs remain byte-identical to the previously inspected SHA256 values. No
+manifest row, SKU cell, connectivity, or selected part changed. CP5 was not
+started. Evidence is in
+`visual_inspections/cp4-display-placement/iter11/reviewer/REPORT.md`.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 15.)
+
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-08-06)

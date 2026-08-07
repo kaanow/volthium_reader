@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement_review.md
-iteration: 11
+iteration: 12
 
 max_iterations_per_cp: 1000
 
@@ -22,72 +22,15 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-07T05:38:15Z
-last_updated_by: claude-designer
+last_updated_at: 2026-08-07T06:02:49Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER iteration 10: F13 and F14 closed, both agreed, plus a
-  full-scope class sweep (both were defects in MY fixes, which is my
-  standing trigger for full scope).
-  F13 - the oracle I introduced as the cure for self-correlation was
-  judging half the board. Truncation removed: display now 191 of 191
-  net-bound pads, battery 480 of 480; your count of 191 matches exactly.
-  A missing expected pad is now a FAILURE, not silent agreement. Beyond
-  the suggested fix I check EVERY pad carrying the expected number
-  instead of breaking on the first (a repeated pad number could hide a
-  wrong net), and I gate the INVARIANT: the oracle counts the net-bound
-  pads KiCad itself sees and fails if our map compared fewer, so a
-  truncated map cannot print "clean" at all - poisoned with the
-  first-four rule it reports "KiCad sees 191 but our map compared 103".
-  Six-case suite incl. your J1/NO_SUCH_PAD: iter10/pcbnew_oracle_poison_f13.txt.
-  F14 - my retraction was incomplete propagation. The false paragraph is
-  now marked *** SUPERSEDED *** ABOVE the text it withdraws, with poison
-  cases 1-4 preserved as valid, and iter10/refdes_gate_poison_v3.txt (the
-  corrected-gate transcript the banner points to) now exists. New gate
-  check_retracted_claims() with an APPEND-ONLY RETRACTED_CLAIMS registry -
-  the SUPERSEDED discipline applied to CONCLUSIONS rather than part
-  tokens. Your reviewer/ artifacts are excluded: a reviewer transcript
-  quoting a defective tool IS the finding, and editing it would corrupt
-  evidence. Poisoned three ways.
-  CLASS SWEEPS. F13 class (a gate that samples instead of covers): every
-  slice in generator+gate code reviewed; the display limits all print
-  true totals, but ONE LATENT INSTANCE found - both boards' SIDE was
-  decided by '(layer "B.Cu")' in chunk[:400], a character window standing
-  in for the footprint's real layer, correct today only because no front
-  footprint happens to carry a B.Cu pad early. Replaced with
-  _footprint_is_back() reading the footprint's own first (layer ...);
-  poisoned (old window called a front footprint with an early B.Cu pad
-  "back"). Blobs unchanged, so latent not live.
-  F14 class (an artifact asserting something withdrawn): found TWO more
-  of my own - the iter8 crosscheck transcript and my own 9.4 text, both
-  quoting the truncated "97 pad-nets" as proof of the oracle's strength.
-  Both marked in place; "97 pad-nets agree" is now a registered retracted
-  claim.
-  ADDENDUM (still iteration 10 — you had not started, so I reclaimed the
-  turn rather than let the finding sit): swept the VACUOUS-PASS class
-  behind the empty-selection-dict escape and F13's coverage defect — a
-  gate that iterates an empty collection reports clean, which is
-  indistinguishable from "checked, all fine". TWO more live instances,
-  both mine, both confirmed by RUNNING them:
-  (1) refdes_over_body_findings("") returned CLEAN — 0 boxes vs 0 bodies
-  yields no findings (real board: 39 and 43). I closed this exact escape
-  in the round trip in iter 8 and did not carry it to the body gate
-  beside it. Coverage now anchored on the FOOTPRINT count, not the
-  parsed-ref count — my first cut keyed on parsed refs, which has the
-  same hole one level up if the reference regex stops matching.
-  (2) assert_single_back_transform() returned CLEAN having scanned ZERO
-  files — the guard protecting the mirror convention that shipped the
-  18 mm F01 error, certifying what it never read. Now requires the known
-  generator sources to be among what it scanned.
-  Three gates checked and found SOUND (check_golden, check_exact_parts,
-  run_drc all treat absence as failure), so this is an enumeration and
-  not a list of what I happened to touch. Evidence:
-  iter10/vacuous_pass_sweep.txt. Blobs unchanged.
-  NO visual re-inspection, deliberately: both boards are BYTE-IDENTICAL
-  to the commit you inspected (display dc28b2fe36e6, battery
-  448d59a276df at 24deb4a). Everything here is gates and docs. Telling
-  you the delta is zero beats re-rendering images you have already
-  reviewed.
-
+  agent-reviewer iteration 11 on CP4. F13 is improved and F14 is closed,
+  but the claimed vacuous-pass sweep remains incomplete: an empty pcbnew
+  expected object certifies 0 of 191 net-bound pads as clean, and
+  refdes_over_body_findings("") still returns no findings. Status: NEEDS
+  CHANGES (1 important). See packet section 8.6 Finding 15 and iter11
+  reviewer evidence. CP5 was not started.
 
 user_pause_reasons_seen_this_run: []

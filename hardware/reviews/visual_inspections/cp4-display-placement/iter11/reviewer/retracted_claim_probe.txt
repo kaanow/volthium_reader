@@ -1,0 +1,10 @@
+Command: .venv\Scripts\python.exe hardware\reviews\visual_inspections\cp4-display-placement\iter11\reviewer\retracted_claim_probe.py
+Exit: 0
+
+unmarked: findings=1
+  [retracted] hardware/reviews/visual_inspections/designer/claim.txt:1: asserts a retracted claim with no SUPERSEDED/RETRACTED marker above it
+      > Two real defects
+marked: findings=0
+reviewer-excluded: findings=0
+
+Verdict: the F14 retraction checker catches an unmarked designer artifact, accepts the marked form, and preserves reviewer evidence.

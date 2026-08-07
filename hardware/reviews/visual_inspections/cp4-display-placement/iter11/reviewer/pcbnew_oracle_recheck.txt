@@ -1,0 +1,25 @@
+Tool: C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\python.exe
+Board: hardware/kicad/pcb/build_display/display_pcb.kicad_pcb
+
+CONTROL - full generator rebuild, exit 0:
+  CROSSCHECK: clean - 39 references, 39 sides, 191 pad-nets (of 191 net-bound pads KiCad sees) agree with KiCad's own engine
+
+POISON - missing_pad_expected.json, exit 1:
+  CROSSCHECK: FAIL (3)
+     J1.NO_SUCH_PAD: our model expects this pad but KiCad's board has no pad numbered 'NO_SUCH_PAD' on J1
+     located only 0 of 1 expected pads
+     coverage: KiCad sees 191 net-bound pads but our expected map only compared 0 - the oracle is judging a subset
+
+POISON - wrong_net_expected.json, exit 1:
+  CROSSCHECK: FAIL (2)
+     C1.2 net: our model 'DEFINITELY_NOT_THE_NET', KiCad 'GND'
+     coverage: KiCad sees 191 net-bound pads but our expected map only compared 1 - the oracle is judging a subset
+
+POISON - subset_expected.json, exit 1:
+  CROSSCHECK: FAIL (1)
+     coverage: KiCad sees 191 net-bound pads but our expected map only compared 1 - the oracle is judging a subset
+
+POISON - empty_expected.json, exit 0 (DEFECT):
+  CROSSCHECK: clean - 0 references, 0 sides, 0 pad-nets (of 191 net-bound pads KiCad sees) agree with KiCad's own engine
+
+Verdict: missing-pad, wrong-net, and nonempty-subset cases now fail correctly, but an empty expected map bypasses coverage because the comparison is guarded by `if expected_pads`.

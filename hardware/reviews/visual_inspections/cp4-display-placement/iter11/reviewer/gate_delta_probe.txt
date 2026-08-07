@@ -1,0 +1,13 @@
+Command: .venv\Scripts\python.exe hardware\reviews\visual_inspections\cp4-display-placement\iter11\reviewer\gate_delta_probe.py
+Exit: 0
+
+side/front-with-early-B.Cu: False
+side/back-with-early-F.Cu: True
+refdes-empty/findings: []
+single-transform/real-tree: clean
+single-transform/empty-tree: FAIL as required: [single-transform] guard scanned 0 file(s) in <TEMP> and did not see ['build.py', 'build_display_pcb.py', 'core.py', 'fplib.py'] - it cannot certify a convention it never read
+
+Verdict:
+- _footprint_is_back() rejects the old early-B.Cu false side classification.
+- assert_single_back_transform() fails closed on an empty source tree.
+- refdes_over_body_findings("") still returns clean, so the claimed empty-input closure is incomplete.
