@@ -414,13 +414,21 @@ piped gate.** A shell pipeline reports the exit status of its LAST command,
 so `handoff_check.py | tail -2 && git push` pushes even when the gate printed
 `HANDOFF: FAIL` — that is exactly how a commit carrying a defective gate
 reached the reviewer's clone in CP4 iteration 8. Run it as its own command
-and read its status, or force the failure to propagate:
+and read its status. Run it BARE and test `$?` — that is the only form that
+behaves the same in bash and zsh:
 
 ```bash
-set -o pipefail          # or: run it bare, then test $?
-python3 hardware/reviews/tools/handoff_check.py | tail -6
-rc=${PIPESTATUS[0]}; [ "$rc" -eq 0 ] || { echo "gate failed"; exit 1; }
+python3 hardware/reviews/tools/handoff_check.py    # no pipe, no && chain
+rc=$?
+[ "$rc" = 0 ] || { echo "gate failed (rc=$rc) — do not push"; exit 1; }
 ```
+
+Do not reach for `PIPESTATUS` here. It is bash-only: zsh spells it
+`pipestatus` and indexes from 1, so `${PIPESTATUS[0]}` expands to the empty
+string — and `[ "" -eq 0 ]` is TRUE in zsh, so the "safe" pipeline form
+pushes on a failing gate, which is the very bug it was meant to prevent.
+Verified in this repo's shell (`/bin/zsh`). Compare with `=`, not `-eq`, so
+an empty value cannot read as success.
 
 **Host-limited acceptance (CP3 F10).** A gate whose pass depends on a
 host you cannot exercise (the reviewer's Windows box, a fab's DRC) is
