@@ -1,0 +1,14 @@
+[Unit]
+Description=Volthium Xanbus charge-config watcher (alarm on any setpoint change)
+After=network.target
+ConditionPathExists=/sys/class/net/can0
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/volthium_reader
+ExecStart=/srv/volthium_reader/.venv/bin/python scripts/xanbus_config_watch.py
+# Read-only against the bus, but it claims an address, so bound it like the
+# guard: a runaway here would be transmitting on a live CAN network.
+TimeoutStartSec=180
+MemoryMax=80M
+Nice=10

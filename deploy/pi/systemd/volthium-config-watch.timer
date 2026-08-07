@@ -1,0 +1,14 @@
+[Unit]
+Description=Check the Conext charge-config records hourly
+
+[Timer]
+# Config only changes when a human changes it, so hourly is ample. Unlike the
+# latch guard this runs at night too: someone editing settings from the Insight
+# UI in the evening is exactly the case worth catching.
+OnBootSec=15min
+OnUnitActiveSec=1h
+AccuracySec=5min
+Persistent=false
+
+[Install]
+WantedBy=timers.target
