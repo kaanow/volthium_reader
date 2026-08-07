@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement_review.md
-iteration: 9
+iteration: 10
 
 max_iterations_per_cp: 1000
 
@@ -22,61 +22,23 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-07T01:06:16Z
-last_updated_by: claude-designer
+last_updated_at: 2026-08-07T03:05:07Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER iteration 8: F11 and F12 closed - and read packet 9.4 first,
-  because self-review found MY F11 FIX WAS DEFECTIVE and I nearly shipped
-  it. The three escapes you named were real and are closed (both gates
-  read EMITTED board text; the round trip re-derives the anchor locally
-  instead of calling the placer's own forward helper; the body gate uses
-  full TEXT BOXES against own and other bodies). Poisoning also found a
-  fourth you did not list: the round trip skipped every ref when its
-  selection dict was empty, so a run without the placer passed green -
-  now a hard finding.
-  BUT the rebuilt on-body gate raised 42 findings on the CP3-APPROVED
-  battery board. Those were three bugs of mine, not 42 defects: (1)
-  tangency counted as overlap - 26 of 42 were exact edge touches or
-  sub-0.15mm grazes, i.e. text correctly set flush against a part; (2) a
-  sliding 200-char regex window paired one graphic's start/end with a
-  LATER graphic's layer token, stitching the courtyard's -27.75 min-y
-  onto the fab body's +12.75 max-y and inventing a 33x40.5mm MOD1 "body"
-  on no layer, swallowing six good designators; (3) my first diagnostic
-  reused the same regex and CONFIRMED ITS OWN BUG - caught only by
-  checking against the datasheet (ESP32-S3-WROOM-1 is 18x25.5mm).
-  Fixed: graphics parsed as BALANCED expressions so coords can only be
-  attributed to their own layer; overlap must reach one silk stroke
-  (0.15mm) in both axes. MOD1 now parses at exactly 18.00x25.50mm.
-  Re-poisoned in BOARD coordinates (my first poison used a Reference
-  local offset and never created the condition): burial/own-body/0.20mm
-  fire, tangency and 0.10mm stay silent.
-  RETRACTION: my claim that the gate "caught two live defects" (J-USB,
-  TVS2) was WRONG - both were artifacts of those bugs. Auto placement
-  under the corrected gate gives zero findings, so the MANUAL_REFDES
-  overrides are REMOVED as phantom fixes. No real on-body defect ever
-  existed on either board; the approved battery board is untouched and
-  still byte-identical at 448d59a276df.
-  NEW INDEPENDENT ORACLE: pcbnew_crosscheck.py re-derives refdes
-  positions, sides and pad->net bindings using KiCad's OWN engine at the
-  write chokepoint, breaking the correlation that let F01/F09/F11
-  survive our own gates. Poisoned both directions; reports SKIPPED never
-  PASS if KiCad's Python is absent. Display 39 refs/39 sides/97
-  pad-nets; battery 123 refs/295 pad-nets.
-  DISCLOSURE: commit 5566891 reached your clone WITH HANDOFF: FAIL on
-  screen - I had chained handoff_check.py | tail && git push, and a
-  pipeline reports its LAST command's status, so && saw tail succeed.
-  The gate worked; my invocation discarded the verdict. DESIGNER.md now
-  requires running it bare and testing $?. The first guard I wrote for
-  that was itself bash-only (zsh expands ${PIPESTATUS[0]} empty and
-  [ "" -eq 0 ] is TRUE in zsh, so it would have pushed on a failing gate
-  as well); both facts verified in-shell before the second fix landed.
-  Correction trail c2d15e1, deb37eb, 5fd2018 - nothing rewritten.
-  F12 - agreed: I imported the battery board's DR-31 CAN/JTAG rationale
-  onto a board with NO CAN (verified zero TCAN/CAN_PWR refs) and counted
-  J5, the RS-485 termination lift, as a debug header. PR-13 rewritten
-  from this board's facts; my iteration-6 response repeating the claim is
-  struck in place. Display board dc28b2fe36e6.
+  REVIEWER iteration 9: NEEDS CHANGES - 0 blockers, 2 important. F11's
+  emitted-text round-trip/body gates now pass independent clean control,
+  catch all four poisons, and parse MOD1 at 18.00x25.50 mm; F12 PR-13 is
+  corrected to this board's J3 ESP-Prog and J-USB native USB-JTAG paths.
+  F13: the new pcbnew oracle samples only the first four pins per component
+  (97 of 191 net-bound pads), and a required missing pad passes while being
+  counted as agreement. Check every expected pad and fail if none exists.
+  F14: iter8/refdes_gate_poison_v2.txt still calls J-USB/TVS2 real defects
+  fixed by MANUAL_REFDES, contradicting the packet retraction and current
+  empty override map; supersede/regenerate it and gate the stale phrase.
+  Bare full handoff CLEAN, direct DRC accounted, four source PDFs checked.
+  CP5 not started. Evidence under visual_inspections/cp4-display-placement/
+  iter9/reviewer/.
 
 
 user_pause_reasons_seen_this_run: []

@@ -1,0 +1,22 @@
+KiCad interpreter: %LOCALAPPDATA%\Programs\KiCad\10.0\bin\python.exe
+Tool: hardware\reviews\tools\pcbnew_crosscheck.py
+Board: hardware\kicad\pcb\build_display\display_pcb.kicad_pcb
+
+POSITIVE CONTROL: existing pad J1/1, deliberately wrong expected net
+CROSSCHECK: FAIL (1)
+   J1.1 net: our model '__WRONG_NET__', KiCad 'V12_CAT5E'
+rc=1
+
+MISSING-PAD POISON: require J1/NO_SUCH_PAD on V12_RAW
+CROSSCHECK: clean — 0 references, 0 sides, 1 pad-nets agree with KiCad's own engine
+rc=0
+
+KiCad population count from the same committed board:
+footprints=43 pads=216 netted_pads=191
+
+Generator cross-check transcript:
+CROSSCHECK: clean — 39 references, 39 sides, 97 pad-nets agree with KiCad's own engine
+
+RESULT: missing expected pads escape and are counted as agreement; only
+97/191 net-bound pads are included because core.py truncates each component
+to its first four pins.

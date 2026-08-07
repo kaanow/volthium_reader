@@ -628,6 +628,76 @@ CP5 was not started. Evidence is in
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings 11, 12.)
 
 
+### 8.5 Reviewer findings (iteration 9)
+
+Reviewed design commit: `24deb4ae8bf6d5f348816f34fde2287fb7b92c86`.
+
+F11's actual repair now passes independent re-check: both gates consume the
+emitted board, the clean control is clean, all four prior poisons are caught,
+and MOD1's body independently parses as 18.00 x 25.50 mm. Fresh renders and
+the serialized J1 probe remain clean. F12 also passes: PR-13 now describes
+this display board's J3 ESP-Prog and J-USB native USB Serial/JTAG paths without
+the battery CAN or J5 claims. Two new evidence/gate issues remain.
+
+#### Finding 13 - IMPORTANT - the pcbnew oracle silently accepts missing expected pads and checks only 97 of 191 net-bound pads
+
+**Issue**: `pcbnew_crosscheck.py` treats an expected pad that KiCad cannot find
+as success: `got` remains `None`, and only `got is not None and got != net`
+fails. The generator also truncates every component to its first four pins.
+The resulting “97 pad-nets agree” message is not a complete independent
+pad-to-net check, and it counts an absent expected pad as agreement.
+
+**Evidence**: `hardware/kicad/pcb/core.py:1180` applies `[:4]` while building
+the expected map; `hardware/reviews/tools/pcbnew_crosscheck.py:55-65` silently
+passes no matching pad. A KiCad-engine count on the committed board reports
+216 pads, 191 net-bound. The oracle receives 97. Independent positive control
+with existing J1.1 and a wrong expected net fails correctly, but expected
+`J1/NO_SUCH_PAD` returns exit 0 and prints “1 pad-nets agree.” Transcript:
+`visual_inspections/cp4-display-placement/iter9/reviewer/pcbnew_missing_pad_poison.txt`.
+
+**Suggested fix**: remove the first-four truncation and send every expected
+net-bound pin. In the oracle, collect all board pads matching the expected pad
+number; fail if the set is empty, and fail if any matching pad has the wrong
+net. Report the number actually found and compared, and assert it equals the
+expected-map count. Retain both the wrong-net positive control and the
+missing-pad poison.
+
+#### Finding 14 - IMPORTANT - the committed iteration-8 poison transcript still asserts the retracted phantom defects and manual fixes
+
+**Issue**: `iter8/refdes_gate_poison_v2.txt` ends by asserting that J-USB and
+TVS2 were “Two real defects” fixed with `MANUAL_REFDES`. The packet now
+correctly retracts that claim as a parser artifact, and the current generator
+explicitly has `MANUAL_REFDES = {}`. The evidence artifact therefore leaves a
+false live conclusion on record without a superseded marker.
+
+**Evidence**: The final four lines of
+`visual_inspections/cp4-display-placement/iter8/refdes_gate_poison_v2.txt`
+make the false claim. Packet section 9.4 says no real on-body defect existed
+and the overrides were removed; `hardware/kicad/pcb/build_display_pcb.py:274`
+confirms the map is empty. The mandatory consistency checker exits 0 despite
+this contradiction.
+
+**Suggested fix**: regenerate the transcript from the corrected gate or mark
+the false paragraph explicitly `SUPERSEDED` with a pointer to the final
+control/poison results and retraction. Add a targeted consistency assertion or
+superseded-token entry so the old “Two real defects” / manual-override claim
+cannot return unnoticed.
+
+Coverage: published/installed skill hashes matched; mandatory consistency
+check exit 0; fresh display build exit 0; full handoff was run bare and CLEAN
+across all four generators; direct strict KiCad DRC completed with the two
+documented footprint warnings and 123 placement-only unconnected items; RPA
+clean; emitted-refdes gates independently re-poisoned; pcbnew oracle tested
+with positive and negative controls; independent serialized-board AABB and J1
+probe passed; fresh full top/bottom renders plus J1/U1 and J3/J-USB crop zooms
+inspected; and four on-file manufacturer-PDF citations checked. No manifest
+row, SKU cell, connectivity, or selected part changed. CP5 was not started.
+Evidence is in
+`visual_inspections/cp4-display-placement/iter9/reviewer/REPORT.md`.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings 13, 14.)
+
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-08-06)
