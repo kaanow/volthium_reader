@@ -178,7 +178,7 @@ It is not merely sunset: computed POA falls ~36% between 15:00 and 16:00 while
 measured power fell 85%, and voltage fell with it. The evening irradiance
 decline supplies the *crossover*; the runaway supplies the *collapse*.
 
-**Practical consequence — the guard should not fix a latch it cannot hold.**
+**Proposed consequence — the guard should not fix a latch it cannot hold.**
 At 17:00 local the sun is 33 deg up but an SE array is nearly edge-on to it;
 scaling the healthy 11:00 measurement (228 W at POA 867) gives roughly **32 W
 available against a ~113 W load**. A bounce then cannot be sustained by
@@ -186,6 +186,39 @@ definition. Prediction, recorded before the guard's 17:00 run: it will ACK,
 the array will fly up briefly, and it will **re-latch within ~10-30 min**.
 That is the Unknown #2 deficit case, arriving on its own without anyone
 forcing it.
+
+#### RESULT — prediction wrong, and the proposal above is RETRACTED
+
+The guard fixed it at 17:00:22 (`recovered=true`, pv_v 27.5 -> 94.3). Then:
+
+| local | pv_v | solar W | load W | surplus |
+|---|---|---|---|---|
+| 17:03 | 94.3 | 98 | 111 | -13 |
+| 17:10 | 90.4 | 94 | 113 | -19 |
+| 17:20 | 85.1 | 79 | 115 | -36 |
+| 17:35 | 73.3 | 77 | 115 | -38 |
+
+**It did not re-latch.** 35 minutes on, in a continuous 13-40 W deficit, the
+array is still tracking with a healthy 47 V delta. Two things were wrong:
+
+1. *The power estimate.* Predicted 32 W, actual 98 W — 3x low. The POA model
+   used is **beam-only**, and it collapses to zero once an SE array goes
+   off-axis in the afternoon. Diffuse irradiance dominates by then. Use the
+   beam model for *ratios near solar noon* only; it is useless late in the day.
+2. *The timing.* A deficit does not latch promptly — it latches after a long
+   walk. This morning took **80 min** from the 15:15 crossover to the clamp;
+   this descent is running at ~0.65 V/min and would need ~60 min more. "Deficit
+   -> latch" is right; "deficit -> latch within 10-30 min" is not.
+
+**So the "don't fix what you cannot hold" gate would have been a mistake.**
+It would have skipped this fix, which recovered ~80 W for 35+ minutes and
+counting — roughly **47 Wh** against the ~5 W the clamp was yielding — without
+ever needing to hold surplus. A bounce does not have to be permanent to be
+worth doing. Do not add that gate.
+
+What remains true is the narrower version: near *darkness* a bounce is
+pointless because there is no power to recover. That is a sun-elevation test,
+not a surplus test, and the existing `daylight` check already approximates it.
 
 `mppt_latch_context` still ships 20 min of 1 Hz run-up with each latch event
 for the finer detail.
