@@ -901,6 +901,46 @@ known-good converter, so its daily total will be the first uncontaminated
 production figure this project has.** Judge smoke recovery from that, not from
 the back-history.
 
+### ANSWERED 2026-08-07 — split the metric in two and both questions resolve
+
+The single clear-sky index below **conflates two independent things**: how
+clear the sky is, and where the tracker happens to be sitting. A day spent
+walked-down scores badly even under a perfect sky. Splitting them answers
+Unknown #10 properly for the first time.
+
+Window 09:00-16:00 local, demand-limited samples excluded:
+
+| day | % of window CLAMPED | % near MPP (pv_v > 70 V) | near-MPP index | vs 08-05 |
+|---|---|---|---|---|
+| 07-30 | 40% | **0%** | n/a | — |
+| 07-31 | 70% | **0%** | n/a | — |
+| 08-01 | 99% | **0%** | n/a | — |
+| 08-02 | 90% | **0%** | n/a | — |
+| 08-03 | 94% | **0%** | n/a | — |
+| 08-04 | 99% | **0%** | n/a | — |
+| 08-05 | 33% | 26% | 0.832 | 100% |
+| 08-06 | 11% | 11% | 0.257 | 31% |
+| 08-07 | 16% | 33% | 0.304 | 37% |
+
+**Converter health — the guard is working, and this is the number that shows
+it.** Clamped time across the productive window fell from **90-99% on
+08-01..04 to 11-16% on 08-06..07**. On those six earlier days the array never
+once reached 70 V between 09:00 and 16:00 — zero near-MPP samples in six days
+is what the "five day latch" actually looks like when you measure it.
+
+**Atmosphere — the smoke has NOT cleared.** The near-MPP index is
+tracker-independent by construction: it only samples moments when the array is
+already near its ~88 V MPP. On that basis 08-06 and 08-07 deliver **31% and
+37%** of what 08-05 did. Today is modestly better than yesterday (+18%) but
+nowhere near 08-05, which now looks like an unusually clear day rather than
+the baseline.
+
+So the two questions had opposite answers and the combined metric hid both:
+the *system* is enormously better, the *sky* is not.
+
+**Use `%-clamped` to judge the converter and the guard; use the near-MPP index
+to judge the sky. Never one number for both.**
+
 ### A metric that survives all of this: the clear-sky index
 
 Raw daily totals confound weather, geometry and the latch. Normalising by
