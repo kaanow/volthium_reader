@@ -46,23 +46,57 @@ def main():
     for ref, side in exp.get("side", {}).items():
         fp = b.FindFootprintByReference(ref)
         if fp is None:
+            bad.append(f"{ref}: side expected but the footprint is absent "
+                       "from the board KiCad loaded")
             continue
         got = "B" if fp.IsFlipped() else "F"
         if got != side:
             bad.append(f"{ref} side: our model {side}, KiCad {got}")
 
-    for key, net in exp.get("pads", {}).items():
+    # An oracle must not score a pad it never found as agreement (CP4 F13).
+    # Absence is a FAILURE, every pad carrying the number is checked (a
+    # footprint may repeat one), and the compared count is asserted against
+    # the expected map so a truncated map cannot pass quietly.
+    expected_pads = exp.get("pads", {})
+    compared = 0
+    located = set()
+    for key, net in expected_pads.items():
         ref, pad = key.split("/", 1)
         fp = b.FindFootprintByReference(ref)
         if fp is None:
+            bad.append(f"{ref}.{pad}: our model expects this pad but the "
+                       "footprint is absent from the board KiCad loaded")
             continue
-        got = None
+        matches = [p_ for p_ in fp.Pads() if p_.GetNumber() == pad]
+        if not matches:
+            bad.append(f"{ref}.{pad}: our model expects this pad but KiCad's "
+                       f"board has no pad numbered {pad!r} on {ref}")
+            continue
+        located.add(key)
+        for p_ in matches:
+            compared += 1
+            got = p_.GetNetname()
+            if got != net:
+                bad.append(
+                    f"{ref}.{pad} net: our model {net!r}, KiCad {got!r}")
+
+    if len(located) != len(expected_pads):
+        bad.append(f"located only {len(located)} of {len(expected_pads)} "
+                   "expected pads")
+
+    # Coverage, not just agreement: if our expected map omits net-bound pads
+    # that KiCad can see, the oracle is checking a subset while reporting
+    # confidence. This is the invariant that the first-four-pins truncation
+    # violated while printing "clean".
+    board_bound = 0
+    for fp in b.GetFootprints():
         for p_ in fp.Pads():
-            if p_.GetNumber() == pad:
-                got = p_.GetNetname()
-                break
-        if got is not None and got != net:
-            bad.append(f"{ref}.{pad} net: our model {net!r}, KiCad {got!r}")
+            if p_.GetNetname():
+                board_bound += 1
+    if expected_pads and compared < board_bound:
+        bad.append(f"coverage: KiCad sees {board_bound} net-bound pads but "
+                   f"our expected map only compared {compared} — the oracle "
+                   "is judging a subset")
 
     if bad:
         print(f"CROSSCHECK: FAIL ({len(bad)})")
@@ -71,8 +105,8 @@ def main():
         return 1
     n = len(exp.get("refdes", {}))
     print(f"CROSSCHECK: clean — {n} references, {len(exp.get('side', {}))} "
-          f"sides, {len(exp.get('pads', {}))} pad-nets agree with KiCad's "
-          "own engine")
+          f"sides, {compared} pad-nets (of {board_bound} net-bound pads "
+          "KiCad sees) agree with KiCad's own engine")
     return 0
 
 

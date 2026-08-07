@@ -708,6 +708,21 @@ def write_project(out_dir, project, netclasses, custom_rules=""):
 _PROPCACHE = {}
 
 
+def _footprint_is_back(chunk):
+    """Is this footprint on the back? Read its OWN layer, not a window.
+
+    Both call sites used `'(layer "B.Cu")' in chunk[:400]`. That is correct
+    only by accident of how much text precedes the pads: a FRONT footprint
+    with a B.Cu pad early in its chunk reads as back, and a back footprint
+    with a long header reads as front. It is the same class as the
+    sampling oracle (CP4 F13) — a window standing in for the real thing.
+    In the KiCad 10 s-expression a footprint's own layer is its first
+    `(layer ...)`, so match that exactly and the class disappears.
+    """
+    m = re.search(r'\(layer "([^"]+)"\)', chunk)
+    return bool(m) and m.group(1) == "B.Cu"
+
+
 def _balanced(s, start):
     d = 0
     k = start
@@ -773,7 +788,7 @@ def _restore_properties(board_text, prop_overrides=None):
         # a footprint on B.Cu carries its silk on B.SilkS; the library
         # block always says F.SilkS, and this restore was not side-aware,
         # so back-side refdes were emitted onto the FRONT silk (CP4).
-        on_back = '(layer "B.Cu")' in chunk[:400]
+        on_back = _footprint_is_back(chunk)
         refm = re.search(r'\(property "Reference" "([^"]+)"', chunk)
         ref = refm.group(1) if refm else None
 
@@ -1040,7 +1055,7 @@ def bodies_from_board(board_text):
             continue
         fx, fy = float(atm.group(1)), float(atm.group(2))
         frot = float(atm.group(3)) if atm.group(3) else 0.0
-        side = "B" if re.search(r'\(layer "B\.Cu"\)', ch[:400]) else "F"
+        side = "B" if _footprint_is_back(ch) else "F"
         by_layer = _graphic_points_by_layer(ch)
         for lay in ("Fab", "CrtYd"):
             pts = by_layer.get(lay, [])
@@ -1177,7 +1192,9 @@ def pcbnew_crosscheck(board_path, components, placement, refdes_boxes,
                     if r in components},
            "pads": {}}
     for ref, v in components.items():
-        for pad, net in list(v["pins"].items())[:4]:
+        # EVERY net-bound pin, not a sample: the first-four truncation here
+        # let the oracle print "clean" while judging half the board (F13).
+        for pad, net in v["pins"].items():
             exp["pads"][f"{ref}/{pad}"] = net
     import json as _json
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:

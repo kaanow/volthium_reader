@@ -3,6 +3,15 @@ CP4 iter8 — independent pcbnew cross-check poison test
 Purpose: our gates read the board with the assumptions that wrote it.
 This asks KiCad's OWN engine instead, breaking that correlation.
 
+*** SUPERSEDED — the "97 pad-nets agree" figure below is RETRACTED. ***
+    The oracle that produced it was truncating every component to its
+    first four pins, so it compared 97 of the 191 net-bound pads KiCad
+    can see while printing "clean" (CP4 F13). It also scored an expected
+    pad that KiCad could NOT find as agreement. The refdes/side poison
+    results below remain valid; only the pad-net coverage claim is void.
+    Corrected oracle and full poison suite (including the missing-pad
+    case): ../iter10/pcbnew_oracle_poison_f13.txt — now 191 of 191.
+
 --- CONTROL (as built):
 [crosscheck] CROSSCHECK: clean — 39 references, 39 sides, 97 pad-nets agree with KiCad's own engine
 

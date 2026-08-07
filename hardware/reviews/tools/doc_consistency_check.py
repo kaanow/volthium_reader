@@ -830,6 +830,88 @@ def check_stale_tokens() -> list[str]:
     return findings
 
 
+# ---------------------------------------------------------------------------
+# Retracted claims. APPEND-ONLY, like SUPERSEDED, but for CONCLUSIONS rather
+# than part tokens: once a claim is withdrawn, no artifact may assert it
+# without a visible retraction marker. Evidence transcripts are the risk —
+# they are written once and read later as fact, and the packet retraction
+# does not travel with them (CP4 F14).
+# (pattern, hint)
+# ---------------------------------------------------------------------------
+RETRACTED_CLAIMS: list[tuple[str, str]] = [
+    (r"[Tt]wo real defects",
+     "the J-USB/TVS2 'real defects' were artifacts of a defective on-body "
+     "gate (tangency counted as overlap + mis-parsed body extents); "
+     "retracted in packet 9.4, MANUAL_REFDES is empty"),
+    (r"MANUAL_REFDES\)? in clear bands",
+     "the display MANUAL_REFDES overrides were removed as fixes for a "
+     "phantom; the map is empty (packet 9.4)"),
+    (r"97 pad-nets agree",
+     "the oracle was truncating to the first four pins per component, so "
+     "it compared 97 of 191 net-bound pads while printing 'clean' (F13); "
+     "full coverage is now 191 of 191"),
+]
+
+# A marker within this many lines ABOVE the hit legalizes it. Sized so a
+# full retraction banner (which needs room to say WHY) still covers the
+# paragraph it supersedes; matched case-insensitively.
+_RETRACTION_WINDOW = 30
+# Stems, so "supersedes"/"superseded"/"supersession" and
+# "retract"/"retracted"/"retraction" all count — a banner that says
+# "Supersedes <file>" is a marker, and losing it to a suffix is the kind of
+# nit that trains people to disable the gate.
+_RETRACTION_MARKERS = ("supersed", "retract")
+
+
+def check_retracted_claims() -> list[str]:
+    """No EVIDENCE artifact may assert a retracted conclusion unmarked.
+
+    Scope is the evidence tree, not the review packet. A poison transcript
+    is the artifact that outlives its own correction: it is written once,
+    read later as fact, and the retraction lives in the packet where it
+    does not travel with the file (CP4 F14). The packet itself is excluded
+    for the same reason LIVE_DOCS excludes it — it is the discussion
+    record, and reporting a false claim requires quoting it (the F14
+    finding does exactly that, immediately followed by the retraction).
+    """
+    findings = []
+    roots = [REPO / "hardware/reviews/visual_inspections"]
+    seen = set()
+    for root in roots:
+        if not root.exists():
+            continue
+        for path in sorted(root.rglob("*")):
+            if path.suffix not in (".txt", ".md") or path in seen:
+                continue
+            # The reviewer's own evidence is theirs, and a reviewer
+            # transcript quoting a defective tool's output IS the finding —
+            # editing it to satisfy this gate would corrupt the evidence.
+            if ("archive" in path.parts or "_retired" in path.parts
+                    or "reviewer" in path.parts):
+                continue
+            seen.add(path)
+            rel = path.relative_to(REPO).as_posix()
+            lines = path.read_text(encoding="utf-8",
+                                   errors="replace").splitlines()
+            for idx, line in enumerate(lines):
+                for pattern, hint in RETRACTED_CLAIMS:
+                    if not re.search(pattern, line):
+                        continue
+                    # The hit's OWN line counts: a supersession banner has
+                    # to quote the claim it is withdrawing.
+                    lo = max(0, idx - _RETRACTION_WINDOW)
+                    window = lines[lo:idx + 1]
+                    if any(mk in w.lower() for w in window
+                           for mk in _RETRACTION_MARKERS):
+                        continue
+                    findings.append(
+                        f"[retracted] {rel}:{idx + 1}: asserts a retracted "
+                        f"claim with no SUPERSEDED/RETRACTED marker above "
+                        f"it — {hint}\n    > {line.strip()[:140]}")
+                    break
+    return findings
+
+
 def check_d32_manifest() -> list[str]:
     findings = []
     if not MANIFEST.exists():
@@ -1074,6 +1156,7 @@ def run_fixtures() -> list[str]:
 def main() -> int:
     findings = run_fixtures()  # self-test first — a broken gate can't certify
     findings += check_stale_tokens()
+    findings += check_retracted_claims()
     findings += check_d32_manifest()
     findings += check_row_coherence()
     findings += check_bom_table_shape()

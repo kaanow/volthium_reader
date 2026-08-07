@@ -1,0 +1,29 @@
+KiCad python: /Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3
+
+PASS  control — untouched map  (must stay clean)
+        CROSSCHECK: clean — 39 references, 39 sides, 191 pad-nets (of 191 net-bound pads KiCad sees) agree with KiCad's own engine
+
+PASS  P1 expected pad absent from the board  (must FAIL)
+        CROSSCHECK: FAIL (3)
+           J1.NO_SUCH_PAD: our model expects this pad but KiCad's board has no pad numbered 'NO_SUCH_PAD' on J1
+           located only 0 of 1 expected pads
+
+PASS  P2 wrong net on a real pad (C1/2)  (must FAIL)
+        CROSSCHECK: FAIL (1)
+           C1.2 net: our model 'DEFINITELY_NOT_THE_NET', KiCad 'GND'
+
+PASS  P3 first-four truncation (97 of 169 pads) — the F13 bug  (must FAIL)
+        CROSSCHECK: FAIL (1)
+           coverage: KiCad sees 191 net-bound pads but our expected map only compared 103 — the oracle is judging a subset
+
+PASS  P4 expected pad on an absent footprint  (must FAIL)
+        CROSSCHECK: FAIL (2)
+           NOSUCHREF.1: our model expects this pad but the footprint is absent from the board KiCad loaded
+           located only 169 of 170 expected pads
+
+PASS  P5 side claim for an absent footprint  (must FAIL)
+        CROSSCHECK: FAIL (1)
+           NOSUCHREF: side expected but the footprint is absent from the board KiCad loaded
+
+============================================================
+6/6 cases behaved correctly

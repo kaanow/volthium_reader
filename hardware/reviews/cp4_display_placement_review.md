@@ -947,7 +947,10 @@ the write chokepoint. Poison-tested both directions; it reports **SKIPPED,
 never PASS**, if KiCad's Python is absent, because an oracle that quietly
 did not run is worse than none. Display 39/39 references, 39 sides, 97
 pad-nets agree; it also independently validates the approved battery board
-at 123 references and 295 pad-nets.
+at 123 references and 295 pad-nets. *(Superseded in iteration 10: those pad
+counts were the truncation defect F13 names — the oracle was sampling the
+first four pins per component. Full coverage is now 191 of 191 net-bound pads
+on the display board and 480 of 480 on the battery board.)*
 
 I am flagging bug 3 as the transferable lesson: a gate and its diagnostic
 sharing a parser will agree with each other while both are wrong. The
@@ -976,3 +979,79 @@ Serial/JTAG peripheral on the dedicated D+/D− pins so it costs no GPIOs
 here; **J3** is the keyed 2×3 ESP-Prog force-download/recovery path for a
 board that deep-sleeps between frames. My iteration-6 §9.3 response repeated
 the same false claim and is struck in place rather than left standing.
+
+
+### 9.5 Responses to §8.5 iteration 9 (iteration 10, 2026-08-07)
+
+**Finding 13 (the oracle sampled 97 of 191 pads and scored a missing pad as
+agreement): AGREE — and this one stings, because I introduced the oracle
+loudly as the thing that breaks our self-correlation and then had it judging
+half the board.** Both defects are real and both are fixed:
+
+- The `[:4]` truncation is gone; every net-bound pin is sent. Display is now
+  **191 of 191** net-bound pads and the battery board **480 of 480** — your
+  independent count of 191 matches exactly.
+- An expected pad KiCad cannot find is now a **failure**, not a silent pass.
+- Beyond the suggested fix: I collect **all** pads carrying the expected
+  number rather than `break`-ing on the first, so a footprint that repeats a
+  pad number cannot hide a wrong net on the second one.
+- And the invariant behind the bug, not just the bug: the oracle now counts
+  the net-bound pads **KiCad itself sees** and fails if our expected map
+  compared fewer. A truncated map can no longer print "clean" at all. That
+  check reproduces your finding exactly — poisoned with the first-four rule
+  it reports *"KiCad sees 191 net-bound pads but our expected map only
+  compared 103"*.
+
+Six-case poison suite in `iter10/pcbnew_oracle_poison_f13.txt`, including
+your `J1/NO_SUCH_PAD` case: control clean, missing pad fails, wrong net
+fails, the truncation itself fails, absent-footprint pad fails, absent
+footprint side-claim fails.
+
+**Finding 14 (the iteration-8 transcript still asserts the retracted claim):
+AGREE — my retraction was incomplete propagation, which is a failure class
+I have a standing rule about.** I retracted in the packet, in the semaphore
+and in the code, and left the evidence artifact asserting the opposite.
+
+The false paragraph is now marked `*** SUPERSEDED ***` **above** the text it
+withdraws, with the reason and pointers, and poison cases 1-4 explicitly
+preserved as still valid. The corrected-gate transcript you were pointed to
+now exists: `iter10/refdes_gate_poison_v3.txt`.
+
+And the gate you asked for: `check_retracted_claims()` in
+`doc_consistency_check.py`, with an **append-only `RETRACTED_CLAIMS`
+registry** mirroring the existing `SUPERSEDED` discipline — but for
+*conclusions* rather than part tokens, because a withdrawn finding is
+exactly the thing that outlives its correction. Scope is the evidence tree;
+your own `reviewer/` artifacts are excluded, since a reviewer transcript
+quoting a defective tool's output **is** the finding and editing it would
+corrupt evidence. Poisoned three ways (unmarked claim in a new file, marker
+stripped from the existing file, correctly-marked file stays silent).
+
+**Class sweep (both findings were defects in my fixes, so this iteration was
+full-scope).** F13's class is *a gate that samples instead of covering*:
+
+- Swept every slice and limit in the generator and gate code. The display
+  truncations (`unacc[:25]`, `overlaps[:50]`, `bad[:30]`) are output limits
+  that all print the true total alongside — those are fine.
+- **One latent instance found and fixed**: both sides of the board were
+  decided by `'(layer "B.Cu")' in chunk[:400]` — a character window standing
+  in for the footprint's actual layer. It is correct on today's boards only
+  because no front footprint happens to carry a B.Cu pad in its first 400
+  characters. Replaced with `_footprint_is_back()`, which reads the
+  footprint's own first `(layer ...)`. Poisoned: a front footprint with an
+  early B.Cu pad — the old window called it **back**, the new one is right.
+  Both board blobs are unchanged by the fix, so this was latent, not live.
+
+F14's class is *an artifact asserting something later withdrawn*. Sweeping
+my own artifacts for figures F13 invalidated found **two more**: the
+iteration-8 crosscheck transcript and my own §9.4 text, both quoting the
+truncated "97 pad-nets" as evidence of the oracle's strength. Both are now
+marked in place, and `97 pad-nets agree` is a registered retracted claim so
+it cannot reappear unnoticed.
+
+**No visual re-inspection this iteration, and deliberately so.** Both boards
+are **byte-identical** to the commit you inspected (`display dc28b2fe36e6`,
+`battery 448d59a276df` at `24deb4a`); every change here is to gates and
+documents. Re-rendering images you have already reviewed would be
+process theatre, so I am telling you the delta is zero rather than
+producing fresh evidence that could only say the same thing.

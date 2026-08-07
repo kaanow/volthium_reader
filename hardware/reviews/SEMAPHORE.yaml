@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement_review.md
-iteration: 10
+iteration: 11
 
 max_iterations_per_cp: 1000
 
@@ -22,23 +22,52 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-07T03:05:07Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-08-07T03:50:39Z
+last_updated_by: claude-designer
 
 note: >
-  REVIEWER iteration 9: NEEDS CHANGES - 0 blockers, 2 important. F11's
-  emitted-text round-trip/body gates now pass independent clean control,
-  catch all four poisons, and parse MOD1 at 18.00x25.50 mm; F12 PR-13 is
-  corrected to this board's J3 ESP-Prog and J-USB native USB-JTAG paths.
-  F13: the new pcbnew oracle samples only the first four pins per component
-  (97 of 191 net-bound pads), and a required missing pad passes while being
-  counted as agreement. Check every expected pad and fail if none exists.
-  F14: iter8/refdes_gate_poison_v2.txt still calls J-USB/TVS2 real defects
-  fixed by MANUAL_REFDES, contradicting the packet retraction and current
-  empty override map; supersede/regenerate it and gate the stale phrase.
-  Bare full handoff CLEAN, direct DRC accounted, four source PDFs checked.
-  CP5 not started. Evidence under visual_inspections/cp4-display-placement/
-  iter9/reviewer/.
+  DESIGNER iteration 10: F13 and F14 closed, both agreed, plus a
+  full-scope class sweep (both were defects in MY fixes, which is my
+  standing trigger for full scope).
+  F13 - the oracle I introduced as the cure for self-correlation was
+  judging half the board. Truncation removed: display now 191 of 191
+  net-bound pads, battery 480 of 480; your count of 191 matches exactly.
+  A missing expected pad is now a FAILURE, not silent agreement. Beyond
+  the suggested fix I check EVERY pad carrying the expected number
+  instead of breaking on the first (a repeated pad number could hide a
+  wrong net), and I gate the INVARIANT: the oracle counts the net-bound
+  pads KiCad itself sees and fails if our map compared fewer, so a
+  truncated map cannot print "clean" at all - poisoned with the
+  first-four rule it reports "KiCad sees 191 but our map compared 103".
+  Six-case suite incl. your J1/NO_SUCH_PAD: iter10/pcbnew_oracle_poison_f13.txt.
+  F14 - my retraction was incomplete propagation. The false paragraph is
+  now marked *** SUPERSEDED *** ABOVE the text it withdraws, with poison
+  cases 1-4 preserved as valid, and iter10/refdes_gate_poison_v3.txt (the
+  corrected-gate transcript the banner points to) now exists. New gate
+  check_retracted_claims() with an APPEND-ONLY RETRACTED_CLAIMS registry -
+  the SUPERSEDED discipline applied to CONCLUSIONS rather than part
+  tokens. Your reviewer/ artifacts are excluded: a reviewer transcript
+  quoting a defective tool IS the finding, and editing it would corrupt
+  evidence. Poisoned three ways.
+  CLASS SWEEPS. F13 class (a gate that samples instead of covers): every
+  slice in generator+gate code reviewed; the display limits all print
+  true totals, but ONE LATENT INSTANCE found - both boards' SIDE was
+  decided by '(layer "B.Cu")' in chunk[:400], a character window standing
+  in for the footprint's real layer, correct today only because no front
+  footprint happens to carry a B.Cu pad early. Replaced with
+  _footprint_is_back() reading the footprint's own first (layer ...);
+  poisoned (old window called a front footprint with an early B.Cu pad
+  "back"). Blobs unchanged, so latent not live.
+  F14 class (an artifact asserting something withdrawn): found TWO more
+  of my own - the iter8 crosscheck transcript and my own 9.4 text, both
+  quoting the truncated "97 pad-nets" as proof of the oracle's strength.
+  Both marked in place; "97 pad-nets agree" is now a registered retracted
+  claim.
+  NO visual re-inspection, deliberately: both boards are BYTE-IDENTICAL
+  to the commit you inspected (display dc28b2fe36e6, battery
+  448d59a276df at 24deb4a). Everything here is gates and docs. Telling
+  you the delta is zero beats re-rendering images you have already
+  reviewed.
 
 
 user_pause_reasons_seen_this_run: []

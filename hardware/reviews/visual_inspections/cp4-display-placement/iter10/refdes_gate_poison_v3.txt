@@ -1,0 +1,55 @@
+CP4 iteration 10 — refdes gate poison v3 (corrected gate)
+==============================================================
+
+Supersedes iter8/refdes_gate_poison_v2.txt. That transcript's poison cases
+1-4 remain valid; its CONCLUSION ("two real defects ... fixed with
+MANUAL_REFDES") was retracted -- the gate then in force counted tangency as
+an overlap and mis-parsed body extents with a sliding-window regex.
+
+Corrections under test:
+  * bodies parsed as BALANCED expressions, so a graphic's coordinates can
+    only be attributed to the layer written inside that same expression;
+  * overlap must reach one silkscreen stroke (0.15 mm) in BOTH axes before
+    it is a defect, so tangency is not a finding.
+
+probe part U2: body (23.55,31.05)..(27.45,35.95); text half-height 0.725 mm
+
+CONTROL
+  display board as committed : 0 findings
+  battery board as committed : 0 findings
+  (the battery board is the CP3-approved artifact; the defective
+   gate raised 42 findings against it, all of them its own fault)
+
+PASS  POISON 1 text buried in another part's body
+        text box now (24.55,32.77)..(26.45,34.23)  [constructed]
+        -> U2 text box (24.55,32.77)..(26.45,34.23) overlaps its own body (23.55,31.05)..(27.45,35.95) on the F side by 1
+
+PASS  POISON 2 EXACT tangency on the body edge (must stay silent)
+        text box now (24.55,29.60)..(26.45,31.05)  [constructed]
+        -> no finding (correct)
+
+PASS  POISON 3 0.20 mm bite — above the 0.15 mm silk stroke
+        text box now (24.55,29.80)..(26.45,31.25)  [constructed]
+        -> U2 text box (24.55,29.80)..(26.45,31.25) overlaps its own body (23.55,31.05)..(27.45,35.95) on the F side by 0
+
+PASS  POISON 4 0.10 mm graze — below the stroke (must stay silent)
+        text box now (24.55,29.70)..(26.45,31.15)  [constructed]
+        -> no finding (correct)
+
+PASS  POISON 5 designator printed on its OWN body
+        text box now (24.55,32.77)..(26.45,34.23)  [constructed]
+        -> U2 text box (24.55,32.77)..(26.45,34.23) overlaps its own body (23.55,31.05)..(27.45,35.95) on the F side by 1
+
+ROUND TRIP (emitted board vs the placer's own selections)
+  POISON gate invoked with no placer run (silent-pass class): PASS
+        -> no placement selections recorded while the board carries 43 references — auto_refdes did not run before this g
+[crosscheck] CROSSCHECK: clean — 39 references, 39 sides, 191 pad-nets (of 191 net-bound pads KiCad sees) agree with KiCad's own engine
+[drc] categories: {'lib_footprint_mismatch': 2, 'unconnected_items': 123}
+[ok] display_pcb.kicad_pcb: 43 footprints, 57 nets, DRC clean (accepted: {'unconnected_items': 123, 'silk_edge_clearance': 0, ('lib_footprint_mismatch', 'ESP32-S3-WROOM-1_HSvia0.3_NoAntKeepout'): 0, ('lib_footprint_mismatch', 'J_Wurth_WR-MJ_615008145521'): 0, ('lib_footprint_mismatch', 'USB_C_Receptacle_GCT_USB4115-03-C'): 0, ('lib_footprint_mismatch', 'Converter_DCDC_RECOM_R-78E-0.5_THT'): 0})
+
+  control after a real build: 0 findings (39 selections recorded)
+  POISON placer choice moved 5 mm off the emitted board: PASS
+        -> J2: placer chose (47.00,11.22) but the EMITTED board puts it at (42.00,11.22)
+
+==============================================================
+all cases behaved correctly

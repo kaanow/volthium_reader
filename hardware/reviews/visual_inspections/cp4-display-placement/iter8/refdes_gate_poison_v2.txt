@@ -34,6 +34,19 @@ three escapes are closed; each is poisoned below, with a control.
     "no selection recorded" check for anything neither placed nor recorded
     as a library fallback.)
 
+*** SUPERSEDED — the paragraph below is RETRACTED and was never true. ***
+
+    The gate that produced it was defective in two ways: it counted
+    tangency (zero penetration) as an overlap, and it mis-parsed body
+    extents with a sliding-window regex that fused a courtyard extent
+    onto a fab-body extent. Under the corrected gate, auto placement of
+    J-USB and TVS2 produces ZERO findings; no real on-body defect ever
+    existed on either board, and the MANUAL_REFDES overrides described
+    below were removed as fixes for a phantom (the map is now empty).
+    Retraction and full reasoning: packet section 9.4, iteration 8.
+    Corrected-gate evidence: ../iter10/refdes_gate_poison_v3.txt.
+    Poison cases 1-4 ABOVE remain valid — only this conclusion is void.
+
 Two real defects the strengthened gate caught on the live board, both
 "own body" cases the anchor-only version had passed: J-USB and TVS2
 designators printed on their own parts. Fixed with explicit spots
