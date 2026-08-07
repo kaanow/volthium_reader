@@ -273,6 +273,48 @@ Still open: the recurrence question in the *deficit* case, i.e. what happens
 when a bounce lands while production is still below load. The 12:40 descent
 (see the cloud-vs-runaway diagnostic above) should produce that test today.
 
+### The `daylight` test is wrong, and sun elevation is the fix
+
+`DAYLIGHT_V = 20.0` is commented "a dark string still floats a few volts".
+**That assumption is false.** Measured after sunset on 08-06 (sun already below
+the horizon):
+
+| local | pv_v | solar W |
+|---|---|---|
+| 20:15 | 70.4 | 0.9 |
+| 20:25 | 78.3 | 1.2 |
+| 20:35 | 71.5 | 0.9 |
+| 20:40 | 29.4 | 2.6 |
+
+A dark string floats most of **Voc**, not a few volts, so `pv_v > 20` stays
+true for 30-45 min after sunset. Worse, the decay is not monotonic — the array
+thrashes (29 -> 78 -> 54 -> 71 V) as the MPPT hunts and gives up for the night,
+so it repeatedly dips through the clamp band. At 20:41 on 08-06 the guard duly
+logged `latch_guard_pending` with `fraction 1.0` and `daylight: true` **with
+the sun at -0.55 deg**.
+
+Today the two-confirmation rule is the only thing standing between that and a
+pointless 3 a.m.-style bounce. That rule is a *timing* heuristic; the real
+quantity is physical and free to compute:
+
+| moment | sun elevation |
+|---|---|
+| real latch #1, fixed 10:58 | **+46.6** |
+| real latch #2, fixed 17:00 | **+33.1** |
+| dawn transient 05:36 | -1.1 |
+| dusk pending 20:41 | -0.6 |
+| next run 21:01 | -3.3 |
+
+The separation is not marginal — every true case is tens of degrees up, every
+false case is **below the horizon**. A gate at elevation > 10 deg admits both
+real fixes with 23 deg to spare and excludes every transient seen so far. It
+needs no sensor (astronomy from lat/lon/clock), it fails safe (strictly fewer
+actions), and unlike the confirmation delay it costs no time on a real latch.
+
+Proposed, not deployed — the two-confirmation rule has held every night so far,
+so nothing is broken yet. If a dusk double-confirm is ever observed, this
+becomes a fix rather than an improvement.
+
 ### What the guard was worth on its first full day: +801 Wh of 1031 Wh (78%)
 
 Measured energy for local day 2026-08-06 (UTC buckets, local day = 07:00Z to
