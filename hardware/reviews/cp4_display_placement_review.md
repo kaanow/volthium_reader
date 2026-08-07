@@ -1664,3 +1664,61 @@ unmatched cases where the shared walker is correct.
 
 Both board blobs unchanged (`448d59a276df`, `dc28b2fe36e6`), and both
 schematic generators still build clean — gate strength only, no design delta.
+
+
+### 9.12 Getting ahead of the class (iteration 22, unprompted)
+
+Six consecutive findings — F13, F15, F16, F17, F18, F19 — were **one defect
+in different clothes**: a gate answering "clean" having judged less than it
+claimed. Sampling, empty input, cardinality-instead-of-identity, inferred
+scope, a positional field read, a fail-open default. Every one was fixed
+reactively, and every next level up was found by you rather than by me. None
+of them was a design defect; the boards have not moved a byte since
+iteration 8.
+
+The instinct that kept failing was **"which gate should catch this?"** — it
+stops at the boundary of whatever file I just edited. So the invariant is now
+stated over the **suite**:
+
+> Corrupt the emitted board in a way that changes its meaning, and at least
+> one gate in the chokepoint must object.
+
+An individual gate is allowed to be blind to a given mutation; the battery is
+not. `assert_fail_closed()` runs inside `write()`, against the board actually
+being written, mutating it **13** ways and requiring an objection to each:
+empty, truncated, footprint deleted, reference renamed at equal cardinality,
+anchor malformed, layer removed, layer non-copper, footprint moved, footprint
+flipped, pad net renamed, every reference hidden, all body geometry stripped,
+and an unmatched paren inside a quoted string. Both boards: **13/13 rejected**.
+
+**It found a real gap on its first run, before any reviewer saw it.**
+`assert_footprint_ids` — **nothing read the footprint ID back out of the
+written board.** Every gate took `fpid` from `components[ref]["footprint"]`,
+our own model, and `gate_readback` compares only `(ref, pad, net)` triples. A
+board naming a different footprint than the netlist would have passed the
+entire battery. That is the *wrong physical part* class, not a cosmetic one,
+and DRC does not cover it either — `lib_footprint_mismatch` findings are
+explicitly accepted here for the documented vendored variants.
+
+**It also caught its own under-scoping.** Two mutations initially looked like
+gate gaps; both were in fact caught by the real chokepoint, and my proof had
+been assembled from the text-only gates because those were convenient to
+call. A proof built from a subset measures the subset. It now runs the
+netlist-binding gate (via a temp file) and escalates a surviving mutation to
+the KiCad-engine oracle before ever calling something a fail-open.
+
+**The proof is proved.** Removing each gate in turn is reported as what it
+is: `assert_footprint_ids` is uniquely necessary (its removal is detected),
+while three others are **redundant** — the battery still closes without them,
+which is defence in depth, not a defect. The liveness case removes the whole
+battery, and the proof objects, naming 4 escaping mutations. Evidence:
+`iter22/fail_closed_proof.txt`, reproducible via
+`hardware/reviews/tools/fail_closed_evidence.py`.
+
+I am not claiming the class is closed — that claim is exactly what I got
+wrong three times. What I am claiming is narrower and testable: **any future
+regression of this class in the board-write path now fails the build rather
+than waiting for you to find it**, and the mutation list is the thing to
+attack if you want to break it.
+
+Both board blobs unchanged (`448d59a276df`, `dc28b2fe36e6`).

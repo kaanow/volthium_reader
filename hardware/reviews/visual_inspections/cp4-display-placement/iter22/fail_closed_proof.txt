@@ -1,0 +1,76 @@
+CP4 iteration 22 — the fail-closed proof
+======================================================================
+
+INVARIANT (stated over the SUITE, not any one gate):
+  corrupt the emitted board in a way that changes its meaning, and AT LEAST
+  ONE gate in the chokepoint must object.
+
+An individual gate is allowed to be blind to a given mutation; the battery
+is not. This is deliberately not "which gate should catch this?" — that
+question is what produced six reactive fixes, because it stops at the
+boundary of whatever file was just edited.
+
+The proof runs inside write(), against the board actually being written, so
+it cannot drift from what ships.
+
+----------------------------------------------------------------------
+CONTROL — both production builds
+  battery  rc=0  [fail-closed] 13 meaning-changing mutations, all rejected by the gate battery
+  display  rc=0  [fail-closed] 13 meaning-changing mutations, all rejected by the gate battery
+
+----------------------------------------------------------------------
+THE MUTATIONS (each changes the board's meaning)
+
+   1  empty text                      8  a footprint moved 5 mm
+   2  truncated to half               9  a footprint flipped to the other side
+   3  first footprint deleted        10  a pad's net renamed
+   4  a reference renamed (same n)   11  every reference hidden
+   5  top-level anchor malformed     12  all body geometry stripped
+   6  top-level layer removed        13  unmatched paren in a quoted string
+   7  top-level layer non-copper
+
+----------------------------------------------------------------------
+IS THE PROOF ITSELF ALIVE? — remove gates and watch it object
+
+A proof that always prints "all rejected" is worth nothing. Each gate is
+removed in turn. Two outcomes are both legitimate, and they are reported as
+what they are rather than as pass/fail:
+
+  FAIL-OPEN DETECTED — that gate is the only one covering some mutation, and
+                       the proof names it;
+  REDUNDANT          — the battery still closes without it, because another
+                       gate covers the same corruption. Defence in depth,
+                       not a defect.
+
+The liveness check is the last row: with the whole battery removed, the proof
+MUST object. If it stays quiet there, it is measuring nothing.
+
+  removed assert_footprint_ids             -> FAIL-OPEN DETECTED
+        [fail-closed] 1 of 13 board mutations passed EVERY gate: ['unmatched paren inside a quoted description'] — the battery fails OPEN on these
+  removed assert_board_parse_coverage      -> REDUNDANT (battery still closed)
+  removed assert_refdes_roundtrip          -> REDUNDANT (battery still closed)
+  removed refdes_over_body_findings        -> REDUNDANT (battery still closed)
+
+  PASS  LIVENESS: whole battery removed -> proof objects
+        [fail-closed] 4 of 13 board mutations passed EVERY gate: ['top-level layer removed', 'top-level layer non-copper', 'unmatched paren inside a quoted description'
+
+  PASS  gates restored: rc=0 [fail-closed] 13 meaning-changing mutations, all rejected by the gate battery
+
+----------------------------------------------------------------------
+WHAT THE PROOF FOUND ON ITS FIRST RUN (before any reviewer saw it)
+
+  assert_footprint_ids — NOTHING read the footprint ID back out of the
+  written board. Every gate took fpid from components[ref]["footprint"],
+  our own model, and gate_readback compares only (ref, pad, net) triples.
+  A board naming a different footprint than the netlist would have passed
+  the entire battery. That is the "wrong physical part" class, and DRC does
+  not cover it either: lib_footprint_mismatch findings are explicitly
+  accepted here for the documented vendored variants.
+
+  It also caught the proof's OWN under-scoping: two mutations looked like
+  gate gaps until the battery was corrected to include the netlist-binding
+  gate (which needs a file) and the KiCad-engine oracle. A proof assembled
+  from a convenient subset measures the subset.
+
+======================================================================
+all checks behaved correctly

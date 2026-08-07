@@ -692,6 +692,7 @@ class BoardBuilder:
         assert_board_parse_coverage(text, set(self.components),
                                     set(self.components) | mech,
                                     self.findings)
+        assert_footprint_ids(text, self.components, self.findings)
         self.findings += label_adjacency_findings(
             refdes_boxes_from_board(text))
         assert_refdes_roundtrip(text, self.findings)
@@ -702,6 +703,50 @@ class BoardBuilder:
         pcbnew_crosscheck(path, self.components, self.placement,
                           refdes_boxes_from_board(text), self.findings,
                           mechanical=mech)
+        # ...and prove the battery above actually objects to corruption,
+        # rather than trusting that it would.
+        def _readback(mtext):
+            """Run the netlist-binding gate on a mutated board."""
+            import tempfile as _tf
+            with _tf.NamedTemporaryFile("w", suffix=".kicad_pcb",
+                                        delete=False, encoding="utf-8",
+                                        newline="\n") as fh:
+                fh.write(mtext)
+                tmp = fh.name
+            keep = self.findings
+            self.findings = []
+            try:
+                self.gate_readback(tmp)
+                return list(self.findings)
+            except SystemExit as exc:
+                return [f"[rejected] {exc}"]
+            finally:
+                self.findings = keep
+                Path(tmp).unlink(missing_ok=True)
+
+        def _escalate(mtext):
+            """The independent KiCad-engine oracle, for survivors only."""
+            import tempfile as _tf
+            with _tf.NamedTemporaryFile("w", suffix=".kicad_pcb",
+                                        delete=False, encoding="utf-8",
+                                        newline="\n") as fh:
+                fh.write(mtext)
+                tmp = fh.name
+            probe = []
+            try:
+                pcbnew_crosscheck(tmp, self.components, self.placement,
+                                  refdes_boxes_from_board(text), probe,
+                                  mechanical=mech)
+            except SystemExit as exc:
+                probe.append(str(exc))
+            finally:
+                Path(tmp).unlink(missing_ok=True)
+            return bool(probe)
+
+        assert_fail_closed(text, set(self.components),
+                           set(self.components) | mech, self.findings,
+                           components=self.components,
+                           readback=_readback, escalate=_escalate)
 
     def gate_readback(self, path):
         """Judge the WRITTEN artifact: re-parse the .kicad_pcb text and
@@ -1489,6 +1534,186 @@ def refdes_boxes_from_board(board_text):
                 boxes.append((ref, (bx - hw, by - hh, bx + hw, by + hh)))
         pos = end
     return boxes
+
+
+# ---------------------------------------------------------------------------
+# Fail-closed proof (CP4, after F13/F15/F16/F17/F18/F19)
+#
+# Six consecutive reviewer findings were the same defect wearing different
+# clothes: a gate that answered "clean" when it had judged less than it
+# claimed. Sampling, empty input, cardinality-instead-of-identity, inferred
+# scope, a positional field read, and a fail-open default. Every one was
+# fixed reactively, and the next level up was found by the reviewer rather
+# than by me.
+#
+# The instinct that kept failing was "which gate should catch this?" — it
+# stops at the boundary of whatever file was just edited. So the invariant
+# is stated over the SUITE instead of any one gate: corrupt the emitted
+# board in a way that changes its meaning, and AT LEAST ONE gate in the
+# chokepoint must object. An individual gate is allowed to be blind to a
+# given mutation; the battery is not. This runs on every build against the
+# board actually being written, so it cannot drift from what ships.
+# ---------------------------------------------------------------------------
+def _mutations(text, refs):
+    """(name, mutated_text) pairs that each change the board's MEANING."""
+    out = [("empty text", ""),
+           ("truncated to half", text[: len(text) // 2])]
+
+    def _first_fp(t):
+        m = re.search(r'\n  \(footprint "', t)
+        if not m:
+            return None, None, None
+        s = m.start() + 1
+        return s, _balanced(t, s + 2), t[s:_balanced(t, s + 2)]
+
+    s, e, ch = _first_fp(text)
+    if ch:
+        out.append(("first footprint deleted", text[:s] + text[e:]))
+        # identity, not cardinality: swap one reference for another name
+        out.append(("a reference renamed (same count)",
+                    text[:s] + re.sub(r'\(property "Reference" "[^"]+"',
+                                      '(property "Reference" "ZZ_SWAPPED"',
+                                      ch, count=1) + text[e:]))
+        for head, child in _top_level_children(ch):
+            if head == "at":
+                out.append(("top-level anchor malformed",
+                            text[:s] + ch.replace(child, "(at BAD BAD)", 1)
+                            + text[e:]))
+            if head == "layer":
+                out.append(("top-level layer removed",
+                            text[:s] + ch.replace(child, "", 1) + text[e:]))
+                out.append(("top-level layer non-copper",
+                            text[:s] + ch.replace(child, '(layer "F.SilkS")',
+                                                  1) + text[e:]))
+        # a parenthesis inside a quoted string is text, not structure — but
+        # a walk that miscounts it hides every later field of that footprint
+        out.append(("unmatched paren inside a quoted description",
+                    text[:s] + ch.replace('(footprint "',
+                                          '(footprint "bad-)-', 1) + text[e:]))
+    if ch:
+        anc = sexp_anchor(ch)
+        if anc:
+            moved = ch.replace(f"(at {anc[0]} {anc[1]}",
+                               f"(at {anc[0] + 5.0} {anc[1]}", 1)
+            if moved != ch:
+                out.append(("a footprint moved 5 mm", text[:s] + moved
+                            + text[e:]))
+        lay = footprint_layer(ch)
+        if lay:
+            other = "B.Cu" if lay == "F.Cu" else "F.Cu"
+            out.append(("a footprint flipped to the other side",
+                        text[:s] + ch.replace(f'(layer "{lay}")',
+                                              f'(layer "{other}")', 1)
+                        + text[e:]))
+    nm = re.search(r'\(net (\d+) "([^"]+)"\)', text)
+    if nm:
+        out.append(("a pad's net renamed",
+                    text.replace(nm.group(0),
+                                 f'(net {nm.group(1)} "ZZ_WRONG_NET")', 1)))
+    out.append(("every reference hidden",
+                re.sub(r'\(property "Reference" ("[^"]+")',
+                       r'(property "Reference" \1 (hide yes)', text)))
+    out.append(("all body geometry stripped",
+                re.sub(r'\(fp_(line|rect|poly|circle|arc)[\s\S]*?'
+                       r'\(layer "[FB]\.(Fab|CrtYd)"\)[^)]*\)', '', text)))
+    return [(n, m) for n, m in out if m != text]
+
+
+_FPID_INTENT = {}
+
+
+def _run_board_gates(text, visible, all_refs, readback=None):
+    """Every chokepoint gate that judges the board. Findings, or the
+    rejection raised by one of them (a raise is an objection too).
+
+    `readback` runs the netlist-binding gate, which needs a FILE. Leaving
+    it out was the proof's own under-scoping: two mutations looked like
+    gate gaps when the real chokepoint caught both. A proof assembled from
+    a convenient subset of the battery measures the subset, not the
+    battery.
+    """
+    f = []
+    try:
+        assert_board_parse_coverage(text, visible, all_refs, f)
+        assert_footprint_ids(text, _FPID_INTENT, f)
+        f += label_adjacency_findings(refdes_boxes_from_board(text))
+        assert_refdes_roundtrip(text, f)
+        f += refdes_over_body_findings(text, expected_refs=all_refs)
+        if readback is not None:
+            f += readback(text)
+    except SystemExit as e:
+        f.append(f"[rejected] {e}")
+    return f
+
+
+def assert_fail_closed(text, visible, all_refs, findings, components=None,
+                       readback=None, escalate=None):
+    """Prove the gate battery objects to every meaning-changing mutation.
+
+    `escalate` is the independent KiCad-engine oracle, run ONLY for a
+    mutation that every cheaper gate let through — so the proof stays exact
+    without paying a subprocess for all thirteen.
+    """
+    global _FPID_INTENT
+    _FPID_INTENT = components or {}
+    control = _run_board_gates(text, visible, all_refs, readback)
+    if control:
+        findings.append(
+            "[fail-closed] the UNMUTATED board already produces findings, so "
+            f"this proof cannot distinguish signal from noise: {control[:2]}")
+        return
+    muts = _mutations(text, all_refs)
+    if len(muts) < 8:
+        findings.append(
+            f"[fail-closed] only {len(muts)} mutations were constructed — "
+            "the battery is too thin to certify anything")
+    escaped = []
+    for name, mt in muts:
+        if _run_board_gates(mt, visible, all_refs, readback):
+            continue
+        if escalate is not None and escalate(mt):
+            continue          # the independent oracle objected
+        escaped.append(name)
+    if escaped:
+        findings.append(
+            f"[fail-closed] {len(escaped)} of {len(muts)} board mutations "
+            f"passed EVERY gate: {escaped} — the battery fails OPEN on these")
+    else:
+        print(f"[fail-closed] {len(muts)} meaning-changing mutations, all "
+              "rejected by the gate battery")
+
+
+def assert_footprint_ids(board_text, components, findings):
+    """Emitted footprint ID per ref == the netlist's footprint for that ref.
+
+    Found by the fail-closed proof, not by a reviewer: NOTHING read the
+    footprint id back out of the written board. Every gate took `fpid` from
+    `components[ref]["footprint"]` — our own model — and `gate_readback`
+    compares only (ref, pad, net) triples, so a board naming a different
+    footprint than the netlist does would pass everything. That is the
+    "wrong physical part" class, not a cosmetic one; DRC's
+    lib_footprint_mismatch does not cover it either, since those findings
+    are explicitly accepted for the documented vendored variants.
+    """
+    got = {}
+    for m in re.finditer(r'\n  \(footprint "([^"]+)"', board_text):
+        s = m.start() + 1
+        ch = board_text[s:_balanced(board_text, s + 2)]
+        pm = re.search(r'\(property "Reference" "([^"]+)"', ch)
+        if pm:
+            got[pm.group(1)] = m.group(1)
+    for ref, meta in sorted(components.items()):
+        want = meta["footprint"]
+        have = got.get(ref)
+        if have is None:
+            findings.append(
+                f"[footprint-id] {ref}: in the netlist but absent from the "
+                "written board")
+        elif have != want:
+            findings.append(
+                f"[footprint-id] {ref}: board says {have!r} but the netlist "
+                f"specifies {want!r} — the board would be built with a "
+                "different physical part")
 
 
 def _set_equality(label, got, want, findings, tag="parse-coverage"):
