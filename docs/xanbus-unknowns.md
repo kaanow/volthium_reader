@@ -386,6 +386,32 @@ So without the guard the day would have yielded roughly **230 Wh instead of
 1031 Wh**. And this was a *dim* day (clear-sky index 30% of 08-05); on a bright
 day the absolute recovery is larger.
 
+#### Both figures are FLOORS — every number above is MPPT-metered
+
+Measured over the healthy regulating window of 08-06 (11:00-16:00, 60 buckets,
+clamped samples excluded): MPPT self-report **154 W** average against
+battery-charge-plus-inverter-draw of **304 W**, or **271 W** once the 33 W
+meter offset of #12 is removed. That is a **1.76x** under-report, independently
+reproducing the 1.78x measured on 08-04 by a different route.
+
+Three routes then agree on what the day actually produced:
+
+| route | Wh |
+|---|---|
+| MPPT self-report × 1.80 | 1856 |
+| ledger inferred branch, minus the 33 W bias × 15 daylight h | 1863 |
+| *(ledger raw, uncorrected, for reference)* | *2358* |
+
+The first two agree to **0.4%**, which is better than either deserves alone —
+they fail in opposite directions (one under-reads at the sensor, the other
+over-reads by a meter offset), so the agreement is meaningful rather than
+circular.
+
+**Restating the headline honestly: the day produced ~1.86 kWh, not 1031 Wh,
+and the guard recovered ~1.44 kWh, not 801 Wh.** The MPPT-metered figures are
+the conservative floor and are fine to quote as such — but they are not the
+quantity a person means by "how much did the panels make".
+
 Two clamps totalling 70 minutes cost ~198 Wh even *with* prompt clearing
 (morning ~160 Wh, evening ~38 Wh, using the power measured minutes after each
 fix as the counterfactual). That is the residual worth attacking with
