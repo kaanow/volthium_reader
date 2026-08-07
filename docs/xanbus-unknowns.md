@@ -333,10 +333,29 @@ for other reasons), or clearing `clamp_seen_at` when it goes dark. The
 elevation gate is preferable because it removes the whole class rather than
 this instance.
 
-Proposed, not deployed — the two-confirmation rule has held every night so far,
-so nothing is *known* broken yet. A watch is running on tonight's 21:01 run.
-If a dusk double-confirm is observed, this is promoted from improvement to fix
-and goes in immediately.
+**IT HAPPENED — 2026-08-06 21:01:34 local, so this is now a shipped fix.**
+The watch caught the guard doing exactly the predicted thing:
+
+```
+21:01:34  latch_detected: fraction 1.0, pv_v 28.1, daylight true   [sun -3.6 deg]
+21:01:40  sent PGN 0x14000 -> node 1: 02 (Standby)     <- ACK
+21:01:55  sent PGN 0x14000 -> node 1: 03 (Operating)   <- ACK
+```
+
+The 20:41 sample paired with the 21:01 sample, exactly as the non-adjacency
+analysis predicted, and bounced the MPPT in the dark. Third fix slot of four
+spent on nothing, plus a 45 min cooldown.
+
+Shipped in the same session: `sun_elevation_deg()` computed from the clock
+alone, `MIN_SUN_ELEVATION_DEG = 10.0`, and the gate now clears `clamp_seen_at`
+when it blocks. Verified on the Pi against the live path — the guard went
+quiet and the stale confirmation was dropped from the state file. Also adds
+`tests/test_latch_guard.py`, which the guard had never had, anchored to the
+five real decision points of the day including the bad one.
+
+Worth noting *why* this beats tightening the confirmation rule: the elevation
+gate is free on a real latch, whereas every timing heuristic buys its safety
+with delay — and delay was most of the 198 Wh residual below.
 
 ### What the guard was worth on its first full day: +801 Wh of 1031 Wh (78%)
 
