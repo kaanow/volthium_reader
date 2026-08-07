@@ -432,6 +432,42 @@ Worth noting *why* this beats tightening the confirmation rule: the elevation
 gate is free on a real latch, whereas every timing heuristic buys its safety
 with delay — and delay was most of the 198 Wh residual below.
 
+### 2026-08-07: cadence was not the bottleneck — the confirmation reset was
+
+First daylight latch cleared on the new 10 min cadence, and the exposure was
+**41 min** against 45 min at the old 20 min cadence. Halving the cadence bought
+almost nothing, because the delay was somewhere else entirely.
+
+| local | guard run | outcome |
+|---|---|---|
+| 09:40 | — | array clamps (delta 2.93 V) |
+| 09:51 | clamped | `latch_guard_pending` — armed |
+| **10:00** | **one 5.9 V delta** | **confirmation silently cleared** |
+| 10:11 | clamped | `latch_guard_pending` — armed *again* |
+| 10:21 | clamped | `latch_detected` → fix, `recovered=true`, 27.3 → 93.4 V |
+
+The 10:00 sample was not a recovery: the array was at 31 V making 20 W, still
+deep in the collapse, momentarily outside the 4.0 V band. Clearing a pending
+confirmation on ONE healthy run turned that five-minute wobble into a twenty
+minute delay — **~255 W for 20 min, about 85 Wh, and the fix landed at 10:21
+instead of 10:01.**
+
+Fixed by requiring **two consecutive healthy runs to clear**, symmetric with
+the two needed to arm. Identical in shape to the entry hysteresis the reader's
+detector got on 08-06 — the guard's copy was left binary, which is the fourth
+bug in this same state machine.
+
+The recurring lesson, now stated once so it stops recurring: **every threshold
+crossing in this system needs hysteresis in BOTH directions.** The signal is
+noisy at exactly the scale of the thresholds, so any rule of the form "one
+sample decides" will be wrong roughly half the time. That applies to the
+detector band, its release, and the guard's confirmation — all three have now
+been bitten.
+
+The bookkeeping is now `note_healthy_run()` / `note_clamped_run()`, pure and
+unit-tested against this exact sequence, because inline it needed a CAN bus to
+exercise.
+
 ### What the guard was worth on its first full day: +801 Wh of 1031 Wh (78%)
 
 Measured energy for local day 2026-08-06 (UTC buckets, local day = 07:00Z to
