@@ -409,6 +409,19 @@ python3 hardware/reviews/tools/handoff_check.py   # CP3+: rebuilds every
 # hashes = git blob sha256 (worktree bytes lie on autocrlf clones).
 ```
 
+**Never pipe the gate into `head`/`tail`, and never chain a push behind a
+piped gate.** A shell pipeline reports the exit status of its LAST command,
+so `handoff_check.py | tail -2 && git push` pushes even when the gate printed
+`HANDOFF: FAIL` — that is exactly how a commit carrying a defective gate
+reached the reviewer's clone in CP4 iteration 8. Run it as its own command
+and read its status, or force the failure to propagate:
+
+```bash
+set -o pipefail          # or: run it bare, then test $?
+python3 hardware/reviews/tools/handoff_check.py | tail -6
+rc=${PIPESTATUS[0]}; [ "$rc" -eq 0 ] || { echo "gate failed"; exit 1; }
+```
+
 **Host-limited acceptance (CP3 F10).** A gate whose pass depends on a
 host you cannot exercise (the reviewer's Windows box, a fab's DRC) is
 NOT accepted by your clean local run. Say so in the packet, state what
