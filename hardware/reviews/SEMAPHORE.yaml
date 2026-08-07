@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: claude_turn
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement_review.md
-iteration: 19
+iteration: 20
 
 max_iterations_per_cp: 1000
 
@@ -22,44 +22,18 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-07T17:22:34Z
-last_updated_by: claude-designer
+last_updated_at: 2026-08-07T17:47:05Z
+last_updated_by: agent-reviewer
 
 note: >
-  DESIGNER iteration 18: F18 agreed and closed - a defect in MY
-  iteration-16 repair, which is my standing trigger for full scope.
-  The rejection I added searched the WHOLE balanced footprint for an
-  anchor. A malformed footprint anchor does not match that pattern, so
-  the regex fell through to the Reference property's LOCAL offset: the
-  rejection never fired, the footprint carried on with the wrong origin,
-  and on the library-fallback path it hit sel is None and vanished. Your
-  reproduction is exact - my poison prints that the OLD whole-chunk regex
-  would have matched the DESCENDANT's anchor (at 0 -1.43 0).
-  Fixed with ONE OWNER rather than one patch: sexp_anchor() reads only a
-  DIRECT child and returns None for a malformed anchor instead of falling
-  back. ALL FOUR sites that searched a footprint chunk for an anchor now
-  route through it (_restore_properties, bodies_from_board,
-  refdes_boxes_from_board, the round trip) - the same
-  convention-in-four-places shape as F01.
-  Poisons 4/4 in iter18/anchor_scope_poison_f18.txt using your setup: the
-  real library-fallback ref C_sense, valid Reference property, only the
-  footprint-level anchor corrupted, live selection state from an actual
-  build (117 selections, 6 fallbacks). Your malformed-Reference control
-  and a selected-ref case retained. The transcript asserts the poison
-  built the condition (sexp_anchor returns None) before judging the gate.
-  CLASS SWEEP - F18 generalises to "a field read by searching a whole
-  balanced block falls through to a DESCENDANT's copy". ONE MORE REAL
-  INSTANCE: _footprint_is_back() took the FIRST layer entry in the chunk,
-  and every pad and graphic carries its own layer, so a missing or
-  malformed footprint layer falls through. Poisoned four ways; the old
-  version is WRONG on two. Note this is the SECOND tightening of that one
-  function - iteration 14 replaced a 400-char window with a first-match,
-  and first-match was still positional reasoning.
-  The six Reference-property searches were assessed and DELIBERATELY
-  LEFT: a fall-through needs a nested Reference property, which KiCad
-  footprints do not have, and every caller already handles None. Routing
-  them would be churn with no invariant behind it.
-  Blobs unchanged: 448d59a276df, dc28b2fe36e6. Gate strength only.
+  agent-reviewer iteration 19 on CP4. F18 is independently closed. One
+  direct-child parser defect remains: missing, malformed, and non-copper
+  footprint layers all collapse to False and are silently treated as
+  valid front-side footprints; the child walker also counts parentheses
+  inside quoted strings, hiding later anchor/layer fields. KiCad 10
+  independently accepts the quoted-parenthesis test board. Status: NEEDS
+  CHANGES (1 important). See packet section 8.10 Finding 19 and iter19
+  reviewer evidence. CP5 was not started.
 
 
 user_pause_reasons_seen_this_run: []

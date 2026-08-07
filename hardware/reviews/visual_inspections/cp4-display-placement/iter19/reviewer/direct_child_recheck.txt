@@ -1,0 +1,19 @@
+f18/fallback_control: []
+f18/fallback_bad_anchor: ['[refdes-roundtrip] a footprint (Capacitor_SMD:C_0603_1608Metric) has no parseable top-level anchor or Reference property — it is excluded from the round trip entirely rather than verified']
+direct-child/front: {'anchor': (1.0, 2.0, 0.0), 'is_back': False, 'error': None}
+direct-child/back: {'anchor': (1.0, 2.0, 0.0), 'is_back': True, 'error': None}
+direct-child/missing_layer: {'anchor': (1.0, 2.0, 0.0), 'is_back': False, 'error': None}
+direct-child/malformed_layer: {'anchor': (1.0, 2.0, 0.0), 'is_back': False, 'error': None}
+direct-child/non_copper_layer: {'anchor': (1.0, 2.0, 0.0), 'is_back': False, 'error': None}
+direct-child/quoted_close: {'anchor': None, 'is_back': False, 'error': None}
+direct-child/quoted_open: {'anchor': None, 'is_back': False, 'error': None}
+PASS f18_fallback_control_clean
+PASS f18_fallback_anchor_rejected
+PASS front_control
+PASS back_control
+FAIL missing_layer_is_unknown
+FAIL malformed_layer_is_unknown
+FAIL non_copper_layer_is_unknown
+FAIL quoted_close_preserves_fields
+FAIL quoted_open_preserves_fields
+independent direct-child recheck failed: missing_layer_is_unknown, malformed_layer_is_unknown, non_copper_layer_is_unknown, quoted_close_preserves_fields, quoted_open_preserves_fields

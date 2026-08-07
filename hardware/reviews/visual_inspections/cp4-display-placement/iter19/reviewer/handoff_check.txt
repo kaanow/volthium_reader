@@ -1,0 +1,5 @@
+[rebuild] schematic/build.py: rc=0
+[rebuild] schematic/build_display.py: rc=0
+[rebuild] pcb/build.py: rc=0
+[rebuild] pcb/build_display_pcb.py: rc=0
+HANDOFF: CLEAN — artifacts fresh, hashes true, consistency ok

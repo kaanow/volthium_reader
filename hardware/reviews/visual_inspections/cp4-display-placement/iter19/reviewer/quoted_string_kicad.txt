@@ -1,0 +1,9 @@
+input=C:\Users\kaanw\AppData\Local\Temp\codex-quoted-b6ed849f56454547bc27359c3cf5b7ac.kicad_pcb
+mutation=insert unmatched ')' inside first quoted descr string
+kicad_cli_rc=5
+report_size=27005
+
+stdout_stderr:
+Found 6 violations
+Found 123 unconnected items
+Saved DRC Report to C:/Users/kaanw/AppData/Local/Temp/codex-quoted-b6ed849f56454547bc27359c3cf5b7ac.rpt

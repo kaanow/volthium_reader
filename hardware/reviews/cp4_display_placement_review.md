@@ -934,6 +934,61 @@ placement, or board blob changed. CP5 was not started. Evidence is in
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 18.)
 
 
+### 8.10 Reviewer findings (iteration 19)
+
+Reviewed designer commit: `cb824465d950f227b3f56d66a9e5ff4d2da96da0`.
+
+F18 is closed. The reviewer-owned current-board poison uses the real
+`C_sense` fallback and now receives the intended malformed-top-level-anchor
+finding, while its unmodified control remains clean. The fresh production
+builds and direct front/back controls also pass. The generalized direct-child
+repair still has two fail-open edges.
+
+#### Finding 19 - IMPORTANT - the direct-child parser still guesses front and is not quote-aware
+
+**Issue**: `_footprint_is_back()` claims to treat an absent or malformed
+top-level layer as unknown, but its boolean API returns `False` for all such
+cases. Every caller interprets that as a valid front-side footprint. In
+addition, `_top_level_children()` finds each child's extent with `_balanced()`,
+which counts parentheses inside quoted strings as structure. A legal quoted
+description containing an unmatched parenthesis can therefore hide later
+top-level anchor and layer fields.
+
+**Evidence**: Independent controls return `False` for a valid F.Cu footprint
+and `True` for B.Cu. Removing the top-level layer, changing it to `(layer
+BAD)`, or changing it to a non-copper layer each also returns `False`, so
+unknown and front are indistinguishable. Separate valid S-expression probes
+put either `)` or `(` inside a quoted `descr` before `(layer "B.Cu")` and
+`(at 1 2 90)`; both lose the anchor and classify as front. To establish that
+this is not merely a synthetic grammar assumption, KiCad 10 was run on a
+temporary copy of the current display board with an unmatched `)` inserted
+inside its first quoted description: strict DRC parsed it normally, returned
+the expected violations rc 5, and wrote a 27005-byte report. Reproduction:
+`visual_inspections/cp4-display-placement/iter19/reviewer/direct_child_recheck.py`,
+`direct_child_recheck.txt`, and `quoted_string_kicad.txt`.
+
+**Suggested fix**: Make the balanced-expression walk quote- and escape-aware
+so parentheses inside strings never change depth. Replace the boolean side
+reader with a tri-state/direct layer reader (`F.Cu`, `B.Cu`, or unknown), and
+reject unknown/malformed/non-copper footprint layers before applying property
+restoration or geometry transforms. Retain front/back controls, the three
+unknown-layer poisons, both quoted-parenthesis poisons, and the current F18
+fallback poison.
+
+Coverage: kicad v0.10.0 synchronized; mandatory consistency check clean;
+fresh Windows battery and display builds exit 0 with complete netlist
+crosschecks; F18, layer-state, and quote-aware parser poisons independently
+executed; temporary-board syntax accepted by KiCad 10; independent
+serialized-board geometry and J1 reference probes passed; fresh top/bottom
+renders plus J1/U1 and J3/J-USB crop zooms inspected; and four on-file
+manufacturer-PDF citations/object identities checked. No selected part,
+manifest row, SKU cell, connectivity, placement, or board blob changed. CP5
+was not started. Evidence is in
+`visual_inspections/cp4-display-placement/iter19/reviewer/REPORT.md`.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 19.)
+
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-08-06)
