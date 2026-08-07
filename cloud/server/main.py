@@ -692,23 +692,36 @@ if STATIC_DIR.exists():
 
 @app.get("/")
 async def root() -> FileResponse:
+    """The live screen: SOC hero + power flow. Promoted from /v2 on
+    2026-08-06 after a week of running alongside the old page."""
+    return FileResponse(STATIC_DIR / "v2.html")
+
+
+@app.get("/history")
+async def history_page() -> FileResponse:
+    """Daily energy ledger, load heatmap, cell-imbalance drift, events."""
+    return FileResponse(STATIC_DIR / "v2-history.html")
+
+
+# The pre-2026-08 pages. Kept reachable rather than deleted: they read the
+# same API, so they are a zero-cost second opinion if the new screen ever
+# shows something implausible.
+@app.get("/v1")
+async def v1_page() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/v1/history")
+async def v1_history_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "history.html")
+
+
+# Old links keep working.
 @app.get("/v2")
 async def v2_page() -> FileResponse:
-    """The redesigned live screen (SOC hero + power-flow), staged here until
-    it replaces / — see docs/mockups/power-flow.html for its design lineage."""
     return FileResponse(STATIC_DIR / "v2.html")
 
 
 @app.get("/v2/history")
 async def v2_history_page() -> FileResponse:
-    """History companion to /v2: daily energy ledger, load heatmap, cell
-    imbalance drift, event timeline."""
     return FileResponse(STATIC_DIR / "v2-history.html")
-
-
-@app.get("/history")
-async def history_page() -> FileResponse:
-    return FileResponse(STATIC_DIR / "history.html")

@@ -100,8 +100,8 @@ table.sys-t tr.balance td { color: var(--text-3); border-top: 1px solid var(--li
   <div class="topbar">
     <h1>Barge Inn Power</h1>
     <div class="controls">
-      <a href="/v2/history">history</a>
-      <a href="/">classic</a>
+      <a href="/history">history</a>
+      <a href="/v1">classic</a>
       <button id="theme" title="toggle theme">◐</button>
     </div>
   </div>
@@ -147,8 +147,11 @@ table.sys-t tr.balance td { color: var(--text-3); border-top: 1px solid var(--li
   </svg>
   <div id="latchwarn" class="latch" hidden>
     ⚠ <b>MPPT latched</b> — array pinned at battery voltage; power is bypassing
-    the converter unregulated. Fix: Insight → MPPT → Configuration →
-    Operating Mode → <b>Standby</b> → Apply → wait 15 s → <b>Operating</b> → Apply.
+    the converter unregulated, and charge setpoints do not apply while it is.
+    The guard clears this automatically within ~20 min whenever the sun is
+    more than 5° up. If it persists past that, do it by hand:
+    Insight → MPPT → Configuration → Operating Mode →
+    <b>Standby</b> → Apply → wait 15 s → <b>Operating</b> → Apply.
   </div>
 
   <div class="strip-box">
