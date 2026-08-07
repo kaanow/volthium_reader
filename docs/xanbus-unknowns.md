@@ -186,6 +186,41 @@ Either way the model above must weaken: a sustained deficit is **necessary but
 not sufficient**. What decides whether the tracker holds or walks is still
 open, and the tracker's starting state is now the leading candidate.
 
+#### NOT SUPPORTED — the rest of the same morning answered it
+
+Watching 08-07 to 08:40 rather than stopping at 06:30, where the hypothesis
+looked strong:
+
+| local | 08-06 pv_v | 08-07 pv_v | verdict |
+|---|---|---|---|
+| 06:00 | 81.1 | **90.9** | bounce ahead |
+| 06:40 | 59.7 | **86.5** | bounce well ahead |
+| 07:20 | 60.5 | 63.6 | converged |
+| 08:00 | **55.1** | 48.7 | reversed |
+| 08:40 | **45.3** | 37.2 | reversed |
+
+The advantage was real for about 90 minutes and then decayed away and
+inverted. Peak morning power was near-identical (46.4 W at 08:00 vs 42.3 W at
+07:55), so the two mornings were comparably bright and the difference is not
+weather.
+
+**Morning harvest 05:30-08:40: 78.8 Wh on 08-06 vs 85.8 Wh on 08-07 — +7.0 Wh,
++9%.** That is well inside day-to-day variation and is not evidence of
+anything.
+
+Decisively: **the walk-down happened anyway.** Preventing it was the entire
+appeal of the idea, and it did not. A dusk bounce buys a higher starting point
+that the tracker gives back within an hour or two, not immunity.
+
+So the hypothesis is dropped rather than left sitting around looking
+attractive. What survives is the narrower and duller observation that the
+tracker's *starting* position does influence the first hour — which is
+interesting about the tracker but not useful as a control.
+
+The question from the previous section stands unanswered: a sustained deficit
+is necessary but not sufficient, and we still do not know what decides whether
+the tracker holds or walks.
+
 Note the earlier 12:40 entry in this file predicted the descent then under way
 was "the runaway restarting". It was a genuine descent by the voltage-and-
 power test — but it aborted at 12:55 without intervention, which the
