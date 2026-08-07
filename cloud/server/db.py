@@ -676,7 +676,22 @@ class AsyncpgReadingsDAO:
         inverter DC draw) whenever that exceeds the MPPT's self-report —
         the MPPT under-reads when its array is pinned near battery voltage
         (verified vs its own Modbus, 2026-08-04). 15s buckets joined across
-        readings & solar_readings, integrated per day."""
+        readings & solar_readings, integrated per day.
+
+        The inferred branch is a DIFFERENCE OF TWO MISCALIBRATED METERS and
+        must be gated on daylight. They disagree by ~33 W: the BMS puts the
+        non-fridge baseline at 80 W where the inverter claims 113 W (see
+        docs/xanbus-unknowns.md #12). Ungated, `batt + dc_w` stays positive
+        all night and the ledger credits phantom sun — measured 2026-08-07:
+        **54 Wh of "solar" across 2.2 hours of full darkness**, ~25 W of pure
+        bias, every night.
+
+        So force production to zero below the darkness threshold, where the
+        true value is known rather than inferred. Gate on ARRAY VOLTAGE, not
+        reported power: during a clamp the MPPT reports single-digit watts in
+        broad daylight, so a power gate would zero out exactly the hours the
+        inferred branch exists to rescue. In daylight the branch still carries
+        the meter bias — it is the best available number, not an exact one."""
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
                 """WITH r AS (
@@ -686,14 +701,17 @@ class AsyncpgReadingsDAO:
                          AND ts > now() - ($2 || ' days')::interval
                        GROUP BY b
                    ), s AS (
-                       SELECT ts AS b, solar_w, dc_w
+                       SELECT ts AS b, solar_w, dc_w, pv_v
                        FROM solar_readings WHERE source_id = $1
                          AND ts > now() - ($2 || ' days')::interval
                    ), j AS (
                        SELECT s.b,
-                              GREATEST(COALESCE(s.solar_w,0),
-                                       COALESCE(r.batt,0) + COALESCE(s.dc_w,0))
-                                  AS prod_w,
+                              CASE WHEN COALESCE(s.pv_v, 0) < 15
+                                   THEN COALESCE(s.solar_w, 0)
+                                   ELSE GREATEST(COALESCE(s.solar_w,0),
+                                                 COALESCE(r.batt,0)
+                                                 + COALESCE(s.dc_w,0))
+                              END AS prod_w,
                               COALESCE(s.dc_w,0)  AS load_w,
                               COALESCE(r.batt,0)  AS batt_w
                        FROM s LEFT JOIN r USING (b)
