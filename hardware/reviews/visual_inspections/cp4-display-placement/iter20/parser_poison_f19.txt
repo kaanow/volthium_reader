@@ -1,0 +1,83 @@
+CP4 iteration 20 — F19 poison suite
+====================================================================
+
+Two fail-open edges in the direct-child parser:
+  (1) the boolean side reader returned False — i.e. FRONT — for absent,
+      malformed AND non-copper layers alike, so unknown was indistinguishable
+      from a valid front-side footprint;
+  (2) the child walk used a paren counter that treated parentheses inside
+      QUOTED STRINGS as structure, so a legal quoted description with an
+      unmatched paren hid every later top-level field.
+The reviewer established (2) is not a synthetic grammar assumption: KiCad 10
+parses such a board without complaint. These boards already carry 4361
+(battery) and 1727 (display) quoted parentheses — benign only because they
+happen to be balanced pairs.
+
+--------------------------------------------------------------------
+CONTROLS
+PASS  valid F.Cu footprint
+        expect F      got F
+
+PASS  valid B.Cu footprint
+        expect B      got B
+
+--------------------------------------------------------------------
+THE THREE UNKNOWN-LAYER POISONS (each used to answer 'front')
+PASS  top-level layer ABSENT (a B.Cu pad below)
+        expect REJECT got REJECT
+        -> [layer] footprint has no valid top-level copper layer — its side is unknown and must not be guessed as f
+
+PASS  top-level layer MALFORMED — (layer BAD)
+        expect REJECT got REJECT
+        -> [layer] footprint has no valid top-level copper layer — its side is unknown and must not be guessed as f
+
+PASS  top-level layer NON-COPPER — (layer "F.SilkS")
+        expect REJECT got REJECT
+        -> [layer] footprint has no valid top-level copper layer — its side is unknown and must not be guessed as f
+
+--------------------------------------------------------------------
+BOTH QUOTED-PARENTHESIS POISONS
+PASS  quoted string containing an unmatched ')' before the layer and anchor
+        top-level children seen: ['descr', 'layer', 'at']
+        anchor (1.0, 2.0, 90.0)   layer B.Cu   (expect (1.0,2.0,90.0) / B.Cu)
+
+PASS  quoted string containing an unmatched '(' before the layer and anchor
+        top-level children seen: ['descr', 'layer', 'at']
+        anchor (1.0, 2.0, 90.0)   layer B.Cu   (expect (1.0,2.0,90.0) / B.Cu)
+
+--------------------------------------------------------------------
+BALANCED-PAIR CONTROL (the case both boards actually contain)
+PASS  quoted BALANCED parens still parse: children ['descr', 'layer', 'at'], anchor (3.0, 4.0, 0.0)
+
+--------------------------------------------------------------------
+F18 FALLBACK POISON — retained, must still fire
+[refdes] library-fallback (no clear auto spot): ['C_sense', 'C_usb2', 'Q10', 'C22', 'C32', 'C12']
+[crosscheck] CROSSCHECK: clean — 123 references, 123 sides, 480 pad-nets (of 480 net-bound pads KiCad sees) agree with KiCad's own engine
+[drc] categories: {'silk_edge_clearance': 12, 'lib_footprint_mismatch': 1, 'unconnected_items': 316}
+[ok] battery_pcb.kicad_pcb: 127 footprints, 125 nets, DRC clean (accepted: {'unconnected_items': 316, 'silk_edge_clearance': 12, ('lib_footprint_mismatch', 'ESP32-S3-WROOM-1_HSvia0.3'): 0})
+PASS  control, real board: 0 findings
+PASS  F18 malformed anchor on the real fallback ref C_sense
+        -> [refdes-roundtrip] a footprint (Capacitor_SMD:C_0603_1608Metric) has no parseable top-level anchor or Reference 
+
+====================================================================
+10/10 cases behaved correctly
+
+--------------------------------------------------------------------
+CLASS SWEEP — the SAME counter existed in the schematic netlist parser
+
+Not hypothetical there either: KiCad writes net names like Net-(J-USB-CC1)
+and sheet names like /Battery — MCU (ESP32-S3)/. Measured in the current
+netlists: 63 (battery) and 30 (display) net-name strings contain parens in
+their CONTENT, all balanced pairs today. Both counters are now ONE owner,
+sch.balanced_end(), which pcb/core._balanced() delegates to — fixing only
+the walker under review would have left the duplicate wrong, the exact shape
+of the four-copy transform bug.
+
+PASS  balanced pair in a net name (what the netlists contain today)
+        shared walker ends the block correctly: True   |  OLD counter: ok
+PASS  UNMATCHED ")" inside a net name
+        shared walker ends the block correctly: True   |  OLD counter: WRONG — swallowed or truncated
+PASS  UNMATCHED "(" inside a net name
+        shared walker ends the block correctly: True   |  OLD counter: WRONG — swallowed or truncated
+
+shared-walker cases: all correct

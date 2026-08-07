@@ -841,27 +841,58 @@ def _footprint_is_back(chunk):
     only while the top-level one is well-formed: every pad and graphic
     carries its own layer, so a missing or malformed footprint layer falls
     through to a descendant's — precisely the F18 anchor bug wearing a
-    different field. Read the DIRECT child, and treat its absence as
-    unknown rather than guessing front.
+    different field.
+
+    This is a THIN WRAPPER over footprint_layer() and callers must have
+    already rejected the unknown case. A boolean cannot express three
+    states, so the previous version returned False — "front" — for absent,
+    malformed AND non-copper layers alike, which is a fail-OPEN guess
+    dressed as a reading (CP4 F19).
+    """
+    lay = footprint_layer(chunk)
+    if lay is None:
+        raise SystemExit(
+            "[layer] footprint has no valid top-level copper layer — "
+            "its side is unknown and must not be guessed as front")
+    return lay == "B.Cu"
+
+
+def footprint_layer(chunk):
+    """'F.Cu' | 'B.Cu' | None for absent, malformed, or non-copper.
+
+    Tri-state on purpose: unknown is a distinct answer from front.
     """
     for head, child in _top_level_children(chunk):
         if head == "layer":
             m = re.match(r'^\(layer\s+"([^"]+)"\s*\)$', child.strip())
-            return bool(m) and m.group(1) == "B.Cu"
-    return False
+            if not m:
+                return None
+            return m.group(1) if m.group(1) in ("F.Cu", "B.Cu") else None
+    return None
+
+
+def require_footprint_layer(chunk, where):
+    """Reject an unknown side BEFORE any transform or restore uses it."""
+    lay = footprint_layer(chunk)
+    if lay is None:
+        got = [c.strip() for h, c in _top_level_children(chunk)
+               if h == "layer"] or ["<absent>"]
+        raise SystemExit(
+            f"[layer] {where}: footprint's top-level layer is {got[0]}, "
+            "which is not F.Cu or B.Cu — its side is unknown, and unknown "
+            "must not silently become front")
+    return lay
 
 
 def _balanced(s, start):
-    d = 0
-    k = start
-    while True:
-        if s[k] == "(":
-            d += 1
-        elif s[k] == ")":
-            d -= 1
-            if d == 0:
-                return k + 1
-        k += 1
+    """Delegates to the ONE project-wide s-expression walk (CP4 F19).
+
+    This counter existed here AND in the schematic netlist parser. Both
+    were quote-unaware, and fixing only the one under review would have
+    left the duplicate wrong — the exact shape of the four-copy transform
+    bug. One owner, in the module this one already imports.
+    """
+    return sch.balanced_end(s, start)
 
 
 def _lib_property_blocks(fpid):
@@ -916,9 +947,10 @@ def _restore_properties(board_text, prop_overrides=None):
         # a footprint on B.Cu carries its silk on B.SilkS; the library
         # block always says F.SilkS, and this restore was not side-aware,
         # so back-side refdes were emitted onto the FRONT silk (CP4).
-        on_back = _footprint_is_back(chunk)
         refm = re.search(r'\(property "Reference" "([^"]+)"', chunk)
         ref = refm.group(1) if refm else None
+        on_back = require_footprint_layer(
+            chunk, f"property restore for {ref or fpid}") == "B.Cu"
 
         def sub_prop(pm):
             name, val = pm.group(1), pm.group(2)
@@ -1183,7 +1215,8 @@ def bodies_from_board(board_text):
         if anc is None or not pm:
             continue
         fx, fy, frot = anc
-        side = "B" if _footprint_is_back(ch) else "F"
+        side = "B" if require_footprint_layer(
+            ch, f"body parse for {pm.group(1)}") == "B.Cu" else "F"
         by_layer = _graphic_points_by_layer(ch)
         for lay in ("Fab", "CrtYd"):
             pts = by_layer.get(lay, [])

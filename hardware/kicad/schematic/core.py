@@ -81,6 +81,46 @@ def _win_einval(fn, describe, transient_result=None):
                      f"{len(_WIN_BACKOFF)} retries — failing closed")
 
 
+def balanced_end(s, start):
+    """End index (exclusive) of the s-expression opening at `start`.
+
+    THE one s-expression walk for the whole project (CP4 F19). Quote- and
+    escape-aware: a parenthesis inside a quoted string is text, not
+    structure, so it must not move the depth. That is not hypothetical
+    here — KiCad writes net names like `Net-(J-USB-CC1)` and sheet names
+    like `/Battery — MCU (ESP32-S3)/`, and the boards carry thousands of
+    quoted parens in footprint descriptions. Today they are all balanced
+    PAIRS, which cancel out; one unmatched paren inside a string — which
+    KiCad 10 parses without complaint — would silently truncate the walk
+    and hide every later field of that expression.
+
+    It lives here, in the module the PCB side already imports, because the
+    counter previously existed in two files and a convention written twice
+    cannot be kept correct by diligence.
+    """
+    d = 0
+    k = start
+    n = len(s)
+    while k < n:
+        c = s[k]
+        if c == '"':
+            k += 1
+            while k < n and s[k] != '"':
+                k += 2 if s[k] == "\\" else 1
+            k += 1
+            continue
+        if c == "(":
+            d += 1
+        elif c == ")":
+            d -= 1
+            if d == 0:
+                return k + 1
+        k += 1
+    raise SystemExit(
+        f"[sexp] unbalanced s-expression starting at offset {start} — "
+        "refusing to parse a truncated or corrupt file")
+
+
 def write_text_lf(path, text):
     """Write deterministic UTF-8 text without host newline translation."""
     def _w():
@@ -1199,14 +1239,10 @@ def kicad_netlist(rootf):
         if i < 0: break
         if txt[i+4] not in " \n\t":      # skip "(nets" / "(netclass"
             i += 4; continue
-        depth = 0; j = i
-        while j < len(txt):
-            if txt[j] == "(": depth += 1
-            elif txt[j] == ")":
-                depth -= 1
-                if depth == 0: break
-            j += 1
-        blk = txt[i:j+1]; i = j + 1
+        # shared quote-aware walk: net names carry parens
+        # (Net-(J-USB-CC1), /Battery — MCU (ESP32-S3)/) — F19
+        end = balanced_end(txt, i)
+        blk = txt[i:end]; i = end
         nm = re.search(r'\(name "([^"]*)"\)', blk)
         if not nm: continue
         nodes = frozenset(re.findall(r'\(node\s+\(ref "([^"]+)"\)\s+\(pin "([^"]+)"\)', blk))

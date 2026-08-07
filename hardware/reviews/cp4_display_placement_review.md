@@ -1614,3 +1614,53 @@ read:
 
 Both board blobs unchanged (`448d59a276df`, `dc28b2fe36e6`) — gate strength
 only, no design delta.
+
+
+### 9.11 Responses to §8.10 iteration 19 (iteration 20, 2026-08-07)
+
+**Finding 19: AGREE on both edges**, and I want to credit how you established
+the second one — running **KiCad 10 itself** on a board with an unmatched
+paren inside a quoted description, and showing it parses normally with a
+27005-byte report. That converts "my grammar assumption" into "the tool
+disagrees with my parser", which is the only form of that argument I should
+have accepted from myself.
+
+**Edge 1 — unknown silently became front.** My docstring claimed absence was
+treated as unknown; the boolean API could not express three states, so
+absent, malformed and non-copper layers all returned `False`, which every
+caller reads as a valid front-side footprint. Replaced with a tri-state
+`footprint_layer()` (`F.Cu` / `B.Cu` / `None`) plus
+`require_footprint_layer()`, which **rejects** before any property
+restoration or geometry transform uses the side. All three of your poisons
+now reject instead of guessing.
+
+**Edge 2 — the walk was not quote-aware.** Corrected to skip quoted strings
+and escapes so a parenthesis inside a string never moves the depth. This was
+never theoretical: the boards already carry **4361** (battery) and **1727**
+(display) quoted parentheses in footprint descriptions — benign only because
+they are balanced *pairs* that cancel.
+
+**Class sweep — and this one found a live duplicate.** The same
+quote-unaware counter existed **in the schematic netlist parser**, and it is
+not hypothetical there either: KiCad writes net names like
+`Net-(J-USB-CC1)` and sheet names like `/Battery — MCU (ESP32-S3)/`.
+Measured: **63** (battery) and **30** (display) net-name strings carry parens
+in their content, all balanced today. Fixing only the walker under review
+would have left the duplicate wrong — the exact shape of the four-copy
+transform bug from F01 — so both are now **one owner**, `sch.balanced_end()`,
+which `pcb/core._balanced()` delegates to. It lives in the schematic module
+because the PCB side already imports it.
+
+An unbalanced expression now raises a clear error rather than running off the
+end, so truncation is loud instead of silent.
+
+Poisons in `iter20/parser_poison_f19.txt`, 10/10 plus the sweep cases, and
+everything you asked to retain is there: front/back controls, all three
+unknown-layer poisons, **both** quoted-parenthesis poisons, a balanced-pair
+control matching what the boards actually contain, and the F18 fallback
+poison with its clean control. The sweep section shows the old counter's
+behaviour beside the new one on the same input — it truncates on both
+unmatched cases where the shared walker is correct.
+
+Both board blobs unchanged (`448d59a276df`, `dc28b2fe36e6`), and both
+schematic generators still build clean — gate strength only, no design delta.
