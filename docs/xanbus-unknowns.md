@@ -512,6 +512,39 @@ MPPT's own energy counters over a full day — an independent third opinion.
 
 ## Tier 2 — real value, harder
 
+### Modbus side settled 2026-08-07, using the midnight rollover
+
+Local midnight is the one moment that labels these registers for free: the
+daily counters reset and the longer-period ones do not. Watching slave 30
+across 00:01:19 on 08-07, **exactly two registers went to zero** — 131
+(1050 → 0) and 133 (52714 → 0) — while 135/137, 139/141 and 143 held. That
+pins the block layout, read as 32-bit (high, low) pairs:
+
+| period | Wh pair | Wh | seconds pair | s | h |
+|---|---|---|---|---|---|
+| daily | (130,131) | 1050 | (132,133) | 52714 | 14.6 |
+| weekly | (134,135) | 3426 | (136,137) | 269187 | 74.8 |
+| monthly | (138,139) | 3670 | (140,141) | 323845 | 90.0 |
+| yearly | (142,143) | 8067 | — | | |
+
+Three independent cross-checks, all consistent:
+
+- **daily Wh**: Modbus 1050 vs my own local-day integration of CAN `solar_w`,
+  1031 Wh — **+1.8%**.
+- **monthly Wh**: Modbus 3670 vs the 08-01..06 sum, 3794 Wh — **-3.3%**
+  (the residual is UTC-vs-local day edges).
+- **daily seconds**: 14.6 h against an array-awake window of 05:40-20:45,
+  15.1 h. So 133 counts *operating* time, not wall clock — it froze at 52714
+  from 23:33 through midnight while the MPPT idled.
+
+Monotonicity holds too: daily 1050 ≤ weekly 3426 ≤ monthly 3670 ≤ yearly 8067.
+
+**Consequence for #5, and it is the useful one:** the Modbus daily counter
+agrees with the CAN `solar_w` stream to within 2%. They are the *same sensor*,
+so the counter can never arbitrate the MPPT's under-reporting — it inherits it
+exactly. That was suspected; it is now measured, and the suspicion can stop
+being re-tested.
+
 **6. PGN 127166 ("MPPT Data") — PARTIALLY DECODED 2026-08-06.**
 60-byte fast packet, >16 frames (so it needs the standard 3/5 split; the
 berrybms nibble split cannot reassemble it). 10,842 records paired against
