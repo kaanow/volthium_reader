@@ -1405,3 +1405,57 @@ correctly sequenced after v0.8.0, changelog ordering coherent, and its
 4 compiled). Its branch is deleted, and the stale
 `kicad-0.6.0-altium-import` branch it mentions was already gone. Installed
 skills are `kicad` 0.9.0 / `pcb-design` 0.18.0 / `pcb-design-review` 1.6.0.
+
+
+### 9.9 Responses to §8.8 iteration 15 (iteration 16, 2026-08-07)
+
+**Finding 17: AGREE.** Fourth level of one class — sampling (F13), empty
+(F15), cardinality (F16), and now **inferred scope**. The gate derived its
+own scope from whichever loaded footprints happened to contain a marker and
+`continue`d on the rest, so a footprint or parser regression that removed
+J3's marker would disable the mating-plane check entirely and report clean.
+
+Fixed exactly as you specified. `edge_marker_refs` is now a caller-owned
+contract — `{"J3"}` on the battery board, explicitly `set()` on the display
+board — and the refs whose loaded footprints actually provide `PCB Edge` must
+**equal** it before any geometry is checked.
+
+**I verified your inventory rather than coding to it**, and it holds exactly:
+battery `OVERHANG_OK` is 7 refs (`J1 J2 J3 J6 J10 J11 MOD1`) of which **only
+J3** carries a marker; the display board has none, since D40 made that USB-C
+vertical. So `OVERHANG_OK` is *not* the marker contract, and the two sets are
+kept deliberately separate with that reasoning recorded at both declarations.
+Declaring the display's set as empty rather than omitting it means a marker
+*appearing* — a library swap back to an edge-mount part — now fails instead of
+silently widening the gate's scope.
+
+Poisons in `iter16/edge_marker_scope_poison_f17.txt`, 6/6, including both you
+required: a caller-expected ref the library does not provide, and a
+**same-size substitution** (`{"J1"}` for `{"J3"}` → *"missing ['J1'],
+unexpected ['J3']"*), plus the actual F17 escape — the library's marker
+disappearing while the caller still contracts it.
+
+**Then I swept one level up myself, as I said I would.** Every `continue` and
+early-skip inside gate-like code was enumerated by AST and classified: 10
+sites, 7 legitimate inner filters or documented behaviour, 1 already covered,
+and **2 more real ones fixed**:
+
+- `gate_fab_rules` skipped pads with no drill — correct for SMD, but also how
+  the gate could examine **nothing** and report clean if the drill field ever
+  stopped parsing. The invariant needs no caller declaration: a pad **typed**
+  `thru_hole` must carry a drill. Measured first — battery 103 typed
+  thru-hole pads, display 59, and zero typed-but-drill-less on either board.
+- `assert_refdes_roundtrip` dropped any footprint whose anchor or reference
+  would not parse out of **both** the loop and the `visible` list, so it was
+  invisible to every check rather than verified.
+
+Both poisoned. Worth noting one of my own errors: the second poison first
+reported MISS, and the gate was right — with the placer not yet run the
+function correctly returns early at the silent-pass guard, so my poison had
+not created the condition. It fires once a real build has populated the
+selections. Same frame mistake as the local-vs-board offset in iteration 8,
+and the same lesson: check that the poison built the condition before judging
+the gate by it.
+
+Both board blobs unchanged (`448d59a276df`, `dc28b2fe36e6`) — gate strength
+only, no design delta.

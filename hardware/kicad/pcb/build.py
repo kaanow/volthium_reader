@@ -41,6 +41,14 @@ OVERHANG_OK = {
     "J3":   "E",     # USB-C mating face
 }
 
+# Refs whose LIBRARY footprint is contracted to carry a "PCB Edge"
+# mating-plane marker (CP4 F17). Deliberately NOT the same set as
+# OVERHANG_OK: seven refs here may overhang the outline, but only J3 — the
+# GCT USB-C receptacle — encodes a mating plane, so only J3's plane can be
+# gated. If a library update drops or adds a marker, the gate now fails
+# instead of quietly checking nothing.
+EDGE_MARKER_REFS = {"J3"}
+
 
 def _dims(fpid):
     return core.fplib.FpDims(fpid)
@@ -380,7 +388,8 @@ def main():
         print("[selftest] FAILED — refusing to build")
         return 2
 
-    bb = core.BoardBuilder(W, H, NETS, COMPS, P, overhang_ok=OVERHANG_OK)
+    bb = core.BoardBuilder(W, H, NETS, COMPS, P, overhang_ok=OVERHANG_OK,
+                           edge_marker_refs=EDGE_MARKER_REFS)
     bb.place_all()
     bb.add_mounting_holes(MOUNT)
     orientation_asserts(bb.findings)

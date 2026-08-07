@@ -59,6 +59,13 @@ OVERHANG_OK = {
     # it overhangs nothing and has no "PCB Edge" marker to satisfy.
 }
 
+# No footprint on this board carries a "PCB Edge" mating-plane marker: the
+# USB-C here is the VERTICAL USB4115-03-C (D40), which has no board-edge
+# mating plane to enforce. Declared empty rather than omitted so that a
+# marker APPEARING (e.g. a library swap back to an edge-mount part) fails
+# the gate instead of silently widening its scope (CP4 F17).
+EDGE_MARKER_REFS = set()
+
 NETCLASSES = [
     # (name, track_width, clearance, patterns) — cp1_display_side §10.3
     ("Default", 0.2, 0.2, []),
@@ -304,7 +311,8 @@ def main():
         print("[selftest] FAILED — refusing to build")
         return 2
 
-    bb = core.BoardBuilder(W, H, NETS, COMPS, P, overhang_ok=OVERHANG_OK)
+    bb = core.BoardBuilder(W, H, NETS, COMPS, P, overhang_ok=OVERHANG_OK,
+                           edge_marker_refs=EDGE_MARKER_REFS)
     bb.place_all()
     bb.add_mounting_holes(MOUNT)
     orientation_asserts(bb.findings)

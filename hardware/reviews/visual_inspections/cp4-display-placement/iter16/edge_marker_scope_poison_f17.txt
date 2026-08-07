@@ -1,0 +1,94 @@
+CP4 iteration 16 — F17 poison suite (declared marker scope)
+==================================================================
+
+The gate used to derive its scope from whichever loaded footprints happened
+to contain a "PCB Edge" marker, and `continue` on the rest — so a footprint
+or parser regression that removed the marker disabled the mating-plane check
+entirely and reported clean. Scope is now a caller-declared contract.
+
+Library inventory (verified, not assumed):
+  battery  OVERHANG_OK = 7 refs, but only J3 carries a marker
+  display  OVERHANG_OK = 1 ref,  no ref carries a marker (vertical USB)
+So OVERHANG_OK is NOT the marker contract and the two must stay separate.
+
+------------------------------------------------------------------
+BATTERY BOARD (J3 is the real contract)
+PASS  control — declared {'J3'}, library provides {'J3'}
+        (must stay clean)
+        -> no edge-marker finding
+
+PASS  P1 caller expects a marker the library does NOT provide (reviewer's markerless-expected-ref case)
+        (must FAIL)
+        -> [edge-marker] edge-marker refs: set mismatch — 1 present vs 2 expected; missing ['J1'], unexpected []
+
+PASS  P2 SAME-SIZE substitution: declared {'J1'} instead of {'J3'} (reviewer's substitution case)
+        (must FAIL)
+        -> [edge-marker] edge-marker refs: set mismatch — 1 present vs 1 expected; missing ['J1'], unexpected ['J3']
+
+PASS  P3 the F17 escape: the library's marker DISAPPEARS while the caller still contracts J3
+        (must FAIL)
+        -> [edge-marker] edge-marker refs: set mismatch — 0 present vs 1 expected; missing ['J3'], unexpected []
+
+------------------------------------------------------------------
+DISPLAY BOARD (vertical USB — contract is legitimately EMPTY)
+PASS  control — declared empty, library provides none
+        (must stay clean)
+        -> no edge-marker finding
+
+PASS  P4 a marker APPEARS unexpectedly (declared empty, library provides one) — scope must not widen silently
+        (must FAIL)
+        -> [edge-marker] edge-marker refs: set mismatch — 1 present vs 0 expected; missing [], unexpected ['J3']
+        -> [edge-marker] J3: 'PCB Edge' reference line is 15.00 mm off the E edge — the connector's mating plane is not where the f
+
+==================================================================
+6/6 cases behaved correctly
+
+------------------------------------------------------------------
+PROACTIVE SWEEP — every skip site inside a gate, classified
+
+This class has now been found at four levels (sampling, empty, cardinality,
+inferred scope), so rather than fix only the named gate, every `continue` /
+early-skip inside gate-like functions in pcb/core.py was enumerated by AST
+and classified. 10 sites:
+
+  LEGITIMATE inner filters or documented behaviour (7):
+    gate_edge_markers   graphic-item type/layer filter
+    gate_edge_markers   `if not texts` — now SAFE: preceded by the declared
+                        set-equality check, so scope no longer self-derives
+    gate_courtyards     mounting holes already registered both-sided
+    gate_courtyards     control flow after the opposite-side THT check
+    gate_outline        now emits a finding before continuing
+    gate_readback       missing ref -> caught by the both-ways set diff
+    refdes_over_body    opposite-side filter
+
+  FIXED (2):
+    gate_fab_rules          pads with no drill were skipped — correct for SMD,
+                            but it is also how the gate could examine NOTHING
+                            and report clean if the drill field stopped
+                            parsing. Cross-field invariant needing no caller
+                            declaration: a pad TYPED thru_hole must carry a
+                            drill. Measured first: battery 103 thru_hole pads
+                            (111 drilled of 499), display 59 (63 of 212), and
+                            ZERO typed-but-drill-less on either board.
+    assert_refdes_roundtrip a footprint whose anchor or reference will not
+                            parse dropped out of BOTH the loop and the
+                            `visible` list, so it was invisible to every
+                            check rather than verified.
+
+  ALREADY COVERED (1):
+    assert_refdes_roundtrip `sel is None` -> the `unchecked` list above
+                            already reports refs with no recorded selection.
+
+POISONS
+  P1 a pad typed thru_hole whose drill vanishes        : FIRES
+     -> [fab] XTEST pad 1: typed thru_hole but carries no drill
+  P2 a footprint whose Reference will not parse        : FIRES
+     -> [refdes-roundtrip] a footprint (Capacitor_SMD:C_1210_3225Metric) has
+        no parseable anchor or reference
+     (first attempt MISSED because the placer had not run, so the function
+      correctly returned early at the silent-pass guard and never reached the
+      loop — the poison had not created the condition. Re-run after a real
+      build, where it fires.)
+  control, real board after a real build               : 0 findings
+
+Both board blobs unchanged: 448d59a276df, dc28b2fe36e6.

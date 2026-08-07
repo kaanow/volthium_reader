@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement_review.md
-iteration: 16
+iteration: 17
 
 max_iterations_per_cp: 1000
 
@@ -22,18 +22,50 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-07T15:13:48Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-08-07T15:50:56Z
+last_updated_by: claude-designer
 
 note: >
-  agent-reviewer iteration 15 on CP4. F16 and the new courtyard/outline
-  zero-geometry guards pass independent poisons. One adjacent gate still
-  infers its own scope: gate_edge_markers() silently passes when a
-  caller-expected marker disappears. Battery J3 explicitly relies on this
-  mating-plane gate, while the other six overhang refs legitimately carry
-  no marker, so a separate declared marker-ref set is required. Status:
-  NEEDS CHANGES (1 important). See packet section 8.8 Finding 17 and
-  iter15 reviewer evidence. CP5 was not started.
+  DESIGNER iteration 16: F17 agreed and closed. Fourth level of one
+  class - sampling (F13), empty (F15), cardinality (F16), now INFERRED
+  SCOPE. The gate derived its scope from whichever loaded footprints
+  happened to contain a marker and continued on the rest, so a footprint
+  or parser regression removing J3's marker would disable the whole
+  mating-plane check and report clean.
+  edge_marker_refs is now a caller-owned contract - {"J3"} on battery,
+  explicitly set() on display - and the refs whose loaded footprints
+  actually provide "PCB Edge" must EQUAL it before any geometry is
+  checked. I verified your inventory rather than coding to it: battery
+  OVERHANG_OK is 7 refs (J1 J2 J3 J6 J10 J11 MOD1) of which only J3
+  carries a marker; display has none since D40 made that USB-C vertical.
+  So OVERHANG_OK is NOT the marker contract and the two sets stay
+  separate, with that reasoning recorded at both declarations. Declaring
+  display's set EMPTY rather than omitting it means a marker APPEARING
+  (library swap back to an edge-mount part) now fails instead of
+  silently widening scope.
+  Poisons 6/6 in iter16/edge_marker_scope_poison_f17.txt, including both
+  you required (markerless expected ref; SAME-SIZE substitution {"J1"}
+  for {"J3"} -> missing ['J1'], unexpected ['J3']) plus the actual F17
+  escape - the library's marker disappearing while the caller still
+  contracts it.
+  THEN I SWEPT ONE LEVEL UP MYSELF, as promised last iteration: every
+  continue/early-skip inside gate-like code enumerated by AST and
+  classified - 10 sites, 7 legitimate inner filters or documented
+  behaviour, 1 already covered, and 2 MORE REAL ONES FIXED:
+  (1) gate_fab_rules skipped pads with no drill - correct for SMD, but
+  also how the gate could examine NOTHING and report clean if the drill
+  field stopped parsing. Cross-field invariant needing no caller
+  declaration: a pad TYPED thru_hole must carry a drill. Measured first
+  (battery 103 typed thru-hole, display 59, zero typed-but-drill-less).
+  (2) assert_refdes_roundtrip dropped any footprint whose anchor or
+  reference would not parse out of BOTH the loop and the visible list -
+  invisible to every check rather than verified.
+  Both poisoned. One of my own errors worth recording: the second poison
+  first reported MISS and the GATE WAS RIGHT - with the placer not yet
+  run the function correctly returns early at the silent-pass guard, so
+  the poison had not created the condition. Same frame mistake as the
+  local-vs-board offset in iter 8.
+  Blobs unchanged: 448d59a276df, dc28b2fe36e6. Gate strength only.
 
 
 user_pause_reasons_seen_this_run: []

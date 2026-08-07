@@ -310,14 +310,21 @@ def _flip_to_back(fp):
 
 
 class BoardBuilder:
-    def __init__(self, w, h, nets, components, placement, overhang_ok=()):
+    def __init__(self, w, h, nets, components, placement, overhang_ok=(),
+                 edge_marker_refs=()):
         """placement: ref -> (x, y, rot_deg, side) with side in {'F','B'}.
         overhang_ok: refs whose courtyard may cross the board outline
-        (edge connectors), each with the DESIGNED overhang direction."""
+        (edge connectors), each with the DESIGNED overhang direction.
+        edge_marker_refs: refs whose library footprint is CONTRACTED to
+        carry a 'PCB Edge' mating-plane marker. Declared by the caller so
+        the gate cannot infer its own scope from the artifact it judges
+        (CP4 F17) — and deliberately separate from overhang_ok, which is a
+        larger set (a part may overhang without having a mating plane)."""
         self.w, self.h = w, h
         self.components = components
         self.placement = placement
         self.overhang_ok = dict(overhang_ok)
+        self.edge_marker_refs = set(edge_marker_refs)
         self.findings = []
 
         self.b = Board.create_new()
@@ -542,7 +549,28 @@ class BoardBuilder:
         Orientation probes only check which way a connector FACES;
         this checks where its mating plane IS. Born from CP3: the
         USB-C sat 2.4 mm inboard — past the 2.10 mm plug-overmold
-        budget in the GCT mating drawing — so no cable could seat."""
+        budget in the GCT mating drawing — so no cable could seat.
+
+        SCOPE IS DECLARED, NOT INFERRED (CP4 F17). This gate used to derive
+        its own scope from whichever loaded footprints happened to contain a
+        marker and `continue` on the rest, so a footprint or parser
+        regression that removed the marker disabled the whole mating-plane
+        check and reported clean. `edge_marker_refs` is the caller's
+        contract and must match exactly what the library actually provides.
+        Note it is NOT the same set as `overhang_ok`: on the battery board
+        seven refs may overhang but only J3 carries a marker.
+        """
+        provided = set()
+        for ref in sorted(set(self.components) & set(self.placement)):
+            fp = fplib.load(self.components[ref]["footprint"])
+            if [g for g in fp.graphicItems
+                    if type(g).__name__ == "FpText"
+                    and getattr(g, "type", "") == "user"
+                    and getattr(g, "text", "") == "PCB Edge"]:
+                provided.add(ref)
+        _set_equality("edge-marker refs", provided, self.edge_marker_refs,
+                      self.findings, tag="edge-marker")
+
         for ref in sorted(set(self.components) & set(self.placement)):
             fpid = self.components[ref]["footprint"]
             fp = fplib.load(fpid)
@@ -597,10 +625,24 @@ class BoardBuilder:
                     "says the board edge must be")
 
     def gate_fab_rules(self, min_drill=0.3, min_annular=0.13):
+        """Drill and annular-ring minima.
+
+        Skipping pads with no drill is correct — SMD pads have none — but
+        it is also how this gate could examine NOTHING and report clean if
+        the drill field ever stopped parsing. The cross-field invariant
+        needs no caller declaration: a pad TYPED thru_hole must carry a
+        drill, so a typed-but-drill-less pad is either a real defect or a
+        parser regression, and either way it is not a pass (CP4 F17 sweep).
+        """
         for fp in self.b.footprints:
             ref = fp.properties.get("Reference", "?")
             for pad in (fp.pads or []):
                 if pad.drill is None or not pad.drill.diameter:
+                    if pad.type == "thru_hole":
+                        self.findings.append(
+                            f"[fab] {ref} pad {pad.number}: typed thru_hole "
+                            "but carries no drill — it was silently excluded "
+                            "from the drill/annular checks")
                     continue
                 d = pad.drill.diameter
                 if d < min_drill - 1e-9:
@@ -1223,6 +1265,13 @@ def assert_refdes_roundtrip(board_text, findings):
         atm = re.search(r'\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', ch)
         pm = re.search(r'\(property "Reference" "([^"]+)"', ch)
         if not atm or not pm:
+            # A footprint whose anchor or reference will not parse drops out
+            # of BOTH this loop and the `visible` list above, so it would be
+            # invisible to every check here (CP4 F17 sweep).
+            findings.append(
+                f"[refdes-roundtrip] a footprint ({m.group(1)}) has no "
+                "parseable anchor or reference — it is excluded from the "
+                "round trip entirely rather than verified")
             continue
         ref = pm.group(1)
         sel = _REFDES_SELECTED.get(ref)
