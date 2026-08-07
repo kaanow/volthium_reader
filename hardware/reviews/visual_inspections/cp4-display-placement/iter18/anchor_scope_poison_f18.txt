@@ -1,0 +1,73 @@
+CP4 iteration 18 — F18 poison suite (top-level anchor only)
+==================================================================
+
+The rejection added in iteration 16 searched the WHOLE balanced footprint
+for `(at ...)`. A malformed footprint anchor does not match, so the regex
+silently accepted the Reference property's LOCAL offset instead: the
+rejection never fired, the footprint carried on with the wrong origin, and
+on the library-fallback path it reached `sel is None` and vanished.
+Anchors now have one owner, sexp_anchor(), which reads only a DIRECT child
+and rejects a malformed one rather than falling back.
+
+[refdes] library-fallback (no clear auto spot): ['C_sense', 'C_usb2', 'Q10', 'C22', 'C32', 'C12']
+[crosscheck] CROSSCHECK: clean — 123 references, 123 sides, 480 pad-nets (of 480 net-bound pads KiCad sees) agree with KiCad's own engine
+[drc] categories: {'silk_edge_clearance': 12, 'lib_footprint_mismatch': 1, 'unconnected_items': 316}
+[ok] battery_pcb.kicad_pcb: 127 footprints, 125 nets, DRC clean (accepted: {'unconnected_items': 316, 'silk_edge_clearance': 12, ('lib_footprint_mismatch', 'ESP32-S3-WROOM-1_HSvia0.3'): 0})
+placer state: 117 selections, 6 library-fallbacks ['C12', 'C22', 'C32', 'C_sense', 'C_usb2', 'Q10']
+victim (a REAL library-fallback ref): C_sense
+
+PASS  control — untouched board
+        (must stay clean) -> 0 finding(s)
+
+  constructed: C_sense top-level anchor is now ['(at BAD BAD)'], sexp_anchor -> None
+  the OLD whole-chunk regex would have matched: (at 0 -1.43 0)  <-- the descendant's anchor
+
+PASS  P1 malformed top-level anchor on the REAL library-fallback ref C_sense (reviewer's case)
+        (must FAIL) -> 1 finding(s)
+        -> [refdes-roundtrip] a footprint (Capacitor_SMD:C_0603_1608Metric) has no parseable top-level anchor or Reference proper
+
+PASS  P2 malformed Reference property (control that proves the poison reaches the changed code)
+        (must FAIL) -> 1 finding(s)
+        -> [refdes-roundtrip] a footprint (Capacitor_SMD:C_1210_3225Metric) has no parseable top-level anchor or Reference proper
+
+PASS  P3 malformed top-level anchor on a SELECTED ref (BTN1)
+        (must FAIL) -> 1 finding(s)
+        -> [refdes-roundtrip] a footprint (Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical) has no parseable top-level
+
+==================================================================
+4/4 cases behaved correctly
+
+------------------------------------------------------------------
+CLASS SWEEP — the same fall-through in other fields
+
+F18 is "a field read by searching a whole balanced block falls through to a
+DESCENDANT's copy when the real one is malformed". Every such read in
+pcb/core.py was enumerated:
+
+  ANCHORS — 4 sites searched the whole footprint chunk for `(at ...)`:
+    _restore_properties        (footprint rotation)
+    bodies_from_board
+    refdes_boxes_from_board
+    assert_refdes_roundtrip    <- the one F18 names
+  All four now go through ONE owner, sexp_anchor(), which reads only a
+  DIRECT child and returns None for a malformed one rather than falling
+  back. (Single-owner, same reasoning that settled the back-side transform.)
+
+  LAYER — 1 real instance found and fixed:
+    _footprint_is_back() took the FIRST `(layer ...)` in the chunk. Every
+    pad and graphic carries its own layer, so a missing or malformed
+    footprint layer falls through to a descendant's — the F18 bug wearing a
+    different field. Poisoned:
+      well-formed FRONT fp with B.Cu pads          -> front  (both versions OK)
+      well-formed BACK fp                          -> back   (both versions OK)
+      MALFORMED top-level layer + B.Cu pad below   -> front  (OLD version WRONG)
+      NO top-level layer + B.Cu pad below          -> front  (OLD version WRONG)
+
+  PROPERTY "Reference" — 6 sites, assessed and deliberately left:
+    a fall-through needs a NESTED `(property "Reference" ...)`, which KiCad
+    footprints do not have (properties are direct children only). A missing
+    top-level property simply fails to match and every caller already
+    handles None. No fall-through path exists, so routing these would be
+    churn without an invariant behind it.
+
+Both board blobs unchanged: 448d59a276df, dc28b2fe36e6.

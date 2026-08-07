@@ -777,6 +777,57 @@ def write_project(out_dir, project, netclasses, custom_rules=""):
 _PROPCACHE = {}
 
 
+def _top_level_children(chunk):
+    """Yield (head, text) for each DIRECT child s-expression of `chunk`.
+
+    Anything nested deeper is invisible here — which is the whole point.
+    """
+    i = chunk.index("(") + 1
+    n = len(chunk)
+    while i < n:
+        c = chunk[i]
+        if c == '"':                      # skip a quoted string wholesale
+            i += 1
+            while i < n and chunk[i] != '"':
+                i += 2 if chunk[i] == "\\" else 1
+            i += 1
+            continue
+        if c == "(":
+            end = _balanced(chunk, i)
+            child = chunk[i:end]
+            m = re.match(r'\(\s*([^\s()]+)', child)
+            yield (m.group(1) if m else "", child)
+            i = end
+            continue
+        if c == ")":                      # closed the parent
+            return
+        i += 1
+
+
+_AT_RE = re.compile(r'^\(at\s+(-?[\d.]+)\s+(-?[\d.]+)(?:\s+(-?[\d.]+))?\s*\)$')
+
+
+def sexp_anchor(chunk):
+    """The TOP-LEVEL (at x y [rot]) of an s-expression, or None.
+
+    Single owner for reading an anchor (CP4 F18). Every call site used
+    `re.search(r'\\(at …')` over the whole balanced block, which silently
+    falls through to a DESCENDANT's anchor when the real one is malformed:
+    a footprint with `(at BAD BAD)` quietly adopted its Reference
+    property's local offset, so a gate meant to reject the malformed
+    footprint accepted it and carried on with the wrong origin. Only a
+    direct child counts, and it must parse strictly.
+    """
+    for head, child in _top_level_children(chunk):
+        if head == "at":
+            m = _AT_RE.match(child.strip())
+            if not m:
+                return None       # present but malformed — never fall back
+            return (float(m.group(1)), float(m.group(2)),
+                    float(m.group(3)) if m.group(3) else 0.0)
+    return None
+
+
 def _footprint_is_back(chunk):
     """Is this footprint on the back? Read its OWN layer, not a window.
 
@@ -785,11 +836,19 @@ def _footprint_is_back(chunk):
     with a B.Cu pad early in its chunk reads as back, and a back footprint
     with a long header reads as front. It is the same class as the
     sampling oracle (CP4 F13) — a window standing in for the real thing.
-    In the KiCad 10 s-expression a footprint's own layer is its first
-    `(layer ...)`, so match that exactly and the class disappears.
+
+    The first fix took the FIRST `(layer ...)` in the chunk, which is right
+    only while the top-level one is well-formed: every pad and graphic
+    carries its own layer, so a missing or malformed footprint layer falls
+    through to a descendant's — precisely the F18 anchor bug wearing a
+    different field. Read the DIRECT child, and treat its absence as
+    unknown rather than guessing front.
     """
-    m = re.search(r'\(layer "([^"]+)"\)', chunk)
-    return bool(m) and m.group(1) == "B.Cu"
+    for head, child in _top_level_children(chunk):
+        if head == "layer":
+            m = re.match(r'^\(layer\s+"([^"]+)"\s*\)$', child.strip())
+            return bool(m) and m.group(1) == "B.Cu"
+    return False
 
 
 def _balanced(s, start):
@@ -852,8 +911,8 @@ def _restore_properties(board_text, prop_overrides=None):
             lib_props = _lib_property_blocks(fpid)
         except SystemExit:
             lib_props = {}
-        atm = re.search(r'\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', chunk)
-        rot = float(atm.group(3)) if atm and atm.group(3) else 0.0
+        _a = sexp_anchor(chunk)
+        rot = _a[2] if _a else 0.0
         # a footprint on B.Cu carries its silk on B.SilkS; the library
         # block always says F.SilkS, and this restore was not side-aware,
         # so back-side refdes were emitted onto the FRONT silk (CP4).
@@ -881,6 +940,7 @@ def _restore_properties(board_text, prop_overrides=None):
                     blk = blk.replace("(effects", "(hide yes) (effects", 1)
             ov = prop_overrides.get(ref) if name == "Reference" else None
             bat = re.search(r'\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', blk)
+            # (property block: its (at ...) IS the direct child)
             if ov:
                 dx, dy, ang = ov[:3]
                 blk = blk.replace(bat.group(0), f'(at {dx} {dy} {ang})', 1)
@@ -1118,12 +1178,11 @@ def bodies_from_board(board_text):
     for m in re.finditer(r'\n  \(footprint "([^"]+)"', board_text):
         start = m.start() + 1
         ch = board_text[start:_balanced(board_text, start + 2)]
-        atm = re.search(r'\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', ch)
+        anc = sexp_anchor(ch)
         pm = re.search(r'\(property "Reference" "([^"]+)"', ch)
-        if not atm or not pm:
+        if anc is None or not pm:
             continue
-        fx, fy = float(atm.group(1)), float(atm.group(2))
-        frot = float(atm.group(3)) if atm.group(3) else 0.0
+        fx, fy, frot = anc
         side = "B" if _footprint_is_back(ch) else "F"
         by_layer = _graphic_points_by_layer(ch)
         for lay in ("Fab", "CrtYd"):
@@ -1262,16 +1321,18 @@ def assert_refdes_roundtrip(board_text, findings):
     for m in re.finditer(r'\n  \(footprint "([^"]+)"', board_text):
         start = m.start() + 1
         ch = board_text[start:_balanced(board_text, start + 2)]
-        atm = re.search(r'\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', ch)
+        # TOP-LEVEL anchor only. Searching the whole chunk let a malformed
+        # `(at BAD BAD)` fall through to the Reference property's LOCAL
+        # offset, so this rejection never fired; the footprint then carried
+        # on with the wrong origin and, on the library-fallback path, hit
+        # `sel is None` and vanished silently (CP4 F18).
+        anc = sexp_anchor(ch)
         pm = re.search(r'\(property "Reference" "([^"]+)"', ch)
-        if not atm or not pm:
-            # A footprint whose anchor or reference will not parse drops out
-            # of BOTH this loop and the `visible` list above, so it would be
-            # invisible to every check here (CP4 F17 sweep).
+        if anc is None or not pm:
             findings.append(
                 f"[refdes-roundtrip] a footprint ({m.group(1)}) has no "
-                "parseable anchor or reference — it is excluded from the "
-                "round trip entirely rather than verified")
+                "parseable top-level anchor or Reference property — it is "
+                "excluded from the round trip entirely rather than verified")
             continue
         ref = pm.group(1)
         sel = _REFDES_SELECTED.get(ref)
@@ -1279,8 +1340,7 @@ def assert_refdes_roundtrip(board_text, findings):
             continue
         blk = ch[pm.start():_balanced(ch, pm.start())]
         bat = re.search(r'\(at ([-\d.]+) ([-\d.]+)', blk)
-        fx, fy = float(atm.group(1)), float(atm.group(2))
-        frot = float(atm.group(3)) if atm.group(3) else 0.0
+        fx, fy, frot = anc
         dx, dy = float(bat.group(1)), float(bat.group(2))
         c, s = math.cos(math.radians(frot)), math.sin(math.radians(frot))
         bx, by = fx + (dx * c + dy * s), fy + (-dx * s + dy * c)
@@ -1372,12 +1432,11 @@ def refdes_boxes_from_board(board_text):
         start = m.start() + 1
         end = _balanced(board_text, start + 2)
         ch = board_text[start:end]
-        atm = re.search(r'\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', ch)
-        if not atm:
+        anc = sexp_anchor(ch)
+        if anc is None:
             pos = end
             continue
-        fx, fy = float(atm.group(1)), float(atm.group(2))
-        frot = float(atm.group(3)) if atm.group(3) else 0.0
+        fx, fy, frot = anc
         pm = re.search(r'\(property "Reference" "([^"]+)"', ch)
         if pm:
             blk = ch[pm.start():_balanced(ch, pm.start())]

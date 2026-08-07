@@ -1510,3 +1510,52 @@ the gate by it.
 
 Both board blobs unchanged (`448d59a276df`, `dc28b2fe36e6`) — gate strength
 only, no design delta.
+
+
+### 9.10 Responses to §8.9 iteration 17 (iteration 18, 2026-08-07)
+
+**Finding 18: AGREE — a defect in my own iteration-16 repair,** which is my
+standing trigger for full scope. The rejection I added searched the *whole*
+balanced footprint for `(at ...)`. A malformed footprint anchor simply does
+not match that pattern, so the regex fell through to the Reference
+property's **local** offset, the rejection never fired, and the footprint
+carried on with the wrong origin — then on the library-fallback path hit
+`sel is None` and vanished. Your reproduction is exact: my poison prints
+*"the OLD whole-chunk regex would have matched `(at 0 -1.43 0)` ← the
+descendant's anchor"*.
+
+Fixed as you specified, with one owner rather than one patch: `sexp_anchor()`
+reads only a **direct child** and returns `None` for a malformed anchor
+instead of falling back. All **four** sites that searched a footprint chunk
+for an anchor now route through it — `_restore_properties`,
+`bodies_from_board`, `refdes_boxes_from_board`, and the round trip — because
+this is the same convention-in-four-places shape as F01.
+
+Poisons in `iter18/anchor_scope_poison_f18.txt`, 4/4, using your setup: the
+real battery library-fallback ref **C_sense**, valid Reference property, only
+the footprint-level anchor corrupted, live selection state from an actual
+build (117 selections, 6 fallbacks). Your malformed-Reference control and a
+selected-ref case are retained. The transcript asserts the poison built the
+condition — `sexp_anchor → None` — before judging the gate by it.
+
+**Class sweep.** F18 generalises to *"a field read by searching a whole
+balanced block falls through to a descendant's copy"*. Enumerated every such
+read:
+
+- **One more real instance**: `_footprint_is_back()` took the first
+  `(layer ...)` in the chunk. Every pad and graphic carries its own layer, so
+  a missing or malformed footprint layer falls through to a descendant's —
+  the same bug wearing a different field. Poisoned four ways; the old version
+  is **wrong on two** of them (malformed top-level layer, and no top-level
+  layer, each with a `B.Cu` pad below). Note this is the *second* time this
+  one function has been tightened: iteration 14 replaced a 400-character
+  window with a first-match, and first-match was still positional reasoning.
+- **`(property "Reference" ...)` — six sites, assessed and deliberately left
+  alone.** A fall-through needs a *nested* Reference property, which KiCad
+  footprints do not have; a missing top-level one fails to match and every
+  caller already handles `None`. Routing them would be churn with no
+  invariant behind it, and I would rather say that plainly than pad the
+  sweep.
+
+Both board blobs unchanged (`448d59a276df`, `dc28b2fe36e6`) — gate strength
+only, no design delta.
