@@ -759,6 +759,74 @@ started. Evidence is in
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 15.)
 
 
+### 8.7 Reviewer findings (iteration 13)
+
+Reviewed designer commit: `ceeff2cddce88647e91694e1e75a48ffdbe5289d`.
+
+F15's literal-empty cases are fixed: the entirely empty oracle object now
+fails with two findings, and empty board text produces findings from the
+body, round-trip, and new parse-coverage gates. The full expected control
+remains clean. Exact-set poisons show that the new caller-anchored invariant
+is still implemented as nonempty/cardinality checks rather than set equality.
+
+#### Finding 16 - IMPORTANT - partial and same-size wrong sets still satisfy the new exact-coverage gates
+
+**Issue**: The oracle accepts one reference position for 39 expected
+components, accepts a 39-entry side map that omits an expected component and
+substitutes a mounting hole, and accepts a same-size pad map that replaces a
+required net-bound pad with an unrelated unbound pad. The parse chokepoint
+similarly accepts one visible reference box for 39 expected components. These
+are nonempty/cardinality versions of the same vacuous-pass class F15 was meant
+to close.
+
+**Evidence**: In `hardware/reviews/tools/pcbnew_crosscheck.py`, refdes coverage
+is only `not exp.get("refdes")`; side coverage compares lengths rather than
+keys; and pad coverage compares only physical counts. Independent poisons
+against the fresh board all exit 0:
+
+- refdes map reduced from 39 entries to C1 only: `clean — 1 references`;
+- side map kept at 39 entries but replaced expected C1 with board-only H1:
+  `clean — 39 sides`;
+- pad map kept at 169 keys but replaced required net-bound `C1/1 ->
+  V12_PROT` with unrelated unbound `J-USB/A10 -> ''`: `clean — 191
+  pad-nets` because the number compared remains 191.
+
+In `assert_board_parse_coverage()`, reference boxes are checked only for
+total emptiness. Hiding 38 of the 39 expected component references leaves one
+box and all 39 bodies; both parse coverage and
+`refdes_over_body_findings(..., expected_refs=...)` return no findings.
+Reproduction artifacts and exact expected/poison objects are in
+`visual_inspections/cp4-display-placement/iter13/reviewer/`, especially
+`pcbnew_oracle_exact_set.txt` and `partial_coverage_probe.txt`.
+
+**Suggested fix**: Treat identity as the invariant, with counts only as
+diagnostics. Require exact key equality between the caller's component set
+and the refdes and side maps (with any hidden/mechanical exceptions explicit),
+and require the board footprint set to equal expected components plus an
+explicit mechanical-ref set. For pads, build KiCad's net-bound
+`(ref, pad-number) -> net-name multimap`; require its key set to equal the
+expected pad key set, reject empty expected net names, and require every
+physical occurrence's net to match. At the parse chokepoint, require the
+visible reference-box key set and body key set to equal their caller-supplied
+expected sets. Retain all three partial/same-cardinality poisons; they target
+the invariant that the literal-empty cases do not exercise.
+
+Coverage: skillz synchronized and pcb-design 0.18.0 installed; mandatory
+consistency check clean; fresh Windows display build exit 0; full handoff run
+bare and CLEAN across all four generators; direct strict DRC completed with
+only the two documented footprint warnings and 123 placement-only
+unconnected items; literal-empty controls and exact-set poisons independently
+executed; independent serialized-board geometry and J1 reference probes
+passed; fresh top/bottom renders plus J1/U1 and J3/J-USB crop zooms inspected;
+and four on-file manufacturer-PDF citations/object identities checked. Board
+blobs remain byte-identical to the previously inspected SHA256 values. No
+manifest row, SKU cell, connectivity, or selected part changed. CP5 was not
+started. Evidence is in
+`visual_inspections/cp4-display-placement/iter13/reviewer/REPORT.md`.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 16.)
+
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-08-06)

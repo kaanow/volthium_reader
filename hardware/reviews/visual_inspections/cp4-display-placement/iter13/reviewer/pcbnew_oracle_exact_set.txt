@@ -1,0 +1,23 @@
+Tool: C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\python.exe
+Board: hardware/kicad/pcb/build_display/display_pcb.kicad_pcb
+
+CONTROL - full_expected.json, exit 0:
+  CROSSCHECK: clean - 39 references, 39 sides, 191 pad-nets (of 191 net-bound pads KiCad sees) agree with KiCad's own engine
+
+RETAINED LITERAL-EMPTY POISON - iter11/reviewer/empty_expected.json, exit 1:
+  CROSSCHECK: FAIL (2)
+     the board KiCad loaded carries 43 footprints but the expected object names no components - an empty expectation cannot certify a populated board
+     coverage: KiCad sees 191 net-bound pads but our expected map compared 0 - the oracle is judging a different set than the board actually has
+
+POISON - partial_refdes_expected.json, exit 0 (DEFECT):
+  CROSSCHECK: clean - 1 references, 39 sides, 191 pad-nets (of 191 net-bound pads KiCad sees) agree with KiCad's own engine
+
+POISON - wrong_side_set_expected.json, exit 0 (DEFECT):
+  The side map has 39 entries but omits expected C1 and substitutes non-component H1.
+  CROSSCHECK: clean - 39 references, 39 sides, 191 pad-nets (of 191 net-bound pads KiCad sees) agree with KiCad's own engine
+
+POISON - wrong_pad_set_expected.json, exit 0 (DEFECT):
+  Removed required net-bound C1/1 -> V12_PROT and added unrelated unbound J-USB/A10 -> ''. Both keys are single physical pads; key count stays 169 and compared physical-pad count stays 191.
+  CROSSCHECK: clean - 39 references, 39 sides, 191 pad-nets (of 191 net-bound pads KiCad sees) agree with KiCad's own engine
+
+Verdict: empty/nonempty count checks work, but the oracle does not require exact key/map equality against the caller's component, refdes, side, and net-bound-pad contracts.

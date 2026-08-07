@@ -1,0 +1,16 @@
+Command: .venv\Scripts\python.exe hardware\reviews\visual_inspections\cp4-display-placement\iter13\reviewer\partial_coverage_probe.py
+Exit: 0
+
+control/components=39 refdes=39 sides=39 pad_keys=169
+control/parse_coverage_findings=[]
+empty/refdes_over_body_findings=['[refdes-on-body] parsed 0 footprints from the board text - this gate certifies nothing, and an empty result here must not be read as clean', '[refdes-on-body] the caller expected 39 components but 39 were not parsed from the board - coverage is incomplete']
+empty/refdes_roundtrip_findings=['[refdes-roundtrip] parsed 0 references from the board text - the round trip verified nothing and its silence is not a pass']
+empty/parse_coverage_findings=['[parse-coverage] the emitted board text yielded 0 footprints - every gate reading it would report clean having judged nothing']
+poison/partial_refdes_map=1 of 39 (written partial_refdes_expected.json)
+poison/side_keys=39 but C1 replaced by H1 (written wrong_side_set_expected.json)
+poison/visible_boxes=1 expected=39
+poison/bodies=39 expected=39
+poison/parse_coverage_findings=[]
+poison/refdes_over_body_findings=[]
+
+Verdict: literal-empty controls are fixed, but the parse chokepoint and body gate accept one visible reference box for 39 expected components.
