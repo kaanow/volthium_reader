@@ -22,34 +22,52 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-07T00:54:12Z
+last_updated_at: 2026-08-07T01:06:16Z
 last_updated_by: claude-designer
 
 note: >
-  DESIGNER iteration 8: F11 and F12 closed. F11 - all three escapes were
-  real. Both gates now read EMITTED board text, the round trip re-derives
-  the anchor locally instead of calling the placer's own forward helper,
-  and the body gate compares full TEXT BOXES against own and other
-  same-side bodies. Poisoned all three with geometrically real cases; the
-  strengthened gate then caught two LIVE defects the anchor-only version
-  passed (J-USB and TVS2 designators on their own bodies) - fixed with
-  explicit spots. Poisoning also found a FOURTH escape you did not list:
-  the round trip silently skipped every ref when its selection dict was
-  empty, so a run without the placer passed green - same class as the
-  mounting holes that gated nothing. Now a hard finding.
+  DESIGNER iteration 8: F11 and F12 closed - and read packet 9.4 first,
+  because self-review found MY F11 FIX WAS DEFECTIVE and I nearly shipped
+  it. The three escapes you named were real and are closed (both gates
+  read EMITTED board text; the round trip re-derives the anchor locally
+  instead of calling the placer's own forward helper; the body gate uses
+  full TEXT BOXES against own and other bodies). Poisoning also found a
+  fourth you did not list: the round trip skipped every ref when its
+  selection dict was empty, so a run without the placer passed green -
+  now a hard finding.
+  BUT the rebuilt on-body gate raised 42 findings on the CP3-APPROVED
+  battery board. Those were three bugs of mine, not 42 defects: (1)
+  tangency counted as overlap - 26 of 42 were exact edge touches or
+  sub-0.15mm grazes, i.e. text correctly set flush against a part; (2) a
+  sliding 200-char regex window paired one graphic's start/end with a
+  LATER graphic's layer token, stitching the courtyard's -27.75 min-y
+  onto the fab body's +12.75 max-y and inventing a 33x40.5mm MOD1 "body"
+  on no layer, swallowing six good designators; (3) my first diagnostic
+  reused the same regex and CONFIRMED ITS OWN BUG - caught only by
+  checking against the datasheet (ESP32-S3-WROOM-1 is 18x25.5mm).
+  Fixed: graphics parsed as BALANCED expressions so coords can only be
+  attributed to their own layer; overlap must reach one silk stroke
+  (0.15mm) in both axes. MOD1 now parses at exactly 18.00x25.50mm.
+  Re-poisoned in BOARD coordinates (my first poison used a Reference
+  local offset and never created the condition): burial/own-body/0.20mm
+  fire, tangency and 0.10mm stay silent.
+  RETRACTION: my claim that the gate "caught two live defects" (J-USB,
+  TVS2) was WRONG - both were artifacts of those bugs. Auto placement
+  under the corrected gate gives zero findings, so the MANUAL_REFDES
+  overrides are REMOVED as phantom fixes. No real on-body defect ever
+  existed on either board; the approved battery board is untouched and
+  still byte-identical at 448d59a276df.
   NEW INDEPENDENT ORACLE: pcbnew_crosscheck.py re-derives refdes
   positions, sides and pad->net bindings using KiCad's OWN engine at the
-  write chokepoint, breaking the correlation that let F01/F09/F11 survive
-  our own gates. Poisoned both directions; reports SKIPPED never PASS if
-  KiCad's Python is absent. Display 39 refs/39 sides/97 pad-nets agree;
-  it also independently validates the APPROVED battery board (123 refs,
-  295 pad-nets, still byte-identical 448d59a276df).
+  write chokepoint, breaking the correlation that let F01/F09/F11
+  survive our own gates. Poisoned both directions; reports SKIPPED never
+  PASS if KiCad's Python is absent. Display 39 refs/39 sides/97
+  pad-nets; battery 123 refs/295 pad-nets.
   F12 - agreed: I imported the battery board's DR-31 CAN/JTAG rationale
   onto a board with NO CAN (verified zero TCAN/CAN_PWR refs) and counted
   J5, the RS-485 termination lift, as a debug header. PR-13 rewritten
-  from this board's facts (J-USB native USB Serial/JTAG on dedicated
-  pins; J3 ESP-Prog recovery); my iteration-6 response repeating the same
-  claim is struck in place. Board 5b69b6c717a4.
+  from this board's facts; my iteration-6 response repeating the claim is
+  struck in place. Display board dc28b2fe36e6.
 
 
 user_pause_reasons_seen_this_run: []

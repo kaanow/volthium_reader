@@ -265,13 +265,13 @@ ENVELOPES = {
 }
 
 
-# Explicit refdes spots where the auto placer's last-resort on-body fallback
-# would hide a designator under its own part (CP4 F11 gate). Both sit in
-# clear bands verified against the emitted board.
-MANUAL_REFDES = {
-    "J-USB": (72.0, 62.0, 0),   # below the connector, clear of the M3 hole
-    "TVS2":  (23.5, 10.8, 0),   # between TVS1's body and TVS2's own
-}
+# Hand-picked refdes spots for parts the greedy placer cannot clear.
+# Empty on this board: the J-USB and TVS2 entries kept here briefly were
+# answering false positives from a defective on-body gate (it counted
+# tangency as overlap and mis-parsed body extents), not real collisions.
+# With the gate corrected the placer's own choices are clean, so the
+# overrides are gone rather than left as unexplained residue.
+MANUAL_REFDES = {}
 
 def annotate_envelopes(bb):
     """Draw each tall part's body outline + height on Cmts.User."""

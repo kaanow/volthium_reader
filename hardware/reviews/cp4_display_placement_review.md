@@ -10,7 +10,7 @@ Scope per D12: **display side only** (battery-side placement was CP3, APPROVED).
   (sha256 `41145f58b214…`), 39 components / 56 nets. **Three** CP4-driven
   schematic-side deltas — §4.1 and §4.5.
 - Output: `hardware/kicad/pcb/build_display/display_pcb.kicad_pcb`
-  (sha256 `5b69b6c717a4…`) — 43 footprints (39 parts + 4 M3 mounting
+  (sha256 `dc28b2fe36e6…`) — 43 footprints (39 parts + 4 M3 mounting
   holes), all pads net-bound, **placement only** (routing is CP5).
 - Hashes are of the committed git BLOB (`git cat-file blob HEAD:<path>`).
 - Rebuild: POSIX `.venv/bin/python hardware/kicad/pcb/build_display_pcb.py`
@@ -819,42 +819,70 @@ mine to determine — stopping at PR-12 was me truncating the table.
 ### 9.4 Responses to §8.3 iteration 7 (iteration 8, 2026-08-06)
 
 **Finding 11 (the new gates were still self-correlated): AGREE on all three
-escapes — you were describing the exact weakness that has now bitten twice.**
+escapes — and self-review then found my fix was itself wrong. Read this
+section before the rest; it changes what iteration 8 is worth.**
 
-Both gates now read the **emitted board text**, not the in-memory override
-dict, and the round trip re-derives the anchor locally instead of calling the
-placer's own forward helper — otherwise a wrong transform simply agrees with
-itself. The body gate now compares full **text boxes** (not anchors) against
-**own and other** same-side bodies.
+The three escapes were real, and both gates now read the **emitted board
+text** rather than the in-memory override dict, with the round trip
+re-deriving the anchor locally instead of calling the placer's own forward
+helper — otherwise a wrong transform simply agrees with itself. The body
+gate now compares full **text boxes** against **own and other** same-side
+bodies. The round trip also had a fourth escape you did not list, and the
+worst of them: it silently skipped *every* reference when its selection dict
+was empty, so a run where the placer never executed passed green — the same
+class as the mounting holes that gated nothing. That is now a hard finding.
 
-Poisoned all three (`iter8/refdes_gate_poison_v2.txt`), each constructed to
-create the geometric condition rather than merely look like it:
-- anchor clears a body while the text lies across it → caught;
-- designator printed on its own body → caught;
-- emitted anchor moved off the placer's choice → caught.
+**But the rebuilt on-body gate was defective, and I nearly shipped it.** Run
+against the whole tree it raised **42 findings on the CP3-approved battery
+board**. I did not accept that at face value, and it was three bugs of mine,
+not 42 defects:
 
-**The strengthened gate immediately found two live defects** the anchor-only
-version had passed: J-USB and TVS2 designators printed on their own parts,
-invisible once fitted. Fixed with explicit spots in verified clear bands.
+1. **Tangency counted as overlap.** 26 of the 42 were exact edge touches
+   (penetration 0.00 mm) or grazes below 0.15 mm — text set flush against a
+   part, which is the *correct* way to place it.
+2. **Body extents were mis-parsed.** A sliding `{0,200}`-character window
+   paired one graphic's `(start)/(end)` with a *later* graphic's layer
+   token. On MOD1 it stitched the courtyard's −27.75 min-y onto the fab
+   body's +12.75 max-y and invented a 33×40.5 mm "body" existing on no
+   layer, which swallowed six correctly-placed designators.
+3. My first diagnostic reused the same regex, so it **confirmed its own
+   bug** — I only caught it by checking the parsed extent against the
+   datasheet: an ESP32-S3-WROOM-1 is 18×25.5 mm, and the gate was claiming
+   33×40.5.
 
-**And poisoning found a fourth escape you did not list**, which I think is the
-worst of them: the round trip silently skipped *every* reference when its
-selection dict was empty, so a run where the placer never executed would pass
-green. Same class as the mounting holes that contributed zero geometry while
-appearing gated. It is now a hard finding, plus a per-reference check for
-anything neither placed nor recorded as a library fallback.
+Fixed: graphics are now read as **balanced expressions**, so coordinates can
+only ever be attributed to the layer written inside that same expression;
+and overlap must reach one silkscreen stroke (0.15 mm) in both axes before
+it counts. MOD1's parsed body is now exactly 18.00×25.50 mm. Re-poisoned in
+board coordinates — my first poison attempt failed because a Reference
+`(at …)` is a *local* offset, so it never created the condition:
+full burial fires, own-body fires, 0.20 mm bite fires, exact tangency and a
+0.10 mm graze stay silent.
+
+**Retraction.** My earlier note that the strengthened gate had "caught two
+live defects" (J-USB, TVS2 on their own bodies) was **wrong** — both were
+artifacts of the two bugs above. Re-run with auto placement under the
+corrected gate: zero findings. The `MANUAL_REFDES` overrides I added for
+them were fixes for a phantom and are **removed** rather than left as
+unexplained residue. Net: **no real on-body defect ever existed on either
+board**, and the approved battery board is untouched — still byte-identical
+at `448d59a276df`.
 
 **New: an independent oracle.** The root problem behind F01, F09 and F11 is
 that our gates read the board with the assumptions that wrote it, so only an
-outside probe — yours, each time — could break the tie. `pcbnew_crosscheck.py`
-now re-derives reference positions, footprint sides and pad→net bindings using
-**KiCad's own engine** under its bundled Python, at the write chokepoint.
-Poison-tested in both directions (`iter8/pcbnew_crosscheck_poison.txt`); it
-reports **SKIPPED, never PASS**, if KiCad's Python is absent, because an
-oracle that quietly did not run is worse than none. Current state: display
-39/39 references, 39 sides, 97 pad-nets agree; and it also independently
-validates the **approved battery board** — 123 references, 295 pad-nets, still
-byte-identical at `448d59a276df`.
+outside probe — yours, each time — could break the tie.
+`pcbnew_crosscheck.py` re-derives reference positions, footprint sides and
+pad→net bindings using **KiCad's own engine** under its bundled Python, at
+the write chokepoint. Poison-tested both directions; it reports **SKIPPED,
+never PASS**, if KiCad's Python is absent, because an oracle that quietly
+did not run is worse than none. Display 39/39 references, 39 sides, 97
+pad-nets agree; it also independently validates the approved battery board
+at 123 references and 295 pad-nets.
+
+I am flagging bug 3 as the transferable lesson: a gate and its diagnostic
+sharing a parser will agree with each other while both are wrong. The
+datasheet cross-check is what broke that tie, and it is the same shape of
+error as the one you raised in F11.
 
 **Finding 12 (PR-13 imported the battery board's rationale): AGREE, and the
 error is exactly what it looks like.** I carried DR-31's CAN/JTAG-forfeit
@@ -862,7 +890,7 @@ reasoning onto a board that has **no CAN at all** — verified: zero
 TCAN/CAN_PWR references in the display generator — and counted **J5**, the
 RS-485 termination lift, as a debug header. Rewritten from this board's own
 facts: **J-USB** is the ESP32-S3's native USB, carrying the built-in USB
-Serial/JTAG peripheral on the dedicated D+/D− pins so it costs no GPIOs here;
-**J3** is the keyed 2×3 ESP-Prog force-download/recovery path for a board that
-deep-sleeps between frames. My iteration-6 §9.3 response repeated the same
-false claim and is struck in place rather than left standing.
+Serial/JTAG peripheral on the dedicated D+/D− pins so it costs no GPIOs
+here; **J3** is the keyed 2×3 ESP-Prog force-download/recovery path for a
+board that deep-sleeps between frames. My iteration-6 §9.3 response repeated
+the same false claim and is struck in place rather than left standing.

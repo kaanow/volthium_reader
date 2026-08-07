@@ -985,6 +985,43 @@ def refdes_local_to_board(lx, ly, x, y, rot, side):
     return (x + rx, y + ry)
 
 
+# One silkscreen stroke. A designator whose box shares an edge with a body,
+# or bites into it by less than the width of the line that draws it, is not
+# obscured — that is the normal, correct way to set text flush against a
+# part. Counting tangency as an overlap buries the real defects in noise.
+SILK_STROKE_MM = 0.15
+
+
+def _graphic_points_by_layer(chunk):
+    """{layer_suffix: [(x, y), ...]} from a footprint's own graphics.
+
+    Each graphic is read as a BALANCED expression so its coordinates can
+    only ever be attributed to the layer written inside that same
+    expression. The earlier sliding-character window (CP4 self-review)
+    silently paired one graphic's (start)/(end) with a *later* graphic's
+    layer token: on the battery board it stitched the courtyard's -27.75
+    min-y onto the fab body's +12.75 max-y and invented a 33x40.5 mm
+    "body" for MOD1 that exists on no layer, which then swallowed six
+    correctly-placed designators.
+    """
+    out = {}
+    for gm in re.finditer(r'\(fp_(line|rect|poly|circle|arc)\b', chunk):
+        g = chunk[gm.start():_balanced(chunk, gm.start())]
+        lm = re.search(r'\(layer "[FB]\.(\w+)"\)', g)
+        if not lm:
+            continue
+        pts = [(float(a), float(b)) for a, b in re.findall(
+            r'\((?:start|end|mid|center|xy) (-?[\d.]+) (-?[\d.]+)\)', g)]
+        if lm.group(1) == "Fab" and re.match(r'\(fp_circle', g) and pts:
+            # a circle's radius reaches past its center/edge point pair
+            (cx, cy), (ex, ey) = pts[0], pts[1]
+            r = math.hypot(ex - cx, ey - cy)
+            pts = [(cx - r, cy - r), (cx + r, cy + r)]
+        if pts:
+            out.setdefault(lm.group(1), []).extend(pts)
+    return out
+
+
 def bodies_from_board(board_text):
     """(ref, side, bbox) for every footprint, parsed from the WRITTEN board.
 
@@ -1004,13 +1041,9 @@ def bodies_from_board(board_text):
         fx, fy = float(atm.group(1)), float(atm.group(2))
         frot = float(atm.group(3)) if atm.group(3) else 0.0
         side = "B" if re.search(r'\(layer "B\.Cu"\)', ch[:400]) else "F"
+        by_layer = _graphic_points_by_layer(ch)
         for lay in ("Fab", "CrtYd"):
-            pts = []
-            for g in re.finditer(
-                    r'\(start ([-\d.]+) ([-\d.]+)\)\s*\(end ([-\d.]+) ([-\d.]+)\)'
-                    r'[\s\S]{0,200}?\(layer "[FB]\.' + lay + r'"\)', ch):
-                for a, b in ((0, 1), (2, 3)):
-                    pts.append((float(g.group(a + 1)), float(g.group(b + 1))))
+            pts = by_layer.get(lay, [])
             if pts:
                 # serialized coords are already in the footprint's emitted
                 # frame, so only anchor+rotation applies (no mirror)
@@ -1041,13 +1074,16 @@ def refdes_over_body_findings(board_text):
         for other, oside, (ox0, oy0, ox1, oy1) in bodies:
             if rside is not None and oside != rside:
                 continue
-            if x0 < ox1 and x1 > ox0 and y0 < oy1 and y1 > oy0:
+            pen_x = min(x1, ox1) - max(x0, ox0)
+            pen_y = min(y1, oy1) - max(y0, oy0)
+            if pen_x >= SILK_STROKE_MM and pen_y >= SILK_STROKE_MM:
                 who = "its own body" if other == ref else f"{other}'s body"
                 out.append(
                     f"[refdes-on-body] {ref} text box "
                     f"({x0:.2f},{y0:.2f})..({x1:.2f},{y1:.2f}) overlaps "
                     f"{who} ({ox0:.2f},{oy0:.2f})..({ox1:.2f},{oy1:.2f}) "
-                    f"on the {oside} side — unreadable once fitted")
+                    f"on the {oside} side by {min(pen_x, pen_y):.2f} mm "
+                    f"— unreadable once fitted")
     return out
 
 
