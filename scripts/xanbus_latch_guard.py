@@ -227,25 +227,33 @@ def main() -> int:
                     help="decide and log, but never transmit")
     args = ap.parse_args()
 
-    before = sample_array(args.iface, args.sample)
     st = load_state()
     now = time.time()
     today = time.strftime("%Y-%m-%d", time.localtime(now))
     if st.get("day") != today:
         st = {"day": today, "fixes": 0, "last_attempt": 0}
 
+    # Elevation first, BEFORE the 45 s listen. Nothing below the gate can act,
+    # so sampling there is pure cost — and at a 10 min cadence that would be
+    # ~50 pointless CAN listens every night. Also drop any pending
+    # confirmation: leaving it armed across darkness is what let a dusk sample
+    # pair with a later one and bounce the MPPT at night on 2026-08-06.
+    elevation = sun_elevation_deg(now)
+    if elevation < MIN_SUN_ELEVATION_DEG:
+        if st.pop("clamp_seen_at", None):
+            save_state(st)
+        return 0                                    # night: quiet, no event
+
+    before = sample_array(args.iface, args.sample)
+
     # --- decide, and record every reason for NOT acting -------------------
     if before["n"] < 5:
         emit("latch_guard_skipped", {"reason": "no MPPT data on the bus",
                                      **before})
         return 0
-    # Sun below the working elevation: nothing here is a latch worth fixing,
-    # and a pending confirmation MUST be dropped. Leaving it armed is what let
-    # a 20:41 dusk sample pair with a 21:01 one and bounce the MPPT at night on
-    # 2026-08-06 — the two confirmations were never required to be adjacent,
-    # because this gate used to return above the reset below.
-    elevation = sun_elevation_deg()
-    if elevation < MIN_SUN_ELEVATION_DEG or not before["daylight"]:
+    # Secondary check: the array must also be electrically awake. Elevation is
+    # already handled above, before sampling.
+    if not before["daylight"]:
         if st.pop("clamp_seen_at", None):
             save_state(st)
         return 0                                    # night: quiet, no event
@@ -263,14 +271,12 @@ def main() -> int:
                             "threshold — partial clamp or a moving tracker",
                   "threshold": CLAMP_FRACTION, **before})
         return 0                                    # healthy: quiet, no event
-    # A clamp seen ONCE is not a latch. At dawn and dusk the array voltage
-    # passes through battery voltage on its way up/down, so darkness looks
-    # exactly like a clamp for ~5-10 minutes (observed 2026-08-05 20:40:
-    # pv_v 28.7 vs out 26.5, a 2.2 V delta, with 1 W of production). Runs are
-    # 20 min apart, so requiring two CONSECUTIVE confirmations excludes that
-    # window while a real latch — which persists for hours — sails through.
-    # This matters beyond a wasted bounce: a spurious fix at dawn would burn a
-    # daily-cap slot, start a 45 min cooldown, and could mask the real latch.
+    # A clamp seen ONCE is still not acted on. The dawn/dusk transient this
+    # originally guarded is now excluded by the elevation gate above, which is
+    # both stricter and free; this remains as a second opinion against a
+    # one-off sampling artefact. Runs are 10 min apart, so a real latch — which
+    # persists for hours — costs at most one extra cycle, while a spurious fix
+    # would burn a daily-cap slot and start a 45 min cooldown.
     prev_seen = st.get("clamp_seen_at", 0)
     if now - prev_seen > 2.5 * 60 * 60:      # stale confirmation, restart
         prev_seen = 0
