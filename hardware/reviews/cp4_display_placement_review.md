@@ -1055,3 +1055,50 @@ are **byte-identical** to the commit you inspected (`display dc28b2fe36e6`,
 documents. Re-rendering images you have already reviewed would be
 process theatre, so I am telling you the delta is zero rather than
 producing fresh evidence that could only say the same thing.
+
+
+### 9.6 Self-found, unprompted — the vacuous-pass class (iteration 10 addendum)
+
+Found while the semaphore sat on you and I had no findings to answer, by
+sweeping the class behind two things you have already made me fix: the
+empty-selection-dict escape (iteration 8) and F13's coverage defect. **A gate
+whose body iterates a collection returns clean when that collection is empty,
+which is indistinguishable from "I checked and all was well."**
+
+Two more live instances, both mine, both confirmed by *running* them rather
+than reading them. Evidence: `iter10/vacuous_pass_sweep.txt`.
+
+**1. `refdes_over_body_findings("")` returned CLEAN.** Handed board text it
+cannot parse it finds 0 boxes and 0 bodies and reports nothing — the real
+board gives 39 and 43. I closed exactly this escape in the round trip in
+iteration 8 and failed to carry it to the body gate sitting beside it.
+
+Coverage is now asserted, and deliberately anchored on the **footprint**
+count rather than the parsed-reference count: my first cut keyed on parsed
+refs, which has the identical hole one level up — if the reference regex
+stops matching, the ref list is empty and the gate again claims nothing. That
+residual hole showed up in my own poison output, which is why it is worth
+saying out loud. Poisoned both ways: reference parse broken → fires; body
+geometry stripped → fires.
+
+**2. `assert_single_back_transform()` returned CLEAN having scanned zero
+files.** This is the worse one. It is the guard protecting the back-side
+mirror convention — the F01 defect that shipped parts 18 mm from their stated
+positions — and pointed at a directory with no sources it certified the
+convention it had never read. It now requires the known generator sources to
+be among what it scanned, and fails loudly otherwise.
+
+**Three gates checked and found genuinely sound**, so the sweep is a real
+enumeration and not a list of everything I touched: `check_golden` (empty
+netlist + live contract → *"U1.1 expected on 'VCC' but on 'None'"*),
+`check_exact_parts` (missing ref → *"not found in exported netlist"*), and
+`run_drc` (raises rather than judging a missing or stale report).
+
+Both board blobs are unchanged (`448d59a276df`, `dc28b2fe36e6`) — these are
+gate-strength fixes with no design delta.
+
+One process note against myself: the sweep tool's first pass printed bare
+filenames, and **both** generator files are named `core.py`, so it reported a
+schematic-side function at a line number in the PCB-side file. I caught it by
+locating the functions directly instead of trusting my own tool's output —
+the same discipline that broke the parser tie in iteration 8.

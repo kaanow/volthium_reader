@@ -1,0 +1,50 @@
+CP4 iteration 10 addendum — vacuous-pass sweep
+==============================================================
+
+Class: a gate whose whole body iterates a collection returns "clean" when
+that collection is empty, which is indistinguishable from "I checked and all
+was well". This is the class behind the empty-selection-dict escape found by
+poisoning in iteration 8, and behind F13's coverage defect. Two more live
+instances were found by sweeping for it and confirmed by execution.
+
+--------------------------------------------------------------
+GATE 1  refdes_over_body_findings()   pcb/core.py
+
+BEFORE: handed unparseable board text it returned CLEAN -- 0 boxes vs 0
+bodies yields no findings. The same escape was closed in the round trip and
+never carried across to the body gate sitting beside it.
+AFTER: coverage is asserted against the FOOTPRINT count (not the parsed-ref
+count, which would have the same hole one level up).
+
+  control, real board            : 0 findings
+  empty text, no footprints      : 0 findings (claims nothing -- correct, there is nothing to judge)
+  POISON reference parse broken  : FIRES
+        -> arsed 0 references from a board carrying 43 footprints — the reference parse failed, so this gate judged nothing
+  POISON body geometry stripped  : FIRES
+        -> 3 footprint(s) contributed NO body geometry, so nothing was tested against them: ['BTN1', 'BTN2', 'BTN3', 'C1', 
+
+--------------------------------------------------------------
+GATE 2  assert_single_back_transform()   pcb/core.py
+
+This is the guard protecting the back-side mirror convention -- the defect
+that shipped parts 18 mm from their stated positions. Pointed at a directory
+with no sources it returned CLEAN having read zero files: a guard that
+silently scans nothing is the very failure it exists to prevent.
+AFTER: it requires the known generator sources to be among what it scanned.
+
+  real scan covers               : ['build.py', 'build_display_pcb.py', 'core.py', 'fplib.py', 'refine_refdes.py', 'review_affinity.py']
+  POISON empty scan directory    : FIRES
+        -> [single-transform] guard scanned 0 file(s) in /var/folders/0r/rfjmhhlx1636m6tdqs5jgnj40000gn/T/tmptvc2krat and did not s
+  control, real directory        : clean
+
+--------------------------------------------------------------
+CHECKED AND SOUND (absence already treated as failure)
+
+  check_golden()      empty netlist + live contract ->
+                      "U1.1 expected on 'VCC' but on 'None'"
+  check_exact_parts() missing ref -> "not found in exported netlist"
+  run_drc()           raises if the report is missing or empty rather than
+                      judging a stale artifact
+
+==============================================================
+all cases behaved correctly

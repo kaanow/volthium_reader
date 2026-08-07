@@ -1079,11 +1079,49 @@ def refdes_over_body_findings(board_text):
         body while the text lay across it passed;
       * it skipped the part's OWN body, though a designator printed on its
         own component is exactly as unreadable after assembly.
+
+    A fourth, found by sweeping the vacuous-pass class: handed board text it
+    could not parse, this returned CLEAN — 0 boxes vs 0 bodies produces no
+    findings, which is indistinguishable from "checked, all fine". The same
+    escape was closed in the round trip and not carried across to here. The
+    coverage assertion below is the invariant form: prove the gate had
+    something to judge before believing its silence.
     """
     boxes = refdes_boxes_from_board(board_text)
     bodies = bodies_from_board(board_text)
     side_of = {r: s for r, s, _ in bodies}
     out = []
+
+    refs = []
+    n_footprints = 0
+    for m in re.finditer(r'\n  \(footprint "([^"]+)"', board_text):
+        n_footprints += 1
+        start = m.start() + 1
+        ch = board_text[start:_balanced(board_text, start + 2)]
+        pm = re.search(r'\(property "Reference" "([^"]+)"', ch)
+        if pm:
+            refs.append(pm.group(1))
+    # Anchor coverage on the FOOTPRINT count, not the parsed-ref count: if
+    # the reference regex itself stops matching, a ref-based test has an
+    # empty list and quietly claims nothing — the same escape one level up.
+    if n_footprints and not refs:
+        out.append(
+            f"[refdes-on-body] parsed 0 references from a board carrying "
+            f"{n_footprints} footprints — the reference parse failed, so "
+            "this gate judged nothing")
+    if refs:
+        if not boxes:
+            out.append(
+                f"[refdes-on-body] parsed 0 reference text boxes from a "
+                f"board carrying {len(refs)} footprints — the gate had "
+                "nothing to judge and its silence means nothing")
+        no_geom = [r for r in refs if r not in side_of]
+        if no_geom:
+            out.append(
+                f"[refdes-on-body] {len(no_geom)} footprint(s) contributed "
+                f"NO body geometry, so nothing was tested against them: "
+                f"{sorted(no_geom)[:12]} — same class as circular courtyards "
+                "that silently contributed zero segments")
     for ref, (x0, y0, x1, y1) in boxes:
         rside = side_of.get(ref)
         for other, oside, (ox0, oy0, ox1, oy1) in bodies:
@@ -1365,8 +1403,21 @@ def assert_single_back_transform():
     A convention duplicated across files cannot be kept correct by
     diligence, so this makes a fifth copy a build failure rather than a
     future finding.
+
+    It must also prove it SCANNED something. Pointed at a directory with no
+    sources it returned clean having read zero files — a guard that
+    silently scans nothing is the very failure it exists to prevent, and it
+    is guarding the convention that shipped the 18 mm error.
     """
     import ast
+    scanned = sorted(f.name for f in HERE.glob("*.py"))
+    required = {"core.py", "build.py", "build_display_pcb.py", "fplib.py"}
+    missing = required - set(scanned)
+    if missing:
+        raise SystemExit(
+            f"[single-transform] guard scanned {len(scanned)} file(s) in "
+            f"{HERE} and did not see {sorted(missing)} — it cannot certify "
+            "a convention it never read")
     bad = []
     for f in sorted(HERE.glob("*.py")):
         src = f.read_text(encoding="utf-8")

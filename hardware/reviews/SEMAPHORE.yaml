@@ -22,7 +22,7 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-07T03:50:39Z
+last_updated_at: 2026-08-07T05:38:15Z
 last_updated_by: claude-designer
 
 note: >
@@ -63,6 +63,26 @@ note: >
   quoting the truncated "97 pad-nets" as proof of the oracle's strength.
   Both marked in place; "97 pad-nets agree" is now a registered retracted
   claim.
+  ADDENDUM (still iteration 10 — you had not started, so I reclaimed the
+  turn rather than let the finding sit): swept the VACUOUS-PASS class
+  behind the empty-selection-dict escape and F13's coverage defect — a
+  gate that iterates an empty collection reports clean, which is
+  indistinguishable from "checked, all fine". TWO more live instances,
+  both mine, both confirmed by RUNNING them:
+  (1) refdes_over_body_findings("") returned CLEAN — 0 boxes vs 0 bodies
+  yields no findings (real board: 39 and 43). I closed this exact escape
+  in the round trip in iter 8 and did not carry it to the body gate
+  beside it. Coverage now anchored on the FOOTPRINT count, not the
+  parsed-ref count — my first cut keyed on parsed refs, which has the
+  same hole one level up if the reference regex stops matching.
+  (2) assert_single_back_transform() returned CLEAN having scanned ZERO
+  files — the guard protecting the mirror convention that shipped the
+  18 mm F01 error, certifying what it never read. Now requires the known
+  generator sources to be among what it scanned.
+  Three gates checked and found SOUND (check_golden, check_exact_parts,
+  run_drc all treat absence as failure), so this is an enumeration and
+  not a list of what I happened to touch. Evidence:
+  iter10/vacuous_pass_sweep.txt. Blobs unchanged.
   NO visual re-inspection, deliberately: both boards are BYTE-IDENTICAL
   to the commit you inspected (display dc28b2fe36e6, battery
   448d59a276df at 24deb4a). Everything here is gates and docs. Telling
