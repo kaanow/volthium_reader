@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import struct
 import subprocess
@@ -66,7 +67,21 @@ SAMPLE_S = 45.0            # how long to watch before deciding
 # never reaches CLAMP_FRACTION. See xanbus_telemetry.LATCH_DELTA_MAX_V.
 CLAMP_DELTA_MIN_V = 0.3
 CLAMP_DELTA_MAX_V = 4.0
-DAYLIGHT_V = 20.0          # a dark string still floats a few volts
+# `pv_v > DAYLIGHT_V` was the original "is the sun up" test, on the assumption
+# that a dark string floats only a few volts. It does not — it floats most of
+# Voc. Measured after sunset on 2026-08-06, sun already below the horizon:
+# 70.4 V at 0.9 W, 78.3 V at 1.2 W. And the decay is not monotonic; the array
+# thrashes (29 -> 78 -> 54 -> 71 V) as the tracker gives up for the night, so
+# it dips through the clamp band repeatedly. At 21:01 that produced a real
+# unwanted bounce with the sun at -3.3 deg.
+#
+# Sun elevation is the physical quantity, it needs no sensor, and the
+# separation is enormous: the two genuine latches on 2026-08-06 were cleared
+# at +46.6 and +33.1 deg, while every dawn/dusk transient sits BELOW the
+# horizon. 10 deg keeps 23 deg of margin on the real cases.
+SITE_LAT, SITE_LON = 51.11935280004921, -121.20969152967822
+MIN_SUN_ELEVATION_DEG = 10.0
+DAYLIGHT_V = 20.0          # kept as a secondary check: is the array connected?
 CLAMP_FRACTION = 0.9       # this much of the sample must be clamped
 AMBIGUOUS_FRACTION = 0.3   # above this but below CLAMP_FRACTION = report it
 COOLDOWN_S = 45 * 60       # minimum gap between fix attempts
@@ -103,6 +118,28 @@ def save_state(st: dict) -> None:
         STATE_PATH.write_text(json.dumps(st))
     except OSError as exc:
         print(f"warn: could not save state: {exc}", file=sys.stderr)
+
+
+def sun_elevation_deg(when: float | None = None) -> float:
+    """Solar elevation at the site, degrees above the horizon.
+
+    Low-precision NOAA-style solar position: good to a fraction of a degree,
+    which is far finer than the 10 deg gate needs. Deliberately depends on
+    nothing but the clock — no sensor, no network, no bus.
+    """
+    ts = time.time() if when is None else when
+    utc = time.gmtime(ts)
+    doy = utc.tm_yday
+    hour = utc.tm_hour + utc.tm_min / 60 + utc.tm_sec / 3600
+    decl = math.radians(23.44) * math.sin(math.radians(360 / 365 * (doy - 81)))
+    b = math.radians(360 / 364 * (doy - 81))
+    eot = 9.87 * math.sin(2 * b) - 7.53 * math.cos(b) - 1.5 * math.sin(b)
+    true_solar = hour * 60 + 4 * SITE_LON + eot
+    hour_angle = math.radians(true_solar / 4 - 180)
+    lat = math.radians(SITE_LAT)
+    sin_el = (math.sin(lat) * math.sin(decl)
+              + math.cos(lat) * math.cos(decl) * math.cos(hour_angle))
+    return math.degrees(math.asin(max(-1.0, min(1.0, sin_el))))
 
 
 def sample_array(iface: str, seconds: float) -> dict:
@@ -202,7 +239,15 @@ def main() -> int:
         emit("latch_guard_skipped", {"reason": "no MPPT data on the bus",
                                      **before})
         return 0
-    if not before["daylight"]:
+    # Sun below the working elevation: nothing here is a latch worth fixing,
+    # and a pending confirmation MUST be dropped. Leaving it armed is what let
+    # a 20:41 dusk sample pair with a 21:01 one and bounce the MPPT at night on
+    # 2026-08-06 — the two confirmations were never required to be adjacent,
+    # because this gate used to return above the reset below.
+    elevation = sun_elevation_deg()
+    if elevation < MIN_SUN_ELEVATION_DEG or not before["daylight"]:
+        if st.pop("clamp_seen_at", None):
+            save_state(st)
         return 0                                    # night: quiet, no event
     if before["fraction"] < CLAMP_FRACTION:
         if st.pop("clamp_seen_at", None):           # healthy again — reset
