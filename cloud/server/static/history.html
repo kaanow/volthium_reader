@@ -716,14 +716,19 @@ const MPPT_EVENT_LABEL = {
 };
 async function loadMpptEvents() {
   const box = $("mppt-box");
+  // Ask for the events we want by NAME. chg_stage/chg_target alone run ~350
+  // a day, so fetching a flat `limit` and filtering here covered barely 8
+  // hours and showed nothing — and shipped 2000 rows to display 20.
+  const want = ["mppt_latched", "mppt_unlatched", "latch_detected",
+                "latch_fix_result", "latch_guard_pending",
+                "latch_guard_skipped", "latch_guard_ambiguous",
+                "xanbus_config_changed"].join(",");
   let evs = [];
   try {
-    evs = ((await (await fetch("/api/xanbus_events?limit=120")).json()).events) || [];
+    evs = ((await (await fetch(
+      `/api/xanbus_events?event=${encodeURIComponent(want)}&limit=60`)
+    ).json()).events) || [];
   } catch (e) { /* fall through to the empty state */ }
-  // The chatty per-transition streams belong on the live page, not here.
-  const skip = new Set(["ac_load_sample", "chg_stage", "chg_target",
-                        "mppt_latch_context"]);
-  evs = evs.filter(e => !skip.has(e.event));
   if (!evs.length) {
     box.innerHTML = '<div class="sub" style="padding:6px 2px">no MPPT events on record.</div>';
     return;

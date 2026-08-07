@@ -849,14 +849,26 @@ class AsyncpgReadingsDAO:
         limit: int = 200,
     ) -> list[dict]:
         """Xanbus event stream for the dashboard timeline. All filters
-        optional — mirrors /api/events semantics."""
+        optional — mirrors /api/events semantics.
+
+        `event` accepts a COMMA-SEPARATED list as well as a single name. The
+        stream is dominated by chg_stage/chg_target (~350/day), so a plain
+        `limit` covers only about 8 hours and buries the rare events that
+        actually matter — the history page's MPPT log came up empty for
+        exactly that reason. Filtering here instead of in the browser also
+        means we ship ~20 rows rather than 2000."""
         where, params = ["TRUE"], []
         if source_id:
             params.append(source_id)
             where.append(f"source_id = ${len(params)}")
         if event:
-            params.append(event)
-            where.append(f"event = ${len(params)}")
+            names = [e.strip() for e in event.split(",") if e.strip()]
+            if len(names) == 1:
+                params.append(names[0])
+                where.append(f"event = ${len(params)}")
+            elif names:
+                params.append(names)
+                where.append(f"event = ANY(${len(params)}::text[])")
         if since:
             params.append(since)
             where.append(f"ts >= ${len(params)}")
