@@ -217,9 +217,56 @@ attractive. What survives is the narrower and duller observation that the
 tracker's *starting* position does influence the first hour — which is
 interesting about the tracker but not useful as a control.
 
-The question from the previous section stands unanswered: a sustained deficit
-is necessary but not sufficient, and we still do not know what decides whether
-the tracker holds or walks.
+**ANSWERED 2026-08-07: there is a CLIFF at ~45 V.** Across 200 h of 5 min
+buckets, taking every daylight sample where the array was currently tracking
+and asking whether a clamp followed within the hour:
+
+| pv_v band | n | clamps within 60 min |
+|---|---|---|
+| 30-35 V | 5 | **100%** |
+| 35-40 V | 60 | **85%** |
+| 40-45 V | 55 | **55%** |
+| **45-50 V** | 90 | **2%** |
+| 50-95 V | 294 | **0%** |
+| 110-115 V | 42 | **0%** |
+
+**Below 45 V: 72% clamp within the hour. At 45 V and above: 2 of 426, under
+0.5%.**
+
+And the two candidates I had been reasoning from are *not* the discriminator:
+
+| predictor | clamps soon (p10/med/p90) | stays up (p10/med/p90) |
+|---|---|---|
+| surplus | -93 / **-76** / +10 W | -99 / **-53** / +118 W |
+| dpv/dt | -0.4 / **-0.2** / +0.2 V/min | -0.5 / **-0.2** / +0.3 V/min |
+| **pv_v** | 40 / **41.5** / 45 V | **46.5** / 58 / 94 V |
+
+Surplus overlaps heavily and the rate of descent is *identical* in both
+populations. Only absolute array voltage separates, and it separates almost
+perfectly.
+
+*Is it circular?* Partly — a low array voltage is on the path to a clamp. But
+the shape rules out pure proximity: a "closer means likelier" effect would be
+a smooth gradient, and instead there is a **step** between the 40-45 band
+(55%) and the 45-50 band (2%). Something changes at ~45 V rather than getting
+gradually worse. Physically that is ~7.5 V per panel, far past the knee and
+deep in the current-source region, which is where the regenerative feedback
+would be expected to take over.
+
+So the model completes: a sustained deficit *initiates* the walk, the walk is
+survivable and usually aborts (the sawtooth), and **~45 V is the point of no
+return.**
+
+**Operational consequence, and it is a big one.** The clamp detector fires at
+`pv_v` ≈ 28 V. A trigger at 45 V fires *much* earlier — on 08-07 the array
+crossed 45 V at ~08:22, clamped at 09:40 and was fixed at 10:21. **Acting at
+the crossing would have been ~2 hours earlier**, and would have bounced a
+still-tracking array back to its MPP instead of rescuing a dead one.
+
+NOT implemented: it is new automated hardware-writing behaviour, it would
+likely need repeated bounces as the array walks down again, and the 4/day cap
+would bind. But it turns Task #40 from a vague "watch the deficit crossover"
+into a concrete threshold with a measured false-positive rate of 0.5%.
 
 Note the earlier 12:40 entry in this file predicted the descent then under way
 was "the runaway restarting". It was a genuine descent by the voltage-and-
