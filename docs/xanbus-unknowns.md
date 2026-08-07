@@ -146,6 +146,46 @@ with the deficit condition all afternoon, hence the sawtooth; in the morning,
 when supply was genuinely below load for hours, one of those descents ran all
 the way to the clamp and stuck.
 
+#### CONTRADICTED 2026-08-07: a deficit is necessary but NOT sufficient
+
+Two consecutive mornings with an essentially identical deficit behaved
+completely differently:
+
+| local | 08-06 pv_v | 08-07 pv_v | 08-06 surplus | 08-07 surplus |
+|---|---|---|---|---|
+| 06:00 | 81.1 | **90.9** | -102 W | -110 W |
+| 06:15 | 76.8 | **90.8** | -98 W | -100 W |
+| 06:30 | 67.3 | **87.7** | -100 W | -99 W |
+
+08-06 walked down 81 → 67 V in half an hour and kept going to the clamp.
+08-07, under the *same* deficit, held 91 → 88 V — and made **more** power
+doing it (19.2 W vs 15.7 W at 06:30), which is what sitting near the true MPP
+rather than left of it looks like.
+
+Irradiance does not explain it: a brighter day raises current at a given
+voltage, it does not hold the operating point 20 V higher. Nor does
+temperature — 20 V is far outside its range on Vmp.
+
+**Hypothesis (n=1, explicitly not a conclusion): the difference is that the
+MPPT was bounced at 21:01 the previous evening**, so 08-07 began from a fresh
+sweep while 08-06 began from wherever the tracker had drifted to overnight.
+That bounce was the accidental one caused by the dusk-detection bug — if this
+holds, the bug did something useful by accident.
+
+**If true it is the cheapest preventative yet found**, and much better than
+the retracted current-limit idea: one bounce at dusk, when there is no
+production to interrupt and nothing to lose, may prevent the entire following
+morning's latch.
+
+**Test:** deliberately bounce after sunset on some days and not others, and
+compare next-morning `pv_v` at matched times and matched surplus. Needs
+several days. NOT implemented — it is new automated hardware-writing
+behaviour and wants discussion first.
+
+Either way the model above must weaken: a sustained deficit is **necessary but
+not sufficient**. What decides whether the tracker holds or walks is still
+open, and the tracker's starting state is now the leading candidate.
+
 Note the earlier 12:40 entry in this file predicted the descent then under way
 was "the runaway restarting". It was a genuine descent by the voltage-and-
 power test — but it aborted at 12:55 without intervention, which the
