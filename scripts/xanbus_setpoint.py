@@ -97,6 +97,10 @@ def main() -> int:
     ap.add_argument("--dest", type=int, default=1, help="1 = MPPT, 0 = SW")
     ap.add_argument("--field", choices=sorted(FIELDS), default="absorb_time")
     ap.add_argument("--read", action="store_true", help="read only, no write")
+    ap.add_argument("--instance", type=lambda s: int(s, 0), default=0x04,
+                    help="record instance byte[0]: 0x04 live config (default), "
+                         "0x06 factory defaults. Read-only aid — diffing the "
+                         "two localises flags whose meaning is unmapped.")
     ap.add_argument("--dump", action="store_true",
                     help="hex-dump the whole record (read-only aid: the "
                          "enable flags live outside the mapped offsets)")
@@ -112,6 +116,12 @@ def main() -> int:
     lo_u, hi_u = lo / scale, hi / scale
     print(f"field {args.field}: PGN 0x{pgn:05X} offset {off} unit {unit}")
     print(f"  safe range {lo_u:g}..{hi_u:g} {unit} — {note}")
+
+    if args.set is not None and args.instance != 0x04:
+        print(f"REFUSED: --instance 0x{args.instance:02x} is not the live "
+              f"config (0x04). Other instances are readable only — writing "
+              f"one edits a slot the device does not run from.")
+        return 2
 
     if args.set is not None:
         want_raw = int(round(args.set * scale))
@@ -137,7 +147,7 @@ def main() -> int:
             return 1
         node.pump(6.0)                # let discovery finish first
 
-        original = node.read_record(pgn, args.dest)
+        original = node.read_record(pgn, args.dest, instance=args.instance)
         if original is None:
             print(f"no response for record 0x{pgn:05X}")
             return 1
