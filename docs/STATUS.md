@@ -1,13 +1,41 @@
 # Status snapshot — read this when you come back
 
-## Quickest way to look at the pack
+> **Everything from here down to "Design progress" describes the ORIGINAL
+> laptop-hosted, BLE-polled system, and is HISTORY as of 2026-07-26.** It is
+> kept because the design reasoning below it is still live. For how the system
+> actually runs today, read the section immediately below, then
+> `docs/xanbus-unknowns.md` for the current open questions.
+
+## How it actually runs now (current as of 2026-08-06)
+
+Nothing runs on the laptop. The system is a Pi at the cabin plus a cloud
+server; the laptop is only an operator console.
+
+- **Live screen:** <https://volts.alti2.de/> — SOC hero + power flow.
+  `/history` is the ledger/heatmap/imbalance companion. The pre-2026-08 pages
+  are still at `/v1` and `/v1/history` as a second opinion.
+- **On the Pi (`kwpi`, all systemd, all `Restart=always`):**
+  `volthium-rs485-logger` (**RS485 is primary — BLE is retired**),
+  `volthium-xanbus-telemetry` (CAN → 15 s buckets → spool → Railway),
+  `volthium-xanbus-capture`, `volthium-modbus-poll`,
+  `volthium-uploader`, `volthium-events-uploader`.
+- **Timers:** `volthium-latch-guard` every 10 min (clears an MPPT diode-clamp
+  latch; sun-elevation gated), `volthium-config-watch` hourly (alarms if any
+  charge setpoint changes).
+- **Health check:** `python3 scripts/status_check.py --hours 2` from the repo
+  root — telemetry gaps, wedges, read failures, in one pass.
+
+Read `CLAUDE.md` before touching the Pi. It is a 1 GB box at an unattended
+site and a crash costs weeks of data.
+
+## Quickest way to look at the pack — HISTORICAL
 
 **Double-click `Launch Volthium Monitor.command` in the project root.** It
 starts the logger and dashboard if they aren't running, and opens
 http://localhost:8421/ in your browser. Safe to double-click any number of
 times — it's idempotent.
 
-## Currently running (as of this writing)
+## Currently running (as of this writing) — HISTORICAL, superseded 2026-07-26
 
 - **Logger**: `caffeinate -i .venv/bin/python scripts/log.py …`
   Polls both batteries every 10 s. Writes `data/pack.csv` and
