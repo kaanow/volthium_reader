@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "C:\Taeron\repo\volthium\hardware\reviews\tools\fail_closed_evidence.py", line 15, in <module>
+    os.chdir("/Users/pivot/Documents/repo/volthium_reader")
+FileNotFoundError: [WinError 3] The system cannot find the path specified: '/Users/pivot/Documents/repo/volthium_reader'

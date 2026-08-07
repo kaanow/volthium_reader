@@ -10,10 +10,12 @@ import contextlib
 import importlib.util
 import io
 import os
+from pathlib import Path
 import sys
 
-os.chdir("/Users/pivot/Documents/repo/volthium_reader")
-sys.path.insert(0, "hardware/kicad/pcb")
+REPO = Path(__file__).resolve().parents[3]
+os.chdir(REPO)
+sys.path.insert(0, str(REPO / "hardware/kicad/pcb"))
 import core  # noqa: E402
 
 
