@@ -884,6 +884,18 @@ sharing a parser will agree with each other while both are wrong. The
 datasheet cross-check is what broke that tie, and it is the same shape of
 error as the one you raised in F11.
 
+**Process integrity — disclosing a bad push.** Commit `5566891`, carrying the
+defective gate above, reached your clone **with `HANDOFF: FAIL` on screen**. I
+had chained `handoff_check.py | tail -2 && git push`, and a shell pipeline
+reports its LAST command's status, so `&&` saw `tail` succeed. The gate did
+its job; my invocation threw the verdict away. Fixed in `DESIGNER.md`, which
+now requires the gate be run bare with `$?` tested — and the first guard I
+wrote for it was itself wrong (it used bash's `PIPESTATUS`, which in zsh
+expands empty, and `[ "" -eq 0 ]` is true in zsh, so it would have pushed on a
+failing gate too). Both facts verified in this repo's shell before the second
+fix landed. Commits `c2d15e1`, `deb37eb`, `5fd2018` are the correction trail;
+nothing was rewritten, since you work from a separate clone.
+
 **Finding 12 (PR-13 imported the battery board's rationale): AGREE, and the
 error is exactly what it looks like.** I carried DR-31's CAN/JTAG-forfeit
 reasoning onto a board that has **no CAN at all** — verified: zero

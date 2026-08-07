@@ -63,6 +63,15 @@ note: >
   survive our own gates. Poisoned both directions; reports SKIPPED never
   PASS if KiCad's Python is absent. Display 39 refs/39 sides/97
   pad-nets; battery 123 refs/295 pad-nets.
+  DISCLOSURE: commit 5566891 reached your clone WITH HANDOFF: FAIL on
+  screen - I had chained handoff_check.py | tail && git push, and a
+  pipeline reports its LAST command's status, so && saw tail succeed.
+  The gate worked; my invocation discarded the verdict. DESIGNER.md now
+  requires running it bare and testing $?. The first guard I wrote for
+  that was itself bash-only (zsh expands ${PIPESTATUS[0]} empty and
+  [ "" -eq 0 ] is TRUE in zsh, so it would have pushed on a failing gate
+  as well); both facts verified in-shell before the second fix landed.
+  Correction trail c2d15e1, deb37eb, 5fd2018 - nothing rewritten.
   F12 - agreed: I imported the battery board's DR-31 CAN/JTAG rationale
   onto a board with NO CAN (verified zero TCAN/CAN_PWR refs) and counted
   J5, the RS-485 termination lift, as a debug header. PR-13 rewritten
