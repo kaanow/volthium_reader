@@ -9,6 +9,8 @@ tz). The cloud uploader converts to UTC `Z` on its way out per the project-wide
 convention documented in docs/cloud_architecture.md.
 """
 
+from __future__ import annotations
+
 import argparse
 import asyncio
 import csv

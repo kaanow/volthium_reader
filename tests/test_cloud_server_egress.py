@@ -20,7 +20,18 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+# The server's deps are not installed everywhere the unit suite runs (the repo
+# is developed against the system python, the server against Railway's image).
+# SKIP in that case rather than ERROR: a suite that can never go green teaches
+# people to ignore it, and these two guards then protect nothing.
+try:
+    import fastapi  # noqa: F401
+    HAVE_FASTAPI = True
+except ImportError:                                      # pragma: no cover
+    HAVE_FASTAPI = False
 
+
+@unittest.skipUnless(HAVE_FASTAPI, "fastapi not installed in this interpreter")
 class CloudServerEgressGuards(unittest.TestCase):
     def test_gzip_middleware_enabled(self):
         from fastapi.middleware.gzip import GZipMiddleware

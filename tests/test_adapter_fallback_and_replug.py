@@ -310,7 +310,11 @@ class ReplugTargetTests(unittest.TestCase):
             (bt_class / "hci2").mkdir(parents=True)
             (bt_class / "hci2" / "device").symlink_to(iface, target_is_directory=True)
             found = pack_mod._usb_device_dir_for_hci("hci2", base=bt_class)
-            self.assertEqual(found, usb_dev)
+            # Compare RESOLVED paths. The lookup follows a symlink, and on
+            # macOS the temp dir itself lives under /var -> /private/var, so
+            # the two spellings differ textually while naming the same
+            # directory. That mismatch is the test environment, not the code.
+            self.assertEqual(found.resolve(), usb_dev.resolve())
 
     def test_find_by_hci_none_for_missing(self):
         with TemporaryDirectory() as d:
