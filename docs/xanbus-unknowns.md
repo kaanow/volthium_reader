@@ -599,10 +599,40 @@ Cautionary note on method: the server endpoint and the earlier hand analysis
 they were two implementations of the same method. Agreement between two
 routes only means something when the routes can fail differently.
 
+**Third victim, found the same night: the 30-day energy ledger.**
+`solar_energy_daily` infers production as `GREATEST(solar_w, batt + dc_w)` to
+compensate for the MPPT under-reading — the same two-meter difference, and it
+stays positive after dark. Measured 2026-08-07: **54 Wh of "solar" across
+2.2 hours of full darkness**, ~25 W of pure bias. Fixed by gating the inferred
+branch on array voltage (`pv_v < 15` → use the MPPT reading), which removed
+110-190 Wh/day — about 6% — from every day in the ledger:
+
+| day | before | after |
+|---|---|---|
+| 08-07 (all dark) | 54 Wh | **1 Wh** |
+| 08-06 | 2543 | 2358 |
+| 08-05 | 3835 | 3652 |
+
+Note the gate is on **voltage, not power**, for the third time in this file:
+during a clamp the MPPT reports single-digit watts in broad daylight, so a
+power gate would zero out exactly the hours the inferred branch exists to
+rescue.
+
+**The pattern worth remembering: every place that differenced the two DC
+meters was wrong, and there were three of them** (`/v2` dark path, the daily
+ledger, and my own hand analysis). The one place that was right —
+`dc_load_profile` — compared a meter with itself. Prefer same-meter
+comparisons over cross-meter arithmetic wherever the question allows it.
+
 Open: which meter is right. Unresolvable remotely for the same reason as #5 —
 it needs a clamp meter. Practical rule meanwhile: **trust the BMS shunts for
 absolute DC power** (two of them, and they agree with each other within
 0.8 A), and treat `dc_w` as indicative.
+
+Still unfixed and deliberately so: `load_wh` in the ledger is inverter draw
+only, so it omits the ~0.53 kWh/day fridge. Adding a modelled figure to a
+measured column would mix the two; the honest options are a separate DC-load
+column or leaving it, and that is a display decision, not a data one.
 
 **10. Array health — improving, but the record is CONFOUNDED by the latch.**
 
