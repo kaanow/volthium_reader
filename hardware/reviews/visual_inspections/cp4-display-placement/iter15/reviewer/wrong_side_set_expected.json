@@ -1,0 +1,419 @@
+{
+  "components": [
+    "BTN1",
+    "BTN2",
+    "BTN3",
+    "C1",
+    "C10",
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6",
+    "C7",
+    "C8",
+    "C9",
+    "C_mux",
+    "C_usb1",
+    "C_usb2",
+    "F1",
+    "J-USB",
+    "J1",
+    "J2",
+    "J3",
+    "J5",
+    "MOD1",
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "R5",
+    "R6",
+    "R7",
+    "R_cc1",
+    "R_cc2",
+    "TVS1",
+    "TVS2",
+    "U-ESD",
+    "U1",
+    "U2",
+    "U3-LDO",
+    "U4-MUX"
+  ],
+  "mechanical": [
+    "H1",
+    "H2",
+    "H3",
+    "H4"
+  ],
+  "refdes": {
+    "BTN1": [
+      24.0,
+      53.075
+    ],
+    "BTN2": [
+      42.0,
+      53.075
+    ],
+    "BTN3": [
+      60.0,
+      53.075
+    ],
+    "C1": [
+      12.5,
+      10.825
+    ],
+    "C10": [
+      62.5,
+      47.675
+    ],
+    "C2": [
+      77.0,
+      35.05
+    ],
+    "C3": [
+      34.0,
+      41.95
+    ],
+    "C4": [
+      38.0,
+      42.175
+    ],
+    "C5": [
+      56.0,
+      42.175
+    ],
+    "C6": [
+      42.0,
+      45.825
+    ],
+    "C7": [
+      46.0,
+      42.175
+    ],
+    "C8": [
+      10.0,
+      54.625
+    ],
+    "C9": [
+      46.0,
+      47.675
+    ],
+    "C_mux": [
+      62.0,
+      36.45
+    ],
+    "C_usb1": [
+      62.0,
+      25.175
+    ],
+    "C_usb2": [
+      62.0,
+      31.175
+    ],
+    "F1": [
+      13.0,
+      5.025
+    ],
+    "J-USB": [
+      72.0,
+      53.425
+    ],
+    "J1": [
+      11.0,
+      19.025
+    ],
+    "J2": [
+      42.0,
+      11.225
+    ],
+    "J3": [
+      78.0,
+      53.06
+    ],
+    "J5": [
+      28.0,
+      16.03
+    ],
+    "MOD1": [
+      42.0,
+      40.925
+    ],
+    "R1": [
+      52.0,
+      41.95
+    ],
+    "R2": [
+      29.65,
+      29.0
+    ],
+    "R3": [
+      21.5,
+      20.05
+    ],
+    "R4": [
+      27.0,
+      26.55
+    ],
+    "R5": [
+      16.0,
+      54.85
+    ],
+    "R6": [
+      38.0,
+      47.45
+    ],
+    "R7": [
+      56.0,
+      47.45
+    ],
+    "R_cc1": [
+      77.0,
+      23.45
+    ],
+    "R_cc2": [
+      77.0,
+      31.05
+    ],
+    "TVS1": [
+      23.5,
+      5.075
+    ],
+    "TVS2": [
+      28.85,
+      13.5
+    ],
+    "U-ESD": [
+      70.0,
+      24.125
+    ],
+    "U1": [
+      12.005,
+      42.325
+    ],
+    "U2": [
+      25.5,
+      37.375
+    ],
+    "U3-LDO": [
+      70.0,
+      30.125
+    ],
+    "U4-MUX": [
+      70.0,
+      36.025
+    ]
+  },
+  "side": {
+    "J1": "B",
+    "U1": "B",
+    "J2": "F",
+    "MOD1": "F",
+    "F1": "F",
+    "TVS1": "F",
+    "TVS2": "F",
+    "U2": "F",
+    "R3": "F",
+    "R4": "F",
+    "R2": "F",
+    "J5": "F",
+    "J-USB": "F",
+    "U-ESD": "F",
+    "R_cc1": "F",
+    "R_cc2": "F",
+    "C_usb1": "F",
+    "U3-LDO": "F",
+    "C_usb2": "F",
+    "U4-MUX": "F",
+    "C_mux": "F",
+    "C2": "F",
+    "C3": "F",
+    "C4": "F",
+    "C6": "F",
+    "C7": "F",
+    "R1": "F",
+    "C5": "F",
+    "J3": "F",
+    "BTN1": "F",
+    "BTN2": "F",
+    "BTN3": "F",
+    "R5": "F",
+    "C8": "F",
+    "R6": "F",
+    "C9": "F",
+    "R7": "F",
+    "C10": "F",
+    "H1": "F"
+  },
+  "pads": {
+    "C1/2": "GND",
+    "C1/1": "V12_PROT",
+    "C2/2": "GND",
+    "C2/1": "V3V3_REG",
+    "C_mux/2": "GND",
+    "C_mux/1": "V3V3",
+    "C_usb1/2": "GND",
+    "C_usb1/1": "VBUS",
+    "C_usb2/2": "GND",
+    "C_usb2/1": "Net-(U3-LDO-VOUT)",
+    "F1/1": "V12_CAT5E",
+    "F1/2": "V12_PROT",
+    "TVS1/1": "GND",
+    "TVS1/2": "V12_PROT",
+    "U1/2": "GND",
+    "U1/3": "V3V3_REG",
+    "U1/1": "V12_PROT",
+    "U3-LDO/2": "GND",
+    "U3-LDO/5": "Net-(U3-LDO-VOUT)",
+    "U3-LDO/1": "VBUS",
+    "U3-LDO/3": "VBUS",
+    "U3-LDO/4": "unconnected-(U3-LDO-NC-Pad4)",
+    "U4-MUX/1": "GND",
+    "U4-MUX/3": "Net-(U3-LDO-VOUT)",
+    "U4-MUX/4": "Net-(U3-LDO-VOUT)",
+    "U4-MUX/5": "Net-(U3-LDO-VOUT)",
+    "U4-MUX/2": "V3V3",
+    "U4-MUX/7": "V3V3",
+    "U4-MUX/6": "V3V3_REG",
+    "U4-MUX/8": "unconnected-(U4-MUX-ST-Pad8)",
+    "BTN1/1": "BTN1_IN",
+    "BTN1/2": "GND",
+    "BTN2/1": "BTN2_IN",
+    "BTN2/2": "GND",
+    "BTN3/1": "BTN3_IN",
+    "BTN3/2": "GND",
+    "C6/2": "GND",
+    "C6/1": "V3V3",
+    "C7/2": "GND",
+    "C7/1": "V3V3",
+    "C8/1": "BTN1_IN",
+    "C8/2": "GND",
+    "C9/1": "BTN2_IN",
+    "C9/2": "GND",
+    "C10/1": "BTN3_IN",
+    "C10/2": "GND",
+    "J2/8": "EPD_BUSY",
+    "J2/5": "EPD_CS",
+    "J2/6": "EPD_DC",
+    "J2/7": "EPD_RST",
+    "J2/2": "GND",
+    "J2/3": "SPI_MOSI",
+    "J2/4": "SPI_SCK",
+    "J2/1": "V3V3",
+    "J5/1": "Net-(J5-Pad1)",
+    "J5/2": "RS485_B",
+    "R2/2": "Net-(J5-Pad1)",
+    "R2/1": "RS485_A",
+    "R3/2": "RS485_A",
+    "R3/1": "V3V3",
+    "R4/2": "GND",
+    "R4/1": "RS485_B",
+    "R5/2": "BTN1_IN",
+    "R5/1": "V3V3",
+    "R6/2": "BTN2_IN",
+    "R6/1": "V3V3",
+    "R7/2": "BTN3_IN",
+    "R7/1": "V3V3",
+    "TVS2/2": "RS485_A",
+    "TVS2/1": "RS485_B",
+    "U2/5": "GND",
+    "U2/6": "RS485_A",
+    "U2/7": "RS485_B",
+    "U2/3": "RS485_DE",
+    "U2/4": "RS485_DI",
+    "U2/1": "RS485_RO",
+    "U2/2": "RS485_nRE",
+    "U2/8": "V3V3",
+    "J-USB/A1": "GND",
+    "J-USB/A12": "GND",
+    "J-USB/B1": "GND",
+    "J-USB/B12": "GND",
+    "J-USB/SH": "GND",
+    "J-USB/A5": "Net-(J-USB-CC1)",
+    "J-USB/B5": "Net-(J-USB-CC2)",
+    "J-USB/A7": "USB_DM",
+    "J-USB/B7": "USB_DM",
+    "J-USB/A6": "USB_DP",
+    "J-USB/B6": "USB_DP",
+    "J-USB/A4": "VBUS",
+    "J-USB/A9": "VBUS",
+    "J-USB/B4": "VBUS",
+    "J-USB/B9": "VBUS",
+    "J-USB/A8": "unconnected-(J-USB-SBU1-PadA8)",
+    "J-USB/B8": "unconnected-(J-USB-SBU2-PadB8)",
+    "J1/6": "GND",
+    "J1/7": "GND",
+    "J1/8": "GND",
+    "J1/4": "RS485_A",
+    "J1/5": "RS485_B",
+    "J1/1": "V12_CAT5E",
+    "J1/2": "V12_CAT5E",
+    "J1/3": "V12_CAT5E",
+    "J1/SH": "unconnected-(J1-PadSH)",
+    "J3/6": "BOOT",
+    "J3/5": "DBG_RXD",
+    "J3/3": "DBG_TXD",
+    "J3/4": "GND",
+    "J3/1": "MCU_EN",
+    "J3/2": "V3V3",
+    "R_cc1/2": "GND",
+    "R_cc1/1": "Net-(J-USB-CC1)",
+    "R_cc2/2": "GND",
+    "R_cc2/1": "Net-(J-USB-CC2)",
+    "U-ESD/2": "GND",
+    "U-ESD/3": "USB_DM",
+    "U-ESD/1": "USB_DP",
+    "U-ESD/5": "VBUS",
+    "U-ESD/4": "unconnected-(U-ESD-Pad4)",
+    "U-ESD/6": "unconnected-(U-ESD-Pad6)",
+    "C3/1": "GND",
+    "C3/2": "V3V3",
+    "C4/1": "GND",
+    "C4/2": "V3V3",
+    "C5/2": "GND",
+    "C5/1": "MCU_EN",
+    "MOD1/27": "BOOT",
+    "MOD1/20": "BTN1_IN",
+    "MOD1/21": "BTN2_IN",
+    "MOD1/22": "BTN3_IN",
+    "MOD1/36": "DBG_RXD",
+    "MOD1/37": "DBG_TXD",
+    "MOD1/12": "EPD_BUSY",
+    "MOD1/5": "EPD_CS",
+    "MOD1/6": "EPD_DC",
+    "MOD1/7": "EPD_RST",
+    "MOD1/1": "GND",
+    "MOD1/40": "GND",
+    "MOD1/41": "GND",
+    "MOD1/3": "MCU_EN",
+    "MOD1/38": "RS485_DE",
+    "MOD1/10": "RS485_DI",
+    "MOD1/11": "RS485_RO",
+    "MOD1/8": "RS485_nRE",
+    "MOD1/18": "SPI_MOSI",
+    "MOD1/17": "SPI_SCK",
+    "MOD1/13": "USB_DM",
+    "MOD1/14": "USB_DP",
+    "MOD1/2": "V3V3",
+    "MOD1/39": "unconnected-(MOD1-IO1-Pad39)",
+    "MOD1/15": "unconnected-(MOD1-IO3-Pad15)",
+    "MOD1/4": "unconnected-(MOD1-IO4-Pad4)",
+    "MOD1/19": "unconnected-(MOD1-IO11-Pad19)",
+    "MOD1/9": "unconnected-(MOD1-IO16-Pad9)",
+    "MOD1/23": "unconnected-(MOD1-IO21-Pad23)",
+    "MOD1/28": "unconnected-(MOD1-IO35-Pad28)",
+    "MOD1/29": "unconnected-(MOD1-IO36-Pad29)",
+    "MOD1/30": "unconnected-(MOD1-IO37-Pad30)",
+    "MOD1/31": "unconnected-(MOD1-IO38-Pad31)",
+    "MOD1/32": "unconnected-(MOD1-IO39-Pad32)",
+    "MOD1/33": "unconnected-(MOD1-IO40-Pad33)",
+    "MOD1/34": "unconnected-(MOD1-IO41-Pad34)",
+    "MOD1/35": "unconnected-(MOD1-IO42-Pad35)",
+    "MOD1/26": "unconnected-(MOD1-IO45-Pad26)",
+    "MOD1/16": "unconnected-(MOD1-IO46-Pad16)",
+    "MOD1/24": "unconnected-(MOD1-IO47-Pad24)",
+    "MOD1/25": "unconnected-(MOD1-IO48-Pad25)",
+    "R1/2": "MCU_EN",
+    "R1/1": "V3V3"
+  }
+}

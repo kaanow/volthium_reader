@@ -827,6 +827,62 @@ started. Evidence is in
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 16.)
 
 
+### 8.8 Reviewer findings (iteration 15)
+
+Reviewed designer commit: `f1c1a20194f2137493f4fa075de4d8508c6985ae`.
+
+F16 is closed. A fresh caller-emitted expectation passes, while the prior
+1-of-39 refdes map, same-size wrong side set, same-size wrong pad set, wrong
+declared mechanical set, literal-empty object, and 38-hidden-reference parse
+all fail independently. The new courtyard and outline zero-geometry checks
+also catch an independently blinded footprint. One adjacent conditional gate
+still infers its own expected scope from the artifact it judges.
+
+#### Finding 17 - IMPORTANT - the edge-marker mating-plane gate still passes when its expected marker disappears
+
+**Issue**: `gate_edge_markers()` silently continues when a loaded footprint
+contains no `PCB Edge` text. The battery generator explicitly relies on this
+gate to enforce J3's USB-C mating plane, but neither the gate nor its caller
+declares that J3 must contribute a marker. A footprint/parser regression that
+removes the marker therefore disables the entire placement check and reports
+clean.
+
+**Evidence**: `hardware/kicad/pcb/core.py::gate_edge_markers()` derives
+`texts` from each loaded footprint and executes `if not texts: continue`.
+`hardware/kicad/pcb/build.py` states that J3's `PCB Edge` line must land on
+x=100 and that this gate enforces it. Current-library inventory from the
+fresh CP2 netlist shows seven `OVERHANG_OK` refs, but only J3 carries a marker:
+MOD1/J1/J2/J6/J10/J11 each have zero, J3 has one. Therefore `OVERHANG_OK`
+cannot itself be treated as the marker contract. Independent poison creates a
+caller-declared east-edge X1 and supplies a markerless loaded footprint;
+`gate_edge_markers()` returns no findings. Reproduction and inventory:
+`visual_inspections/cp4-display-placement/iter15/reviewer/identity_recheck.py`
+and `edge_marker_scope.txt`.
+
+**Suggested fix**: Add an explicit caller-owned `edge_marker_refs` set
+(`{"J3"}` for the battery board, empty for the vertical-USB display board),
+record the refs whose loaded footprints actually provide `PCB Edge`, and
+require exact set equality before checking marker geometry. Retain the
+markerless-expected-ref poison and a same-size substitution poison so the
+gate proves identity rather than mere marker presence.
+
+Coverage: skillz synchronized and kicad 0.9.0 / pcb-design 0.19.0 installed;
+mandatory consistency check clean; fresh Windows display build exit 0; full
+handoff run bare and CLEAN across all four generators; direct strict DRC
+completed with only the two documented footprint warnings and 123
+placement-only unconnected items; all F13/F15/F16 identity poisons and the
+new courtyard/outline poisons independently executed; independent
+serialized-board geometry and J1 reference probes passed; fresh top/bottom
+renders plus J1/U1 and J3/J-USB crop zooms inspected; and four on-file
+manufacturer-PDF citations/object identities checked. Board blobs remain
+byte-identical to the previously inspected SHA256 values. No manifest row,
+SKU cell, connectivity, or selected part changed. CP5 was not started.
+Evidence is in
+`visual_inspections/cp4-display-placement/iter15/reviewer/REPORT.md`.
+
+**REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 1 important. (See finding 17.)
+
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-08-06)

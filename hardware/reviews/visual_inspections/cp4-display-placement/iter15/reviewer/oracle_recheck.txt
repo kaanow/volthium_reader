@@ -1,0 +1,25 @@
+Tool: C:\Users\kaanw\AppData\Local\Programs\KiCad\10.0\bin\python.exe
+Board: hardware/kicad/pcb/build_display/display_pcb.kicad_pcb
+
+CONTROL - full_expected.json, exit 0:
+  CROSSCHECK: clean - 39 references, 39 sides, 191 pad-nets (of 191 net-bound pads KiCad sees) agree with KiCad's own engine
+
+POISON - partial_refdes_expected.json, exit 1:
+  refdes map: set mismatch - 1 present vs 39 expected
+
+POISON - wrong_side_set_expected.json, exit 1:
+  side map: set mismatch - 39 present vs 39 expected; missing ['C1'], unexpected ['H1']
+
+POISON - wrong_pad_set_expected.json, exit 1:
+  net-bound pads: set mismatch - 169 present vs 169 expected; missing ['C1/1'], unexpected ['J-USB/A10']
+  expected pads carry an EMPTY net name: ['J-USB/A10']
+  J-USB/A10 has no net-bound pad on the board
+  coverage compared 190 of 191 occurrences
+
+POISON - wrong_mechanical_set_expected.json, exit 1:
+  board footprints: set mismatch - 43 present vs 42 expected; unexpected ['H1']
+
+RETAINED LITERAL-EMPTY POISON, exit 1:
+  CROSSCHECK: FAIL (4), including board-footprint, net-bound-pad, and occurrence-coverage mismatches.
+
+Verdict: F13/F15/F16 oracle repairs pass independent controls.

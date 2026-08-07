@@ -1,0 +1,12 @@
+Command: .venv\Scripts\python.exe hardware\reviews\visual_inspections\cp4-display-placement\iter15\reviewer\identity_recheck.py
+Exit: 0
+
+control/components=39 mechanical=4 refdes=39 sides=39 pad_keys=169
+control/parse_coverage_findings=[]
+hidden/visible_boxes=1 expected=39
+hidden/parse_coverage_findings=['[parse-coverage] visible reference boxes: set mismatch - 1 present vs 39 expected; missing ... unexpected []']
+courtyard/empty_geometry_findings=['[courtyard] X1 (Probe:NoCourtyard) contributed NO courtyard geometry - it is excluded from every collision test while appearing covered', '[outline] X1 (Probe:NoCourtyard) contributed NO courtyard geometry - it was never tested against the board edge']
+edge-marker/declared_but_markerless_findings=[]
+wrote four oracle poison JSON files
+
+Verdict: F16 identity and the new courtyard/outline guards pass their poisons. The edge-marker gate still returns clean when a caller-declared edge connector contributes no `PCB Edge` marker.

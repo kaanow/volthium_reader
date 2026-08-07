@@ -1,0 +1,13 @@
+Battery generator declared overhang refs and marker inventory, read from the current CP2 netlist plus loaded footprint libraries:
+
+MOD1 volthium:ESP32-S3-WROOM-1_HSvia0.3 0
+J1 Connector_Phoenix_MSTB:PhoenixContact_MSTBA_2,5_2-G-5,08_1x02_P5.08mm_Horizontal 0
+J2 Connector_RJ:RJ45_Amphenol_RJHSE5380 0
+J3 Connector_USB:USB_C_Receptacle_GCT_USB4085 1
+J6 Connector_RJ:RJ45_Amphenol_RJHSE5380 0
+J10 Connector_RJ:RJ45_Amphenol_RJHSE5380 0
+J11 Connector_RJ:RJ45_Amphenol_RJHSE5380 0
+
+`hardware/kicad/pcb/build.py` explicitly says J3's `PCB Edge` line must land on x=100 and that `gate_edge_markers` enforces it. The current gate infers its scope from the loaded footprint and silently `continue`s if no marker is parsed. Independent poison supplies X1 in caller intent (`overhang_ok={X1: E}`) but a markerless loaded footprint; `gate_edge_markers()` returns no findings.
+
+Verdict: the marker-bearing ref set needs an explicit caller-owned contract (J3 for the battery board), rather than being inferred from the artifact under test.
