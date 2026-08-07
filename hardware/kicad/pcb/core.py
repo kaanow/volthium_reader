@@ -629,11 +629,10 @@ class BoardBuilder:
         self.gate_readback(path)
         self.findings += label_adjacency_findings(
             refdes_boxes_from_board(text))
-        if prop_overrides:
-            assert_refdes_roundtrip(self.components, self.placement,
-                                    prop_overrides, self.findings)
-            self.findings += refdes_over_body_findings(
-                self.components, self.placement, prop_overrides)
+        assert_refdes_roundtrip(text, self.findings)
+        self.findings += refdes_over_body_findings(text)
+        pcbnew_crosscheck(path, self.components, self.placement,
+                          refdes_boxes_from_board(text), self.findings)
 
     def gate_readback(self, path):
         """Judge the WRITTEN artifact: re-parse the .kicad_pcb text and
@@ -829,6 +828,7 @@ def _rects_overlap(a, b, margin=0.15):
 
 
 _REFDES_SELECTED = {}
+_REFDES_FALLBACK = set()
 
 
 def auto_refdes(components, placement, board_w, board_h,
@@ -947,6 +947,7 @@ def auto_refdes(components, placement, board_w, board_h,
                 break
         if chosen is None:
             unplaced.append(ref)
+            _REFDES_FALLBACK.add(ref)
             continue
         tcx, tcy, ang, rect, font = chosen
         placed_text.append(rect)
@@ -984,66 +985,178 @@ def refdes_local_to_board(lx, ly, x, y, rot, side):
     return (x + rx, y + ry)
 
 
-def assert_refdes_roundtrip(components, placement, overrides, findings):
-    """Every emitted Reference must land where auto_refdes chose it.
+def bodies_from_board(board_text):
+    """(ref, side, bbox) for every footprint, parsed from the WRITTEN board.
 
-    CP4 F09: the board->local inverse and the writer's local->board
-    application disagreed for back-side parts, so a designator selected in
-    clear space was emitted under a neighbouring body. No amount of
-    reasoning about axes catches that; a round trip does.
+    Emitted-text based on purpose (CP4 F11): a gate that reads the
+    generator's in-memory model shares that model's mistakes. Body extent
+    comes from the footprint's own *.Fab graphics as serialized, falling
+    back to *.CrtYd.
     """
-    for ref, ov in overrides.items():
-        if ref not in placement:
+    out = []
+    for m in re.finditer(r'\n  \(footprint "([^"]+)"', board_text):
+        start = m.start() + 1
+        ch = board_text[start:_balanced(board_text, start + 2)]
+        atm = re.search(r'\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', ch)
+        pm = re.search(r'\(property "Reference" "([^"]+)"', ch)
+        if not atm or not pm:
             continue
-        x, y, rot, side = placement[ref]
-        bx, by = refdes_local_to_board(ov[0], ov[1], x, y, rot, side)
+        fx, fy = float(atm.group(1)), float(atm.group(2))
+        frot = float(atm.group(3)) if atm.group(3) else 0.0
+        side = "B" if re.search(r'\(layer "B\.Cu"\)', ch[:400]) else "F"
+        for lay in ("Fab", "CrtYd"):
+            pts = []
+            for g in re.finditer(
+                    r'\(start ([-\d.]+) ([-\d.]+)\)\s*\(end ([-\d.]+) ([-\d.]+)\)'
+                    r'[\s\S]{0,200}?\(layer "[FB]\.' + lay + r'"\)', ch):
+                for a, b in ((0, 1), (2, 3)):
+                    pts.append((float(g.group(a + 1)), float(g.group(b + 1))))
+            if pts:
+                # serialized coords are already in the footprint's emitted
+                # frame, so only anchor+rotation applies (no mirror)
+                bp = [_xf(q, fx, fy, frot, False) for q in pts]
+                out.append((pm.group(1), side,
+                            (min(q[0] for q in bp), min(q[1] for q in bp),
+                             max(q[0] for q in bp), max(q[1] for q in bp))))
+                break
+    return out
+
+
+def refdes_over_body_findings(board_text):
+    """Reference TEXT BOX vs component bodies on the same side.
+
+    Three escapes the first cut allowed (CP4 F11), all closed here:
+      * it consumed in-memory overrides, not the emitted board;
+      * it tested only the text ANCHOR, so a label whose anchor cleared a
+        body while the text lay across it passed;
+      * it skipped the part's OWN body, though a designator printed on its
+        own component is exactly as unreadable after assembly.
+    """
+    boxes = refdes_boxes_from_board(board_text)
+    bodies = bodies_from_board(board_text)
+    side_of = {r: s for r, s, _ in bodies}
+    out = []
+    for ref, (x0, y0, x1, y1) in boxes:
+        rside = side_of.get(ref)
+        for other, oside, (ox0, oy0, ox1, oy1) in bodies:
+            if rside is not None and oside != rside:
+                continue
+            if x0 < ox1 and x1 > ox0 and y0 < oy1 and y1 > oy0:
+                who = "its own body" if other == ref else f"{other}'s body"
+                out.append(
+                    f"[refdes-on-body] {ref} text box "
+                    f"({x0:.2f},{y0:.2f})..({x1:.2f},{y1:.2f}) overlaps "
+                    f"{who} ({ox0:.2f},{oy0:.2f})..({ox1:.2f},{oy1:.2f}) "
+                    f"on the {oside} side — unreadable once fitted")
+    return out
+
+
+def assert_refdes_roundtrip(board_text, findings):
+    """Anchor parsed from the EMITTED board == the point auto_refdes chose.
+
+    Reads the written file rather than the override dict, and re-derives
+    the anchor here rather than calling the placer's own forward helper —
+    otherwise a wrong transform simply agrees with itself (CP4 F11).
+    """
+    # A gate that quietly has nothing to check is not a gate. If the placer
+    # never ran (or ran for a different board) this dict is empty and every
+    # ref below would be skipped, passing silently — the same class as the
+    # mounting holes that contributed zero geometry while looking gated.
+    visible = [mm.group(1) for mm in
+               re.finditer(r'\(property "Reference" "([^"]+)"', board_text)]
+    if visible and not _REFDES_SELECTED:
+        findings.append(
+            "[refdes-roundtrip] no placement selections recorded while the "
+            f"board carries {len(visible)} references — auto_refdes did not "
+            "run before this gate, so the round trip checked nothing")
+        return
+    unchecked = [r for r in visible
+                 if r not in _REFDES_SELECTED and r not in _REFDES_FALLBACK
+                 and not r.startswith("H")]
+    if unchecked:
+        findings.append(
+            f"[refdes-roundtrip] no selection recorded for {unchecked} — "
+            "these were neither placed by auto_refdes nor recorded as "
+            "library fallbacks, so nothing verified their position")
+    for m in re.finditer(r'\n  \(footprint "([^"]+)"', board_text):
+        start = m.start() + 1
+        ch = board_text[start:_balanced(board_text, start + 2)]
+        atm = re.search(r'\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?\)', ch)
+        pm = re.search(r'\(property "Reference" "([^"]+)"', ch)
+        if not atm or not pm:
+            continue
+        ref = pm.group(1)
         sel = _REFDES_SELECTED.get(ref)
         if sel is None:
             continue
+        blk = ch[pm.start():_balanced(ch, pm.start())]
+        bat = re.search(r'\(at ([-\d.]+) ([-\d.]+)', blk)
+        fx, fy = float(atm.group(1)), float(atm.group(2))
+        frot = float(atm.group(3)) if atm.group(3) else 0.0
+        dx, dy = float(bat.group(1)), float(bat.group(2))
+        c, s = math.cos(math.radians(frot)), math.sin(math.radians(frot))
+        bx, by = fx + (dx * c + dy * s), fy + (-dx * s + dy * c)
         if abs(bx - sel[0]) > 0.01 or abs(by - sel[1]) > 0.01:
             findings.append(
-                f"[refdes-roundtrip] {ref}: auto_refdes chose board "
-                f"({sel[0]:.2f},{sel[1]:.2f}) but the emitted local "
-                f"{ov[:2]} lands at ({bx:.2f},{by:.2f}) — the inverse and "
-                "the writer disagree")
+                f"[refdes-roundtrip] {ref}: placer chose "
+                f"({sel[0]:.2f},{sel[1]:.2f}) but the EMITTED board puts it "
+                f"at ({bx:.2f},{by:.2f})")
 
 
-def refdes_over_body_findings(components, placement, overrides):
-    """Visible reference text vs OTHER components' bodies, same side.
+def kicad_python():
+    """KiCad's bundled interpreter, or None. Best-effort and never fatal —
+    but a caller must report SKIPPED, never PASS, when this is None."""
+    import shutil
+    cands = [
+        "/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/"
+        "Versions/Current/bin/python3",
+        str(Path(KICAD_CLI).parent / "python.exe"),
+        str(Path(KICAD_CLI).parent / "python3"),
+        shutil.which("kicad-python") or "",
+    ]
+    for c in cands:
+        if c and Path(c).exists():
+            return c
+    return None
 
-    The label-adjacency gate compares refdes to refdes; it never noticed a
-    designator sitting on top of a part, which is just as unreadable after
-    assembly (CP4 F09: J1's reference inside U1's body box).
+
+def pcbnew_crosscheck(board_path, components, placement, refdes_boxes,
+                      findings):
+    """Re-derive our assertions with KiCad's OWN engine (CP4, post-F11).
+
+    Our gates read the board with the assumptions that wrote it, so a bad
+    transform agrees with itself. This asks a different implementation.
     """
-    out = []
-    bodies = {}
-    for ref, (x, y, rot, side) in placement.items():
-        if ref not in components:
-            continue
-        d = fplib.FpDims(components[ref]["footprint"])
-        box = d.fab_bbox or d.courtyard
-        if not box:
-            continue
-        pts = [_xf((px, py), x, y, rot, side == "B")
-               for px, py in ((box[0], box[1]), (box[2], box[1]),
-                              (box[2], box[3]), (box[0], box[3]))]
-        bodies[ref] = (side, min(p[0] for p in pts), min(p[1] for p in pts),
-                       max(p[0] for p in pts), max(p[1] for p in pts))
-    for ref, ov in overrides.items():
-        if ref not in placement:
-            continue
-        x, y, rot, side = placement[ref]
-        bx, by = refdes_local_to_board(ov[0], ov[1], x, y, rot, side)
-        for other, (oside, ox0, oy0, ox1, oy1) in bodies.items():
-            if other == ref or oside != side:
-                continue
-            if ox0 <= bx <= ox1 and oy0 <= by <= oy1:
-                out.append(
-                    f"[refdes-on-body] {ref} reference anchor "
-                    f"({bx:.2f},{by:.2f}) sits inside {other}'s body "
-                    f"({ox0:.2f},{oy0:.2f})..({ox1:.2f},{oy1:.2f}) on the "
-                    f"{side} side — hidden once {other} is fitted")
-    return out
+    py = kicad_python()
+    tool = Path(__file__).resolve().parents[2] / \
+        "reviews/tools/pcbnew_crosscheck.py"
+    if py is None or not tool.exists():
+        print("[crosscheck] SKIPPED — KiCad's Python not found; the "
+              "independent oracle did NOT run")
+        return
+    exp = {"refdes": {r: [round((b[0] + b[2]) / 2, 3),
+                          round((b[1] + b[3]) / 2, 3)]
+                      for r, b in refdes_boxes},
+           "side": {r: s for r, (_, _, _, s) in placement.items()
+                    if r in components},
+           "pads": {}}
+    for ref, v in components.items():
+        for pad, net in list(v["pins"].items())[:4]:
+            exp["pads"][f"{ref}/{pad}"] = net
+    import json as _json
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+        _json.dump(exp, f)
+        expected = f.name
+    r = subprocess.run([py, str(tool), str(board_path), expected],
+                       capture_output=True, text=True, encoding="utf-8",
+                       errors="replace")
+    out = (r.stdout or "").strip().splitlines()
+    for line in out:
+        if line.strip():
+            print("[crosscheck]", line)
+    if r.returncode != 0:
+        findings.append("[crosscheck] KiCad's own engine disagrees with our "
+                        "model — see the lines above")
 
 
 def core_xf(p, x, y, deg, back):

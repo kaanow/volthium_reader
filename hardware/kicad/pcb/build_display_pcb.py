@@ -265,6 +265,14 @@ ENVELOPES = {
 }
 
 
+# Explicit refdes spots where the auto placer's last-resort on-body fallback
+# would hide a designator under its own part (CP4 F11 gate). Both sit in
+# clear bands verified against the emitted board.
+MANUAL_REFDES = {
+    "J-USB": (72.0, 62.0, 0),   # below the connector, clear of the M3 hole
+    "TVS2":  (23.5, 10.8, 0),   # between TVS1's body and TVS2's own
+}
+
 def annotate_envelopes(bb):
     """Draw each tall part's body outline + height on Cmts.User."""
     from kiutils.items.gritems import GrRect, GrText
@@ -312,7 +320,8 @@ def main():
         bans = {k: [tuple(v) for v in vs]
                 for k, vs in _json.loads(
                     bans_file.read_text(encoding="utf-8")).items()}
-    refdes_ov, refdes_unplaced = core.auto_refdes(COMPS, P, W, H, banned=bans)
+    refdes_ov, refdes_unplaced = core.auto_refdes(
+        COMPS, P, W, H, manual=MANUAL_REFDES, banned=bans)
     if refdes_unplaced:
         print(f"[refdes] library-fallback: {refdes_unplaced}")
     annotate_envelopes(bb)

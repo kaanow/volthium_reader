@@ -1,0 +1,21 @@
+CP4 iter8 — independent pcbnew cross-check poison test
+======================================================
+Purpose: our gates read the board with the assumptions that wrote it.
+This asks KiCad's OWN engine instead, breaking that correlation.
+
+--- CONTROL (as built):
+[crosscheck] CROSSCHECK: clean — 39 references, 39 sides, 97 pad-nets agree with KiCad's own engine
+
+--- POISON: corrupt our model's idea of where refdes sit (+5mm)
+[crosscheck] CROSSCHECK: FAIL (39)
+[crosscheck]    BTN1 refdes: our model (29.000,53.075) vs KiCad (24.000,53.075)
+[crosscheck]    BTN2 refdes: our model (47.000,53.075) vs KiCad (42.000,53.075)
+[crosscheck]    BTN3 refdes: our model (65.000,53.075) vs KiCad (60.000,53.075)
+
+--- POISON: claim a back-side part is front-side
+[crosscheck] CROSSCHECK: FAIL (2)
+[crosscheck]    J1 side: our model F, KiCad B
+[crosscheck]    U1 side: our model F, KiCad B
+
+--- RESTORED control:
+[crosscheck] CROSSCHECK: clean — 39 references, 39 sides, 97 pad-nets agree with KiCad's own engine

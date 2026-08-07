@@ -1,0 +1,40 @@
+CP4 iter8 — refdes gates now read the EMITTED board (reviewer F11)
+==================================================================
+The first cut consumed in-memory overrides through its own coupled forward
+helper, tested only the text ANCHOR, and skipped the part's OWN body. All
+three escapes are closed; each is poisoned below, with a control.
+
+0. CONTROL — as built:  clean
+
+1. POISON — anchor CLEARS a body but the TEXT BOX lies across it
+   BTN2 anchor moved to (38.00,57.50); body is (39.00,54.00)..(46.75,61.00)
+   anchor inside body? False        text overlaps body? True
+   -> [refdes-on-body] BTN2 text box (36.10,56.77)..(39.90,58.23) overlaps
+      its own body (39.00,54.00)..(46.75,61.00) on the F side
+   (the anchor-only first cut passed this exact case)
+
+2. POISON — designator printed on its OWN body
+   -> [refdes-on-body] U2 text box (24.55,32.77)..(26.45,34.23) overlaps its
+      own body (21.80,30.80)..(29.20,36.20) on the F side
+   (the first cut skipped own bodies entirely)
+
+3. POISON — emitted anchor moved away from the placer's choice
+   -> [refdes-roundtrip] BTN1: placer chose (24.00,53.07) but the EMITTED
+      board puts it at (30.65,53.08)
+   (the first cut re-derived from memory with the same helper, so it agreed
+    with itself no matter what the writer did)
+
+4. POISON — the gate runs with NO placer selections (silent-pass class)
+   -> [refdes-roundtrip] no placement selections recorded while the board
+      carries 43 references — auto_refdes did not run before this gate, so
+      the round trip checked nothing
+   (found while poisoning: the gate skipped every ref when its selection
+    dict was empty. Same class as the mounting holes that contributed zero
+    geometry while appearing gated. Now a hard finding, plus a per-ref
+    "no selection recorded" check for anything neither placed nor recorded
+    as a library fallback.)
+
+Two real defects the strengthened gate caught on the live board, both
+"own body" cases the anchor-only version had passed: J-USB and TVS2
+designators printed on their own parts. Fixed with explicit spots
+(MANUAL_REFDES) in clear bands, verified against the emitted board.

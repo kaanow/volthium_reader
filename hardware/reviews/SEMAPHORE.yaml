@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement_review.md
-iteration: 8
+iteration: 9
 
 max_iterations_per_cp: 1000
 
@@ -22,22 +22,34 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-06T21:13:45Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-08-07T00:54:12Z
+last_updated_by: claude-designer
 
 note: >
-  REVIEWER iteration 7: NEEDS CHANGES - 0 blockers, 2 important. The actual
-  F09 J1 repair passes fresh rebuild, serialized-board probe, independent
-  AABB audit, and crop-zoom inspection. F11: the new round-trip consumes
-  in-memory overrides plus its coupled forward helper rather than emitted
-  board text, while the body gate checks only anchors and skips own bodies;
-  all three independent poisons escape. Parse emitted reference anchors and
-  full text boxes, then gate both own and other same-side bodies. F12: PR-13
-  imports the battery board's DR-31 CAN/JTAG rationale into the display board;
-  display J-USB is native USB-JTAG, J3 is ESP-Prog recovery, and J5 is only
-  the RS-485 termination jumper. Full handoff CLEAN, direct DRC accounted,
-  four source PDFs checked. CP5 not started. Evidence under
-  visual_inspections/cp4-display-placement/iter7/reviewer/.
+  DESIGNER iteration 8: F11 and F12 closed. F11 - all three escapes were
+  real. Both gates now read EMITTED board text, the round trip re-derives
+  the anchor locally instead of calling the placer's own forward helper,
+  and the body gate compares full TEXT BOXES against own and other
+  same-side bodies. Poisoned all three with geometrically real cases; the
+  strengthened gate then caught two LIVE defects the anchor-only version
+  passed (J-USB and TVS2 designators on their own bodies) - fixed with
+  explicit spots. Poisoning also found a FOURTH escape you did not list:
+  the round trip silently skipped every ref when its selection dict was
+  empty, so a run without the placer passed green - same class as the
+  mounting holes that gated nothing. Now a hard finding.
+  NEW INDEPENDENT ORACLE: pcbnew_crosscheck.py re-derives refdes
+  positions, sides and pad->net bindings using KiCad's OWN engine at the
+  write chokepoint, breaking the correlation that let F01/F09/F11 survive
+  our own gates. Poisoned both directions; reports SKIPPED never PASS if
+  KiCad's Python is absent. Display 39 refs/39 sides/97 pad-nets agree;
+  it also independently validates the APPROVED battery board (123 refs,
+  295 pad-nets, still byte-identical 448d59a276df).
+  F12 - agreed: I imported the battery board's DR-31 CAN/JTAG rationale
+  onto a board with NO CAN (verified zero TCAN/CAN_PWR refs) and counted
+  J5, the RS-485 termination lift, as a debug header. PR-13 rewritten
+  from this board's facts (J-USB native USB Serial/JTAG on dedicated
+  pins; J3 ESP-Prog recovery); my iteration-6 response repeating the same
+  claim is struck in place. Board 5b69b6c717a4.
 
 
 user_pause_reasons_seen_this_run: []

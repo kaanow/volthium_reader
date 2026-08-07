@@ -10,7 +10,7 @@ Scope per D12: **display side only** (battery-side placement was CP3, APPROVED).
   (sha256 `41145f58b214…`), 39 components / 56 nets. **Three** CP4-driven
   schematic-side deltas — §4.1 and §4.5.
 - Output: `hardware/kicad/pcb/build_display/display_pcb.kicad_pcb`
-  (sha256 `dc28b2fe36e6…`) — 43 footprints (39 parts + 4 M3 mounting
+  (sha256 `5b69b6c717a4…`) — 43 footprints (39 parts + 4 M3 mounting
   holes), all pads net-bound, **placement only** (routing is CP5).
 - Hashes are of the committed git BLOB (`git cat-file blob HEAD:<path>`).
 - Rebuild: POSIX `.venv/bin/python hardware/kicad/pcb/build_display_pcb.py`
@@ -266,7 +266,7 @@ packet, and iteration-1 F03 called it out. Completed here (reviewer F05).*
 | PR-10 | PASS | RS-485 A/B adjacent J1→TVS2→U2; USB D± through inline U-ESD; SPI grouped on J2's north edge |
 | PR-11 | PASS | `solder_mask_bridge` 0 of any name in the `--severity-all` report |
 | PR-12 | PASS | same evidence as F-P-3 |
-| PR-13 | PASS | debug/service headers placed per the design: **J3** ESP-Prog 2×3 IDC on the FRONT face at (78, 44) and **J-USB** vertical USB-C at (72, 57), both reachable straight-on once the faceplate and e-paper module come away (D27/D40); **J5** RS-485 termination jumper at (28, 20). No SWD/JTAG — the ESP32-S3's JTAG pins were forfeited to the CAN gate (DR-31), so ESP-Prog + USB are the debug path. |
+| PR-13 | PASS | Debug/programming path for **this** board: **J-USB** (72, 57) is the ESP32-S3's **native USB**, which carries the built-in USB Serial/JTAG peripheral on the dedicated D+/D− pins — so USB debugging costs no GPIOs here; and **J3** (78, 44) is the keyed 2×3 ESP-Prog header (§4.8), the USB-independent force-download/recovery path for a board that deep-sleeps between frames. Both sit on the front face, reachable once the faceplate and e-paper module come away (D27/D40). **Corrected at iteration 8 (F12):** the previous row imported the BATTERY board's DR-31 CAN/JTAG-forfeit rationale — this board has **no CAN** (zero TCAN/CAN_PWR references in the display generator, checked) so that trade never applied here — and it miscounted **J5** as a debug header; J5 is the RS-485 termination lift jumper (cp1_display_side §4.5), not a debug interface. |
 
 **Mechanical criteria specific to CP4** (this board is mechanics-led):
 
@@ -809,7 +809,60 @@ was testing.
 **Finding 10 (PR-13 omitted): AGREE.** Added with evidence — J3 ESP-Prog on
 the front at (78, 44) and the vertical J-USB at (72, 57), both reachable
 once the faceplate and module come away (D27/D40), plus J5's termination
-jumper. Recorded explicitly that there is **no SWD/JTAG**: those pins were
-forfeited to the CAN gate under DR-31, so ESP-Prog plus USB are the debug
-path. D13 says one row per *applicable* criterion, and applicability was
+jumper. ***Superseded at iteration 8 (F12): that justification was wrong.***
+It imported the BATTERY board's DR-31 CAN/JTAG-forfeit reasoning into a board
+that has no CAN at all, and counted J5 — the RS-485 termination lift — as a
+debug header. The corrected row is in §7. D13 says one row per *applicable* criterion, and applicability was
 mine to determine — stopping at PR-12 was me truncating the table.
+
+
+### 9.4 Responses to §8.3 iteration 7 (iteration 8, 2026-08-06)
+
+**Finding 11 (the new gates were still self-correlated): AGREE on all three
+escapes — you were describing the exact weakness that has now bitten twice.**
+
+Both gates now read the **emitted board text**, not the in-memory override
+dict, and the round trip re-derives the anchor locally instead of calling the
+placer's own forward helper — otherwise a wrong transform simply agrees with
+itself. The body gate now compares full **text boxes** (not anchors) against
+**own and other** same-side bodies.
+
+Poisoned all three (`iter8/refdes_gate_poison_v2.txt`), each constructed to
+create the geometric condition rather than merely look like it:
+- anchor clears a body while the text lies across it → caught;
+- designator printed on its own body → caught;
+- emitted anchor moved off the placer's choice → caught.
+
+**The strengthened gate immediately found two live defects** the anchor-only
+version had passed: J-USB and TVS2 designators printed on their own parts,
+invisible once fitted. Fixed with explicit spots in verified clear bands.
+
+**And poisoning found a fourth escape you did not list**, which I think is the
+worst of them: the round trip silently skipped *every* reference when its
+selection dict was empty, so a run where the placer never executed would pass
+green. Same class as the mounting holes that contributed zero geometry while
+appearing gated. It is now a hard finding, plus a per-reference check for
+anything neither placed nor recorded as a library fallback.
+
+**New: an independent oracle.** The root problem behind F01, F09 and F11 is
+that our gates read the board with the assumptions that wrote it, so only an
+outside probe — yours, each time — could break the tie. `pcbnew_crosscheck.py`
+now re-derives reference positions, footprint sides and pad→net bindings using
+**KiCad's own engine** under its bundled Python, at the write chokepoint.
+Poison-tested in both directions (`iter8/pcbnew_crosscheck_poison.txt`); it
+reports **SKIPPED, never PASS**, if KiCad's Python is absent, because an
+oracle that quietly did not run is worse than none. Current state: display
+39/39 references, 39 sides, 97 pad-nets agree; and it also independently
+validates the **approved battery board** — 123 references, 295 pad-nets, still
+byte-identical at `448d59a276df`.
+
+**Finding 12 (PR-13 imported the battery board's rationale): AGREE, and the
+error is exactly what it looks like.** I carried DR-31's CAN/JTAG-forfeit
+reasoning onto a board that has **no CAN at all** — verified: zero
+TCAN/CAN_PWR references in the display generator — and counted **J5**, the
+RS-485 termination lift, as a debug header. Rewritten from this board's own
+facts: **J-USB** is the ESP32-S3's native USB, carrying the built-in USB
+Serial/JTAG peripheral on the dedicated D+/D− pins so it costs no GPIOs here;
+**J3** is the keyed 2×3 ESP-Prog force-download/recovery path for a board that
+deep-sleeps between frames. My iteration-6 §9.3 response repeated the same
+false claim and is struck in place rather than left standing.
