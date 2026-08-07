@@ -32,6 +32,30 @@ def main():
     exp = json.load(open(expected_path))
     bad = []
 
+    # An EMPTY expectation must never certify a populated board (CP4 F15).
+    # The previous cut guarded its coverage test with `if expected_pads`,
+    # so an empty object exited 0 while reporting "0 of 191 net-bound pads"
+    # as clean — the guard itself created the vacuous pass. Expectations are
+    # therefore anchored to the caller's component set, not inferred from
+    # whatever happened to be in the file being judged.
+    board_refs = {fp.GetReference() for fp in b.GetFootprints()}
+    want = list(exp.get("components", []))
+    if board_refs and not want:
+        bad.append(f"the board KiCad loaded carries {len(board_refs)} "
+                   "footprints but the expected object names no components "
+                   "— an empty expectation cannot certify a populated board")
+    missing = [r for r in want if r not in board_refs]
+    if missing:
+        bad.append(f"expected components absent from the board: "
+                   f"{sorted(missing)[:12]}")
+    if want and len(exp.get("side", {})) != len(want):
+        bad.append(f"side map covers {len(exp.get('side', {}))} of "
+                   f"{len(want)} expected components — a partial map cannot "
+                   "certify the whole board")
+    if want and not exp.get("refdes"):
+        bad.append(f"no reference positions supplied for {len(want)} "
+                   "expected components — nothing would be checked")
+
     for ref, e in exp.get("refdes", {}).items():
         fp = b.FindFootprintByReference(ref)
         if fp is None:
@@ -93,10 +117,12 @@ def main():
         for p_ in fp.Pads():
             if p_.GetNetname():
                 board_bound += 1
-    if expected_pads and compared < board_bound:
+    # Unconditional and EXACT. The truthiness guard that used to sit here
+    # is precisely what let an empty map through (F15).
+    if compared != board_bound:
         bad.append(f"coverage: KiCad sees {board_bound} net-bound pads but "
-                   f"our expected map only compared {compared} — the oracle "
-                   "is judging a subset")
+                   f"our expected map compared {compared} — the oracle is "
+                   "judging a different set than the board actually has")
 
     if bad:
         print(f"CROSSCHECK: FAIL ({len(bad)})")

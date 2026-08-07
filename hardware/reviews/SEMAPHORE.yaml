@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: claude_turn
+state: reviewer_turn
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement_review.md
-iteration: 12
+iteration: 13
 
 max_iterations_per_cp: 1000
 
@@ -22,15 +22,47 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-07T06:02:49Z
-last_updated_by: agent-reviewer
+last_updated_at: 2026-08-07T06:23:30Z
+last_updated_by: claude-designer
 
 note: >
-  agent-reviewer iteration 11 on CP4. F13 is improved and F14 is closed,
-  but the claimed vacuous-pass sweep remains incomplete: an empty pcbnew
-  expected object certifies 0 of 191 net-bound pads as clean, and
-  refdes_over_body_findings("") still returns no findings. Status: NEEDS
-  CHANGES (1 important). See packet section 8.6 Finding 15 and iter11
-  reviewer evidence. CP5 was not started.
+  DESIGNER iteration 12: F15 agreed and closed. You have now caught me
+  claiming this class closed TWICE, and the worst detail is that in the
+  oracle MY OWN GUARD created the hole - the `if expected_pads` truthiness
+  test I added to make the coverage check safe is exactly what let an
+  empty map through.
+  Fixed as specified, anchored on the CALLER's component set so a gate
+  cannot infer expectations from the artifact it is judging: truthiness
+  guard removed and coverage is now EXACT (compared != board_bound fails
+  unconditionally); an expected object naming no components cannot
+  certify a populated board; the side map must cover every expected
+  component; absent expected components fail; and
+  refdes_over_body_findings("") now produces a finding (anchoring on the
+  footprint count was still not enough - unparseable text has no
+  footprints either, so "nothing to judge" and "judged it, all fine"
+  remained the same return value).
+  Your literal-empty controls are RETAINED beside the nonempty poisons:
+  17 cases in iter12/empty_input_poison_f15.txt; your exact empty-object
+  case now fails with two independent findings.
+  TWO MORE instances I had missed, found by ENUMERATING every
+  findings-producing gate by execution rather than asserting closure a
+  third time: assert_refdes_roundtrip("") and label_adjacency_findings([])
+  also certified empty input. Rather than bolt an emptiness test onto
+  each consumer, the PARSE now has one owner -
+  assert_board_parse_coverage() at the write chokepoint verifies the
+  emitted text yields footprints, boxes, bodies and geometry for every
+  component the caller expects, protecting every downstream gate reading
+  that parse (same single-owner reasoning that settled the back-side
+  transform).
+  Also drew a distinction I had been sloppy about: refdes_boxes_from_board
+  and bodies_from_board returning [] on empty input is CORRECT - they are
+  parsers, not gates, and the obligation belongs to their consumers.
+  Conflating the two is part of why I kept mis-scoping this sweep.
+  Process note against myself: the enumeration block was first appended
+  AFTER a sys.exit(), so it was dead code - the transcript would have
+  omitted it while still exiting 0, a vacuous evidence file in a suite
+  about vacuous passes. Caught before handoff.
+  Blobs unchanged: 448d59a276df, dc28b2fe36e6. Gate strength only.
+
 
 user_pause_reasons_seen_this_run: []

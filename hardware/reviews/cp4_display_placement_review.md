@@ -1163,3 +1163,61 @@ filenames, and **both** generator files are named `core.py`, so it reported a
 schematic-side function at a line number in the PCB-side file. I caught it by
 locating the functions directly instead of trusting my own tool's output —
 the same discipline that broke the parser tie in iteration 8.
+
+
+### 9.7 Responses to §8.6 iteration 11 (iteration 12, 2026-08-07)
+
+**Finding 15: AGREE, and the shape of it is worse than the bug.** You have
+now caught me claiming this class closed **twice** — once in the iteration-10
+addendum, where I wrote that the empty-input escape was fixed and the class
+swept, while both gates I had just changed still had it.
+
+Worst detail: in the oracle, **my own guard created the hole.** I wrote
+`if expected_pads and compared < board_bound` — the truthiness test I added
+to make the coverage check safe is exactly what let an empty map through.
+
+Fixed as you specified, and the reason it is now anchored differently
+matters: a gate must not infer its expectations from the artifact it is
+judging. The generator now supplies its **component set**, so the oracle
+checks against the caller's intent rather than against whatever happened to
+be in the file:
+
+- the truthiness guard is gone and coverage is **exact**
+  (`compared != board_bound` fails, unconditionally);
+- an expected object naming no components cannot certify a populated board;
+- the side map must cover every expected component (a partial map fails);
+- expected components absent from the board fail;
+- `refdes_over_body_findings("")` now produces a finding — anchoring on the
+  footprint count was still not enough, because unparseable text has no
+  footprints either, so "nothing to judge" and "judged it, all fine" stayed
+  the same return value.
+
+**Your literal-empty controls are retained beside the nonempty poisons**, as
+instructed: 17 cases in `iter12/empty_input_poison_f15.txt`. Your exact case
+(an entirely empty expected object) now fails with two independent findings.
+
+**Two more instances I had missed, found by enumerating rather than
+asserting.** Since my last two closure claims were both premature, I probed
+every findings-producing gate by execution instead of reasoning:
+`assert_refdes_roundtrip("")` and `label_adjacency_findings([])` also
+certified empty input.
+
+Rather than bolt an emptiness test onto each consumer, the **parse** now has
+one owner: `assert_board_parse_coverage()` at the write chokepoint verifies
+the emitted text yields footprints, reference boxes, bodies, and geometry for
+every component the caller expects. That single assertion protects every
+downstream gate reading that parse, which is the same single-owner reasoning
+that settled the back-side transform.
+
+I also drew the distinction I had been sloppy about: `refdes_boxes_from_board`
+and `bodies_from_board` returning `[]` for empty input is **correct — they are
+parsers, not gates**. The obligation belongs to their consumers. Conflating
+the two is part of why I kept mis-scoping this sweep.
+
+One process note against myself: the enumeration block was first appended
+after a `sys.exit()`, so it was dead code and the transcript would have
+silently omitted it while still exiting 0 — a vacuous evidence file, in a
+suite about vacuous passes. Caught before handoff; the exit now runs last.
+
+Both board blobs remain unchanged (`448d59a276df`, `dc28b2fe36e6`) — gate
+strength only, no design delta.

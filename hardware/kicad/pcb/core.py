@@ -627,10 +627,12 @@ class BoardBuilder:
         # refdes label distinctness, refdes-vs-body, and the round trip
         # that proves the emitted designator landed where it was chosen
         self.gate_readback(path)
+        assert_board_parse_coverage(text, set(self.components), self.findings)
         self.findings += label_adjacency_findings(
             refdes_boxes_from_board(text))
         assert_refdes_roundtrip(text, self.findings)
-        self.findings += refdes_over_body_findings(text)
+        self.findings += refdes_over_body_findings(
+            text, expected_refs=set(self.components))
         pcbnew_crosscheck(path, self.components, self.placement,
                           refdes_boxes_from_board(text), self.findings)
 
@@ -1070,7 +1072,7 @@ def bodies_from_board(board_text):
     return out
 
 
-def refdes_over_body_findings(board_text):
+def refdes_over_body_findings(board_text, expected_refs=None):
     """Reference TEXT BOX vs component bodies on the same side.
 
     Three escapes the first cut allowed (CP4 F11), all closed here:
@@ -1101,6 +1103,23 @@ def refdes_over_body_findings(board_text):
         pm = re.search(r'\(property "Reference" "([^"]+)"', ch)
         if pm:
             refs.append(pm.group(1))
+    # Zero footprints is itself the escape (CP4 F15). Anchoring on
+    # n_footprints still let `refdes_over_body_findings("")` return clean,
+    # because an unparseable board has no footprints either — "nothing to
+    # judge" and "judged it, all fine" were still the same return value. A
+    # gate is never legitimately asked to certify an empty board, so say so.
+    if not n_footprints:
+        out.append(
+            "[refdes-on-body] parsed 0 footprints from the board text — "
+            "this gate certifies nothing, and an empty result here must not "
+            "be read as clean")
+    if expected_refs is not None:
+        absent = sorted(set(expected_refs) - set(refs))
+        if absent:
+            out.append(
+                f"[refdes-on-body] the caller expected {len(expected_refs)} "
+                f"components but {len(absent)} were not parsed from the "
+                f"board: {absent[:12]} — coverage is incomplete")
     # Anchor coverage on the FOOTPRINT count, not the parsed-ref count: if
     # the reference regex itself stops matching, a ref-based test has an
     # empty list and quietly claims nothing — the same escape one level up.
@@ -1153,6 +1172,14 @@ def assert_refdes_roundtrip(board_text, findings):
     # mounting holes that contributed zero geometry while looking gated.
     visible = [mm.group(1) for mm in
                re.finditer(r'\(property "Reference" "([^"]+)"', board_text)]
+    # Empty board text is the escape, not an exemption (CP4 F15): with no
+    # visible refs every check below is skipped and the round trip reports
+    # nothing, which reads as agreement.
+    if not visible:
+        findings.append(
+            "[refdes-roundtrip] parsed 0 references from the board text — "
+            "the round trip verified nothing and its silence is not a pass")
+        return
     if visible and not _REFDES_SELECTED:
         findings.append(
             "[refdes-roundtrip] no placement selections recorded while the "
@@ -1223,7 +1250,8 @@ def pcbnew_crosscheck(board_path, components, placement, refdes_boxes,
         print("[crosscheck] SKIPPED — KiCad's Python not found; the "
               "independent oracle did NOT run")
         return
-    exp = {"refdes": {r: [round((b[0] + b[2]) / 2, 3),
+    exp = {"components": sorted(components),
+           "refdes": {r: [round((b[0] + b[2]) / 2, 3),
                           round((b[1] + b[3]) / 2, 3)]
                       for r, b in refdes_boxes},
            "side": {r: s for r, (_, _, _, s) in placement.items()
@@ -1296,6 +1324,40 @@ def refdes_boxes_from_board(board_text):
                 boxes.append((ref, (bx - hw, by - hh, bx + hw, by + hh)))
         pos = end
     return boxes
+
+
+def assert_board_parse_coverage(board_text, expected_refs, findings):
+    """One owner for 'the emitted text parsed to what we expect'.
+
+    Several gates downstream consume a parse of the board (reference boxes,
+    bodies, adjacency). Each is a pure function that reports clean when its
+    input is empty — correct for the function, fatal at the chokepoint,
+    because a parse that silently yields nothing turns every one of them
+    into a vacuous pass at once (CP4 F15). Guarding the PARSE once protects
+    all consumers, instead of bolting an emptiness test onto each.
+    """
+    n_fp = len(re.findall(r'\n  \(footprint "', board_text))
+    boxes = refdes_boxes_from_board(board_text)
+    bodies = bodies_from_board(board_text)
+    if not n_fp:
+        findings.append(
+            "[parse-coverage] the emitted board text yielded 0 footprints — "
+            "every gate reading it would report clean having judged nothing")
+        return
+    if not boxes:
+        findings.append(
+            f"[parse-coverage] 0 reference boxes parsed from {n_fp} "
+            "footprints — the adjacency and on-body gates would both be "
+            "vacuous")
+    if not bodies:
+        findings.append(
+            f"[parse-coverage] 0 bodies parsed from {n_fp} footprints — "
+            "nothing could be tested against component outlines")
+    absent = sorted(set(expected_refs) - {r for r, _, _ in bodies})
+    if absent:
+        findings.append(
+            f"[parse-coverage] {len(absent)} expected component(s) produced "
+            f"no parsed geometry: {absent[:12]}")
 
 
 def label_adjacency_findings(boxes, run_gap=0.7, stack_gap=0.30):

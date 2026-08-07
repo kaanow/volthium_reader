@@ -1,0 +1,99 @@
+CP4 iteration 12 — F15 poison suite (empty input must not certify)
+==================================================================
+
+KiCad python: /Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3
+expected object: 39 components, 39 refdes, 39 sides, 169 pad keys
+
+------------------------------------------------------------------
+ORACLE — literal-empty controls (the F15 escape)
+PASS  control — full expectation
+        (must stay clean, exit 0)
+        CROSSCHECK: clean — 39 references, 39 sides, 191 pad-nets (of 191 net-bound pads KiCad sees) agree with KiCad's own engine
+
+PASS  P1 entirely EMPTY expected object (reviewer's case)
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (2)
+           the board KiCad loaded carries 43 footprints but the expected object names no components — an empty expectation cannot certify a populated board
+           coverage: KiCad sees 191 net-bound pads but our expected map compared 0 — the oracle is judging a different set than the board actually has
+
+PASS  P2 explicitly empty members
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (2)
+           the board KiCad loaded carries 43 footprints but the expected object names no components — an empty expectation cannot certify a populated board
+           coverage: KiCad sees 191 net-bound pads but our expected map compared 0 — the oracle is judging a different set than the board actually has
+
+PASS  P3 components present but NO pads expected
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (1)
+           coverage: KiCad sees 191 net-bound pads but our expected map compared 0 — the oracle is judging a different set than the board actually has
+
+PASS  P4 components present but NO refdes expected
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (1)
+           no reference positions supplied for 39 expected components — nothing would be checked
+
+PASS  P5 partial side map (5 of many)
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (1)
+           side map covers 5 of 39 expected components — a partial map cannot certify the whole board
+
+PASS  P6 expected component absent from the board
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (2)
+           expected components absent from the board: ['NOSUCHREF']
+           side map covers 39 of 40 expected components — a partial map cannot certify the whole board
+
+------------------------------------------------------------------
+ORACLE — nonempty poisons retained
+PASS  P7 wrong net on a real pad (C1/2)
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (1)
+           C1.2 net: our model 'DEFINITELY_NOT_THE_NET', KiCad 'GND'
+
+PASS  P8 expected pad absent from the board
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (2)
+           J1.NO_SUCH_PAD: our model expects this pad but KiCad's board has no pad numbered 'NO_SUCH_PAD' on J1
+           located only 169 of 170 expected pads
+
+PASS  P9 first-four truncation (97 keys)
+        (must FAIL, exit 1)
+        CROSSCHECK: FAIL (1)
+           coverage: KiCad sees 191 net-bound pads but our expected map compared 103 — the oracle is judging a different set than the board actually has
+
+------------------------------------------------------------------
+BODY GATE — literal-empty control
+PASS  P10 refdes_over_body_findings("")  (must produce a finding)
+        -> arsed 0 footprints from the board text — this gate certifies nothing, and an empty result here must not be read as clean
+PASS  control — real board with the caller's 39 expected refs: 0 findings
+PASS  P11 caller expects components the board lacks
+        -> he caller expected 41 components but 2 were not parsed from the board: ['GHOST1', 'GHOST2'] — coverage is incomplete
+
+==================================================================
+13/13 cases so far
+
+------------------------------------------------------------------
+ENUMERATION — every findings-producing gate, probed with empty input
+
+The reviewer has twice caught a premature 'class swept' claim, so this is an
+enumeration verified by execution rather than an assertion. Parsers that
+return [] for empty input are correct AS PARSERS; the obligation belongs to
+their consumers, which is why the chokepoint now owns one parse-coverage
+assertion instead of each gate bolting on its own emptiness test.
+
+PASS  refdes_over_body_findings('')
+        -> [refdes-on-body] parsed 0 footprints from the board text — this gate certifies nothing, and an empty res
+PASS  assert_refdes_roundtrip('')
+        -> [refdes-roundtrip] parsed 0 references from the board text — the round trip verified nothing and its sil
+PASS  assert_board_parse_coverage('')
+        -> [parse-coverage] the emitted board text yielded 0 footprints — every gate reading it would report clean 
+PASS  control: real board + caller's 39 components -> 0 findings
+
+  refdes_boxes_from_board('')  -> 0 boxes   (parser: correct)
+  bodies_from_board('')        -> 0 bodies  (parser: correct)
+  label_adjacency_findings([]) -> pure function over boxes; an empty box
+                                  list can now only arise from a parse the
+                                  chokepoint assertion has already failed.
+
+==================================================================
+FINAL: 17/17 cases behaved correctly
