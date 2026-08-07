@@ -78,9 +78,22 @@ CLAMP_DELTA_MAX_V = 4.0
 # Sun elevation is the physical quantity, it needs no sensor, and the
 # separation is enormous: the two genuine latches on 2026-08-06 were cleared
 # at +46.6 and +33.1 deg, while every dawn/dusk transient sits BELOW the
-# horizon. 10 deg keeps 23 deg of margin on the real cases.
+# horizon (-0.6, -1.1, -3.3, -3.6).
+#
+# The threshold is set by WINTER, not by those margins. At 51.12 N the sun
+# peaks at only 15.4 deg on 21 Dec, so hours above a given gate are:
+#
+#     gate     21 Dec   21 Nov   21 Sep   06 Aug
+#     10 deg    4.4 h    5.4 h    9.8 h   12.6 h
+#      5 deg    6.2 h    6.9 h   10.9 h   13.8 h
+#
+# A 10 deg gate would quietly switch the guard off for most of a winter day —
+# in the month when production is scarcest and a latch costs proportionally
+# most. 5 deg restores ~40% more winter coverage and still clears the worst
+# observed transient by 8.6 deg. The two-confirmation rule remains underneath
+# as defence in depth.
 SITE_LAT, SITE_LON = 51.11935280004921, -121.20969152967822
-MIN_SUN_ELEVATION_DEG = 10.0
+MIN_SUN_ELEVATION_DEG = 5.0
 DAYLIGHT_V = 20.0          # kept as a secondary check: is the array connected?
 CLAMP_FRACTION = 0.9       # this much of the sample must be clamped
 AMBIGUOUS_FRACTION = 0.3   # above this but below CLAMP_FRACTION = report it

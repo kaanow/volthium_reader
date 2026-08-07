@@ -61,6 +61,22 @@ class SunElevationGateTests(unittest.TestCase):
                       "2026-08-07T04:01:34Z")]
         self.assertGreater(min(real) - MIN_SUN_ELEVATION_DEG, 20.0)
         self.assertLess(max(transient), 0.0)
+        # ...and the gate must clear the worst transient by a real margin.
+        self.assertGreater(MIN_SUN_ELEVATION_DEG - max(transient), 5.0)
+
+    def test_gate_still_works_in_midwinter(self):
+        """The threshold is set by winter, not by summer margins. At 51.12 N
+        the sun peaks at ~15.4 deg on 21 Dec, so an over-tight gate would
+        silently switch the guard off for most of a winter day — in the month
+        when a latch costs proportionally most. Require a usable window
+        around solar noon on the shortest day."""
+        usable = sum(
+            1 for m in range(0, 1440, 5)
+            if sun_elevation_deg(epoch("2026-12-21T00:00:00Z") + m * 60)
+            >= MIN_SUN_ELEVATION_DEG
+        ) * 5 / 60
+        self.assertGreater(usable, 5.0,
+                           "gate leaves too little of the shortest day usable")
 
     def test_elevation_tracks_the_day(self):
         """Sanity: solar noon is high and near-midnight is well below."""
