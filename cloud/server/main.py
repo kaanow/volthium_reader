@@ -699,8 +699,16 @@ async def root() -> FileResponse:
 
 @app.get("/history")
 async def history_page() -> FileResponse:
-    """Daily energy ledger, load heatmap, cell-imbalance drift, events."""
-    return FileResponse(STATIC_DIR / "v2-history.html")
+    """The range explorer: linked power / SOC / divergence / temperature /
+    cell-imbalance charts over a selectable window, plus the daily ledger,
+    telemetry reliability and the BMS alarm log.
+
+    This is the ORIGINAL page, restored 2026-08-07. It was briefly replaced by
+    the newer solar-era page, which was a straight downgrade as an instrument:
+    no time control at all, averages instead of min..max bands, and no
+    temperature, SOC, divergence, reliability or alarm views. The solar panels
+    that page did add are being folded in here instead."""
+    return FileResponse(STATIC_DIR / "history.html")
 
 
 # The pre-2026-08 pages. Kept reachable rather than deleted: they read the

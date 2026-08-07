@@ -656,6 +656,14 @@ class AsyncpgReadingsDAO:
                        MIN(solar_w_min) AS solar_w_min,
                        MAX(solar_w_max) AS solar_w_max,
                        AVG(pv_v)        AS pv_v,
+                       -- Added 2026-08-07 with the history explorer. The
+                       -- array-voltage ENVELOPE is the diagnostic: a clamp
+                       -- reads as a narrow band pinned just above dc_v, and
+                       -- the MPPT's ~1.1 V reporting dither is invisible in
+                       -- the average alone — which is what defeated the latch
+                       -- detector for a day. Exact fold, not approximated.
+                       MIN(pv_v_min)    AS pv_v_min,
+                       MAX(pv_v_max)    AS pv_v_max,
                        AVG(dc_v)        AS dc_v,
                        AVG(dc_a)        AS dc_a,
                        AVG(dc_w)        AS dc_w,

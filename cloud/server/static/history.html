@@ -115,6 +115,14 @@
       <span class="sub">band = min…max within each slice, line = average</span></div>
     <div class="chart-wrap"><svg id="ch-p" class="chart" viewBox="0 0 900 140" preserveAspectRatio="none"></svg><div class="tip" id="tip-p"></div></div>
 
+    <div class="label">solar — array power (W)
+      <span class="sub">band = min…max within each slice; near-zero power while the array voltage below stays high is a diode-clamp latch</span></div>
+    <div class="chart-wrap"><svg id="ch-solar" class="chart short" viewBox="0 0 900 110" preserveAspectRatio="none"></svg><div class="tip" id="tip-solar"></div></div>
+
+    <div class="label">array voltage (V)
+      <span class="sub">healthy tracking runs tens of volts above the battery; pinned within ~4 V of it means the converter has stopped switching</span></div>
+    <div class="chart-wrap"><svg id="ch-pv" class="chart short" viewBox="0 0 900 110" preserveAspectRatio="none"></svg><div class="tip" id="tip-pv"></div></div>
+
     <div class="label">state of charge (%)</div>
     <div class="legend"><span><span class="sw" style="background:var(--blu)"></span>battery A</span>
       <span><span class="sw" style="background:var(--vio)"></span>battery B</span></div>
@@ -162,6 +170,24 @@
       <span id="avail" class="avail-badge">—</span></div>
     <div class="chart-wrap"><svg id="ch-rel" class="chart" viewBox="0 0 900 26" preserveAspectRatio="none" style="height:26px"></svg></div>
     <div id="gaps-box"></div>
+  </div>
+
+  <!-- solar production ledger -->
+  <div class="panel">
+    <div class="label">solar production — last 30 days
+      <span class="sub">what the array delivered vs what the house drew. Both are floors: the MPPT under-reports by ~1.8x, so treat these as the conservative end</span></div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--ylw)"></span>solar in (Wh)</span>
+      <span><span class="sw" style="background:var(--blu)"></span>house draw (Wh)</span>
+    </div>
+    <div class="chart-wrap"><svg id="ch-sol-daily" class="chart" viewBox="0 0 900 150" preserveAspectRatio="none" style="height:150px"></svg><div class="tip" id="tip-sol-daily"></div></div>
+  </div>
+
+  <!-- MPPT / converter event log -->
+  <div class="panel">
+    <div class="label">MPPT event log
+      <span class="sub">diode-clamp latches, the guard's fixes, and any change to a charge setpoint</span></div>
+    <div id="mppt-box"></div>
   </div>
 
   <!-- BMS alarm log -->
@@ -408,11 +434,18 @@ async function loadSeries(hours, before) {
   const bMs = b * 1000;
   const bef = before ? `&before=${encodeURIComponent(before)}` : "";
   // Fetch the bucketed series AND the absolute charger intervals in parallel.
-  const [sr, ir] = await Promise.all([
+  const [sr, ir, solr] = await Promise.all([
     fetch(`/api/history/series?hours=${hours}&bucket_s=${b}${bef}`),
     fetch(`/api/history/charger_intervals?hours=${hours}${bef}`),
+    // Solar lives in its own table, but on the SAME bucket contract, so it
+    // drops straight into this explorer instead of needing a separate page
+    // with no time control.
+    fetch(`/api/solar/series?hours=${hours}&bucket_s=${b}${bef}`),
   ]);
   const j = await sr.json();
+  const solar = new Map();
+  for (const r of ((await solr.json()).series || []))
+    solar.set(P(r.bucket), r);
   // Charger shading now comes from real session INTERVALS, not the per-bucket
   // fraction — so a short balance session shades at any zoom (the fraction
   // dilutes below threshold in coarse 2-4 h buckets, e.g. the ~1 h Jul 1
@@ -422,8 +455,18 @@ async function loadSeries(hours, before) {
   const chgAt = t => intervals.find(v => t < v.e && (t + bMs) > v.s);
   const rows = (j.series || []).map(r => {
     const iv = chgAt(P(r.bucket));
+    const s = solar.get(P(r.bucket));
     return {
     t: P(r.bucket), n: r.n,
+    sol_w: s ? s.solar_w : null,
+    sol_w_min: s ? s.solar_w_min : null,
+    sol_w_max: s ? s.solar_w_max : null,
+    pv_v: s ? s.pv_v : null,
+    pv_v_min: s ? s.pv_v_min : null,
+    pv_v_max: s ? s.pv_v_max : null,
+    // Distance from the battery is what says "tracking" vs "clamped", and it
+    // is far easier to read than two absolute voltages side by side.
+    pv_gap: (s && s.pv_v != null && s.dc_v != null) ? s.pv_v - s.dc_v : null,
     p_avg: r.p_avg, p_min: r.p_min, p_max: r.p_max,
     soc_a: r.soc_a, soc_b: r.soc_b, t_a: r.t_a, t_b: r.t_b,
     dv_a: r.dv_a != null ? r.dv_a * 1000 : null,
@@ -438,6 +481,21 @@ async function loadSeries(hours, before) {
     {key: "p_avg", color: GRN},
   ], {zero: true, unit: " W", tipFn: d =>
       `avg <b>${fmt(d.p_avg, " W")}</b> · range ${fmt(d.p_min)}…${fmt(d.p_max, " W")}`});
+  chart("ch-solar", "tip-solar", rows, [
+    {kind: "band", lo: "sol_w_min", hi: "sol_w_max", color: YLW},
+    {key: "sol_w", color: YLW},
+  ], {zero: true, unit: " W", tipFn: d =>
+      `avg <b>${fmt(d.sol_w, " W")}</b> · range ${fmt(d.sol_w_min)}…${fmt(d.sol_w_max, " W")}`});
+  chart("ch-pv", "tip-pv", rows, [
+    {kind: "band", lo: "pv_v_min", hi: "pv_v_max", color: YLW},
+    {key: "pv_v", color: YLW},
+  ], {unit: " V", floor: 0, tipFn: d => {
+      const clamped = d.pv_v > 20 && d.pv_gap != null
+                      && d.pv_gap >= 0.3 && d.pv_gap <= 4;
+      return `array <b>${fmt(d.pv_v, " V")}</b> · range ${fmt(d.pv_v_min)}…${fmt(d.pv_v_max, " V")}`
+        + (d.pv_gap != null ? ` · ${fmt(d.pv_gap, " V")} above battery` : "")
+        + (clamped ? ` · <b style="color:${RED}">CLAMPED</b>` : "");
+    }});
   chart("ch-soc", "tip-soc", rows, [
     {key: "soc_a", color: BLU}, {key: "soc_b", color: VIO},
   ], {unit: "%", tipFn: d =>
@@ -627,6 +685,75 @@ document.querySelectorAll("#chips .chip[data-h]").forEach(c => {
   });
 });
 
+async function loadSolarDaily() {
+  const days = ((await (await fetch("/api/solar/energy?days=30")).json()).days) || [];
+  // Postgres numerics arrive as strings over JSON; Number() them or every
+  // comparison below silently does string maths.
+  const rows = days.map(d => ({
+    t: Date.parse(d.day + "T12:00:00Z"),
+    sol: Number(d.solar_wh) || 0,
+    load: Number(d.load_wh) || 0,
+    cov: Number(d.coverage) || 0,
+  })).filter(d => d.cov > 0.2);          // drop part-days; they read as crashes
+  chart("ch-sol-daily", "tip-sol-daily", rows, [
+    {key: "sol", color: YLW}, {key: "load", color: BLU},
+  ], {zero: true, unit: " Wh", tipFn: d =>
+      `solar <b style="color:${YLW}">${fmtWh(d.sol)}</b> · house `
+      + `<b style="color:${BLU}">${fmtWh(d.load)}</b>`
+      + (d.cov < 0.98 ? ` · <span style="color:${DIMC}">${Math.round(d.cov * 100)}% covered</span>` : "")});
+}
+
+const MPPT_EVENT_LABEL = {
+  mppt_latched: "latched — array pinned at battery voltage",
+  mppt_unlatched: "recovered",
+  latch_detected: "guard confirmed a latch",
+  latch_fix_result: "guard sent Standby → Operating",
+  latch_guard_pending: "clamp seen once, awaiting confirmation",
+  latch_guard_skipped: "guard declined to act",
+  latch_guard_ambiguous: "partial clamp, below acting threshold",
+  xanbus_config_changed: "CHARGE SETPOINT CHANGED",
+  xanbus_config_baseline: "setpoint baseline recorded",
+};
+async function loadMpptEvents() {
+  const box = $("mppt-box");
+  let evs = [];
+  try {
+    evs = ((await (await fetch("/api/xanbus_events?limit=120")).json()).events) || [];
+  } catch (e) { /* fall through to the empty state */ }
+  // The chatty per-transition streams belong on the live page, not here.
+  const skip = new Set(["ac_load_sample", "chg_stage", "chg_target",
+                        "mppt_latch_context"]);
+  evs = evs.filter(e => !skip.has(e.event));
+  if (!evs.length) {
+    box.innerHTML = '<div class="sub" style="padding:6px 2px">no MPPT events on record.</div>';
+    return;
+  }
+  const when = ts => new Date(P(ts)).toLocaleString(
+    [], {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"});
+  const detail = e => {
+    const d = e.data || {};
+    if (e.event === "latch_fix_result")
+      return `${d.recovered ? "recovered" : "DID NOT recover"}`
+        + (d.before && d.after ? ` — array ${fmt(d.before.pv_v, " V")} → ${fmt(d.after.pv_v, " V")}` : "");
+    if (e.event === "mppt_latched")
+      return `array ${fmt(d.pv_v, " V")}, ${fmt(d.delta_v, " V")} above battery`;
+    if (e.event === "xanbus_config_changed")
+      return (d.changes || []).map(c => c.field).join(", ") || "—";
+    if (d.pv_v != null) return `array ${fmt(d.pv_v, " V")}`;
+    return "—";
+  };
+  box.innerHTML = '<table class="gaps"><tr><th>when</th><th>what</th><th>detail</th></tr>'
+    + evs.map(e => {
+        const loud = e.event === "mppt_latched"
+                  || e.event === "xanbus_config_changed";
+        return `<tr><td>${when(e.ts)}</td>`
+          + `<td${loud ? ` style="color:${RED}"` : ""}>`
+          + `${MPPT_EVENT_LABEL[e.event] || e.event}</td>`
+          + `<td class="cls">${detail(e)}</td></tr>`;
+      }).join("")
+    + '</table>';
+}
+
 async function loadAlarms() {
   const rows = ((await (await fetch("/api/history/alarms")).json()).alarms) || [];
   const box = $("alarms-box");
@@ -657,6 +784,8 @@ async function loadAlarms() {
   setRange(168, null);
   loadDaily().catch(console.error);
   loadProfile().catch(console.error);
+  loadSolarDaily().catch(console.error);
+  loadMpptEvents().catch(console.error);
   loadAlarms().catch(console.error);
 })();
 </script>
