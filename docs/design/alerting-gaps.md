@@ -90,9 +90,14 @@ is:
 None of it touches the Pi or the bus. It is server-side, and the blast radius
 of getting it wrong is a spurious notification.
 
-## What I would want checked first
+## Gap 1: CLOSED 2026-08-08, and the answer matters
 
-Whether `STALENESS_WEBHOOK_URL` is actually set on Railway. If it is not, then
-**no alerting has ever fired**, gap 1 is the whole story, and the rule work
-below it is premature. That is one environment variable and I cannot read it
-from here — which is precisely the argument for gap 1's fix.
+`/healthz` now reports `ok alerting=on|off` and `status_check.py` asserts it
+every run. Production answers **`alerting=on`** — the webhook has been
+configured all along, so the staleness monitor and the BLE event rules have
+been live and working this whole time.
+
+That makes gap 2 the entire remaining story, and sharpens it: there is a
+**functioning paging path sitting right there**, watching `ble_events`, while
+the config watcher writes `xanbus_config_changed` into a table nothing
+watches. The bell works. It is just not wired to the newest detector.
