@@ -574,6 +574,33 @@ The bookkeeping is now `note_healthy_run()` / `note_clamped_run()`, pure and
 unit-tested against this exact sequence, because inline it needed a CAN bus to
 exercise.
 
+### 2026-08-08 afternoon: the 5 min cadence delivered exactly what it promised
+
+Second latch of the day, first on the new cadence:
+
+| local | event |
+|---|---|
+| 12:10 | crossed 45 V (14th of 14) |
+| **13:05** | clamped — 55 min after crossing |
+| 13:04 | `latch_guard_ambiguous` fraction 0.58 — forming |
+| 13:09 | armed, fraction 1.00 |
+| 13:14 | acted → 29.0 → **91.5 V**, 9 W → **615 W** |
+
+**Exposure ~10 min** — 2 confirmations x 5 min cadence, the new floor, exactly
+half the 20 min the same guard took that morning. The change did what the
+arithmetic said it would.
+
+**A prediction of mine failed here, and the failure was the useful part.**
+Based on the two comparable shallow-deficit crossings (07-30 at surplus -10 W
+took 115 min, 08-05 at -30 W took 90 min), this one at -31 W was expected to
+take 90-115 min. It took **55**, tying the fastest ever recorded. That is
+exactly what an r = +0.28 correlation is worth, and it confirms in practice
+what the statistic said in principle: **time-to-clamp is not predictable, so
+do not build a control that depends on predicting it.**
+
+Also of note: 615 W is the highest since 08-05's 634 W, further supporting the
+clearing trend in #10.
+
 ### 2026-08-08: the bottleneck moved, so cadence matters now
 
 Fourth latch, and the guard hit its design floor:
