@@ -358,27 +358,46 @@ def main() -> int:
           f"(since {since_iso}) ===\n")
 
     any_notable = False
-    try:
-        n, lines = section_readings(args.source, since_iso)
-        any_notable |= n
-        print("\n".join(lines) + "\n")
-        n, lines = section_events(since_iso)
-        any_notable |= n
-        print("\n".join(lines) + "\n")
-        n, lines = section_wired(since_iso)
-        any_notable |= n
-        print("\n".join(lines) + "\n")
-    except (urllib.error.URLError, urllib.error.HTTPError) as exc:
-        print(f"HTTP error against {RAILWAY}: {exc}", file=sys.stderr)
-        return 2
+    # Run each section independently and NAME the one that fails. Previously a
+    # single try wrapped all three and reported to stderr, which fooled me on
+    # 2026-08-07: stdout is block-buffered when redirected to a file while
+    # stderr is not, so a connection reset in the LAST section surfaced at the
+    # TOP of the captured output. It read as an early blip the run had
+    # recovered from, when in fact the run had died and the RS485 section never
+    # ran. I went looking for a sick server on the strength of it.
+    #
+    # One flaky section must also not suppress the others: the point of a
+    # health check is to tell you what it did and did not manage to look at.
+    failed: list[str] = []
+    for name, fn in (("readings", lambda: section_readings(args.source, since_iso)),
+                     ("events", lambda: section_events(since_iso)),
+                     ("wired RS485", lambda: section_wired(since_iso))):
+        try:
+            n, lines = fn()
+            any_notable |= n
+            print("\n".join(lines) + "\n")
+        except (urllib.error.URLError, urllib.error.HTTPError) as exc:
+            failed.append(name)
+            any_notable = True
+            print(f"!! {name} section FAILED: {exc}\n")
 
     if args.with_pi:
         n, lines = section_pi(args.ssh_target, int(args.hours))
         any_notable |= n
         print("\n".join(lines) + "\n")
 
-    tag = "NOTABLE — investigate above" if any_notable else "quiet window"
+    # ALWAYS print a bottom line, including on failure. Without one, a run that
+    # died mid-way is indistinguishable from output that merely got truncated,
+    # and "no verdict" gets read as "probably fine". Say what was not checked.
+    if failed:
+        tag = f"INCOMPLETE — could not check: {', '.join(failed)}"
+    elif any_notable:
+        tag = "NOTABLE — investigate above"
+    else:
+        tag = "quiet window"
     print(f"=== bottom line: {tag} ===")
+    if failed:
+        return 2
     return 1 if any_notable else 0
 
 
