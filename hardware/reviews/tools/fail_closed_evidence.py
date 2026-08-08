@@ -86,10 +86,20 @@ what they are rather than as pass/fail:
 The liveness check is the last row: with the whole battery removed, the proof
 MUST object. If it stays quiet there, it is measuring nothing.
 """)
-targets = [("assert_footprint_ids", lambda *a, **k: None),
+def _require_real(names):
+    missing = [n for n in names if not hasattr(core, n)]
+    if missing:
+        raise SystemExit(
+            f"[evidence] neuter list names attributes that do not exist: "
+            f"{missing} — a rename would make the liveness case a silent "
+            "no-op, which is the very failure this file exists to catch")
+
+
+targets = [("assert_component_identity", lambda *a, **k: None),
            ("assert_board_parse_coverage", lambda *a, **k: None),
            ("assert_refdes_roundtrip", lambda *a, **k: None),
            ("refdes_over_body_findings", lambda *a, **k: [])]
+_require_real([n for n, _ in targets])
 ok = True
 for nm, stub in targets:
     real = getattr(core, nm)
@@ -132,8 +142,8 @@ print()
 print("-" * 70)
 print("WHAT THE PROOF FOUND ON ITS FIRST RUN (before any reviewer saw it)")
 print("""
-  assert_footprint_ids — NOTHING read the footprint ID back out of the
-  written board. Every gate took fpid from components[ref]["footprint"],
+  assert_component_identity — NOTHING read the footprint ID back out of
+  the written board (and, after F21, nothing read the Value either). Every gate took fpid from components[ref]["footprint"],
   our own model, and gate_readback compares only (ref, pad, net) triples.
   A board naming a different footprint than the netlist would have passed
   the entire battery. That is the "wrong physical part" class, and DRC does

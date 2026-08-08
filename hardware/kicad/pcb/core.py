@@ -692,7 +692,7 @@ class BoardBuilder:
         assert_board_parse_coverage(text, set(self.components),
                                     set(self.components) | mech,
                                     self.findings)
-        assert_footprint_ids(text, self.components, self.findings)
+        assert_component_identity(text, self.components, self.findings)
         self.findings += label_adjacency_findings(
             refdes_boxes_from_board(text))
         assert_refdes_roundtrip(text, self.findings)
@@ -1587,6 +1587,10 @@ def _mutations(text, refs):
                                                   1) + text[e:]))
         # a parenthesis inside a quoted string is text, not structure — but
         # a walk that miscounts it hides every later field of that footprint
+        out.append(("a component Value changed (same count)",
+                    text[:s] + re.sub(r'\(property "Value" "[^"]*"',
+                                      '(property "Value" "ZZ_WRONG_VALUE"',
+                                      ch, count=1) + text[e:]))
         out.append(("unmatched paren inside a quoted description",
                     text[:s] + ch.replace('(footprint "',
                                           '(footprint "bad-)-', 1) + text[e:]))
@@ -1635,7 +1639,7 @@ def _run_board_gates(text, visible, all_refs, readback=None):
     f = []
     try:
         assert_board_parse_coverage(text, visible, all_refs, f)
-        assert_footprint_ids(text, _FPID_INTENT, f)
+        assert_component_identity(text, _FPID_INTENT, f)
         f += label_adjacency_findings(refdes_boxes_from_board(text))
         assert_refdes_roundtrip(text, f)
         f += refdes_over_body_findings(text, expected_refs=all_refs)
@@ -1683,8 +1687,16 @@ def assert_fail_closed(text, visible, all_refs, findings, components=None,
               "rejected by the gate battery")
 
 
-def assert_footprint_ids(board_text, components, findings):
-    """Emitted footprint ID per ref == the netlist's footprint for that ref.
+def assert_component_identity(board_text, components, findings):
+    """Emitted footprint ID *and* Value per ref == the netlist's record.
+
+    F21 generalises F20's footprint-ID gate. The value is part identity too:
+    a board whose Value says a different capacitance is a board that gets
+    ASSEMBLED with a different part, and the reviewer showed that mutating
+    it passes every in-write gate, the pcbnew crosscheck and strict DRC
+    with identical category counts. Both fields come from the same
+    netlist-derived record, so gating one and not the other was an
+    arbitrary line.
 
     Found by the fail-closed proof, not by a reviewer: NOTHING read the
     footprint id back out of the written board. Every gate took `fpid` from
@@ -1700,20 +1712,31 @@ def assert_footprint_ids(board_text, components, findings):
         s = m.start() + 1
         ch = board_text[s:_balanced(board_text, s + 2)]
         pm = re.search(r'\(property "Reference" "([^"]+)"', ch)
+        vm = re.search(r'\(property "Value" "([^"]*)"', ch)
         if pm:
-            got[pm.group(1)] = m.group(1)
+            got[pm.group(1)] = (m.group(1), vm.group(1) if vm else None)
     for ref, meta in sorted(components.items()):
-        want = meta["footprint"]
         have = got.get(ref)
         if have is None:
             findings.append(
-                f"[footprint-id] {ref}: in the netlist but absent from the "
+                f"[identity] {ref}: in the netlist but absent from the "
                 "written board")
-        elif have != want:
+            continue
+        have_fp, have_val = have
+        if have_fp != meta["footprint"]:
             findings.append(
-                f"[footprint-id] {ref}: board says {have!r} but the netlist "
-                f"specifies {want!r} — the board would be built with a "
-                "different physical part")
+                f"[identity] {ref}: board footprint {have_fp!r} but the "
+                f"netlist specifies {meta['footprint']!r} — the board would "
+                "be built with a different physical part")
+        if have_val is None:
+            findings.append(
+                f"[identity] {ref}: no top-level Value property in the "
+                "written board — part identity is unverifiable")
+        elif have_val != meta["value"]:
+            findings.append(
+                f"[identity] {ref}: board Value {have_val!r} but the netlist "
+                f"specifies {meta['value']!r} — the board would be ASSEMBLED "
+                "with a different part")
 
 
 def _set_equality(label, got, want, findings, tag="parse-coverage"):

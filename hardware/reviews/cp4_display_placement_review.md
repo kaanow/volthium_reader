@@ -1796,3 +1796,84 @@ than waiting for you to find it**, and the mutation list is the thing to
 attack if you want to break it.
 
 Both board blobs unchanged (`448d59a276df`, `dc28b2fe36e6`).
+
+
+### 9.13 Responses to §8.11 iteration 23 (iteration 24, 2026-08-07)
+
+RPA-ACCEPTED: F20 042dcd2
+
+**Finding 20 — accepted, and it is my sloppiness, not a platform quirk.** I
+copied a scratchpad script into `hardware/reviews/tools/` with
+`os.chdir("/Users/…")` still in it. A repo tool with an absolute path from my
+machine cannot run on yours, which is the whole point of the tool. Re-reviewed
+your patch line by line as the policy requires: `parents[3]` from
+`hardware/reviews/tools/<file>` is the repo root, the `chdir` and the
+`sys.path` entry both derive from it, nothing else changes, and the zero-delta
+invariant holds — no design artifact is touched. It runs clean here too, so
+the fix is portable in both directions rather than Windows-specific. Accepted
+as committed.
+
+I have also guarded the failure mode it exposed: the evidence script now
+refuses to run if its neuter list names an attribute that does not exist. That
+bit immediately — renaming the gate for F21 would otherwise have left the
+liveness case silently neutering nothing, which is exactly the vacuous-pass
+class the file exists to disprove.
+
+**Finding 21 — agree, and the line I drew was arbitrary.** Footprint ID and
+Value come from the same netlist-derived record; gating one and not the other
+had no justification. `assert_footprint_ids` is generalised to
+`assert_component_identity`, requiring **both** to equal the netlist per ref,
+with a missing Value property treated as unverifiable rather than benign.
+Your poison now fires: *"BTN1: board Value 'ZZ_WRONG_VALUE' but the netlist
+specifies '6x6 tall-actuator' — the board would be ASSEMBLED with a different
+part"*, control clean.
+
+The same-cardinality Value mutation is added to the production battery:
+**14/14 rejected on both boards**. Removing the identity gate is now detected
+(2 escapes), the other three remain redundant, and the liveness case names 5.
+I accept your classification of the Edge.Cuts result as later-DRC coverage
+rather than a board defect, and have not added it as a battery mutation.
+
+---
+
+### 9.14 Loop sanity — my own read, unprompted
+
+The user asked whether this loop is going off the rails. It partly is, and
+the numbers are not ambiguous:
+
+- **19 commits and 8 review rounds since iteration 8. The display board blob
+  is byte-identical across all of them** (`dc28b2fe36e6`), as is the battery
+  board. The only design-file changes in that span are 21 lines, and they are
+  gate *contracts* (`EDGE_MARKER_REFS`), not design.
+- CP4's deliverable is a **reviewed placement**. That was met at iteration 8.
+  Everything since has been verification infrastructure.
+
+That is not all waste — F20/F21 and the footprint-ID gap are real build
+integrity: a board that ships with the wrong part Value or footprint is a
+scrapped assembly, and none of the pre-existing gates or strict DRC caught
+those. But the marginal value is clearly falling, and the loop has become
+self-referential: I harden verification, the review finds a hole in the
+verification, repeat. Neither party is doing anything wrong inside that loop,
+which is exactly why it does not self-terminate.
+
+**The structural cause is that CP4 has no exit criterion.**
+`max_iterations_per_cp: 1000` and nothing anywhere states what "done" is. A
+checkpoint whose completion is undefined will absorb effort until someone
+stops it by hand.
+
+**Proposal**, for the user's call rather than mine to take unilaterally:
+
+1. Declare CP4 complete on its actual deliverable — placement, which has been
+   stable and independently re-verified for eight rounds — with the §7 D13
+   scorecard as the acceptance record.
+2. Move remaining verification hardening to a **separate bounded track** that
+   does not gate a checkpoint, with an explicit budget rather than an open
+   loop.
+3. Add an explicit exit criterion to future checkpoints: CP*n* closes when
+   its named deliverable passes review and the artifact is unchanged for two
+   consecutive rounds. By that rule CP4 would have closed at iteration 12.
+4. Proceed to CP5 (routing), where the board actually changes again.
+
+I am flagging this rather than continuing to hand back another gate iteration,
+because "the reviewer keeps finding things" stopped being evidence that the
+*design* needs work several rounds ago.
