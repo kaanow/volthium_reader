@@ -49,6 +49,43 @@ day roughly doubles. On a good day like 08-07 the addressable window is 1.9 h
 and 45 Wh, so the gain is small. That is a good property: it helps most
 exactly when help is worth most.
 
+## Re-sized 2026-08-08 on a BRIGHT day: the prize is ~10x bigger
+
+The table above was built from 08-01..07, which were all dim. 08-08 was the
+first bright day with the instrumentation in place, and it changes the number
+completely.
+
+Second crossing of 08-08: crossed 45 V at 12:10, clamped 13:05, guard fixed at
+13:14.
+
+| | |
+|---|---|
+| descent window 12:10-13:05 | 55 min |
+| actually produced in it | **82 Wh** (~90 W average) |
+| post-fix output, same conditions | **534 W** |
+| what the window was worth at that rate | **490 Wh** |
+| **loss to the descent** | **~408 Wh** |
+
+Against a 1525 Wh day that is **27% of everything the array made**, and it is
+an order of magnitude more than the 23-43 Wh estimated from the dim days.
+
+The reason is obvious in hindsight and matters for how the trigger should be
+valued: on a dim day the array cannot make much *anyway*, so the descent
+window is cheap. On a bright day the same 55 minutes costs 400+ Wh. **The
+early bounce is worth little exactly when it is easy to test, and a great deal
+exactly when it is not.**
+
+*Caveat, stated because the number is large:* the 534 W reference is what the
+array produced after the fix at 13:15, roughly an hour later. Both times sit
+near solar noon so the plane-of-array irradiance is comparable, but the
+reference may be slightly optimistic. Even discounted heavily this is
+hundreds of watt-hours, not tens.
+
+*Second caveat:* a single bounce would not hold for the rest of the day. The
+array walks down again — 55 min is the measured time — so a bright day would
+need 2-3 early bounces, which is what the 6/day cap in the control design
+below is for.
+
 ## The assumption nobody has tested
 
 **Every bounce we have ever done was from a clamped array** — four of them,
