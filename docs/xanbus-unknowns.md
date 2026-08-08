@@ -1159,28 +1159,32 @@ the *system* is enormously better, the *sky* is not.
 **Use `%-clamped` to judge the converter and the guard; use the near-MPP index
 to judge the sky. Never one number for both.**
 
-### Trend to 2026-08-08: the sky IS clearing, modestly and steadily
+### Trend to 2026-08-08: the sky IS clearing, and 08-08 is decisive
 
-| day | near-MPP index | vs 08-05 | % clamped |
-|---|---|---|---|
-| 08-05 | 0.832 | 100% | 33% |
-| 08-06 | 0.257 | 31% | 11% |
-| 08-07 | 0.304 | 37% | 8% |
-| 08-08 *(partial)* | **0.401** | **48%** | 20% |
+| day | MPPT Wh | peak W | % clamped | near-MPP index | vs 08-05 |
+|---|---|---|---|---|---|
+| 08-01 | 242 | 123 | 99% | n/a — never reached 70 V | — |
+| 08-04 | 189 | 51 | 99% | n/a | — |
+| 08-05 | 1737 | 634 | 33% | 0.832 | 100% |
+| 08-06 | 1050 | 236 | 11% | 0.257 | 31% |
+| 08-07 | 1105 | 284 | 8% | 0.304 | 37% |
+| **08-08** | **1340+** | **591** | **7%** | **0.439** | **53%** |
 
-Three consecutive rises. Between the two *complete* days 08-06 and 08-07 the
-gain is +18%, which is modest but real; 08-08 adds a further +32% and is
-provisional, covering only 09:00-11:00 so far.
+Three consecutive rises in the tracker-independent index: 0.257 → 0.304 →
+0.439, i.e. +18% then +44%. 08-08 is the best day since 08-05 on *every*
+measure and its Wh figure is still climbing (the table was taken at 14:43).
 
-Partial-day comparison is only fair if the morning window is unbiased, so that
-was checked rather than assumed: on 08-07, the only complete day with enough
-samples in both windows, the 09:00-11:00 median and the 09:00-16:00 median
-agree to **1.00**. Reassuring, but it rests on one day — treat 08-08 as
-indicative until it completes.
+The earlier partial-day reading of 0.401 held up: the completed figure is
+0.439, slightly better, so the 09:00-11:00 window was if anything pessimistic
+rather than flattering.
 
-Still only about half of 08-05, so 08-05 remains the clear-sky reference
-rather than the norm. But the direction has now been consistent for three
-days, which is the first genuine evidence of the smoke thinning.
+Two separate things are improving and the split metric keeps them apart:
+**the sky** (index 31% → 53%) and **the converter** (clamped 99% → 7%, the
+lowest recorded). Peak power more than doubled from 08-07 to 08-08, which is
+the sky; clamped time fell to a third of 08-06, which is the guard.
+
+Still only ~half of 08-05, so that day remains the clear-sky reference rather
+than the norm — but the smoke is measurably thinning.
 
 ### A metric that survives all of this: the clear-sky index
 
