@@ -123,7 +123,23 @@ class HealthTests(unittest.TestCase):
         c = _client()
         r = c.get("/healthz")
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.text, "ok")
+        # Starts with "ok" so existing liveness consumers are unaffected, and
+        # carries the alerting state, because a monitor whose silence cannot
+        # be distinguished from "never configured" is not a monitor.
+        self.assertTrue(r.text.startswith("ok"), r.text)
+        self.assertIn("alerting=", r.text)
+
+    def test_healthz_reports_alerting_off_without_a_webhook(self):
+        """The test client has no STALENESS_WEBHOOK_URL set, so this is the
+        disarmed path — the one that must be visible from outside."""
+        c = _client()
+        self.assertIn("alerting=off", c.get("/healthz").text)
+
+    def test_healthz_never_leaks_the_webhook_url(self):
+        """/healthz is unauthenticated and the webhook is a secret."""
+        c = _client()
+        body = c.get("/healthz").text
+        self.assertNotIn("http", body.replace("alerting", ""))
 
 
 class IngestTests(unittest.TestCase):

@@ -468,6 +468,32 @@ class EventAlertMonitor:
     WEDGE_COOLDOWN = timedelta(minutes=30)
     POWER_COOLDOWN = timedelta(hours=2)
 
+    # --- Xanbus / solar rules (added 2026-08-08) --------------------------
+    #
+    # This monitor watched only `ble_events`, which are the BLE-era failure
+    # modes; it predates the entire solar path and read a table that path does
+    # not write to. So `xanbus_config_watch.py` — built specifically because a
+    # 4.0 V/cell equalize setting is one UI click from returning "and nothing
+    # currently alarms on it" — detected changes into a table nothing watched.
+    # The bell was working the whole time; it just was not wired up.
+    #
+    # (event, priority, tag, title) — priority follows the ntfy 1..5 scale.
+    XANBUS_RULES: tuple[tuple[str, int, str, str], ...] = (
+        ("xanbus_config_changed", 5, "rotating_light",
+         "CHARGE SETPOINT CHANGED"),
+        ("latch_fix_denied", 4, "no_entry", "MPPT refused our command"),
+        ("latch_fix_aborted", 4, "no_entry", "MPPT fix could not start"),
+    )
+
+    # Deliberately NOT alerted: mppt_latched, latch_detected, and a successful
+    # latch_fix_result. Those happen most days and the guard clears them
+    # unattended in ~20 min. Paging on routine self-healing is how an operator
+    # learns to ignore the channel, and then the one message that matters
+    # arrives buried in noise. Only the cases needing a HUMAN are above, plus
+    # the two conditional rules handled in code below.
+    XANBUS_COOLDOWN = timedelta(minutes=30)
+    CONFIG_COOLDOWN = timedelta(minutes=5)   # near-immediate; this one is safety
+
     def __init__(
         self,
         dao: _EventsSourceDAO,
@@ -543,6 +569,7 @@ class EventAlertMonitor:
             st = self._get_source_state(source_id)
             await self._check_pin_failed(client, source_id, st, since, now)
             await self._check_wedges(client, source_id, st, since, now)
+            await self._check_xanbus(client, source_id, st, since, now)
             await self._check_urgent_classification(client, source_id, st, since, now)
             await self._check_adapter_fallback(client, source_id, st, since, now)
 
@@ -747,6 +774,71 @@ class EventAlertMonitor:
             st["last_power_alert_at"] = now
             st["last_power_ts_alerted"] = ts
             break
+
+    async def _check_xanbus(
+        self, client, source_id: str, st: dict,
+        since: datetime, now: datetime,
+    ) -> None:
+        """Alert on the Xanbus incident events that need a human.
+
+        Best-effort by design: a DAO without `recent_xanbus_events` (the
+        in-memory one used by tests and by a DB-less deploy) simply skips
+        this, exactly as the rest of this monitor degrades.
+        """
+        getter = getattr(self.dao, "recent_xanbus_events", None)
+        if getter is None:
+            return
+        wanted = ",".join(name for name, _p, _t, _title in self.XANBUS_RULES)
+        try:
+            rows = await getter(source_id, wanted, since, 40)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("xanbus alert query failed: %s", exc)
+            return
+
+        by_name = {name: (p, tag, title)
+                   for name, p, tag, title in self.XANBUS_RULES}
+        seen: set = st.setdefault("xanbus_ts_alerted", set())
+        for row in rows:
+            name = row.get("event")
+            rule = by_name.get(name)
+            if rule is None:
+                continue
+            ts = row.get("ts")
+            key = (name, str(ts))
+            if key in seen:          # same event, later poll — do not re-page
+                continue
+            cooldown = (self.CONFIG_COOLDOWN
+                        if name == "xanbus_config_changed"
+                        else self.XANBUS_COOLDOWN)
+            last = st.get(f"last_{name}_at")
+            if last is not None and now - last < cooldown:
+                continue
+            priority, tag, title = rule
+            seen.add(key)
+            st[f"last_{name}_at"] = now
+            await self._fire(
+                client,
+                title=f"{title} — {source_id}",
+                message=self._xanbus_message(name, row),
+                priority=priority, tags=[tag],
+                context=f"source={source_id} kind={name}",
+            )
+
+    @staticmethod
+    def _xanbus_message(name: str, row: dict) -> str:
+        """One line the operator can act on, not a JSON dump."""
+        d = row.get("data") or {}
+        if name == "xanbus_config_changed":
+            fields = ", ".join(
+                c.get("field", "?") for c in (d.get("changes") or [])) or "?"
+            return (f"A charge setpoint changed that we did not change: {fields}. "
+                    f"Check the Insight UI — equalize on this LFP bank is 32 V "
+                    f"(4.0 V/cell) and must stay disabled.")
+        if name in ("latch_fix_denied", "latch_fix_aborted"):
+            return (f"The MPPT latch guard could not act ({name}). The array may "
+                    f"stay clamped until someone bounces it by hand: Insight → "
+                    f"MPPT → Operating Mode → Standby → 15 s → Operating.")
+        return f"{name}: {d}"
 
     async def _fire(
         self, client, *, title: str, message: str, priority: int,
