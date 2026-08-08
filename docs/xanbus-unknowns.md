@@ -560,6 +560,34 @@ The bookkeeping is now `note_healthy_run()` / `note_clamped_run()`, pure and
 unit-tested against this exact sequence, because inline it needed a CAN bus to
 exercise.
 
+### 2026-08-08: the bottleneck moved, so cadence matters now
+
+Fourth latch, and the guard hit its design floor:
+
+| local | event |
+|---|---|
+| 08:25 | crossed 45 V |
+| **09:19** | clamped — 54 min after crossing (13th of 13) |
+| 09:19 | `latch_guard_ambiguous` fraction 0.48 — the clamp forming, visible |
+| 09:29 | armed, fraction 1.00 |
+| 09:39 | acted → 27.3 → **93.3 V**, 5.5 W → **373 W** |
+
+**Exposure 20 min = exactly 2 confirmations x 10 min cadence.** No reset, no
+wasted cycle — the pure floor of the current design. Which means cadence is now
+the limiting term, where a day earlier it was not.
+
+That distinction is worth keeping. Halving 20 -> 10 min on 08-07 bought almost
+nothing (45 -> 41 min) and it would have been easy to conclude cadence was
+irrelevant. It was irrelevant *then* because the confirmation reset dominated;
+with that fixed the remaining delay is purely 2 x cadence. So 10 -> 5 min now
+takes exposure to ~10 min, worth ~42 Wh per latch at 250 W. Same gates, same
+confirmations, same caps — it only looks more often.
+
+Note also the `latch_guard_ambiguous` line at 09:19: that event was added on
+08-06 so a below-threshold bail could never again be invisible, and here it is
+doing exactly that job, showing the clamp forming ten minutes before the guard
+could act on it.
+
 ### Closing the loop 2026-08-07: which tuning change actually mattered
 
 Time-to-clear, same guard, three consecutive latches:
