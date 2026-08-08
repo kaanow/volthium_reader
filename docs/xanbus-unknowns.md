@@ -528,6 +528,36 @@ The bookkeeping is now `note_healthy_run()` / `note_clamped_run()`, pure and
 unit-tested against this exact sequence, because inline it needed a CAN bus to
 exercise.
 
+### Closing the loop 2026-08-07: which tuning change actually mattered
+
+Time-to-clear, same guard, three consecutive latches:
+
+| latch | cadence | confirmation rule | exposure |
+|---|---|---|---|
+| 08-06 morning | 20 min | clear-on-one-healthy | **45 min** |
+| 08-07 morning | **10 min** | clear-on-one-healthy | **41 min** |
+| 08-07 evening | 10 min | **two-healthy hysteresis** | **22 min** |
+
+**Halving the cadence bought almost nothing on its own** (45 -> 41 min). The
+gain came from the hysteresis: on 08-07 evening the guard armed at 17:46
+(fraction 0.96), sampled 0.56 at 17:56 — the exact wobble that restarted the
+sequence that morning — kept the confirmation, and acted at 18:06.
+
+Clamped share of the productive window (09:00-16:00), by day:
+
+    08-01  98%   08-02  90%   08-03  94%   08-04  99%     (no guard)
+    08-05  33%   (manual bounce)
+    08-06  11%   08-07   8%   (guard, tuned)
+
+**From ~95% of the productive day clamped to 8%.** 08-07 delivered 1105 Wh
+metered (~2.0 kWh true, applying the ~1.8x under-report) across two latches,
+both cleared automatically.
+
+Worth stating plainly because it was nearly the wrong conclusion: the cadence
+change looked like the obvious lever and was almost useless alone. What
+mattered was refusing to throw away state on a single noisy sample — the same
+lesson as the detector band and its release.
+
 ### What the guard was worth on its first full day: +801 Wh of 1031 Wh (78%)
 
 Measured energy for local day 2026-08-06 (UTC buckets, local day = 07:00Z to
