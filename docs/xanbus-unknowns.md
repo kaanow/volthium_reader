@@ -289,6 +289,20 @@ determined and only the *timing* varies. The 28% that appeared to "not clamp"
 were simply cases that took longer than the 60 minute window I happened to
 choose.
 
+#### The spread is the point: 50-170 min, and it is not predictable
+
+Time-to-clamp across the 13 crossings ranges **50 to 170 minutes**. The obvious
+candidate for predicting it — how deep the deficit was at the crossing — is
+only weakly informative: **r = +0.28**, with deep-deficit crossings
+(surplus < -70 W) clamping at a median 72 min against 90 min for shallow ones
+(>= -55 W), on n=8 and n=5. Suggestive, not conclusive.
+
+Worth stating because it cuts against a tempting refinement: *wait and see how
+fast it is falling, then decide*. You cannot, because you do not know whether
+this crossing is a 55-minute one or a 170-minute one, and the cheap early
+window is the same either way. The unpredictability argues for acting **at**
+the crossing rather than trying to time the intervention.
+
 **This is the number that matters for the early-bounce decision:** acting at
 the crossing intervenes a **median 80 minutes** before the clamp forms, and
 during that window the array currently yields only **23-43 Wh** on a typical
