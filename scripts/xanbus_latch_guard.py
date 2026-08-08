@@ -325,7 +325,7 @@ def main() -> int:
     # A clamp seen ONCE is still not acted on. The dawn/dusk transient this
     # originally guarded is now excluded by the elevation gate above, which is
     # both stricter and free; this remains as a second opinion against a
-    # one-off sampling artefact. Runs are 10 min apart, so a real latch — which
+    # one-off sampling artefact. Runs are 5 min apart, so a real latch — which
     # persists for hours — costs at most one extra cycle, while a spurious fix
     # would burn a daily-cap slot and start a 45 min cooldown.
     note_clamped_run(st)

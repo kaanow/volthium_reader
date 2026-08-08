@@ -1,13 +1,25 @@
 [Unit]
-Description=Check for a latched MPPT every 10 minutes
+Description=Check for a latched MPPT every 5 minutes
 
 [Timer]
 # Below the sun-elevation gate the guard exits immediately without touching
 # the bus, so overnight runs are free. In daylight the idle cost is one short
 # read-only CAN listen. (It does NOT no-op on array voltage: a dark string
 # floats most of Voc, which is what caused the 2026-08-06 night bounce.)
+#
+# 10 -> 5 min on 2026-08-08, because the BOTTLENECK MOVED. Halving 20 -> 10 min
+# bought almost nothing (45 -> 41 min to clear) while a single noisy sample
+# could still wipe a pending confirmation. With that hysteresis fixed, the
+# 08-08 latch cleared in exactly 2 confirmations x 10 min = 20 min, which IS
+# the cadence floor. At 5 min the same two confirmations take 10 min, worth
+# ~42 Wh per latch at 250 W.
+#
+# Note this does NOT make the guard more trigger-happy: same elevation gate,
+# same two confirmations, same hysteresis, same caps. It only looks more often.
+# 168 daylight runs/day at 45 s each is ~2.1 h of read-only listening; night
+# runs still exit in ~0.5 s.
 OnBootSec=10min
-OnUnitActiveSec=10min
+OnUnitActiveSec=5min
 AccuracySec=1min
 Persistent=false
 
