@@ -2,7 +2,7 @@
 
 schema_version: 1
 
-state: user_turn
+state: reviewer_turn
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement_review.md
@@ -22,51 +22,36 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-08T01:02:22Z
+last_updated_at: 2026-08-08T04:55:04Z
 last_updated_by: claude-designer
 
 note: >
-  DESIGNER iteration 24: F20 and F21 closed, and then a STOP for a user
-  decision - state is user_turn, not reviewer_turn, deliberately.
-  F20 RPA-ACCEPTED (042dcd2). It was my sloppiness, not a platform
-  quirk: I copied a scratchpad script into tools/ with an absolute
-  /Users/... chdir still in it, so a repo tool could not run on the
-  reviewer's host. Re-reviewed line by line per policy - parents[3] is
-  the repo root, chdir and sys.path both derive from it, nothing else
-  changes, zero-delta holds, and it runs clean here too. I also guarded
-  the failure it exposed: the evidence script now refuses to run if its
-  neuter list names a non-existent attribute, which bit immediately when
-  the F21 rename would otherwise have left the liveness case silently
-  neutering nothing.
-  F21 agreed - the line I drew was arbitrary, since footprint ID and
-  Value come from the same netlist record. assert_footprint_ids is
-  generalised to assert_component_identity requiring BOTH per ref, with
-  a missing Value treated as unverifiable. Your poison fires (BTN1 Value
-  ZZ_WRONG_VALUE vs '6x6 tall-actuator'), control clean, and the
-  same-cardinality Value mutation is in the production battery: 14/14
-  rejected on both boards. Edge.Cuts accepted as later-DRC coverage, not
-  added as a mutation.
-  LOOP SANITY - flagged unprompted, packet section 9.14. Since iteration
-  8: 19 commits, 8 review rounds, and BOTH board blobs byte-identical
-  throughout (display dc28b2fe36e6, battery 448d59a276df). The only
-  design-file changes are 21 lines of gate CONTRACTS. CP4's deliverable
-  is a reviewed placement and that was met at iteration 8; everything
-  since is verification infrastructure. Not all waste - F20/F21 and the
-  footprint-ID gap are real build integrity, and strict DRC caught none
-  of them - but the marginal value is falling and the loop is
-  self-referential: I harden verification, review finds a hole in the
-  verification, repeat. Neither side is misbehaving, which is why it
-  does not self-terminate.
-  ROOT CAUSE: CP4 has no exit criterion. max_iterations_per_cp is 1000
-  and nothing states what done means.
-  PROPOSAL for the USER (not mine to take): (1) close CP4 on its actual
-  deliverable with the section 7 D13 scorecard as the acceptance record;
-  (2) move remaining verification hardening to a bounded track that does
-  not gate a checkpoint; (3) adopt an explicit exit rule - a CP closes
-  when its named deliverable passes review and the artifact is unchanged
-  for two consecutive rounds, which would have closed CP4 at iteration
-  12; (4) proceed to CP5 routing, where the board actually changes.
-  Handing to the user rather than starting another gate round.
+  FINAL REVIEW - terms set by the USER, not by me. One more review, then
+  BOTH of us halt regardless of outcome.
+  The user's words: "stop being obtuse, both of you. sort your shit out.
+  last review. then you both halt." That lands on me as much as on you.
+  Eight rounds, 19 commits, and neither board has moved a byte.
+  IN SCOPE for this round: anything that blocks committing this placement
+  to routing - wrong part, wrong position, wrong side, mechanical or
+  thermal interference, a mating plane that will not seat, a footprint
+  that will not assemble. Real board defects.
+  OUT OF SCOPE: further hardening of the verification apparatus. The gate
+  battery is at 14/14 with a liveness proof. If it has another fail-open
+  edge, that is now an accepted risk, not a reason to hold the
+  checkpoint open. Log it as a note for the bounded track; do not raise
+  it as a CP4 blocker.
+  AFTER THIS ROUND BOTH SIDES HALT. If APPROVED, CP4 closes on its
+  placement deliverable with the section 7 D13 scorecard as the
+  acceptance record. If NEEDS CHANGES, the findings are recorded and CP4
+  halts anyway - the user takes the call on what carries into CP5.
+  No protocol change: the user declined an exit rule, so this is a
+  one-time instruction, not a new standing gate.
+  State of the design, said once: placement byte-identical for eight
+  rounds (display dc28b2fe36e6, battery 448d59a276df), independently
+  re-derived by KiCad's own engine (39/39 refs, 191/191 net-bound pads
+  here; 123/123 and 480/480 on the approved battery board). F20 signed
+  off (RPA clean, 2 patches accepted). F21 closed - component identity
+  now covers footprint ID AND Value, 14/14 mutations rejected.
 
 
-user_pause_reasons_seen_this_run: [cp4-exit-criterion-decision]
+user_pause_reasons_seen_this_run: [cp4-final-review-then-halt]
