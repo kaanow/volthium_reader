@@ -64,6 +64,14 @@ DROPOUT_S = 60                 # node silent this long -> node_dropout event
 # NEGATIVE deltas, which is the opposite condition: at dusk the array decays
 # BELOW battery voltage (dark, non-conducting) and that read as a latch. It
 # fired a false positive at 21:24 on 2026-08-05 with delta -15.7 V and 0 W.
+# Deliberately WIDE. The bank lives at 26-28 V and nothing in 11 days of
+# production data left that range except one glitch, so a tight 18-32 V window
+# is tempting — but the 2026-07 capture corpus contains a validated frame that
+# decodes to 54.16 V, and I do not know what that represents. Rejecting data I
+# have not proven wrong is how a sanity check starts eating real measurements.
+# So bound only what is unarguable: this is a low-voltage DC bus, not a
+# 143 kV transmission line. Catches the observed failure and nothing else.
+BUS_V_MIN, BUS_V_MAX = 5.0, 120.0
 LATCH_DELTA_MIN_V = 0.3        # below this the array isn't driving the diode
 # The ceiling must clear the MPPT's own reporting dither, or a real latch
 # reads as intermittent. Measured during the unbroken 2026-08-06 10:20 local
@@ -190,6 +198,7 @@ class Decoder:
         self.mppt_out_v: float | None = None
         self.mppt_out_w: float | None = None
         self.mppt_status: int | None = None
+        self.bad_dc_v = 0          # rejected out-of-range bus voltages
         self.clamp_since: float | None = None
         self.clamp_clear_since: float | None = None
         self.latched = False
@@ -225,7 +234,17 @@ class Decoder:
         if src != SRC_SW or len(p) < 14:
             return []
         _st, _assoc, v, i, w = struct.unpack_from("<BBIii", p, 0)
-        self._agg("dc_v").add(v / 1000)
+        dc_v = v / 1000
+        # Reject physically impossible bus voltages. One frame on 2026-08-01
+        # decoded as ~143 kV and dragged a whole 15 min bucket's mean to
+        # 2412 V — one bad sample in 855 buckets, but dc_v is the reference
+        # the latch detector differences against, and a corrupted stored mean
+        # is permanent. The release hysteresis already stops a single sample
+        # flipping the detector; this stops it reaching the database at all.
+        if not (BUS_V_MIN <= dc_v <= BUS_V_MAX):
+            self.bad_dc_v += 1
+            return []
+        self._agg("dc_v").add(dc_v)
         self._agg("dc_a").add(i / 1000)
         self._agg("dc_w").add(float(w))
         return []

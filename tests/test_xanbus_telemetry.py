@@ -84,6 +84,24 @@ class ParseIdTests(unittest.TestCase):
 
 
 class DecodeTests(unittest.TestCase):
+    def test_impossible_bus_voltage_is_rejected(self):
+        """One frame on 2026-08-01 decoded as ~143 kV and dragged a whole
+        15 min bucket's mean to 2412 V. dc_v is what the latch detector
+        differences against, and a corrupted stored mean is permanent."""
+        dec = Decoder()
+        good = bytes.fromhex("0303") + (26540).to_bytes(4, "little") + \
+            (-1430).to_bytes(4, "little", signed=True) + \
+            (37).to_bytes(4, "little") + b"\xff" * 22
+        bad = bytes.fromhex("0303") + (143_157_000).to_bytes(4, "little") + \
+            (-1430).to_bytes(4, "little", signed=True) + \
+            (37).to_bytes(4, "little") + b"\xff" * 22
+        feed_fastpacket(dec, 0x1F0C4, 0, good, t=1000.0)
+        feed_fastpacket(dec, 0x1F0C4, 0, bad, t=1001.0)
+        feed_fastpacket(dec, 0x1F0C4, 0, good, t=1002.0)
+        self.assertEqual(dec.bad_dc_v, 1)
+        # The mean must be the two good samples only, not dragged upward.
+        self.assertAlmostEqual(dec.aggs["dc_v"].mean, 26.54, places=2)
+
     def test_batt_sts2_aggregates_dc(self):
         dec = Decoder()
         feed_fastpacket(dec, 0x1F0C4, 0, BATT_STS2, t=1000.0)
