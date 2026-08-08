@@ -254,8 +254,21 @@ async def api_events(
 # --- read endpoints -------------------------------------------------------
 
 @app.get("/healthz", response_class=PlainTextResponse)
-async def healthz() -> str:
-    return "ok"
+async def healthz(settings: Settings = Depends(get_settings)) -> str:
+    """Liveness, plus whether the alerting path is armed.
+
+    StalenessMonitor and EventAlertMonitor are silently disabled when
+    STALENESS_WEBHOOK_URL is empty, and until 2026-08-08 nothing observable
+    distinguished "armed and quiet" from "never configured". A monitor whose
+    silence is ambiguous is not a monitor — the same failure shape as the
+    health check that truncated silently the day before.
+
+    Reports the STATE, never the URL: the webhook is a secret and /healthz is
+    unauthenticated. Appended rather than restructured because existing
+    consumers treat a 200 as healthy and ignore the body.
+    """
+    armed = "on" if settings.staleness_webhook_url else "off"
+    return f"ok alerting={armed}"
 
 
 @app.get("/api/sources")

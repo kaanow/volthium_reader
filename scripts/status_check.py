@@ -261,6 +261,32 @@ def section_events(since_iso: str) -> tuple[bool, list[str]]:
     return notable, lines
 
 
+def section_alerting() -> tuple[bool, list[str]]:
+    """Is the paging path armed?
+
+    The staleness and event monitors are silently disabled when
+    STALENESS_WEBHOOK_URL is unset. Checking that here means a disabled
+    alerter is caught during a routine check rather than discovered at the
+    moment something needed to page — which, by construction, is the moment
+    nobody is looking.
+    """
+    lines = ["Alerting:"]
+    try:
+        with urllib.request.urlopen(RAILWAY + "/healthz", timeout=20) as r:
+            body = r.read().decode("utf-8", "replace").strip()
+    except (urllib.error.URLError, urllib.error.HTTPError) as exc:
+        return True, lines + [f"  !! /healthz unreachable: {exc}"]
+    if "alerting=on" in body:
+        return False, lines + ["  webhook configured — staleness + event alerts armed"]
+    if "alerting=off" in body:
+        return True, lines + [
+            "  ← NOT ARMED: STALENESS_WEBHOOK_URL is unset on the server.",
+            "    Nothing will page on stale telemetry or on incident events.",
+        ]
+    # Older deploys answer a bare "ok" and cannot report either way.
+    return False, lines + [f"  unknown — server predates the alerting flag ({body!r})"]
+
+
 def section_wired(since_iso: str) -> tuple[bool, list[str]]:
     """Wired RS485 path health — the PRIMARY telemetry path since the BLE
     retirement (2026-07-26). Watches serial read failures, port errors/reopens
@@ -371,7 +397,8 @@ def main() -> int:
     failed: list[str] = []
     for name, fn in (("readings", lambda: section_readings(args.source, since_iso)),
                      ("events", lambda: section_events(since_iso)),
-                     ("wired RS485", lambda: section_wired(since_iso))):
+                     ("wired RS485", lambda: section_wired(since_iso)),
+                     ("alerting", section_alerting)):
         try:
             n, lines = fn()
             any_notable |= n
