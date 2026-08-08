@@ -700,6 +700,33 @@ are not floors-with-a-small-gap — they can miss the majority of the energy.
 Only healthy-delta samples may be used for array-health work, which is what
 the clear-sky index in #10 already does.
 
+### Severity signal: proposed, then made redundant 2026-08-08
+
+The obvious use of this was a *severity* trigger — a large BMS excess means the
+clamp is actively doing harm, so skip the guard's confirmation delay. Checked
+against every clamp since:
+
+| day | clamps | max BMS excess |
+|---|---|---|
+| 07-30..08-04 | many | **+250 to +535 W** |
+| 08-07 | 2 | **+28 W** |
+| 08-08 | 1 | **-82 W** |
+
+It would not have fired once in two days. More to the point, **the thing it
+was insurance against has been solved by other means**:
+
+- The guard now clears a clamp in ~22 min rather than hours, so the
+  unregulated-charge exposure is ~10x smaller. Skipping the confirmation would
+  save ~10 min, worth ~83 Wh into the pack — under 1% SOC, not a hazard.
+- The genuinely dangerous case is the guard *failing* (denied, aborted, daily
+  cap) while a strong-sun clamp persists. That is now covered directly:
+  `latch_fix_denied` and `latch_fix_aborted` page the operator at priority 4.
+
+So the fast guard plus alerting-on-guard-failure covers the hazard better than
+a severity signal would, and with less machinery. Dropped rather than left on
+the list looking sensible. **Revisit only if a strong-sun clamp with a large
+BMS excess is ever seen again** — the measurement above is the test.
+
 **Consequence for detection:** **BMS pack power greatly exceeding MPPT reported
 power** means the converter is bypassed, full stop — no thresholds, no dither
 problem, no dawn/dusk ambiguity.
