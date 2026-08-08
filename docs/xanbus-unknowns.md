@@ -263,6 +263,19 @@ crossed 45 V at ~08:22, clamped at 09:40 and was fixed at 10:21. **Acting at
 the crossing would have been ~2 hours earlier**, and would have bounced a
 still-tracking array back to its MPP instead of rescuing a dead one.
 
+**CONFIRMED OUT-OF-SAMPLE the same evening.** The threshold was derived from
+data up to ~14:00 on 08-07. That afternoon the array crossed 45 V at **16:55**
+and clamped at **17:45** — 50 minutes, inside the predicted hour, on data that
+did not exist when the rule was fitted. One case is not a validation, but it is
+the right kind of evidence: a prediction made first and checked after.
+
+The same episode also validated the confirmation hysteresis deployed at
+midday. At 17:46 the guard armed (fraction 0.96); at 17:56 it sampled 0.56 —
+below threshold — and under the OLD rule that single run would have wiped the
+pending confirmation and restarted the sequence, exactly as it did that
+morning at a cost of 20 minutes. It now records `healthy_runs: 1` and keeps
+the confirmation.
+
 NOT implemented: it is new automated hardware-writing behaviour, it would
 likely need repeated bounces as the array walks down again, and the 4/day cap
 would bind. But it turns Task #40 from a vague "watch the deficit crossover"
