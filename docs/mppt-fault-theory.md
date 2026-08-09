@@ -1,8 +1,12 @@
 # Why does the MPPT do this? A theory, with its evidence and its holes
 
-Written 2026-08-08 in answer to "is it faulty?". Short version: **yes, in at
-least one measurable respect — the output current sensor — and that single
-fault plausibly explains everything else.** The power stage is fine.
+Written 2026-08-08 in answer to "is it faulty?".
+
+**Short version, after the theory below was tested and its mechanism failed:**
+the output current sensor IS faulty (~1.5-2.1x under-read, measured), and the
+power stage is fine — but the sensor probably does **not** explain the tracking
+failure. The leading explanation is now a controller servoing to a charge
+current it can never reach. Read the REFUTED section before the theory.
 
 ## What is actually observed
 
@@ -134,8 +138,10 @@ agreeing with the wrong value (same sensor, so no arbitration).
 **The power stage: no.** It delivers 600+ W and holds a correct MPP for up to
 an hour after every reset. Nothing is failing to convert.
 
-**The tracking behaviour: faulty in effect, cause inferred.** The link from
-sensor to tracker is a strong argument, not a proof.
+**The tracking behaviour: faulty in effect, cause NOT established.** The link
+from sensor to tracker was tested the same day and did not hold — see the
+REFUTED section. Something is wrong with how this unit decides where to sit on
+the curve; which subsystem is at fault is still open.
 
 **Is it degrading?** Unknown, and worth saying plainly rather than guessing:
 the walk-down is present in the earliest data available (07-30 already swings
@@ -147,10 +153,12 @@ One measurement decides between "bad sensor" and "bad algorithm": **an
 independent clamp meter on the MPPT output**, per
 `docs/design/dc-current-instrumentation.md`.
 
-- If actual output current is ~1.8x the reported value **and the ratio changes
-  with current**, the sensor fault is confirmed and the causal story stands.
-- If the ratio is a clean constant, the theory's weak link breaks and the
-  cause is more likely algorithmic or the BMS-request interaction.
+Note the BMS-derived version of this test has already been run and pointed
+*away* from the sensor. A clamp meter would settle it properly, since the
+derived estimate carries the +33 W offset, an unmodelled fridge, and bin
+confounds. But on present evidence the more valuable next step is cheaper:
+**analyse the `chg_stage` bulk ↔ not_charging flapping**, which is logged
+already and needs no hardware.
 
 Either way the operational answer is unchanged, because the guard already
 handles it: bounce on detection, and consider bouncing at the 45 V cliff before
