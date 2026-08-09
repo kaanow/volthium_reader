@@ -29,6 +29,22 @@ ExecStartPre=-/sbin/ip link set can0 down
 ExecStartPre=/sbin/ip link set can0 type can bitrate 250000 listen-only off
 ExecStartPre=/sbin/ip link set can0 up
 ExecStart=/srv/volthium_reader/.venv/bin/python scripts/can_capture.py
+# BOUND THE MEMORY. This was `infinity` until 2026-08-09, and at 57 MB after
+# 82 h uptime it is the largest of the six services by 4x — uncapped, on a
+# 1 GB box with ~100 MB of swap. That is exactly the shape of the 2026-07-26
+# outage (CLAUDE.md rule 1): a process grows, the box thrashes, telemetry and
+# SSH go with it, and nobody can reach the site for weeks.
+#
+# 200M is deliberately generous — 3.5x the observed steady state — because the
+# point is not to trim it, it is to convert "eats the Pi" into "restarts and
+# loses a few seconds of capture". Raw capture is a decode corpus, not the
+# mission; losing some is survivable, losing the box is not.
+#
+# MemorySwapMax=0 for the same reason it is set on the telemetry unit: on
+# ~100 MB of swap, a process allowed to swap takes the whole box down slowly
+# instead of dying quickly.
+MemoryMax=200M
+MemorySwapMax=0
 Restart=always
 RestartSec=10
 

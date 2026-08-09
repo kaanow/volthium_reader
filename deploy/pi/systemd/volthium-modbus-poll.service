@@ -8,6 +8,11 @@ User=claude
 Group=users
 WorkingDirectory=/srv/volthium_reader
 ExecStart=/srv/volthium_reader/.venv/bin/python scripts/modbus_poll.py
+# Bounded for the same reason as the capture service (CLAUDE.md rule 1): an
+# uncapped process on a 1 GB box with ~100 MB of swap can take the whole
+# machine down before anything kills it. 64M is ~6x the observed 11 MB.
+MemoryMax=64M
+MemorySwapMax=0
 Restart=always
 RestartSec=15
 
