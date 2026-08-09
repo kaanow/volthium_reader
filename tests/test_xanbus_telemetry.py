@@ -159,6 +159,29 @@ class DecodeTests(unittest.TestCase):
         self.assertEqual(stage[0]["data"]["from"], "bulk")
         self.assertEqual(stage[0]["data"]["to"], "absorption")
 
+    def test_unmapped_charge_stage_falls_through_to_the_int(self):
+        """An undecoded code must stay visible as a number rather than be
+        silently dropped or guessed at — that is how 786 was found at all."""
+        dec = Decoder()
+        feed_fastpacket(dec, 0x1F00E, 1, CHG_STS, t=1000.0)
+        odd = CHG_STS[:12] + (999).to_bytes(2, "little") + CHG_STS[14:]
+        evs = feed_fastpacket(dec, 0x1F00E, 1, odd, t=1010.0)
+        stage = [e for e in evs if e["event"] == "chg_stage"]
+        self.assertEqual(stage[0]["data"]["to"], 999)
+
+    def test_786_is_named_by_behaviour_not_meaning(self):
+        """786 is a 1 s transient on the absorption->float handoff, seen 4
+        times, semantics undecoded. It is mapped only so the stream is
+        legible; the name must not claim to know what it is."""
+        dec = Decoder()
+        absorb = CHG_STS[:12] + (770).to_bytes(2, "little") + CHG_STS[14:]
+        feed_fastpacket(dec, 0x1F00E, 1, absorb, t=1000.0)
+        odd = CHG_STS[:12] + (786).to_bytes(2, "little") + CHG_STS[14:]
+        evs = feed_fastpacket(dec, 0x1F00E, 1, odd, t=1001.0)
+        stage = [e for e in evs if e["event"] == "chg_stage"]
+        self.assertEqual(stage[0]["data"]["from"], "absorption")
+        self.assertEqual(stage[0]["data"]["to"], "absorption_to_float_transient")
+
     def test_gen_start_stop(self):
         dec = Decoder()
         feed_fastpacket(dec, 0x1F016, 0, GEN_OFF, t=1000.0)

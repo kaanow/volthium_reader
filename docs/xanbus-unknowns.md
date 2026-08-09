@@ -15,8 +15,8 @@ the `xanbus` skill.
 > **Established:**
 > - The tracker walks the array **down past its own MPP** and never turns
 >   around, ending pinned one diode drop above the battery.
-> - **~45 V is the point of no return.** 15 of 15 crossings ended in a clamp;
->   none recovered. Time to clamp 30-115 min, median 65, and **not predictable**
+> - **~45 V is the point of no return.** 16 of 16 crossings ended in a clamp;
+>   none recovered. Time to clamp 30-115 min, median 68, and **not predictable**
 >   (deficit depth correlates at only r = +0.28). Derived by
 >   `scripts/cliff_table.py` — do not hand-edit these numbers.
 > - Above 45 V descents usually **abort on their own** — the sawtooth.
@@ -290,7 +290,7 @@ crossed 45 V at ~08:22, clamped at 09:40 and was fixed at 10:21. **Acting at
 the crossing would have been ~2 hours earlier**, and would have bounced a
 still-tracking array back to its MPP instead of rescuing a dead one.
 
-### Sharpened 2026-08-08, re-derived 2026-08-09: 15 of 15
+### Sharpened 2026-08-08, re-derived 2026-08-09: 16 of 16
 
 The "72% within 60 minutes" figure used an arbitrary window and understated
 the effect. Following **every** 45 V crossing to whatever happened next:
@@ -317,9 +317,10 @@ the effect. Following **every** 45 V crossing to whatever happened next:
 | 08-08 12:10 | 13:05 | 55 | 84 |
 | 08-08 15:20 | 16:55 | 95 | 89 |
 | 08-09 09:15 | 09:45 | 30 | 20 |
+| 08-09 11:50 | 13:05 | 75 | 125 |
 
-**15 of 15 crossings ended in a clamp; none recovered.** Time to clamp: min
-30, median 65, max 115 minutes.
+**16 of 16 crossings ended in a clamp; none recovered.** Time to clamp: min
+30, median 68, max 115 minutes.
 
 So the cliff is not probabilistic — below 45 V the outcome is effectively
 determined and only the *timing* varies. The 28% that appeared to "not clamp"
@@ -343,7 +344,7 @@ Two morning entries also moved once the arming rule was applied consistently
 (07-30 145→115, 08-05 170→90); the old start times were picked before the
 array had re-armed above 48 V. **The 170-minute maximum does not exist.**
 
-Corrected distribution: **30 to 115 minutes, median 65**. It is now derived by
+Corrected distribution: **30 to 115 minutes, median 68**. It is now derived by
 `scripts/cliff_table.py`, so it cannot drift again.
 
 #### The spread is the point: 30-115 min, and it is not predictable
@@ -365,12 +366,12 @@ being half what was previously believed is the strongest argument yet for
 acting at the crossing rather than after a confirmation delay.
 
 **This is the number that matters for the early-bounce decision:** acting at
-the crossing intervenes a **median 65 minutes** before the clamp forms. On a
+the crossing intervenes a **median 68 minutes** before the clamp forms. On a
 dim morning that window is worth only 23-43 Wh — near-worthless. But on a
 bright day it is worth **84-210 Wh**, which reframes the trade: the early
 bounce is not just cheap insurance on bad days, it protects real energy on
 good ones. It is not a gamble on a 72% chance; it is acting ahead of an
-outcome that is, on 15 for 15, certain.
+outcome that is, on 16 for 16, certain.
 
 **CONFIRMED OUT-OF-SAMPLE the same evening.** The threshold was derived from
 data up to ~14:00 on 08-07. That afternoon the array crossed 45 V at **16:55**
@@ -1113,6 +1114,50 @@ supervised, long hold at a controlled voltage, or cell-level work on site.
 BMS designs, not confirmed for this Volthium unit. If its balancer engages
 lower, the window is larger than this table suggests — worth checking against
 the balancer flags already being logged (see memory `keep-balancer-flags`).
+
+#### OPEN HYPOTHESIS 2026-08-09: the peak spread may be falling since the
+#### ceiling change. Not established — here is the test that settles it.
+
+Peak `dv_a` on days that actually reached 100% SOC (days that did not are
+excluded; the cliff never engages below the top, and their ~25 mV says
+nothing):
+
+| day | dv_a max | min at 100% SOC | note |
+|---|---|---|---|
+| 07-29 | 0.369 | 335 | |
+| 07-30 | 0.374 | 405 | |
+| 07-31 | 0.386 | 315 | |
+| 08-01 | **0.415** | 125 | worst on record, on a SHORT day at the top |
+| 08-05 | 0.380 | 185 | |
+| 08-08 | 0.247 | 140 | ceiling lowered to 28.0 V this day |
+| 08-09 | 0.194 | 75 | **day incomplete** — 178 of 288 buckets |
+
+The break lands exactly on the 28.0 V ceiling change (#38), and the two days
+since are the two lowest peaks on any 100%-SOC day. That is the shape of the
+ceiling change working.
+
+**It is not established, and the confound is obvious:** those two days also
+spent the least time at 100% SOC (140 and 75 min against 315-405 before), and
+today is two-thirds recorded. Less time at the top is less time for the spread
+to open, which would produce the same picture with no improvement at all.
+
+What keeps the hypothesis alive rather than killing it: **08-01 spent only 125
+minutes at 100% and produced the worst spread ever recorded (0.415)**. So
+time-at-top does not straightforwardly drive the peak, and the two low days
+are not simply explained away by their short windows.
+
+**The test.** Wait for a post-change day that reaches 100% SOC and holds it
+for **300+ minutes** — comparable to 07-29/07-30/07-31.
+
+- spread stays **below ~0.25 V** → the ceiling change is genuinely reducing
+  the imbalance, and "will not self-correct under current operation" above is
+  wrong and must be rewritten. Current operation changed.
+- spread returns to **0.37-0.42 V** → the two low days were just short
+  exposure, the original conclusion stands, and this section gets deleted.
+
+Do not update the headline conclusion on anything less. The claim being tested
+is one this file already asserted the opposite of, on better evidence than two
+partial days.
 
 **CORRECTED 2026-08-07 — the ceiling is the WRONG LEVER, and never was one.**
 Peak pack voltage by day, measured rather than assumed:

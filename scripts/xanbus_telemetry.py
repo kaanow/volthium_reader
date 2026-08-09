@@ -107,8 +107,18 @@ FAST_PACKET_PGNS = {PGN_BATT_STS2, PGN_DC_SRC_STS2, PGN_CHG_STS, PGN_AC_STS_RMS}
 
 SRC_SW, SRC_MPPT = 0, 1        # node addresses on our bus
 
+# 786 (0x312) is named for what it was OBSERVED to do, not for what it means —
+# its semantics are undecoded. It has appeared exactly 4 times, always as a
+# one-second transient on the absorption -> float handoff (08-08 17:32:38-39
+# and 08-09 13:41:33-34), and only on the two days since the charge ceiling
+# was lowered to 28.0 V that got as far as float. Note 0x312 == 0x302
+# (absorption) with bit 4 set, which is suggestive of an "absorption complete"
+# sub-state, but that is a guess and the name deliberately does not assert it.
+# Mapping it at all is only so the event stream shows something legible
+# instead of a bare integer; unmapped codes still fall through to the int.
 CHG_STAGE_NAMES = {768: "not_charging", 769: "bulk", 770: "absorption",
-                   773: "float", 777: "qualifying_ac"}
+                   773: "float", 777: "qualifying_ac",
+                   786: "absorption_to_float_transient"}
 INV_STATUS_NAMES = {1024: "invert", 1025: "ac_passthrough"}
 
 _stop = False
