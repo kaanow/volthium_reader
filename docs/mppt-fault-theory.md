@@ -107,7 +107,53 @@ bulk ↔ not_charging **~40 times in 11 hours**. A current regulator chasing an
 unreachable setpoint, with MPP limiting not overriding it, produces exactly the
 observed monotonic walk toward more current — and needs no sensor fault at all.
 
-That flapping has not been analysed and is the obvious next thread.
+### ...and that lead is refuted too, 2026-08-09
+
+The `chg_stage` flapping is real — 1035 of 1054 transitions over ten days are
+`bulk ↔ not_charging`, and the unit reached absorption only **4 times in ten
+days**, so it essentially never completes a charge cycle. But it does not
+happen when the descent happens.
+
+08-08 transitions by local hour:
+
+| hour | transitions |
+|---|---|
+| **05:00** | **40** |
+| 06:00 | 5 |
+| 09:00 / 13:00 / 17:00 | 2 / 2 / 2 — these are the guard's own bounces |
+| **20:00** | **39** |
+| 21:00 | 6 |
+
+Median gap between transitions: **17 seconds**. It is concentrated entirely in
+the dawn and dusk hours, and there are **zero transitions during the
+descents** — the array walks 91 → 29 V with the controller sitting in a single
+uninterrupted `bulk` state.
+
+So the descent is a **smooth continuous control action inside one mode**, not a
+state-machine artefact. That is worth knowing: it rules out mode-thrash as the
+cause, and it is consistent with (though it does not prove) a regulator pushing
+steadily toward a setpoint. `chg_target` does advertise **60 A** throughout
+bulk, against an array good for ~24 A.
+
+**Separately, the dawn/dusk chatter is itself a previously unnoticed
+behaviour.** ~40 start/stop cycles at ~17 s intervals, twice a day, as the
+array crosses the converter's start threshold — classic hysteresis chatter at a
+marginal input. Probably benign if the switching is solid-state, but it is ~80
+cycles a day that nobody had counted.
+
+### Where that leaves the diagnosis
+
+Three candidate mechanisms have now been tested against data and **all three
+have failed**: low-light dependence (descent starts at every power level from
+16 to 312 W), sensor non-linearity (error is scale-like in current), and
+mode-thrash (no transitions during descents).
+
+What survives is only the observation, not an explanation: within one
+continuous bulk state, with an unreachable 60 A target, the controller walks
+the operating point down past its own MPP and never turns around. Whether that
+is a firmware defect, a deliberate-but-wrong current-priority behaviour, or
+something about how it arbitrates the BMS request is **not established**, and I
+have stopped guessing at it.
 
 ## What this does NOT explain, honestly
 
