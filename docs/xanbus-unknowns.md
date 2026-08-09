@@ -1035,6 +1035,48 @@ peaking at 95.6% SOC. The array may simply have run out of energy before the
 ceiling ever became the binding constraint. Attributing 08-06's good behaviour
 to the setpoint would be exactly the mistake this file keeps recording.
 
+### The balancing trap, found 2026-08-09
+
+Most LFP BMS balancers engage around 3.40-3.45 V/cell — 27.2-27.6 V on this 8s
+pack. How much time does pack A actually spend there?
+
+| day | peak V | peak SOC | h ≥ 27.2 V | h ≥ 27.6 V | max dv_a |
+|---|---|---|---|---|---|
+| 07-31 | 27.55 | 100% | **0.2** | **0.0** | 0.386 |
+| 08-02 | 26.88 | 89% | **0.0** | 0.0 | 0.028 |
+| 08-04 | 26.90 | 85% | **0.0** | 0.0 | 0.029 |
+| 08-05 | 27.51 | 100% | **0.5** | 0.0 | 0.380 |
+| 08-07 | 26.88 | 89% | **0.0** | 0.0 | 0.024 |
+| 08-08 | 27.27 | 100% | **0.5** | 0.0 | 0.247 |
+
+**12 to 30 minutes a day, on the days it gets there at all, and never above
+3.45 V/cell.** Six of eleven days: zero minutes.
+
+And the days it *does* reach the balancing range are exactly the days the
+spread blows out. Those two facts together are a trap:
+
+- Below ~27.2 V the cells look **beautifully matched** (24-29 mV) — but no
+  balancing is happening, because the balancer is not engaged.
+- Above ~27.2 V the balancer can work — but cell 4 immediately runs to
+  ~3.83 V, the spread hits 250-420 mV, and the BMS pulls charge current to
+  protect it, ending the window.
+
+A passive balancer shunting an amp or two needs **hours** at the top to move a
+spread that large. It is getting **minutes**, in the pack's most stressed
+state. **This imbalance will not self-correct under current operation** — and
+the healthy-looking 25 mV on most days is not recovery, it is simply never
+going high enough to reveal or fix anything.
+
+The 100%-SOC cliff and the balancing window are the same voltage region. You
+cannot avoid one and use the other, which is why "just keep SOC off the top"
+is a containment strategy and not a cure. A cure needs either a deliberate,
+supervised, long hold at a controlled voltage, or cell-level work on site.
+
+*Assumption flagged:* the 3.40-3.45 V/cell engage threshold is typical for LFP
+BMS designs, not confirmed for this Volthium unit. If its balancer engages
+lower, the window is larger than this table suggests — worth checking against
+the balancer flags already being logged (see memory `keep-balancer-flags`).
+
 **CORRECTED 2026-08-07 — the ceiling is the WRONG LEVER, and never was one.**
 Peak pack voltage by day, measured rather than assumed:
 
