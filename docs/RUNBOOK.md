@@ -2,7 +2,8 @@
 
 > The "if something's on fire, read this" doc. Everything you (or an AI agent
 > with no memory of the project) need to operate the live system without
-> re-deriving it. Last major update: 2026-07-01.
+> re-deriving it. Last major update: 2026-08-09 (RS485 is the live
+> battery path; the Xanbus/Modbus services and the memory caps are new).
 
 ## Current deployment at a glance
 
@@ -11,7 +12,9 @@
 | **Site** | The Barge Inn, Loon Lake |
 | **Pack** | 2 × Volthium SC12200G4DPH 12V 200Ah LiFePO4 in series (24 V nominal) |
 | **Reader** | Raspberry Pi 3B running Ubuntu 24.04 LTS aarch64 (kernel 6.8.0-1060-raspi) |
-| **BLE adapter** | TP-Link UB500 USB dongle (RTL8761B chipset), enumerates as `hci1` — the internal BCM43438 (`hci0`) is left DOWN, its UART bring-up is broken on this board |
+| **Battery link (live)** | RS485, two USB adapters at `/dev/ttyRS485-a` and `/dev/ttyRS485-b` — udev symlinks by **USB port path**, so moving an adapter between sockets re-maps A and B |
+| **Xanbus link** | gs_usb CAN adapter on `can0` @ 250 kbit/s, `listen-only off` (the latch guard transmits) |
+| **BLE adapter (retired)** | TP-Link UB500 USB dongle (RTL8761B chipset), enumerates as `hci1` — the internal BCM43438 (`hci0`) is left DOWN, its UART bring-up is broken on this board. Still fitted; `volthium-logger` is disabled |
 | **Storage** | Samsung PRO Endurance 64 GB microSD (replaced the aging SU16G on 2026-07-09) |
 | **Reader hostname / IP** | `kwpi` / `192.168.1.251` (LAN + ZeroTier reachable) |
 | **SSH access** | `ssh kaan@192.168.1.251` — key auth, passwordless sudo |
@@ -26,21 +29,41 @@
 
 ## Architecture in 60 seconds
 
-1. **`volthium-logger`** on the Pi reads both batteries over BLE every 10 s.
-   Writes to `data/pack.csv` and `data/ble_events.jsonl` (sealed-segment
-   rotation; moved off tmpfs 2026-07-13 so diagnostics survive reboots).
-   Reads via the UB500 dongle, with automatic fallback to the internal BT
-   chip — and automatic USB-replug repair of the dongle — when it wedges.
+1. **`volthium-rs485-logger`** on the Pi reads both batteries over **RS485**
+   every 5 s — the primary and only live battery path since 2026-07-26.
+   Writes `data/pack.csv` and `data/ble_events.jsonl` (sealed-segment
+   rotation; moved off tmpfs 2026-07-13 so diagnostics survive reboots). The
+   event log keeps its historical `ble_` name so the uploader is unchanged.
 2. **`volthium-uploader`** tails `data/pack.csv`, converts naive-local to
    UTC `Z`, POSTs batches to Railway `/ingest`, upserts on `(source_id, ts)`.
 3. **`volthium-events-uploader`** drains sealed segments from `data/` to
    Railway `/api/events/ingest` → `ble_events` table.
-4. **`volthium-dashboard`** on the Pi serves the local dashboard at :8421.
-5. **Railway** hosts the FastAPI ingest server + a public browser dashboard
+4. **`volthium-xanbus-telemetry`** decodes the Conext CAN bus into 15 s solar
+   rows + a sparse event stream, spools to disk, uploads to Railway. This is
+   where `pv_v`, `solar_w` and the MPPT latch detection come from.
+5. **`volthium-xanbus-capture`** writes the raw CAN corpus used for offline
+   decode work. Local-only — never routed through Railway.
+6. **`volthium-modbus-poll`** polls the Insight Home gateway over Modbus/TCP;
+   it is the independent cross-check that validated the Xanbus decode.
+7. **`volthium-dashboard`** on the Pi serves the local dashboard at :8421.
+8. **Railway** hosts the FastAPI ingest server + a public browser dashboard
    at the URL above. Postgres retains everything indefinitely.
-6. **Staleness monitor** (on Railway) polls every 60 s; fires ntfy push on
-   `fresh → stale` (>5 min silence) and `stale → fresh` recovery.
+9. **Staleness + event monitor** (on Railway) polls every 60 s; fires ntfy
+   push on `fresh → stale` (>5 min silence) and `stale → fresh` recovery, and
+   since 2026-08-08 also on Conext setpoint changes, latch-fix failures, and
+   BMS protection alarms.
 
+Two timer-driven jobs run alongside these and are `inactive` between firings,
+which is their healthy state: **`volthium-latch-guard`** (every 5 min —
+detects and clears an MPPT diode-clamp latch) and **`volthium-config-watch`**
+(hourly — alarms on any Conext charge-setpoint change).
+
+> **BLE is retired.** `volthium-logger.service` still exists on the Pi but is
+> disabled and dead, and it `Conflicts=` with the RS485 logger because both
+> write `data/pack.csv` — run exactly one. Everything below about adapters,
+> UB500 fallback and USB replug describes that retired path; it is kept
+> because the hardware is still fitted and the wedge diagnostics remain the
+> reference for that failure mode.
 Deep architecture: `docs/cloud_architecture.md`. Deep field notes:
 `docs/reliability_failure_modes.md`.
 
@@ -61,18 +84,36 @@ Deep architecture: `docs/cloud_architecture.md`. Deep field notes:
 
 ## Systemd services on the Pi
 
-| Unit | User | Runtime cost | Purpose |
+Seven services are `enabled` and must be `active`; measured 2026-08-09.
+
+| Unit | User | Memory (observed / cap) | Purpose |
 |---|---|---|---|
-| `volthium-logger.service` | claude | one Python process, ~30 MB RSS | polls BLE every 10 s, writes CSV + events |
-| `volthium-uploader.service` | claude | one Python process, ~25 MB RSS | POSTs pack.csv rows to Railway |
-| `volthium-events-uploader.service` | claude | one Python process, ~20 MB RSS | POSTs sealed event segments to Railway |
-| `volthium-dashboard.service` | claude | one Python process, ~40 MB RSS | local browser dashboard on :8421 |
+| `volthium-rs485-logger.service` | claude | 22 MB / **128M** | polls both batteries over RS485 every 5 s, writes CSV + events |
+| `volthium-uploader.service` | claude | 21 MB / **96M** | POSTs pack.csv rows to Railway |
+| `volthium-events-uploader.service` | claude | 20 MB / **96M** | POSTs sealed event segments to Railway |
+| `volthium-dashboard.service` | claude | 20 MB / uncapped | local browser dashboard on :8421 |
+| `volthium-xanbus-telemetry.service` | root | 12 MB / **60M** | CAN decode → 15 s solar rows + events → Railway |
+| `volthium-xanbus-capture.service` | root | 11 MB / **200M** | raw CAN corpus for offline decode (local only) |
+| `volthium-modbus-poll.service` | claude | 7 MB / **64M** | Insight Home Modbus/TCP cross-check |
+| `volthium-latch-guard.timer` | root | fires every 5 min | detect + clear an MPPT diode-clamp latch |
+| `volthium-config-watch.timer` | root | fires hourly | alarm on any Conext charge-setpoint change |
 | `volthium-weekly-reboot.timer` | root | fires 1st Sun of month, 04:00 | clean-slate reboot to clear BlueZ / MMC state (used to be weekly; monthly since 2026-07-09 hardware refresh) |
 
-All four data services have `Restart=always`. If any crashes, systemd
-respawns within a few seconds.
+All data services have `Restart=always`; if any crashes, systemd respawns
+within a few seconds. All but the dashboard also carry `MemoryMax` and
+`MemorySwapMax=0`. **The caps are the point, not the numbers** — each is 4-6x
+its observed steady state, because on a 1 GB box with ~100 MB of swap the
+failure that matters is an uncapped process thrashing the whole machine into
+unreachability (CLAUDE.md rule 1, the 2026-07-26 outage). A cap turns that
+into a restart. The three oldest services ran uncapped until 2026-08-09
+purely because nobody had gone back for them.
 
-## Env vars on the Pi (logger drop-in)
+`volthium-logger.service` (BLE) is present but **disabled and dead** — see the
+architecture note above. A health check that expects it to be running is
+wrong; `scripts/status_check.py` derives the list from systemd for exactly
+this reason.
+
+## Env vars on the Pi (BLE logger drop-in — retired path)
 
 `/etc/systemd/system/volthium-logger.service.d/10-reader-env.conf`
 (versioned at `deploy/pi/systemd/volthium-logger.service.d/`):
@@ -116,20 +157,36 @@ dashboard is recent and both batteries show data, you're good.
 
 From SSH:
 ```
-sudo systemctl is-active volthium-logger volthium-uploader volthium-events-uploader volthium-dashboard
-# expect four "active"
-sudo journalctl -u volthium-logger -n 20 --no-pager
+# Ask systemd which services should be up, rather than naming them — the list
+# has changed twice (BLE retired, Xanbus added) and a hardcoded one goes stale.
+systemctl list-units 'volthium-*.service' --state=active --no-legend --plain
+# expect seven; anything enabled-but-not-active is a fault
+systemctl show 'volthium-*.service' -p Id -p ActiveState -p UnitFileState --no-pager \
+  | paste - - - - | grep -v 'ActiveState=active'
+sudo journalctl -u volthium-rs485-logger -n 20 --no-pager
 ```
 
 ## Common ops
 
 ### Restart one service
 ```
-sudo systemctl restart volthium-logger
-sudo systemctl status  volthium-logger --no-pager -l
+sudo systemctl restart volthium-rs485-logger
+sudo systemctl status  volthium-rs485-logger --no-pager -l
 ```
 
-### Restart the whole BLE stack (fixes most transient issues)
+### Battery telemetry has stopped (RS485 — the live path)
+```
+ls -l /dev/ttyRS485-a /dev/ttyRS485-b     # udev symlinks present?
+sudo systemctl restart volthium-rs485-logger
+sudo journalctl -u volthium-rs485-logger -n 40 --no-pager
+```
+The symlinks are by USB **port path**, so swapping which physical socket an
+adapter sits in re-maps A and B. If both adapters are present but readings
+are wrong-battery, that is the first thing to check.
+
+### Restart the whole BLE stack — RETIRED PATH
+Only relevant if `volthium-logger` has been deliberately re-enabled; it is
+disabled by default and conflicts with the RS485 logger.
 ```
 sudo systemctl restart bluetooth
 sudo hciconfig hci0 up
@@ -148,7 +205,7 @@ sudo systemctl restart volthium-logger
 ssh kaan@192.168.1.251
 cd /srv/volthium_reader
 sudo -u claude git pull --ff-only origin main
-sudo systemctl restart volthium-logger volthium-uploader volthium-events-uploader
+sudo systemctl restart volthium-rs485-logger volthium-uploader volthium-events-uploader
 ```
 
 If the change touches system config (units, drop-ins, udev), run the
@@ -217,7 +274,7 @@ longer interrupt telemetry at all.
    USB fault) the pin resolution fails, an `adapter_pin_failed` event fires,
    and the code falls back to bleak's default adapter — which will try the
    flaky internal chip. Plug the dongle back in.
-5. **Logger dead** — `sudo systemctl restart volthium-logger`.
+5. **Logger dead** — `sudo systemctl restart volthium-rs485-logger`.
 6. **Pi entirely unreachable via SSH** — power or SD card failure. Nothing
    software can do; needs physical access.
 

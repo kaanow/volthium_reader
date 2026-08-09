@@ -12,6 +12,20 @@ EnvironmentFile=/etc/volthium-uploader.env
 ExecStart=/srv/volthium_reader/.venv/bin/python -m cloud.uploader.uploader --csv data/pack.csv --url https://volts.alti2.de --source-id pi-barge --log data/uploader.log
 # Protect telemetry upload from OOM (see CLAUDE.md / 2026-07-26 outage).
 OOMScoreAdjust=-900
+# BOUND THE MEMORY. Left at `infinity` when the newer services were capped
+# on 2026-08-09 — an inconsistency, not a decision. This is tails pack.csv and POSTs to Railway; a stuck upload backlog is the plausible growth path.
+#
+# On a 1 GB box with ~100 MB of swap, an uncapped process is the shape of the
+# 2026-07-26 outage (CLAUDE.md rule 1): something grows, the box thrashes, and
+# telemetry and SSH go with it for however many weeks until someone drives out.
+# A cap converts that into "restarts and loses a few seconds", which
+# Restart=always already handles.
+#
+# 96M against an observed steady state of ~21 MB is deliberately generous;
+# the point is a ceiling, not a diet. MemorySwapMax=0 because on ~100 MB of
+# swap, a process allowed to swap kills the box slowly instead of dying fast.
+MemoryMax=96M
+MemorySwapMax=0
 Restart=always
 RestartSec=5
 

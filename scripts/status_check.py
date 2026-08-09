@@ -327,40 +327,105 @@ def section_wired(since_iso: str) -> tuple[bool, list[str]]:
 
 
 def section_pi(ssh_target: str, hours: int) -> tuple[bool, list[str]]:
-    """Optional — SSH into the Pi for logger warnings / throttled / uptime."""
+    """Optional — SSH into the Pi for service health / throttled / uptime.
+
+    Asks systemd which services exist rather than naming them. The previous
+    version hardcoded `volthium-logger`, the BLE logger, and kept checking it
+    for months after RS485 became the primary transport on 2026-07-26. That
+    unit is disabled and dead, so its restart count and error count were both
+    a permanent, reassuring zero — a health check reporting on a service that
+    was not running. The live logger, `volthium-rs485-logger`, was never
+    checked at all.
+
+    The rule that replaces it maintains itself: a service that is
+    UnitFileState=enabled must be ActiveState=active. Timer-driven units
+    (latch-guard, config-watch) are static or disabled and correctly excluded,
+    since being inactive between firings is their normal state — and so is a
+    retired unit, which is what makes this drift-proof rather than merely
+    corrected.
+    """
     lines = [f"Pi diagnostics (ssh {ssh_target}):"]
     notable = False
+    # NOTE: ssh flags go AFTER the host on this machine — see memory
+    # `kwpi-ssh-paths`. Flags before the host hit a DNS resolution quirk.
+    probe = (
+        "uptime; vcgencmd get_throttled; "
+        "systemctl show 'volthium-*.service' -p Id -p ActiveState "
+        "-p UnitFileState -p NRestarts --no-pager | tr '\\n' '|'; echo; "
+        f"sudo journalctl --since '{hours} hours ago' -p warning --no-pager "
+        "$(systemctl list-units 'volthium-*.service' --no-legend --plain "
+        "--state=active | awk '{printf \" -u \"$1}') 2>/dev/null "
+        "| grep -cE 'WARNING|ERROR|Failed' || true"
+    )
     try:
         out = subprocess.check_output(
-            ["ssh", "-o", "ConnectTimeout=8", ssh_target,
-             f"uptime; vcgencmd get_throttled; "
-             f"sudo systemctl show -p NRestarts volthium-logger "
-             f"volthium-uploader volthium-events-uploader volthium-dashboard "
-             f"| tr '\\n' ' '; echo; "
-             f"sudo journalctl -u volthium-logger --since '{hours} hours ago' "
-             f"--no-pager | grep -cE 'WARNING|ERROR'"],
-            timeout=30, text=True,
+            ["ssh", ssh_target, "-o", "ConnectTimeout=8", probe],
+            timeout=45, text=True,
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
             FileNotFoundError) as exc:
         lines.append(f"  (Pi unreachable: {exc})")
         return False, lines
-    for line in out.strip().splitlines():
+
+    body = out.strip().splitlines()
+    for line in body:
+        if "|Id=" in line or line.startswith("Id="):
+            continue
+        if line.strip().isdigit() and line is body[-1]:
+            continue
         lines.append(f"  {line}")
+
     if "throttled=0x0" not in out:
         notable = True
-    if "NRestarts=0" in out and out.count("NRestarts=0") < 4:
+        lines.append("  ← throttled flag set — check power/temperature")
+
+    services = _parse_units(out)
+    if not services:
         notable = True
-    # Last line of the output is the warning/error count
+        lines.append("  ← could not read any volthium unit state")
+    else:
+        down = [s for s in services
+                if s["UnitFileState"] == "enabled" and s["ActiveState"] != "active"]
+        restarted = [s for s in services if s.get("NRestarts", "0") not in ("0", "")]
+        enabled = [s for s in services if s["UnitFileState"] == "enabled"]
+        lines.append(f"  services: {len(enabled)} enabled, "
+                     f"{len(enabled) - len(down)} active")
+        for s in down:
+            notable = True
+            lines.append(f"  ← {s['Id']} is enabled but {s['ActiveState']}")
+        for s in restarted:
+            notable = True
+            lines.append(f"  ← {s['Id']} has restarted {s['NRestarts']}x")
+
     try:
-        warn_count = int(out.strip().splitlines()[-1])
+        warn_count = int(body[-1])
         if warn_count > 0:
             notable = True
-            lines.append(f"  ← logger has {warn_count} WARNING/ERROR "
-                         f"lines in the last {hours}h")
+            lines.append(f"  ← {warn_count} WARNING/ERROR/Failed lines across "
+                         f"all volthium units in the last {hours}h")
     except (ValueError, IndexError):
         pass
     return notable, lines
+
+
+def _parse_units(out: str) -> list[dict]:
+    """`systemctl show` emits key=value blocks; we flattened them with '|'."""
+    units: list[dict] = []
+    cur: dict = {}
+    for tok in out.replace("\n", "|").split("|"):
+        k, _, v = tok.partition("=")
+        k, v = k.strip(), v.strip()
+        if k == "Id":
+            if cur.get("Id"):
+                units.append(cur)
+            cur = {"Id": v}
+        elif k in ("ActiveState", "UnitFileState", "NRestarts") and cur.get("Id"):
+            cur[k] = v
+    if cur.get("Id"):
+        units.append(cur)
+    return [u for u in units
+            if u.get("Id", "").startswith("volthium-")
+            and "ActiveState" in u and "UnitFileState" in u]
 
 
 # ---- Main ---------------------------------------------------------------

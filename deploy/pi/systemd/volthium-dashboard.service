@@ -1,0 +1,15 @@
+[Unit]
+Description=Volthium local dashboard (http on :8421, all LAN interfaces)
+After=network.target
+
+[Service]
+Type=simple
+User=claude
+Group=users
+WorkingDirectory=/srv/volthium_reader
+ExecStart=/srv/volthium_reader/.venv/bin/python scripts/dashboard.py --host 0.0.0.0 --port 8421 --csv data/pack.csv
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
