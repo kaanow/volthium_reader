@@ -629,6 +629,34 @@ Note also the `latch_guard_ambiguous` line at 09:19: that event was added on
 doing exactly that job, showing the clamp forming ten minutes before the guard
 could act on it.
 
+### 08-08 complete: the guard beat the clearest day with half the sky
+
+| | 08-05 | **08-08** |
+|---|---|---|
+| near-MPP index (sky) | **0.832** | 0.439 |
+| % of window clamped | 33% | **7%** |
+| MPPT-metered total | 1737 Wh | **1765 Wh** |
+
+**08-08 out-produced 08-05 on roughly half the sky clarity**, because the
+converter was working 93% of the day instead of 67%. That is the clearest
+single statement of what the week's work bought: the guard more than
+compensated for a sky that was half as good.
+
+Guard value on the day, same counterfactual as 08-06 (a clamped array does not
+self-recover, so the 09:19 clamp would have persisted):
+
+    produced 09:19 -> dark          1661 Wh
+    had the first clamp stuck        130 Wh   (at the measured 11.4 W clamp yield)
+    -------------------------------------------
+    guard worth                    +1532 Wh metered  (~+2.8 kWh true)
+
+Against +801 Wh on 08-06, which was dim. The guard is worth roughly twice as
+much on a bright day — the same asymmetry as the early-bounce prize, and for
+the same reason: what you lose to a clamp is whatever the sun was offering.
+
+Three episodes, 45 min clamped in total, all cleared unattended, exposures of
+20 / 10 / 13 min.
+
 ### Closing the loop 2026-08-07: which tuning change actually mattered
 
 Time-to-clear, same guard, three consecutive latches:
