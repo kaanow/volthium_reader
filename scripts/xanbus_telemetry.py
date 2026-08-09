@@ -199,6 +199,7 @@ class Decoder:
         self.mppt_out_w: float | None = None
         self.mppt_status: int | None = None
         self.bad_dc_v = 0          # rejected out-of-range bus voltages
+        self.bad_dc_w = 0          # rejected internally-inconsistent DC power
         self.clamp_since: float | None = None
         self.clamp_clear_since: float | None = None
         self.latched = False
@@ -244,9 +245,28 @@ class Decoder:
         if not (BUS_V_MIN <= dc_v <= BUS_V_MAX):
             self.bad_dc_v += 1
             return []
+        dc_a = i / 1000
+        dc_w = float(w)
+        # The frame carries its own redundancy: across 3005 buckets, dc_w
+        # tracks |dc_v * dc_a| at a ratio of 0.995-0.997. So a consistency
+        # check beats a range bound — it catches subtle corruption a plausible
+        # range would wave through.
+        #
+        # Caught one on 2026-08-09 10:10: dc_w decoded as -27844 W while dc_v
+        # (27.00) and dc_a (-4.4) were both perfectly fine, so a per-field
+        # range check on voltage alone — which is all we had — missed it. It
+        # reached the database and showed up as a +28 kW surplus.
+        #
+        # The 2x window is enormously generous against an observed 0.5%
+        # spread; it is there to catch garbage, not to police calibration.
+        # Skipped below 0.5 A because the ratio is meaningless near zero.
+        expected = abs(dc_v * dc_a)
+        if abs(dc_a) > 0.5 and not (0.5 * expected <= abs(dc_w) <= 2.0 * expected):
+            self.bad_dc_w += 1
+            return []
         self._agg("dc_v").add(dc_v)
-        self._agg("dc_a").add(i / 1000)
-        self._agg("dc_w").add(float(w))
+        self._agg("dc_a").add(dc_a)
+        self._agg("dc_w").add(dc_w)
         return []
 
     def _dc_src_sts2(self, src: int, p: bytes, t: float) -> list[dict]:

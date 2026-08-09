@@ -15,9 +15,10 @@ the `xanbus` skill.
 > **Established:**
 > - The tracker walks the array **down past its own MPP** and never turns
 >   around, ending pinned one diode drop above the battery.
-> - **~45 V is the point of no return.** 14 of 14 crossings ended in a clamp;
->   none recovered. Time to clamp 50-170 min, median 80, and **not predictable**
->   (deficit depth correlates at only r = +0.28).
+> - **~45 V is the point of no return.** 15 of 15 crossings ended in a clamp;
+>   none recovered. Time to clamp 30-115 min, median 65, and **not predictable**
+>   (deficit depth correlates at only r = +0.28). Derived by
+>   `scripts/cliff_table.py` — do not hand-edit these numbers.
 > - Above 45 V descents usually **abort on their own** — the sawtooth.
 > - A sustained deficit **initiates** the walk but is **not sufficient**: two
 >   mornings with identical deficit behaved oppositely.
@@ -289,51 +290,87 @@ crossed 45 V at ~08:22, clamped at 09:40 and was fixed at 10:21. **Acting at
 the crossing would have been ~2 hours earlier**, and would have bounced a
 still-tracking array back to its MPP instead of rescuing a dead one.
 
-### Sharpened 2026-08-08: it is not 72%, it is 12 of 12
+### Sharpened 2026-08-08, re-derived 2026-08-09: 15 of 15
 
 The "72% within 60 minutes" figure used an arbitrary window and understated
-the effect. Following **every** 45 V crossing (tracking, daylight, re-armed at
-48 V) to whatever happened next:
+the effect. Following **every** 45 V crossing to whatever happened next:
 
-| crossing | clamped at | minutes | Wh harvested in between |
+<!-- DERIVED — do not hand-edit. Regenerate with:
+       python3 scripts/cliff_table.py --hours 300
+     The rule (daylight gate, 48 V re-arm, clamp band) is documented in that
+     script. Any number here it does not reproduce is stale. -->
+
+| crossing (local) | outcome at | minutes | Wh in between |
 |---|---|---|---|
-| 07-30 08:45 | 11:10 | 145 | 260 |
+| 07-30 09:15 | 11:10 | 115 | 210 |
 | 07-31 09:05 | 10:00 | 55 | 54 |
 | 08-01 07:20 | 08:40 | 80 | 23 |
 | 08-02 07:45 | 08:45 | 60 | 28 |
 | 08-03 07:55 | 08:50 | 55 | 29 |
 | 08-04 07:50 | 09:00 | 70 | 27 |
-| 08-05 08:25 | 11:15 | 170 | 187 |
+| 08-05 09:45 | 11:15 | 90 | 98 |
 | 08-06 08:50 | 10:10 | 80 | 43 |
+| 08-06 15:30 | 16:35 | 65 | 31 |
 | 08-07 08:25 | 09:40 | 75 | 39 |
+| 08-07 16:55 | 17:45 | 50 | 25 |
+| 08-08 08:25 | 09:15 | 50 | 25 |
+| 08-08 12:10 | 13:05 | 55 | 84 |
+| 08-08 15:20 | 16:55 | 95 | 89 |
+| 08-09 09:15 | 09:45 | 30 | 20 |
 
-**Twelve of twelve completed crossings ended in a clamp. None recovered
-spontaneously.** Time to clamp: min 55, **median 80**, max 170 minutes.
+**15 of 15 crossings ended in a clamp; none recovered.** Time to clamp: min
+30, median 65, max 115 minutes.
 
 So the cliff is not probabilistic — below 45 V the outcome is effectively
 determined and only the *timing* varies. The 28% that appeared to "not clamp"
 were simply cases that took longer than the 60 minute window I happened to
 choose.
 
-#### The spread is the point: 50-170 min, and it is not predictable
+#### What the re-derivation changed, and why the old numbers were wrong
 
-Time-to-clamp across the 13 crossings ranges **50 to 170 minutes**. The obvious
-candidate for predicting it — how deep the deficit was at the crossing — is
-only weakly informative: **r = +0.28**, with deep-deficit crossings
-(surplus < -70 W) clamping at a median 72 min against 90 min for shallow ones
-(>= -55 W), on n=8 and n=5. Suggestive, not conclusive.
+The first version of this table was built by hand and it drifted three ways at
+once: the table had 9 rows, the prose under it said "twelve of twelve", and the
+summary at the top of this file said 14 of 14. Each was true when written.
+
+The substantive error was not the count. **The hand-built table only looked at
+mornings.** Four afternoon crossings were missing entirely — and those are the
+expensive ones, because the array is at full output when it starts walking
+down (08-08 12:10 and 15:20 gave up 84 and 89 Wh, against 23-43 Wh for a
+typical morning). Their omission is what made the median look like 80 minutes
+and the harvested-energy range look negligible.
+
+Two morning entries also moved once the arming rule was applied consistently
+(07-30 145→115, 08-05 170→90); the old start times were picked before the
+array had re-armed above 48 V. **The 170-minute maximum does not exist.**
+
+Corrected distribution: **30 to 115 minutes, median 65**. It is now derived by
+`scripts/cliff_table.py`, so it cannot drift again.
+
+#### The spread is the point: 30-115 min, and it is not predictable
+
+The obvious candidate for predicting the timing — how deep the deficit was at
+the crossing — is only weakly informative: **r = +0.28**, with deep-deficit
+crossings (surplus < -70 W) clamping at a median 72 min against 90 min for
+shallow ones (>= -55 W), on n=8 and n=5. Suggestive, not conclusive.
 
 Worth stating because it cuts against a tempting refinement: *wait and see how
 fast it is falling, then decide*. You cannot, because you do not know whether
-this crossing is a 55-minute one or a 170-minute one, and the cheap early
+this crossing is a 30-minute one or a 115-minute one, and the cheap early
 window is the same either way. The unpredictability argues for acting **at**
 the crossing rather than trying to time the intervention.
 
+**08-09 is the case in point: 30 minutes, the fastest on record.** A "watch it
+for an hour and then decide" policy would have missed it completely. The floor
+being half what was previously believed is the strongest argument yet for
+acting at the crossing rather than after a confirmation delay.
+
 **This is the number that matters for the early-bounce decision:** acting at
-the crossing intervenes a **median 80 minutes** before the clamp forms, and
-during that window the array currently yields only **23-43 Wh** on a typical
-day. It is not a gamble on a 72% chance; it is acting well ahead of a
-near-certain outcome, in a window that is currently near-worthless.
+the crossing intervenes a **median 65 minutes** before the clamp forms. On a
+dim morning that window is worth only 23-43 Wh — near-worthless. But on a
+bright day it is worth **84-210 Wh**, which reframes the trade: the early
+bounce is not just cheap insurance on bad days, it protects real energy on
+good ones. It is not a gamble on a 72% chance; it is acting ahead of an
+outcome that is, on 15 for 15, certain.
 
 **CONFIRMED OUT-OF-SAMPLE the same evening.** The threshold was derived from
 data up to ~14:00 on 08-07. That afternoon the array crossed 45 V at **16:55**

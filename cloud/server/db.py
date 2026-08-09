@@ -676,6 +676,25 @@ class AsyncpgReadingsDAO:
             )
         return [dict(r) for r in rows]
 
+# A single 2026-08-09 10:10 bucket stored dc_w = -27844 W (the inverter's own
+# DC draw, decoded wrong) while dc_v and dc_a in the same frame were both fine.
+# It made today's ledger report load_wh = -758, a negative house load.
+#
+# The decoder now rejects these at the source (xanbus_telemetry._batt_sts2
+# cross-checks dc_w against |dc_v*dc_a|), but that only protects data written
+# from now on — the bad row is already stored, and read paths should not be
+# able to render a physically impossible number regardless of what is in the
+# table. So sanitise on the way out too.
+#
+# NULL, not a clamped bound: a corrupt sample is MISSING data, not a real
+# measurement that happened to sit at the limit. Clamping to 0 would quietly
+# invent a reading; NULL makes SUM/AVG skip it, which is the honest answer.
+# The bound is deliberately loose — the observed range is 1-131 W and the
+# inverter is 4 kW, so 6000 W cannot be reached legitimately.
+def _dc_w_sane(col: str = "dc_w") -> str:
+    return f"CASE WHEN {col} BETWEEN 0 AND 6000 THEN {col} END"
+
+
     async def solar_energy_daily(
         self, source_id: str, days: int, tz: str
     ) -> list[dict]:
@@ -701,8 +720,9 @@ class AsyncpgReadingsDAO:
         inferred branch exists to rescue. In daylight the branch still carries
         the meter bias — it is the best available number, not an exact one."""
         async with self.pool.acquire() as conn:
+            sane_s = _dc_w_sane("s.dc_w")
             rows = await conn.fetch(
-                """WITH r AS (
+                f"""WITH r AS (
                        SELECT to_timestamp(floor(extract(epoch FROM ts)/15)*15) AS b,
                               AVG(pack_p) AS batt
                        FROM readings WHERE source_id = $1
@@ -718,9 +738,9 @@ class AsyncpgReadingsDAO:
                                    THEN COALESCE(s.solar_w, 0)
                                    ELSE GREATEST(COALESCE(s.solar_w,0),
                                                  COALESCE(r.batt,0)
-                                                 + COALESCE(s.dc_w,0))
+                                                 + COALESCE({sane_s},0))
                               END AS prod_w,
-                              COALESCE(s.dc_w,0)  AS load_w,
+                              {sane_s}  AS load_w,
                               COALESCE(r.batt,0)  AS batt_w
                        FROM s LEFT JOIN r USING (b)
                    )
@@ -742,9 +762,9 @@ class AsyncpgReadingsDAO:
         load proxy) from solar_readings.dc_w."""
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
-                """SELECT (ts AT TIME ZONE $3)::date AS day,
+                f"""SELECT (ts AT TIME ZONE $3)::date AS day,
                           extract(hour FROM ts AT TIME ZONE $3)::int AS hour,
-                          AVG(dc_w) AS load_w
+                          AVG({_dc_w_sane()}) AS load_w
                    FROM solar_readings
                    WHERE source_id = $1
                      AND ts > now() - ($2 || ' days')::interval
@@ -768,9 +788,10 @@ class AsyncpgReadingsDAO:
         number is worse than an honest gap."""
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
-                """WITH s AS (
+                f"""WITH s AS (
                        SELECT to_timestamp(floor(extract(epoch FROM ts)/15)*15) AS b,
-                              AVG(pv_v) AS pv_v, AVG(dc_w) AS dc_w
+                              AVG(pv_v) AS pv_v,
+                              AVG({_dc_w_sane()}) AS dc_w
                        FROM solar_readings
                        WHERE source_id = $1 AND ts > now() - ($2 || ' hours')::interval
                        GROUP BY b

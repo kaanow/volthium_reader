@@ -102,6 +102,36 @@ class DecodeTests(unittest.TestCase):
         # The mean must be the two good samples only, not dragged upward.
         self.assertAlmostEqual(dec.aggs["dc_v"].mean, 26.54, places=2)
 
+    def test_inconsistent_dc_power_is_rejected(self):
+        """2026-08-09 10:10: dc_w decoded as -27844 W while dc_v (27.00) and
+        dc_a (-4.4) were both fine, so the voltage-only range check missed it
+        and a +28 kW surplus reached the database. The frame carries its own
+        redundancy — dc_w tracks |dc_v*dc_a| to within 0.5% over 3005 buckets."""
+        dec = Decoder()
+
+        def frame(w):
+            return bytes.fromhex("0303") + (27000).to_bytes(4, "little") + \
+                (-4400).to_bytes(4, "little", signed=True) + \
+                int(w).to_bytes(4, "little", signed=True) + b"\xff" * 22
+
+        feed_fastpacket(dec, 0x1F0C4, 0, frame(119), t=1000.0)      # sane
+        feed_fastpacket(dec, 0x1F0C4, 0, frame(-27844), t=1001.0)   # the glitch
+        feed_fastpacket(dec, 0x1F0C4, 0, frame(119), t=1002.0)      # sane
+        self.assertEqual(dec.bad_dc_w, 1)
+        self.assertAlmostEqual(dec.aggs["dc_w"].mean, 119.0, places=1)
+        # and the good samples' voltage still went in
+        self.assertAlmostEqual(dec.aggs["dc_v"].mean, 27.0, places=2)
+
+    def test_low_current_skips_the_consistency_check(self):
+        """Near zero amps the ratio is meaningless and would reject good data."""
+        dec = Decoder()
+        p = bytes.fromhex("0303") + (26500).to_bytes(4, "little") + \
+            (100).to_bytes(4, "little", signed=True) + \
+            (3).to_bytes(4, "little", signed=True) + b"\xff" * 22
+        feed_fastpacket(dec, 0x1F0C4, 0, p, t=1000.0)
+        self.assertEqual(dec.bad_dc_w, 0)
+        self.assertIn("dc_w", dec.aggs)
+
     def test_batt_sts2_aggregates_dc(self):
         dec = Decoder()
         feed_fastpacket(dec, 0x1F0C4, 0, BATT_STS2, t=1000.0)
