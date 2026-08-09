@@ -101,7 +101,23 @@ HEALTHY_RUNS_TO_CLEAR = 2  # consecutive clean runs before a pending
                            # confirmation is dropped — symmetric with the two
                            # needed to arm one (see the 2026-08-07 note below)
 COOLDOWN_S = 45 * 60       # minimum gap between fix attempts
-MAX_FIXES_PER_DAY = 4      # hard cap; a latch we can't fix must not loop
+# Raised 4 -> 6 on 2026-08-08. Observed clamp EPISODES per day run 1-7 (seven
+# on 08-03), and three of the last ten days hit four — 08-08 used three with an
+# hour of daylight still to go. A cap that binds on a bright afternoon is
+# expensive: the measured cost of an unfixed clamp at peak sun is ~400 Wh/hour.
+#
+# What justifies the raise is that the original rationale has weakened. "A
+# latch we can't fix must not loop" assumed fixes might not work; in daylight
+# they are **7 for 7**. The one recovered=false (08-06 21:03, 28.1 -> 25.8 V)
+# was the spurious NIGHT bounce from the dusk-detection bug, with no sun to
+# recover to, and the elevation gate now prevents that class entirely. A fix
+# that genuinely fails, or the cap being reached, both page the operator now.
+#
+# It is NOT raised further, and the reason is honest: this detector has had
+# four bugs. The cap's remaining job is to bound a spurious-detection loop —
+# it protects against me, not against the hardware. Six keeps that bound
+# meaningful at 6 x 15 s = 90 s of standby per day.
+MAX_FIXES_PER_DAY = 6      # hard cap; bounds a runaway, incl. a detector bug
 VERIFY_S = 60.0            # watch this long after a fix to judge it
 RECOVERED_DELTA_V = 10.0   # array this far above output = tracking again
 
