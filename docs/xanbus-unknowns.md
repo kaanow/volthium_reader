@@ -1217,10 +1217,75 @@ ledger, and my own hand analysis). The one place that was right —
 `dc_load_profile` — compared a meter with itself. Prefer same-meter
 comparisons over cross-meter arithmetic wherever the question allows it.
 
+#### Refined 2026-08-09: it is TWO effects, not one, and only one is constant
+
+The 33 W gap above was inferred from the Otsu `baseline_w`. Measuring it
+directly in darkness — where there is no solar to attribute anything to, so
+the battery is provably the only source — makes it much sharper, and shows
+the daytime story is not the same story.
+
+Derived by `scripts/meter_offset.py`; dark hours only, fridge-off buckets only:
+
+| night | n | pack_p | dc_w | residual | ratio |
+|---|---|---|---|---|---|
+| 2026-08-05 | 37 | -80.7 | 113.7 | 32.1 | 0.71 |
+| 2026-08-06 | 33 | -81.1 | 113.9 | 31.9 | 0.71 |
+| 2026-08-07 | 34 | -80.3 | 112.7 | 32.5 | 0.71 |
+| 2026-08-08 | 35 | -80.3 | 112.5 | 31.5 | 0.71 |
+| 2026-08-09 | 34 | -80.2 | 113.1 | 32.4 | 0.71 |
+
+Pooled n=173, **32.2 W ± 7.9**, and the ratio is 0.71 to two decimals on all
+five nights. That is not a calibration wobble, it is a fixed offset — and a
+fixed offset is a much stronger claim than "the meters disagree", because it
+can be subtracted.
+
+**Effect 1 — a constant ~32 W instrument bias, present in darkness.** Nothing
+regime-dependent about it. The sign is still impossible in the same way (the
+inverter claims to draw more than the battery supplies, with the fridge as an
+additional load on top), so one meter is definitively wrong by 32 W.
+
+**Effect 2 — a daytime, voltage-dependent metering loss that survives
+subtracting effect 1.** Comparing the MPPT's reported output against total
+demand (`pack_p` + `dc_w` − 32.2 offset + 22 W modelled fridge), 2026-08-09:
+
+| regime | n | pv_v | solar_W | demand_W | ratio | shortfall |
+|---|---|---|---|---|---|---|
+| tracking >80 V | 11 | 89.0 | 374.2 | 504.5 | 1.35 | 130 W |
+| tracking 60-80 | 7 | 68.3 | 333.2 | 569.5 | 1.71 | 236 W |
+| sliding 45-60 | 31 | 53.9 | 51.8 | 107.6 | 2.08 | 56 W |
+| descent <45 | 16 | 39.3 | 103.8 | 315.7 | 3.04 | 212 W |
+
+The offset accounts for only about 10 points of the 45-point excess at healthy
+tracking; the rest is regime-dependent and **grows monotonically as the array
+walks down** — 1.35 → 1.71 → 2.08 → 3.04. That is the shape predicted by
+unmetered body-diode conduction: as the operating point slides, an increasing
+share of current bypasses the switching path the MPPT meters. It also means
+the descent is costing materially more energy than the MPPT's own numbers
+show, which is a second, independent argument for the early-bounce trigger.
+
+*Stated as a caveat, not buried:* this table is one day, and the tracking bins
+are n=11 and n=7. The direction is clear and monotonic; the exact multipliers
+are not yet trustworthy. It also leans on `pack_p` for the demand side, so it
+measures "how much more the BMS says arrived than the MPPT reported" — which
+is the honest phrasing, since which meter is right is still open.
+
 Open: which meter is right. Unresolvable remotely for the same reason as #5 —
 it needs a clamp meter. Practical rule meanwhile: **trust the BMS shunts for
 absolute DC power** (two of them, and they agree with each other within
 0.8 A), and treat `dc_w` as indicative.
+
+**What the clamp meter should measure first, and what to expect.** This turns
+the vague "bring a clamp meter" into one decisive reading: put it on the
+**inverter's DC input** at night with the fridge off. `pack_p` predicts 81 W
+(≈3.0 A at 26.9 V); `dc_w` predicts 113 W (≈4.2 A). Those are 40% apart — far
+outside any clamp meter's error — so a single measurement settles it. If
+`dc_w` is the wrong one, the ledger's `load_wh` is overstating house load by
+32 W × 24 h ≈ **768 Wh/day** against a reported ~2730, and every day on record
+needs re-reading. Checked for a third opinion first: the Modbus sweep of the
+SW inverter (slave 90, registers 0-384) exposes no varying DC-current or
+DC-power register — only reg 79, its own DC voltage (26.475 V), which
+correlates with `pack_p` at r=0.94 purely because the battery sags under the
+fridge. There is no third meter to be had remotely.
 
 Still unfixed and deliberately so: `load_wh` in the ledger is inverter draw
 only, so it omits the ~0.53 kWh/day fridge. Adding a modelled figure to a
