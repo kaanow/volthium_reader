@@ -6,7 +6,33 @@ the `xanbus` skill.
 
 ## Tier 1 — worth testing soon
 
-**1. It is a SLIDE, not a trigger — observed live 2026-08-06 morning.**
+**1. The latch: what it is, and what still is not known.**
+
+> **WHERE THIS STANDS as of 2026-08-09** — the sections below are the working
+> record in the order it was discovered, including three theories that were
+> tested and failed. If you only read one box, read this one.
+>
+> **Established:**
+> - The tracker walks the array **down past its own MPP** and never turns
+>   around, ending pinned one diode drop above the battery.
+> - **~45 V is the point of no return.** 14 of 14 crossings ended in a clamp;
+>   none recovered. Time to clamp 50-170 min, median 80, and **not predictable**
+>   (deficit depth correlates at only r = +0.28).
+> - Above 45 V descents usually **abort on their own** — the sawtooth.
+> - A sustained deficit **initiates** the walk but is **not sufficient**: two
+>   mornings with identical deficit behaved oppositely.
+> - The descent happens inside **one continuous `bulk` state** — not mode
+>   thrash — with `chg_target` advertising an unreachable 60 A.
+> - **Fix:** Standby → Operating. 7 of 7 in daylight, restoring 88-95 V, now
+>   automated and clearing in ~10 min.
+>
+> **NOT established: why.** Three mechanisms tested against data and refuted —
+> low-light dependence, current-sensor non-linearity, and charge-mode thrash.
+> See `docs/mppt-fault-theory.md`. The output current sensor *is* faulty
+> (~1.5-2.1x under-read) but that does not appear to explain the tracking
+> behaviour.
+
+### Original observation, 2026-08-06: a slide, not a trigger
 
 Caught the run-up in progress. Array voltage walks steadily DOWN as the MPPT
 extracts more current, with no discrete event anywhere:
@@ -1256,15 +1282,15 @@ demonstrated a healthy ~88-92 V MPP on both days.
 Dawn 08-06 also showed the array reaching `pv_v_max` 103.4 V at low load —
 encouraging, though dawn Voc is not comparable to midday Voc.
 
-**12. Generator fields — wired on spec, never validated.**
+**11. Generator fields — wired on spec, never validated.**
 `126998 assoc 0x13` (GEN1) V/I/freq. Correct per Xantrex's own enum table and
 berrybms's gen-on captures, but our generator has never run during a capture.
 **Test: whenever the generator next runs.**
 
-**13. Pack A's cell imbalance — trajectory unknown.**
-Daily worst spread is ~400 mV on A vs ~30 mV on B. Is it stable, worsening, or
-seasonal? Now charted on `/v2/history`; needs weeks of data. This is the one
-unknown with a hardware-failure tail risk.
+*(The former "13. Pack A's cell imbalance — trajectory unknown" lived here and
+is answered above: it is a **threshold at 100% SOC**, not a trajectory. See
+#13. Left as a pointer because two entries numbered 13 said different things
+for a day.)*
 
 ## Answered — kept so we don't re-litigate
 
