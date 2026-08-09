@@ -21,6 +21,46 @@ import unittest
 from cloud.server import db as db_mod
 
 
+class DaoStructureTests(unittest.TestCase):
+    """The DAO must actually expose its methods.
+
+    Fixing the dc_w bug above, the helper was inserted at column 0 *inside*
+    the class body. That ends the class, and the indented `async def`s after
+    it become nested functions inside the helper. Three endpoints started
+    returning 500 in production.
+
+    The whole 108-test cloud suite passed against that broken file, because
+    every test either used a fake DAO or — like the sanitise tests below —
+    inspected source text with a regex. Source text was still perfectly
+    correct; it was the resulting object that was wrong. Assert on the object.
+    """
+
+    EXPECTED = (
+        "solar_series", "solar_energy_daily", "load_heatmap",
+        "dc_load_profile", "recent_xanbus_events", "recent_events",
+        "history_alarms", "sources",
+    )
+
+    def test_dao_exposes_every_method_the_api_calls(self):
+        missing = [m for m in self.EXPECTED
+                   if not callable(getattr(db_mod.AsyncpgReadingsDAO, m, None))]
+        self.assertEqual(missing, [], f"not methods on the DAO: {missing}")
+
+    def test_no_module_level_def_inside_the_dao_class(self):
+        """Catches the shape of the mistake directly, not just this instance."""
+        tree = ast.parse(inspect.getsource(db_mod))
+        cls = next(n for n in tree.body
+                   if isinstance(n, ast.ClassDef)
+                   and n.name == "AsyncpgReadingsDAO")
+        nested = [n.name for n in cls.body
+                  if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                  for inner in ast.walk(n)
+                  if isinstance(inner, (ast.FunctionDef, ast.AsyncFunctionDef))
+                  and inner is not n
+                  and inner.name.startswith(("solar_", "load_", "dc_"))]
+        self.assertEqual(nested, [], f"DAO methods nested inside another def: {nested}")
+
+
 class DcWSanitiseTests(unittest.TestCase):
 
     def test_helper_renders_null_outside_the_plausible_range(self):
