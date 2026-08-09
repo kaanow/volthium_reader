@@ -51,6 +51,60 @@ This one fault accounts for all seven observations:
 | start is time-based, not power-based | it is a control-loop drift, not a response to conditions |
 | "no faults active" | the unit cannot detect that its own sensor lies |
 
+## MECHANISM REFUTED 2026-08-08 (same day, by the test it predicted)
+
+The theory required the under-read to **ease as current rises**, so that moving
+left past the MPP would still look like rising power. That is testable against
+data already held, using the BMS plus inverter draw as an independent estimate
+of true output.
+
+Binned by **actual output current** — the variable the mechanism depends on,
+and not the same as power, since left of the MPP current rises while power
+falls:
+
+| I_out | n | actual/reported |
+|---|---|---|
+| 0-2 A | 111 | 1.46x |
+| 2-4 A | 175 | 1.92x |
+| 4-6 A | 66 | 1.94x |
+| 6-9 A | 64 | **2.14x** |
+| 9-13 A | 105 | 1.91x |
+| 13-25 A | 65 | 1.51x |
+
+**It does not fall with current.** A hump with essentially equal endpoints
+(1.46 vs 1.51) is approximately a *scale* error — and a scale error does not
+move the argmax, so hill-climbing should still find the peak. The mechanism
+proposed above therefore **does not work**.
+
+Two false starts on the way, both worth recording:
+
+- Binning by *power* first gave a clean 2.84x → 1.46x fall, which looked like
+  confirmation. Most of that was the known constant +33 W offset in `dc_w`:
+  `(W+33)/W` alone produces almost exactly that curve. Correcting for it cut
+  the spread from 1.31 to 0.43.
+- Even the residual was measured against the wrong variable. Power and current
+  are not interchangeable across the MPP, which is the whole point of the peak.
+
+Caveats on the refutation itself: the -33 W correction is an estimate, the
+fridge is unmodelled, and the mid-range hump may be an artefact of which
+conditions populate each bin. But there is **no evidence** for the specific
+current-dependent non-linearity the theory needed, and that was its load-bearing
+assumption.
+
+**So the sensor fault is real and better characterised (~1.5-2.1x under-read
+across the range), but it probably does not explain the tracking failure.**
+
+### What that leaves
+
+The alternatives below move up, and one now leads: **the controller servoing to
+a charge request it can never meet.** `chg_target` advertises **60 A**, the
+array can supply at most ~24 A, and `chg_stage` was observed flapping
+bulk ↔ not_charging **~40 times in 11 hours**. A current regulator chasing an
+unreachable setpoint, with MPP limiting not overriding it, produces exactly the
+observed monotonic walk toward more current — and needs no sensor fault at all.
+
+That flapping has not been analysed and is the obvious next thread.
+
 ## What this does NOT explain, honestly
 
 - **Why a pure 1.8x scale error would matter.** Scaling `P` by a constant does
