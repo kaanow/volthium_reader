@@ -18,6 +18,25 @@ from cloud.server.derive import Derived
 from cloud.shared.wire import BleEvent, Reading, SolarReading
 
 
+# A single 2026-08-09 10:10 bucket stored dc_w = -27844 W (the inverter's own
+# DC draw, decoded wrong) while dc_v and dc_a in the same frame were both fine.
+# It made today's ledger report load_wh = -758, a negative house load.
+#
+# The decoder now rejects these at the source (xanbus_telemetry._batt_sts2
+# cross-checks dc_w against |dc_v*dc_a|), but that only protects data written
+# from now on — the bad row is already stored, and read paths should not be
+# able to render a physically impossible number regardless of what is in the
+# table. So sanitise on the way out too.
+#
+# NULL, not a clamped bound: a corrupt sample is MISSING data, not a real
+# measurement that happened to sit at the limit. Clamping to 0 would quietly
+# invent a reading; NULL makes SUM/AVG skip it, which is the honest answer.
+# The bound is deliberately loose — the observed range is 1-131 W and the
+# inverter is 4 kW, so 6000 W cannot be reached legitimately.
+def _dc_w_sane(col: str = "dc_w") -> str:
+    return f"CASE WHEN {col} BETWEEN 0 AND 6000 THEN {col} END"
+
+
 class ReadingsDAO(Protocol):
     """The subset of DB operations the ingest + dashboard endpoints need.
     Implemented by AsyncpgReadingsDAO in prod and by a fake in tests."""
@@ -675,25 +694,6 @@ class AsyncpgReadingsDAO:
                 source_id, since, until, bucket_s,
             )
         return [dict(r) for r in rows]
-
-# A single 2026-08-09 10:10 bucket stored dc_w = -27844 W (the inverter's own
-# DC draw, decoded wrong) while dc_v and dc_a in the same frame were both fine.
-# It made today's ledger report load_wh = -758, a negative house load.
-#
-# The decoder now rejects these at the source (xanbus_telemetry._batt_sts2
-# cross-checks dc_w against |dc_v*dc_a|), but that only protects data written
-# from now on — the bad row is already stored, and read paths should not be
-# able to render a physically impossible number regardless of what is in the
-# table. So sanitise on the way out too.
-#
-# NULL, not a clamped bound: a corrupt sample is MISSING data, not a real
-# measurement that happened to sit at the limit. Clamping to 0 would quietly
-# invent a reading; NULL makes SUM/AVG skip it, which is the honest answer.
-# The bound is deliberately loose — the observed range is 1-131 W and the
-# inverter is 4 kW, so 6000 W cannot be reached legitimately.
-def _dc_w_sane(col: str = "dc_w") -> str:
-    return f"CASE WHEN {col} BETWEEN 0 AND 6000 THEN {col} END"
-
 
     async def solar_energy_daily(
         self, source_id: str, days: int, tz: str
