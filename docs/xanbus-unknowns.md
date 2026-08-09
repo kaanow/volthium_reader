@@ -26,6 +26,12 @@ the `xanbus` skill.
 >   thrash — with `chg_target` advertising an unreachable 60 A.
 > - **Fix:** Standby → Operating. 7 of 7 in daylight, restoring 88-95 V, now
 >   automated and clearing in ~10 min.
+> - **`dc_w` is the meter to distrust, not the BMS.** Measured in float with a
+>   neutral battery, the inverter's draw is 66 W by the MPPT and 81 W by the
+>   BMS shunts against `dc_w`'s own claim of 114 W. Two independent
+>   instruments, sharing no hardware or code path, both put it far below.
+>   Not yet proven — a clamp meter is still the arbiter — but one-sided.
+>   `scripts/float_calibration.py`, `scripts/meter_offset.py`.
 >
 > **NOT established: why.** Three mechanisms tested against data and refuted —
 > low-light dependence, current-sensor non-linearity, and charge-mode thrash.
@@ -1319,18 +1325,80 @@ it needs a clamp meter. Practical rule meanwhile: **trust the BMS shunts for
 absolute DC power** (two of them, and they agree with each other within
 0.8 A), and treat `dc_w` as indicative.
 
+#### 2026-08-09, float: a THIRD meter, and it puts dc_w alone on one side
+
+The night measurement above has one weakness — it is the BMS's word against
+the inverter's, two meters, no tiebreak. Float with a full battery supplies
+the tiebreak, and it had been sitting unused for weeks.
+
+When the MPPT is in float and `pack_p` is zero, the battery is neither
+charging nor discharging, so the balance holds with **no battery term at all**:
+
+    solar_w  ==  inverter draw + fridge
+
+Every other comparison on this system carries at least two unknowns. This one
+carries one — and the fridge cycles on its own, which turns one equation into
+two and solves both. Measured over the 2026-08-09 float period, n=175 minutes
+with median |pack_p| = **0.00 W** (`scripts/float_calibration.py`):
+
+| | MPPT-measured | BMS | `dc_w` claims |
+|---|---|---|---|
+| inverter draw | **66.2 W** | **81.0 W** (night) | **113.7 W** |
+| fridge | **57.1 W** | 75.8 W (Otsu) | — |
+
+**Two independent instruments put the inverter's draw far below its own
+meter's claim** — 40% below against the BMS shunts, 72% below against the
+MPPT. `dc_w` is the outlier, and the two that disagree with it share no
+hardware, no bus and no code path with each other.
+
+Two supporting details, both of which had to come out right and did:
+
+- **`dc_w` moves −1.0 W across the fridge step.** The fridge is a DC load that
+  bypasses the inverter, so its own meter should not see it, and does not.
+  That is a clean confirmation the fridge is where it was assumed to be.
+- **The fridge now has an independent measurement.** 57.1 W from the MPPT
+  against 75.8 W from the BMS Otsu split — the published figure came from one
+  instrument, and this is the first check on it by another. Scaled by the
+  MPPT's own under-report the two land close together.
+
+*Stated because it is tempting and wrong:* the two MPPT/BMS ratios are 0.818
+(inverter) and 0.754 (fridge). Close, and it is very tempting to call the
+MPPT's under-report a single 0.8 scale factor and correct everything by it.
+They differ by 8%, which is larger than the noise here, so the under-report is
+approximately but **not exactly** a scale. Do not collapse it to one constant.
+
+This does not close #5 — a clamp meter is still the arbiter, and all three
+numbers could in principle be wrong together. But the balance of evidence is
+now strongly one-sided, from genuinely independent directions, and the
+practical rule already in this file (**trust the BMS shunts, treat `dc_w` as
+indicative**) is now supported rather than merely prudent.
+
 **What the clamp meter should measure first, and what to expect.** This turns
 the vague "bring a clamp meter" into one decisive reading: put it on the
-**inverter's DC input** at night with the fridge off. `pack_p` predicts 81 W
-(≈3.0 A at 26.9 V); `dc_w` predicts 113 W (≈4.2 A). Those are 40% apart — far
-outside any clamp meter's error — so a single measurement settles it. If
-`dc_w` is the wrong one, the ledger's `load_wh` is overstating house load by
-32 W × 24 h ≈ **768 Wh/day** against a reported ~2730, and every day on record
-needs re-reading. Checked for a third opinion first: the Modbus sweep of the
-SW inverter (slave 90, registers 0-384) exposes no varying DC-current or
-DC-power register — only reg 79, its own DC voltage (26.475 V), which
+**inverter's DC input** at night with the fridge off. Three predictions, and
+they are not close:
+
+| source | predicts | at 26.9 V |
+|---|---|---|
+| MPPT, during float with a neutral battery | **66 W** | 2.5 A |
+| BMS shunts, at night | **81 W** | 3.0 A |
+| `dc_w`, the inverter's own meter | **114 W** | 4.2 A |
+
+`dc_w` is 40% above the BMS and 72% above the MPPT — far outside any clamp
+meter's error, so a single reading settles it. Anything near 3 A confirms
+`dc_w` is wrong and the other two are right within their own spread; 4.2 A
+would overturn both independent instruments at once.
+
+If `dc_w` is the wrong one, the ledger's `load_wh` is overstating house load
+by 32 W × 24 h ≈ **768 Wh/day** against a reported ~2730, and every day on
+record needs re-reading.
+
+Checked for a remote third opinion before resorting to this: the Modbus sweep
+of the SW inverter (slave 90, registers 0-384) exposes no varying DC-current
+or DC-power register — only reg 79, its own DC voltage (26.475 V), which
 correlates with `pack_p` at r=0.94 purely because the battery sags under the
-fridge. There is no third meter to be had remotely.
+fridge. There is no third *Modbus* meter. The float measurement above turned
+out to be the third opinion, and it did not need a site visit.
 
 Still unfixed and deliberately so: `load_wh` in the ledger is inverter draw
 only, so it omits the ~0.53 kWh/day fridge. Adding a modelled figure to a
