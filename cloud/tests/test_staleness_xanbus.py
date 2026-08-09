@@ -38,12 +38,16 @@ class _FakeDAO:
 
     def __init__(self):
         self.xanbus: list[dict] = []
+        self.alarms: list[dict] = []
 
     async def sources(self):
         return ["pi-barge"]
 
     async def recent_events(self, source_id, event, since, limit):
         return []
+
+    async def history_alarms(self, source_id, since):
+        return list(self.alarms)
 
     async def recent_xanbus_events(self, source_id, event, since, limit):
         names = {e.strip() for e in (event or "").split(",") if e.strip()}
@@ -132,6 +136,55 @@ class XanbusAlertTests(unittest.TestCase):
             async def recent_xanbus_events(self, *a, **kw):
                 raise RuntimeError("column does not exist")
         self.assertEqual(_run(_Broken()).posts, [])
+
+
+class BmsAlarmTests(unittest.TestCase):
+    """BMS protection alarms were decoded and shown on /history from the start
+    and paged nobody. 16 episodes were already on record — every one
+    cell_overvoltage on battery A — including the disconnects that started the
+    MPPT investigation. The pack protected itself eight times in silence."""
+
+    def test_cell_overvoltage_pages_at_max_priority(self):
+        dao = _FakeDAO()
+        dao.alarms = [{"bat": "A", "codes": 0x004}]
+        posts = _run(dao).posts
+        self.assertEqual(len(posts), 1)
+        self.assertEqual(posts[0]["json"]["priority"], 5)
+        self.assertIn("Battery A", posts[0]["json"]["title"])
+        self.assertIn("cell_overvoltage", posts[0]["json"]["title"])
+
+    def test_fragmented_episodes_collapse_to_one_page(self):
+        """08-01 produced four episodes inside three minutes. That is one
+        event, and it must not be four notifications."""
+        dao = _FakeDAO()
+        dao.alarms = [{"bat": "A", "codes": 0x004}] * 4
+        self.assertEqual(len(_run(dao).posts), 1)
+
+    def test_charge_undertemp_pages(self):
+        """Never fired — summer baseline is 16-26 C. It is the one that will,
+        months from now, at 51 N with nobody on site."""
+        dao = _FakeDAO()
+        dao.alarms = [{"bat": "B", "codes": 0x200}]
+        posts = _run(dao).posts
+        self.assertEqual(len(posts), 1)
+        self.assertIn("charge_undertemp", posts[0]["json"]["title"])
+
+    def test_multiple_flags_take_the_worst_priority(self):
+        dao = _FakeDAO()
+        dao.alarms = [{"bat": "A", "codes": 0x004 | 0x100}]
+        self.assertEqual(_run(dao).posts[0]["json"]["priority"], 5)
+
+    def test_no_alarms_no_pages(self):
+        self.assertEqual(_run(_FakeDAO()).posts, [])
+
+    def test_missing_dao_method_is_survivable(self):
+        class _Old:
+            async def sources(self):
+                return ["pi-barge"]
+
+            async def recent_events(self, *a, **kw):
+                return []
+        self.assertEqual(_run(_Old()).posts, [])
 
 
 if __name__ == "__main__":

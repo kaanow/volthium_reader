@@ -494,6 +494,30 @@ class EventAlertMonitor:
     XANBUS_COOLDOWN = timedelta(minutes=30)
     CONFIG_COOLDOWN = timedelta(minutes=5)   # near-immediate; this one is safety
 
+    # --- BMS protection alarms (added 2026-08-09) -------------------------
+    #
+    # These were decoded and shown on /history from the start, and paged
+    # nobody. 16 episodes were already on record — every one `cell_overvoltage`
+    # on battery A, across 07-19, 07-20, 07-27, 07-29 and 08-01 — including the
+    # disconnects that started the whole MPPT investigation. The battery hit its
+    # own protection limit at least eight separate times in silence.
+    #
+    # Every one of these means the pack had to protect itself. None is routine.
+    BMS_ALARM_PRIORITY = {
+        "cell_overvoltage": 5, "cell_undervoltage": 5, "short_circuit": 5,
+        "charge_overcurrent": 4, "discharge_overcurrent_1": 4,
+        "discharge_overcurrent_2": 4, "charge_overtemp": 4,
+        "discharge_overtemp": 4,
+        # Winter matters here: this is a lakeside cabin at 51 N and LFP must not
+        # be charged below freezing. Summer baseline is 16-26 C, so this has
+        # never fired — but it is the one that will, months from now, with
+        # nobody on site.
+        "charge_undertemp": 4, "discharge_undertemp": 3,
+    }
+    # One real event fragments into several episodes (08-01 produced four
+    # inside three minutes), so collapse per battery+flag.
+    BMS_ALARM_COOLDOWN = timedelta(minutes=30)
+
     def __init__(
         self,
         dao: _EventsSourceDAO,
@@ -570,6 +594,7 @@ class EventAlertMonitor:
             await self._check_pin_failed(client, source_id, st, since, now)
             await self._check_wedges(client, source_id, st, since, now)
             await self._check_xanbus(client, source_id, st, since, now)
+            await self._check_bms_alarms(client, source_id, st, since, now)
             await self._check_urgent_classification(client, source_id, st, since, now)
             await self._check_adapter_fallback(client, source_id, st, since, now)
 
@@ -822,6 +847,56 @@ class EventAlertMonitor:
                 message=self._xanbus_message(name, row),
                 priority=priority, tags=[tag],
                 context=f"source={source_id} kind={name}",
+            )
+
+    # Kept in step with _ALARM_BITS in main.py. Duplicated rather than imported
+    # because staleness.py must not depend on the FastAPI app module.
+    _ALARM_BITS = (
+        (0x004, "cell_overvoltage"), (0x008, "cell_undervoltage"),
+        (0x010, "charge_overcurrent"), (0x020, "short_circuit"),
+        (0x040, "discharge_overcurrent_1"), (0x080, "discharge_overcurrent_2"),
+        (0x100, "charge_overtemp"), (0x200, "charge_undertemp"),
+        (0x400, "discharge_overtemp"), (0x800, "discharge_undertemp"),
+    )
+
+    async def _check_bms_alarms(
+        self, client, source_id: str, st: dict,
+        since: datetime, now: datetime,
+    ) -> None:
+        """Page when a battery has had to protect itself."""
+        getter = getattr(self.dao, "history_alarms", None)
+        if getter is None:
+            return
+        try:
+            episodes = await getter(source_id, since)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("bms alarm query failed: %s", exc)
+            return
+
+        for ep in episodes:
+            code = ep.get("codes") or ep.get("code") or 0
+            bat = ep.get("bat") or ep.get("battery") or "?"
+            flags = [n for bit, n in self._ALARM_BITS if code & bit]
+            if not flags:
+                continue
+            worst = max(flags, key=lambda f: self.BMS_ALARM_PRIORITY.get(f, 3))
+            prio = self.BMS_ALARM_PRIORITY.get(worst, 3)
+            key = f"last_bms_{bat}_{worst}_at"
+            last = st.get(key)
+            if last is not None and now - last < self.BMS_ALARM_COOLDOWN:
+                continue
+            st[key] = now
+            await self._fire(
+                client,
+                title=f"Battery {bat} protection: {worst} — {source_id}",
+                message=(
+                    f"Battery {bat} raised {', '.join(flags)}. The pack cut in "
+                    f"to protect itself; this is not a routine event. "
+                    f"Check the cell-imbalance chart on /history — pack A's "
+                    f"cell 4 reaches ~3.83 V at the top of charge and has "
+                    f"tripped this before."),
+                priority=prio, tags=["battery"],
+                context=f"source={source_id} bms={bat}/{worst}",
             )
 
     @staticmethod
