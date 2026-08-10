@@ -1,0 +1,10 @@
+board=hardware/kicad/pcb/build_display/display_pcb.kicad_pcb
+model=serialized-footprint geometry + conservative AABB
+centres:
+  J1: target=(11.000,30.000) actual=(11.000,30.000) error=0.000000 mm
+  U1: target=(12.000,48.000) actual=(12.000,48.000) error=0.000000 mm
+  U2: target=(25.500,33.500) actual=(25.500,33.500) error=0.000000 mm
+  R2: target=(27.000,29.000) actual=(27.000,29.000) error=0.000000 mm
+J1 pads-to-body vector=(-7.950,+0.000) mm
+collisions=none for changed courtyards and back-side THT pad fields
+RESULT=PASS

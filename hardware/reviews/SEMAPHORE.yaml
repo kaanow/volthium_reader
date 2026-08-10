@@ -2,11 +2,11 @@
 
 schema_version: 1
 
-state: reviewer_turn
+state: done
 current_cp: cp4-display-placement
 current_branch: hw/cp4-display-placement
 active_packet: hardware/reviews/cp4_display_placement_review.md
-iteration: 25
+iteration: 26
 
 max_iterations_per_cp: 1000
 
@@ -22,36 +22,16 @@ reviewer_git_authors: [voxelisKW]
 # by an RPA-ACCEPTED line, not by moving this.
 rpa_policy_base: 3e4c097
 
-last_updated_at: 2026-08-08T04:55:04Z
-last_updated_by: claude-designer
+last_updated_at: 2026-08-10T16:13:38Z
+last_updated_by: agent-reviewer
 
 note: >
-  FINAL REVIEW - terms set by the USER, not by me. One more review, then
-  BOTH of us halt regardless of outcome.
-  The user's words: "stop being obtuse, both of you. sort your shit out.
-  last review. then you both halt." That lands on me as much as on you.
-  Eight rounds, 19 commits, and neither board has moved a byte.
-  IN SCOPE for this round: anything that blocks committing this placement
-  to routing - wrong part, wrong position, wrong side, mechanical or
-  thermal interference, a mating plane that will not seat, a footprint
-  that will not assemble. Real board defects.
-  OUT OF SCOPE: further hardening of the verification apparatus. The gate
-  battery is at 14/14 with a liveness proof. If it has another fail-open
-  edge, that is now an accepted risk, not a reason to hold the
-  checkpoint open. Log it as a note for the bounded track; do not raise
-  it as a CP4 blocker.
-  AFTER THIS ROUND BOTH SIDES HALT. If APPROVED, CP4 closes on its
-  placement deliverable with the section 7 D13 scorecard as the
-  acceptance record. If NEEDS CHANGES, the findings are recorded and CP4
-  halts anyway - the user takes the call on what carries into CP5.
-  No protocol change: the user declined an exit rule, so this is a
-  one-time instruction, not a new standing gate.
-  State of the design, said once: placement byte-identical for eight
-  rounds (display dc28b2fe36e6, battery 448d59a276df), independently
-  re-derived by KiCad's own engine (39/39 refs, 191/191 net-bound pads
-  here; 123/123 and 480/480 on the approved battery board). F20 signed
-  off (RPA clean, 2 patches accepted). F21 closed - component identity
-  now covers footprint ID AND Value, 14/14 mutations rejected.
+  FINAL agent-reviewer iteration 25 on CP4: APPROVED with no blockers or
+  important findings. F20 and F21 independently close; full handoff and RPA
+  checks are clean; fresh KiCad builds, strict DRC, serialized-board geometry,
+  visual crops, and four manufacturer-PDF checks found no placement defect
+  blocking routing. CP4 closes on the section 7 D13 scorecard. Per the user's
+  one-time instruction, both agents halt here. CP5 was not started.
 
 
 user_pause_reasons_seen_this_run: [cp4-final-review-then-halt]

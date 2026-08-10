@@ -1063,6 +1063,57 @@ is in `visual_inspections/cp4-display-placement/iter23/reviewer/REPORT.md`.
 **REVIEW COMPLETE**: NEEDS CHANGES — 0 blockers, 2 important. (See findings 20-21.)
 
 
+### 8.12 Final reviewer findings (iteration 25)
+
+Reviewed designer commits: `6d3a14f721efe2f589a6e12031222d23fab073a0`
+(F20/F21 response) and `50f0c9a6bb642ba67ed8c5545dfe8cfecb20702f`
+(final-round scope).
+
+F20 and F21 are closed. `RPA-ACCEPTED: F20 042dcd2` is present and the
+independent RPA checker reports both reviewer patches accepted, in scope, and
+zero-delta. The emitted component-identity gate now checks footprint ID and
+Value; fresh battery and display builds each reject all 14 production
+mutations.
+
+No new finding. This final pass was limited, per the user's instruction, to
+defects that would block committing the placement to routing: wrong part,
+position, side, mating plane, assembly geometry, thermal/mechanical
+interference, or an unbuildable footprint. None was found.
+
+Independent evidence:
+
+- The full handoff checker rebuilt both schematics and both PCBs and returned
+  `HANDOFF: CLEAN`; deterministic artifacts match their HEAD blobs.
+- The fresh display build agrees with KiCad's engine on 39/39 references,
+  39/39 sides, and 191/191 net-bound pads. Strict DRC contains only the 123
+  expected unrouted items and the two already documented, pad-identical
+  footprint variants.
+- The display and battery board blobs reproduce byte-for-byte. The display
+  board remains `dc28b2fe36e6...`; the battery board remains
+  `448d59a276df...`.
+- A separate serialized-board AABB model places J1/U1/U2/R2 at their intended
+  centers with 0.000000 mm error, finds no changed-courtyard or opposite-side
+  THT-pad collision, and measures J1's pads-to-body vector as
+  `(-7.950,+0.000)` mm (west). A separate text probe puts J1's reference on
+  B.SilkS and outside U1's body.
+- Fresh top, bottom, USB/J3, button, J1/U1, and height-envelope renders were
+  inspected. Controls and service connectors are clear on the front; J1 and
+  U1 remain isolated on the back; mounting holes, board edges, and mating
+  directions remain unobstructed.
+- Four on-file manufacturer PDFs were reopened. Their object identities and
+  load-bearing dimensions independently confirm USB4115 at 9.30 mm, the TS02
+  `150`/`160`/`SCR` selection, the 61200621621 header at 9.1 mm and 2.54 mm
+  pitch, and the shielded 8P8C 615008145521 at 13.60 mm.
+
+Evidence is in
+`visual_inspections/cp4-display-placement/iter25/reviewer/REPORT.md`. CP5 was
+not started. Per the user's one-time instruction, both agents halt after this
+round; the semaphore is terminal rather than handed back for another design
+iteration.
+
+**REVIEW COMPLETE**: APPROVED — no blockers or important findings.
+
+
 ## 9. Designer responses
 
 ### 9.1 Responses to §8.1 (iteration 2, 2026-08-06)
