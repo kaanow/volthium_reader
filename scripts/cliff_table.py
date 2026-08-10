@@ -132,6 +132,24 @@ BUCKET_S = 60
 # nothing else.
 MIN_EPISODE_MIN = 2
 
+# A "recovery" must be the TRACKER re-acquiring, not the battery filling up.
+# When the pack reaches float the MPPT stops loading the array and it flies to
+# open circuit — pv_v shoots past 100 V while output COLLAPSES. That satisfies
+# "climbed back above ARM_V" and is not a recovery at all; it is the array
+# being switched off from the other end.
+#
+# 2026-08-10 12:43 was exactly this: 47 min below 45 V, then 112.6 V at 3.0 W
+# against 115.3 W at the crossing. Counted naively it was the longest recovery
+# on record and it destroyed the clean 28-min/29-min separation between
+# recoveries and clamps. It is the same demand-limitation confound that made
+# peak pv_v a useless array-health metric (docs #10) — it reaches the cliff
+# table too.
+#
+# Both conditions required: Voc-like voltage AND output below where the
+# crossing started. Genuine re-acquires on record end at 43-90 V with output
+# equal or higher.
+DEMAND_LIMITED_V = 100.0
+
 
 def fetch(url: str, hours: int, source: str) -> list[dict]:
     q = (f"{url}/api/solar/series?source_id={source}&hours={hours}"
@@ -183,7 +201,9 @@ def episodes(series: list[dict]) -> list[dict]:
             wh += sw * BUCKET_S / 3600.0   # NOT a hardcoded 300 — see BUCKET_S
             if clamped or pv >= ARM_V:
                 mins = round((local - start).total_seconds() / 60)
-                if mins >= MIN_EPISODE_MIN:
+                demand_limited = (not clamped and pv > DEMAND_LIMITED_V
+                                  and sw < start_sw)
+                if mins >= MIN_EPISODE_MIN and not demand_limited:
                     out.append({"crossed": start, "ended": local,
                                 "minutes": mins, "wh": round(wh),
                                 "clamped": clamped})
@@ -193,7 +213,7 @@ def episodes(series: list[dict]) -> list[dict]:
         if pv >= ARM_V and not clamped:
             armed = True
         if armed and start is None and pv < CROSS_V and not clamped:
-            start, wh = local, 0.0
+            start, wh, start_sw = local, 0.0, sw
     return out
 
 

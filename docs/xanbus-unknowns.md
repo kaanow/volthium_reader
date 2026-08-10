@@ -440,6 +440,25 @@ discarding the most interesting class):
 **Longest recovery 28 min. Shortest clamp 29 min. Zero overlap in 27
 episodes.**
 
+*Stress-tested the next day, and it nearly broke.* 2026-08-10 produced what
+looked like a **47 minute recovery** — which would have sat squarely inside
+the clamp range and destroyed the separation. It was an artifact: at 13:25 the
+array jumped to 112.6 V producing 3.0 W, against 115.3 W at the crossing. That
+is not the tracker re-acquiring, it is the **battery reaching float** and the
+MPPT ceasing to load the array, so it flew to open circuit. Demand limitation,
+the same confound that made peak `pv_v` useless as an array-health metric
+(#10), reaching the cliff table.
+
+Every one of the other ten recoveries ends at 43-90 V with output equal or
+higher than at the crossing — a genuine re-acquire. `cliff_table.py` now
+rejects an ending that is both Voc-like (>100 V) and lower-output than the
+crossing, so this cannot recur silently.
+
+The separation therefore survives contact with new data, but note *how*
+narrowly: one unexamined episode would have overturned it, and the honest
+reading is that 28/29 is a boundary observed over 27 episodes, not a law.
+Re-check it as episodes accumulate rather than treating it as settled.
+
 So the outcome IS predictable — just not from what was tested. Deficit depth
 correlates at r = +0.28 and that was written up as "not predictable"; the
 predictor is simply **elapsed time**:
