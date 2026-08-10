@@ -1289,6 +1289,53 @@ Cautionary note on method: the server endpoint and the earlier hand analysis
 they were two implementations of the same method. Agreement between two
 routes only means something when the routes can fail differently.
 
+#### 2026-08-09: the ledger can now be audited against the device, and it is
+#### inflated by roughly 440 Wh/day
+
+Decoding the MPPT's own daily counter (#6, offset 50) gave the first figure
+for a day's production that does not come from this pipeline at all. It is
+read out of the device, so it cannot lose energy to a gap, a restart, a spool
+backlog or a Railway outage.
+
+Two things fall out of comparing it with 2026-08-09.
+
+**The telemetry pipeline is essentially lossless — 0.44%.** All 1440 minutes
+of the day are present, and integrating `solar_w` gives 1496.3 Wh against the
+counter's 1503 Wh. Worth having on record given the day included a telemetry
+restart, an uploader restart and a 35 minute Railway outage: none of them cost
+measurable energy, because the spool did its job. The concern that redeploy
+blips were silently eating data is answered — they were not.
+
+**But the ledger reported 2767 Wh for that day, 84% above the counter.**
+Decomposing it in 15 min buckets (which reconstructs 2679 Wh, ~3% under the
+DB's 15 s figure, so read these as approximate):
+
+| | Wh |
+|---|---|
+| buckets where the MPPT reading won | 162 |
+| buckets where `batt + dc_w` won | 2517 |
+| …what the MPPT reported in those buckets | 1334 |
+| …uplift from the inference | **1183** |
+| …of which is the `dc_w` +32.2 W bias | **~443** |
+
+The inference is not simply wrong — it exists because a clamped MPPT cannot
+meter power flowing through its own body diode, and roughly 740 Wh of that
+uplift is genuine (real diode conduction, plus the MPPT's ~22-25% sensor
+under-report on what it does meter). But **~440 Wh/day of it is the `dc_w`
+offset**, credited as solar production that never existed. That is about 16%
+of the headline number.
+
+The float hours are the clearest case. After the battery fills, `pack_p` is
+zero and the inference reduces to `dc_w` alone — so it credits 113 W of
+"solar" when the measured house load is 81 W, for 7+ hours.
+
+**Not changed, deliberately.** This is the same decision as the `load_wh`
+column below, and one call settles both: whether to correct `dc_w` by its
+measured offset everywhere it is consumed. The evidence is now three
+independent instruments (#11), but the clamp-meter reading is still the
+arbiter, and correcting it silently would move every historical day's headline
+number on the dashboard. Worth doing, worth doing deliberately.
+
 **Third victim, found the same night: the 30-day energy ledger.**
 `solar_energy_daily` infers production as `GREATEST(solar_w, batt + dc_w)` to
 compensate for the MPPT under-reading — the same two-meter difference, and it
