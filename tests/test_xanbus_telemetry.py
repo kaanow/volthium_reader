@@ -13,8 +13,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
+import xanbus_telemetry            # noqa: E402
 from xanbus_telemetry import (   # noqa: E402
-    BUCKET_S, Decoder, parse_can_id,
+    BUCKET_S, MIN_SUN_ELEVATION_DEG, Decoder, parse_can_id,
 )
 
 
@@ -282,10 +283,33 @@ class BucketTests(unittest.TestCase):
 
 
 
+# 2026-08-09 19:00 UTC = 12:00 local, sun 51.9 deg up.
+NOON = 1786302000.0
+# 2026-08-09 03:19 UTC = 20:19 local, sun 1.5 deg up — the exact minute the
+# MPPT was hunting between 26.81 and 89.74 V.
+DUSK = 1786245540.0
+
+
 class LatchDetectionTests(unittest.TestCase):
     """The diode-clamp latch that cost five days of regulated charging
     (2026-08-01..05). Array pinned at output voltage + a diode drop while
-    the sun is up = converter not switching."""
+    the sun is up = converter not switching.
+
+    The sun is stubbed high for this class. These tests are about the clamp
+    logic — confirmation windows, hysteresis, dither — and their timestamps
+    are relative (1000.0, +601, ...), not real epochs. Before the elevation
+    gate existed that did not matter; afterwards those values landed in
+    January 1970 and every test failed for a reason unrelated to what it was
+    testing. Stubbing states the assumption instead of encoding it in magic
+    timestamps. The gate itself is tested in DuskGateTests below, against real
+    epochs."""
+
+    def setUp(self):
+        self._real_sun = xanbus_telemetry.sun_elevation_deg
+        xanbus_telemetry.sun_elevation_deg = lambda _t=None: 50.0
+
+    def tearDown(self):
+        xanbus_telemetry.sun_elevation_deg = self._real_sun
 
     def _clamped(self, dec, t):
         # array 27.9 V, output 26.7 V -> delta 1.2 V, daylight
@@ -485,6 +509,65 @@ class LatchDetectionTests(unittest.TestCase):
         dec.housekeeping(1001.0)
         self.assertEqual([e for e in dec.housekeeping(1601.0)
                           if e["event"].startswith("mppt_")], [])
+
+class DuskGateTests(unittest.TestCase):
+    """A clamp-shaped voltage at dusk is not a clamp.
+
+    At dusk the MPPT hunts: it tries to start, drags the array down to battery
+    voltage, fails for want of power, and lets it fly back to open circuit. On
+    2026-08-09 a single 60 s bucket at 20:19 local held pv_v min 26.81 and max
+    89.74 against a 26.51 V bus. Every sample cleared LATCH_DAYLIGHT_V, and
+    the ones near the bottom sat a diode drop above the output — sample by
+    sample, indistinguishable from a real clamp.
+
+    That blind spot already bit the other detector for real: the guard bounced
+    the MPPT at 21:01 local, sun elevation -3.6 deg (commit 26010b1). This
+    detector never acts, but its events are the raw material for the cliff
+    table and every latch statistic in docs/xanbus-unknowns.md, so a false
+    dusk latch corrupts a published finding. Until the gate, the only thing
+    preventing one was LATCH_CONFIRM_S — and that evening the array held an
+    in-band delta for 13 minutes against a 10 minute confirmation.
+    """
+
+    def _clamp_shaped(self, dec, t):
+        """pv 27.9 / out 26.7 — delta 1.2 V, squarely in the clamp band."""
+        pv = bytes.fromhex("0315") + (27900).to_bytes(4, "little") + \
+            b"\x00" * 8 + b"\xff" * 7
+        out = bytes.fromhex("0303") + (26700).to_bytes(4, "little") + \
+            (-330).to_bytes(4, "little", signed=True) + \
+            (8).to_bytes(4, "little") + b"\xff" * 7
+        feed_fastpacket(dec, 0x1F0C5, 1, pv, t)
+        feed_fastpacket(dec, 0x1F0C5, 1, out, t)
+
+    def _run(self, base):
+        dec = Decoder()
+        self._clamp_shaped(dec, base)
+        dec.housekeeping(base + 1)
+        evs = []
+        for k in range(2, 20):        # well past the 600 s confirmation
+            self._clamp_shaped(dec, base + k * 60)
+            evs += dec.housekeeping(base + k * 60)
+        return dec, [e["event"] for e in evs if e["event"].startswith("mppt_")]
+
+    def test_dusk_hunting_does_not_report_a_latch(self):
+        dec, evs = self._run(DUSK)
+        self.assertEqual(evs, [])
+        self.assertFalse(dec.latched)
+
+    def test_the_identical_signal_at_noon_does(self):
+        """Same voltages, same duration — only the sun differs. Without this
+        the test above would pass just as well on a detector that never fires."""
+        dec, evs = self._run(NOON)
+        self.assertIn("mppt_latched", evs)
+        self.assertTrue(dec.latched)
+
+    def test_the_two_epochs_really_are_dusk_and_noon(self):
+        """Pin the fixtures, so a wrong constant cannot make the pair vacuous."""
+        from solar_geometry import sun_elevation_deg as sun
+        self.assertLess(sun(DUSK), MIN_SUN_ELEVATION_DEG)
+        self.assertGreater(sun(DUSK), -5.0)      # genuinely dusk, not midnight
+        self.assertGreater(sun(NOON), 45.0)
+
 
 
 if __name__ == "__main__":

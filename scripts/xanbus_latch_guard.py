@@ -92,8 +92,14 @@ CLAMP_DELTA_MAX_V = 4.0
 # most. 5 deg restores ~40% more winter coverage and still clears the worst
 # observed transient by 8.6 deg. The two-confirmation rule remains underneath
 # as defence in depth.
-SITE_LAT, SITE_LON = 51.11935280004921, -121.20969152967822
-MIN_SUN_ELEVATION_DEG = 5.0
+# Both live in solar_geometry so the live telemetry decoder can gate on sun
+# elevation too, without importing this module and dragging xanbus_node,
+# socket and subprocess into the long-running service. Re-exported here
+# because callers and tests have referenced them from this module since the
+# gate was added on 2026-08-06.
+from solar_geometry import (   # noqa: E402
+    MIN_SUN_ELEVATION_DEG, SITE_LAT, SITE_LON, sun_elevation_deg,
+)
 DAYLIGHT_V = 20.0          # kept as a secondary check: is the array connected?
 CLAMP_FRACTION = 0.9       # this much of the sample must be clamped
 AMBIGUOUS_FRACTION = 0.3   # above this but below CLAMP_FRACTION = report it
@@ -170,28 +176,6 @@ def note_healthy_run(st: dict) -> bool:
 def note_clamped_run(st: dict) -> None:
     """Record one at-or-above-threshold run: the healthy streak is broken."""
     st["healthy_runs"] = 0
-
-
-def sun_elevation_deg(when: float | None = None) -> float:
-    """Solar elevation at the site, degrees above the horizon.
-
-    Low-precision NOAA-style solar position: good to a fraction of a degree,
-    which is far finer than the 10 deg gate needs. Deliberately depends on
-    nothing but the clock — no sensor, no network, no bus.
-    """
-    ts = time.time() if when is None else when
-    utc = time.gmtime(ts)
-    doy = utc.tm_yday
-    hour = utc.tm_hour + utc.tm_min / 60 + utc.tm_sec / 3600
-    decl = math.radians(23.44) * math.sin(math.radians(360 / 365 * (doy - 81)))
-    b = math.radians(360 / 364 * (doy - 81))
-    eot = 9.87 * math.sin(2 * b) - 7.53 * math.cos(b) - 1.5 * math.sin(b)
-    true_solar = hour * 60 + 4 * SITE_LON + eot
-    hour_angle = math.radians(true_solar / 4 - 180)
-    lat = math.radians(SITE_LAT)
-    sin_el = (math.sin(lat) * math.sin(decl)
-              + math.cos(lat) * math.cos(decl) * math.cos(hour_angle))
-    return math.degrees(math.asin(max(-1.0, min(1.0, sin_el))))
 
 
 def sample_array(iface: str, seconds: float) -> dict:

@@ -41,9 +41,15 @@ import re
 import signal
 import socket
 import struct
+import sys
 import threading
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from solar_geometry import (   # noqa: E402
+    MIN_SUN_ELEVATION_DEG, sun_elevation_deg,
+)
 
 log = logging.getLogger("xanbus-telemetry")
 
@@ -83,6 +89,25 @@ LATCH_DELTA_MIN_V = 0.3        # below this the array isn't driving the diode
 # smallest delta seen while genuinely tracking that day was 8.2 V, and
 # 13 V+ during real production.
 LATCH_DELTA_MAX_V = 4.0        # above this the tracker has real headroom
+# pv_v > 20 V was the ONLY daylight test here until 2026-08-09, and it is not
+# sufficient. At dusk the MPPT hunts: it repeatedly tries to start, drags the
+# array down to battery voltage, fails for want of power, and lets it fly back
+# to open circuit. A single 60 s bucket at 20:19 local that evening held
+# pv_v min 26.81 and max 89.74 — every sample above 20 V, and the ones near
+# the bottom sitting a diode drop above a 26.51 V bus. Indistinguishable from
+# a clamp, sample by sample.
+#
+# The same blind spot already caused a real incident on the OTHER detector:
+# the guard bounced the MPPT at 21:01 local, sun elevation -3.6 deg, and was
+# fixed by gating on elevation (commit 26010b1, 2026-08-06). That fix was
+# never applied here, because this detector only records and does not act.
+#
+# Recording still matters. These events are the raw material for the cliff
+# table and every latch statistic in docs/xanbus-unknowns.md, so one false
+# dusk latch corrupts a published finding. The only thing standing between
+# that and the record was LATCH_CONFIRM_S: on 2026-08-09 the array sat near
+# 28 V with an in-band delta for 13 minutes against a 10 minute confirmation.
+# That is not margin, that is luck.
 LATCH_DAYLIGHT_V = 20.0        # array must at least exceed a dark panel string
 LATCH_CONFIRM_S = 600          # sustained this long before we call it
 LATCH_RELEASE_S = 120          # ...and sustained THIS long before we clear it
@@ -437,7 +462,8 @@ class Decoder:
             return []
         delta = self.pv_v - self.mppt_out_v
         clamped = (self.pv_v > LATCH_DAYLIGHT_V
-                   and LATCH_DELTA_MIN_V <= delta <= LATCH_DELTA_MAX_V)
+                   and LATCH_DELTA_MIN_V <= delta <= LATCH_DELTA_MAX_V
+                   and sun_elevation_deg(now) >= MIN_SUN_ELEVATION_DEG)
         if not clamped:
             # Hysteresis applies on the way IN as well as out. Zeroing
             # clamp_since on the first out-of-band sample means one brief
