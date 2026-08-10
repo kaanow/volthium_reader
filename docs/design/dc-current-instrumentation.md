@@ -182,25 +182,52 @@ reason (short days, low SOC). Options: accept a winter gap and flag it in the
 data, mount inside a heated enclosure, or pay for an industrial part. Not a
 blocker for a summer build, but it must not be discovered in December.
 
-**The 3.3 V variant removes a part.** With 1.65±0.625 V output the Pico's ADC
-reads the sensor directly — no ADS1115, no divider, no resolution lost getting
-5 V down to 3.3 V. At 12 bits over 3.3 V that is 0.81 mV/LSB against 62.5 mV/A
-on a ±10 A part: **13 mA per count**, far finer than needed. Buy 3.3 V parts if
-they are in stock; the ADS1115 below is the fallback if only 5 V is available.
+**CORRECTION — the Pico's own ADC cannot be used, and the ADS1115 is required.**
+An earlier draft of this BOM had the 3.3 V sensor variant feeding the Pico's
+ADC directly and treated the ADS1115 as an optional fallback. That was wrong.
 
-### Stage 1 — three channels, ~$55
+**Erratum RP2040-E11** (RP2040 datasheet p. 629): the ADC has DNL spikes at
+codes **512, 1536, 2560 and 3584**, exceeding **9 LSB** at code 512, from
+incorrect capacitor sizing in its capacitive DAC — confirmed by Raspberry Pi,
+a mismatch between simulation and shipped silicon. The transfer function is
+non-monotonic there.
+
+Why that disqualifies it here rather than merely degrading it:
+
+- 9 LSB at 12-bit/3.3 V is 7.3 mV = **0.12 A** on a ±10 A part, 0.35 A on ±30 A.
+- The spikes sit at 1/8, 3/8, 5/8, 7/8 of full scale. A bipolar sensor idles at
+  mid-scale, so codes 1536 and 2560 fall at about ±6.6 A on a ±10 A part —
+  **inside the normal operating range**, not out at the rails.
+- It is a fixed non-linearity at specific codes, so **averaging cannot remove
+  it**. Oversampling cures noise, not a non-monotonic converter.
+
+This instrument exists to arbitrate between meters that already disagree. A
+converter with known missing codes is the wrong foundation for that, and $15
+buys the problem away entirely.
+
+**Consequence, and it simplifies sourcing:** with the ADS1115 converting, the
+3.3 V sensor variant no longer matters. Buy the common +5 V parts, power the
+ADS1115 from the Pico's VBUS, use its ±4.096 V PGA range — 125 µV/LSB, about
+**2 mA per count** on a ±10 A sensor. The Pico's ADC goes unused; it is a USB
+bridge and I2C master only.
+
+Its channel count would have been a dead end regardless: three external
+channels (GP26/27/28) is exactly stage 1 with no spare, because GP29/ADC3 is
+committed to VSYS sensing on the Pico board. Stage 2 would have forced an
+external ADC anyway.
+
+### Stage 1 — three channels, ~$70
 
 | qty | part | for | supplier | ~unit |
 |---|---|---|---|---|
-| 2 | YHDC HSTS016L, **±10 A**, 3.3 V variant | PV string A, PV string B | PowerUC / Amazon | $15 |
-| 1 | YHDC HSTS016L, **±30 A**, 3.3 V variant | MPPT output | PowerUC / Amazon | $15 |
-| 1 | Raspberry Pi Pico, **SC0915** | ADC + USB CDC | Digi-Key | $4.59 |
+| 2 | YHDC HSTS016L, **±10 A**, +5 V | PV string A, PV string B | PowerUC / Amazon | $15 |
+| 1 | YHDC HSTS016L, **±30 A**, +5 V | MPPT output | PowerUC / Amazon | $15 |
+| 1 | **Adafruit 1085** (ADS1115, 16-bit, 4-ch, I2C) | the actual converter | Digi-Key | $14.95 |
+| 1 | Raspberry Pi Pico, **SC0915** | USB CDC bridge + I2C master | Digi-Key | $4.59 |
 | 1 | USB A-to-micro-B cable | power + data, one run | any | $5 |
 | — | small IP-rated box, glands, hookup wire | | | ~$15 |
 
-Fallback if only 5 V sensors are available: add **Adafruit 1085** (ADS1115,
-16-bit, 4-ch, I2C), Digi-Key, $14.95. It takes 5 V sensor output directly and
-gives a 4th channel for stage 2.
+The ADS1115's 4th channel is already there for stage 2's fridge branch.
 
 Ranges are chosen per line deliberately. A ±10 A part on a ~8 A string gives
 0.1 A resolution; a ±50 A part on the same string would give 0.5 A and could
@@ -222,6 +249,13 @@ not see a 10% mismatch. This is the whole reason not to buy one part in bulk.
 5. Confirm the 4 AWG / 8 AWG assignment — a combined input thinner than the
    strings feeding it is unusual and may simply be swapped in the estimate.
 
+**Pico specs that bear on the build.** Dual Cortex-M0+ at 133 MHz, 264 KB
+SRAM, 2 MB flash, USB 1.1 device+host on micro-B, VSYS 1.8-5.5 V, 21 x 51 mm,
+and **-20 to +85 °C** — wider than the sensors' -10 to +70, so the winter
+limitation above is entirely a sensor problem and the bridge needs no change
+if it is solved.
+
 Sources: YHDC HSTS016L and HST(S)21 product pages and distributor datasheets;
-Digi-Key SC0915 and Adafruit 1085 listings. All figures above are quoted, not
+Digi-Key SC0915 and Adafruit 1085 listings; RP2040 datasheet erratum RP2040-E11
+and raspberrypi/pico-feedback issue 91. All figures above are quoted, not
 estimated, except the cable ODs and the enclosure allowance.
