@@ -912,6 +912,64 @@ as a cross-check.
 battery. Every other candidate (SOC, remaining_ah) is BMS-derived from the
 same shunt, so it is circular.
 
+### 2026-08-10: could the LATCH itself just be this sensor? Probably — and
+### the offset is the part that matters, not the under-report
+
+Asked directly, and it reframes the investigation. Working through it:
+
+**A pure scale error cannot do it.** If the sensor read a constant 25% low,
+every maximiser is indifferent — `argmax(k·P) == argmax(P)`. "Reads low" alone
+is not a mechanism for anything.
+
+**But the measured error is not a scale.** The fit over 839 paired samples is
+`true ≈ 1.35 × reported + 2.2 A` — a scale AND a **+2.2 A offset**. This file
+already noted that is "odd for a miscalibrated shunt" without following the
+thread. An offset is categorically different: it distorts the *shape* of the
+apparent curve, not just its height, so the location of the apparent optimum
+moves.
+
+**And at the currents where crossings happen, the offset is bigger than the
+signal.** Reported MPPT output current at each of the 25 recorded 45 V
+crossings: median **1.40 A**, mean 1.83 A. Against a 2.2 A offset. The
+controller is steering by a number that is more artifact than measurement.
+
+**That predicts the irradiance dependence — the single most striking
+unexplained feature of this whole investigation.** A fixed 2.2 A error is a
+~20% perturbation against a bright-day output near 10 A, and a ~150%
+perturbation at the 1.4 A typical of a crossing. So the tracker would behave
+sanely in strong sun and pathologically in dim light. Which is exactly, and
+only, when the walk-down happens.
+
+It also fits the rest of the picture without further assumptions: the MPPT has
+**no PV-side current sensor at all** on this model (the 0x15 I/W fields are
+structurally zero), so every tracking decision it makes rests on this one
+faulty output-side measurement. And a tracker whose perceived optimum has
+moved off the real curve has no gradient pulling it back — which is why it
+never recovers unaided and why only a Standby→Operating bounce, which dumps it
+at Voc to re-acquire from scratch, clears it.
+
+**What this does not establish.** The controller's internal algorithm is not
+observable, so "the offset moves the apparent optimum" is a mechanism by
+analogy, not a derivation. Both the sensor error and the latch could also be
+symptoms of the unit simply operating outside its design envelope at low
+irradiance. And the 1.35/2.2 fit was taken against the BMS, which is itself
+self-inconsistent by ~12% (above), so those coefficients carry that
+uncertainty — an offset of roughly this order survives, an exact value does
+not.
+
+**It changes what the site visit should measure.** The plan was a clamp on the
+inverter DC input at night. Add — and prioritise — **a clamp on the MPPT
+output during a dim morning, at low current**, because that is where the
+hypothesis is decisive. At a reported 1.4 A the fit predicts a true ~4.1 A. A
+20% discrepancy there means a scale error and the latch needs another
+explanation; a 2-3x discrepancy at low current while bright-day readings agree
+within 20% confirms an offset and makes the sensor the prime suspect.
+
+**And it changes what a fix looks like.** If this is right, the latch guard is
+treating a symptom, the early-bounce trigger is a better symptom treatment,
+and the actual repair is a recalibrated or replaced controller. Worth knowing
+before investing further in cleverer detection.
+
 **Therefore #5 cannot be settled remotely.** It needs an external
 measurement — a DC clamp meter on the MPPT output during an on-site visit.
 
