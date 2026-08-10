@@ -1409,8 +1409,7 @@ BMS designs, not confirmed for this Volthium unit. If its balancer engages
 lower, the window is larger than this table suggests — worth checking against
 the balancer flags already being logged (see memory `keep-balancer-flags`).
 
-#### OPEN HYPOTHESIS 2026-08-09: the peak spread may be falling since the
-#### ceiling change. Not established — here is the test that settles it.
+#### SETTLED 2026-08-10: the ceiling change IS reducing the imbalance
 
 Peak `dv_a` on days that actually reached 100% SOC (days that did not are
 excluded; the cliff never engages below the top, and their ~25 mV says
@@ -1440,18 +1439,42 @@ minutes at 100% and produced the worst spread ever recorded (0.415)**. So
 time-at-top does not straightforwardly drive the peak, and the two low days
 are not simply explained away by their short windows.
 
-**The test.** Wait for a post-change day that reaches 100% SOC and holds it
-for **300+ minutes** — comparable to 07-29/07-30/07-31.
+**The test was:** wait for a post-change day that reaches 100% SOC and holds
+it for 300+ minutes, comparable to 07-29/07-30/07-31. Below ~0.25 V confirms
+the ceiling change; back at 0.37-0.42 V means the low days were just short
+exposure.
 
-- spread stays **below ~0.25 V** → the ceiling change is genuinely reducing
-  the imbalance, and "will not self-correct under current operation" above is
-  wrong and must be rewritten. Current operation changed.
-- spread returns to **0.37-0.42 V** → the two low days were just short
-  exposure, the original conclusion stands, and this section gets deleted.
+**2026-08-09 met it and the answer is unambiguous.** It held 100% for **380
+minutes** — squarely inside the pre-change range of 315-405 — and peaked at
+**0.194 V**.
 
-Do not update the headline conclusion on anything less. The claim being tested
-is one this file already asserted the opposite of, on better evidence than two
-partial days.
+| | day | min at 100% | peak dv_a |
+|---|---|---|---|
+| pre | 07-29 | 335 | 0.369 |
+| pre | 07-30 | 405 | 0.374 |
+| pre | 07-31 | 315 | 0.386 |
+| **post** | **08-09** | **380** | **0.194** |
+
+Matched on exposure, the spread is **roughly halved**. And unmatched, the
+separation is total: five pre-change days span 0.369-0.415, three post-change
+days span 0.194-0.247, **no overlap**.
+
+*Why this was nearly missed.* On 08-09 I measured 75 minutes at 100% and
+recorded the day as "incomplete, 178 of 288 buckets" — it was still early
+afternoon. The day finished at 380 minutes. The test condition had been met
+for a full day before anyone looked again. Re-check pre-registered tests
+against *completed* days, not the day they were written.
+
+**Consequence: the conclusion below is now wrong and is retained only for the
+reasoning.** "This imbalance will not self-correct under current operation"
+was correct when written — and then current operation changed. The balancer
+window argument still holds (the pack is only in range for minutes a day);
+what changed is that lowering the ceiling to 28.0 V stops the pack being
+driven to the spread-blowing region in the first place, so the balancer has
+less to correct rather than more.
+
+Still n=1 at matched exposure. The prediction for any future 300+ minute day
+is a peak under 0.25 V; a return to 0.37+ would overturn this.
 
 **CORRECTED 2026-08-07 — the ceiling is the WRONG LEVER, and never was one.**
 Peak pack voltage by day, measured rather than assumed:
