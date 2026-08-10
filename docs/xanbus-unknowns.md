@@ -1405,7 +1405,7 @@ only, so it omits the ~0.53 kWh/day fridge. Adding a modelled figure to a
 measured column would mix the two; the honest options are a separate DC-load
 column or leaving it, and that is a display decision, not a data one.
 
-**10. Array health — improving, but the record is CONFOUNDED by the latch.**
+**10. Array health — the panels are fine; the record was CONFOUNDED twice.**
 
 Peak array voltage by local day: 07-30 112.7, 07-31 111.5, 08-01 111.8,
 08-02 76.9, 08-03 68.4, 08-04 61.7, **08-05 98.9**. MPPT-metered energy the
@@ -1420,6 +1420,77 @@ the latch being cleared at 13:37, not extra sun.
 facing and shaded until early afternoon, so morning comparisons measure
 shade, not air quality — an earlier "smoke has not cleared" reading based on
 07:00/08:00 hours was withdrawn for exactly this reason.
+
+#### RETRACTED 2026-08-09: peak `pv_v` measures DEMAND, not array health
+
+The paragraph below is wrong and is kept only so the reasoning is visible.
+Peak array voltage does not indicate array health. It indicates **whether the
+battery filled that day**, and the separation is absolute:
+
+| day | peak pv_v | soc_a max | reached 100%? |
+|---|---|---|---|
+| 07-30 | 114.6 | 100.0 | YES |
+| 07-31 | 112.7 | 100.0 | YES |
+| 08-01 | 116.4 | 100.0 | YES |
+| 08-02 | 98.9 | 89.0 | no |
+| 08-03 | 94.6 | 86.0 | no |
+| 08-04 | 83.7 | 85.0 | no |
+| 08-05 | 109.0 | 100.0 | YES |
+| 08-06 | 92.7 | 96.0 | no |
+| 08-07 | 95.4 | 89.0 | no |
+| 08-08 | 112.4 | 100.0 | YES |
+| 08-09 | 112.6 | 100.0 | YES |
+
+Every 100%-SOC day peaks at 109-116 V. Every other day peaks at 84-99 V.
+**Zero overlap, 11 for 11.** The mechanism is obvious once seen: when the
+battery fills, the MPPT stops loading the array and it flies to open-circuit
+voltage. When the battery never fills, the array stays loaded at its MPP all
+day and Voc is simply never sampled. So "61.7 → 98.9 V is a genuine
+improvement" was reading the battery, not the panels.
+
+This is the *second* confound in this section. The first — the latch — is
+already flagged below and is real. Both push the same way, which is why the
+trend looked so convincing.
+
+**What the numbers say once neither confound is in the way.** Restricting to
+genuine MPP-band samples (60 < `pv_v` < 100, loaded, not clamped):
+
+| day | n | peak W | sun el. | % of day clamped |
+|---|---|---|---|---|
+| 07-31 | 13 | 78 | 8.7° | 34% |
+| 08-01 | 1 | 60 | 33.2° | 73% |
+| 08-04 | 3 | 19 | 7.1° | 79% |
+| 08-05 | 71 | 634 | 55.2° | 17% |
+| 08-06 | 41 | 236 | 47.9° | 8% |
+| 08-07 | 54 | 284 | 48.8° | 7% |
+| 08-08 | 65 | 591 | 54.7° | 4% |
+| 08-09 | 28 | 547 | 54.4° | 3% |
+
+The early days have 1-13 usable samples because they were 34-79% clamped —
+the array barely got to operate, so their "peaks" are not measurements of
+anything. That is the latch confound, quantified.
+
+Among the days that are comparable (08-05, 08-08, 08-09 — all peaking within
+0.8° of the same sun elevation), the array made **634 / 591 / 547 W**. That is
+flat to mildly declining, not improving. Three points and day-to-day haze
+easily covers that spread, so it is not a trend either way.
+
+**The honest conclusion for #10: the panels are fine, and array health was
+never the interesting variable.** Voc on the days it is observable is 109-116 V
+across the whole period with no trend — and Voc is the quantity that would
+fall if strings or cells were degrading, since smoke suppresses irradiance
+(current) and barely touches open-circuit voltage. What actually changed over
+this record is the clamp fraction, 79% → 3%.
+
+*Caveat on the replacement metric:* peak-W-in-MPP-band is **also** demand-
+biased, just far less. 08-09 has only 28 samples because the battery filled at
+13:41 and the afternoon went demand-limited, so its 547 W may simply have
+missed the true peak. Any future version needs the demand-limited hours
+excluded explicitly, not just the clamped ones.
+
+---
+
+*Superseded text follows.*
 
 Peak `pv_v` is the sounder indicator since it is independent of the metering
 fault, and 61.7 -> 98.9 V is a genuine improvement. But it is still partly
@@ -1450,6 +1521,30 @@ Window 09:00-16:00 local, demand-limited samples excluded:
 | 08-05 | 33% | 26% | 0.832 | 100% |
 | 08-06 | 11% | 11% | 0.257 | 31% |
 | 08-07 | 16% | 33% | 0.304 | 37% |
+| 08-08 | 6% | 32% | see note | — |
+| 08-09 | 7% | 30% | see note | — |
+
+*Note on the two new rows:* the `near-MPP index` column cannot be extended.
+It was computed ad-hoc in the session that created this table and never
+committed as code, so its normalisation is unrecoverable — the first two
+columns are reproducible from a stated rule and the third is not. Scripting it
+is the fix; until then do not compare a new index number against the old ones.
+Replacement figure that IS defined: mean solar_w over near-MPP samples —
+08-05 501 W, 08-06 219, 08-07 254, 08-08 374, 08-09 378.
+
+**08-08 and 08-09 have the most near-MPP time on record (32% and 30%) and the
+lowest clamped fraction (6% and 7%).** The converter is now healthy nearly all
+day.
+
+**And a new state has appeared: demand-limited hours inside the productive
+window.** On 08-09 the battery filled at 13:41 and the array flew to Voc for
+**28 of the 84 buckets** — a third of the 09:00-16:00 window with nowhere to
+put the power. That had never happened before inside the window (08-08 filled
+too, but at 17:32, after it closed). It is a good problem, and it changes the
+arithmetic on further latch work: on days like this the remaining upside is
+capped by demand, not by the converter. It also means 08-09's 378 W near-MPP
+mean is measured over the pre-float hours only and is not comparable to
+08-05's 501 W, which spanned the whole window.
 
 **Converter health — the guard is working, and this is the number that shows
 it.** Clamped time across the productive window fell from **90-99% on
