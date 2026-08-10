@@ -1,5 +1,12 @@
 # Xanbus — what we still don't understand
 
+> **The distilled, operational version of this file is the `xanbus` skill**,
+> now versioned at `kaanow/skillz` (`xanbus/SKILL.md`) and symlinked into
+> `volthium_sw/.claude/skills/`. This document is the working record — every
+> dead end, every retraction, every number and how it was got. The skill is
+> what you act on. When a finding here changes an operational rule, bump the
+> skill's `version:` and push it the same turn; the skillz README explains why.
+
 Ranked by (value if solved) × (likelihood of solving). Companion to
 `docs/xanbus-decode.md` (read side), `docs/xanbus-write.md` (write side) and
 the `xanbus` skill.
