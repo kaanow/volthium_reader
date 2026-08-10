@@ -1289,6 +1289,73 @@ Cautionary note on method: the server endpoint and the earlier hand analysis
 they were two implementations of the same method. Agreement between two
 routes only means something when the routes can fail differently.
 
+#### 2026-08-10: audited across 14 days, and the inferred branch's GATE is
+#### the defect, not just the dc_w bias
+
+The Modbus captures carry the same daily counter (30:130-131), and they go back
+to 2026-07-26 — so the audit is not limited to the days since ingestion
+started. The counter resets at **00:00:45-00:01:21 local**, confirming the
+event design, and the value immediately before each reset is that day's total.
+
+Extraction validates against work done independently in #10: it reproduces
+984 / 774 / 244 / 189 / 262 / 189 / 1736 Wh for 07-30..08-05 against that
+section's 984 / 775 / 242 / 189 / 261 / 189 / 1735. Within 1-2 Wh on every day.
+
+| day | MPPT counter | ledger | ratio |
+|---|---|---|---|
+| 07-30 | 984 | 2723 | 2.77 |
+| 07-31 | 774 | 2833 | 3.66 |
+| 08-01 | 244 | 2661 | **10.91** |
+| 08-02 | 189 | 1761 | 9.32 |
+| 08-03 | 262 | 3004 | 11.47 |
+| 08-04 | 189 | 2588 | **13.69** |
+| 08-05 | 1736 | 3652 | 2.10 |
+| 08-06 | 1050 | 2358 | 2.25 |
+| 08-07 | 1105 | 2340 | 2.12 |
+| 08-08 | 1765 | 3423 | 1.94 |
+
+The 9-14x days are 08-01..04, the five-day latch. That much is *expected* —
+a clamped MPPT cannot meter power crossing its own body diode, and rescuing
+exactly those hours is why the inference exists.
+
+**But look at 08-08, which was only 4% clamped, and still reads 1.94x.**
+Breaking down where that day's inferred credit comes from:
+
+| array was… | 15 min buckets | credited |
+|---|---|---|
+| producing >200 W | 12 | 1526 Wh |
+| producing 50-200 W | 20 | 1208 Wh |
+| **producing <50 W** | **27** | **637 Wh** |
+
+**637 Wh — 19% of the day — is credited from quarter-hours in which the array
+demonstrably produced under 50 W.** Twenty-seven of them could have yielded at
+most 337 Wh even sitting at that 50 W ceiling, and realistically far less.
+That is dawn, dusk and cloud, where `batt + dc_w` is dominated by the house
+load and has almost nothing to do with sunlight.
+
+**The gate is the bug.** `pv_v >= 15` was chosen as a voltage test on purpose,
+and the reasoning was right as far as it went: during a clamp the MPPT reports
+single-digit watts in broad daylight, so a *power* gate would zero out exactly
+the hours the branch exists to rescue. But a bare voltage floor also admits
+every twilight and overcast hour, when the array is above 15 V and genuinely
+producing nothing.
+
+What actually distinguishes a clamp is not low power, and not high voltage —
+it is **the array pinned a diode drop above the bus while the sun is up**. That
+test already exists in this codebase twice over: the clamp band in the
+telemetry detector, and `scripts/solar_geometry.py`. Gating the inferred branch
+on the clamp condition itself, rather than on `pv_v >= 15`, would confine it to
+the hours it was written for.
+
+This is the same bug as the darkness gate fixed below, one step further out.
+That one credited 54 Wh across 2.2 h of full night; this credits ~600 Wh/day
+across twilight and cloud.
+
+**Not implemented.** It changes solar_wh materially on every historical day,
+and it is now the third finding pointing at one decision — this gate, the
+`dc_w` offset, and the `load_wh` column. Worth settling together and
+deliberately rather than piecemeal at 03:00.
+
 #### 2026-08-09: the ledger can now be audited against the device, and it is
 #### inflated by roughly 440 Wh/day
 
