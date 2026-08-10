@@ -328,6 +328,17 @@ the effect. Following **every** 45 V crossing to whatever happened next:
 **16 of 16 crossings ended in a clamp; none recovered.** Time to clamp: min
 30, median 68, max 115 minutes.
 
+*Read that as "16 of 16 that resolved in daylight."* An episode still open at
+nightfall is discarded rather than counted, because its outcome would be
+contaminated by the array simply going dark. Five episodes are excluded that
+way; three are plainly artifacts (two run all night, two resolve in 5 minutes
+as the light fails), but **07-30 19:35 is a plausible genuine 70 minute
+crossing** that is dropped only because it had not finished by dusk. So the
+table may under-count late-afternoon crossings by about one in seventeen.
+Discarding an episode whose outcome is contaminated is the safer error than
+counting a dusk decay as a clamp — but it is still an error, and the finding
+should not be quoted as though the sample were complete.
+
 So the cliff is not probabilistic — below 45 V the outcome is effectively
 determined and only the *timing* varies. The 28% that appeared to "not clamp"
 were simply cases that took longer than the 60 minute window I happened to

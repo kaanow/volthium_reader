@@ -29,7 +29,11 @@ The rule (all four conditions, deliberately explicit):
      per wobble.
   3. CROSSING — pv_v falls below 45 V while NOT already clamped.
   4. OUTCOME — either a clamp (delta band, matching the live detector) or a
-     recovery back above 48 V. Whichever comes first ends the episode.
+     recovery back above 48 V. Whichever comes first ends the episode. An
+     episode that has not resolved by nightfall is DISCARDED, not counted —
+     see MAX_BUCKET_SPREAD_V for what that costs.
+  5. PINNED — the array must not have oscillated through the bucket, which is
+     what the MPPT does at dawn and dusk. Defence in depth behind (1).
 """
 from __future__ import annotations
 
@@ -49,6 +53,49 @@ from xanbus_latch_guard import (   # noqa: E402
 from xanbus_telemetry import (     # noqa: E402
     LATCH_DAYLIGHT_V, LATCH_DELTA_MAX_V, LATCH_DELTA_MIN_V,
 )
+
+# A real walk-down is PINNED; the MPPT hunting at dawn or dusk OSCILLATES.
+# Measured spread of pv_v INSIDE a single 5 min bucket:
+#
+#     real descent (08-09 11:00-13:00)   median  5.1 V, max  9.7 V
+#     dawn hunting (05:xx)               median 41.1 V, p90 71.6 V
+#     dusk hunting (20:xx)               median 48.6 V, p90 64.4 V
+#
+# 20 V is twice the worst descent and half the mildest hunting median. It
+# rejects 3.8% of buckets and changes the current table by nothing, because
+# the daylight gate already excludes every hunting episode on record — today
+# the last sub-45 V hunting dip was at 05:50 local with the sun at 0.0 deg,
+# and the gate admits from 5 deg.
+#
+# It is kept as defence in depth for one specific scenario: at 51.12 N the
+# winter sun climbs far more slowly while low irradiance persists longer into
+# the morning, so hunting could still be running when elevation passes 5 deg.
+# This test keys on the physics rather than the clock, so that case is covered.
+#
+# It is NOT, however, a substitute for the daylight gate, and an earlier draft
+# of this comment wrongly claimed it made the metric "season-proof". Measured:
+# removing the elevation gate and keeping only the spread test gives 21
+# crossings against the correct 16 — no better than no filter at all. The two
+# catch different things. What the elevation gate actually excludes is not
+# oscillation but EVENING EPISODES THAT RUN INTO NIGHTFALL, which have a
+# perfectly smooth low-spread decay the spread test cannot see:
+#
+#     07-30 19:35 (sun +10.4)  ->  20:45     70 min
+#     07-31 20:05 (sun  +5.7)  ->  20:10      5 min
+#     08-04 21:10 (sun  -4.2)  ->  05:15    485 min   overnight, meaningless
+#     08-06 19:45 (sun  +7.3)  ->  05:35    590 min   overnight, meaningless
+#     08-07 20:55 (sun  -3.0)  ->  21:00      5 min
+#
+# KNOWN LIMITATION, recorded rather than fixed: three of those five are
+# obvious artifacts (two run all night; two resolve in 5 min as the array
+# simply goes dark), but 07-30 19:35 is a plausible genuine 70 min crossing
+# that the gate drops because the episode had not resolved before dusk. So
+# the table may under-count late-afternoon crossings by roughly one in
+# seventeen. Dropping an episode whose OUTCOME is contaminated by nightfall is
+# the more defensible error than counting a dusk decay as a clamp, but it is
+# an error, and "16 of 16" should be read as "16 of 16 that resolved in
+# daylight".
+MAX_BUCKET_SPREAD_V = 20.0
 
 ARM_V = 48.0        # must get back up here before another crossing counts
 CROSS_V = 45.0      # the cliff itself
@@ -72,6 +119,10 @@ def episodes(series: list[dict]) -> list[dict]:
     for r in series:
         pv, dv = r.get("pv_v"), r.get("dc_v")
         if pv is None or dv is None:
+            continue
+        # Reject buckets the array oscillated through — see MAX_BUCKET_SPREAD_V.
+        lo, hi = r.get("pv_v_min"), r.get("pv_v_max")
+        if lo is not None and hi is not None and hi - lo > MAX_BUCKET_SPREAD_V:
             continue
         tu = dt.datetime.strptime(r["bucket"], "%Y-%m-%dT%H:%M:%SZ").replace(
             tzinfo=dt.timezone.utc)
