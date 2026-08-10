@@ -22,8 +22,10 @@ the `xanbus` skill.
 > **Established:**
 > - The tracker walks the array **down past its own MPP** and never turns
 >   around, ending pinned one diode drop above the battery.
-> - **~45 V is the point of no return.** 17 of 17 crossings ended in a clamp;
->   none recovered. Time to clamp 29-118 min, median 72, and **not predictable**
+> - **~45 V is NOT the point of no return** — that was a detector bug, see
+>   the retraction below. 17 of 27 crossings clamped, **10 recovered**. But
+>   the outcome is cleanly predictable: every recovery resolved within 28 min,
+>   every clamp took 29+ min, zero overlap. Time to clamp 29-118 min, median 72, and **not predictable**
 >   (deficit depth correlates at only r = +0.28). Derived by
 >   `scripts/cliff_table.py` — do not hand-edit these numbers.
 > - Above 45 V descents usually **abort on their own** — the sawtooth.
@@ -358,7 +360,7 @@ voltage in the same minute. Worth checking the next several crossings for the
 same `dc_v` inflection — if it recurs it is the closest thing to a trigger
 signature this investigation has found.
 
-### Sharpened 2026-08-08, re-derived 2026-08-10: 17 of 17
+### Sharpened 2026-08-08, corrected 2026-08-10: 17 of 27
 
 The "72% within 60 minutes" figure used an arbitrary window and understated
 the effect. Following **every** 45 V crossing to whatever happened next:
@@ -370,26 +372,94 @@ the effect. Following **every** 45 V crossing to whatever happened next:
 
 | crossing (local) | outcome at | minutes | Wh in between |
 |---|---|---|---|
-| 07-30 09:14 | 11:12 | 118 | 210 |
-| 07-31 09:07 | 10:00 | 53 | 51 |
+| 07-30 08:45 | 08:57 | 12 | 18 | **recovered**
+| 07-30 09:14 | 11:12 | 118 | 209 |
+| 07-31 09:07 | 10:00 | 53 | 50 |
 | 08-01 07:19 | 08:40 | 81 | 23 |
 | 08-02 07:32 | 08:44 | 72 | 32 |
-| 08-03 07:57 | 08:50 | 53 | 27 |
-| 08-04 07:51 | 09:02 | 71 | 26 |
-| 08-05 09:37 | 11:15 | 98 | 107 |
+| 08-02 18:28 | 18:56 | 28 | 2 | **recovered**
+| 08-02 19:09 | 19:15 | 6 | 0 | **recovered**
+| 08-03 07:57 | 08:50 | 53 | 26 |
+| 08-04 07:51 | 09:02 | 71 | 25 |
+| 08-05 08:24 | 08:39 | 15 | 12 | **recovered**
+| 08-05 08:44 | 08:50 | 6 | 5 | **recovered**
+| 08-05 09:37 | 11:15 | 98 | 106 |
+| 08-05 16:31 | 16:45 | 14 | 13 | **recovered**
 | 08-06 08:44 | 10:12 | 88 | 47 |
-| 08-06 15:31 | 16:33 | 62 | 29 |
+| 08-06 12:35 | 12:39 | 4 | 9 | **recovered**
+| 08-06 15:31 | 16:33 | 62 | 28 |
 | 08-07 08:24 | 09:41 | 77 | 39 |
 | 08-07 16:56 | 17:46 | 50 | 24 |
-| 08-08 08:22 | 09:16 | 54 | 26 |
-| 08-08 12:08 | 12:57 | 49 | 82 |
-| 08-08 15:23 | 16:56 | 93 | 82 |
-| 08-09 09:13 | 09:42 | 29 | 20 |
-| 08-09 11:52 | 13:07 | 75 | 120 |
-| 08-10 08:26 | 10:18 | 112 | 118 |
+| 08-08 08:17 | 08:20 | 3 | 2 | **recovered**
+| 08-08 08:22 | 09:16 | 54 | 25 |
+| 08-08 12:08 | 12:57 | 49 | 80 |
+| 08-08 15:23 | 16:56 | 93 | 81 |
+| 08-09 09:13 | 09:42 | 29 | 19 |
+| 08-09 11:52 | 13:07 | 75 | 117 |
+| 08-10 08:26 | 10:18 | 112 | 117 |
+| 08-10 11:35 | 11:43 | 8 | 21 | **recovered**
+| 08-10 11:52 | 11:54 | 2 | 6 | **recovered**
 
-**17 of 17 crossings ended in a clamp; none recovered.** Time to clamp: min
-29, median 72, max 118 minutes.
+**17 of 27 crossings ended in a clamp; 10 recovered.** Time to clamp: min 29,
+median 72, max 118 minutes.
+
+#### RETRACTED 2026-08-10: "none recovered" was a bug in the detector
+
+The cliff was quoted for days as 14/14, then 16/16, then 17/17 — "the point of
+no return", "the outcome is effectively determined and only the timing
+varies". **That was never measured. It was a property of the code.**
+
+In `episodes()` the re-arm ran before the outcome check:
+
+```python
+if pv >= ARM_V and not clamped:
+    armed, start = True, None     # <-- wipes the open episode
+if start is None:
+    continue                      # <-- so the outcome block never runs
+```
+
+A recovery is *defined* as the array climbing back above ARM_V, which is
+exactly the branch that discarded `start` one line before the recovery could
+be recorded. The `pv >= ARM_V` arm of the outcome block was unreachable. The
+function could only ever emit clamps, so "none recovered" was guaranteed
+regardless of what the array did.
+
+Found by watching a live crossing recover — 11:35 today, down to 40.7 V, back
+above 48 V by 11:43 — and asking why the table did not show it.
+
+**What is actually true, and it is a better finding.** Ordering fixed, and
+`MIN_EPISODE_MIN` recalibrated (it was 10 min, set to kill 1-minute dusk
+artifacts before recoveries were known to exist, and it was silently
+discarding the most interesting class):
+
+| | minutes |
+|---|---|
+| **recovered** (n=10) | 2, 3, 4, 6, 6, 8, 12, 14, 15, **28** |
+| **clamped** (n=17) | **29**, 49, 50, 53, 53, 54, 62, 71, 72, 75, 77, 81, 88, 93, 98, 112, 118 |
+
+**Longest recovery 28 min. Shortest clamp 29 min. Zero overlap in 27
+episodes.**
+
+So the outcome IS predictable — just not from what was tested. Deficit depth
+correlates at r = +0.28 and that was written up as "not predictable"; the
+predictor is simply **elapsed time**:
+
+> **A 45 V crossing that has not resolved within ~30 minutes is going to
+> clamp. One that is going to recover does so inside 28 minutes.**
+
+That is a far more useful rule than "it always clamps", and it is the sort of
+thing the old code made unlearnable — a detector that cannot represent an
+outcome cannot discover the rule that predicts it.
+
+**Consequence for the early bounce (#40).** The trade is now explicit rather
+than assumed. Bouncing at the crossing acts a median 72 min early but fires
+unnecessarily on the **37%** that would have recovered on their own. Waiting
+for the 30 min boundary still acts a median 42 min before the clamp and
+bounces nothing needlessly. Since a bounce costs ~0.15 Wh and the descent
+window is worth 19-209 Wh, energy still favours acting early — but the
+supervised test should now be designed knowing that a third of crossings
+self-resolve, or it will look like the bounce "worked" on cases that needed
+nothing.
 
 #### 2026-08-10: this table was going blind because the GUARD got better
 
@@ -412,7 +482,7 @@ Wh column had `300` hardcoded as the bucket duration, so at 60 s every energy
 figure came out exactly 5x too large. The two resolutions now agree, which is
 what confirms it.
 
-*Read that as "17 of 17 that resolved in daylight."* An episode still open at
+*Read that as "27 episodes that resolved in daylight."* An episode still open at
 nightfall is discarded rather than counted, because its outcome would be
 contaminated by the array simply going dark. Five episodes are excluded that
 way; three are plainly artifacts (two run all night, two resolve in 5 minutes
@@ -472,7 +542,7 @@ dim morning that window is worth only 23-43 Wh — near-worthless. But on a
 bright day it is worth **84-210 Wh**, which reframes the trade: the early
 bounce is not just cheap insurance on bad days, it protects real energy on
 good ones. It is not a gamble on a 72% chance; it is acting ahead of an
-outcome that is, on 17 for 17, certain.
+outcome that is, on 17 of 27, likely but not certain.
 
 **CONFIRMED OUT-OF-SAMPLE the same evening.** The threshold was derived from
 data up to ~14:00 on 08-07. That afternoon the array crossed 45 V at **16:55**

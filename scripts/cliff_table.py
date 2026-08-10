@@ -116,10 +116,21 @@ LOCAL_OFFSET_H = -7  # site is America/Vancouver; PDT during the study window
 # genuine 112 min crossing of 2026-08-10.
 BUCKET_S = 60
 
-# A walk-down takes tens of minutes; the fastest genuine crossing on record is
-# 29 min. One-minute "crossings" at 20:01 and 17:10 are the array going dark,
-# and finer bucketing lets them through where 5 min averaging had hidden them.
-MIN_EPISODE_MIN = 10
+# 2 minutes, and the number is calibrated, not guessed. Sweeping the floor:
+#
+#     floor  episodes  clamped  recovered   shortest recovery / clamp
+#       0       32       19        13            1 /  1
+#       2       27       17        10            2 / 29
+#       5       24       17         7            6 / 29
+#      10       21       17         4           12 / 29
+#
+# The clamped count is 17 at every floor from 2 upward — the floor does not
+# touch that side at all, it only decides how many brief RECOVERIES survive.
+# A 10 min floor was set on 2026-08-10 to kill 1-minute dusk artifacts, before
+# it was known that recoveries exist; it was silently discarding the most
+# interesting class of episode. 2 minutes removes the single-sample noise and
+# nothing else.
+MIN_EPISODE_MIN = 2
 
 
 def fetch(url: str, hours: int, source: str) -> list[dict]:
@@ -160,21 +171,29 @@ def episodes(series: list[dict]) -> list[dict]:
             armed, start = False, None       # night resets everything
             continue
         clamped = is_clamped(pv, dv)
+
+        # ORDER MATTERS, and getting it wrong invented a finding. An earlier
+        # version re-armed first — `armed, start = True, None` — which wiped
+        # the open episode, and the `if start is None: continue` below then
+        # skipped the outcome block entirely. The recovery branch was
+        # unreachable: the function could only ever emit clamps, so "none
+        # recovered" was a property of the code, not of the array. Close any
+        # open episode BEFORE re-arming.
+        if start is not None:
+            wh += sw * BUCKET_S / 3600.0   # NOT a hardcoded 300 — see BUCKET_S
+            if clamped or pv >= ARM_V:
+                mins = round((local - start).total_seconds() / 60)
+                if mins >= MIN_EPISODE_MIN:
+                    out.append({"crossed": start, "ended": local,
+                                "minutes": mins, "wh": round(wh),
+                                "clamped": clamped})
+                start = None
+                armed = not clamped    # a clamp needs a fresh climb to re-arm
+
         if pv >= ARM_V and not clamped:
-            armed, start = True, None
+            armed = True
         if armed and start is None and pv < CROSS_V and not clamped:
             start, wh = local, 0.0
-        if start is None:
-            continue
-        wh += sw * BUCKET_S / 3600.0   # NOT a hardcoded 300 — see BUCKET_S
-        if clamped or pv >= ARM_V:
-            mins = round((local - start).total_seconds() / 60)
-            if mins >= MIN_EPISODE_MIN:
-                out.append({"crossed": start, "ended": local, "minutes": mins,
-                            "wh": round(wh), "clamped": clamped})
-            start = None
-            if clamped:
-                armed = False
     return out
 
 
