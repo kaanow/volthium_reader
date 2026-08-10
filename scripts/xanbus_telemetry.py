@@ -127,8 +127,33 @@ PGN_DC_SRC_STS2 = 0x1F0C5      # 127173 — assoc 0x03 MPPT out / 0x15 PV array
 PGN_CHG_STS = 0x1F00E          # 126990 — charge stage + charger targets
 PGN_INV_STS2 = 0x1F0BD         # 127165 — single-frame, inverter mode
 PGN_AC_STS_RMS = 0x1F016       # 126998 — assoc 0x13 gen-in / 0x33 loads
+PGN_MPPT_DATA = 0x1F0BE        # 127166 — MPPT energy counters (src 1)
 
-FAST_PACKET_PGNS = {PGN_BATT_STS2, PGN_DC_SRC_STS2, PGN_CHG_STS, PGN_AC_STS_RMS}
+# PGN 127166 field offsets, decoded 2026-08-06 and completed 2026-08-09
+# (docs/xanbus-unknowns.md #6). 60-byte fast packet from the MPPT.
+#
+# The daily pair resets at LOCAL midnight; the lifetime pair never does. Both
+# satisfy wh/ah == pack voltage, which is how they were identified and is
+# re-checked at decode time as a guard.
+#
+# Why carry them at all: every daily-energy figure this system reports is an
+# integral of 15 s samples, so it silently loses whatever the pipeline drops —
+# a restart, a spool backlog, an outage. This counter accumulates inside the
+# MPPT and is merely read, so it has none of those failure modes. On
+# 2026-08-09 the two agreed to 0.44%, which is how we know the pipeline is
+# currently lossless; the point is to keep knowing that.
+#
+# NOT more accurate, though, and the distinction matters. It inherits the
+# MPPT's front-end current-sensor error and tracks the integral of solar_w to
+# 1-3%, so both share the same ~22-25% under-report against the BMS.
+# Gap-immune, not truth.
+MPPT_LIFE_AH_OFF, MPPT_LIFE_WH_OFF = 19, 23
+MPPT_DAY_AH_OFF, MPPT_DAY_WH_OFF = 46, 50
+MPPT_ENERGY_PERIOD_S = 900     # snapshot cadence while the counter is moving
+MPPT_WH_PER_AH_MIN, MPPT_WH_PER_AH_MAX = 20.0, 35.0   # decode sanity: bus volts
+
+FAST_PACKET_PGNS = {PGN_BATT_STS2, PGN_DC_SRC_STS2, PGN_CHG_STS, PGN_AC_STS_RMS,
+                    PGN_MPPT_DATA}
 
 SRC_SW, SRC_MPPT = 0, 1        # node addresses on our bus
 
@@ -228,6 +253,10 @@ class Decoder:
         self.last_seen: dict[int, float] = {}
         self.dropped: set[int] = set()
         self.last_ac_load_sample = 0.0
+        self.last_mppt_energy = 0.0       # last mppt_energy emission
+        self.last_day_wh: int | None = None   # for midnight-reset detection
+        self.last_day_ah: int | None = None
+        self.bad_mppt_energy = 0          # decodes failing the volts sanity test
         # latch detection state (see LATCH_* constants)
         self.pv_v: float | None = None
         self.mppt_out_v: float | None = None
@@ -348,6 +377,64 @@ class Decoder:
                              INV_STATUS_NAMES.get(status, status), t,
                              "inverter_mode")
 
+    def _mppt_data(self, src: int, p: bytes, t: float) -> list[dict]:
+        """MPPT energy counters — the only production figure on this system
+        that does not come from integrating our own samples.
+
+        Emitted sparsely, matching the rest of this decoder: a snapshot at
+        most every 15 min and only while the daily counter is actually
+        moving, so a quiet night costs nothing. Plus one event at the
+        midnight rollover carrying the day's final total, which is the
+        number worth having — gap-immune, and directly comparable against
+        the integrated figure to measure what the pipeline lost.
+        """
+        if src != SRC_MPPT or len(p) < MPPT_DAY_WH_OFF + 4:
+            return []
+        try:
+            life_ah, life_wh = (struct.unpack_from("<I", p, MPPT_LIFE_AH_OFF)[0],
+                                struct.unpack_from("<I", p, MPPT_LIFE_WH_OFF)[0])
+            day_ah, day_wh = (struct.unpack_from("<I", p, MPPT_DAY_AH_OFF)[0],
+                              struct.unpack_from("<I", p, MPPT_DAY_WH_OFF)[0])
+        except struct.error:
+            return []
+        if 0xFFFFFFFF in (life_ah, life_wh, day_ah, day_wh):
+            return []
+
+        # Decode guard, and it is the same test that identified these fields:
+        # Wh/Ah must come out as the pack voltage. If a future firmware moves
+        # the layout, this catches it instead of silently logging nonsense.
+        # Only checked on the lifetime pair — the daily one divides by zero
+        # for the first amp-hour of every morning.
+        if life_ah > 0:
+            volts = life_wh / life_ah
+            if not (MPPT_WH_PER_AH_MIN <= volts <= MPPT_WH_PER_AH_MAX):
+                self.bad_mppt_energy += 1
+                return []
+
+        events: list[dict] = []
+        prev = self.last_day_wh
+
+        # Midnight rollover: the daily counter drops. Carry the FINAL value,
+        # not the new zero — that is the whole point of the event.
+        if prev is not None and day_wh < prev:
+            events.append({"t": t, "event": "mppt_daily_total", "data": {
+                "day_wh": prev, "day_ah": self.last_day_ah,
+                "life_wh": life_wh, "life_ah": life_ah,
+                "note": "final daily total, captured at the counter's reset",
+            }})
+            self.last_mppt_energy = t     # no snapshot straight after a reset
+
+        self.last_day_wh, self.last_day_ah = day_wh, day_ah
+
+        moving = prev is None or day_wh != prev
+        if moving and t - self.last_mppt_energy >= MPPT_ENERGY_PERIOD_S:
+            self.last_mppt_energy = t
+            events.append({"t": t, "event": "mppt_energy", "data": {
+                "day_wh": day_wh, "day_ah": day_ah,
+                "life_wh": life_wh, "life_ah": life_ah,
+            }})
+        return events
+
     def _ac_sts_rms(self, src: int, p: bytes, t: float) -> list[dict]:
         if src != SRC_SW or len(p) < 49:
             return []
@@ -422,6 +509,8 @@ class Decoder:
                     events += self._chg_sts(src, payload, t)
                 elif pgn == PGN_AC_STS_RMS:
                     events += self._ac_sts_rms(src, payload, t)
+                elif pgn == PGN_MPPT_DATA:
+                    events += self._mppt_data(src, payload, t)
         elif pgn == PGN_INV_STS2:
             events += self._inv_sts2(src, data, t)
         return events
