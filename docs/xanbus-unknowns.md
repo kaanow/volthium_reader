@@ -296,6 +296,61 @@ crossed 45 V at ~08:22, clamped at 09:40 and was fixed at 10:21. **Acting at
 the crossing would have been ~2 hours earlier**, and would have bounced a
 still-tracking array back to its MPP instead of rescuing a dead one.
 
+### Run-up caught live, 2026-08-10 — three triggers ruled out, one lead
+
+The 17th crossing was observed while it was forming rather than reconstructed
+afterwards, which is the first time the run-up has been examined at minute
+resolution. Crossed 45 V at **08:24 local**, pinned throughout (bucket spread
+3-6.6 V, so not the dawn hunting artifact).
+
+**Ruled out, cleanly:**
+
+- **SOC threshold.** Flat at 78%/71% for the whole morning — nowhere near the
+  top, and unchanged across the crossing. Whatever starts the walk-down, it is
+  not the battery approaching full.
+- **A load step on the inverter.** `dc_w` sat at 108-120 W throughout with no
+  step at the crossing.
+- **A charge-stage change.** The last `chg_stage` transition was **06:02:57**,
+  two hours and twenty-two minutes earlier. This descent happened deep inside
+  one continuous `bulk` state, which corroborates the earlier finding from a
+  live case rather than from aggregates.
+- **Generator.** No `gen_start` in the window.
+
+**The lead: the bus voltage starts climbing at the exact minute of the
+crossing.** `dc_v` had been rock-steady for nine minutes and then moves
+monotonically, from 08:24 onward:
+
+| local | pv_v | dc_v | solar_W |
+|---|---|---|---|
+| 08:20 | 48.5 | 26.445 | 58.3 |
+| 08:21 | 48.3 | 26.448 | 59.0 |
+| 08:22 | 48.0 | 26.451 | 60.0 |
+| 08:23 | 47.8 | 26.456 | 60.5 |
+| **08:24** | **45.2** | **26.488** | 54.7 |
+| 08:25 | 45.0 | 26.502 | 54.8 |
+| 08:28 | 44.6 | 26.526 | 56.6 |
+| 08:35 | 42.9 | 26.568 | 53.7 |
+| 08:42 | 39.6 | 26.587 | 43.9 |
+
+`pack_p` steps at the same instant, from oscillating between ±50 W to steadily
+**+47 W** — a jump of about +54 W, close to the fridge's independently
+measured 57 W draw (#11). A DC load dropping off fits both signatures: less
+load means more current into the battery, which is what lifts the bus.
+
+*Stated as a lead, not a mechanism, and here is what argues against the
+obvious reading.* Demand **fell** at the crossing, which is the opposite of
+"array current demand exceeds what the panels can supply". And through the
+descent the array holds nearly constant power (54.7 W at 45.2 V down to
+51.8 W at 42.4 V) with array current flat at ~1.2 A — where a pure slide down
+a fixed IV curve toward Isc would show current *rising*. So irradiance is
+falling at the same time, and one event cannot separate the two.
+
+What it does establish is that the three cheapest hypotheses are not it, and
+that whatever does trigger the commitment leaves a footprint on the bus
+voltage in the same minute. Worth checking the next several crossings for the
+same `dc_v` inflection — if it recurs it is the closest thing to a trigger
+signature this investigation has found.
+
 ### Sharpened 2026-08-08, re-derived 2026-08-09: 16 of 16
 
 The "72% within 60 minutes" figure used an arbitrary window and understated
