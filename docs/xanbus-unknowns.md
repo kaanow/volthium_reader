@@ -1533,6 +1533,49 @@ now strongly one-sided, from genuinely independent directions, and the
 practical rule already in this file (**trust the BMS shunts, treat `dc_w` as
 indicative**) is now supported rather than merely prudent.
 
+#### 2026-08-10: the BMS fails its own internal-consistency test at ~12%
+
+The MPPT was checked against its own accumulator (#6) and passed at 0.99.
+Running the identical test on the BMS — integrate the current it reports,
+compare against the `remaining_ah` it accumulates, same instrument on both
+sides — it does not.
+
+    discharge   0.875  0.875  0.875  0.871
+    charge      0.891  0.890  0.889  0.889
+
+Four windows, both battery units, `scripts/bms_coulomb_check.py`.
+
+**Measuring both directions was the whole experiment.** A coulombic-efficiency
+correction is the benign explanation and it is ASYMMETRIC: a counter applying
+one should fall *faster* than the integral while discharging and rise
+*slower* while charging, because charge is lost to heat. Observed, the counter
+moves ~12% further in magnitude **both ways**, which is a scale factor, not an
+efficiency term. (The ~1.6% spread between the two directions is about the
+right size to be real coulombic efficiency sitting on top of it.)
+
+Both controls that could fake this were checked and passed. Sampling gaps
+would bias the integral low: uncovered time is **0.00%**, worst gap 6 s.
+`remaining_ah` being merely SOC rescaled would make it not an independent
+accumulator at all: it takes 191 and 198 distinct `remaining_ah/soc` ratios on
+the two batteries, so it moves on its own.
+
+**This does not say which side is wrong** — the reported current or the
+accumulator. What it does is put a number on how far `pack_p` can be trusted
+in absolute terms, and that matters, because "**trust the BMS shunts for
+absolute DC power**" is the rule this file navigates by.
+
+Consequence if the reported current is the low one, which is the case that
+would matter: `pack_p` is ~12% low, so the night measurement of 81 W becomes
+~92 W. `dc_w` at 113 W is still the outlier and the direction of #11 is
+unchanged — but the gap narrows from 32 W to about 20 W, and every figure
+derived from it (the ~440 Wh/day of phantom solar, the ~768 Wh/day of
+overstated load) shrinks by roughly a third.
+
+Worth stating plainly: **no meter on this system has now passed an absolute
+check.** The MPPT is self-consistent but reads ~22-25% low against the BMS;
+the BMS is self-inconsistent by 12%; `dc_w` disagrees with both. The clamp
+meter is not a nice-to-have.
+
 **What the clamp meter should measure first, and what to expect.** This turns
 the vague "bring a clamp meter" into one decisive reading: put it on the
 **inverter's DC input** at night with the fridge off. Three predictions, and
@@ -1542,6 +1585,7 @@ they are not close:
 |---|---|---|
 | MPPT, during float with a neutral battery | **66 W** | 2.5 A |
 | BMS shunts, at night | **81 W** | 3.0 A |
+| BMS, if its ~12% self-inconsistency is in the current reading | **92 W** | 3.4 A |
 | `dc_w`, the inverter's own meter | **114 W** | 4.2 A |
 
 `dc_w` is 40% above the BMS and 72% above the MPPT — far outside any clamp
