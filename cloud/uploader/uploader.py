@@ -230,6 +230,47 @@ def read_new_rows(csv_path: Path, state: dict, max_rows: int) -> tuple[list[dict
 
 # --- main loop -----------------------------------------------------------
 
+# --- Outage alerting -------------------------------------------------------
+# The staleness monitor that would normally notice "no data arriving" runs ON
+# Railway. So the one failure it can never report is Railway itself being
+# down: the watchdog dies with the thing it watches. On 2026-08-09 Railway
+# returned 502 "Application failed to respond" intermittently for ~35 minutes
+# and the only trace was a WARNING in a journal nobody reads.
+#
+# The Pi is the right place to raise this, because it is the one component
+# that stays up and can see the failure. ntfy is a different host from
+# Railway, so it survives the outage this is meant to report.
+#
+# Time-based, not a count of retries: the backoff schedule has been tuned
+# before and would silently change what a "30 failure" threshold means in
+# wall-clock terms. What matters to an operator is "nothing has reached the
+# cloud for half an hour", regardless of how many attempts that took.
+#
+# It deliberately does NOT fire on a brief outage. Every Railway redeploy —
+# including one triggered by a docs-only commit — causes a short 502 window,
+# and those recover on their own. consec failures reset on any success, so an
+# intermittent blip never accumulates; only an unbroken outage does.
+ALERT_AFTER_S = float(os.environ.get("VOLTHIUM_UPLOAD_ALERT_AFTER_S", 1800))
+ALERT_REPEAT_S = 6 * 3600      # re-page at most this often while still down
+
+
+async def _post_alert(client: httpx.AsyncClient, title: str, message: str,
+                      priority: int) -> None:
+    """Best-effort. Alerting must never be able to break uploading, so every
+    failure here is swallowed after logging — including a missing URL."""
+    url = os.environ.get("VOLTHIUM_ALERT_WEBHOOK", "").strip()
+    if not url:
+        return
+    try:
+        await client.post(url, json={"title": title, "message": message,
+                                     "priority": priority,
+                                     "tags": ["satellite"]}, timeout=10.0)
+        log.info("outage alert sent: %s", title)
+    except Exception as exc:                      # noqa: BLE001 - see above
+        log.warning("could not send outage alert (%s): %s",
+                    type(exc).__name__, exc)
+
+
 async def post_batch(client: httpx.AsyncClient, url: str, body: dict, token: str) -> tuple[bool, str]:
     """POST one batch. Returns (success, message). Does not raise."""
     try:
@@ -254,6 +295,8 @@ async def post_batch(client: httpx.AsyncClient, url: str, body: dict, token: str
 async def run(args, token: str) -> None:
     state = load_state(args.csv)
     consec_errors = 0
+    first_error_at: float | None = None   # unbroken-failure start
+    alerted_at: float | None = None
     async with httpx.AsyncClient() as client:
         while True:
             try:
@@ -297,10 +340,32 @@ async def run(args, token: str) -> None:
                 log.info("uploaded %d rows: %s", len(wire_rows), msg)
                 state = next_state
                 save_state(args.csv, state)
+                if alerted_at is not None:
+                    down_min = (time.time() - first_error_at) / 60 if first_error_at else 0
+                    await _post_alert(
+                        client, "Cloud upload recovered",
+                        f"Readings are reaching Railway again after "
+                        f"{down_min:.0f} min. Spooled rows are draining.", 3)
                 consec_errors = 0
+                first_error_at = None
+                alerted_at = None
             else:
                 consec_errors += 1
+                now = time.time()
+                if first_error_at is None:
+                    first_error_at = now
                 log.warning("upload failed (%d in a row): %s", consec_errors, msg)
+                down_s = now - first_error_at
+                due = alerted_at is None or (now - alerted_at) > ALERT_REPEAT_S
+                if down_s > ALERT_AFTER_S and due:
+                    alerted_at = now
+                    await _post_alert(
+                        client, "Cloud upload FAILING",
+                        f"No readings have reached Railway for "
+                        f"{down_s / 60:.0f} min ({consec_errors} attempts). "
+                        f"Last error: {msg[:160]}. The Pi is still logging and "
+                        f"spooling, so nothing is lost yet — but the cloud "
+                        f"dashboard and all cloud-side alerting are blind.", 4)
                 # Exponential backoff capped at 5 min — keep retrying forever.
                 await asyncio.sleep(min(300.0, 5.0 * consec_errors))
 
