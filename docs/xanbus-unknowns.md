@@ -998,7 +998,7 @@ so the counter can never arbitrate the MPPT's under-reporting — it inherits it
 exactly. That was suspected; it is now measured, and the suspicion can stop
 being re-tested.
 
-**6. PGN 127166 ("MPPT Data") — PARTIALLY DECODED 2026-08-06.**
+**6. PGN 127166 ("MPPT Data") — DECODED. 2026-08-06, completed 2026-08-09.**
 60-byte fast packet, >16 frames (so it needs the standard 3/5 split; the
 berrybms nibble split cannot reassemble it). 10,842 records paired against
 labelled Modbus counters within 30 s:
@@ -1009,10 +1009,56 @@ labelled Modbus counters within 30 s:
 | 50 | u32 | **daily output Wh** | tracks Modbus reg 131 with a constant +7..8 offset; both reset to 0 at local midnight |
 | 54 | u32 | active-seconds counter | increments ~1/s while producing, freezes when production stops, does NOT reset daily — so a week/month/lifetime accumulator, period unidentified |
 | 58 | u16 | a daily counter | resets at midnight, held 712 all evening; semantics unknown |
-| 19, 23 | u32 | slow lifetime counters | +1 and +12 over ~4.6 h |
+| 19 | u32 | **lifetime output Ah** | see below |
+| 23 | u32 | **lifetime output Wh** | see below |
 
-The daily Wh/Ah pair is the useful part and is now confirmed. NOTE it inherits
-the MPPT's current-sensor under-report (see #5), so it is a convenience, not a
+#### Completed 2026-08-09: 19 and 23 are the lifetime twins of 46 and 50
+
+They were logged as "slow lifetime counters, +1 and +12 over ~4.6 h" with the
+semantics unidentified. The same test that identified the daily pair
+identifies these: **offset23 / offset19 = 316636 / 11666 = 27.14 V**, which is
+the pack voltage, so 19 counts amp-hours of exactly what 23 counts in
+watt-hours. Their deltas track the daily pair one-for-one — over a 27 min
+midday window both pairs moved +6 Ah and +168 Wh.
+
+So the array has produced **316.6 kWh / 11666 Ah** since the counter's epoch,
+as the MPPT measures it — the first lifetime figure this project has had.
+Scale by the under-report in #5 and the true figure is nearer 390 kWh.
+
+Neither pair fits in the Modbus registers: 30:130/134/138/142 are the high
+words and all read zero, so every Modbus accumulator is a u32 below 65536 Wh
+and none of them is the lifetime. Their relationships, measured over 3.4 h:
+**139 = 131 + 6540** and **143 = 131 + 10937**, both constant to the watt —
+the same quantity with different epochs. 135 is a duplicate of 131.
+
+#### The counter inherits the sensor error — now measured, not assumed
+
+The note below used to assert this. It is now checked. Integrating `solar_w`
+(the MPPT's *instantaneous* report) over the exact window each counter covers:
+
+| window | counter delta | integral of solar_w | ratio |
+|---|---|---|---|
+| 10:41-11:09 | 168 Wh | 169.7 Wh | **0.990** |
+| 12:59-13:26 | 39 Wh | 40.3 Wh | **0.967** |
+
+**The MPPT is internally consistent to 1-3%.** Its accumulator and its
+instantaneous field agree, which rules out a whole class of explanation for
+#5 — no integration bug, no reporting-scale error, no unit confusion. The
+~25% gap against the BMS is a **front-end current-sensor calibration error**
+that propagates identically into both outputs.
+
+The practical consequence is the one worth remembering: **you cannot use the
+lifetime counter to correct the power reading, because they share the fault.**
+"Just use the MPPT's own totaliser as ground truth" is the obvious next idea
+and it does not work.
+
+Cross-transport check, since two readings of the same register prove nothing:
+Xanbus offset 50 against Modbus 30:130-131 at the same instant, 8 samples —
+**mean difference 2.96 Wh, max 3.4 Wh**, consistent with the 10 s Modbus poll
+lag. (An earlier note put this offset at +7..8 Wh; measured on 08-09 it is
++1.8..+3.4. Both are small and of the sampling-lag scale.)
+
+The daily Wh/Ah pair remains the useful part. It is a convenience, not a
 truth source — integrating the derived production is still more accurate.
 
 **7. RESOLVED 2026-08-06 — neither carries telemetry we want.**
