@@ -743,14 +743,42 @@ class AsyncpgReadingsDAO:
                               {sane_s}  AS load_w,
                               COALESCE(r.batt,0)  AS batt_w
                        FROM s LEFT JOIN r USING (b)
-                   )
-                   SELECT (b AT TIME ZONE $3)::date AS day,
+                   ), g AS (
+                       SELECT (b AT TIME ZONE $3)::date AS day,
                           SUM(GREATEST(prod_w,0)) * 15 / 3600.0  AS solar_wh,
                           SUM(load_w) * 15 / 3600.0              AS load_wh,
                           SUM(GREATEST(batt_w,0))  * 15 / 3600.0 AS batt_in_wh,
                           SUM(GREATEST(-batt_w,0)) * 15 / 3600.0 AS batt_out_wh,
                           COUNT(*) * 15 / 86400.0                AS coverage
-                   FROM j GROUP BY day ORDER BY day""",
+                       FROM j GROUP BY day
+                   ), c AS (
+                       -- The MPPT's own daily Wh counter (PGN 127166 @50),
+                       -- read out of the device rather than integrated from
+                       -- our samples, so it cannot lose energy to a restart,
+                       -- a spool backlog or a Railway outage. Surfacing it
+                       -- next to solar_wh turns the one-off audit of
+                       -- 2026-08-09 into a standing one: a growing gap
+                       -- between the two means the pipeline is dropping data.
+                       --
+                       -- mppt_daily_total is emitted AT the midnight reset,
+                       -- so it is stamped a few seconds into the NEW day
+                       -- while carrying the OLD day's total. Attributing it
+                       -- by its own timestamp would credit every day with
+                       -- yesterday's production. Shift it back an hour.
+                       SELECT CASE WHEN event = 'mppt_daily_total'
+                                   THEN ((ts AT TIME ZONE $3)
+                                         - interval '1 hour')::date
+                                   ELSE (ts AT TIME ZONE $3)::date END AS day,
+                              MAX((data->>'day_wh')::numeric) AS mppt_counter_wh
+                       FROM xanbus_events
+                       WHERE source_id = $1
+                         AND ts > now() - ($2 || ' days')::interval
+                         AND event IN ('mppt_energy', 'mppt_daily_total')
+                         AND data ? 'day_wh'
+                       GROUP BY 1
+                   )
+                   SELECT g.*, c.mppt_counter_wh
+                   FROM g LEFT JOIN c USING (day) ORDER BY day""",
                 source_id, str(days), tz,
             )
         return [dict(r) for r in rows]

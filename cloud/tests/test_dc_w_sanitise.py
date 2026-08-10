@@ -114,5 +114,56 @@ class DcWSanitiseTests(unittest.TestCase):
         self.assertEqual(seen, 4, "expected 4 sanitised interpolations")
 
 
+class SqlWellFormednessTests(unittest.TestCase):
+    """These queries are f-strings assembled by hand and only ever executed
+    against a live Postgres, which no test has. Both times db.py has broken in
+    production it was structural and invisible to the suite: once a helper at
+    column 0 that ended the class body, once an unbalanced paren from an
+    inserted CTE. Neither was a logic error — both would have been caught by
+    looking at the assembled string.
+    """
+
+    def _sql(self, method):
+        src = inspect.getsource(getattr(db_mod.AsyncpgReadingsDAO, method))
+        out = []
+        for m in re.finditer(r'f?"""(.*?)"""', src, re.S):
+            body = m.group(1)
+            if "SELECT" in body.upper():
+                out.append(body.replace("{sane_s}", db_mod._dc_w_sane("s.dc_w"))
+                               .replace("{_dc_w_sane()}", db_mod._dc_w_sane()))
+        return out
+
+    def test_every_query_has_balanced_parens(self):
+        bad = []
+        for name in ("solar_energy_daily", "load_heatmap", "dc_load_profile",
+                     "solar_series"):
+            for sql in self._sql(name):
+                d = sql.count("(") - sql.count(")")
+                if d:
+                    bad.append((name, d))
+        self.assertEqual(bad, [], f"unbalanced parens: {bad}")
+
+    def test_no_doubled_cte_close(self):
+        """The exact shape of the second outage: an inserted CTE left `)`
+        immediately followed by `), name AS (`."""
+        for name in ("solar_energy_daily",):
+            for sql in self._sql(name):
+                # Anchored to a line that is ONLY a paren. An unanchored
+                # version also matches the legitimate `USING (b)` on the line
+                # above a CTE boundary, which made it fail on correct SQL.
+                self.assertNotRegex(
+                    sql, r"(?m)^[ \t]*\)[ \t]*$\n[ \t]*\)[ \t]*,\s*\w+\s+AS\s*\(",
+                    f"{name} closes a CTE twice")
+
+    def test_placeholders_are_contiguous_from_one(self):
+        """A dropped $n is a runtime-only failure."""
+        for name in ("solar_energy_daily", "load_heatmap", "dc_load_profile"):
+            for sql in self._sql(name):
+                ns = sorted({int(x) for x in re.findall(r"\$(\d+)", sql)})
+                if ns:
+                    self.assertEqual(ns, list(range(1, max(ns) + 1)),
+                                     f"{name} has gaps in $n: {ns}")
+
+
 if __name__ == "__main__":
     unittest.main()
