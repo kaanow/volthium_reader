@@ -146,3 +146,82 @@ project's recurring mistake:
   existing charts, alarming if it exceeds a threshold.
 - Nothing on the Pi does analysis — it spools, the server aggregates. Per
   `CLAUDE.md`.
+
+---
+
+## BOM, 2026-08-09 — real parts, verified against datasheets
+
+Cable gauges from the operator (all "I think", so apertures still need a tape
+measure on site): battery 2/0 AWG, PV strings 4 AWG, MPPT combined input
+8 AWG. Approximate ODs with insulation: 2/0 ~14-16 mm, 4 AWG PV wire ~8-10 mm,
+8 AWG ~6-7 mm.
+
+### The sensor family that actually fits
+
+YHDC split-core Hall, open-loop, DC-capable. Verified specs:
+
+| model | aperture | ranges | supply / output | accuracy |
+|---|---|---|---|---|
+| **HSTS016L** | **16 mm** | ±10, 20, 30, 50, 100, 150, 200 A | +5 V → 2.5±0.625 V, **or +3.3 V → 1.65±0.625 V** | 1%, linearity <0.1% |
+| **HSTS21** | **21 mm** | ±50 … ±600 A | +5 V → 2.5±0.625 V | 1% |
+
+Both are DC-25 kHz, zero offset ≤±15 mV at 25 °C, dielectric 2.5 kV.
+
+### Two things the datasheets changed about the design
+
+**1. 16 mm does not clear a 2/0 cable.** At ~14-16 mm OD there is no working
+margin, so the inverter/battery channel needs the 21 mm HSTS21 — whose
+smallest range is ±50 A. At 1% of full scale that is ±0.5 A ≈ ±13 W against a
+32 W question. Stage 3 was already flagged as the awkward channel; this is
+why, concretely. The handheld clamp settles that one-off reading instead.
+
+**2. Operating range is -10 to +70 °C, and this site goes below that.** At
+51°N in an unheated space, midwinter will take these sensors out of spec —
+undefined behaviour exactly when solar data matters most for a different
+reason (short days, low SOC). Options: accept a winter gap and flag it in the
+data, mount inside a heated enclosure, or pay for an industrial part. Not a
+blocker for a summer build, but it must not be discovered in December.
+
+**The 3.3 V variant removes a part.** With 1.65±0.625 V output the Pico's ADC
+reads the sensor directly — no ADS1115, no divider, no resolution lost getting
+5 V down to 3.3 V. At 12 bits over 3.3 V that is 0.81 mV/LSB against 62.5 mV/A
+on a ±10 A part: **13 mA per count**, far finer than needed. Buy 3.3 V parts if
+they are in stock; the ADS1115 below is the fallback if only 5 V is available.
+
+### Stage 1 — three channels, ~$55
+
+| qty | part | for | supplier | ~unit |
+|---|---|---|---|---|
+| 2 | YHDC HSTS016L, **±10 A**, 3.3 V variant | PV string A, PV string B | PowerUC / Amazon | $15 |
+| 1 | YHDC HSTS016L, **±30 A**, 3.3 V variant | MPPT output | PowerUC / Amazon | $15 |
+| 1 | Raspberry Pi Pico, **SC0915** | ADC + USB CDC | Digi-Key | $4.59 |
+| 1 | USB A-to-micro-B cable | power + data, one run | any | $5 |
+| — | small IP-rated box, glands, hookup wire | | | ~$15 |
+
+Fallback if only 5 V sensors are available: add **Adafruit 1085** (ADS1115,
+16-bit, 4-ch, I2C), Digi-Key, $14.95. It takes 5 V sensor output directly and
+gives a 4th channel for stage 2.
+
+Ranges are chosen per line deliberately. A ±10 A part on a ~8 A string gives
+0.1 A resolution; a ±50 A part on the same string would give 0.5 A and could
+not see a 10% mismatch. This is the whole reason not to buy one part in bulk.
+
+### Stage 2 / 3
+
+- **DC load branch** (fridge, ~3 A): HSTS016L ±10 A. Gauge unmeasured.
+- **Inverter DC input** (2/0): HSTS21 ±50 A, 21 mm, ~$13. Coarse, per above.
+
+### Still unmeasured, and required before ordering
+
+1. **Cable ODs at each point** — aperture is driven by cable, not current.
+2. **MPPT output cable gauge** — the one stage-1 line with no estimate.
+3. **Combiner access** to a single string conductor with room for a clamp body.
+4. **Distance from combiner/MPPT back to the Pi.** USB is ~5 m. Beyond that
+   the topology changes (second node, or RS485 instead of USB). This is the
+   only finding that would force a redesign.
+5. Confirm the 4 AWG / 8 AWG assignment — a combined input thinner than the
+   strings feeding it is unusual and may simply be swapped in the estimate.
+
+Sources: YHDC HSTS016L and HST(S)21 product pages and distributor datasheets;
+Digi-Key SC0915 and Adafruit 1085 listings. All figures above are quoted, not
+estimated, except the cable ODs and the enclosure allowance.
