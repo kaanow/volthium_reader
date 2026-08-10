@@ -233,15 +233,15 @@ unregulated charging that tripped a BMS cell-overvoltage disconnect.
 
 ### The 45 V cliff — the operationally useful part
 
-`pv_v` falling below ~45 V while tracking is the point of no return: **16 of
-16 recorded crossings ended in a clamp, none recovered.** Time to clamp 30–115
-min, median 68, and **not predictable** from anything measured so far (deficit
+`pv_v` falling below ~45 V while tracking is the point of no return: **17 of
+17 recorded crossings ended in a clamp, none recovered.** Time to clamp 29–118
+min, median 72, and **not predictable** from anything measured so far (deficit
 depth correlates at r = +0.28). Derived by `scripts/cliff_table.py` — do not
 hand-maintain those numbers, an earlier hand-built table drifted three ways at
 once and had missed every afternoon crossing.
 
 That is why an *early* bounce at the crossing is attractive: it acts a median
-68 min before the clamp forms, and on a bright day the descent window is worth
+72 min before the clamp forms, and on a bright day the descent window is worth
 80–210 Wh. Gated on a supervised test — every bounce on record started from an
 already-clamped array at 28 V, and nobody has yet bounced a still-tracking one.
 

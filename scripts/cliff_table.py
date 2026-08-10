@@ -102,8 +102,29 @@ CROSS_V = 45.0      # the cliff itself
 LOCAL_OFFSET_H = -7  # site is America/Vancouver; PDT during the study window
 
 
+# 60 s, not 300. The guard has got steadily faster — 45 min exposure, then 22,
+# then ~10, and on 2026-08-10 the array read as clamped for ELEVEN MINUTES in
+# the whole day. At 5 min resolution a clamp that brief no longer survives
+# averaging: the bucket mixes clamped samples with the post-fix recovery and
+# the mean lands outside the detector band, so the crossing vanishes from this
+# table entirely. That is a measurement instrument going blind BECAUSE the
+# system improved, which is the worst kind of silent failure — the metric
+# looks fine and simply stops counting.
+#
+# Measured: 300 s finds 16 crossings, 60 s finds 19. Of the three extra, two
+# are 1-minute dusk artifacts (killed by MIN_EPISODE_MIN below) and one is the
+# genuine 112 min crossing of 2026-08-10.
+BUCKET_S = 60
+
+# A walk-down takes tens of minutes; the fastest genuine crossing on record is
+# 29 min. One-minute "crossings" at 20:01 and 17:10 are the array going dark,
+# and finer bucketing lets them through where 5 min averaging had hidden them.
+MIN_EPISODE_MIN = 10
+
+
 def fetch(url: str, hours: int, source: str) -> list[dict]:
-    q = f"{url}/api/solar/series?source_id={source}&hours={hours}&bucket_s=300"
+    q = (f"{url}/api/solar/series?source_id={source}&hours={hours}"
+         f"&bucket_s={BUCKET_S}")
     with urllib.request.urlopen(q, timeout=60) as r:
         return json.load(r)["series"]
 
@@ -145,11 +166,12 @@ def episodes(series: list[dict]) -> list[dict]:
             start, wh = local, 0.0
         if start is None:
             continue
-        wh += sw * 300 / 3600.0
+        wh += sw * BUCKET_S / 3600.0   # NOT a hardcoded 300 — see BUCKET_S
         if clamped or pv >= ARM_V:
-            out.append({"crossed": start, "ended": local,
-                        "minutes": round((local - start).total_seconds() / 60),
-                        "wh": round(wh), "clamped": clamped})
+            mins = round((local - start).total_seconds() / 60)
+            if mins >= MIN_EPISODE_MIN:
+                out.append({"crossed": start, "ended": local, "minutes": mins,
+                            "wh": round(wh), "clamped": clamped})
             start = None
             if clamped:
                 armed = False
