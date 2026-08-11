@@ -2403,6 +2403,60 @@ demonstrated a healthy ~88-92 V MPP on both days.
 Dawn 08-06 also showed the array reaching `pv_v_max` 103.4 V at low load —
 encouraging, though dawn Voc is not comparable to midday Voc.
 
+#### 2026-08-11: the AC-load decode is blocked harder than the code says
+
+Tried to answer "does `dc_w` track a known AC load 1:1?" and could not, for a
+reason worth writing down: **there is no working reference for those bytes.**
+
+`ac_load_sample` has emitted **300 of 300 events reading exactly zero** on
+`load_v`, `load_a`, `load_va` and `load_hz`. The decoder already calls itself
+provisional and broken, and the comment justifies that with "it reports 0 V
+while the inverter is demonstrably producing AC (the cabin runs on it)".
+
+**That premise no longer holds.** The fridge was reclassified as a DC load, so
+"the cabin runs on it" is not evidence of anything, and an unattended cabin with
+DC-only loads may genuinely have no AC draw — in which case the zeros are
+CORRECT and there is nothing to fix.
+
+It cannot be settled from the event stream either. The decode path is
+byte-identical for assoc 0x13 (generator) and 0x33 (AC loads) — same offsets,
+same unpack, only the assoc byte differs — so a single generator run would
+validate the offsets. **The generator has never run: zero `gen_start` events
+ever recorded.** So the one available reference has never fired.
+
+**What would unblock it**, in order of cost: the generator running once; a known
+AC load switched on during a site visit; or finding an AC-output register in the
+inverter's Modbus map to use as a second transport.
+
+I tried the third and it did not resolve either — but it produced a caution
+worth more than the answer would have been.
+
+**A single Modbus snapshot is not enough to tell a voltage from a counter.**
+One snapshot of slave 90 showed reg 87 = 5980 and reg 223 = 11598. Read as
+0.01-unit scalars those are **59.80 Hz and 115.98 V** — exactly a live AC output,
+and it would have "confirmed" the inverter was inverting. A six-snapshot series
+ten seconds apart destroyed both readings:
+
+    reg  87:  5450 5850 5180 6050 5380 5580   <- swings 8% in a minute; no mains
+                                                 frequency does that
+    reg 223: 11603 11604 11611 11611 11614 11616   <- monotonic; a COUNTER
+    reg 235: 56707 56708 56715 56715 56718 56720   <- monotonic; a COUNTER
+
+Nothing in registers 0–384 for slave 90 holds a stable ~120 V or ~60 Hz. So the
+Modbus map does not obviously contain AC output either, and the question stays
+open rather than being answered in the flattering direction.
+
+**One thing did come out of it, validated across transports:**
+
+| slave 90 reg | meaning | evidence |
+|---|---|---|
+| 79 | DC bus voltage, mV | 27.02–27.05 V against CAN `dc_v` 27.024 at the same minute, agreement <0.05 V |
+| 169–191, 219–239 | lifetime counters | monotonic across all six snapshots |
+
+That is the first Modbus register on the SW inverter confirmed against an
+independent transport, and the method — take the time series, not the snapshot —
+is the transferable part.
+
 **11. Generator fields — wired on spec, never validated.**
 `126998 assoc 0x13` (GEN1) V/I/freq. Correct per Xantrex's own enum table and
 berrybms's gen-on captures, but our generator has never run during a capture.
