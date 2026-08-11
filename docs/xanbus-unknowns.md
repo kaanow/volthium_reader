@@ -363,6 +363,34 @@ voltage in the same minute. Worth checking the next several crossings for the
 same `dc_v` inflection — if it recurs it is the closest thing to a trigger
 signature this investigation has found.
 
+### OUTCOME of the pre-registered prediction: CONFIRMED, it clamped
+
+    crossed 10:05  ->  clamped 10:48      43 minutes
+
+The rule is now **19 for 19** at 29 minutes or more, and 10 for 10 under it,
+across 29 crossings.
+
+**Be precise about the lead time, because that is what the test is worth.** The
+prediction was committed at 10:45:07 local; the clamp registered at 10:48. Three
+minutes of wall clock, nine minutes of data (the last bucket I saw before
+writing was 10:39). The episode was already 34 minutes old when predicted, so
+what was actually tested is the narrow claim "it will not recover in the time
+remaining" — real, falsifiable, and confirmed, but modest. It is not a test of
+whether 29 is the right threshold; nothing that starts at 34 minutes could be.
+
+The falsification condition did not occur: `pv_v` never went back above 48 V.
+It fell monotonically — 37.2 (10:39), 31.3 (10:44), 30.4 (10:49, in band), 28.4
+(10:54) — with output collapsing 38 W → 14 W alongside. No Voc excursion, so
+demand limitation stayed ruled out through to the outcome.
+
+Guard behaved as designed: `latch_guard_ambiguous` at 10:45 and 10:50 as the
+delta crossed into the band, `mppt_latched` 10:53:15 at delta 1.02.
+
+**What this run is genuinely good for** is not the rule — it is the first
+episode on record where the confounds were excluded IN ADVANCE and in writing,
+rather than discovered afterwards to have contaminated a result. That is the
+process fix this file has needed all along, and it costs about five minutes.
+
 ### PRE-REGISTERED PREDICTION, written 2026-08-11 10:40 local, outcome UNKNOWN
 
 Committed BEFORE the outcome, because every prospective claim in this file so
