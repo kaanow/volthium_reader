@@ -125,6 +125,43 @@ question can be posed as same-instrument, pose it that way.
 catches the two copies *disagreeing*; it cannot catch both being stale
 together, which promptly happened.
 
+*Added 2026-08-11, from the adversarial cleanup pass.*
+
+**A field that cannot vary is not a measurement.** `clamped_s` on
+`mppt_latched` is emitted on the sample where `now - clamp_since >=
+LATCH_CONFIRM_S` first holds, so it reports 600 s every time — an 8-second
+spread across twelve latches. "Exposure is down to about 10 minutes" was read
+straight off it; the real median is 20. Identical in shape to the unreachable
+recovery branch, and it went unnoticed because 10 minutes was a *plausible*
+number. **The test: does this quantity have a distribution? If every sample
+agrees to within noise, suspect a constant before you believe a finding.**
+
+**An idempotence guard protects whichever copy is wrong.** Three copy-pasted
+BLE stubs each began `if "aiobmsble" in sys.modules: return`, so only the first
+importer won. `cloud/` sorts before `tests/`, the copy that won was the one
+missing a method, and a real test failed in the full suite while passing alone
+— for months, looking like flakiness. The guard existed to prevent
+double-stubbing and in doing so it made the drift *fatal instead of harmless*.
+
+**"Cosmetic" settings are rarely cosmetic.** `DISPLAY_TZ` was documented as
+"Dashboard rendering tz (cosmetic only)". It is the `GROUP BY` key for every
+daily and hourly aggregate, and it is set to Toronto for a site in British
+Columbia. Most of the damage was nil — the day boundary lands in darkness — but
+it silently breaks `mppt_counter_wh`, which is the standing pipeline audit.
+**Grep for the word "cosmetic" and check each one.**
+
+**A monitor can be green about the half that works.** The alerting check asked
+whether the cloud could page and printed "alerts armed". The second path — the
+Pi paging when the *cloud* is unreachable — had never been armed, and it is
+precisely the one the first cannot substitute for. Not a stale check this time:
+an incomplete one, which reads identically.
+
+**Measure the fix before shipping it, not just the bug.** The ledger's
+inferred-branch gate was estimated at ~600 Wh/day. It was 1150–1550. And the
+authorised fix, measured against an independent estimate, *overshoots* in the
+other direction. Both numbers were needed to describe the change honestly, and
+only one of them had been asked for.
+
 ---
 
 ## 4. Standing suspicions
@@ -137,11 +174,16 @@ Where I would look first, in order:
    outlier instead of accepting it. Treat it as an observed boundary, not a law.
 2. **Any absolute power or energy figure.** All of them rest on meters that
    disagree with each other by 12–40%.
-3. **The daily ledger's `solar_wh`.** Its inferred branch credits house load as
-   solar whenever `pv_v ≥ 15`, which admits every twilight and overcast hour —
-   about 600 Wh/day on a clean day. Quantified, deliberately not fixed, see §5.
+3. **The daily ledger's `solar_wh`.** The gate was fixed 2026-08-11 — the
+   inference is now reached only during a clamp, which removed 1150–1550 Wh/day
+   (not the ~600 estimated). It is still not right: measured against the only
+   non-MPPT estimate it now sits 23–31% LOW where it used to sit 28–45% high.
+   `scripts/ledger_gate_compare.py`. The remaining lever is the `dc_w` offset,
+   which is yours — see §5.
 4. **Anything in a `.md` that is not regenerable.** Especially if it has a
    number in it.
+5. **Any number that is the same every time you look at it.** See `clamped_s`
+   in §3. A plausible constant is the hardest kind of wrong number to see.
 
 ---
 
@@ -151,17 +193,28 @@ Where I would look first, in order:
 - **#40** — one supervised early-bounce test at 40–45 V. The only blocked task.
   Design it knowing a third of crossings self-resolve, or the bounce will get
   credit for cases that needed nothing.
-- **Three ledger decisions, best settled together**, because they are one
-  question — whether to correct `dc_w` by its measured offset everywhere it is
-  consumed: the `solar_wh` inferred-branch gate, the `load_wh` column, and the
-  offset itself. Each is quantified in `xanbus-unknowns.md`. I have twice
-  declined to change them unilaterally because they move every historical day
-  on the dashboard.
+- **The `dc_w` offset — now the only ledger question left, and it is load
+  bearing.** The inferred-branch gate was the third of the three and was fixed
+  2026-08-11 under explicit authorisation; the `load_wh` column is untouched.
+  What remains is whether to correct `dc_w` by its measured ~32 W offset
+  wherever it is consumed. It is no longer just a tidiness question: with the
+  gate fixed, `solar_wh` now tracks the MPPT's self-report, which under-reads,
+  and the offset decision is what stands between the ledger and a defensible
+  number. Quantified per day in `scripts/ledger_gate_compare.py`. Still not
+  changed unilaterally — it moves every historical day on the dashboard.
+- **`DISPLAY_TZ` is `America/Toronto` for a site in British Columbia.** Daily
+  totals are unaffected (the boundary lands in darkness) but it silently
+  misattributes `mppt_counter_wh` by a day, which defeats the pipeline audit,
+  and shifts every hour-of-day axis by three. Setting it to
+  `America/Vancouver` moves every historical day, so it is yours.
+  `docs/cloud_architecture.md` has the measurements.
 - **Clamp meter on site.** Priority is the **MPPT output on a dim morning at
   low current** — that is where the sensor-offset hypothesis is decisive — not
   the inverter input at night.
 - **Arm the outage alerting.** Deployed, tested, dormant until
-  `VOLTHIUM_ALERT_WEBHOOK` is set on the Pi.
+  `VOLTHIUM_ALERT_WEBHOOK` is set on the Pi. `status_check.py --with-pi` now
+  reports this as NOT ARMED and will keep nagging; before 2026-08-11 it printed
+  a green line based only on the cloud half of the paging path.
 - **Railway Watch Paths** scoped to `cloud/**`, so documentation commits stop
   redeploying the telemetry ingest server.
 
