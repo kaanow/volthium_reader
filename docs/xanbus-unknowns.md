@@ -363,6 +363,45 @@ voltage in the same minute. Worth checking the next several crossings for the
 same `dc_v` inflection — if it recurs it is the closest thing to a trigger
 signature this investigation has found.
 
+### What a MIDDAY clamp costs: ~518 W, measured across five minutes
+
+The morning clamp today gave ~100 W foregone. This one, six hours later, gives
+a far bigger number, and the comparison is cleaner than any before it because
+the two readings are **five minutes apart**, so irradiance is effectively
+constant and no cross-meter arithmetic is involved:
+
+    10:55   pv_v 28.3   delta 1.37   solar_w   15.0     clamped
+    11:00   pv_v 79.7   delta 52.53  solar_w  532.7     guard bounced it
+
+**A 35x step in five minutes.** And 532.7 W understates it: that bucket is a
+5-minute mean whose first half was still clamped, so the true post-fix rate is
+higher.
+
+Do NOT compare 11:00 against the 179 W at the 10:05 crossing to size this. The
+sun rose over that hour, so that comparison conflates the latch with
+irradiance — the five-minute step is the only honest one. It is also why the
+morning figure (~100 W) and this one (~518 W) differ by 5x without either being
+wrong: dawn versus late morning.
+
+The descent was already expensive before the clamp formed. Same counter:
+
+    10:05  178.8 W    <- at the 45 V crossing
+    10:20  155.1 W
+    10:36   73.8 W
+    10:54   22.8 W    <- clamped
+
+**This is the strongest evidence yet for the early bounce (#40).** The clamp
+itself is only the last third of the loss; the array bled output for the whole
+43-minute walk-down, in rising sun, while every sample was still "healthy" by
+the detector's band test. A trigger that waits for the clamp waits through the
+expensive part.
+
+Against that, the counter-argument from the cliff table stands unchanged: 10 of
+29 crossings resolve on their own, all of them in under 29 minutes. Acting at
+the crossing bounces those needlessly. Acting at 29 minutes catches every clamp
+on record with no wasted bounce — and on today's episode that would have fired
+at 10:34, saving roughly the 74 W and 23 W intervals.
+
 ### OUTCOME of the pre-registered prediction: CONFIRMED, it clamped
 
     crossed 10:05  ->  clamped 10:48      43 minutes
