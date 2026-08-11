@@ -25,10 +25,10 @@ the `xanbus` skill.
 > **Established:**
 > - The tracker walks the array **down past its own MPP** and never turns
 >   around, ending pinned one diode drop above the battery.
-> - **~45 V is NOT the point of no return** — that was a detector bug, see
->   the retraction below. 17 of 27 crossings clamped, **10 recovered**. But
->   the outcome is cleanly predictable: every recovery resolved within 28 min,
->   every clamp took 29+ min, zero overlap. Time to clamp 29-118 min, median 72, and **not predictable**
+> - **~45 V is NOT the point of no return.** 18 of 28 crossings clamped, **10
+>   recovered**. The predictor is one-directional: still running at 29 min ->
+>   always clamped (17/17); resolving under 29 min -> usually recovers (10/11).
+>   Time to clamp 13-118 min, median 72, and **not predictable**
 >   (deficit depth correlates at only r = +0.28). Derived by
 >   `scripts/cliff_table.py` — do not hand-edit these numbers.
 > - Above 45 V descents usually **abort on their own** — the sawtooth.
@@ -363,7 +363,7 @@ voltage in the same minute. Worth checking the next several crossings for the
 same `dc_v` inflection — if it recurs it is the closest thing to a trigger
 signature this investigation has found.
 
-### Sharpened 2026-08-08, corrected 2026-08-10: 17 of 27
+### Sharpened 2026-08-08, corrected twice on 2026-08-10: 18 of 28
 
 The "72% within 60 minutes" figure used an arbitrary window and understated
 the effect. Following **every** 45 V crossing to whatever happened next:
@@ -402,9 +402,65 @@ the effect. Following **every** 45 V crossing to whatever happened next:
 | 08-10 08:26 | 10:18 | 112 | 117 |
 | 08-10 11:35 | 11:43 | 8 | 21 | **recovered**
 | 08-10 11:52 | 11:54 | 2 | 6 | **recovered**
+| 08-10 17:13 | 17:26 | 13 | 2 |
 
-**17 of 27 crossings ended in a clamp; 10 recovered.** Time to clamp: min 29,
+**18 of 28 crossings ended in a clamp; 10 recovered.** Time to clamp: min 13,
 median 72, max 118 minutes.
+
+#### 2026-08-10 evening: a SECOND path into the clamp, and it is fast
+
+The 17:13 crossing clamped in **13 minutes**, against a previous minimum of 29
+— and the `mppt_latch_context` trail shows why. That event carries 20 minutes
+of 5 s array state, the first high-resolution look at a descent this project
+has had:
+
+| t+min | pv_v | out_W | dV/dt |
+|---|---|---|---|
+| 0.0 | 100.4 | 62 | — |
+| 1.0 | 58.8 | 41 | **-41 V/min** |
+| 2.0 | 27.7 | 4 | -31 V/min |
+| 5.0 | 33.3 | 6 | settling |
+| 20.0 | 28.6 | 3 | clamped |
+
+**100 V to 28 V in two minutes.** The morning descents take 30 to 118. This is
+not the tracker sliding down the IV curve, it is a collapse — the array was at
+93.7 V producing 71 W (a normal operating point) and then simply fell in.
+Afterwards it hovered at 30-33 V for fourteen minutes, delta 4.2-5.0 V, just
+*outside* the detector band, before settling into it at 17:26. That slow final
+approach is what the 13 minutes measures.
+
+**The MPPT status byte never moved** — 3 across all 240 samples. So whatever
+happens is not a mode change the device reports.
+
+So there are two distinct entries to the same end state:
+
+| | slow path | fast path |
+|---|---|---|
+| when | mornings, mostly | this one was 17:13, late in the day |
+| duration | 29-118 min | ~2 min to collapse, 13 to formally clamp |
+| shape | gradual walk down the IV curve | near-instant fall from a normal MPP |
+| warning | tens of minutes | essentially none |
+
+**This breaks the 28/29 minute separation reported yesterday**, and it should
+be read as broken rather than repaired: 13 min now sits among the recoveries
+(12, 14, 15). What survives is *one-directional*:
+
+- an episode still running at **29 minutes has always clamped** — 17 for 17,
+  no counterexamples
+- an episode resolving **under 29 minutes usually recovers, but not always** —
+  10 of 11
+
+That is a weaker and more honest claim than yesterday's. Note this is the
+second consecutive day the separation has been challenged by new data; the
+first challenge turned out to be an artifact and was correctly rejected, this
+one is real. Do not treat the boundary as settled.
+
+**Consequence for the early bounce (#40).** A trigger at the 45 V crossing
+gives tens of minutes of warning on the slow path and **almost none on the
+fast path** — here the array crossed 45 V and was effectively down within a
+minute. So an early bounce cannot be the whole answer; it addresses the common
+case, not this one. Worth knowing before designing the supervised test around
+a single mechanism.
 
 #### RETRACTED 2026-08-10: "none recovered" was a bug in the detector
 
