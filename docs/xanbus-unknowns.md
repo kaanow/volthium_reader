@@ -2125,6 +2125,55 @@ only, so it omits the ~0.53 kWh/day fridge. Adding a modelled figure to a
 measured column would mix the two; the honest options are a separate DC-load
 column or leaving it, and that is a display decision, not a data one.
 
+#### ANSWERED 2026-08-11: yes, and here is a metric neither confound can touch
+
+The original question — "has dawn `pv_v` recovered toward ~114 V with >3 A
+sustained above 60 V?" — is answerable, but **only the current half of it.**
+`pv_v` hit 114.9 V today and it means nothing: the pack reached float at 12:10
+and the MPPT unloaded the array. 110–114 V at 16–92 W is open circuit, which is
+the retraction two paragraphs down, arrived at again from the other direction.
+
+Use **max `solar_w`** and **max array current while `pv_v` > 60 V**. Both are
+immune to the two confounds that wrecked the earlier record:
+
+- *demand limitation* can only ever REDUCE power, so a maximum is a valid floor
+  on capability, never an inflation — unlike peak `pv_v`, which it inflates.
+- *the latch* pins the array at ~28 V, so clamped buckets are excluded by the
+  `pv_v > 60 V` condition before the statistic is taken. That is what the 08-02
+  to 08-04 caveat below could not do.
+
+Regenerated over the full window (array current taken as `solar_w / pv_v`, a
+slight UNDER-estimate since it ignores converter efficiency — conservative):
+
+| day | max solar_w | 5-min buckets with >3 A above 60 V | max A above 60 V |
+|---|---|---|---|
+| 07-30 | 156 | 0 | 1.43 |
+| 07-31 | 130 | 0 | 1.19 |
+| 08-01 | 123 | 0 | 1.15 |
+| 08-02 | 39 | 0 | 0.29 |
+| 08-03 | 92 | 0 | 0.64 |
+| 08-04 | 51 | 0 | 0.31 |
+| **08-05** | **634** | **30** | **6.92** |
+| 08-06 | 236 | 3 | 3.59 |
+| 08-07 | 284 | 12 | 3.37 |
+| 08-08 | 591 | 38 | 6.64 |
+| 08-09 | 547 | 21 | 6.20 |
+| 08-10 | 504 | 11 | 5.84 |
+| **08-11** | **748** | **15** | **8.96** |
+
+**The array recovered on 2026-08-05, and the step is not subtle:** zero
+qualifying buckets on every day before it, thirty on the day itself; max
+current 0.31 A on 08-04 against 6.92 A on 08-05, a 22x jump overnight.
+
+This is *not* the latch being cleared, which is what the note below correctly
+warns about for the energy totals. Those early days had tracking buckets above
+60 V too — the array simply could not make more than 1.4 A in any of them.
+Conditioning on `pv_v > 60 V` is what separates "obscured" from "clamped", and
+the earlier analysis had no way to.
+
+**Today is the best day on record: 748 W and 8.96 A** — achieved despite two
+clamps before noon. Consistent with smoke clearing after the early-August fire.
+
 **10. Array health — the panels are fine; the record was CONFOUNDED twice.**
 
 Peak array voltage by local day: 07-30 112.7, 07-31 111.5, 08-01 111.8,
