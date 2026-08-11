@@ -261,30 +261,87 @@ def section_events(since_iso: str) -> tuple[bool, list[str]]:
     return notable, lines
 
 
-def section_alerting() -> tuple[bool, list[str]]:
-    """Is the paging path armed?
+def section_alerting(ssh_target: str | None = None) -> tuple[bool, list[str]]:
+    """Are the paging paths armed? There are TWO, and they fail separately.
 
-    The staleness and event monitors are silently disabled when
-    STALENESS_WEBHOOK_URL is unset. Checking that here means a disabled
-    alerter is caught during a routine check rather than discovered at the
-    moment something needed to page — which, by construction, is the moment
-    nobody is looking.
+      A. cloud -> ntfy. The staleness and event monitors on Railway, gated on
+         STALENESS_WEBHOOK_URL. /healthz reports this as alerting=on|off.
+      B. Pi -> webhook. The uploader paging when it cannot reach the CLOUD,
+         gated on VOLTHIUM_ALERT_WEBHOOK in the uploader's environment.
+
+    B exists precisely because A cannot cover its own outage: if Railway is
+    down or unreachable, the thing that would page about it is the thing that
+    is down. So "is alerting armed" is not one question.
+
+    Until 2026-08-11 this section asked only A and printed "staleness + event
+    alerts armed", which reads as all-clear. B was dormant the whole time —
+    VOLTHIUM_ALERT_WEBHOOK has never been set on the Pi — so the check was
+    green about the half that works while the half that covers the cloud going
+    dark was off.
+
+    B is only observable from the Pi, so without --with-pi it is reported as
+    UNVERIFIED rather than omitted. A check must not render the same
+    reassuring output for "absent" and "healthy"; that is exactly how the
+    volthium-logger check stayed green for months.
     """
-    lines = ["Alerting:"]
+    lines = ["Alerting (two independent paths):"]
+    notable = False
+
     try:
         with urllib.request.urlopen(RAILWAY + "/healthz", timeout=20) as r:
             body = r.read().decode("utf-8", "replace").strip()
     except (urllib.error.URLError, urllib.error.HTTPError) as exc:
-        return True, lines + [f"  !! /healthz unreachable: {exc}"]
-    if "alerting=on" in body:
-        return False, lines + ["  webhook configured — staleness + event alerts armed"]
-    if "alerting=off" in body:
-        return True, lines + [
-            "  ← NOT ARMED: STALENESS_WEBHOOK_URL is unset on the server.",
-            "    Nothing will page on stale telemetry or on incident events.",
-        ]
-    # Older deploys answer a bare "ok" and cannot report either way.
-    return False, lines + [f"  unknown — server predates the alerting flag ({body!r})"]
+        notable = True
+        lines.append(f"  A cloud->ntfy   !! /healthz unreachable: {exc}")
+    else:
+        if "alerting=on" in body:
+            lines.append("  A cloud->ntfy   armed (STALENESS_WEBHOOK_URL set) "
+                         "— pages on stale telemetry and incident events")
+        elif "alerting=off" in body:
+            notable = True
+            lines.append("  A cloud->ntfy   ← NOT ARMED: STALENESS_WEBHOOK_URL "
+                         "unset on the server. Nothing pages on stale")
+            lines.append("                     telemetry or on incident events.")
+        else:
+            # Older deploys answer a bare "ok" and cannot report either way.
+            lines.append(f"  A cloud->ntfy   unknown — server predates the "
+                         f"alerting flag ({body!r})")
+
+    if ssh_target is None:
+        lines.append("  B pi->webhook   UNVERIFIED — needs --with-pi. This is "
+                     "the path that fires when the CLOUD is")
+        lines.append("                     unreachable, so path A cannot "
+                     "substitute for it.")
+        return notable, lines
+
+    try:
+        out = subprocess.check_output(
+            ["ssh", ssh_target, "-o", "ConnectTimeout=8",
+             "systemctl show volthium-uploader -p Environment "
+             "-p EnvironmentFiles --no-pager"],
+            timeout=30, text=True,
+        )
+    # OSError, not just FileNotFoundError: a transport-level failure (no route
+    # to host, connection reset) raises plain OSError, and an uncaught one here
+    # takes down the whole section — a health check that dies is worse than one
+    # that reports "could not look". Caught by the test that raises OSError.
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
+            OSError) as exc:
+        lines.append(f"  B pi->webhook   UNVERIFIED — Pi unreachable: {exc}")
+        return notable, lines
+
+    # Only the presence of the name is checked, never its value: the webhook
+    # URL embeds a secret ntfy topic and must not land in check output.
+    if "VOLTHIUM_ALERT_WEBHOOK=" in out:
+        lines.append("  B pi->webhook   armed (VOLTHIUM_ALERT_WEBHOOK set) "
+                     "— pages if the Pi cannot reach the cloud")
+    else:
+        notable = True
+        lines.append("  B pi->webhook   ← NOT ARMED: VOLTHIUM_ALERT_WEBHOOK "
+                     "unset on the Pi. If the cloud goes dark or the")
+        lines.append("                     uploader stalls, nothing pages. "
+                     "Path A cannot report its own outage.")
+    return notable, lines
 
 
 def section_wired(since_iso: str) -> tuple[bool, list[str]]:
@@ -463,7 +520,9 @@ def main() -> int:
     for name, fn in (("readings", lambda: section_readings(args.source, since_iso)),
                      ("events", lambda: section_events(since_iso)),
                      ("wired RS485", lambda: section_wired(since_iso)),
-                     ("alerting", section_alerting)):
+                     ("alerting",
+                      lambda: section_alerting(
+                          args.ssh_target if args.with_pi else None))):
         try:
             n, lines = fn()
             any_notable |= n
