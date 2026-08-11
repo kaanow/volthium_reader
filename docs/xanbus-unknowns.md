@@ -1468,7 +1468,41 @@ BMS designs, not confirmed for this Volthium unit. If its balancer engages
 lower, the window is larger than this table suggests — worth checking against
 the balancer flags already being logged (see memory `keep-balancer-flags`).
 
-#### SETTLED 2026-08-10: the ceiling change IS reducing the imbalance
+#### RETRACTED 2026-08-11 — read this before the section below it
+
+**The section that follows is wrong and is kept only as the record.** Task #44
+is reopened. Its own pre-registered overturn condition was met the day after it
+was closed, and nobody looked.
+
+Regenerated from `/api/history/series` at `bucket_s=300`, the same source and
+convention the original used:
+
+| day | min at SOC 100 | peak dv_a | p95 dv_a | mean dv_a while at 100 | peak dv_b |
+|---|---|---|---|---|---|
+| 08-10 | 375 | **0.429** | 0.108 | 0.099 | 0.012 |
+
+**0.429 is worse than every pre-change day** (the 0.369–0.386 that the section
+below uses as its "before"), at fully matched exposure — 375 minutes against
+the 315–405 the original called comparable. The conclusion was closed on 08-09
+alone and reversed by 08-10.
+
+Three further defects in the original, any one of which is disqualifying:
+
+1. **"Peak dv_a" is a max-of-one-sample statistic.** On 08-10 the peak is
+   0.429 while p95 is 0.108 and the mean while at SOC 100 is 0.099. On any
+   distributional measure the claimed halving disappears entirely. The metric
+   was chosen before anyone asked whether it was stable.
+2. **The change date is wrong by three days.** The device's own reported charge
+   target stepped at **08-05 13:10**; nothing changed on 08-08. So 08-05 was
+   filed as a "before" day when it was already an "after" day.
+3. **n=1 on the battery axis as well as the day axis.** `dv_b` peaks at 0.012
+   and never moves. The entire finding rests on one cell in pack A.
+
+To settle it properly: a distributional statistic (p95, or the mean while at
+SOC 100), split at 08-05 13:10, several days each side, and a falsification
+condition stated in advance. Do not close it on a single day again.
+
+#### SETTLED 2026-08-10: the ceiling change IS reducing the imbalance — RETRACTED, see above
 
 Peak `dv_a` on days that actually reached 100% SOC (days that did not are
 excluded; the cliff never engages below the top, and their ~25 mV says
