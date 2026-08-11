@@ -156,6 +156,23 @@ Pi paging when the *cloud* is unreachable — had never been armed, and it is
 precisely the one the first cannot substitute for. Not a stale check this time:
 an incomplete one, which reads identically.
 
+**A detector can invent an event out of its own jitter.** `cliff_table.py` only
+ever reset `armed` inside the outcome block, so a latch that began with no open
+episode left it armed for the whole latch — and the first bucket where the
+delta drifted out of the band opened a "45 V crossing" from 30 V. The 13-minute
+clamp of 2026-08-10 was that: thirteen minutes entirely inside one unbroken
+latch, `pv_v` never above 33 V, while the Pi's own 1 Hz detector reported a
+single continuous clamp. It was the sole source of "min 13" and the sole
+exception to the timing rule. **Fourth defect in this one file.**
+
+**A threshold that decides the headline is a finding about the threshold.**
+Vary `BUCKET_S` alone and the cliff table says: 30 s → 17/13 with a 47-min
+recovery; 60 s → 17/10, a *perfect* two-way separation; 300 s → the same
+physical event that 60 s calls a 112-min CLAMP becomes a 120-min RECOVERY.
+Raw cadence is 15 s, so 30 s is the more defensible choice by the file's own
+reasoning — and 30 s is the one that breaks the rule. **Before believing any
+result, re-run it with the arbitrary constants moved one notch.**
+
 **Measure the fix before shipping it, not just the bug.** The ledger's
 inferred-branch gate was estimated at ~600 Wh/day. It was 1150–1550. And the
 authorised fix, measured against an independent estimate, *overshoots* in the

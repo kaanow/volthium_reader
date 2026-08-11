@@ -114,6 +114,35 @@ LOCAL_OFFSET_H = -7  # site is America/Vancouver; PDT during the study window
 # Measured: 300 s finds 16 crossings, 60 s finds 19. Of the three extra, two
 # are 1-minute dusk artifacts (killed by MIN_EPISODE_MIN below) and one is the
 # genuine 112 min crossing of 2026-08-10.
+#
+# BUT THIS CONSTANT DECIDES THE HEADLINE, AND THAT IS A PROBLEM. Same window,
+# same rule, only BUCKET_S varied (2026-08-11, after the re-arm fix):
+#
+#     30 s   n=30  17 clamped  13 recovered   clamp min 29   longest rec 47
+#     60 s   n=27  17 clamped  10 recovered   clamp min 29   longest rec 28
+#    120 s   n=26  18 clamped   8 recovered   clamp min  2   longest rec 26
+#    300 s   n=24  17 clamped   7 recovered   clamp min 10   longest rec 120
+#
+# At 60 s the one-directional rule is a PERFECT two-way separation — every
+# episode of 29 min or more clamps, every one under it recovers. That is an
+# artifact of this constant, not a law:
+#
+#   - at 30 s, 08-10 12:42 is a 47-minute RECOVERY, so "still running at 29 min
+#     always clamps" becomes 17 of 18. It is really demand limitation (the Pi
+#     logged bulk->absorption 13:28:57, absorption->float 13:30:47) but
+#     DEMAND_LIMITED_V compares ONE bucket against the crossing, and at 30 s
+#     that bucket has HIGHER output than the crossing did, so the test passes
+#     it through.
+#   - at 300 s, the 08-10 morning episode is a 120-minute RECOVERY. At 60 s the
+#     same physical event is a 112-minute CLAMP. Opposite labels, same event:
+#     the clamped buckets at 10:18-10:23 average out of band at 5-minute
+#     resolution.
+#
+# Raw sample cadence is 15 s, so by this comment's own argument 30 s is the
+# more defensible choice — and 30 s is the one that breaks the rule. 60 s is
+# kept because it is what every published figure rests on, but treat the clean
+# two-way separation as UNCONFIRMED. The honest claim remains the
+# one-directional one, and even that is one 30 s bucket away from 17 of 18.
 BUCKET_S = 60
 
 # 2 minutes, and the number is calibrated, not guessed. Sweeping the floor:
@@ -209,6 +238,29 @@ def episodes(series: list[dict]) -> list[dict]:
                                 "clamped": clamped})
                 start = None
                 armed = not clamped    # a clamp needs a fresh climb to re-arm
+        elif clamped:
+            # A clamp seen with NO open episode must disarm too, and leaving
+            # this out invented an entire crossing. `armed` was only ever reset
+            # inside the outcome block above, so once the array latched without
+            # an episode open, `armed` stayed True for the whole latch — and the
+            # first bucket where the delta jittered back out of the band then
+            # opened a "crossing" from 30 V.
+            #
+            # 2026-08-10 is the case: the array fell 87 -> 31 V at 17:11 and sat
+            # at 30-32 V making 4-8 W until the guard bounced it at 17:31. From
+            # 17:13 to 17:25 the delta drifted to 4.06-5.66 V — just outside the
+            # 4.0 V band, because dc_v was sagging, not because the array moved
+            # — so the table opened an episode at 17:13 and closed it "clamped"
+            # at 17:26. Thirteen minutes, entirely INSIDE one unbroken latch,
+            # with pv_v never once above 33 V. The Pi's own 1 Hz detector agrees
+            # it was continuous: mppt_latched at 17:29:58 with clamped_s=601 and
+            # no mppt_unlatched until 17:33:54.
+            #
+            # That phantom was the sole source of "min 13", the sole exception
+            # making the under-29-min rule read 10 of 11 instead of 10 of 10,
+            # and the sole evidence for the "13 min to formally clamp" figure in
+            # the fast-path table in docs/xanbus-unknowns.md.
+            armed = False
 
         if pv >= ARM_V and not clamped:
             armed = True

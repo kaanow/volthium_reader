@@ -37,11 +37,27 @@ tail.
 
 Two consequences, both of which cut against how this was first written down:
 
-  1. The fast path is n=2, not n=1. 2026-08-02 19:09 is a second instance and
-     it predates the episode that got noticed.
-  2. It is NOT "a second path into the clamp". Of the two, one clamped and one
-     recovered in six minutes. It is a path into the low-voltage region; what
-     happens next is not settled by having arrived quickly.
+  1. The table shows ONE near-Voc episode, and it is not the one that was
+     noticed. 2026-08-02 19:09 is the only one that survives as an episode, and
+     it RECOVERED. The 2026-08-10 17:13 collapse — the one this whole line of
+     enquiry started from — turned out to be a phantom episode opened inside an
+     unbroken latch by band jitter, and it is gone since the re-arm fix in
+     cliff_table.py.
+  2. But the 08-10 collapse itself is REAL, and the table structurally cannot
+     represent it. The array fell 87 -> 31 V between 17:10 and 17:11 and was
+     clamped in the same minute, so the episode is shorter than
+     MIN_EPISODE_MIN and is discarded. Confirmed independently by the Pi's own
+     1 Hz detector: mppt_latched 17:29:58, clamped_s 601, no unlatch until the
+     guard bounced it at 17:33:54.
+
+So the phenomenon is n=2 in the DATA and n=1 in the TABLE, and the one the
+table keeps is the one that recovered. A metric blind to exactly the event it
+is being used to characterise is the recurring failure here, not an exception:
+the near-Voc descent is fast BECAUSE it is near-Voc, and being fast is what
+makes it fall through a minimum-duration filter.
+
+It is therefore NOT established as "a path into the clamp". One recovered in
+six minutes; the other clamped. Two points, opposite outcomes.
 
 Why a near-Voc start would behave differently at all: at open circuit the array
 current is ~0, so the MPPT has to re-acquire from a standing start rather than
