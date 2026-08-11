@@ -580,7 +580,15 @@ class TestHealthSummary(unittest.TestCase):
                 "soc_a", "soc_b",
             ])
             w.writeheader()
-            today = datetime.now()
+            # Anchored to 10:00 LOCAL rather than to `now`. This previously
+            # wrote `now` and `now + 10 min`, which after 23:50 local puts the
+            # second row on TOMORROW — different day, so the gap detector (which
+            # works within a single day) saw one lone row and rendered no
+            # PACK GAPS line. The test failed for ten minutes out of every
+            # twenty-four hours and passed every other time, which reads as
+            # flakiness rather than as a broken fixture.
+            today = datetime.now().replace(hour=10, minute=0, second=0,
+                                           microsecond=0)
             w.writerow({"ts": today.isoformat(timespec="seconds"),
                         "state": "idle", "pack_v": "26.30",
                         "pack_i": "0.0", "smoothed_i": "0.0",

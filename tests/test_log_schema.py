@@ -37,6 +37,9 @@ def _stub_ble_deps() -> None:
         def __init__(self, *a, **kw): ...
         async def __aenter__(self): return self
         async def __aexit__(self, *_): return False
+        # Required: volthium.pack._VolthiumBMSTapped calls this via super().
+        # See conftest.py for why an incomplete copy here is dangerous.
+        def _notification_handler(self, *args, **kwargs): return None
     ej.BMS = _BMS   # type: ignore[attr-defined]
     sys.modules.setdefault("aiobmsble.bms.ej_bms", ej)
 
