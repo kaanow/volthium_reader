@@ -7,6 +7,8 @@ the moment something needed to page is discovering it when nobody is looking.
 """
 from __future__ import annotations
 
+import datetime as dt
+import inspect
 import io
 import sys
 import unittest
@@ -205,6 +207,78 @@ class DeadEventFamilyTests(unittest.TestCase):
                                lambda p: {"events": [{"ts": "2026-01-01T00:00:00Z"}]}):
             self.assertEqual(len(S.fetch_events("x", None)), 1)
             self.assertEqual(len(S.fetch_events("x", "2030-01-01T00:00:00Z")), 0)
+
+class SolarFreshnessTests(unittest.TestCase):
+    """The solar freshness check, and why its threshold is not 2 minutes.
+
+    This lived only in the operator's 2-hourly prompt — "GET /api/solar?limit=2,
+    confirm rows are FRESH (<2 min)" — hand-run every time and never codified.
+    Both halves were wrong:
+
+      * the reader uploads in 300 s batches (xanbus_telemetry.UPLOAD_PERIOD_S),
+        so lag is a sawtooth 0..300 s. Measured 2026-08-11 at 45 s intervals:
+        31, 76, 121, 166, 212, 257, then reset. A 2-minute rule cries wolf
+        about 60% of the time.
+      * /api/solar returns OLDEST-FIRST, so limit=2 hands back the two OLDEST
+        rows of the slice. The recipe measured the wrong rows.
+    """
+
+    def _serve(self, rows):
+        return mock.patch.object(S, "_get_json", lambda p: {"readings": rows})
+
+    def _row(self, ts, **kw):
+        r = {"ts": ts, "schema_version": 2, "pv_v_min": 1.0, "pv_v_max": 2.0,
+             "pv_v": 1.5}
+        r.update(kw)
+        return r
+
+    def _ago(self, secs):
+        t = dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=secs)
+        return t.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def test_one_batch_of_lag_is_normal_not_an_alarm(self):
+        """The regression the prompt's 2-minute rule would have produced."""
+        with self._serve([self._row(self._ago(240))]):
+            notable, lines = S.section_solar("pi-barge")
+        self.assertFalse(notable, "240s is inside one 300s batch — not a fault")
+        self.assertIn("normal", " ".join(lines))
+
+    def test_a_real_backlog_is_notable(self):
+        with self._serve([self._row(self._ago(1800))]):
+            notable, lines = S.section_solar("pi-barge")
+        self.assertTrue(notable)
+        self.assertIn("BACKLOG", " ".join(lines))
+
+    def test_it_uses_the_newest_row_not_the_first(self):
+        """OLDEST-FIRST ordering. Taking rows[0] would call this stale."""
+        rows = [self._row(self._ago(9000)), self._row(self._ago(30))]
+        with self._serve(rows):
+            notable, lines = S.section_solar("pi-barge")
+        self.assertFalse(notable, "took the oldest row instead of the newest")
+        self.assertIn("lag 3", " ".join(lines))
+
+    def test_schema_skew_is_caught(self):
+        with self._serve([self._row(self._ago(30), pv_v_min=None)]):
+            notable, lines = S.section_solar("pi-barge")
+        self.assertTrue(notable)
+        self.assertIn("pv_v_min", " ".join(lines))
+        with self._serve([self._row(self._ago(30), schema_version=1)]):
+            notable, lines = S.section_solar("pi-barge")
+        self.assertTrue(notable)
+        self.assertIn("skew", " ".join(lines))
+
+    def test_no_rows_is_notable(self):
+        with self._serve([]):
+            notable, lines = S.section_solar("pi-barge")
+        self.assertTrue(notable)
+
+    def test_threshold_is_derived_from_the_reader_not_hardcoded(self):
+        """If UPLOAD_PERIOD_S changes, this check must move with it."""
+        import xanbus_telemetry as X
+        self.assertEqual(X.UPLOAD_PERIOD_S, 300)
+        src = inspect.getsource(S.section_solar)
+        self.assertIn("UPLOAD_PERIOD_S", src,
+                      "batch threshold must come from the reader's constant")
 
 if __name__ == "__main__":
     unittest.main()

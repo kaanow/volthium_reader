@@ -8,10 +8,16 @@ triangulating three data sources so a narrow grep can't hide an incident:
      silent while the other keeps reporting)
   2. Railway /api/events   — wedge_snapshot classifications, stack_health
      with non-clean classification, adapter pin/fallback/restored events
-  3. Railway /api/events   — wired RS485 path (primary since the 2026-07-26
+  3. Railway /api/solar    — solar pipeline freshness against the reader's
+     OWN batch cadence, plus schema-skew (schema_version, pv_v_min/max)
+  4. Railway /api/events   — wired RS485 path (primary since the 2026-07-26
      BLE retirement): read_fail rate, rs485_port_error/restart, live transport
-  4. (optional --with-pi)  — SSHs to kwpi.zt for logger WARNING/ERROR
+  5. Railway /healthz + Pi — BOTH paging paths, reported separately
+  6. (optional --with-pi)  — SSHs to kwpi.zt for logger WARNING/ERROR
      line counts + last-24h restart counters + throttled register
+
+Note that source 2 is now DEAD by design (BLE retired) and says so rather
+than printing zeros; see section_events.
 
 Prints one section per source and a bottom-line "notable events" summary.
 Exit 0 = quiet window, 1 = anything worth investigating.
@@ -410,6 +416,68 @@ def section_alerting(ssh_target: str | None = None) -> tuple[bool, list[str]]:
     return notable, lines
 
 
+def section_solar(source: str) -> tuple[bool, list[str]]:
+    """Solar pipeline freshness and schema, with a threshold that matches how
+    the pipeline actually works.
+
+    This check existed only as a line in the operator's 2-hourly prompt —
+    "GET /api/solar?limit=2, confirm rows are FRESH (<2 min)" — performed by
+    hand every run. Both halves of it are wrong, which is what happens to a
+    check that is never codified:
+
+    1. **The 2-minute threshold contradicts the design.** The reader seals and
+       uploads in batches (`xanbus_telemetry.UPLOAD_PERIOD_S`, 300 s), so the
+       lag is a SAWTOOTH from ~0 to ~300 s. Measured 2026-08-11 at 45 s
+       intervals: 31, 76, 121, 166, 212, 257 s, then reset. A 2-minute rule
+       therefore reports a false problem roughly 60% of the time, with nothing
+       wrong. Codified here against the actual cadence instead.
+    2. **`limit=2` reads the wrong rows.** `/api/solar` returns
+       OLDEST-FIRST, so the first two entries are the two oldest of the slice,
+       not the newest. Always take `max(ts)`.
+
+    The failure this SHOULD catch is a growing backlog — the reader spooling
+    faster than it can upload — which shows up as a lag of several batch
+    periods rather than one. That is what the threshold keys on.
+    """
+    lines = ["Solar pipeline (xanbus telemetry -> Railway):"]
+    try:
+        from xanbus_telemetry import UPLOAD_PERIOD_S as BATCH_S
+    except Exception:                      # pragma: no cover - import guard
+        BATCH_S = 300.0
+    rows = _get_json(f"/api/solar?source_id={source}&limit=200").get("readings", [])
+    if not rows:
+        return True, lines + ["  !! no solar rows at all"]
+
+    newest = max(r["ts"] for r in rows)    # NOT rows[0] — see docstring
+    age = (dt.datetime.now(dt.timezone.utc) - dt.datetime.strptime(
+        newest[:19], "%Y-%m-%dT%H:%M:%S").replace(
+            tzinfo=dt.timezone.utc)).total_seconds()
+
+    # One batch period is normal by construction. Two is a missed batch and
+    # worth saying. Beyond that the reader is falling behind.
+    notable = age > 2.5 * BATCH_S
+    verdict = ("BACKLOG — falling behind, check the Pi spool"
+               if notable else
+               "behind by more than one batch" if age > 2 * BATCH_S else
+               "normal (batched upload, sawtooth 0..%ds)" % BATCH_S)
+    lines.append(f"  newest row {newest}  lag {age:.0f}s / batch {BATCH_S:.0f}s"
+                 f"  -> {verdict}")
+
+    latest = max(rows, key=lambda r: r["ts"])
+    sv = latest.get("schema_version")
+    if sv != 2:
+        notable = True
+        lines.append(f"  !! schema_version={sv!r}, expected 2 — reader/server skew")
+    missing = [k for k in ("pv_v_min", "pv_v_max") if latest.get(k) is None]
+    if missing:
+        notable = True
+        lines.append(f"  !! {', '.join(missing)} is None — reader/server schema skew")
+    else:
+        lines.append(f"  schema_version={sv}, pv_v_min/max populated, "
+                     f"pv_v={latest.get('pv_v')}")
+    return notable, lines
+
+
 def section_wired(since_iso: str) -> tuple[bool, list[str]]:
     """Wired RS485 path health — the PRIMARY telemetry path since the BLE
     retirement (2026-07-26). Watches serial read failures, port errors/reopens
@@ -585,6 +653,7 @@ def main() -> int:
     failed: list[str] = []
     for name, fn in (("readings", lambda: section_readings(args.source, since_iso)),
                      ("events", lambda: section_events(since_iso)),
+                     ("solar", lambda: section_solar(args.source)),
                      ("wired RS485", lambda: section_wired(since_iso)),
                      ("alerting",
                       lambda: section_alerting(
