@@ -10,7 +10,7 @@
 > actually runs today, read the section immediately below, then
 > `docs/xanbus-unknowns.md` for the current open questions.
 
-## How it actually runs now (current as of 2026-08-06)
+## How it actually runs now (verified against the Pi 2026-08-11)
 
 Nothing runs on the laptop. The system is a Pi at the cabin plus a cloud
 server; the laptop is only an operator console.
@@ -18,14 +18,24 @@ server; the laptop is only an operator console.
 - **Live screen:** <https://volts.alti2.de/> — SOC hero + power flow.
   `/history` is the ledger/heatmap/imbalance companion. The pre-2026-08 pages
   are still at `/v1` and `/v1/history` as a second opinion.
-- **On the Pi (`kwpi`, all systemd, all `Restart=always`):**
+- **On the Pi (`kwpi`, all systemd, all `Restart=always`) — seven services:**
   `volthium-rs485-logger` (**RS485 is primary — BLE is retired**),
   `volthium-xanbus-telemetry` (CAN → 15 s buckets → spool → Railway),
   `volthium-xanbus-capture`, `volthium-modbus-poll`,
-  `volthium-uploader`, `volthium-events-uploader`.
-- **Timers:** `volthium-latch-guard` every 10 min (clears an MPPT diode-clamp
-  latch; sun-elevation gated), `volthium-config-watch` hourly (alarms if any
-  charge setpoint changes).
+  `volthium-uploader`, `volthium-events-uploader`,
+  `volthium-dashboard` (local http on :8421, LAN only).
+- **Timers:** `volthium-latch-guard` **every 5 min** (`OnUnitActiveSec=5min`;
+  clears an MPPT diode-clamp latch, sun-elevation gated, and requires a second
+  consecutive confirmation before acting so it cannot bounce a healthy MPPT),
+  `volthium-config-watch` hourly (alarms if any charge setpoint changes),
+  `volthium-usb-keepawake` (re-asserts the UB500 autosuspend-disable),
+  `volthium-weekly-reboot` — which despite the name fires **monthly**
+  (last 2026-08-02, next 2026-09-06).
+
+> Do not trust this list from memory; it drifted before. `systemctl
+> list-units 'volthium*'` and `systemctl list-timers 'volthium*'` are the
+> source of truth, and `status_check.py` derives its service list from
+> systemd for exactly that reason.
 - **Health check:** `python3 scripts/status_check.py --hours 2` from the repo
   root — telemetry gaps, wedges, read failures, in one pass.
 

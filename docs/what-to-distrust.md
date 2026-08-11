@@ -25,6 +25,8 @@ produced by one of these, treat it as a rumour:
 | `meter_offset.py` | the dark-hours BMS vs `dc_w` offset |
 | `float_calibration.py` | the neutral-battery three-way meter comparison |
 | `bms_coulomb_check.py` | BMS reported current vs its own coulomb counter |
+| `descent_profile.py` | how each 45 V crossing descends, and the near-Voc vs loaded split |
+| `latch_exposure.py` | how long the array is actually clamped per latch |
 | `status_check.py` | live health; prints an explicit INCOMPLETE verdict rather than a false all-clear |
 
 `cliff_table.py` alone produced **three different wrong headline numbers in
@@ -40,7 +42,14 @@ of stale numbers.
 
 - **The latch is real, understood well enough to fix, and fixed automatically.**
   `xanbus_latch_guard.py` on a 5-minute timer. It works; exposure is down from
-  45 minutes to about 10.
+  45 minutes to a median of **about 20** — regenerate with
+  `scripts/latch_exposure.py`. This said "about 10" until 2026-08-11, taken
+  from the `clamped_s` field on `mppt_latched`, which is emitted the instant
+  `now - clamp_since >= LATCH_CONFIRM_S` and therefore reports 600 s every
+  time by construction. Twelve latches, spread of 8 seconds. Same shape as the
+  unreachable recovery branch in §3: a number the code guarantees, quoted as a
+  property of the array. The guard is still a large win, and it is about half
+  the win that was written down.
 - **The cliff is not absolute.** Roughly a third of 45 V crossings recover on
   their own. What separates them is elapsed time, not depth. Regenerate for
   current figures.

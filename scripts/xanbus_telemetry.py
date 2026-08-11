@@ -587,6 +587,13 @@ class Decoder:
                  "data": {"pv_v": round(self.pv_v, 1),
                           "out_v": round(self.mppt_out_v, 2),
                           "delta_v": round(delta, 2),
+                          # NOT exposure, and it has been misread as exposure.
+                          # This line only runs on the sample where
+                          # `now - clamp_since >= LATCH_CONFIRM_S` first holds,
+                          # so it reports LATCH_CONFIRM_S every time — 600..608 s
+                          # across all 12 latches on record. Total exposure spans
+                          # this event and mppt_unlatched; measure it with
+                          # scripts/latch_exposure.py (median ~20 min, not 10).
                           "clamped_s": round(now - self.clamp_since),
                           "status_byte": self.mppt_status,
                           "fix": "Operating Mode -> Standby -> Operating"}},
