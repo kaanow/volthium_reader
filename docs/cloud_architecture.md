@@ -59,9 +59,11 @@ Concrete rules:
   cloud work — the local dashboard already parses it. The uploader is
   responsible for converting `pack.csv`'s naive local time to UTC `Z` before
   POSTing.
-- **In cloud dashboard output**: render in the Barge Inn's local time
-  (America/Toronto unless changed) for human readability; underlying data
-  stays UTC.
+- **In cloud dashboard output**: render in the Barge Inn's local time for human
+  readability; underlying data stays UTC. **`DISPLAY_TZ` is currently
+  `America/Toronto` and the site is `America/Vancouver`** — a 3 h error. See
+  the `DISPLAY_TZ` row in the env table below for what that does and does not
+  affect; it is not cosmetic and it is not the site's local time.
 - **ESP32 firmware (future)**: stamp readings with UTC from NTP at capture
   time, format as `Z`-suffixed ISO-8601. If NTP is unavailable at boot,
   buffer readings without timestamps and discard them rather than send wrong
@@ -217,11 +219,47 @@ Edge changes (also part of v1):
 | `FLOOR_PCT`                  | `10.0`           | "Empty" floor SOC.                             |
 | `CEILING_PCT`                | `95.0`           | "Full" target SOC (LiFePO4 absorption-onset).  |
 | `IDLE_CURRENT_A`             | `0.5`            | |I| below this → state=idle, no projection.    |
-| `DISPLAY_TZ`                 | `America/Toronto`| Dashboard rendering tz (cosmetic only).        |
+| `DISPLAY_TZ`                 | `America/Toronto`| **NOT cosmetic, and currently WRONG** — see note below. |
 | `DB_MIGRATE`                 | `1`              | If truthy, runs migrations/*.sql on boot.      |
 | `STALENESS_WEBHOOK_URL`      | (empty; disabled) | HTTP endpoint the staleness monitor POSTs alerts to. ntfy.sh-compatible JSON body. |
 | `STALENESS_THRESHOLD_S`      | `300`            | Age (in seconds) before a source is called stale. |
 | `STALENESS_CHECK_INTERVAL_S` | `60`             | How often the monitor polls the DB.            |
+
+#### `DISPLAY_TZ` is a bucketing key, not a rendering preference
+
+It was documented as "cosmetic only". It is not. It is the argument every
+day-and-hour aggregate groups by — `solar_energy_daily`, `load_heatmap`,
+`history_daily`, `history_profile` all do
+`(ts AT TIME ZONE $3)::date` / `extract(hour FROM ts AT TIME ZONE $3)`.
+
+It is also **wrong**: the default is `America/Toronto` and Barge Inn is in
+British Columbia, `America/Vancouver`. Three hours. Measured 2026-08-11 rather
+than assumed, because "the ledger is off by three hours" would have been the
+obvious and incorrect conclusion:
+
+| what | effect of the 3 h error |
+|---|---|
+| daily `solar_wh` | **none** (0 Wh over 10 days) — the Toronto day boundary lands at 21:00 Vancouver, which is dark |
+| daily `load_wh` | **negligible** — worst day 19 Wh of ~2730, 0.7%; the DC load is nearly constant |
+| `load_heatmap` / `history_profile` hour axis | **mislabelled by 3 h.** Cell "hour 15" holds 12:00 Vancouver data. Low consequence today only because the load is flat at 114–115 W in every hour; any future "when does the fridge run" reading is off by three hours |
+| `mppt_counter_wh` | **broken** — see below |
+
+The counter column is the real casualty. `mppt_daily_total` fires at the MPPT's
+own midnight (00:01 Vancouver) carrying the finished day's total, and the query
+shifts it back one hour to attribute it correctly. That shift assumes
+`DISPLAY_TZ` *is* the site zone. With a 3 h mismatch the event lands at 03:01
+Toronto, minus one hour is 02:01 — still the new day — so the total is credited
+to the WRONG DAY. Observed: 1356 Wh reported for 2026-08-11, a day which at the
+time had produced 6 Wh.
+
+That defeats the column's entire purpose. It was added as a standing audit of
+pipeline loss — ledger vs the device's own counter — and it is currently
+comparing across a day boundary.
+
+**Not changed here.** Setting `DISPLAY_TZ=America/Vancouver` on Railway moves
+every historical day on the dashboard, which is the operator's call. The
+alternative, making the shift robust to any `DISPLAY_TZ` by keying it to the
+site zone, is a ledger change and only one ledger change was authorised.
 
 Token-naming rule: env var `READER_TOKEN_<UPPER_SNAKE>` authorizes
 `source_id=<lower-kebab>`. So `READER_TOKEN_PI_BARGE=...` ↔ `pi-barge`.
