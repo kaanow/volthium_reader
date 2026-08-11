@@ -363,6 +363,36 @@ voltage in the same minute. Worth checking the next several crossings for the
 same `dc_v` inflection — if it recurs it is the closest thing to a trigger
 signature this investigation has found.
 
+### PRE-REGISTERED PREDICTION, written 2026-08-11 10:40 local, outcome UNKNOWN
+
+Committed BEFORE the outcome, because every prospective claim in this file so
+far was written after the fact and that is exactly how the bad ones got in.
+
+**State at 10:39 local:** an episode is OPEN. `pv_v` crossed 45 V at **10:05**
+and has been below it for **34 minutes**. Now 37.2 V against `dc_v` 26.78
+(delta 10.41), so NOT yet in the clamp band. Output has collapsed from 175 W at
+09:20 to 38 W.
+
+**Ruled out before predicting:**
+- *Demand limitation*: `dc_v` 26.78 V, mid-charge, nowhere near the 27.9–28.0 V
+  float ceiling. The pack is not full.
+- *Cloud*: under cloud the tracker holds near the MPP and current falls. Here
+  voltage and power fall together, and 37 V is far below the 55–60 V MPP this
+  array held all morning.
+- *Dawn/dusk hunting*: the descent is PINNED, not oscillating — `pv_v_min/max`
+  3.1 V apart in the 10:35 bucket, against the ~41–49 V spread hunting shows.
+
+**PREDICTION: it will clamp.** The rule is "still running at 29 minutes → it
+clamps", currently 18 for 18, and this episode is at 34 minutes.
+
+**What would falsify it:** `pv_v` climbing back above 48 V under its own power,
+with output at or above the 161 W it had at the crossing, before the delta
+enters the 0.3–4.0 V band. A rise to Voc with output COLLAPSING is demand
+limitation, not a recovery, and does not count.
+
+Note the guard is armed and will clear the clamp if it forms, so this predicts
+the CLAMP, not any lasting harm. Outcome recorded in the next entry.
+
 ### PROSPECTIVE TEST 2026-08-11 08:02 — the rule predicted this one correctly
 
 The first latch since the rule was stated, so the first time it was used as a
