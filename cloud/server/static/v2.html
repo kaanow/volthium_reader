@@ -212,16 +212,33 @@ function battW() {       // + = charging (BMS smoothed power)
    and the MPPT self-report is kept as a cross-check, not a source. There is
    no PV-side current sensor at all on this model (0x15 I/P are structurally
    0), so the array side can never be measured directly. */
-function inferSolar(reported, batt, dcw) {
-  if (dcw == null) return { w: reported, approx: false, src: "mppt" };
+/* Gated on the CLAMP, matching db.solar_energy_daily since 2026-08-11. This
+   function had NO gate at all — not even the darkness gate its server-side
+   twin was given on 2026-08-07 — so it rendered up to 74 W of "solar
+   (derived)" in the middle of the night, which is just the ~32 W disagreement
+   between the BMS and the inverter plus load, dressed as production.
+
+   The inference exists to rescue the clamp, where the MPPT cannot see power
+   crossing its own body diode. Outside a clamp its self-report is the better
+   number, so use it. Keeping this in step with the server matters: the tile
+   and the daily ledger disagreeing is how nobody trusts either. */
+function inferSolar(reported, batt, dcw, clamped) {
+  if (dcw == null || !clamped)
+    return { w: reported, approx: false, src: "mppt" };
   const derived = batt + dcw;
   if (derived - reported > 60)
     return { w: Math.max(0, derived), approx: true, src: "derived" };
   return { w: reported, approx: false, src: "mppt" };
 }
+function clampedAt(r) {
+  if (!r || r.pv_v == null || r.dc_v == null) return false;
+  const d = r.pv_v - r.dc_v;
+  return r.pv_v > CLAMP_MIN_PV_V
+      && d >= CLAMP_DELTA_MIN_V && d <= CLAMP_DELTA_MAX_V;
+}
 function solarInfo() {
   return inferSolar(st.solar?.solar_w ?? 0, battW(),
-                    st.gen ? null : st.solar?.dc_w ?? null);
+                    st.gen ? null : st.solar?.dc_w ?? null, latched());
 }
 function solarW() { return solarInfo().w; }
 function loadW() {
@@ -259,10 +276,30 @@ function dcLoadW() {
   if (p && p.draw_w) return { w: p.draw_w * p.duty, live: false };
   return null;
 }
+/* The clamp is a BAND, not an upper bound: the array is pinned roughly one
+   diode drop ABOVE the output. `delta < 2.5` was the original detector and it
+   shipped four separate bugs, all fixed in scripts/xanbus_telemetry.py on
+   2026-08-06 — but this page kept the broken copy until 2026-08-11:
+
+     - `< 2.5` also matches NEGATIVE deltas. At dusk the array decays BELOW
+       battery voltage, so the tile lit up at 21:24 with delta -15.7 V and 0 W.
+     - 2.5 V is below the MPPT's own reporting dither, which swings 0.90-3.44 V
+       second to second during a genuine clamp, so a real latch flickered.
+     - `pv_v > 5` is not a daylight test; a dark string still reads a few volts.
+
+   Matches LATCH_DAYLIGHT_V / LATCH_DELTA_MIN_V / LATCH_DELTA_MAX_V. The live
+   detector also gates on sun elevation >= 5 deg, which is not reproduced here:
+   this is a status pill, not an energy total, and the pv_v > 20 floor already
+   excludes darkness. The residual is a possible transient pill during dawn or
+   dusk hunting — strictly better than the previous behaviour, which was wrong
+   more often than right. */
+const CLAMP_MIN_PV_V = 20.0, CLAMP_DELTA_MIN_V = 0.3, CLAMP_DELTA_MAX_V = 4.0;
 function latched() {
   const s = st.solar;
   if (!s || s.pv_v == null || s.dc_v == null) return false;
-  return s.pv_v > 5 && (s.pv_v - s.dc_v) < 2.5;
+  const d = s.pv_v - s.dc_v;
+  return s.pv_v > CLAMP_MIN_PV_V
+      && d >= CLAMP_DELTA_MIN_V && d <= CLAMP_DELTA_MAX_V;
 }
 
 /* ---------- fetch ---------- */
@@ -309,7 +346,7 @@ async function pollOnce(first) {
     for (const r of rows) {
       const t = Date.parse(r.ts);
       const batt = pByT.get(t) ?? 0;
-      const s = inferSolar(r.solar_w ?? 0, batt, r.dc_w);
+      const s = inferSolar(r.solar_w ?? 0, batt, r.dc_w, clampedAt(r));
       hist.push({ t, solar: s.w, gen: 0,
                   load: r.dc_w ?? Math.max(0, s.w - batt), batt });
     }
@@ -318,7 +355,7 @@ async function pollOnce(first) {
       const t = Date.parse(r.ts);
       if (hist.length && t <= hist[hist.length - 1].t) continue;
       const batt = battW();
-      const s = inferSolar(r.solar_w ?? 0, batt, st.gen ? null : r.dc_w);
+      const s = inferSolar(r.solar_w ?? 0, batt, st.gen ? null : r.dc_w, clampedAt(r));
       hist.push({ t, solar: s.w, gen: st.gen ? Math.max(0, batt - s.w) : 0,
                   load: st.gen ? 0 : (r.dc_w ?? 0), batt });
     }
