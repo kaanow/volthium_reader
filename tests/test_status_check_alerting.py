@@ -135,5 +135,76 @@ class SecondPagingPathTests(unittest.TestCase):
                 self.assertIn("B pi->webhook", text)
 
 
+
+class DeadEventFamilyTests(unittest.TestCase):
+    """A retired event source must not read as a healthy quiet one.
+
+    Every family section_events() watches — wedge_snapshot, stack_health,
+    recovery_skipped, ambient_burst — is emitted only by the BLE logger
+    (scripts/log.py, volthium/pack.py), retired 2026-07-26. Confirmed against
+    the live DB: last seen 07-25T13:57, 07-26T05:55, 07-25T13:55, 07-25T13:57.
+
+    So the section printed "wedge_snapshot: none" and "stack_health: 0 events,
+    all clean" on every run for sixteen days and could not print anything else.
+    Second instance of the volthium-logger precedent in this same file, and the
+    2-hourly operator prompt asks specifically about wedge_snapshot.
+
+    Nothing is hardcoded as dead — liveness is asked of the database — so these
+    tests drive the behaviour from fetched data, both ways.
+    """
+
+    def _events(self, mapping):
+        """mapping: kind -> list of ts strings, newest first."""
+        def fake(kind, since_iso, limit=10_000):
+            evs = [{"ts": t, "data": {}} for t in mapping.get(kind, [])]
+            return evs if since_iso is None else [
+                e for e in evs if e["ts"] >= since_iso]
+        return mock.patch.object(S, "fetch_events", fake)
+
+    def test_all_families_dead_says_so_loudly(self):
+        old = "2026-07-25T13:57:29Z"
+        with self._events({k: [old] for k in S.WATCHED_EVENT_FAMILIES}):
+            _, lines = S.section_events("2026-08-11T00:00:00Z")
+        text = " ".join(lines)
+        self.assertIn("DEAD", text)
+        self.assertIn("2026-07-25T13:57", text, "must name when it died")
+        self.assertNotIn("all clean", text,
+                         "a dead source must never render a clean line")
+        self.assertNotIn("wedge_snapshot: none", text)
+
+    def test_a_live_family_reports_normally(self):
+        """The positive branch. Without it, 'DEAD' could be unconditional and
+        this suite would pass a check that can only say one thing."""
+        now = "2026-08-11T09:00:00Z"
+        with self._events({k: [now] for k in S.WATCHED_EVENT_FAMILIES}):
+            _, lines = S.section_events("2026-08-11T00:00:00Z")
+        text = " ".join(lines)
+        self.assertNotIn("DEAD", text)
+        self.assertIn("stack_health", text)
+
+    def test_a_family_that_never_existed_is_not_silently_fine(self):
+        with self._events({}):
+            _, lines = S.section_events("2026-08-11T00:00:00Z")
+        self.assertIn("DEAD", " ".join(lines))
+
+    def test_partial_death_is_annotated_not_hidden(self):
+        """One dead family among live ones must still be called out."""
+        m = {k: ["2026-08-11T09:00:00Z"] for k in S.WATCHED_EVENT_FAMILIES}
+        m["wedge_snapshot"] = ["2026-07-25T13:57:29Z"]
+        with self._events(m):
+            _, lines = S.section_events("2026-08-11T00:00:00Z")
+        text = " ".join(lines)
+        self.assertNotIn("DEAD", text, "not every family is dead")
+        self.assertIn("no producer since", text)
+        self.assertIn("wedge_snapshot", text)
+
+    def test_fetch_events_accepts_no_window(self):
+        """The liveness probe passes since_iso=None; the old signature would
+        have raised comparing str to None."""
+        with mock.patch.object(S, "_get_json",
+                               lambda p: {"events": [{"ts": "2026-01-01T00:00:00Z"}]}):
+            self.assertEqual(len(S.fetch_events("x", None)), 1)
+            self.assertEqual(len(S.fetch_events("x", "2030-01-01T00:00:00Z")), 0)
+
 if __name__ == "__main__":
     unittest.main()

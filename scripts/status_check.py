@@ -52,9 +52,14 @@ def _get_json(path: str) -> dict:
         return json.load(r)
 
 
-def fetch_events(kind: str, since_iso: str, limit: int = 10_000) -> list[dict]:
+def fetch_events(kind: str, since_iso: str | None,
+                 limit: int = 10_000) -> list[dict]:
+    """`since_iso=None` means "no window" — used to ask when a family was last
+    seen AT ALL, which is how a retired event source is told apart from a
+    healthy quiet one. The endpoint returns newest-first."""
     d = _get_json(f"/api/events?event={kind}&limit={limit}")
-    return [e for e in d.get("events", []) if e["ts"] >= since_iso]
+    evs = d.get("events", [])
+    return evs if since_iso is None else [e for e in evs if e["ts"] >= since_iso]
 
 
 def fetch_readings(
@@ -183,9 +188,70 @@ def section_readings(source: str, since_iso: str) -> tuple[bool, list[str]]:
     return notable, lines
 
 
+# Every event family section_events() watches is emitted ONLY by the BLE
+# logger (scripts/log.py / volthium/pack.py), retired 2026-07-26. Confirmed by
+# asking the database when each was last seen: wedge_snapshot 07-25T13:57,
+# stack_health 07-26T05:55, recovery_skipped 07-25T13:55, ambient_burst
+# 07-25T13:57. Nothing has produced one since.
+#
+# So this section printed "wedge_snapshot: none" and "stack_health: 0 events,
+# all clean" on every run for sixteen days and could not have printed anything
+# else. That is the volthium-logger precedent exactly — a permanent reassuring
+# zero from a source that no longer exists — and it is the second time in this
+# file. The 2-hourly operator prompt asks specifically about wedge_snapshot.
+#
+# Not deleted, because BLE is retired rather than removed and the families
+# would come back with it. Instead the section asks the DATABASE whether each
+# family is still alive and says so. Nothing is hardcoded as dead: a family
+# that starts producing again reports normally on the next run.
+EVENT_FAMILY_DEAD_AFTER_S = 7 * 86400
+
+
+def _family_last_seen(kind: str) -> Optional[str]:
+    """Timestamp of the most recent event of this kind EVER, or None."""
+    evs = fetch_events(kind, None, limit=1)
+    return evs[0]["ts"] if evs else None
+
+
+def _dead_families(kinds: tuple[str, ...]) -> list[tuple[str, Optional[str]]]:
+    out = []
+    now = dt.datetime.now(dt.timezone.utc)
+    for k in kinds:
+        ts = _family_last_seen(k)
+        if ts is None:
+            out.append((k, None))
+            continue
+        age = (now - dt.datetime.strptime(
+            ts[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=dt.timezone.utc))
+        if age.total_seconds() > EVENT_FAMILY_DEAD_AFTER_S:
+            out.append((k, ts[:16]))
+    return out
+
+
+WATCHED_EVENT_FAMILIES = (
+    "wedge_snapshot", "stack_health", "recovery_skipped", "ambient_burst",
+)
+
+
 def section_events(since_iso: str) -> tuple[bool, list[str]]:
     lines = ["Events (Railway ble_events since window start):"]
     notable = False
+
+    # Liveness FIRST, so a dead family can never be read as a clean one.
+    dead = _dead_families(WATCHED_EVENT_FAMILIES)
+    if len(dead) == len(WATCHED_EVENT_FAMILIES):
+        lines.append("  ** THIS WHOLE SECTION IS DEAD. Every event family "
+                     "below is emitted only by the BLE logger,")
+        lines.append("     retired 2026-07-26. A 'none' here means the "
+                     "producer is gone, NOT that the system is healthy.")
+        for k, ts in dead:
+            lines.append(f"       {k:<20} last seen {ts or 'never'}")
+        lines.append("     RS485 is the live path — see the 'Wired RS485' "
+                     "section, which is the one that can still fail.")
+        return notable, lines
+    for k, ts in dead:
+        lines.append(f"  ({k}: no producer since {ts or 'ever'} — reported "
+                     f"below as 'none' for that reason, not for health)")
     # Wedges
     wedges = fetch_events("wedge_snapshot", since_iso)
     if wedges:
