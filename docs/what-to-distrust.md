@@ -210,6 +210,14 @@ Where I would look first, in order:
 - **#40** — one supervised early-bounce test at 40–45 V. The only blocked task.
   Design it knowing a third of crossings self-resolve, or the bounce will get
   credit for cases that needed nothing.
+- **"A fixed ~32 W offset" is itself unsupported.** `dc_w` has only ever been
+  compared against the BMS at ONE operating point — the dark-hours baseline —
+  and at a single point a scale error and an offset are indistinguishable. So
+  "correct `dc_w` by −32 W" assumes the answer. It also means the
+  "independent estimate" column used to judge the ledger gate change (see
+  §3) inherits that assumption; it is the best available anchor, not a
+  measurement. The clamp meter needs readings at **two or more different
+  loads**, not one, or it will not settle this either.
 - **The `dc_w` offset — now the only ledger question left, and it is load
   bearing.** The inferred-branch gate was the third of the three and was fixed
   2026-08-11 under explicit authorisation; the `load_wh` column is untouched.
