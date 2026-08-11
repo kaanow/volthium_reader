@@ -363,6 +363,67 @@ voltage in the same minute. Worth checking the next several crossings for the
 same `dc_v` inflection — if it recurs it is the closest thing to a trigger
 signature this investigation has found.
 
+### PROSPECTIVE TEST 2026-08-11 08:02 — the rule predicted this one correctly
+
+The first latch since the rule was stated, so the first time it was used as a
+prediction rather than fitted to. It landed **exactly on the threshold**.
+
+    crossing 07:24  ->  clamp 07:53      29 minutes
+    loaded start (preV 54.8 V, 34 W), bulk, sun 14 deg, dV/dt -1.8 V/min
+
+Rule: still running at 29 minutes → it clamps. It was, and it did. **18 for 18.**
+
+That the counterexample-free record survives a genuine out-of-sample case is
+worth something, but be precise about how much: 29 min is the least
+discriminating place it could have landed. It cannot separate a 29-minute
+threshold from a 16-minute one. What it DOES do is tighten the identification —
+the longest recovery on record is 28 min and the shortest clamp is now 29 min,
+observed twice, so the boundary is pinned by real data one minute either side
+rather than sitting in an empty band.
+
+**Demand limitation is ruled out for this episode**, which matters because it
+is the confound that has invalidated three other results here. `out_v` was
+26.40–26.46 V throughout — a *discharged* pack, nowhere near float — and
+`chg_stage` was `bulk`. This is a genuine low-light walk-down.
+
+**What the 1 Hz trail shows** (240 samples, 07:42:04 → 08:02:05, decimated 5 s):
+
+- The array enters the trail already at 38.2 V and decays monotonically to
+  27.2 V over 20 minutes, about −0.55 V/min. There is no 45 V crossing in the
+  trail at all — that happened at 07:24, eighteen minutes before the trail
+  starts. Anything reasoning about the crossing itself needs a longer trail.
+- Output falls with it, 24 W → 4 W. Array current collapses too, not just
+  voltage: 0.63 A input at 38 V against 0.15 A at 27 V.
+- **The tracker never freezes.** `pv_v` alternates by 1.5–2 V between
+  consecutive samples for the entire descent — perturb-and-observe still
+  stepping, all the way down to the clamp. Whatever is wrong, it is not a
+  stalled tracker; it is one that keeps stepping in the wrong direction.
+- Status byte 3 on all 240 samples. As established 2026-08-11, that field is 3
+  in every sample ever recorded in every state, so this is not evidence of
+  anything — recorded only to stop it being re-quoted as if it were.
+
+**What the guard was worth here, measured on ONE instrument.** The MPPT's own
+daily Wh counter, before and after, minutes apart:
+
+| window (local) | Δ day_wh | avg power |
+|---|---|---|
+| 06:53 → 07:09 | +7 | 26.6 W |
+| 07:24 → 07:41 | +7 | 24.9 W |
+| **07:41 → 08:03** (contains the clamp) | **+4** | **11.1 W** |
+| **08:03 → 08:18** (right after the fix) | **+28** | **109.9 W** |
+| 08:18 → 08:33 | +24 | 95.6 W |
+
+A **~10× step at the moment of the fix**, on the device's own accumulator on
+both sides — no cross-meter arithmetic, which is the only kind of comparison
+that has ever held up here. The morning ramp was running 25–31 W and rising;
+the clamp pushed it to 11 W; clearing it produced 110 W. So roughly **100 W
+foregone for as long as a morning clamp persists**, consistent with the
+~400 Wh/hour figure recorded for peak sun.
+
+Guard performance: `latch_fix_result` acked, `after` pv_v 93.3 V with 0 of 239
+samples clamped. Total exposure 12.6 min (601 s confirmation + 153 s to clear),
+below the 19.9 min median. No re-latch through 08:33.
+
 ### Sharpened 2026-08-08, corrected twice on 2026-08-10: 18 of 28
 
 The "72% within 60 minutes" figure used an arbitrary window and understated
