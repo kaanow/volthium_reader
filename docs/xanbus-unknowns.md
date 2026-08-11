@@ -1,5 +1,8 @@
 # Xanbus — what we still don't understand
 
+> Companion: **`docs/what-to-distrust.md`** — the drift catalogue and the
+> standing suspicions. Read it before quoting any number from this file.
+
 > **The distilled, operational version of this file is the `xanbus` skill**,
 > now versioned at `kaanow/skillz` (`xanbus/SKILL.md`) and symlinked into
 > `volthium_sw/.claude/skills/`. This document is the working record — every

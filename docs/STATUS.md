@@ -1,5 +1,9 @@
 # Status snapshot — read this when you come back
 
+> **Read `docs/what-to-distrust.md` first.** This file says what is true;
+> that one says which parts of it to doubt, and why the documentation layer
+> in this project has been far less reliable than the system it describes.
+
 > **Everything from here down to "Design progress" describes the ORIGINAL
 > laptop-hosted, BLE-polled system, and is HISTORY as of 2026-07-26.** It is
 > kept because the design reasoning below it is still live. For how the system
