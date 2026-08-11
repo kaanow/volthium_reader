@@ -37,6 +37,32 @@ def _dc_w_sane(col: str = "dc_w") -> str:
     return f"CASE WHEN {col} BETWEEN 0 AND 6000 THEN {col} END"
 
 
+# The diode-clamp detector band, MIRRORED from scripts/xanbus_telemetry.py
+# (LATCH_DAYLIGHT_V / LATCH_DELTA_MIN_V / LATCH_DELTA_MAX_V). The server cannot
+# import from scripts/, so these are copied, and copies in this repo drift —
+# tests/../test_ledger_clamp_gate.py reads the values back out of that file and
+# fails if they stop matching.
+#
+# The live detector ALSO requires sun elevation >= 5 deg. That is deliberately
+# NOT reproduced here. Reproducing it means putting solar-position trig into a
+# query that has taken production down twice on structural mistakes, and it was
+# measured to be worth 3-7 Wh/day out of ~1500 (0.4%) — the band alone already
+# excludes darkness, because pv_v must exceed 20 V. The residual is dawn/dusk
+# transits through the band; if it ever matters, it is a known, bounded amount.
+CLAMP_MIN_PV_V = 20.0
+CLAMP_DELTA_MIN_V = 0.3
+CLAMP_DELTA_MAX_V = 4.0
+
+
+def _clamped_sql(pv: str = "s.pv_v", dv: str = "s.dc_v") -> str:
+    """True where the MPPT is diode-clamped: the array pinned within a diode
+    drop of the output, in daylight. There the MPPT's self-report is blind to
+    power crossing its own body diode and must not be believed."""
+    return (f"{dv} IS NOT NULL AND {pv} > {CLAMP_MIN_PV_V} "
+            f"AND ({pv} - {dv}) BETWEEN {CLAMP_DELTA_MIN_V} "
+            f"AND {CLAMP_DELTA_MAX_V}")
+
+
 class ReadingsDAO(Protocol):
     """The subset of DB operations the ingest + dashboard endpoints need.
     Implemented by AsyncpgReadingsDAO in prod and by a fake in tests."""
@@ -705,20 +731,55 @@ class AsyncpgReadingsDAO:
         (verified vs its own Modbus, 2026-08-04). 15s buckets joined across
         readings & solar_readings, integrated per day.
 
-        The inferred branch is a DIFFERENCE OF TWO MISCALIBRATED METERS and
-        must be gated on daylight. They disagree by ~33 W: the BMS puts the
-        non-fridge baseline at 80 W where the inverter claims 113 W (see
-        docs/xanbus-unknowns.md #12). Ungated, `batt + dc_w` stays positive
-        all night and the ledger credits phantom sun — measured 2026-08-07:
-        **54 Wh of "solar" across 2.2 hours of full darkness**, ~25 W of pure
-        bias, every night.
+        The inferred branch is a DIFFERENCE OF TWO MISCALIBRATED METERS. They
+        disagree by ~32 W: the BMS puts the non-fridge baseline at 80 W where
+        the inverter claims 113 W (docs/xanbus-unknowns.md #12). Ungated,
+        `batt + dc_w` stays positive all night and the ledger credits phantom
+        sun — measured 2026-08-07: **54 Wh of "solar" across 2.2 hours of full
+        darkness**, ~25 W of pure bias, every night.
 
-        So force production to zero below the darkness threshold, where the
-        true value is known rather than inferred. Gate on ARRAY VOLTAGE, not
-        reported power: during a clamp the MPPT reports single-digit watts in
-        broad daylight, so a power gate would zero out exactly the hours the
-        inferred branch exists to rescue. In daylight the branch still carries
-        the meter bias — it is the best available number, not an exact one."""
+        The first fix gated it on `pv_v >= 15`, a bare darkness threshold. That
+        removed the night but admitted every twilight and overcast hour, where
+        the same ~32 W bias applies and the array demonstrably makes almost
+        nothing. Since the branch is a GREATEST(), the error is one-directional:
+        noise can only ever add.
+
+        **Gated on the CLAMP CONDITION itself since 2026-08-11**, because that
+        is the specific situation the inference exists to rescue — during a
+        clamp the MPPT is blind to power crossing its own body diode, so its
+        self-report is wrong-low and `batt + load` is the better estimate.
+        Outside a clamp the MPPT's own number is used. Same reasoning as the
+        darkness gate it replaces, applied to the right condition instead of a
+        proxy for it. `_clamped_sql()` above; the omitted sun-elevation term is
+        explained there.
+
+        MEASURED IMPACT, 5 consecutive days (scripts/ledger_gate_compare.py,
+        whose reimplementation of the OLD query reproduced the live API to
+        within 0.4% before any of this was trusted):
+
+            day     old    new    MPPT self-report   independent estimate
+            08-06  2348   1143         1050                 1620
+            08-07  2345   1190         1105                 1617
+            08-08  3424   1869         1765                 2683
+            08-09  2764   1559         1496                 2025
+            08-10  2744   1372         1350                 1975
+
+        So this removes 1150-1550 Wh/day, not the ~600 Wh/day previously
+        estimated.
+
+        **It probably overshoots, and that is not fixable here.** The last
+        column is load + net battery change with dc_w corrected by its measured
+        32 W offset — the only estimate anchored to something other than the
+        MPPT. The new number lands 23-31% BELOW it on every one of the five
+        days, and within 2-9% of the raw MPPT self-report, which is believed to
+        under-read by 22-25%. Gating the inference on clamps alone reinstates
+        that under-read for the whole day.
+
+        The old value was wrong high by a similar margin (28-45%), so this is
+        an improvement in magnitude on four of five days and a wash on the
+        fifth. It is not the right answer. Getting closer requires deciding
+        whether to correct dc_w by its offset, which moves every historical day
+        and is the operator's call, not this function's."""
         async with self.pool.acquire() as conn:
             sane_s = _dc_w_sane("s.dc_w")
             rows = await conn.fetch(
@@ -729,16 +790,16 @@ class AsyncpgReadingsDAO:
                          AND ts > now() - ($2 || ' days')::interval
                        GROUP BY b
                    ), s AS (
-                       SELECT ts AS b, solar_w, dc_w, pv_v
+                       SELECT ts AS b, solar_w, dc_w, pv_v, dc_v
                        FROM solar_readings WHERE source_id = $1
                          AND ts > now() - ($2 || ' days')::interval
                    ), j AS (
                        SELECT s.b,
-                              CASE WHEN COALESCE(s.pv_v, 0) < 15
-                                   THEN COALESCE(s.solar_w, 0)
-                                   ELSE GREATEST(COALESCE(s.solar_w,0),
+                              CASE WHEN {_clamped_sql()}
+                                   THEN GREATEST(COALESCE(s.solar_w,0),
                                                  COALESCE(r.batt,0)
                                                  + COALESCE({sane_s},0))
+                                   ELSE COALESCE(s.solar_w, 0)
                               END AS prod_w,
                               {sane_s}  AS load_w,
                               COALESCE(r.batt,0)  AS batt_w
