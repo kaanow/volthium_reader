@@ -402,6 +402,36 @@ the crossing bounces those needlessly. Acting at 29 minutes catches every clamp
 on record with no wasted bounce — and on today's episode that would have fired
 at 10:34, saving roughly the 74 W and 23 W intervals.
 
+### LIVE TEST 2026-08-12 08:41, outcome UNKNOWN — this one can FALSIFY the rule
+
+Unlike yesterday's, this episode has a real chance of breaking the rule, which
+is why it is worth writing down before it resolves.
+
+**State at 08:41 local:** crossed 45 V at **08:05**, so **36 minutes** open —
+past the 29-minute threshold, where the rule says it always clamps (19 for 19).
+But the array is **RISING**, not falling:
+
+    08:37  pv 40.2  W 22.6
+    08:38  pv 40.0  W 22.1
+    08:39  pv 39.9  W 22.2   <- trough
+    08:40  pv 41.1  W 23.6
+    08:41  pv 42.0  W 25.2   <- climbing, and output climbing with it
+
+**RULE PREDICTS: clamp.**
+
+**FALSIFICATION, stated in advance:** `pv_v` reaching 48 V under its own power
+with output at or above the 25 W it had at the crossing, before the delta
+enters the 0.3–4.0 V band. That is a genuine tracker re-acquire at 36 minutes
+and it breaks "still running at 29 minutes always clamps".
+
+The demand-limitation escape does NOT apply here and cannot be invoked
+afterwards: `dc_v` is 26.3 V, mid-charge, nowhere near float, and output is
+RISING with voltage rather than collapsing as it would at Voc.
+
+Note this is a materially better test than 2026-08-11's, which was already
+falling when predicted and never looked like recovering. Recording the
+distinction because a prediction that could not have failed is not evidence.
+
 ### OUTCOME of the pre-registered prediction: CONFIRMED, it clamped
 
     crossed 10:05  ->  clamped 10:48      43 minutes
