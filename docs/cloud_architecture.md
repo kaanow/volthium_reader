@@ -252,6 +252,29 @@ Toronto, minus one hour is 02:01 — still the new day — so the total is credi
 to the WRONG DAY. Observed: 1356 Wh reported for 2026-08-11, a day which at the
 time had produced 6 Wh.
 
+**Refined 2026-08-12, after watching two more rollovers.** The damage is
+narrower than "every day is wrong", and knowing which day is wrong matters:
+
+    fired 08-11 00:01:13 Vancouver / 03:01:13 Toronto, day_wh 1356 (08-10's)
+      -> should attribute to 08-10, actually attributes to 08-11
+    fired 08-12 00:01:15 Vancouver / 03:01:15 Toronto, day_wh 1645 (08-11's)
+      -> should attribute to 08-11, actually attributes to 08-12
+
+The `c` CTE takes `MAX(day_wh)` per attributed day, and each day also collects
+the ordinary `mppt_energy` samples. Because production ends around 20:30
+Vancouver — just before the 21:00 Toronto-day boundary — the last `mppt_energy`
+of a day usually already carries that day's final total, and `MAX()` picks it.
+So COMPLETED days mostly come out right, by luck rather than design.
+
+What is reliably broken is the CURRENT day, which inherits the previous day's
+total from the misplaced rollover and shows it until real production exceeds
+it. Live right now: **2026-08-12 shows `solar_wh` 0 and `mppt_counter_wh`
+1645** — a full day's counter against a day that has produced nothing.
+
+The luck is thin. It depends on the last `mppt_energy` before 21:00 Vancouver
+already being the day's final value; anything that shifts production later, or
+the emitter's 15-minute cadence landing badly, silently under-reports the day.
+
 That defeats the column's entire purpose. It was added as a standing audit of
 pipeline loss — ledger vs the device's own counter — and it is currently
 comparing across a day boundary.
