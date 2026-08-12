@@ -210,23 +210,43 @@ Where I would look first, in order:
 - **#40** — one supervised early-bounce test at 40–45 V. The only blocked task.
   Design it knowing a third of crossings self-resolve, or the bounce will get
   credit for cases that needed nothing.
-- **"A fixed ~32 W offset" is itself unsupported.** `dc_w` has only ever been
-  compared against the BMS at ONE operating point — the dark-hours baseline —
-  and at a single point a scale error and an offset are indistinguishable. So
-  "correct `dc_w` by −32 W" assumes the answer. It also means the
-  "independent estimate" column used to judge the ledger gate change (see
-  §3) inherits that assumption; it is the best available anchor, not a
-  measurement. The clamp meter needs readings at **two or more different
-  loads**, not one, or it will not settle this either.
-- **The `dc_w` offset — now the only ledger question left, and it is load
-  bearing.** The inferred-branch gate was the third of the three and was fixed
-  2026-08-11 under explicit authorisation; the `load_wh` column is untouched.
-  What remains is whether to correct `dc_w` by its measured ~32 W offset
-  wherever it is consumed. It is no longer just a tidiness question: with the
-  gate fixed, `solar_wh` now tracks the MPPT's self-report, which under-reads,
-  and the offset decision is what stands between the ledger and a defensible
-  number. Quantified per day in `scripts/ledger_gate_compare.py`. Still not
-  changed unilaterally — it moves every historical day on the dashboard.
+- **RESOLVED 2026-08-12 — do NOT apply the −32 W correction to `load_wh`.**
+  The offset is real, and correcting for it would still make the ledger worse.
+  `scripts/fridge_split.py`, 12,573 dark samples over 60 h, split by Otsu:
+
+  | | |
+  |---|---|
+  | fridge OFF, BMS | 80.7 W — the inverter is the only load |
+  | fridge ON, BMS | 154.9 W |
+  | step (the fridge) | 74.2 W at 32.3% duty = 0.58 kWh/day |
+  | true total load | **104.7 W** |
+  | `dc_w` | **113.6 W**, p5–p95 span only 22 W |
+
+  **`dc_w` does not see the fridge.** It moves less than its own noise across a
+  74 W step in real bus load, because it is the *inverter's own draw*, not the
+  DC bus. So the +32.8 W over-read is genuine **for the inverter channel** —
+  the 32 W on record, confirmed to three figures — but `load_w` is consumed as
+  TOTAL house load, and there `dc_w` is only **8% high**, because the 33 W
+  over-read and the 24 W time-averaged fridge it omits nearly cancel.
+
+  Subtracting 33 W gives 80.7 W against a true 104.7 W: **−23%, where leaving
+  it alone is +8%.** The correction is right about the wrong quantity.
+
+  Two errors cancelling is not the same as being right — it stops holding the
+  moment the fridge duty or the inverter draw changes — so the fix is to **add
+  the fridge to `load_wh` (task #32), not to shift `dc_w`.** That also removes
+  the reason this was ever load-bearing.
+
+  This is also the second operating point the site visit was supposed to
+  provide. The fridge duty cycle supplied it for free, every night, the whole
+  time.
+
+- **The remaining ledger question is `solar_wh`, not `load_wh`.** With the gate
+  fixed, `solar_wh` tracks the MPPT's self-report, and
+  `scripts/energy_balance.py` shows the whole-system balance failing by about
+  half the source on both days tested — far more than `dc_w` can account for
+  now that its total-load error is bounded at 8%. That points at the MPPT
+  under-read, which no meter here can currently size.
 - **`DISPLAY_TZ` is `America/Toronto` for a site in British Columbia.** Daily
   totals are unaffected (the boundary lands in darkness) but it silently
   misattributes `mppt_counter_wh` by a day, which defeats the pipeline audit,
