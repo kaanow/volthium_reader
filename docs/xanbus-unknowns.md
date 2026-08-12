@@ -402,6 +402,55 @@ the crossing bounces those needlessly. Acting at 29 minutes catches every clamp
 on record with no wasted bounce — and on today's episode that would have fired
 at 10:34, saving roughly the 74 W and 23 W intervals.
 
+### DRY-RUN of the sustained-partial-clamp proposal: ~127 Wh, not 440, and #40 wins
+
+I proposed changing the guard (task #47) and said it was probably worth more
+than the early bounce. **Tested it against the recorded guard history and both
+claims are wrong.** Recorded because the proposal was mine and the test is the
+only reason it did not go to the operator as stated.
+
+**The guard's actual latency is already good.** First `latch_guard_ambiguous`
+to `latch_fix_result`, all 11 incidents on record:
+
+    41.7  11.5  21.8  11.8  16.6  11.5  16.9  11.7  11.6  17.2  62.9  min
+    median 16.6, and 9 of 11 fall in 11-22 min
+
+Only two are outliers: 08-07 (41.7) and 08-12 (62.9). This is not a systemic
+slowness, it is two bad days out of eleven.
+
+**On 08-12 the guard could not legitimately have acted much sooner.** Gaps
+between consecutive ambiguous runs — the guard fires every 5 min, so a gap
+larger than that means a HEALTHY run happened in between and the array had
+genuinely recovered:
+
+    10:02 -> 10:27   25.4 min   NOT consecutive, array recovered in between
+    10:27 -> 10:37   10.4 min   NOT consecutive, array recovered in between
+    10:37 -> 10:43    5.1 min   consecutive
+    10:43 -> 10:48    5.0 min   consecutive
+    10:48 -> 10:53    5.0 min   consecutive
+
+The array was genuinely intermittent for the first 35 minutes. The proposed
+rule (fraction > 0.3 across three consecutive runs) is first satisfied at
+**10:48**, against an actual fix at 11:05 — a saving of **17 minutes**, not the
+hour I implied. At the ~450 W differential that is **~127 Wh**, not "most of
+440 Wh". I was out by about 3.5x.
+
+**Where the other ~310 Wh went is the answer to the priority question.** It was
+spent between 10:02 and 10:47, while the array oscillated in and out of the
+band making 46-55 W against a capability of several hundred. No guard tuning
+reaches that, because the array was not continuously clamped — it was still
+walking. **Only an earlier trigger does, which is task #40.** So #40 is worth
+substantially more than #47, the reverse of what I wrote.
+
+#47 is still worth doing — 127 Wh on outlier days is real and the change is
+cheap — but it is a tail-case fix, not the main event. Task updated.
+
+No false-positive risk visible in the record: every ambiguous sequence on file
+preceded a real clamp. That is weak evidence though, because dawn/dusk hunting
+appears not to generate ambiguous events at all (the elevation gate excludes it
+before the fraction is computed), so the rule has never been exercised against
+the thing it might wrongly fire on.
+
 ### RESOLVED 2026-08-12 11:05 — the clamp was GRADUAL, and the caution cost ~440 Wh
 
 The episode below did clamp, fully, and the guard fixed it. That corrects two
