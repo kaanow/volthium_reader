@@ -402,6 +402,36 @@ the crossing bounces those needlessly. Acting at 29 minutes catches every clamp
 on record with no wasted bounce — and on today's episode that would have fired
 at 10:34, saving roughly the 74 W and 23 W intervals.
 
+### A morning walk-down HIDES INSIDE rising irradiance (2026-08-12)
+
+The episode below was still unresolved 66 minutes in — neither clamped nor
+recovered — and watching it produced something more useful than its outcome.
+
+    09:02  pv 43.6  W 56.4   I 1.29 A
+    09:05  pv 42.9  W 59.6   I 1.39 A
+    09:08  pv 42.2  W 60.8   I 1.44 A
+    09:11  pv 42.5  W 62.2   I 1.46 A
+
+**Output rose 10% while the array walked DOWN 1.1 V.** Anyone watching power —
+which is what the dashboard shows, and what a human glances at — would read
+that as the morning improving. It is a tracker sliding the wrong way with the
+slide paid for by the sun coming up.
+
+That is why morning walk-downs are hard to see and why the 45 V crossing, not
+a power threshold, is the right trigger. It also means the cost of a
+walk-down is systematically **understated** by anything that compares output
+before and after within the same morning: the counterfactual is not "what it
+was making an hour ago" but "what it would be making now at the right
+operating point", and that number is not observed.
+
+The array sat at 42 V drawing 1.46 A while its morning MPP has been 60-80 V on
+every clear day this week. Slow, productive, and wrong — and no detector fires,
+because the delta is 16 V, nowhere near the clamp band.
+
+**For task #40:** this strengthens the early-bounce case again, and differently
+from 2026-08-11. That episode argued the descent is expensive. This one argues
+the descent is INVISIBLE in the signal an operator actually watches.
+
 ### LIVE TEST 2026-08-12 08:41, outcome UNKNOWN — this one can FALSIFY the rule
 
 Unlike yesterday's, this episode has a real chance of breaking the rule, which
