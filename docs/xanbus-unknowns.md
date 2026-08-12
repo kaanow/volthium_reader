@@ -402,6 +402,45 @@ the crossing bounces those needlessly. Acting at 29 minutes catches every clamp
 on record with no wasted bounce — and on today's episode that would have fired
 at 10:34, saving roughly the 74 W and 23 W intervals.
 
+### OUTCOME 2026-08-12: the prediction is UNSCORED, and the table is the reason
+
+`cliff_table` says the episode clamped at 10:02 after 117 minutes, which scores
+my prediction correct and makes the rule 20 for 20. **I am not claiming that.**
+
+The declared clamp rests on **2 buckets out of 40** — deltas 3.98 and 3.87,
+scraping inside the 4.0 V ceiling — after which the array went straight back
+out to 4.8–7.1 V and stayed there. 95% of the following 40 minutes was OUTSIDE
+the band. `pv_v` sat at 31.5 V against `dc_v` 26.9, which is 4–5 V above where
+a real diode clamp pins it.
+
+**The live 1 Hz detector got this right and the 60 s offline table got it
+wrong.** The guard emitted `latch_guard_ambiguous` three times — fraction 0.37,
+0.36, 0.35 against its 0.90 threshold — reported "partial clamp or a moving
+tracker", and correctly declined to act. The instrument with the better
+resolution disagreed with the instrument that produced the headline.
+
+**The clamp outcome has no persistence requirement.** One 60 s bucket whose
+MEAN dips into the band closes an episode as clamped. Measured across the whole
+table — consecutive in-band minutes after each declared clamp:
+
+    2, 2, 3, 5, 6, 9, 9, 11, 12, 13, 17, 23, 29, 42, 44, 46, 141, 218, 249, 336
+
+Seventeen of twenty are real and persist. **Three are transient touches of ≤3
+minutes** — 08-06 15:31, 08-08 12:08, and 08-12 08:05, which is the one I
+predicted. The rule is not damaged as a general claim; my particular test is,
+and it happens to be the test I made the most noise about.
+
+Deliberately NOT fixed in this pass. The fix is a persistence requirement, and
+the natural threshold (≥5 min, matching the guard's cadence) is one I would be
+choosing from the same twenty numbers that would then score it. Picking a cut
+from the data and immediately reporting the improved result is the exact move
+that produced three earlier retractions here. The distribution is recorded so
+the choice can be made deliberately.
+
+This is also the second time today the same shape has appeared: an outcome
+decided by a momentary band crossing with nothing requiring it to hold. The
+phantom-episode fix addressed the OPENING of an episode; this is the CLOSING.
+
 ### A morning walk-down HIDES INSIDE rising irradiance (2026-08-12)
 
 The episode below was still unresolved 66 minutes in — neither clamped nor
