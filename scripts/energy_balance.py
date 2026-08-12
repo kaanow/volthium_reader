@@ -26,12 +26,17 @@ Each term from a different instrument, deliberately:
                    invisible error here.
   house load       dc_w / dc_v from the inverter's DC-bus view, integrated.
 
-WHAT IT SAYS, 2026-08-11 (regenerate before quoting):
+WHAT IT SAYS, 2026-08-11, COMPLETE 24 h (regenerate before quoting):
 
     MPPT delivered      60.00 Ah
-    net into pack      +14.44 Ah
-    house load          88.31 Ah
-    -> sinks 102.75 Ah against a 60.00 Ah source: a 42.75 Ah / ~1170 Wh DEFICIT
+    net into pack       +1.36 Ah
+    house load         102.49 Ah
+    -> sinks 103.85 Ah against a 60.00 Ah source: a 43.85 Ah / ~1200 Wh DEFICIT
+
+(An earlier version of this docstring quoted 42.75 Ah / 1173 Wh from a PARTIAL
+20.8 h day, because that is when it was first run. The conclusion did not move,
+but a partial day quoted as a day is exactly the kind of thing this project
+keeps getting wrong, so the number is regenerated rather than left.)
 
 The day consumed far more than the only source supplied while the battery
 GAINED charge. That is impossible, so at least one meter is wrong by a lot, and
@@ -52,7 +57,15 @@ What survives both days:
 
     day     deficit   dc_w implies   MPPT@25% implies   BMS says
     08-10   1409 Wh      116.0 W          76.1 W         81.0 W
-    08-11   1173 Wh      117.2 W          87.1 W         81.0 W
+    08-11   1202 Wh      117.1 W          89.8 W         81.0 W
+
+Both now complete 24 h days. `dc_w` at 116.0 and 117.1 W is the most stable
+thing in the whole table, and per `fridge_split.py` the true total load is
+104.7 W, so `dc_w` over-states it by ~12 W. Substituting that corrected load
+leaves the MPPT needing to under-read by 46% (08-10) and 35% (08-11) for the
+balance to close. Still large, still NOT stable between days — a fixed scale
+error would need the same correction on both, so whatever this is, it is not
+simply a miscalibrated gain.
 
 - The balance fails badly and consistently — about half the source goes
   unaccounted for, both days.
