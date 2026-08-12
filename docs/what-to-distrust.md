@@ -27,6 +27,9 @@ produced by one of these, treat it as a rumour:
 | `bms_coulomb_check.py` | BMS reported current vs its own coulomb counter |
 | `descent_profile.py` | how each 45 V crossing descends, and the near-Voc vs loaded split |
 | `latch_exposure.py` | how long the array is actually clamped per latch |
+| `ledger_gate_compare.py` | what the daily ledger's `solar_wh` would be under a different gate |
+| `energy_balance.py` | the whole-system charge balance for a day, and which meter breaks it |
+| `fridge_split.py` | the dark-hours load split into fridge on/off, and what `dc_w` does across it |
 | `status_check.py` | live health; prints an explicit INCOMPLETE verdict rather than a false all-clear |
 
 `cliff_table.py` alone produced **three different wrong headline numbers in
@@ -55,14 +58,24 @@ of stale numbers.
   current figures.
 - **No meter on this system has passed an absolute check.** The MPPT is
   self-consistent but reads low; the BMS is self-*in*consistent by ~12%;
-  `dc_w` disagrees with both. See `xanbus-unknowns.md` #5 and #11. This is the
-  single biggest open technical question and it needs a clamp meter on site.
-- **The suspected root cause of the latch is the MPPT's current-sensor
-  offset**, not its under-report — a scale error cannot move an `argmax`, an
-  offset can. Unproven. If it holds, the guard and the early-bounce trigger
-  are both symptom treatments.
-- **The 28.0 V ceiling change is working** — cell imbalance roughly halved at
-  matched exposure.
+  `dc_w` is precise and inaccurate. `energy_balance.py` shows the whole-system
+  charge balance failing by about **half the source**, both days tested — the
+  sharpest statement of the problem so far. `dc_w`'s share of that is now
+  bounded at 8% (see §5), so the residue points at the MPPT under-read, which
+  nothing here can currently size.
+- **There is NO supported root-cause theory for the latch.** The current-sensor
+  offset was the leading candidate and was **refuted 2026-08-11**: the offset
+  sits on an OUTPUT-side sensor, so the error is `P_true − 2.2·V_batt` with
+  `V_batt` ~constant — a constant subtraction, and `argmax(P−c) = argmax(P)`.
+  Exactly as argmax-neutral as the scale error it was invoked to replace. The
+  fitted 2.2 A intercept was also a pooling artifact (−0.03 A on the tracking
+  regime alone) and 10 of 18 clamps begin above 2.2 A. The guard is symptom
+  treatment and that is fine; it works.
+- **The 28.0 V ceiling is NOT shown to reduce imbalance — task #44 is REOPENED.**
+  Its own pre-registered overturn condition was met the day after it closed:
+  08-10 held SOC 100 for 375 min and peaked `dv_a` 0.429, worse than the
+  "before" baseline. The metric was also a max-of-one-sample (p95 was 0.108),
+  the change date was wrong by three days, and `dv_b` never moves.
 
 ---
 
