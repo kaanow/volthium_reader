@@ -402,6 +402,55 @@ the crossing bounces those needlessly. Acting at 29 minutes catches every clamp
 on record with no wasted bounce — and on today's episode that would have fired
 at 10:34, saving roughly the 74 W and 23 W intervals.
 
+### RESOLVED 2026-08-12 11:05 — the clamp was GRADUAL, and the caution cost ~440 Wh
+
+The episode below did clamp, fully, and the guard fixed it. That corrects two
+things I wrote an hour earlier, in opposite directions.
+
+    08:05  crossed 45 V
+    10:02  first band touch (2 buckets) — cliff_table declares "clamped", 117 min
+    10:02..10:53  PARTIAL clamp: guard fraction 0.35-0.37 against its 0.90 bar,
+                  three `latch_guard_ambiguous`, correctly declines to act
+    10:58  fraction rising, `latch_guard_pending`
+    11:03  fraction 1.0, `latch_detected` — now a real, full clamp
+    11:05  fixed; after pv_v 93.5, 0 of 238 clamped
+
+**Correction 1 — the prediction WAS right.** I called it unscored because the
+declared clamp rested on two buckets. But the rule predicts *that it clamps*,
+not when, and it clamped. The rule stands. What is wrong is the DURATION: this
+episode is recorded as 117 minutes when the clamp actually formed at 11:03,
+making it ~178. The persistence defect (task #46) corrupts the *time-to-clamp*
+column, not the outcome column, and that is a narrower claim than I made.
+
+**Correction 2 — "the guard was right and the table was wrong" was too strong.**
+The clamp developed gradually over an hour. The table marked its onset at the
+first touch; the guard waited for full commitment. Neither is wrong — they are
+measuring different points on a slow transition, and a gradual onset is a case
+NEITHER instrument handles well. I preferred the guard because it agreed with
+me at the time.
+
+**What the hour of caution cost, on the MPPT's own counter:**
+
+    09:15 - 10:47   53-58 W        walking down, still producing
+    10:47 - 11:04   27, 26 W       partial clamp; guard holding off
+    11:19           478.9 W        <- 14 min after the fix
+    11:34           863.0 W
+
+The array was making **26 W** while its actual capability minutes later was
+**479-863 W**. Over the 10:02-11:05 hour the counter advanced 124 -> 164 Wh, an
+average of 39 W. At the 479 W the array demonstrated immediately afterwards,
+**that hour cost on the order of 440 Wh** — comparable to a third of a poor
+day's entire production.
+
+**This is the sharpest argument yet for task #40, and it is not the early-bounce
+argument.** The guard's 90% threshold is correct for rejecting dawn/dusk
+transients, and it is exactly wrong for a slow-onset clamp: the fraction climbs
+through 0.35 -> 1.0 over an hour while the array bleeds. A rule that acted on a
+SUSTAINED partial clamp — say fraction > 0.3 held across three consecutive runs,
+which this episode satisfies from 10:43 — would have fixed it around 10:53 and
+saved most of that 440 Wh. That is a change to the guard, not a new trigger, and
+it is cheap to test in dry-run.
+
 ### OUTCOME 2026-08-12: the prediction is UNSCORED, and the table is the reason
 
 `cliff_table` says the episode clamped at 10:02 after 117 minutes, which scores
