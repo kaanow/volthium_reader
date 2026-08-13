@@ -344,3 +344,53 @@ class TimerCheckTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GitSyncCheckTests(unittest.TestCase):
+    """Is the Pi running the code that is in git?
+
+    It drifted for two weeks and nothing noticed: deployments were file copies,
+    so the working tree crept forward while HEAD stayed at an early-August
+    commit — 143 behind when it was finally caught, and caught by eye rather
+    than by any check. "What is on the Pi" was unanswerable from git, which is
+    the entire reason git is on the Pi.
+    """
+
+    def _probe(self, head, origin, behind, dirty, paths=()):
+        return (f"HEAD={head} ORIGIN={origin} BEHIND={behind} DIRTY={dirty}\n"
+                + "".join(p + "\n" for p in paths))
+
+    def test_in_sync_is_quiet(self):
+        notable, lines = S._check_git_sync(self._probe("19e92e5", "19e92e5", 0, 0))
+        self.assertFalse(notable)
+        self.assertIn("IN SYNC", " ".join(lines))
+
+    def test_behind_is_NOTABLE(self):
+        """The actual failure: HEAD stale, tree never updated."""
+        notable, lines = S._check_git_sync(self._probe("4c59d33", "19e92e5", 143, 0))
+        self.assertTrue(notable)
+        text = " ".join(lines)
+        self.assertIn("OUT OF SYNC", text)
+        self.assertIn("143", text)
+
+    def test_dirty_is_NOTABLE_even_when_not_behind(self):
+        """A hand-edit on a current checkout is the other failure mode — it
+        gets silently clobbered by the next sync, so it must be flagged."""
+        notable, lines = S._check_git_sync(
+            self._probe("19e92e5", "19e92e5", 0, 2,
+                        ["scripts/xanbus_telemetry.py", "scripts/log.py"]))
+        self.assertTrue(notable)
+        text = " ".join(lines)
+        self.assertIn("2 code files differ", text)
+        self.assertIn("xanbus_telemetry.py", text)
+
+    def test_empty_probe_is_not_silently_fine(self):
+        notable, lines = S._check_git_sync("")
+        self.assertTrue(notable)
+        self.assertIn("cannot confirm", " ".join(lines))
+
+    def test_data_is_excluded_from_the_probe(self):
+        """data/ is tracked on purpose and permanently dirty. Without the
+        exclusion this cries wolf every run and gets ignored within a day."""
+        src = inspect.getsource(S.section_pi)
+        self.assertIn("':!data'", src)

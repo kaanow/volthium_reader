@@ -533,6 +533,36 @@ def section_wired(since_iso: str) -> tuple[bool, list[str]]:
 # failing, which is exactly the false all-clear being fixed here.
 
 
+
+def _check_git_sync(out: str) -> tuple[bool, list[str]]:
+    """Does the Pi's working tree match origin/main?
+
+    Reports DIRTY (files whose content differs) separately from BEHIND
+    (commits not merged), because they fail differently: behind-but-clean is a
+    tree that was never updated, while dirty-but-current is a hand-edit that
+    will be silently clobbered by the next sync. The 2026-08-13 drift was both.
+    """
+    f = {}
+    for tok in out.split():
+        if "=" in tok:
+            k, v = tok.split("=", 1)
+            f[k] = v
+    if "HEAD" not in f:
+        return True, ["  ← git sync: probe returned nothing — cannot confirm "
+                      "the Pi is running the committed code"]
+    behind = int(f.get("BEHIND", "0") or 0)
+    dirty = int(f.get("DIRTY", "0") or 0)
+    if not behind and not dirty:
+        return False, [f"  git: IN SYNC with origin/main ({f['HEAD']})"]
+    lines = [f"  ← git OUT OF SYNC: HEAD {f.get('HEAD')} vs origin/main "
+             f"{f.get('ORIGIN')}, {behind} commits behind, "
+             f"{dirty} code files differ"]
+    for path in out.splitlines()[1:6]:
+        if path.strip():
+            lines.append(f"      {path.strip()}")
+    lines.append("      the Pi may not be running the code you are reading")
+    return True, lines
+
 def _check_timers(out: str) -> tuple[bool, list[str]]:
     rows = [l.split() for l in out.splitlines() if l.startswith("TIMER ")]
     if not rows:
@@ -638,6 +668,38 @@ def section_pi(ssh_target: str, hours: int) -> tuple[bool, list[str]]:
     if "throttled=0x0" not in out:
         notable = True
         lines.append("  ← throttled flag set — check power/temperature")
+
+    # --- is the Pi actually running the code in git? ---
+    # This drifted for two weeks and nothing noticed. Deployments were file
+    # copies, so the working tree crept forward while git's HEAD stayed at a
+    # commit from early August — 143 behind by the time it was caught, and
+    # caught by eye, not by any check. "What is on the Pi" was unanswerable
+    # from git, which is the whole point of having git on the Pi.
+    #
+    # Compares the WORKING TREE against origin/main and ignores data/, which
+    # is tracked on purpose (the .gitignore says so — the cabin's data trail
+    # lives in the repo) and is therefore permanently dirty. Without that
+    # exclusion this would cry wolf on every run and be ignored within a day.
+    try:
+        gout = subprocess.check_output(
+            ["ssh", ssh_target, "-o", "ConnectTimeout=8",
+             "cd /srv/volthium_reader && "
+             "timeout 120 git fetch --no-tags -q origin main 2>/dev/null; "
+             "echo HEAD=$(git rev-parse --short HEAD) "
+             "ORIGIN=$(git rev-parse --short origin/main) "
+             "BEHIND=$(git rev-list --count HEAD..origin/main) "
+             "DIRTY=$(git diff --name-only origin/main -- ':!data' | wc -l); "
+             "git diff --name-only origin/main -- ':!data' | head -5"],
+            timeout=180, text=True,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
+            OSError) as exc:
+        notable = True
+        lines.append(f"  ← git sync UNVERIFIED: {exc}")
+    else:
+        gn, gl = _check_git_sync(gout)
+        notable |= gn
+        lines += gl
 
     # --- timers, checked separately because the service rule excludes them ---
     try:
