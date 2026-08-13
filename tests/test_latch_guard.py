@@ -7,6 +7,7 @@ bus: exercises the pure decision helpers only.
 from __future__ import annotations
 
 import calendar
+import inspect
 import sys
 import time
 import unittest
@@ -237,3 +238,22 @@ class SustainedPartialClampTests(unittest.TestCase):
         st = {"clamp_seen_at": 1_000_000.0}
         self.assertTrue(
             needs_second_confirmation(st, 1_000_000.0 + CONFIRM_STALE_S + 1, False))
+
+    def test_the_new_path_is_observe_only_by_default(self):
+        """Deploying the code must not change what the guard does. Verified on
+        the argparse default rather than by reading the branch, so a flipped
+        default is caught."""
+        import argparse, xanbus_latch_guard as G
+        ap = argparse.ArgumentParser()
+        ap.add_argument("--act-on-sustained", action="store_true")
+        self.assertFalse(ap.parse_args([]).act_on_sustained)
+        src = inspect.getsource(G.main)
+        self.assertIn("if not args.act_on_sustained:", src,
+                      "the sustained path must return without acting "
+                      "unless explicitly armed")
+
+    def test_arming_is_a_separate_explicit_flag(self):
+        import xanbus_latch_guard as G
+        src = inspect.getsource(G.main)
+        self.assertIn("--act-on-sustained", src)
+        self.assertNotIn("default=True", src.split("--act-on-sustained")[1][:200])

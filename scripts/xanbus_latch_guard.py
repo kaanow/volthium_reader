@@ -321,6 +321,10 @@ def main() -> int:
     ap.add_argument("--dest", type=int, default=1)
     ap.add_argument("--wait", type=float, default=15.0)
     ap.add_argument("--sample", type=float, default=SAMPLE_S)
+    ap.add_argument("--act-on-sustained", action="store_true",
+                    help="ARM the sustained-partial-clamp rule. Without it "
+                         "that path only logs latch_guard_sustained_partial "
+                         "with would_act=true and changes nothing.")
     ap.add_argument("--dry-run", action="store_true",
                     help="decide and log, but never transmit")
     args = ap.parse_args()
@@ -403,12 +407,26 @@ def main() -> int:
     # would burn a daily-cap slot and start a 45 min cooldown.
     note_clamped_run(st)
     if sustained_partial:
+        # OBSERVE-ONLY UNLESS EXPLICITLY ARMED. Deploying the code must not
+        # change what the guard does. The existing --dry-run flag disables the
+        # WHOLE guard, which would switch off the working latch fix, so it is
+        # useless for staging this. Instead the new path logs what it would
+        # have done and returns, until --act-on-sustained is passed.
+        #
+        # Compare these timestamps against the following latch_fix_result over
+        # a few days: if would_act consistently precedes the real fix by
+        # 10-20 min and never fires on a morning that resolved on its own,
+        # arm it.
         emit("latch_guard_sustained_partial",
              {"reason": f"fraction >= {AMBIGUOUS_FRACTION} for "
                         f"{SUSTAINED_PARTIAL_RUNS} consecutive runs — a "
-                        f"slow-onset clamp, acting without waiting for "
+                        f"slow-onset clamp, would act without waiting for "
                         f"fraction >= {CLAMP_FRACTION}",
+              "armed": args.act_on_sustained,
+              "would_act": not args.act_on_sustained,
               **before})
+        if not args.act_on_sustained:
+            return 0
     prev_seen = st.get("clamp_seen_at", 0)
     if now - prev_seen > CONFIRM_STALE_S:    # stale confirmation, restart
         prev_seen = 0
