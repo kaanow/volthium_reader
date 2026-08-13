@@ -1823,6 +1823,53 @@ BMS designs, not confirmed for this Volthium unit. If its balancer engages
 lower, the window is larger than this table suggests — worth checking against
 the balancer flags already being logged (see memory `keep-balancer-flags`).
 
+#### CLOSED 2026-08-13: the ceiling change did NOT reduce imbalance
+
+Redone against a criterion committed before the script was run
+(`scripts/imbalance_ceiling.py`), because the original closure chose its
+comparison after seeing the data. Split at the real change time, 08-05 13:10,
+distributional statistics, all qualifying days:
+
+| day | side | min@100 | median | p95 | peak |
+|---|---|---|---|---|---|
+| 07-30 | before | 410 | 0.106 | 0.111 | 0.374 |
+| 07-31 | before | 316 | 0.108 | 0.113 | 0.386 |
+| 08-01 | before | 131 | 0.101 | 0.149 | 0.415 |
+| 08-05 | *split day* | 189 | 0.097 | 0.233 | 0.380 |
+| 08-08 | after | 143 | 0.086 | 0.120 | 0.247 |
+| 08-09 | after | 382 | 0.102 | 0.110 | 0.194 |
+| 08-10 | after | 380 | 0.096 | 0.187 | **0.429** |
+| 08-11 | after | 462 | 0.106 | 0.111 | 0.226 |
+| 08-12 | after | 463 | 0.105 | 0.110 | 0.235 |
+
+    shift in median-of-p95 (before - after) = +0.002 V
+    larger day-to-day spread within a period =  0.077 V
+
+**VERDICT: NOT SUPPORTED.** The shift is 2.6% of the noise between days of the
+same period. Medians are flat across the split — 0.101-0.108 before,
+0.086-0.106 after — and the p95s overlap completely.
+
+**And the table shows exactly how the original went wrong.** The `peak` column
+does look better after the change: 0.374/0.386/0.415 before against
+0.247/0.194/0.226/0.235 after. That is the "halving" that was reported. It is a
+max-of-one-sample statistic, it is the only column that moves, and 08-10's
+0.429 is higher than any pre-change day — which is why the overturn condition
+fired the day after closure. A statistic that only looks convincing until one
+more day arrives was never measuring anything.
+
+Five days (08-02, 08-03, 08-04, 08-06, 08-07) never reached SOC 100 for 30
+samples and are excluded. Reported rather than dropped silently: the cliff does
+not engage below the top of charge, so they carry no information either way.
+
+**`dv_b` is absent from the whole table, and that is a finding.** Pack B never
+reaches SOC 100, so there is no top-of-charge data for it at all. The packs are
+imbalanced at the PACK level, not just the cell level, and every conclusion
+here is about pack A only.
+
+Task #44 closed. The 28.0 V ceiling may still be worth keeping on
+overvoltage-stress grounds — that is a different argument and this says nothing
+about it — but it does not measurably reduce cell imbalance.
+
 #### RETRACTED 2026-08-11 — read this before the section below it
 
 **The section that follows is wrong and is kept only as the record.** Task #44
