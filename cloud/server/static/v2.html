@@ -586,7 +586,7 @@ function drawSystem(L) {
   $("sys-rows").innerHTML = html;
   $("sys-note").textContent = si.src === "derived"
     ? "Production shown on the diagram is derived from battery + inverter draw — the MPPT's own current sensor is under-reporting."
-    : "Balance gap = battery + inverter draw − MPPT self-report. A persistent positive gap is the MPPT under-reading its output current; unmetered DC loads push it negative.";
+    : "Balance gap = battery + inverter draw − MPPT self-report. It has at least three causes, so do not read its sign as a diagnosis. At night solar is zero and the gap is still ±1.5 A: about +34 W with the fridge off (dc_w over-states the inverter's own draw by ~33 W) and about −43 W with it on (a DC load the inverter cannot see). An MPPT output-current under-read adds to it in daylight only.";
   const warn = $("latchwarn");
   if (warn) warn.hidden = !latched();
 }
