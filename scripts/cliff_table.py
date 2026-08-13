@@ -235,7 +235,7 @@ def episodes(series: list[dict]) -> list[dict]:
                 if mins >= MIN_EPISODE_MIN and not demand_limited:
                     out.append({"crossed": start, "ended": local,
                                 "minutes": mins, "wh": round(wh),
-                                "clamped": clamped})
+                                "clamped": clamped, "held_min": None})
                 start = None
                 armed = not clamped    # a clamp needs a fresh climb to re-arm
         elif clamped:
@@ -266,7 +266,48 @@ def episodes(series: list[dict]) -> list[dict]:
             armed = True
         if armed and start is None and pv < CROSS_V and not clamped:
             start, wh, start_sw = local, 0.0, sw
+    _annotate_held(out, rows)
     return out
+
+
+# HOW LONG THE CLAMP ACTUALLY HELD, added 2026-08-13.
+#
+# The outcome has no persistence requirement: one 60 s bucket whose MEAN dips
+# into the band closes an episode as "clamped". Measured across the table, the
+# in-band run after each declared clamp is
+#
+#   2, 2, 3, 5, 6, 9, 9, 11, 12, 13, 17, 23, 29, 42, 44, 46, 141, 218, 249, 336
+#
+# Seventeen are real; three (08-06 15:31, 08-08 12:08, 08-12 08:05) are touches
+# of <=3 min where the array left the band on its own with no guard fix
+# anywhere near — checked, because a short run can also mean the guard simply
+# fixed it fast, and for seven episodes that is exactly what it means.
+#
+# NOT reclassified. A duration threshold cannot separate these: the shortest
+# GENUINE clamps ran 6 and 9 minutes before the guard truncated them, so any
+# cut that removes the 2-3 minute touches also removes real ones. Doing it
+# properly needs the guard-fix join, which is a judgement call about
+# intermittent clamps and a bigger change than this column.
+#
+# So the number is simply SHOWN. A reader can see that a "clamp" held for two
+# minutes and discount it, which is all the earlier silence prevented.
+def _annotate_held(eps: list[dict], rows: list) -> None:
+    idx = {r[0]: (r[1], r[2]) for r in rows}
+    order = sorted(idx)
+    for e in eps:
+        if not e["clamped"]:
+            continue
+        end_utc = e["ended"] - dt.timedelta(hours=LOCAL_OFFSET_H)
+        if end_utc not in idx:
+            continue
+        i = order.index(end_utc)
+        run = 0
+        for t in order[i:]:
+            if is_clamped(*idx[t]):
+                run += 1
+            else:
+                break
+        e["held_min"] = run
 
 
 def main() -> int:
@@ -281,12 +322,14 @@ def main() -> int:
         print("no crossings in window")
         return 1
 
-    print("| crossing (local) | outcome at | minutes | Wh in between |")
-    print("|---|---|---|---|")
+    print("| crossing (local) | outcome at | minutes | Wh in between | held |")
+    print("|---|---|---|---|---|")
     for e in eps:
         tag = "" if e["clamped"] else " **recovered**"
+        h = e.get("held_min")
+        held = "—" if h is None else (f"{h} min" + (" **touch**" if h <= 3 else ""))
         print(f"| {e['crossed']:%m-%d %H:%M} | {e['ended']:%H:%M} | "
-              f"{e['minutes']} | {e['wh']} |{tag}")
+              f"{e['minutes']} | {e['wh']} | {held} |{tag}")
 
     mins = [e["minutes"] for e in eps if e["clamped"]]
     rec = len(eps) - len(mins)
@@ -294,6 +337,14 @@ def main() -> int:
           f"{f'; {rec} recovered' if rec else '; none recovered'}.** "
           f"Time to clamp: min {min(mins)}, median "
           f"{round(statistics.median(mins))}, max {max(mins)} minutes.")
+    touches = [e for e in eps if e["clamped"] and (e.get("held_min") or 99) <= 3]
+    if touches:
+        when = ", ".join(f"{e['crossed']:%m-%d %H:%M}" for e in touches)
+        print(f"\n**{len(touches)} of {len(mins)} 'clamps' held the band for "
+              f"<=3 min** ({when}) — the outcome has no persistence "
+              f"requirement, so a momentary band touch closes an episode. "
+              f"Not reclassified; see _annotate_held for why a duration "
+              f"threshold cannot separate these.")
     return 0
 
 
