@@ -280,5 +280,67 @@ class SolarFreshnessTests(unittest.TestCase):
         self.assertIn("UPLOAD_PERIOD_S", src,
                       "batch threshold must come from the reader's constant")
 
+class TimerCheckTests(unittest.TestCase):
+    """Timers were never checked at all until 2026-08-12.
+
+    `_parse_units` looks only at services, on the reasoning that a timer being
+    inactive between firings is normal. True, and it meant nothing watched the
+    timers themselves — the latch guard and the config watch are both timers,
+    either could be disabled, and this tool would still print a quiet window.
+    Third instance of the volthium-logger precedent in one file.
+    """
+
+    def _out(self, *rows):
+        return "\n".join(f"TIMER {a} {b} {c}" for a, b, c in rows) + "\n"
+
+    def test_all_active_is_quiet(self):
+        notable, lines = S._check_timers(self._out(
+            ("volthium-latch-guard.timer", "active", "300"),
+            ("volthium-config-watch.timer", "active", "2580")))
+        self.assertFalse(notable)
+        self.assertIn("2 of 2 ACTIVE", " ".join(lines))
+
+    def test_a_disabled_guard_is_NOTABLE(self):
+        """The failure the check exists for. Must not stay green."""
+        notable, lines = S._check_timers(self._out(
+            ("volthium-latch-guard.timer", "inactive", "300"),
+            ("volthium-config-watch.timer", "active", "60")))
+        self.assertTrue(notable, "a disarmed latch guard must be flagged")
+        text = " ".join(lines)
+        self.assertIn("NOT ARMED", text)
+        self.assertIn("volthium-latch-guard.timer", text)
+
+    def test_failed_state_is_notable(self):
+        notable, lines = S._check_timers(self._out(
+            ("volthium-config-watch.timer", "failed", "-1")))
+        self.assertTrue(notable)
+        self.assertIn("NOT ARMED", " ".join(lines))
+
+    def test_empty_probe_is_NOT_treated_as_no_timers(self):
+        """'The probe told us nothing' and 'there are no timers' must not read
+        the same. Conflating them is how a monitor goes quietly blind."""
+        notable, lines = S._check_timers("")
+        self.assertTrue(notable)
+        self.assertIn("NOT the same", " ".join(lines))
+
+    def test_ages_are_reported_for_eyeballing(self):
+        _, lines = S._check_timers(self._out(
+            ("volthium-latch-guard.timer", "active", "18000")))
+        self.assertIn("300 min ago", " ".join(lines))
+
+    def test_never_fired_says_so(self):
+        _, lines = S._check_timers(self._out(
+            ("volthium-latch-guard.timer", "active", "-1")))
+        self.assertIn("never fired", " ".join(lines))
+
+    def test_age_is_not_silently_thresholded(self):
+        """A wildly stale timer is PRINTED, not flagged — the timers here span
+        5 min to monthly and any single bound would be wrong. If someone later
+        adds a threshold, this test should be replaced deliberately, not left
+        to pass by accident."""
+        notable, _ = S._check_timers(self._out(
+            ("volthium-weekly-reboot.timer", "active", "900000")))
+        self.assertFalse(notable)
+
 if __name__ == "__main__":
     unittest.main()

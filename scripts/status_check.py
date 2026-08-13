@@ -517,6 +517,51 @@ def section_wired(since_iso: str) -> tuple[bool, list[str]]:
     return notable, lines
 
 
+
+# The guard and the config watch are TIMERS. `_parse_units` deliberately only
+# looks at services, so until 2026-08-12 nothing checked either of them: both
+# could be disabled and this whole tool would still print a quiet window. That
+# is the volthium-logger precedent for the third time in one file.
+#
+# What is CHECKED is ActiveState — a disabled or failed timer is flagged. The
+# last-fire age is PRINTED but deliberately not thresholded: doing that needs a
+# per-timer period, and the timers here range from 5 minutes to monthly, so any
+# single bound is either useless or wrong. Printing the age lets a human see a
+# stalled timer without this code inventing a rule it cannot justify. Saying
+# "armed" and meaning "ActiveState=active" is the honest claim; an earlier
+# draft said "firing on schedule" while the staleness parse was silently
+# failing, which is exactly the false all-clear being fixed here.
+
+
+def _check_timers(out: str) -> tuple[bool, list[str]]:
+    rows = [l.split() for l in out.splitlines() if l.startswith("TIMER ")]
+    if not rows:
+        # "no output" is NOT "no timers" — say so rather than passing quietly.
+        return True, ["  ← timers: probe returned nothing (NOT the same as "
+                      "'no timers exist') — cannot confirm the guard is armed"]
+    notable = False
+    lines: list[str] = []
+    armed = 0
+    for r in rows:
+        if len(r) < 4:
+            continue
+        _, tid, state, age = r[0], r[1], r[2], r[3]
+        try:
+            age_s = int(age)
+        except ValueError:
+            age_s = -1
+        if state != "active":
+            notable = True
+            lines.append(f"  ← {tid} is {state} — NOT ARMED")
+            continue
+        armed += 1
+        when = "never fired" if age_s < 0 else f"last fired {age_s/60:.0f} min ago"
+        lines.append(f"    {tid}: active, {when}")
+    lines.insert(0, f"  timers: {armed} of {len(rows)} ACTIVE "
+                    f"(ages shown for eyeballing; not thresholded — see note)")
+    return notable, lines
+
+
 def section_pi(ssh_target: str, hours: int) -> tuple[bool, list[str]]:
     """Optional — SSH into the Pi for service health / throttled / uptime.
 
@@ -539,6 +584,30 @@ def section_pi(ssh_target: str, hours: int) -> tuple[bool, list[str]]:
     notable = False
     # NOTE: ssh flags go AFTER the host on this machine — see memory
     # `kwpi-ssh-paths`. Flags before the host hit a DNS resolution quirk.
+    # TIMERS TOO. The service rule below explicitly excludes timer-driven
+    # units because "being inactive between firings is their normal state" —
+    # true, but it meant NOTHING checked the timers themselves. The latch guard
+    # and the config watch are both timers. Either could be disabled and this
+    # check would stay green, which is the volthium-logger precedent for the
+    # third time in this file.
+    #
+    # A timer is healthy if it is ACTIVE (loaded and scheduled) and has fired
+    # RECENTLY. "Recently" is derived from its own configured period, not
+    # hardcoded, so retuning the guard's cadence cannot silently break this.
+    # Age is computed ON THE PI. `LastTriggerUSec` renders as a human date in
+    # the local zone ("Wed 2026-08-12 18:42:34 PDT"), not microseconds, and a
+    # first attempt to parse it here failed silently into "unreadable" while
+    # still printing "firing on schedule" — a false all-clear, which is the
+    # thing this check exists to remove. `date -d` on the box has the zone.
+    timer_probe = (
+        "for t in $(systemctl list-units 'volthium-*.timer' --no-legend "
+        "--plain --all | awk '{print $1}'); do "
+        "  st=$(systemctl show $t -p ActiveState --value); "
+        "  lt=$(systemctl show $t -p LastTriggerUSec --value); "
+        "  if [ -n \"$lt\" ] && [ \"$lt\" != \"n/a\" ]; then "
+        "    age=$(( $(date +%s) - $(date -d \"$lt\" +%s) )); else age=-1; fi; "
+        "  echo \"TIMER $t $st $age\"; done"
+    )
     probe = (
         "uptime; vcgencmd get_throttled; "
         "systemctl show 'volthium-*.service' -p Id -p ActiveState "
@@ -569,6 +638,21 @@ def section_pi(ssh_target: str, hours: int) -> tuple[bool, list[str]]:
     if "throttled=0x0" not in out:
         notable = True
         lines.append("  ← throttled flag set — check power/temperature")
+
+    # --- timers, checked separately because the service rule excludes them ---
+    try:
+        tout = subprocess.check_output(
+            ["ssh", ssh_target, "-o", "ConnectTimeout=8", timer_probe],
+            timeout=30, text=True,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
+            OSError) as exc:
+        notable = True
+        lines.append(f"  ← timers UNVERIFIED: {exc}")
+    else:
+        tn, tl = _check_timers(tout)
+        notable |= tn
+        lines += tl
 
     services = _parse_units(out)
     if not services:
