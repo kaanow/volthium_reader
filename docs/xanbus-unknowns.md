@@ -402,6 +402,28 @@ the crossing bounces those needlessly. Acting at 29 minutes catches every clamp
 on record with no wasted bounce — and on today's episode that would have fired
 at 10:34, saving roughly the 74 W and 23 W intervals.
 
+### The sustained-partial-clamp rule cannot false-fire on summer hunting (n=0/10352)
+
+Completing the check I flagged as missing: the proposed guard rule (task #47)
+was never exercised against dawn/dusk hunting, the case it might wrongly fire
+on, and I had only argued from its absence. Measured instead.
+
+The risk case is a bucket where the sun is ABOVE the gate (so the guard
+computes a fraction at all) AND the array is oscillating (spread >
+MAX_BUCKET_SPREAD_V) AND dipping into the detector band:
+
+    n = 0 out of 10,352 buckets over 400 h
+
+All five oscillating in-band buckets in the record sit at sun elevation
+**−2.6 to −0.6 degrees** — below the horizon. Against a 5.0 degree gate that is
+a **5.6 degree margin**, which is a measurement rather than an assumption.
+
+**The winter case is still untested and is the one to watch.** At 51.12 N the
+sun climbs far more slowly in December while low irradiance persists longer, so
+hunting could still be running as elevation passes 5 degrees — which is exactly
+the scenario `MAX_BUCKET_SPREAD_V` was kept for in `cliff_table.py`. The 5.6
+degree margin is an August number and should not be quoted in January.
+
 ### DRY-RUN of the sustained-partial-clamp proposal: ~127 Wh, not 440, and #40 wins
 
 I proposed changing the guard (task #47) and said it was probably worth more
