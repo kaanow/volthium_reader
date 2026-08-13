@@ -107,6 +107,27 @@ HEALTHY_RUNS_TO_CLEAR = 2  # consecutive clean runs before a pending
                            # confirmation is dropped — symmetric with the two
                            # needed to arm one (see the 2026-08-07 note below)
 COOLDOWN_S = 45 * 60       # minimum gap between fix attempts
+# Act on a SUSTAINED partial clamp, not just fraction >= CLAMP_FRACTION.
+#
+# 2026-08-12: the fraction climbed 0.35 -> 1.0 over an HOUR while the array
+# bled. CLAMP_FRACTION=0.9 is right for rejecting a dawn/dusk transient and
+# exactly wrong for a slow-onset clamp, which is a different failure. Three
+# consecutive runs above AMBIGUOUS_FRACTION is 15 minutes of the array being
+# partly clamped and not recovering — the streak IS the confirmation, so this
+# path skips the clamp_seen_at double-confirm rather than adding to it.
+#
+# Sized honestly: on 08-12 this fires at 10:48 against an actual fix at 11:05,
+# so ~17 min and ~127 Wh. It does NOT recover the other ~310 Wh lost earlier
+# that morning — the array was genuinely intermittent then and no guard tuning
+# reaches it. Two of eleven incidents on record would have benefited.
+#
+# False-positive risk measured, not assumed: buckets with sun above the gate
+# AND the array oscillating AND in band number 0 of 10,352 over 400 h; all
+# oscillating in-band buckets sit at -2.6..-0.6 deg against a 5.0 deg gate.
+# That 5.6 deg margin is an AUGUST number — at 51.12 N the December sun climbs
+# far more slowly, so re-measure before the first winter.
+SUSTAINED_PARTIAL_RUNS = 3
+CONFIRM_STALE_S = 2.5 * 60 * 60   # a pending confirmation older than this restarts
 # Raised 4 -> 6 on 2026-08-08. Observed clamp EPISODES per day run 1-7 (seven
 # on 08-03), and three of the last ten days hit four — 08-08 used three with an
 # hour of daylight still to go. A cap that binds on a bright afternoon is
@@ -176,6 +197,47 @@ def note_healthy_run(st: dict) -> bool:
 def note_clamped_run(st: dict) -> None:
     """Record one at-or-above-threshold run: the healthy streak is broken."""
     st["healthy_runs"] = 0
+
+
+def needs_second_confirmation(st: dict, now: float,
+                              sustained_partial: bool) -> bool:
+    """Should the guard wait one more run before acting?
+
+    Normally yes: a clamp seen once could be a sampling artefact, so the first
+    sighting only arms a pending confirmation. But a SUSTAINED PARTIAL streak
+    is already three consecutive runs of evidence — requiring the double
+    confirm on top would make it five runs and give back most of the time the
+    rule exists to save. So the streak IS the confirmation.
+
+    Extracted from main() and made pure because it is the branch that decides
+    whether the new path is worth anything, and a mutation flipping it went
+    undetected when it lived inline.
+    """
+    if sustained_partial:
+        return False
+    prev = st.get("clamp_seen_at", 0)
+    if now - prev > CONFIRM_STALE_S:
+        prev = 0
+    return not prev
+
+
+def note_partial_run(st: dict, fraction: float) -> bool:
+    """Track consecutive runs sitting in the PARTIAL clamp band.
+
+    Returns True once the streak reaches SUSTAINED_PARTIAL_RUNS, meaning a
+    slow-onset clamp that will never reach CLAMP_FRACTION on any single run
+    but is not recovering either. Pure, and out of main(), for the same reason
+    note_healthy_run is: this bookkeeping is where the guard keeps going wrong
+    and inline it cannot be tested without a CAN bus.
+
+    A run below AMBIGUOUS_FRACTION breaks the streak — the array genuinely
+    came back, so the clock restarts.
+    """
+    if fraction < AMBIGUOUS_FRACTION:
+        st.pop("partial_runs", None)
+        return False
+    st["partial_runs"] = st.get("partial_runs", 0) + 1
+    return st["partial_runs"] >= SUSTAINED_PARTIAL_RUNS
 
 
 def sample_array(iface: str, seconds: float) -> dict:
@@ -293,6 +355,7 @@ def main() -> int:
         if st.pop("clamp_seen_at", None):
             save_state(st)
         return 0                                    # night: quiet, no event
+    sustained_partial = False
     if before["fraction"] < CLAMP_FRACTION:
         # Clearing a pending confirmation on ONE healthy run is too eager, and
         # it cost real energy on 2026-08-07: the array clamped at 09:40,
@@ -316,12 +379,22 @@ def main() -> int:
         # continuous clamp sampled at ~0.5 and fell out with no trace. A
         # partial clamp is the interesting case — report it. Fully healthy
         # (fraction near zero) stays quiet, so this costs no routine egress.
+        sustained_partial = note_partial_run(st, before["fraction"])
+        save_state(st)
         if before["fraction"] >= AMBIGUOUS_FRACTION:
             emit("latch_guard_ambiguous",
                  {"reason": "some samples clamped but below the acting "
                             "threshold — partial clamp or a moving tracker",
-                  "threshold": CLAMP_FRACTION, **before})
-        return 0                                    # healthy: quiet, no event
+                  "threshold": CLAMP_FRACTION,
+                  "partial_runs": st.get("partial_runs", 0),
+                  "sustained_at": SUSTAINED_PARTIAL_RUNS, **before})
+        if not sustained_partial:
+            return 0                                # healthy: quiet, no event
+        # Sustained: fall through to the SAME cooldown / daily-cap / dry-run
+        # gates the full-clamp path uses. Nothing bypasses those.
+    else:
+        # A full clamp supersedes any partial streak.
+        st.pop("partial_runs", None)
     # A clamp seen ONCE is still not acted on. The dawn/dusk transient this
     # originally guarded is now excluded by the elevation gate above, which is
     # both stricter and free; this remains as a second opinion against a
@@ -329,10 +402,17 @@ def main() -> int:
     # persists for hours — costs at most one extra cycle, while a spurious fix
     # would burn a daily-cap slot and start a 45 min cooldown.
     note_clamped_run(st)
+    if sustained_partial:
+        emit("latch_guard_sustained_partial",
+             {"reason": f"fraction >= {AMBIGUOUS_FRACTION} for "
+                        f"{SUSTAINED_PARTIAL_RUNS} consecutive runs — a "
+                        f"slow-onset clamp, acting without waiting for "
+                        f"fraction >= {CLAMP_FRACTION}",
+              **before})
     prev_seen = st.get("clamp_seen_at", 0)
-    if now - prev_seen > 2.5 * 60 * 60:      # stale confirmation, restart
+    if now - prev_seen > CONFIRM_STALE_S:    # stale confirmation, restart
         prev_seen = 0
-    if not prev_seen:
+    if needs_second_confirmation(st, now, sustained_partial):
         st["clamp_seen_at"] = now
         save_state(st)
         emit("latch_guard_pending",
@@ -358,6 +438,9 @@ def main() -> int:
 
     st["last_attempt"] = now
     st["fixes"] = st.get("fixes", 0) + 1
+    # Clear the partial streak, or a sustained-partial fix would re-arm itself
+    # on the very next run and burn the daily cap in three cycles.
+    st.pop("partial_runs", None)
     save_state(st)
 
     try:
