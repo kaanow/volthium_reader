@@ -1,5 +1,60 @@
 # Design: early bounce at the 45 V cliff
 
+## PRE-REGISTERED TEST, authorised 2026-08-13, not yet run
+
+Operator approved the supervised bounce without supervision, on the correct
+reasoning that it is the SAME operation the guard already performs. Verified
+before accepting: `run_fix()` and `xanbus_node.py --bounce --dest 1
+--function 134 --send` issue identical CAN writes — claim an address
+presenting NAME function 134, `set_mode(dest, 0x02)` standby, wait,
+`set_mode(dest, 0x03)` operating. 16 `latch_fix_result` events on record, all
+16 acked.
+
+**What is new is not the command, it is the array's starting state.** All 16
+bounces were from a CLAMPED array between 27.3 and 29.8 V. None was from a
+still-tracking array at ~42 V, and the whole trigger design assumes it
+recovers the same way.
+
+**Fire condition:** array TRACKING in the 40–45 V band during a descent, sun
+above 15 deg, not already clamped, and not within 2 min of a guard run (both
+claim an address). ONE bounce.
+
+**Measurements, fixed in advance:**
+
+| | recorded before | recorded after |
+|---|---|---|
+| `pv_v` | at fire | peak within 5 min, and settled value at +10 min |
+| `solar_w` | 5-min mean before | 5-min mean at +5..+10 min |
+| time to walk back below 45 V | — | minutes from fire |
+
+**What counts as SUCCESS:** `pv_v` recovers above 80 V (a clamp bounce reaches
+~88–93 V) AND settled `solar_w` exceeds the pre-fire value by more than the
+5-min noise. Anything less and the trigger is not worth building.
+
+**What KILLS the design, stated in advance:**
+- recovery peak below 60 V — the tracker cannot re-acquire from a tracking
+  state the way it does from a clamp, and the premise is false;
+- settled power at or below pre-fire — the bounce buys nothing;
+- the array walks back below 45 V in under 15 min — the intervention would
+  need to repeat so often it is worse than the clamp.
+
+**Cost if it fails:** 15 s of standby, ~0.15 Wh. Standby drives the array to
+Voc (~114 V), inside the MPPT's 150 V rating; it is the device's own
+documented transition. A resulting clamp is cleared by the guard within
+~20 min.
+
+**A caveat this document's own numbers create.** Everything below was written
+2026-08-07/08 and rests on "12 of 12, every crossing clamps, none recover".
+That is RETRACTED. The regenerated table is **20 of 30 clamped, 10 recovered**,
+and every recovery resolved in under 29 minutes. So firing at the crossing
+would bounce needlessly on about a third of episodes, while firing at the
+29-minute mark catches every clamp on record with no wasted bounce. The
+supervised test is still the right first step — it settles the
+does-it-recover question that gates either variant — but the trigger it feeds
+should be the 29-minute one, not the crossing.
+
+---
+
 Draft 2026-08-07. **Not built, and the first step is deliberately not code.**
 
 ## The finding this rests on
