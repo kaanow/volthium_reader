@@ -34,6 +34,15 @@ The rule (all four conditions, deliberately explicit):
      see MAX_BUCKET_SPREAD_V for what that costs.
   5. PINNED — the array must not have oscillated through the bucket, which is
      what the MPPT does at dawn and dusk. Defence in depth behind (1).
+
+FROM 2026-08-14 THIS TABLE IS NO LONGER PURE NATURAL HISTORY. The early-bounce
+test intervened in the 08-14 morning descent, which recovered the array to 93 V
+and is therefore recorded here as a RECOVERY. It was not one — it was a
+deliberate write. Any future automated early-bounce trigger will do the same at
+scale, so recoveries after this date must be cross-checked against
+latch_fix_result and the manual test log before being read as the array's own
+behaviour. The 20-of-30 figure and the 29-minute rule are pre-intervention and
+should stay that way.
 """
 from __future__ import annotations
 
@@ -333,6 +342,15 @@ def main() -> int:
 
     mins = [e["minutes"] for e in eps if e["clamped"]]
     rec = len(eps) - len(mins)
+    if not mins:
+        # No clamps in the window. This used to crash on min() of an empty
+        # list, which never happened while every crossing clamped — and then
+        # 2026-08-14 the early-bounce test PREVENTED the day's clamp and the
+        # script died on its own success. A summariser that cannot describe a
+        # good day is not a summariser.
+        print(f"\n**0 of {len(eps)} crossings ended in a clamp; "
+              f"{rec} recovered.** No clamp in this window.")
+        return 0
     print(f"\n**{len(mins)} of {len(eps)} crossings ended in a clamp"
           f"{f'; {rec} recovered' if rec else '; none recovered'}.** "
           f"Time to clamp: min {min(mins)}, median "

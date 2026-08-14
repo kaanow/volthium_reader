@@ -1,5 +1,63 @@
 # Design: early bounce at the 45 V cliff
 
+## RESULT 2026-08-14: the array DOES recover from a tracking state. Test passed.
+
+The gating assumption is confirmed. A still-tracking array at 41.8 V recovers
+from a bounce exactly as a clamped one does — instantly, and to full MPP.
+
+Fired 08:20 local by `scripts/early_bounce_test.py`, one bounce, rc=0.
+
+    08:17   43.2 V    25.1 W
+    08:18   41.8 V    23.5 W     <- pre-fire
+    08:19   42.6 V    25.2 W
+    08:20   66.1 V    24.7 W     <- BOUNCE (15 s standby, in this bucket)
+    08:21   93.1 V   101.0 W     <- recovered, one minute later
+    08:29   99.1 V   104.8 W     <- peak
+    09:13   73.6 V   180.6 W     <- +53 min, still tracking, still climbing
+
+Scored against the criteria committed BEFORE the run:
+
+| criterion | required | actual | |
+|---|---|---|---|
+| recovery peak | > 80 V | **99.1 V** | PASS |
+| settled power | > pre-fire | **102.9 W vs 25.0 W** | PASS |
+| walk back below 45 V | not within 15 min | **not in 53 min** | PASS |
+
+None of the three kill conditions triggered. Power gain **+312%**. The 15 s
+standby cost is invisible at 1-minute resolution — the fire bucket reads
+24.7 W against 25.0 W before it.
+
+### What this does NOT show, stated plainly
+
+**It does not show that the bounce averted a clamp.** The crossing was at
+07:59 and the bounce landed at 08:20 — **21 minutes in**, which is inside the
+under-29-minute region where the rule says episodes recover on their own (10
+for 10). This episode might well have recovered unaided. The first crossing of
+the same morning, 07:28, did exactly that in 8 minutes with no intervention.
+
+So the causal claim is limited to what was actually asked: **a tracking array
+recovers from a bounce**. That was the untested assumption behind the entire
+trigger design, every prior bounce having started from a clamped array at
+27-30 V, and it is now answered. Whether an early bounce PREVENTS clamps needs
+a fire at or after 29 minutes, where the outcome is otherwise determined.
+
+### What to build
+
+Fire at the **29-minute mark**, not at the crossing. At 29 min the rule is 20
+for 20 that a clamp follows, so every fire is justified and none is wasted; at
+the crossing about a third of episodes would be bounced needlessly. The control
+design already specified below (separate daily cap, 48 V re-arm, 30 min minimum
+interval, elevation floor, two confirmations) is unchanged.
+
+### Methodological consequence
+
+`cliff_table.py` is no longer pure natural history from this date. This
+episode is recorded there as a RECOVERY at 22 minutes; it was a deliberate
+write. The 20-of-30 figure and the 29-minute rule are pre-intervention and must
+stay that way.
+
+---
+
 ## PRE-REGISTERED TEST, authorised 2026-08-13, not yet run
 
 Operator approved the supervised bounce without supervision, on the correct
