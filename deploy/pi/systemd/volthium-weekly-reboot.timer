@@ -1,0 +1,18 @@
+[Unit]
+Description=Monthly reboot to clear accumulated BlueZ / MMC state
+# Was weekly under the Pi 3B built-in BT + failing SD substrate. Since
+# 2026-07-09 the reader is on a UB500 dongle and a Samsung PRO Endurance
+# card — the "clean-slate" reset is much less load-bearing. Kept as cheap
+# insurance against long-uptime drift; run monthly instead of weekly.
+#
+# NAME KEPT DELIBERATELY: the unit is called "weekly" and fires monthly. The
+# rename would break the installed unit on the Pi for no operational gain;
+# the Description is the source of truth and status_check prints the real
+# last-fire age.
+
+[Timer]
+OnCalendar=Sun *-*-01..07 04:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

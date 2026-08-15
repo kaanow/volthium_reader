@@ -198,6 +198,17 @@ def check_rs485(hours: float) -> dict:
         out["verdict"] = next(
             (l.split("bottom line:")[1].strip(" =")
              for l in txt.splitlines() if "bottom line" in l), "unknown")
+        # The verdict used to be RECORDED AND DISCARDED. status_check exits 1
+        # on anything notable and prints an explicit verdict — including
+        # INCOMPLETE, which it emits precisely so a partial run cannot read as
+        # a clean one — and neither the string nor the exit code reached
+        # `problems`. So health_check printed the verdict on one line and "all
+        # green" on the next, and exited 0. A wrapper that drops its own
+        # subordinate's alarm is worse than not calling it.
+        verdict = out["verdict"].lower()
+        if p.returncode != 0 or not verdict.startswith("quiet"):
+            out["problems"].append(
+                f"status_check verdict: {out['verdict']} (rc={p.returncode})")
         for marker, label in (("gaps > 60s:", "gaps"),
                               ("battery-silent stretches", "silent")):
             for line in txt.splitlines():

@@ -694,7 +694,7 @@ class AsyncpgReadingsDAO:
         min/max fold the stored per-15s min/max (exact, not approximated)."""
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
-                """SELECT
+                f"""SELECT
                        to_timestamp(floor(extract(epoch FROM ts) / $4) * $4) AS bucket,
                        COUNT(*)         AS n,
                        AVG(solar_w)     AS solar_w,
@@ -711,7 +711,15 @@ class AsyncpgReadingsDAO:
                        MAX(pv_v_max)    AS pv_v_max,
                        AVG(dc_v)        AS dc_v,
                        AVG(dc_a)        AS dc_a,
-                       AVG(dc_w)        AS dc_w,
+                       -- Sanitised like every other dc_w read path. This one
+                       -- was missed when the other three were fixed, and the
+                       -- regression test that was supposed to catch a fourth
+                       -- path only checked solar_energy_daily, load_heatmap
+                       -- and dc_load_profile by name — so a new consumer was
+                       -- exactly what it could not see. The corrupt 2026-08-09
+                       -- 10:10 row (-27844 W) is still in the table and this
+                       -- endpoint feeds the history explorer.
+                       AVG({_dc_w_sane()})  AS dc_w,
                        MIN(dc_w_min)    AS dc_w_min,
                        MAX(dc_w_max)    AS dc_w_max
                    FROM solar_readings

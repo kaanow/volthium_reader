@@ -61,7 +61,42 @@ class DaoStructureTests(unittest.TestCase):
         self.assertEqual(nested, [], f"DAO methods nested inside another def: {nested}")
 
 
+def _methods_reading_dc_w() -> list[str]:
+    """Every DAO method whose SQL mentions dc_w at all.
+
+    Derived from the source so a new consumer is in scope the moment it is
+    written, which is the whole point: the hand-maintained list of three was
+    what allowed solar_series to read dc_w unsanitised for eight days.
+    """
+    tree = ast.parse(inspect.getsource(db_mod))
+    cls = next(n for n in tree.body
+               if isinstance(n, ast.ClassDef) and n.name == "AsyncpgReadingsDAO")
+    out = []
+    for node in cls.body:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        body = ast.get_source_segment(inspect.getsource(db_mod), node) or ""
+        if "dc_w" not in body:
+            continue
+        # READ paths only. insert_solar names dc_w too, but sanitising on the
+        # way IN is the decoder's job (xanbus_telemetry cross-checks dc_w
+        # against |dc_v*dc_a| so bad frames never land); this guard is about
+        # what reaches the API from rows already stored.
+        if re.search(r"\bINSERT\s+INTO\b|\bUPDATE\s+\w+\s+SET\b", body, re.I):
+            continue
+        out.append(node.name)
+    assert out, "derivation found nothing — the rest of this test is vacuous"
+    return out
+
+
 class DcWSanitiseTests(unittest.TestCase):
+
+    def test_the_derivation_finds_the_known_consumers(self):
+        found = _methods_reading_dc_w()
+        for m in ("solar_energy_daily", "load_heatmap", "dc_load_profile",
+                  "solar_series"):
+            self.assertIn(m, found, f"{m} reads dc_w but was not derived")
+
 
     def test_helper_renders_null_outside_the_plausible_range(self):
         sql = db_mod._dc_w_sane()
@@ -79,7 +114,12 @@ class DcWSanitiseTests(unittest.TestCase):
         endpoints read this column and nothing guarded any of them'. A fourth
         added later must not silently reintroduce it."""
         src = inspect.getsource(db_mod)
-        for method in ("solar_energy_daily", "load_heatmap", "dc_load_profile"):
+        # DERIVED, not hand-listed. The previous version named three methods,
+        # so it was structurally blind to a FOURTH consumer — and solar_series
+        # was exactly that: it aggregated dc_w raw and fed the history explorer
+        # from 2026-08-07 until this was found on 08-15. A guard whose scope is
+        # a hardcoded list cannot catch the case it was written to prevent.
+        for method in _methods_reading_dc_w():
             body = re.search(
                 rf"async def {method}\(.*?(?=\n    async def |\Z)", src, re.S)
             self.assertIsNotNone(body, f"{method} not found")
@@ -111,7 +151,7 @@ class DcWSanitiseTests(unittest.TestCase):
                              if isinstance(x, ast.Name)}
                     if names & {"_dc_w_sane", "sane_s"}:
                         seen += 1
-        self.assertEqual(seen, 4, "expected 4 sanitised interpolations")
+        self.assertEqual(seen, 5, "expected 5 sanitised interpolations")
 
 
 class SqlWellFormednessTests(unittest.TestCase):

@@ -68,19 +68,56 @@ def fetch_events(kind: str, since_iso: str | None,
     return evs if since_iso is None else [e for e in evs if e["ts"] >= since_iso]
 
 
+MAX_ROWS_PER_CALL = 10_000        # the endpoint's hard cap (main.py le=10000)
+
+
 def fetch_readings(
-    source: str, since: str | None = None, limit: int = 10_000
+    source: str, since: str | None = None, limit: int = MAX_ROWS_PER_CALL
 ) -> list[dict]:
-    """Fetch readings. With `since` (ISO ts) the server returns only rows
-    after it — we only ever analyze a bounded window, so passing `since`
-    avoids re-downloading the full history every run (was ~7.5 MB/call; the
-    windowed fetch is a fraction of that, and the server now gzips too)."""
-    q = f"/api/readings?source_id={source}&limit={limit}"
-    if since:
-        q += f"&since={since}"
-    d = _get_json(q)
-    # API returns rows under either "readings" or "rows" depending on version
-    return d.get("readings") or d.get("rows") or []
+    """Fetch readings, PAGINATING so a long window is not silently truncated.
+
+    With `since` the server returns rows oldest-first capped at `limit`, and
+    the endpoint's ceiling is 10 000. At the live 5 s cadence that is only
+    13.9 h — so a plain `--hours 24` fetch returned the OLDEST 13.9 h and
+    dropped the newest ~10 h without saying so. The newest row then looked ten
+    hours old and the tool printed a confident **false STALE**, while the gap
+    and battery-silence analysis never saw 42% of the window at all.
+
+    Nobody noticed because the operator's routine call is `--hours 2`, which
+    fits in one page. The default is 24.
+
+    So: keep pulling from the newest row we have until a page comes back short.
+    Same walk `bms_coulomb_check.py` and `energy_balance.py` already use.
+    """
+    if not since:
+        d = _get_json(f"/api/readings?source_id={source}&limit={limit}")
+        return d.get("readings") or d.get("rows") or []
+
+    out: list[dict] = []
+    cur = since
+    for _ in range(50):                       # bounded; 500k rows is absurd
+        d = _get_json(f"/api/readings?source_id={source}"
+                      f"&limit={MAX_ROWS_PER_CALL}&since={cur}")
+        page = d.get("readings") or d.get("rows") or []
+        if not page:
+            break
+        out += page
+        if len(page) < MAX_ROWS_PER_CALL:
+            break                             # short page = caught up
+        newest = max(r["ts"] for r in page)
+        if newest <= cur:
+            break                             # no progress; refuse to spin
+        cur = newest
+    # The pages overlap on `since` boundaries only if the server is inclusive;
+    # dedupe on ts so gap analysis cannot see a phantom zero-length interval.
+    seen = set()
+    uniq = []
+    for r in sorted(out, key=lambda r: r["ts"]):
+        if r["ts"] in seen:
+            continue
+        seen.add(r["ts"])
+        uniq.append(r)
+    return uniq
 
 
 # ---- Analysis ------------------------------------------------------------

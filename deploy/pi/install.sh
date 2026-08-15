@@ -24,6 +24,17 @@ install -m 0644 "$HERE/systemd/volthium-events-uploader.service"  "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-xanbus-telemetry.service" "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-latch-guard.service"     "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-latch-guard.timer"       "$SYSD/"
+# Added 2026-08-15. These two run on the Pi and this script — the documented
+# deterministic recovery step — did not install either, so rebuilding from it
+# produced a box missing the charge-setpoint safety watch and the local
+# dashboard, silently. RUNBOOK claimed install.sh installs everything.
+install -m 0644 "$HERE/systemd/volthium-config-watch.service"    "$SYSD/"
+install -m 0644 "$HERE/systemd/volthium-config-watch.timer"      "$SYSD/"
+install -m 0644 "$HERE/systemd/volthium-dashboard.service"       "$SYSD/"
+# Was running on the Pi but versioned NOWHERE — a rebuild from this script
+# would have lost it silently. Captured from the live unit 2026-08-15.
+install -m 0644 "$HERE/systemd/volthium-weekly-reboot.service"   "$SYSD/"
+install -m 0644 "$HERE/systemd/volthium-weekly-reboot.timer"     "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-usb-keepawake.service"    "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-usb-keepawake.timer"      "$SYSD/"
 install -m 0755 "$HERE/bin/volthium-usb-keepawake.sh"             /usr/local/bin/
@@ -69,8 +80,9 @@ systemctl daemon-reload
 # Enable the boot-critical set so a bare power-cycle recovers with no human.
 systemctl enable volthium-rs485-logger volthium-xanbus-capture \
     volthium-modbus-poll volthium-uploader volthium-events-uploader \
-    volthium-xanbus-telemetry volthium-latch-guard.timer \
-    volthium-usb-keepawake.timer
+    volthium-xanbus-telemetry volthium-dashboard \
+    volthium-latch-guard.timer volthium-config-watch.timer \
+    volthium-usb-keepawake.timer volthium-weekly-reboot.timer
 # BLE logger is the dormant fallback — present but must NOT auto-start
 # (Conflicts= with the RS485 logger; run exactly one).
 systemctl disable volthium-logger 2>/dev/null || true
