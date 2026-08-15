@@ -483,6 +483,9 @@ class EventAlertMonitor:
          "CHARGE SETPOINT CHANGED"),
         ("latch_fix_denied", 4, "no_entry", "MPPT refused our command"),
         ("latch_fix_aborted", 4, "no_entry", "MPPT fix could not start"),
+        # The watch could not run at all — the setpoint safety net is down.
+        ("xanbus_config_watch_failed", 4, "warning",
+         "CHARGE-SETPOINT WATCH FAILED"),
     )
 
     # Deliberately NOT alerted: mppt_latched, latch_detected, and a successful
@@ -491,6 +494,27 @@ class EventAlertMonitor:
     # learns to ignore the channel, and then the one message that matters
     # arrives buried in noise. Only the cases needing a HUMAN are above, plus
     # the two conditional rules handled in code below.
+    # THE CONFIG WATCH'S OWN FAILURES. Added 2026-08-15.
+    #
+    # xanbus_config_watch.py exists because a 4.0 V/cell equalize setting is
+    # one UI click away and nothing else alarms on it. If the watch cannot
+    # READ the setpoints, that safety net is down — and nothing watched for
+    # that, so it would have stayed down silently and indefinitely. Worse, a
+    # blind watch also cannot fire xanbus_config_changed, so the alert that
+    # matters most is the one the failure suppresses.
+    #
+    # A single unreadable FIELD is routine, though: measured 4 events in 5
+    # days against 24 runs/day (~3%), each naming a different field, always
+    # readable on the next run. Paging on each would be ~1/day of noise, and
+    # noise is how an operator learns to ignore the channel — the same
+    # reasoning that keeps routine mppt_latched out of the rules above.
+    #
+    # So a TOTAL failure pages immediately, while partial misses page only
+    # once they are PERSISTENT. At 1 run/hour, 4 in a 6 h window is 4 of ~6
+    # runs blind, against an expected 0.2 at the measured rate.
+    CONFIG_UNREADABLE_MIN = 4
+    CONFIG_UNREADABLE_WINDOW = timedelta(hours=6)
+
     XANBUS_COOLDOWN = timedelta(minutes=30)
     CONFIG_COOLDOWN = timedelta(minutes=5)   # near-immediate; this one is safety
 
@@ -594,6 +618,7 @@ class EventAlertMonitor:
             await self._check_pin_failed(client, source_id, st, since, now)
             await self._check_wedges(client, source_id, st, since, now)
             await self._check_xanbus(client, source_id, st, since, now)
+            await self._check_config_blind(client, source_id, st, now)
             await self._check_bms_alarms(client, source_id, st, since, now)
             await self._check_urgent_classification(client, source_id, st, since, now)
             await self._check_adapter_fallback(client, source_id, st, since, now)
@@ -848,6 +873,44 @@ class EventAlertMonitor:
                 priority=priority, tags=[tag],
                 context=f"source={source_id} kind={name}",
             )
+
+    async def _check_config_blind(
+        self, client, source_id: str, st: dict, now
+    ) -> None:
+        """Page when the charge-setpoint watch has been PERSISTENTLY blind.
+
+        Separate from the per-event rules because the signal is a RATE, not an
+        occurrence: one unreadable field is normal CAN jitter, several in a row
+        means the watch is no longer protecting anything.
+        """
+        getter = getattr(self.dao, "recent_xanbus_events", None)
+        if getter is None:
+            return
+        try:
+            rows = await getter(source_id, "xanbus_config_unreadable",
+                                now - self.CONFIG_UNREADABLE_WINDOW, 40)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("config-blind query failed: %s", exc)
+            return
+        if len(rows) < self.CONFIG_UNREADABLE_MIN:
+            return
+        last = st.get("last_config_blind_at")
+        if last is not None and now - last < self.CONFIG_UNREADABLE_WINDOW:
+            return
+        st["last_config_blind_at"] = now
+        fields = sorted({f for r in rows
+                         for f in (r.get("data") or {}).get("fields", [])})
+        hours = self.CONFIG_UNREADABLE_WINDOW.total_seconds() / 3600
+        await self._fire(
+            client,
+            title=f"CHARGE-SETPOINT WATCH IS BLIND — {source_id}",
+            message=(f"{len(rows)} unreadable-config runs in {hours:.0f} h "
+                     f"(fields: {', '.join(fields) or 'unknown'}). The watch "
+                     f"cannot see the charge setpoints, so a change to them "
+                     f"would NOT alert."),
+            priority=4, tags=["warning"],
+            context=f"source={source_id} kind=config_blind",
+        )
 
     # Kept in step with _ALARM_BITS in main.py. Duplicated rather than imported
     # because staleness.py must not depend on the FastAPI app module.

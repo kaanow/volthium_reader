@@ -189,3 +189,57 @@ class BmsAlarmTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ConfigWatchBlindTests(unittest.TestCase):
+    """The charge-setpoint watch failing must itself alert.
+
+    xanbus_config_watch.py exists because a 4.0 V/cell equalize setting is one
+    UI click away and nothing else alarms on it. If the watch cannot READ the
+    setpoints that safety net is down — and until 2026-08-15 nothing watched
+    for that, so it would have stayed down silently. Worse, a blind watch also
+    cannot fire xanbus_config_changed, so the failure suppresses exactly the
+    alert that matters most.
+
+    A single unreadable FIELD is routine though: 4 events in 5 days against 24
+    runs/day (~3%), each a different field, readable again next run. Paging on
+    each is ~1/day of noise, and noise is how a channel gets ignored.
+    """
+
+    def test_one_unreadable_run_does_NOT_page(self):
+        dao = _FakeDAO()
+        dao.add("xanbus_config_unreadable", {"fields": ["mppt_float"]})
+        self.assertEqual(_run(dao).posts, [],
+                         "routine single-field CAN jitter must stay quiet")
+
+    def test_below_threshold_does_NOT_page(self):
+        dao = _FakeDAO()
+        for f in ("mppt_float", "mppt_bulk", "mppt_equalize"):
+            dao.add("xanbus_config_unreadable", {"fields": [f]})
+        self.assertEqual(_run(dao).posts, [])
+
+    def test_PERSISTENT_blindness_DOES_page(self):
+        """The regression this was written for."""
+        dao = _FakeDAO()
+        for f in ("mppt_float", "mppt_bulk", "mppt_equalize", "mppt_absorb"):
+            dao.add("xanbus_config_unreadable", {"fields": [f]})
+        posts = _run(dao).posts
+        self.assertEqual(len(posts), 1, "persistent blindness must page")
+        body = posts[0]["json"]
+        self.assertIn("BLIND", body["title"])
+        self.assertIn("would NOT alert", body["message"])
+
+    def test_it_does_not_repage_on_the_next_poll(self):
+        dao = _FakeDAO()
+        for f in ("a", "b", "c", "d"):
+            dao.add("xanbus_config_unreadable", {"fields": [f]})
+        self.assertEqual(len(_run_twice(dao).posts), 1,
+                         "cooldown must suppress the second poll")
+
+    def test_a_total_watch_failure_pages_immediately(self):
+        """Distinct from partial blindness: the watch did not run at all."""
+        dao = _FakeDAO()
+        dao.add("xanbus_config_watch_failed", {"error": "can0 down"})
+        posts = _run(dao).posts
+        self.assertEqual(len(posts), 1)
+        self.assertIn("WATCH FAILED", posts[0]["json"]["title"])
