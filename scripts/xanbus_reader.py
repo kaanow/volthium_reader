@@ -10,7 +10,7 @@ Priority fields (all HIGH confidence):
   PGN 127172  battery DC status   V u32@2 /1000 V, I s32@6 /1000 A, P s32@10 W
   PGN 127173  DC source status    same layout; assoc byte@1 selects the source:
                                    0x03 = battery, 0x15 = PV array (from MPPT)
-  PGN 126990  charge status       chg_mode u16@13 (768 base; see CHARGE_STAGE)
+  PGN 126990  charge status       chg_mode u16@12 (768 base; see CHARGE_STAGE)
   PGN 127165  inverter status     u16@2 (1024 base; see INVERTER_STATUS)
 
 Two modes:

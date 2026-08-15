@@ -190,14 +190,23 @@ cloud/
     config.py               ← env-var config
     derive.py               ← server-side EMA + projection (mirrors estimator.py)
     db.py                   ← asyncpg-backed ReadingsDAO + Protocol
-    migrations/0001_readings.sql
-    static/index.html       ← dashboard (vanilla HTML/JS/SVG, no build)
+    staleness.py            ← staleness + event monitors -> ntfy
+    migrations/             ← 0001_readings, 0002_ble_events, 0003_solar,
+                              0004_solar_pv_extremes
+    static/v2.html          ← the LIVE dashboard at / (SOC hero + power flow)
+    static/v2-history.html  ← the live /history page
+    static/index.html       ← the pre-2026-08 dashboard, still served at /v1
+    static/history.html     ←   ...and its history page at /v1/history
     Dockerfile              ← multi-stage slim image
     railway.json            ← Dockerfile builder + /healthz healthcheck
     requirements.txt        ← fastapi, uvicorn, asyncpg, pydantic
   uploader/uploader.py      ← Pi-side: tails pack.csv, posts batches
-  tests/                    ← 36 unit tests; no Postgres needed
+  tests/                    ← 132 unit tests; no Postgres needed
 ```
+
+*(Counts and file lists here go stale — `ls cloud/server/static/` and
+`pytest -q --collect-only cloud/tests` are the sources of truth. Last checked
+2026-08-15; the test count had drifted from 36 to 132.)*
 
 Edge changes (also part of v1):
 

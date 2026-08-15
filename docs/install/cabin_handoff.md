@@ -3,6 +3,10 @@
 This page tells you how to read the monitor on your phone or laptop
 and what to do about what it shows. No tech background needed.
 
+*Updated 2026-08-15: the monitor moved off the cabin laptop and onto a
+dedicated computer publishing to the web. You now open one address from
+anywhere — see "Opening the dashboard" below.*
+
 ## What it is
 
 A live status board for the cabin's two big lithium batteries (the pair
@@ -12,18 +16,22 @@ under the floor). It shows you, in real time:
 - **how long until they're full or empty** if today's pattern keeps going
 - **whether the generator needs to run**, and if so, when and for how long
 
-It runs on a laptop near the batteries and serves a webpage your phone
-can open over the cabin Wi-Fi.
+It runs on a small computer (a Raspberry Pi) wired to the batteries and
+the solar gear, and publishes to the internet — so you can check it from
+anywhere, not just at the cabin.
 
 ## Opening the dashboard
 
-1. Make sure you're on the cabin Wi-Fi.
-2. Open Safari / Chrome on your phone.
-3. Go to **`http://192.168.1.76:8421/`** (or whatever the laptop's
-   address shows on the *Volthium Monitor* launcher).
-4. There's also a QR code on the laptop dashboard (bottom of the
-   right column) — scan it with your phone Camera app to skip the
-   typing.
+1. Open Safari / Chrome on your phone — **any internet connection works,
+   you do not need to be at the cabin**.
+2. Go to **<https://volts.alti2.de/>**.
+3. Bookmark it or add it to your home screen.
+
+The history page is at **<https://volts.alti2.de/history>**.
+
+*(Before 2026-07-26 this ran on a laptop at the cabin on
+`http://192.168.1.76:8421/`. That laptop is gone; the address will not
+answer.)*
 
 ## What you're looking at
 
@@ -90,7 +98,7 @@ and be a bit conservative.
 
 | What you see                  | What to do                                          |
 |-------------------------------|-----------------------------------------------------|
-| All numbers say "—"           | The laptop is probably off. Restart **Volthium Monitor** on its desktop. |
+| All numbers say "—"           | The monitor at the cabin has stopped or lost its internet. Nothing you can do from the page itself — tell Kaan. |
 | Time-remaining shows a giant number like "12000 min" | Current is near zero (very light load). Ignore; normal. |
 | State is **DISCHARGING** all day | Sun isn't reaching the panels. Check for snow / debris. |
 | Recommendation says **RUN GENERATOR** | Run the generator. The duration shown is the bare minimum. |

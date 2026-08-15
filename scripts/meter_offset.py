@@ -121,13 +121,22 @@ def main() -> int:
     print(f"{'night':<12}{'n':>4}{'pack_p':>10}{'dc_w':>10}"
           f"{'residual':>11}{'ratio':>8}")
     pooled: list[tuple] = []
+    got = 0                       # nights that actually contributed
     for i in range(a.nights - 1, -1, -1):
         day = last - dt.timedelta(days=i)
         start = dt.datetime.combine(day, dt.time(7), dt.timezone.utc)
         end = dt.datetime.combine(day, dt.time(11), dt.timezone.utc)
         res = night_offset(sol, pack_buckets(a.url, a.source, start, end), day)
         if not res:
+            # SAY SO. The window is 07:00-11:00 UTC (midnight-04:00 local), so
+            # running before 11:00 UTC means tonight has not finished and this
+            # silently `continue`d — five nights requested, four pooled, and
+            # nothing in the output said which. A filter that drops a sample
+            # without reporting it is how "n=5" becomes a rumour.
+            print(f"{day.isoformat():<12}{'—':>4}   (no dark fridge-off "
+                  f"buckets; window 07:00-11:00 UTC may not have closed yet)")
             continue
+        got += 1
         pooled += res
         pm = statistics.median(x[0] for x in res)
         dm = statistics.median(x[1] for x in res)
@@ -135,6 +144,9 @@ def main() -> int:
               f"{statistics.median(x[2] for x in res):>11.1f}"
               f"{abs(pm) / dm:>8.2f}")
 
+    if got < a.nights:
+        print(f"\n!! {got} of {a.nights} nights contributed — the pooled "
+              f"figure below is n={got}, not n={a.nights}.")
     if not pooled:
         print("no dark fridge-off buckets found")
         return 1

@@ -4,10 +4,20 @@ Reads the state of two Volthium **SC12200G4DPH** 12V 200Ah LiFePO4 batteries
 wired in series (24V system, "The Barge Inn"), and shows a live estimate of
 time-to-full when charging or time-to-empty (to 10% SOC) when discharging.
 
-This repo is the **dev/validation rig** — it runs on a Mac laptop using its
-built-in Bluetooth. Once the readings line up with the Volthium phone app and
-the time estimator is dialed in, we plan a second, low-power hardware target
-for permanent install in the cabin.
+> **How it actually runs today (since 2026-07-26).** Nothing runs on the laptop.
+> A Raspberry Pi at the cabin reads the packs over **RS485** (BLE is retired)
+> and the Conext gear over **Xanbus/CAN**, and ships everything to a cloud
+> server at <https://volts.alti2.de>. The laptop is only an operator console.
+> The description below is the ORIGINAL laptop-plus-Bluetooth rig and is kept
+> for the design reasoning, not as a statement of current fact.
+>
+> Start here instead: `docs/STATUS.md` for how it runs, `docs/RUNBOOK.md` for
+> operating it, and `docs/what-to-distrust.md` before believing any number in
+> this repo.
+
+This repo began as the **dev/validation rig** — it ran on a Mac laptop using
+its built-in Bluetooth, to check readings against the Volthium phone app and
+dial in the time estimator before committing to permanent hardware.
 
 ## How it works
 

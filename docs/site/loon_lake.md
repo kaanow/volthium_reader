@@ -111,7 +111,11 @@ Per user: ceiling fan + overnight fire is standard.
 - Wood stove: zero electrical draw.
 - Ceiling fan: ~2.3 A continuous at 24 V pack ≈ ~55 W into the inverter,
   which is about right for a residential fan at low–medium speed.
-- Background: fridge cycling on top of baseline.
+- Background: fridge cycling on top of baseline. **The fridge is a DC load,
+  not an AC load through the inverter** — measured 2026-08-12
+  (`scripts/fridge_split.py`): the BMS sees a 74.2 W step at 32.3% duty while
+  `dc_w`, the inverter's own draw, does not move at all across it. Anything
+  in this file that implies the fridge runs through the inverter is wrong.
 
 So a quiet, normal overnight has a discharge curve of roughly **-5 to
 -8 A average**, with brief +7 A bumps every several minutes when the

@@ -551,6 +551,15 @@ def section_wired(since_iso: str) -> tuple[bool, list[str]]:
         if tr != "rs485":
             lines.append("    ← telemetry NOT sourced from RS485 — path degraded!")
             notable = True
+    else:
+        # NO read_ok AT ALL in the window means the primary telemetry path is
+        # producing nothing — the worst state this section can observe. The
+        # `if recent:` had no else, so it fell through with notable=False and
+        # the run reported a quiet window. The degraded branch was reachable
+        # only while the path was alive enough to say so.
+        notable = True
+        lines.append("  ← NO read_ok events in the window — the RS485 path is "
+                     "producing nothing at all")
     return notable, lines
 
 

@@ -17,7 +17,7 @@
 | **BLE adapter (retired)** | TP-Link UB500 USB dongle (RTL8761B chipset), enumerates as `hci1` — the internal BCM43438 (`hci0`) is left DOWN, its UART bring-up is broken on this board. Still fitted; `volthium-logger` is disabled |
 | **Storage** | Samsung PRO Endurance 64 GB microSD (replaced the aging SU16G on 2026-07-09) |
 | **Reader hostname / IP** | `kwpi` / `192.168.1.251` (LAN + ZeroTier reachable) |
-| **SSH access** | `ssh kaan@192.168.1.251` — key auth, passwordless sudo |
+| **SSH access** | `ssh kaan@kwpi.zt` (ZeroTier — what all the tooling uses). LAN: `ssh kaan@192.168.1.251`. If `kwpi.zt` fails to resolve, use the ZeroTier IPs directly: `10.42.100.200` (voxelis) / `192.168.192.101` (willaker). Key auth, passwordless sudo. **Flags must come AFTER the host** on this machine. |
 | **Repo on Pi** | `/srv/volthium_reader` (branch `main`, owner `claude:users`) |
 | **Venv on Pi** | `/srv/volthium_reader/.venv` (Python 3.12 from Ubuntu) |
 | **Cloud (production)** | https://volts.alti2.de |
@@ -139,7 +139,7 @@ Set in the service's **Variables** tab in the Railway dashboard.
 | `STALENESS_CHECK_INTERVAL_S` | poll interval | 60 |
 | `EMA_ALPHA` / `CAPACITY_AH` / `FLOOR_PCT` / `CEILING_PCT` / `IDLE_CURRENT_A` | estimator tunables | see `cloud/server/config.py` |
 | `DB_MIGRATE` | if truthy, apply migrations at startup | `1` |
-| `DISPLAY_TZ` | dashboard render zone | `America/Toronto` |
+| `DISPLAY_TZ` | **NOT a render zone — it is the GROUP BY key** for every daily/hourly aggregate (`solar_energy_daily`, `load_heatmap`, `history_daily`, `history_profile`). Currently `America/Toronto` for a site in British Columbia; see `docs/cloud_architecture.md` for exactly what that does and does not break. | `America/Toronto` |
 
 Env-var naming rule for reader tokens: `READER_TOKEN_<UPPER_SNAKE>` grants
 `source_id=<lower-kebab>`. So `READER_TOKEN_PI_BARGE` ↔ `pi-barge`.
@@ -148,7 +148,7 @@ Env-var naming rule for reader tokens: `READER_TOKEN_<UPPER_SNAKE>` grants
 
 From anywhere:
 ```
-curl https://volts.alti2.de/healthz              # expect: "ok"
+curl https://volts.alti2.de/healthz              # expect: "ok alerting=on"
 curl https://volts.alti2.de/api/latest           # expect: ts within the last minute
 ```
 
@@ -184,7 +184,13 @@ The symlinks are by USB **port path**, so swapping which physical socket an
 adapter sits in re-maps A and B. If both adapters are present but readings
 are wrong-battery, that is the first thing to check.
 
-### Restart the whole BLE stack — RETIRED PATH
+### Restart the whole BLE stack — RETIRED PATH, ALMOST CERTAINLY NOT WHAT YOU WANT
+`volthium-logger` has been disabled since 2026-07-26 and emits nothing. If you
+are here because telemetry looks stale, the live path is **RS485** — see
+"Telemetry stale" above. Reaching for this section is the documented mistake:
+its journal has been empty for weeks, so it will look calm no matter how
+broken the real path is.
+
 Only relevant if `volthium-logger` has been deliberately re-enabled; it is
 disabled by default and conflicts with the RS485 logger.
 ```
@@ -196,7 +202,9 @@ sudo systemctl restart volthium-logger
 ### Deploy a code change to Railway
 1. Local: `make preflight` (needs Docker; skips if you don't).
 2. `git push origin main` — Railway auto-deploys, ~1 min.
-3. Verify: `curl https://volts.alti2.de/healthz` still returns `ok`.
+3. Verify: `curl https://volts.alti2.de/healthz` returns `ok alerting=on`.
+   A bare `ok` means the deploy predates the alerting flag; `alerting=off`
+   means STALENESS_WEBHOOK_URL is unset and nothing will page.
 4. GitHub Actions runs the same preflight in CI on every push touching
    `cloud/server/**` or `cloud/shared/**` — that's the guardrail.
 

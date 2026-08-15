@@ -421,3 +421,39 @@ class GitSyncCheckTests(unittest.TestCase):
             "FETCH=0 HEAD=bac6ba8 ORIGIN=bac6ba8 BEHIND=0 DIRTY=0\n")
         self.assertFalse(notable)
         self.assertIn("IN SYNC", " ".join(lines))
+
+
+class WiredPathDeadTests(unittest.TestCase):
+    """A completely dead RS485 path must not report a quiet window.
+
+    section_wired checked the newest read_ok's transport and flagged a switch
+    away from rs485 — but the `if recent:` had no else, so ZERO read_ok events
+    (the path producing nothing at all, the worst state it can observe) fell
+    through with notable=False. The degraded branch was reachable only while
+    the path was alive enough to report on itself.
+    """
+
+    def _events(self, mapping):
+        def fake(kind, since_iso, limit=10_000):
+            return mapping.get(kind, [])
+        return mock.patch.object(S, "fetch_events", fake)
+
+    def test_no_read_ok_at_all_is_NOTABLE(self):
+        with self._events({}):
+            notable, lines = S.section_wired("2026-08-15T00:00:00Z")
+        self.assertTrue(notable, "a silent RS485 path must be flagged")
+        self.assertIn("producing nothing", " ".join(lines))
+
+    def test_healthy_rs485_is_quiet(self):
+        with self._events({"read_ok": [{"ts": "2026-08-15T12:00:00Z",
+                                        "data": {"transport": "rs485"}}]}):
+            notable, lines = S.section_wired("2026-08-15T00:00:00Z")
+        self.assertFalse(notable)
+        self.assertIn("rs485", " ".join(lines))
+
+    def test_a_transport_switch_is_still_NOTABLE(self):
+        with self._events({"read_ok": [{"ts": "2026-08-15T12:00:00Z",
+                                        "data": {"transport": "ble"}}]}):
+            notable, lines = S.section_wired("2026-08-15T00:00:00Z")
+        self.assertTrue(notable)
+        self.assertIn("degraded", " ".join(lines))
