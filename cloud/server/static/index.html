@@ -109,7 +109,11 @@
        spawning the panel's local scrollbar. */
     table.batt td, table.batt th { padding: 5px 2px; }
   }
+  /* the marking on the physical battery case, next to its A/B identity */
+  .btag { font-size: .74em; opacity: .62; font-weight: 500;
+          margin-left: .12em; letter-spacing: .02em; }
 </style>
+<script src="/static/labels.js"></script>
 </head>
 <body>
   <h1>The Barge Inn — Volthium 24 V Pack</h1>
@@ -265,13 +269,8 @@ function spark(id, values, includeZero, color, opts) {
   return { lo: rawLo, hi: rawHi };
 }
 
-const labelOf = (name, fallback) => {
-  if (name && name.includes("-")) {
-    const tail = name.split("-").pop();
-    if (tail && tail.length >= 2) return tail.slice(-2);
-  }
-  return fallback;
-};
+// battLabel/battLabelHTML live in /static/labels.js — one owner, so a
+// change to the marking convention cannot drift between pages.
 
 // Incremental buffer: fetch the full window once, then poll only rows newer
 // than the last timestamp we hold and append them, trimming back to the window.
@@ -316,7 +315,8 @@ async function tick() {
         r => r.i_a != null && r.i_b != null && Math.abs(r.i_a - r.i_b) >= THR);
       if (on) {
         const r = last[last.length - 1];
-        el.textContent = "⚡ balancing " + (r.i_b > r.i_a ? "B" : "A");
+        el.innerHTML = "⚡ balancing " + (r.i_b > r.i_a
+          ? battLabelHTML(x.name_b, "B") : battLabelHTML(x.name_a, "A"));
         el.style.display = "";
       } else {
         el.style.display = "none";
@@ -394,7 +394,7 @@ async function tick() {
 
     const rA = document.getElementById("rowA").children;
     const rB = document.getElementById("rowB").children;
-    rA[0].textContent = labelOf(x.name_a, "A");
+    rA[0].innerHTML = battLabelHTML(x.name_a, "A");
     rA[1].textContent = x.soc_a != null ? Math.round(x.soc_a) + "%" : "—";
     rA[2].textContent = fixed(x.v_a, 2);
     rA[3].textContent = x.i_a == null
@@ -408,7 +408,7 @@ async function tick() {
     rA[6].innerHTML = pa == null
         ? "—"
         : `<span class="problem-pill ${pa == 0 ? "ok" : ""}">${pa}</span>`;
-    rB[0].textContent = labelOf(x.name_b, "B");
+    rB[0].innerHTML = battLabelHTML(x.name_b, "B");
     rB[1].textContent = x.soc_b != null ? Math.round(x.soc_b) + "%" : "—";
     rB[2].textContent = fixed(x.v_b, 2);
     rB[3].textContent = x.i_b == null

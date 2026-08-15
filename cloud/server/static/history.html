@@ -83,7 +83,11 @@
     .panel { padding: 14px 12px; }
     .cards { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
   }
+  /* the marking on the physical battery case, next to its A/B identity */
+  .btag { font-size: .74em; opacity: .62; font-weight: 500;
+          margin-left: .12em; letter-spacing: .02em; }
 </style>
+<script src="/static/labels.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -124,8 +128,8 @@
     <div class="chart-wrap"><svg id="ch-pv" class="chart short" viewBox="0 0 900 110" preserveAspectRatio="none"></svg><div class="tip" id="tip-pv"></div></div>
 
     <div class="label">state of charge (%)</div>
-    <div class="legend"><span><span class="sw" style="background:var(--blu)"></span>battery A</span>
-      <span><span class="sw" style="background:var(--vio)"></span>battery B</span></div>
+    <div class="legend"><span><span class="sw" style="background:var(--blu)"></span>battery <span data-batt="a">A</span></span>
+      <span><span class="sw" style="background:var(--vio)"></span>battery <span data-batt="b">B</span></span></div>
     <div class="chart-wrap"><svg id="ch-soc" class="chart" viewBox="0 0 900 140" preserveAspectRatio="none"></svg><div class="tip" id="tip-soc"></div></div>
 
     <div class="label">battery imbalance — SOC gauge divergence (A − B)
@@ -205,6 +209,24 @@
 </div>
 
 <script>
+// Battery case markings: the history aggregates carry no names, so ask once.
+// Identities are stable; a failed lookup leaves the bare letters.
+let BL = { a: "A", b: "B", aHTML: "A", bHTML: "B" };
+loadBattLabels().then(function (l) {
+  BL = l;
+  const paint = function () {
+    document.querySelectorAll("[data-batt]").forEach(function (el) {
+      el.innerHTML = el.dataset.batt === "a" ? BL.aHTML : BL.bHTML;
+    });
+  };
+  // the fetch can land before the markup is parsed if this block ever moves
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", paint);
+  } else {
+    paint();
+  }
+});
+
 "use strict";
 const $ = id => document.getElementById(id);
 const GRN = "#3fb950", YLW = "#d29922", RED = "#f85149", BLU = "#58a6ff",
@@ -499,7 +521,7 @@ async function loadSeries(hours, before) {
   chart("ch-soc", "tip-soc", rows, [
     {key: "soc_a", color: BLU}, {key: "soc_b", color: VIO},
   ], {unit: "%", tipFn: d =>
-      `A <b style="color:${BLU}">${fmt(d.soc_a, "%")}</b> · B <b style="color:${VIO}">${fmt(d.soc_b, "%")}</b>`});
+      `${BL.aHTML} <b style="color:${BLU}">${fmt(d.soc_a, "%")}</b> · ${BL.bHTML} <b style="color:${VIO}">${fmt(d.soc_b, "%")}</b>`});
   chart("ch-div", "tip-div", rows, [
     {key: "div", color: "#e6edf3"},
   ], {zero: true, unit: " pts",
@@ -510,11 +532,11 @@ async function loadSeries(hours, before) {
   chart("ch-t", "tip-t", rows, [
     {key: "t_a", color: BLU}, {key: "t_b", color: VIO},
   ], {unit: "°", tipFn: d =>
-      `A <b style="color:${BLU}">${fmt(d.t_a, "°")}</b> · B <b style="color:${VIO}">${fmt(d.t_b, "°")}</b>`});
+      `${BL.aHTML} <b style="color:${BLU}">${fmt(d.t_a, "°")}</b> · ${BL.bHTML} <b style="color:${VIO}">${fmt(d.t_b, "°")}</b>`});
   chart("ch-dv", "tip-dv", rows, [
     {key: "dv_a", color: BLU}, {key: "dv_b", color: VIO},
   ], {zero: true, unit: " mV", tipFn: d =>
-      `A <b style="color:${BLU}">${fmt(d.dv_a, " mV")}</b> · B <b style="color:${VIO}">${fmt(d.dv_b, " mV")}</b>`});
+      `${BL.aHTML} <b style="color:${BLU}">${fmt(d.dv_a, " mV")}</b> · ${BL.bHTML} <b style="color:${VIO}">${fmt(d.dv_b, " mV")}</b>`});
   $("explorer-note").textContent = rows.length
     ? `${rows.length} slices of ${b >= 3600 ? (b / 3600) + " h" : (b / 60) + " min"} each`
     : "";

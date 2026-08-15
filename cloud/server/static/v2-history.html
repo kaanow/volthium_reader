@@ -57,7 +57,11 @@ svg.chart { display: block; width: 100%; height: auto; }
 .timeline .ev { color: var(--text-1); font-weight: 600; min-width: 120px; }
 .timeline .d { color: var(--text-2); }
 .foot { margin-top: 34px; color: var(--text-3); font-size: 12px; }
+  /* the marking on the physical battery case, next to its A/B identity */
+  .btag { font-size: .74em; opacity: .62; font-weight: 500;
+          margin-left: .12em; letter-spacing: .02em; }
 </style>
+<script src="/static/labels.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -95,8 +99,8 @@ svg.chart { display: block; width: 100%; height: auto; }
     <p class="note">Max cell ΔV per day. Rising trend = balancer losing ground; battery A's
       spread is what drove the July overvoltage trips.</p>
     <div class="legend">
-      <span style="--c: var(--a)">battery A</span>
-      <span style="--c: var(--b)">battery B</span>
+      <span style="--c: var(--a)">battery <span data-batt="a">A</span></span>
+      <span style="--c: var(--b)">battery <span data-batt="b">B</span></span>
     </div>
     <svg id="drift" class="chart" viewBox="0 0 840 160"></svg>
   </section>
@@ -112,6 +116,24 @@ svg.chart { display: block; width: 100%; height: auto; }
 </div>
 
 <script>
+// Battery case markings: the history aggregates carry no names, so ask once.
+// Identities are stable; a failed lookup leaves the bare letters.
+let BL = { a: "A", b: "B", aHTML: "A", bHTML: "B" };
+loadBattLabels().then(function (l) {
+  BL = l;
+  const paint = function () {
+    document.querySelectorAll("[data-batt]").forEach(function (el) {
+      el.innerHTML = el.dataset.batt === "a" ? BL.aHTML : BL.bHTML;
+    });
+  };
+  // the fetch can land before the markup is parsed if this block ever moves
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", paint);
+  } else {
+    paint();
+  }
+});
+
 "use strict";
 const $ = id => document.getElementById(id);
 const tip = $("tip");
@@ -212,7 +234,7 @@ function drawDrift(series) {
   out += `<path d="${line("dv_b")}" fill="none" stroke="var(--b)" stroke-width="2"/>`;
   pts.forEach((b, i) => {
     const label = new Date(b.bucket).toLocaleDateString([], { month: "short", day: "numeric" });
-    const t = `<b>${label}</b><br>A <b>${((b.dv_a || 0) * 1000).toFixed(0)} mV</b> · B <b>${((b.dv_b || 0) * 1000).toFixed(0)} mV</b>`;
+    const t = `<b>${label}</b><br>${BL.aHTML} <b>${((b.dv_a || 0) * 1000).toFixed(0)} mV</b> · ${BL.bHTML} <b>${((b.dv_b || 0) * 1000).toFixed(0)} mV</b>`;
     out += `<rect x="${x(i) - 8}" y="0" width="16" height="${H}" fill="transparent" data-tip="${t.replace(/"/g, "&quot;")}"/>`;
   });
   out += `<text x="${PADX}" y="12" style="font:11px system-ui;fill:var(--text-3)">${Math.round(max * 1000)} mV</text>`;

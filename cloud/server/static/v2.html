@@ -93,7 +93,11 @@ table.sys-t td { padding: 6px 0; border-top: 1px solid var(--line);
   text-align: right; font-variant-numeric: tabular-nums; color: var(--text-1); }
 table.sys-t td:first-child { text-align: left; color: var(--text-2); }
 table.sys-t tr.balance td { color: var(--text-3); border-top: 1px solid var(--line); }
+  /* the marking on the physical battery case, next to its A/B identity */
+  .btag { font-size: .74em; opacity: .62; font-weight: 500;
+          margin-left: .12em; letter-spacing: .02em; }
 </style>
+<script src="/static/labels.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -497,8 +501,9 @@ function drawHero() {
   const sa = L.soc_a, sb = L.soc_b;
   const master = sa != null && sb != null ? Math.min(sa, sb) : (sa ?? sb);
   $("soc").textContent = master != null ? Math.round(master) : "—";
-  $("ab").textContent = sa != null && sb != null
-    ? `A ${Math.round(sa)}% · B ${Math.round(sb)}%` : "";
+  $("ab").innerHTML = sa != null && sb != null
+    ? `${battLabelHTML(L.name_a, "A")} ${Math.round(sa)}% · `
+      + `${battLabelHTML(L.name_b, "B")} ${Math.round(sb)}%` : "";
   const ageS = (Date.now() - Date.parse(L.ts)) / 1000;
   const chip = $("state");
   if (ageS > 120) {
