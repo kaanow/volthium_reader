@@ -394,3 +394,30 @@ class GitSyncCheckTests(unittest.TestCase):
         exclusion this cries wolf every run and gets ignored within a day."""
         src = inspect.getsource(S.section_pi)
         self.assertIn("':!data'", src)
+
+    def test_a_FAILED_fetch_can_never_report_in_sync(self):
+        """The bug this check itself had on 2026-08-15.
+
+        The probe wrote `git fetch ... 2>/dev/null;` and ignored the exit
+        status, so when fetch failed (root-owned .git/objects dirs from an old
+        sudo'd git run, group-unwritable, unpack-objects refused) the
+        comparison ran against a STALE origin/main and printed
+        'IN SYNC with 19e92e5' while the Pi was 4 commits behind.
+
+        A stale ref makes BEHIND and DIRTY meaningless, so the only honest
+        answer is UNKNOWN.
+        """
+        notable, lines = S._check_git_sync(
+            "FETCH=128 HEAD=19e92e5 ORIGIN=19e92e5 BEHIND=0 DIRTY=0\n"
+            "fatal: failed to write object\n")
+        self.assertTrue(notable)
+        text = " ".join(lines)
+        self.assertIn("UNKNOWN", text)
+        self.assertNotIn("IN SYNC", text)
+        self.assertIn("failed to write object", text)
+
+    def test_a_successful_fetch_still_reports_normally(self):
+        notable, lines = S._check_git_sync(
+            "FETCH=0 HEAD=bac6ba8 ORIGIN=bac6ba8 BEHIND=0 DIRTY=0\n")
+        self.assertFalse(notable)
+        self.assertIn("IN SYNC", " ".join(lines))

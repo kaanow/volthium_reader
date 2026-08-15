@@ -550,6 +550,14 @@ def _check_git_sync(out: str) -> tuple[bool, list[str]]:
     if "HEAD" not in f:
         return True, ["  ← git sync: probe returned nothing — cannot confirm "
                       "the Pi is running the committed code"]
+    # A failed fetch means origin/main is stale, so BEHIND and DIRTY are both
+    # meaningless. Say so instead of comparing against yesterday's ref.
+    if f.get("FETCH", "0") != "0":
+        err = [l for l in out.splitlines()
+               if "fatal" in l or "error" in l or "denied" in l]
+        return True, ["  ← git sync UNKNOWN: fetch FAILED on the Pi "
+                      f"(rc={f.get('FETCH')}), so origin/main is stale and "
+                      "'behind' cannot be trusted"] + [f"      {e}" for e in err[:2]]
     behind = int(f.get("BEHIND", "0") or 0)
     dirty = int(f.get("DIRTY", "0") or 0)
     if not behind and not dirty:
@@ -684,12 +692,22 @@ def section_pi(ssh_target: str, hours: int) -> tuple[bool, list[str]]:
         gout = subprocess.check_output(
             ["ssh", ssh_target, "-o", "ConnectTimeout=8",
              "cd /srv/volthium_reader && "
-             "timeout 120 git fetch --no-tags -q origin main 2>/dev/null; "
+             # The fetch's exit status is REPORTED, not discarded. Writing
+             # `2>/dev/null;` here meant a failing fetch was invisible and the
+             # comparison ran against a STALE origin/main — so on 2026-08-15
+             # this printed "IN SYNC with 19e92e5" while the Pi was 4 commits
+             # behind and could not fetch at all (root-owned .git/objects dirs
+             # from an old sudo'd git run, group-unwritable, so unpack-objects
+             # failed). A drift detector that reports success when its own
+             # input is stale is the exact failure it exists to catch.
+             "timeout 120 git fetch --no-tags -q origin main 2>/tmp/gitfetch.err; "
+             "echo FETCH=$?; "
              "echo HEAD=$(git rev-parse --short HEAD) "
              "ORIGIN=$(git rev-parse --short origin/main) "
              "BEHIND=$(git rev-list --count HEAD..origin/main) "
              "DIRTY=$(git diff --name-only origin/main -- ':!data' | wc -l); "
-             "git diff --name-only origin/main -- ':!data' | head -5"],
+             "git diff --name-only origin/main -- ':!data' | head -5; "
+             "head -2 /tmp/gitfetch.err"],
             timeout=180, text=True,
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
