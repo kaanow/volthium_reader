@@ -186,6 +186,31 @@ Raw cadence is 15 s, so 30 s is the more defensible choice by the file's own
 reasoning — and 30 s is the one that breaks the rule. **Before believing any
 result, re-run it with the arbitrary constants moved one notch.**
 
+*Added 2026-08-15, clearing the found-but-not-fixed backlog. Almost every item
+turned out to be one shape.*
+
+**"I looked and it was fine" and "I could not look" must not print the same
+thing.** Six separate instances, all shipping, all reporting health:
+`status_check --hours 24` fetched the oldest 13.9 h of a 24 h window because
+the endpoint caps at 10 000 rows, then called the missing newest hours STALE;
+`health_check` parsed status_check's verdict — including the INCOMPLETE it
+emits specifically so partial runs cannot read clean — and never put it in
+`problems`; `section_wired` flagged a transport SWITCH but had no `else`, so
+zero `read_ok` events (the path producing nothing at all) fell through quiet;
+the git-sync check discarded `git fetch`'s exit status and compared against a
+stale ref; `meter_offset` pooled four nights when asked for five and said
+nothing; and the config watch could go blind with nothing watching. **The
+test: can this check tell the difference between a clean result and no result?
+If the same output covers both, it is not a check.**
+
+**A guard scoped by a hand-written list is blind to exactly the case it was
+written for.** The dc_w regression test named three read paths, so when
+`solar_series` became the fourth it sailed through — for eight days, feeding
+the history explorer from a table that still holds the corrupt −27844 W row.
+The same shape as the BLE stub list and the install-script unit list. **Derive
+the scope from the source; a list you maintain by hand is a list that goes
+stale the moment someone else is careful.**
+
 **Measure the fix before shipping it, not just the bug.** The ledger's
 inferred-branch gate was estimated at ~600 Wh/day. It was 1150–1550. And the
 authorised fix, measured against an independent estimate, *overshoots* in the
