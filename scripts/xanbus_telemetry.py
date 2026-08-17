@@ -411,6 +411,28 @@ class Decoder:
                 self.bad_mppt_energy += 1
                 return []
 
+        # THE DAILY PAIR NEEDS ITS OWN GUARD, and 2026-08-16 06:15:16 is why.
+        # The MPPT emitted day_wh = 8388607 (0x7FFFFF) with
+        # day_ah = 4286578687 (0xFF7FFFFF) — both saturation patterns — and
+        # every existing check passed it:
+        #
+        #   the 0xFFFFFFFF test    neither value is exactly all-ones
+        #   the ratio test         only looks at the LIFETIME pair, which was
+        #                          fine at 327313/12059 = 27.14 V
+        #
+        # The corrupt sample then became `prev`, and on the next reading the
+        # rollover branch below saw day_wh DROP and published 8388607 Wh as
+        # "the final daily total" — 8.4 MWh from a 750 W array, latched into
+        # the ledger by a MAX() that had no bound either.
+        #
+        # The guard is an INVARIANT, not a threshold: a daily counter can never
+        # exceed the lifetime counter it contributes to. No number to tune, and
+        # it cannot go stale as the array or the season changes. It catches both
+        # corrupt fields here by a factor of 25 and 350,000.
+        if day_wh > life_wh or day_ah > life_ah:
+            self.bad_mppt_energy += 1
+            return []
+
         events: list[dict] = []
         prev = self.last_day_wh
 

@@ -293,6 +293,30 @@ class CounterAttributionTests(unittest.TestCase):
         g = _cte(_render_sql(), "g")
         self.assertIn("AT TIME ZONE $3", g)
 
+    def test_the_counter_is_BOUNDED_on_the_read_path(self):
+        """A corrupt row already in the table cannot be fixed at the decoder.
+
+        On 2026-08-16 the MPPT emitted day_wh = 8388607 (0x7FFFFF) and the
+        unbounded MAX() latched it permanently — 8.4 MWh from a 750 W array,
+        shown as that day's audit figure. The decoder now rejects it, but that
+        only protects rows written from now on; the bad row is already stored
+        and will appear in every historical window that queries it. Same lesson
+        as dc_w = -27844: guard at BOTH ends, because only one can be
+        retroactive.
+        """
+        c = _cte(_render_sql(), "c")
+        self.assertIn("BETWEEN 0 AND 20000", c,
+                      "mppt_counter_wh must be range-bounded on read")
+        self.assertNotRegex(
+            c, r"MAX\(\(data->>'day_wh'\)::numeric\)",
+            "an unguarded MAX() lets one corrupt sample own the day forever")
+
+    def test_the_bound_admits_a_real_day_and_rejects_the_corrupt_one(self):
+        """The bound must not eat data. Best day on record is 1939 Wh; the
+        corrupt sample was 8388607."""
+        self.assertLess(1939, 20000)
+        self.assertGreater(8388607, 20000)
+
     def test_the_site_zone_is_the_actual_site(self):
         """Barge Inn is in British Columbia. If this ever needs changing, the
         panels moved."""

@@ -912,7 +912,20 @@ class AsyncpgReadingsDAO:
                                          - interval '1 hour')::date
                                    ELSE (ts AT TIME ZONE '{SITE_TZ}')::date END
                               AS day,
-                              MAX((data->>'day_wh')::numeric) AS mppt_counter_wh
+                              -- BOUNDED on the read path as well, because a
+                              -- corrupt row already in the table is not
+                              -- fixable at the decoder. On 2026-08-16 the MPPT
+                              -- emitted day_wh = 8388607 (0x7FFFFF) and MAX()
+                              -- latched it permanently — 8.4 MWh from a 750 W
+                              -- array, displayed as that day's audit figure.
+                              -- Same lesson as dc_w = -27844: guard at BOTH
+                              -- ends, since only one of them can be
+                              -- retroactive. NULL, not clamped: a corrupt
+                              -- sample is missing data.
+                              MAX(CASE WHEN (data->>'day_wh')::numeric
+                                            BETWEEN 0 AND 20000
+                                       THEN (data->>'day_wh')::numeric END)
+                              AS mppt_counter_wh
                        FROM xanbus_events
                        WHERE source_id = $1
                          AND ts > now() - ($2 || ' days')::interval

@@ -149,3 +149,76 @@ class DecodeGuardTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CorruptDailyPairTests(unittest.TestCase):
+    """The daily pair needs its own guard, and 2026-08-16 06:15:16 is why.
+
+    The MPPT emitted day_wh = 8388607 (0x7FFFFF) with day_ah = 4286578687
+    (0xFF7FFFFF) — both saturation patterns — and every existing check passed:
+
+      the 0xFFFFFFFF test   neither value is exactly all-ones
+      the ratio test        only looks at the LIFETIME pair, which was fine
+                            at 327313/12059 = 27.14 V
+
+    The corrupt sample became `prev`, and on the next reading the rollover
+    branch saw day_wh DROP and published 8388607 Wh as "the final daily total"
+    — 8.4 MWh from a 750 W array, latched into the ledger by an unbounded MAX().
+
+    The guard is an INVARIANT, not a threshold: a daily counter cannot exceed
+    the lifetime counter it contributes to. Nothing to tune, and it cannot go
+    stale as the array or the season changes.
+    """
+
+    # The exact values the MPPT sent.
+    LIFE_AH, LIFE_WH = 12059, 327313
+    BAD_AH, BAD_WH = 4286578687, 8388607
+
+    def test_the_real_corrupt_sample_is_rejected(self):
+        dec = Decoder()
+        out = feed(dec, payload(self.LIFE_AH, self.LIFE_WH,
+                                self.BAD_AH, self.BAD_WH), 1000.0)
+        self.assertEqual(out, [], "the 2026-08-16 sample must be rejected")
+
+    def test_it_is_counted_as_bad_rather_than_silently_dropped(self):
+        dec = Decoder()
+        feed(dec, payload(self.LIFE_AH, self.LIFE_WH,
+                          self.BAD_AH, self.BAD_WH), 1000.0)
+        self.assertEqual(dec.bad_mppt_energy, 1)
+
+    def test_a_corrupt_sample_cannot_become_the_rollover_value(self):
+        """The actual harm: it was not the bad reading that reached the ledger,
+        it was the NEXT one, when the rollover branch published the corrupt
+        `prev` as an authoritative daily total."""
+        dec = Decoder()
+        feed(dec, payload(self.LIFE_AH, self.LIFE_WH, 50, 1400), 1000.0)
+        feed(dec, payload(self.LIFE_AH, self.LIFE_WH,
+                          self.BAD_AH, self.BAD_WH), 2000.0)
+        out = feed(dec, payload(self.LIFE_AH, self.LIFE_WH, 55, 1500), 3000.0)
+        totals = [e for e in out if e["event"] == "mppt_daily_total"]
+        self.assertEqual(totals, [],
+                         "a rejected sample must not trigger a rollover, and "
+                         "must never be published as a daily total")
+
+    def test_the_guard_catches_either_field_alone(self):
+        for ah, wh in ((self.BAD_AH, 1400), (50, self.BAD_WH)):
+            with self.subTest(day_ah=ah, day_wh=wh):
+                dec = Decoder()
+                self.assertEqual(
+                    feed(dec, payload(self.LIFE_AH, self.LIFE_WH, ah, wh),
+                         1000.0), [])
+
+    def test_a_PLAUSIBLE_day_still_passes(self):
+        """The guard must not eat real data — that is how a sanity check starts
+        deleting measurements. A normal day is far below the lifetime totals."""
+        dec = Decoder()
+        out = feed(dec, payload(self.LIFE_AH, self.LIFE_WH, 71, 1939), 1000.0)
+        self.assertTrue(out, "a normal daily reading must be accepted")
+        self.assertEqual(out[0]["data"]["day_wh"], 1939)
+
+    def test_the_equality_edge_is_allowed(self):
+        """On the very first day of the counter's life, daily == lifetime. The
+        invariant is <=, not <, or a fresh MPPT would log nothing."""
+        dec = Decoder()
+        out = feed(dec, payload(100, 2700, 100, 2700), 1000.0)
+        self.assertTrue(out, "day == life must be allowed")
