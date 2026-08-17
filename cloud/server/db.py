@@ -901,16 +901,26 @@ class AsyncpgReadingsDAO:
                    SELECT g.*, c.mppt_counter_wh,
                           -- Modelled, and labelled as such: the step and duty
                           -- are measured in darkness and projected across 24 h.
+                          -- Scaled by COVERAGE, not a flat 24 h. The
+                          -- fridge step and duty are measured over the dark
+                          -- hours and projected across the day, so on a
+                          -- PARTIAL day (today, or one with a data gap) a flat
+                          -- 24 h charged a full day of fridge against a
+                          -- half-day load_wh. Observed 2026-08-17: 611 Wh of
+                          -- fridge on a day whose load_wh was only half in.
+                          -- coverage is 1.0 on a complete day, so no finished
+                          -- day moves.
                           CASE WHEN dcl.dark_n >= 120
-                               THEN dcl.step_w * dcl.duty * 24
+                               THEN dcl.step_w * dcl.duty * 24 * g.coverage
                           END AS dc_load_wh,
                           -- The number to actually use. load_wh is retained
                           -- unchanged above so no historical value moves, but
                           -- load_wh + dc_load_wh DOUBLE-COUNTS — see
                           -- INVERTER_OVER_READ_W.
                           CASE WHEN dcl.dark_n >= 120
-                               THEN g.load_wh - {INVERTER_OVER_READ_W} * 24
-                                    + dcl.step_w * dcl.duty * 24
+                               THEN g.load_wh
+                                    - {INVERTER_OVER_READ_W} * 24 * g.coverage
+                                    + dcl.step_w * dcl.duty * 24 * g.coverage
                           END AS total_load_wh
                    FROM g LEFT JOIN c USING (day)
                           LEFT JOIN dcl USING (day) ORDER BY day""",

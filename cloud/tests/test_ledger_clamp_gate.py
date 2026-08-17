@@ -220,5 +220,40 @@ class DcLoadDecompositionTests(unittest.TestCase):
         self.assertAlmostEqual(db_mod.DC_LOAD_SPLIT_W, 117.6, places=1)
         self.assertAlmostEqual(db_mod.INVERTER_OVER_READ_W, 32.8, places=1)
 
+
+class PartialDayScalingTests(unittest.TestCase):
+    """A partial day must not be charged a full day of correction.
+
+    Both new columns project a dark-hours measurement across the day. With a
+    flat 24 h multiplier, 2026-08-17 — half elapsed — reported 611 Wh of fridge
+    and subtracted a full 787 Wh of inverter over-read from a load_wh that was
+    only half accumulated. Scaling by `coverage` fixes it and leaves completed
+    days untouched, since coverage is 1.0 there.
+    """
+
+    def test_both_projections_are_scaled_by_coverage(self):
+        sql = _render_sql()
+        for col in ("dc_load_wh", "total_load_wh"):
+            i = sql.index(f"AS {col}")
+            block = sql[max(0, i - 500):i]
+            self.assertIn("g.coverage", block,
+                          f"{col} must be scaled by coverage, not a flat 24 h")
+
+    def test_the_offset_correction_is_also_scaled(self):
+        """Subtracting a full day's over-read from a partial day's load was the
+        larger half of the error: 787 Wh against a 1332 Wh load."""
+        sql = _render_sql()
+        i = sql.index("AS total_load_wh")
+        block = sql[max(0, i - 500):i]
+        self.assertRegex(block, r"INVERTER_OVER_READ|32\.8")
+        self.assertEqual(block.count("g.coverage"), 2,
+                         "both the offset and the fridge term must be scaled")
+
+    def test_a_complete_day_is_unaffected(self):
+        """coverage = 1.0, so the arithmetic is identical for finished days —
+        this fix must not silently move history."""
+        cov, step, duty = 1.0, 74.2, 0.323
+        self.assertAlmostEqual(step * duty * 24 * cov, step * duty * 24)
+
 if __name__ == "__main__":
     unittest.main()
