@@ -145,6 +145,41 @@ CONFIRM_STALE_S = 2.5 * 60 * 60   # a pending confirmation older than this resta
 # it protects against me, not against the hardware. Six keeps that bound
 # meaningful at 6 x 15 s = 90 s of standby per day.
 MAX_FIXES_PER_DAY = 6      # hard cap; bounds a runaway, incl. a detector bug
+
+# --- EARLY BOUNCE at the 29-minute mark (task #48) ------------------------
+#
+# The guard above waits for the CLAMP, by which time the array has spent a
+# median 43 min walking down producing almost nothing. The early bounce acts
+# during the descent instead. Two things had to be settled first, and both now
+# are:
+#
+#   1. Does a still-TRACKING array recover from a bounce? Every one of the 16
+#      bounces on record started from a CLAMPED array at 27-30 V. Tested
+#      2026-08-14 at 41.8 V: recovered to 93.1 V in one minute, 25 W -> 103 W,
+#      no walk-back for 53 min. Yes.
+#   2. WHEN to fire. Not at the 45 V crossing: 8 of 32 episodes recover on
+#      their own and all of those resolve within 15 min, so firing at the
+#      crossing wastes a bounce on a quarter of episodes. At 29 minutes the
+#      record is 24 clamps for 24 — every fire is justified.
+#
+# 29 min is the OBSERVED CLAMP FLOOR, not a tuned value. The natural recovery
+# distribution tops out at 15 min and the clamp distribution starts at 29, so
+# 15..29 is a 14-minute empty band. Firing at 29 stays out of it: acting
+# earlier would act where there is no evidence in either direction. If an
+# episode ever lands in that band, revisit.
+EARLY_CROSS_V = 45.0             # the cliff
+EARLY_REARM_V = 48.0             # must climb back here to reset the clock
+EARLY_AFTER_S = 29 * 60          # the observed clamp floor
+EARLY_MIN_SUN_DEG = 15.0         # higher than the clamp guard's 5: a 45 V
+                                 # crossing at low sun is dusk, not a walk-down
+EARLY_MAX_PER_DAY = 6            # SEPARATE budget — an early bounce must never
+                                 # starve the clamp fix, which is the one that
+                                 # recovers a fully stuck array
+EARLY_MIN_INTERVAL_S = 30 * 60   # each bounce restores the array and it walks
+                                 # down again; this bounds the resulting cycle
+EARLY_REARM_RUNS = 2             # two consecutive runs above EARLY_REARM_V to
+                                 # clear, mirroring HEALTHY_RUNS_TO_CLEAR — one
+                                 # spike must not reset a 29-minute clock
 VERIFY_S = 60.0            # watch this long after a fix to judge it
 RECOVERED_DELTA_V = 10.0   # array this far above output = tracking again
 
@@ -219,6 +254,49 @@ def needs_second_confirmation(st: dict, now: float,
     if now - prev > CONFIRM_STALE_S:
         prev = 0
     return not prev
+
+
+def note_descent(st: dict, pv_v: float, sun_deg: float, now: float) -> bool:
+    """Track a sub-45 V descent across runs; True when it has run EARLY_AFTER_S.
+
+    Pure, and out of main(), for the same reason note_healthy_run and
+    note_partial_run are: this bookkeeping is where the guard keeps going
+    wrong, and inline it cannot be tested without a CAN bus.
+
+    The array must climb back above EARLY_REARM_V for EARLY_REARM_RUNS
+    consecutive runs to clear the clock. A single sample above it is the
+    sawtooth the cliff table already had to defend against — a dip that aborts
+    and returns does not reset a genuine walk-down.
+    """
+    if sun_deg < EARLY_MIN_SUN_DEG:
+        st.pop("below45_since", None)
+        st.pop("early_rearm_runs", None)
+        return False
+    if pv_v >= EARLY_REARM_V:
+        st["early_rearm_runs"] = st.get("early_rearm_runs", 0) + 1
+        if st["early_rearm_runs"] >= EARLY_REARM_RUNS:
+            st.pop("below45_since", None)
+        return False
+    st["early_rearm_runs"] = 0
+    if pv_v >= EARLY_CROSS_V:
+        return False                      # between 45 and 48: hold, do not arm
+    since = st.get("below45_since")
+    if since is None:
+        st["below45_since"] = now
+        return False
+    return (now - since) >= EARLY_AFTER_S
+
+
+def early_bounce_allowed(st: dict, now: float) -> tuple[bool, str]:
+    """Budget and spacing checks, separate from the clamp path's."""
+    if st.get("early_fixes", 0) >= EARLY_MAX_PER_DAY:
+        return False, f"early-bounce daily cap {EARLY_MAX_PER_DAY} reached"
+    last = st.get("last_early_at", 0)
+    if now - last < EARLY_MIN_INTERVAL_S:
+        return False, (f"early-bounce interval "
+                       f"{(EARLY_MIN_INTERVAL_S - (now - last)) / 60:.0f} min "
+                       f"remaining")
+    return True, ""
 
 
 def note_partial_run(st: dict, fraction: float) -> bool:
@@ -321,6 +399,10 @@ def main() -> int:
     ap.add_argument("--dest", type=int, default=1)
     ap.add_argument("--wait", type=float, default=15.0)
     ap.add_argument("--sample", type=float, default=SAMPLE_S)
+    ap.add_argument("--act-on-early", action="store_true",
+                    help="ARM the 29-minute early bounce. Without it that path "
+                         "only logs early_bounce_due with would_act=true and "
+                         "changes nothing.")
     ap.add_argument("--act-on-sustained", action="store_true",
                     help="ARM the sustained-partial-clamp rule. Without it "
                          "that path only logs latch_guard_sustained_partial "
@@ -333,7 +415,8 @@ def main() -> int:
     now = time.time()
     today = time.strftime("%Y-%m-%d", time.localtime(now))
     if st.get("day") != today:
-        st = {"day": today, "fixes": 0, "last_attempt": 0}
+        st = {"day": today, "fixes": 0, "last_attempt": 0,
+              "early_fixes": 0, "last_early_at": 0}
 
     # Elevation first, BEFORE the 45 s listen. Nothing below the gate can act,
     # so sampling there is pure cost — and at a 10 min cadence that would be
@@ -384,7 +467,42 @@ def main() -> int:
         # partial clamp is the interesting case — report it. Fully healthy
         # (fraction near zero) stays quiet, so this costs no routine egress.
         sustained_partial = note_partial_run(st, before["fraction"])
+
+        # EARLY BOUNCE. The array is TRACKING here (fraction below the clamp
+        # threshold), which is exactly the state the 2026-08-14 test validated
+        # and the state no bounce had ever been issued from before it.
+        due = note_descent(st, before["pv_v"], elevation, now)
         save_state(st)
+        if due:
+            ok, why = early_bounce_allowed(st, now)
+            mins = (now - st.get("below45_since", now)) / 60
+            emit("early_bounce_due",
+                 {"reason": f"tracking below {EARLY_CROSS_V} V for "
+                            f"{mins:.0f} min (>= {EARLY_AFTER_S / 60:.0f}); "
+                            f"24 of 24 episodes past this mark clamped",
+                  "below45_min": round(mins),
+                  "armed": args.act_on_early,
+                  "would_act": not args.act_on_early,
+                  "blocked": None if ok else why,
+                  "sun_deg": round(elevation, 1), **before})
+            if ok and args.act_on_early:
+                st["last_early_at"] = now
+                st["early_fixes"] = st.get("early_fixes", 0) + 1
+                # Clear the clock: the bounce restores the array, so the next
+                # descent is a NEW episode, not a continuation of this one.
+                st.pop("below45_since", None)
+                save_state(st)
+                try:
+                    acked = run_fix(args.iface, args.dest, args.wait)
+                except Exception as exc:            # noqa: BLE001
+                    emit("early_bounce_error",
+                         {"error": f"{type(exc).__name__}: {exc}"})
+                    return 1
+                after = sample_array(args.iface, args.sample)
+                emit("early_bounce_result",
+                     {"acked": acked, "before": before, "after": after})
+                return 0
+            return 0
         if before["fraction"] >= AMBIGUOUS_FRACTION:
             emit("latch_guard_ambiguous",
                  {"reason": "some samples clamped but below the acting "
