@@ -49,6 +49,31 @@ def _dc_w_sane(col: str = "dc_w") -> str:
 # measured to be worth 3-7 Wh/day out of ~1500 (0.4%) — the band alone already
 # excludes darkness, because pv_v must exceed 20 V. The residual is dawn/dusk
 # transits through the band; if it ever matters, it is a known, bounded amount.
+# --- the DC load the inverter cannot see (task #32) -----------------------
+#
+# `load_w` is a passthrough of dc_w, the INVERTER's own DC draw. The 24 V
+# fridge is wired to the bus, not through the inverter, so dc_w is structurally
+# blind to it: measured 2026-08-12, dc_w moves less than its own noise across a
+# 74.2 W step in real bus load (scripts/fridge_split.py).
+#
+# NAIVELY ADDING THE FRIDGE TO load_wh WOULD MAKE IT WORSE, which is why this
+# took a second look. At night: dc_w 113.6 W against a true total load of
+# 104.7 W measured from the BMS alone. So dc_w is +9% — because it OVER-reads
+# the inverter by 32.8 W and OMITS the 24.0 W time-averaged fridge, and the two
+# nearly cancel. Adding the fridge alone gives +33 W of error; correcting the
+# offset alone gives -24 W; doing both lands at +0.1 W.
+#
+# Two errors cancelling is not the same as being right — it stops holding the
+# moment the fridge duty or the inverter draw changes. So the ledger now
+# reports the DECOMPOSITION, and `load_wh` is left exactly as it was so no
+# historical number moves.
+#
+# The split threshold is the Otsu point from 12,573 dark BMS samples. Fixed
+# here rather than recomputed per day because Otsu in SQL is not worth it;
+# scripts/fridge_split.py regenerates it and will say if it has drifted.
+DC_LOAD_SPLIT_W = 117.6
+INVERTER_OVER_READ_W = 32.8      # dark-hours dc_w minus BMS, 5 nights, sd 6.5
+
 CLAMP_MIN_PV_V = 20.0
 CLAMP_DELTA_MIN_V = 0.3
 CLAMP_DELTA_MAX_V = 4.0
@@ -820,6 +845,33 @@ class AsyncpgReadingsDAO:
                           SUM(GREATEST(-batt_w,0)) * 15 / 3600.0 AS batt_out_wh,
                           COUNT(*) * 15 / 86400.0                AS coverage
                        FROM j GROUP BY day
+                   ), dcl AS (
+                       -- The fridge, from the BMS's OWN bimodality in
+                       -- darkness. Same instrument on both sides of the
+                       -- subtraction, which is the only kind of comparison
+                       -- that has held up on this system. Dark hours only:
+                       -- in daylight the fridge cannot be separated from
+                       -- production without leaning on the MPPT's
+                       -- under-reporting current sensor.
+                       SELECT (r.ts AT TIME ZONE $3)::date AS day,
+                              AVG(CASE WHEN abs(r.pack_p) > {DC_LOAD_SPLIT_W}
+                                       THEN abs(r.pack_p) END)
+                            - AVG(CASE WHEN abs(r.pack_p) <= {DC_LOAD_SPLIT_W}
+                                       THEN abs(r.pack_p) END) AS step_w,
+                              AVG(CASE WHEN abs(r.pack_p) > {DC_LOAD_SPLIT_W}
+                                       THEN 1.0 ELSE 0.0 END)  AS duty,
+                              COUNT(*)                          AS dark_n
+                       FROM readings r
+                       JOIN s ON s.b = to_timestamp(
+                                 floor(extract(epoch FROM r.ts)/15)*15)
+                       WHERE r.source_id = $1
+                         AND r.ts > now() - ($2 || ' days')::interval
+                         AND r.pack_p IS NOT NULL
+                         -- Darkness by ARRAY VOLTAGE, never reported power: a
+                         -- clamped MPPT reports single-digit watts in broad
+                         -- daylight and a power gate lets those hours in.
+                         AND COALESCE(s.pv_v, 0) < 15
+                       GROUP BY 1
                    ), c AS (
                        -- The MPPT's own daily Wh counter (PGN 127166 @50),
                        -- read out of the device rather than integrated from
@@ -846,8 +898,22 @@ class AsyncpgReadingsDAO:
                          AND data ? 'day_wh'
                        GROUP BY 1
                    )
-                   SELECT g.*, c.mppt_counter_wh
-                   FROM g LEFT JOIN c USING (day) ORDER BY day""",
+                   SELECT g.*, c.mppt_counter_wh,
+                          -- Modelled, and labelled as such: the step and duty
+                          -- are measured in darkness and projected across 24 h.
+                          CASE WHEN dcl.dark_n >= 120
+                               THEN dcl.step_w * dcl.duty * 24
+                          END AS dc_load_wh,
+                          -- The number to actually use. load_wh is retained
+                          -- unchanged above so no historical value moves, but
+                          -- load_wh + dc_load_wh DOUBLE-COUNTS — see
+                          -- INVERTER_OVER_READ_W.
+                          CASE WHEN dcl.dark_n >= 120
+                               THEN g.load_wh - {INVERTER_OVER_READ_W} * 24
+                                    + dcl.step_w * dcl.duty * 24
+                          END AS total_load_wh
+                   FROM g LEFT JOIN c USING (day)
+                          LEFT JOIN dcl USING (day) ORDER BY day""",
                 source_id, str(days), tz,
             )
         return [dict(r) for r in rows]
