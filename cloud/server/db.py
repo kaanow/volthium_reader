@@ -71,6 +71,24 @@ def _dc_w_sane(col: str = "dc_w") -> str:
 # The split threshold is the Otsu point from 12,573 dark BMS samples. Fixed
 # here rather than recomputed per day because Otsu in SQL is not worth it;
 # scripts/fridge_split.py regenerates it and will say if it has drifted.
+# The SITE's timezone, which is a physical fact about where the panels are —
+# not a display preference. `DISPLAY_TZ` is a rendering setting the operator can
+# point anywhere, and it is currently America/Toronto for a site in British
+# Columbia. Anything whose CORRECTNESS depends on the real local midnight must
+# use this, not DISPLAY_TZ.
+#
+# Concretely: mppt_daily_total fires at the MPPT's own midnight, which is the
+# SITE's midnight, carrying the finished day's total. The attribution shifted it
+# back an hour using DISPLAY_TZ, which only lands in the previous day if
+# DISPLAY_TZ happens to BE the site zone. At a 3 h mismatch the event landed at
+# 03:01 Toronto, minus an hour is 02:01, still the new day — so the current
+# day inherited the previous day's counter. Observed: 1356 Wh reported against a
+# day that had produced 6 Wh, which defeated the column's entire purpose as a
+# standing pipeline audit.
+#
+# Keyed to the site zone this is correct whatever DISPLAY_TZ is set to.
+SITE_TZ = "America/Vancouver"
+
 DC_LOAD_SPLIT_W = 117.6
 INVERTER_OVER_READ_W = 32.8      # dark-hours dc_w minus BMS, 5 nights, sd 6.5
 
@@ -886,10 +904,14 @@ class AsyncpgReadingsDAO:
                        -- while carrying the OLD day's total. Attributing it
                        -- by its own timestamp would credit every day with
                        -- yesterday's production. Shift it back an hour.
+                       -- SITE_TZ, not $3. See the constant: this
+                       -- attribution is only correct in the zone where the
+                       -- MPPT's midnight actually happens.
                        SELECT CASE WHEN event = 'mppt_daily_total'
-                                   THEN ((ts AT TIME ZONE $3)
+                                   THEN ((ts AT TIME ZONE '{SITE_TZ}')
                                          - interval '1 hour')::date
-                                   ELSE (ts AT TIME ZONE $3)::date END AS day,
+                                   ELSE (ts AT TIME ZONE '{SITE_TZ}')::date END
+                              AS day,
                               MAX((data->>'day_wh')::numeric) AS mppt_counter_wh
                        FROM xanbus_events
                        WHERE source_id = $1

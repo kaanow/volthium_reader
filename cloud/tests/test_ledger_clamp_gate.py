@@ -73,13 +73,20 @@ def _render_sql() -> str:
     body = [b for b in re.findall(r'f?"""(.*?)"""', src, re.S)
             if "SELECT" in b.upper()]
     assert len(body) == 1, f"expected one SQL literal, found {len(body)}"
-    return (body[0]
-            .replace("{sane_s}", db_mod._dc_w_sane("s.dc_w"))
-            .replace("{_clamped_sql()}", db_mod._clamped_sql())
-            .replace("{_dc_w_sane()}", db_mod._dc_w_sane())
-            .replace("{DC_LOAD_SPLIT_W}", str(db_mod.DC_LOAD_SPLIT_W))
-            .replace("{INVERTER_OVER_READ_W}",
-                     str(db_mod.INVERTER_OVER_READ_W)))
+    sql = (body[0]
+           .replace("{sane_s}", db_mod._dc_w_sane("s.dc_w"))
+           .replace("{_clamped_sql()}", db_mod._clamped_sql())
+           .replace("{_dc_w_sane()}", db_mod._dc_w_sane()))
+    # Any remaining {NAME} is resolved from the module, so a placeholder added
+    # to the query is substituted here WITHOUT editing this function. Three
+    # separate times a new placeholder broke the renderer while the code was
+    # fine, and each time the fix was to hand-add one more .replace() — the
+    # hand-maintained-list failure mode, in the very file that keeps finding it.
+    for name in set(re.findall(r"\{(\w+)\}", sql)):
+        assert hasattr(db_mod, name), (
+            f"SQL references {{{name}}} but db.py has no such attribute")
+        sql = sql.replace("{" + name + "}", str(getattr(db_mod, name)))
+    return sql
 
 
 def _cte(sql: str, name: str) -> str:
@@ -254,6 +261,50 @@ class PartialDayScalingTests(unittest.TestCase):
         this fix must not silently move history."""
         cov, step, duty = 1.0, 74.2, 0.323
         self.assertAlmostEqual(step * duty * 24 * cov, step * duty * 24)
+
+
+class CounterAttributionTests(unittest.TestCase):
+    """mppt_counter_wh must be correct whatever DISPLAY_TZ is set to.
+
+    mppt_daily_total fires at the MPPT's own midnight — the SITE's midnight —
+    carrying the finished day's total. The attribution shifted it back an hour
+    using DISPLAY_TZ, which only lands in the previous day if DISPLAY_TZ happens
+    to BE the site zone. It is America/Toronto for a site in British Columbia,
+    so the event landed at 03:01 Toronto, minus an hour is 02:01, still the new
+    day — and the CURRENT day inherited the previous day's counter. Observed
+    1356 Wh against a day that had produced 6 Wh, which defeats the column's
+    purpose as a standing pipeline audit.
+
+    Correctness must not depend on a display preference the operator can point
+    anywhere.
+    """
+
+    def test_the_counter_cte_uses_SITE_TZ_not_the_display_tz(self):
+        c = _cte(_render_sql(), "c")
+        self.assertIn(db_mod.SITE_TZ, c,
+                      "the rollover shift must key on the site zone")
+        self.assertNotIn("AT TIME ZONE $3", c,
+                         "using DISPLAY_TZ here makes correctness depend on a "
+                         "rendering setting")
+
+    def test_the_display_tz_is_still_used_for_the_display_grouping(self):
+        """The rest of the ledger groups by DISPLAY_TZ on purpose — that IS a
+        presentation choice. Only the counter's correctness is site-bound."""
+        g = _cte(_render_sql(), "g")
+        self.assertIn("AT TIME ZONE $3", g)
+
+    def test_the_site_zone_is_the_actual_site(self):
+        """Barge Inn is in British Columbia. If this ever needs changing, the
+        panels moved."""
+        self.assertEqual(db_mod.SITE_TZ, "America/Vancouver")
+
+    def test_the_shift_lands_in_the_previous_day_at_the_site(self):
+        """The arithmetic, checked rather than asserted by eye: 00:01 local
+        minus an hour is 23:01 the previous day."""
+        import datetime as dt
+        fired = dt.datetime(2026, 8, 12, 0, 1, 15)      # site-local midnight
+        self.assertEqual((fired - dt.timedelta(hours=1)).date(),
+                         dt.date(2026, 8, 11))
 
 if __name__ == "__main__":
     unittest.main()
