@@ -606,8 +606,16 @@ def _check_git_sync(out: str) -> tuple[bool, list[str]]:
                       "'behind' cannot be trusted"] + [f"      {e}" for e in err[:2]]
     behind = int(f.get("BEHIND", "0") or 0)
     dirty = int(f.get("DIRTY", "0") or 0)
+    stale = [l.split()[1:] for l in out.splitlines() if l.startswith("STALEPROC ")]
+    stale_lines = [
+        f"  ← {u} is running code older than {p} on disk — restart it to pick "
+        f"up the committed version" for u, p in stale]
     if not behind and not dirty:
-        return False, [f"  git: IN SYNC with origin/main ({f['HEAD']})"]
+        if stale:
+            return True, [f"  git: files IN SYNC ({f['HEAD']}) but a service "
+                          f"has not been restarted:"] + stale_lines
+        return False, [f"  git: IN SYNC with origin/main ({f['HEAD']}), "
+                       f"services running current code"]
     lines = [f"  ← git OUT OF SYNC: HEAD {f.get('HEAD')} vs origin/main "
              f"{f.get('ORIGIN')}, {behind} commits behind, "
              f"{dirty} code files differ"]
@@ -615,7 +623,7 @@ def _check_git_sync(out: str) -> tuple[bool, list[str]]:
         if path.strip():
             lines.append(f"      {path.strip()}")
     lines.append("      the Pi may not be running the code you are reading")
-    return True, lines
+    return True, lines + stale_lines
 
 def _check_timers(out: str) -> tuple[bool, list[str]]:
     rows = [l.split() for l in out.splitlines() if l.startswith("TIMER ")]
@@ -753,7 +761,28 @@ def section_pi(ssh_target: str, hours: int) -> tuple[bool, list[str]]:
              "BEHIND=$(git rev-list --count HEAD..origin/main) "
              "DIRTY=$(git diff --name-only origin/main -- ':!data' | wc -l); "
              "git diff --name-only origin/main -- ':!data' | head -5; "
-             "head -2 /tmp/gitfetch.err"],
+             "head -2 /tmp/gitfetch.err; "
+             # A long-running service holds its code in MEMORY. Updating the
+             # file on disk does not change what is executing, so "git in sync"
+             # can be true while the running decoder is days old — which was
+             # exactly the state after the 2026-08-17 guard fix until the
+             # service was restarted. Compare each service's start time against
+             # the mtime of the script it runs.
+             "for u in $(systemctl list-units 'volthium-*.service' --no-legend "
+             "--plain --state=active | awk '{print $1}'); do "
+             "  f=$(systemctl show $u -p ExecStart --value | "
+             "      grep -o 'scripts/[a-z_]*\\.py' | head -1); "
+             "  [ -n \"$f\" ] || continue; "
+             "  st=$(date -d \"$(systemctl show $u -p ActiveEnterTimestamp "
+             "      --value)\" +%s 2>/dev/null || echo 0); "
+             "  mt=$(stat -c %Y \"$f\" 2>/dev/null || echo 0); "
+             "  [ \"$mt\" -gt \"$st\" ] && echo \"STALEPROC $u $f\"; "
+             # `; true` because the loop's exit status is that of its last
+             # command, and a false `[ -gt ]` on the final iteration made the
+             # whole probe exit 1 — which check_output raises on. The fetch's
+             # own status is carried explicitly in FETCH= above, so the
+             # transport status must not double as a result signal.
+             "done; true"],
             timeout=180, text=True,
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired,

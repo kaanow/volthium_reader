@@ -389,6 +389,56 @@ class GitSyncCheckTests(unittest.TestCase):
         self.assertTrue(notable)
         self.assertIn("cannot confirm", " ".join(lines))
 
+    def test_a_service_running_stale_code_is_NOTABLE(self):
+        """Files in sync is NOT the same as services running that code.
+
+        A long-running service holds its code in memory, so updating the file
+        changes nothing until a restart. After the 2026-08-17 decoder fix the
+        Pi reported "IN SYNC" while the running telemetry process was four days
+        old. The claim was true and useless.
+        """
+        notable, lines = S._check_git_sync(
+            "FETCH=0 HEAD=abc1234 ORIGIN=abc1234 BEHIND=0 DIRTY=0\n"
+            "STALEPROC volthium-xanbus-telemetry.service scripts/xanbus_telemetry.py\n")
+        self.assertTrue(notable)
+        text = " ".join(lines)
+        self.assertIn("not been restarted", text)
+        self.assertIn("volthium-xanbus-telemetry", text)
+        self.assertNotIn("services running current code", text)
+
+    def test_in_sync_AND_current_says_so_explicitly(self):
+        notable, lines = S._check_git_sync(
+            "FETCH=0 HEAD=abc1234 ORIGIN=abc1234 BEHIND=0 DIRTY=0\n")
+        self.assertFalse(notable)
+        self.assertIn("services running current code", " ".join(lines))
+
+    def test_stale_processes_are_reported_even_when_also_behind(self):
+        """Two independent problems must both surface, not one masking the
+        other."""
+        _, lines = S._check_git_sync(
+            "FETCH=0 HEAD=old1234 ORIGIN=new5678 BEHIND=3 DIRTY=1\n"
+            "scripts/foo.py\n"
+            "STALEPROC volthium-uploader.service scripts/uploader.py\n")
+        text = " ".join(lines)
+        self.assertIn("OUT OF SYNC", text)
+        # The stale-process lines use their own wording ("running code older
+        # than ... restart it"); the "not been restarted" header belongs to the
+        # in-sync branch. Asserting on the phrase that is actually emitted here,
+        # rather than making the two branches say the same thing for a test's
+        # convenience.
+        self.assertIn("running code older than", text)
+        self.assertIn("volthium-uploader", text)
+
+    def test_the_probe_cannot_fail_on_its_own_loop_status(self):
+        """The stale-process loop's exit status is that of its last comparison,
+        so a false test on the final iteration made the whole probe exit 1 and
+        report UNVERIFIED. The fetch status is carried in FETCH= and must not
+        be conflated with the transport status."""
+        src = inspect.getsource(S.section_pi)
+        self.assertIn("done; true", src,
+                      "the probe must not exit non-zero merely because no "
+                      "service was stale")
+
     def test_data_is_excluded_from_the_probe(self):
         """data/ is tracked on purpose and permanently dirty. Without the
         exclusion this cries wolf every run and gets ignored within a day."""
