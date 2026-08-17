@@ -473,6 +473,60 @@ appears not to generate ambiguous events at all (the elevation gate excludes it
 before the fraction is computed), so the rule has never been exercised against
 the thing it might wrongly fire on.
 
+### CORRECTED 2026-08-16: two "recoveries" were artifacts, and one set the boundary
+
+The last unverified finding from the adversarial pass, and it holds. Two of the
+eleven recoveries were never recoveries — and one of them is what the entire
+29-minute boundary was resting on.
+
+Both are 2026-08-02, a smoke day whose peak output was 42.6 W all day. The raw
+minute data is unambiguous:
+
+    18:55   39.2 V   2.65 W
+    18:56   51.4 V   1.29 W   <- declared "recovered above 48 V"
+    18:57   91.5 V   0.00 W   <- open circuit
+    ...
+    19:15   97.1 V   0.00 W
+    19:20   58.4 V   5.64 W
+    19:22   98.9 V   0.00 W
+
+That is the MPPT giving up in low light, releasing the array to Voc, and
+retrying — dusk hunting. The "recovery to 51.4 V" is the array caught
+mid-flight on its way to open circuit.
+
+**Neither existing guard could see it.** Sun elevation was 12–20°, well above
+the 5° gate. And `MAX_BUCKET_SPREAD_V` tests oscillation *within* one bucket,
+while this oscillates *between* buckets — 91 V flat for a minute, then 58 V
+flat for a minute. Two filters aimed at exactly this phenomenon, both blind to
+this instance of it.
+
+**The discriminator that works needs no tuning.** A tracker that has
+re-acquired is drawing current; open circuit is 0 W by definition. Consecutive
+minutes still producing after the declared outcome:
+
+    the two artifacts    0 and 1 min
+    all nine genuine     241 .. 767 min
+
+A 240× gap. Any cut from 2 to 240 gives an identical table, so this is an
+observed separation, not a chosen threshold — the distinction that matters
+after `MIN_EPISODE_MIN`, where the value *does* change the answer.
+
+**What it costs the headline rule.** The clamp side is untouched: 24 of 24
+clamps still run ≥ 29 min, and no natural recovery reaches 29. But the longest
+natural recovery drops from 28 min to **15**:
+
+    natural recoveries   2, 3, 4, 6, 8, 8, 14, 15
+    clamps               29, 29, 34, 35, 43, ... 117
+
+So the boundary is **unidentified across a 14-minute empty band, 15 to 29** —
+where before it looked pinned to a single minute. The rule "past 29 minutes it
+clamps" is *stronger* than ever (24/24), but "under 29 minutes it recovers" is
+only demonstrated up to 15. Anything an early-bounce trigger does between 15
+and 29 minutes is acting in a region with no evidence either way.
+
+(The 22-minute recovery in the full list is my own 08-14 bounce — an
+intervention, not natural behaviour, and excluded above.)
+
 ### RESOLVED 2026-08-12 11:05 — the clamp was GRADUAL, and the caution cost ~440 Wh
 
 The episode below did clamp, fully, and the guard fixed it. That corrects two

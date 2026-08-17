@@ -188,6 +188,31 @@ MIN_EPISODE_MIN = 2
 # equal or higher.
 DEMAND_LIMITED_V = 100.0
 
+# A RECOVERY MUST PERSIST, and the threshold here is not fitted.
+#
+# Two of the eleven "recoveries" were the MPPT giving up in low light and
+# RELEASING the array to open circuit — 91-99 V at 0.00 W — then retrying a
+# minute later. Both on 2026-08-02, a smoke day whose peak output was 42.6 W.
+# The 18:56 bucket reads 51.4 V / 1.29 W, which satisfies "climbed back above
+# ARM_V"; the very next minute is 91.5 V / 0.00 W. The declared recovery was
+# the array caught mid-flight on its way to Voc.
+#
+# Neither the elevation gate nor MAX_BUCKET_SPREAD_V could see it. The sun was
+# 12-20 deg, well above the 5 deg gate, and the oscillation is BETWEEN buckets,
+# not within one, so the spread test never fires.
+#
+# The discriminator that works needs no tuning: a tracker that has re-acquired
+# is drawing current, and open circuit is 0 W by definition. Consecutive
+# minutes still producing after the declared outcome:
+#
+#     the two artifacts   0 and 1 min
+#     all nine genuine    241 .. 767 min
+#
+# A 240x gap. Any value from 2 to 240 gives an identical table, so this is an
+# observed separation rather than a chosen cut — unlike MIN_EPISODE_MIN, whose
+# value does change the answer.
+RECOVERY_MUST_PRODUCE_MIN = 5
+
 
 def fetch(url: str, hours: int, source: str) -> list[dict]:
     q = (f"{url}/api/solar/series?source_id={source}&hours={hours}"
@@ -276,7 +301,36 @@ def episodes(series: list[dict]) -> list[dict]:
         if armed and start is None and pv < CROSS_V and not clamped:
             start, wh, start_sw = local, 0.0, sw
     _annotate_held(out, rows)
+    _drop_nonproducing_recoveries(out, rows)
     return out
+
+
+def _drop_nonproducing_recoveries(eps: list[dict], rows: list) -> None:
+    """Reclassify a "recovery" that stops producing immediately.
+
+    See RECOVERY_MUST_PRODUCE_MIN. These are dusk/low-light hunting episodes
+    where the MPPT releases the array to open circuit; counting them as
+    recoveries put a 28-minute artifact at the top of the recovery
+    distribution, which is what the 29-minute boundary was resting on.
+    """
+    idx = {r[0]: r[3] for r in rows}          # utc -> solar_w
+    order = sorted(idx)
+    for e in list(eps):
+        if e["clamped"]:
+            continue
+        end_utc = e["ended"] - dt.timedelta(hours=LOCAL_OFFSET_H)
+        if end_utc not in idx:
+            continue
+        i = order.index(end_utc)
+        run = 0
+        for t in order[i:]:
+            if idx[t] > 0:
+                run += 1
+            else:
+                break
+        e["produced_min"] = run
+        if run < RECOVERY_MUST_PRODUCE_MIN:
+            e["artifact"] = True
 
 
 # HOW LONG THE CLAMP ACTUALLY HELD, added 2026-08-13.
@@ -340,6 +394,8 @@ def main() -> int:
         print(f"| {e['crossed']:%m-%d %H:%M} | {e['ended']:%H:%M} | "
               f"{e['minutes']} | {e['wh']} | {held} |{tag}")
 
+    arts = [e for e in eps if e.get("artifact")]
+    eps = [e for e in eps if not e.get("artifact")]
     mins = [e["minutes"] for e in eps if e["clamped"]]
     rec = len(eps) - len(mins)
     if not mins:
@@ -355,6 +411,15 @@ def main() -> int:
           f"{f'; {rec} recovered' if rec else '; none recovered'}.** "
           f"Time to clamp: min {min(mins)}, median "
           f"{round(statistics.median(mins))}, max {max(mins)} minutes.")
+    if arts:
+        print(f"\n**{len(arts)} episode(s) EXCLUDED as open-circuit artifacts** "
+              f"— declared a recovery but stopped producing within "
+              f"{RECOVERY_MUST_PRODUCE_MIN} min (the MPPT releasing the array "
+              f"to Voc in low light, not a re-acquire):")
+        for e in arts:
+            print(f"  - {e['crossed']:%m-%d %H:%M} -> {e['ended']:%H:%M} "
+                  f"({e['minutes']} min), produced {e.get('produced_min', 0)} "
+                  f"min afterwards")
     touches = [e for e in eps if e["clamped"] and (e.get("held_min") or 99) <= 3]
     if touches:
         when = ", ".join(f"{e['crossed']:%m-%d %H:%M}" for e in touches)
