@@ -79,6 +79,12 @@ class SecondPagingPathTests(unittest.TestCase):
     that day: `systemctl show volthium-uploader -p Environment` is empty.
     """
 
+    # The probe now returns WEBHOOK=yes|no. The old tests fed it raw
+    # `systemctl show` text containing an Environment= line, which is exactly
+    # the shape that DOES NOT occur on this unit — the variable lives in an
+    # EnvironmentFile — so the suite passed while the live check reported a
+    # correctly armed path as NOT ARMED. The fixtures were testing a system
+    # that did not exist.
     def _ssh(self, out: str):
         return mock.patch.object(S.subprocess, "check_output",
                                  lambda *a, **k: out)
@@ -94,7 +100,7 @@ class SecondPagingPathTests(unittest.TestCase):
 
     def test_B_unset_on_the_pi_is_NOTABLE(self):
         """The live state as of 2026-08-11. Must nag until it is fixed."""
-        with _serving(b"ok alerting=on"), self._ssh("Environment=\n"):
+        with _serving(b"ok alerting=on"), self._ssh("WEBHOOK=no\n"):
             notable, lines = S.section_alerting("kaan@kwpi.zt")
         self.assertTrue(notable, "a dormant second paging path must be flagged")
         self.assertIn("NOT ARMED", " ".join(lines))
@@ -103,20 +109,42 @@ class SecondPagingPathTests(unittest.TestCase):
         """The positive branch — otherwise 'NOT ARMED' could be unconditional
         and this suite would happily pass a check that can only say one thing."""
         with _serving(b"ok alerting=on"), \
-                self._ssh("Environment=VOLTHIUM_ALERT_WEBHOOK=https://x/y\n"):
+                self._ssh("WEBHOOK=yes\n"):
             notable, lines = S.section_alerting("kaan@kwpi.zt")
         self.assertFalse(notable)
         self.assertNotIn("NOT ARMED", " ".join(lines))
 
     def test_B_never_prints_the_webhook_value(self):
-        """The URL embeds a secret ntfy topic. Check output gets pasted around."""
+        """Check output gets pasted around, so the URL must not be in it.
+
+        Stronger than before: the probe is now built so the value never leaves
+        the Pi at all — it answers yes/no. Even if the remote somehow echoed
+        the URL, it must not reach the rendered lines."""
         secret = "https://ntfy.sh/super-secret-topic-9f3a"
         with _serving(b"ok alerting=on"), \
-                self._ssh(f"Environment=VOLTHIUM_ALERT_WEBHOOK={secret}\n"):
+                self._ssh(f"WEBHOOK=yes\n{secret}\n"):
             _, lines = S.section_alerting("kaan@kwpi.zt")
         text = " ".join(lines)
         self.assertNotIn(secret, text)
         self.assertNotIn("super-secret-topic", text)
+
+    def test_the_probe_asks_the_PI_for_a_verdict_not_for_the_value(self):
+        """The old probe pulled raw `systemctl show` output — URL included —
+        into this process. A check that must not print a secret should not be
+        handling one."""
+        src = inspect.getsource(S.section_alerting)
+        self.assertIn("echo WEBHOOK=$ok", src)
+        self.assertIn("WEBHOOK=yes", src)
+
+    def test_it_finds_the_variable_in_an_EnvironmentFile(self):
+        """The live failure: this unit sets nothing via Environment=, so a
+        probe that only reads that reports a correctly armed path as NOT
+        ARMED."""
+        src = inspect.getsource(S.section_alerting)
+        self.assertIn("EnvironmentFiles", src)
+        self.assertIn("ignore_errors", src,
+                      "systemctl renders the path with a suffix that must be "
+                      "stripped before grepping the file")
 
     def test_B_unreachable_pi_is_unverified_not_armed(self):
         """Must not silently downgrade to a green line when SSH fails."""

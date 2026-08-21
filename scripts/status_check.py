@@ -423,11 +423,28 @@ def section_alerting(ssh_target: str | None = None) -> tuple[bool, list[str]]:
                      "substitute for it.")
         return notable, lines
 
+    # The Pi answers yes/no; the VALUE never crosses the wire.
+    #
+    # Two reasons. First correctness: this looked only at `Environment=`, which
+    # is EMPTY on this unit — the variable lives in an EnvironmentFile, so the
+    # check reported NOT ARMED for a correctly armed path. A false negative,
+    # which is the mirror of every other bug this week and just as useless.
+    #
+    # Second, the old version pulled the raw `systemctl show` output — webhook
+    # URL included — into this process, where it could reach stdout. A check
+    # that must not print a secret should not be handling one.
+    probe = (
+        "ok=no; "
+        "systemctl show volthium-uploader -p Environment --value 2>/dev/null "
+        "| grep -q VOLTHIUM_ALERT_WEBHOOK= && ok=yes; "
+        "for f in $(systemctl show volthium-uploader -p EnvironmentFiles "
+        "--value 2>/dev/null | sed 's/ (ignore_errors=[^)]*)//g'); do "
+        "  sudo grep -qs '^VOLTHIUM_ALERT_WEBHOOK=.' \"$f\" && ok=yes; "
+        "done; echo WEBHOOK=$ok"
+    )
     try:
         out = subprocess.check_output(
-            ["ssh", ssh_target, "-o", "ConnectTimeout=8",
-             "systemctl show volthium-uploader -p Environment "
-             "-p EnvironmentFiles --no-pager"],
+            ["ssh", ssh_target, "-o", "ConnectTimeout=8", probe],
             timeout=30, text=True,
         )
     # OSError, not just FileNotFoundError: a transport-level failure (no route
@@ -439,9 +456,9 @@ def section_alerting(ssh_target: str | None = None) -> tuple[bool, list[str]]:
         lines.append(f"  B pi->webhook   UNVERIFIED — Pi unreachable: {exc}")
         return notable, lines
 
-    # Only the presence of the name is checked, never its value: the webhook
-    # URL embeds a secret ntfy topic and must not land in check output.
-    if "VOLTHIUM_ALERT_WEBHOOK=" in out:
+    # The probe returns WEBHOOK=yes|no and nothing else — the URL is never in
+    # `out`, so it cannot reach the terminal even by accident.
+    if "WEBHOOK=yes" in out:
         lines.append("  B pi->webhook   armed (VOLTHIUM_ALERT_WEBHOOK set) "
                      "— pages if the Pi cannot reach the cloud")
     else:
