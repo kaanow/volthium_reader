@@ -1,5 +1,67 @@
 # Design: early bounce at the 45 V cliff
 
+## ARMED 2026-08-21. Validated 5/5 over four observe-only days.
+
+Live on the Pi: `--act-on-sustained --act-on-early` on the guard unit. Unit
+backed up to `/root/latch-guard.service.bak-20260821-preearly`; rollback is
+removing the flag and `daemon-reload`, no code change.
+
+**The pre-registered criterion was that each firing would have been RIGHT —
+left alone, the episode goes on to clamp:**
+
+| fired | the episode it fired on | outcome |
+|---|---|---|
+| 08-17 08:22 | crossing 08:18 | clamped after 48 min |
+| 08-18 08:53 | crossing 09:16 | clamped after 108 min |
+| 08-19 08:57 | crossing 08:53 | clamped after 68 min |
+| 08-20 08:08 | crossing 08:11 | clamped after 92 min |
+| 08-21 08:18 | crossing 08:07 | clamped after 100 min |
+
+5 for 5. It also stayed **silent** on 08-17 11:51, which recovered on its own
+in 4 minutes — precisely the case a crossing-triggered version would have
+bounced needlessly. All five are morning descents at sun 23–43°; none at dawn
+or dusk.
+
+**What it addresses**, from the MPPT's own counter — same instrument either
+side, no cross-meter arithmetic:
+
+| day | fire | guard fixed | gap | made in the gap |
+|---|---|---|---|---|
+| 08-17 | 08:51 | 09:06 | 27 min | 5 Wh (11 W) |
+| 08-18 | 09:22 | 11:04 | 114 min | 138 Wh (73 W) |
+| 08-19 | 09:26 | 10:01 | 47 min | 18 Wh (23 W) |
+| 08-20 | 08:37 | 09:43 | 78 min | 38 Wh (29 W) |
+| 08-21 | 08:47 | 09:47 | 72 min | 23 Wh (19 W) |
+
+**68 min/day on average**, with the array making 11–73 W. The 2026-08-14 test
+showed a tracking array at 25 W recovering to 103 W in one minute, and clamped
+arrays have gone to 860 W after a fix. That differential is the prize — but note
+it is an ADDRESSABLE window, not a guaranteed saving: a bounced array walks down
+again, which is what the 30-minute interval and 6/day cap bound.
+
+### What to watch now that it is armed
+
+- `early_bounce_result` — the acked/before/after record of each actual bounce.
+- **A fire NOT followed by a clamp** would mean an episode resolved past 29 min,
+  which nothing in 34 episodes has done. That is the signal to disarm and
+  re-think, not to adjust the threshold.
+- `early_fixes` in the state file against the 6/day cap. Hitting the cap means
+  the array is walking down faster than 30 min after each bounce, and the
+  economics change.
+- The 15–29 minute band is still empty. If an episode ever lands there, the
+  threshold's justification changes.
+
+### One defect the observation period found
+
+It logged **57 events across those 5 episodes**, one episode alone producing 18.
+`below45_since` is only cleared by a re-arm or a fix, so the due condition stays
+true on every 5-minute run for as long as the descent lasts. Fixed to fire on
+the transition. Worth recording because the logic was right and the
+instrumentation was not — and an 11× noisy stream is how an operator stops
+reading it.
+
+---
+
 ## RESULT 2026-08-14: the array DOES recover from a tracking state. Test passed.
 
 The gating assumption is confirmed. A still-tracking array at 41.8 V recovers
