@@ -155,6 +155,26 @@ class DeadEventFamilyTests(unittest.TestCase):
     tests drive the behaviour from fetched data, both ways.
     """
 
+    # RELATIVE, never a hardcoded date. The first version pinned "live" to
+    # 2026-08-11T09:00:00Z, which was recent when written and ten days stale by
+    # 2026-08-21 — past EVENT_FAMILY_DEAD_AFTER_S, so the "a live family
+    # reports normally" test started asserting that a live family is dead. A
+    # test whose correctness depends on the calendar rots silently, and this is
+    # the second instance in this suite (the first was a fixture that broke for
+    # ten minutes around local midnight).
+    @staticmethod
+    def _recent(hours_ago: float = 1.0) -> str:
+        t = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=hours_ago)
+        return t.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    @staticmethod
+    def _long_ago(days: float = 30.0) -> str:
+        t = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)
+        return t.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def _window(self) -> str:
+        return self._recent(2.0)
+
     def _events(self, mapping):
         """mapping: kind -> list of ts strings, newest first."""
         def fake(kind, since_iso, limit=10_000):
@@ -164,12 +184,12 @@ class DeadEventFamilyTests(unittest.TestCase):
         return mock.patch.object(S, "fetch_events", fake)
 
     def test_all_families_dead_says_so_loudly(self):
-        old = "2026-07-25T13:57:29Z"
+        old = self._long_ago(30)
         with self._events({k: [old] for k in S.WATCHED_EVENT_FAMILIES}):
-            _, lines = S.section_events("2026-08-11T00:00:00Z")
+            _, lines = S.section_events(self._window())
         text = " ".join(lines)
         self.assertIn("DEAD", text)
-        self.assertIn("2026-07-25T13:57", text, "must name when it died")
+        self.assertIn(old[:13], text, "must name when it died")
         self.assertNotIn("all clean", text,
                          "a dead source must never render a clean line")
         self.assertNotIn("wedge_snapshot: none", text)
@@ -177,24 +197,24 @@ class DeadEventFamilyTests(unittest.TestCase):
     def test_a_live_family_reports_normally(self):
         """The positive branch. Without it, 'DEAD' could be unconditional and
         this suite would pass a check that can only say one thing."""
-        now = "2026-08-11T09:00:00Z"
+        now = self._recent()
         with self._events({k: [now] for k in S.WATCHED_EVENT_FAMILIES}):
-            _, lines = S.section_events("2026-08-11T00:00:00Z")
+            _, lines = S.section_events(self._window())
         text = " ".join(lines)
         self.assertNotIn("DEAD", text)
         self.assertIn("stack_health", text)
 
     def test_a_family_that_never_existed_is_not_silently_fine(self):
         with self._events({}):
-            _, lines = S.section_events("2026-08-11T00:00:00Z")
+            _, lines = S.section_events(self._window())
         self.assertIn("DEAD", " ".join(lines))
 
     def test_partial_death_is_annotated_not_hidden(self):
         """One dead family among live ones must still be called out."""
-        m = {k: ["2026-08-11T09:00:00Z"] for k in S.WATCHED_EVENT_FAMILIES}
-        m["wedge_snapshot"] = ["2026-07-25T13:57:29Z"]
+        m = {k: [self._recent()] for k in S.WATCHED_EVENT_FAMILIES}
+        m["wedge_snapshot"] = [self._long_ago(30)]
         with self._events(m):
-            _, lines = S.section_events("2026-08-11T00:00:00Z")
+            _, lines = S.section_events(self._window())
         text = " ".join(lines)
         self.assertNotIn("DEAD", text, "not every family is dead")
         self.assertIn("no producer since", text)

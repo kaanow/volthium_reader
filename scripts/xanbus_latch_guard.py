@@ -271,11 +271,13 @@ def note_descent(st: dict, pv_v: float, sun_deg: float, now: float) -> bool:
     if sun_deg < EARLY_MIN_SUN_DEG:
         st.pop("below45_since", None)
         st.pop("early_rearm_runs", None)
+        st.pop("early_due_emitted", None)
         return False
     if pv_v >= EARLY_REARM_V:
         st["early_rearm_runs"] = st.get("early_rearm_runs", 0) + 1
         if st["early_rearm_runs"] >= EARLY_REARM_RUNS:
             st.pop("below45_since", None)
+            st.pop("early_due_emitted", None)
         return False
     st["early_rearm_runs"] = 0
     if pv_v >= EARLY_CROSS_V:
@@ -283,8 +285,31 @@ def note_descent(st: dict, pv_v: float, sun_deg: float, now: float) -> bool:
     since = st.get("below45_since")
     if since is None:
         st["below45_since"] = now
+        st.pop("early_due_emitted", None)
         return False
     return (now - since) >= EARLY_AFTER_S
+
+
+def early_due_is_new(st: dict) -> bool:
+    """True once per episode, not once per run.
+
+    `below45_since` is only cleared by a re-arm or a fix, so `note_descent`
+    keeps returning True on every subsequent 5-minute run for as long as the
+    descent lasts. In observe-only mode nothing clears it at all, and the
+    result was 57 events across 5 episodes over four days — 11x noise in a
+    stream whose entire design principle is that quiet periods cost nothing
+    (one episode alone produced 18).
+
+    Armed, the cooldown limits actual BOUNCES but not the logging, and a
+    blocked-by-cooldown run would re-emit every 5 minutes too.
+
+    So the event fires on the transition, and the flag is cleared wherever the
+    clock is.
+    """
+    if st.get("early_due_emitted"):
+        return False
+    st["early_due_emitted"] = True
+    return True
 
 
 def early_bounce_allowed(st: dict, now: float) -> tuple[bool, str]:
@@ -473,7 +498,7 @@ def main() -> int:
         # and the state no bounce had ever been issued from before it.
         due = note_descent(st, before["pv_v"], elevation, now)
         save_state(st)
-        if due:
+        if due and early_due_is_new(st):
             ok, why = early_bounce_allowed(st, now)
             mins = (now - st.get("below45_since", now)) / 60
             emit("early_bounce_due",
@@ -491,6 +516,7 @@ def main() -> int:
                 # Clear the clock: the bounce restores the array, so the next
                 # descent is a NEW episode, not a continuation of this one.
                 st.pop("below45_since", None)
+                st.pop("early_due_emitted", None)
                 save_state(st)
                 try:
                     acked = run_fix(args.iface, args.dest, args.wait)

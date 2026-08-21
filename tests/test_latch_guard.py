@@ -19,7 +19,7 @@ from xanbus_latch_guard import (   # noqa: E402
     AMBIGUOUS_FRACTION, HEALTHY_RUNS_TO_CLEAR, MIN_SUN_ELEVATION_DEG,
     CONFIRM_STALE_S, EARLY_AFTER_S, EARLY_CROSS_V, EARLY_MAX_PER_DAY,
     EARLY_MIN_INTERVAL_S, EARLY_REARM_V, MAX_FIXES_PER_DAY,
-    SUSTAINED_PARTIAL_RUNS, early_bounce_allowed,
+    SUSTAINED_PARTIAL_RUNS, early_bounce_allowed, early_due_is_new,
     needs_second_confirmation, note_descent,
     note_clamped_run, note_healthy_run, note_partial_run, sun_elevation_deg,
 )
@@ -400,3 +400,49 @@ class EarlyBounceTests(unittest.TestCase):
         ap.add_argument("--act-on-early", action="store_true")
         self.assertFalse(ap.parse_args([]).act_on_early)
         self.assertIn("if ok and args.act_on_early:", inspect.getsource(G.main))
+
+    def test_the_due_event_fires_ONCE_per_episode(self):
+        """57 events across 5 episodes in four days, one episode producing 18.
+
+        below45_since is only cleared by a re-arm or a fix, so note_descent
+        keeps returning True on every subsequent 5-minute run for as long as
+        the descent lasts — and in observe-only mode nothing clears it at all.
+        11x noise in a stream whose whole design is that quiet periods cost
+        nothing.
+        """
+        st = {}
+        fires = 0
+        for i in range(12):                       # 60 min of descent
+            if note_descent(st, 44.0, self.SUN, 1_000_000.0 + i * self.RUN):
+                if early_due_is_new(st):
+                    fires += 1
+        self.assertEqual(fires, 1,
+                         "one descent must produce exactly one due event")
+
+    def test_a_NEW_episode_fires_again(self):
+        """Once per episode, not once ever — the flag must reset with the
+        clock, or the trigger goes silent after the first day."""
+        st = {}
+        t = 1_000_000.0
+        for i in range(12):
+            if note_descent(st, 44.0, self.SUN, t + i * self.RUN):
+                early_due_is_new(st)
+        # array recovers: two consecutive runs above re-arm
+        note_descent(st, 49.0, self.SUN, t + 13 * self.RUN)
+        note_descent(st, 49.0, self.SUN, t + 14 * self.RUN)
+        self.assertNotIn("early_due_emitted", st, "the flag must clear with the clock")
+        fires = 0
+        for i in range(15, 30):
+            if note_descent(st, 44.0, self.SUN, t + i * self.RUN):
+                if early_due_is_new(st):
+                    fires += 1
+        self.assertEqual(fires, 1, "a second descent must fire again, once")
+
+    def test_dusk_also_clears_the_emitted_flag(self):
+        st = {}
+        t = 1_000_000.0
+        for i in range(12):
+            if note_descent(st, 44.0, self.SUN, t + i * self.RUN):
+                early_due_is_new(st)
+        note_descent(st, 44.0, 5.0, t + 13 * self.RUN)      # sun down
+        self.assertNotIn("early_due_emitted", st)
