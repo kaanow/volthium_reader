@@ -16,10 +16,12 @@ from __future__ import annotations
 
 import sys
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
+import status_check as S                 # noqa: E402
 from status_check import _parse_units   # noqa: E402
 
 
@@ -100,3 +102,72 @@ class ParseUnitsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ThrottleDecodeTests(unittest.TestCase):
+    """The throttle word is graded, not compared to zero.
+
+    `!= 0x0` treats a sticky historical bit exactly like a live fault, so one
+    frequency cap twenty days ago flags every run until the next reboot — a
+    permanent warning, which is a warning nobody reads. It also hid WHICH
+    condition occurred, and the difference matters enormously: under-voltage
+    means the supply is failing and an unattended Pi is at risk; a thermal cap
+    in August means it was warm.
+
+    Observed 2026-08-23: throttled=0x20000 — bit 17 alone, ARM frequency
+    capping has occurred, no under-voltage, core 1.3375 V at 66.6 C.
+    """
+
+    # Tests the PURE grader, not section_pi. Going through section_pi, the one
+    # canned fixture is returned to all three ssh probes, so the git and timer
+    # checks report "cannot confirm" and set notable=True by themselves — and
+    # every assertion here passed regardless of the throttle branch. A mutation
+    # making a LIVE throttle non-notable survived the entire suite.
+    def _lines(self, throttled: str):
+        return S.grade_throttle(f"12:00:00 up 21 days\nthrottled={throttled}\n")
+
+    def test_all_clear_is_quiet(self):
+        notable, lines = self._lines("0x0")
+        self.assertNotIn("THROTTLED NOW", " ".join(lines))
+
+    def test_a_HISTORICAL_thermal_cap_is_reported_but_not_notable(self):
+        """The live 2026-08-23 state. Must not nag until the next reboot."""
+        notable, lines = self._lines("0x20000")
+        text = " ".join(lines)
+        self.assertIn("historical, not current", text)
+        self.assertIn("ARM frequency capping occurred", text)
+        self.assertNotIn("THROTTLED NOW", text)
+
+    def test_a_LIVE_throttle_is_NOTABLE(self):
+        notable, lines = self._lines("0x4")
+        self.assertTrue(notable)
+        self.assertIn("THROTTLED NOW", " ".join(lines))
+
+    def test_LIVE_undervoltage_is_NOTABLE(self):
+        notable, lines = self._lines("0x1")
+        self.assertTrue(notable)
+        self.assertIn("under-voltage", " ".join(lines))
+
+    def test_HISTORICAL_undervoltage_is_NOTABLE_unlike_thermal(self):
+        """The distinction that justifies grading at all: a supply that has
+        sagged is the failure mode that takes an unattended box down, so it is
+        worth flagging even after the fact. A thermal cap is not."""
+        notable, lines = self._lines("0x10000")
+        self.assertTrue(notable, "past under-voltage must still be flagged")
+        self.assertIn("check the supply", " ".join(lines))
+
+    def test_an_unreadable_register_is_NOTABLE(self):
+        """Cannot-look must not read as all-clear."""
+        notable, lines = S.grade_throttle("12:00:00 up 1 day\n")
+        self.assertTrue(notable)
+        self.assertIn("could not read the throttled register", " ".join(lines))
+
+    def test_all_clear_is_genuinely_not_notable(self):
+        """Only assertable now that the grader is pure — through section_pi
+        this was always True for unrelated reasons."""
+        notable, _ = self._lines("0x0")
+        self.assertFalse(notable)
+
+    def test_a_historical_thermal_cap_is_genuinely_not_notable(self):
+        notable, _ = self._lines("0x20000")
+        self.assertFalse(notable, "a sticky thermal bit must not nag forever")

@@ -34,12 +34,26 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import subprocess
 import sys
 import urllib.error
 import urllib.request
 from collections import Counter
 from typing import Optional
+
+# vcgencmd get_throttled bit meanings. Split by URGENCY, not just decoded:
+# the low bits are live conditions, the high bits are sticky since boot.
+THROTTLE_BITS_NOW = (
+    (0x1, "under-voltage"), (0x2, "ARM frequency capped"),
+    (0x4, "throttled"), (0x8, "soft temperature limit"),
+)
+THROTTLE_BITS_PAST = (
+    (0x10000, "under-voltage occurred"),
+    (0x20000, "ARM frequency capping occurred"),
+    (0x40000, "throttling occurred"),
+    (0x80000, "soft temperature limit occurred"),
+)
 
 RAILWAY = "https://volts.alti2.de"
 DEFAULT_SOURCE = "pi-barge"
@@ -642,6 +656,45 @@ def _check_git_sync(out: str) -> tuple[bool, list[str]]:
     lines.append("      the Pi may not be running the code you are reading")
     return True, lines + stale_lines
 
+
+def grade_throttle(out: str) -> tuple[bool, list[str]]:
+    """Decode and GRADE the throttle word.
+
+    Pure, and out of section_pi, because it could not be tested inside it: the
+    test fixture feeds one canned string to all three ssh probes, so the git and
+    timer checks both returned "cannot confirm" and set notable=True on their
+    own. Every throttle assertion on the aggregate flag therefore passed
+    regardless of what the throttle branch did — a mutation making a LIVE
+    throttle non-notable survived the whole suite. Same reason
+    note_descent, _check_timers and needs_second_confirmation are pure.
+    """
+    m = re.search(r"throttled=0x([0-9a-fA-F]+)", out)
+    if not m:
+        return True, ["  ← could not read the throttled register"]
+    bits = int(m.group(1), 16)
+    live = [n for b, n in THROTTLE_BITS_NOW if bits & b]
+    past = [n for b, n in THROTTLE_BITS_PAST if bits & b]
+    notable = False
+    lines: list[str] = []
+    if live:
+        notable = True
+        lines.append(f"  ← THROTTLED NOW: {', '.join(live)} — the Pi is "
+                     f"degraded right now")
+    # Historical UNDER-VOLTAGE is its own class: the supply has sagged, which
+    # is what actually kills an unattended Pi. Thermal history is reported
+    # without crying wolf — a sticky bit that nags until the next reboot is a
+    # warning nobody reads.
+    if "under-voltage occurred" in past:
+        notable = True
+        lines.append("  ← under-voltage HAS OCCURRED since boot — check the "
+                     "supply and cabling; this is the failure mode that takes "
+                     "the box down unattended")
+    other = [p for p in past if p != "under-voltage occurred"]
+    if other and not live:
+        lines.append(f"  throttled=0x{bits:X}: {', '.join(other)} since boot "
+                     f"(historical, not current)")
+    return notable, lines
+
 def _check_timers(out: str) -> tuple[bool, list[str]]:
     rows = [l.split() for l in out.splitlines() if l.startswith("TIMER ")]
     if not rows:
@@ -744,9 +797,21 @@ def section_pi(ssh_target: str, hours: int) -> tuple[bool, list[str]]:
             continue
         lines.append(f"  {line}")
 
-    if "throttled=0x0" not in out:
-        notable = True
-        lines.append("  ← throttled flag set — check power/temperature")
+    # DECODE the throttle word instead of testing it against zero.
+    #
+    # `!= 0x0` treats a sticky historical bit exactly like a live fault, so one
+    # frequency cap twenty days ago flags every run until the next reboot —
+    # a permanent warning, which is a warning nobody reads. And it hides WHICH
+    # condition occurred, when the difference matters enormously: under-voltage
+    # means the supply is failing and the Pi is at risk; a thermal cap in
+    # August means it was warm.
+    #
+    # Observed 2026-08-23: throttled=0x20000, bit 17 only — ARM frequency
+    # capping HAS OCCURRED since boot, with no under-voltage bit set, core
+    # 1.3375 V and 66.6 C at the time of reading.
+    tn, tl = grade_throttle(out)
+    notable |= tn
+    lines += tl
 
     # --- is the Pi actually running the code in git? ---
     # This drifted for two weeks and nothing noticed. Deployments were file
