@@ -302,7 +302,62 @@ def episodes(series: list[dict]) -> list[dict]:
             start, wh, start_sw = local, 0.0, sw
     _annotate_held(out, rows)
     _drop_nonproducing_recoveries(out, rows)
+    _mark_interventions(out)
     return out
+
+
+# INTERVENTIONS MUST NOT READ AS NATURAL BEHAVIOUR, and since 2026-08-21 they
+# actively do. The early-bounce trigger fires at 29 min and restores the array,
+# so cliff_table records the episode as a RECOVERY at >= 29 minutes — which is
+# precisely the pattern that would falsify the rule the trigger is built on.
+#
+#   08-22 08:09 -> 08:38   29 min  "recovered"   <- was my bounce
+#   08-23 10:45 -> 11:27   42 min  "recovered"   <- was my bounce
+#
+# Left alone this gets worse every day: each bounce adds another fake long
+# recovery, and in a month the table would read "the 29-minute rule is broken"
+# when what actually happened is that something acted on it. The table cannot
+# tell the array's behaviour from its own consequences unless it is told.
+#
+# So cross-reference the outcome against the events that record an
+# intervention. Anything within INTERVENTION_WINDOW_S of a bounce is flagged,
+# excluded from the natural-history counts, and listed separately.
+INTERVENTION_WINDOW_S = 240
+INTERVENTION_EVENTS = ("early_bounce_result", "latch_fix_result")
+
+
+def fetch_interventions(url: str, source: str, hours: int) -> list[dt.datetime]:
+    """UTC timestamps of every deliberate bounce in the window."""
+    out: list[dt.datetime] = []
+    since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=hours)
+    for kind in INTERVENTION_EVENTS:
+        try:
+            q = (f"{url}/api/xanbus_events?source_id={source}&event={kind}"
+                 f"&limit=2000&since={since:%Y-%m-%dT%H:%M:%SZ}")
+            with urllib.request.urlopen(q, timeout=90) as r:
+                for e in json.load(r).get("events", []):
+                    out.append(dt.datetime.strptime(
+                        e["ts"][:19], "%Y-%m-%dT%H:%M:%S").replace(
+                            tzinfo=dt.timezone.utc))
+        except Exception:                      # noqa: BLE001
+            # Cannot reach the event stream: say nothing rather than silently
+            # presenting interventions as natural history.
+            return []
+    return sorted(out)
+
+
+_INTERVENTIONS: list[dt.datetime] = []
+
+
+def _mark_interventions(eps: list[dict]) -> None:
+    if not _INTERVENTIONS:
+        return
+    for e in eps:
+        end = e["ended"].replace(tzinfo=dt.timezone.utc) - dt.timedelta(
+            hours=LOCAL_OFFSET_H)
+        if any(abs((end - i).total_seconds()) <= INTERVENTION_WINDOW_S
+               for i in _INTERVENTIONS):
+            e["intervened"] = True
 
 
 def _drop_nonproducing_recoveries(eps: list[dict], rows: list) -> None:
@@ -380,22 +435,34 @@ def main() -> int:
     ap.add_argument("--source", default="pi-barge")
     a = ap.parse_args()
 
+    global _INTERVENTIONS
+    _INTERVENTIONS = fetch_interventions(a.url, a.source, a.hours)
     eps = episodes(fetch(a.url, a.hours, a.source))
     if not eps:
         print("no crossings in window")
         return 1
 
+    arts = [e for e in eps if e.get("artifact")]
+    eps = [e for e in eps if not e.get("artifact")]
+    invs = [e for e in eps if e.get("intervened")]
+    eps = [e for e in eps if not e.get("intervened")]
+
     print("| crossing (local) | outcome at | minutes | Wh in between | held |")
     print("|---|---|---|---|---|")
-    for e in eps:
+    # Excluded episodes are still PRINTED, marked — a reader scanning the table
+    # would otherwise see a 42-minute "recovered" row with nothing to say it
+    # was a deliberate bounce. Sorted back into time order.
+    for e in sorted(eps + invs + arts, key=lambda x: x["crossed"]):
         tag = "" if e["clamped"] else " **recovered**"
+        if e.get("intervened"):
+            tag = " **BOUNCED — intervention, not natural**"
+        elif e.get("artifact"):
+            tag = " *(artifact, excluded)*"
         h = e.get("held_min")
         held = "—" if h is None else (f"{h} min" + (" **touch**" if h <= 3 else ""))
         print(f"| {e['crossed']:%m-%d %H:%M} | {e['ended']:%H:%M} | "
               f"{e['minutes']} | {e['wh']} | {held} |{tag}")
 
-    arts = [e for e in eps if e.get("artifact")]
-    eps = [e for e in eps if not e.get("artifact")]
     mins = [e["minutes"] for e in eps if e["clamped"]]
     rec = len(eps) - len(mins)
     if not mins:
@@ -411,6 +478,17 @@ def main() -> int:
           f"{f'; {rec} recovered' if rec else '; none recovered'}.** "
           f"Time to clamp: min {min(mins)}, median "
           f"{round(statistics.median(mins))}, max {max(mins)} minutes.")
+    if invs:
+        print(f"\n**{len(invs)} episode(s) EXCLUDED as INTERVENTIONS** — the "
+              f"outcome was a deliberate bounce, not the array's own "
+              f"behaviour. Counting these as recoveries would fake exactly the "
+              f"long recovery that falsifies the 29-minute rule:")
+        for e in invs:
+            print(f"  - {e['crossed']:%m-%d %H:%M} -> {e['ended']:%H:%M} "
+                  f"({e['minutes']} min)")
+    if not _INTERVENTIONS:
+        print("\n*(intervention list unavailable — the counts below may "
+              "include deliberate bounces as recoveries)*")
     if arts:
         print(f"\n**{len(arts)} episode(s) EXCLUDED as open-circuit artifacts** "
               f"— declared a recovery but stopped producing within "
