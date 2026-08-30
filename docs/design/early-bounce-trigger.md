@@ -1,5 +1,49 @@
 # Design: early bounce at the 45 V cliff
 
+## OPERATING SINCE 2026-08-21 — mechanism proven, VALUE NOT YET MEASURABLE
+
+Ten bounces in eight days, every one acked, every one recovering the array to
+89–99 V. Zero `early_bounce_error`. The mechanism is not in doubt: two examples
+at one-minute resolution,
+
+    08-22 08:38   23.5 W -> 139.8 W sustained   (6x)
+    08-23 11:26   26.9 W -> 248.7 W sustained   (9x)
+
+and one bounce per day has been enough — the array does not walk back down, so
+the 30-minute interval and 6/day cap have never been approached.
+
+**But the daily totals cannot tell whether any of that is worth anything.**
+
+    before arming, 08-12..21 (n=10)   mean 1731 Wh
+    after  arming, 08-22..28 (n=7)    mean 1741 Wh
+    difference                        +10 Wh/day, +1%
+
+Day-to-day SD is 134 Wh, so the standard error of that difference is 66 Wh and
+the smallest effect this comparison could resolve is about **132 Wh/day**. The
+addressable window argued for above — 68 min/day at a 100–200 W differential —
+is **110–230 Wh/day**, straddling the detection floor.
+
+So the honest statement is not "it delivered +1%" and not "it works": **this
+test is underpowered and cannot see the predicted effect in either direction.**
+About 13 days per arm would be needed to resolve 150 Wh at reasonable power,
+and even then weather is uncontrolled.
+
+**What would actually settle it**, in rough order of strength:
+
+1. **A same-instrument counterfactual.** On alternate days, let the trigger log
+   `early_bounce_due` but not act (it already supports exactly this — drop
+   `--act-on-early`). Comparing bounced against unbounced descents *within* the
+   same weather regime removes the dominant confound. Costs some production on
+   the control days, which is the price of knowing.
+2. **The clear-sky index** (`docs/xanbus-unknowns.md` #10) as a covariate, so
+   day-to-day irradiance stops swamping the signal.
+3. **Per-episode accounting** rather than per-day: integrate output over the
+   30 minutes after each fire and compare against the matched window of
+   unbounced descents.
+
+Until one of those is done, the claim is: **the bounce reliably restores a
+tracking array, and its effect on daily yield is unmeasured.**
+
 ## ARMED 2026-08-21. Validated 5/5 over four observe-only days.
 
 Live on the Pi: `--act-on-sustained --act-on-early` on the guard unit. Unit
