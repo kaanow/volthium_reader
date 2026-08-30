@@ -7,10 +7,10 @@ emitted at the instant the confirmation threshold is crossed:
     if not self.latched and now - self.clamp_since >= LATCH_CONFIRM_S:
         ...  "clamped_s": round(now - self.clamp_since)
 
-so it equals LATCH_CONFIRM_S every time, by construction. Measured over the 12
-latches the events API still holds: 10.0 minutes, 10.0, 10.0, 10.0, 10.0, 10.1,
-10.0, 10.0, 10.0, 10.0, 10.0, 10.0. A field that cannot vary is not a
-measurement, and "exposure is down to about 10 minutes" was read off it.
+so it equals LATCH_CONFIRM_S every time, by construction — 601..608 s across
+every latch on record, a 7 s spread on a 600 s constant. A field that cannot
+vary is not a measurement, and "exposure is down to about 10 minutes" was read
+off it.
 
 This is the same shape as the unreachable recovery branch in cliff_table.py:
 a number guaranteed by the code, quoted as a property of the array.
@@ -30,9 +30,17 @@ subtracting it would give the most flattering number available rather than the
 honest one. Treat the result as an upper bound accurate to about two minutes,
 and note the bias direction rather than quietly removing it.
 
-WHAT IT SAYS (regenerate before quoting): median is around 20 minutes, not 10.
-The guard IS a large improvement over the 45 minutes before it existed; it is
-about half the improvement that was written down.
+WHAT IT SAYS: the median is well above the 10 minutes `clamped_s` implies, and
+the exact figure MOVES — it was 19.9 min when this was written and 14.8 min on
+2026-08-29, partly because the early-bounce trigger now prevents many clamps
+from forming at all. Regenerate; do not quote this paragraph.
+
+The 19.9 figure was also computed on TRUNCATED data. `/api/xanbus_events` is
+newest-first with no `before` parameter, so the `since` walk below could not
+page backwards: unfiltered, it fetched the newest `limit` rows and then stepped
+`since` forward past everything it had missed. Filtering server-side by event
+name puts the window under the cap, and the count is now checked so truncation
+cannot pass unnoticed.
 
 Only latches with a matching `mppt_unlatched` can be measured. Unpaired ones
 are reported as a count rather than dropped silently — a filter that discards
@@ -61,7 +69,21 @@ def fetch_events(url: str, source: str, hours: int) -> list[dict]:
     out: dict[tuple, dict] = {}
     cur = dt.datetime.now(UTC) - dt.timedelta(hours=hours)
     for _ in range(40):
+        # FILTER SERVER-SIDE. /api/xanbus_events is NEWEST-first and has no
+        # `before` parameter, so a `since` walk cannot page backwards: with more
+        # matches than `limit`, you get the newest `limit` and then advancing
+        # `since` to max(ts) steps FORWARD past everything you missed. Silent,
+        # and it never recovers.
+        #
+        # Unfiltered, 400 h of chg_stage/chg_target/mppt_energy is far over the
+        # cap, so this script was reading a truncated tail and calling the gap
+        # "coverage is partial for older episodes". It was not the cap; it was
+        # this walk.
+        #
+        # Filtering to just the events we need puts the whole window under the
+        # cap, and the count is checked below so truncation cannot go unnoticed.
         q = (f"{url}/api/xanbus_events?source_id={source}&limit=2000"
+             f"&event=mppt_latched,mppt_unlatched"
              f"&since={cur:%Y-%m-%dT%H:%M:%SZ}")
         with urllib.request.urlopen(q, timeout=90) as r:
             got = json.load(r).get("events", [])
@@ -73,6 +95,10 @@ def fetch_events(url: str, source: str, hours: int) -> list[dict]:
             if k not in out:
                 out[k] = e
                 new += 1
+        if len(got) >= 2000:
+            print(f"!! {len(got)} events returned at the limit — the window may "
+                  f"be TRUNCATED and any total below is a floor, not a count.",
+                  file=sys.stderr)
         mx = max(e["ts"] for e in got)
         if not new or mx <= f"{cur:%Y-%m-%dT%H:%M:%SZ}":
             break

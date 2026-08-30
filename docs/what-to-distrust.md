@@ -211,6 +211,21 @@ The same shape as the BLE stub list and the install-script unit list. **Derive
 the scope from the source; a list you maintain by hand is a list that goes
 stale the moment someone else is careful.**
 
+**A `since` walk cannot page backwards through a NEWEST-first endpoint.**
+`/api/xanbus_events` returns newest-first and has no `before` parameter, so
+fetching with `since` + `limit` gives you the newest `limit` rows — and
+advancing `since` to `max(ts)` then steps FORWARD past everything you missed.
+Silent, unrecoverable, and it looks like a complete result. It truncated
+`latch_exposure.py` (the median exposure was 19.9 min on partial data, 14.8 on
+the full set) and `descent_profile.py` (whose "(no data)" I blamed on the row
+cap). Worse, it made me publish a wrong finding: I twice queried for guard
+events around a clamp, got nothing both times, and reported that the clamp
+"self-recovered with no guard event". It did not — the guard fixed it, and the
+`latch_fix_result` was simply outside the truncated window. **Two agreeing
+queries are not corroboration if they share a failure mode.** Filter
+server-side so the window fits under the cap, and assert the returned count is
+below the limit.
+
 **Measure the fix before shipping it, not just the bug.** The ledger's
 inferred-branch gate was estimated at ~600 Wh/day. It was 1150–1550. And the
 authorised fix, measured against an independent estimate, *overshoots* in the

@@ -94,14 +94,29 @@ NEAR_VOC_V = 85.0
 
 
 def fetch_stages(url: str, source: str, since: dt.datetime) -> list[tuple]:
-    """MPPT chg_stage transitions. The events API caps at 2000 rows and has no
-    offset, so this walks forward by timestamp and stops when it stops learning
-    anything. Coverage is therefore partial for older episodes — reported as
-    "(no data)" rather than guessed at."""
+    """MPPT chg_stage transitions.
+
+    The "(no data)" this used to show for older episodes was blamed on the
+    endpoint's row cap. That was wrong: the cap is real but the cause was this
+    walk. See the comment below — filtering by event name fixes it."""
     out: dict[tuple, dict] = {}
     cur = since
     for _ in range(30):
+        # FILTER SERVER-SIDE. /api/xanbus_events is NEWEST-first and has no
+        # `before` parameter, so a `since` walk cannot page backwards: with more
+        # matches than `limit`, you get the newest `limit` and then advancing
+        # `since` to max(ts) steps FORWARD past everything you missed. Silent,
+        # and it never recovers.
+        #
+        # Unfiltered, 400 h of chg_stage/chg_target/mppt_energy is far over the
+        # cap, so this script was reading a truncated tail and calling the gap
+        # "coverage is partial for older episodes". It was not the cap; it was
+        # this walk.
+        #
+        # Filtering to just the events we need puts the whole window under the
+        # cap, and the count is checked below so truncation cannot go unnoticed.
         q = (f"{url}/api/xanbus_events?source_id={source}&limit=2000"
+             f"&event=chg_stage"
              f"&since={cur:%Y-%m-%dT%H:%M:%SZ}")
         with urllib.request.urlopen(q, timeout=90) as r:
             got = json.load(r).get("events", [])
@@ -113,6 +128,10 @@ def fetch_stages(url: str, source: str, since: dt.datetime) -> list[tuple]:
             if k not in out:
                 out[k] = e
                 new += 1
+        if len(got) >= 2000:
+            print(f"!! {len(got)} events returned at the limit — the window may "
+                  f"be TRUNCATED and any total below is a floor, not a count.",
+                  file=sys.stderr)
         mx = max(e["ts"] for e in got)
         if not new or mx <= f"{cur:%Y-%m-%dT%H:%M:%SZ}":
             break
