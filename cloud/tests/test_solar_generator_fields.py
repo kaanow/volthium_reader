@@ -159,3 +159,60 @@ class MigrationSafetyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MigrationRunnerIsBoundedTests(unittest.TestCase):
+    """apply_all runs on the STARTUP PATH, before the app serves.
+
+    A CREATE INDEX there took the API down for ~13 min on 2026-10-04. The
+    revert removed that one file; it did not address the three structural
+    hazards that made it possible, all of which were still live:
+
+      - no lock_timeout, so even an O(1) ADD COLUMN can wedge boot behind one
+        slow in-flight read (and ACCESS EXCLUSIVE queues AHEAD of everything
+        requested after it, so reads and ingest pile up behind the ALTER)
+      - no coordination, so a rolling deploy runs two copies concurrently
+      - no ledger, so every file re-executes every boot and idempotence is an
+        assumption about the live DB rather than a property of the files
+    """
+
+    def _src(self):
+        from cloud.server import migrations
+        import inspect
+        return inspect.getsource(migrations)
+
+    def test_a_lock_wait_is_bounded(self):
+        from cloud.server import migrations
+        self.assertTrue(migrations.LOCK_TIMEOUT)
+        self.assertIn("SET lock_timeout", self._src(),
+                      "an unbounded lock wait is a wedged boot, not a slow one")
+
+    def test_a_statement_is_bounded(self):
+        self.assertIn("SET statement_timeout", self._src(),
+                      "a slow DDL must fail fast rather than outrun the "
+                      "platform healthcheck")
+
+    def test_concurrent_deploys_are_serialised(self):
+        src = self._src()
+        self.assertIn("pg_advisory_lock", src)
+        self.assertIn("pg_advisory_unlock", src)
+
+    def test_the_lock_is_released_even_on_failure(self):
+        """A migration that raises must not hold the lock and block every
+        subsequent deploy."""
+        src = self._src()
+        i = src.index("pg_advisory_lock")
+        self.assertIn("finally:", src[i:],
+                      "the unlock must be in a finally block")
+
+    def test_a_failing_migration_names_the_file(self):
+        """`applied N migration file(s)` told us nothing about which one, in
+        the one place where knowing matters most."""
+        self.assertIn("migration FAILED: %s", self._src())
+
+    def test_the_timeouts_are_shorter_than_a_platform_healthcheck(self):
+        """The whole point: fail before the container is killed."""
+        from cloud.server import migrations
+        for v in (migrations.LOCK_TIMEOUT, migrations.STATEMENT_TIMEOUT):
+            n = int("".join(c for c in v if c.isdigit()))
+            self.assertLessEqual(n, 60, f"{v} is too long to fail safely")
