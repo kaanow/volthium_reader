@@ -145,6 +145,14 @@ def fetch_stages(url: str, source: str, since: dt.datetime) -> list[tuple]:
     )
 
 
+def _outcome(r: dict) -> str:
+    """Label the row. A guard bounce is NOT a recovery, and printing it as one
+    is how 32 of them came to read as the array healing itself."""
+    if r.get("intervened"):
+        return "**BOUNCED — intervention, not natural**"
+    return "clamp" if r["clamped"] else "**recovered**"
+
+
 def profile(series: list[dict], stages: list[tuple]) -> list[dict]:
     pts: dict[dt.datetime, tuple[float, float]] = {}
     for r in series:
@@ -193,8 +201,7 @@ def main() -> int:
     # importers, and 32 deliberate guard bounces print as the array's own
     # recoveries — a 5% clamp rate against a true 40%.
     n_iv = ensure_interventions(a.url, a.source, a.hours)
-    print(f"interventions fetched: {n_iv} (bounced episodes are excluded from "
-          f"the natural-history summary below)\n")
+    print(f"interventions fetched: {n_iv}\n")
     since = dt.datetime.now(UTC) - dt.timedelta(hours=a.hours)
     rows = profile(series, fetch_stages(a.url, a.source, since))
     if not rows:
@@ -206,12 +213,22 @@ def main() -> int:
     print("|---|---|---|---|---|---|---|---|---|")
     for r in rows:
         print(f"| {r['crossed']:%m-%d %H:%M} | {r['ended']:%H:%M} | {r['minutes']} "
-              f"| {'clamp' if r['clamped'] else '**recovered**'} | {r['dvdt']:.1f} "
+              f"| {_outcome(r)} | {r['dvdt']:.1f} "
               f"| {r['pre_v']:.1f} | {r['pre_w']:.0f} | {r['sun']:.0f} | {r['stage']} |")
 
-    fast = [r for r in rows if r["pre_v"] >= NEAR_VOC_V]
-    slow = [r for r in rows if r["pre_v"] < NEAR_VOC_V]
-    print(f"\n**{len(fast)} near-Voc starts, {len(slow)} loaded starts.**")
+    # EXCLUDE THE BOUNCES. cliff_table marks episodes the guard ended with
+    # `intervened`, and this summary ignored the marker — so 32 deliberate
+    # bounces counted as the array's own recoveries and the clamp rate read
+    # 5% against a true 40%. Fetching the interventions was only half the fix;
+    # an earlier version of this file printed "bounced episodes are excluded"
+    # while still counting them, which is the same defect wearing a label.
+    natural = [r for r in rows if not r.get("intervened")]
+    bounced = [r for r in rows if r.get("intervened")]
+    fast = [r for r in natural if r["pre_v"] >= NEAR_VOC_V]
+    slow = [r for r in natural if r["pre_v"] < NEAR_VOC_V]
+    print(f"\n**NATURAL HISTORY ONLY — {len(bounced)} guard-bounced episode(s) "
+          f"excluded from the counts below.**")
+    print(f"**{len(fast)} near-Voc starts, {len(slow)} loaded starts.**")
     for name, grp in (("near-Voc", fast), ("loaded", slow)):
         if not grp:
             continue
