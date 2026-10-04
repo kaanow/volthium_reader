@@ -20,14 +20,29 @@ the generator tile. But the ENERGY arithmetic in the ledger still gates on
   - It is a measurement of current direction, not an interpretation of a
     device mode. ac_passthrough means the generator is connected; it does
     not say power is flowing into the battery at this instant.
-  - The event layer FLAPS. The real run was preceded by a spurious
-    gen_start/gen_stop pair 15 s apart (00:28:42 / 00:28:57). A gate built on
-    those transitions inherits that.
+  - The event layer FLAPS AT BOTH ENDS, and the 2026-10-04 run settled this
+    rather than merely suggesting it. Shutdown, in 21 seconds:
+
+        16:12:36  gen_start   AND  gen_stop        (same second)
+        16:12:36  inverter_mode -> invert, chg_stage -> not_charging
+        16:12:53  inverter_mode -> ac_passthrough, chg_stage -> 788
+        16:12:54  chg_stage -> bulk, chg_target -> 90 A / 29.2 V
+        16:12:56  gen_stop
+        16:12:57  inverter_mode -> invert, chg_stage -> not_charging
+
+    The charger genuinely re-entered bulk for ~3 s mid-shutdown. A gate
+    built on these transitions has to resolve a same-second start/stop pair
+    and a re-entry, and get the boundary right; dc_a just goes to zero.
+    Startup flapped the same way on 2026-10-03 (a spurious pair 15 s before
+    the real start).
   - Measured against the device's own declaration over 14 days: 410 of 411
     charging rows fall inside the declared window, and the single exception
     is at 00:29:30 — five seconds BEFORE `bulk` was announced, already
     drawing +14.69 A. The measurement LEADS the declaration. Gating on the
     announcement would have silently dropped that bucket.
+  - And it reconciles: over the 2026-10-04 run the gate summed 440 Wh of
+    charge energy, matching an independent integration of the same rows to
+    the watt-hour, at 84.4% of the 521 Wh that went in on the AC side.
 
 The declared state is therefore the right CROSS-CHECK, not the right gate,
 and the test below is that cross-check: charge energy must only ever appear

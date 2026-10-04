@@ -472,14 +472,15 @@ class Decoder:
         out: list[dict] = []
         if assoc == 0x13:        # AC2 = generator input (official enum GEN1)
             running = v1 > 50.0
-            # gen_hz IS NOT THE FREQUENCY. Across every generator event on
-            # record it reads exactly 30.00 — including both gen_stop events,
-            # where gen_v is 0.0. A generator cannot run at 30 Hz while
-            # producing zero volts, so offset 41 is not ac2_f. n=4, but the
-            # 0 V case makes it a logical result rather than a statistical
-            # one; this is the same shape as mppt_latched's `clamped_s`
-            # always equalling LATCH_CONFIRM_S. A field that cannot vary is
-            # not a measurement.
+            # gen_hz IS NOT THE FREQUENCY. It reads exactly 30.00 on every
+            # generator event on record — at 0 V with the generator stopped,
+            # at 126 V unloaded, and at 118.5 V under a verified 1.4 kW load.
+            # Confirmed again across the whole 2026-10-04 run. A generator
+            # cannot be at 30 Hz while producing zero volts, and a real
+            # frequency would at minimum droop under a 1.4 kW step, so
+            # offset 41 is not ac2_f. Same shape as mppt_latched's
+            # `clamped_s` always equalling LATCH_CONFIRM_S: a field that
+            # cannot vary is not a measurement.
             #
             # Emitted under a name that does not assert a unit, so no
             # consumer can mistake it for Hz, and kept rather than dropped
@@ -489,12 +490,30 @@ class Decoder:
             # generator run, OFF the Pi. There is exactly one such run in the
             # archive so far (2026-10-03 00:29-02:12Z).
             #
-            # gen_a and gen_va are NOT known to be wrong. They read ~0 in
-            # these events, which looked like a second misdecode and is not:
-            # gen_start fires the instant AC voltage crosses 50 V, and the
-            # charger only engaged 17 s later (sw chg_stage -> bulk at
-            # 00:29:35). Zero current before any load is correct. They have
-            # simply never been sampled UNDER load — see below.
+            # gen_a AND gen_va ARE VERIFIED CORRECT, under load, as of the
+            # 2026-10-04 15:50-16:13Z run — the first generator run ever
+            # sampled per-bucket rather than only at its transitions.
+            # Three independent checks, 89 charging buckets:
+            #
+            #   self-consistency  |gen_v * gen_a| vs the device's own gen_va
+            #                     agreed to +0.23% mean error
+            #   energy            DC out / AC in = 84.4% over the whole run,
+            #                     flat sample to sample. A Conext SW charger
+            #                     is spec'd ~85-92%, so the two sides balance
+            #   physical          gen_v sagged 127.2 V unloaded -> 118.5 V at
+            #                     1.4 kW. Real droop; a scale error cannot
+            #                     produce load-dependent voltage
+            #
+            # SIGN CONVENTION: gen_a is NEGATIVE while the generator feeds the
+            # system (-12.01 A median under load). It is inflow, not an error.
+            # Anything computing AC power from it must take the magnitude.
+            #
+            # They previously read ~0 in the events and that looked like a
+            # second misdecode alongside gen_hz. It was not: gen_start fires
+            # the instant AC voltage crosses 50 V, and the charger engages
+            # ~17 s later, so zero current before any load is simply correct.
+            # Worth remembering before condemning a field on transition-
+            # instant samples.
             out += self._changed(
                 "gen_running", running, t,
                 "gen_start" if running else "gen_stop",
