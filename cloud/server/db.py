@@ -648,10 +648,23 @@ class AsyncpgReadingsDAO:
                    FROM g
                    WHERE nxt - ts > make_interval(secs => $3)
                    ORDER BY ts DESC
-                   LIMIT 100""",
+                   LIMIT 101""",
                 source_id, since, float(min_gap_s),
             )
-        return [dict(r) for r in rows]
+        # SAY WHEN IT TRUNCATED. A hardcoded LIMIT 100 with nothing reported
+        # means the response cannot distinguish "there were 100 outages" from
+        # "the oldest ones were dropped" — the exact silent-truncation shape
+        # this repo has been bitten by on /api/events and the since-walks.
+        #
+        # Fetching 101 and reporting the overflow costs one row and makes the
+        # difference visible, rather than guessing a bigger cap that would
+        # just move the cliff.
+        out = [dict(r) for r in rows[:100]]
+        if len(rows) > 100:
+            out.append({"truncated": True, "limit": 100,
+                        "note": "more gaps exist than are shown; narrow the "
+                                "window or raise min_gap_s"})
+        return out
 
     async def history_charger_intervals(
         self, source_id: str, since: datetime, until: datetime,

@@ -589,6 +589,11 @@ class EventAlertMonitor:
         # the guard burns its 6 fixes, then emits latch_guard_skipped every
         # 5 minutes for the rest of each day — while the array sits clamped at
         # roughly 40% of production, for weeks, with nothing paging.
+        # The decoder discarded frames. Previously these counters were
+        # write-only, so a decoder rejecting EVERYTHING looked like a quiet
+        # bus. Emitted at most every 30 min and only when the count moved, so
+        # this cannot become noise.
+        ("decode_rejections", 3, "warning", "DECODER IS DISCARDING FRAMES"),
         ("latch_fix_error", 4, "warning", "LATCH FIX ERRORED"),
         ("early_bounce_error", 4, "warning", "EARLY BOUNCE ERRORED"),
         # Seasonal, not a fault — but the operator should know the trigger has

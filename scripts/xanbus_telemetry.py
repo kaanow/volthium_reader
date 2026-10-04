@@ -306,6 +306,18 @@ class Decoder:
         self.bad_dc_v = 0          # rejected out-of-range bus voltages
         self.bad_dc_w = 0          # rejected internally-inconsistent DC power
         self.bad_solar_w = 0       # rejected internally-inconsistent MPPT power
+        # WHEN we last reported the rejection counters. They were write-only:
+        # incremented here, read ONLY by unit tests, never logged, emitted or
+        # uploaded. So a decoder rejecting EVERYTHING is indistinguishable
+        # from a quiet bus — "I looked and it was fine" and "I could not
+        # decode a single frame" produce the same silence.
+        #
+        # The concrete scenario: an MPPT firmware update moves the energy
+        # counter layout, every decode fails the ratio test, mppt_energy and
+        # mppt_daily_total simply stop arriving, and the standing pipeline
+        # audit (mppt_counter_wh) goes blind with nothing to say so.
+        self.last_reject_report = 0.0
+        self.reject_reported: dict = {}
         self.clamp_since: float | None = None
         self.clamp_clear_since: float | None = None
         self.latched = False
@@ -773,7 +785,7 @@ class Decoder:
         """Call ~1/s: prunes reassembly, detects node dropouts + MPPT latch."""
         self.asm.prune(now)
         self._record_trail(now)
-        events = []
+        events = self.reject_report(now)
         for src, name in ((SRC_SW, "sw"), (SRC_MPPT, "mppt")):
             seen = self.last_seen.get(src)
             if seen is not None and src not in self.dropped \
@@ -858,6 +870,35 @@ class Decoder:
                           "trail": trail}},
             ]
         return []
+
+    # How often to report rejections, and only when the count MOVED. A
+    # periodic zero would be noise; silence after a non-zero report would be
+    # ambiguous again. Reporting the DELTA means the stream says "n frames
+    # were discarded since last time" exactly when that is true.
+    REJECT_REPORT_S = 1800
+
+    def reject_report(self, now: float) -> list[dict]:
+        """Surface the rejection counters, which were otherwise write-only."""
+        fields = ("bad_dc_v", "bad_dc_w", "bad_solar_w", "bad_mppt_energy")
+        cur = {f: getattr(self, f, 0) for f in fields}
+        cur["bad_asm_seq"] = getattr(self.asm, "bad_asm_seq", 0) \
+            if hasattr(self, "asm") else 0
+        if now - self.last_reject_report < self.REJECT_REPORT_S:
+            return []
+        delta = {k: v - self.reject_reported.get(k, 0) for k, v in cur.items()}
+        self.last_reject_report = now
+        self.reject_reported = dict(cur)
+        moved = {k: v for k, v in delta.items() if v}
+        if not moved:
+            return []
+        return [{"t": now, "event": "decode_rejections", "data": {
+            **moved,
+            "window_s": self.REJECT_REPORT_S,
+            "note": "frames DISCARDED by the decoder's sanity checks. A "
+                    "sustained non-zero rate means the bus or the decode has "
+                    "changed; these counters were previously invisible, so "
+                    "a decoder rejecting everything looked like a quiet bus.",
+        }}]
 
     def flush_bucket(self, now: float) -> dict | None:
         """If a 15 s wall-aligned bucket has completed, return its row."""

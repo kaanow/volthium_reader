@@ -6,6 +6,7 @@ No socket, no I/O — exercises Decoder/Reassembler/flush_bucket only.
 """
 from __future__ import annotations
 
+import inspect
 import struct
 import sys
 import unittest
@@ -693,3 +694,78 @@ class GuardsThatCanActuallyFireTests(unittest.TestCase):
         self.assertIsNotNone(got, "a correctly ordered message failed to assemble")
         self.assertEqual(len(got), 12)
         self.assertEqual(r.bad_asm_seq, 0)
+
+
+class RejectionCountersAreVisibleTests(unittest.TestCase):
+    """The decoder's rejection counters were WRITE-ONLY.
+
+    bad_dc_v, bad_dc_w, bad_solar_w, bad_mppt_energy and bad_asm_seq were
+    incremented in the decode paths and read ONLY by unit tests — never
+    logged, emitted or uploaded. So a decoder rejecting EVERY frame is
+    indistinguishable from a quiet bus: "I looked and it was fine" and "I
+    could not decode a single frame" produce identical silence.
+
+    Concrete scenario: an MPPT firmware update moves the energy-counter
+    layout, every decode fails the ratio test, mppt_energy and
+    mppt_daily_total stop arriving, and the standing pipeline audit
+    (mppt_counter_wh) goes blind with nothing to say so.
+    """
+
+    def test_a_clean_decoder_says_nothing(self):
+        """A periodic zero is noise, and noise is what gets ignored."""
+        d = X.Decoder()
+        self.assertEqual(d.reject_report(10_000.0), [])
+
+    def test_rejections_are_reported(self):
+        d = X.Decoder()
+        d.bad_dc_w = 7
+        d.bad_solar_w = 2
+        out = d.reject_report(20_000.0)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["event"], "decode_rejections")
+        self.assertEqual(out[0]["data"]["bad_dc_w"], 7)
+        self.assertEqual(out[0]["data"]["bad_solar_w"], 2)
+
+    def test_it_is_rate_limited(self):
+        d = X.Decoder()
+        d.bad_dc_w = 7
+        self.assertTrue(d.reject_report(20_000.0))
+        d.bad_dc_w = 9
+        self.assertEqual(d.reject_report(20_100.0), [],
+                         "reporting every second would be noise")
+
+    def test_an_unchanged_count_is_silent(self):
+        """Silence after a report must mean 'nothing new', not 'still broken
+        and still shouting'."""
+        d = X.Decoder()
+        d.bad_dc_w = 7
+        d.reject_report(20_000.0)
+        self.assertEqual(d.reject_report(60_000.0), [])
+
+    def test_it_reports_the_DELTA_not_the_total(self):
+        """A running total makes 'is it getting worse?' unanswerable at a
+        glance, which is the question that matters."""
+        d = X.Decoder()
+        d.bad_dc_w = 7
+        d.reject_report(20_000.0)
+        d.bad_dc_w = 12
+        out = d.reject_report(80_000.0)
+        self.assertEqual(out[0]["data"]["bad_dc_w"], 5)
+
+    def test_housekeeping_actually_calls_it(self):
+        """A reporter nothing invokes is the write-only counter again."""
+        src = inspect.getsource(X.Decoder.housekeeping)
+        self.assertIn("reject_report", src)
+
+    def test_every_counter_is_covered(self):
+        """DERIVED: any bad_* counter the decoder keeps must be reported, or
+        it is invisible for exactly the original reason."""
+        d = X.Decoder()
+        counters = {n for n in vars(d) if n.startswith("bad_")}
+        counters |= {n for n in vars(d.asm) if n.startswith("bad_")}
+        reported = set(inspect.getsource(X.Decoder.reject_report).split())
+        for c in counters:
+            with self.subTest(counter=c):
+                self.assertIn(
+                    c, inspect.getsource(X.Decoder.reject_report),
+                    f"{c} is counted but never surfaced")
