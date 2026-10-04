@@ -16,6 +16,7 @@ from __future__ import annotations
 import ast
 import inspect
 import re
+from pathlib import Path
 import unittest
 
 from cloud.server import db as db_mod
@@ -236,3 +237,115 @@ class SqlWellFormednessTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EveryStoredColumnIsClassifiedTests(unittest.TestCase):
+    """The scope is DERIVED from the wire model, not hand-written.
+
+    The previous guard was one function applied by hand at four call sites
+    against one column name, and the test that policed it named three methods.
+    A 2026-10-04 review found three live gaps: /api/solar served raw dc_w
+    (-559,117 W) via SELECT *, dc_w_min/max were unguarded on every path
+    including inside the query the fourth hand-patch had just fixed, and dc_v
+    had no guard anywhere while storing 143,190 V on 2026-08-01 — which pulled
+    that day's series average to 51.5 V against a true 26.7 and feeds the
+    clamp indicator.
+
+    So every column the reader can store must be explicitly BOUNDED or
+    explicitly EXEMPTED with a reason. Neither can be skipped by forgetting,
+    because the column list comes from SolarReading.
+    """
+
+    def _stored_columns(self):
+        from cloud.shared.wire import SolarReading
+        return set(SolarReading.model_fields) - {"ts"}
+
+    def test_the_derivation_is_not_vacuous(self):
+        cols = self._stored_columns()
+        self.assertIn("dc_w", cols)
+        self.assertIn("gen_a", cols)
+        self.assertGreater(len(cols), 10)
+
+    def test_every_column_is_bounded_or_exempted(self):
+        unclassified = sorted(
+            c for c in self._stored_columns()
+            if c not in db_mod.SANE_BOUNDS and c not in db_mod.SANE_UNBOUNDED)
+        self.assertEqual(
+            unclassified, [],
+            f"these stored columns are neither bounded nor exempted: "
+            f"{unclassified}. Add a bound to SANE_BOUNDS, or an explicit "
+            f"reason to SANE_UNBOUNDED — silence is how dc_v went unguarded.")
+
+    def test_no_column_is_both(self):
+        both = set(db_mod.SANE_BOUNDS) & set(db_mod.SANE_UNBOUNDED)
+        self.assertEqual(both, set(), f"contradictory classification: {both}")
+
+    def test_exemptions_carry_a_real_reason(self):
+        """A reason must be reviewable: either stated, or a cross-reference to
+        a column whose reason IS stated. "same as pv_v" is legitimate
+        shorthand; a bare word is not.
+        """
+        for col, why in db_mod.SANE_UNBOUNDED.items():
+            with self.subTest(col=col):
+                ref = re.fullmatch(r"same as (\w+)", why.strip())
+                if ref:
+                    target = ref.group(1)
+                    self.assertIn(
+                        target, db_mod.SANE_UNBOUNDED,
+                        f"{col} defers to {target}, which is not exempted")
+                    self.assertGreater(
+                        len(db_mod.SANE_UNBOUNDED[target]), 30,
+                        f"{col} defers to {target}, whose own reason is thin")
+                else:
+                    self.assertGreater(
+                        len(why), 30,
+                        f"{col}'s exemption reason is too thin to review")
+
+    def test_dc_v_bound_mirrors_the_reader(self):
+        """db.py cannot import from scripts/, so the bound is copied — and
+        copies in this repo drift. Read both back."""
+        src = (Path(__file__).resolve().parents[2]
+               / "scripts" / "xanbus_telemetry.py").read_text()
+        m = re.search(r"BUS_V_MIN,\s*BUS_V_MAX\s*=\s*([\d.]+),\s*([\d.]+)", src)
+        self.assertIsNotNone(m, "could not read the reader's bus-voltage bound")
+        self.assertEqual(
+            db_mod.SANE_BOUNDS["dc_v"], (float(m.group(1)), float(m.group(2))),
+            "the dc_v bound has drifted from the reader's own BUS_V_MIN/MAX")
+
+    def test_solar_select_list_sanitises_every_bounded_column(self):
+        sel = db_mod.solar_select_list()
+        for col in db_mod.SANE_BOUNDS:
+            with self.subTest(col=col):
+                self.assertRegex(
+                    sel, rf"CASE WHEN {col} BETWEEN .*? AS {col}\b",
+                    f"{col} is selected raw by solar_select_list")
+
+    def test_solar_select_list_has_no_star(self):
+        """SELECT * is what let /api/solar serve the corrupt row."""
+        import inspect
+        src = inspect.getsource(db_mod.AsyncpgReadingsDAO.solar_since)
+        self.assertNotIn("SELECT *", src)
+        self.assertIn("solar_select_list", src)
+
+    def test_the_corrupt_values_on_record_are_all_rejected(self):
+        """The four rows actually in the table, not a hypothetical."""
+        cases = [("dc_w", -559117.75), ("dc_w_min", -16777189.0),
+                 ("dc_w_min", -65281.0), ("dc_w", -2054.90),
+                 ("dc_v", 143190.9375), ("dc_w", -27844.0)]
+        for col, val in cases:
+            with self.subTest(col=col, val=val):
+                lo, hi = db_mod.SANE_BOUNDS[col]
+                self.assertFalse(
+                    lo <= val <= hi,
+                    f"{col}={val} is a known-corrupt stored value and the "
+                    f"bound ({lo}, {hi}) would pass it through")
+
+    def test_real_values_survive(self):
+        """A guard that NULLs legitimate data is worse than none."""
+        for col, val in [("dc_w", 0.0), ("dc_w", 1216.0), ("dc_w", 187.0),
+                         ("dc_w_min", 148.0), ("dc_w_max", 231.0),
+                         ("dc_v", 25.6), ("dc_v", 26.8), ("dc_v", 27.1)]:
+            with self.subTest(col=col, val=val):
+                lo, hi = db_mod.SANE_BOUNDS[col]
+                self.assertTrue(lo <= val <= hi,
+                                f"{col}={val} is a real measurement")

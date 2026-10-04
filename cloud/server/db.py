@@ -33,8 +33,101 @@ from cloud.shared.wire import BleEvent, Reading, SolarReading
 # invent a reading; NULL makes SUM/AVG skip it, which is the honest answer.
 # The bound is deliberately loose — the observed range is 1-131 W and the
 # inverter is 4 kW, so 6000 W cannot be reached legitimately.
+# --- per-column physical bounds, in ONE place -----------------------------
+#
+# The guard used to be a single function applied BY HAND at four call sites
+# against ONE column name. That is the "scope maintained by a hand-written
+# list" shape this repo keeps rediscovering, and on 2026-10-04 a review found
+# three live gaps in it:
+#
+#   /api/solar returned RAW dc_w        -> dc_w -559117.75, dc_w_min -16777189
+#   dc_w_min/max were unguarded EVERYWHERE, including two lines below the
+#       AVG(dc_w) that the fourth hand-patch had just fixed
+#   dc_v had no guard at all, and the 2026-08-01 row stores 143,190.9 V,
+#       which pulled that day's solar_series average to 51.5 V against a
+#       true 26.7 — and dc_v feeds the clamp indicator (pv_v - dc_v)
+#
+# Also: the docs said "one corrupt row (-27844 W)". There are at least FOUR
+# (2026-08-01, 08-05, 08-09, 09-18) and the worst is -16,777,189 W, about
+# -2^24 — a sign-extension artifact, not a decode scale error.
+#
+# NULL, never clamped: a value outside its physical bound is MISSING data,
+# not a measurement that happened to sit at the limit. SUM/AVG skip NULL,
+# which is the honest answer; clamping would invent a reading.
+SANE_BOUNDS: dict[str, tuple[float, float]] = {
+    # dc_w is a MAGNITUDE (the frame reports |dc_v*dc_a|), so it is never
+    # negative and the lower bound is 0. The inverter is 4 kW, so 6000 cannot
+    # be reached legitimately. Its per-bucket extremes share the bound.
+    "dc_w": (0, 6000),
+    "dc_w_min": (0, 6000),
+    "dc_w_max": (0, 6000),
+    # MIRRORED from xanbus_telemetry.BUS_V_MIN/BUS_V_MAX, which the reader
+    # already enforces on ingest. Copied because the server cannot import
+    # from scripts/, and copies in this repo drift — a test reads both back
+    # and fails if they stop matching.
+    "dc_v": (5.0, 120.0),
+}
+
+# Numeric columns deliberately NOT bounded, with the reason. Listing them is
+# the point: a new column must land in SANE_BOUNDS or here, and a test
+# derives the full column set from the wire model so neither can be skipped.
+SANE_UNBOUNDED: dict[str, str] = {
+    "solar_w": "no reader-side bound exists either (see task #69); "
+               "inventing one here risks NULLing legitimate production",
+    "solar_w_min": "same as solar_w",
+    "solar_w_max": "same as solar_w",
+    "solar_a": "same as solar_w",
+    "pv_v": "array Voc depends on string config, which has changed; no "
+            "defensible constant without re-measuring",
+    "pv_v_min": "same as pv_v",
+    "pv_v_max": "same as pv_v",
+    "dc_a": "signed by design and the sign is load-bearing (it is what "
+            "distinguishes charging from load); magnitude is bounded in "
+            "practice by dc_w's guard via the reader's cross-check",
+    "gen_v": "schema 3, verified against a live run 2026-10-04; no corrupt "
+             "value observed and no reader-side bound to mirror yet",
+    "gen_a": "same as gen_v; also signed, negative means inflow",
+    "gen_va": "same as gen_v",
+    "sample_n": "a sample count, bounded in practice by the bucket width and by the SMALLINT column type",
+    "schema_version": "a version marker, not a measurement; its range is enforced by the SMALLINT column type",
+}
+
+
+def _sane(col: str, name: str | None = None) -> str:
+    """SQL that NULLs `col` when it is outside its physical bound.
+
+    `name` is the bound to look up when `col` is qualified (s.dc_w -> dc_w).
+    Unbounded columns pass through unchanged, so this is safe to apply
+    uniformly.
+    """
+    key = name or col.split(".")[-1]
+    b = SANE_BOUNDS.get(key)
+    return f"CASE WHEN {col} BETWEEN {b[0]} AND {b[1]} THEN {col} END" if b else col
+
+
 def _dc_w_sane(col: str = "dc_w") -> str:
-    return f"CASE WHEN {col} BETWEEN 0 AND 6000 THEN {col} END"
+    """Back-compat alias; prefer _sane(). Kept so existing call sites and
+    their tests keep working."""
+    return _sane(col, "dc_w")
+
+
+def solar_select_list(alias: str = "") -> str:
+    """Sanitised column list for solar_readings, replacing SELECT *.
+
+    SELECT * is how /api/solar came to serve dc_w = -559117 to the dashboard,
+    which reads r.dc_w directly as house load. Derived from the wire model so
+    a new column cannot be forgotten here.
+    """
+    from cloud.shared.wire import SolarReading
+    p = f"{alias}." if alias else ""
+    cols = ["source_id"] + [f for f in SolarReading.model_fields]
+    out = []
+    for c in cols:
+        if c in SANE_BOUNDS:
+            out.append(f"{_sane(p + c, c)} AS {c}")
+        else:
+            out.append(f"{p}{c}")
+    return ", ".join(out)
 
 
 # The diode-clamp detector band, MIRRORED from scripts/xanbus_telemetry.py
@@ -819,14 +912,14 @@ class AsyncpgReadingsDAO:
                 source_id = src
             if since is not None:
                 rows = await conn.fetch(
-                    """SELECT * FROM solar_readings
+                    f"""SELECT {solar_select_list()} FROM solar_readings
                        WHERE source_id = $1 AND ts > $2
                        ORDER BY ts ASC LIMIT $3""",
                     source_id, since, limit,
                 )
             else:
                 rows = await conn.fetch(
-                    """SELECT * FROM solar_readings
+                    f"""SELECT {solar_select_list()} FROM solar_readings
                        WHERE source_id = $1
                        ORDER BY ts DESC LIMIT $2""",
                     source_id, limit,
@@ -857,7 +950,7 @@ class AsyncpgReadingsDAO:
                        -- detector for a day. Exact fold, not approximated.
                        MIN(pv_v_min)    AS pv_v_min,
                        MAX(pv_v_max)    AS pv_v_max,
-                       AVG(dc_v)        AS dc_v,
+                       AVG({_sane('dc_v')}) AS dc_v,
                        AVG(dc_a)        AS dc_a,
                        -- Sanitised like every other dc_w read path. This one
                        -- was missed when the other three were fixed, and the
@@ -868,8 +961,8 @@ class AsyncpgReadingsDAO:
                        -- 10:10 row (-27844 W) is still in the table and this
                        -- endpoint feeds the history explorer.
                        AVG({_dc_w_sane()})  AS dc_w,
-                       MIN(dc_w_min)    AS dc_w_min,
-                       MAX(dc_w_max)    AS dc_w_max
+                       MIN({_sane('dc_w_min')}) AS dc_w_min,
+                       MAX({_sane('dc_w_max')}) AS dc_w_max
                    FROM solar_readings
                    WHERE source_id = $1 AND ts >= $2 AND ts < $3
                    GROUP BY bucket ORDER BY bucket""",

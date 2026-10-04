@@ -564,3 +564,94 @@ class WiredPathDeadTests(unittest.TestCase):
             notable, lines = S.section_wired("2026-08-15T00:00:00Z")
         self.assertTrue(notable)
         self.assertIn("degraded", " ".join(lines))
+
+
+class CannotLookIsNotAnAllClearTests(unittest.TestCase):
+    """"I looked and it was fine" and "I could not look" must not print the
+    same thing — the rule this repo keeps rediscovering.
+
+    MUTATION-PROVEN defect, 2026-10-04: with ssh failing, `--with-pi` printed
+    `bottom line: quiet window` and exited 0 while EVERY Pi-side check was
+    skipped in silence — enabled-but-dead services, NRestarts, the throttle
+    grade, git sync, STALEPROC, timer arming (the only detector for a dead
+    latch guard) and path-B arming. At a site nobody visits for weeks, that is
+    the worst defect class there is.
+
+    The asymmetry was inside section_pi itself: _check_timers and
+    _check_git_sync both set notable on "cannot look"; only the outer probe
+    returned False.
+    """
+
+    def _run(self, fail_with):
+        import contextlib
+        import io
+        import sys
+        real = S.subprocess.check_output
+
+        def boom(*a, **k):
+            raise fail_with
+        S.subprocess.check_output = boom
+        argv = sys.argv
+        try:
+            sys.argv = ["status_check", "--hours", "2", "--with-pi"]
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc = S.main()
+            return rc, buf.getvalue()
+        finally:
+            S.subprocess.check_output = real
+            sys.argv = argv
+
+    def test_unreachable_pi_is_INCOMPLETE_not_quiet(self):
+        rc, out = self._run(
+            S.subprocess.CalledProcessError(255, "ssh"))
+        self.assertIn("INCOMPLETE", out,
+                      "an unreachable Pi must not produce a usable verdict")
+        self.assertNotIn("quiet window", out)
+        self.assertEqual(rc, 2, "rc must distinguish 'could not check'")
+
+    def test_no_route_to_host_is_also_caught(self):
+        """ssh surfaces a no-route-to-host as a bare OSError, which the
+        original handler did not catch — so it killed the run before the
+        bottom line printed."""
+        rc, out = self._run(OSError(65, "No route to host"))
+        self.assertIn("INCOMPLETE", out)
+        self.assertEqual(rc, 2)
+
+    def test_a_read_timeout_still_reaches_a_bottom_line(self):
+        """urlopen raises a BARE TimeoutError (an OSError, not a URLError) on
+        a body-read timeout. The dispatch caught only URLError/HTTPError, so a
+        slow query killed the run with a traceback, printed no verdict and
+        exited 1 — indistinguishable from NOTABLE."""
+        import contextlib
+        import io
+        real = S._get_json
+
+        def slow(path):
+            raise TimeoutError("timed out")
+        S._get_json = slow
+        try:
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                import sys
+                argv = sys.argv
+                sys.argv = ["status_check", "--hours", "2"]
+                try:
+                    rc = S.main()
+                finally:
+                    sys.argv = argv
+            out = buf.getvalue()
+        finally:
+            S._get_json = real
+        self.assertIn("bottom line", out,
+                      "a timeout must not suppress the verdict entirely")
+        self.assertIn("INCOMPLETE", out)
+        self.assertEqual(rc, 2)
+
+    def test_section_pi_is_inside_the_guarded_dispatch(self):
+        """It was called after the loop, outside the try, so an exception in
+        it bypassed the bottom line altogether."""
+        src = inspect.getsource(S.main)
+        head = src.split("for name, fn in (", 1)[1].split("):", 1)[0]
+        self.assertIn("section_pi", head,
+                      "section_pi must be dispatched inside the guarded loop")

@@ -74,6 +74,14 @@ def _get_json(path: str) -> dict:
         return json.load(r)
 
 
+class PiUnreachable(OSError):
+    """The Pi could not be reached at all, so no Pi-side check ran.
+
+    An OSError subclass so main's dispatch catches it alongside the network
+    errors and records the section as FAILED -> INCOMPLETE -> rc 2.
+    """
+
+
 def _reader_schema_version() -> int | None:
     """The version the READER currently emits, read out of its source.
 
@@ -835,9 +843,28 @@ def section_pi(ssh_target: str, hours: int) -> tuple[bool, list[str]]:
             timeout=45, text=True,
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
-            FileNotFoundError) as exc:
-        lines.append(f"  (Pi unreachable: {exc})")
-        return False, lines
+            FileNotFoundError, OSError) as exc:
+        # RAISE, do not return False. Returning "not notable" here printed
+        # `bottom line: quiet window` and exit 0 while EVERY Pi-side check was
+        # skipped — enabled-but-dead services, NRestarts, the throttle grade,
+        # git sync, STALEPROC, timer arming (the only detector for a dead
+        # latch guard) and path-B arming. Mutation-proven 2026-10-04 with ssh
+        # faked: the tool reported a clean window against an unreachable Pi.
+        #
+        # The asymmetry was self-evident in this very function: _check_timers
+        # and _check_git_sync both set notable=True on "cannot look". Only
+        # this outer probe did the opposite, and it is the one that discards
+        # the most. health_check.check_pi already gets this right, so the two
+        # tools disagreed on the same event.
+        #
+        # Raising routes it through main's INCOMPLETE/rc=2 path, which is the
+        # existing machinery for "a section could not be evaluated" — a
+        # stronger signal than notable, because it distinguishes "I looked
+        # and something is wrong" from "I could not look".
+        #
+        # OSError is included deliberately: a no-route-to-host from ssh
+        # surfaces as OSError, not CalledProcessError.
+        raise PiUnreachable(f"Pi unreachable: {exc}") from exc
 
     body = out.strip().splitlines()
     for line in body:
@@ -1028,20 +1055,31 @@ def main() -> int:
                      ("wired RS485", lambda: section_wired(since_iso)),
                      ("alerting",
                       lambda: section_alerting(
-                          args.ssh_target if args.with_pi else None))):
+                          args.ssh_target if args.with_pi else None)),
+                     # INSIDE the guarded dispatch. It used to be called
+                     # after this loop, outside the try, so any exception in
+                     # it killed the run before the bottom line printed.
+                     *((("Pi diagnostics",
+                         lambda: section_pi(args.ssh_target, int(args.hours))),)
+                       if args.with_pi else ())):
         try:
             n, lines = fn()
             any_notable |= n
             print("\n".join(lines) + "\n")
-        except (urllib.error.URLError, urllib.error.HTTPError) as exc:
+        # OSError, not just URLError/HTTPError. urlopen raises a BARE
+        # TimeoutError on a body-read timeout — an OSError, not a URLError —
+        # so a query slower than the 20 s timeout escaped this handler,
+        # killed the run with a traceback, printed NO bottom line and exited
+        # 1. Indistinguishable from NOTABLE, when INCOMPLETE/rc=2 exists for
+        # exactly this. Mutation-proven on the read_fail query, which is the
+        # one that has historically been slow enough to do it.
+        #
+        # URLError and HTTPError are both OSError subclasses, so this is a
+        # widening with no loss. PiUnreachable is one too, deliberately.
+        except OSError as exc:
             failed.append(name)
             any_notable = True
             print(f"!! {name} section FAILED: {exc}\n")
-
-    if args.with_pi:
-        n, lines = section_pi(args.ssh_target, int(args.hours))
-        any_notable |= n
-        print("\n".join(lines) + "\n")
 
     # ALWAYS print a bottom line, including on failure. Without one, a run that
     # died mid-way is indistinguishable from output that merely got truncated,
