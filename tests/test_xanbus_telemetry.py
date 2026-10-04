@@ -14,6 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 import xanbus_telemetry            # noqa: E402
+import xanbus_telemetry as X       # noqa: E402
 from xanbus_telemetry import (   # noqa: E402
     BUCKET_S, MIN_SUN_ELEVATION_DEG, Decoder, parse_can_id,
 )
@@ -572,3 +573,107 @@ class DuskGateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GuardsThatCanActuallyFireTests(unittest.TestCase):
+    """Three acquisition guards from the 2026-10-04 review.
+
+    1. The dc_w cross-check's `abs(dc_a) > 0.5` exemption ADMITTED EXACTLY
+       THE CORRUPTION THE GUARD EXISTS TO REJECT. A corrupt sample reached a
+       stored mean forty days after the guard shipped: 2026-09-18T00:35:45Z,
+       dc_v 26.871, dc_w -2226.07, dc_w_min -65281. Solving against twelve
+       clean neighbours puts that frame's dc_a at -0.2538 A, so the exemption
+       was true and the check never ran. And |dc_a| <= 0.5 occurs ZERO times
+       in 82,466 real frames — its only live effect was on corrupt ones.
+
+    2. The MPPT production channel had NO validity check at all, despite
+       carrying TIGHTER redundancy than dc_w (|w|/|v*i| sd 0.0043) and being
+       the sole input to every solar energy figure reported.
+
+    3. The reassembler validated only the byte COUNT, never the frame INDEX.
+       ASM_MAX_AGE_S exceeds the 3-bit sequence wrap time for five of six
+       fast-packet PGNs, so a stale buffer could be completed by a later
+       message's frames — the signature of the corrupt rows on record.
+    """
+
+    @staticmethod
+    def _batt(dc_v, dc_a, dc_w):
+        return struct.pack("<BBIii", 0, 0,
+                           int(dc_v * 1000), int(dc_a * 1000), int(dc_w))
+
+    @staticmethod
+    def _mppt(assoc, v, i, w):
+        return struct.pack("<BBIii", 0, assoc,
+                           int(v * 1000), int(i * 1000), int(w))
+
+    def test_the_frame_that_slipped_past_the_exemption_is_rejected(self):
+        """The actual stored row, reconstructed."""
+        d = X.Decoder()
+        d._batt_sts2(0, self._batt(26.871, -0.2538, -65281), 0.0)
+        self.assertEqual(d.bad_dc_w, 1,
+                         "the near-zero-current corrupt frame is still "
+                         "bypassing the cross-check")
+
+    def test_the_original_corrupt_row_is_still_rejected(self):
+        """Do not fix one case by breaking the other."""
+        d = X.Decoder()
+        d._batt_sts2(0, self._batt(27.00, -4.4, -27844), 0.0)
+        self.assertEqual(d.bad_dc_w, 1)
+
+    def test_real_dc_samples_survive(self):
+        """A guard that drops legitimate data is worse than none. These are
+        measured rows, including the verified generator run."""
+        for v, a, w in [(26.16, -7.49, 196), (26.6, 44.9, 1195),
+                        (25.6, -7.5, 192), (26.8, 44.9, 1204),
+                        (26.1, -9.9, 258)]:
+            with self.subTest(dc_v=v, dc_a=a, dc_w=w):
+                d = X.Decoder()
+                d._batt_sts2(0, self._batt(v, a, w), 0.0)
+                self.assertEqual(d.bad_dc_w, 0, f"rejected a real sample")
+
+    def test_near_zero_current_is_bounded_by_magnitude_not_skipped(self):
+        """The replacement for the exemption: below 0.5 A the RATIO is
+        meaningless but the magnitude is not — 0.5 A cannot exceed 60 W on a
+        5-120 V bus."""
+        d = X.Decoder()
+        d._batt_sts2(0, self._batt(26.0, 0.1, 5000), 0.0)
+        self.assertEqual(d.bad_dc_w, 1, "near-zero current with kilowatts")
+        d2 = X.Decoder()
+        d2._batt_sts2(0, self._batt(26.0, 0.1, 3), 0.0)
+        self.assertEqual(d2.bad_dc_w, 0, "a real idle sample was rejected")
+
+    def test_the_mppt_channel_now_cross_checks(self):
+        d = X.Decoder()
+        # v=50 V, i=5 A -> 250 W expected; 9000 W is garbage
+        d._dc_src_sts2(X.SRC_MPPT, self._mppt(0x03, 50.0, 5.0, 9000), 0.0)
+        self.assertEqual(d.bad_solar_w, 1,
+                         "the production channel accepts inconsistent power")
+
+    def test_real_mppt_samples_survive(self):
+        for v, i, w in [(27.0, 5.0, 134), (26.5, 1.5, 40), (27.2, 0.04, 1)]:
+            with self.subTest(v=v, i=i, w=w):
+                d = X.Decoder()
+                d._dc_src_sts2(X.SRC_MPPT, self._mppt(0x03, v, i, w), 0.0)
+                self.assertEqual(d.bad_solar_w, 0)
+
+    def test_an_out_of_order_fast_packet_frame_is_discarded(self):
+        """Not spliced into the buffer. This is the upstream cause the
+        corrupt rows point at."""
+        r = X.Reassembler()
+        pgn, src = X.PGN_BATT_STS2, 0
+        # frame 0 declares 12 bytes, then a frame claiming index 3 arrives
+        self.assertIsNone(r.feed(pgn, src, bytes([0x00, 12]) + bytes(6), 0.0))
+        self.assertIsNone(r.feed(pgn, src, bytes([0x03]) + bytes(7), 0.1))
+        self.assertEqual(r.bad_asm_seq, 1, "a skipped frame index was spliced")
+        # and the buffer is gone, so a later correct frame cannot complete it
+        self.assertIsNone(r.feed(pgn, src, bytes([0x01]) + bytes(7), 0.2))
+
+    def test_an_in_order_fast_packet_still_reassembles(self):
+        """The guard must not break normal traffic."""
+        r = X.Reassembler()
+        pgn, src = X.PGN_BATT_STS2, 0
+        self.assertIsNone(r.feed(pgn, src, bytes([0x00, 12]) + bytes(range(6)), 0.0))
+        got = r.feed(pgn, src, bytes([0x01]) + bytes(range(6, 13)), 0.1)
+        self.assertIsNotNone(got, "a correctly ordered message failed to assemble")
+        self.assertEqual(len(got), 12)
+        self.assertEqual(r.bad_asm_seq, 0)

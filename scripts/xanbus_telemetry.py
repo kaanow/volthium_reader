@@ -78,6 +78,13 @@ DROPOUT_S = 60                 # node silent this long -> node_dropout event
 # So bound only what is unarguable: this is a low-voltage DC bus, not a
 # 143 kV transmission line. Catches the observed failure and nothing else.
 BUS_V_MIN, BUS_V_MAX = 5.0, 120.0
+
+# With |current| below 0.5 A the w ~ v*i ratio is meaningless, but the
+# MAGNITUDE is not: at the bus's 5-120 V range, 0.5 A cannot exceed 60 W. A
+# generous 200 W ceiling therefore catches garbage without policing anything
+# real. This replaces an exemption that skipped the check entirely and so was
+# live only on corrupt frames.
+NEAR_ZERO_MAX_W = 200.0
 LATCH_DELTA_MIN_V = 0.3        # below this the array isn't driving the diode
 # The ceiling must clear the MPPT's own reporting dither, or a real latch
 # reads as intermittent. Measured during the unbroken 2026-08-06 10:20 local
@@ -195,18 +202,47 @@ class Reassembler:
     """NMEA2000 fast-packet reassembly, standard 3-bit-seq/5-bit-frame split."""
 
     def __init__(self):
-        self._buf: dict[tuple, list] = {}   # (pgn,src,seq) -> [total, bytes, t]
+        # (pgn,src,seq) -> [total, bytes, t, next_expected_fid]
+        self._buf: dict[tuple, list] = {}
+        # Out-of-order / duplicated fast-packet frames DISCARDED, so the rate
+        # is observable instead of being inferred from corrupt output. The
+        # measured rate on this bus is 21 in 194,392 frames (0.011%).
+        self.bad_asm_seq = 0
 
     def feed(self, pgn: int, src: int, data: bytes, t: float):
         """Returns the reassembled payload or None."""
         seq, fid = data[0] >> 5, data[0] & 0x1F
         key = (pgn, src, seq)
         if fid == 0:
-            self._buf[key] = [data[1], bytearray(data[2:]), t]
+            # [declared_len, payload, last_seen, next_expected_fid]
+            self._buf[key] = [data[1], bytearray(data[2:]), t, 1]
             return None
         ent = self._buf.get(key)
         if ent is None:
             return None
+        # FRAME INDEX CONTINUITY. Only the byte COUNT was checked, and `fid`
+        # was tested solely for == 0, so a stale partial buffer could be
+        # completed by frames from a LATER message carrying the same 3-bit
+        # sequence number.
+        #
+        # ASM_MAX_AGE_S = 5.0 s is LONGER than that sequence number's wrap
+        # time for five of the six fast-packet PGNs — AC_STS_RMS and
+        # DC_SRC_STS2 wrap in 2.0 s, BATT_STS2 and CHG_STS in 4.0 s — so the
+        # collision window is wide open, and measured frame-index
+        # discontinuity on this bus is 21 in 194,392 frames (0.011%).
+        #
+        # BattSts2 puts dc_v at offsets 2-5 (frame 0, so the voltage range
+        # check never fires) and dc_a/dc_w at 6-13 (later frames, shiftable),
+        # which is exactly the signature of the corrupt rows on record:
+        # plausible voltage, garbage current, garbage power.
+        #
+        # A mis-ordered or duplicated frame now DISCARDS the buffer rather
+        # than silently splicing foreign bytes into it.
+        if fid != ent[3]:
+            del self._buf[key]
+            self.bad_asm_seq += 1
+            return None
+        ent[3] += 1
         ent[1] += data[1:]
         ent[2] = t
         if len(ent[1]) >= ent[0]:
@@ -264,6 +300,7 @@ class Decoder:
         self.mppt_status: int | None = None
         self.bad_dc_v = 0          # rejected out-of-range bus voltages
         self.bad_dc_w = 0          # rejected internally-inconsistent DC power
+        self.bad_solar_w = 0       # rejected internally-inconsistent MPPT power
         self.clamp_since: float | None = None
         self.clamp_clear_since: float | None = None
         self.latched = False
@@ -323,9 +360,34 @@ class Decoder:
         #
         # The 2x window is enormously generous against an observed 0.5%
         # spread; it is there to catch garbage, not to police calibration.
-        # Skipped below 0.5 A because the ratio is meaningless near zero.
+        #
+        # THE `abs(dc_a) > 0.5` EXEMPTION USED TO SIT HERE AND IT ADMITTED
+        # EXACTLY THE CORRUPTION THIS GUARD EXISTS TO REJECT.
+        #
+        # A corrupt sample reached a stored mean forty days AFTER the guard
+        # shipped: 2026-09-18T00:35:45Z, dc_v 26.871, dc_a -3.951,
+        # dc_w -2226.07, dc_w_min -65281. Solving against the twelve clean
+        # neighbouring rows (k = dc_w/|dc_v*dc_a| measured at 0.995, dc_v
+        # rock-steady throughout, which rules out a corrupt voltage) puts the
+        # corrupt frame's dc_a at -0.2538 A — so the exemption was TRUE and
+        # the check never ran. Had it run: expected 6.8 W, window
+        # [3.4, 13.6] W against |dc_w| 65281, rejected by 4800x.
+        #
+        # And the exemption is unreachable in normal operation: across 82,466
+        # raw BattSts2 frames passing the voltage range, |dc_a| <= 0.5 occurs
+        # ZERO times. Its only live effect was on corrupt frames.
+        #
+        # So the near-zero case is handled by an ABSOLUTE floor instead of by
+        # skipping the check. Below 0.5 A the ratio really is meaningless, but
+        # the magnitude is not: at the bus's 5-120 V range, 0.5 A cannot
+        # produce more than 60 W, so anything past a generous 200 W with a
+        # near-zero current is garbage regardless of ratio.
         expected = abs(dc_v * dc_a)
-        if abs(dc_a) > 0.5 and not (0.5 * expected <= abs(dc_w) <= 2.0 * expected):
+        if abs(dc_a) > 0.5:
+            ok = 0.5 * expected <= abs(dc_w) <= 2.0 * expected
+        else:
+            ok = abs(dc_w) <= NEAR_ZERO_MAX_W
+        if not ok:
             self.bad_dc_w += 1
             return []
         self._agg("dc_v").add(dc_v)
@@ -338,8 +400,27 @@ class Decoder:
             return []
         _st, assoc, v, i, w = struct.unpack_from("<BBIii", p, 0)
         if assoc == 0x03:        # MPPT -> battery: THE production channel
-            self._agg("solar_a").add(abs(i / 1000))
-            self._agg("solar_w").add(abs(float(w)))
+            # CROSS-CHECK, which this channel had none of — no range bound and
+            # no w ~ v*i test — despite solar_w being the sole input to every
+            # solar energy figure this system reports. The redundancy is here
+            # and is TIGHTER than the one the dc_w guard relies on: measured
+            # |w|/|v*i| = 0.9853..1.0000, mean 0.9929, sd 0.0043 over 3297
+            # samples. The exact defect class that produced the -27844 W dc_w
+            # row was simply unguarded on the headline channel.
+            #
+            # Same shape as the dc_w guard, including the near-zero floor, so
+            # the two cannot drift in reasoning.
+            out_v, out_a, out_w = v / 1000, abs(i / 1000), abs(float(w))
+            exp = out_v * out_a
+            if out_a > 0.5:
+                ok = 0.5 * exp <= out_w <= 2.0 * exp
+            else:
+                ok = out_w <= NEAR_ZERO_MAX_W
+            if not ok:
+                self.bad_solar_w += 1
+                return []
+            self._agg("solar_a").add(out_a)
+            self._agg("solar_w").add(out_w)
             self.mppt_out_v = v / 1000
             self.mppt_out_w = abs(float(w))
             self.mppt_status = _st       # status byte — meaning still unknown,
