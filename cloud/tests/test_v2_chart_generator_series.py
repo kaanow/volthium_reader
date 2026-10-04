@@ -36,6 +36,20 @@ from pathlib import Path
 V2 = Path(__file__).resolve().parents[1] / "server" / "static" / "v2.html"
 
 
+def _code_only(js: str) -> str:
+    """JS with comments stripped.
+
+    Four separate assertions today matched their own EXPLANATION rather than
+    the code: a docstring saying "strongly bimodal", a comment describing a
+    removed flag, and here a comment naming `st.gen` while explaining why
+    `st.gen` is gone. Source text includes the reasoning, so any assertion
+    about what the code DOES has to drop the prose first.
+    """
+    js = re.sub(r"/\*.*?\*/", "", js, flags=re.S)     # block comments
+    js = re.sub(r"(?<![:\w])//[^\n]*", "", js)        # line comments, not URLs
+    return js
+
+
 class GeneratorSeriesTests(unittest.TestCase):
 
     @classmethod
@@ -166,3 +180,87 @@ class ReplayTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GeneratorIsNotHouseLoadAnywhereTests(unittest.TestCase):
+    """The per-row treatment must cover every surface, not just the chart.
+
+    Fixing the strip chart (4ab3517) left four other places reading the
+    charger's DC draw as house load, found by the 2026-10-04 review:
+
+      - the Loads tile and badge gated on the live `st.gen` global, refreshed
+        at most every 120 s. Measured at 15:50:45Z the row had dc_a +44.93 /
+        dc_w 1174, so the tile read "Loads 1174 W" with the badge "running on
+        sun" while the chart directly beneath showed gen 1174 / loads 0 FOR
+        THE SAME ROW.
+      - the history ledger rendered load_wh, never subtracting charge_wh:
+        2026-10-02 showed "loads out 6.03 kWh" against 3.96 true (+52%).
+      - the heatmap was colour-scaled by the maximum, so one 1217 W generator
+        hour pushed a typical 160 W cell from ~82% to 30% opacity.
+      - the system table's `Math.abs(s.dc_a)` discarded the sign genAt()
+        depends on, labelling 44.93 A of charge current "Inverter (AC loads)".
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.v2 = V2.read_text()
+        cls.hist = (V2.parent / "v2-history.html").read_text()
+
+    def test_the_loads_tile_asks_the_row_not_the_global(self):
+        m = re.search(r"function loadW\(\)\s*\{(.*?)\n\}", self.v2, re.S)
+        self.assertIsNotNone(m)
+        body = _code_only(m.group(1))
+        self.assertIn("genAt(", body,
+                      "loadW still gates on the lagging st.gen global")
+        self.assertNotIn("st.gen", body)
+
+    def test_solar_inference_asks_the_row_too(self):
+        m = re.search(r"function solarInfo\(\)\s*\{(.*?)\n\}", self.v2, re.S)
+        self.assertIsNotNone(m)
+        body = _code_only(m.group(1))
+        self.assertIn("genAt(", body)
+        self.assertNotIn("st.gen ?", body)
+
+    def test_charge_current_is_not_labelled_inverter_load(self):
+        """A source on the sink side also broke the balance gap by ~2.3 kW."""
+        m = re.search(r"const invA = (.*?);", self.v2, re.S)
+        self.assertIsNotNone(m)
+        self.assertIn("dc_a > 0", m.group(1),
+                      "invA still takes the magnitude, so charge current "
+                      "renders as AC load")
+
+    def test_the_history_ledger_uses_the_corrected_total(self):
+        self.assertIn("load_wh_net", self.hist,
+                      "the ledger chart still renders the uncorrected load_wh")
+        self.assertRegex(self.hist, r"const loadOf = d =>",
+                         "no single accessor, so the bars, tooltip and tile "
+                         "can drift apart again")
+        # every place that reads a day's load must go through it
+        for frag in ("const sol = d.solar_wh || 0, load = loadOf(d);",
+                     "loadOf(d)"):
+            self.assertIn(frag, self.hist)
+
+    def test_the_ledger_falls_back_for_rows_predating_the_field(self):
+        """load_wh_net did not exist before 2026-10-04; those days must still
+        render rather than collapsing to zero."""
+        m = re.search(r"const loadOf = d => (.*?);", self.hist, re.S)
+        self.assertIn("load_wh", m.group(1))
+        self.assertIn("!= null", m.group(1))
+
+    def test_the_heatmap_is_not_scaled_by_its_maximum(self):
+        """One generator hour washed out 21 days of cells."""
+        m = re.search(r"const max = (.*?);", self.hist, re.S)
+        self.assertIsNotNone(m)
+        self.assertNotRegex(
+            m.group(1), r"\.\.\.cells\.map",
+            "the heatmap still scales to the maximum cell")
+        self.assertIn("p95", m.group(1))
+
+    def test_the_heatmap_note_states_what_the_meter_cannot_see(self):
+        """It said "average house draw", which is wrong twice: dc_w is blind
+        to the bus-wired fridge, and it includes generator charging."""
+        m = re.search(r'Average <b>inverter DC input</b>(.*?)</p>',
+                      self.hist, re.S)
+        self.assertIsNotNone(m, "the heatmap note still claims house draw")
+        self.assertIn("fridge", m.group(1))
+        self.assertIn("generator", m.group(1))

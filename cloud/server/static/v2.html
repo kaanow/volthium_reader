@@ -244,12 +244,22 @@ function clampedAt(r) {
       && d >= CLAMP_DELTA_MIN_V && d <= CLAMP_DELTA_MAX_V;
 }
 function solarInfo() {
+  /* Same correction as loadW(): the row knows, the global lags. */
+  const charging = st.solar ? genAt(st.solar) > 0 : false;
   return inferSolar(st.solar?.solar_w ?? 0, battW(),
-                    st.gen ? null : st.solar?.dc_w ?? null, latched());
+                    charging ? null : st.solar?.dc_w ?? null, latched());
 }
 function solarW() { return solarInfo().w; }
 function loadW() {
-  if (st.gen) return null;                    // AC-side load unknown during gen (yet)
+  /* ASK THE ROW, not the live global. `st.gen` is refreshed at most every
+     120 s from the event stream, so during the first two minutes of a run the
+     tile rendered the charger's DC draw AS HOUSE LOAD: measured at
+     2026-10-04 15:50:45Z the row had dc_a +44.93 / dc_w 1174, and the tile
+     showed "Loads 1174 W" with the badge reading "running on sun" — while the
+     strip chart directly beneath, which already used genAt(r), showed
+     gen 1174 / loads 0 FOR THE SAME ROW.
+     genAt() keys on the row's own gen_v and dc_a, so the two now agree. */
+  if (st.solar && genAt(st.solar) > 0) return null;   // AC-side load unmeasured
   return st.solar?.dc_w ?? Math.max(0, solarW() - battW());
 }
 /* Unmetered DC loads — the 24 V fridge, straight off the bus with no meter.
@@ -637,7 +647,14 @@ function drawSystem(L) {
   const si = solarInfo();
   const dcl = dcLoadW();
   const battA = L.pack_i, battV = L.pack_v, battP = battW();
-  const invA = s.dc_a == null ? null : Math.abs(s.dc_a);
+  /* Math.abs() discarded the very sign genAt() depends on, so during a
+     generator run the row labelled "Inverter (AC loads)" showed the charger:
+     measured "26.15 V / 44.93 A / 1174 W" of AC loads. The balance gap then
+     added a source to the sink side, about +87 A / +2.3 kW, presented as a
+     diagnostic. While charging, the inverter's AC-side load is not measured
+     at all, so report it as unknown rather than as its own input. */
+  const invA = s.dc_a == null ? null
+             : (s.dc_a > 0 ? null : Math.abs(s.dc_a));
   // PV array: voltage only — this model has no input-side current sensor,
   // so array I/P are structurally absent (not a decode gap).
   const rows = [

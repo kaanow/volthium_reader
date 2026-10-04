@@ -85,7 +85,10 @@ svg.chart { display: block; width: 100%; height: auto; }
 
   <section>
     <h2>Load pattern — hour × day, last 21 days</h2>
-    <p class="note">Average house draw (inverter DC input). Darker = heavier use.</p>
+    <p class="note">Average <b>inverter DC input</b>. Excludes the 24&nbsp;V
+      fridge, which is wired to the bus and which this meter cannot see;
+      includes generator charging, which is not house load. Darker = heavier
+      draw.</p>
     <div class="hm" id="heatmap"></div>
     <div class="hm-labels"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
   </section>
@@ -141,12 +144,21 @@ function drawLedger(days) {
   const n = days.length;
   const bw = Math.min(22, (W - PADX * 2) / n * 0.72);
   const step = (W - PADX * 2) / n;
-  const maxWh = Math.max(500, ...days.map(d => Math.max(d.solar_wh || 0, d.load_wh || 0)));
+  /* USE load_wh_net, NOT load_wh. dc_w is unsigned, so generator charging
+     lands in load_wh as though the house had consumed it; the API returns
+     load_wh_net (= load_wh - charge_wh) precisely so it can be removed, and
+     this page never subtracted it. Measured: 2026-10-02 rendered "loads out
+     6.03 kWh" against 3.96 true (+52%), and the 31-day tile carried 2.52 kWh
+     of charge. It also set maxWh from the inflated figure, squashing every
+     other bar on the chart. Falls back to load_wh for days written before
+     load_wh_net existed. */
+  const loadOf = d => (d.load_wh_net != null ? d.load_wh_net : (d.load_wh || 0));
+  const maxWh = Math.max(500, ...days.map(d => Math.max(d.solar_wh || 0, loadOf(d))));
   const y = wh => (wh / maxWh) * (MID - 26);
   let out = "";
   days.forEach((d, i) => {
     const x = PADX + i * step + (step - bw) / 2;
-    const sol = d.solar_wh || 0, load = d.load_wh || 0;
+    const sol = d.solar_wh || 0, load = loadOf(d);
     const net = (d.batt_in_wh || 0) - (d.batt_out_wh || 0);
     const label = new Date(d.day + "T12:00:00").toLocaleDateString([], { month: "short", day: "numeric" });
     const t = `<b>${label}</b><br>solar in <b>${fmtWh(sol)}</b><br>loads out <b>${fmtWh(load)}</b><br>battery net <b>${net >= 0 ? "+" : "−"}${fmtWh(Math.abs(net))}</b>`;
@@ -165,7 +177,8 @@ function drawLedger(days) {
   svg.innerHTML = out;
 
   const tot = k => days.reduce((a, d) => a + (d[k] || 0), 0);
-  const sWh = tot("solar_wh"), lWh = tot("load_wh");
+  const sWh = tot("solar_wh");
+  const lWh = days.reduce((a, d) => a + loadOf(d), 0);
   const best = days.slice().sort((a, b) => (b.solar_wh || 0) - (a.solar_wh || 0))[0];
   $("ledger-stats").innerHTML = `
     <div class="cell">Solar harvested <b>${fmtWh(sWh)}</b></div>
@@ -180,7 +193,15 @@ function drawHeatmap(cells) {
   if (!cells.length) { hm.outerHTML = "<p class='note'>no data yet</p>"; return; }
   const days = [...new Set(cells.map(c => c.day))].sort();
   const byKey = new Map(cells.map(c => [`${c.day}|${c.hour}`, c.load_w]));
-  const max = Math.max(60, ...cells.map(c => c.load_w || 0));
+  /* SCALE TO A HIGH PERCENTILE, not the maximum. One generator hour was
+     washing out the whole grid: on 2026-10-02 the 18:00 cell read 1216.9 W
+     (100% of its samples charging) against a typical 150-160 W, so a normal
+     cell rendered at 29% opacity instead of ~55% and the chart stopped
+     carrying information. The p95 keeps the colour ramp tied to ordinary
+     draw; genuinely heavy cells still saturate because frac is clamped. */
+  const vals = cells.map(c => c.load_w || 0).filter(v => v > 0).sort((a, b) => a - b);
+  const p95 = vals.length ? vals[Math.floor(0.95 * (vals.length - 1))] : 0;
+  const max = Math.max(60, p95);
   hm.style.gridTemplateColumns = `repeat(24, 1fr)`;
   let html = "";
   for (const day of days) {
