@@ -192,7 +192,14 @@ const st = {
   solar: null,           // newest solar row
   dcProfile: null,       // characterised DC load (fridge) from dark hours
   lastProfilePoll: 0,
-  stage: null, inv: "inverting", gen: false,
+  // null = NOT YET READ FROM THE BUS, which is different from "off" and
+  // must not render as a value. `inv` was seeded "inverting" and `gen`
+  // false, and because the event query buried both (see pollOnce), the
+  // tiles showed those seeds as though they were measurements — for weeks.
+  // The arithmetic below still treats null as falsey, which is the right
+  // fallback for drawing a flow; only the LABELS change, so an unread
+  // state reads as unknown instead of as a confident claim.
+  stage: null, inv: null, gen: null,
   lastSolarTs: null, lastEventPoll: 0,
 };
 const hist = [];         // ring of {t, solar, gen, load, batt}
@@ -464,13 +471,14 @@ function drawFlow() {
   }
   const si = solarInfo();
   $("t-solar").textContent = `${si.approx ? "≈ " : ""}${Math.round(si.w)} W`;
-  $("t-gen").textContent = st.gen ? "running" : "0 W";
+  $("t-gen").textContent = st.gen == null ? "—" : st.gen ? "running" : "0 W";
   $("t-load").textContent = load == null ? "—" : `${Math.round(load)} W`;
   const dcl = dcLoadW();
   $("t-dc").textContent = dcl == null ? "—"
     : dcl.live ? `${Math.round(dcl.w)} W` : `~${Math.round(dcl.w)} W avg`;
   $("t-batt").textContent = `${charging ? "+" : "−"}${Math.round(Math.abs(batt))} W ${charging ? "charging" : "discharging"}`;
-  $("invlbl").textContent = st.inv === "passthrough" ? "← charging" : "inverting →";
+  $("invlbl").textContent = st.inv == null ? "—"
+    : st.inv === "passthrough" ? "← charging" : "inverting →";
 
   const genToLoad = st.gen ? 1 : 0;
   const solarShare = solar + Math.max(-batt, 0) > 0

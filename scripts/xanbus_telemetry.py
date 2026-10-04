@@ -472,14 +472,46 @@ class Decoder:
         out: list[dict] = []
         if assoc == 0x13:        # AC2 = generator input (official enum GEN1)
             running = v1 > 50.0
+            # gen_hz IS NOT THE FREQUENCY. Across every generator event on
+            # record it reads exactly 30.00 — including both gen_stop events,
+            # where gen_v is 0.0. A generator cannot run at 30 Hz while
+            # producing zero volts, so offset 41 is not ac2_f. n=4, but the
+            # 0 V case makes it a logical result rather than a statistical
+            # one; this is the same shape as mppt_latched's `clamped_s`
+            # always equalling LATCH_CONFIRM_S. A field that cannot vary is
+            # not a measurement.
+            #
+            # Emitted under a name that does not assert a unit, so no
+            # consumer can mistake it for Hz, and kept rather than dropped
+            # because the raw value is what a future decode pass needs.
+            # Finding the real offset needs raw frames — run
+            # scripts/xanbus_decode.py over a capture that contains a
+            # generator run, OFF the Pi. There is exactly one such run in the
+            # archive so far (2026-10-03 00:29-02:12Z).
+            #
+            # gen_a and gen_va are NOT known to be wrong. They read ~0 in
+            # these events, which looked like a second misdecode and is not:
+            # gen_start fires the instant AC voltage crosses 50 V, and the
+            # charger only engaged 17 s later (sw chg_stage -> bulk at
+            # 00:29:35). Zero current before any load is correct. They have
+            # simply never been sampled UNDER load — see below.
             out += self._changed(
                 "gen_running", running, t,
                 "gen_start" if running else "gen_stop",
                 {"gen_v": round(v1, 1), "gen_a": round(i1 + i2, 2),
-                 "gen_va": va, "gen_hz": round(freq, 2)})
-            if running:
-                self._agg("gen_v").add(v1)
-                self._agg("gen_va").add(va)
+                 "gen_va": va, "gen_hz_unverified": round(freq, 2)})
+            # The two _agg calls that used to be here aggregated gen_v and
+            # gen_va into buckets that the row builder never emits — there
+            # are no gen_* columns in solar_readings, so every sample was
+            # computed and discarded. That is why a 1h43m generator run
+            # leaves only two instantaneous events behind and the loaded
+            # behaviour cannot be checked at all.
+            #
+            # Removed rather than left looking like capture. Plumbing them
+            # through is worth doing and is a schema change: ADD COLUMN on
+            # solar_readings (O(1) in Postgres, unlike the CREATE INDEX that
+            # took the API down on 2026-10-04), a schema_version bump, and
+            # the row builder's key list.
         elif assoc == 0x33:      # AC out / cabin loads — PROVISIONAL decode
             # This decode does not work: it reports 0 V / 0 A / 0 VA while the
             # inverter is demonstrably producing AC (the cabin runs on it, and

@@ -82,10 +82,36 @@ def _dc_w_sane(col: str = "dc_w") -> str:
 # 121.7 W step at 23.4% duty, which is a credible fridge.
 #
 # So the stale constant is not mis-measuring a broken site, it is measuring a
-# moved one. Until the split is derived per day, _valley_sql() detects that
-# 117.6 W is no longer in the valley and the modelled columns return NULL
-# rather than the width of a blob. Refusing beats reporting wrong; deriving
-# the split per day beats both and is the real fix.
+# moved one. _valley_sql() detects that 117.6 W is no longer in the valley and
+# the modelled columns return NULL rather than the width of a blob.
+#
+# DO NOT "FIX" THIS BY DERIVING THE SPLIT PER DAY. I measured that on 15 days
+# and it does not work, which is the opposite of what an earlier version of
+# this comment claimed. The dark-hour histograms say why:
+#
+#   2026-09-28, nobody home — genuinely bimodal, and the gap is EMPTY:
+#       60-99 W  84.3%      <- fridge off
+#      100-139 W  0.1%      <- the valley 117.6 sits in
+#      140-199 W 15.6%      <- fridge on
+#
+#   2026-10-03, occupied — no empty gap at ANY threshold:
+#      100-139 W 32.6% | 160-219 W 44.4% | 220-259 W 17.8%
+#
+# Occupancy does not translate a two-state distribution, it ADDS states. Three
+# or more sources overlap and no 1-D amplitude threshold can separate one of
+# them out. Per-day 2-means tracks the shift and still returns duty 0.60 and
+# 1108 Wh/day on 10-03 — a plausible-looking number that is not a fridge, and
+# plausible-looking wrong is worse here than NULL.
+#
+# On the days the premise DOES hold, per-day 2-means lands at 119-121 W
+# against this 117.6: a 0-1 Wh difference. So it buys nothing where it works
+# and fabricates where it doesn't.
+#
+# If fridge energy during occupancy is ever actually wanted, the separable
+# signal is in the TIME domain, not the amplitude domain: the compressor is a
+# ~80-120 W STEP with a characteristic cycle, so detect its edges in the power
+# series instead of thresholding the histogram. That is real work and it is
+# worth it only if someone needs that number.
 
 
 # --- display vs site timezone --------------------------------------------
