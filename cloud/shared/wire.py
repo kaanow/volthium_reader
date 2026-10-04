@@ -218,6 +218,16 @@ class SolarReading(BaseModel):
     dc_w_min: Optional[float] = None
     dc_w_max: Optional[float] = None
 
+    # schema_version 3+: the generator's AC side, bucket means. These were
+    # aggregated reader-side into columns that did not exist, so a 1h43m
+    # generator run left only two transition events behind and gen_a was
+    # never sampled under load. NOTE extra="forbid" above: the server must
+    # learn these fields BEFORE the reader starts sending them, or every
+    # solar batch 422s. Server first, then the Pi.
+    gen_v: Optional[float] = None
+    gen_a: Optional[float] = None
+    gen_va: Optional[float] = None
+
     sample_n: Optional[int] = None
 
     @field_validator("ts", mode="before")

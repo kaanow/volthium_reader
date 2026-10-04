@@ -778,11 +778,13 @@ class AsyncpgReadingsDAO:
                 "solar_w", "solar_w_min", "solar_w_max", "solar_a",
                 "pv_v", "pv_v_min", "pv_v_max",
                 "dc_v", "dc_a", "dc_w", "dc_w_min", "dc_w_max",
+                "gen_v", "gen_a", "gen_va",
                 "sample_n")
         rows = [(source_id, r.ts, r.schema_version,
                  r.solar_w, r.solar_w_min, r.solar_w_max, r.solar_a,
                  r.pv_v, r.pv_v_min, r.pv_v_max,
                  r.dc_v, r.dc_a, r.dc_w, r.dc_w_min, r.dc_w_max,
+                 r.gen_v, r.gen_a, r.gen_va,
                  r.sample_n) for r in readings]
         n = len(cols)
         placeholders = ",".join(

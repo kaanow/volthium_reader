@@ -1,0 +1,45 @@
+-- 0006_solar_generator_fields.sql — sample the generator's AC side per bucket.
+--
+-- WHY: gen_v / gen_a / gen_va were already being aggregated per 15 s bucket by
+-- the reader into columns that DID NOT EXIST, so every sample was computed and
+-- thrown away. The consequence is that the 1h43m generator run of
+-- 2026-10-03 00:29-02:12Z left behind exactly two data points, both stamped at
+-- transitions — and `gen_start` fires when AC voltage crosses 50 V, 17 s before
+-- the charger engaged. So the only generator current ever recorded is from a
+-- moment when there was legitimately no load.
+--
+-- Which means "is the generator current decode correct?" has been
+-- unanswerable, not answered. These columns are what make it answerable: with
+-- gen_a in the same row as dc_w, a loaded run is a direct check — roughly
+-- 1216 W DC at 26.7 V should appear as ~11-12 A at ~121 V on the AC side.
+--
+-- gen_hz is deliberately NOT given a column. It decodes to a constant 30.00
+-- including when gen_v is 0.0, so it is a misdecode, not a measurement; it
+-- stays in the event payload as gen_hz_unverified until the offset is found
+-- from a raw capture.
+--
+-- SAFE ON THE STARTUP PATH, unlike 0005. migrations/apply_all() runs inside
+-- the FastAPI lifespan handler before the app serves, and a CREATE INDEX there
+-- took the whole API down on 2026-10-04 (502 on every path including /healthz
+-- for ~13 min, killed by the healthcheck and restarted into a loop).
+--
+-- ADD COLUMN is not that. Without a volatile DEFAULT, Postgres 11+ records a
+-- nullable column in the catalog and does not rewrite or scan the table — it
+-- is O(1) metadata, the same shape as 0004 which has been applying cleanly
+-- since August. The distinction to carry forward is not "migrations are
+-- dangerous", it is "work proportional to table size on the startup path is
+-- dangerous".
+--
+-- REAL, not DOUBLE PRECISION, matching pv_v_min/max in 0004 — these are
+-- 0.1 V / 1 VA resolution readings off a CAN frame, not quantities where
+-- float64 buys anything.
+--
+-- Rollback:
+--   ALTER TABLE solar_readings DROP COLUMN gen_v, DROP COLUMN gen_a,
+--                              DROP COLUMN gen_va;
+--
+-- Idempotent — safe to re-run. Auto-applies when DB_MIGRATE=1.
+
+ALTER TABLE solar_readings ADD COLUMN IF NOT EXISTS gen_v  REAL;
+ALTER TABLE solar_readings ADD COLUMN IF NOT EXISTS gen_a  REAL;
+ALTER TABLE solar_readings ADD COLUMN IF NOT EXISTS gen_va REAL;
