@@ -1320,10 +1320,30 @@ class AsyncpgReadingsDAO:
                    ORDER BY r.ts""",
                 source_id, str(hours),
             )
-        vals = [float(r["pack_p"]) for r in rows]
-        out = {"samples": len(vals), "hours": hours}
+        # DISCHARGE ONLY. `vals` was raw SIGNED pack_p, and the premise of
+        # this whole function is "whatever the battery SUPPLIES beyond the
+        # inverter's draw" — a sample where the battery is being CHARGED is
+        # not a load measurement at all.
+        #
+        # Measured 2026-10-04: 71 of 16,685 dark samples were positive (0.43%,
+        # the 12 dark minutes of the 10-03 generator run), max +1231 W. Otsu
+        # maximises wa*wb*(ma-mb)^2, so that 0.4%/1404 W split scored ~5x the
+        # true one and the "fridge off" class BECAME the generator run:
+        #   hours=48 -> split -101.6, draw 1404.2 W, duty 0.996,
+        #               baseline -1230.1 W, kwh_per_day 33.56
+        # A negative baseline load is physically impossible and was the tell.
+        # The dashboard tile read 1392-1399 W continuously for ~26 h against a
+        # fridge of 80-120 W, while the ledger correctly returned NULL for the
+        # same day — two endpoints contradicting each other.
+        all_vals = [float(r["pack_p"]) for r in rows]
+        vals = [v for v in all_vals if v < 0]
+        dropped = len(all_vals) - len(vals)
+        out = {"samples": len(vals), "hours": hours,
+               # SAY how much was discarded. A filter that silently drops is
+               # how the generator run got in here in the first place.
+               "charging_samples_excluded": dropped}
         if len(vals) < 120:
-            out["note"] = "not enough dark samples yet"
+            out["note"] = "not enough dark discharge samples yet"
             return out
 
         lo_v, hi_v = min(vals), max(vals)
@@ -1346,13 +1366,52 @@ class AsyncpgReadingsDAO:
         _score, split, mean_on, mean_off, n_on = best
         draw = mean_off - mean_on            # both negative; ON is more negative
         duty = n_on / len(vals)
+        baseline = -mean_off
+
+        # PREMISE GUARD, the same principle the ledger's dc_load_wh uses.
+        # This function had none — only `bimodal = draw_w > 20`, which NO
+        # consumer read and which returned true anyway. So it published a
+        # modelled number whatever the data looked like, and the ledger and
+        # this endpoint disagreed with no way to tell which was right.
+        #
+        # Three independent checks, each tied to a way the model is known to
+        # fail rather than to a tuned number:
+        bad = []
+        #   a) a negative baseline load is physically impossible
+        if baseline <= 0:
+            bad.append(f"baseline {baseline:.0f} W is negative")
+        #   b) a fridge does not run almost always, nor almost never
+        if not 0.02 <= duty <= 0.75:
+            bad.append(f"duty {duty:.2f} is not a compressor cycle")
+        #   c) the split must sit in a VALLEY, not slice one risen blob. Same
+        #      test and constants as _valley_sql, applied to this window's
+        #      own Otsu point instead of the ledger's fixed threshold.
+        mag = [abs(v) for v in vals]
+        sp = abs(split)
+        mid = sum(1 for v in mag
+                  if sp - VALLEY_BAND_W <= v <= sp + VALLEY_BAND_W)
+        lo_n = sum(1 for v in mag
+                   if sp - 3 * VALLEY_BAND_W <= v < sp - VALLEY_BAND_W)
+        hi_n = sum(1 for v in mag
+                   if sp + VALLEY_BAND_W < v <= sp + 3 * VALLEY_BAND_W)
+        if not (lo_n and hi_n and mid < VALLEY_MAX_RATIO * min(lo_n, hi_n)):
+            bad.append(f"split {sp:.0f} W is not in a valley "
+                       f"(mid {mid}, sides {lo_n}/{hi_n})")
+
+        out.update(split_w=round(split, 1), duty=round(duty, 3),
+                   valid=not bad)
+        if bad:
+            # REFUSE rather than publish. The modelled fields are left None
+            # so a consumer cannot read a number the premise does not
+            # support; v2.html's dcLoadW() already treats a falsy draw_w as
+            # "no profile" and renders an em dash.
+            out.update(draw_w=None, baseline_w=None, kwh_per_day=None,
+                       note="; ".join(bad))
+            return out
         out.update(
-            split_w=round(split, 1),
             draw_w=round(draw, 1),
-            duty=round(duty, 3),
-            baseline_w=round(-mean_off, 1),  # everything else on the bus
+            baseline_w=round(baseline, 1),   # everything else on the bus
             kwh_per_day=round(draw * duty * 24 / 1000, 3),
-            bimodal=bool(draw > 20),
         )
         return out
 

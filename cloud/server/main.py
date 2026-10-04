@@ -426,8 +426,14 @@ async def api_solar_series(
     before: Optional[str] = Query(default=None),
     dao: ReadingsDAO = Depends(get_dao),
 ) -> dict:
-    """Bucketed solar series — history_series's solar sibling. Egress is
-    bounded by bucket_s regardless of underlying row count."""
+    """Bucketed solar series — history_series's solar sibling.
+
+    The previous docstring claimed "egress is bounded by bucket_s regardless
+    of underlying row count". That is backwards: egress is hours/bucket_s and
+    BOTH are caller-controlled, which is how this endpoint could be made to
+    return 243 MB. Bounded explicitly now — see MAX_SERIES_BUCKETS.
+    """
+    _check_bucket_budget(hours, bucket_s)
     if not isinstance(dao, AsyncpgReadingsDAO):
         return {"series": [], "bucket_s": bucket_s}
     until = datetime.now(timezone.utc)
@@ -573,6 +579,39 @@ async def _resolve_source(dao: ReadingsDAO, source_id: Optional[str]) -> Optiona
     return rows[0].get("source_id") if rows else None
 
 
+# The most buckets any chart on this site renders is ~450 (history.html's
+# bucketFor() targets that). A caller can ask for far more: hours <= 9600 with
+# bucket_s >= 10 permits 3.46 MILLION buckets, and there was no cap.
+#
+# Measured 2026-10-04 against production, unauthenticated:
+#   hours=24   &bucket_s=10 ->   2.9 MB,  0.8 s
+#   hours=720  &bucket_s=10 ->  15.0 MB,  6.0 s
+#   hours=9600 &bucket_s=10 -> 243 MB, 756,577 rows, 15.2 s
+#
+# command_timeout=10 does NOT bound this: it is per-query and the aggregate
+# finishes inside it. The 15 s is Python building 756k dicts, serialising
+# 243 MB of JSON and gzipping it in memory. Two or three concurrent requests
+# exhaust the container, and the restart then runs apply_all() inside the
+# lifespan handler BEFORE serving — the exact shape of the 2026-10-04 outage
+# (502 on every path including /healthz), except reachable by anyone with
+# curl, repeatedly, with no token.
+#
+# Rejecting (422) rather than silently truncating, because a truncated series
+# is a LIE about the window the caller asked for — the failure mode this repo
+# has been bitten by repeatedly. The error says what to do instead.
+MAX_SERIES_BUCKETS = 5000
+
+
+def _check_bucket_budget(hours: float, bucket_s: int) -> None:
+    want = int(hours * 3600 / bucket_s)
+    if want > MAX_SERIES_BUCKETS:
+        raise HTTPException(
+            422,
+            f"{want} buckets requested ({hours} h at {bucket_s} s); the cap "
+            f"is {MAX_SERIES_BUCKETS}. Widen bucket_s to at least "
+            f"{int(hours * 3600 / MAX_SERIES_BUCKETS) + 1} s, or narrow hours.")
+
+
 @app.get("/api/history/series")
 async def api_history_series(
     source_id: Optional[str] = Query(default=None),
@@ -592,6 +631,7 @@ async def api_history_series(
                 until = until.replace(tzinfo=timezone.utc)
         except ValueError:
             raise HTTPException(422, "before: not an ISO datetime")
+    _check_bucket_budget(hours, bucket_s)
     src = await _resolve_source(dao, source_id)
     if src is None or not isinstance(dao, AsyncpgReadingsDAO):
         return {"series": [], "bucket_s": bucket_s}
