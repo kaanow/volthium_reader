@@ -228,6 +228,16 @@ class SolarReading(BaseModel):
     gen_a: Optional[float] = None
     gen_va: Optional[float] = None
 
+    # schema_version 4+: the cabin's own AC load, finally measurable. The
+    # decoder was reading the wrong line block of PGN 126998 and reporting
+    # zeros; block 3 carries it. This is the first DIRECT measurement of
+    # house consumption in this system — every previous figure was the
+    # inverter's DC input, which is blind to the bus-wired fridge and
+    # includes generator charging.
+    load_v: Optional[float] = None
+    load_a: Optional[float] = None
+    load_va: Optional[float] = None
+
     sample_n: Optional[int] = None
 
     @field_validator("ts", mode="before")

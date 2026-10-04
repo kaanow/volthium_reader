@@ -194,52 +194,68 @@ class DecodeTests(unittest.TestCase):
         evs = feed_fastpacket(dec, 0x1F016, 0, GEN_OFF, t=1020.0)
         self.assertEqual(len([e for e in evs if e["event"] == "gen_stop"]), 1)
 
-    def _ac_out(self, v_mv: int, i_ma: int = 0, va: int = 0) -> bytes:
-        """An AC2Sts frame with assoc 0x33 (AC out / cabin loads)."""
-        p = bytearray(b"\x00" * 49)
-        p[1] = 0x33
-        struct.pack_into("<I", p, 5, v_mv)
-        struct.pack_into("<h", p, 9, i_ma)
-        struct.pack_into("<h", p, 18, va)
-        struct.pack_into("<h", p, 41, 6000)      # 60.00 Hz
+    @staticmethod
+    def _ac_frame(assoc: int, block: int, v_mv: int, i_ma: int = 0,
+                  va: int = 0, hz_c: int = 6000) -> bytes:
+        """A real PGN 126998 payload: 3 header bytes + 3x 25-byte line blocks.
+
+        The previous fixture built a 49-byte frame and wrote the load to
+        BLOCK 1 offsets, which is the layout the old decoder assumed and NOT
+        the one the device sends. A fixture that models the bug cannot catch
+        it — these tests passed for months while the decoder reported 0 V.
+
+        Verified against 7378 reassembled payloads from the 2026-10-04
+        capture: 78 bytes, assoc 0x13 populates block 1, assoc 0x33 populates
+        block 3, and |VA| matches |V*I| to under 0.6% on both.
+        """
+        p = bytearray(b"\x00" * 78)
+        p[1] = assoc
+        o = 3 + 25 * block
+        struct.pack_into("<I", p, o + 2, v_mv)
+        struct.pack_into("<h", p, o + 6, i_ma)
+        struct.pack_into("<H", p, o + 11, hz_c)
+        struct.pack_into("<h", p, o + 15, va)
+        # offset 41 is block 2 rel-13, where the device parks a constant
+        # 0x0BB8 = 3000. The old decoder read THAT as the frequency.
+        struct.pack_into("<h", p, 41, 3000)
         return bytes(p)
 
-    def test_broken_ac_load_decode_stays_quiet(self):
-        """assoc 0x33 reports 0 V / 0 A while the inverter is demonstrably
-        producing AC. Emitting that every 300 s was 288 records/day of
-        confirmed zeros — 45% of the event stream, carrying nothing. It must
-        be silent while the value is unchanging."""
-        dec = Decoder()
-        evs = feed_fastpacket(dec, 0x1F016, 0, self._ac_out(0), t=1000.0)
-        first = [e for e in evs if e["event"] == "ac_load_sample"]
-        self.assertEqual(len(first), 0)          # nothing on the very first
-        for i in range(1, 40):                   # ~3 h of identical zeros
-            evs = feed_fastpacket(dec, 0x1F016, 0, self._ac_out(0),
-                                  t=1000.0 + i * 300)
-            self.assertEqual([e for e in evs
-                              if e["event"] == "ac_load_sample"], [])
+    def _ac_out(self, v_mv: int, i_ma: int = 0, va: int = 0) -> bytes:
+        """AC out / cabin loads — assoc 0x33, BLOCK 3."""
+        return self._ac_frame(0x33, 2, v_mv, i_ma, va)
 
-    def test_ac_load_decode_speaks_the_moment_it_works(self):
-        """The reason it is kept rather than deleted: if 0x33 ever produces
-        real numbers, that is the cabin AC load we have no other way to see."""
+    def test_the_cabin_ac_load_is_decoded(self):
+        """THE MEASUREMENT THE PROJECT HAD BEEN WORKING AROUND.
+
+        assoc 0x33 puts the load on BLOCK 3; the old decoder read blocks 1
+        and 2, got zeros, and a comment concluded "this decode does not work".
+        The device reports it fine. Measured live: 233.1 V, 0.87 A, 59.95 Hz,
+        202 VA.
+        """
         dec = Decoder()
-        feed_fastpacket(dec, 0x1F016, 0, self._ac_out(0), t=1000.0)
-        feed_fastpacket(dec, 0x1F016, 0, self._ac_out(0), t=1300.0)
         evs = feed_fastpacket(dec, 0x1F016, 0,
-                              self._ac_out(119_800, 4200, 500), t=1600.0)
+                              self._ac_out(233_100, 870, 202), t=1000.0)
         got = [e for e in evs if e["event"] == "ac_load_sample"]
         self.assertEqual(len(got), 1)
-        self.assertGreater(got[0]["data"]["to"][0], 100)   # ~119.8 V line
+        d = got[0]["data"]
+        self.assertAlmostEqual(d["load_v"], 233.1, places=1)
+        self.assertAlmostEqual(d["load_a"], 0.87, places=2)
+        self.assertEqual(d["load_va"], 202)
+        self.assertAlmostEqual(d["load_hz"], 60.0, places=1)
 
-    def test_ac_load_heartbeat_proves_it_is_still_decoded(self):
-        """Silence must not be ambiguous between 'unchanged' and 'gone'."""
+    def test_the_load_is_aggregated_into_the_bucket(self):
+        """A sample that is decoded and discarded is the gen_v bug again."""
+        dec = Decoder()
+        feed_fastpacket(dec, 0x1F016, 0,
+                        self._ac_out(233_100, 870, 202), t=1000.0)
+        self.assertGreater(dec._agg("load_va").n, 0,
+                           "load_va decoded but never aggregated")
+
+    def test_a_dead_ac_output_is_not_aggregated(self):
+        """0 V means the inverter is not producing, not a 0 W house."""
         dec = Decoder()
         feed_fastpacket(dec, 0x1F016, 0, self._ac_out(0), t=1000.0)
-        evs = feed_fastpacket(dec, 0x1F016, 0, self._ac_out(0),
-                              t=1000.0 + 6 * 3600 + 1)
-        beats = [e for e in evs if e["event"] == "ac_load_sample"]
-        self.assertEqual(len(beats), 1)
-        self.assertTrue(beats[0]["data"].get("heartbeat"))
+        self.assertEqual(dec._agg("load_va").n, 0)
 
     def test_inverter_mode_change(self):
         dec = Decoder()

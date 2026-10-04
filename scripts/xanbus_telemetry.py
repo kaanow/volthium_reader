@@ -119,6 +119,10 @@ LATCH_DAYLIGHT_V = 20.0        # array must at least exceed a dark panel string
 LATCH_CONFIRM_S = 600          # sustained this long before we call it
 LATCH_RELEASE_S = 120          # ...and sustained THIS long before we clear it
 LATCH_TRAIL_S = 1200           # seconds of 1 Hz history kept for forensics
+# The AC-load decode WORKS as of 2026-10-04 (block 3, verified against 7378
+# payloads), so this is a plain sampling period, not an edge-trigger on a
+# broken decode. 5 min matches the solar upload batch.
+AC_LOAD_PERIOD_S = 300
 AC_LOAD_HEARTBEAT_S = 6 * 3600  # AC-load decode is broken and edge-triggered;
                                 # this only proves it is still being decoded
 ASM_MAX_AGE_S = 5.0            # abandon half-reassembled fast-packets
@@ -289,6 +293,7 @@ class Decoder:
         self.last_seen: dict[int, float] = {}
         self.dropped: set[int] = set()
         self.last_ac_load_sample = 0.0
+        self.last_ac_load = 0.0
         self.last_mppt_energy = 0.0       # last mppt_energy emission
         self.last_day_wh: int | None = None   # for midnight-reset detection
         self.last_day_ah: int | None = None
@@ -538,114 +543,203 @@ class Decoder:
             }})
         return events
 
+    # PGN 126998 is 3 header bytes followed by THREE 25-byte line blocks.
+    # Reading them by name instead of by hand-written absolute offsets is the
+    # whole fix here: the previous code read blocks 1 and 2 with six separate
+    # literals and never touched block 3 at all.
+    AC_BLOCK_BASE = 3
+    AC_BLOCK_LEN = 25
+
+    @classmethod
+    def _ac_block(cls, p: bytes, n: int) -> dict | None:
+        """One line block: V (u32 mV), I (i16 mA), F (u16 centiHz), VA (i16).
+
+        Field identification VERIFIED against 7378 reassembled payloads from
+        the 2026-10-04 capture: |VA| matches |V*I| to -0.57% mean on the load
+        block and -0.21% on the generator block.
+        """
+        o = cls.AC_BLOCK_BASE + cls.AC_BLOCK_LEN * n
+        if len(p) < o + 17:
+            return None
+        return {
+            "v": struct.unpack_from("<I", p, o + 2)[0] / 1000,
+            "a": struct.unpack_from("<h", p, o + 6)[0] / 1000,
+            "hz": struct.unpack_from("<H", p, o + 11)[0] / 100,
+            "va": struct.unpack_from("<h", p, o + 15)[0],
+        }
+
     def _ac_sts_rms(self, src: int, p: bytes, t: float) -> list[dict]:
-        if src != SRC_SW or len(p) < 49:
+        # Bound PER BLOCK, not by one assumed frame size. Our own capture is
+        # consistently 78 bytes, but a 55-byte AC2Sts sample exists in the
+        # project's reference material, and a blanket `len(p) < 70` would
+        # silently drop the generator — which lives in block 1 and is fully
+        # present in the short form. _ac_block() returns None for a block the
+        # payload does not reach, so each read guards itself.
+        if src != SRC_SW or len(p) < self.AC_BLOCK_BASE + 17:
             return []
         assoc = p[1]
-        v1 = struct.unpack_from("<I", p, 5)[0] / 1000
-        i1 = struct.unpack_from("<h", p, 9)[0] / 1000
-        va_a = struct.unpack_from("<h", p, 18)[0]
-        v2 = struct.unpack_from("<I", p, 30)[0] / 1000
-        i2 = struct.unpack_from("<h", p, 34)[0] / 1000
-        freq = struct.unpack_from("<h", p, 41)[0] / 100   # ac2_f
-        va_b = struct.unpack_from("<h", p, 43)[0]
-        va = abs(va_a + va_b)
         out: list[dict] = []
+
         if assoc == 0x13:        # AC2 = generator input (official enum GEN1)
-            running = v1 > 50.0
-            # gen_hz IS NOT THE FREQUENCY. It reads exactly 30.00 on every
-            # generator event on record — at 0 V with the generator stopped,
-            # at 126 V unloaded, and at 118.5 V under a verified 1.4 kW load.
-            # Confirmed again across the whole 2026-10-04 run. A generator
-            # cannot be at 30 Hz while producing zero volts, and a real
-            # frequency would at minimum droop under a 1.4 kW step, so
-            # offset 41 is not ac2_f. Same shape as mppt_latched's
-            # `clamped_s` always equalling LATCH_CONFIRM_S: a field that
-            # cannot vary is not a measurement.
-            #
-            # Emitted under a name that does not assert a unit, so no
-            # consumer can mistake it for Hz, and kept rather than dropped
-            # because the raw value is what a future decode pass needs.
-            # Finding the real offset needs raw frames — run
-            # scripts/xanbus_decode.py over a capture that contains a
-            # generator run, OFF the Pi. There is exactly one such run in the
-            # archive so far (2026-10-03 00:29-02:12Z).
-            #
-            # gen_a AND gen_va ARE VERIFIED CORRECT, under load, as of the
-            # 2026-10-04 15:50-16:13Z run — the first generator run ever
-            # sampled per-bucket rather than only at its transitions.
-            # Three independent checks, 89 charging buckets:
-            #
-            #   self-consistency  |gen_v * gen_a| vs the device's own gen_va
-            #                     agreed to +0.23% mean error
-            #   energy            DC out / AC in = 84.4% over the whole run,
-            #                     flat sample to sample. A Conext SW charger
-            #                     is spec'd ~85-92%, so the two sides balance
-            #   physical          gen_v sagged 127.2 V unloaded -> 118.5 V at
-            #                     1.4 kW. Real droop; a scale error cannot
-            #                     produce load-dependent voltage
-            #
-            # SIGN CONVENTION: gen_a is NEGATIVE while the generator feeds the
-            # system (-12.01 A median under load). It is inflow, not an error.
-            # Anything computing AC power from it must take the magnitude.
-            #
-            # They previously read ~0 in the events and that looked like a
-            # second misdecode alongside gen_hz. It was not: gen_start fires
-            # the instant AC voltage crosses 50 V, and the charger engages
-            # ~17 s later, so zero current before any load is simply correct.
-            # Worth remembering before condemning a field on transition-
-            # instant samples.
+            # BLOCK 1 carries it; blocks 2 and 3 are structurally zero here.
+            # The old code summed blocks 1 and 2, which was right only because
+            # block 2 is always zero.
+            b = self._ac_block(p, 0)
+            if b is None:
+                return []
+            running = b["v"] > 50.0
+            # gen_hz IS NOW CORRECT, and was not. The old offset 41 is block
+            # 2's rel-13 field, which holds a hard constant 0x0BB8 = 3000 ->
+            # the famous "exactly 30.00" that never varied even at 0 V. It is
+            # the AC INPUT CURRENT LIMIT (30.00 A, the Conext SW default), not
+            # a frequency. The real value is at block-relative 11, and reads
+            # 0.00 stopped and a median 59.94 Hz under a verified 1.6 kW load.
             out += self._changed(
                 "gen_running", running, t,
                 "gen_start" if running else "gen_stop",
-                {"gen_v": round(v1, 1), "gen_a": round(i1 + i2, 2),
-                 "gen_va": va, "gen_hz_unverified": round(freq, 2)})
-            # SAMPLED PER BUCKET from schema_version 3. These aggregates
-            # previously fed columns that did not exist, so every sample was
-            # discarded and the loaded behaviour of the generator could not
-            # be checked at all — a 1h43m run left two transition events and
-            # nothing else. Columns added in migration 0006, which the server
-            # must already be serving before this runs: SolarReading sets
-            # extra="forbid", so an unknown field 422s the whole batch.
-            #
-            # gen_a is aggregated UNCONDITIONALLY, not only while running.
-            # Gating it on `running` would reproduce the original problem in
-            # miniature: the interesting moment is the ramp, and the one
-            # datapoint that disagreed with the charger's own declaration was
-            # 5 s before it announced bulk. A bucket that straddles the start
-            # should carry it.
+                {"gen_v": round(b["v"], 1), "gen_a": round(b["a"], 2),
+                 "gen_va": abs(b["va"]), "gen_hz": round(b["hz"], 2)})
             if running:
-                self._agg("gen_v").add(v1)
-                self._agg("gen_va").add(va)
-            self._agg("gen_a").add(i1 + i2)
-        elif assoc == 0x33:      # AC out / cabin loads — PROVISIONAL decode
-            # This decode does not work: it reports 0 V / 0 A / 0 VA while the
-            # inverter is demonstrably producing AC (the cabin runs on it, and
-            # the DC side shows a steady ~113 W draw). Emitting it every 300 s
-            # was 288 records/day of confirmed zeros — 45% of the whole event
-            # stream, carrying nothing.
+                self._agg("gen_v").add(b["v"])
+                self._agg("gen_va").add(abs(b["va"]))
+            self._agg("gen_a").add(b["a"])
+
+        elif assoc == 0x33:      # AC OUT — the cabin's own load
+            # THIS IS THE MEASUREMENT THE PROJECT HAS BEEN WORKING AROUND.
+            # The old code read blocks 1 and 2 and reported 0 V / 0 A / 0 VA,
+            # and concluded in a comment that "this decode does not work: it
+            # reports 0 while the inverter is demonstrably producing AC". The
+            # device reports it fine — on BLOCK 3, which was never read.
             #
-            # Kept rather than deleted, because the cost of being wrong in the
-            # other direction is high: if assoc 0x33 ever starts producing real
-            # numbers, that is the cabin AC load we have no other way to see.
-            # So make it EDGE-TRIGGERED — silent while it stays broken, loud the
-            # moment it isn't — plus a 6 h heartbeat to prove it is still being
-            # decoded at all.
-            sig = (round(v1, 1), round(i1 + i2, 2), va, round(freq, 1))
-            beat = t - self.last_ac_load_sample >= AC_LOAD_HEARTBEAT_S
-            changed = self._changed("ac_load_sig", sig, t, "ac_load_sample",
-                                    {"provisional": True})
-            if changed or beat:
-                self.last_ac_load_sample = t
-                out += changed or [{"t": t, "event": "ac_load_sample",
-                                    "data": {"load_v": sig[0], "load_a": sig[1],
-                                             "load_va": sig[2],
-                                             "load_hz": sig[3],
-                                             "heartbeat": True,
-                                             "provisional": True}}]
+            # Measured over the same capture: 233.1 V, 0.87 A, 59.95 Hz,
+            # 202 VA, with |VA| matching |V*I| to -0.57%. 233 V is the
+            # 240 V split-phase output, not a decode error.
+            #
+            # docs/what-to-distrust.md treats cabin AC load as unmeasurable,
+            # and that premise drives task #32, the load_wh argument and the
+            # fridge-split work. It is measurable, and has been all along.
+            b = self._ac_block(p, 2)
+            if b is None:
+                return []
+            live = b["v"] > 50.0
+            if live:
+                self._agg("load_v").add(b["v"])
+                self._agg("load_a").add(abs(b["a"]))
+                self._agg("load_va").add(abs(b["va"]))
+            if t - self.last_ac_load >= AC_LOAD_PERIOD_S:
+                self.last_ac_load = t
+                out.append({"t": t, "event": "ac_load_sample", "data": {
+                    "load_v": round(b["v"], 1), "load_a": round(b["a"], 2),
+                    "load_hz": round(b["hz"], 2), "load_va": abs(b["va"]),
+                    "heartbeat": True,
+                }})
         return out
 
-    # -- public ------------------------------------------------------------
+    def _chg_sts(self, src: int, p: bytes, t: float) -> list[dict]:
+        if len(p) < 15:
+            return []
+        target_v, target_i = struct.unpack_from("<ii", p, 2)
+        mode = struct.unpack_from("<H", p, 12)[0]
+        who = "mppt" if src == SRC_MPPT else "sw"
+        out = self._changed(
+            f"chg_stage_{who}", CHG_STAGE_NAMES.get(mode, mode), t,
+            "chg_stage", {"node": who})
+        # charger target/limit (semantics still under study — 29.8 V vs the
+        # 28.4 config value; logged so changes are visible either way)
+        out += self._changed(f"chg_target_{who}",
+                             (target_v // 10, target_i // 10), t,
+                             "chg_target",
+                             {"node": who, "target_v": target_v / 1000,
+                              "target_a": target_i / 1000})
+        return out
+
+    def _inv_sts2(self, src: int, data: bytes, t: float) -> list[dict]:
+        if src != SRC_SW or len(data) < 4:
+            return []
+        status = struct.unpack_from("<H", data, 2)[0]
+        return self._changed("inv_status",
+                             INV_STATUS_NAMES.get(status, status), t,
+                             "inverter_mode")
+
+    def _mppt_data(self, src: int, p: bytes, t: float) -> list[dict]:
+        """MPPT energy counters — the only production figure on this system
+        that does not come from integrating our own samples.
+
+        Emitted sparsely, matching the rest of this decoder: a snapshot at
+        most every 15 min and only while the daily counter is actually
+        moving, so a quiet night costs nothing. Plus one event at the
+        midnight rollover carrying the day's final total, which is the
+        number worth having — gap-immune, and directly comparable against
+        the integrated figure to measure what the pipeline lost.
+        """
+        if src != SRC_MPPT or len(p) < MPPT_DAY_WH_OFF + 4:
+            return []
+        try:
+            life_ah, life_wh = (struct.unpack_from("<I", p, MPPT_LIFE_AH_OFF)[0],
+                                struct.unpack_from("<I", p, MPPT_LIFE_WH_OFF)[0])
+            day_ah, day_wh = (struct.unpack_from("<I", p, MPPT_DAY_AH_OFF)[0],
+                              struct.unpack_from("<I", p, MPPT_DAY_WH_OFF)[0])
+        except struct.error:
+            return []
+        if 0xFFFFFFFF in (life_ah, life_wh, day_ah, day_wh):
+            return []
+
+        # Decode guard, and it is the same test that identified these fields:
+        # Wh/Ah must come out as the pack voltage. If a future firmware moves
+        # the layout, this catches it instead of silently logging nonsense.
+        # Only checked on the lifetime pair — the daily one divides by zero
+        # for the first amp-hour of every morning.
+        if life_ah > 0:
+            volts = life_wh / life_ah
+            if not (MPPT_WH_PER_AH_MIN <= volts <= MPPT_WH_PER_AH_MAX):
+                self.bad_mppt_energy += 1
+                return []
+
+        # THE DAILY PAIR NEEDS ITS OWN GUARD, and 2026-08-16 06:15:16 is why.
+        # The MPPT emitted day_wh = 8388607 (0x7FFFFF) with
+        # day_ah = 4286578687 (0xFF7FFFFF) — both saturation patterns — and
+        # every existing check passed it:
+        #
+        #   the 0xFFFFFFFF test    neither value is exactly all-ones
+        #   the ratio test         only looks at the LIFETIME pair, which was
+        #                          fine at 327313/12059 = 27.14 V
+        #
+        # The corrupt sample then became `prev`, and on the next reading the
+        # rollover branch below saw day_wh DROP and published 8388607 Wh as
+        # "the final daily total" — 8.4 MWh from a 750 W array, latched into
+        # the ledger by a MAX() that had no bound either.
+        #
+        # The guard is an INVARIANT, not a threshold: a daily counter can never
+        # exceed the lifetime counter it contributes to. No number to tune, and
+        # it cannot go stale as the array or the season changes. It catches both
+        # corrupt fields here by a factor of 25 and 350,000.
+        if day_wh > life_wh or day_ah > life_ah:
+            self.bad_mppt_energy += 1
+            return []
+
+        events: list[dict] = []
+        prev = self.last_day_wh
+
+        # Midnight rollover: the daily counter drops. Carry the FINAL value,
+        # not the new zero — that is the whole point of the event.
+        if prev is not None and day_wh < prev:
+            events.append({"t": t, "event": "mppt_daily_total", "data": {
+                "day_wh": prev, "day_ah": self.last_day_ah,
+                "life_wh": life_wh, "life_ah": life_ah,
+                "note": "final daily total, captured at the counter's reset",
+            }})
+            self.last_mppt_energy = t     # no snapshot straight after a reset
+
+        self.last_day_wh, self.last_day_ah = day_wh, day_ah
+
+        moving = prev is None or day_wh != prev
+        if moving and t - self.last_mppt_energy >= MPPT_ENERGY_PERIOD_S:
+            self.last_mppt_energy = t
+            events.append({"t": t, "event": "mppt_energy", "data": {
+                "day_wh": day_wh, "day_ah": day_ah,
+                "life_wh": life_wh, "life_ah": life_ah,
+            }})
+        return events
 
     def feed(self, can_id: int, data: bytes, t: float) -> list[dict]:
         pgn, _dest, src = parse_can_id(can_id)

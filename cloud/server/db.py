@@ -88,6 +88,9 @@ SANE_UNBOUNDED: dict[str, str] = {
              "value observed and no reader-side bound to mirror yet",
     "gen_a": "same as gen_v; also signed, negative means inflow",
     "gen_va": "same as gen_v",
+    "load_v": "schema 4; AC output voltage, verified against 7378 payloads 2026-10-04, no reader-side bound to mirror yet",
+    "load_a": "same as load_v",
+    "load_va": "same as load_v",
     "sample_n": "a sample count, bounded in practice by the bucket width and by the SMALLINT column type",
     "schema_version": "a version marker, not a measurement; its range is enforced by the SMALLINT column type",
 }
@@ -872,12 +875,14 @@ class AsyncpgReadingsDAO:
                 "pv_v", "pv_v_min", "pv_v_max",
                 "dc_v", "dc_a", "dc_w", "dc_w_min", "dc_w_max",
                 "gen_v", "gen_a", "gen_va",
+                "load_v", "load_a", "load_va",
                 "sample_n")
         rows = [(source_id, r.ts, r.schema_version,
                  r.solar_w, r.solar_w_min, r.solar_w_max, r.solar_a,
                  r.pv_v, r.pv_v_min, r.pv_v_max,
                  r.dc_v, r.dc_a, r.dc_w, r.dc_w_min, r.dc_w_max,
                  r.gen_v, r.gen_a, r.gen_va,
+                 r.load_v, r.load_a, r.load_va,
                  r.sample_n) for r in readings]
         n = len(cols)
         placeholders = ",".join(

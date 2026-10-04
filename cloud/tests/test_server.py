@@ -424,7 +424,12 @@ class SolarTests(unittest.TestCase):
 
     def test_ingest_extras_rejected(self):
         c = _client()
-        bad = dict(self.SOLAR_ROW, load_va=99.0)   # not (yet) a wire field
+        # A name that will never become a field. This used `load_va` with the
+        # comment "not (yet) a wire field", and in 2026-10-04 it became one —
+        # so the test for "extras are rejected" started asserting that a
+        # legitimate new field was rejected. Picking a real-but-unimplemented
+        # name makes a test that expires the moment the roadmap advances.
+        bad = dict(self.SOLAR_ROW, definitely_not_a_wire_field=99.0)
         r = c.post("/api/solar/ingest", json={
             "source_id": "pi-barge", "readings": [bad]},
             headers={"Authorization": "Bearer secret-pi-token"})
