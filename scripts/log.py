@@ -151,6 +151,38 @@ def _present(br) -> bool:
     return br.soc is not None or br.voltage is not None or br.current is not None
 
 
+def _ts_now() -> str:
+    """Local time WITH its UTC offset, e.g. 2026-11-01T01:30:00-07:00.
+
+    This wrote `datetime.now().isoformat()` — naive local — until 2026-10-04,
+    and that silently discards one hour of the primary stream at every autumn
+    DST transition.
+
+    On 2026-11-01 the site's local hour 01:00-01:59 happens TWICE. Both passes
+    wrote the same naive strings, the uploader's `.astimezone()` resolved the
+    ambiguity to fold=0 (PDT) for both, so both mapped to the same wire UTC and
+    the second pass collided on the readings primary key. ON CONFLICT DO
+    NOTHING then discarded ~720 rows.
+
+    What makes it the worst class for this system: GAP ANALYSIS CANNOT SEE IT.
+    The database stays perfectly contiguous while an hour of reality is
+    missing, ingest returns 200, and no alert fires on either paging path. The
+    only trace is `accepted=0 dup=60` in a journal nobody reads. It had never
+    been observed because this deployment's first boot was 2026-06-05, after
+    the spring transition.
+
+    With the offset attached the two passes differ (-07:00 vs -08:00), convert
+    to instants an hour apart, and both survive. The solar and event paths were
+    already immune — they use UTC throughout — so this makes readings match.
+
+    The LOCAL WALL CLOCK is preserved rather than switching to UTC: old rows in
+    this 345 MB file are local, and writing UTC would silently reinterpret the
+    column mid-file. `datetime.fromisoformat` parses the offset form natively,
+    and the whole suite passes against aware timestamps.
+    """
+    return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
 def _archive_if_schema_drift(path: Path, log: logging.Logger) -> None:
     """If `path` exists but its header doesn't match the current CSV_FIELDS,
     rotate it to `path.vN-HHMM` (matching the existing data/pack.csv.v0-1512
@@ -193,7 +225,8 @@ def append_csv(path: Path, pack, est) -> None:
         if new:
             w.writeheader()
         w.writerow({
-            "ts": datetime.now().isoformat(timespec="seconds"),
+            # OFFSET-AWARE, not naive. See _ts_now below.
+            "ts": _ts_now(),
             "state": est.state,
             "pack_v": pack.pack_voltage,
             "pack_i": pack.pack_current,
