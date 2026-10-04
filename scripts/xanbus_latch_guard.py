@@ -38,6 +38,7 @@ deliberately conservative and heavily instrumented rather than clever.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import math
 import os
@@ -172,6 +173,31 @@ EARLY_REARM_V = 48.0             # must climb back here to reset the clock
 EARLY_AFTER_S = 29 * 60          # the observed clamp floor
 EARLY_MIN_SUN_DEG = 15.0         # higher than the clamp guard's 5: a 45 V
                                  # crossing at low sun is dusk, not a walk-down
+# THIS GATE EXCEEDS THE SITE'S OWN DECEMBER SOLAR NOON, so the early bounce
+# switches ITSELF OFF for roughly Nov-Feb. Computed from solar_geometry at
+# 51.119 N:
+#
+#     date         max elevation   hours above 15 deg
+#     2026-10-04       33.5             7.5
+#     2026-11-21       18.4             3.5
+#     2026-12-01       16.8             2.5
+#     2026-12-21       15.4             1.2      <- gate is 15.0
+#     2027-01-21       18.8             3.8
+#
+# And note_descent CLEARS below45_since whenever elevation drops under the
+# gate, so a fire needs 29 CONTINUOUS sub-45 V minutes entirely inside that
+# shrinking window — on 21 Dec, inside 1.2 hours.
+#
+# The threshold itself is an OPERATOR DECISION, not a code one: lowering it
+# trades a risk of false bounces at low sun against lost production in the
+# month when production is scarcest, and the 5.6 deg false-positive margin it
+# rests on was measured in AUGUST. This file already rejects a 10 deg gate on
+# the CLAMP path for the mirror-image reason.
+#
+# What is NOT a judgment call is that it was failing SILENTLY — no event, no
+# verdict, and the only symptom the absence of early_bounce_result, which
+# nothing monitors. EARLY_GATE_WARN_MARGIN_DEG below makes it say so.
+EARLY_GATE_WARN_MARGIN_DEG = 3.0
 EARLY_MAX_PER_DAY = 6            # SEPARATE budget — an early bounce must never
                                  # starve the clamp fix, which is the one that
                                  # recovers a fully stuck array
@@ -256,6 +282,29 @@ def needs_second_confirmation(st: dict, now: float,
     return not prev
 
 
+def gate_is_reachable_today(day_max_sun_deg: float) -> bool:
+    """Can the early-bounce gate be satisfied at all today?
+
+    Pure, so the seasonal shutdown is testable without waiting for December.
+
+    The failure this exists for is SILENCE: when the sun never clears
+    EARLY_MIN_SUN_DEG the trigger simply never arms, emits nothing, and the
+    only symptom is the absence of early_bounce_result — which nothing
+    monitors. A guard that stops guarding must say so.
+    """
+    return day_max_sun_deg >= EARLY_MIN_SUN_DEG + EARLY_GATE_WARN_MARGIN_DEG
+
+
+def day_max_sun_deg(now: float) -> float:
+    """Peak solar elevation for the local day containing `now`."""
+    import datetime as _dt
+    d = _dt.datetime.fromtimestamp(now, _dt.timezone.utc).date()
+    return max(
+        sun_elevation_deg(_dt.datetime(d.year, d.month, d.day, h, m,
+                                       tzinfo=_dt.timezone.utc).timestamp())
+        for h in range(24) for m in (0, 30))
+
+
 def note_descent(st: dict, pv_v: float, sun_deg: float, now: float) -> bool:
     """Track a sub-45 V descent across runs; True when it has run EARLY_AFTER_S.
 
@@ -271,6 +320,7 @@ def note_descent(st: dict, pv_v: float, sun_deg: float, now: float) -> bool:
     if sun_deg < EARLY_MIN_SUN_DEG:
         st.pop("below45_since", None)
         st.pop("early_rearm_runs", None)
+        st["early_gate_blocked_at"] = round(sun_deg, 1)
         st.pop("early_due_emitted", None)
         return False
     if pv_v >= EARLY_REARM_V:
@@ -496,6 +546,29 @@ def main() -> int:
         # EARLY BOUNCE. The array is TRACKING here (fraction below the clamp
         # threshold), which is exactly the state the 2026-08-14 test validated
         # and the state no bounce had ever been issued from before it.
+        # SAY IT WHEN THE TRIGGER CANNOT ARM TODAY. Once a day, not per run:
+        # from roughly November to February the sun never clears
+        # EARLY_MIN_SUN_DEG at this latitude, so the early bounce silently
+        # stops existing — no event, no verdict, and the only symptom is the
+        # absence of early_bounce_result, which nothing watches.
+        #
+        # Edge-triggered on the local date so it is one line a day rather than
+        # 288, because an alert that repeats every five minutes is one the
+        # operator learns to skip.
+        today = dt.datetime.fromtimestamp(now, dt.timezone.utc).date().isoformat()
+        if st.get("gate_verdict_day") != today:
+            st["gate_verdict_day"] = today
+            peak = day_max_sun_deg(now)
+            if not gate_is_reachable_today(peak):
+                emit("early_bounce_unavailable",
+                     {"reason": f"the sun peaks at {peak:.1f} deg today and "
+                                f"EARLY_MIN_SUN_DEG is {EARLY_MIN_SUN_DEG}, so "
+                                f"the early bounce CANNOT arm at all",
+                      "day_max_sun_deg": round(peak, 1),
+                      "gate_deg": EARLY_MIN_SUN_DEG,
+                      "note": "seasonal, not a fault — but the clamp guard at "
+                              "5 deg is still active and is the one that "
+                              "recovers a fully stuck array"})
         due = note_descent(st, before["pv_v"], elevation, now)
         save_state(st)
         if due and early_due_is_new(st):
