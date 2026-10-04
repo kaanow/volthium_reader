@@ -199,7 +199,10 @@ const st = {
   // The arithmetic below still treats null as falsey, which is the right
   // fallback for drawing a flow; only the LABELS change, so an unread
   // state reads as unknown instead of as a confident claim.
-  stage: null, inv: null, gen: null,
+  // mpptStage / swStage are tracked SEPARATELY: both devices emit
+  // chg_stage and they can hold different stages at the same time,
+  // both correctly. A single `stage` key could only ever hold one.
+  mpptStage: null, swStage: null, inv: null, gen: null,
   lastSolarTs: null, lastEventPoll: 0,
 };
 const hist = [];         // ring of {t, solar, gen, load, batt}
@@ -364,12 +367,20 @@ async function pollOnce(first) {
     // answers in ~0.2 s; ble_events needed an index for the same shape
     // (migration 0005), this does not. If this stream ever grows to that
     // scale, add (source_id, event, ts DESC) here too.
-    const one = async q => ((await jget(
-      `/api/xanbus_events?limit=1&event=${q}`)).events || [])[0];
-    const [stage, inv, gen] = await Promise.all([
-      one("chg_stage"), one("inverter_mode"), one("gen_start,gen_stop"),
+    const one = async (q, node) => ((await jget(
+      `/api/xanbus_events?limit=1&event=${q}`
+      + (node ? `&node=${node}` : ""))).events || [])[0];
+    /* ASK PER DEVICE. Both the MPPT and the SW inverter/charger emit
+       chg_stage, so "the newest one" is whichever spoke last — which showed
+       "charging · not_charging" while the battery took 639 W: the SW
+       correctly reporting it had stopped when the generator went off, and the
+       MPPT in BULK since two hours earlier. Both true, wrong one displayed. */
+    const [mpptStage, swStage, inv, gen] = await Promise.all([
+      one("chg_stage", "mppt"), one("chg_stage", "sw"),
+      one("inverter_mode"), one("gen_start,gen_stop"),
     ]);
-    if (stage) st.stage = stage.data.to;
+    st.mpptStage = mpptStage ? mpptStage.data.to : null;
+    st.swStage = swStage ? swStage.data.to : null;
     if (inv) st.inv = inv.data.to === "ac_passthrough" ? "passthrough" : "inverting";
     st.gen = gen ? gen.event === "gen_start" : false;
   }
@@ -670,7 +681,20 @@ function drawHero() {
     chip.classList.add("stale");
   } else {
     chip.classList.remove("stale");
-    const stageTxt = st.stage && L.state === "charging" ? ` · ${st.stage}` : "";
+    /* Name the SOURCE, not just the stage. The two chargers can hold
+       different stages at the same time and both be right, so show whichever
+       is actually delivering — and say which it is when the generator is
+       involved, because "bulk" means something different coming from the
+       charger than from the array. */
+    const CHARGING = ["bulk", "absorption", "absorb", "float", "equalize"];
+    const swOn = CHARGING.includes(String(st.swStage));
+    const mpptOn = CHARGING.includes(String(st.mpptStage));
+    let stageTxt = "";
+    if (L.state === "charging") {
+      if (swOn) stageTxt = ` · ${st.swStage} (generator)`;
+      else if (mpptOn) stageTxt = ` · ${st.mpptStage} (solar)`;
+      else if (st.mpptStage) stageTxt = ` · ${st.mpptStage}`;
+    }
     chip.textContent = `${L.state}${stageTxt}`;
   }
   const mins = L.minutes_remaining;

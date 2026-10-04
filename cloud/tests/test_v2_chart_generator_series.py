@@ -301,3 +301,51 @@ class GeneratorIsNotHouseLoadAnywhereTests(unittest.TestCase):
         self.assertIsNotNone(m, "the heatmap note still claims house draw")
         self.assertIn("fridge", m.group(1))
         self.assertIn("generator", m.group(1))
+
+
+class ChargeStageNamesItsDeviceTests(unittest.TestCase):
+    """"charging · not_charging" — both halves true, from different devices.
+
+    Reported by the operator from a live screenshot: the battery was taking
+    +639 W from 408 W of solar while the chip read not_charging. The BMS said
+    charging; the newest chg_stage said not_charging — but that was the SW
+    inverter/charger correctly reporting it had stopped when the generator was
+    shut off at 19:11, while the MPPT had been in BULK since 17:38.
+
+    There is no window that fixes this. The two devices interleave, so
+    "the newest chg_stage" is just whichever spoke last.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.src = _code_only(V2.read_text())
+
+    def test_both_devices_are_queried_separately(self):
+        self.assertIn('one("chg_stage", "mppt")', self.src)
+        self.assertIn('one("chg_stage", "sw")', self.src)
+
+    def test_the_query_filters_server_side(self):
+        """Fetching a batch and picking client-side would reintroduce a
+        window assumption — exactly what buried gen_start behind chg_stage
+        churn."""
+        self.assertIn("&node=", self.src)
+
+    def test_there_is_no_single_stage_key_left(self):
+        """One key cannot hold two devices' stages, and a stale one is how
+        the wrong value got displayed."""
+        self.assertNotIn("st.stage", self.src)
+        self.assertIn("mpptStage", self.src)
+        self.assertIn("swStage", self.src)
+
+    def test_the_chip_names_the_source(self):
+        """"bulk" means something different from the charger than from the
+        array, so the label has to say which."""
+        self.assertIn("(generator)", self.src)
+        self.assertIn("(solar)", self.src)
+
+    def test_the_generator_takes_precedence_when_both_charge(self):
+        """During a run both can be in bulk; the generator is the notable
+        one because it costs fuel."""
+        i = self.src.index("swOn")
+        j = self.src.index("mpptOn", i)
+        self.assertLess(i, j, "the sw branch must be tested first")
