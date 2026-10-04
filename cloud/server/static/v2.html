@@ -439,6 +439,18 @@ function genAt(r) {
   // actually puts into the bus.
   return (r.dc_a ?? 0) > 0 ? (r.dc_w ?? 0) : 0;
 }
+function genAcW(r) {
+  /* The generator's OWN output, from its own AC measurements — distinct from
+     genAt(), which is the DC power the charger delivers into the bus. The
+     difference is the charger's conversion loss, measured 15-23%. Returns 0
+     when there is nothing to report, so callers can use it as a truthiness
+     test. gen_a is NEGATIVE while the generator feeds the system, hence the
+     magnitude. */
+  if (!r || (r.gen_v ?? 0) < 50) return 0;
+  if (r.gen_va != null && r.gen_va > 0) return Math.abs(r.gen_va);
+  if (r.gen_a == null) return 0;
+  return Math.abs(r.gen_v * r.gen_a);
+}
 function loadAt(r, solarW, batt) {
   // While the generator feeds the system the inverter's DC terminal is
   // CHARGING, so dc_w is not a house load and must not be drawn as one.
@@ -454,7 +466,8 @@ const wires = {
   "w-batt":  { color: "--batt",  getW: () => Math.abs(battW()) },
   "w-inv":   { color: "--load",  getW: () => st.inv === "passthrough"
                  ? Math.max(0, battW() - solarW()) : (loadW() ?? 0) },
-  "w-gen":   { color: "--gen",   getW: () => st.gen ? Math.max(0, battW() - solarW()) : 0 },
+  /* Measured, not inferred from battW() - solarW(). */
+  "w-gen":   { color: "--gen",   getW: () => st.solar ? genAt(st.solar) : 0 },
   "w-load":  { color: "url",     getW: () => loadW() ?? 0 },
   "w-dc":    { color: "--load",  getW: () => dcLoadW()?.w ?? 0 },
 };
@@ -526,8 +539,30 @@ function drawFlow() {
   }
   const si = solarInfo();
   $("t-solar").textContent = `${si.approx ? "≈ " : ""}${Math.round(si.w)} W`;
-  $("t-gen").textContent = st.gen == null ? "—" : st.gen ? "running" : "0 W";
-  $("t-load").textContent = load == null ? "—" : `${Math.round(load)} W`;
+  /* SHOW THE WATTS. This printed the word "running" while every 15 s row
+     carried gen_v, gen_a and gen_va — the operator pointed at a screenshot
+     during a live run and asked whether we knew anything about the generator
+     at all. We did: 117.8 V x 13.36 A = 1574 W out, 1212 W into the battery.
+     Reporting the measurement is the whole point of having decoded it.
+     The AC figure is the generator's OWN output; the DC figure is what the
+     charger delivers after its ~77-85% conversion, which is why both are
+     shown rather than one standing in for the other. */
+  const gAC = genAcW(st.solar), gDC = st.solar ? genAt(st.solar) : 0;
+  $("t-gen").textContent =
+      st.gen == null ? "—"
+    : gAC ? `${Math.round(gAC)} W` + (gDC ? ` → ${Math.round(gDC)} W DC` : "")
+    : gDC ? `${Math.round(gDC)} W DC`
+    : st.gen ? "running" : "0 W";
+  /* A bare dash next to "running on generator" reads as a fault. Say what
+     is actually true: during AC passthrough the house load is on the far side
+     of the inverter and this system has no meter there yet. (The bus DOES
+     carry it — PGN 126998 block 3 — we simply do not decode that block. Task
+     #68.) */
+  const genNow = st.solar ? genAt(st.solar) > 0 : false;
+  $("t-load").textContent =
+      load != null ? `${Math.round(load)} W`
+    : genNow ? "not metered"
+    : "—";
   const dcl = dcLoadW();
   $("t-dc").textContent = dcl == null ? "—"
     : dcl.live ? `${Math.round(dcl.w)} W` : `~${Math.round(dcl.w)} W avg`;
