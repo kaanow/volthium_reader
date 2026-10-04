@@ -500,18 +500,24 @@ class Decoder:
                 "gen_start" if running else "gen_stop",
                 {"gen_v": round(v1, 1), "gen_a": round(i1 + i2, 2),
                  "gen_va": va, "gen_hz_unverified": round(freq, 2)})
-            # The two _agg calls that used to be here aggregated gen_v and
-            # gen_va into buckets that the row builder never emits — there
-            # are no gen_* columns in solar_readings, so every sample was
-            # computed and discarded. That is why a 1h43m generator run
-            # leaves only two instantaneous events behind and the loaded
-            # behaviour cannot be checked at all.
+            # SAMPLED PER BUCKET from schema_version 3. These aggregates
+            # previously fed columns that did not exist, so every sample was
+            # discarded and the loaded behaviour of the generator could not
+            # be checked at all — a 1h43m run left two transition events and
+            # nothing else. Columns added in migration 0006, which the server
+            # must already be serving before this runs: SolarReading sets
+            # extra="forbid", so an unknown field 422s the whole batch.
             #
-            # Removed rather than left looking like capture. Plumbing them
-            # through is worth doing and is a schema change: ADD COLUMN on
-            # solar_readings (O(1) in Postgres, unlike the CREATE INDEX that
-            # took the API down on 2026-10-04), a schema_version bump, and
-            # the row builder's key list.
+            # gen_a is aggregated UNCONDITIONALLY, not only while running.
+            # Gating it on `running` would reproduce the original problem in
+            # miniature: the interesting moment is the ramp, and the one
+            # datapoint that disagreed with the charger's own declaration was
+            # 5 s before it announced bulk. A bucket that straddles the start
+            # should carry it.
+            if running:
+                self._agg("gen_v").add(v1)
+                self._agg("gen_va").add(va)
+            self._agg("gen_a").add(i1 + i2)
         elif assoc == 0x33:      # AC out / cabin loads — PROVISIONAL decode
             # This decode does not work: it reports 0 V / 0 A / 0 VA while the
             # inverter is demonstrably producing AC (the cabin runs on it, and
@@ -682,7 +688,9 @@ class Decoder:
         n = solar.n if solar else (dc.n if dc else 0)
         row = {
             "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(row_ts)),
-            "schema_version": 2,
+            # 3: gen_v/gen_a/gen_va. The server must know these fields
+            # BEFORE this bump reaches the Pi — see migration 0006.
+            "schema_version": 3,
             "solar_w": m("solar_w"),
             "solar_w_min": round(solar.min, 2) if solar and solar.n else None,
             "solar_w_max": round(solar.max, 2) if solar and solar.n else None,
@@ -698,6 +706,11 @@ class Decoder:
             "dc_w": m("dc_w"),
             "dc_w_min": round(dc.min, 2) if dc and dc.n else None,
             "dc_w_max": round(dc.max, 2) if dc and dc.n else None,
+            # The generator's AC side. None on every bucket where the
+            # generator was not seen, which is almost all of them.
+            "gen_v": m("gen_v", 1),
+            "gen_a": m("gen_a", 2),
+            "gen_va": m("gen_va", 1),
             "sample_n": n,
         }
         return row

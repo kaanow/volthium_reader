@@ -110,7 +110,11 @@ class GeneratorFieldHonestyTests(unittest.TestCase):
         builder never emits is the same bug.
         """
         agg_keys = set(re.findall(r'_agg\("(\w+)"\)', inspect.getsource(xt)))
-        row_src = inspect.getsource(xt)
+        # SCOPE TO THE ROW BUILDER. Scanning the whole module let the EVENT
+        # payload's `"gen_a": round(i1 + i2, 2)` satisfy "emitted", so
+        # deleting gen_a from the row dict — the exact original bug — passed.
+        # The question is only ever whether flush_bucket emits it.
+        row_src = inspect.getsource(xt.Decoder.flush_bucket)
         emitted = set(re.findall(r'"(\w+)":\s*(?:m\("|round\()', row_src))
         # An aggregate is legitimate if the row emits it directly or via a
         # min/max derivative (pv_v -> pv_v_min/pv_v_max).
@@ -121,6 +125,47 @@ class GeneratorFieldHonestyTests(unittest.TestCase):
             orphans, set(),
             f"aggregated but never emitted, so silently discarded: "
             f"{sorted(orphans)}")
+
+
+class RowSchemaTests(unittest.TestCase):
+    """The reader's half of the two-step deploy.
+
+    The server must know gen_v/gen_a/gen_va BEFORE the reader sends them,
+    because SolarReading sets extra="forbid" and an unknown field 422s the
+    whole batch. The version is how anyone reading the data later knows which
+    half of that deploy a given row came from, so forgetting the bump is a
+    silent loss of that distinction — and nothing caught it.
+    """
+
+    def _row_src(self) -> str:
+        return inspect.getsource(xt.Decoder.flush_bucket)
+
+    def test_the_row_declares_schema_version_3(self):
+        self.assertRegex(
+            self._row_src(), r'"schema_version":\s*3',
+            "gen_v/gen_a/gen_va are schema 3; a row carrying them while "
+            "claiming 2 misreports which reader wrote it")
+
+    def test_the_row_emits_all_three_generator_fields(self):
+        src = self._row_src()
+        for f in ("gen_v", "gen_a", "gen_va"):
+            self.assertRegex(src, rf'"{f}":\s*m\("{f}"',
+                             f"flush_bucket does not emit {f}")
+
+    def test_gen_a_is_sampled_even_when_the_generator_reads_stopped(self):
+        """The ramp is the interesting part: the one sample that disagreed
+        with the charger's own declaration was 5 s BEFORE it announced bulk.
+        Gating gen_a on `running` would drop the bucket that straddles the
+        start, which is the original discard bug in miniature."""
+        src = inspect.getsource(xt.Decoder._ac_sts_rms)
+        m = re.search(r'self\._agg\("gen_a"\)\.add', src)
+        self.assertIsNotNone(m, "gen_a is never aggregated")
+        # the aggregation must not sit inside the `if running:` block
+        block = src[:m.start()].rsplit("\n", 2)[-2:]
+        self.assertNotRegex(
+            "\n".join(block), r"if running:",
+            "gen_a aggregation is gated on `running` — the straddling bucket "
+            "is exactly the one worth keeping")
 
 
 if __name__ == "__main__":
