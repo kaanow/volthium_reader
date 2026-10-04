@@ -1105,8 +1105,46 @@ class AsyncpgReadingsDAO:
                           CASE WHEN dcl.dark_n >= 120 AND {_valley_sql()}
                                THEN dcl.step_w * dcl.duty * 24 * g.coverage
                           END AS dc_load_wh,
-                          -- The number to actually use. load_wh is retained
-                          -- unchanged above so no historical value moves, but
+                          -- ALWAYS COMPUTED, no model, no gate. This is the
+                          -- fix for a defect I shipped on 2026-10-03 and
+                          -- verified wrong on 10-04: the charge correction
+                          -- was placed INSIDE the fridge model's validity
+                          -- gate, so it only applied on days the fridge
+                          -- model was sound.
+                          --
+                          -- Those two conditions are ANTI-CORRELATED BY
+                          -- CONSTRUCTION. The generator runs when people are
+                          -- at the cabin, and occupancy is exactly what
+                          -- breaks the bimodality the fridge model needs. So
+                          -- across 67 days, both days with charge energy
+                          -- (10-02: 2077 Wh, 10-04: 440 Wh) returned
+                          -- total_load_wh = NULL. The correction produced a
+                          -- number ZERO times out of two.
+                          --
+                          -- The operator's original report — "values
+                          -- unrealistically high that don't reconcile" —
+                          -- therefore stayed live: 10-02 kept returning
+                          -- load_wh 6034 Wh against a ~2700 Wh baseline with
+                          -- no corrected figure anywhere.
+                          --
+                          -- Two tests certified it. One asserted the string
+                          -- "- g.charge_wh" was present; another asserted
+                          -- both modelled columns were gated on the valley
+                          -- test. Each passed. Their CONJUNCTION was the
+                          -- defect, and neither evaluated the query against
+                          -- data.
+                          --
+                          -- Subtracting charge energy needs no model: dc_a's
+                          -- sign is measured in the same row as dc_w. Only
+                          -- the FRIDGE term needs the bimodality premise. So
+                          -- they are separated here.
+                          g.load_wh - g.charge_wh AS load_wh_net,
+                          -- The fully-modelled number, which does need the
+                          -- fridge premise and so is still gated. Built on
+                          -- load_wh_net so the charge correction cannot be
+                          -- lost again by editing one of two places.
+                          -- load_wh is retained unchanged above so no
+                          -- historical value moves, but
                           -- load_wh + dc_load_wh DOUBLE-COUNTS — see
                           -- INVERTER_OVER_READ_W.
                           -- CHARGE ENERGY IS SUBTRACTED HERE rather than removed from
@@ -1122,8 +1160,7 @@ class AsyncpgReadingsDAO:
                           -- about -22 W, which looks like a sign reversal but is a
                           -- different subtraction — see the constant.
                           CASE WHEN dcl.dark_n >= 120 AND {_valley_sql()}
-                               THEN g.load_wh
-                                    - g.charge_wh
+                               THEN (g.load_wh - g.charge_wh)
                                     - {INVERTER_OVER_READ_W} * 24 * g.coverage
                                     + dcl.step_w * dcl.duty * 24 * g.coverage
                           END AS total_load_wh

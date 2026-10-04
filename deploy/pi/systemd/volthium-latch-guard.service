@@ -7,7 +7,23 @@ Wants=volthium-xanbus-capture.service
 Type=oneshot
 # Root for CAP_NET_RAW (AF_CAN) — it both listens and transmits.
 WorkingDirectory=/srv/volthium_reader
-ExecStart=/srv/volthium_reader/.venv/bin/python scripts/xanbus_latch_guard.py
+# THE FLAGS ARE LOAD-BEARING. Without them the guard still DETECTS and still
+# emits events, and does nothing about either condition — it looks alive and
+# guards nothing.
+#
+# Production has run `--act-on-sustained --act-on-early` since the triggers
+# were armed and validated in the field; this file did not, so `install.sh`
+# — the documented deterministic recovery step after a reboot or
+# power-cycle — would have installed an unarmed unit over an armed one and
+# silently disarmed both triggers. Nothing detects that: the timer still
+# reports active, the guard still runs, and the only symptom is the absence
+# of `early_bounce_result`, which nothing monitors.
+#
+# install.sh's own comments above record two earlier instances of this same
+# class (units running on the Pi that the installer did not install). This is
+# the third, and the only one that silently removes a safety behaviour rather
+# than failing to add one.
+ExecStart=/srv/volthium_reader/.venv/bin/python scripts/xanbus_latch_guard.py --act-on-sustained --act-on-early
 # Bounded like everything else on this 1 GB box (see CLAUDE.md).
 MemoryMax=60M
 MemorySwapMax=0

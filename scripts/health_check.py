@@ -20,6 +20,8 @@ from __future__ import annotations
 import argparse
 import concurrent.futures as cf
 import datetime as dt
+import re
+from pathlib import Path
 import json
 import subprocess
 import sys
@@ -32,7 +34,32 @@ PI_HOSTS = ("kwpi.zt", "10.42.100.200", "192.168.192.101")
 # earlier 2-minute threshold produced a false alarm on 2026-08-05.
 FRESH_LIMIT_S = 400
 MEM_CAP_MB = 60          # the systemd MemoryMax on the telemetry service
-EXPECT_SCHEMA = 2        # reader emits pv_v_min/max from v2
+def _reader_schema_version() -> int | None:
+    """The version the READER currently emits, read out of its source.
+
+    This was the literal 2. The reader went to 3 on 2026-10-04 and this tool
+    went permanently red — `check_solar` appended "schema_version 3 != 2"
+    forever, so "all green" became unreachable and any REAL problem was
+    camouflaged by a standing false one.
+
+    status_check.py had the identical literal and was fixed the same day. This
+    copy was missed, and the regression test written for that fix lives in
+    tests/test_health_check_verdict.py — importing THIS module while asserting
+    only about status_check. Two copies of a constant and a test that covered
+    one of them: the hand-maintained-scope shape this repo keeps rediscovering.
+
+    Derived, so the next bump needs no edit in either tool. None means
+    "could not read the source", which the caller must report as unchecked
+    rather than treating as a pass — a default here would be a false
+    all-clear, which is the thing being guarded against.
+    """
+    try:
+        src = (Path(__file__).resolve().parent
+               / "xanbus_telemetry.py").read_text()
+    except OSError:
+        return None
+    m = re.search(r'"schema_version":\s*(\d+)', src)
+    return int(m.group(1)) if m else None
 
 SERVICES = ("volthium-xanbus-telemetry", "volthium-xanbus-capture",
             "volthium-rs485-logger", "volthium-uploader",
@@ -60,9 +87,13 @@ def check_solar(hours: float) -> dict:
     out["pv_v"] = r.get("pv_v")
     if age > FRESH_LIMIT_S:
         out["problems"].append(f"stale: newest row is {age/60:.1f} min old")
-    if r.get("schema_version") != EXPECT_SCHEMA:
+    want = _reader_schema_version()
+    if want is None:
         out["problems"].append(
-            f"schema_version {r.get('schema_version')} != {EXPECT_SCHEMA}")
+            "schema skew UNCHECKED — could not read the reader's version")
+    elif r.get("schema_version") != want:
+        out["problems"].append(
+            f"schema_version {r.get('schema_version')} != reader's {want}")
     # The 2026-08-05 incident: reader emitted fields the server forbade, so
     # every row 422'd. Presence of the v2 columns is the canary.
     if r.get("pv_v_min") is None and (r.get("pv_v") or 0) > 1:

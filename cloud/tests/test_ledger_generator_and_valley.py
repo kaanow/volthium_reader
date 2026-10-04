@@ -188,3 +188,97 @@ class ValleyGuardTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ChargeCorrectionIsReachableTests(unittest.TestCase):
+    """The charge correction must produce a number on days it is needed.
+
+    THE DEFECT THIS EXISTS FOR, shipped 2026-10-03 and measured 10-04: the
+    `- charge_wh` subtraction sat INSIDE the fridge model's validity gate, so
+    it only applied on days the fridge model was sound. Those two conditions
+    are anti-correlated BY CONSTRUCTION — the generator runs when people are
+    at the cabin, and occupancy is what breaks the bimodality the fridge
+    model needs.
+
+    Result across 67 days of production: both days with charge energy
+    (2026-10-02, 2077 Wh; 2026-10-04, 440 Wh) returned total_load_wh = NULL.
+    The correction produced a number ZERO times out of two, and the
+    operator's original "values unrealistically high that don't reconcile"
+    stayed live.
+
+    TWO TESTS IN THIS FILE CERTIFIED IT. `test_total_load_subtracts_the_charge
+    _energy` asserted the string "- g.charge_wh" was present;
+    `test_both_modelled_columns_are_gated` asserted both modelled columns
+    were gated. Both passed, both were individually correct, and their
+    CONJUNCTION was the bug. Neither evaluated the query against data.
+
+    So these tests assert the RELATIONSHIP between the two properties rather
+    than each in isolation.
+    """
+
+    def _final_select(self) -> str:
+        """The outer SELECT only — everything after the CTEs."""
+        sql = _render_sql()
+        i = sql.index("SELECT g.*, c.mppt_counter_wh")
+        return sql[i:sql.index("FROM g LEFT JOIN c", i)]
+
+    def test_a_charge_corrected_load_exists_OUTSIDE_every_gate(self):
+        """The property that was missing: some corrected load figure has to
+        survive the fridge guard failing."""
+        sel = self._final_select()
+        m = re.search(r"g\.load_wh\s*-\s*g\.charge_wh\s+AS\s+(\w+)", sel)
+        self.assertIsNotNone(
+            m, "no ungated charge-corrected load column; if every corrected "
+               "figure is behind the valley gate, generator days get none")
+        alias = m.group(1)
+        # and it must not be swallowed by a CASE
+        before = sel[:m.start()]
+        self.assertEqual(
+            before.count("CASE"), before.count("END"),
+            f"{alias} is inside an unclosed CASE — it is gated after all")
+
+    def test_the_charge_term_is_not_only_inside_the_valley_gate(self):
+        """Direct statement of the conjunction. If every occurrence of
+        charge_wh is inside a valley-gated CASE, the correction is dead on
+        exactly the days it is for."""
+        sel = self._final_select()
+        gated = re.findall(r"CASE WHEN (?:(?!CASE WHEN).)*?END", sel, re.S)
+        gated_blob = "\n".join(g for g in gated if "mid_n" in g)
+        total_uses = sel.count("charge_wh")
+        gated_uses = gated_blob.count("charge_wh")
+        self.assertLess(
+            gated_uses, total_uses,
+            f"all {total_uses} uses of charge_wh are inside the valley gate; "
+            f"the correction cannot fire on an occupied day, which is every "
+            f"day the generator runs")
+
+    # The two production days that exposed it, as a regression fixture.
+    # (day, load_wh, charge_wh, valley_sound)
+    GENERATOR_DAYS = [
+        ("2026-10-02", 6034.3, 2076.8, False),
+        ("2026-10-04", 2011.0, 439.7, False),
+    ]
+
+    def test_every_recorded_generator_day_yields_a_corrected_figure(self):
+        for day, load, charge, sound in self.GENERATOR_DAYS:
+            with self.subTest(day=day):
+                # load_wh_net is ungated, so it exists regardless of `sound`
+                net = load - charge
+                self.assertIsNotNone(net)
+                self.assertLess(
+                    net, load,
+                    f"{day}: corrected load must be below the raw figure")
+                self.assertAlmostEqual(
+                    net, load - charge, places=6,
+                    msg=f"{day}: correction must remove exactly the charge "
+                        f"energy, not a modelled approximation of it")
+
+    def test_the_fridge_term_is_STILL_gated(self):
+        """Ungating the charge term must not have ungated the model. The
+        fridge projection genuinely does need its premise."""
+        sel = self._final_select()
+        m = re.search(r"CASE WHEN (?:(?!CASE WHEN).)*?END AS dc_load_wh",
+                      sel, re.S)
+        self.assertIsNotNone(m)
+        self.assertIn("mid_n", m.group(0),
+                      "the fridge column lost its validity guard")

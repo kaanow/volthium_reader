@@ -95,3 +95,64 @@ class InstallCompletenessTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GuardArmingSurvivesInstallTests(unittest.TestCase):
+    """install.sh must not silently DISARM the latch guard.
+
+    Found by the 2026-10-04 full-stack review. The Pi had been running
+    `--act-on-sustained --act-on-early` since those triggers were validated;
+    the unit file in this repo carried NEITHER. install.sh installs this file
+    verbatim and is documented as the deterministic recovery step after a
+    reboot or power-cycle — so running it would have replaced an armed unit
+    with an unarmed one.
+
+    Nothing would have caught it. The timer still reports active, the guard
+    still runs and still emits detection events, and the only symptom is the
+    absence of `early_bounce_result` — which nothing monitors. The guard would
+    have looked alive while guarding nothing, through a winter.
+
+    DERIVED from the guard's own argparse, so a renamed or added action flag
+    fails here instead of going quietly missing from the unit.
+    """
+
+    UNIT = (Path(__file__).resolve().parents[1]
+            / "deploy" / "pi" / "systemd" / "volthium-latch-guard.service")
+    GUARD = (Path(__file__).resolve().parents[1]
+             / "scripts" / "xanbus_latch_guard.py")
+
+    def _exec_start(self) -> str:
+        for line in self.UNIT.read_text().splitlines():
+            if line.startswith("ExecStart="):
+                return line
+        self.fail("no ExecStart in the latch-guard unit")
+
+    def _act_flags(self) -> list[str]:
+        """Every `--act-on-*` flag the guard defines."""
+        return sorted(set(re.findall(r'"(--act-on-[a-z-]+)"',
+                                     self.GUARD.read_text())))
+
+    def test_the_scan_finds_the_flags(self):
+        """Otherwise the assertion below passes vacuously."""
+        flags = self._act_flags()
+        self.assertGreaterEqual(len(flags), 2, f"found only {flags}")
+
+    def test_every_act_flag_the_guard_defines_is_in_the_unit(self):
+        exec_start = self._exec_start()
+        for flag in self._act_flags():
+            with self.subTest(flag=flag):
+                self.assertIn(
+                    flag, exec_start,
+                    f"{flag} is missing from ExecStart, so install.sh would "
+                    f"deploy a guard that detects and never acts")
+
+    def test_the_guard_actually_gates_action_on_those_flags(self):
+        """Confirms the flags are not decorative — if the guard stopped
+        reading them, this test would be asserting about nothing."""
+        src = self.GUARD.read_text()
+        for flag in self._act_flags():
+            attr = flag[2:].replace("-", "_")
+            with self.subTest(flag=flag):
+                self.assertRegex(
+                    src, rf"\ba\.{attr}\b|\bargs\.{attr}\b",
+                    f"{flag} is declared but never read")
