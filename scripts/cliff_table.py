@@ -349,6 +349,29 @@ def fetch_interventions(url: str, source: str, hours: int) -> list[dt.datetime]:
 _INTERVENTIONS: list[dt.datetime] = []
 
 
+def ensure_interventions(url: str, source: str, hours: int) -> int:
+    """Populate the intervention list for an IMPORTER.
+
+    `_INTERVENTIONS` is a module global that only `main()` filled, so
+    `_mark_interventions` was a silent NO-OP for every other consumer of
+    `episodes()`. scripts/descent_profile.py imports `episodes` directly and
+    therefore presented 32 DELIBERATE GUARD BOUNCES as the array's own
+    recoveries: it printed "loaded: 2 of 37 clamped" (a 5% clamp rate) where
+    the natural history alone is "2 of 5 clamped" (40%), including a dense run
+    of 26-40 minute "recoveries" that are the 29-minute trigger firing.
+
+    A reader could reasonably have concluded the cliff had gone away and the
+    guard could be disarmed — the guard being what produced the recoveries.
+
+    Idempotent, so an importer can call it unconditionally. Returns the count
+    so a caller can SAY how many it found rather than hoping.
+    """
+    global _INTERVENTIONS
+    if not _INTERVENTIONS:
+        _INTERVENTIONS = fetch_interventions(url, source, hours)
+    return len(_INTERVENTIONS)
+
+
 def _mark_interventions(eps: list[dict]) -> None:
     if not _INTERVENTIONS:
         return

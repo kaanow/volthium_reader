@@ -81,7 +81,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from cliff_table import BUCKET_S, episodes, fetch   # noqa: E402
+from cliff_table import (  # noqa: E402
+    BUCKET_S, ensure_interventions, episodes, fetch)
 from solar_geometry import sun_elevation_deg        # noqa: E402
 
 UTC = dt.timezone.utc
@@ -188,6 +189,12 @@ def main() -> int:
     a = ap.parse_args()
 
     series = fetch(a.url, a.hours, a.source)
+    # WITHOUT THIS the intervention guard in cliff_table is a silent no-op for
+    # importers, and 32 deliberate guard bounces print as the array's own
+    # recoveries — a 5% clamp rate against a true 40%.
+    n_iv = ensure_interventions(a.url, a.source, a.hours)
+    print(f"interventions fetched: {n_iv} (bounced episodes are excluded from "
+          f"the natural-history summary below)\n")
     since = dt.datetime.now(UTC) - dt.timedelta(hours=a.hours)
     rows = profile(series, fetch_stages(a.url, a.source, since))
     if not rows:

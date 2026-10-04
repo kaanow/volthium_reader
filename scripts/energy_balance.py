@@ -143,20 +143,50 @@ def bms_net_ah(url: str, source: str, start: dt.datetime,
 
 def load_ah(url: str, source: str, start: dt.datetime,
             end: dt.datetime) -> tuple[float, float]:
-    ser = _get(f"{url}/api/solar/series?source_id={source}&hours=400"
+    """Integrate house load over [start, end].
+
+    `hours` was HARDCODED at 400 instead of derived from the window, so for
+    any day older than ~16.7 days the fetched series did not reach it and the
+    integral came out 0.00 Ah — while the script went on to print a confident
+    DEFICIT of the OPPOSITE SIGN and exit 0. `--day 2026-09-10` printed
+    "DEFICIT -58.23 Ah = -1592 Wh", a surplus, against a file whose entire
+    documented conclusion is a deficit. ~24 of 41 nominally covered days were
+    affected, and the only signal was "(0.0 h covered)" in the header.
+
+    Derived from `end` now, with a day of slack, so the window always reaches
+    the day being asked about.
+    """
+    hours = max(24.0, (dt.datetime.now(UTC) - start).total_seconds() / 3600 + 24)
+    ser = _get(f"{url}/api/solar/series?source_id={source}&hours={hours:.0f}"
                f"&bucket_s={BUCKET_S}")["series"]
     ah = 0.0
     n = 0
+    charging_ah = 0.0
     for s in ser:
         t = dt.datetime.strptime(s["bucket"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
         if not (start <= t <= end):
             continue
-        w, v = s.get("dc_w"), s.get("dc_v")
+        w, v, a = s.get("dc_w"), s.get("dc_v"), s.get("dc_a")
         if w is None or v is None or not (0 <= w <= 6000) or v < 10:
+            continue
+        # GENERATOR INPUT IS NOT A SINK. dc_w is unsigned, so charging landed
+        # on the load side AND was omitted from the source side — counted
+        # twice in the wrong direction. The docstring at the top of this file
+        # asserts "the gen_start count is zero over the entire record", which
+        # stopped being true on 2026-10-03, and nothing here checked.
+        #
+        # Measured on --day 2026-10-02: printed house load 228.17 Ah / 255.3 W
+        # and DEFICIT +185.23 Ah / +4975 Wh; corrected, 151.49 Ah / 169.5 W
+        # and +31.87 Ah / +856 Wh. The headline was overstated 5.8x, and the
+        # corrected 169.5 W matches fridge_split's independent dark-hours BMS
+        # measurement of 169.3 W — a different instrument and a different
+        # script.
+        if (a or 0) > 0:
+            charging_ah += (w / v) * BUCKET_S / 3600
             continue
         ah += (w / v) * BUCKET_S / 3600
         n += 1
-    return ah, n * BUCKET_S / 3600
+    return ah, n * BUCKET_S / 3600, charging_ah
 
 
 def mppt_day(url: str, source: str, day: dt.date) -> tuple[float, float]:
@@ -194,7 +224,7 @@ def main() -> int:
         return 1
 
     net, cov, worst = bms_net_ah(a.url, a.source, start, end)
-    ld, hrs = load_ah(a.url, a.source, start, end)
+    ld, hrs, charged_ah = load_ah(a.url, a.source, start, end)
 
     print(f"{day}  ({hrs:.1f} h covered)   pack V from MPPT counter "
           f"= {v_implied:.2f}\n")
@@ -208,6 +238,12 @@ def main() -> int:
     print(f"  DEFICIT (sinks - source)    : {sinks - mp_ah:+8.2f} Ah  "
           f"= {(sinks - mp_ah) * v_implied:+.0f} Wh")
 
+    if not hrs:
+        # `if hrs:` used to SUPPRESS the block that would have exposed a
+        # zero-coverage window, so "I could not look" printed as a confident
+        # deficit. Say it instead.
+        print(f"\n  !! ZERO COVERAGE for this window — the load integral is "
+              f"0.00 Ah, so the DEFICIT above is meaningless, not a surplus.")
     if hrs:
         print(f"\n  implied average house load over {hrs:.1f} h:")
         print(f"    dc_w as measured          : {ld * v_implied / hrs:6.1f} W")
@@ -215,7 +251,19 @@ def main() -> int:
         for ur in (0.20, 0.25, 0.30):
             t = (mp_ah / (1 - ur) - net) * v_implied / hrs
             print(f"    MPPT corrected by {ur*100:.0f}% under-read: {t:6.1f} W")
-        print(f"    BMS dark-hours (docs #12) :   81.0 W")
+        # The hardcoded 81.0 W comparator was measured once and has DRIFTED
+        # +109%: re-measured 169.3 W over 22,919 dark samples on 2026-10-04.
+        # Against 81 W the suggestions above bracket it and look convergent;
+        # against the real figure none of them come close, which is the whole
+        # point of printing it. Regenerate rather than quote:
+        print(f"    BMS dark-hours            :  run scripts/fridge_split.py "
+              f"(was 81.0 W in docs #12; measured 169.3 W on 2026-10-04)")
+    if charged_ah > 0.1:
+        print(f"\n  NOTE: {charged_ah:.2f} Ah of GENERATOR CHARGING was "
+              f"excluded from the sink side.")
+        print(f"  The docstring's claim that the generator has never run is "
+              f"false since 2026-10-03; counting that charge as load "
+              f"overstated the deficit 5.8x on 10-02.")
     return 0
 
 

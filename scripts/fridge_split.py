@@ -137,8 +137,23 @@ def main() -> int:
     print(f"\n  true total load    {total:6.1f} W   (time-weighted BMS)")
     print(f"  dc_w               {statistics.mean(dw):6.1f} W   "
           f"p5 {q[4]:.0f} .. p95 {q[94]:.0f}, span {q[94]-q[4]:.0f} W")
-    print(f"\n  dc_w spans {q[94]-q[4]:.0f} W while the bus steps by {step:.0f} W"
-          f"  ->  IT DOES NOT SEE THE FRIDGE")
+    # CONDITIONAL. This verdict printed unconditionally, and the argument it
+    # states requires span << step. When written the numbers were 22 W against
+    # 74 W; they are now 78 W against 89 W — 88% — so the conclusion no longer
+    # follows from its own evidence. A same-minute paired test over 1908 dark
+    # minutes puts the dc_w step at +26.2 W +- 2.65 (9.9 sigma) against the
+    # BMS's +87.0 W, so dc_w is not blind to the load, it is attenuated.
+    span = q[94] - q[4]
+    if span < 0.4 * step:
+        print(f"\n  dc_w spans {span:.0f} W while the bus steps by {step:.0f} W"
+              f"  ->  IT DOES NOT SEE THE FRIDGE")
+    else:
+        print(f"\n  dc_w spans {span:.0f} W against a {step:.0f} W bus step "
+              f"({100*span/step:.0f}%)  ->  VERDICT WITHHELD: the "
+              f"'does not see the fridge' argument needs span << step and "
+              f"this no longer qualifies. Either dc_w is attenuating the "
+              f"load rather than missing it, or the Otsu classes have "
+              f"stopped meaning fridge-on/off.")
     print(f"  inverter-only over-read: dc_w {statistics.mean(dw):.1f} vs BMS "
           f"{statistics.mean(lo):.1f} = {statistics.mean(dw)-statistics.mean(lo):+.1f} W")
     print(f"  as TOTAL load          : dc_w {statistics.mean(dw):.1f} vs true "

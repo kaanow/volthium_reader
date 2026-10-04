@@ -23,18 +23,29 @@ import ast
 import textwrap
 import inspect
 import unittest
+from pathlib import Path
 
 from cloud.server import db as db_mod
 from cloud.server import main as main_mod
 
+REPO = Path(__file__).resolve().parents[2]
+
 
 class SeriesBucketBudgetTests(unittest.TestCase):
 
-    def test_the_cap_is_near_what_a_chart_can_render(self):
-        """A cap far above any real consumer is not a cap. history.html's
-        bucketFor() targets ~450 buckets."""
-        self.assertLessEqual(main_mod.MAX_SERIES_BUCKETS, 20000)
-        self.assertGreaterEqual(main_mod.MAX_SERIES_BUCKETS, 1000)
+    def test_the_cap_sits_between_the_real_need_and_the_abuse(self):
+        """A cap far above every consumer is not a cap; one below the largest
+        legitimate consumer is an outage of the analysis tooling. The gap is
+        wide, so the bound should be checked against BOTH edges rather than
+        against a round number.
+
+        Largest legitimate request: cliff_table at 720 h / 60 s = 43,200.
+        Smallest abusive request found: 9600 h / 60 s = 576,000.
+        """
+        self.assertGreater(main_mod.MAX_SERIES_BUCKETS, 43_200,
+                           "below cliff_table's 720 h window")
+        self.assertLess(main_mod.MAX_SERIES_BUCKETS, 576_000,
+                        "high enough to permit the shapes that made this a DoS")
 
     def test_the_243MB_request_is_rejected(self):
         """The exact parameters measured against production."""
@@ -60,6 +71,29 @@ class SeriesBucketBudgetTests(unittest.TestCase):
                                 (30 * 24, 3600)]:
             with self.subTest(hours=hours, bucket_s=bucket_s):
                 main_mod._check_bucket_budget(hours, bucket_s)
+
+    def test_every_request_the_ANALYSIS_SCRIPTS_make_is_allowed(self):
+        """The half I missed first time. I set the cap from the dashboards'
+        shapes alone and it broke scripts/cliff_table.py on its very next run
+        — 400 h at 60 s buckets is 24,000 of them, and that is a legitimate
+        episode-detection window, not abuse.
+
+        BUCKET_S is read from cliff_table so a change there surfaces here
+        rather than as a 422 in the middle of an analysis session.
+        """
+        import sys
+        sys.path.insert(0, str(REPO / "scripts"))
+        import cliff_table
+        for hours in (24, 168, 400, 720):
+            with self.subTest(hours=hours, bucket_s=cliff_table.BUCKET_S):
+                main_mod._check_bucket_budget(hours, cliff_table.BUCKET_S)
+
+    def test_the_abusive_shapes_are_still_blocked(self):
+        """Raising the cap for the scripts must not reopen the hole."""
+        for hours, bucket_s in [(9600, 10), (9600, 60), (9600, 15)]:
+            with self.subTest(hours=hours, bucket_s=bucket_s):
+                with self.assertRaises(Exception):
+                    main_mod._check_bucket_budget(hours, bucket_s)
 
     def test_both_series_endpoints_are_guarded(self):
         for fn in (main_mod.api_history_series, main_mod.api_solar_series):

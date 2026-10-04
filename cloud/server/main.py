@@ -599,7 +599,22 @@ async def _resolve_source(dao: ReadingsDAO, source_id: Optional[str]) -> Optiona
 # Rejecting (422) rather than silently truncating, because a truncated series
 # is a LIE about the window the caller asked for — the failure mode this repo
 # has been bitten by repeatedly. The error says what to do instead.
-MAX_SERIES_BUCKETS = 5000
+#
+# DERIVED FROM THE LARGEST REAL CONSUMER, with headroom. I first set this to
+# 5000 from the PAGES' call shapes alone and it immediately broke
+# scripts/cliff_table.py, which legitimately asks for 400 h at 60 s buckets —
+# 24,000 of them — for episode detection. Its own tests passed because they
+# only covered the dashboard requests. A cap that blocks the analysis tooling
+# is the same mistake as no cap at all, in the other direction.
+#
+# Inventoried every series request in the repo:
+#     dashboards      12 ..  4,800 buckets
+#     cliff_table     1,440 at 24 h, 24,000 at 400 h, 43,200 at 720 h  (~14 MB)
+#     the DoS case    576,000 at 9600 h/60 s, 3.46 M at 9600 h/10 s
+# 50,000 clears the largest legitimate consumer and still blocks the abusive
+# cases by more than an order of magnitude. At ~320 B/row that is ~16 MB raw
+# and ~1.3 MB gzipped — nowhere near the 243 MB that made this a DoS.
+MAX_SERIES_BUCKETS = 50_000
 
 
 def _check_bucket_budget(hours: float, bucket_s: int) -> None:
