@@ -376,21 +376,66 @@ async function pollOnce(first) {
     for (const r of rows) {
       const t = Date.parse(r.ts);
       const batt = pByT.get(t) ?? 0;
-      const s = inferSolar(r.solar_w ?? 0, batt, r.dc_w, clampedAt(r));
-      hist.push({ t, solar: s.w, gen: 0,
-                  load: r.dc_w ?? Math.max(0, s.w - batt), batt });
+      const g = genAt(r);
+      const s = inferSolar(r.solar_w ?? 0, batt, g > 0 ? null : r.dc_w,
+                           clampedAt(r));
+      hist.push({ t, solar: s.w, gen: g,
+                  load: loadAt(r, s.w, batt), batt });
     }
   } else if (rows.length) {
     for (const r of rows) {
       const t = Date.parse(r.ts);
       if (hist.length && t <= hist[hist.length - 1].t) continue;
       const batt = battW();
-      const s = inferSolar(r.solar_w ?? 0, batt, st.gen ? null : r.dc_w, clampedAt(r));
-      hist.push({ t, solar: s.w, gen: st.gen ? Math.max(0, batt - s.w) : 0,
-                  load: st.gen ? 0 : (r.dc_w ?? 0), batt });
+      const g = genAt(r);
+      const s = inferSolar(r.solar_w ?? 0, batt, g > 0 ? null : r.dc_w,
+                           clampedAt(r));
+      hist.push({ t, solar: s.w, gen: g,
+                  load: loadAt(r, s.w, batt), batt });
     }
     while (hist.length > HIST) hist.shift();
   }
+}
+
+/* ---------- per-row generator + load, from the ROW's own fields ----------
+
+   The strip chart used to get this from the live `st.gen` flag, which cannot
+   describe history and produced exactly the bug the operator reported: no
+   generator activity on the last-hour chart. Two separate faults.
+
+   The BACKFILL hardcoded `gen: 0`, so every page load showed a flat zero for
+   the generator no matter what had happened in that hour.
+
+   The LIVE path used the global `st.gen`, so rows were labelled with whatever
+   the generator was doing when the row arrived — and once it stopped, a
+   refresh re-ran the backfill and erased the run.
+
+   Neither needs to infer anything any more. schema_version 3 puts the
+   generator's own AC measurements in every 15 s row, verified against a live
+   run on 2026-10-04 (|gen_v*gen_a| agrees with the device's gen_va to 0.23%).
+   So ask the row.
+*/
+function genAt(r) {
+  // gen_v is only populated while the AC2 input is actually live; the 50 V
+  // floor is the same threshold the reader uses to call the generator running.
+  // Rows written before schema 3 have null here and correctly report 0 —
+  // we have no measurement for them rather than a guess.
+  if ((r.gen_v ?? 0) < 50) return 0;
+  // DC-SIDE delivered power, not the AC side. The chart balances sources
+  // (solar + gen + battery discharge) against sinks (load + battery charge),
+  // all on the DC bus, so feeding it the AC figure would overstate the
+  // generator by the charger's conversion loss — measured at 15.6% — and the
+  // stack would never reconcile. dc_w while dc_a > 0 is what the charger
+  // actually puts into the bus.
+  return (r.dc_a ?? 0) > 0 ? (r.dc_w ?? 0) : 0;
+}
+function loadAt(r, solarW, batt) {
+  // While the generator feeds the system the inverter's DC terminal is
+  // CHARGING, so dc_w is not a house load and must not be drawn as one.
+  // AC-side load during passthrough is genuinely unmeasured (ac_load_sample
+  // reads 0 V / 0 VA), so 0 here means "unknown", same as the tile's "—".
+  if (genAt(r) > 0) return 0;
+  return r.dc_w ?? Math.max(0, solarW - batt);
 }
 
 /* ---------- flow diagram ---------- */
