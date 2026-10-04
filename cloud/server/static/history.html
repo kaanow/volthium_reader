@@ -175,7 +175,11 @@
   <!-- solar production ledger -->
   <div class="panel">
     <div class="label">solar production — last 30 days
-      <span class="sub">what the array delivered vs what the house drew. Both are floors: the MPPT under-reports by ~1.8x, so treat these as the conservative end</span></div>
+      <span class="sub">what the array delivered vs what the house drew.
+        Both are floors: the MPPT under-reports by ~1.8x, so treat these as
+        the conservative end. House draw is the inverter's DC input with
+        generator charging removed, and excludes the 24&nbsp;V fridge, which
+        is wired to the bus where this meter cannot see it</span></div>
     <div class="legend">
       <span><span class="sw" style="background:var(--ylw)"></span>solar in (Wh)</span>
       <span><span class="sw" style="background:var(--blu)"></span>house draw (Wh)</span>
@@ -692,7 +696,12 @@ async function loadSolarDaily() {
   const rows = days.map(d => ({
     t: Date.parse(d.day + "T12:00:00Z"),
     sol: Number(d.solar_wh) || 0,
-    load: Number(d.load_wh) || 0,
+    // load_wh_net, NOT load_wh. dc_w is unsigned, so generator charging
+    // lands in load_wh as though the house consumed it; the API returns
+    // load_wh_net (= load_wh - charge_wh) for exactly this. Measured:
+    // 2026-10-02 rendered 6.03 kWh of "house draw" against 3.96 true, +52%.
+    // Falls back for days written before the field existed.
+    load: Number(d.load_wh_net != null ? d.load_wh_net : d.load_wh) || 0,
     cov: Number(d.coverage) || 0,
   })).filter(d => d.cov > 0.2);          // drop part-days; they read as crashes
   chart("ch-sol-daily", "tip-sol-daily", rows, [

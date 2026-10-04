@@ -229,6 +229,43 @@ class GeneratorIsNotHouseLoadAnywhereTests(unittest.TestCase):
                       "invA still takes the magnitude, so charge current "
                       "renders as AC load")
 
+    def test_EVERY_served_page_uses_the_corrected_total(self):
+        """BOTH history pages, derived from main.py's FileResponse routes.
+
+        I fixed v2-history.html on the reviewer's file:line and deployed it
+        before noticing that /history serves history.html — the other one.
+        The live page still rendered the uncorrected load_wh. Exactly the
+        "two implementations, fix one and forget the other" trap the review
+        flagged for scripts/dashboard.py, walked into by trusting a file
+        reference without checking which file is served.
+
+        So the scope is now the set of pages the server actually serves.
+        """
+        main_src = (Path(__file__).resolve().parents[1]
+                    / "server" / "main.py").read_text()
+        served = set(re.findall(r'STATIC_DIR / "([\w.-]+\.html)"', main_src))
+        self.assertTrue(served, "could not derive the served pages")
+        checked = 0
+        for name in sorted(served):
+            page = V2.parent / name
+            if not page.exists():
+                continue
+            # STRIP COMMENTS. Checking raw text passed a mutation that
+            # reverted the live page, because the explanatory comment left
+            # behind still contained the string "load_wh_net". Fifth time
+            # today an assertion was satisfied by its own explanation.
+            txt = _code_only(page.read_text())
+            if "load_wh" not in txt:
+                continue          # page does not render the ledger
+            checked += 1
+            with self.subTest(page=name):
+                self.assertIn(
+                    "load_wh_net", txt,
+                    f"{name} is served and renders load_wh without the "
+                    f"charge correction")
+        self.assertGreaterEqual(
+            checked, 2, "expected both history pages to render the ledger")
+
     def test_the_history_ledger_uses_the_corrected_total(self):
         self.assertIn("load_wh_net", self.hist,
                       "the ledger chart still renders the uncorrected load_wh")
