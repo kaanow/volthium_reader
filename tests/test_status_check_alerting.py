@@ -275,8 +275,13 @@ class SolarFreshnessTests(unittest.TestCase):
         return mock.patch.object(S, "_get_json", lambda p: {"readings": rows})
 
     def _row(self, ts, **kw):
-        r = {"ts": ts, "schema_version": 2, "pv_v_min": 1.0, "pv_v_max": 2.0,
-             "pv_v": 1.5}
+        # schema_version tracks the READER rather than a literal. Pinned at 2,
+        # this fixture started reporting skew the moment schema 3 shipped, and
+        # two freshness tests failed for a reason that had nothing to do with
+        # freshness. A fixture that encodes today's version is a test that
+        # expires on the next bump.
+        r = {"ts": ts, "schema_version": S._reader_schema_version(),
+             "pv_v_min": 1.0, "pv_v_max": 2.0, "pv_v": 1.5}
         r.update(kw)
         return r
 
@@ -310,9 +315,13 @@ class SolarFreshnessTests(unittest.TestCase):
             notable, lines = S.section_solar("pi-barge")
         self.assertTrue(notable)
         self.assertIn("pv_v_min", " ".join(lines))
-        with self._serve([self._row(self._ago(30), schema_version=1)]):
+        # Deliberately wrong RELATIVE to whatever the reader emits, so this
+        # stays a skew test instead of quietly becoming the correct value.
+        stale = (S._reader_schema_version() or 2) - 1
+        with self._serve([self._row(self._ago(30), schema_version=stale)]):
             notable, lines = S.section_solar("pi-barge")
-        self.assertTrue(notable)
+        self.assertTrue(notable, f"schema {stale} vs reader "
+                                 f"{S._reader_schema_version()} is skew")
         self.assertIn("skew", " ".join(lines))
 
     def test_no_rows_is_notable(self):

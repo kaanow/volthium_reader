@@ -40,6 +40,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 from collections import Counter
 from typing import Optional
 
@@ -71,6 +72,27 @@ BATTERY_SILENT_THRESHOLD_S = 15 * 60
 def _get_json(path: str) -> dict:
     with urllib.request.urlopen(RAILWAY + path, timeout=20) as r:
         return json.load(r)
+
+
+def _reader_schema_version() -> int | None:
+    """The version the READER currently emits, read out of its source.
+
+    Hardcoded as 2 until 2026-10-04, when schema 3 added gen_v/gen_a/gen_va
+    and this check started crying skew at a correctly-deployed system. A
+    monitoring check that fires on an intended change trains the operator to
+    ignore it, which is how a real skew gets missed — the same failure family
+    as the RS485 section that returned an error instead of a verdict.
+
+    Derived, so the next bump needs no edit here. Returns None rather than
+    guessing if the source cannot be read: "unchecked" is honest, a default
+    would be a silent false all-clear.
+    """
+    try:
+        src = (Path(__file__).resolve().parent / "xanbus_telemetry.py").read_text()
+    except OSError:
+        return None
+    m = re.search(r'"schema_version":\s*(\d+)', src)
+    return int(m.group(1)) if m else None
 
 
 def fetch_events(kind: str, since_iso: str | None,
@@ -556,9 +578,14 @@ def section_solar(source: str) -> tuple[bool, list[str]]:
 
     latest = max(rows, key=lambda r: r["ts"])
     sv = latest.get("schema_version")
-    if sv != 2:
+    want = _reader_schema_version()
+    if want is None:
+        lines.append(f"  schema_version={sv} (reader's expected version could "
+                     f"not be read, so skew is UNCHECKED)")
+    elif sv != want:
         notable = True
-        lines.append(f"  !! schema_version={sv!r}, expected 2 — reader/server skew")
+        lines.append(f"  !! schema_version={sv!r}, reader emits {want} — "
+                     f"reader/server skew")
     missing = [k for k in ("pv_v_min", "pv_v_max") if latest.get(k) is None]
     if missing:
         notable = True

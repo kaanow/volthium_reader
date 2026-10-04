@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import inspect
+import re
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -74,3 +76,40 @@ class VerdictPropagationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SchemaSkewIsDerivedTests(unittest.TestCase):
+    """The skew check must track the reader, not a hardcoded number.
+
+    It was pinned to 2 and started crying "reader/server skew" the moment
+    schema 3 shipped correctly — a monitoring check firing on an intended
+    change, which is how an operator learns to ignore it and a real skew
+    slips through. Same failure family as the RS485 section that returned an
+    error instead of a verdict.
+    """
+
+    def test_it_reads_the_version_out_of_the_reader(self):
+        import scripts.status_check as sc
+        src = (Path(__file__).resolve().parents[1]
+               / "scripts" / "xanbus_telemetry.py").read_text()
+        want = int(re.search(r'"schema_version":\s*(\d+)', src).group(1))
+        self.assertEqual(
+            sc._reader_schema_version(), want,
+            "the health check's expected schema version must come from the "
+            "reader's source, not a literal")
+
+    def test_no_literal_expectation_survives_in_the_section(self):
+        import inspect
+        import scripts.status_check as sc
+        src = inspect.getsource(sc.section_solar)
+        self.assertNotRegex(
+            src, r"sv\s*!=\s*\d",
+            "schema expectation is hardcoded again — derive it from the reader")
+        self.assertIn("_reader_schema_version", src)
+
+    def test_unreadable_source_reports_UNCHECKED_rather_than_guessing(self):
+        """A default would be a silent false all-clear."""
+        import scripts.status_check as sc
+        src = inspect.getsource(sc._reader_schema_version)
+        self.assertIn("return None", src)
+        self.assertIn("UNCHECKED", inspect.getsource(sc.section_solar))
