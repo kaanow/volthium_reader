@@ -49,6 +49,8 @@ def _dc_w_sane(col: str = "dc_w") -> str:
 # measured to be worth 3-7 Wh/day out of ~1500 (0.4%) — the band alone already
 # excludes darkness, because pv_v must exceed 20 V. The residual is dawn/dusk
 # transits through the band; if it ever matters, it is a known, bounded amount.
+
+
 # --- the DC load the inverter cannot see (task #32) -----------------------
 #
 # `load_w` is a passthrough of dc_w, the INVERTER's own DC draw. The 24 V
@@ -71,6 +73,23 @@ def _dc_w_sane(col: str = "dc_w") -> str:
 # The split threshold is the Otsu point from 12,573 dark BMS samples. Fixed
 # here rather than recomputed per day because Otsu in SQL is not worth it;
 # scripts/fridge_split.py regenerates it and will say if it has drifted.
+#
+# IT HAS DRIFTED. Run 2026-10-04 it puts the Otsu point at 214.0 W against the
+# 117.6 W below — the whole distribution has moved up roughly 75 W because the
+# cabin is occupied (operator: night baseline rises with a fan running, phones
+# charging, lights into the evening). The bimodality is INTACT at the new
+# location: split at 214 W gives fridge-off 153.4 W, fridge-on 275.1 W, a
+# 121.7 W step at 23.4% duty, which is a credible fridge.
+#
+# So the stale constant is not mis-measuring a broken site, it is measuring a
+# moved one. Until the split is derived per day, _valley_sql() detects that
+# 117.6 W is no longer in the valley and the modelled columns return NULL
+# rather than the width of a blob. Refusing beats reporting wrong; deriving
+# the split per day beats both and is the real fix.
+
+
+# --- display vs site timezone --------------------------------------------
+#
 # The SITE's timezone, which is a physical fact about where the panels are —
 # not a display preference. `DISPLAY_TZ` is a rendering setting the operator can
 # point anywhere, and it is currently America/Toronto for a site in British
@@ -90,11 +109,69 @@ def _dc_w_sane(col: str = "dc_w") -> str:
 SITE_TZ = "America/Vancouver"
 
 DC_LOAD_SPLIT_W = 117.6
+
+# Half-width of the band used to ask whether DC_LOAD_SPLIT_W is still sitting
+# in a valley between two modes. The side bands are the next two half-widths
+# out on each side. 25 W is wide enough to hold real samples at this site's
+# sample counts (thousands of dark buckets/night) and narrow enough that the
+# two modes, ~83 W apart when sound, stay outside it.
+VALLEY_BAND_W = 25.0
+VALLEY_MAX_RATIO = 0.5           # mid/least(lo,hi) above this = not bimodal
+
+# The band edges, precomputed. The SQL below interpolates BARE names only:
+# the test renderer resolves {NAME} by getattr on this module, so an
+# arithmetic placeholder — a subtraction written inline inside the braces —
+# would not resolve, and the query would ship with a literal brace in it.
+# Naming the edges keeps that renderer free of a hand-maintained substitution
+# list, which is the failure mode test_ledger_clamp_gate.py exists to catch.
+VALLEY_MID_LO = DC_LOAD_SPLIT_W - VALLEY_BAND_W          # 92.6
+VALLEY_MID_HI = DC_LOAD_SPLIT_W + VALLEY_BAND_W          # 142.6
+VALLEY_LO_EDGE = DC_LOAD_SPLIT_W - 3 * VALLEY_BAND_W     # 42.6
+VALLEY_HI_EDGE = DC_LOAD_SPLIT_W + 3 * VALLEY_BAND_W     # 192.6
+
+# STILL GOOD as of 2026-10-04: scripts/fridge_split.py re-measures the
+# inverter-only over-read at +28.1 W against this 32.8.
+#
+# Recorded here because it was nearly "corrected" on a bad comparison: dc_w
+# minus the TIME-WEIGHTED total load comes out near -22 W, which looks like a
+# sign reversal and is not one. This constant is dc_w minus the fridge-OFF
+# BMS level — the inverter alone — because that is the thing it describes.
+# Measured against the total instead, dc_w lands within -0.4 W, which is the
+# two errors cancelling as documented above, not an offset.
+#
+# Same trap as every other cross-meter subtraction on this system: the number
+# is meaningless until you say which two quantities it is between.
 INVERTER_OVER_READ_W = 32.8      # dark-hours dc_w minus BMS, 5 nights, sd 6.5
 
 CLAMP_MIN_PV_V = 20.0
 CLAMP_DELTA_MIN_V = 0.3
 CLAMP_DELTA_MAX_V = 4.0
+
+
+def _valley_sql() -> str:
+    """True where DC_LOAD_SPLIT_W still sits in a VALLEY of the dark-power
+    distribution — i.e. where the fridge model's premise actually holds.
+
+    The model subtracts "mean below the split" from "mean above the split"
+    and calls the difference the fridge. That is only the fridge if the two
+    groups are two genuine modes. When the night baseline rises past the
+    split — which the operator reports happens whenever people are at the
+    cabin, running a fan or charging phones or leaving lights on — the split
+    cuts one risen distribution in half and the subtraction returns the width
+    of a blob instead of the height of a step.
+
+    Rather than guess a duty-cycle cutoff, test the premise: a valley means
+    the band ON the split is nearly empty next to the bands either side.
+    Both side bands must be populated, or there is only one mode and nothing
+    to separate. Returns a clause for use against the `dcl` CTE.
+
+    Validated against 13 days of production data (2026-10-04): ratio
+    0.02-0.21 on the ten sound days, 0.82 / 3690 / 2628 on the three broken
+    ones. Nothing lands near 0.5, so the cutoff is not fitted to the sample.
+    """
+    return (f"dcl.lo_n > 0 AND dcl.hi_n > 0 "
+            f"AND dcl.mid_n < {VALLEY_MAX_RATIO} "
+            f"* LEAST(dcl.lo_n, dcl.hi_n)")
 
 
 def _clamped_sql(pv: str = "s.pv_v", dv: str = "s.dc_v") -> str:
@@ -841,7 +918,7 @@ class AsyncpgReadingsDAO:
                          AND ts > now() - ($2 || ' days')::interval
                        GROUP BY b
                    ), s AS (
-                       SELECT ts AS b, solar_w, dc_w, pv_v, dc_v
+                       SELECT ts AS b, solar_w, dc_w, pv_v, dc_v, dc_a
                        FROM solar_readings WHERE source_id = $1
                          AND ts > now() - ($2 || ' days')::interval
                    ), j AS (
@@ -853,12 +930,34 @@ class AsyncpgReadingsDAO:
                                    ELSE COALESCE(s.solar_w, 0)
                               END AS prod_w,
                               {sane_s}  AS load_w,
+                              -- dc_w is a MAGNITUDE, not a signed power.
+                              -- xanbus_telemetry documents it tracking
+                              -- |dc_v * dc_a| at 0.995-0.997, and
+                              -- _dc_w_sane's "BETWEEN 0 AND 6000" cannot be
+                              -- a sign guard because dc_w is never negative.
+                              -- So when the generator charges through the
+                              -- inverter/charger, dc_a goes POSITIVE and
+                              -- every charging watt lands in load_w.
+                              --
+                              -- Measured over the 2026-10-03 00:29-02:12Z
+                              -- run: 411/411 rows dc_a > 0, median +44.9 A,
+                              -- dc_w ~1216 W = 2077 Wh of CHARGING booked as
+                              -- house load. That day's load_wh came out
+                              -- 6034 Wh against a ~2700 Wh baseline.
+                              --
+                              -- Only generator/shore charging does this.
+                              -- Solar charging flows MPPT -> battery without
+                              -- crossing the inverter's DC terminal, so dc_a
+                              -- stays negative and solar days are unaffected.
+                              CASE WHEN s.dc_a > 0 THEN {sane_s} END
+                                  AS charge_w,
                               COALESCE(r.batt,0)  AS batt_w
                        FROM s LEFT JOIN r USING (b)
                    ), g AS (
                        SELECT (b AT TIME ZONE $3)::date AS day,
                           SUM(GREATEST(prod_w,0)) * 15 / 3600.0  AS solar_wh,
                           SUM(load_w) * 15 / 3600.0              AS load_wh,
+                          COALESCE(SUM(charge_w),0) * 15 / 3600.0 AS charge_wh,
                           SUM(GREATEST(batt_w,0))  * 15 / 3600.0 AS batt_in_wh,
                           SUM(GREATEST(-batt_w,0)) * 15 / 3600.0 AS batt_out_wh,
                           COUNT(*) * 15 / 86400.0                AS coverage
@@ -878,7 +977,37 @@ class AsyncpgReadingsDAO:
                                        THEN abs(r.pack_p) END) AS step_w,
                               AVG(CASE WHEN abs(r.pack_p) > {DC_LOAD_SPLIT_W}
                                        THEN 1.0 ELSE 0.0 END)  AS duty,
-                              COUNT(*)                          AS dark_n
+                              COUNT(*)                          AS dark_n,
+                              -- IS THE SPLIT STILL IN A VALLEY? The whole model assumes dark
+                              -- power is bimodal with DC_LOAD_SPLIT_W sitting in the gap between
+                              -- "fridge off" and "fridge on". That is an assumption about the
+                              -- site, and the site changes: the operator notes night baseline
+                              -- rises whenever people are AT the cabin (ceiling fan, phones
+                              -- charging, lights well into the evening). Once it rises past the
+                              -- split, the split no longer separates two modes — it slices one
+                              -- risen blob in half, and the arithmetic above keeps returning a
+                              -- number that is garbage. Measured per local day:
+                              --     09-23..09-30  duty 0.16-0.25   ~320 Wh   sound
+                              --     10-01         duty 0.47       1413 Wh
+                              --     10-02         duty 0.84       1515 Wh
+                              --     10-03         duty 0.91       1322 Wh
+                              -- duty 0.91 asserts the fridge runs 91% of the time. Not a fridge.
+                              -- 
+                              -- So test the PREMISE instead of guessing a duty cutoff: count
+                              -- samples in a band ON the split against the bands either side. In
+                              -- a real valley the middle is nearly empty. Measured ratio
+                              -- mid/least(lo,hi): 0.02-0.21 on every sound day, 0.82 and up on
+                              -- every broken one — a 4x gap, so the 0.5 cutoff sits in open
+                              -- space rather than being tuned to the sample.
+                              COUNT(*) FILTER (WHERE abs(r.pack_p) BETWEEN
+                                  {VALLEY_MID_LO} AND {VALLEY_MID_HI})
+                                  AS mid_n,
+                              COUNT(*) FILTER (WHERE abs(r.pack_p) >= {VALLEY_LO_EDGE}
+                                                 AND abs(r.pack_p) <  {VALLEY_MID_LO})
+                                  AS lo_n,
+                              COUNT(*) FILTER (WHERE abs(r.pack_p) >  {VALLEY_MID_HI}
+                                                 AND abs(r.pack_p) <= {VALLEY_HI_EDGE})
+                                  AS hi_n
                        FROM readings r
                        JOIN s ON s.b = to_timestamp(
                                  floor(extract(epoch FROM r.ts)/15)*15)
@@ -945,15 +1074,28 @@ class AsyncpgReadingsDAO:
                           -- fridge on a day whose load_wh was only half in.
                           -- coverage is 1.0 on a complete day, so no finished
                           -- day moves.
-                          CASE WHEN dcl.dark_n >= 120
+                          CASE WHEN dcl.dark_n >= 120 AND {_valley_sql()}
                                THEN dcl.step_w * dcl.duty * 24 * g.coverage
                           END AS dc_load_wh,
                           -- The number to actually use. load_wh is retained
                           -- unchanged above so no historical value moves, but
                           -- load_wh + dc_load_wh DOUBLE-COUNTS — see
                           -- INVERTER_OVER_READ_W.
-                          CASE WHEN dcl.dark_n >= 120
+                          -- CHARGE ENERGY IS SUBTRACTED HERE rather than removed from
+                          -- load_wh above, because load_wh is frozen for historical
+                          -- continuity. See charge_w in `j`: dc_w is unsigned, so
+                          -- generator/shore charging lands in load_wh as though the house
+                          -- had consumed it. Measured 2077 Wh on the 2026-10-03 run.
+                          -- 
+                          -- The INVERTER_OVER_READ_W term below was CHECKED on
+                          -- 2026-10-04 and left alone: fridge_split.py re-measures
+                          -- the inverter-only over-read at +28.1 W against 32.8.
+                          -- Comparing dc_w to the TIME-WEIGHTED TOTAL instead gives
+                          -- about -22 W, which looks like a sign reversal but is a
+                          -- different subtraction — see the constant.
+                          CASE WHEN dcl.dark_n >= 120 AND {_valley_sql()}
                                THEN g.load_wh
+                                    - g.charge_wh
                                     - {INVERTER_OVER_READ_W} * 24 * g.coverage
                                     + dcl.step_w * dcl.duty * 24 * g.coverage
                           END AS total_load_wh

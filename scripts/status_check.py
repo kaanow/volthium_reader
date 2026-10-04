@@ -38,6 +38,7 @@ import re
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections import Counter
 from typing import Optional
@@ -76,9 +77,31 @@ def fetch_events(kind: str, since_iso: str | None,
                  limit: int = 10_000) -> list[dict]:
     """`since_iso=None` means "no window" — used to ask when a family was last
     seen AT ALL, which is how a retired event source is told apart from a
-    healthy quiet one. The endpoint returns newest-first."""
-    d = _get_json(f"/api/events?event={kind}&limit={limit}")
+    healthy quiet one. The endpoint returns newest-first.
+
+    PASS `since` TO THE SERVER rather than filtering here. Until 2026-10-04
+    this fetched everything and filtered client-side, which worked only
+    because read_ok is the newest row in ble_events. For any other family the
+    server had no index covering `event` and walked the ts index backwards
+    across the whole table: 10.2 s and a statement timeout, HTTP 500.
+
+    That silently disabled the RS485 section below, which asks for read_fail
+    and covers the PRIMARY telemetry path since BLE was retired. It printed
+    "FAILED" instead of a verdict, so a read_fail storm would not have paged
+    anyone. Bounding the query server-side keeps the scan inside the window
+    even if the planner ignores the new index.
+
+    The unbounded form is still used deliberately for "last seen ever", and
+    migration 0005 is what makes that one cheap.
+    """
+    q = f"/api/events?event={kind}&limit={limit}"
+    if since_iso:
+        q += f"&since={urllib.parse.quote(since_iso)}"
+    d = _get_json(q)
     evs = d.get("events", [])
+    # Still filter locally: a server too old to know `since` ignores it
+    # silently (FastAPI drops unknown query params), and that must not be
+    # mistaken for a window that was applied.
     return evs if since_iso is None else [e for e in evs if e["ts"] >= since_iso]
 
 

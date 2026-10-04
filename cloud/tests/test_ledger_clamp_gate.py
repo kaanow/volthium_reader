@@ -73,10 +73,20 @@ def _render_sql() -> str:
     body = [b for b in re.findall(r'f?"""(.*?)"""', src, re.S)
             if "SELECT" in b.upper()]
     assert len(body) == 1, f"expected one SQL literal, found {len(body)}"
-    sql = (body[0]
-           .replace("{sane_s}", db_mod._dc_w_sane("s.dc_w"))
-           .replace("{_clamped_sql()}", db_mod._clamped_sql())
-           .replace("{_dc_w_sane()}", db_mod._dc_w_sane()))
+    # `sane_s` is a LOCAL in the method, not a module attribute, so it cannot
+    # be resolved generically and is the one explicit substitution left.
+    sql = body[0].replace("{sane_s}", db_mod._dc_w_sane("s.dc_w"))
+    # Zero-arg helper calls — {_clamped_sql()}, {_dc_w_sane()}, {_valley_sql()}
+    # — resolve by calling the module attribute. This used to be three
+    # hand-written .replace() lines; adding {_valley_sql()} to the query broke
+    # the renderer while the query itself was fine, which is the FOURTH time
+    # this exact thing has happened here. So resolve the shape, not the names.
+    for name in set(re.findall(r"\{(\w+)\(\)\}", sql)):
+        assert hasattr(db_mod, name), (
+            f"SQL calls {{{name}()}} but db.py has no such attribute")
+        fn = getattr(db_mod, name)
+        assert callable(fn), f"SQL calls {{{name}()}} but it is not callable"
+        sql = sql.replace("{" + name + "()}", fn())
     # Any remaining {NAME} is resolved from the module, so a placeholder added
     # to the query is substituted here WITHOUT editing this function. Three
     # separate times a new placeholder broke the renderer while the code was

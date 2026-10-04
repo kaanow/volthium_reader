@@ -323,15 +323,38 @@ async function pollOnce(first) {
   const now = Date.now();
   if (first || now - st.lastEventPoll > 120e3) {
     st.lastEventPoll = now;
-    const ev = (await jget("/api/xanbus_events?limit=40")).events || [];
-    const find = k => ev.find(e => e.event === k);
-    const stage = find("chg_stage");
+    // ASK FOR EACH STATE SEPARATELY. This used to be one unfiltered
+    // `/api/xanbus_events?limit=40`, which does not work: chg_stage and
+    // chg_target churn ~350/day EACH, so 40 rows spans about 20 MINUTES.
+    // Anything rarer than that is already off the end of the window.
+    //
+    // Measured 2026-10-04: the generator ran 00:29:18Z -> 02:12:04Z and the
+    // newest 40 events covered 01:43-02:04, so ⛽ Generator would have lit
+    // for ~20 min and then gone dark WHILE IT WAS STILL RUNNING. The
+    // inverter was worse — its previous transition before that run was
+    // 2026-09-18, so `find("inverter_mode")` returned nothing essentially
+    // always and the tile just showed its default.
+    //
+    // db.recent_xanbus_events' own docstring already describes this exact
+    // failure for the history page's MPPT log. It was never fixed here.
+    //
+    // One row per state is all that is needed, and the server filters:
+    // gen_start/gen_stop resolve to whichever came last, so a single row
+    // answers "running?" without any index arithmetic. Unbounded (no
+    // `since`) on purpose — a fixed window cannot be both short enough to
+    // stay cheap and long enough to catch a transition from three weeks
+    // ago. xanbus_events is small (~1-2k rows/day) so even a filtered miss
+    // answers in ~0.2 s; ble_events needed an index for the same shape
+    // (migration 0005), this does not. If this stream ever grows to that
+    // scale, add (source_id, event, ts DESC) here too.
+    const one = async q => ((await jget(
+      `/api/xanbus_events?limit=1&event=${q}`)).events || [])[0];
+    const [stage, inv, gen] = await Promise.all([
+      one("chg_stage"), one("inverter_mode"), one("gen_start,gen_stop"),
+    ]);
     if (stage) st.stage = stage.data.to;
-    const inv = find("inverter_mode");
     if (inv) st.inv = inv.data.to === "ac_passthrough" ? "passthrough" : "inverting";
-    const genStart = ev.findIndex(e => e.event === "gen_start");
-    const genStop = ev.findIndex(e => e.event === "gen_stop");
-    st.gen = genStart !== -1 && (genStop === -1 || genStart < genStop);
+    st.gen = gen ? gen.event === "gen_start" : false;
   }
   if (first || now - st.lastProfilePoll > 3600e3) {
     st.lastProfilePoll = now;

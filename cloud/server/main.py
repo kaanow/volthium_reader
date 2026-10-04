@@ -213,10 +213,32 @@ async def api_events(
     source_id: Optional[str] = Query(default=None),
     event: Optional[str] = Query(default=None),
     limit: int = Query(default=200, ge=1, le=10000),
+    since: Optional[str] = Query(
+        default=None,
+        description="ISO timestamp; return only rows at or after it. Bounds "
+        "the scan — see the note on event filtering below. Still newest-first, "
+        "unlike /api/readings.",
+    ),
     dao: ReadingsDAO = Depends(get_dao),
 ) -> dict:
     """Debug / dashboard readback for BLE events. Filters: optional
-    source_id and optional event-kind. Newest first."""
+    source_id, optional event-kind, optional `since`. Newest first.
+
+    `since` exists because an event-filtered query here is only cheap if it
+    can be bounded. Until migration 0005 there was no index covering `event`,
+    so filtering on a family that is not read_ok meant walking the ts index
+    backwards across the whole table: measured 10.2 s and a statement timeout
+    (HTTP 500) for read_fail and wedge_snapshot, while read_ok answered in
+    0.18 s because it is the newest row. 0005 adds
+    (source_id, event, ts DESC) and fixes the general case; `since` bounds it
+    regardless, so a caller is not relying on the planner picking that index.
+
+    Note this endpoint is NEWEST-first while /api/readings and /api/solar are
+    oldest-first. A `since`-walk that advances to max(ts) therefore cannot
+    page backwards through more matches than `limit` — it steps forward past
+    everything it missed, silently. Filter narrowly enough to stay under
+    `limit`, and check the returned count against it.
+    """
     # No dedicated DAO method yet — a plain query is fine while the shape
     # is stabilizing. Add one when the dashboard actually consumes it.
     rows = []
@@ -228,6 +250,17 @@ async def api_events(
         if event:
             params.append(event)
             clauses.append(f"event = ${len(params)}")
+        if since:
+            try:
+                since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
+            except ValueError:
+                raise HTTPException(
+                    status_code=400, detail=f"bad since timestamp: {since!r}"
+                )
+            if since_dt.tzinfo is None:
+                since_dt = since_dt.replace(tzinfo=timezone.utc)
+            params.append(since_dt)
+            clauses.append(f"ts >= ${len(params)}")
         params.append(limit)
         where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
         sql = (

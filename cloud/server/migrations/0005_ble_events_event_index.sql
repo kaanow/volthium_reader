@@ -1,0 +1,43 @@
+-- 0005_ble_events_event_index.sql — make event-filtered lookups possible.
+--
+-- WHY: /api/events filters on `event`, but 0002 only indexed
+-- (source_id, ts DESC). So `WHERE source_id = $1 AND event = $2
+-- ORDER BY ts DESC LIMIT n` walked the ts index backwards from the newest
+-- row, testing `event` on each one, and stopped only when it found enough
+-- matches — or ran out of table.
+--
+-- That is instant for read_ok, which is ~every 5 s and therefore the first
+-- row examined. It is a FULL BACKWARD SCAN for everything else. Measured
+-- 2026-10-04 against production:
+--
+--     event=read_ok          HTTP 200 in  0.18 s
+--     event=read_fail        HTTP 500 in 10.22 s   (statement timeout)
+--     event=wedge_snapshot   HTTP 500 in 10.22 s
+--
+-- This was not cosmetic. status_check.py's "Wired RS485" section asks for
+-- read_fail, and RS485 has been the PRIMARY telemetry path since BLE was
+-- retired 2026-07-26. That section had stopped returning a verdict and
+-- started returning an error, so a read_fail storm on the live path would
+-- not have been caught — a monitoring false all-clear, which is the failure
+-- mode this project keeps getting bitten by.
+--
+-- It also gets WORSE over time: the scan length grows with the table, so
+-- every event family silently crosses the timeout as the archive grows.
+--
+-- The 0002 partial index on event='raw_frame' is the same idea; this just
+-- generalises it instead of adding one partial index per family.
+--
+-- NOT built CONCURRENTLY, deliberately. migrations/__init__.py runs each
+-- file as a single conn.execute(), and a CREATE INDEX CONCURRENTLY that
+-- fails partway leaves an INVALID index behind that `IF NOT EXISTS` would
+-- then skip forever — it would look applied and still not work. A plain
+-- build takes an ACCESS EXCLUSIVE lock for the duration; on this table that
+-- is seconds, and the Pi's uploader spools and retries, so blocked writes
+-- are deferred rather than lost.
+--
+-- Rollback: DROP INDEX ble_events_source_event_ts_desc;
+--
+-- Idempotent — safe to re-run.
+
+CREATE INDEX IF NOT EXISTS ble_events_source_event_ts_desc
+    ON ble_events (source_id, event, ts DESC);

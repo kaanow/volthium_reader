@@ -127,9 +127,23 @@ class DcWSanitiseTests(unittest.TestCase):
             # Selecting the raw column into a CTE is fine — the consumer
             # sanitises it. What must never appear is a raw dc_w inside an
             # aggregate or an output expression, which is what reaches the API.
+            # The alias was pinned to `load_w` and the result shape to an
+            # aggregate, so a raw dc_w reaching the API through any OTHER
+            # output expression was invisible. charge_w was exactly that:
+            # `CASE WHEN s.dc_a > 0 THEN s.dc_w END AS charge_w` passed both
+            # halves of the old pattern — not an aggregate, and the alias is
+            # not load_w. Deleting its guard was caught only by a sibling
+            # test that happened to count interpolations and expect five.
+            #
+            # So match the SHAPES a raw dc_w can escape through: inside an
+            # aggregate, as a CASE result, or aliased to anything at all.
+            # Safe against the sanitised form because in SOURCE those read
+            # {sane_s} / {_dc_w_sane()}; only _dc_w_sane itself writes a bare
+            # `THEN {col}`, and it is parameterised rather than naming dc_w.
             raw = re.findall(
                 r"(?:AVG|SUM|MIN|MAX|COALESCE)\(\s*(?:\w+\.)?dc_w\b"
-                r"|(?:\w+\.)?dc_w\s+AS\s+load_w",
+                r"|THEN\s+(?:\w+\.)?dc_w\b"
+                r"|(?:\w+\.)?dc_w\s+AS\s+\w+",
                 text)
             self.assertEqual(
                 raw, [], f"{method} aggregates dc_w unsanitised: {raw}")
@@ -151,7 +165,22 @@ class DcWSanitiseTests(unittest.TestCase):
                              if isinstance(x, ast.Name)}
                     if names & {"_dc_w_sane", "sane_s"}:
                         seen += 1
-        self.assertEqual(seen, 5, "expected 5 sanitised interpolations")
+        # A LOWER BOUND DERIVED FROM THE CODE, not a magic constant. This
+        # asserted `== 5` and broke the moment a sixth sanitised interpolation
+        # was added — by the charge_w expression in solar_energy_daily, which
+        # is a CORRECT new use of the guard. An assertion that fires on the
+        # guard being applied more widely is an assertion that discourages
+        # applying it, which is backwards; the test immediately above this one
+        # carries that exact lesson about hand-maintained scope.
+        #
+        # Every method that reads dc_w must sanitise it at least once, so the
+        # method count is a floor that rises on its own as consumers are added
+        # and still fails if a guard is deleted.
+        floor = len(_methods_reading_dc_w())
+        self.assertGreaterEqual(
+            seen, floor,
+            f"{seen} sanitised interpolations for {floor} methods that read "
+            f"dc_w — at least one consumer has lost its guard")
 
 
 class SqlWellFormednessTests(unittest.TestCase):
