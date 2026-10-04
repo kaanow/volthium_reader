@@ -882,9 +882,11 @@ class Decoder:
         n = solar.n if solar else (dc.n if dc else 0)
         row = {
             "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(row_ts)),
-            # 3: gen_v/gen_a/gen_va. The server must know these fields
-            # BEFORE this bump reaches the Pi — see migration 0006.
-            "schema_version": 3,
+            # 4: load_v/load_a/load_va — the cabin's own AC load, which this
+            # system believed it could not measure until the block-3 decode
+            # was fixed. The server must know these fields BEFORE this bump
+            # reaches the Pi — see migrations 0006 and 0007.
+            "schema_version": 4,
             "solar_w": m("solar_w"),
             "solar_w_min": round(solar.min, 2) if solar and solar.n else None,
             "solar_w_max": round(solar.max, 2) if solar and solar.n else None,
@@ -905,6 +907,11 @@ class Decoder:
             "gen_v": m("gen_v", 1),
             "gen_a": m("gen_a", 2),
             "gen_va": m("gen_va", 1),
+            # The cabin's AC load. None whenever the inverter is not
+            # producing, which is the honest answer rather than 0 W.
+            "load_v": m("load_v", 1),
+            "load_a": m("load_a", 2),
+            "load_va": m("load_va", 1),
             "sample_n": n,
         }
         return row

@@ -91,20 +91,29 @@ class GeneratorFieldHonestyTests(unittest.TestCase):
     def _ac_src(self) -> str:
         return inspect.getsource(xt.Decoder._ac_sts_rms)
 
-    def test_frequency_is_not_published_as_a_frequency(self):
-        """It reads a constant 30.00 on every record, including the gen_stop
-        events where gen_v is 0.0 — so offset 41 is not ac2_f. Publishing it
-        as `gen_hz` invites a consumer to believe it."""
-        src = self._ac_src()
-        self.assertNotRegex(
-            src, r'"gen_hz"\s*:',
-            "gen_hz is a misdecode (constant 30.00, including at 0 V); it "
-            "must not be emitted under a name that asserts Hz")
-        self.assertIn("gen_hz_unverified", src)
+    def test_the_frequency_is_now_decoded_from_the_right_offset(self):
+        """RESOLVED 2026-10-04. It read a constant 30.00 at every record
+        including gen_stop at 0 V, because offset 41 is block 2's rel-13
+        field, where the device parks a hard 0x0BB8 = 3000 — the AC INPUT
+        CURRENT LIMIT, 30.00 A, the Conext SW default. Not a frequency.
 
-    def test_the_raw_value_is_still_carried(self):
-        """Dropping it would throw away what a future decode pass needs."""
-        self.assertRegex(self._ac_src(), r"gen_hz_unverified.*round\(freq")
+        The real value is block-relative 11, which reads 0.00 stopped and a
+        median 59.94 Hz under a verified 1.6 kW load across 3492 payloads.
+        So it is published as gen_hz again, and the provisional name is gone.
+        """
+        src = self._ac_src()
+        self.assertRegex(src, r'"gen_hz"\s*:',
+                         "the verified frequency should be published as gen_hz")
+        self.assertNotIn("gen_hz_unverified", src,
+                         "the provisional name outlived the uncertainty")
+
+    def test_the_frequency_is_not_read_from_the_old_constant_offset(self):
+        """Offset 41 holds 3000 forever. Reading it again would reinstate the
+        exact field-that-cannot-vary this project keeps finding."""
+        src = self._ac_src()
+        self.assertNotRegex(src, r"unpack_from\([^)]*,\s*41\)",
+                            "offset 41 is the input current limit, not ac2_f")
+        self.assertIn('"hz"', src, "the frequency must come from the block parser")
 
     def test_gen_current_and_va_are_still_emitted(self):
         """These are NOT known-bad. They read ~0 in the events only because
@@ -155,11 +164,28 @@ class RowSchemaTests(unittest.TestCase):
     def _row_src(self) -> str:
         return inspect.getsource(xt.Decoder.flush_bucket)
 
-    def test_the_row_declares_schema_version_3(self):
-        self.assertRegex(
-            self._row_src(), r'"schema_version":\s*3',
-            "gen_v/gen_a/gen_va are schema 3; a row carrying them while "
-            "claiming 2 misreports which reader wrote it")
+    def test_the_schema_version_matches_what_the_row_CARRIES(self):
+        """Tied to CAPABILITY, not pinned to a number.
+
+        This asserted `schema_version: 3` as a literal and broke the moment
+        schema 4 shipped — the same defect I had just fixed in status_check's
+        skew check, reintroduced in a test one commit later. What actually
+        matters is that the declared version is not BELOW the fields present,
+        because the version is how a later reader knows which decoder wrote a
+        row.
+        """
+        src = self._row_src()
+        m = re.search(r'"schema_version":\s*(\d+)', src)
+        self.assertIsNotNone(m, "the row must declare a schema version")
+        ver = int(m.group(1))
+        needs = {3: ("gen_v", "gen_a", "gen_va"),
+                 4: ("load_v", "load_a", "load_va")}
+        for min_ver, fields in needs.items():
+            if any(f'"{f}"' in src for f in fields):
+                self.assertGreaterEqual(
+                    ver, min_ver,
+                    f"the row emits {fields} but declares schema {ver}; "
+                    f"those fields are schema {min_ver}+")
 
     def test_the_row_emits_all_three_generator_fields(self):
         src = self._row_src()

@@ -558,9 +558,15 @@ function drawFlow() {
      of the inverter and this system has no meter there yet. (The bus DOES
      carry it — PGN 126998 block 3 — we simply do not decode that block. Task
      #68.) */
+  /* MEASURED FIRST. schema 4 carries the cabin's own AC load (load_va), so
+     during a generator run — when the inverter's DC input is charge, not
+     load — there is now a real number instead of "not metered". That string
+     was correct for one afternoon and is obsolete. */
+  const acLoad = st.solar?.load_va;
   const genNow = st.solar ? genAt(st.solar) > 0 : false;
   $("t-load").textContent =
-      load != null ? `${Math.round(load)} W`
+      acLoad != null && acLoad > 0 ? `${Math.round(acLoad)} W`
+    : load != null ? `${Math.round(load)} W`
     : genNow ? "not metered"
     : "—";
   const dcl = dcLoadW();
