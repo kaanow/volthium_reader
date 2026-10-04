@@ -669,7 +669,7 @@ def section_wired(since_iso: str) -> tuple[bool, list[str]]:
 
 
 
-def _check_git_sync(out: str) -> tuple[bool, list[str]]:
+def _check_git_sync_core(out: str) -> tuple[bool, list[str]]:
     """Does the Pi's working tree match origin/main?
 
     Reports DIRTY (files whose content differs) separately from BEHIND
@@ -714,6 +714,56 @@ def _check_git_sync(out: str) -> tuple[bool, list[str]]:
     lines.append("      the Pi may not be running the code you are reading")
     return True, lines + stale_lines
 
+
+
+def _ownership_drift(out: str) -> tuple[bool, list[str]]:
+    """Can git actually REPLACE a file, or will the next merge abort?
+
+    Unlinking needs write permission on the containing DIRECTORY, not the
+    file. On 2026-10-04 a merge failed on deploy/pi/systemd/ for exactly that
+    reason, and the failure was INVISIBLE: git prints "Updating <a>..<b>"
+    BEFORE checking permissions, so a `| tail -1` showed only the optimistic
+    line while HEAD never moved. The sync silently did not happen.
+
+    Same class as the root-owned .git/objects of 2026-08-15, which made
+    `git fetch` fail while the drift detector reported IN SYNC. The tree held
+    2022 root-owned files and 175 group-unwritable directories outside data/.
+
+    Checked BEFORE a merge needs them, because the post-hoc symptom is an
+    aborted merge nobody reads the output of. data/ is excluded: the root
+    services legitimately own what they write there, and including it would
+    cry wolf on every run.
+    """
+    f = {}
+    for tok in out.replace("\n", " ").split():
+        if "=" in tok:
+            k, v = tok.split("=", 1)
+            f[k] = v
+    unwritable = int(f.get("UNWRITABLE", "0") or 0)
+    rootowned = int(f.get("ROOTOWNED", "0") or 0)
+    if not (unwritable or rootowned):
+        return False, []
+    return True, [
+        f"  !! {unwritable} group-unwritable dir(s), {rootowned} root-owned "
+        f"file(s) outside data/ — the NEXT merge touching one will ABORT, and "
+        f"git prints 'Updating a..b' before it fails, so the sync looks like "
+        f"it happened",
+        f"     fix: sudo chown -R kaan:users and chmod g+w on dirs, "
+        f"excluding data/",
+    ]
+
+
+def _check_git_sync(out: str) -> tuple[bool, list[str]]:
+    """Sync verdict PLUS whether a future sync is even possible.
+
+    Split so the ownership check runs regardless of which exit the sync
+    verdict takes — the in-sync path returns early, and a tree that is in
+    sync today but cannot be merged tomorrow is exactly the case worth
+    hearing about.
+    """
+    n1, l1 = _check_git_sync_core(out)
+    n2, l2 = _ownership_drift(out)
+    return (n1 or n2), (l1 + l2)
 
 def grade_throttle(out: str) -> tuple[bool, list[str]]:
     """Decode and GRADE the throttle word.
@@ -918,7 +968,23 @@ def section_pi(ssh_target: str, hours: int) -> tuple[bool, list[str]]:
              "echo HEAD=$(git rev-parse --short HEAD) "
              "ORIGIN=$(git rev-parse --short origin/main) "
              "BEHIND=$(git rev-list --count HEAD..origin/main) "
-             "DIRTY=$(git diff --name-only origin/main -- ':!data' | wc -l); "
+             "DIRTY=$(git diff --name-only origin/main -- ':!data' | wc -l) "
+             # CAN git actually REPLACE a file, or will the next merge abort?
+             # Unlinking needs write permission on the containing DIRECTORY,
+             # not the file, so a group-unwritable dir blocks a merge that
+             # touches anything inside it. On 2026-10-04 a merge failed on
+             # deploy/pi/systemd/ for exactly that reason, and the failure was
+             # INVISIBLE: git prints "Updating <a>..<b>" BEFORE checking
+             # permissions, so a `| tail -1` showed only the optimistic line
+             # while HEAD never moved. The sync silently did not happen.
+             #
+             # Counted BEFORE a merge needs them, because the post-hoc symptom
+             # is an aborted merge nobody notices. data/ is excluded: the root
+             # services legitimately own what they write there.
+             "UNWRITABLE=$(find . -path ./data -prune -o -type d ! -perm -g=w "
+             "-print 2>/dev/null | grep -vc '^./data') "
+             "ROOTOWNED=$(find . -path ./data -prune -o -user root -print "
+             "2>/dev/null | grep -vc '^./data'); "
              "git diff --name-only origin/main -- ':!data' | head -5; "
              "head -2 /tmp/gitfetch.err; "
              # A long-running service holds its code in MEMORY. Updating the

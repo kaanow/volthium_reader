@@ -655,3 +655,65 @@ class CannotLookIsNotAnAllClearTests(unittest.TestCase):
         head = src.split("for name, fn in (", 1)[1].split("):", 1)[0]
         self.assertIn("section_pi", head,
                       "section_pi must be dispatched inside the guarded loop")
+
+
+class OwnershipDriftIsDetectedTests(unittest.TestCase):
+    """A merge that cannot replace a file must be caught BEFORE it aborts.
+
+    Hit 2026-10-04: `git merge --ff-only` failed with "unable to unlink old
+    'deploy/pi/systemd/volthium-latch-guard.service': Permission denied" —
+    because unlinking needs write permission on the containing DIRECTORY, and
+    that one was group-unwritable while every other repo dir was not.
+
+    The failure was INVISIBLE. git prints "Updating <a>..<b>" BEFORE checking
+    permissions, so piping through `| tail -1` showed only the optimistic
+    line. HEAD never moved and the sync silently did not happen; I nearly
+    reported the Pi as synced.
+
+    Same class as the root-owned .git/objects of 2026-08-15, which made
+    `git fetch` fail while the drift detector reported IN SYNC. The tree had
+    2022 root-owned files and 175 group-unwritable directories outside data/.
+    """
+
+    def test_the_probe_counts_unwritable_dirs_and_root_owned_files(self):
+        src = inspect.getsource(S.section_pi)
+        self.assertIn("UNWRITABLE=", src,
+                      "nothing counts directories git cannot write to")
+        self.assertIn("ROOTOWNED=", src)
+
+    def test_data_is_excluded_from_both_counts(self):
+        """The root services legitimately own what they write in data/, so
+        including it would cry wolf on every run and be ignored within a day."""
+        src = inspect.getsource(S.section_pi)
+        probe = src[src.index("UNWRITABLE="):src.index("ROOTOWNED=") + 400]
+        self.assertEqual(
+            probe.count("./data"), 4,
+            "data/ must be pruned AND filtered in both counts")
+
+    def test_either_count_being_nonzero_is_notable(self):
+        n, lines = S._check_git_sync(
+            "FETCH=0 HEAD=abc1234 ORIGIN=abc1234 BEHIND=0 DIRTY=0 "
+            "UNWRITABLE=3 ROOTOWNED=70")
+        self.assertTrue(n, "ownership drift must be flagged")
+        self.assertRegex(" ".join(lines), r"group-unwritable")
+
+    def test_a_clean_tree_is_not_flagged(self):
+        n, lines = S._check_git_sync(
+            "FETCH=0 HEAD=abc1234 ORIGIN=abc1234 BEHIND=0 DIRTY=0 "
+            "UNWRITABLE=0 ROOTOWNED=0")
+        self.assertNotRegex(" ".join(lines), r"group-unwritable",
+                            "a healthy tree must not produce noise")
+
+    def test_the_message_says_how_to_fix_it(self):
+        _n, lines = S._check_git_sync(
+            "FETCH=0 HEAD=a ORIGIN=a BEHIND=0 DIRTY=0 "
+            "UNWRITABLE=1 ROOTOWNED=1")
+        msg = " ".join(lines)
+        self.assertIn("chown", msg)
+        self.assertIn("data/", msg, "the fix must say to exclude data/")
+
+    def test_missing_fields_do_not_crash_an_older_pi(self):
+        """The Pi may be running a commit whose probe lacks these fields."""
+        n, lines = S._check_git_sync(
+            "FETCH=0 HEAD=abc1234 ORIGIN=abc1234 BEHIND=0 DIRTY=0")
+        self.assertIsInstance(n, bool)
