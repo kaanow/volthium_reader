@@ -458,6 +458,11 @@ async def api_xanbus_events(
     event: Optional[str] = Query(default=None),
     since: Optional[str] = Query(default=None),
     limit: int = Query(default=200, ge=1, le=2000),
+    node: Optional[str] = Query(
+        default=None,
+        description="Filter on data->>'node'. Both the MPPT and the SW "
+                    "inverter/charger emit chg_stage and chg_target, so "
+                    "'the newest one' is ambiguous without this."),
     dao: ReadingsDAO = Depends(get_dao),
 ) -> dict:
     if not isinstance(dao, AsyncpgReadingsDAO):
@@ -470,7 +475,8 @@ async def api_xanbus_events(
             raise HTTPException(422, "since: not an ISO datetime")
         if since_dt.tzinfo is None:
             since_dt = since_dt.replace(tzinfo=timezone.utc)
-    rows = await dao.recent_xanbus_events(source_id, event, since_dt, limit)
+    rows = await dao.recent_xanbus_events(source_id, event, since_dt, limit,
+                                          node=node)
     return {"events": _rows_out(rows), "count": len(rows)}
 
 

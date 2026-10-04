@@ -1453,6 +1453,7 @@ class AsyncpgReadingsDAO:
         event: Optional[str],
         since: Optional[datetime],
         limit: int = 200,
+        node: Optional[str] = None,
     ) -> list[dict]:
         """Xanbus event stream for the dashboard timeline. All filters
         optional — mirrors /api/events semantics.
@@ -1478,6 +1479,19 @@ class AsyncpgReadingsDAO:
         if since:
             params.append(since)
             where.append(f"ts >= ${len(params)}")
+        if node:
+            # TWO DEVICES EMIT chg_stage: the MPPT and the SW inverter/charger.
+            # Without this filter "the newest chg_stage" is whichever device
+            # spoke last, so the dashboard's charge-stage chip showed the SW's
+            # "not_charging" (correct — the generator had just stopped) while
+            # the MPPT was in BULK and the battery was taking 639 W. Both
+            # statements true, wrong one displayed.
+            #
+            # Filtering server-side rather than widening the window and
+            # picking client-side: a window is an assumption about event
+            # rates, and that assumption is exactly what buried gen_start.
+            params.append(node)
+            where.append(f"data->>'node' = ${len(params)}")
         params.append(limit)
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
