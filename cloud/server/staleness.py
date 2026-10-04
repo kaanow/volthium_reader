@@ -196,12 +196,94 @@ class StalenessMonitor:
             is_stale = age_s > self.threshold_s
             was_stale = self._state.get(source_id, False)
             if is_stale != was_stale:
-                self._state[source_id] = is_stale
-                await self._fire(client, source_id, is_stale, age_s)
+                # COMMIT ONLY ON DELIVERY. This recorded the transition BEFORE
+                # firing, so a single dropped POST retired that outage
+                # permanently — the alert would never be attempted again, and
+                # the condition it described would persist unannounced at a
+                # site nobody visits for weeks. Leaving the state unchanged
+                # makes the next sweep retry, which is the behaviour an outage
+                # alert should have.
+                if await self._fire(client, source_id, is_stale, age_s):
+                    self._state[source_id] = is_stale
             # Per-battery silence only means something while pack telemetry
             # itself is flowing (a stale source already has its own alert).
             if not is_stale:
                 await self._check_battery_presence(client, source_id, rows, now)
+            # Independent of the readings verdict: solar can be dead while
+            # battery telemetry flows, which is precisely the case that went
+            # unwatched.
+            await self._check_solar_freshness(client, source_id, now)
+
+    # THE SOLAR / XANBUS PIPELINE WAS WATCHED BY NOTHING. This monitor walks
+    # dao.sources() and dao.recent(), both of which read the `readings` table
+    # only; EventAlertMonitor fires on specific event NAMES, so if xanbus
+    # events stop arriving entirely no rule can match. The Pi side has no
+    # alerting on these endpoints either — scripts/xanbus_telemetry.py never
+    # reads VOLTHIUM_ALERT_WEBHOOK, even though it shares the EnvironmentFile
+    # with the uploader that does.
+    #
+    # So volthium-xanbus-telemetry dying, can0 going down, or the spool
+    # failing to drain paged NOBODY, while /healthz returned alerting=on and
+    # status_check printed "armed — pages on stale telemetry" (true only of
+    # the BMS table). The two checks that would have caught it are manual
+    # scripts on no schedule.
+    #
+    # Threshold must clear the reader's own 300 s upload batch, or the normal
+    # sawtooth alerts every cycle and the operator learns to ignore it. 15
+    # minutes is three batches: comfortably past the sawtooth, far short of
+    # "nobody notices for weeks".
+    SOLAR_STALE_THRESHOLD_S = 15 * 60
+
+    async def _check_solar_freshness(
+        self, client: httpx.AsyncClient, source_id: str,
+        now: datetime,
+    ) -> None:
+        """Page when the solar/Xanbus stream stops, independently of readings.
+
+        The two pipelines fail independently: the 2026-10-04 outage drained
+        readings 5 minutes before solar, and a poison solar batch would stall
+        that stream alone for 6.9 days while readings flowed perfectly.
+        """
+        getter = getattr(self.dao, "solar_since", None)
+        if getter is None:
+            return                      # fake DAO in tests; disengage
+        try:
+            rows = await getter(source_id, None, 1)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("solar freshness check failed for %s: %s",
+                        source_id, exc)
+            return
+        if not rows:
+            return                      # never seen solar for this source
+        ts = _parse_ts(rows[-1].get("ts"))
+        if ts is None:
+            return
+        age_s = (now - ts).total_seconds()
+        is_stale = age_s > self.SOLAR_STALE_THRESHOLD_S
+        key = f"{source_id}:solar"
+        if is_stale == self._state.get(key, False):
+            return
+        if is_stale:
+            ok = await self._fire_raw(
+                client,
+                title=f"Volthium: {source_id} SOLAR stale",
+                message=(
+                    f"No Xanbus/solar rows for {int(age_s / 60)} min "
+                    f"(threshold {int(self.SOLAR_STALE_THRESHOLD_S / 60)} min). "
+                    f"Battery telemetry may still be flowing — these two "
+                    f"pipelines fail independently. Check "
+                    f"volthium-xanbus-telemetry, can0, and the solar spool."),
+                priority=4, tags=["warning"],
+                context=f"solar-stale source={source_id}")
+        else:
+            ok = await self._fire_raw(
+                client,
+                title=f"Volthium: {source_id} solar recovered",
+                message="Xanbus/solar rows flowing again.",
+                priority=3, tags=["white_check_mark"],
+                context=f"solar-recovered source={source_id}")
+        if ok:
+            self._state[key] = is_stale
 
     @staticmethod
     def _battery_present(row: dict, suffix: str) -> Optional[bool]:
@@ -291,16 +373,29 @@ class StalenessMonitor:
     async def _fire_raw(
         self, client, *, title: str, message: str, priority: int,
         tags: list[str], context: str,
-    ) -> None:
+    ) -> bool:
+        """Returns True only if the webhook ACCEPTED the alert."""
         payload = {
             "title": title, "message": message,
             "priority": priority, "tags": tags,
         }
         try:
             resp = await client.post(self.webhook_url, json=payload, timeout=10.0)
-            log.info("alert posted: %s http=%d", context, resp.status_code)
         except Exception as exc:  # noqa: BLE001
             log.warning("alert POST failed (%s): %s", context, exc)
+            return False
+        # A NON-2xx IS A FAILURE, not a delivery. This logged "alert posted"
+        # for any status at all, so a 404 from a deleted ntfy topic, a 429, or
+        # a 5xx all read as success — and nothing anywhere would have told us
+        # the channel was dead. There has been no BMS alarm since 2026-08-01
+        # and no gap over 300 s in ~70 days, so the webhook may plausibly have
+        # delivered nothing for two months without a single complaint.
+        if resp.status_code >= 300:
+            log.warning("alert REJECTED (%s): http=%d", context,
+                        resp.status_code)
+            return False
+        log.info("alert posted: %s http=%d", context, resp.status_code)
+        return True
 
     async def _diagnose(self, source_id: str) -> str:
         """Compose a one-paragraph likely-cause hint from the reader's recent
@@ -380,7 +475,9 @@ class StalenessMonitor:
         source_id: str,
         is_stale: bool,
         age_s: float,
-    ) -> None:
+    ) -> bool:
+        """Returns True only if the webhook accepted it — the caller uses that
+        to decide whether the transition may be retired."""
         if is_stale:
             message = (
                 f"No fresh telemetry for {int(age_s)}s "
@@ -402,14 +499,10 @@ class StalenessMonitor:
                 "priority": 3,
                 "tags": ["white_check_mark"],
             }
-        try:
-            resp = await client.post(self.webhook_url, json=payload, timeout=10.0)
-            log.info(
-                "alert posted: source=%s is_stale=%s http=%d",
-                source_id, is_stale, resp.status_code,
-            )
-        except Exception as exc:  # noqa: BLE001
-            log.warning("alert POST failed for %s: %s", source_id, exc)
+        return await self._fire_raw(
+            client, title=payload["title"], message=payload["message"],
+            priority=payload["priority"], tags=payload["tags"],
+            context=f"source={source_id} is_stale={is_stale}")
 
 
 # --- Event-driven incident alerts -----------------------------------------
