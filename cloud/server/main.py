@@ -105,9 +105,17 @@ async def lifespan(app: FastAPI):
     )
     await event_monitor.start()
     _state["event_monitor"] = event_monitor
+    # AFTER everything is wired, and it runs AFTER the yield below starts
+    # serving. Expensive DDL belongs nowhere near the startup path — that is
+    # what took the API down on 2026-10-04. See index_builder's docstring.
+    from cloud.server.index_builder import run_in_background
+    _state["index_task"] = await run_in_background(pool)
     try:
         yield
     finally:
+        task = _state.get("index_task")
+        if task is not None and not task.done():
+            task.cancel()
         await event_monitor.stop()
         await monitor.stop()
         await pool.close()
