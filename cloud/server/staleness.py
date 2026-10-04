@@ -579,6 +579,40 @@ class EventAlertMonitor:
         # The watch could not run at all — the setpoint safety net is down.
         ("xanbus_config_watch_failed", 4, "warning",
          "CHARGE-SETPOINT WATCH FAILED"),
+        # THE LATCH GUARD'S OWN FAILURES. xanbus_latch_guard.py's docstring
+        # states "a fix that genuinely fails, or the cap being reached, both
+        # page the operator now." NEITHER DID — none of these names appeared
+        # in any rule, so the claim was a sentence with nothing behind it.
+        #
+        # The scenario that mattered: the bounce stops working (can0 brought
+        # up listen-only, an MPPT firmware change, address-claim contention),
+        # the guard burns its 6 fixes, then emits latch_guard_skipped every
+        # 5 minutes for the rest of each day — while the array sits clamped at
+        # roughly 40% of production, for weeks, with nothing paging.
+        ("latch_fix_error", 4, "warning", "LATCH FIX ERRORED"),
+        ("early_bounce_error", 4, "warning", "EARLY BOUNCE ERRORED"),
+        # Seasonal, not a fault — but the operator should know the trigger has
+        # gone dormant rather than infer it from an absence. Emitted once a
+        # day, so this cannot become noise.
+        ("early_bounce_unavailable", 3, "snowflake",
+         "EARLY BOUNCE DORMANT (seasonal)"),
+    )
+
+    # Conditional rules: alert only on the FAILING shape, because the success
+    # shape happens most days and paging on routine self-healing is how an
+    # operator learns to ignore the channel.
+    #
+    #   latch_fix_result / early_bounce_result with recovered=false — the
+    #       guard acted and the array did NOT come back. 1 of 37 on record.
+    #   latch_guard_skipped with a cap reason — the budget is exhausted, so
+    #       the guard has stopped guarding for the day.
+    XANBUS_CONDITIONAL: tuple[tuple[str, str, object, int, str, str], ...] = (
+        ("latch_fix_result", "recovered", False, 5, "rotating_light",
+         "LATCH FIX DID NOT RECOVER THE ARRAY"),
+        ("early_bounce_result", "recovered", False, 4, "warning",
+         "EARLY BOUNCE DID NOT RECOVER THE ARRAY"),
+        ("latch_guard_skipped", "reason_is_cap", True, 4, "warning",
+         "LATCH GUARD BUDGET EXHAUSTED"),
     )
 
     # Deliberately NOT alerted: mppt_latched, latch_detected, and a successful
@@ -931,7 +965,9 @@ class EventAlertMonitor:
         getter = getattr(self.dao, "recent_xanbus_events", None)
         if getter is None:
             return
-        wanted = ",".join(name for name, _p, _t, _title in self.XANBUS_RULES)
+        wanted = ",".join(
+            [name for name, _p, _t, _title in self.XANBUS_RULES]
+            + [name for name, *_rest in self.XANBUS_CONDITIONAL])
         try:
             rows = await getter(source_id, wanted, since, 40)
         except Exception as exc:  # noqa: BLE001
@@ -940,10 +976,36 @@ class EventAlertMonitor:
 
         by_name = {name: (p, tag, title)
                    for name, p, tag, title in self.XANBUS_RULES}
+
+        def _conditional(row: dict) -> tuple | None:
+            """Match a row against the FAILING-shape rules.
+
+            Separate from by_name because these events fire routinely in their
+            SUCCESS shape — latch_fix_result is 36 of 37 successes — and
+            paging on routine self-healing is how the channel gets ignored.
+            """
+            for ev, field, want, pri, tag, title in self.XANBUS_CONDITIONAL:
+                if row.get("event") != ev:
+                    continue
+                data = row.get("data") or {}
+                if field == "reason_is_cap":
+                    got = "cap" in str(data.get("reason", "")).lower()
+                else:
+                    got = data.get(field)
+                    # ABSENT IS NOT FALSE. early_bounce_result carries no
+                    # `recovered` field at all, so treating a missing value as
+                    # a failure would page on every successful bounce — about
+                    # 1.8 a day. Absent means "cannot judge", and that is the
+                    # honest reading until the guard emits the field.
+                    if got is None:
+                        return None
+                if got == want:
+                    return (pri, tag, title)
+            return None
         seen: set = st.setdefault("xanbus_ts_alerted", set())
         for row in rows:
             name = row.get("event")
-            rule = by_name.get(name)
+            rule = by_name.get(name) or _conditional(row)
             if rule is None:
                 continue
             ts = row.get("ts")

@@ -232,12 +232,42 @@ def load_state() -> dict:
         return {}
 
 
-def save_state(st: dict) -> None:
+def save_state(st: dict, emit_fn=None) -> bool:
+    """Persist guard state. Returns whether it stuck.
+
+    A FAILED WRITE MAKES THE GUARD PERMANENTLY INERT AND SILENT, which the
+    old `print(..., file=sys.stderr)` did nothing about. Mutation-proven by
+    the 2026-10-04 review: identical fully-clamped input over 12 runs gave 2
+    bounces with a writable state and ZERO with a failing one, forever —
+    because clamp_seen_at never persists, so every run re-arms the
+    second-confirmation branch and emits latch_guard_pending instead of
+    acting. Nothing alerts on latch_guard_pending, and a busy stream of
+    latch_guard_* is indistinguishable from a guard that has stopped guarding.
+    Triggers are mundane: a full SD card, a root-owned data/ (precedent
+    2026-08-15), a truncated write across the monthly reboot.
+
+    Written to a temp file and renamed, so a crash mid-write cannot leave
+    truncated JSON that load_state then silently discards — the same failure
+    by a different route.
+    """
     try:
         STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        STATE_PATH.write_text(json.dumps(st))
+        tmp = STATE_PATH.with_suffix(STATE_PATH.suffix + ".tmp")
+        tmp.write_text(json.dumps(st))
+        tmp.replace(STATE_PATH)
+        return True
     except OSError as exc:
         print(f"warn: could not save state: {exc}", file=sys.stderr)
+        if emit_fn is not None:
+            emit_fn("latch_guard_state_unwritable", {
+                "reason": str(exc),
+                "path": str(STATE_PATH),
+                "effect": "the guard cannot persist its clock, cooldown or "
+                          "budget, so it will take no action at all until "
+                          "this is fixed — silently, unless this event is "
+                          "watched",
+            })
+        return False
 
 
 def note_healthy_run(st: dict) -> bool:
@@ -501,7 +531,7 @@ def main() -> int:
     elevation = sun_elevation_deg(now)
     if elevation < MIN_SUN_ELEVATION_DEG:
         if st.pop("clamp_seen_at", None):
-            save_state(st)
+            save_state(st, emit)
         return 0                                    # night: quiet, no event
 
     before = sample_array(args.iface, args.sample)
@@ -515,7 +545,7 @@ def main() -> int:
     # already handled above, before sampling.
     if not before["daylight"]:
         if st.pop("clamp_seen_at", None):
-            save_state(st)
+            save_state(st, emit)
         return 0                                    # night: quiet, no event
     sustained_partial = False
     if before["fraction"] < CLAMP_FRACTION:
@@ -535,7 +565,7 @@ def main() -> int:
         # cheap and demonstrably harmless. The 2.5 h staleness check below is
         # still the backstop against a confirmation lingering forever.
         if note_healthy_run(st):
-            save_state(st)
+            save_state(st, emit)
         # Bailing SILENTLY here is how a five-hour latch stayed invisible on
         # 2026-08-06: the ceiling was tighter than the MPPT's dither, so a
         # continuous clamp sampled at ~0.5 and fell out with no trace. A
@@ -570,7 +600,7 @@ def main() -> int:
                               "5 deg is still active and is the one that "
                               "recovers a fully stuck array"})
         due = note_descent(st, before["pv_v"], elevation, now)
-        save_state(st)
+        save_state(st, emit)
         if due and early_due_is_new(st):
             ok, why = early_bounce_allowed(st, now)
             mins = (now - st.get("below45_since", now)) / 60
@@ -583,6 +613,19 @@ def main() -> int:
                   "would_act": not args.act_on_early,
                   "blocked": None if ok else why,
                   "sun_deg": round(elevation, 1), **before})
+            # PERSIST THE FLAG ON EVERY PATH, not just the acting one.
+            # early_due_is_new() set early_due_emitted=True above, but the
+            # only save_state was inside `if ok and args.act_on_early`, and
+            # this is a Type=oneshot process — so a BLOCKED run dropped the
+            # flag on exit and re-emitted early_bounce_due on the next run,
+            # and the next, for the rest of the day.
+            #
+            # Mutation-proven by the review: 5 h of continuous sub-45 V
+            # tracking gave 6 bounces (the cap, correctly honoured) and then
+            # early_bounce_due every 5 minutes with blocked="daily cap 6
+            # reached" — the exact spam the function's own docstring says it
+            # prevents by firing "on the transition".
+            save_state(st, emit)
             if ok and args.act_on_early:
                 st["last_early_at"] = now
                 st["early_fixes"] = st.get("early_fixes", 0) + 1
@@ -590,7 +633,7 @@ def main() -> int:
                 # descent is a NEW episode, not a continuation of this one.
                 st.pop("below45_since", None)
                 st.pop("early_due_emitted", None)
-                save_state(st)
+                save_state(st, emit)
                 try:
                     acked = run_fix(args.iface, args.dest, args.wait)
                 except Exception as exc:            # noqa: BLE001
@@ -598,8 +641,18 @@ def main() -> int:
                          {"error": f"{type(exc).__name__}: {exc}"})
                     return 1
                 after = sample_array(args.iface, args.sample)
+                # CARRY `recovered`, the same way latch_fix_result does.
+                # Without it neither a human nor an alert rule could judge an
+                # early bounce: 74 of them on record and not one says whether
+                # it worked. The alerting rule has to treat an absent field as
+                # "cannot judge" rather than failure, so until this existed
+                # the outcome was simply unknowable.
+                recovered = bool(
+                    after["pv_v"] and after["out_v"]
+                    and (after["pv_v"] - after["out_v"]) > RECOVERED_DELTA_V)
                 emit("early_bounce_result",
-                     {"acked": acked, "before": before, "after": after})
+                     {"acked": acked, "recovered": recovered,
+                      "before": before, "after": after})
                 return 0
             return 0
         if before["fraction"] >= AMBIGUOUS_FRACTION:
@@ -649,7 +702,7 @@ def main() -> int:
         prev_seen = 0
     if needs_second_confirmation(st, now, sustained_partial):
         st["clamp_seen_at"] = now
-        save_state(st)
+        save_state(st, emit)
         emit("latch_guard_pending",
              {"reason": "clamp seen once — needs a second consecutive "
                         "confirmation before acting (dawn/dusk exclusion)",
@@ -676,7 +729,7 @@ def main() -> int:
     # Clear the partial streak, or a sustained-partial fix would re-arm itself
     # on the very next run and burn the daily cap in three cycles.
     st.pop("partial_runs", None)
-    save_state(st)
+    save_state(st, emit)
 
     try:
         acked = run_fix(args.iface, args.dest, args.wait)

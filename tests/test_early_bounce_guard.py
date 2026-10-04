@@ -127,3 +127,69 @@ class SeasonalShutdownIsAnnouncedTests(unittest.TestCase):
         st = {"below45_since": 1000.0}
         G.note_descent(st, 44.0, G.EARLY_MIN_SUN_DEG - 1, 2000.0)
         self.assertNotIn("below45_since", st)
+
+
+class StateFailuresAreLoudTests(unittest.TestCase):
+    """A guard that cannot persist its state takes NO action, silently.
+
+    Mutation-proven by the 2026-10-04 review: identical fully-clamped input
+    over 12 runs gave 2 bounces with a writable state and ZERO with a failing
+    one, forever — because clamp_seen_at never persists, so every run re-arms
+    the second-confirmation branch and emits latch_guard_pending instead of
+    acting. Nothing alerts on latch_guard_pending, and a busy latch_guard_*
+    stream is indistinguishable from a guard that has stopped guarding.
+    """
+
+    def test_save_state_reports_whether_it_stuck(self):
+        self.assertIn("-> bool", inspect.getsource(G.save_state))
+
+    def test_a_failed_save_emits_an_event(self):
+        seen = []
+        orig = G.STATE_PATH
+        try:
+            G.STATE_PATH = Path("/proc/definitely/not/writable/state.json")
+            ok = G.save_state({"x": 1}, lambda n, d: seen.append((n, d)))
+        finally:
+            G.STATE_PATH = orig
+        self.assertFalse(ok)
+        self.assertTrue(seen, "a dead state file produced no event at all")
+        self.assertEqual(seen[0][0], "latch_guard_state_unwritable")
+        self.assertIn("no action", seen[0][1]["effect"])
+
+    def test_a_successful_save_is_silent_and_true(self):
+        import tempfile
+        seen = []
+        orig = G.STATE_PATH
+        with tempfile.TemporaryDirectory() as d:
+            try:
+                G.STATE_PATH = Path(d) / "state.json"
+                ok = G.save_state({"x": 1}, lambda n, dd: seen.append(n))
+            finally:
+                G.STATE_PATH = orig
+        self.assertTrue(ok)
+        self.assertEqual(seen, [], "a healthy save must not emit noise")
+
+    def test_the_write_is_atomic(self):
+        """A crash mid-write must not leave truncated JSON that load_state
+        then silently discards — the same inertness by another route."""
+        src = inspect.getsource(G.save_state)
+        self.assertIn(".tmp", src)
+        self.assertIn("replace", src)
+
+    def test_the_blocked_path_persists_its_flag(self):
+        """early_due_is_new sets early_due_emitted, and the only save used to
+        be inside the ACTING branch — so a blocked run dropped it and
+        re-emitted early_bounce_due every 5 minutes for the rest of the day.
+        """
+        src = inspect.getsource(G.main) if hasattr(G, "main") else ""
+        i = src.index("early_bounce_due")
+        j = src.index("if ok and args.act_on_early", i)
+        self.assertIn("save_state", src[i:j],
+                      "the flag is not persisted before the acting branch")
+
+    def test_the_early_bounce_result_says_whether_it_recovered(self):
+        """74 early bounces on record and not one says whether it worked, so
+        neither a human nor an alert rule could judge one."""
+        src = inspect.getsource(G.main) if hasattr(G, "main") else ""
+        i = src.index('"early_bounce_result"')
+        self.assertIn("recovered", src[i - 400:i + 300])

@@ -953,7 +953,29 @@ class Spool:
         return sorted(self.dir.glob(f"{self.base}.*.sealed"))
 
 
-def _post(url: str, token: str, body: dict, timeout: float = 60.0) -> bool:
+# A POISON BATCH IS NOT AN OUTAGE, and treating them alike stalls the stream.
+#
+# `except Exception: return False` made a 422 indistinguishable from a 502, so
+# a batch the server will NEVER accept was retried forever and blocked every
+# segment behind it. That is the 2026-08-05 incident — one unknown field,
+# extra="forbid", 43 minutes of stalled solar ingest — and only the DEPLOY
+# ORDER was ever mitigated, not the mechanism.
+#
+# It is worse than 43 minutes now: Spool.seal() prunes the OLDEST sealed file
+# at KEEP_SEALED=2000 x 300 s, so a poison segment produces a 6.9-DAY silent
+# outage that then "self-heals" by unlinking five minutes of data with no log
+# line at all.
+#
+# 4xx (except 408/429) means the server has judged the CONTENT. Retrying it is
+# pointless; what is needed is to quarantine that segment, say so loudly, and
+# keep the stream moving.
+POST_OK = "ok"
+POST_RETRY = "retry"          # transient: 5xx, timeout, connection refused
+POST_POISON = "poison"        # permanent: the server rejected the content
+
+
+def _post(url: str, token: str, body: dict, timeout: float = 60.0) -> str:
+    import urllib.error
     import urllib.request
     req = urllib.request.Request(
         url, data=json.dumps(body).encode(),
@@ -961,10 +983,19 @@ def _post(url: str, token: str, body: dict, timeout: float = 60.0) -> bool:
                  "Authorization": f"Bearer {token}"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return 200 <= resp.status < 300
+            return POST_OK if 200 <= resp.status < 300 else POST_RETRY
+    except urllib.error.HTTPError as exc:
+        # 408 Request Timeout and 429 Too Many Requests ARE worth retrying;
+        # every other 4xx is a verdict on the bytes we sent.
+        if 400 <= exc.code < 500 and exc.code not in (408, 429):
+            log.error("POST %s REJECTED http=%d — poison batch, quarantining",
+                      url, exc.code)
+            return POST_POISON
+        log.warning("POST %s failed: %s", url, exc)
+        return POST_RETRY
     except Exception as exc:
         log.warning("POST %s failed: %s", url, exc)
-        return False
+        return POST_RETRY
 
 
 def _read_jsonl(path: Path) -> list[dict]:
@@ -983,10 +1014,38 @@ def _read_jsonl(path: Path) -> list[dict]:
 
 def uploader_loop(rows_spool: Spool, events_spool: Spool,
                   base_url: str, token: str, source_id: str):
-    """Drains sealed segments. Runs as a daemon thread; never raises."""
+    """Drains sealed segments. Runs as a daemon thread; never raises.
+
+    That sentence used to be a CLAIM with no mechanism behind it — there was
+    no try/except anywhere in the function. Reachable throws include
+    FileNotFoundError from _read_jsonl when the KEEP_SEALED prune unlinks a
+    segment between sealed_files() and the read (precisely the file this loop
+    takes first), and any OSError from the SD card going read-only.
+
+    When it threw, the thread died, the CAN loop kept decoding and spooling
+    forever, `Restart=always` did nothing because the PROCESS was alive, and
+    there is no WatchdogSec anywhere. Upload stopped permanently and silently.
+    Now the claim has a mechanism.
+    """
     backoff = 30.0
     while not _stop:
         time.sleep(15.0)
+        try:
+            backoff = _drain_once(rows_spool, events_spool, base_url, token,
+                                  source_id, backoff)
+        except Exception:
+            # Log and CARRY ON. A transient filesystem error must not retire
+            # the uploader for the lifetime of the process.
+            log.exception("uploader pass failed; retrying")
+            time.sleep(min(backoff, 600.0))
+            backoff *= 2
+    return
+
+
+def _drain_once(rows_spool: Spool, events_spool: Spool, base_url: str,
+                token: str, source_id: str, backoff: float) -> float:
+    """One drain pass. Split out so uploader_loop's guard wraps everything."""
+    if True:
         ok_all = True
         for spool, endpoint, kind, key in (
                 (rows_spool, "/api/solar/ingest", "readings", "readings"),
@@ -1003,22 +1062,37 @@ def uploader_loop(rows_spool: Spool, events_spool: Spool,
                                   "event": e["event"],
                                   "data": e.get("data", {})}
                                  for e in items]
-                    ok = True
+                    verdict = POST_OK
                     for i in range(0, len(items), 500):
                         body = {"source_id": source_id,
                                 key: items[i:i + 500]}
-                        if not _post(base_url + endpoint, token, body):
-                            ok = False
+                        verdict = _post(base_url + endpoint, token, body)
+                        if verdict != POST_OK:
                             break
-                    if not ok:
+                    if verdict == POST_POISON:
+                        # QUARANTINE rather than retry or delete. Retrying
+                        # blocks the stream forever; deleting destroys the one
+                        # copy of whatever exposed a schema mismatch. Moved
+                        # aside so the queue drains and the evidence survives.
+                        bad = path.with_suffix(path.suffix + ".poison")
+                        try:
+                            path.rename(bad)
+                            log.error("quarantined %s -> %s", path.name,
+                                      bad.name)
+                        except OSError as exc:
+                            log.error("could not quarantine %s: %s",
+                                      path.name, exc)
+                            ok_all = False
+                            break
+                        continue
+                    if verdict != POST_OK:
                         ok_all = False
                         break          # keep file; retry next pass
                 path.unlink(missing_ok=True)
         if not ok_all:
             time.sleep(min(backoff, 600.0))
-            backoff *= 2
-        else:
-            backoff = 30.0
+            return backoff * 2
+        return 30.0
 
 
 # --------------------------------------------------------------------------
