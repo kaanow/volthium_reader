@@ -61,9 +61,26 @@ def _reader_schema_version() -> int | None:
     m = re.search(r'"schema_version":\s*(\d+)', src)
     return int(m.group(1)) if m else None
 
-SERVICES = ("volthium-xanbus-telemetry", "volthium-xanbus-capture",
-            "volthium-rs485-logger", "volthium-uploader",
-            "volthium-events-uploader", "volthium-modbus-poll")
+def _units(suffix: str) -> tuple[str, ...]:
+    """Unit names DERIVED from deploy/pi/systemd, not hand-written.
+
+    SERVICES was a literal tuple of six .service names and NO timers, so a
+    dead volthium-latch-guard.timer rendered as "guard runs 0" and then
+    "all green". status_check.section_pi was rewritten to derive its list
+    from systemd for exactly this reason; the correction was never carried
+    across. This is the same hand-maintained-scope shape, in the tool that is
+    supposed to be the independent check.
+    """
+    d = Path(__file__).resolve().parents[1] / "deploy" / "pi" / "systemd"
+    try:
+        return tuple(sorted(f.stem for f in d.glob(f"*{suffix}")))
+    except OSError:
+        return ()
+
+
+# Kept for reference/tests only — the LIVE scope comes from systemd.
+SERVICES = _units(".service")
+TIMERS = _units(".timer")
 
 
 def jget(path: str, timeout: float = 30.0):
@@ -174,7 +191,8 @@ def check_pi() -> dict:
         "--no-pager 2>/dev/null | grep -icE 'error|422|fail')\"; "
         "echo \"GUARDRUNS:$(journalctl -u volthium-latch-guard --since -2h "
         "--no-pager 2>/dev/null | grep -c Starting)\"; "
-        'echo "CAN:$(ip -details link show can0 2>/dev/null | grep -o \\"LISTEN-ONLY\\" || echo TX-CAPABLE)"'
+        'echo "CAN:$(ip -details link show can0 2>/dev/null | grep -o \\"LISTEN-ONLY\\" || echo TX-CAPABLE)"; '
+        'echo "TIMERS:$(systemctl show volthium-*.timer -p Id -p ActiveState --no-pager | tr "\\n" "|")"'
     )
     last_err = None
     for host in PI_HOSTS:
@@ -196,8 +214,26 @@ def check_pi() -> dict:
         out["problems"].append(f"unreachable on all hosts ({last_err})")
         return out
 
-    inactive = [s for s, st in zip(SERVICES, out.get("services", "").split(","))
-                if st and st != "active"]
+    def _units_from(blob: str) -> list[dict]:
+        """systemctl show emits Id=/ActiveState=/UnitFileState= per unit."""
+        units, cur = [], {}
+        for tok in blob.split("|"):
+            if "=" not in tok:
+                continue
+            k, v = tok.split("=", 1)
+            if k == "Id" and cur:
+                units.append(cur)
+                cur = {}
+            cur[k] = v
+        if cur:
+            units.append(cur)
+        return units
+
+    # THE RULE, not a list: enabled implies active. Static, disabled and
+    # timer-driven units are correctly inactive between firings.
+    inactive = [u["Id"] for u in _units_from(out.get("services", ""))
+                if u.get("UnitFileState") == "enabled"
+                and u.get("ActiveState") != "active"]
     if inactive:
         out["problems"].append(f"services not active: {', '.join(inactive)}")
     try:
@@ -215,6 +251,26 @@ def check_pi() -> dict:
         out["problems"].append(f"only {out['freemb']} MB RAM available")
     if int(out.get("diskpct", 0) or 0) > 85:
         out["problems"].append(f"disk {out['diskpct']}% full")
+    # GRADE WHAT IS PRINTED. guardruns and can0 reached the summary line and
+    # never entered `problems`, so "guard runs 0" (a dead 5-minute timer) and
+    # "can0 LISTEN-ONLY" (the guard physically unable to transmit a fix) both
+    # rendered identically to healthy and exited 0 — "all green" over the one
+    # mitigation that is worth ~40% of production.
+    if out.get("can") and "LISTEN-ONLY" in str(out["can"]):
+        out["problems"].append(
+            "can0 is LISTEN-ONLY — the latch guard cannot transmit a fix")
+    runs = out.get("guardruns")
+    if runs is not None and str(runs).isdigit():
+        # The guard timer fires every 5 min, so a 2 h window should show ~24.
+        # Zero means the timer is dead; this is the detector the volthium-logger
+        # precedent says to write as a RULE rather than a hardcoded name.
+        if int(runs) == 0:
+            out["problems"].append(
+                "latch guard has not run in the window — timer dead?")
+    dead_timers = [u["Id"] for u in _units_from(out.get("timers", ""))
+                   if u.get("ActiveState") not in ("active", None)]
+    if dead_timers:
+        out["problems"].append(f"timers not active: {', '.join(dead_timers)}")
     return out
 
 

@@ -47,7 +47,25 @@ import statistics
 import urllib.request
 
 UTC = dt.timezone.utc
-LOCAL_OFFSET_H = -7
+# DST-AWARE, not a constant. This was `LOCAL_OFFSET_H = -7` (PDT) in
+# eight analysis scripts, every one of which becomes wrong by an hour on
+# 2026-11-01 and every transition after. These are read-only tools, so
+# the cost is MISATTRIBUTION rather than loss — but misattribution is
+# exactly how the 1356 Wh wrong-day bug happened: the MPPT daily counter
+# resets at 06:18-07:50 UTC, which is 23:18-00:50 PDT, already
+# straddling local midnight. A one-hour shift moves it across the date.
+#
+# site_time VALIDATES the zone before using it — America/Vancouver
+# resolves to a non-DST MST zone on both this laptop and the Pi.
+from site_time import local_offset_h          # noqa: E402
+
+# Evaluated at import, so it is correct for the CURRENT offset. That
+# fixes 'wrong by an hour from 2026-11-01' but not a window that
+# SPANS a transition, where one end is still off by an hour. For
+# per-timestamp accuracy use site_time.to_local(ts) directly; these
+# tools read windows of hours-to-weeks, so the residual is bounded
+# and only bites across two days a year.
+LOCAL_OFFSET_H = local_offset_h()
 CHANGE_LOCAL = dt.datetime(2026, 8, 5, 13, 10)   # device-reported target step
 SOC_FULL = 100
 

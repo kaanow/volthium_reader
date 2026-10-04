@@ -219,3 +219,64 @@ class SchemaSkewIsDerivedTests(unittest.TestCase):
             "schema expectation is hardcoded again — derive it from the reader")
         self.assertIn("_reader_schema_version", src)
         self.assertIn("UNCHECKED", src)
+
+
+class PrintedFieldsAreGradedTests(unittest.TestCase):
+    """guardruns and can0 reached the summary line and never entered
+    `problems`, so "guard runs 0" (a dead 5-minute timer) and
+    "can0 LISTEN-ONLY" (the guard physically unable to transmit a fix) both
+    rendered identically to healthy and exited 0 — "all green" over the one
+    mitigation worth ~40% of production.
+
+    The service scope is also a RULE now (enabled implies active) rather than
+    a hand-written tuple. The tuple checked the RETIRED BLE logger — a
+    permanent reassuring zero — and never checked the live RS485 one, which is
+    the precedent status_check.section_pi was rewritten for. My first fix here
+    derived a literal list from the repo's unit files and immediately flagged
+    four healthy timer-driven oneshots: the same mistake pointing the other
+    way, and a check that cries wolf is one the operator stops reading.
+    """
+
+    def _graded(self, **fields):
+        import scripts.health_check as H
+        out = dict({"name": "pi", "problems": [], "host": "x"}, **fields)
+        # re-run only the grading half
+        src = inspect.getsource(H.check_pi)
+        self.assertIn("LISTEN-ONLY", src)
+        return out
+
+    def test_listen_only_can0_is_a_problem(self):
+        import scripts.health_check as H
+        src = inspect.getsource(H.check_pi)
+        i = src.index("LISTEN-ONLY", src.index("diskpct"))
+        self.assertIn("problems", src[i - 200:i + 300],
+                      "can0 LISTEN-ONLY is printed but never graded")
+
+    def test_zero_guard_runs_is_a_problem(self):
+        import scripts.health_check as H
+        src = inspect.getsource(H.check_pi)
+        self.assertIn("timer dead", src,
+                      "guard runs 0 is printed but never graded")
+
+    def test_the_service_scope_is_a_rule_not_a_list(self):
+        import scripts.health_check as H
+        src = inspect.getsource(H.check_pi)
+        self.assertIn("UnitFileState", src,
+                      "the service check must ask systemd which units are "
+                      "enabled rather than assert a hardcoded tuple")
+        self.assertIn('ActiveState', src)
+
+    def test_timers_are_checked_at_all(self):
+        import scripts.health_check as H
+        src = inspect.getsource(H.check_pi)
+        self.assertIn("volthium-*.timer", src,
+                      "no timer is checked, so a dead latch-guard timer is "
+                      "invisible")
+
+    def test_a_disabled_unit_is_not_flagged(self):
+        """The retired BLE logger is disabled on purpose; flagging it is the
+        cry-wolf failure."""
+        import scripts.health_check as H
+        src = inspect.getsource(H.check_pi)
+        i = src.index('UnitFileState") == "enabled"')
+        self.assertTrue(i > 0, "the rule must gate on enabled")
