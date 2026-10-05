@@ -66,13 +66,41 @@ def compute_today_peaks(pack_csv: Path, today: date) -> dict:
         peak_smoothed_a     — max smoothed_i seen today
         peak_soc_pct        — max(soc_a, soc_b) across the day
         peak_pack_voltage_v — max pack voltage observed
-        first_charge_time   — HH:MM of first sample where pack_i > +1A
-                              (the "net charging started" marker)
-        peak_soc_gap_pct    — max |soc_a − soc_b| seen today; in a
-                              healthy series pack this stays under
-                              ~3 %. Widening gap under heavy load is
-                              an early signal of cell imbalance or
-                              one battery aging faster.
+        first_charge_time   — HH:MM of first sample where pack_i > +1A.
+                              SOURCE-AGNOSTIC: this is "something began
+                              charging the pack", not "the sun reached the
+                              array". A generator run sets it identically,
+                              and on 2026-10-04 one ran 15:50-16:13. Do not
+                              relabel this as a solar milestone; pair it with
+                              gen state if you need to know what did it.
+        peak_soc_gap_pct    — max |soc_a − soc_b| seen today.
+
+                              NOT a health threshold. This docstring used to
+                              claim "in a healthy series pack this stays
+                              under ~3 %" and called a widening gap "an early
+                              signal of cell imbalance or one battery aging
+                              faster". Measured against production:
+
+                                 2026-09-20   max 15pp   median 14pp
+                                 2026-09-27   max 13pp   median 12pp
+                                 2026-10-01   max 12pp   median 11pp
+
+                              0 of 3 sampled days met the claim, and over
+                              5000 readings on 10-04 the gap ran median 7pp,
+                              p95 10pp, max 11pp. A threshold the pack has
+                              never once been inside does not diagnose
+                              anything — it just declares the hardware
+                              permanently sick.
+
+                              It is also the wrong invariant. The two packs
+                              are in SERIES, each with its own BMS estimating
+                              SOC independently, so their estimates drift
+                              apart by construction. What series forces to
+                              match is CURRENT, and that does hold:
+                              |i_a - i_b| runs median 0.60 A, p95 1.60 A.
+                              Watch this gap as a TREND against its own
+                              baseline; use the current agreement for a
+                              same-instrument health check.
 
     All values are None when no data is available yet for today.
     """
