@@ -216,8 +216,32 @@ const st = {
 };
 const hist = [];         // ring of {t, solar, gen, load, batt}
 
-function battW() {       // + = charging (BMS smoothed power)
-  return st.latest?.smoothed_p ?? 0;
+function battW() {       // + = charging
+  /* pack_p, NOT smoothed_p. Two separate defects came from the EMA here.
+
+     1. THE BATTERY ROW CONTRADICTED ITSELF. drawSystem renders V from
+        pack_v, A from pack_i and W from this — so an instantaneous current
+        sat beside a smoothed power. Measured over 5000 daytime readings on
+        2026-10-04 they disagreed in SIGN 74 times (1.48%), e.g.
+
+            16:12:45Z   pack_i = -4.10 A   but   smoothed_p = +860.8 W
+
+        a row saying the battery discharged at 4 A while charging at 861 W,
+        during the generator shutdown. pack_p equals pack_v * pack_i to
+        0.000% across 4801 samples, so it is the exact consistent partner.
+
+     2. THE FRIDGE SPLIT WAS COMPARING TWO DIFFERENT BASES. dcLoadW() tests
+        `battW() <= p.split_w`, and split_w is computed server-side from
+        pack_p (db.dc_load_profile). Its comment claimed "split_w and battW()
+        are both pack_p, so they compare directly" — that was false, and the
+        whole correctness argument for using the Otsu split rests on it:
+        comparing pack_p against ITSELF is what makes it immune to the ~33 W
+        offset between the two DC meters. Feeding it an EMA reintroduced a
+        systematic error exactly where the threshold decides on/off.
+
+     pack_p and smoothed_p are null-free over the same window, so this costs
+     no availability. */
+  return st.latest?.pack_p ?? 0;
 }
 /* Production accounting.
    The MPPT's OUTPUT-CURRENT sensor is the least trustworthy meter here: it
@@ -299,7 +323,8 @@ function dcLoadW() {
 
      So use the server's Otsu split instead, which compares pack_p against
      ITSELF and is therefore immune to any offset between meters. split_w and
-     battW() are both pack_p, so they compare directly. */
+     battW() are both pack_p, so they compare directly — see battW(), which
+     returned the smoothed EMA until 2026-10-04 and silently broke this. */
   if (dark && p && p.draw_w && p.split_w != null)
     return { w: battW() <= p.split_w ? p.draw_w : 0, live: true };
   if (p && p.draw_w) return { w: p.draw_w * p.duty, live: false };
