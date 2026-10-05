@@ -589,11 +589,6 @@ class EventAlertMonitor:
         # the guard burns its 6 fixes, then emits latch_guard_skipped every
         # 5 minutes for the rest of each day — while the array sits clamped at
         # roughly 40% of production, for weeks, with nothing paging.
-        # The decoder discarded frames. Previously these counters were
-        # write-only, so a decoder rejecting EVERYTHING looked like a quiet
-        # bus. Emitted at most every 30 min and only when the count moved, so
-        # this cannot become noise.
-        ("decode_rejections", 3, "warning", "DECODER IS DISCARDING FRAMES"),
         ("latch_fix_error", 4, "warning", "LATCH FIX ERRORED"),
         ("early_bounce_error", 4, "warning", "EARLY BOUNCE ERRORED"),
         # Seasonal, not a fault — but the operator should know the trigger has
@@ -618,6 +613,13 @@ class EventAlertMonitor:
          "EARLY BOUNCE DID NOT RECOVER THE ARRAY"),
         ("latch_guard_skipped", "reason_is_cap", True, 4, "warning",
          "LATCH GUARD BUDGET EXHAUSTED"),
+        # CONDITIONAL, not by name. Alerting on the event itself paged within
+        # hours of shipping, reporting 19 discarded frames against a measured
+        # baseline of ~23 per window — i.e. on normal operation. Fast-packet
+        # loss has a NON-ZERO baseline (0.011% of 7,077 frames/min), so only
+        # the reader can judge it, and it now sets `notable` from a rate.
+        ("decode_rejections", "notable", True, 3, "warning",
+         "DECODER IS DISCARDING FRAMES"),
     )
 
     # Deliberately NOT alerted: mppt_latched, latch_detected, and a successful

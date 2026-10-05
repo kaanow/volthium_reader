@@ -212,9 +212,14 @@ class Reassembler:
         # is observable instead of being inferred from corrupt output. The
         # measured rate on this bus is 21 in 194,392 frames (0.011%).
         self.bad_asm_seq = 0
+        # Total frames offered, so bad_asm_seq can be expressed as a RATE.
+        # A bare count is unjudgeable: 19 discards is alarming or routine
+        # depending entirely on whether the denominator is 200 or 200,000.
+        self.fed_total = 0
 
     def feed(self, pgn: int, src: int, data: bytes, t: float):
         """Returns the reassembled payload or None."""
+        self.fed_total += 1
         seq, fid = data[0] >> 5, data[0] & 0x1F
         key = (pgn, src, seq)
         if fid == 0:
@@ -877,6 +882,20 @@ class Decoder:
     # were discarded since last time" exactly when that is true.
     REJECT_REPORT_S = 1800
 
+    # Fast-packet frame loss has a NON-ZERO BASELINE: 21 in 194,392 frames
+    # (0.011%) measured on this bus. At 7,077 frames/min that is ~23 discards
+    # per 30 min, so alerting on any non-zero count pages on normal operation
+    # — which it did, within hours of shipping, reporting 19 against an
+    # expected 23. Noise is how an operator learns to ignore the channel, and
+    # removing that is most of what today was about.
+    #
+    # So bad_asm_seq is judged as a RATE against a generous multiple of the
+    # measured baseline. The other counters are different in kind: a rejected
+    # dc_w or solar_w is a CORRUPT FRAME, whose expected rate is zero, so any
+    # movement there is worth knowing about.
+    ASM_BASELINE_PCT = 0.011
+    ASM_ALERT_PCT = 0.11            # 10x baseline: a real change in the bus
+
     def reject_report(self, now: float) -> list[dict]:
         """Surface the rejection counters, which were otherwise write-only."""
         fields = ("bad_dc_v", "bad_dc_w", "bad_solar_w", "bad_mppt_energy")
@@ -891,8 +910,22 @@ class Decoder:
         moved = {k: v for k, v in delta.items() if v}
         if not moved:
             return []
+        fed = getattr(self.asm, "fed_total", 0) if hasattr(self, "asm") else 0
+        fed_delta = fed - self.reject_reported.get("_fed", 0)
+        self.reject_reported["_fed"] = fed
+        asm_pct = (100.0 * delta.get("bad_asm_seq", 0) / fed_delta
+                   if fed_delta else 0.0)
+        # NOTABLE is what the alert rule keys on. Corrupt-frame counters have
+        # an expected rate of zero, so any movement counts; frame loss does
+        # not, so it must clear a multiple of its measured baseline.
+        corrupt = any(delta.get(f, 0) for f in fields)
+        notable = bool(corrupt or asm_pct > self.ASM_ALERT_PCT)
         return [{"t": now, "event": "decode_rejections", "data": {
             **moved,
+            "notable": notable,
+            "asm_pct": round(asm_pct, 4),
+            "asm_baseline_pct": self.ASM_BASELINE_PCT,
+            "frames": fed_delta,
             "window_s": self.REJECT_REPORT_S,
             "note": "frames DISCARDED by the decoder's sanity checks. A "
                     "sustained non-zero rate means the bus or the decode has "

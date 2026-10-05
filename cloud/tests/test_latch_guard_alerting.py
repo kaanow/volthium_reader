@@ -137,3 +137,45 @@ class ConditionalRulesTests(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DecodeRejectionNoiseTests(unittest.IsolatedAsyncioTestCase):
+    """Fast-packet loss has a NON-ZERO baseline, so any-non-zero is noise.
+
+    Shipped as an unconditional rule and paged within hours: 19 discarded
+    frames against a measured expectation of ~23 per window. The bus loses
+    0.011% of 7,077 frames/min; 19 in 212,320 is 0.0089% — BELOW baseline.
+
+    Only the reader knows the denominator, so it sets `notable` and the rule
+    keys on that. A corrupt dc_w or solar_w is different in kind: its expected
+    rate is zero, so any movement is notable.
+    """
+
+    async def _titles(self, rows):
+        c = _Client()
+        await _mon(rows).check_once(c)
+        return " | ".join(p.get("title", "") for p in c.posts)
+
+    async def test_baseline_frame_loss_does_not_page(self):
+        t = await self._titles([_ev("decode_rejections", bad_asm_seq=19,
+                                    asm_pct=0.0089, notable=False)])
+        self.assertNotIn("DISCARDING", t,
+                         "normal bus loss must not page — this is the alert "
+                         "that fired on its first day in production")
+
+    async def test_a_real_rate_change_pages(self):
+        t = await self._titles([_ev("decode_rejections", bad_asm_seq=500,
+                                    asm_pct=0.2355, notable=True)])
+        self.assertIn("DISCARDING", t)
+
+    async def test_a_corrupt_frame_pages_even_at_count_one(self):
+        """dc_w/solar_w rejections have an expected rate of ZERO."""
+        t = await self._titles([_ev("decode_rejections", bad_dc_w=1,
+                                    asm_pct=0.0, notable=True)])
+        self.assertIn("DISCARDING", t)
+
+    async def test_an_event_without_the_flag_does_not_page(self):
+        """Absent is not false — but for this rule, absent means an older
+        reader that cannot judge, and guessing would reintroduce the noise."""
+        t = await self._titles([_ev("decode_rejections", bad_asm_seq=19)])
+        self.assertNotIn("DISCARDING", t)
