@@ -521,6 +521,22 @@ INDEX_HTML = """<!doctype html>
     font-variant-numeric: tabular-nums;
   }
   .stale-banner .stale-icon { font-size: 16px; }
+  /* A FAILED POLL USED TO LEAVE EVERY TILE LOOKING CURRENT. The catch block
+     set one small label ("fetch failed") on the state badge and returned, so
+     SOC, voltage, current, power, the projection and the peaks all kept
+     rendering their last successful values with nothing to say they were
+     frozen. Hours later the page still read like live telemetry.
+     page-stale dims and de-saturates the whole numeric surface, so the
+     staleness is impossible to miss at a glance rather than something the
+     reader has to go looking for. */
+  /* Selectors verified against the markup: .grid (line ~854) wraps the tiles
+     INCLUDING #events, and the harvest panel is #harvest-panel-wrap. An
+     earlier draft of this rule listed `.harv-wrap`, which matches nothing in
+     this document — a dimming rule that silently dims nothing is exactly the
+     no-op this whole change exists to stop. */
+  body.page-stale .grid,
+  body.page-stale #harvest-panel-wrap { opacity: 0.38; filter: saturate(0.25); }
+  body.page-stale .stale-banner { display: flex !important; }
   .stale-banner .stale-hint { color: var(--dim); font-size: 11px;
                               font-weight: 400; margin-left: auto; }
   /* PACK GAPS chip: amber palette, lower visual weight than the red
@@ -910,17 +926,26 @@ const stateClass = s => "state-" + (s || "unknown");
 // Threshold matches scripts/health.py PACK_STALE_THRESHOLD_S so
 // the CLI and dashboard agree on when "stale" means stale.
 const STALE_THRESHOLD_S = 60;
+// When a poll last SUCCEEDED, so a failure can say how old the
+// values on screen actually are instead of implying they are now.
+let lastPollOkAt = null;
 
 function updateStaleBanner(latestTs) {
   const banner = document.getElementById("stale-banner");
   if (!banner) return;
+  /* A MISSING OR UNPARSEABLE TIMESTAMP IS NOT FRESHNESS. Both of these used
+     to hide the banner, so "I cannot tell how old this is" rendered exactly
+     like "this is current" — the same inversion as the fetch-failure path
+     below. */
   if (!latestTs) {
-    banner.style.display = "none";
+    setText("stale-text", "no sample timestamp — age unknown");
+    banner.style.display = "flex";
     return;
   }
   const t = Date.parse(latestTs);
   if (isNaN(t)) {
-    banner.style.display = "none";
+    setText("stale-text", `unparseable sample timestamp (${latestTs})`);
+    banner.style.display = "flex";
     return;
   }
   const ageS = (Date.now() - t) / 1000;
@@ -1810,8 +1835,24 @@ async function tick() {
                `<span class="k">${e.kind}</span><span class="d">${e.descriptor}</span></li>`;
       }).join("");
     }
+    // A poll succeeded: the page is live again.
+    lastPollOkAt = Date.now();
+    document.body.classList.remove("page-stale");
   } catch (e) {
+    /* Mark the WHOLE PAGE stale, not just the state badge. Previously this
+       set one label and every other tile went on displaying its last
+       successful value indefinitely, indistinguishable from live data. */
     setText("state-value", "fetch failed");
+    document.body.classList.add("page-stale");
+    const banner = document.getElementById("stale-banner");
+    if (banner) {
+      const age = lastPollOkAt == null ? null : (Date.now() - lastPollOkAt) / 1000;
+      setText("stale-text", age == null
+        ? "cannot reach the data source — no successful poll yet this session"
+        : `cannot reach the data source — every value below is frozen as of `
+          + `${new Date(lastPollOkAt).toLocaleTimeString()} (${fmtAge(age)} ago)`);
+      banner.style.display = "flex";
+    }
   }
 }
 tick();
