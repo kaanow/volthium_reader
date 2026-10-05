@@ -1,0 +1,27 @@
+[Unit]
+Description=Fetch weather/irradiance every 30 min
+
+[Timer]
+# WHY THIS UNIT EXISTS. docs/STATUS.md claimed "scripts/weather.py looping
+# every 30 min" — and nothing on the Pi ran it. There was no weather service,
+# no timer, no cron entry. data/weather.csv is a file CHECKED INTO GIT, frozen
+# at its last row of 2026-05-19, so every consumer of it had been reading a
+# forecast 139 days old.
+#
+# Found 2026-10-05 by the staleness guard added to generator_advisor the same
+# day, which refused with "forecast is 3327.6 h old (limit 1.0 h)". Before
+# that guard the advisor would have simulated 24 h of darkness and recommended
+# running the generator — the exact failure measured in d2ff683, live since
+# May.
+#
+# 30 min matches health.WEATHER_STALE_THRESHOLD_S (3600 s = ~2 cycles), so a
+# single missed fetch does not trip the staleness guards.
+OnBootSec=3min
+OnUnitActiveSec=30min
+AccuracySec=2min
+# A fetch missed while powered down is worth catching up on: the first thing
+# anything asks after a reboot is what the sky is doing.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

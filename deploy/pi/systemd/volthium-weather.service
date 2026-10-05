@@ -1,0 +1,27 @@
+[Unit]
+Description=Volthium weather/irradiance fetch (Open-Meteo -> data/weather.csv)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=claude
+Group=users
+# Matches the other claude-run units: data/ is shared with the operator
+# through the group `users`, and the default 0022 locks one side out of what
+# the other wrote. See deploy/pi/profile.d/README-umask.md.
+UMask=0002
+WorkingDirectory=/srv/volthium_reader
+# ONE-SHOT, NOT --loop. weather.py offers `--loop --interval 1800`, but a
+# long-lived process on a 1 GB Pi is a memory-creep risk for no benefit when
+# systemd already has a scheduler. A timer also recovers on its own after a
+# failed fetch, where a crashed loop would stay dead.
+ExecStart=/srv/volthium_reader/.venv/bin/python scripts/weather.py
+# One HTTPS GET to Open-Meteo, which weather.py already bounds at timeout=10.
+# These are the belt: a hung TLS handshake must not leave a process pinned.
+TimeoutStartSec=120
+MemoryMax=80M
+MemorySwapMax=0
+Nice=10
+# A missed forecast is not worth risking telemetry over.
+OOMScoreAdjust=500
