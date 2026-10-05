@@ -988,6 +988,39 @@ class AsyncpgReadingsDAO:
             )
         return [dict(r) for r in rows]
 
+    # SCALING: MEASURED, DATED, AND NOT YET FIXED.
+    #
+    # This integrates 15 s buckets across readings (5 s cadence) and
+    # solar_readings (15 s) for the whole requested window, so its cost grows
+    # with the ARCHIVE, not with the answer — the reply is one row per day
+    # either way. Measured against production 2026-10-05, with 68 days of
+    # history (2026-07-30 onward):
+    #
+    #     /api/solar/energy?days=30     2.24 s   (31 rows)
+    #     /api/solar/energy?days=120    4.45 s   (68 rows)
+    #     /api/solar/energy?days=365    4.50 s   (68 rows)   <- whole archive
+    #     /api/history/stats            3.69 s
+    #
+    # days=120 and days=365 agree because both already scan everything there
+    # is. So the full-archive scan is at 4.5 s against a 10 s statement
+    # timeout, at 68 days. Straight-line on row count that reaches the
+    # timeout somewhere around 150 days of history — late February 2027 — and
+    # the failure mode is an exception, not a slow page.
+    #
+    # An index does NOT help: solar_readings_source_ts_desc already covers the
+    # range predicate, and the time goes on aggregating ~1.2M readings rows.
+    # The fix is a per-day rollup table so the scan is O(days).
+    #
+    # NOT DONE HERE DELIBERATELY. A rollup has to reproduce the semantics
+    # below EXACTLY — the clamp-gated GREATEST(), the two-miscalibrated-meter
+    # inference, the local-day boundary in `tz` — or it becomes a second
+    # source of truth that silently disagrees with this one, and the whole
+    # point of the gate history documented below is that small changes here
+    # move the ledger by 1150-1550 Wh/day. That is a design decision about
+    # where the ledger's truth lives, not a refactor. Build it with the
+    # index_builder.py pattern (after serving, never on the startup path) and
+    # verify it against this query day-by-day before switching any reader to
+    # it. scripts/ledger_gate_compare.py is the precedent for that comparison.
     async def solar_energy_daily(
         self, source_id: str, days: int, tz: str
     ) -> list[dict]:
