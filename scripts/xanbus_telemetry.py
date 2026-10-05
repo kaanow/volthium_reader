@@ -168,6 +168,32 @@ FAST_PACKET_PGNS = {PGN_BATT_STS2, PGN_DC_SRC_STS2, PGN_CHG_STS, PGN_AC_STS_RMS,
 
 SRC_SW, SRC_MPPT = 0, 1        # node addresses on our bus
 
+# EXPLICIT, because the decoders used `"mppt" if src == SRC_MPPT else "sw"` —
+# a default that silently relabels every other node on the bus as the SW
+# inverter. There IS a third node: measured over 40,000 live frames,
+#
+#     src=0   25653 frames   SW inverter
+#     src=1   14011 frames   MPPT 60
+#     src=2     336 frames   *** not ours ***
+#
+# Node 2 emits only PGN 60928 (ISO Address Claim) and 129033 (Local Time
+# Offset) — the signature of the Insight Home gateway announcing itself and
+# broadcasting time. It does NOT currently emit charger status, so nothing is
+# being mislabelled TODAY; this is a latent fault, not an active one, and the
+# fix is cheap enough not to wait for it to become active. If node 2 ever did
+# emit PGN_CHG_STS, its charge stage would have been written into the SW
+# inverter's series with no trace.
+NODE_NAMES: dict[int, str] = {SRC_SW: "sw", SRC_MPPT: "mppt"}
+
+
+def node_name(src: int) -> str | None:
+    """Our name for a source address, or None if the node is not ours.
+
+    Returning None rather than a fallback string is the point: a caller must
+    decide what to do about a stranger instead of inheriting a wrong label.
+    """
+    return NODE_NAMES.get(src)
+
 # 786 (0x312) is named for what it was OBSERVED to do, not for what it means —
 # its semantics are undecoded. It has appeared exactly 4 times, always as a
 # one-second transient on the absorption -> float handoff (08-08 17:32:38-39
@@ -297,6 +323,13 @@ class Decoder:
         self.state: dict[str, object] = {}
         self.last_seen: dict[int, float] = {}
         self.dropped: set[int] = set()
+        # Frames from a source address that is not ours. Counted, not
+        # guessed at — see NODE_NAMES. Surfaced in reject_report so it cannot
+        # become another write-only counter.
+        self.foreign_frames = 0
+        # When housekeeping first ran. node_dropout needs this: a node that
+        # was ALREADY silent at process start has no last_seen entry at all.
+        self.first_housekeeping_at: float | None = None
         self.last_ac_load_sample = 0.0
         self.last_ac_load = 0.0
         self.last_mppt_energy = 0.0       # last mppt_energy emission
@@ -551,7 +584,10 @@ class Decoder:
             return []
         target_v, target_i = struct.unpack_from("<ii", p, 2)
         mode = struct.unpack_from("<H", p, 12)[0]
-        who = "mppt" if src == SRC_MPPT else "sw"
+        who = node_name(src)
+        if who is None:          # not our node — see NODE_NAMES
+            self.foreign_frames += 1
+            return []
         out = self._changed(
             f"chg_stage_{who}", CHG_STAGE_NAMES.get(mode, mode), t,
             "chg_stage", {"node": who})
@@ -660,7 +696,7 @@ class Decoder:
             if src in self.dropped:
                 self.dropped.discard(src)
                 events.append({"t": t, "event": "node_return",
-                               "data": {"node": "sw" if src == SRC_SW else "mppt"}})
+                               "data": {"node": node_name(src)}})
             self.last_seen[src] = t
 
         if pgn in FAST_PACKET_PGNS:
@@ -685,14 +721,28 @@ class Decoder:
         self.asm.prune(now)
         self._record_trail(now)
         events = self.reject_report(now)
-        for src, name in ((SRC_SW, "sw"), (SRC_MPPT, "mppt")):
-            seen = self.last_seen.get(src)
-            if seen is not None and src not in self.dropped \
-                    and now - seen > DROPOUT_S:
+        # A NODE ABSENT AT STARTUP COULD NEVER BE REPORTED. last_seen begins
+        # empty, so `seen is not None` was False for any node that was already
+        # silent when the process started, and the dropout check skipped it
+        # forever. The node that was dead the whole time is precisely the one
+        # worth paging about, and this reader restarts routinely — there is a
+        # volthium-weekly-reboot timer, so an MPPT that died overnight would
+        # come back from the reboot invisible rather than reported.
+        #
+        # Treating "never seen" as silent-since-startup closes it. The age is
+        # measured from first_housekeeping_at rather than from 0, so the
+        # reported silent_s is a real duration and not an epoch timestamp.
+        if self.first_housekeeping_at is None:
+            self.first_housekeeping_at = now
+        for src, name in NODE_NAMES.items():
+            seen = self.last_seen.get(src, self.first_housekeeping_at)
+            never_seen = src not in self.last_seen
+            if src not in self.dropped and now - seen > DROPOUT_S:
                 self.dropped.add(src)
                 events.append({"t": now, "event": "node_dropout",
                                "data": {"node": name,
-                                        "silent_s": round(now - seen)}})
+                                        "silent_s": round(now - seen),
+                                        "never_seen": never_seen}})
         events += self._check_latch(now)
         return events
 
@@ -792,7 +842,17 @@ class Decoder:
 
     def reject_report(self, now: float) -> list[dict]:
         """Surface the rejection counters, which were otherwise write-only."""
-        fields = ("bad_dc_v", "bad_dc_w", "bad_solar_w", "bad_mppt_energy")
+        # TWO CLASSES, and conflating them is how this channel became noise
+        # once already today. A corrupt-frame counter has an expected rate of
+        # ZERO, so any movement is notable. foreign_frames is different in
+        # kind: it means a node that is not ours emitted a PGN we decode. That
+        # is worth SEEING, but a node which does so persistently would page
+        # every 30 minutes forever, and an operator who learns to ignore this
+        # channel is the actual failure. So it is reported, never notable.
+        corrupt_fields = ("bad_dc_v", "bad_dc_w", "bad_solar_w",
+                          "bad_mppt_energy")
+        report_only_fields = ("foreign_frames",)
+        fields = corrupt_fields + report_only_fields
         cur = {f: getattr(self, f, 0) for f in fields}
         cur["bad_asm_seq"] = getattr(self.asm, "bad_asm_seq", 0) \
             if hasattr(self, "asm") else 0
@@ -812,7 +872,7 @@ class Decoder:
         # NOTABLE is what the alert rule keys on. Corrupt-frame counters have
         # an expected rate of zero, so any movement counts; frame loss does
         # not, so it must clear a multiple of its measured baseline.
-        corrupt = any(delta.get(f, 0) for f in fields)
+        corrupt = any(delta.get(f, 0) for f in corrupt_fields)
         notable = bool(corrupt or asm_pct > self.ASM_ALERT_PCT)
         return [{"t": now, "event": "decode_rejections", "data": {
             **moved,
