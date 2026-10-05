@@ -803,6 +803,69 @@ def grade_throttle(out: str) -> tuple[bool, list[str]]:
                      f"(historical, not current)")
     return notable, lines
 
+def _check_data_perms(out: str) -> tuple[bool, list[str]]:
+    """Flag any file in data/ that the services cannot write.
+
+    WHY THIS EXISTS. On 2026-10-04 an ad-hoc command run over SSH as `kaan`
+    recreated data/pack.csv as kaan:users 0644. The rs485 logger runs as
+    `claude`, so it lost append permission, crash-looped 593 times, and left a
+    70.3-minute hole in the PRIMARY telemetry record. Nothing in this tool
+    noticed; the services section reported the logger as simply "not active",
+    with no hint that the cause was one octal digit.
+
+    Prevention is in place now (UMask=0002 on the units, umask 0002 in the
+    operator's shell, setgid on data/), but prevention that nothing verifies is
+    how the previous invariants in this file decayed. So this checks the
+    PROPERTY — every data file is group-writable by `users` — rather than
+    trusting the three mechanisms that are supposed to maintain it.
+
+    Input is one `stat -c "%U %G %a %n"` line per file. Group-writable means
+    the middle permission digit has the 2 bit; root-owned files are called out
+    separately because chmod g+w does not help when the group is root.
+    """
+    lines: list[str] = []
+    notable = False
+    unwritable: list[str] = []
+    root_owned: list[str] = []
+    seen = 0
+    for raw in out.strip().splitlines():
+        parts = raw.split(None, 3)
+        if len(parts) != 4:
+            continue
+        user, group, mode, name = parts
+        if not mode.isdigit():
+            continue
+        seen += 1
+        # Trailing three digits are u/g/o; a setgid dir prefixes a 4th.
+        group_bits = int(mode[-2])
+        if not group_bits & 0o2:
+            (root_owned if group == "root" else unwritable).append(
+                f"{name.split('/')[-1]} ({user}:{group} {mode})")
+    if not seen:
+        notable = True
+        lines.append("  ← data/ permissions UNVERIFIED: no files reported")
+        return notable, lines
+    if unwritable:
+        notable = True
+        lines.append(f"  data perms      ← {len(unwritable)} file(s) NOT "
+                     f"group-writable — the services run as `claude` and will "
+                     f"crash-loop on these: {', '.join(unwritable[:6])}"
+                     + (" ..." if len(unwritable) > 6 else ""))
+        lines.append("                    fix: sudo chgrp users <f> && "
+                     "sudo chmod g+w <f>")
+    if root_owned:
+        # Not notable on its own: the xanbus/latch-guard services run as root
+        # and own their own state by design. Worth printing, not paging.
+        lines.append(f"  data perms      {len(root_owned)} root-owned file(s) "
+                     f"(root-run services own these): "
+                     f"{', '.join(root_owned[:4])}"
+                     + (" ..." if len(root_owned) > 4 else ""))
+    if not unwritable:
+        lines.append(f"  data perms      all {seen} data file(s) "
+                     f"group-writable — services can append")
+    return notable, lines
+
+
 def _check_timers(out: str) -> tuple[bool, list[str]]:
     rows = [l.split() for l in out.splitlines() if l.startswith("TIMER ")]
     if not rows:
@@ -1033,6 +1096,24 @@ def section_pi(ssh_target: str, hours: int) -> tuple[bool, list[str]]:
         tn, tl = _check_timers(tout)
         notable |= tn
         lines += tl
+
+    # --- data/ permissions: one octal digit cost 70 minutes of telemetry ---
+    perm_probe = ('stat -c "%U %G %a %n" /srv/volthium_reader/data/*.csv '
+                  '/srv/volthium_reader/data/*.jsonl '
+                  '/srv/volthium_reader/data/*.log 2>/dev/null')
+    try:
+        pout = subprocess.check_output(
+            ["ssh", ssh_target, "-o", "ConnectTimeout=8", perm_probe],
+            timeout=30, text=True,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
+            OSError) as exc:
+        notable = True
+        lines.append(f"  ← data perms UNVERIFIED: {exc}")
+    else:
+        pn, pl = _check_data_perms(pout)
+        notable |= pn
+        lines += pl
 
     services = _parse_units(out)
     if not services:
