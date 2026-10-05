@@ -467,7 +467,25 @@ class TestHealthSummary(unittest.TestCase):
                 "soc_a", "soc_b",
             ])
             w.writeheader()
-            base = datetime.now().replace(microsecond=0)
+            # ANCHOR TO A FIXED HOUR, not to now(). These 7 rows span 60 s,
+            # so when the suite runs within a minute of midnight they
+            # straddle the date boundary, compute_today_load_surges (which
+            # filters on today's ISO date prefix) sees a truncated run, no
+            # surge is found, and the LOAD SURGES line is absent. A ~60-second
+            # window every 24 h, which reads as flakiness rather than as a
+            # broken fixture — and it fired during this session's suite run at
+            # local midnight on 2026-10-04.
+            #
+            # Reproduced directly: with base at 23:59:30 the helper returns 0
+            # surges; at 15:00 and at noon it returns 1.
+            #
+            # This is the SAME defect already fixed at the PACK GAPS test
+            # below (see its comment, "failed for ten minutes out of every
+            # twenty-four hours"). Every other span-building test in this repo
+            # already anchors with .replace(hour=...); this one was the
+            # outlier.
+            base = datetime.now().replace(hour=12, minute=0, second=0,
+                                          microsecond=0)
             for i in range(7):
                 si = -30.0
                 w.writerow({

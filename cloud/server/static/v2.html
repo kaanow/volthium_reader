@@ -60,6 +60,14 @@ button {
   content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 3px;
   margin-right: 5px; background: var(--c);
 }
+/* The disclosure is not a series, so it must not wear a colour swatch — it
+   does not define --c, and the generic rule above would have given it a
+   transparent 9px box that reads as a missing legend colour. */
+.legend .legend-note::before { display: none; }
+.legend .legend-note {
+  color: var(--text-2); opacity: 0.75; font-style: italic; cursor: help;
+  border-bottom: 1px dotted currentColor;
+}
 #strip { display: block; width: 100%; height: auto; cursor: crosshair; }
 .tip {
   position: fixed; pointer-events: none; z-index: 5; display: none;
@@ -170,7 +178,24 @@ table.sys-t tr.balance td { color: var(--text-3); border-top: 1px solid var(--li
         <span style="--c: var(--solar)">solar</span>
         <span style="--c: var(--batt)">battery</span>
         <span style="--c: var(--gen)">generator</span>
-        <span style="--c: var(--load)">loads</span>
+        <span style="--c: var(--load)">AC loads</span>
+        <!-- DISCLOSED, NOT DRAWN. The demand side is loadAt() + battery
+             charging, and loadAt() returns dc_w: the INVERTER's DC input.
+             That is blind to the bus-wired fridge (~5 A) and the Xanbus
+             accessories' static draw, both of which sit on the DC bus. So
+             supply legitimately exceeds demand by the DC-bus load whenever
+             the compressor runs, and the chart was titled "Power balance"
+             with a four-item legend implying nothing was left out.
+
+             It is NOT drawn, deliberately. The only way to get a per-row
+             DC-bus figure is battery discharge + solar - inverter input,
+             which is a difference across two meters known to be offset
+             ~33 W (BMS says the dark baseline is 80 W, the inverter reports
+             113 W). That method was abandoned for dcLoadW() for exactly this
+             reason, and reviving it here to close a cosmetic gap would trade
+             an honest gap for a plausible wrong number. The live DC load has
+             its own readout in the flow diagram (w-dc). -->
+        <span class="legend-note" title="The demand side shows AC loads (the inverter's DC input) plus battery charging. The DC-bus load — fridge and Xanbus accessories — is not measured per row and is NOT included, so supply can exceed demand by roughly that amount. See the DC load readout in the flow diagram.">DC bus load not shown ⓘ</span>
       </div>
     </div>
     <svg id="strip" viewBox="0 0 760 170" aria-label="supply and demand, mirrored"></svg>
@@ -424,24 +449,30 @@ async function pollOnce(first) {
       st.dcProfile = (await jget("/api/solar/dc_load?hours=24")).profile || null;
     } catch (e) { /* non-fatal: the arm just shows a dash */ }
   }
-  if (first) {
-    // backfill the strip: solar rows + bucketed BMS power, joined on ts
-    const ser = (await jget(`/api/history/series?hours=1&bucket_s=${BUCKET_S}`)).series || [];
-    const pByT = new Map(ser.map(b => [Date.parse(b.bucket), b.p_avg]));
-    for (const r of rows) {
-      const t = Date.parse(r.ts);
-      const batt = pByT.get(t) ?? 0;
-      const g = genAt(r);
-      const s = inferSolar(r.solar_w ?? 0, batt, g > 0 ? null : r.dc_w,
-                           clampedAt(r));
-      hist.push({ t, solar: s.w, gen: g,
-                  load: loadAt(r, s.w, batt), batt });
-    }
-  } else if (rows.length) {
-    for (const r of rows) {
+  /* ONE PATH FOR BOTH BACKFILL AND LIVE. These were two copies of the same
+     loop differing in one line, and that line was the bug: the live branch
+     computed `batt = battW()` ONCE PER ROW from the single latest reading, so
+     every row in a multi-row batch got the SAME battery power. At the steady
+     15 s poll that is one row and looks fine; after a tab sleep, a network
+     stall or any catch-up the whole recovered span is drawn with one flat
+     value — precisely when someone is looking to see what they missed.
+
+     Both now join on the row's own 15 s bucket from /api/history/series,
+     whose p_avg is AVG(pack_p) — the same signal battW() returns, so the two
+     halves of the chart finally mean the same thing. (Before 2026-10-04
+     battW() was the smoothed EMA while the backfill used pack_p, so the join
+     was across two different signals as well.)
+
+     A row with no bucket yet is SKIPPED, not zero-filled: the aggregate can
+     lag the raw row by a bucket, and `0` would draw a fictitious moment of no
+     battery activity. The `t <= last.t` guard lets a skipped row be picked up
+     on a later poll, so this self-heals instead of leaving a hole. */
+  const pushRows = (src, pByT) => {
+    for (const r of src) {
       const t = Date.parse(r.ts);
       if (hist.length && t <= hist[hist.length - 1].t) continue;
-      const batt = battW();
+      if (!pByT.has(t)) continue;           // no battery bucket yet — retry later
+      const batt = pByT.get(t);
       const g = genAt(r);
       const s = inferSolar(r.solar_w ?? 0, batt, g > 0 ? null : r.dc_w,
                            clampedAt(r));
@@ -449,6 +480,11 @@ async function pollOnce(first) {
                   load: loadAt(r, s.w, batt), batt });
     }
     while (hist.length > HIST) hist.shift();
+  };
+  if (first || rows.length) {
+    const ser = (await jget(
+      `/api/history/series?hours=1&bucket_s=${BUCKET_S}`)).series || [];
+    pushRows(rows, new Map(ser.map(b => [Date.parse(b.bucket), b.p_avg])));
   }
 }
 

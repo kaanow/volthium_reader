@@ -59,10 +59,26 @@ class GeneratorSeriesTests(unittest.TestCase):
     def _hist_pushes(self) -> list[str]:
         """Every hist.push({...}) call — the backfill and the live tail."""
         pushes = re.findall(r"hist\.push\(\{(.*?)\}\)", self.src, re.S)
+        # UPDATED 2026-10-04. This used to require >= 2 push sites, one per
+        # path, and its own failure message warned that the file's shape might
+        # change. It did: backfill and live were unified into a single
+        # pushRows() helper, because the duplication was itself the bug (the
+        # live copy applied ONE battery reading to every row in a batch).
+        #
+        # The intent of these assertions — that no path hardcodes the
+        # generator, reads live globals, or computes it differently — is
+        # satisfied more strongly by there being exactly one path. So require
+        # at least one, and pin the count below so a second copy cannot
+        # reappear unnoticed.
         self.assertGreaterEqual(
-            len(pushes), 2,
-            "expected a backfill push and a live push; the shape of this file "
-            "changed and these assertions may no longer be scoped right")
+            len(pushes), 1,
+            "no hist.push found at all; the strip chart fill was removed or "
+            "restructured beyond what these assertions can scope")
+        self.assertEqual(
+            len(pushes), 1,
+            f"found {len(pushes)} hist.push sites. Backfill and live were "
+            f"deliberately unified into one pushRows() helper; a second copy "
+            f"is how they diverged last time")
         return pushes
 
     def test_no_push_hardcodes_the_generator_to_zero(self):
@@ -85,15 +101,17 @@ class GeneratorSeriesTests(unittest.TestCase):
     def test_both_pushes_use_the_same_per_row_helper(self):
         """If the backfill and the live tail compute this differently, the
         chart changes shape on refresh — which is how fault 1 hid behind
-        fault 2 for as long as it did."""
+        fault 2 for as long as it did. They are now one helper, which is the
+        structural guarantee rather than a per-copy check."""
         for i, p in enumerate(self._hist_pushes()):
             self.assertRegex(
                 p, r"gen:\s*g\b",
                 f"hist.push #{i} does not use the shared per-row generator "
                 f"value")
         self.assertEqual(
-            len(re.findall(r"const g = genAt\(r\)", self.src)), 2,
-            "both paths must call genAt(r) on the row they are pushing")
+            len(re.findall(r"const g = genAt\(r\)", self.src)), 1,
+            "the single unified push path must call genAt(r) on the row it is "
+            "pushing (was 2 before backfill and live were merged)")
 
     def test_genAt_reads_the_rows_own_measured_fields(self):
         body = re.search(r"function genAt\(r\)\s*\{(.*?)\n\}", self.src, re.S)
