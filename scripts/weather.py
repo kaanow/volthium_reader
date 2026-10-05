@@ -134,6 +134,40 @@ def fetch_today_tomorrow_irradiance(
     return today, tomorrow
 
 
+TS_KEYS = ("ts", "fetched_at", "timestamp", "time")
+
+
+def row_age_s(row: Optional[dict], now: Optional[datetime] = None) -> Optional[float]:
+    """Age of a weather row in seconds, or None if it carries no usable stamp.
+
+    Lives here, in the module that writes the row, because TWO consumers
+    independently decided how old was too old and BOTH shipped without
+    checking at all: dashboard.compute_projection (6edadc0) and
+    generator_advisor. A stale forecast does not merely degrade those — it
+    INVERTS them, because each advances sunrise by a day-step and a row older
+    than ~24 h leaves sunrise in the past.
+
+    `now` is injectable so a test can age a row without sleeping.
+    """
+    if not row:
+        return None
+    ref = now if now is not None else datetime.now()
+    for key in TS_KEYS:
+        raw = row.get(key)
+        if not raw:
+            continue
+        try:
+            t = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if t.tzinfo is not None:
+            t = t.astimezone().replace(tzinfo=None)
+        if ref.tzinfo is not None:
+            ref = ref.astimezone().replace(tzinfo=None)
+        return (ref - t).total_seconds()
+    return None
+
+
 def flatten(data: dict, lat: float, lon: float) -> dict:
     """Normalize the open-meteo response into a single CSV row.
 

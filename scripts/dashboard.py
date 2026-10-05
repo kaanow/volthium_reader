@@ -360,21 +360,10 @@ except Exception:                      # pragma: no cover
 
 
 def _weather_age_s(weather: dict | None) -> float | None:
-    """Age of a weather row in seconds, or None if it carries no timestamp."""
-    if not weather:
-        return None
-    for key in ("ts", "fetched_at", "timestamp", "time"):
-        raw = weather.get(key)
-        if not raw:
-            continue
-        try:
-            t = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-        except ValueError:
-            continue
-        if t.tzinfo is not None:
-            t = t.astimezone().replace(tzinfo=None)
-        return (datetime.now() - t).total_seconds()
-    return None
+    """Age of a weather row in seconds. Delegates to weather.row_age_s so the
+    advisor and the dashboard cannot disagree about what 'stale' means."""
+    import weather as _weather_mod
+    return _weather_mod.row_age_s(weather)
 
 
 def compute_projection(latest_pack: dict, weather: dict | None) -> dict | None:

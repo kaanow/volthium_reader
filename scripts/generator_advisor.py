@@ -47,6 +47,7 @@ import csv as _csv
 import statistics
 import discharge_model  # noqa: E402
 import weather as weather_mod  # noqa: E402
+from health import WEATHER_STALE_THRESHOLD_S  # noqa: E402
 import today_harvest as today_harvest_mod  # noqa: E402
 import calibration_log as calibration_log_mod  # noqa: E402
 import projection_log as projection_log_mod  # noqa: E402
@@ -443,7 +444,24 @@ def main() -> int:
     ap.add_argument("--comfort-floor", type=float, default=25.0,
                     help="don't let projected SOC drop below this percent")
     ap.add_argument("--json", action="store_true", help="output machine-readable JSON only")
+    ap.add_argument("--log-dir", type=Path, default=None,
+                    help="redirect the self-evaluation logs (projection, "
+                         "calibration, confidence) to this directory instead "
+                         "of data/. Use for tests and ad-hoc diagnostic runs: "
+                         "without it, every invocation APPENDS to the real "
+                         "projection log, and projection_accuracy reads that "
+                         "log — so a test run with a synthetic SOC silently "
+                         "corrupts the advisor's own accuracy statistics.")
     args = ap.parse_args()
+
+    if args.log_dir is not None:
+        args.log_dir.mkdir(parents=True, exist_ok=True)
+        # Rebind rather than thread a path through four call sites: these are
+        # all module-level defaults, and rebinding redirects the READS too,
+        # which is what isolation means here.
+        projection_log_mod.LOG_PATH = args.log_dir / "projection_log.csv"
+        calibration_log_mod.LOG_PATH = args.log_dir / "calibration_log.csv"
+        confidence_log_mod.LOG_PATH = args.log_dir / "confidence_log.csv"
 
     pack_now = latest_csv_row(args.pack_csv)
     weather_now = latest_csv_row(args.weather_csv) or {}
@@ -474,9 +492,53 @@ def main() -> int:
     except ValueError:
         print("malformed sunrise/sunset.", file=sys.stderr)
         return 1
-    if sunrise_dt < now:
+    # A STALE FORECAST TELLS THE OPERATOR TO GO BURN FUEL FOR NOTHING.
+    #
+    # Measured against a 72 h-old forecast, sweeping start SOC (code at HEAD
+    # vs this fix; the advisor's own next-24h low, comfort floor 25 %):
+    #
+    #     start   fresh low  fresh verdict | 72h-stale low   verdict
+    #      88 %      60.4 %   no action    |     27.5 %      no action
+    #      80 %      52.4 %   no action    |     19.5 %      RUN GENERATOR  <-
+    #      72 %      44.4 %   no action    |     11.5 %      RUN GENERATOR  <-
+    #      68 %      40.4 %   no action    |      7.5 %      RUN GENERATOR  <-
+    #      64 %      36.4 %   no action    |      3.5 %      RUN GENERATOR  <-
+    #      60 %      32.4 %   no action    |      0.0 %      RUN GENERATOR  <-
+    #
+    # So across a 60-80 % band the stale path says RUN GENERATOR while the
+    # pack has 32-52 points of headroom and needs nothing. At 60 % it reports
+    # a clamped 0.0 % — maximum alarm from a file nobody refreshed. The
+    # operator burns propane on the strength of a three-day-old sky.
+    #
+    # MECHANISM: sunrise/sunset come from the forecast row, so a stale row's
+    # times are stale too. simulate_next_24h matches daylight hours against
+    # them; with both in the past no hour matches, the whole 24 h simulates as
+    # night, and the projection falls monotonically into the clamp.
+    #
+    # The day-step below is NOT the primary bug. One step covers anything
+    # under 48 h, and a 26 h-old forecast measured IDENTICAL to fresh — so the
+    # fix that matters is the age refusal, not the loop. The loop is defence
+    # in depth for >48 h, which is the cabin-internet-outage case. Both are
+    # kept: advancing a clock does not make a three-day-old irradiance figure
+    # describe today.
+    #
+    # Same root defect as dashboard.compute_projection (6edadc0). Both now
+    # share one age helper and one threshold instead of each deciding.
+    age_s = weather_mod.row_age_s(weather_now)
+    if age_s is not None and age_s > WEATHER_STALE_THRESHOLD_S:
+        print(f"forecast is {age_s / 3600:.1f} h old (limit "
+              f"{WEATHER_STALE_THRESHOLD_S / 3600:.1f} h) — refusing to "
+              f"advise. A stale forecast simulates 24 h of darkness and "
+              f"recommends the generator to a pack that needs nothing.",
+              file=sys.stderr)
+        return 1
+    for _ in range(14):
+        if sunrise_dt >= now:
+            break
         sunrise_dt += timedelta(days=1)
-    if sunset_dt < now:
+    for _ in range(14):
+        if sunset_dt >= now:
+            break
         sunset_dt += timedelta(days=1)
 
     # === Hour-by-hour 24-hour simulation ===

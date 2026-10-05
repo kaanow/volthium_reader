@@ -46,6 +46,12 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 LOG_PATH = Path("data/confidence_log.csv")
+# Callers take this as `path: Optional[Path] = None` and resolve it at CALL
+# time, never as a def-time default. A def-time default captures the Path
+# object when the module is imported, so rebinding LOG_PATH afterwards is
+# silently ignored — which is exactly how generator_advisor's --log-dir came
+# out a no-op that still appended synthetic rows to the real log while
+# reporting success. Tests and diagnostic runs depend on the rebinding working.
 FIELDS = [
     "ts",
     "base",
@@ -90,14 +96,16 @@ class LogEntry:
         )
 
 
-def read_log(path: Path = LOG_PATH) -> list[LogEntry]:
+def read_log(path: Optional[Path] = None) -> list[LogEntry]:
+    path = LOG_PATH if path is None else path   # call-time; see LOG_PATH
     if not path.exists():
         return []
     with path.open() as f:
         return [LogEntry.from_row(r) for r in csv.DictReader(f)]
 
 
-def last_entry(path: Path = LOG_PATH) -> Optional[LogEntry]:
+def last_entry(path: Optional[Path] = None) -> Optional[LogEntry]:
+    path = LOG_PATH if path is None else path   # call-time; see LOG_PATH
     entries = read_log(path)
     return entries[-1] if entries else None
 
@@ -121,8 +129,9 @@ def is_meaningful_change(prev: Optional[LogEntry],
     return False
 
 
-def append_entry(entry: LogEntry, path: Path = LOG_PATH) -> None:
+def append_entry(entry: LogEntry, path: Optional[Path] = None) -> None:
     """Append one row. Creates the file with a header if needed."""
+    path = LOG_PATH if path is None else path   # call-time; see LOG_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
     new_file = not path.exists()
     with path.open("a", newline="") as f:
@@ -149,13 +158,14 @@ def record_if_changed(base: str,
                       recent_abs_error_pp: Optional[float],
                       recent_n: int,
                       source: str = "advisor-invocation",
-                      path: Path = LOG_PATH,
+                      path: Optional[Path] = None,
                       now: Optional[datetime] = None) -> bool:
     """Compare the supplied state against the last logged entry;
     append a new row only when (base, resolved, lifted) has changed.
     Returns True if a row was written. Best-effort caller: wrap in
     try/except in the advisor so a logging failure never blocks
     the verdict."""
+    path = LOG_PATH if path is None else path   # call-time; see LOG_PATH
     prev = last_entry(path)
     if not is_meaningful_change(prev, base, resolved, lifted):
         return False

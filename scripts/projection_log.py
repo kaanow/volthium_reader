@@ -41,6 +41,12 @@ from typing import Optional
 
 
 LOG_PATH = Path("data/projection_log.csv")
+# Callers take this as `path: Optional[Path] = None` and resolve it at CALL
+# time, never as a def-time default. A def-time default captures the Path
+# object when the module is imported, so rebinding LOG_PATH afterwards is
+# silently ignored — which is exactly how generator_advisor's --log-dir came
+# out a no-op that still appended synthetic rows to the real log while
+# reporting success. Tests and diagnostic runs depend on the rebinding working.
 FIELDS = [
     "ts", "start_soc_pct",
     "projected_sunrise_soc", "projected_tomorrow_evening_soc",
@@ -88,19 +94,22 @@ class LogEntry:
         )
 
 
-def read_log(path: Path = LOG_PATH) -> list[LogEntry]:
+def read_log(path: Optional[Path] = None) -> list[LogEntry]:
+    path = LOG_PATH if path is None else path   # call-time; see LOG_PATH
     if not path.exists():
         return []
     with path.open() as f:
         return [LogEntry.from_row(r) for r in csv.DictReader(f)]
 
 
-def last_entry(path: Path = LOG_PATH) -> Optional[LogEntry]:
+def last_entry(path: Optional[Path] = None) -> Optional[LogEntry]:
+    path = LOG_PATH if path is None else path   # call-time; see LOG_PATH
     entries = read_log(path)
     return entries[-1] if entries else None
 
 
-def append_entry(entry: LogEntry, path: Path = LOG_PATH) -> None:
+def append_entry(entry: LogEntry, path: Optional[Path] = None) -> None:
+    path = LOG_PATH if path is None else path   # call-time; see LOG_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
     new_file = not path.exists()
     with path.open("a", newline="") as f:
@@ -136,7 +145,7 @@ def record_if_due(
     source: str,
     now: Optional[datetime] = None,
     min_minutes_between: int = MIN_MINUTES_BETWEEN,
-    path: Path = LOG_PATH,
+    path: Optional[Path] = None,
 ) -> bool:
     """Append a projection log row if the previous entry is older than
     `min_minutes_between` minutes. Returns True if a row was written.
@@ -144,6 +153,7 @@ def record_if_due(
     Rate-limit prevents log spam from the dashboard's per-minute
     subprocess. The autonomous loop's ~25-30 min cadence naturally
     aligns with this threshold."""
+    path = LOG_PATH if path is None else path   # call-time; see LOG_PATH
     if now is None:
         now = datetime.now()
 

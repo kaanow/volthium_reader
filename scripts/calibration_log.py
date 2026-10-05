@@ -42,6 +42,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from volthium.solar_model import SolarModel  # noqa: E402
 
 LOG_PATH = Path("data/calibration_log.csv")
+# Callers take this as `path: Optional[Path] = None` and resolve it at CALL
+# time, never as a def-time default. A def-time default captures the Path
+# object when the module is imported, so rebinding LOG_PATH afterwards is
+# silently ignored — which is exactly how generator_advisor's --log-dir came
+# out a no-op that still appended synthetic rows to the real log while
+# reporting success. Tests and diagnostic runs depend on the rebinding working.
 FIELDS = ["ts", "coefficient", "n_observations", "confidence", "source", "notes"]
 
 # How much the coefficient must move to log a new row. Below this is
@@ -72,14 +78,16 @@ class LogEntry:
         )
 
 
-def read_log(path: Path = LOG_PATH) -> list[LogEntry]:
+def read_log(path: Optional[Path] = None) -> list[LogEntry]:
+    path = LOG_PATH if path is None else path   # call-time; see LOG_PATH
     if not path.exists():
         return []
     with path.open() as f:
         return [LogEntry.from_row(r) for r in csv.DictReader(f)]
 
 
-def last_entry(path: Path = LOG_PATH) -> Optional[LogEntry]:
+def last_entry(path: Optional[Path] = None) -> Optional[LogEntry]:
+    path = LOG_PATH if path is None else path   # call-time; see LOG_PATH
     entries = read_log(path)
     return entries[-1] if entries else None
 
@@ -98,11 +106,12 @@ def is_meaningful_change(prev: Optional[LogEntry], model: SolarModel) -> bool:
     return False
 
 
-def append_entry(entry: LogEntry, path: Path = LOG_PATH) -> None:
+def append_entry(entry: LogEntry, path: Optional[Path] = None) -> None:
     """Append one row to the log. Creates the file with a header if it
     doesn't exist yet. Uses 'a' mode + flush + fsync so concurrent
     callers (advisor subprocess from the dashboard, loop iteration)
     don't trample each other on a partial line write."""
+    path = LOG_PATH if path is None else path   # call-time; see LOG_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
     new_file = not path.exists()
     with path.open("a", newline="") as f:
@@ -121,10 +130,11 @@ def append_entry(entry: LogEntry, path: Path = LOG_PATH) -> None:
 
 
 def record_if_changed(model: SolarModel, source: str,
-                      path: Path = LOG_PATH,
+                      path: Optional[Path] = None,
                       now: Optional[datetime] = None) -> bool:
     """Compare `model` to the last logged entry; append a new row if it
     differs meaningfully. Returns True if a row was written."""
+    path = LOG_PATH if path is None else path   # call-time; see LOG_PATH
     prev = last_entry(path)
     if not is_meaningful_change(prev, model):
         return False
