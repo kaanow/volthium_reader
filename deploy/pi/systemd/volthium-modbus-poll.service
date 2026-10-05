@@ -6,6 +6,17 @@ After=network.target
 Type=simple
 User=claude
 Group=users
+# UMask so the shared group actually works. WHY: on 2026-10-04 the primary
+# telemetry logger crash-looped 593 times over 70 minutes with
+# "PermissionError: data/pack.csv". Cause: these services run as `claude` with
+# the default umask 0022, so every file they create is 0644 — group-readable
+# but NOT group-writable. The moment anything running as `kaan` (an operator
+# SSH session, an ad-hoc diagnostic) recreated pack.csv, it came back
+# kaan:users 0644 and `claude` could never append again. The common group
+# `users` was supposed to make the two interchangeable; umask 0022 quietly
+# made it decorative. 0002 keeps new files 0664 so either side can write what
+# the other created. Pair with the setgid bit on data/ (see deploy/pi/README).
+UMask=0002
 WorkingDirectory=/srv/volthium_reader
 ExecStart=/srv/volthium_reader/.venv/bin/python scripts/modbus_poll.py
 # Bounded for the same reason as the capture service (CLAUDE.md rule 1): an
