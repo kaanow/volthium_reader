@@ -441,7 +441,33 @@ async function pollOnce(first) {
     st.mpptStage = mpptStage ? mpptStage.data.to : null;
     st.swStage = swStage ? swStage.data.to : null;
     if (inv) st.inv = inv.data.to === "ac_passthrough" ? "passthrough" : "inverting";
-    st.gen = gen ? gen.event === "gen_start" : false;
+    /* MEASURED FIRST, DECLARED AS FALLBACK. The event pair is ambiguous at
+       exactly the moment it matters: the 2026-10-04 shutdown emitted
+       gen_start AND gen_stop in the same second (16:12:36), and the stream
+       flaps at both ends of a run. A same-second pair cannot be ordered by
+       timestamp, so the tile's state depended on row order (now pinned with
+       `id DESC` server-side, which makes it stable — but stable is not the
+       same as correct).
+
+       The row itself carries gen_v, the generator's own AC voltage, and the
+       reader uses the same 50 V floor to decide the AC2 input is live. That
+       is a measurement of the thing being asked about rather than a
+       transition notice about it, which is the order of preference this
+       system is supposed to follow: raw reported data first, inference only
+       to fill gaps.
+
+       Guarded on freshness with the same 900 s threshold used everywhere
+       else for solar rows — a stale row's gen_v is a remembered value, and
+       trusting it would be today's MPPT_STALE_S lesson again. Rows written
+       before schema 3 have null gen_v and correctly fall through to the
+       event. */
+    const genRow = st.solar;
+    const genRowAgeS = genRow?.ts
+      ? (Date.now() - Date.parse(genRow.ts)) / 1000 : null;
+    const genRowFresh = genRowAgeS != null && genRowAgeS <= 900;
+    st.gen = (genRowFresh && genRow.gen_v != null)
+      ? genRow.gen_v >= 50
+      : (gen ? gen.event === "gen_start" : false);
   }
   if (first || now - st.lastProfilePoll > 3600e3) {
     st.lastProfilePoll = now;

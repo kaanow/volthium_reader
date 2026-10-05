@@ -1495,9 +1495,23 @@ class AsyncpgReadingsDAO:
         params.append(limit)
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
+                # TIE-BREAK ON id. `ORDER BY ts DESC` alone is
+                # NON-DETERMINISTIC when two events share a timestamp, and
+                # this stream does that at both ends of a generator run: the
+                # 2026-10-04 shutdown emitted gen_start AND gen_stop in the
+                # SAME SECOND (16:12:36). With limit=1 the dashboard's
+                # "⛽ Generator" tile then resolved to whichever row Postgres
+                # happened to return, so the same shutdown could render as
+                # running or stopped across refreshes with no change in the
+                # data.
+                #
+                # id is BIGSERIAL, so id DESC is both stable and the true
+                # ARRIVAL order — for a same-second flap pair that is the
+                # reader's emission order, which is the sequence that actually
+                # happened.
                 f"""SELECT source_id, ts, event, data FROM xanbus_events
                     WHERE {" AND ".join(where)}
-                    ORDER BY ts DESC LIMIT ${len(params)}""",
+                    ORDER BY ts DESC, id DESC LIMIT ${len(params)}""",
                 *params,
             )
         out = []
