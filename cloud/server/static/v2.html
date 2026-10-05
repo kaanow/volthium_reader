@@ -148,8 +148,17 @@ table.sys-t tr.balance td { color: var(--text-3); border-top: 1px solid var(--li
   <div id="latchwarn" class="latch" hidden>
     ⚠ <b>MPPT latched</b> — array pinned at battery voltage; power is bypassing
     the converter unregulated, and charge setpoints do not apply while it is.
-    The guard clears this automatically within ~20 min whenever the sun is
-    more than 5° up. If it persists past that, do it by hand:
+    <!-- "within ~20 min" was a BOUND the guard cannot honour, resting on a
+         figure measured from a truncated run. Regenerated 2026-10-04:
+         true exposure median 14.1 min (n=2). And "within" is contradicted by
+         the guard's own constants — COOLDOWN_S blocks any retry for 45 min,
+         MAX_FIXES_PER_DAY stops it after 6, and a partial clamp costs
+         SUSTAINED_PARTIAL_RUNS x 5 min before it acts at all. Describing
+         what it DOES beats promising what it cannot. -->
+    The guard attempts a fix on its next 5-minute run whenever the sun is more
+    than 5° up; past exposure has run about 14 min (median, n=2). It will not
+    retry within 45 min of an attempt, and stops after 6 attempts a day.
+    If it persists, do it by hand:
     Insight → MPPT → Configuration → Operating Mode →
     <b>Standby</b> → Apply → wait 15 s → <b>Operating</b> → Apply.
   </div>
@@ -675,9 +684,32 @@ function drawHero() {
   $("ab").textContent = sa != null && sb != null
     ? `A ${Math.round(sa)}% · B ${Math.round(sb)}%` : "";
   const ageS = (Date.now() - Date.parse(L.ts)) / 1000;
+  /* THE SOLAR STREAM HAS ITS OWN AGE, and nothing surfaced it. This chip
+     ages only /api/latest, which is the BMS. The two pipelines are
+     independent and fail independently — measured on 2026-10-04, solar was
+     217-309 s old while the BMS was 3-9 s, BY DESIGN (solar uploads in 300 s
+     batches). So every solar-derived tile — Solar, Loads, DC loads, the
+     PV/MPPT/inverter table, the balance gap, the latch banner, the right
+     edge of the chart — would have sat at HOURS old, unflagged, if the
+     xanbus reader died, while this chip cheerfully read "discharging".
+     The strip chart has no time axis either, so a frozen stream is invisible
+     there too.
+
+     Threshold is 900 s: three upload batches, so the normal sawtooth never
+     trips it. Same reasoning and the same number as the cloud-side solar
+     staleness alert. */
+  const solarAgeS = st.solar?.ts
+    ? (Date.now() - Date.parse(st.solar.ts)) / 1000 : null;
+  const solarStale = solarAgeS != null && solarAgeS > 900;
   const chip = $("state");
   if (ageS > 120) {
     chip.textContent = `stale — last data ${fmtH(ageS / 3600)} ago`;
+    chip.classList.add("stale");
+  } else if (solarStale) {
+    /* The battery half is fine, so say precisely that rather than implying
+       everything is stale. */
+    chip.textContent =
+      `${L.state} · SOLAR STALE ${fmtH(solarAgeS / 3600)}`;
     chip.classList.add("stale");
   } else {
     chip.classList.remove("stale");

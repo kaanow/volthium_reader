@@ -349,3 +349,49 @@ class ChargeStageNamesItsDeviceTests(unittest.TestCase):
         i = self.src.index("swOn")
         j = self.src.index("mpptOn", i)
         self.assertLess(i, j, "the sw branch must be tested first")
+
+
+class DisplayHonestyTests(unittest.TestCase):
+    """Text and windows that claimed more than they delivered."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.v2 = V2.read_text()
+        cls.hist = (V2.parent / "v2-history.html").read_text()
+
+    def test_the_latch_banner_does_not_promise_a_bound_the_guard_breaks(self):
+        """"clears within ~20 min" rested on a figure from a truncated run
+        (regenerated: 14.1 min median, n=2) AND is contradicted by the
+        guard's own constants: a 45 min cooldown and a 6/day cap."""
+        self.assertNotIn("automatically within", self.v2)
+        self.assertIn("45 min", self.v2, "the cooldown must be stated")
+        self.assertIn("6 attempts", self.v2, "the daily cap must be stated")
+
+    def test_the_events_heading_does_not_claim_a_fixed_window(self):
+        """It said "last 14 days" and rendered 2 h 25 min."""
+        self.assertNotIn("last 14 days", self.hist)
+        self.assertIn("evspan", self.hist,
+                      "the rendered span must be computed and shown")
+
+    def test_an_api_failure_is_not_rendered_as_an_empty_system(self):
+        """jget returned r.json() unconditionally, so every section fell back
+        to `|| []` and printed "no data yet" — cannot-look reported as
+        looked-and-fine."""
+        m = re.search(r"async function jget\(u\)\s*\{(.*?)\n\}",
+                      self.hist, re.S)
+        self.assertIsNotNone(m)
+        self.assertIn("r.ok", m.group(1))
+
+    def test_solar_staleness_is_surfaced_separately_from_the_bms(self):
+        """The chip aged only /api/latest, so a dead xanbus reader left every
+        solar tile hours old and unflagged while it read "discharging"."""
+        code = _code_only(self.v2)
+        self.assertIn("solarStale", code)
+        self.assertIn("SOLAR STALE", self.v2)
+
+    def test_the_solar_threshold_clears_the_upload_batch(self):
+        """Solar uploads in 300 s batches, so a tighter threshold would fire
+        on the normal sawtooth every cycle."""
+        m = re.search(r"solarAgeS > (\d+)", _code_only(self.v2))
+        self.assertIsNotNone(m)
+        self.assertGreaterEqual(int(m.group(1)), 900)
