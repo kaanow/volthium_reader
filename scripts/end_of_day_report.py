@@ -561,8 +561,13 @@ def build_report(day: date) -> str:
     # further by enumerating each individual event. Grep-able
     # across reports: e.g. `grep -A 8 "BLE logger reliability"
     # data/reports/*.md` for week-over-week uptime trend.
-    lines.append("## BLE logger reliability")
+    # Heading was "## BLE logger reliability" until 2026-10-04. Renamed
+    # because BLE was retired on 2026-07-26 and RS485 is the live path, so
+    # the old heading named a transport that cannot produce these gaps. Use
+    # the old string when grepping reports archived before the rename.
+    lines.append("## Telemetry logger reliability")
     lines.append("")
+    gap_error: Optional[BaseException] = None
     try:
         # health_mod is the top-of-file import; re-importing locally
         # would shadow it as a function-scope name and break the
@@ -571,14 +576,38 @@ def build_report(day: date) -> str:
             pack_csv=Path("data/pack.csv"),
             day=datetime.combine(day, datetime.min.time()),
         )
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        gap_error = exc
         events = []
+    try:
+        n_samples = health_mod.today_pack_sample_count(
+            pack_csv=Path("data/pack.csv"),
+            day=datetime.combine(day, datetime.min.time()),
+        )
+    except Exception:  # noqa: BLE001
+        n_samples = None
 
-    if not events:
-        lines.append("**Clean day** — no BLE-logger gaps over 60 s "
-                     "between consecutive pack samples. The cabin's "
-                     "Volthium Monitor.app held a continuous BLE link "
-                     "to both batteries.")
+    # THREE OUTCOMES, NOT TWO. An empty gap list meant any of "no gaps",
+    # "missing file", "no samples for this day", or "the analysis raised" —
+    # and every one of them archived the string "**Clean day**". A day on
+    # which the logger never produced a single sample was recorded, durably,
+    # as the best possible day. That is worse than no section at all, because
+    # the report is the artifact someone reads weeks later to reconstruct what
+    # happened while nobody was on site.
+    if gap_error is not None:
+        lines.append(f"**Gap analysis FAILED** — "
+                     f"`{type(gap_error).__name__}: {gap_error}`. This is NOT "
+                     f"a clean day; it is an unevaluated one. The gap record "
+                     f"for this day is unknown.")
+    elif not n_samples:
+        lines.append("**NO TELEMETRY** — zero pack samples recorded for this "
+                     "day. There are no gaps between samples because there "
+                     "are no samples. The logger was down, the file was "
+                     "missing, or the day has not started.")
+    elif not events:
+        lines.append(f"**Clean day** — no gaps over 60 s between consecutive "
+                     f"pack samples, across {n_samples} samples. The RS485 "
+                     f"link held to both batteries.")
     else:
         total_s = sum(e[2] for e in events)
         max_s = max(e[2] for e in events)

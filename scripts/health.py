@@ -105,6 +105,33 @@ def _fmt_age(seconds: float) -> str:
     return f"{seconds / 86400:.1f} d"
 
 
+def today_pack_sample_count(
+    pack_csv: Path = PACK_CSV,
+    day: Optional[datetime] = None,
+) -> int:
+    """How many pack samples were recorded for `day`.
+
+    EXISTS BECAUSE an empty gap list is ambiguous. today_pack_gap_events
+    documents itself as returning [] "when no gaps, missing file, or no
+    samples for `day`" — four conditions, one value. end_of_day_report
+    rendered all of them as "**Clean day** — no gaps", so a day with no
+    telemetry at all archived as the single most reassuring string in the
+    report. A caller needs this to tell silence from success.
+    """
+    if not pack_csv.exists():
+        return 0
+    if day is None:
+        day = datetime.now()
+    iso_prefix = day.strftime("%Y-%m-%d")
+    n = 0
+    with pack_csv.open() as f:
+        for row in csv.DictReader(f):
+            ts = (row.get("ts") or "").strip()
+            if ts.startswith(iso_prefix):
+                n += 1
+    return n
+
+
 def today_pack_gap_events(
     pack_csv: Path = PACK_CSV,
     day: Optional[datetime] = None,

@@ -873,15 +873,45 @@ class TestBuildReport(unittest.TestCase):
 
     # ---------- BLE logger reliability section ----------
 
-    def test_ble_logger_section_clean_day_message(self) -> None:
-        """No gaps in pack.csv → 'Clean day' message in the new
-        ## BLE logger reliability section."""
-        # Empty/no pack.csv → no events → clean-day message
+    def test_absent_pack_csv_is_not_reported_as_a_clean_day(self) -> None:
+        """REWRITTEN 2026-10-04. This test used to assert the defect.
+
+        It read, verbatim: "Empty/no pack.csv -> no events -> clean-day
+        message", and asserted `assertIn("Clean day", md)` for a day with no
+        pack.csv at all. So the archived report claimed a flawless day for a
+        day with zero telemetry, and this test certified it.
+
+        No samples is the OPPOSITE of a clean day. It is the loudest thing the
+        section can have to say.
+        """
         md = end_of_day_report_mod.build_report(date(2026, 5, 19))
-        self.assertIn("## BLE logger reliability", md)
-        self.assertIn("Clean day", md)
-        # No event table when clean
+        self.assertIn("## Telemetry logger reliability", md)
+        self.assertNotIn("Clean day", md)
+        self.assertIn("NO TELEMETRY", md)
+        # Still no event table — there are no events to tabulate.
         self.assertNotIn("| gap # | last sample before |", md)
+
+    def test_clean_day_message_when_there_are_actually_samples(self) -> None:
+        """The honest branches must not have cost us the real clean-day
+        case: samples present, no gaps between them."""
+        from datetime import datetime as _dt, timedelta as _td
+        day = date(2026, 5, 19)
+        base = _dt.combine(day, _dt.min.time()) + _td(hours=1)
+        path = self.root / "data" / "pack.csv"
+        hdr = ("ts,state,pack_v,pack_i,pack_w,soc_a,soc_b,v_a,v_b,i_a,i_b,"
+               "t_a,t_b,remaining_ah_a,remaining_ah_b,dc_w\n")
+        rows = [hdr] + [
+            f"{(base + _td(seconds=5 * i)).isoformat(timespec='seconds')},"
+            f"discharging,26.4,-3.0,-79.2,80,90,13.2,13.2,-3.0,-3.0,"
+            f"25,25,180,185,-79.2\n"
+            for i in range(120)]
+        path.write_text("".join(rows))
+        md = end_of_day_report_mod.build_report(day)
+        self.assertIn("Clean day", md)
+        self.assertIn("120 samples", md)
+        # And it must not credit the transport that was retired 2026-07-26.
+        self.assertNotIn("Monitor.app", md)
+        self.assertNotIn("BLE link", md)
 
     def _write_lr(self, entries: list[dict]) -> None:
         """Write data/live_ratio_log.csv. Schema must match
