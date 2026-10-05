@@ -175,15 +175,34 @@ def main() -> int:
     rep = [r["reported_s"] for r in rows]
     spread = max(rep) - min(rep)
     exp = [r["exposure_s"] / 60 for r in rows]
+
+    # A SINGLE EPISODE CANNOT ESTABLISH CONSTANCY. With n=1 the spread is 0 by
+    # construction, so the "a CONSTANT" verdict below was unfalsifiable — it
+    # fired on the arithmetic, not on evidence, and said the emitter measures
+    # the confirmation threshold rather than exposure on the strength of one
+    # observation. The same n=1 printed "median X, mean X, max X minutes",
+    # three identical numbers dressed as a distribution. n was disclosed, but
+    # a reader scanning for the headline does not reconstruct that median of
+    # one is just the value.
+    MIN_N_FOR_CONSTANCY = 3
     print(f"\n**reported `clamped_s`: {min(rep):.0f}..{max(rep):.0f} s across "
-          f"{len(rows)} latches, spread {spread:.0f} s vs LATCH_CONFIRM_S="
-          f"{LATCH_CONFIRM_S}** — "
-          + ("a CONSTANT. It measures the confirmation threshold, not exposure"
+          f"{len(rows)} latch{'' if len(rows) == 1 else 'es'}, spread "
+          f"{spread:.0f} s vs LATCH_CONFIRM_S={LATCH_CONFIRM_S}** — "
+          + ("NOT ENOUGH EPISODES to say whether this is constant: with "
+             f"n={len(rows)} the spread is 0 by construction. Need "
+             f"n>={MIN_N_FOR_CONSTANCY}."
+             if len(rows) < MIN_N_FOR_CONSTANCY
+             else "a CONSTANT. It measures the confirmation threshold, not "
+                  "exposure"
              if spread <= 0.05 * LATCH_CONFIRM_S
              else "this now VARIES; the emitter changed, re-read the docstring"))
-    print(f"**TRUE exposure: median {statistics.median(exp):.1f}, "
-          f"mean {statistics.mean(exp):.1f}, max {max(exp):.1f} minutes** "
-          f"(n={len(exp)})")
+    if len(exp) == 1:
+        print(f"**TRUE exposure: {exp[0]:.1f} minutes, from a SINGLE episode** "
+              f"(n=1 — no median, mean or max is meaningful here)")
+    else:
+        print(f"**TRUE exposure: median {statistics.median(exp):.1f}, "
+              f"mean {statistics.mean(exp):.1f}, max {max(exp):.1f} minutes** "
+              f"(n={len(exp)})")
     if unpaired:
         print(f"\n{unpaired} latch(es) had no matching mppt_unlatched in the "
               f"window and are excluded.")

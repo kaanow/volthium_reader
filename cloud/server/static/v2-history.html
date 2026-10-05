@@ -296,8 +296,17 @@ function drawTimeline(events, alarms) {
 /* ---------- boot ---------- */
 (async () => {
   const since14 = new Date(Date.now() - 14 * 864e5).toISOString();
+  /* ONE source of truth for the ledger window. The coverage caption used to
+     hardcode nothing and simply count the rows this query returned, so it
+     read "31 days of solar telemetry so far" — which is the WINDOW, not the
+     coverage. Measured 2026-10-04: days=30 returns 31 rows while the archive
+     actually spans 67 days (2026-07-30 onward), so the page understated
+     coverage by more than half and would have read 31 forever no matter how
+     much history accumulated. Deriving both from LEDGER_DAYS means changing
+     the window cannot leave the caption lying. */
+  const LEDGER_DAYS = 30;
   const [energy, hm, drift, events, alarms] = await Promise.all([
-    jget("/api/solar/energy?days=30"),
+    jget(`/api/solar/energy?days=${LEDGER_DAYS}`),
     jget("/api/solar/load_heatmap?days=21"),
     jget("/api/history/series?hours=720&bucket_s=86400"),
     jget(`/api/xanbus_events?since=${encodeURIComponent(since14)}&limit=500`),
@@ -308,7 +317,12 @@ function drawTimeline(events, alarms) {
   drawDrift(drift.series || []);
   drawTimeline(events.events || [], alarms.alarms || []);
   const cov = (energy.days || []).length;
-  $("cov").textContent = cov ? `${cov} days of solar telemetry so far` : "";
+  /* Says what it counts. Deliberately NOT "so far" — this page does not know
+     the archive's full extent and must not imply it does. Querying wide
+     enough to find out would be the lifetime scan that /api/solar/energy is
+     already on track to time out on. */
+  $("cov").textContent = cov
+    ? `${cov} days shown (last ${LEDGER_DAYS} days requested)` : "";
 })();
 $("theme").addEventListener("click", () => {
   const cur = document.documentElement.dataset.theme;
