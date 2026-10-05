@@ -57,6 +57,28 @@ BUCKET_S = 15
 UPLOAD_PERIOD_S = 300          # seal + upload cadence (5 min batches)
 DROPOUT_S = 60                 # node silent this long -> node_dropout event
 
+# How old a latch input may be before it is treated as absent rather than as
+# the present state of the array.
+#
+# WHY: pv_v / mppt_out_v are plain attributes updated when an MPPT frame
+# arrives. When the MPPT stops talking they KEEP THEIR LAST VALUES, and both
+# consumers ran anyway — _record_trail appended the frozen pair once a second,
+# fabricating a 1 Hz "trail" indistinguishable from live data, and _check_latch
+# kept evaluating them. If the node went silent while the array happened to
+# sit in the clamp band, the detector would hold clamped=True for the rest of
+# the afternoon on values from a node that was gone.
+#
+# That matters more than a wrong number: the latch guard ACTS on this, writing
+# Operating Mode -> Standby -> Operating. Bouncing the MPPT on hours-old
+# readings is a physical action taken on fiction.
+#
+# 15 s is ~15x the measured cadence. PGN 127166 (MPPT data) arrives every
+# 1.00 s with a maximum observed inter-arrival of 1.00 s across 2423 frames,
+# so this cannot trip on normal jitter. It is deliberately far tighter than
+# DROPOUT_S: there is no reason to keep trusting a value for the full minute
+# it takes to declare the node dropped.
+MPPT_STALE_S = 15.0
+
 # MPPT diode-clamp latch detection (root-caused 2026-08-05). When array
 # current demand exceeds what the (smoke-dimmed) panels can supply, the
 # operating point slides down the IV curve until the array sits at battery
@@ -341,6 +363,10 @@ class Decoder:
         self.mppt_out_v: float | None = None
         self.mppt_out_w: float | None = None
         self.mppt_status: int | None = None
+        # Arrival stamps, so the latch path can tell a present reading from a
+        # remembered one. See MPPT_STALE_S.
+        self.pv_sample_at: float | None = None
+        self.mppt_sample_at: float | None = None
         self.bad_dc_v = 0          # rejected out-of-range bus voltages
         self.bad_dc_w = 0          # rejected internally-inconsistent DC power
         self.bad_solar_w = 0       # rejected internally-inconsistent MPPT power
@@ -394,9 +420,16 @@ class Decoder:
         dc_v = v / 1000
         # Reject physically impossible bus voltages. One frame on 2026-08-01
         # decoded as ~143 kV and dragged a whole 15 min bucket's mean to
-        # 2412 V — one bad sample in 855 buckets, but dc_v is the reference
-        # the latch detector differences against, and a corrupted stored mean
-        # is permanent. The release hysteresis already stops a single sample
+        # 2412 V — one bad sample in 855 buckets, and a corrupted stored mean
+        # is permanent.
+        #
+        # CORRECTION 2026-10-04: this comment used to justify itself with "dc_v
+        # is the reference the latch detector differences against". That is
+        # false. _check_latch differences pv_v - mppt_out_v; dc_v appears
+        # nowhere in it. The guard is still worth having — a 143 kV mean in the
+        # database is bad on its own terms — but the stated reason also implied
+        # that pv_v and mppt_out_v were covered by it, when neither is range-
+        # guarded at all. They are now at least AGE-guarded (MPPT_STALE_S). The release hysteresis already stops a single sample
         # flipping the detector; this stops it reaching the database at all.
         if not (BUS_V_MIN <= dc_v <= BUS_V_MAX):
             self.bad_dc_v += 1
@@ -478,6 +511,7 @@ class Decoder:
             self._agg("solar_w").add(out_w)
             self.mppt_out_v = v / 1000
             self.mppt_out_w = abs(float(w))
+            self.mppt_sample_at = t
             self.mppt_status = _st       # status byte — meaning still unknown,
                                          # logged so we can correlate it later
         elif assoc == 0x15:      # PV array side: only voltage is real
@@ -485,6 +519,7 @@ class Decoder:
             # structurally 0 — see docs/xanbus-decode.md)
             self._agg("pv_v").add(v / 1000)
             self.pv_v = v / 1000
+            self.pv_sample_at = t
         return []
 
     # PGN 126998 is 3 header bytes followed by THREE 25-byte line blocks.
@@ -746,9 +781,20 @@ class Decoder:
         events += self._check_latch(now)
         return events
 
+    def _latch_inputs_fresh(self, now: float) -> bool:
+        """Are pv_v and mppt_out_v present AND recent? See MPPT_STALE_S."""
+        if self.pv_v is None or self.mppt_out_v is None:
+            return False
+        if self.pv_sample_at is None or self.mppt_sample_at is None:
+            return False
+        return (now - self.pv_sample_at <= MPPT_STALE_S
+                and now - self.mppt_sample_at <= MPPT_STALE_S)
+
     def _record_trail(self, now: float) -> None:
         """Keep ~20 min of 1 Hz array/converter state for latch forensics."""
-        if now - self._last_trail < 1.0 or self.pv_v is None:
+        # Do not fabricate a trail out of a frozen reading — a stalled MPPT
+        # would otherwise produce a perfect 1 Hz record of nothing happening.
+        if now - self._last_trail < 1.0 or not self._latch_inputs_fresh(now):
             return
         self._last_trail = now
         self.trail.append((round(now, 1), round(self.pv_v, 1),
@@ -762,7 +808,9 @@ class Decoder:
         """Diode-clamp detector: array pinned within a diode drop of the
         output while the sun is up means the converter has stopped
         switching and power is bypassing it unregulated."""
-        if self.pv_v is None or self.mppt_out_v is None:
+        # STALE INPUTS ARE NOT A CLAMPED ARRAY. The guard writes to the
+        # device on the strength of this; see MPPT_STALE_S.
+        if not self._latch_inputs_fresh(now):
             return []
         delta = self.pv_v - self.mppt_out_v
         clamped = (self.pv_v > LATCH_DAYLIGHT_V

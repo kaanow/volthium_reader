@@ -358,6 +358,28 @@ class LatchDetectionTests(unittest.TestCase):
         feed_fastpacket(dec, 0x1F0C5, 1, pv, t)
         feed_fastpacket(dec, 0x1F0C5, 1, out, t)
 
+    # SUSTAIN, don't jump. These tests used to feed ONE frame and then
+    # advance the clock 600 s. That was never physically possible: a real
+    # clamp broadcasts PGN 127173 every ~0.5 s and PGN 127166 every 1.00 s
+    # for the whole episode (measured: 2423 frames, max inter-arrival 1.00 s).
+    #
+    # It became visible when the latch inputs gained an age guard
+    # (MPPT_STALE_S) — a one-shot feed goes stale after 15 s, so a 600 s jump
+    # was asking the detector to confirm a clamp from a reading ten minutes
+    # old, which is exactly what the guard exists to refuse. The tests were
+    # encoding an impossible bus.
+    def _sustain(self, dec, shape, t0, t1, step=5.0):
+        """Feed `shape` and run housekeeping across [t0, t1], returning every
+        event emitted. step must stay under MPPT_STALE_S."""
+        assert step < xanbus_telemetry.MPPT_STALE_S
+        evs = []
+        t = t0
+        while t <= t1:
+            shape(dec, t)
+            evs += dec.housekeeping(t)
+            t += step
+        return evs
+
     def test_latch_needs_sustained_clamp(self):
         dec = Decoder()
         self._clamped(dec, 1000.0)
@@ -366,9 +388,7 @@ class LatchDetectionTests(unittest.TestCase):
 
     def test_latch_fires_after_confirm_window(self):
         dec = Decoder()
-        self._clamped(dec, 1000.0)
-        dec.housekeeping(1001.0)
-        evs = [e for e in dec.housekeeping(1000.0 + 601)
+        evs = [e for e in self._sustain(dec, self._clamped, 1000.0, 1000.0 + 605)
                if e["event"].startswith("mppt_")]
         self.assertEqual([e["event"] for e in evs],
                          ["mppt_latched", "mppt_latch_context"])
@@ -383,7 +403,7 @@ class LatchDetectionTests(unittest.TestCase):
         for i in range(60):            # a minute of 1 Hz history
             self._clamped(dec, t + i)
             dec.housekeeping(t + i)
-        evs = [e for e in dec.housekeeping(t + 601)
+        evs = [e for e in self._sustain(dec, self._clamped, t + 60, t + 605)
                if e["event"] == "mppt_latch_context"]
         self.assertEqual(len(evs), 1)
         trail = evs[0]["data"]["trail"]
@@ -404,16 +424,13 @@ class LatchDetectionTests(unittest.TestCase):
         """Recovery must be held, for the same reason the ceiling is wide:
         one dithered sample above the band is not the tracker climbing out."""
         dec = Decoder()
-        self._clamped(dec, 1000.0)
-        dec.housekeeping(1001.0)
-        dec.housekeeping(1601.0)
+        self._sustain(dec, self._clamped, 1000.0, 1605.0)
         self.assertTrue(dec.latched)
-        self._healthy(dec, 1700.0)
-        self.assertEqual([e for e in dec.housekeeping(1701.0)
-                          if e["event"].startswith("mppt_")], [])
+        self.assertEqual(
+            [e for e in self._sustain(dec, self._healthy, 1700.0, 1810.0)
+             if e["event"].startswith("mppt_")], [])
         self.assertTrue(dec.latched)                 # not yet — needs 120 s
-        self._healthy(dec, 1830.0)
-        evs = [e for e in dec.housekeeping(1831.0)
+        evs = [e for e in self._sustain(dec, self._healthy, 1815.0, 1835.0)
                if e["event"].startswith("mppt_")]
         self.assertEqual([e["event"] for e in evs], ["mppt_unlatched"])
         self.assertFalse(dec.latched)
@@ -423,9 +440,7 @@ class LatchDetectionTests(unittest.TestCase):
         retracted 25 s later on delta 2.96 V, while the array stayed clamped
         for hours. One sample out of band must not clear the flag."""
         dec = Decoder()
-        self._clamped(dec, 1000.0)
-        dec.housekeeping(1001.0)
-        dec.housekeeping(1601.0)
+        self._sustain(dec, self._clamped, 1000.0, 1605.0)
         self.assertTrue(dec.latched)
         self._healthy(dec, 1610.0)                   # one stray sample
         dec.housekeeping(1611.0)
@@ -510,9 +525,7 @@ class LatchDetectionTests(unittest.TestCase):
     def test_real_clamp_still_latches(self):
         """The genuine signature: array pinned ~1.2 V ABOVE the output."""
         dec = Decoder()
-        self._clamped(dec, 1000.0)
-        dec.housekeeping(1001.0)
-        evs = [e for e in dec.housekeeping(1601.0)
+        evs = [e for e in self._sustain(dec, self._clamped, 1000.0, 1605.0)
                if e["event"] == "mppt_latched"]
         self.assertEqual(len(evs), 1)
 
