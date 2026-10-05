@@ -352,6 +352,31 @@ def render_horizon_bar_chart(by_h: list[dict],
     )
 
 
+# One source of truth — health.py owns this threshold.
+try:
+    from health import WEATHER_STALE_THRESHOLD_S
+except Exception:                      # pragma: no cover
+    WEATHER_STALE_THRESHOLD_S = 3600
+
+
+def _weather_age_s(weather: dict | None) -> float | None:
+    """Age of a weather row in seconds, or None if it carries no timestamp."""
+    if not weather:
+        return None
+    for key in ("ts", "fetched_at", "timestamp", "time"):
+        raw = weather.get(key)
+        if not raw:
+            continue
+        try:
+            t = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if t.tzinfo is not None:
+            t = t.astimezone().replace(tzinfo=None)
+        return (datetime.now() - t).total_seconds()
+    return None
+
+
 def compute_projection(latest_pack: dict, weather: dict | None) -> dict | None:
     """Return {sunrise_iso, hours_to_sunrise, projected_soc_at_sunrise, ...}
     or None if we can't compute (no weather, not discharging, etc.).
@@ -375,9 +400,37 @@ def compute_projection(latest_pack: dict, weather: dict | None) -> dict | None:
     except ValueError:
         return None
     now = datetime.now()
-    if sunrise_dt < now:
-        from datetime import timedelta
+    # REFUSE ON STALE WEATHER. This read the last row of weather.csv with no
+    # age check, and advanced sunrise by EXACTLY ONE DAY — so a forecast more
+    # than ~24 h old left sunrise still in the past, hours_to_sunrise went
+    # NEGATIVE, and the projection moved the wrong way.
+    #
+    # Reproduced with a 3-day-stale row, pack discharging at -6.0 A from 33%:
+    #     rendered   PROJECTED SOC AT SUNRISE (06:12)  100%  in -52h 13m
+    #     truth       -5%  in 20h 13m
+    # The raw value was 177.5%, clamped to 100 — which removed the last tell —
+    # and the colour only reddens below 25%, so the critical case rendered in
+    # the calm style. This is the panel an on-site operator reads to decide
+    # whether to run the generator, and a cabin internet outage is exactly
+    # what makes weather.csv stale.
+    #
+    # health.py already defines WEATHER_STALE_THRESHOLD_S for this; it was
+    # simply never applied here.
+    age_s = _weather_age_s(weather)
+    if age_s is not None and age_s > WEATHER_STALE_THRESHOLD_S:
+        return {"stale": True, "age_s": age_s,
+                "note": f"forecast is {age_s / 3600:.1f} h old — no projection"}
+    from datetime import timedelta
+    # LOOP, do not add exactly one day: a single step cannot reach the future
+    # from an older forecast, which is the bug above. Bounded so a corrupt
+    # timestamp cannot spin.
+    for _ in range(14):
+        if sunrise_dt >= now:
+            break
         sunrise_dt = sunrise_dt + timedelta(days=1)
+    else:
+        return {"stale": True, "age_s": age_s,
+                "note": "sunrise timestamp is implausibly old — no projection"}
     hours_to_sunrise = (sunrise_dt - now).total_seconds() / 3600.0
 
     smoothed_i = latest_pack.get("smoothed_i")
