@@ -803,6 +803,116 @@ def grade_throttle(out: str) -> tuple[bool, list[str]]:
                      f"(historical, not current)")
     return notable, lines
 
+# The pack CSV's steady-state row count: the RS485 logger writes every 5 s, so
+# 86400/5. Measured on the Pi 2026-10-21 — eighteen consecutive days at
+# 17279-17280 rows, which is about as clean a cadence as this gets.
+PACK_ROWS_PER_DAY = 86400 // 5
+# A day below this fraction of steady state lost hours, not minutes. The
+# 70-minute outage of 2026-10-04 cost ~840 rows (to ~16,440), so this is
+# deliberately well clear of a single bad hour — an outage alert that fires on
+# every brief hiccup is one the operator learns to skip.
+PACK_THIN_DAY_FRACTION = 0.5
+
+
+def _check_pack_integrity(out: str) -> tuple[bool, list[str]]:
+    """Is the PRIMARY telemetry spool whole, and physically undamaged?
+
+    TWO SILENT FAILURES IN ONE MONTH, neither noticed by anything:
+
+      2026-10-04  A `git checkout -- data/` on the Pi restored the COMMITTED
+                  data/pack.csv over the live one. The committed copy is a
+                  June truncation (47e60c7 cut 16,715 rows to 2,330), so three
+                  months of local history vanished and the file came back
+                  0644 kaan:users, crash-looping the logger for 70 minutes.
+      2026-10-11  A reboot left a 1753-byte run of NUL bytes mid-file,
+                  unflushed buffered writes. Every tool that parsed the CSV
+                  row-by-row crashed for TEN DAYS.
+
+    Both are invisible to a freshness check, which is all this tool had: the
+    logger keeps appending, so the LAST row stays current while the middle of
+    the file is a hole or a NUL block. "Fresh" and "whole" are different
+    questions and only one of them was being asked.
+
+    Input is the probe below, one `NULS n` line plus one `DAY date rows` line
+    per calendar day. The per-day histogram is what makes the 2026-10-04 case
+    legible: the dates jump straight from 2026-06-30 to 2026-10-04, and no
+    amount of looking at the tail would show that.
+
+    Cheap on purpose — one streaming pass, constant memory, ~1.3 s over 77 MB,
+    and output bounded by the number of days rather than the number of rows.
+    """
+    lines: list[str] = []
+    notable = False
+    nuls: Optional[int] = None
+    days: list[tuple[str, int]] = []
+    for raw in out.strip().splitlines():
+        parts = raw.split()
+        if len(parts) == 2 and parts[0] == "NULS" and parts[1].isdigit():
+            nuls = int(parts[1])
+        elif len(parts) == 3 and parts[0] == "DAY" and parts[2].isdigit():
+            days.append((parts[1], int(parts[2])))
+
+    # AGGREGATE BY DATE FIRST. `uniq -c` collapses only ADJACENT runs, and the
+    # NUL block splits 2026-10-11 into two of them — so the raw probe reports
+    # that date twice (5696 rows, then 1033). Left unaggregated the thin-day
+    # check fires twice for one day and the gap arithmetic sees a zero-length
+    # step between the halves.
+    merged: dict[str, int] = {}
+    for d, n in days:
+        merged[d] = merged.get(d, 0) + n
+    days = sorted(merged.items())
+
+    if nuls is None or not days:
+        notable = True
+        lines.append("  pack integrity  ← UNVERIFIED: probe returned nothing "
+                     "parseable")
+        return notable, lines
+
+    if nuls:
+        notable = True
+        lines.append(f"  pack integrity  ← {nuls} NUL byte(s) in pack.csv — "
+                     f"physical damage, almost certainly unflushed writes "
+                     f"across a reboot. Rows are skipped and counted by "
+                     f"discharge_model, so tools degrade rather than crash, "
+                     f"but the bytes are gone.")
+
+    # A jump between consecutive calendar dates means history is missing from
+    # the MIDDLE of the file, which no tail inspection can reveal.
+    gaps = []
+    for (d_prev, _), (d_next, _) in zip(days, days[1:]):
+        try:
+            a = dt.datetime.strptime(d_prev, "%Y-%m-%d")
+            b = dt.datetime.strptime(d_next, "%Y-%m-%d")
+        except ValueError:
+            continue
+        missing = (b - a).days - 1
+        if missing > 0:
+            gaps.append((d_prev, d_next, missing))
+    if gaps:
+        notable = True
+        for d_prev, d_next, missing in gaps[:4]:
+            lines.append(f"  pack integrity  ← {missing} day(s) MISSING from "
+                         f"pack.csv between {d_prev} and {d_next}. The file "
+                         f"was truncated or restored over; the cloud archive "
+                         f"is canonical.")
+
+    # Thin days: present but far short of the cadence. Skip the first and last,
+    # which are legitimately partial (start of record, today in progress).
+    thin = [(d, n) for d, n in days[1:-1]
+            if n < PACK_ROWS_PER_DAY * PACK_THIN_DAY_FRACTION]
+    if thin:
+        notable = True
+        for d, n in thin[:4]:
+            lines.append(f"  pack integrity  ← {d} has only {n} rows "
+                         f"(expected ~{PACK_ROWS_PER_DAY}) — hours of "
+                         f"telemetry absent from the local file")
+
+    if not notable:
+        lines.append(f"  pack integrity  {len(days)} day(s) contiguous, no NUL "
+                     f"bytes, no thin days — spool is whole")
+    return notable, lines
+
+
 def _check_data_perms(out: str) -> tuple[bool, list[str]]:
     """Flag any file in data/ that the services cannot write.
 
@@ -1114,6 +1224,27 @@ def section_pi(ssh_target: str, hours: int) -> tuple[bool, list[str]]:
         pn, pl = _check_data_perms(pout)
         notable |= pn
         lines += pl
+
+    # --- is the primary spool WHOLE, not merely fresh? ---
+    pack_probe = (
+        'cd /srv/volthium_reader && '
+        'printf "NULS %s\\n" "$(tr -dc \'\\000\' < data/pack.csv | wc -c)" && '
+        'cut -d, -f1 data/pack.csv | cut -dT -f1 | uniq -c '
+        '| awk \'$2 ~ /^[0-9][0-9][0-9][0-9]-/ {print "DAY", $2, $1}\''
+    )
+    try:
+        kout = subprocess.check_output(
+            ["ssh", ssh_target, "-o", "ConnectTimeout=8", pack_probe],
+            timeout=90, text=True,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
+            OSError) as exc:
+        notable = True
+        lines.append(f"  ← pack integrity UNVERIFIED: {exc}")
+    else:
+        kn, kl = _check_pack_integrity(kout)
+        notable |= kn
+        lines += kl
 
     services = _parse_units(out)
     if not services:
