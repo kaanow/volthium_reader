@@ -61,16 +61,117 @@ def _f(v: str) -> Optional[float]:
         return None
 
 
-def load(path: Path) -> list[Sample]:
-    out = []
-    with path.open() as f:
-        for r in csv.DictReader(f):
+@dataclass
+class LoadStats:
+    """What the last load() actually managed to read.
+
+    Exposed because a skip counter nobody can read is how this codebase has
+    repeatedly turned a broken input into a quiet one — see the decoder's
+    rejection counters, which were incremented and never surfaced.
+    """
+    rows: int = 0
+    parsed: int = 0
+    skipped_bad_ts: int = 0
+    skipped_missing: int = 0
+    nul_lines: int = 0
+
+    @property
+    def skipped(self) -> int:
+        return self.skipped_bad_ts + self.skipped_missing
+
+
+# Updated by every load(). Read it instead of assuming the file was clean.
+LAST_LOAD = LoadStats()
+
+
+def _count_nuls(lines):
+    """Count NUL-bearing lines. Deliberately does NOT strip them.
+
+    I first wrote this to strip NULs, on the belief that Python's csv module
+    raises `_csv.Error: line contains NUL`. It does not — measured on 3.11,
+    csv parses such a line happily and hands it on, which is exactly how the
+    production failure surfaced as `ValueError: Invalid isoformat string` from
+    fromisoformat rather than as a csv error. The test I wrote to pin the
+    stripping behaviour is what disproved the premise.
+
+    Stripping is also the wrong thing to want. The torn row is
+    `<1753 NULs>2026-10-11T07:54:38-07:00`; remove the NULs and it becomes a
+    VALID timestamp, so the row would be silently resurrected from damaged
+    bytes with its other fields gone. Reconstructing data that was never
+    written is worse than dropping it — a row destroyed by an unflushed
+    reboot should be skipped and counted, not repaired by coincidence.
+
+    So the NULs stay, the timestamp stays unparseable, the row is skipped, and
+    the count tells the operator this file has PHYSICAL damage rather than a
+    formatting typo.
+    """
+    for line in lines:
+        if "\x00" in line:
+            LAST_LOAD.nul_lines += 1
+        yield line
+
+
+def load(path: Path, *, quiet: bool = False) -> list[Sample]:
+    """Parseable samples from a pack CSV. Unparseable rows are SKIPPED.
+
+    WHY THIS TOLERATES DAMAGE. Until 2026-10-21 this did
+    `datetime.fromisoformat(r["ts"])` with no guard, so a single malformed row
+    raised and took down every caller. On 2026-10-11 the Pi rebooted and left
+    a 1753-byte run of NUL bytes in data/pack.csv — buffered writes that were
+    never flushed, ending mid-row at 2026-10-11T07:54:38. From that moment
+    generator_advisor crashed on startup:
+
+        ValueError: Invalid isoformat string: '\\x00\\x00\\x00...'
+
+    It stayed broken for TEN DAYS and nothing noticed, because the failure was
+    a traceback on a tool nobody was running rather than a wrong number on a
+    page someone reads. The cloud record was complete the whole time — only
+    the local copy was scuffed, and only 1753 bytes of a 77 MB file.
+
+    Losing a handful of samples out of 296,000 changes no model. Losing every
+    local analysis tool because of them is the actual damage, and it is the
+    same crash-instead-of-degrade shape fixed elsewhere this month.
+
+    Skips are COUNTED and, by default, reported to stderr — a silent skip
+    would just move the failure from loud to invisible, which is worse. Read
+    `discharge_model.LAST_LOAD` for the breakdown.
+
+    Raises only when NOTHING parsed: a model fitted on zero samples is not a
+    degraded answer, it is no answer, and the caller must not mistake it for
+    one.
+    """
+    global LAST_LOAD
+    LAST_LOAD = LoadStats()
+    out: list[Sample] = []
+    with path.open(errors="replace") as f:
+        for r in csv.DictReader(_count_nuls(f)):
+            LAST_LOAD.rows += 1
+            ts_raw = (r.get("ts") or "").strip()
+            if not ts_raw or r.get("state") is None:
+                LAST_LOAD.skipped_missing += 1
+                continue
+            try:
+                ts = datetime.fromisoformat(ts_raw)
+            except ValueError:
+                LAST_LOAD.skipped_bad_ts += 1
+                continue
             out.append(Sample(
-                ts=datetime.fromisoformat(r["ts"]),
+                ts=ts,
                 state=r["state"],
-                pack_i=_f(r["pack_i"]),
-                smoothed_i=_f(r["smoothed_i"]),
+                pack_i=_f(r.get("pack_i") or ""),
+                smoothed_i=_f(r.get("smoothed_i") or ""),
             ))
+    LAST_LOAD.parsed = len(out)
+    if LAST_LOAD.skipped and not quiet:
+        print(f"[discharge_model] skipped {LAST_LOAD.skipped} unparseable row(s) "
+              f"of {LAST_LOAD.rows} in {path} "
+              f"(bad ts {LAST_LOAD.skipped_bad_ts}, missing fields "
+              f"{LAST_LOAD.skipped_missing}, NUL-bearing lines "
+              f"{LAST_LOAD.nul_lines})", file=sys.stderr)
+    if not out:
+        raise ValueError(
+            f"{path}: no parseable rows out of {LAST_LOAD.rows} — refusing to "
+            f"return an empty sample set that would fit a model on nothing")
     return out
 
 
