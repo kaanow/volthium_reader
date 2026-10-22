@@ -11,91 +11,76 @@ last 900 readings.
 
 ---
 
-## P0 — ready to ship, verified, NOT yet installed
+## P0 — DONE 2026-10-21
 
-### 1. Install the weather fetch timer on the Pi
+1. ~~Install the weather fetch timer~~ **DONE.** `volthium-weather.timer` is
+   installed, enabled, and firing every 30 min. First fetch wrote a live row
+   (`T=7.4 °C, cloud 97%, 2702.8 Wh/m²`) and the file stayed `claude:users
+   0664`. Also added to `deploy/pi/install.sh` — a hand-install would have
+   vanished on the next rebuild, which `test_install_completeness` caught.
+   That test had been RED since `7a0242b`; the "1176 tests pass" in that
+   commit message came from a run made before it.
+2. ~~`docs/STATUS.md` claims a service that does not exist~~ **DONE.** Now
+   describes the real timer and records what it used to claim.
 
-**Nothing on the Pi has ever fetched weather.** No service, no timer, no cron
-entry. `data/weather.csv` is a git-tracked fixture frozen at its last row of
-**2026-05-19** — 139 days stale at discovery.
+**Plus one that was not on the list and blocked everything:** the advisor was
+not merely dark, it was CRASHING. `discharge_model.load()` died on the NUL
+bytes (below), at a line that runs *before* the weather guard — so installing
+the timer alone would have left it dead while I reported P0 done. Fixed in
+`3fd91a7`: unparseable rows are skipped and counted, with a stderr report, and
+`load()` raises only when nothing at all parsed.
 
-Found by the staleness guard added the same day (`d2ff683`), which refused on
-real data:
-
-```
-forecast is 3327.6 h old (limit 1.0 h) — refusing to advise.
-```
-
-Before that guard the advisor simulated 24 h of darkness and recommended
-running the generator. That failure was **live since May**.
-
-- Units are written and committed-ready: `deploy/pi/systemd/volthium-weather.service`
-  and `.timer` (oneshot + 30 min timer, `UMask=0002`, `MemoryMax=80M`,
-  `OOMScoreAdjust=500`, `Persistent=true`).
-- A bounded one-shot fetch is **verified working from the Pi**: `T=9.4 °C,
-  cloud=38%, irr=24.0 W/m², day_total=3713.9 Wh/m², sunrise 07:11` — the
-  sunrise matching that morning's observed behaviour.
-- Chose a timer over `weather.py --loop` deliberately: a long-lived process on
-  a 1 GB Pi is memory-creep risk for no benefit when systemd already has a
-  scheduler, and a timer self-recovers where a crashed loop stays dead.
-
-**Until this is installed, my staleness guards permanently refuse** — the
-generator advisor and the dashboard's sunrise projection stay dark. The guards
-are correct; the input is missing.
-
-Steps: `install -m 644` both units, `daemon-reload`, `enable --now` the timer,
-confirm one fire writes a fresh row, then re-run `generator_advisor` and
-confirm it produces a real recommendation instead of the refusal.
-
-### 2. `docs/STATUS.md` claims a service that does not exist
-
-Lines 59–60:
-
-```
-- **Weather**: `scripts/weather.py` looping every 30 min. Writes
-  `data/weather.csv`.
-```
-
-False, and it is why nobody noticed for four months. Correct it when item 1
-lands, so the doc describes the timer that actually exists.
+Verified end to end on the Pi: skips 2 rows of 296,410, reaches the forecast,
+and answers `no generator needed — projected low 70 % stays above the 25 %
+comfort floor`, with `solar_source: tomorrow_forecast` (that branch only runs
+on a fresh forecast, so it exercises the whole chain).
 
 ---
 
-## P1 — a footgun that already fired once
+## P1 — detector DONE, the tracking decision still open
 
-### 3. `git checkout -- data/` on the Pi destroys live telemetry
+3. ~~Nothing notices the spool shrinking or corrupting~~ **DETECTOR DONE**
+   (`10be24d`). `status_check --with-pi` now reports NUL bytes, calendar days
+   missing between present dates, and days short of the 17,280-row cadence.
+   One streaming pass, ~1.3 s over 77 MB. It immediately reported all three
+   real faults.
 
-`.gitignore` documents that `data/` is **committed on purpose** ("so each
-autonomous-loop push keeps the cabin's data"). But commit `47e60c7` (2026-06-30
-16:43, "WIP: BLE event/health logging…") truncated `data/pack.csv` from 16,715
-rows to **2,330** — the June file. Its committed size matches **byte-for-byte**
-what appeared on the Pi at 20:16:43 on 2026-10-04.
+4. **Still open: whether `data/` should be git-tracked at all.** The hazard is
+   unchanged — the committed `pack.csv` is a June truncation, so any
+   `git checkout/restore/reset` of `data/` on the Pi overwrites live telemetry
+   and re-arms the ownership trap. Now more pressing: `pack.csv` is **77 MB
+   and growing 4.8 MB/day** as a tracked file. Changing this touches the
+   autonomous-loop convention documented in `.gitignore`, so it deserves its
+   own decision.
 
-So any command that restores tracked files from the index on the Pi —
-`git checkout -- data/`, `git restore data/` — overwrites the live telemetry
-spool with a four-month-old snapshot **and** re-arms the ownership trap (the
-file comes back owned by whoever ran it, 0644, locking out the `claude`
-services). That is what cost 70 minutes of telemetry and the Pi's Jul–Oct local
-history.
+---
 
-I use `git checkout -- data/` routinely on the laptop to discard generated
-files. The habit is safe there and destructive on the Pi.
+## P1.5 — NEW, and it is the root cause: the Pi is browning out
 
-- [ ] Finish the proof: append a row locally, run `git checkout -- data/`,
-      confirm the row vanishes. (Bash was unavailable when I tried; the file
-      sizes already match exactly.)
-- [ ] Then pick a guard. Options, roughly in order of preference:
-      - stop tracking the genuinely-live files (`pack.csv`, `weather.csv`, the
-        `*_log.csv` set) and keep a seed/archive copy under a different name —
-        cleanest, but changes the autonomous-loop convention in `.gitignore`,
-        so it is a real decision rather than a tidy-up;
-      - a `status_check` detector for `pack.csv` **losing rows or going
-        backwards in time** — cheap, catches every mechanism including ones I
-        have not thought of, and fits the existing "assert the property, don't
-        trust the mechanism" pattern;
-      - a documented hard rule plus never running the command over SSH.
-- [ ] Whichever is chosen, the detector is worth having regardless: nothing
-      currently notices that the primary spool shrank.
+**`vcgencmd get_throttled` returns `0x50000`** — bit 16 **under-voltage has
+occurred**, bit 18 throttling has occurred. It read `0x0` on 2026-10-05, so
+this is new.
+
+The boot record shows **two unclean reboots on 2026-10-11**, at 07:55:05 and
+09:32:34. Neither was the weekly timer (its last trigger is 2026-10-04
+04:00:10). Both previous boots end mid-sentence in normal uploader output with
+no shutdown sequence, and the current boot logged an ext4 journal recovery.
+The cloud shows a matching 11.6-minute gap at 14:55Z→15:06Z.
+
+That is a power problem at the cabin, and it is what wrote the NUL bytes:
+buffered writes lost when the board lost power. The telemetry record itself is
+intact in the cloud.
+
+Open questions, none of them answerable from here:
+- What is feeding the Pi, and did the supply sag or the source dip? SOC was
+  57–65 % around 2026-10-05, the low point of a thin solar week.
+- Is this recurring, or a one-off? The flags are "since boot", so all that is
+  certain is that it happened in the last ten days.
+- Worth a longer-term watch: nothing currently alerts on `get_throttled`
+  changing, which is why a brownout ten days ago surfaced only by accident.
+
+The two consequences are already contained — tools degrade instead of
+crashing, and the detector reports the damage — but the cause is untouched.
 
 ---
 
