@@ -1,13 +1,17 @@
-# Open items — as of 2026-10-05
+# Open items — updated 2026-10-21
 
-Written at the end of the 2026-10-04/05 session. Everything here is either
-**verified open** (with the evidence beside it) or **explicitly waiting on an
-operator decision**. Items I closed in that session are listed at the bottom so
-this file can be read as the whole picture rather than a fragment.
+Everything here is either **verified open** (with the evidence beside it) or
+**explicitly waiting on an operator decision**. Items closed in the
+2026-10-04/05 session are listed at the bottom so this file reads as the whole
+picture rather than a fragment.
 
-State at write time: local / Pi / Railway all at `1687d31`, clean tree, 1176
-tests pass, 7/7 Pi services active, telemetry 0.1 min old with zero gaps in the
-last 900 readings.
+State at write time: local / Pi all at `6f30a81`, clean tree, 1200 tests pass,
+7/7 Pi services active, telemetry 0.1 min old with zero gaps in the last 900
+readings, SOC 93/84, harvest steady at ~1.2 kWh/day for the past week.
+
+Originally written 2026-10-05 at `1687d31`. P0 and P1's detector were closed
+on 2026-10-21, and that work surfaced the brownout in P1.5 — which is now the
+most important thing on the list.
 
 ---
 
