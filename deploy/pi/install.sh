@@ -35,6 +35,13 @@ install -m 0644 "$HERE/systemd/volthium-dashboard.service"       "$SYSD/"
 # would have lost it silently. Captured from the live unit 2026-08-15.
 install -m 0644 "$HERE/systemd/volthium-weekly-reboot.service"   "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-weekly-reboot.timer"     "$SYSD/"
+# Weather/irradiance fetch. Was running NOWHERE while docs/STATUS.md claimed
+# "scripts/weather.py looping every 30 min" — no service, no timer, no cron,
+# and data/weather.csv a git-tracked fixture frozen at 2026-05-19. Found
+# 2026-10-21 when the staleness guard refused at 3726 h old. Every consumer of
+# the forecast had been reading a five-month-old sky.
+install -m 0644 "$HERE/systemd/volthium-weather.service"          "$SYSD/"
+install -m 0644 "$HERE/systemd/volthium-weather.timer"            "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-usb-keepawake.service"    "$SYSD/"
 install -m 0644 "$HERE/systemd/volthium-usb-keepawake.timer"      "$SYSD/"
 install -m 0755 "$HERE/bin/volthium-usb-keepawake.sh"             /usr/local/bin/
@@ -82,7 +89,8 @@ systemctl enable volthium-rs485-logger volthium-xanbus-capture \
     volthium-modbus-poll volthium-uploader volthium-events-uploader \
     volthium-xanbus-telemetry volthium-dashboard \
     volthium-latch-guard.timer volthium-config-watch.timer \
-    volthium-usb-keepawake.timer volthium-weekly-reboot.timer
+    volthium-usb-keepawake.timer volthium-weekly-reboot.timer \
+    volthium-weather.timer
 # BLE logger is the dormant fallback — present but must NOT auto-start
 # (Conflicts= with the RS485 logger; run exactly one).
 systemctl disable volthium-logger 2>/dev/null || true

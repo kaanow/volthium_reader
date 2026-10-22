@@ -56,8 +56,13 @@ times — it's idempotent.
   `data/pack.log`. Backs off + retries on BLE flaps.
 - **Dashboard**: `scripts/dashboard.py --port 8421 --host 0.0.0.0`.
   LAN-visible; survives Claude Code restarts.
-- **Weather**: `scripts/weather.py` looping every 30 min. Writes
-  `data/weather.csv`.
+- **Weather**: `volthium-weather.timer` runs `scripts/weather.py` every
+  30 min (oneshot, not a loop). Writes `data/weather.csv`.
+  CORRECTED 2026-10-21: this line previously claimed "`scripts/weather.py`
+  looping every 30 min" and NOTHING RAN IT — no service, no timer, no cron
+  entry. `data/weather.csv` was a git-tracked fixture frozen at its last row
+  of 2026-05-19, so every consumer of the forecast read a five-month-old sky.
+  The doc asserting a running service is why nobody checked for one.
 
 (PIDs drift across restarts — check `ps aux | grep volthium` if you need
 them. The `.app` launcher is the supported way to (re)start everything.)
